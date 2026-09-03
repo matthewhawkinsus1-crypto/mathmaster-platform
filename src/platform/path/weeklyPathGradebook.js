@@ -84,7 +84,7 @@ export const syncReadiness = ({
   if (!weekComplete) {
     return {
       state: SYNC_STATE.NOT_READY,
-      reason: 'The week is not over. Grades can be published early, but a student who finishes on Friday would be graded on Wednesday’s work.',
+      reason: 'The week is not over. Grades can be published early, but a student who finishes on Sunday would be graded on Wednesday’s work.',
     };
   }
   if (!list(rows).length) {

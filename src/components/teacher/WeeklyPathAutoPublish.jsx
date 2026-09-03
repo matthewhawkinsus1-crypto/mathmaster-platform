@@ -100,9 +100,9 @@ export default function WeeklyPathAutoPublish({ classId = null, weekKey = null }
       <h3 style={{ margin: 0, fontSize: 16 }}>Publish weekly Path grades to Google Classroom</h3>
       <p style={{ ...MUTED, margin: '6px 0 12px' }}>
         When this is on, MathMaster posts one Math Path assignment per week to this class&apos;s
-        Google Classroom course and grades it automatically on Saturday morning, after Friday&apos;s
-        deadline. It never overwrites a grade you changed yourself, and it never publishes a grade
-        for a student it could not actually score.
+        Google Classroom course and grades it automatically on Monday morning, after the week
+        closes at midnight Sunday night. It never overwrites a grade you changed yourself, and it
+        never publishes a grade for a student it could not actually score.
       </p>
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>

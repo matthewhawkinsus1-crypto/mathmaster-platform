@@ -26,13 +26,23 @@ test('automatic publishing is off until a human turns it on for that class', () 
 });
 
 test('the schedule runs after the deadline, not before it', () => {
-  // A student finishing at 11pm on the due date must have that count, and a job
-  // running before the week is really over publishes a grade the student could
-  // still have changed.
-  const scheduled = blockAfter(functionsIndex, 'exports.publishWeeklyPathGrades', 700);
-  assert.match(scheduled, /schedule: "0 8 \* \* 6"/);
+  // The week closes at midnight Sunday night, so the job runs Monday morning.
+  // A student finishing at 11pm Sunday must have that count, and a job running
+  // before the week is really over publishes a grade the student could still
+  // have changed.
+  const scheduled = blockAfter(functionsIndex, 'exports.publishWeeklyPathGrades', 800);
+  assert.match(scheduled, /schedule: "0 7 \* \* 1"/);
   assert.match(scheduled, /timeZone: "America\/Chicago"/);
   assert.match(scheduled, /invoker: "private"/);
+});
+
+test('the completion query reaches past the UTC week boundary to catch Sunday night', () => {
+  // The week closes at local midnight, which is early Monday in UTC. A window
+  // that stopped at the UTC boundary would silently drop every session finished
+  // on Sunday evening — the busiest hours of a Sunday-night deadline.
+  const loader = blockAfter(functionsIndex, 'async function loadWeeklyPathClassWeek', 1400);
+  assert.match(loader, /weekStart \+ \(8 \* 24 \* 60 \* 60 \* 1000\)/);
+  assert.doesNotMatch(loader, /weekStart \+ \(7 \* 24 \* 60 \* 60 \* 1000\)/);
 });
 
 test('the job grades the week that ended, using the same weekKeyFor students got', () => {

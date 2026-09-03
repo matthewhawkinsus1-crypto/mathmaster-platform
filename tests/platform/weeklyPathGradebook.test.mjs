@@ -116,7 +116,7 @@ test('an unfinished week is not ready, and says why in a teacher’s terms', () 
     weekComplete: false, classroomLinked: true,
   });
   assert.equal(readiness.state, SYNC_STATE.NOT_READY);
-  assert.match(readiness.reason, /finishes on Friday would be graded on Wednesday/);
+  assert.match(readiness.reason, /finishes on Sunday would be graded on Wednesday/);
 });
 
 test('an unlinked class is not ready, and the reason is not phrased as an error', () => {

@@ -7285,7 +7285,13 @@ exports.setWeeklyPathClassroomSync = onCall(async (request) => {
 async function loadWeeklyPathClassWeek(db, { classId, weekKey }) {
   const weekStart = Date.parse(`${weekKey}T00:00:00Z`);
   if (!Number.isFinite(weekStart)) throw new HttpsError("invalid-argument", "weekKey must be YYYY-MM-DD.");
-  const weekEnd = weekStart + (7 * 24 * 60 * 60 * 1000);
+  // One extra day past the UTC week boundary. The week closes at midnight in
+  // the school's own timezone, which is early Monday in UTC, so a window that
+  // stopped at the UTC boundary would silently drop every session finished on
+  // Sunday evening — the busiest hours of a Sunday-night deadline. Sessions
+  // pulled in from the next week cannot be miscounted: matching is by frozen
+  // slot key and weekKey, not by timestamp.
+  const weekEnd = weekStart + (8 * 24 * 60 * 60 * 1000);
 
   const roster = await db.collection("grades").where("classId", "==", classId).get();
   const students = roster.docs
@@ -7444,14 +7450,15 @@ exports.runWeeklyPathClassroomSyncNow = onCall({
 });
 
 /**
- * Saturday morning, after Friday's deadline.
+ * Monday morning, after the week closes at midnight Sunday night.
  *
- * Deliberately not Friday night: a student finishing at 11pm on the due date
+ * Deliberately not Sunday evening: a student finishing at 11pm on the due date
  * should have that count, and a job that runs before the week is really over
- * publishes a grade the student could still have changed.
+ * publishes a grade the student could still have changed. Monday morning also
+ * means a teacher sees the week's grades before first period.
  */
 exports.publishWeeklyPathGrades = onSchedule({
-  schedule: "0 8 * * 6",
+  schedule: "0 7 * * 1",
   timeZone: "America/Chicago",
   secrets: GOOGLE_API_SECRETS,
   timeoutSeconds: 540,
@@ -7471,6 +7478,7 @@ exports.publishWeeklyPathGrades = onSchedule({
   const now = Date.now();
   const { weekKeyFor } = await import("./shared/weeklyPathGrade.mjs");
   const weekKey = weekKeyFor(now - 3 * 24 * 60 * 60 * 1000);
+  logger.info("Weekly Path grade publishing starting", { weekKey, classes: enabledClasses.size });
 
   for (const classDoc of enabledClasses.docs) {
     const classId = classDoc.id;

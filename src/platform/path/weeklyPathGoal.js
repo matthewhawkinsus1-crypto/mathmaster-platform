@@ -124,9 +124,10 @@ export const normalizeWeeklyGoalConfig = (config = {}, { honors = false } = {}) 
     ccmrExpectation,
     framework: oneOf(config?.framework, FRAMEWORK, FRAMEWORK.AUTO),
     pinnedSkills: list(config?.pinnedSkills).map(String),
-    // Day of week the goal is due, 0 = Sunday. Friday by default.
+    // Day of week the goal is due, 0 = Sunday. The week runs Monday to Sunday
+    // and ends at midnight Sunday night, so a student has the whole weekend.
     dueDayOfWeek: Number.isFinite(Number(config?.dueDayOfWeek))
-      ? clamp(Math.round(Number(config.dueDayOfWeek)), 0, 6) : 5,
+      ? clamp(Math.round(Number(config.dueDayOfWeek)), 0, 6) : 0,
     weekStartsOn: Number.isFinite(Number(config?.weekStartsOn))
       ? clamp(Math.round(Number(config.weekStartsOn)), 0, 6) : 1,
     interventionMode: Boolean(config?.interventionMode),
@@ -143,12 +144,74 @@ export const normalizeWeeklyGoalConfig = (config = {}, { honors = false } = {}) 
  */
 
 /** When this week's goal is due, in real milliseconds. */
-export const dueAtFor = (now = Date.now(), { weekStartsOn = 1, dueDayOfWeek = 5 } = {}) => {
+// The week ends at midnight where the students are, not at midnight UTC.
+//
+// This used to add (DAY - 1) to a UTC day boundary. With a Friday deadline that
+// was merely a few hours early; with a Sunday-night deadline it is actively
+// wrong — Sunday 23:59 UTC is Sunday 6:59pm in Central time, so every student
+// working Sunday evening would have been marked late for finishing before
+// midnight. A deadline that decides whether work counts has to be the deadline
+// the student was told about.
+export const WEEK_TIME_ZONE = 'America/Chicago';
+
+// How far the named zone sits from UTC at a given instant. Read from Intl rather
+// than hardcoded, because a fixed offset is wrong for half the year: Central is
+// UTC-5 in daylight time and UTC-6 in standard time.
+const zoneOffsetMs = (utcMs, timeZone) => {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hour12: false,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    // Intl reports whole seconds only. Comparing a wall time with no
+    // milliseconds against an instant that has them folds those milliseconds
+    // into the offset and pushes the deadline a second past midnight.
+    const base = Math.floor(utcMs / 1000) * 1000;
+    const parts = {};
+    for (const part of formatter.formatToParts(new Date(base))) {
+      if (part.type !== 'literal') parts[part.type] = part.value;
+    }
+    const wall = Date.UTC(
+      Number(parts.year),
+      Number(parts.month) - 1,
+      Number(parts.day),
+      Number(parts.hour) % 24,
+      Number(parts.minute),
+      Number(parts.second),
+    );
+    return wall - base;
+  } catch {
+    // An environment without full ICU must still produce a usable deadline.
+    return 0;
+  }
+};
+
+// The instant at which a given local calendar day ends.
+const endOfLocalDayUtc = (year, monthIndex, day, timeZone) => {
+  const wall = Date.UTC(year, monthIndex, day, 23, 59, 59, 999);
+  // Two passes: the first offset is read at the wrong instant when the guess
+  // lands on the far side of a daylight-saving change, the second corrects it.
+  const first = wall - zoneOffsetMs(wall, timeZone);
+  return wall - zoneOffsetMs(first, timeZone);
+};
+
+export const dueAtFor = (now = Date.now(), {
+  weekStartsOn = 1,
+  dueDayOfWeek = 0,
+  timeZone = WEEK_TIME_ZONE,
+} = {}) => {
   const key = weekKeyFor(now, weekStartsOn);
   const start = Date.parse(`${key}T00:00:00Z`);
   const offset = (dueDayOfWeek - weekStartsOn + 7) % 7;
-  // End of the due day, not the start of it.
-  return start + offset * DAY + (DAY - 1);
+  const dueDay = new Date(start + offset * DAY);
+  // End of the due day where the student is, not the start of it.
+  return endOfLocalDayUtc(dueDay.getUTCFullYear(), dueDay.getUTCMonth(), dueDay.getUTCDate(), timeZone);
 };
 
 /**
