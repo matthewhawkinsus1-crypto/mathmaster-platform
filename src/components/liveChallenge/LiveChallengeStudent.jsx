@@ -91,7 +91,26 @@ function FieldQuestion({ question, disabled, onSubmit }) {
   );
 }
 
-function ChallengeRound({ room, alias, playerKey, leaderboard, studentProfile, onResult }) {
+/*
+ * Exported so a teacher's dry run plays the same round a student plays.
+ *
+ * `submitResponse` is injectable for that reason and no other: a rehearsal is
+ * graded by a callable that writes nothing, while a game is graded by the one
+ * that scores. Everything else — the countdown, the question renderer, the
+ * result panel, the disabled states — is shared, because a rehearsal that used
+ * a lookalike would reassure a teacher about something students never see.
+ */
+export function ChallengeRound({
+  room,
+  alias,
+  playerKey,
+  leaderboard,
+  studentProfile,
+  onResult,
+  submitResponse = submitLiveChallengeResponse,
+  showLeaderboard = true,
+  beforeQuestion = null,
+}) {
   const question = room.currentQuestion;
   const roundIndex = Number(room.currentRound) || 0;
   const now = useNow(true);
@@ -113,7 +132,7 @@ function ChallengeRound({ room, alias, playerKey, leaderboard, studentProfile, o
     if (result || expired) return null;
     setSubmitError('');
     try {
-      const grading = await submitLiveChallengeResponse({ roomId: room.roomId, roundIndex, responsePayload });
+      const grading = await submitResponse({ roomId: room.roomId, roundIndex, responsePayload });
       setResult(grading);
       onResult?.(grading);
       return {
@@ -136,6 +155,7 @@ function ChallengeRound({ room, alias, playerKey, leaderboard, studentProfile, o
 
   return (
     <div style={{ display: 'grid', gap: 14 }}>
+      {beforeQuestion}
       <section style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap', padding: '14px 17px', borderRadius: 12, background: remainingMs <= 10000 ? '#fce8e6' : '#e8f0fe', color: remainingMs <= 10000 ? '#a50e0e' : '#174ea6' }}>
         <div><strong>Round {roundIndex + 1} of {room.roundCount}</strong><div style={{ marginTop: 3, fontSize: 13 }}>{question?.teksCode || 'Mixed review'} · {alias}</div></div>
         <div style={{ fontSize: 32, fontWeight: 1000 }}>{formatClock(remainingMs)}</div>
@@ -191,10 +211,12 @@ function ChallengeRound({ room, alias, playerKey, leaderboard, studentProfile, o
         </section>
       )}
 
-      <section style={{ padding: 16, borderRadius: 12, background: '#fff', border: '1px solid #d8dde6', textAlign: 'left' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}><strong>Top 5</strong>{currentSelf && <span style={{ color: '#5f6368', fontSize: 13 }}>You: #{currentSelf.rank} · {currentSelf.score.toLocaleString()}</span>}</div>
-        <MiniLeaderboard rows={leaderboard} playerKey={playerKey} />
-      </section>
+      {showLeaderboard && (
+        <section style={{ padding: 16, borderRadius: 12, background: '#fff', border: '1px solid #d8dde6', textAlign: 'left' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}><strong>Top 5</strong>{currentSelf && <span style={{ color: '#5f6368', fontSize: 13 }}>You: #{currentSelf.rank} · {currentSelf.score.toLocaleString()}</span>}</div>
+          <MiniLeaderboard rows={leaderboard} playerKey={playerKey} />
+        </section>
+      )}
     </div>
   );
 }

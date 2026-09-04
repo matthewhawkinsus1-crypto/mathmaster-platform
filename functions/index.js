@@ -6246,6 +6246,7 @@ async function liveChallengeEvidenceRules() {
 const MIXED_CANDIDATE_PAGE = 300;
 const STANDARD_CANDIDATE_PAGE = 100;
 
+const LIVE_CHALLENGE_DRY_RUNS = "liveChallengeDryRuns";
 const LIVE_CHALLENGE_ROOMS = "liveChallengeRooms";
 const LIVE_CHALLENGE_REPORTS = "liveChallengeReports";
 const LIVE_CHALLENGE_PRIVATE = "liveChallengePrivate";
@@ -6624,6 +6625,168 @@ async function deletePrivateChallengeState(db, privateRef, players = []) {
     logger.warn(`Live Challenge private cleanup failed for ${privateRef.id}.`, error);
   }
 }
+
+/*
+ * A TEACHER PLAYING THEIR OWN CHALLENGE BEFORE A CLASS DOES.
+ *
+ * Launching a Live Challenge used to be blind: the first time anyone saw the
+ * questions was when twenty-four students did, under a timer, with no way back.
+ * The point of a dry run is not seeing the interface — it is QUESTION REVIEW.
+ * Drawing from the whole bank makes what comes up genuinely less predictable,
+ * and nothing yet stops a mixed game serving a DOK-3 modelling question as
+ * round 1 under a 45-second clock. This is the cheapest place to catch that.
+ *
+ * It is deliberately not a room. No roster is loaded, no invite is written, no
+ * player documents exist, no report is produced and no mastery evidence is
+ * recorded. A dry run cannot be joined, cannot be seen by a student, and leaves
+ * nothing attached to anybody's record. The only state is one teacher-scoped
+ * document holding the question ids, which exists so that grading resolves on
+ * the server rather than trusting whatever the browser sends back.
+ *
+ * The questions, the instantiation seed, the issuability gate and the grader are
+ * all the same code the real game uses. A dry run that used a parallel path
+ * would reassure a teacher about something students never see.
+ */
+async function requireOwnedDryRun(db, request, dryRunId) {
+  await requireTeacher(request);
+  const teacherEmail = callerEmail(request);
+  if (!teacherEmail) throw new HttpsError("permission-denied", "A verified teacher email is required.");
+  const ref = db.collection(LIVE_CHALLENGE_DRY_RUNS).doc(String(dryRunId || "").trim());
+  const snapshot = await ref.get();
+  if (!snapshot.exists) throw new HttpsError("not-found", "That dry run no longer exists.");
+  const dryRun = snapshot.data() || {};
+  if (dryRun.teacherEmail !== teacherEmail && !authLib.isRootAdminEmail(teacherEmail)) {
+    throw new HttpsError("permission-denied", "You can only open your own dry run.");
+  }
+  return { teacherEmail, ref, dryRun };
+}
+
+exports.createChallengeDryRun = onCall(async (request) => {
+  await requireTeacher(request);
+  const teacherEmail = callerEmail(request);
+  if (!teacherEmail) throw new HttpsError("permission-denied", "A verified teacher email is required.");
+  const db = getFirestore();
+  const challenge = await liveChallengeRules();
+
+  const courseId = challengeCourseId(request.data?.courseId);
+  const standardCode = challenge.canonicalChallengeStandard(request.data?.standardCode || "mixed");
+  const requestedRoundCount = challenge.normalizeRoundCount(request.data?.roundCount);
+  const roundSeconds = challenge.normalizeRoundSeconds(request.data?.roundSeconds);
+
+  const candidates = await loadChallengeCandidates(db, { courseId, standardCode });
+  if (candidates.length < challenge.MIN_ROUND_COUNT) {
+    throw new HttpsError(
+      "failed-precondition",
+      `That selection has only ${candidates.length} securely gradeable questions. At least ${challenge.MIN_ROUND_COUNT} are required.`,
+    );
+  }
+  const selected = selectChallengeQuestions(candidates, requestedRoundCount);
+  const questionIds = selected.map((entry) => entry.question.id);
+
+  const ref = db.collection(LIVE_CHALLENGE_DRY_RUNS).doc();
+  await ref.set({
+    schemaVersion: 1,
+    teacherEmail,
+    courseId,
+    standardCode,
+    roundSeconds,
+    questionIds,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  const rounds = await Promise.all(questionIds.map(async (questionId, roundIndex) => ({
+    roundIndex,
+    question: await buildLiveChallengePublicQuestion(db, { roomId: ref.id, roundIndex, questionId }),
+  })));
+
+  return { dryRunId: ref.id, courseId, standardCode, roundSeconds, roundCount: rounds.length, rounds };
+});
+
+exports.swapChallengeDryRunRound = onCall(async (request) => {
+  const db = getFirestore();
+  const roundIndex = Number(request.data?.roundIndex);
+  if (!Number.isInteger(roundIndex) || roundIndex < 0) throw new HttpsError("invalid-argument", "roundIndex is required.");
+  const { ref, dryRun } = await requireOwnedDryRun(db, request, request.data?.dryRunId);
+
+  const questionIds = Array.isArray(dryRun.questionIds) ? [...dryRun.questionIds] : [];
+  if (roundIndex >= questionIds.length) throw new HttpsError("invalid-argument", "That round is not part of this dry run.");
+
+  // A fresh draw, then the first candidate this dry run is not already using.
+  // Swapping a question for one already in the set would look like the button
+  // did nothing.
+  const candidates = await loadChallengeCandidates(db, { courseId: dryRun.courseId, standardCode: dryRun.standardCode });
+  const inUse = new Set(questionIds);
+  const replacement = selectChallengeQuestions(candidates, candidates.length)
+    .map((entry) => entry.question.id)
+    .find((id) => !inUse.has(id));
+  if (!replacement) throw new HttpsError("failed-precondition", "There are no other questions available for this selection.");
+
+  questionIds[roundIndex] = replacement;
+  await ref.set({ questionIds, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+
+  return {
+    roundIndex,
+    question: await buildLiveChallengePublicQuestion(db, { roomId: ref.id, roundIndex, questionId: replacement }),
+  };
+});
+
+exports.gradeChallengeDryRunResponse = onCall(async (request) => {
+  const db = getFirestore();
+  const roundIndex = Number(request.data?.roundIndex);
+  if (!Number.isInteger(roundIndex) || roundIndex < 0) throw new HttpsError("invalid-argument", "roundIndex is required.");
+  const { dryRun, ref } = await requireOwnedDryRun(db, request, request.data?.dryRunId);
+
+  const questionId = (dryRun.questionIds || [])[roundIndex];
+  if (!questionId) throw new HttpsError("invalid-argument", "That round is not part of this dry run.");
+
+  // The same seed the public question was built from, so the teacher is graded
+  // against the draw they were actually shown.
+  const snapshot = await db.collection("pathQuestionBank").doc(questionId).get();
+  if (!snapshot.exists) throw new HttpsError("failed-precondition", "That question is no longer in the secure bank.");
+  const instantiated = await mathPath.instantiateQuestion(snapshot.data() || {}, `challenge|${ref.id}|${roundIndex}|${questionId}`);
+  if (!instantiated.question) throw new HttpsError("failed-precondition", "That question could not be regenerated.");
+  const plan = await mathPath.buildIssuePlan(instantiated.question);
+  if (!plan.issuable) throw new HttpsError("failed-precondition", "That question can no longer be securely graded.");
+  const grading = await mathPath.gradePathToolResponse(plan.privateGrading, request.data?.responsePayload || {});
+  if (grading?.rejected) throw new HttpsError("failed-precondition", grading.reason || "The response could not be graded.");
+
+  // Shaped like submitLiveChallengeResponse so the round renders identically,
+  // and scored by the same function the real game scores with, so a
+  // partial-credit tool shows a teacher the credit it will actually pay.
+  // Speed and streak are deliberately zero: there is no server-timed round here
+  // and no run of answers to build on, and inventing either would be a number a
+  // teacher could not get in the real game. Nothing here is written anywhere.
+  const challenge = await liveChallengeRules();
+  const scored = challenge.scoreChallengeRound({
+    gradeScore: Number(grading?.score) || 0,
+    isCorrect: grading?.isCorrect === true,
+    remainingMs: 0,
+    previousStreak: 0,
+  });
+  return {
+    isCorrect: grading?.isCorrect === true,
+    scorePercent: Math.round(Math.max(0, Math.min(1, Number(grading?.score) || 0)) * 100),
+    pointsAwarded: scored.basePoints,
+    basePoints: scored.basePoints,
+    speedBonus: 0,
+    streakBonus: 0,
+    comebackBonus: 0,
+    recoveryPoints: 0,
+    secondChance: false,
+    totalScore: scored.basePoints,
+    streak: 0,
+    rank: null,
+    dryRun: true,
+  };
+});
+
+exports.discardChallengeDryRun = onCall(async (request) => {
+  const db = getFirestore();
+  const { ref } = await requireOwnedDryRun(db, request, request.data?.dryRunId);
+  await ref.delete();
+  return { discarded: true };
+});
 
 exports.joinLiveChallenge = onCall(async (request) => {
   const { studentId } = requireStudent(request);

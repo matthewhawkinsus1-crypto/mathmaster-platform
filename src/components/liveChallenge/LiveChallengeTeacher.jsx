@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import ChallengeDryRun from './ChallengeDryRun.jsx';
 import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
 import { summarizeCoverage } from '../../../functions/shared/pathCoverage.mjs';
 import { challengeCanAdvance, publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
@@ -168,6 +169,10 @@ export default function LiveChallengeTeacher({
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
   const [projector, setProjector] = useState(false);
+  // A rehearsal of the settings above, before any student is invited. It is
+  // deliberately not reachable once a room exists: by then the questions are
+  // already drawn and a second draw would only be misleading.
+  const [dryRunOpen, setDryRunOpen] = useState(false);
   const now = useNow(room?.status === 'running');
 
   useEffect(() => {
@@ -180,6 +185,8 @@ export default function LiveChallengeTeacher({
     setCourseId(resolved);
     setStandardCode('mixed');
   }, [classId, classPeriod, selectedClass, courseProfiles]);
+
+  useEffect(() => { setDryRunOpen(false); }, [classId, courseId, standardCode, roundCount, roundSeconds]);
 
   useEffect(() => {
     let alive = true;
@@ -278,6 +285,26 @@ export default function LiveChallengeTeacher({
   const control = async (key, action) => run(key, () => action({ roomId }));
 
   if (!roomId || !room) {
+    if (dryRunOpen) {
+      return (
+        <div style={{ display: 'grid', gap: 18 }}>
+          <div>
+            <h2 style={{ margin: 0 }}>Live Challenge dry run</h2>
+            <p style={{ color: '#5f6368', maxWidth: 820, lineHeight: 1.55 }}>
+              {courseLabel(courseId)} · {standardCode === 'mixed' ? 'Mixed review' : standardCode} · {roundCount} rounds · {roundSeconds}s each.
+              Closing this throws the rehearsal away; creating the lobby draws a fresh set of questions.
+            </p>
+          </div>
+          <ChallengeDryRun
+            courseId={courseId}
+            standardCode={standardCode}
+            roundCount={roundCount}
+            roundSeconds={roundSeconds}
+            onClose={() => setDryRunOpen(false)}
+          />
+        </div>
+      );
+    }
     return (
       <div style={{ display: 'grid', gap: 18 }}>
         <div>
@@ -341,7 +368,15 @@ export default function LiveChallengeTeacher({
           <div style={{ marginTop: 16, padding: 12, borderRadius: 10, background: '#e8f0fe', color: '#174ea6', fontSize: 13, lineHeight: 1.5 }}>
             <strong>Scoring:</strong> up to 1,000 points for mathematical correctness, at most 100 for speed, and at most 100 for a streak. Partial-credit tools earn proportional base points. Game results do not change report-card grades or mastery in this first version.
           </div>
-          <button type="button" disabled={!classId || busy === 'create'} onClick={create} style={{ ...primary, marginTop: 16, opacity: !classId || busy === 'create' ? 0.55 : 1 }}>{busy === 'create' ? 'Building secure rounds…' : 'Create Lobby'}</button>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
+            <button type="button" disabled={!classId || busy === 'create'} onClick={create} style={{ ...primary, opacity: !classId || busy === 'create' ? 0.55 : 1 }}>{busy === 'create' ? 'Building secure rounds…' : 'Create Lobby'}</button>
+            <button type="button" onClick={() => { setMessage(''); setDryRunOpen(true); }} style={secondary}>Try it yourself first</button>
+          </div>
+          <p style={{ margin: '8px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.5 }}>
+            A dry run draws these same settings into a game only you can see, with the real timer and
+            the real grader. Nothing is invited, scored or recorded, and you can swap any question you
+            would not want the class to get.
+          </p>
         </section>
         {message && <div role="alert" style={{ padding: 12, borderRadius: 9, background: '#fff4ce', color: '#7a4f00' }}>{message}</div>}
       </div>
