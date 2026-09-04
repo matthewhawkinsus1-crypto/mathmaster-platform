@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const src = fs.readFileSync('src/StepByStepAlgebra.jsx', 'utf8');
+const src = fs.readFileSync('src/StepByStepAlgebraCore.jsx', 'utf8');
 
 test('rewrite tool uses a compact command bar rather than duplicate expression cards', () => {
   assert.match(src, /algebra-rewrite-tool-compact/);
