@@ -183,15 +183,26 @@ already believe.
 - **Handicap scoring** against each student's own baseline, so the student who
   improved most can win
 
-### Teacher dry run before launching
-**Status:** open
+### ~~Teacher dry run before launching~~ — shipped
+**Status:** shipped
 
-A teacher currently launches blind in front of the class. A dry run lets them
-play their own configured challenge solo against the real bank with the real
-timer — and **swap out a round they do not like** before launching.
+**Try it yourself first**, on the create-a-challenge panel, draws the settings
+on screen into a game only the teacher can see: the real bank, the real
+instantiation seed, the real timer and the real grader, with **Swap this
+question** on every round. Partial credit is scored by the same
+`scoreChallengeRound` the game uses, so what a teacher sees is what the class
+will get; speed and streak read zero because neither exists in a rehearsal.
 
-The value is question review; seeing the UI is the bonus. `DemoExperience.jsx`
-and the Teacher Path Simulator are both precedent for this shape.
+It is deliberately not a room. No roster is loaded, no invite is written, no
+player document exists, no report is produced, no mastery evidence is recorded
+and nothing reaches `grades` — one teacher-scoped `liveChallengeDryRuns`
+document holds the question ids so grading resolves on the server instead of
+trusting the browser, and closing the rehearsal deletes it. Clients cannot read
+or write that collection at all.
+
+The round the teacher plays is the *student's* `ChallengeRound` component with
+one prop swapped, not a copy of it — a lookalike would reassure a teacher about
+a screen students never see.
 
 ### A `liveChallenge` authoring contract slice
 **Status:** open · do after the selector

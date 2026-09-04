@@ -223,6 +223,15 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // A teacher's rehearsal of their own challenge. It holds the question ids
+    // for that dry run, so it is server-only for the same reason the private
+    // game state is: a document a browser can read is a document a browser can
+    // be made to read. The teacher sees the questions through the callable,
+    // which decides what to send.
+    match /liveChallengeDryRuns/{dryRunId} {
+      allow read, create, update, delete: if false;
+    }
+
     // Question IDs, roster membership, per-student scores before public
     // anonymization, and all other private game state stay server-only.
     match /liveChallengePrivate/{roomId} {
