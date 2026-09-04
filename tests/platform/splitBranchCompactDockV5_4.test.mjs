@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { multiRelationSource } from './helpers/solverSource.mjs';
 
-const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+const src = multiRelationSource();
 
 test('balanced operation controls use one compact shared dock', () => {
   assert.match(src, /className="multi-relation-operation-dock"/);

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 import { buildCancellationModel } from '../../src/algebraCancellationModel.js';
+import { stepAlgebraSource } from './helpers/solverSource.mjs';
 
 test('already-visible 2x - 2x can be cancelled without pending move metadata', () => {
   const model = buildCancellationModel('2*x - 2*x + 9', null, 'x', []);
@@ -26,7 +27,7 @@ test('opposite numeric terms are valid visible cancellation', () => {
 });
 
 test('workspace wires standalone cancellation instead of requiring pendingMove', () => {
-  const src = fs.readFileSync('src/StepByStepAlgebra.jsx', 'utf8');
+  const src = stepAlgebraSource();
   assert.match(src, /commitStandaloneCancellation/);
   assert.match(src, /visibleCancellationModel/);
   assert.match(src, /const cancellationActive = Boolean\(cancellationModel\?\.pairs\?\.length\)/);
@@ -36,7 +37,7 @@ test('workspace wires standalone cancellation instead of requiring pendingMove',
 });
 
 test('hotfix does not reintroduce one-click automatic simplification controls', () => {
-  const src = fs.readFileSync('src/StepByStepAlgebra.jsx', 'utf8');
+  const src = stepAlgebraSource();
   assert.doesNotMatch(src, />Simplify left</);
   assert.doesNotMatch(src, />Simplify right</);
   assert.doesNotMatch(src, />Simplify both</);

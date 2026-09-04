@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { multiRelationSource } from './helpers/solverSource.mjs';
 
 test('multi-relation workspace falls back to the pristine relation during null draft hydration', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
 
   assert.match(
     src,
@@ -16,7 +17,7 @@ test('multi-relation workspace falls back to the pristine relation during null d
 });
 
 test('all visible variable reads use the guarded relationState alias', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
   assert.doesNotMatch(src, /storedRelationState\.variable/);
   assert.match(src, /relationState\.variable/);
 });

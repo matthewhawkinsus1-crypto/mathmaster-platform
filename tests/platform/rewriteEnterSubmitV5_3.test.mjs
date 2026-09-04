@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { multiRelationSource } from './helpers/solverSource.mjs';
 
-const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+const src = multiRelationSource();
 
 test('Rewrite / Simplify submits Check when Enter is pressed', () => {
   assert.match(src, /onKeyDownCapture=\{\(event\) => \{/);

@@ -11,6 +11,7 @@ import {
   relationExpressionsEquivalent,
   resolveRelationNumberLineConfig,
 } from '../../src/algebraRelationFoundation.js';
+import { multiRelationSource } from './helpers/solverSource.mjs';
 
 test('fraction endpoints get a reachable eighth-unit number-line scale', () => {
   const config = resolveRelationNumberLineConfig([
@@ -74,7 +75,7 @@ test('negative divide leaves relation symbols for the student to correct', () =>
 });
 
 test('workspace includes visual drag stroke and click-to-select rewrite regions', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
   assert.match(src, /dragStrokeRef/);
   assert.match(src, /document\.elementFromPoint/);
   assert.match(src, /stroke="#7b61ff"/);
@@ -83,7 +84,7 @@ test('workspace includes visual drag stroke and click-to-select rewrite regions'
 });
 
 test('workspace asks student for relation symbols and absolute split structure', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
   assert.match(src, /pendingRelationFlip/);
   assert.match(src, /chooseRelationSymbol/);
   assert.match(src, /Two branches \(OR\)/);
@@ -92,13 +93,13 @@ test('workspace asks student for relation symbols and absolute split structure',
 });
 
 test('pending relation-symbol work is persisted in the question draft', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
   assert.match(src, /pendingRelationFlip,[\s\S]{0,160}candidateChecks,[\s\S]{0,80}\}\);/);
   assert.match(src, /initialPendingRelationFlipFor/);
 });
 
 test('drag cancellation carries its own first token instead of stealing a normal click selection', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
   assert.match(src, /firstIndexOverride/);
   assert.match(src, /finishCancellation\(current\.key, hitIndex, current\.firstIndex\)/);
 });

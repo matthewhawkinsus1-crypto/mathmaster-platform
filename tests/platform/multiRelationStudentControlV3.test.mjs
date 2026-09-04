@@ -9,6 +9,7 @@ import {
   relationExpressionsEquivalent,
   relationSolutionSummary,
 } from '../../src/algebraRelationFoundation.js';
+import { multiRelationSource } from './helpers/solverSource.mjs';
 
 const near = (left, right) => Math.abs(Number(left) - Number(right)) < 1e-9;
 
@@ -79,7 +80,7 @@ test('division can require a student placement on all three compound regions', (
 });
 
 test('UI requires explicit whole-region multiply divide placement', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
 
   // The current compact-dock UI uses the same placement state as V3, but
   // the visible label changed from "Commit balanced step" to "Commit step"
@@ -94,7 +95,7 @@ test('UI requires explicit whole-region multiply divide placement', () => {
 });
 
 test('Other operations stays a stable menu from the beginning', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
   assert.match(src, /Other operations/);
   assert.match(src, /OTHER_ALGEBRA_OPERATIONS\.map/);
 });

@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { stepAlgebraSource } from './helpers/solverSource.mjs';
 
-const src = fs.readFileSync('src/StepByStepAlgebra.jsx', 'utf8');
+const src = stepAlgebraSource();
 
 test('Rewrite / Simplify remains a permanent student-authored toolbar control', () => {
   assert.match(src, /Rewrite \/ Simplify/);
