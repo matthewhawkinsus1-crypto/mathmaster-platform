@@ -5193,6 +5193,19 @@ function App() {
     }
   };
 
+  // Switching an assignment's Warm-Up into a Live Challenge. Written with dotted
+  // field paths so the rest of the warmup object — the window, the instruction
+  // dates, the per-class closures — is untouched.
+  const handleLinkWarmupChallenge = async (assignmentId, options = {}) => {
+    if (!assignmentId) return;
+    await updateDoc(doc(db, 'assignments', assignmentId), {
+      'warmup.liveChallenge.enabled': true,
+      'warmup.liveChallenge.roundCount': Math.max(3, Math.min(20, Number(options.roundCount) || 5)),
+      'warmup.liveChallenge.roundSeconds': Math.max(15, Math.min(120, Number(options.roundSeconds) || 30)),
+      'warmup.liveChallenge.standardCode': String(options.standardCode || 'mixed'),
+    });
+  };
+
   const beginEditAssignmentDates = (assignment) => {
     const toLocalInput = (value) => {
       const date = value ? new Date(value) : null;
@@ -7168,6 +7181,8 @@ function App() {
                   classes={classes}
                   courseProfiles={courseProfiles}
                   signedInEmail={user.email}
+                  assignments={assignments}
+                  onLinkWarmupChallenge={handleLinkWarmupChallenge}
                 />
               </Suspense>
             )}

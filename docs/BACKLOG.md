@@ -236,18 +236,27 @@ is never a wildcard. The server refuses to link a room to an assignment that did
 not switch the challenge on, so the mistake surfaces at the teacher's desk
 rather than in front of a class.
 
-**Remains:**
+**Now complete end to end.** A teacher picks an assignment under *Run as a
+Warm-Up* when creating a challenge; that selection switches it on for the
+assignment and links the room. Students who open that assignment during its
+Warm-Up window are put straight into the game — no invite to spot, no code. When
+it ends, participation and accuracy are written to the assignment and the
+challenge score is not.
 
-- Creating the room when the Warm-Up window opens for a class, and joining every
-  student who opens the assignment. (The teacher opening the room is what the
-  `waitingForTeacher` route already expects; a student-triggered create would
-  mean students can make rooms, which is why it is not that.)
-- The hand-off in the assignment runtime: render the challenge in place of the
-  Warm-Up section, then return the student to the next section when it ends.
-- Recording the credit against the Warm-Up section.
-- Somewhere for the teacher to switch it on for an assignment. **Until this
-  exists nothing above is reachable by a student** — `enabled` must be exactly
-  `true` and no UI can currently set it.
+**What it still needs before a real period:** none of the rendering has been
+seen in a browser — it is verified by build, lint and the headless suite only.
+Enable it on a throwaway assignment with a test class first and confirm the game
+appears, that *Back to Warm-Up* really returns, and that a student in a
+different assignment still gets the old dashboard banner.
+
+**Open decisions this did not make:**
+
+- Whether challenge performance counts as mastery evidence. Still deliberately
+  unwritten.
+- Whether a student who never joined should get a 0% or no record. Currently no
+  record — an absence is an attendance question, which the teacher reconciles,
+  and a 0% would make it indistinguishable from a student who sat through the
+  game and answered nothing.
 
 ### Run a challenge at the DOL phase
 **Status:** open · with a caveat worth taking seriously
