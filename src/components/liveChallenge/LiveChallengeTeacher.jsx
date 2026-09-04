@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
 import { summarizeCoverage } from '../../../functions/shared/pathCoverage.mjs';
 import { challengeCanAdvance, publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
+import { buildChallengeExport, challengeExportFileName } from '../../../functions/shared/liveChallengeExport.mjs';
 import {
   advanceLiveChallenge,
   cancelLiveChallenge,
@@ -11,8 +12,95 @@ import {
   timestampMillis,
   watchLiveChallengePlayers,
   watchLiveChallengeRoom,
+  readChallengeReport,
   watchTeacherActiveChallenge,
 } from '../../platform/liveChallenge/liveChallengeService.js';
+
+
+/**
+ * What the game left behind.
+ *
+ * Ordered the way a teacher reads it: the one standard to reteach, then the
+ * rounds that produced that answer, then the roster — including whoever never
+ * joined, because that is a question the report exists to answer and the row
+ * that connects to attendance.
+ *
+ * Every line is a count. A student who lost wifi and a student who gave up
+ * produce the same record, so the report states what happened and leaves the
+ * conclusion to the person who was in the room.
+ */
+function ChallengeReport({ report }) {
+  // Hooks run before the early return, so the component keeps a stable hook
+  // order whether or not a report has loaded yet.
+  const roundSet = useMemo(() => buildChallengeExport(report), [report]);
+  if (!report) return null;
+  const pct = (value) => (value == null ? '—' : `${value}%`);
+
+  return (
+    <section style={panel}>
+      <h3 style={{ marginTop: 0 }}>After the game</h3>
+
+      {report.weakestStandard && (
+        <div style={{ padding: '12px 14px', borderRadius: 10, background: '#fff4ce', border: '1px solid #f9ab00', marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#7a4f00' }}>Hardest for this class</div>
+          <strong style={{ display: 'block', marginTop: 4, fontSize: 17, color: '#3c2f00' }}>
+            {report.weakestStandard.standard} — {pct(report.weakestStandard.accuracyPercent)} correct
+          </strong>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 14, color: '#3c4043', marginBottom: 14 }}>
+        <span><strong>{report.playedCount}</strong> of {report.eligibleCount} played</span>
+        <span>Class accuracy <strong>{pct(report.classAccuracyPercent)}</strong></span>
+        <span><strong>{report.scheduledRoundCount}</strong> rounds{report.secondChanceRoundCount ? ` + ${report.secondChanceRoundCount} second chance` : ''}</span>
+      </div>
+
+      {report.standards?.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 900, color: '#5f6368', marginBottom: 6 }}>By standard, hardest first</div>
+          {report.standards.map((entry) => (
+            <div key={entry.standard} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid #eef0f2', fontSize: 14 }}>
+              <span>{entry.standard}</span>
+              <span style={{ color: '#5f6368' }}>{entry.correct}/{entry.answered} correct · {pct(entry.accuracyPercent)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {roundSet && (
+        <div style={{ marginBottom: 14 }}>
+          <button
+            type="button"
+            onClick={() => {
+              const blob = new Blob([JSON.stringify(roundSet, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = challengeExportFileName(roundSet);
+              document.body.append(link);
+              link.click();
+              link.remove();
+              URL.revokeObjectURL(url);
+            }}
+            style={{ minHeight: 44, padding: '10px 15px', border: '1px solid #9bb8e8', borderRadius: 9, background: '#fff', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
+          >
+            Save this round set
+          </button>
+          <span style={{ display: 'block', marginTop: 5, fontSize: 12, color: '#5f6368' }}>
+            {roundSet.roundCount} questions. Run the same set with another period — no student names or scores are in the file.
+          </span>
+        </div>
+      )}
+
+      {report.neverJoined?.length > 0 && (
+        <div style={{ padding: '10px 13px', borderRadius: 9, background: '#f1f3f4', fontSize: 13.5, color: '#3c4043' }}>
+          <strong>Did not join:</strong> {report.neverJoined.length} student{report.neverJoined.length === 1 ? '' : 's'}.
+          {' '}A student can be absent, on paper, or have lost their connection — this is a roster fact, not a finding.
+        </div>
+      )}
+    </section>
+  );
+}
 
 const panel = { background: '#fff', border: '1px solid #d8dde6', borderRadius: 14, padding: 20, textAlign: 'left' };
 const primary = { border: 0, borderRadius: 9, padding: '11px 16px', background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' };
@@ -115,6 +203,18 @@ export default function LiveChallengeTeacher({
 
   const coverageRows = useMemo(() => summarizeCoverage(coverage || {}, { onlyGaps: false }).filter((row) => row.studentReady), [coverage]);
   const leaderboard = useMemo(() => publicLeaderboard(players), [players]);
+
+  // The report is written once when the room closes, so this reads it once
+  // rather than holding a listener on a document that will not move again.
+  const [report, setReport] = useState(null);
+  useEffect(() => {
+    if (room?.status !== 'finished' || !room?.id) { setReport(null); return undefined; }
+    let cancelled = false;
+    readChallengeReport(room.id)
+      .then((value) => { if (!cancelled) setReport(value); })
+      .catch(() => { if (!cancelled) setReport(null); });
+    return () => { cancelled = true; };
+  }, [room?.status, room?.id]);
   const joinedCount = leaderboard.length;
   const answeredCount = leaderboard.filter((player) => Number(player.answeredRound) === Number(room?.currentRound)).length;
   const roundEndsAtMs = timestampMillis(room?.roundEndsAt);
@@ -261,6 +361,7 @@ export default function LiveChallengeTeacher({
             <div style={{ marginTop: 14, fontWeight: 800, color: '#5f6368' }}>{answeredCount} of {joinedCount} joined students answered</div>
           </section>
           <section style={panel}><h3 style={{ marginTop: 0 }}>Leaderboard</h3><Leaderboard rows={leaderboard} /></section>
+          <ChallengeReport report={report} />
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button type="button" disabled={!canAdvance || busy === 'advance'} onClick={() => control('advance', advanceLiveChallenge)} style={{ ...primary, opacity: !canAdvance || busy === 'advance' ? .55 : 1 }}>{busy === 'advance' ? 'Loading next round…' : (room.currentRound + 1 >= room.roundCount ? 'Finish & Show Final Standings' : 'Next Round')}</button>
             <button type="button" disabled={busy === 'finish'} onClick={() => control('finish', finishLiveChallenge)} style={{ ...secondary, color: '#a50e0e' }}>End Challenge Early</button>

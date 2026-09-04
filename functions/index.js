@@ -6220,7 +6220,14 @@ async function liveChallengeRules() {
   return liveChallengeModule;
 }
 
+let liveChallengeReportModule = null;
+async function liveChallengeReportRules() {
+  if (!liveChallengeReportModule) liveChallengeReportModule = await import("./shared/liveChallengeReport.mjs");
+  return liveChallengeReportModule;
+}
+
 const LIVE_CHALLENGE_ROOMS = "liveChallengeRooms";
+const LIVE_CHALLENGE_REPORTS = "liveChallengeReports";
 const LIVE_CHALLENGE_PRIVATE = "liveChallengePrivate";
 const LIVE_CHALLENGE_INVITES = "liveChallengeInvites";
 const LIVE_CHALLENGE_TEACHER_ACTIVE = "liveChallengeTeacherActive";
@@ -6458,6 +6465,25 @@ exports.createLiveChallenge = onCall(async (request) => {
     roomId: roomRef.id,
     teacherEmail,
     questionIds: selected.map((entry) => entry.question.id),
+    // The standard each round is about, captured now. The report is assembled
+    // after the room closes, and re-reading the bank then would give whatever
+    // the question says today rather than what the class actually answered.
+    roundStandards: Object.fromEntries(selected.map((entry, index) => [
+      String(index),
+      String(
+        (Array.isArray(entry.question.alignmentKeys) && entry.question.alignmentKeys[0])
+        || entry.question.alignmentKey
+        || entry.question.teksCode
+        || "",
+      ),
+    ])),
+    // Frozen here so that appending second-chance rounds later cannot make the
+    // game think its own replays were part of the original set.
+    scheduledRoundCount: selected.length,
+    roundMisses: {},
+    roundAnswers: {},
+    secondChanceOf: {},
+    secondChancePlanned: false,
     status: challenge.LIVE_CHALLENGE_STATUS.LOBBY,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -6633,6 +6659,43 @@ exports.startLiveChallenge = onCall(async (request) => {
 
 async function finishLiveChallengeRoom({ db, roomRef, privateRef, room, status }) {
   const players = await loadPrivateChallengePlayers(privateRef);
+
+  // WRITTEN BEFORE THE STATE IT READS IS DELETED. Everything the report needs —
+  // which rounds were missed, how many answered each one, what standard each
+  // round was about — lives in private state, and deletePrivateChallengeState
+  // below removes it. Assembling the report afterwards would produce an empty
+  // one, which is how a report quietly becomes useless rather than obviously
+  // broken.
+  try {
+    const privateSnapshot = await privateRef.get();
+    const privateState = privateSnapshot.exists ? (privateSnapshot.data() || {}) : {};
+    const reportRules = await liveChallengeReportRules();
+    const report = reportRules.buildChallengeReport({
+      room,
+      scheduledRoundCount: Number(privateState.scheduledRoundCount) || Number(room.roundCount) || 0,
+      roundMisses: privateState.roundMisses || {},
+      roundStandards: privateState.roundStandards || {},
+      roundAnswers: privateState.roundAnswers || {},
+      answeredCounts: privateState.roundAnswers || {},
+      secondChanceOf: privateState.secondChanceOf || {},
+      questionIds: Array.isArray(privateState.questionIds) ? privateState.questionIds : [],
+      players,
+    });
+    await db.collection(LIVE_CHALLENGE_REPORTS).doc(roomRef.id).set({
+      ...report,
+      roomId: roomRef.id,
+      teacherEmail: room.teacherEmail,
+      classId: room.classId || null,
+      status,
+      finishedAt: FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    // A report that cannot be written must never strand a room in a running
+    // state that the teacher can no longer end.
+    logger.error("liveChallenge.report.failed", { roomId: roomRef.id, message: error?.message });
+  }
+
   await Promise.all([
     roomRef.set({
       status,
@@ -6665,7 +6728,47 @@ exports.advanceLiveChallenge = onCall(async (request) => {
   const privateState = privateSnapshot.data() || {};
   const nextRound = Number(room.currentRound) + 1;
   if (nextRound >= (privateState.questionIds?.length || 0)) {
-    return finishLiveChallengeRoom({ db, roomRef, privateRef, room, status: challenge.LIVE_CHALLENGE_STATUS.FINISHED });
+    // SECOND CHANCE. Before the game ends, the questions the room got wrong
+    // most come back once. Getting one right now earns most of its points
+    // back, which turns a miss from a loss into a target and makes the last
+    // rounds the ones the class most needs to see again.
+    //
+    // Appended only once — `secondChancePlanned` stops a replay of a replay,
+    // which would otherwise let a game run on as long as students kept missing.
+    const scheduled = Number(privateState.scheduledRoundCount) || (privateState.questionIds?.length || 0);
+    const replays = privateState.secondChancePlanned
+      ? []
+      : challenge.planSecondChanceRounds({
+        roundMisses: privateState.roundMisses || {},
+        scheduledRoundCount: scheduled,
+      });
+
+    if (!replays.length) {
+      return finishLiveChallengeRoom({ db, roomRef, privateRef, room, status: challenge.LIVE_CHALLENGE_STATUS.FINISHED });
+    }
+
+    const questionIds = [...(privateState.questionIds || [])];
+    const secondChanceOf = { ...privateState.secondChanceOf };
+    replays.forEach((originalRound) => {
+      secondChanceOf[String(questionIds.length)] = originalRound;
+      questionIds.push(privateState.questionIds[originalRound]);
+    });
+
+    await privateRef.set({
+      questionIds,
+      secondChanceOf,
+      scheduledRoundCount: scheduled,
+      secondChancePlanned: true,
+    }, { merge: true });
+
+    return openLiveChallengeRound({
+      db,
+      roomRef,
+      privateRef,
+      room,
+      privateState: { ...privateState, questionIds, secondChanceOf, scheduledRoundCount: scheduled, secondChancePlanned: true },
+      roundIndex: nextRound,
+    });
   }
   return openLiveChallengeRound({ db, roomRef, privateRef, room, privateState, roundIndex: nextRound });
 });
@@ -6753,23 +6856,63 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     if (Number(player.answeredRound) === submittedRound) throw new HttpsError("already-exists", "You already answered this round.");
     if (!player.playerKey) throw new HttpsError("failed-precondition", "Your Live Challenge player record is incomplete.");
 
+    // Which original round this one replays, if any. Held privately so the
+    // round list a student can read never reveals which questions the class
+    // struggled with before they have answered them.
+    const secondChanceOf = privateState?.secondChanceOf?.[String(submittedRound)];
+    const isSecondChance = Number.isInteger(Number(secondChanceOf));
+    const missedRounds = Array.isArray(player.missedRounds) ? player.missedRounds.map(Number) : [];
+    const missedOriginally = isSecondChance && missedRounds.includes(Number(secondChanceOf));
+
     finalScore = challenge.scoreChallengeRound({
       gradeScore: grading?.score ?? (grading?.isCorrect ? 1 : 0),
       isCorrect: grading?.isCorrect === true,
       remainingMs: Math.max(0, latestEndsAtMs - nowMs),
       totalMs: challenge.normalizeRoundSeconds(latestRoom.roundSeconds) * 1000,
       previousStreak: player.streak || 0,
+      // Tracked explicitly rather than inferred from a zero streak, which is
+      // also a player's very first round.
+      previousRoundMissed: player.lastAnswerCorrect === false,
+      secondChance: isSecondChance,
+      missedOriginally,
     });
+    const answeredCorrectly = grading?.isCorrect === true;
     finalPlayer = {
       ...player,
       joined: true,
       score: Math.max(0, Math.round(Number(player.score) || 0)) + finalScore.pointsAwarded,
-      correctCount: Math.max(0, Math.round(Number(player.correctCount) || 0)) + (grading?.isCorrect ? 1 : 0),
+      correctCount: Math.max(0, Math.round(Number(player.correctCount) || 0)) + (answeredCorrectly ? 1 : 0),
       roundsAnswered: Math.max(0, Math.round(Number(player.roundsAnswered) || 0)) + 1,
       streak: finalScore.newStreak,
       answeredRound: submittedRound,
+      lastAnswerCorrect: answeredCorrectly,
+      comebackCount: Math.max(0, Math.round(Number(player.comebackCount) || 0)) + (finalScore.comebackBonus > 0 ? 1 : 0),
+      recoveryCount: Math.max(0, Math.round(Number(player.recoveryCount) || 0)) + (finalScore.recoveryPoints > 0 ? 1 : 0),
+      bestStreak: Math.max(
+        Math.max(0, Math.round(Number(player.bestStreak) || 0)),
+        finalScore.newStreak,
+      ),
+      // A scheduled round that was missed becomes a candidate for replay. A
+      // replay itself is never added, so one question cannot be queued twice.
+      missedRounds: !answeredCorrectly && !isSecondChance
+        ? [...new Set([...missedRounds, submittedRound])].slice(0, 40)
+        : missedRounds,
       updatedAt: FieldValue.serverTimestamp(),
     };
+    // The room's own tally of how often each scheduled round was missed. It is
+    // what decides the replay list, and it lives in private state because a
+    // running miss count would otherwise tell a student how hard a question is
+    // before they reach it.
+    // The misses drive the replay list; the answers give the report a
+    // denominator. Without both, "8 missed it" cannot be told apart from
+    // "8 of 10 missed it" and "8 of 24 missed it".
+    if (!isSecondChance) {
+      transaction.set(privateRef, {
+        roundAnswers: { [String(submittedRound)]: FieldValue.increment(1) },
+        ...(answeredCorrectly ? {} : { roundMisses: { [String(submittedRound)]: FieldValue.increment(1) } }),
+      }, { merge: true });
+    }
+
     const publicPlayerRef = roomRef.collection("players").doc(player.playerKey);
     transaction.set(privatePlayerRef, finalPlayer, { merge: true });
     transaction.set(publicPlayerRef, {
@@ -6792,6 +6935,11 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     basePoints: finalScore?.basePoints || 0,
     speedBonus: finalScore?.speedBonus || 0,
     streakBonus: finalScore?.streakBonus || 0,
+    // A bonus a student cannot see is a bonus that changes nothing about
+    // whether they try the next one.
+    comebackBonus: finalScore?.comebackBonus || 0,
+    recoveryPoints: finalScore?.recoveryPoints || 0,
+    secondChance: finalScore?.secondChance === true,
     totalScore: finalPlayer?.score || 0,
     streak: finalPlayer?.streak || 0,
     rank: null,
