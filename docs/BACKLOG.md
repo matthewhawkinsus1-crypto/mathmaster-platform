@@ -225,14 +225,29 @@ the assignment makes the connection.
 - Late arrivals. A student who joins at round six is measured against the four
   rounds they could have played, not against ten.
 
+**Also built** (`src/platform/liveChallenge/warmupChallengeLink.js` and the
+`createLiveChallenge` link, tested): which room, if any, belongs to a given
+Warm-Up. A student has one invite document, written for every challenge their
+teacher opens including standalone ones, so "is there an invite" was never a
+safe question — it would drop a student into an unrelated game mid-lesson. The
+link is explicit and fails closed: an invite with no assignment id never drives
+a Warm-Up, an invite for assignment A never drives assignment B, and a blank id
+is never a wildcard. The server refuses to link a room to an assignment that did
+not switch the challenge on, so the mistake surfaces at the teacher's desk
+rather than in front of a class.
+
 **Remains:**
 
 - Creating the room when the Warm-Up window opens for a class, and joining every
-  student who opens the assignment.
+  student who opens the assignment. (The teacher opening the room is what the
+  `waitingForTeacher` route already expects; a student-triggered create would
+  mean students can make rooms, which is why it is not that.)
 - The hand-off in the assignment runtime: render the challenge in place of the
   Warm-Up section, then return the student to the next section when it ends.
 - Recording the credit against the Warm-Up section.
-- Somewhere for the teacher to switch it on for an assignment.
+- Somewhere for the teacher to switch it on for an assignment. **Until this
+  exists nothing above is reachable by a student** — `enabled` must be exactly
+  `true` and no UI can currently set it.
 
 ### Run a challenge at the DOL phase
 **Status:** open · with a caveat worth taking seriously
