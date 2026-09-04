@@ -9,16 +9,32 @@ Status: `open` · `in progress` · `shipped` · `needs a decision from the teach
 
 ## Needs a decision before it can be built
 
-### Does Live Challenge performance count as mastery evidence?
-**Status:** needs a decision
+### ~~Does Live Challenge performance count as mastery evidence?~~ — decided
+**Status:** decided · yes, at reduced weight · built
 
-The post-game report deliberately writes none. A timed, gamified round is real
-retrieval practice but is not equivalent to independent untimed work, and
-quietly writing evidence while building a report would have decided this by
-accident.
+It counts. The answers are real answers to real questions from the secure bank,
+graded by the same graders as everything else, so refusing them was throwing
+away evidence the platform already had.
 
-A defensible position: yes at reduced weight, never toward grades unless a
-teacher opts in per challenge. Not implemented either way.
+How it is recorded reflects the conditions rather than pretending they do not
+exist:
+
+- **Weighted 0.7** — below untimed practice (1.0) and below a Warm-Up (0.8).
+  One attempt against a countdown with a leaderboard in view is noisier
+  evidence: a wrong answer may mean "cannot do this" or may mean "ran out of
+  seconds", and the estimate should not treat those as equally informative.
+- **Aggregated per standard, not per round.** A single timed question is close
+  to a coin flip. Four rounds on one standard with three right is a proportion
+  worth 0.75, which is something the estimate can actually use.
+- **Replays never count twice.** A second-chance round is the same question the
+  room already missed, and the second showing is the easier one.
+- **Unanswered rounds contribute nothing** — not a zero. A student still reading
+  when the timer ended has not demonstrated that they cannot do it.
+- **Every event states its conditions** on the record itself, so a reader can
+  see what it was rather than having to know.
+
+Not gated behind a per-challenge teacher opt-in. The weight is the control, and
+a switch that had to be remembered mid-lesson would mostly be forgotten.
 
 ### ~~Who may reconcile attendance?~~ — decided
 **Status:** decided · the teacher reconciles
@@ -31,13 +47,13 @@ Still worth revisiting later, but not blocking: a substitute or co-teacher
 covering a period cannot mark anything under this rule. Treat a delegate as a
 future addition rather than part of the first build.
 
-### Is there an SIS attendance export to reconcile against?
-**Status:** needs a decision
+### ~~Is there an SIS attendance export to reconcile against?~~ — decided
+**Status:** decided · not needed · nothing to build
 
-If the district's SIS produces a daily CSV, the teacher's confirmation step
-becomes a verification step and accuracy rises considerably. The manual path
-should be built either way, but the record should be shaped so an import can
-populate it.
+No SIS export is required. The teacher reconciles attendance in MathMaster and
+that record stands on its own; there is no second system to agree with. Nothing
+here needs building, and the import-shaped record this section was holding open
+is not required either.
 
 ---
 
@@ -251,8 +267,8 @@ different assignment still gets the old dashboard banner.
 
 **Open decisions this did not make:**
 
-- Whether challenge performance counts as mastery evidence. Still deliberately
-  unwritten.
+- ~~Whether challenge performance counts as mastery evidence.~~ Decided and
+  built: it counts, weighted 0.7, aggregated per standard.
 - Whether a student who never joined should get a 0% or no record. Currently no
   record — an absence is an attendance question, which the teacher reconciles,
   and a 0% would make it indistinguishable from a student who sat through the

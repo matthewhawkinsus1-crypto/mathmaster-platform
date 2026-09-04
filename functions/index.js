@@ -6232,6 +6232,12 @@ async function warmupChallengeRules() {
   return warmupChallengeModule;
 }
 
+let liveChallengeEvidenceModule = null;
+async function liveChallengeEvidenceRules() {
+  if (!liveChallengeEvidenceModule) liveChallengeEvidenceModule = await import("./shared/liveChallengeEvidence.mjs");
+  return liveChallengeEvidenceModule;
+}
+
 const LIVE_CHALLENGE_ROOMS = "liveChallengeRooms";
 const LIVE_CHALLENGE_REPORTS = "liveChallengeReports";
 const LIVE_CHALLENGE_PRIVATE = "liveChallengePrivate";
@@ -6820,6 +6826,38 @@ async function finishLiveChallengeRoom({ db, roomRef, privateRef, room, status }
     }
   }
 
+  // MASTERY EVIDENCE. Aggregated per standard rather than per round, because a
+  // single timed question is close to a coin flip and a proportion is what the
+  // estimate can use. Replays are excluded so one question cannot enter a
+  // student's record twice, the second time being the easier time.
+  //
+  // Above the delete for the same reason as everything else here: answeredRounds
+  // and missedRounds live on the private player documents.
+  try {
+    const privateSnapshot = await privateRef.get();
+    const privateState = privateSnapshot.exists ? (privateSnapshot.data() || {}) : {};
+    const evidenceRules = await liveChallengeEvidenceRules();
+    const events = evidenceRules.buildChallengeEvidenceEvents({
+      roomId: roomRef.id,
+      players,
+      roundStandards: privateState.roundStandards || {},
+      secondChanceOf: privateState.secondChanceOf || {},
+      occurredAt: Date.now(),
+    });
+    for (let start = 0; start < events.length; start += 450) {
+      const batch = db.batch();
+      events.slice(start, start + 450).forEach((evidenceEvent) => {
+        const ref = db.collection("grades").doc(evidenceEvent.studentId)
+          .collection("evidenceEvents").doc(mathPath.opaqueId("challengeEvidence", evidenceEvent.eventKey));
+        batch.set(ref, evidenceEvent);
+      });
+      // eslint-disable-next-line no-await-in-loop
+      await batch.commit();
+    }
+  } catch (error) {
+    logger.error("liveChallenge.evidence.failed", { roomId: roomRef.id, message: error?.message });
+  }
+
   await deletePrivateChallengeState(db, privateRef, players);
   return { roomId: roomRef.id, status, roundCount: room.roundCount || 0 };
 }
@@ -7006,6 +7044,15 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
       missedRounds: !answeredCorrectly && !isSecondChance
         ? [...new Set([...missedRounds, submittedRound])].slice(0, 40)
         : missedRounds,
+      // Which rounds this student actually answered. Mastery evidence needs
+      // "did they answer it, and were they right", and correctCount alone
+      // cannot say WHICH standard was right. Recorded in the write that was
+      // happening anyway rather than as a second one, because every student in
+      // the room writes here at the same moment.
+      answeredRounds: [...new Set([
+        ...(Array.isArray(player.answeredRounds) ? player.answeredRounds.map(Number) : []),
+        submittedRound,
+      ])].slice(0, 60),
       updatedAt: FieldValue.serverTimestamp(),
     };
     // The room's own tally of how often each scheduled round was missed. It is
@@ -9526,7 +9573,12 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
     const db = getFirestore();
     const profileRef = db.collection("studentMasteryProfiles").doc(studentId);
     const applicationRef = db.collection("masteryEvidenceApplications").doc(mathPath.opaqueId("mastery", studentId, eventKey));
-    const roleWeight = { warmup: 0.8, classwork: 0.9, dol: 1.25, practice: 1, quiz: 1.35, test: 1.4, retention: 1.15 }[evidence.source?.activityRole] || 1;
+    // liveChallenge sits below practice on purpose. The answer is real and the
+    // grader is the same, but one attempt against a countdown with a
+    // leaderboard in view is noisier evidence than the same question at a desk
+    // — a wrong answer may mean "cannot do this" or may mean "ran out of
+    // seconds", and the estimate should not treat those as equally informative.
+    const roleWeight = { warmup: 0.8, classwork: 0.9, dol: 1.25, practice: 1, quiz: 1.35, test: 1.4, retention: 1.15, liveChallenge: 0.7 }[evidence.source?.activityRole] || 1;
     const modified = Boolean(evidence.supportUsage?.modified) || Boolean(evidence.supportUsage?.modifications?.length);
     const independent = mathPath.mathematicalIndependence(evidence.supportUsage || {});
     const score = Math.max(0, Math.min(1, Number(evidence.performance?.score) || 0));
