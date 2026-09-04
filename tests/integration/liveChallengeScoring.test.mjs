@@ -46,6 +46,7 @@ const functionsIndex = require(path.join(repo, 'functions/index.js'));
 const admin = requireFunctionsModule('firebase-admin');
 const mathPath = require(path.join(repo, 'functions/lib/mathPath.js'));
 const db = admin.firestore();
+const { deriveRoundTallies } = await import(path.join(repo, 'functions/shared/liveChallenge.mjs'));
 
 const TEACHER = 'teacher@example.com';
 const ROOM = 'scoring-harness-room';
@@ -116,8 +117,6 @@ const seed = async () => {
     scheduledRoundCount: ROUNDS,
     questionIds: Array.from({ length: ROUNDS }, () => authored.id),
     roundStandards: Object.fromEntries(Array.from({ length: ROUNDS }, (unused, i) => [String(i), 'texas:A.3(C)'])),
-    roundMisses: {},
-    roundAnswers: {},
     secondChanceOf: {},
   });
   await db.collection('liveChallengePrivate').doc(ROOM).collection('players').doc(STUDENT).set({
@@ -214,10 +213,17 @@ test('every answered round is accumulated, not overwritten', async () => {
   assert.equal(record.correctCount, 2);
 });
 
-test('the room tallies which rounds the class missed', async () => {
+test('the rounds the class missed are derivable from the players', async () => {
+  // Formerly asserted against a counter on the private document. That counter
+  // was one document taking a write per student per round, and it is gone; the
+  // same fact now comes from the player records that always held it.
   const privateState = (await db.collection('liveChallengePrivate').doc(ROOM).get()).data();
-  assert.equal(Number(privateState.roundMisses['0']), 1, 'round 0 was missed by one student');
-  assert.equal(privateState.roundMisses['1'], undefined, 'round 1 was answered correctly');
+  const players = (await db.collection('liveChallengePrivate').doc(ROOM).collection('players').get())
+    .docs.map((docSnapshot) => docSnapshot.data());
+  const derived = deriveRoundTallies({ players, secondChanceOf: privateState.secondChanceOf || {} });
+  assert.equal(Number(derived.roundMisses['0']), 1, 'round 0 was missed by one student');
+  assert.equal(derived.roundMisses['1'], undefined, 'round 1 was answered correctly');
+  assert.equal(Number(derived.roundAnswers['0']), 1, 'and one student answered it');
 });
 
 /* ---------- the join round, which decides a late arrival's denominator ---------- */

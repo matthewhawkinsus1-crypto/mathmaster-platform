@@ -210,3 +210,91 @@ export const challengeCanAdvance = ({ joinedCount = 0, answeredCount = 0, roundE
   Number(joinedCount) > 0
   && (Number(answeredCount) >= Number(joinedCount) || Number(nowMs) >= Number(roundEndsAtMs || 0))
 );
+
+/*
+ * HOW MANY ANSWERED EACH ROUND, AND HOW MANY MISSED IT — DERIVED, NOT COUNTED.
+ *
+ * These two tallies used to be maintained on the private state document: every
+ * submission incremented them inside its transaction. That made one document
+ * take a write per student per round. A class of 24 answering within a couple of
+ * seconds is roughly 24 writes to a single document in that window, and
+ * Firestore's guidance for sustained writes to one document is about one per
+ * second. Correctness held — a concurrency suite proved no increment was lost —
+ * but the shape was a hot spot waiting for a bad day, and the failure mode is a
+ * student being told their correct answer did not count.
+ *
+ * The counts were always redundant. Each player document already records which
+ * rounds that student answered and which they missed, because mastery evidence
+ * needs both. The room-level numbers are just those arrays added up, and both
+ * consumers — the second-chance planner and the post-game report — already load
+ * every player. So this deletes state rather than sharding it.
+ *
+ * REPLAYS ARE EXCLUDED, exactly as the increments excluded them. A second-chance
+ * round is the same question offered again; counting it would inflate the
+ * denominator of a question the class has already been measured on, and could
+ * put a round back on the replay list for being "missed" twice.
+ */
+export const deriveRoundTallies = ({
+  players = [],
+  secondChanceOf = {},
+  storedRoundAnswers = null,
+  storedRoundMisses = null,
+} = {}) => {
+  const replays = new Set(
+    Object.keys(secondChanceOf || {})
+      .map((key) => Math.round(Number(key)))
+      .filter((value) => Number.isFinite(value)),
+  );
+
+  const roundAnswers = {};
+  const roundMisses = {};
+  const bump = (target, round) => {
+    const key = String(round);
+    target[key] = (target[key] || 0) + 1;
+  };
+
+  (Array.isArray(players) ? players : []).forEach((player) => {
+    const answered = Array.isArray(player?.answeredRounds) ? player.answeredRounds : [];
+    const missed = new Set(
+      (Array.isArray(player?.missedRounds) ? player.missedRounds : [])
+        .map((value) => Math.round(Number(value)))
+        .filter((value) => Number.isFinite(value)),
+    );
+    const seen = new Set();
+    answered
+      .map((value) => Math.round(Number(value)))
+      .filter((value) => Number.isFinite(value) && value >= 0)
+      .forEach((round) => {
+        if (replays.has(round) || seen.has(round)) return;
+        seen.add(round);
+        bump(roundAnswers, round);
+        if (missed.has(round)) bump(roundMisses, round);
+      });
+  });
+
+  /*
+   * A ROOM THAT WAS ALREADY RUNNING WHEN THIS SHIPPED.
+   *
+   * Its early answers were counted the old way and never recorded a per-player
+   * answeredRounds entry, so deriving alone would report zero for those rounds
+   * and could drop a genuinely missed question off the replay list mid-game.
+   * Where a stored count exists and the derived one cannot see it, the stored
+   * number is kept. This is a fallback for rooms in flight across one deploy,
+   * not a second source of truth: nothing writes these fields any more, so it
+   * stops mattering as soon as those rooms end.
+   */
+  const withFallback = (derived, stored) => {
+    if (!stored || typeof stored !== 'object') return derived;
+    const merged = { ...derived };
+    Object.entries(stored).forEach(([key, value]) => {
+      const legacy = Math.round(Number(value)) || 0;
+      if (legacy > (merged[key] || 0)) merged[key] = legacy;
+    });
+    return merged;
+  };
+
+  return {
+    roundAnswers: withFallback(roundAnswers, storedRoundAnswers),
+    roundMisses: withFallback(roundMisses, storedRoundMisses),
+  };
+};

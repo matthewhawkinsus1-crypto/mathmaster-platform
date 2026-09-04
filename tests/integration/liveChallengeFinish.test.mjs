@@ -98,6 +98,11 @@ const seed = async () => {
     scheduledRoundCount: 4,
     questionIds: ['q0', 'q1', 'q2', 'q3'],
     roundStandards: ROUND_STANDARDS,
+    // DELIBERATELY LEFT IN. Nothing writes these any more; a room created
+    // before the tallies became derived still carries them, and this room is
+    // the stand-in for one caught mid-flight across that deploy. Keeping them
+    // here is what exercises the fallback that stops such a game losing its
+    // miss list halfway through.
     roundMisses: { 1: 1 },
     roundAnswers: { 0: 1, 1: 1, 2: 1, 3: 1, 4: 1 },
     secondChanceOf: { 4: 1 },

@@ -123,8 +123,6 @@ await privateRef.set({
   scheduledRoundCount: SCHEDULED,
   questionIds: [authored.id, authored.id],
   roundStandards: { 0: 'texas:A.3(C)', 1: 'texas:A.3(C)' },
-  roundMisses: {},
-  roundAnswers: {},
   secondChanceOf: {},
 });
 await addPlayer(MISSER, 'pk-missed', 'Swift Otter');
@@ -226,7 +224,7 @@ test('a game nobody missed ends instead of replaying', async () => {
   await cleanPrivate.set({
     schemaVersion: 2, roomId: cleanRoom, teacherEmail: TEACHER,
     scheduledRoundCount: 1, questionIds: [authored.id],
-    roundStandards: { 0: 'texas:A.3(C)' }, roundMisses: {}, roundAnswers: { 0: 2 }, secondChanceOf: {},
+    roundStandards: { 0: 'texas:A.3(C)' }, secondChanceOf: {},
   });
   const result = await functionsIndex.advanceLiveChallenge.run(teacherRequest({ roomId: cleanRoom }));
   assert.equal(result.status, 'finished', 'a question nobody missed never comes back');

@@ -6525,8 +6525,10 @@ exports.createLiveChallenge = onCall(async (request) => {
     // Frozen here so that appending second-chance rounds later cannot make the
     // game think its own replays were part of the original set.
     scheduledRoundCount: selected.length,
-    roundMisses: {},
-    roundAnswers: {},
+    // No roundMisses/roundAnswers here. Nothing writes them any more — the
+    // per-round tallies are derived from the player documents when they are
+    // read — and initialising a field no writer maintains is how a stale
+    // counter later gets mistaken for the truth.
     secondChanceOf: {},
     secondChancePlanned: false,
     status: challenge.LIVE_CHALLENGE_STATUS.LOBBY,
@@ -6733,13 +6735,22 @@ async function finishLiveChallengeRoom({ db, roomRef, privateRef, room, status }
     const privateSnapshot = await privateRef.get();
     const privateState = privateSnapshot.exists ? (privateSnapshot.data() || {}) : {};
     const reportRules = await liveChallengeReportRules();
+    const challengeRules = await liveChallengeRules();
+    // Counted from the player documents rather than read off a shared counter.
+    // `players` is already loaded above, so this costs no extra read.
+    const derivedTallies = challengeRules.deriveRoundTallies({
+      players,
+      secondChanceOf: privateState.secondChanceOf || {},
+      storedRoundAnswers: privateState.roundAnswers || null,
+      storedRoundMisses: privateState.roundMisses || null,
+    });
     const report = reportRules.buildChallengeReport({
       room,
       scheduledRoundCount: Number(privateState.scheduledRoundCount) || Number(room.roundCount) || 0,
-      roundMisses: privateState.roundMisses || {},
+      roundMisses: derivedTallies.roundMisses,
       roundStandards: privateState.roundStandards || {},
-      roundAnswers: privateState.roundAnswers || {},
-      answeredCounts: privateState.roundAnswers || {},
+      roundAnswers: derivedTallies.roundAnswers,
+      answeredCounts: derivedTallies.roundAnswers,
       secondChanceOf: privateState.secondChanceOf || {},
       questionIds: Array.isArray(privateState.questionIds) ? privateState.questionIds : [],
       players,
@@ -6883,10 +6894,19 @@ exports.advanceLiveChallenge = onCall(async (request) => {
     // Appended only once — `secondChancePlanned` stops a replay of a replay,
     // which would otherwise let a game run on as long as students kept missing.
     const scheduled = Number(privateState.scheduledRoundCount) || (privateState.questionIds?.length || 0);
+    // Same derivation as the report, from the same player documents. This is
+    // the one consumer that runs mid-game, and it runs exactly once — after the
+    // last scheduled round — so reading the roster here is cheap and happens
+    // when every player document is already final for the scheduled rounds.
+    const planningPlayers = privateState.secondChancePlanned ? [] : await loadPrivateChallengePlayers(privateRef);
     const replays = privateState.secondChancePlanned
       ? []
       : challenge.planSecondChanceRounds({
-        roundMisses: privateState.roundMisses || {},
+        roundMisses: challenge.deriveRoundTallies({
+          players: planningPlayers,
+          secondChanceOf: privateState.secondChanceOf || {},
+          storedRoundMisses: privateState.roundMisses || null,
+        }).roundMisses,
         scheduledRoundCount: scheduled,
       });
 
@@ -7055,19 +7075,13 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
       ])].slice(0, 60),
       updatedAt: FieldValue.serverTimestamp(),
     };
-    // The room's own tally of how often each scheduled round was missed. It is
-    // what decides the replay list, and it lives in private state because a
-    // running miss count would otherwise tell a student how hard a question is
-    // before they reach it.
-    // The misses drive the replay list; the answers give the report a
-    // denominator. Without both, "8 missed it" cannot be told apart from
-    // "8 of 10 missed it" and "8 of 24 missed it".
-    if (!isSecondChance) {
-      transaction.set(privateRef, {
-        roundAnswers: { [String(submittedRound)]: FieldValue.increment(1) },
-        ...(answeredCorrectly ? {} : { roundMisses: { [String(submittedRound)]: FieldValue.increment(1) } }),
-      }, { merge: true });
-    }
+    // NO ROOM-LEVEL TALLY IS WRITTEN HERE ANY MORE. This used to increment
+    // roundAnswers and roundMisses on the private state document, which made one
+    // document take a write per student per round — a hot spot with a whole
+    // class answering at once, and a failure mode of telling a student their
+    // correct answer did not count. Both numbers are derivable from the
+    // answeredRounds and missedRounds written just above, so they are computed
+    // where they are read instead. See deriveRoundTallies.
 
     const publicPlayerRef = roomRef.collection("players").doc(player.playerKey);
     transaction.set(privatePlayerRef, finalPlayer, { merge: true });

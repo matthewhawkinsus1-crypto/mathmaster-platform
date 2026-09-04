@@ -157,9 +157,14 @@ test('the standard for each round is captured when the room is built', () => {
 });
 
 test('every answer is counted, not only the misses', () => {
+  // Without a denominator, "8 missed it" cannot be told from "8 of 10" or
+  // "8 of 24". Both numbers used to be incremented on a shared document per
+  // submission; they are now derived from the player records, but the report
+  // must still receive both.
   const source = codeOf('functions/index.js');
-  assert.match(source, /roundAnswers: \{ \[String\(submittedRound\)\]: FieldValue\.increment\(1\) \}/);
-  assert.match(source, /answeredCorrectly \? \{\} : \{ roundMisses/);
+  assert.match(source, /roundAnswers: derivedTallies\.roundAnswers/);
+  assert.match(source, /answeredCounts: derivedTallies\.roundAnswers/);
+  assert.match(source, /roundMisses: derivedTallies\.roundMisses/);
 });
 
 test('a report that names students is not readable by students', () => {
