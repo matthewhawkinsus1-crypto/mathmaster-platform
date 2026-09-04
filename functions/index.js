@@ -6226,6 +6226,12 @@ async function liveChallengeReportRules() {
   return liveChallengeReportModule;
 }
 
+let warmupChallengeModule = null;
+async function warmupChallengeRules() {
+  if (!warmupChallengeModule) warmupChallengeModule = await import("./shared/warmupChallenge.mjs");
+  return warmupChallengeModule;
+}
+
 const LIVE_CHALLENGE_ROOMS = "liveChallengeRooms";
 const LIVE_CHALLENGE_REPORTS = "liveChallengeReports";
 const LIVE_CHALLENGE_PRIVATE = "liveChallengePrivate";
@@ -6387,9 +6393,39 @@ exports.createLiveChallenge = onCall(async (request) => {
   } else if (!classPeriod) {
     throw new HttpsError("invalid-argument", "Choose a class before launching a challenge.");
   }
-  const standardCode = challenge.canonicalChallengeStandard(request.data?.standardCode || "mixed");
-  const requestedRoundCount = challenge.normalizeRoundCount(request.data?.roundCount);
-  const roundSeconds = challenge.normalizeRoundSeconds(request.data?.roundSeconds);
+  // OPTIONAL ASSIGNMENT LINK. When present this room is the Warm-Up of that
+  // assignment, and every student who opens it is handed straight into the
+  // game. That is a takeover of the lesson, so it is only allowed when the
+  // teacher explicitly switched the challenge on for that assignment — a link
+  // to an assignment that never enabled it is refused rather than ignored, so
+  // a mistake surfaces at launch instead of surprising a class.
+  let assignmentId = String(request.data?.assignmentId || "").trim().slice(0, 200) || null;
+  let warmupChallengeConfig = null;
+  if (assignmentId) {
+    const assignmentSnapshot = await db.collection("assignments").doc(assignmentId).get();
+    if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment no longer exists.");
+    const warmup = await warmupChallengeRules();
+    warmupChallengeConfig = warmup.normalizeWarmupChallengeConfig({
+      ...(assignmentSnapshot.data() || {}),
+      id: assignmentId,
+    });
+    if (!warmupChallengeConfig.enabled) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Turn on the Warm-Up Live Challenge for this assignment before launching it from the Warm-Up.",
+      );
+    }
+  }
+
+  const standardCode = challenge.canonicalChallengeStandard(
+    request.data?.standardCode || warmupChallengeConfig?.standardCode || "mixed",
+  );
+  const requestedRoundCount = challenge.normalizeRoundCount(
+    request.data?.roundCount || warmupChallengeConfig?.roundCount,
+  );
+  const roundSeconds = challenge.normalizeRoundSeconds(
+    request.data?.roundSeconds || warmupChallengeConfig?.roundSeconds,
+  );
   const defaultTitle = `${className || classPeriod || "Class"} Live Challenge`;
   const title = String(request.data?.title || defaultTitle).trim().slice(0, 120) || defaultTitle;
 
@@ -6442,6 +6478,9 @@ exports.createLiveChallenge = onCall(async (request) => {
     schemaVersion: 2,
     title,
     teacherEmail,
+    // Null, never absent: a reader can tell "standalone challenge" from "field
+    // added after this room was created" without guessing.
+    assignmentId,
     classId,
     classPeriod,
     className: className || null,
@@ -6512,6 +6551,11 @@ exports.createLiveChallenge = onCall(async (request) => {
         roomId: roomRef.id,
         title,
         teacherEmail,
+        // The Warm-Up link travels to the student on the invite, because the
+        // invite is the only challenge document a student is allowed to read
+        // before joining. Null for a standalone challenge, which is what stops
+        // one taking over an unrelated assignment's Warm-Up.
+        assignmentId,
         classId,
         classPeriod,
         className: className || null,
