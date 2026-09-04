@@ -20,6 +20,7 @@ import {
   verifyRelationCandidates,
   takeSquareRootOfRelation,
 } from '../../src/algebraRelationFoundation.js';
+import { multiRelationSource } from './helpers/solverSource.mjs';
 
 test('single inequalities parse as two-part relations', () => {
   const state = parseRelationSource('-3*x + 5 > 14', 'x');
@@ -123,7 +124,7 @@ test('attempting to split an absolute value equal to a negative number is reject
 });
 
 test('advanced UI requires typed split values and keeps no-solution as a student choice', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
   assert.match(src, /Type the right side of both equations/);
   assert.match(src, /Branch A right side/);
   assert.match(src, /Branch B right side/);
@@ -215,7 +216,7 @@ test('ordinary absolute-value equations verify both legitimate branches', () => 
 });
 
 test('advanced absolute-value UI requires the student to classify candidates in the original equation', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
   assert.match(src, /Check each candidate in the original equation/);
   assert.match(src, /Valid solution/);
   assert.match(src, /Extraneous/);
@@ -245,7 +246,7 @@ test('QuestionEngine preserves stepAlgebra and internally routes advanced work',
 });
 
 test('advanced workspace always exposes Other operations and reuses IntervalNumberLine', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
   assert.match(src, /Other operations/);
   assert.match(src, /OTHER_ALGEBRA_OPERATIONS\.map/);
   assert.match(src, /IntervalNumberLine/);
@@ -254,7 +255,7 @@ test('advanced workspace always exposes Other operations and reuses IntervalNumb
 });
 
 test('advanced solver opens Other operations by default on load and reset', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
   assert.match(src, /const \[otherOpen, setOtherOpen\] = useState\(true\)/);
   assert.match(src, /setRewriteValue\(''\);\s*setOtherOpen\(true\);\s*setCompleteSquareOpen\(false\);/);
   const resetStart = src.indexOf('const reset = () =>');
@@ -321,7 +322,7 @@ test('multi-branch operation helper rejects incomplete explicit placement', () =
 });
 
 test('choosing a new algebra operation closes an open rewrite field', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
   const operationsStart = src.indexOf('BASIC_OPERATIONS.map');
   const operationsEnd = src.indexOf('{operation && (', operationsStart);
   assert.ok(operationsStart >= 0 && operationsEnd > operationsStart);
@@ -336,7 +337,7 @@ test('choosing a new algebra operation closes an open rewrite field', () => {
 });
 
 test('split branches can stage placements simultaneously before one commit', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
   assert.match(src, /placementMode=\{placementMode\}/);
   assert.doesNotMatch(src, /placementMode=\{activeBranch === branchIndex && placementMode\}/);
   assert.match(src, /applyBalancedOperationToBranches/);

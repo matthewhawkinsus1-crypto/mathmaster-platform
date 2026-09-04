@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { stepAlgebraSource } from './helpers/solverSource.mjs';
 
-const stepSource = fs.readFileSync(new URL('../../src/StepByStepAlgebra.jsx', import.meta.url), 'utf8');
+const stepSource = stepAlgebraSource();
 const inputSource = fs.readFileSync(new URL('../../src/MathInput.jsx', import.meta.url), 'utf8');
 const cssSource = fs.readFileSync(new URL('../../src/StepByStepAlgebra.css', import.meta.url), 'utf8');
 

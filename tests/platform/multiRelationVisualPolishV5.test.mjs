@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import {
   relationExpressionToLatex,
 } from '../../src/algebraRelationFoundation.js';
+import { multiRelationSource } from './helpers/solverSource.mjs';
 
 test('grouped polynomial divided by a number renders as a real fraction', () => {
   const latex = relationExpressionToLatex('(2*x^2 - 12*x) / 2');
@@ -22,7 +23,7 @@ test('subtracted constant divided by a number renders as a real fraction', () =>
 });
 
 test('Other operations is an inline rail rather than an overlay popup', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
 
   assert.match(src, /algebra-other-operations-inline/);
   assert.match(src, /Algebra tools/);
@@ -32,7 +33,7 @@ test('Other operations is an inline rail rather than an overlay popup', () => {
 });
 
 test('Other operation buttons have explicit dark-mode-safe colors', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
 
   assert.match(src, /background: '#ffffff'/);
   assert.match(src, /color: '#174ea6'/);
@@ -40,7 +41,7 @@ test('Other operation buttons have explicit dark-mode-safe colors', () => {
 });
 
 test('division completion messaging preserves student-controlled simplification', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
 
   assert.match(src, /The quotient is intentionally unsimplified/);
   assert.match(src, /use Rewrite \/ Simplify when you want to reduce it/);

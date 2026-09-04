@@ -1,0 +1,388 @@
+/* Shared full-screen algebra workspace.
+   The question engine itself becomes the overlay so task text, Guided Notes,
+   tries, Undo and the existing Scratchpad remain part of the same live UI. */
+body.mathmaster-solver-workspace-open::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 2147480000;
+  background: rgba(15, 23, 42, .62);
+}
+
+.mathmaster-question-engine[data-solver-workspace-mode="enlarged"],
+.mathmaster-question-engine[data-solver-workspace-mode="focus"] {
+  position: fixed !important;
+  inset: clamp(6px, 1vw, 14px) !important;
+  z-index: 2147480001 !important;
+  width: auto !important;
+  max-width: none !important;
+  height: auto !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: clamp(8px, 1.2vw, 18px) !important;
+  overflow: auto !important;
+  overscroll-behavior: contain;
+  background: #f7f9fc !important;
+  border: 1px solid #cad8ec;
+  border-radius: 18px;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, .36);
+}
+
+.solver-workspace-frame {
+  width: 100%;
+  min-width: 0;
+  margin: 0 auto;
+}
+
+.solver-workspace-modebar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  margin: 0 0 10px;
+  padding: 6px 8px;
+  border: 1px solid #d7e2f3;
+  border-radius: 13px;
+  background: #f8fbff;
+}
+
+.solver-workspace-frame[data-workspace-mode="enlarged"] .solver-workspace-modebar,
+.solver-workspace-frame[data-workspace-mode="focus"] .solver-workspace-modebar {
+  position: sticky;
+  top: 0;
+  z-index: 80;
+  justify-content: space-between;
+  background: rgba(248, 251, 255, .97);
+  box-shadow: 0 4px 16px rgba(31, 73, 125, .1);
+  backdrop-filter: blur(8px);
+}
+
+.solver-workspace-modebar__context {
+  display: none;
+  min-width: 0;
+  flex: 1 1 320px;
+  align-items: center;
+  gap: 9px;
+}
+
+.solver-workspace-frame[data-workspace-mode="enlarged"] .solver-workspace-modebar__context,
+.solver-workspace-frame[data-workspace-mode="focus"] .solver-workspace-modebar__context {
+  display: flex;
+}
+
+.solver-workspace-modebar__context strong {
+  flex: 0 0 auto;
+  color: #174ea6;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.solver-workspace-modebar__context span {
+  min-width: 0;
+  overflow: hidden;
+  color: #3c4043;
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.solver-workspace-modebar__controls {
+  display: inline-flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.solver-workspace-modebar button {
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid #b8c8e3;
+  border-radius: 9px;
+  background: #fff;
+  color: #174ea6;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.solver-workspace-modebar button:hover:not(:disabled),
+.solver-workspace-modebar button:focus-visible {
+  border-color: #1a73e8;
+  background: #eef5ff;
+}
+
+.solver-workspace-modebar button.is-active {
+  border: 2px solid #1a73e8;
+  background: #e8f0fe;
+}
+
+.solver-workspace-modebar button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+.solver-workspace-return {
+  border-color: #174ea6 !important;
+  background: #174ea6 !important;
+  color: #fff !important;
+}
+
+.solver-workspace-divider {
+  width: 1px;
+  height: 28px;
+  margin: 0 2px;
+  background: #d4deed;
+}
+
+.solver-workspace-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid #d7e2f3;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.solver-workspace-zoom button {
+  min-width: 34px;
+  min-height: 32px;
+  padding: 4px 7px;
+  border: 0;
+}
+
+.solver-workspace-zoom output {
+  min-width: 44px;
+  color: #3c4043;
+  font-size: 11px;
+  font-weight: 850;
+  text-align: center;
+}
+
+.solver-workspace-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+
+.solver-workspace-main {
+  min-width: 0;
+  transform-origin: top center;
+  zoom: var(--solver-workspace-zoom, 1);
+}
+
+.solver-workspace-focus-panel {
+  display: none;
+  min-width: 0;
+}
+
+/* ENLARGE TOOL: keep the solver's normal arrangement, only remove the narrow
+   assignment-card width ceiling and give all of its existing controls room. */
+.mathmaster-question-engine[data-solver-workspace-mode="enlarged"] .solver-workspace-main > section {
+  width: 100% !important;
+  max-width: min(1500px, 100%) !important;
+}
+
+/* FOCUS WORKSPACE: the same mounted solver, but the central work surface grows
+   and a collapsible work-history rail becomes available. */
+.solver-workspace-frame[data-workspace-mode="focus"] .solver-workspace-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 310px);
+  align-items: start;
+}
+
+.solver-workspace-frame[data-workspace-mode="focus"].is-focus-panel-collapsed .solver-workspace-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.solver-workspace-frame[data-workspace-mode="focus"].is-focus-panel-collapsed .solver-workspace-focus-panel {
+  display: none;
+}
+
+.solver-workspace-frame[data-workspace-mode="focus"] .solver-workspace-focus-panel {
+  display: block;
+  position: sticky;
+  top: 62px;
+  max-height: calc(100vh - 105px);
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid #c8d5ea;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(31, 73, 125, .08);
+}
+
+.mathmaster-question-engine[data-solver-workspace-mode="focus"] .solver-workspace-main > section {
+  width: 100% !important;
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.mathmaster-question-engine[data-solver-workspace-mode="focus"] .algebra-balance-workspace-shell {
+  min-height: clamp(360px, 56vh, 760px);
+  align-items: stretch;
+}
+
+.mathmaster-question-engine[data-solver-workspace-mode="focus"] .algebra-connected-balance {
+  min-height: clamp(350px, 55vh, 740px);
+  padding: 22px 24px 34px;
+}
+
+.mathmaster-question-engine[data-solver-workspace-mode="focus"] .algebra-connected-side {
+  min-height: clamp(290px, 47vh, 660px);
+}
+
+.mathmaster-question-engine[data-solver-workspace-mode="focus"] .algebra-expression-anchor {
+  width: min(100%, 760px);
+  min-height: 180px;
+}
+
+.mathmaster-question-engine[data-solver-workspace-mode="focus"] .algebra-rail {
+  position: sticky;
+  top: 64px;
+  align-self: flex-start;
+  padding: 8px;
+}
+
+.mathmaster-question-engine[data-solver-workspace-mode="focus"] .algebra-rail-tile {
+  width: 60px;
+  height: 60px;
+  font-size: 25px;
+}
+
+.mathmaster-question-engine[data-solver-workspace-mode="focus"] .algebra-operation-composer,
+.mathmaster-question-engine[data-solver-workspace-mode="focus"] .multi-relation-operation-dock {
+  position: sticky !important;
+  bottom: 8px;
+  z-index: 45;
+  width: min(100%, 1100px) !important;
+  max-width: none !important;
+  box-shadow: 0 10px 28px rgba(31, 73, 125, .16) !important;
+}
+
+.mathmaster-question-engine[data-solver-workspace-mode="focus"] .multi-relation-branch {
+  min-height: clamp(165px, 24vh, 310px) !important;
+  padding: clamp(20px, 2.4vw, 34px) !important;
+}
+
+.mathmaster-question-engine[data-solver-workspace-mode="focus"] .algebra-other-operations-inline,
+.mathmaster-question-engine[data-solver-workspace-mode="focus"] .multi-relation-rewrite-compact {
+  position: relative;
+  z-index: 5;
+}
+
+.solver-work-history h3 {
+  margin: 0 0 4px;
+  color: #174ea6;
+  font-size: 15px;
+}
+
+.solver-work-history > p {
+  margin: 0 0 10px;
+  color: #5f6368;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.solver-work-history ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 24px;
+}
+
+.solver-work-history li {
+  padding: 8px 9px;
+  border: 1px solid #e0e7f2;
+  border-radius: 9px;
+  background: #f8fbff;
+  color: #202124;
+}
+
+.solver-work-history__math-text {
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+@media (max-width: 1020px) {
+  .solver-workspace-frame[data-workspace-mode="focus"] .solver-workspace-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
+  }
+
+  .solver-workspace-modebar__context span {
+    max-width: 340px;
+  }
+}
+
+@media (max-width: 780px) {
+  .mathmaster-question-engine[data-solver-workspace-mode="enlarged"],
+  .mathmaster-question-engine[data-solver-workspace-mode="focus"] {
+    inset: 0 !important;
+    border: 0;
+    border-radius: 0;
+    padding: 7px !important;
+  }
+
+  .solver-workspace-modebar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .solver-workspace-modebar__context {
+    width: 100%;
+  }
+
+  .solver-workspace-modebar__controls {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .solver-workspace-modebar__controls > button {
+    flex: 1 1 150px;
+  }
+
+  .solver-workspace-divider {
+    display: none;
+  }
+
+  .solver-workspace-zoom {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .solver-workspace-frame[data-workspace-mode="focus"] .solver-workspace-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .solver-workspace-frame[data-workspace-mode="focus"] .solver-workspace-focus-panel {
+    position: relative;
+    top: auto;
+    max-height: 230px;
+  }
+
+  .mathmaster-question-engine[data-solver-workspace-mode="focus"] .algebra-balance-workspace-shell,
+  .mathmaster-question-engine[data-solver-workspace-mode="focus"] .algebra-connected-balance,
+  .mathmaster-question-engine[data-solver-workspace-mode="focus"] .algebra-connected-side {
+    min-height: revert;
+  }
+
+  .mathmaster-question-engine[data-solver-workspace-mode="focus"] .algebra-operation-composer,
+  .mathmaster-question-engine[data-solver-workspace-mode="focus"] .multi-relation-operation-dock {
+    position: relative !important;
+    bottom: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .solver-workspace-frame *,
+  .solver-workspace-frame *::before,
+  .solver-workspace-frame *::after {
+    scroll-behavior: auto !important;
+  }
+}

@@ -7,6 +7,7 @@ import {
   parseRelationSource,
   relationSourceFromQuestion,
 } from '../../src/algebraRelationFoundation.js';
+import { multiRelationSource } from './helpers/solverSource.mjs';
 
 test('advanced relation source reads equation', () => {
   assert.equal(relationSourceFromQuestion({ equation: '2*x^2 - 12*x + 7 = 0' }), '2*x^2 - 12*x + 7 = 0');
@@ -39,6 +40,6 @@ test('workspace routing sees normalized equationLatex too', () => {
 });
 
 test('MultiRelationAlgebra uses the shared source resolver', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
   assert.match(src, /relationSourceFromQuestion\(question\)/);
 });

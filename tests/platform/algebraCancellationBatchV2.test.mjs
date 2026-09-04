@@ -14,7 +14,7 @@ test('one hit per pair can complete two cancellation pairs in one batch', () => 
 });
 
 test('compound cancellation applies as soon as every pair is identified', () => {
-  const source = fs.readFileSync(new URL('../../src/StepByStepAlgebra.jsx', import.meta.url), 'utf8');
+  const source = fs.readFileSync(new URL('../../src/StepByStepAlgebraCore.jsx', import.meta.url), 'utf8');
   assert.match(source, /Once every visible pair has been identified/);
   assert.ok(!source.includes('Finish {cancellationModel.pairs.length} cancellations'));
   assert.match(source, /one factor from each pair/);

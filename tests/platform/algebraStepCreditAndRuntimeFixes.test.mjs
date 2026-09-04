@@ -92,7 +92,7 @@ test('subtracting p from both absolute-value branches preserves the negative bra
 });
 
 test('multi-relation renderer uses the signed term LaTeX directly instead of reparsing it', () => {
-  const source = read('src/MultiRelationAlgebra.jsx');
+  const source = read('src/MultiRelationAlgebraCore.jsx');
   assert.match(source, /const rawTermLatex = String\(term\.latex \|\| ''\)\.trim\(\)/);
   assert.match(source, /const visibleTermLatex =/);
   assert.match(source, /<MathDisplay value=\{visibleTermLatex\}/);
@@ -133,7 +133,7 @@ test('stored step history improves legacy and closed-assignment credit without r
 });
 
 test('multi-relation algebra can cancel an armed operation and rewrite closes the composer', () => {
-  const source = read('src/MultiRelationAlgebra.jsx');
+  const source = read('src/MultiRelationAlgebraCore.jsx');
   assert.match(source, /const cancelBasicOperation = \(\) =>/);
   assert.match(source, /setOperation\(null\)/);
   assert.match(source, /setOperand\(''\)/);
@@ -181,8 +181,8 @@ test('already-synced Classroom grades can be recalculated and resent without reo
 
 
 test('both algebra workspaces surface cumulative step credit to the student', () => {
-  const step = read('src/StepByStepAlgebra.jsx');
-  const multi = read('src/MultiRelationAlgebra.jsx');
+  const step = read('src/StepByStepAlgebraCore.jsx');
+  const multi = read('src/MultiRelationAlgebraCore.jsx');
   assert.match(step, /Step credit \{stepCreditPercent\}%/);
   assert.match(multi, /Step credit \{stepCreditPercent\}%/);
   assert.match(multi, /questionRecord = null/);

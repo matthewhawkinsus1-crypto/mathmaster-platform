@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { stepAlgebraSource } from './helpers/solverSource.mjs';
 
-const source = await readFile(new URL('../../src/StepByStepAlgebra.jsx', import.meta.url), 'utf8');
+const source = stepAlgebraSource();
 
 test('Step Algebra uses multi-pair cancellation progress', () => {
   assert.match(source, /advanceCancellationProgress/);
