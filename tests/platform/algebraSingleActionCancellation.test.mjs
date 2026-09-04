@@ -27,7 +27,7 @@ test('one hit per pair completes compound cancellation without four separate tok
 });
 
 test('Step Algebra applies complete cancellation immediately without a second Finish click', () => {
-  const source = fs.readFileSync(new URL('../../src/StepByStepAlgebra.jsx', import.meta.url), 'utf8');
+  const source = fs.readFileSync(new URL('../../src/StepByStepAlgebraCore.jsx', import.meta.url), 'utf8');
   assert.match(source, /apply the cancellation\s*\/\/ immediately|apply the cancellation/);
   assert.ok(!source.includes('Finish {cancellationModel.pairs.length} cancellations'));
   assert.match(source, /MathMaster crosses out the matching term with it/);
@@ -35,7 +35,7 @@ test('Step Algebra applies complete cancellation immediately without a second Fi
 
 
 test('Step Algebra commits the cancellation side from the same action instead of stale React state', () => {
-  const source = fs.readFileSync(new URL('../../src/StepByStepAlgebra.jsx', import.meta.url), 'utf8');
+  const source = fs.readFileSync(new URL('../../src/StepByStepAlgebraCore.jsx', import.meta.url), 'utf8');
   assert.match(source, /crossedSidesOverride/);
   assert.match(source, /commitMove\(pendingMove, \{ crossedSidesOverride: next \}\)/);
   assert.match(source, /onSubmit=\{checkStudentRewrite\}/);
@@ -43,7 +43,7 @@ test('Step Algebra commits the cancellation side from the same action instead of
 
 
 test('optional simplification stays under the side being simplified and Enter checks it', () => {
-  const source = fs.readFileSync(new URL('../../src/StepByStepAlgebra.jsx', import.meta.url), 'utf8');
+  const source = fs.readFileSync(new URL('../../src/StepByStepAlgebraCore.jsx', import.meta.url), 'utf8');
   const css = fs.readFileSync(new URL('../../src/StepByStepAlgebra.css', import.meta.url), 'utf8');
   assert.match(source, /algebra-optional-simplification--\$\{pendingMove\.simplificationTargets\[0\]\.side\}/);
   assert.match(source, /onSubmit=\{checkSimplifications\}/);
