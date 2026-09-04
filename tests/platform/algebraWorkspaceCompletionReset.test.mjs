@@ -34,7 +34,7 @@ test('keep-as-written preserves arithmetic cleanup on both sides', () => {
 });
 
 test('Step Algebra exposes optional simplification and a non-attempt-reset action', () => {
-  const source = fs.readFileSync(new URL('../../src/StepByStepAlgebra.jsx', import.meta.url), 'utf8');
+  const source = fs.readFileSync(new URL('../../src/StepByStepAlgebraCore.jsx', import.meta.url), 'utf8');
   assert.match(source, /Keep as written/);
   assert.match(source, /Reset work/);
   assert.match(source, /attempt count will not change/);
