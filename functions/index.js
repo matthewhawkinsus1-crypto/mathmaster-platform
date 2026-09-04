@@ -6220,7 +6220,14 @@ async function liveChallengeRules() {
   return liveChallengeModule;
 }
 
+let liveChallengeReportModule = null;
+async function liveChallengeReportRules() {
+  if (!liveChallengeReportModule) liveChallengeReportModule = await import("./shared/liveChallengeReport.mjs");
+  return liveChallengeReportModule;
+}
+
 const LIVE_CHALLENGE_ROOMS = "liveChallengeRooms";
+const LIVE_CHALLENGE_REPORTS = "liveChallengeReports";
 const LIVE_CHALLENGE_PRIVATE = "liveChallengePrivate";
 const LIVE_CHALLENGE_INVITES = "liveChallengeInvites";
 const LIVE_CHALLENGE_TEACHER_ACTIVE = "liveChallengeTeacherActive";
@@ -6458,10 +6465,23 @@ exports.createLiveChallenge = onCall(async (request) => {
     roomId: roomRef.id,
     teacherEmail,
     questionIds: selected.map((entry) => entry.question.id),
+    // The standard each round is about, captured now. The report is assembled
+    // after the room closes, and re-reading the bank then would give whatever
+    // the question says today rather than what the class actually answered.
+    roundStandards: Object.fromEntries(selected.map((entry, index) => [
+      String(index),
+      String(
+        (Array.isArray(entry.question.alignmentKeys) && entry.question.alignmentKeys[0])
+        || entry.question.alignmentKey
+        || entry.question.teksCode
+        || "",
+      ),
+    ])),
     // Frozen here so that appending second-chance rounds later cannot make the
     // game think its own replays were part of the original set.
     scheduledRoundCount: selected.length,
     roundMisses: {},
+    roundAnswers: {},
     secondChanceOf: {},
     secondChancePlanned: false,
     status: challenge.LIVE_CHALLENGE_STATUS.LOBBY,
@@ -6639,6 +6659,42 @@ exports.startLiveChallenge = onCall(async (request) => {
 
 async function finishLiveChallengeRoom({ db, roomRef, privateRef, room, status }) {
   const players = await loadPrivateChallengePlayers(privateRef);
+
+  // WRITTEN BEFORE THE STATE IT READS IS DELETED. Everything the report needs —
+  // which rounds were missed, how many answered each one, what standard each
+  // round was about — lives in private state, and deletePrivateChallengeState
+  // below removes it. Assembling the report afterwards would produce an empty
+  // one, which is how a report quietly becomes useless rather than obviously
+  // broken.
+  try {
+    const privateSnapshot = await privateRef.get();
+    const privateState = privateSnapshot.exists ? (privateSnapshot.data() || {}) : {};
+    const reportRules = await liveChallengeReportRules();
+    const report = reportRules.buildChallengeReport({
+      room,
+      scheduledRoundCount: Number(privateState.scheduledRoundCount) || Number(room.roundCount) || 0,
+      roundMisses: privateState.roundMisses || {},
+      roundStandards: privateState.roundStandards || {},
+      roundAnswers: privateState.roundAnswers || {},
+      answeredCounts: privateState.roundAnswers || {},
+      secondChanceOf: privateState.secondChanceOf || {},
+      players,
+    });
+    await db.collection(LIVE_CHALLENGE_REPORTS).doc(roomRef.id).set({
+      ...report,
+      roomId: roomRef.id,
+      teacherEmail: room.teacherEmail,
+      classId: room.classId || null,
+      status,
+      finishedAt: FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    // A report that cannot be written must never strand a room in a running
+    // state that the teacher can no longer end.
+    logger.error("liveChallenge.report.failed", { roomId: roomRef.id, message: error?.message });
+  }
+
   await Promise.all([
     roomRef.set({
       status,
@@ -6829,6 +6885,12 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
       streak: finalScore.newStreak,
       answeredRound: submittedRound,
       lastAnswerCorrect: answeredCorrectly,
+      comebackCount: Math.max(0, Math.round(Number(player.comebackCount) || 0)) + (finalScore.comebackBonus > 0 ? 1 : 0),
+      recoveryCount: Math.max(0, Math.round(Number(player.recoveryCount) || 0)) + (finalScore.recoveryPoints > 0 ? 1 : 0),
+      bestStreak: Math.max(
+        Math.max(0, Math.round(Number(player.bestStreak) || 0)),
+        finalScore.newStreak,
+      ),
       // A scheduled round that was missed becomes a candidate for replay. A
       // replay itself is never added, so one question cannot be queued twice.
       missedRounds: !answeredCorrectly && !isSecondChance
@@ -6840,9 +6902,13 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     // what decides the replay list, and it lives in private state because a
     // running miss count would otherwise tell a student how hard a question is
     // before they reach it.
-    if (!answeredCorrectly && !isSecondChance) {
+    // The misses drive the replay list; the answers give the report a
+    // denominator. Without both, "8 missed it" cannot be told apart from
+    // "8 of 10 missed it" and "8 of 24 missed it".
+    if (!isSecondChance) {
       transaction.set(privateRef, {
-        roundMisses: { [String(submittedRound)]: FieldValue.increment(1) },
+        roundAnswers: { [String(submittedRound)]: FieldValue.increment(1) },
+        ...(answeredCorrectly ? {} : { roundMisses: { [String(submittedRound)]: FieldValue.increment(1) } }),
       }, { merge: true });
     }
 

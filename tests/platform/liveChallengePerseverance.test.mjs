@@ -166,9 +166,11 @@ test('miss counts stay in private state, not on the room a student can read', ()
   // A running miss count would tell a student how hard a question is before
   // they reach it.
   const source = codeOf('functions/index.js');
-  const block = source.slice(source.indexOf('roundMisses: { [String(submittedRound)]'));
-  assert.match(source, /transaction\.set\(privateRef, \{\s*roundMisses/);
-  assert.ok(block.length > 0);
+  // The counters are written to privateRef, never to roomRef, whatever else
+  // gets added to that write alongside them.
+  const write = source.slice(source.indexOf('transaction.set(privateRef, {'));
+  assert.match(write.slice(0, 400), /roundMisses: \{ \[String\(submittedRound\)\]/);
+  assert.doesNotMatch(source, /transaction\.set\(roomRef, \{[\s\S]{0,200}roundMisses/);
   assert.match(source, /secondChanceOf = privateState\?\.secondChanceOf/);
 });
 

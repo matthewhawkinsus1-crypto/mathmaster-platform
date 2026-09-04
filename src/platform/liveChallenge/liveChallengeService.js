@@ -1,4 +1,4 @@
-import { collection, doc, onSnapshot } from 'firebase/firestore';
+import { collection, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../firebase.js';
 
@@ -47,6 +47,20 @@ export const watchLiveChallengePlayers = (roomId, onValue, onError = console.err
 
 // One server-owned pointer per teacher recovers an active lobby/game after a
 // refresh without scanning completed challenge history.
+/**
+ * The report a finished game leaves behind, for the teacher who ran it.
+ *
+ * A one-shot read rather than a subscription: it is written once when the room
+ * closes and never changes, so watching it would keep a listener open on a
+ * document that will not move again.
+ */
+export const readChallengeReport = async (roomId) => {
+  const id = String(roomId || '').trim();
+  if (!id) return null;
+  const snapshot = await getDoc(doc(db, 'liveChallengeReports', id));
+  return snapshot.exists() ? snapshot.data() : null;
+};
+
 export const watchTeacherActiveChallenge = (teacherEmail, onValue, onError = console.error) => {
   if (!teacherEmail) {
     onValue?.(null);

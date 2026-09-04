@@ -1,0 +1,237 @@
+# MathMaster build backlog
+
+Things worth building, why, and what is already true. Kept in the repository so
+it survives a conversation, and updated as items ship.
+
+Status: `open` · `in progress` · `shipped` · `needs a decision from the teacher`
+
+---
+
+## Needs a decision before it can be built
+
+### Does Live Challenge performance count as mastery evidence?
+**Status:** needs a decision
+
+The post-game report deliberately writes none. A timed, gamified round is real
+retrieval practice but is not equivalent to independent untimed work, and
+quietly writing evidence while building a report would have decided this by
+accident.
+
+A defensible position: yes at reduced weight, never toward grades unless a
+teacher opts in per challenge. Not implemented either way.
+
+### Who may reconcile attendance?
+**Status:** needs a decision
+
+Teacher of record only, or an explicitly granted per-class delegate? It decides
+the shape of the permission check rather than being a setting added later. A
+co-teacher or substitute covering a period currently could not mark anything.
+
+### Is there an SIS attendance export to reconcile against?
+**Status:** needs a decision
+
+If the district's SIS produces a daily CSV, the teacher's confirmation step
+becomes a verification step and accuracy rises considerably. The manual path
+should be built either way, but the record should be shaped so an import can
+populate it.
+
+---
+
+## Unknown, and worth finding out first
+
+### What happens when a Chromebook sleeps mid-game?
+**Status:** open · unverified
+
+Nobody has checked. If a student's device sleeps or drops wifi during a Live
+Challenge, it is unknown whether they can rejoin the room, whether their score
+survives, and whether the teacher's advance button waits for them.
+
+This outranks every feature below it, because it is the failure most likely to
+happen in first period and the one that would make the feature look broken in
+front of a class. Verify before building more on top of Live Challenge.
+
+---
+
+## Live Challenge
+
+### Fix how the question bank is sampled
+**Status:** open · high value, small
+
+`loadChallengeCandidates` pulls `.limit(300)` for a mixed game and `.limit(100)`
+for a single standard, with **no `orderBy`**. Firestore returns by document ID,
+so every mixed game draws from the same first 300 documents. Students who play
+often will see repeats and most of the bank is unreachable.
+
+There is also no difficulty targeting: a mixed game can serve a DOK-3 modeling
+question as round 1 under a 45-second timer.
+
+### Round sources beyond one standard
+**Status:** open
+
+Today a teacher picks one standard or `mixed`. Each of these is a query change,
+not new content:
+
+- **Yesterday's DOL misses** — the strongest of the set. Makes a challenge
+  diagnostic-driven, and every round is one somebody in the room needs.
+- **This week's Path slots** — the game reinforces the weekly target instead of
+  interrupting it.
+- **The class's weakest standards** — computed from `masteryProfilesByTEKS`.
+- **Retention-due standards** — spiral review, from `retentionScheduler`.
+- **An existing assignment** — any built lesson becomes a round set.
+- **CCMR / ASVAB / SAT transfer** — the audited banks already exist.
+- **Hand-picked** — everything else is a shortcut to this.
+
+### Competition formats
+**Status:** open
+
+Every challenge is currently a free-for-all with one ranked list. This axis
+decides whether the game encourages a struggling student or confirms what they
+already believe.
+
+- **Teams**, scored on **average not sum**, so nobody gets carried and every
+  student's round matters
+- **Class vs class**, settled asynchronously between periods
+- **Class vs its own record** — the safest competitive frame there is
+- **Co-op against a target**, with no ranking at all — for reteach days
+- **Handicap scoring** against each student's own baseline, so the student who
+  improved most can win
+
+### Teacher dry run before launching
+**Status:** open
+
+A teacher currently launches blind in front of the class. A dry run lets them
+play their own configured challenge solo against the real bank with the real
+timer — and **swap out a round they do not like** before launching.
+
+The value is question review; seeing the UI is the bonus. `DemoExperience.jsx`
+and the Teacher Path Simulator are both precedent for this shape.
+
+### A `liveChallenge` authoring contract slice
+**Status:** open · do after the selector
+
+A challenge question has constraints an assignment question does not: answerable
+in 45 seconds, single part, no multi-stage tool, no scratchpad dependency,
+unambiguous when read fast. `CONTRACT_SLICES` and the `issuable` template gate
+already exist; this adds the slice and a timing validator so an outside AI can
+produce usable rounds.
+
+Worth doing **after** the selector, so the constraints are written from what a
+good round turned out to be in practice.
+
+### More ways to be recognised at the end
+**Status:** open
+
+Most improved · steadiest · first to answer · best comeback · team that pulled
+together. With one prize the same three students win every time and the rest
+stop playing.
+
+### Private personal bests
+**Status:** open
+
+"Your best round yet", shown only to that student. Recognition that does not
+require beating anybody.
+
+### Public top few, private own rank
+**Status:** open
+
+Aliases already protect identity. Showing only a top three or five publicly,
+with each student's own position shown only to them, means **nobody is ever
+publicly last** — which is where perseverance is won or lost.
+
+### Solution reveal between rounds
+**Status:** open
+
+Five seconds of the worked solution before the next question. It is the
+difference between a quiz and a lesson, and it is the only thing the student who
+just missed it otherwise gets.
+
+---
+
+## Live Class and attendance
+
+### The period roll from the monitor
+**Status:** open · attendance is waiting on this
+
+At the bell the monitor already knows who showed no activity in the window. That
+is the proposed-absent list, with no new collection.
+
+It must arrive as **evidence** — "no activity 9:05–9:52" — never as a verdict. A
+dead Chromebook and an empty seat produce the identical record, and the teacher
+is the one who can tell them apart.
+
+### Partial presence
+**Status:** open · probably the highest-value signal here
+
+A student active for twelve minutes of a fifty-minute period is neither
+present-and-working nor absent, and today reads as present. An engagement window
+distinguishes arriving late, leaving early, and quietly stopping — three
+different conversations, none of them truancy.
+
+### Which question broke the room
+**Status:** open
+
+Eighteen of twenty-four carrying `x` on question 7 is a reteach signal, currently
+discoverable only afterwards and one student at a time. One row per question
+turns the monitor from a supervision tool into a live formative one.
+
+### Who to see next
+**Status:** open
+
+Severity flags sort by how bad things look. A teacher walking the room needs a
+different order: longest without progress. A quiet student stuck for nine
+minutes outranks a loud one who missed a question thirty seconds ago.
+
+### A period replay
+**Status:** open
+
+The monitor shows the room as it is, not that the room fell off a cliff at 9:22.
+An engagement line across the period separates "my lesson lost them" from "that
+student left".
+
+### Flag for follow-up from the tile
+**Status:** open · depends on the attendance extension
+
+One control that opens the extension the attendance layer already computes, in
+the period rather than as an evening admin task. The extension only helps if
+granting it is easier than forgetting.
+
+---
+
+## Attendance layer
+
+### The teacher reconciliation card
+**Status:** open · blocked on the two decisions above
+
+The observation record and the four-state card — present, excused, unexcused,
+unmarked — with unmarked doing nothing at all. The pure policy modules
+(`classMeetings.js`, `absencePolicy.js`) are built and tested; nothing is wired.
+
+### The weekly Path publisher needs a new refusal
+**Status:** open
+
+`weeklyPathPublishDecision` refuses on `not_enabled`, `not_linked`,
+`not_over_yet`, `no_weekly_score` and `teacher_already_changed`. It needs
+`attendance_not_yet_reconciled` alongside them, or Monday's automatic run pushes
+a low weekly score to the family of a student who was out sick before the
+teacher has marked anything.
+
+### Suppress needs-attention for confirmed absences
+**Status:** open
+
+`needsAttention.js` already carries the worry in a comment: *"a strong student
+who was absent starts reading as a struggling one."* Once absences are
+confirmed, that queue should stop reporting them.
+
+---
+
+## Shipped
+
+- Student question legibility — inequality prompts, answer-format hints,
+  exponential asymptotes, sticky submit and undo
+- Enlarge on every graph, diagram and number line; auto-enlarge for aiming tools
+- Tool chrome compaction and foldable reference panels
+- Scratchpad pages, and the fix for Close discarding unsaved work
+- Graph self-check ("Check my points"), gated by section policy
+- Weekly Path progress bar and the grade a student is earning
+- Live Challenge comeback points and second-chance rounds
+- Live Challenge post-game report
