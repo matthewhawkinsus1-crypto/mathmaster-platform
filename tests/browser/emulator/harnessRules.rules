@@ -1,0 +1,17 @@
+rules_version = '2';
+// PERMISSIVE ON PURPOSE, AND ONLY HERE.
+//
+// This file is used by the full-game render harness and by nothing else. The
+// harness runs an unauthenticated browser client against a throwaway emulator
+// project, so the real firestore.rules would deny every read and the harness
+// would prove nothing about rendering.
+//
+// The real rules are not skipped, they are tested somewhere better suited to
+// it: `npm run test:rules` runs 31 tests against firestore.rules in this same
+// emulator, including the Live Challenge collections. This file never ships and
+// is never loaded by `firebase deploy`, which reads the root firebase.json.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} { allow read, write: if true; }
+  }
+}

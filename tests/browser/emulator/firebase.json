@@ -1,0 +1,14 @@
+{
+  "firestore": {
+    "rules": "harnessRules.rules"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8182
+    },
+    "ui": {
+      "enabled": false
+    },
+    "singleProjectMode": true
+  }
+}

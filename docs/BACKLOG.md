@@ -9,16 +9,32 @@ Status: `open` · `in progress` · `shipped` · `needs a decision from the teach
 
 ## Needs a decision before it can be built
 
-### Does Live Challenge performance count as mastery evidence?
-**Status:** needs a decision
+### ~~Does Live Challenge performance count as mastery evidence?~~ — decided
+**Status:** decided · yes, at reduced weight · built
 
-The post-game report deliberately writes none. A timed, gamified round is real
-retrieval practice but is not equivalent to independent untimed work, and
-quietly writing evidence while building a report would have decided this by
-accident.
+It counts. The answers are real answers to real questions from the secure bank,
+graded by the same graders as everything else, so refusing them was throwing
+away evidence the platform already had.
 
-A defensible position: yes at reduced weight, never toward grades unless a
-teacher opts in per challenge. Not implemented either way.
+How it is recorded reflects the conditions rather than pretending they do not
+exist:
+
+- **Weighted 0.7** — below untimed practice (1.0) and below a Warm-Up (0.8).
+  One attempt against a countdown with a leaderboard in view is noisier
+  evidence: a wrong answer may mean "cannot do this" or may mean "ran out of
+  seconds", and the estimate should not treat those as equally informative.
+- **Aggregated per standard, not per round.** A single timed question is close
+  to a coin flip. Four rounds on one standard with three right is a proportion
+  worth 0.75, which is something the estimate can actually use.
+- **Replays never count twice.** A second-chance round is the same question the
+  room already missed, and the second showing is the easier one.
+- **Unanswered rounds contribute nothing** — not a zero. A student still reading
+  when the timer ended has not demonstrated that they cannot do it.
+- **Every event states its conditions** on the record itself, so a reader can
+  see what it was rather than having to know.
+
+Not gated behind a per-challenge teacher opt-in. The weight is the control, and
+a switch that had to be remembered mid-lesson would mostly be forgotten.
 
 ### ~~Who may reconcile attendance?~~ — decided
 **Status:** decided · the teacher reconciles
@@ -31,13 +47,61 @@ Still worth revisiting later, but not blocking: a substitute or co-teacher
 covering a period cannot mark anything under this rule. Treat a delegate as a
 future addition rather than part of the first build.
 
-### Is there an SIS attendance export to reconcile against?
-**Status:** needs a decision
+### ~~Is there an SIS attendance export to reconcile against?~~ — decided
+**Status:** decided · not needed · nothing to build
 
-If the district's SIS produces a daily CSV, the teacher's confirmation step
-becomes a verification step and accuracy rises considerably. The manual path
-should be built either way, but the record should be shaped so an import can
-populate it.
+No SIS export is required. The teacher reconciles attendance in MathMaster and
+that record stands on its own; there is no second system to agree with. Nothing
+here needs building, and the import-shaped record this section was holding open
+is not required either.
+
+---
+
+## Known risk, not yet mitigated
+
+### One Firestore document takes a write per student per round
+**Status:** verified correct under concurrency · throughput unproven · worth fixing
+
+Every `submitLiveChallengeResponse` writes the per-round answered and missed
+tallies to the same `liveChallengePrivate/{roomId}` document. They live there
+rather than on the room because a running miss count on a public document would
+tell a student how hard a question is before they reach it — that reasoning is
+still right.
+
+The consequence is that one document takes one write per student per round. A
+class of 24 answering within a couple of seconds is roughly 24 writes to a
+single document in that window, and Firestore's guidance for sustained writes to
+one document is about one per second. Bursts are absorbed, so this may well be
+fine in practice; the point is that nothing here has demonstrated it.
+
+**What is proven:** `tests/integration/liveChallengeConcurrency.test.mjs` runs a
+full 24-student class submitting simultaneously and asserts no increment is
+lost, no student is scored twice, no player's answer lands on another's record,
+and a double-tap is accepted exactly once. That is correctness under
+concurrency, and it passes.
+
+**What is not proven:** throughput. The emulator does not enforce the
+per-document write limit, so the test would pass whether or not production would
+throttle. A pass here is not evidence that this shape is safe for a full class
+on the live project.
+
+**The fix worth considering, in preference order:**
+
+1. **Derive the tallies instead of maintaining them.** Each player document
+   already carries `answeredRounds` and `missedRounds`. The room-level counts
+   are the sum of those, and the only consumer that needs them mid-game is the
+   second-chance planner — which runs after the last scheduled round, when the
+   player documents are all readable anyway. This removes the hot document
+   rather than spreading it, and deletes state instead of adding it.
+2. **Shard the counters** across a small fixed set of documents and sum at
+   finish. Standard, effective, and more machinery than option 1.
+3. **Move the tally write out of the transaction.** Cheapest change, but it
+   trades a throughput problem for a consistency one, which is a bad trade for
+   something that decides which questions a class sees again.
+
+Option 1 is a change to live scoring code and should not be made quietly
+alongside test work. It needs its own change, with the concurrency suite above
+run before and after.
 
 ---
 
@@ -225,14 +289,38 @@ the assignment makes the connection.
 - Late arrivals. A student who joins at round six is measured against the four
   rounds they could have played, not against ten.
 
-**Remains:**
+**Also built** (`src/platform/liveChallenge/warmupChallengeLink.js` and the
+`createLiveChallenge` link, tested): which room, if any, belongs to a given
+Warm-Up. A student has one invite document, written for every challenge their
+teacher opens including standalone ones, so "is there an invite" was never a
+safe question — it would drop a student into an unrelated game mid-lesson. The
+link is explicit and fails closed: an invite with no assignment id never drives
+a Warm-Up, an invite for assignment A never drives assignment B, and a blank id
+is never a wildcard. The server refuses to link a room to an assignment that did
+not switch the challenge on, so the mistake surfaces at the teacher's desk
+rather than in front of a class.
 
-- Creating the room when the Warm-Up window opens for a class, and joining every
-  student who opens the assignment.
-- The hand-off in the assignment runtime: render the challenge in place of the
-  Warm-Up section, then return the student to the next section when it ends.
-- Recording the credit against the Warm-Up section.
-- Somewhere for the teacher to switch it on for an assignment.
+**Now complete end to end.** A teacher picks an assignment under *Run as a
+Warm-Up* when creating a challenge; that selection switches it on for the
+assignment and links the room. Students who open that assignment during its
+Warm-Up window are put straight into the game — no invite to spot, no code. When
+it ends, participation and accuracy are written to the assignment and the
+challenge score is not.
+
+**What it still needs before a real period:** none of the rendering has been
+seen in a browser — it is verified by build, lint and the headless suite only.
+Enable it on a throwaway assignment with a test class first and confirm the game
+appears, that *Back to Warm-Up* really returns, and that a student in a
+different assignment still gets the old dashboard banner.
+
+**Open decisions this did not make:**
+
+- ~~Whether challenge performance counts as mastery evidence.~~ Decided and
+  built: it counts, weighted 0.7, aggregated per standard.
+- Whether a student who never joined should get a 0% or no record. Currently no
+  record — an absence is an attendance question, which the teacher reconciles,
+  and a 0% would make it indistinguishable from a student who sat through the
+  game and answered nothing.
 
 ### Run a challenge at the DOL phase
 **Status:** open · with a caveat worth taking seriously

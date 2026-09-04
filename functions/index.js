@@ -6226,6 +6226,18 @@ async function liveChallengeReportRules() {
   return liveChallengeReportModule;
 }
 
+let warmupChallengeModule = null;
+async function warmupChallengeRules() {
+  if (!warmupChallengeModule) warmupChallengeModule = await import("./shared/warmupChallenge.mjs");
+  return warmupChallengeModule;
+}
+
+let liveChallengeEvidenceModule = null;
+async function liveChallengeEvidenceRules() {
+  if (!liveChallengeEvidenceModule) liveChallengeEvidenceModule = await import("./shared/liveChallengeEvidence.mjs");
+  return liveChallengeEvidenceModule;
+}
+
 const LIVE_CHALLENGE_ROOMS = "liveChallengeRooms";
 const LIVE_CHALLENGE_REPORTS = "liveChallengeReports";
 const LIVE_CHALLENGE_PRIVATE = "liveChallengePrivate";
@@ -6387,9 +6399,39 @@ exports.createLiveChallenge = onCall(async (request) => {
   } else if (!classPeriod) {
     throw new HttpsError("invalid-argument", "Choose a class before launching a challenge.");
   }
-  const standardCode = challenge.canonicalChallengeStandard(request.data?.standardCode || "mixed");
-  const requestedRoundCount = challenge.normalizeRoundCount(request.data?.roundCount);
-  const roundSeconds = challenge.normalizeRoundSeconds(request.data?.roundSeconds);
+  // OPTIONAL ASSIGNMENT LINK. When present this room is the Warm-Up of that
+  // assignment, and every student who opens it is handed straight into the
+  // game. That is a takeover of the lesson, so it is only allowed when the
+  // teacher explicitly switched the challenge on for that assignment — a link
+  // to an assignment that never enabled it is refused rather than ignored, so
+  // a mistake surfaces at launch instead of surprising a class.
+  let assignmentId = String(request.data?.assignmentId || "").trim().slice(0, 200) || null;
+  let warmupChallengeConfig = null;
+  if (assignmentId) {
+    const assignmentSnapshot = await db.collection("assignments").doc(assignmentId).get();
+    if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment no longer exists.");
+    const warmup = await warmupChallengeRules();
+    warmupChallengeConfig = warmup.normalizeWarmupChallengeConfig({
+      ...(assignmentSnapshot.data() || {}),
+      id: assignmentId,
+    });
+    if (!warmupChallengeConfig.enabled) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Turn on the Warm-Up Live Challenge for this assignment before launching it from the Warm-Up.",
+      );
+    }
+  }
+
+  const standardCode = challenge.canonicalChallengeStandard(
+    request.data?.standardCode || warmupChallengeConfig?.standardCode || "mixed",
+  );
+  const requestedRoundCount = challenge.normalizeRoundCount(
+    request.data?.roundCount || warmupChallengeConfig?.roundCount,
+  );
+  const roundSeconds = challenge.normalizeRoundSeconds(
+    request.data?.roundSeconds || warmupChallengeConfig?.roundSeconds,
+  );
   const defaultTitle = `${className || classPeriod || "Class"} Live Challenge`;
   const title = String(request.data?.title || defaultTitle).trim().slice(0, 120) || defaultTitle;
 
@@ -6442,6 +6484,9 @@ exports.createLiveChallenge = onCall(async (request) => {
     schemaVersion: 2,
     title,
     teacherEmail,
+    // Null, never absent: a reader can tell "standalone challenge" from "field
+    // added after this room was created" without guessing.
+    assignmentId,
     classId,
     classPeriod,
     className: className || null,
@@ -6512,6 +6557,11 @@ exports.createLiveChallenge = onCall(async (request) => {
         roomId: roomRef.id,
         title,
         teacherEmail,
+        // The Warm-Up link travels to the student on the invite, because the
+        // invite is the only challenge document a student is allowed to read
+        // before joining. Null for a standalone challenge, which is what stops
+        // one taking over an unrelated assignment's Warm-Up.
+        assignmentId,
         classId,
         classPeriod,
         className: className || null,
@@ -6586,7 +6636,20 @@ exports.joinLiveChallenge = onCall(async (request) => {
     }
     const player = playerSnapshot.data() || {};
     if (!player.playerKey) throw new HttpsError("failed-precondition", "Your Live Challenge player record is incomplete.");
-    const joinedPlayer = { ...player, joined: true, updatedAt: FieldValue.serverTimestamp() };
+    // WHICH ROUND THEY WALKED IN ON. A student who arrives at round six is a
+    // full participant in the four rounds they were present for, not a
+    // 40% participant in ten. Without this the denominator is always the whole
+    // game and every late arrival looks like a student who gave up.
+    //
+    // Preserved once set. Rejoining is not arriving — a Chromebook waking from
+    // sleep re-enters this transaction, and recomputing would move the student's
+    // join to the current round, shrinking the denominator and inflating the
+    // participation of the one person whose device failed them.
+    const existingJoinRound = Number.isInteger(Number(player.joinedAtRound)) ? Number(player.joinedAtRound) : null;
+    const joinedAtRound = existingJoinRound !== null
+      ? existingJoinRound
+      : Math.max(0, Number.isInteger(Number(room.currentRound)) ? Number(room.currentRound) : 0);
+    const joinedPlayer = { ...player, joined: true, joinedAtRound, updatedAt: FieldValue.serverTimestamp() };
     const publicPlayerRef = roomRef.collection("players").doc(player.playerKey);
     transaction.set(privatePlayerRef, joinedPlayer, { merge: true });
     transaction.set(publicPlayerRef, {
@@ -6711,6 +6774,90 @@ async function finishLiveChallengeRoom({ db, roomRef, privateRef, room, status }
     status,
     updatedAt: FieldValue.serverTimestamp(),
   });
+  // THE ASSIGNMENT'S SHARE OF THE GAME, WRITTEN BEFORE THE COUNTERS VANISH.
+  // roundsAnswered and correctCount live on the private player documents that
+  // deletePrivateChallengeState removes immediately below, so this cannot move
+  // later without silently recording zeroes for a whole class.
+  //
+  // CHALLENGE POINTS ARE NOT WRITTEN. A round is scored out of roughly 1150
+  // with speed and streak inside it. What reaches the assignment is what the
+  // student did — how much they answered and how much of it was right — because
+  // those are facts about the mathematics and the score is partly a fact about
+  // their reaction time.
+  if (room.assignmentId) {
+    try {
+      const warmup = await warmupChallengeRules();
+      const totalRounds = Math.max(0, Number(room.roundCount) || 0);
+      // Only students who actually joined. A student who never appeared is an
+      // attendance question, which the teacher reconciles; writing them a 0%
+      // here would make an absence indistinguishable from a student who sat
+      // through the game and answered nothing.
+      const joinedPlayers = players.filter((player) => player.joined === true);
+      for (let start = 0; start < joinedPlayers.length; start += 450) {
+        const batch = db.batch();
+        joinedPlayers.slice(start, start + 450).forEach((player) => {
+          const credit = warmup.warmupChallengeCredit({
+            roundsAnswered: player.roundsAnswered,
+            correctCount: player.correctCount,
+            roundsAvailable: warmup.roundsAvailableToStudent({
+              totalRounds,
+              joinedAtRound: player.joinedAtRound,
+            }),
+          });
+          batch.set(db.collection("grades").doc(player.studentId), {
+            warmupChallengeByAssignment: {
+              [room.assignmentId]: {
+                ...credit,
+                roomId: roomRef.id,
+                status,
+                roundCount: totalRounds,
+                recordedAt: FieldValue.serverTimestamp(),
+              },
+            },
+          }, { merge: true });
+        });
+        // eslint-disable-next-line no-await-in-loop
+        await batch.commit();
+      }
+    } catch (error) {
+      // Same rule as the report: a credit write that fails must never leave a
+      // room the teacher cannot end.
+      logger.error("warmupChallenge.credit.failed", { roomId: roomRef.id, message: error?.message });
+    }
+  }
+
+  // MASTERY EVIDENCE. Aggregated per standard rather than per round, because a
+  // single timed question is close to a coin flip and a proportion is what the
+  // estimate can use. Replays are excluded so one question cannot enter a
+  // student's record twice, the second time being the easier time.
+  //
+  // Above the delete for the same reason as everything else here: answeredRounds
+  // and missedRounds live on the private player documents.
+  try {
+    const privateSnapshot = await privateRef.get();
+    const privateState = privateSnapshot.exists ? (privateSnapshot.data() || {}) : {};
+    const evidenceRules = await liveChallengeEvidenceRules();
+    const events = evidenceRules.buildChallengeEvidenceEvents({
+      roomId: roomRef.id,
+      players,
+      roundStandards: privateState.roundStandards || {},
+      secondChanceOf: privateState.secondChanceOf || {},
+      occurredAt: Date.now(),
+    });
+    for (let start = 0; start < events.length; start += 450) {
+      const batch = db.batch();
+      events.slice(start, start + 450).forEach((evidenceEvent) => {
+        const ref = db.collection("grades").doc(evidenceEvent.studentId)
+          .collection("evidenceEvents").doc(mathPath.opaqueId("challengeEvidence", evidenceEvent.eventKey));
+        batch.set(ref, evidenceEvent);
+      });
+      // eslint-disable-next-line no-await-in-loop
+      await batch.commit();
+    }
+  } catch (error) {
+    logger.error("liveChallenge.evidence.failed", { roomId: roomRef.id, message: error?.message });
+  }
+
   await deletePrivateChallengeState(db, privateRef, players);
   return { roomId: roomRef.id, status, roundCount: room.roundCount || 0 };
 }
@@ -6897,6 +7044,15 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
       missedRounds: !answeredCorrectly && !isSecondChance
         ? [...new Set([...missedRounds, submittedRound])].slice(0, 40)
         : missedRounds,
+      // Which rounds this student actually answered. Mastery evidence needs
+      // "did they answer it, and were they right", and correctCount alone
+      // cannot say WHICH standard was right. Recorded in the write that was
+      // happening anyway rather than as a second one, because every student in
+      // the room writes here at the same moment.
+      answeredRounds: [...new Set([
+        ...(Array.isArray(player.answeredRounds) ? player.answeredRounds.map(Number) : []),
+        submittedRound,
+      ])].slice(0, 60),
       updatedAt: FieldValue.serverTimestamp(),
     };
     // The room's own tally of how often each scheduled round was missed. It is
@@ -9417,7 +9573,12 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
     const db = getFirestore();
     const profileRef = db.collection("studentMasteryProfiles").doc(studentId);
     const applicationRef = db.collection("masteryEvidenceApplications").doc(mathPath.opaqueId("mastery", studentId, eventKey));
-    const roleWeight = { warmup: 0.8, classwork: 0.9, dol: 1.25, practice: 1, quiz: 1.35, test: 1.4, retention: 1.15 }[evidence.source?.activityRole] || 1;
+    // liveChallenge sits below practice on purpose. The answer is real and the
+    // grader is the same, but one attempt against a countdown with a
+    // leaderboard in view is noisier evidence than the same question at a desk
+    // — a wrong answer may mean "cannot do this" or may mean "ran out of
+    // seconds", and the estimate should not treat those as equally informative.
+    const roleWeight = { warmup: 0.8, classwork: 0.9, dol: 1.25, practice: 1, quiz: 1.35, test: 1.4, retention: 1.15, liveChallenge: 0.7 }[evidence.source?.activityRole] || 1;
     const modified = Boolean(evidence.supportUsage?.modified) || Boolean(evidence.supportUsage?.modifications?.length);
     const independent = mathPath.mathematicalIndependence(evidence.supportUsage || {});
     const score = Math.max(0, Math.min(1, Number(evidence.performance?.score) || 0));

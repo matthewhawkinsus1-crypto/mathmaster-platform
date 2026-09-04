@@ -146,6 +146,8 @@ export default function LiveChallengeTeacher({
   classes = [],
   courseProfiles = {},
   signedInEmail = '',
+  assignments = [],
+  onLinkWarmupChallenge = null,
 }) {
   const classOptions = useMemo(() => (Array.isArray(classes) ? classes : [])
     .filter((entry) => entry?.status !== 'archived' && ['algebra1', 'algebra2'].includes(entry?.course))
@@ -226,6 +228,18 @@ export default function LiveChallengeTeacher({
     nowMs: now,
   });
 
+  // Only assignments that actually have a Warm-Up, and that this class has been
+  // given. Offering the rest would let a teacher attach a game to a section that
+  // has no window to run it in.
+  const [warmupAssignmentId, setWarmupAssignmentId] = useState('');
+  const warmupAssignmentOptions = useMemo(() => (Array.isArray(assignments) ? assignments : [])
+    .filter((assignment) => assignment?.warmup?.enabled !== false)
+    .filter((assignment) => {
+      const ids = Array.isArray(assignment?.assignedClassIds) ? assignment.assignedClassIds : [];
+      return !classId || ids.length === 0 || ids.includes(classId);
+    })
+    .slice(0, 60), [assignments, classId]);
+
   const run = async (key, task) => {
     setBusy(key);
     setMessage('');
@@ -235,15 +249,26 @@ export default function LiveChallengeTeacher({
   };
 
   const create = async () => {
-    const result = await run('create', () => createLiveChallenge({
-      classId,
-      classPeriod,
-      courseId,
-      standardCode,
-      roundCount,
-      roundSeconds,
-      title: title.trim() || `${selectedClass?.name || classPeriod || 'Class'} Live Challenge`,
-    }));
+    const result = await run('create', async () => {
+      // Choosing an assignment here IS the opt-in, and it is persisted on the
+      // assignment before the room exists. The student runtime reads that flag,
+      // not this dropdown, so a room must never be created for an assignment
+      // that has not been switched on — the server refuses that anyway, and
+      // this ordering is what keeps the two from disagreeing.
+      if (warmupAssignmentId && onLinkWarmupChallenge) {
+        await onLinkWarmupChallenge(warmupAssignmentId, { roundCount, roundSeconds, standardCode });
+      }
+      return createLiveChallenge({
+        classId,
+        classPeriod,
+        courseId,
+        standardCode,
+        roundCount,
+        roundSeconds,
+        assignmentId: warmupAssignmentId || null,
+        title: title.trim() || `${selectedClass?.name || classPeriod || 'Class'} Live Challenge`,
+      });
+    });
     if (result?.roomId) {
       setRoomId(result.roomId);
       if (result.trimmed) setMessage(`The secure bank had ${result.roundCount} unique usable questions for this selection, so MathMaster shortened the game from ${result.requestedRoundCount} rounds.`);
@@ -271,6 +296,23 @@ export default function LiveChallengeTeacher({
                 <select value={classId} onChange={(event) => setClassId(event.target.value)} style={{ display: 'block', width: '100%', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid #b7bec8' }}>
                   {classOptions.map((entry) => <option key={entry.classId} value={entry.classId}>{entry.name || entry.period || entry.classId}{entry.period ? ` · ${entry.period}` : ''}</option>)}
                 </select>
+              </label>
+              <label style={{ fontWeight: 800 }}>Run as a Warm-Up
+                <select
+                  value={warmupAssignmentId}
+                  onChange={(event) => setWarmupAssignmentId(event.target.value)}
+                  style={{ display: 'block', width: '100%', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid #b7bec8' }}
+                >
+                  <option value="">No — students join from their dashboard</option>
+                  {warmupAssignmentOptions.map((assignment) => (
+                    <option key={assignment.id} value={assignment.id}>{assignment.title || assignment.id}</option>
+                  ))}
+                </select>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 13, color: '#5f6368' }}>
+                  Students who open that assignment during its Warm-Up window are put straight into the
+                  game — no invite to spot and no code to type. Their participation and accuracy are
+                  recorded on the assignment; the challenge score is not.
+                </span>
               </label>
               <label style={{ fontWeight: 800 }}>Course
                 <input value={courseLabel(courseId)} readOnly style={{ display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid #d8dde6', background: '#f8f9fa', color: '#3c4043' }} />

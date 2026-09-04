@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import QuestionEngine from '../../QuestionEngine.jsx';
+import MathText from '../common/MathText.jsx';
 import { publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
 import { questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
 import {
@@ -57,10 +58,21 @@ function FieldQuestion({ question, disabled, onSubmit }) {
   return (
     <section style={{ padding: 20, borderRadius: 14, background: '#fff', border: '1px solid #d8dde6', textAlign: 'left' }}>
       <div style={{ color: '#174ea6', fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{question?.teksCode || 'Live Challenge'}</div>
-      <h2 style={{ margin: '8px 0 18px', whiteSpace: 'pre-wrap', lineHeight: 1.45, fontSize: 22 }}>{question?.prompt}</h2>
+      {/* Through MathText, like every other prompt on the platform. Rendered
+          raw, an authored `$7(x-9)=63$` reached the screen as those literal
+          characters — during a timed round, where a student has thirty seconds
+          and no way to ask what the dollar signs mean. Found by rendering a
+          real seed-bank question in a browser; the payload tests could not see
+          it because the payload was correct. */}
+      <MathText as="h2" style={{ margin: '8px 0 18px', whiteSpace: 'pre-wrap', lineHeight: 1.45, fontSize: 22 }}>
+        {question?.prompt}
+      </MathText>
       <div style={{ display: 'grid', gap: 12 }}>
         {fields.map((field, fieldIndex) => (
-          <label key={field.id} style={{ fontWeight: 800 }}>{field.label || 'Answer'}{field.unit ? ` (${field.unit})` : ''}
+          <label key={field.id} style={{ fontWeight: 800 }}>
+            {/* Field labels carry math too — "Solve for $x$" is a label, not a
+                prompt, and leaked the same way. */}
+            <MathText as="span">{`${field.label || 'Answer'}${field.unit ? ` (${field.unit})` : ''}`}</MathText>
             <input
               autoFocus={fieldIndex === 0}
               type={['number', 'numeric'].includes(field.inputProfile) ? 'number' : 'text'}
@@ -112,7 +124,7 @@ function ChallengeRound({ room, alias, playerKey, leaderboard, studentProfile, o
         expired: false,
         message: grading.isCorrect
           ? `${grading.comebackBonus > 0 ? 'Comeback! ' : grading.secondChance ? 'Second chance · ' : ''}Correct · +${grading.pointsAwarded} points`
-          : `${grading.scorePercent}% credit · +${grading.pointsAwarded} points`,
+          : `${Number(grading.scorePercent) || 0}% credit · +${Number(grading.pointsAwarded) || 0} points`,
       };
     } catch (error) {
       setSubmitError(error?.message || 'Your answer could not be submitted.');
@@ -156,7 +168,7 @@ function ChallengeRound({ room, alias, playerKey, leaderboard, studentProfile, o
       {expired && !result && <div aria-live="polite" style={{ padding: 15, borderRadius: 11, background: '#f1f3f4', color: '#3c4043', fontWeight: 900 }}>Time is up. Wait for your teacher to start the next round.</div>}
       {result && (
         <section aria-live="polite" style={{ padding: 16, borderRadius: 12, background: result.isCorrect ? '#e6f4ea' : '#fff4ce', color: result.isCorrect ? '#137333' : '#7a4f00', textAlign: 'left' }}>
-          <div style={{ fontSize: 22, fontWeight: 1000 }}>{result.isCorrect ? 'Correct!' : `${result.scorePercent}% credit`}</div>
+          <div style={{ fontSize: 22, fontWeight: 1000 }}>{result.isCorrect ? 'Correct!' : `${Number(result.scorePercent) || 0}% credit`}</div>
           {/* The comeback is named before the total, because the point of
               paying for it is that the student notices it happened. */}
           {result.comebackBonus > 0 && (
@@ -169,8 +181,13 @@ function ChallengeRound({ room, alias, playerKey, leaderboard, studentProfile, o
               Second chance — you got points back on this one. +{result.recoveryPoints}
             </div>
           )}
-          <div style={{ marginTop: 5, fontWeight: 800 }}>+{result.pointsAwarded} points · Total {result.totalScore.toLocaleString()}{result.rank ? ` · Rank #${result.rank}` : ''}</div>
-          {!result.secondChance && (result.speedBonus > 0 || result.streakBonus > 0) && <div style={{ marginTop: 4, fontSize: 13 }}>Accuracy base {result.basePoints} · Speed +{result.speedBonus} · Streak +{result.streakBonus}</div>}
+          {/* Read defensively. The server always sends these, but this block
+              renders mid-round under a countdown: one absent number here throws
+              inside the round and the student is left on a blank screen with no
+              way to answer, for this round and every one after it. A missing
+              total is worth showing as 0; it is not worth losing the game over. */}
+          <div style={{ marginTop: 5, fontWeight: 800 }}>+{Number(result.pointsAwarded) || 0} points · Total {(Number(result.totalScore) || 0).toLocaleString()}{result.rank ? ` · Rank #${result.rank}` : ''}</div>
+          {!result.secondChance && (result.speedBonus > 0 || result.streakBonus > 0) && <div style={{ marginTop: 4, fontSize: 13 }}>Accuracy base {Number(result.basePoints) || 0} · Speed +{Number(result.speedBonus) || 0} · Streak +{Number(result.streakBonus) || 0}</div>}
         </section>
       )}
 
@@ -182,7 +199,10 @@ function ChallengeRound({ room, alias, playerKey, leaderboard, studentProfile, o
   );
 }
 
-export default function LiveChallengeStudent({ invite, studentProfile = {}, onExit }) {
+// `exitLabel` exists because this component is no longer only reached from the
+// dashboard. Played inside an assignment's Warm-Up, "Back to Dashboard" would
+// send a student somewhere they did not come from.
+export default function LiveChallengeStudent({ invite, studentProfile = {}, onExit, exitLabel = 'Back to Dashboard' }) {
   const [room, setRoom] = useState(null);
   const [players, setPlayers] = useState([]);
   const [joining, setJoining] = useState(false);
@@ -214,7 +234,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   }, [roomId, room?.status, invite?.playerKey, joining, leaderboard]);
 
   if (!invite || !roomId) {
-    return <div style={{ padding: 40, textAlign: 'center' }}><h2>No Live Challenge is waiting.</h2><button type="button" onClick={onExit}>Back to Dashboard</button></div>;
+    return <div style={{ padding: 40, textAlign: 'center' }}><h2>No Live Challenge is waiting.</h2><button type="button" onClick={onExit}>{exitLabel}</button></div>;
   }
 
   if (!room) {
@@ -226,7 +246,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
           <div style={{ textAlign: 'left' }}><div style={{ color: '#174ea6', fontSize: 12, fontWeight: 1000, textTransform: 'uppercase' }}>MathMaster Live Challenge</div><h1 style={{ margin: '4px 0 0', fontSize: 25 }}>{room.title}</h1></div>
-          <button type="button" onClick={onExit} style={{ padding: '9px 14px', border: '1px solid #b7bec8', borderRadius: 8, background: '#fff', fontWeight: 900 }}>Back to Dashboard</button>
+          <button type="button" onClick={onExit} style={{ padding: '9px 14px', border: '1px solid #b7bec8', borderRadius: 8, background: '#fff', fontWeight: 900 }}>{exitLabel}</button>
         </header>
         {error && <div role="alert" style={{ marginBottom: 14, padding: 11, borderRadius: 9, background: '#fff4ce', color: '#7a4f00' }}>{error}</div>}
 
@@ -250,7 +270,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
           </div>
         )}
 
-        {room.status === 'cancelled' && <section style={{ padding: 24, borderRadius: 14, background: '#fff', border: '1px solid #d8dde6', textAlign: 'center' }}><h2>This challenge was cancelled.</h2><button type="button" onClick={onExit}>Back to Dashboard</button></section>}
+        {room.status === 'cancelled' && <section style={{ padding: 24, borderRadius: 14, background: '#fff', border: '1px solid #d8dde6', textAlign: 'center' }}><h2>This challenge was cancelled.</h2><button type="button" onClick={onExit}>{exitLabel}</button></section>}
       </div>
     </div>
   );
