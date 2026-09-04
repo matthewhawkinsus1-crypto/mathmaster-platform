@@ -78,7 +78,7 @@ test('ordinary numeric solutions preserve the old values contract', () => {
 });
 
 test('workspace displays exact symbolic completion and clears stale process feedback', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = fs.readFileSync('src/MultiRelationAlgebraCore.jsx', 'utf8');
 
   assert.match(src, /exact-symbolic-solution-complete/);
   assert.match(src, /Solved — all solution branches are complete/);
@@ -87,7 +87,7 @@ test('workspace displays exact symbolic completion and clears stale process feed
 });
 
 test('exact solution card says further simplification is optional', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = fs.readFileSync('src/MultiRelationAlgebraCore.jsx', 'utf8');
 
   assert.match(src, /equivalent simplified form is optional/i);
   assert.match(src, /does not require extra radical, fraction, or literal-expression cleanup/i);
