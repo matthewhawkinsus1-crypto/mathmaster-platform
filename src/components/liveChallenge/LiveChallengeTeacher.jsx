@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
 import { summarizeCoverage } from '../../../functions/shared/pathCoverage.mjs';
 import { challengeCanAdvance, publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
+import { buildChallengeExport, challengeExportFileName } from '../../../functions/shared/liveChallengeExport.mjs';
 import {
   advanceLiveChallenge,
   cancelLiveChallenge,
@@ -29,6 +30,9 @@ import {
  * conclusion to the person who was in the room.
  */
 function ChallengeReport({ report }) {
+  // Hooks run before the early return, so the component keeps a stable hook
+  // order whether or not a report has loaded yet.
+  const roundSet = useMemo(() => buildChallengeExport(report), [report]);
   if (!report) return null;
   const pct = (value) => (value == null ? '—' : `${value}%`);
 
@@ -60,6 +64,31 @@ function ChallengeReport({ report }) {
               <span style={{ color: '#5f6368' }}>{entry.correct}/{entry.answered} correct · {pct(entry.accuracyPercent)}</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {roundSet && (
+        <div style={{ marginBottom: 14 }}>
+          <button
+            type="button"
+            onClick={() => {
+              const blob = new Blob([JSON.stringify(roundSet, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = challengeExportFileName(roundSet);
+              document.body.append(link);
+              link.click();
+              link.remove();
+              URL.revokeObjectURL(url);
+            }}
+            style={{ minHeight: 44, padding: '10px 15px', border: '1px solid #9bb8e8', borderRadius: 9, background: '#fff', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
+          >
+            Save this round set
+          </button>
+          <span style={{ display: 'block', marginTop: 5, fontSize: 12, color: '#5f6368' }}>
+            {roundSet.roundCount} questions. Run the same set with another period — no student names or scores are in the file.
+          </span>
         </div>
       )}
 

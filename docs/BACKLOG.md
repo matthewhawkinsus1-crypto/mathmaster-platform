@@ -43,16 +43,26 @@ populate it.
 
 ## Unknown, and worth finding out first
 
-### What happens when a Chromebook sleeps mid-game?
-**Status:** open · unverified
+### ~~What happens when a Chromebook sleeps mid-game?~~ — checked, it recovers
+**Status:** verified · no work needed
 
-Nobody has checked. If a student's device sleeps or drops wifi during a Live
-Challenge, it is unknown whether they can rejoin the room, whether their score
-survives, and whether the teacher's advance button waits for them.
+Traced end to end. A student whose device sleeps or drops wifi gets back in on
+its own, and five separate properties have to hold for that, all of which do:
 
-This outranks every feature below it, because it is the failure most likely to
-happen in first period and the one that would make the feature look broken in
-front of a class. Verify before building more on top of Live Challenge.
+- Joining is **automatic on mount** — no code to type and no button to find, so
+  waking the device is the whole recovery action.
+- `joinLiveChallenge` accepts a room in **running** status, not only lobby, so
+  rejoining mid-game is allowed rather than refused.
+- It **merges** into the existing player record, so score, correct count and
+  streak all survive the reconnect.
+- The room is read through `onSnapshot`, and the Firestore SDK re-establishes
+  its listeners after a drop without help.
+- The countdown derives from `roundEndsAt`, which is **server time**, so a woken
+  device shows the real remaining seconds rather than a stale local timer.
+
+Two small things remain, neither urgent: a student is not told they missed a
+round while they were away, and a reconnect can fire one redundant join call
+before the leaderboard reloads — harmless, because the call is idempotent.
 
 ---
 
@@ -122,8 +132,18 @@ produce usable rounds.
 Worth doing **after** the selector, so the constraints are written from what a
 good round turned out to be in practice.
 
-### Export a challenge as JSON
-**Status:** open · do this before import
+### ~~Export a challenge as JSON~~ — shipped
+**Status:** shipped
+
+Anchored to the post-game report rather than the live room: the question set
+lives in private state, which is deleted when the room closes, so exporting from
+a running game would have worked once and been impossible for every game already
+finished. The report is written before that deletion, so any finished game can
+be saved.
+
+The file carries content only — question ids, standards, round timing and the
+class result. No names, no scores, no roster. A teacher can email it to a
+colleague without thinking about it.
 
 Live Challenge has **no JSON in or out**. The teacher's whole configuration is
 four dropdowns — class, standard, round count, round seconds — and a finished
@@ -135,7 +155,14 @@ keep a record of what was asked. It needs no new validation, because everything
 in the set already came from the validated bank.
 
 ### Import a challenge from JSON
-**Status:** open · blocked on the contract slice below
+**Status:** open · next · reader already written
+
+`parseChallengeExport` already validates a file and answers a wrong one with a
+sentence rather than a stack trace. What remains is the server half, and it is
+the half that matters: passing the file check means the FILE is well formed, not
+that the questions still exist, are still active, or are still issuable. An
+import must run `safeBuildTemplateIssuePlan` server-side before a single round
+reaches a class.
 
 The natural counterpart, and the way an AI-written round set would actually
 reach a class. It must **validate rather than accept**: every question the game

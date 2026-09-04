@@ -49,6 +49,10 @@ export const summarizeRounds = ({
   roundStandards = {},
   secondChanceOf = {},
   answeredCounts = {},
+  // Carried so a finished game can be saved and re-run. The set lives in
+  // private state, which is deleted when the room closes, so if the report does
+  // not hold it nothing can.
+  questionIds = [],
 } = {}) => {
   const scheduled = Math.max(0, Math.floor(Number(scheduledRoundCount) || 0));
   const replayedOriginals = new Set(
@@ -65,6 +69,7 @@ export const summarizeRounds = ({
       roundIndex,
       roundNumber: roundIndex + 1,
       standard: String(roundStandards?.[roundIndex] ?? roundStandards?.[String(roundIndex)] ?? '') || null,
+      questionId: String((Array.isArray(questionIds) ? questionIds[roundIndex] : '') || '') || null,
       answered,
       missed,
       correct,
@@ -146,11 +151,12 @@ export const buildChallengeReport = ({
   roundStandards = {},
   secondChanceOf = {},
   answeredCounts = {},
+  questionIds = [],
   players = [],
   finishedAt = null,
 } = {}) => {
   const rounds = summarizeRounds({
-    scheduledRoundCount, roundMisses, roundStandards, secondChanceOf, answeredCounts,
+    scheduledRoundCount, roundMisses, roundStandards, secondChanceOf, answeredCounts, questionIds,
   });
   const standards = summarizeStandards(rounds);
   const roster = summarizePlayers({ players, totalRounds: scheduledRoundCount });
@@ -164,6 +170,7 @@ export const buildChallengeReport = ({
   return {
     title: String(room?.title || 'Live Challenge'),
     className: room?.className ? String(room.className) : null,
+    courseId: room?.courseId ? String(room.courseId) : null,
     standardCode: room?.standardCode ? String(room.standardCode) : null,
     roundSeconds: int(room?.roundSeconds) || null,
     finishedAt: finishedAt || null,

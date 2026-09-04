@@ -6678,6 +6678,7 @@ async function finishLiveChallengeRoom({ db, roomRef, privateRef, room, status }
       roundAnswers: privateState.roundAnswers || {},
       answeredCounts: privateState.roundAnswers || {},
       secondChanceOf: privateState.secondChanceOf || {},
+      questionIds: Array.isArray(privateState.questionIds) ? privateState.questionIds : [],
       players,
     });
     await db.collection(LIVE_CHALLENGE_REPORTS).doc(roomRef.id).set({
