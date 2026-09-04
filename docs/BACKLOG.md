@@ -201,7 +201,7 @@ difference between a quiz and a lesson, and it is the only thing the student who
 just missed it otherwise gets.
 
 ### Run a challenge as the Warm-Up of an assignment
-**Status:** open · the strongest structural idea on this list
+**Status:** in progress · decision layer built, runtime wiring remains
 
 Today a challenge needs its own login path: the teacher creates a room, invites
 land in `liveChallengeInvites`, and every student has to notice and join before
@@ -209,29 +209,30 @@ the game can start. That join step, times twenty-four, at the start of a period,
 is what stops a five-minute activity being worth running.
 
 Students opening the assignment are **already authenticated and already
-present**. If the Warm-Up section is the challenge, the join step disappears
-entirely — the assignment makes the connection.
+present**. If the Warm-Up section is the challenge, the join step disappears —
+the assignment makes the connection.
 
-The timing primitive already exists and already knows the class period:
-`getWarmupState` opens a Warm-Up a set number of minutes before the bell and
-closes it about ten minutes after, per class. That is a synchronisation window
-the challenge could adopt rather than invent.
+**Built** (`functions/shared/warmupChallenge.mjs`, pure and tested):
 
-Three problems to solve first:
+- The attachment shape. Off unless explicitly switched on, defaulting to five
+  30-second rounds — a bell-ringer inside a lesson rather than the lesson.
+- The routing decision: play, wait for the teacher, or continue into the
+  assignment. The Warm-Up's own window is the authority, so a teacher who closes
+  the Warm-Up early closes the game with it even while the room still runs.
+- The grading rule. **Challenge points never reach the assignment.** What
+  travels is participation and accuracy — facts about the mathematics rather
+  than about a student's reaction time.
+- Late arrivals. A student who joins at round six is measured against the four
+  rounds they could have played, not against ten.
 
-- **Self-paced against lockstep.** The assignment engine advances a student when
-  they submit; a challenge advances everyone together when the teacher says so.
-  The Warm-Up section would have to hand control to the challenge runtime and
-  take it back at the end.
-- **Which score is the grade.** Warm-Up questions are graded as assignment
-  questions. Challenge rounds are scored out of about 1150 with speed and streak
-  in them. If the Warm-Up is a challenge, the assignment should record
-  participation and accuracy — never challenge points, or speed enters the
-  gradebook.
-- **Late arrivals.** A student who walks in at minute eight joins at round six.
-  The rule should be: play from the current round, score only what you played,
-  participation measured over the rounds you were present for. The post-game
-  report already has that shape.
+**Remains:**
+
+- Creating the room when the Warm-Up window opens for a class, and joining every
+  student who opens the assignment.
+- The hand-off in the assignment runtime: render the challenge in place of the
+  Warm-Up section, then return the student to the next section when it ends.
+- Recording the credit against the Warm-Up section.
+- Somewhere for the teacher to switch it on for an assignment.
 
 ### Run a challenge at the DOL phase
 **Status:** open · with a caveat worth taking seriously
