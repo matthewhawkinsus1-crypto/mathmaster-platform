@@ -162,15 +162,17 @@ test('a replay is never added to a player own missed list', () => {
   assert.match(source, /!answeredCorrectly && !isSecondChance\s*\?\s*\[\.\.\.new Set/);
 });
 
-test('miss counts stay in private state, not on the room a student can read', () => {
+test('miss counts never reach a document a student can read', () => {
   // A running miss count would tell a student how hard a question is before
-  // they reach it.
+  // they reach it. That was originally protected by keeping the counter on
+  // private state; the counter is now gone entirely, derived from the private
+  // per-player records instead. The property is unchanged and stricter: there
+  // is no room-level tally to leak.
   const source = codeOf('functions/index.js');
-  // The counters are written to privateRef, never to roomRef, whatever else
-  // gets added to that write alongside them.
-  const write = source.slice(source.indexOf('transaction.set(privateRef, {'));
-  assert.match(write.slice(0, 400), /roundMisses: \{ \[String\(submittedRound\)\]/);
   assert.doesNotMatch(source, /transaction\.set\(roomRef, \{[\s\S]{0,200}roundMisses/);
+  assert.doesNotMatch(source, /roomRef[\s\S]{0,200}roundAnswers/);
+  // The players it counts live under liveChallengePrivate, which no client reads.
+  assert.match(source, /deriveRoundTallies\(\{[\s\S]{0,200}players/);
   assert.match(source, /secondChanceOf = privateState\?\.secondChanceOf/);
 });
 

@@ -59,49 +59,38 @@ is not required either.
 
 ## Known risk, not yet mitigated
 
-### One Firestore document takes a write per student per round
-**Status:** verified correct under concurrency · throughput unproven · worth fixing
+### ~~One Firestore document takes a write per student per round~~ — fixed
+**Status:** fixed · the hot document is gone, not sharded
 
-Every `submitLiveChallengeResponse` writes the per-round answered and missed
-tallies to the same `liveChallengePrivate/{roomId}` document. They live there
-rather than on the room because a running miss count on a public document would
-tell a student how hard a question is before they reach it — that reasoning is
-still right.
+Every submission used to increment the per-round answered and missed tallies on
+`liveChallengePrivate/{roomId}`, so one document took one write per student per
+round. A class of 24 answering within a couple of seconds is roughly 24 writes
+to a single document, against Firestore guidance of about one per second
+sustained. Correctness held — the concurrency suite proved no increment was
+lost — but the failure mode it risked is a student being told their correct
+answer did not count.
 
-The consequence is that one document takes one write per student per round. A
-class of 24 answering within a couple of seconds is roughly 24 writes to a
-single document in that window, and Firestore's guidance for sustained writes to
-one document is about one per second. Bursts are absorbed, so this may well be
-fine in practice; the point is that nothing here has demonstrated it.
+**The counters were redundant.** Each player document already records which
+rounds that student answered and which they missed, because mastery evidence
+needs both. The room-level numbers are those arrays added up, and both readers —
+the second-chance planner and the post-game report — already load every player.
+`deriveRoundTallies` computes them where they are read. Nothing writes a shared
+counter, and new rooms are not created with the fields at all.
 
-**What is proven:** `tests/integration/liveChallengeConcurrency.test.mjs` runs a
-full 24-student class submitting simultaneously and asserts no increment is
-lost, no student is scored twice, no player's answer lands on another's record,
-and a double-tap is accepted exactly once. That is correctness under
-concurrency, and it passes.
+Replays are excluded from the derivation exactly as they were excluded from the
+increments: a second-chance round is the same question offered again, and
+counting it would give that question a denominator it never had.
 
-**What is not proven:** throughput. The emulator does not enforce the
-per-document write limit, so the test would pass whether or not production would
-throttle. A pass here is not evidence that this shape is safe for a full class
-on the live project.
+**Rooms in flight across the deploy** keep working. Their early answers were
+counted the old way and left no per-player record, so a stored count is used
+where the derived one cannot see it. That is a one-deploy fallback, not a second
+source of truth — nothing writes those fields any more, so it stops mattering as
+soon as those rooms end.
 
-**The fix worth considering, in preference order:**
-
-1. **Derive the tallies instead of maintaining them.** Each player document
-   already carries `answeredRounds` and `missedRounds`. The room-level counts
-   are the sum of those, and the only consumer that needs them mid-game is the
-   second-chance planner — which runs after the last scheduled round, when the
-   player documents are all readable anyway. This removes the hot document
-   rather than spreading it, and deletes state instead of adding it.
-2. **Shard the counters** across a small fixed set of documents and sum at
-   finish. Standard, effective, and more machinery than option 1.
-3. **Move the tally write out of the transaction.** Cheapest change, but it
-   trades a throughput problem for a consistency one, which is a bad trade for
-   something that decides which questions a class sees again.
-
-Option 1 is a change to live scoring code and should not be made quietly
-alongside test work. It needs its own change, with the concurrency suite above
-run before and after.
+**Verified:** the 24-student concurrency suite still asserts every answer is
+counted and every miss is a miss, now reading the derived tallies, and asserts
+no room-level counter is written at all. Twelve unit tests cover the arithmetic,
+the replay exclusion, the replay-list ordering, and the fallback.
 
 ---
 

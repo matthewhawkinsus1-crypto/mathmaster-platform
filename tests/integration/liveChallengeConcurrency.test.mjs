@@ -53,6 +53,7 @@ const functionsIndex = require(path.join(repo, 'functions/index.js'));
 const admin = requireFunctionsModule('firebase-admin');
 const mathPath = require(path.join(repo, 'functions/lib/mathPath.js'));
 const db = admin.firestore();
+const { deriveRoundTallies } = await import(path.join(repo, 'functions/shared/liveChallenge.mjs'));
 
 const TEACHER = 'teacher@example.com';
 const ROOM = 'concurrency-room';
@@ -107,7 +108,7 @@ await roomRef.set({
 await privateRef.set({
   schemaVersion: 2, roomId: ROOM, teacherEmail: TEACHER,
   scheduledRoundCount: 1, questionIds: [authored.id],
-  roundStandards: { 0: 'texas:A.3(C)' }, roundMisses: {}, roundAnswers: {}, secondChanceOf: {},
+  roundStandards: { 0: 'texas:A.3(C)' }, secondChanceOf: {},
 });
 
 // Seed the roster in batches rather than one await at a time.
@@ -158,12 +159,27 @@ test('the class was graded the way it answered', () => {
   assert.equal(fulfilled.length - correct, WRONG_ANSWERERS);
 });
 
-test('no increment is lost on the shared tally', () => {
-  // This is the assertion the whole file exists for. Both counters live on one
-  // document that every submission writes; a lost increment here silently gives
-  // the report a wrong denominator and can change which questions come back.
-  assert.equal(Number(finalPrivate.roundAnswers['0']), CLASS_SIZE, 'answered tally must count every student');
-  assert.equal(Number(finalPrivate.roundMisses['0']), WRONG_ANSWERERS, 'miss tally must count every miss');
+test('no answer is lost from the round tallies', () => {
+  // This is the assertion the whole file exists for, and it survived the fix
+  // that removed the hot document. There is no longer a shared counter to lose
+  // an increment from: the tallies are derived from the player documents, each
+  // written only by its own student. The number that matters is unchanged —
+  // every student who answered is counted, and every miss is a miss — but it is
+  // now read from where the data actually lives.
+  const derived = deriveRoundTallies({
+    players: playerDocs.docs.map((docSnapshot) => docSnapshot.data()),
+    secondChanceOf: finalPrivate.secondChanceOf || {},
+  });
+  assert.equal(Number(derived.roundAnswers['0']), CLASS_SIZE, 'answered tally must count every student');
+  assert.equal(Number(derived.roundMisses['0']), WRONG_ANSWERERS, 'miss tally must count every miss');
+});
+
+test('nothing writes a room-level tally any more', () => {
+  // The hot spot is gone, not merely unused. If a counter reappears on the
+  // private document, one document is taking a write per student per round
+  // again and this file's premise is back.
+  assert.equal(finalPrivate.roundAnswers, undefined, 'no shared answered counter may be written');
+  assert.equal(finalPrivate.roundMisses, undefined, 'no shared miss counter may be written');
 });
 
 test('each player is scored once, and only their own answer', () => {
