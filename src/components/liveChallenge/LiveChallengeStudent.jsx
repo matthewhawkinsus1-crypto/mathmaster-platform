@@ -182,7 +182,10 @@ function ChallengeRound({ room, alias, playerKey, leaderboard, studentProfile, o
   );
 }
 
-export default function LiveChallengeStudent({ invite, studentProfile = {}, onExit }) {
+// `exitLabel` exists because this component is no longer only reached from the
+// dashboard. Played inside an assignment's Warm-Up, "Back to Dashboard" would
+// send a student somewhere they did not come from.
+export default function LiveChallengeStudent({ invite, studentProfile = {}, onExit, exitLabel = 'Back to Dashboard' }) {
   const [room, setRoom] = useState(null);
   const [players, setPlayers] = useState([]);
   const [joining, setJoining] = useState(false);
@@ -214,7 +217,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   }, [roomId, room?.status, invite?.playerKey, joining, leaderboard]);
 
   if (!invite || !roomId) {
-    return <div style={{ padding: 40, textAlign: 'center' }}><h2>No Live Challenge is waiting.</h2><button type="button" onClick={onExit}>Back to Dashboard</button></div>;
+    return <div style={{ padding: 40, textAlign: 'center' }}><h2>No Live Challenge is waiting.</h2><button type="button" onClick={onExit}>{exitLabel}</button></div>;
   }
 
   if (!room) {
@@ -226,7 +229,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
           <div style={{ textAlign: 'left' }}><div style={{ color: '#174ea6', fontSize: 12, fontWeight: 1000, textTransform: 'uppercase' }}>MathMaster Live Challenge</div><h1 style={{ margin: '4px 0 0', fontSize: 25 }}>{room.title}</h1></div>
-          <button type="button" onClick={onExit} style={{ padding: '9px 14px', border: '1px solid #b7bec8', borderRadius: 8, background: '#fff', fontWeight: 900 }}>Back to Dashboard</button>
+          <button type="button" onClick={onExit} style={{ padding: '9px 14px', border: '1px solid #b7bec8', borderRadius: 8, background: '#fff', fontWeight: 900 }}>{exitLabel}</button>
         </header>
         {error && <div role="alert" style={{ marginBottom: 14, padding: 11, borderRadius: 9, background: '#fff4ce', color: '#7a4f00' }}>{error}</div>}
 
@@ -250,7 +253,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
           </div>
         )}
 
-        {room.status === 'cancelled' && <section style={{ padding: 24, borderRadius: 14, background: '#fff', border: '1px solid #d8dde6', textAlign: 'center' }}><h2>This challenge was cancelled.</h2><button type="button" onClick={onExit}>Back to Dashboard</button></section>}
+        {room.status === 'cancelled' && <section style={{ padding: 24, borderRadius: 14, background: '#fff', border: '1px solid #d8dde6', textAlign: 'center' }}><h2>This challenge was cancelled.</h2><button type="button" onClick={onExit}>{exitLabel}</button></section>}
       </div>
     </div>
   );

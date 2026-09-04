@@ -122,5 +122,34 @@ export const resolveWarmupChallenge = (input) => {
   };
 };
 
+/**
+ * Should the assignment still show its "Live Challenge has started — join now"
+ * banner?
+ *
+ * That banner exists for the standalone case and is deliberately unconditional
+ * today: a teacher stops the lesson, every student in any assignment sees it,
+ * and tapping it leaves the assignment for the game. That is opt-in and it
+ * stays exactly as it is.
+ *
+ * It becomes wrong in one situation only — when the running room is THIS
+ * assignment's Warm-Up and is already on screen. Then the banner offers to
+ * leave the assignment in order to reach a game the student is currently
+ * playing inside it, which reads as two different games and, worse, would
+ * navigate a student out of a lesson mid-round.
+ *
+ * So it is suppressed for exactly that case and nothing else. A room that is
+ * live while the Warm-Up window is closed still shows the banner, because then
+ * it is the student's only way in.
+ */
+export const shouldShowChallengeHandoffBanner = ({ invite = null, warmupDecision = null } = {}) => {
+  const status = trimmedId(invite?.status).toLowerCase();
+  if (status !== 'running') return false;
+  if (!warmupDecision) return true;
+  const playingInline = warmupDecision.route === WARMUP_CHALLENGE_ROUTE.PLAY
+    && Boolean(warmupDecision.roomId)
+    && warmupDecision.roomId === trimmedId(invite?.roomId);
+  return !playingInline;
+};
+
 export { WARMUP_CHALLENGE_ROUTE };
 export default resolveWarmupChallenge;

@@ -196,3 +196,69 @@ test('it never throws on junk input', () => {
     assert.doesNotThrow(() => resolveWarmupChallenge(bad));
   }
 });
+
+/* ---------- the duplicate hand-off banner ---------- */
+
+import { shouldShowChallengeHandoffBanner } from '../../src/platform/liveChallenge/warmupChallengeLink.js';
+
+const runningInvite = (overrides = {}) => ({ roomId: 'room-1', status: 'running', ...overrides });
+
+test('the standalone join banner is unchanged when nothing is playing inline', () => {
+  assert.equal(shouldShowChallengeHandoffBanner({ invite: runningInvite() }), true);
+});
+
+test('the banner is suppressed only while that same room plays inline', () => {
+  const decision = resolveWarmupChallenge({
+    assignment: challengeAssignment(),
+    assignmentId: 'assignment-a',
+    warmupState: activeWarmup,
+    invite: runningInvite({ assignmentId: 'assignment-a' }),
+  });
+  assert.equal(decision.route, WARMUP_CHALLENGE_ROUTE.PLAY);
+  assert.equal(
+    shouldShowChallengeHandoffBanner({ invite: runningInvite({ assignmentId: 'assignment-a' }), warmupDecision: decision }),
+    false,
+  );
+});
+
+test('a student inside a DIFFERENT assignment still gets the banner', () => {
+  const decision = resolveWarmupChallenge({
+    assignment: challengeAssignment({ id: 'assignment-b' }),
+    assignmentId: 'assignment-b',
+    warmupState: activeWarmup,
+    invite: runningInvite({ assignmentId: 'assignment-a' }),
+  });
+  assert.equal(
+    shouldShowChallengeHandoffBanner({ invite: runningInvite({ assignmentId: 'assignment-a' }), warmupDecision: decision }),
+    true,
+  );
+});
+
+test('a live room whose Warm-Up window has closed still offers the banner as the only way in', () => {
+  const decision = resolveWarmupChallenge({
+    assignment: challengeAssignment(),
+    assignmentId: 'assignment-a',
+    warmupState: { enabled: true, status: 'closed' },
+    invite: runningInvite({ assignmentId: 'assignment-a' }),
+  });
+  assert.equal(decision.route, WARMUP_CHALLENGE_ROUTE.NONE);
+  assert.equal(
+    shouldShowChallengeHandoffBanner({ invite: runningInvite({ assignmentId: 'assignment-a' }), warmupDecision: decision }),
+    true,
+  );
+});
+
+test('a lobby invite does not raise the started banner', () => {
+  assert.equal(shouldShowChallengeHandoffBanner({ invite: { roomId: 'r', status: 'invited' } }), false);
+  assert.equal(shouldShowChallengeHandoffBanner({ invite: null }), false);
+  assert.equal(shouldShowChallengeHandoffBanner(), false);
+});
+
+test('the banner is never suppressed by a decision pointing at another room', () => {
+  // A stale decision must not silence the banner for a different live game.
+  const stale = { route: WARMUP_CHALLENGE_ROUTE.PLAY, roomId: 'room-9' };
+  assert.equal(
+    shouldShowChallengeHandoffBanner({ invite: runningInvite({ roomId: 'room-1' }), warmupDecision: stale }),
+    true,
+  );
+});

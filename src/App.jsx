@@ -237,6 +237,12 @@ import {
 import LoginScreen from './LoginScreen.jsx';
 import { useAuth } from './auth/AuthProvider.jsx';
 import { watchLiveChallengeInvite } from './platform/liveChallenge/liveChallengeService.js';
+import WarmupChallengeGate from './components/liveChallenge/WarmupChallengeGate.jsx';
+import {
+  WARMUP_CHALLENGE_ROUTE,
+  resolveWarmupChallenge,
+  shouldShowChallengeHandoffBanner,
+} from './platform/liveChallenge/warmupChallengeLink.js';
 // The administrator identity comes from the same module the callables enforce,
 // so the browser can never believe in a different administrator than the server.
 import { isRootAdminEmail } from '../functions/shared/rolePolicy.mjs';
@@ -502,6 +508,10 @@ function App() {
   const [sectionAccessBusyKey, setSectionAccessBusyKey] = useState(null);
   const [studentDashboardMode, setStudentDashboardMode] = useState('assignments');
   const [liveChallengeInvite, setLiveChallengeInvite] = useState(null);
+  // Rooms this student has finished or stepped out of. Leaving the inline
+  // Warm-Up game has to be recorded, or the route would still say PLAY and drop
+  // them straight back into it — a trap with no way into the assignment.
+  const [warmupChallengePlayedRoomIds, setWarmupChallengePlayedRoomIds] = useState([]);
 
   // Browser Back/Forward should move through MathMaster's logical student
   // screens before it ever considers the website that launched MathMaster.
@@ -6236,6 +6246,14 @@ function App() {
     const progress = calculatePracticeProgress(workingTracker, assignment);
     const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
     const warmupState = getWarmupState({ assignment, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
+    // A teacher previewing an assignment is never handed into a live game.
+    const warmupChallengeDecision = preview ? null : resolveWarmupChallenge({
+      assignment,
+      assignmentId: activeAssignmentId,
+      warmupState,
+      invite: liveChallengeInvite,
+      playedRoomIds: warmupChallengePlayedRoomIds,
+    });
     const currentRecord = normalizeQuestionRecord(workingTracker?.[currentQuestionIndex]);
     const currentIsDOL = !lifecycle.isPracticeOnly && activeQuestionRole === 'dol' && dolState.enabled && (dolState.questionIndices || [dolState.questionIndex]).includes(currentQuestionIndex);
     const currentIsWarmup = !lifecycle.isPracticeOnly && activeQuestionRole === 'warmup' && warmupState.enabled;
@@ -6415,6 +6433,26 @@ function App() {
       setActiveAssignmentId(null);
     };
 
+    // While the Warm-Up challenge is live it IS the screen. Rendering the
+    // assignment underneath would leave a student scrolling between a timed
+    // round and the work it replaced.
+    if (warmupChallengeDecision?.route === WARMUP_CHALLENGE_ROUTE.PLAY && warmupChallengeDecision.roomId) {
+      return (
+        <div className="mathmaster-assignment-screen" style={{ padding: 20 }}>
+          <WarmupChallengeGate
+            decision={warmupChallengeDecision}
+            invite={liveChallengeInvite}
+            studentProfile={{ studentId: user?.studentId, name: user?.name }}
+            onExitToAssignment={() => setWarmupChallengePlayedRoomIds((previous) => (
+              previous.includes(warmupChallengeDecision.roomId)
+                ? previous
+                : [...previous, warmupChallengeDecision.roomId]
+            ))}
+          />
+        </div>
+      );
+    }
+
     return (
       <div
         className={`mathmaster-assignment-screen ${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
@@ -6428,9 +6466,12 @@ function App() {
       >
         {!preview && renderStudentPackUpBanner()}
         {!preview && renderStudentWarmupBanner()}
+        {!preview && warmupChallengeDecision?.route === WARMUP_CHALLENGE_ROUTE.WAITING_FOR_TEACHER && (
+          <WarmupChallengeGate decision={warmupChallengeDecision} />
+        )}
         {!preview && !supportPresentation.disableIdleTimer && renderIdleOverlay()}
         <div className="mathmaster-assignment-shell" style={{ maxWidth: '1120px', margin: '0 auto' }}>
-          {!preview && liveChallengeInvite?.status === 'running' && (
+          {!preview && shouldShowChallengeHandoffBanner({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && (
             <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: '#e8f0fe', border: '3px solid #1a73e8', color: '#174ea6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', textAlign: 'left' }}>
               <div><strong style={{ display: 'block', fontSize: '20px' }}>⚡ Live Challenge has started</strong><span>{liveChallengeInvite.title || 'Your class challenge'} is live now. Your assignment work is saved when you switch.</span></div>
               <button type="button" onClick={() => { leaveAssignment(); setStudentDashboardMode('liveChallenge'); }} style={{ padding: '11px 17px', border: 0, borderRadius: '9px', background: '#174ea6', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Join Live Challenge</button>
