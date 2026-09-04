@@ -29,6 +29,10 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      # The Live Challenge integration suite loads functions/index.js and the
+      # Admin SDK, and firebase-admin lives only in functions/. Without this the
+      # suite fails on a missing module rather than on anything it tests.
+      - run: npm --prefix functions ci
       - name: Run every platform test
         run: node --test tests/platform/*.test.mjs
 
@@ -37,6 +41,13 @@ jobs:
 
       - name: Run Firestore security-rule suites
         run: npm run test:rules
+
+      # Runs the real finishLiveChallenge against the emulator and reads back
+      # the report, the Warm-Up credit and the mastery evidence. Source
+      # assertions cannot tell a correct write from a wrong field path.
+      - name: Run Live Challenge finish integration suite
+        timeout-minutes: 10
+        run: npm run test:challenge-finish
 
       - name: Verify certified Algebra shipping-seed parity
         run: node scripts/build-algebra-fidelity-v2-production-seeds.mjs --check
@@ -64,32 +75,3 @@ jobs:
       - name: Lint
         if: always()
         run: npm run lint
-
-  # SEPARATE JOB, AND NOT A STYLISTIC CHOICE. This suite needs functions/
-  # installed, and that tree is 178MB — googleapis alone is 112MB. Inline in the
-  # job above it added roughly fifteen minutes to every run, including runs that
-  # touch none of this, and it delayed the signal everything else depends on.
-  # Here it runs in parallel and pays that cost only for itself.
-  live-challenge-integration:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          # Both lockfiles. Keyed on the root one alone, the functions tree was
-          # never in the restored cache and downloaded cold every single run.
-          cache-dependency-path: |
-            package-lock.json
-            functions/package-lock.json
-      - run: npm ci
-      - run: npm --prefix functions ci
-
-      # Runs the real Cloud Functions against the Firestore emulator and reads
-      # back what they wrote. Source assertions cannot tell a correct write from
-      # a wrong field path.
-      - name: Run Live Challenge integration suites
-        timeout-minutes: 15
-        run: npm run test:challenge-finish
