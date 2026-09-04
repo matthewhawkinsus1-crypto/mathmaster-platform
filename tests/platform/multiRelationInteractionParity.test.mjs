@@ -84,7 +84,7 @@ test('cancellation can occur independently inside one OR branch', () => {
 });
 
 test('advanced workspace exposes cancellation hints without enabling them by default', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = fs.readFileSync('src/MultiRelationAlgebraCore.jsx', 'utf8');
   assert.match(
     src,
     /const\s+\[\s*cancellationHintsEnabled\s*,\s*setCancellationHintsEnabled\s*\]\s*=\s*useState\(false\)/,
@@ -94,7 +94,7 @@ test('advanced workspace exposes cancellation hints without enabling them by def
 });
 
 test('advanced workspace keeps term-specific placement with one compact contextual menu', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = fs.readFileSync('src/MultiRelationAlgebraCore.jsx', 'utf8');
 
   assert.match(src, /function PlacementMiniMenu/);
   assert.match(src, /\['before', 'Before'\]/);
@@ -107,7 +107,7 @@ test('advanced workspace keeps term-specific placement with one compact contextu
 });
 
 test('advanced workspace keeps student-authored Rewrite Simplify instead of one-click auto simplification', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = fs.readFileSync('src/MultiRelationAlgebraCore.jsx', 'utf8');
   assert.match(src, /Rewrite \/ Simplify/);
   assert.match(src, /Type your equivalent expression/);
   assert.match(src, /MathMaster only checks it/);
@@ -117,7 +117,7 @@ test('advanced workspace keeps student-authored Rewrite Simplify instead of one-
 });
 
 test('Other operations remains a stable menu', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = fs.readFileSync('src/MultiRelationAlgebraCore.jsx', 'utf8');
   assert.match(src, /Other operations/);
   assert.match(src, /OTHER_ALGEBRA_OPERATIONS\.map/);
 });

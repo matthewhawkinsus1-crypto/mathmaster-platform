@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { stepAlgebraSource } from './helpers/solverSource.mjs';
 
-const source = await readFile(new URL('../../src/StepByStepAlgebra.jsx', import.meta.url), 'utf8');
+const source = stepAlgebraSource();
 const support = await readFile(new URL('../../src/studentSupport.js', import.meta.url), 'utf8');
 const app = await readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const mathInput = await readFile(new URL('../../src/MathInput.jsx', import.meta.url), 'utf8');

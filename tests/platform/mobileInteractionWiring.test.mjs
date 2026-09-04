@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stepAlgebraSource } from './helpers/solverSource.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 
 test('Step Algebra offers select-then-place instead of requiring a cross-viewport drag', () => {
-  const src = read('src/StepByStepAlgebra.jsx');
+  const src = stepAlgebraSource();
   assert.match(src, /tapPlacementArmed/);
   assert.match(src, /tapPlacementOnSide/);
   assert.match(src, /semanticPlacementFromTap/);

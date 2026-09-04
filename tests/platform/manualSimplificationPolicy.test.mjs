@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const src = fs.readFileSync('src/StepByStepAlgebra.jsx', 'utf8');
+const src = fs.readFileSync('src/StepByStepAlgebraCore.jsx', 'utf8');
 
 test('one-click automatic simplification is gone', () => {
   assert.doesNotMatch(src, /const simplifyChosenSides = async/);

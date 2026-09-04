@@ -6,6 +6,7 @@ import {
   applyBalancedOperationToRelation,
   parseRelationSource,
 } from '../../src/algebraRelationFoundation.js';
+import { multiRelationSource } from './helpers/solverSource.mjs';
 
 test('addition requires placement on both sides before commit', () => {
   const state = parseRelationSource('x + 2 = 7', 'x');
@@ -82,7 +83,7 @@ test('division still requires a placement on every relation region', () => {
 });
 
 test('add subtract placement uses one contextual menu instead of icons around every term', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
 
   assert.match(src, /PlacementMiniMenu/);
   assert.match(src, /\['before', 'Before'\]/);
@@ -92,7 +93,7 @@ test('add subtract placement uses one contextual menu instead of icons around ev
 });
 
 test('division shows the dedicated underline scaffold before commit', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
 
   assert.match(src, /className="staged-division-bar"/);
   assert.match(src, /borderTop: '2px solid #174ea6'/);
@@ -101,7 +102,7 @@ test('division shows the dedicated underline scaffold before commit', () => {
 });
 
 test('all balanced operations use the compact commit step instead of automatic Apply', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
 
   assert.match(src, />\s*Commit step\s*</);
   assert.doesNotMatch(src, />\s*Apply\s*</);
@@ -109,7 +110,7 @@ test('all balanced operations use the compact commit step instead of automatic A
 });
 
 test('complete the square arms student-controlled addition instead of changing the equation', () => {
-  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  const src = multiRelationSource();
 
   assert.match(src, /Complete-the-square setup selected/);
   assert.match(src, /setOperation\('add'\)/);
