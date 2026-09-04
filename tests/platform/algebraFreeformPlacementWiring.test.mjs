@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 test('workspace keeps simplification student-entered instead of one-click calculated', () => {
-  const src = fs.readFileSync('src/StepByStepAlgebra.jsx', 'utf8');
+  const src = fs.readFileSync('src/StepByStepAlgebraCore.jsx', 'utf8');
 
   // The student must enter the simplified expression. MathMaster checks it.
   assert.match(src, /algebra-optional-simplification/);
@@ -19,7 +19,7 @@ test('workspace keeps simplification student-entered instead of one-click calcul
 });
 
 test('workspace resolves additive placement around individual terms', () => {
-  const src = fs.readFileSync('src/StepByStepAlgebra.jsx', 'utf8');
+  const src = fs.readFileSync('src/StepByStepAlgebraCore.jsx', 'utf8');
   assert.match(src, /resolveAdditivePlacementFromPoint/);
   assert.match(src, /data-term-index/);
   assert.match(src, /kind: 'under'/);
