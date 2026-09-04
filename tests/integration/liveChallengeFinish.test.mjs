@@ -34,8 +34,23 @@ assert.ok(
 // functions/index.js calls initializeApp() at module load, so it is required
 // FIRST and owns the default app. Initializing here as well produced
 // app/duplicate-app and took the whole suite down before a single assertion ran.
+
+const requireFunctionsModule = (specifier) => {
+  try {
+    return require(path.join(repo, 'functions/node_modules', specifier));
+  } catch (error) {
+    if (error?.code === 'MODULE_NOT_FOUND') {
+      throw new Error(
+        `${specifier} is not installed. Run \`npm --prefix functions ci\` before this suite — `
+        + 'it loads the real Cloud Functions, whose dependencies live in functions/.',
+      );
+    }
+    throw error;
+  }
+};
+
 const functionsIndex = require(path.join(repo, 'functions/index.js'));
-const admin = require(path.join(repo, 'functions/node_modules/firebase-admin'));
+const admin = requireFunctionsModule('firebase-admin');
 const db = admin.firestore();
 
 const TEACHER = 'teacher@example.com';

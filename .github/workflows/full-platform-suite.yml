@@ -29,6 +29,10 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      # The Live Challenge integration suite loads functions/index.js and the
+      # Admin SDK, and firebase-admin lives only in functions/. Without this the
+      # suite fails on a missing module rather than on anything it tests.
+      - run: npm --prefix functions ci
       - name: Run every platform test
         run: node --test tests/platform/*.test.mjs
 

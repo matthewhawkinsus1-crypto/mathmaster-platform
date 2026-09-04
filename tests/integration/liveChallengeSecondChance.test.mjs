@@ -26,8 +26,23 @@ const require = createRequire(import.meta.url);
 
 assert.ok(process.env.FIRESTORE_EMULATOR_HOST, 'FIRESTORE_EMULATOR_HOST must be set.');
 
+
+const requireFunctionsModule = (specifier) => {
+  try {
+    return require(path.join(repo, 'functions/node_modules', specifier));
+  } catch (error) {
+    if (error?.code === 'MODULE_NOT_FOUND') {
+      throw new Error(
+        `${specifier} is not installed. Run \`npm --prefix functions ci\` before this suite — `
+        + 'it loads the real Cloud Functions, whose dependencies live in functions/.',
+      );
+    }
+    throw error;
+  }
+};
+
 const functionsIndex = require(path.join(repo, 'functions/index.js'));
-const admin = require(path.join(repo, 'functions/node_modules/firebase-admin'));
+const admin = requireFunctionsModule('firebase-admin');
 const mathPath = require(path.join(repo, 'functions/lib/mathPath.js'));
 const challenge = await import(path.join(repo, 'functions/shared/liveChallenge.mjs'));
 const db = admin.firestore();
