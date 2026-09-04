@@ -7,12 +7,12 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 
-const host = new URLSearchParams(window.location.search).get('emulator') || 'localhost:8181';
+const host = new URLSearchParams(window.location.search).get('emulator') || 'localhost:8182';
 const [hostname, port] = host.split(':');
 
 const app = getApps().length ? getApp() : initializeApp({ projectId: 'mathmaster-game-harness' });
 export const db = getFirestore(app);
-connectFirestoreEmulator(db, hostname, Number(port) || 8181);
+connectFirestoreEmulator(db, hostname, Number(port) || 8182);
 
 // The harness never authenticates and never calls a function. These exist so
 // any incidental import resolves rather than crashing the page.

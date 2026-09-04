@@ -46,6 +46,7 @@ jobs:
       # the report, the Warm-Up credit and the mastery evidence. Source
       # assertions cannot tell a correct write from a wrong field path.
       - name: Run Live Challenge finish integration suite
+        timeout-minutes: 10
         run: npm run test:challenge-finish
 
       - name: Verify certified Algebra shipping-seed parity
