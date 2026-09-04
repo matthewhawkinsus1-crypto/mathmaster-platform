@@ -151,5 +151,24 @@ export const shouldShowChallengeHandoffBanner = ({ invite = null, warmupDecision
   return !playingInline;
 };
 
+/**
+ * Should the "stay on this screen, it starts when your teacher opens it" panel
+ * be shown?
+ *
+ * Found by rendering it. When a teacher is running an UNRELATED live challenge,
+ * a student sitting in an assignment that happens to have a Warm-Up challenge
+ * configured was told two contradictory things at once: the banner said "Join
+ * Live Challenge" and the panel directly under it said "stay on this screen".
+ * One of those is wrong whichever the student picks.
+ *
+ * The banner wins, because it points at a game that actually exists right now,
+ * while the panel is waiting on one that may never be opened today. A student
+ * given one instruction can follow it.
+ */
+export const shouldShowWarmupWaitingPanel = ({ decision = null, invite = null } = {}) => {
+  if (decision?.route !== WARMUP_CHALLENGE_ROUTE.WAITING_FOR_TEACHER) return false;
+  return !shouldShowChallengeHandoffBanner({ invite, warmupDecision: decision });
+};
+
 export { WARMUP_CHALLENGE_ROUTE };
 export default resolveWarmupChallenge;

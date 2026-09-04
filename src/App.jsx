@@ -242,6 +242,7 @@ import {
   WARMUP_CHALLENGE_ROUTE,
   resolveWarmupChallenge,
   shouldShowChallengeHandoffBanner,
+  shouldShowWarmupWaitingPanel,
 } from './platform/liveChallenge/warmupChallengeLink.js';
 // The administrator identity comes from the same module the callables enforce,
 // so the browser can never believe in a different administrator than the server.
@@ -6479,7 +6480,7 @@ function App() {
       >
         {!preview && renderStudentPackUpBanner()}
         {!preview && renderStudentWarmupBanner()}
-        {!preview && warmupChallengeDecision?.route === WARMUP_CHALLENGE_ROUTE.WAITING_FOR_TEACHER && (
+        {!preview && shouldShowWarmupWaitingPanel({ decision: warmupChallengeDecision, invite: liveChallengeInvite }) && (
           <WarmupChallengeGate decision={warmupChallengeDecision} />
         )}
         {!preview && !supportPresentation.disableIdleTimer && renderIdleOverlay()}
