@@ -57,6 +57,54 @@ is not required either.
 
 ---
 
+## Known risk, not yet mitigated
+
+### One Firestore document takes a write per student per round
+**Status:** verified correct under concurrency · throughput unproven · worth fixing
+
+Every `submitLiveChallengeResponse` writes the per-round answered and missed
+tallies to the same `liveChallengePrivate/{roomId}` document. They live there
+rather than on the room because a running miss count on a public document would
+tell a student how hard a question is before they reach it — that reasoning is
+still right.
+
+The consequence is that one document takes one write per student per round. A
+class of 24 answering within a couple of seconds is roughly 24 writes to a
+single document in that window, and Firestore's guidance for sustained writes to
+one document is about one per second. Bursts are absorbed, so this may well be
+fine in practice; the point is that nothing here has demonstrated it.
+
+**What is proven:** `tests/integration/liveChallengeConcurrency.test.mjs` runs a
+full 24-student class submitting simultaneously and asserts no increment is
+lost, no student is scored twice, no player's answer lands on another's record,
+and a double-tap is accepted exactly once. That is correctness under
+concurrency, and it passes.
+
+**What is not proven:** throughput. The emulator does not enforce the
+per-document write limit, so the test would pass whether or not production would
+throttle. A pass here is not evidence that this shape is safe for a full class
+on the live project.
+
+**The fix worth considering, in preference order:**
+
+1. **Derive the tallies instead of maintaining them.** Each player document
+   already carries `answeredRounds` and `missedRounds`. The room-level counts
+   are the sum of those, and the only consumer that needs them mid-game is the
+   second-chance planner — which runs after the last scheduled round, when the
+   player documents are all readable anyway. This removes the hot document
+   rather than spreading it, and deletes state instead of adding it.
+2. **Shard the counters** across a small fixed set of documents and sum at
+   finish. Standard, effective, and more machinery than option 1.
+3. **Move the tally write out of the transaction.** Cheapest change, but it
+   trades a throughput problem for a consistency one, which is a bad trade for
+   something that decides which questions a class sees again.
+
+Option 1 is a change to live scoring code and should not be made quietly
+alongside test work. It needs its own change, with the concurrency suite above
+run before and after.
+
+---
+
 ## Unknown, and worth finding out first
 
 ### ~~What happens when a Chromebook sleeps mid-game?~~ — checked, it recovers
