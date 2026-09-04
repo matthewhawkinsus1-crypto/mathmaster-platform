@@ -25,6 +25,7 @@ function driveResources() {
 
 const { runtimeIncludedQuestionIndices, runtimeQuestionsFromAssignment } = require("./lib/assignmentRuntime");
 const { weightedQuestionTotals } = require("./lib/questionWeights");
+const challengeSampling = require("./lib/challengeSampling");
 const { encryptLaunchPayload, decryptLaunchToken } = require("./lib/linkToken");
 const {
   GOOGLE_API_SECRETS,
@@ -6238,6 +6239,13 @@ async function liveChallengeEvidenceRules() {
   return liveChallengeEvidenceModule;
 }
 
+// How many questions are pulled before the issuability gate runs. Every one of
+// these is instantiated and planned, so the page size is a cost, not a free
+// upper bound — the fix for narrow variety was where the window starts, not
+// making it bigger.
+const MIXED_CANDIDATE_PAGE = 300;
+const STANDARD_CANDIDATE_PAGE = 100;
+
 const LIVE_CHALLENGE_ROOMS = "liveChallengeRooms";
 const LIVE_CHALLENGE_REPORTS = "liveChallengeReports";
 const LIVE_CHALLENGE_PRIVATE = "liveChallengePrivate";
@@ -6273,15 +6281,18 @@ async function loadChallengeRoster(db, teacherEmail, { classId = null, classPeri
 async function loadChallengeCandidates(db, { courseId, standardCode }) {
   const challenge = await liveChallengeRules();
   const normalized = challenge.canonicalChallengeStandard(standardCode);
-  let snapshot;
-  if (normalized === "mixed") {
-    snapshot = await db.collection("pathQuestionBank").where("courseId", "==", courseId).limit(300).get();
-  } else {
-    const alignmentKey = mathPath.canonicalAlignmentKey(normalized);
-    snapshot = await db.collection("pathQuestionBank").where("alignmentKeys", "array-contains", alignmentKey).limit(100).get();
-  }
+  // A RANDOM WINDOW, NOT THE FIRST PAGE. Without ordering, Firestore returns
+  // document-ID order, so a mixed Algebra I game saw the same first 300 of 837
+  // questions every time and the rest of the bank was unreachable. See
+  // lib/challengeSampling.js.
+  const bank = db.collection("pathQuestionBank");
+  const baseQuery = normalized === "mixed"
+    ? bank.where("courseId", "==", courseId)
+    : bank.where("alignmentKeys", "array-contains", mathPath.canonicalAlignmentKey(normalized));
+  const pageSize = normalized === "mixed" ? MIXED_CANDIDATE_PAGE : STANDARD_CANDIDATE_PAGE;
+  const sampledDocs = await challengeSampling.sampleBankWindow({ baseQuery, pageSize });
 
-  const candidates = snapshot.docs
+  const candidates = sampledDocs
     .map((questionDoc) => ({ id: questionDoc.id, ...questionDoc.data() }))
     .filter((question) => question.active !== false)
     .filter((question) => normalized !== "mixed" || String(question.courseId || courseId) === courseId);

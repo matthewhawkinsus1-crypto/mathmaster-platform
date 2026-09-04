@@ -121,16 +121,36 @@ before the leaderboard reloads — harmless, because the call is idempotent.
 
 ## Live Challenge
 
-### Fix how the question bank is sampled
-**Status:** open · high value, small
+### ~~Fix how the question bank is sampled~~ — fixed (variety); difficulty still open
+**Status:** variety fixed · difficulty targeting still open
 
-`loadChallengeCandidates` pulls `.limit(300)` for a mixed game and `.limit(100)`
-for a single standard, with **no `orderBy`**. Firestore returns by document ID,
-so every mixed game draws from the same first 300 documents. Students who play
-often will see repeats and most of the bank is unreachable.
+`loadChallengeCandidates` pulled `.limit(300)` with no `orderBy`, so Firestore
+returned document-ID order and every mixed Algebra I game drew the same first
+300 of 837 questions. About two thirds of the bank was unreachable, and the
+shuffle downstream hid it — each game looked varied while the pool behind it
+never moved.
 
-There is also no difficulty targeting: a mixed game can serve a DOK-3 modeling
-question as round 1 under a 45-second timer.
+The window now starts at a random offset inside the filtered set, with a
+wrap-around so a game is never short of questions. See
+`functions/lib/challengeSampling.js`.
+
+**A document-ID pivot was tried first and does not work on this data.** These
+ids are authored strings sharing a long prefix (`mm_act_alg_1_...`), not evenly
+spread auto-ids, so a random pivot lands either before every document or past
+every document and never inside the range — returning the first page either way.
+The coverage test caught it. The offset is counted with an aggregation query
+instead, which is uniform over the documents rather than over the shape of their
+names.
+
+**The cost, stated:** Firestore bills skipped documents on an offset, so a draw
+costs up to the size of the filtered set in reads. A challenge is created a
+handful of times a day, not per student per round, so this is a fine trade — but
+it grows with the bank and would be the wrong shape on a hot path.
+
+**Still open: difficulty targeting.** A mixed game can still serve a DOK-3
+modelling question as round 1 under a 45-second timer. That needs a rule for
+what belongs in a timed round at all, which is a content judgement rather than a
+query change, so it is deliberately not bundled with the sampling fix.
 
 ### Round sources beyond one standard
 **Status:** open
@@ -253,8 +273,8 @@ Five seconds of the worked solution before the next question. It is the
 difference between a quiz and a lesson, and it is the only thing the student who
 just missed it otherwise gets.
 
-### Run a challenge as the Warm-Up of an assignment
-**Status:** in progress · decision layer built, runtime wiring remains
+### ~~Run a challenge as the Warm-Up of an assignment~~ — shipped
+**Status:** shipped · teacher switch, runtime hand-off, credit and evidence all built
 
 Today a challenge needs its own login path: the teacher creates a room, invites
 land in `liveChallengeInvites`, and every student has to notice and join before
