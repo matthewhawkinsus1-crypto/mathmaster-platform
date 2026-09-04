@@ -20,12 +20,16 @@ accident.
 A defensible position: yes at reduced weight, never toward grades unless a
 teacher opts in per challenge. Not implemented either way.
 
-### Who may reconcile attendance?
-**Status:** needs a decision
+### ~~Who may reconcile attendance?~~ — decided
+**Status:** decided · the teacher reconciles
 
-Teacher of record only, or an explicitly granted per-class delegate? It decides
-the shape of the permission check rather than being a setting added later. A
-co-teacher or substitute covering a period currently could not mark anything.
+The teacher reconciles attendance. The permission check is therefore scoped to
+the teacher of record for the class, matching how every other class-scoped
+action already works.
+
+Still worth revisiting later, but not blocking: a substitute or co-teacher
+covering a period cannot mark anything under this rule. Treat a delegate as a
+future addition rather than part of the first build.
 
 ### Is there an SIS attendance export to reconcile against?
 **Status:** needs a decision
@@ -118,6 +122,30 @@ produce usable rounds.
 Worth doing **after** the selector, so the constraints are written from what a
 good round turned out to be in practice.
 
+### Export a challenge as JSON
+**Status:** open · do this before import
+
+Live Challenge has **no JSON in or out**. The teacher's whole configuration is
+four dropdowns — class, standard, round count, round seconds — and a finished
+game cannot be saved, shared or repeated.
+
+Export is the safe half and is immediately useful: keep the set that worked for
+period 1 and run it again for period 3, hand a real example to an outside AI, or
+keep a record of what was asked. It needs no new validation, because everything
+in the set already came from the validated bank.
+
+### Import a challenge from JSON
+**Status:** open · blocked on the contract slice below
+
+The natural counterpart, and the way an AI-written round set would actually
+reach a class. It must **validate rather than accept**: every question the game
+uses today passes `safeBuildTemplateIssuePlan`, and a free-form import that
+skipped that gate would put unvalidated content in front of a class in real
+time, with no preflight and no way to back out mid-game.
+
+So this waits on the `liveChallenge` contract slice and the timing validator.
+Export first, import second.
+
 ### More ways to be recognised at the end
 **Status:** open
 
@@ -144,6 +172,51 @@ publicly last** — which is where perseverance is won or lost.
 Five seconds of the worked solution before the next question. It is the
 difference between a quiz and a lesson, and it is the only thing the student who
 just missed it otherwise gets.
+
+### Run a challenge as the Warm-Up of an assignment
+**Status:** open · the strongest structural idea on this list
+
+Today a challenge needs its own login path: the teacher creates a room, invites
+land in `liveChallengeInvites`, and every student has to notice and join before
+the game can start. That join step, times twenty-four, at the start of a period,
+is what stops a five-minute activity being worth running.
+
+Students opening the assignment are **already authenticated and already
+present**. If the Warm-Up section is the challenge, the join step disappears
+entirely — the assignment makes the connection.
+
+The timing primitive already exists and already knows the class period:
+`getWarmupState` opens a Warm-Up a set number of minutes before the bell and
+closes it about ten minutes after, per class. That is a synchronisation window
+the challenge could adopt rather than invent.
+
+Three problems to solve first:
+
+- **Self-paced against lockstep.** The assignment engine advances a student when
+  they submit; a challenge advances everyone together when the teacher says so.
+  The Warm-Up section would have to hand control to the challenge runtime and
+  take it back at the end.
+- **Which score is the grade.** Warm-Up questions are graded as assignment
+  questions. Challenge rounds are scored out of about 1150 with speed and streak
+  in them. If the Warm-Up is a challenge, the assignment should record
+  participation and accuracy — never challenge points, or speed enters the
+  gradebook.
+- **Late arrivals.** A student who walks in at minute eight joins at round six.
+  The rule should be: play from the current round, score only what you played,
+  participation measured over the rounds you were present for. The post-game
+  report already has that shape.
+
+### Run a challenge at the DOL phase
+**Status:** open · with a caveat worth taking seriously
+
+Mechanically the same idea, and the DOL window and single attempt fit a game
+well. But a DOL is **graded**, and putting speed pressure on a graded exit
+ticket is the exact thing the perseverance work was written against: the
+students who most need to think would be the ones paying for it.
+
+Recommended shape if it is built: a DOL challenge is diagnostic, its points do
+not reach the gradebook, and the DOL grade comes from accuracy alone. Otherwise
+run it as review the day after the DOL rather than as the DOL.
 
 ---
 
