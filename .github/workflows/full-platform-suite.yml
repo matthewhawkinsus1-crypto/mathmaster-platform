@@ -38,6 +38,12 @@ jobs:
       - name: Run Firestore security-rule suites
         run: npm run test:rules
 
+      # Runs the real finishLiveChallenge against the emulator and reads back
+      # the report, the Warm-Up credit and the mastery evidence. Source
+      # assertions cannot tell a correct write from a wrong field path.
+      - name: Run Live Challenge finish integration suite
+        run: npm run test:challenge-finish
+
       - name: Verify certified Algebra shipping-seed parity
         run: node scripts/build-algebra-fidelity-v2-production-seeds.mjs --check
 
