@@ -110,7 +110,9 @@ function ChallengeRound({ room, alias, playerKey, leaderboard, studentProfile, o
         attemptCount: 1,
         remainingAttempts: 0,
         expired: false,
-        message: grading.isCorrect ? `Correct · +${grading.pointsAwarded} points` : `${grading.scorePercent}% credit · +${grading.pointsAwarded} points`,
+        message: grading.isCorrect
+          ? `${grading.comebackBonus > 0 ? 'Comeback! ' : grading.secondChance ? 'Second chance · ' : ''}Correct · +${grading.pointsAwarded} points`
+          : `${grading.scorePercent}% credit · +${grading.pointsAwarded} points`,
       };
     } catch (error) {
       setSubmitError(error?.message || 'Your answer could not be submitted.');
@@ -155,8 +157,20 @@ function ChallengeRound({ room, alias, playerKey, leaderboard, studentProfile, o
       {result && (
         <section aria-live="polite" style={{ padding: 16, borderRadius: 12, background: result.isCorrect ? '#e6f4ea' : '#fff4ce', color: result.isCorrect ? '#137333' : '#7a4f00', textAlign: 'left' }}>
           <div style={{ fontSize: 22, fontWeight: 1000 }}>{result.isCorrect ? 'Correct!' : `${result.scorePercent}% credit`}</div>
+          {/* The comeback is named before the total, because the point of
+              paying for it is that the student notices it happened. */}
+          {result.comebackBonus > 0 && (
+            <div style={{ marginTop: 4, fontSize: 15, fontWeight: 900 }}>
+              Comeback! You missed the last one and got this one. +{result.comebackBonus}
+            </div>
+          )}
+          {result.secondChance && result.recoveryPoints > 0 && (
+            <div style={{ marginTop: 4, fontSize: 15, fontWeight: 900 }}>
+              Second chance — you got points back on this one. +{result.recoveryPoints}
+            </div>
+          )}
           <div style={{ marginTop: 5, fontWeight: 800 }}>+{result.pointsAwarded} points · Total {result.totalScore.toLocaleString()}{result.rank ? ` · Rank #${result.rank}` : ''}</div>
-          {(result.speedBonus > 0 || result.streakBonus > 0) && <div style={{ marginTop: 4, fontSize: 13 }}>Accuracy base {result.basePoints} · Speed +{result.speedBonus} · Streak +{result.streakBonus}</div>}
+          {!result.secondChance && (result.speedBonus > 0 || result.streakBonus > 0) && <div style={{ marginTop: 4, fontSize: 13 }}>Accuracy base {result.basePoints} · Speed +{result.speedBonus} · Streak +{result.streakBonus}</div>}
         </section>
       )}
 
