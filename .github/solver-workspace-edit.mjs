@@ -28,11 +28,11 @@ const splitReplacement = `const additiveTermDescriptor = ({ node, sign }, index)
   const operator = effectiveSign < 0 ? '-' : '+';
   return {
     text: isFirst
-      ? \\`\\${effectiveSign < 0 ? '-' : ''}\\${magnitudeText}\\`
-      : \\`\\${operator} \\${magnitudeText}\\`,
+      ? (effectiveSign < 0 ? '-' : '') + magnitudeText
+      : operator + ' ' + magnitudeText,
     latex: isFirst
-      ? \\`\\${effectiveSign < 0 ? '-' : ''}\\${magnitudeLatex}\\`
-      : \\`\\${operator} \\${magnitudeLatex}\\`,
+      ? (effectiveSign < 0 ? '-' : '') + magnitudeLatex
+      : operator + ' ' + magnitudeLatex,
     sign: effectiveSign,
     magnitudeText,
     magnitudeLatex,
@@ -56,15 +56,18 @@ if (!splitPattern.test(source)) {
 }
 source = source.replace(splitPattern, splitReplacement);
 
-const itemsPattern = /const items = terms\.map\(\(term\) => \(\{\n\s*sign: term\.sign < 0 \? -1 : 1,\n\s*magnitude: String\(term\.text\)\.replace\(\/\^\[\+\-\]\\\\s\*\/, ''\),\n\s*\}\)\);/;
-const itemsReplacement = `const items = terms.map((term) => ({
+const oldItems = `  const items = terms.map((term) => ({
+    sign: term.sign < 0 ? -1 : 1,
+    magnitude: String(term.text).replace(/^[+-]\\s*/, ''),
+  }));`;
+const newItems = `  const items = terms.map((term) => ({
     sign: term.sign < 0 ? -1 : 1,
     magnitude: term.magnitudeText,
   }));`;
 
-if (!itemsPattern.test(source)) {
+if (!source.includes(oldItems)) {
   throw new Error('Could not locate additive placement item reconstruction');
 }
-source = source.replace(itemsPattern, itemsReplacement);
+source = source.replace(oldItems, newItems);
 
 await writeFile(path, source);
