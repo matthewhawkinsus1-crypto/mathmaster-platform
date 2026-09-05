@@ -134,7 +134,7 @@ const makeMarkerDragImage = (type) => {
   return canvas;
 };
 
-const normalizeAnalysisRequests = (question, spec, window, allowDefault) => {
+const normalizeAnalysisRequests = (question, spec, viewWindow, allowDefault) => {
   const provided = Array.isArray(question.analysisRequests) && question.analysisRequests.length ? question.analysisRequests : null;
   const requests = provided || (allowDefault ? [{ id: 'feature', kind: 'point', feature: question.analysisFeature || 'vertex', label: question.analysisFeatureLabel || question.analysisFeature || 'requested feature' }] : []);
   return requests.map((request, index) => {
@@ -207,7 +207,7 @@ const normalizeAnalysisRequests = (question, spec, window, allowDefault) => {
     // the vertex, which every supported function has, rather than to nothing.
     const requestedFeature = request.feature || request.kind;
     const feature = POINT_FEATURES.includes(requestedFeature) ? requestedFeature : 'vertex';
-    const expected = request.expected || getGraphFeaturePoints(spec, feature, window);
+    const expected = request.expected || getGraphFeaturePoints(spec, feature, viewWindow);
     return {
       ...request,
       id,
@@ -354,7 +354,15 @@ export default function InteractiveGraphWorkspace({
   }, [inverseReflectionEnabled, inverseReflection, question.pointTasks, functionSpec]);
 
   const baseWindow = useMemo(() => buildInteractiveGraphWindow(functionSpec, tasks, graph), [functionSpec, tasks, graph]);
-  const window = useMemo(() => {
+  // NAMED `viewWindow`, NOT `window`.
+  //
+  // It was `window`, which shadowed the global for the whole component — and
+  // the viewport `useState` initializer a few dozen lines above reads
+  // `typeof window`, which runs on first render, before this line initializes.
+  // A `const` in its temporal dead zone throws even under `typeof`, so every
+  // mount of this workspace died with "Cannot access 'window' before
+  // initialization" and the graph never appeared.
+  const viewWindow = useMemo(() => {
     if (!inverseReflectionEnabled || !inversePreviewPoints.length) return baseWindow;
     const margin = Math.max(1, Number(baseWindow.snapStep || 0.5) * 2);
     return {
@@ -365,16 +373,16 @@ export default function InteractiveGraphWorkspace({
       yMax: Math.max(Number(baseWindow.yMax), ...inversePreviewPoints.map((point) => point[1] + margin)),
     };
   }, [baseWindow, inverseReflectionEnabled, inversePreviewPoints]);
-  const xGridStep = Math.max(0.000001, Number(window.xStep ?? 1));
-  const yGridStep = Math.max(0.000001, Number(window.yStep ?? 1));
+  const xGridStep = Math.max(0.000001, Number(viewWindow.xStep ?? 1));
+  const yGridStep = Math.max(0.000001, Number(viewWindow.yStep ?? 1));
   const skipCounting = xGridStep > 1 || yGridStep > 1;
   // Grid spacing is a DISPLAY choice, not an answer-input restriction. The old
   // code snapped to xStep/yStep, so a normal grid with step 1 made points such
   // as (1, 1.5) literally impossible to place even though the graph engine's
   // own default snapStep is 0.5. Honor the construction snap independently and
   // allow an author to make either axis finer when a task needs it.
-  const requestedSnapStep = graph.snapStep ?? window.snapStep;
-  const visiblePaths = useMemo(() => pointOnly ? [] : sampleVisibleFunctionPaths(functionSpec, window), [functionSpec, window, pointOnly]);
+  const requestedSnapStep = graph.snapStep ?? viewWindow.snapStep;
+  const visiblePaths = useMemo(() => pointOnly ? [] : sampleVisibleFunctionPaths(functionSpec, viewWindow), [functionSpec, viewWindow, pointOnly]);
   // Rule 5 needs to know where the curve actually is, so the samples are taken
   // before the snap is resolved rather than after.
   const curveSamples = useMemo(() => visiblePaths.flat(), [visiblePaths]);
@@ -384,10 +392,10 @@ export default function InteractiveGraphWorkspace({
   );
   // The visible grid and the accepted precision are separate: the graph may
   // accept a quarter without drawing quarter lines everywhere.
-  const xSnapStep = Math.min(xGridStep, snapStep, positiveStep(graph.xSnapStep ?? window.xSnapStep, snapStep));
-  const ySnapStep = Math.min(yGridStep, snapStep, positiveStep(graph.ySnapStep ?? window.ySnapStep, snapStep));
+  const xSnapStep = Math.min(xGridStep, snapStep, positiveStep(graph.xSnapStep ?? viewWindow.xSnapStep, snapStep));
+  const ySnapStep = Math.min(yGridStep, snapStep, positiveStep(graph.ySnapStep ?? viewWindow.ySnapStep, snapStep));
   const showCoordinates = skipCounting ? true : requestedShowCoordinates;
-  const endpointRequirements = useMemo(() => pointOnly ? [] : (constructionEnabled ? (question.endpointRequirements || getDefaultEndpointRequirements(functionSpec, visiblePaths, { ...question, graph: window })) : getDefaultEndpointRequirements(functionSpec, visiblePaths, { ...question, graph: window })), [question, functionSpec, visiblePaths, window, constructionEnabled, pointOnly]);
+  const endpointRequirements = useMemo(() => pointOnly ? [] : (constructionEnabled ? (question.endpointRequirements || getDefaultEndpointRequirements(functionSpec, visiblePaths, { ...question, graph: viewWindow })) : getDefaultEndpointRequirements(functionSpec, visiblePaths, { ...question, graph: viewWindow })), [question, functionSpec, visiblePaths, viewWindow, constructionEnabled, pointOnly]);
   const boundaryOnly = endpointRequirements.length > 0 && endpointRequirements.every((requirement) => requirement.marker === 'open' || requirement.marker === 'closed');
   const continuationOnly = endpointRequirements.length > 0 && endpointRequirements.every((requirement) => requirement.marker === 'arrow');
   const availableMarkerTypes = boundaryOnly ? ['open', 'closed'] : continuationOnly ? ['arrow'] : ['arrow', 'open', 'closed'];
@@ -398,7 +406,7 @@ export default function InteractiveGraphWorkspace({
       ? 'Show that the function continues beyond the visible coordinate plane.'
       : 'Use arrows for continuation and open/closed circles for finite boundaries.';
   const endpointCompletionNoun = boundaryOnly ? 'boundary marker' : continuationOnly ? 'continuation arrow' : 'end marker';
-  const analysisParts = useMemo(() => normalizeAnalysisRequests(question, functionSpec, window, mode === 'analysis'), [question, functionSpec, window, mode]);
+  const analysisParts = useMemo(() => normalizeAnalysisRequests(question, functionSpec, viewWindow, mode === 'analysis'), [question, functionSpec, viewWindow, mode]);
   const analysisEnabled = mode === 'analysis' || analysisParts.length > 0;
 
   // Parent components often rebuild an equivalent question object while a
@@ -408,7 +416,7 @@ export default function InteractiveGraphWorkspace({
   const questionSemanticKey = JSON.stringify({
     mode,
     functionSpec,
-    graph: window,
+    graph: viewWindow,
     pointTasks: tasks,
     analysisRequests: analysisParts,
     inverseReflection,
@@ -431,30 +439,30 @@ export default function InteractiveGraphWorkspace({
 
   const innerWidth = WIDTH - PADDING * 2;
   const innerHeight = HEIGHT - PADDING * 2;
-  const toScreenX = (x) => PADDING + ((x - window.xMin) / (window.xMax - window.xMin)) * innerWidth;
-  const toScreenY = (y) => PADDING + ((window.yMax - y) / (window.yMax - window.yMin)) * innerHeight;
-  const fromScreenX = (screenX) => window.xMin + ((screenX - PADDING) / innerWidth) * (window.xMax - window.xMin);
-  const fromScreenY = (screenY) => window.yMax - ((screenY - PADDING) / innerHeight) * (window.yMax - window.yMin);
-  const xTicks = useMemo(() => buildTicks(window.xMin, window.xMax, window.xStep ?? 1), [window]);
-  const yTicks = useMemo(() => buildTicks(window.yMin, window.yMax, window.yStep ?? 1), [window]);
-  const axisX = window.yMin <= 0 && window.yMax >= 0 ? toScreenY(0) : toScreenY(window.yMin);
-  const axisY = window.xMin <= 0 && window.xMax >= 0 ? toScreenX(0) : toScreenX(window.xMin);
-  const idealPaths = useMemo(() => visiblePaths.map((path) => buildSmoothGraphPath(path, toScreenX, toScreenY)), [visiblePaths, window]);
-  const idealScreenPointPaths = useMemo(() => visiblePaths.map((path) => path.map(([x, y]) => [toScreenX(x), toScreenY(y)])), [visiblePaths, window]);
+  const toScreenX = (x) => PADDING + ((x - viewWindow.xMin) / (viewWindow.xMax - viewWindow.xMin)) * innerWidth;
+  const toScreenY = (y) => PADDING + ((viewWindow.yMax - y) / (viewWindow.yMax - viewWindow.yMin)) * innerHeight;
+  const fromScreenX = (screenX) => viewWindow.xMin + ((screenX - PADDING) / innerWidth) * (viewWindow.xMax - viewWindow.xMin);
+  const fromScreenY = (screenY) => viewWindow.yMax - ((screenY - PADDING) / innerHeight) * (viewWindow.yMax - viewWindow.yMin);
+  const xTicks = useMemo(() => buildTicks(viewWindow.xMin, viewWindow.xMax, viewWindow.xStep ?? 1), [viewWindow]);
+  const yTicks = useMemo(() => buildTicks(viewWindow.yMin, viewWindow.yMax, viewWindow.yStep ?? 1), [viewWindow]);
+  const axisX = viewWindow.yMin <= 0 && viewWindow.yMax >= 0 ? toScreenY(0) : toScreenY(viewWindow.yMin);
+  const axisY = viewWindow.xMin <= 0 && viewWindow.xMax >= 0 ? toScreenX(0) : toScreenX(viewWindow.xMin);
+  const idealPaths = useMemo(() => visiblePaths.map((path) => buildSmoothGraphPath(path, toScreenX, toScreenY)), [visiblePaths, viewWindow]);
+  const idealScreenPointPaths = useMemo(() => visiblePaths.map((path) => path.map(([x, y]) => [toScreenX(x), toScreenY(y)])), [visiblePaths, viewWindow]);
   const inverseVisiblePaths = useMemo(
     () => inverseReflectionEnabled
       ? visiblePaths
-        .map((path) => path.map(([x, y]) => [y, x]).filter(([x, y]) => x >= window.xMin && x <= window.xMax && y >= window.yMin && y <= window.yMax))
+        .map((path) => path.map(([x, y]) => [y, x]).filter(([x, y]) => x >= viewWindow.xMin && x <= viewWindow.xMax && y >= viewWindow.yMin && y <= viewWindow.yMax))
         .filter((path) => path.length > 1)
       : [],
-    [inverseReflectionEnabled, visiblePaths, window],
+    [inverseReflectionEnabled, visiblePaths, viewWindow],
   );
-  const inverseIdealPaths = useMemo(() => inverseVisiblePaths.map((path) => buildSmoothGraphPath(path, toScreenX, toScreenY)), [inverseVisiblePaths, window]);
-  const inverseIdealScreenPointPaths = useMemo(() => inverseVisiblePaths.map((path) => path.map(([x, y]) => [toScreenX(x), toScreenY(y)])), [inverseVisiblePaths, window]);
-  const reflectionLineMin = Math.max(window.xMin, window.yMin);
-  const reflectionLineMax = Math.min(window.xMax, window.yMax);
+  const inverseIdealPaths = useMemo(() => inverseVisiblePaths.map((path) => buildSmoothGraphPath(path, toScreenX, toScreenY)), [inverseVisiblePaths, viewWindow]);
+  const inverseIdealScreenPointPaths = useMemo(() => inverseVisiblePaths.map((path) => path.map(([x, y]) => [toScreenX(x), toScreenY(y)])), [inverseVisiblePaths, viewWindow]);
+  const reflectionLineMin = Math.max(viewWindow.xMin, viewWindow.yMin);
+  const reflectionLineMax = Math.min(viewWindow.xMax, viewWindow.yMax);
   const resolvedPointTasks = useMemo(() => tasks.map((task) => ({ ...task, resolvedExpected: resolveTaskExpected(task, functionSpec, construction.chosenXValues) })), [tasks, functionSpec, construction.chosenXValues]);
-  const requiredGraphPoints = useMemo(() => resolvedPointTasks.filter((task) => Array.isArray(task.resolvedExpected) && task.role !== 'center').map((task) => [toScreenX(task.resolvedExpected[0]), toScreenY(task.resolvedExpected[1])]), [resolvedPointTasks, window]);
+  const requiredGraphPoints = useMemo(() => resolvedPointTasks.filter((task) => Array.isArray(task.resolvedExpected) && task.role !== 'center').map((task) => [toScreenX(task.resolvedExpected[0]), toScreenY(task.resolvedExpected[1])]), [resolvedPointTasks, viewWindow]);
   const requiredStrokeCount = functionSpec.type === 'rational' ? 2 : 1;
   const pointParts = useMemo(() => gradePointPlacements(tasks, construction.placements, functionSpec, construction.chosenXValues, Math.max(0.22, snapStep * 0.48)), [tasks, construction.placements, construction.chosenXValues, functionSpec, snapStep]);
   const allMarkersPlaced = endpointRequirements.every((requirement) => Boolean(construction.markerPlacements[requirement.id]));
@@ -536,7 +544,7 @@ export default function InteractiveGraphWorkspace({
   const inversePointGrades = useMemo(() => inversePointParts.map((part) => analysisGradeParts.find((grade) => grade.id === part.id)).filter(Boolean), [inversePointParts, analysisGradeParts]);
   const inversePointsComplete = inversePointGrades.length > 0 && inversePointGrades.every((part) => part.isComplete);
   const inversePointsCorrect = inversePointGrades.length > 0 && inversePointGrades.every((part) => part.isCorrect);
-  const inverseRequiredGraphPoints = useMemo(() => inversePointParts.flatMap((part) => part.expected || []).map(([x, y]) => [toScreenX(x), toScreenY(y)]), [inversePointParts, window]);
+  const inverseRequiredGraphPoints = useMemo(() => inversePointParts.flatMap((part) => part.expected || []).map(([x, y]) => [toScreenX(x), toScreenY(y)]), [inversePointParts, viewWindow]);
   const inverseSketchRequired = Boolean(inverseReflectionEnabled && inverseReflection?.requireInverseSketch !== false);
   const inverseSketchComplete = !inverseSketchRequired || Boolean(analysis.inverseSnapped);
 
@@ -659,13 +667,13 @@ export default function InteractiveGraphWorkspace({
 
   /** Where an arrow-key cursor should start: the middle of the visible plane. */
   const defaultCursor = () => [
-    Number((((window.xMin + window.xMax) / 2)).toFixed(4)),
-    Number((((window.yMin + window.yMax) / 2)).toFixed(4)),
+    Number((((viewWindow.xMin + viewWindow.xMax) / 2)).toFixed(4)),
+    Number((((viewWindow.yMin + viewWindow.yMax) / 2)).toFixed(4)),
   ];
 
   const clampToWindow = ([x, y]) => [
-    Math.min(window.xMax, Math.max(window.xMin, x)),
-    Math.min(window.yMax, Math.max(window.yMin, y)),
+    Math.min(viewWindow.xMax, Math.max(viewWindow.xMin, x)),
+    Math.min(viewWindow.yMax, Math.max(viewWindow.yMin, y)),
   ];
 
   const placeTask = (taskId, point, options = {}) => {

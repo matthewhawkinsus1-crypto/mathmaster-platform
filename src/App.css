@@ -478,6 +478,11 @@
 
 /* The interactive plane is a click target, so it needs a visible focus ring of
    its own for keyboard plotting. */
+/* Never taller than whatever box the plane was given. Set here rather than
+   inline on the SVG so the short-viewport cap further down can override it —
+   an inline style would win over both. */
+.mathmaster-responsive-canvas { max-height: 100%; }
+
 .mathmaster-responsive-canvas:focus-visible {
   outline: 3px solid var(--mm-primary, #1a73e8);
   outline-offset: 2px;
@@ -1874,4 +1879,14 @@
    wide and short, and that is the case this protects. */
 @media (max-height: 560px) {
   .mathmaster-tool-task-card { position: static; }
+
+  /* A GRAPH MUST NOT BE TALLER THAN THE SCREEN IT IS READ ON.
+     On a phone held sideways the plane is laid out from its viewBox aspect
+     ratio, so a 844px-wide viewport produced a 541px-tall graph on a 390px-tall
+     screen: the axis the student is reading intercepts off ran below the fold.
+     Both planes preserve their aspect ratio, so capping the height scales the
+     whole figure down rather than cropping it. 62dvh is the value the tool
+     panels already use in landscape, kept the same so graphs do not change size
+     depending on which surface they happen to be on. */
+  .mathmaster-responsive-canvas { max-height: 62dvh; }
 }

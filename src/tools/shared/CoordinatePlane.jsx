@@ -502,7 +502,13 @@ export default function CoordinatePlane({
         onPointerLeave={handlePointerLeave}
         onKeyDown={handleKeyDown}
         style={{
-          width: '100%', height: 'auto', maxWidth: '100%', maxHeight: '100%',
+          // `maxHeight` is NOT set here. It used to be an inline '100%', which
+          // beats every stylesheet rule and so silently defeated the
+          // short-viewport cap in App.css: on a phone held sideways the plane
+          // laid itself out at 541px inside a 390px-tall screen. The cap now
+          // lives with the other rules for this class, where the cascade can
+          // reach it.
+          width: '100%', height: 'auto', maxWidth: '100%',
           border: '1px solid #d9e2f1', borderRadius: 12, background: '#fff',
           cursor: interactive ? 'crosshair' : 'default',
           touchAction: interactive ? 'none' : 'auto', userSelect: 'none',

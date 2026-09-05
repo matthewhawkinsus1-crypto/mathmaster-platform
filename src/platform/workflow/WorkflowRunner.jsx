@@ -1065,10 +1065,17 @@ export default function WorkflowRunner({
         })}
       </nav>
 
+      {/* NOTHING TO SHOW MEANS NOTHING ON SCREEN.
+          On the first step this strip was 80-94px of a placeholder explaining
+          that work would collect here later — on a phone held sideways, a
+          quarter of the screen spent saying the screen is empty, pushing the
+          graph the student is about to plot on further down. It earns its space
+          from step two onwards, when it actually carries their answers. */}
+      {summaryItems.length ? (
       <section className="workflow-focus__summary" aria-label="Model so far">
         <p className="workflow-focus__summary-title">Model so far</p>
         <div className="workflow-focus__summary-items">
-          {summaryItems.length ? summaryItems.map((item, index) => {
+          {summaryItems.map((item, index) => {
             const stageIndex = workflow.findIndex((stage) => stage.id === item.stageId);
             return (
               <button
@@ -1085,13 +1092,10 @@ export default function WorkflowRunner({
                 {item.kind === 'math' ? <MathDisplay value={item.text} inline /> : <span>{item.text}</span>}
               </button>
             );
-          }) : (
-            <div className="workflow-focus__summary-item">
-              <span>Your completed work will collect here as you build the model.</span>
-            </div>
-          )}
+          })}
         </div>
       </section>
+      ) : null}
 
       <main className="workflow-focus__workspace">
         <div className="workflow-focus__workspace-heading">
