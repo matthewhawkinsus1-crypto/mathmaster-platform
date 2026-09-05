@@ -27,7 +27,17 @@ Implement `liveChallengeResponseReadiness(question)` returning:
 
 The helper must use only public/presentation fields. It must prefer field-level choices over question-level choices, recognize the platform's supported math profiles, allow genuine text responses, and reject malformed/unknown response contracts.
 
-Make `matchesQuestionStyle` return false when readiness is ineligible. `functions/index.js` already calls this predicate before Path issuability planning, so create and swap flows inherit the gate without adding a competing selection path.
+Expose readiness as its own predicate, `liveChallengeEligible`, and add it as a
+separate `.filter()` in `loadChallengeCandidates` alongside the style filter, so
+create and swap inherit the gate without a competing selection path.
+
+Do NOT fold it into `matchesQuestionStyle`. That was the first attempt and it
+made `matchesQuestionStyle(question, "any")` able to return false — a
+contradiction in terms — and rejected a plain typed question under `noTools`,
+the style it belongs to. It also cost the teacher the diagnostic the style
+feature exists for: an unfillable game is meant to name the style that emptied
+it, and with both filters in one predicate someone who chose "Any" was told
+their style was at fault when the bank simply held nothing renderable.
 
 ## Task 3 — Restore response renderer parity
 
