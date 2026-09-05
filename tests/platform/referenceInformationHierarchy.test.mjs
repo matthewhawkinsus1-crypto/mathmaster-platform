@@ -78,14 +78,17 @@ test('QuestionEngine keeps reference facts with Your Task and Guided Notes insid
   const viewport = await read('src/components/student/MobileViewportContainer.jsx');
   const referenceIndex = engine.indexOf('<ReferenceInfoCard referenceInfo={referenceInfo} />');
   const workspaceIndex = engine.indexOf('className="mathmaster-question-tool-workspace"');
-  const guidedIndex = engine.indexOf('<GuidedClassworkCoach', workspaceIndex);
+  const guidedDeclarationIndex = engine.indexOf('const guidedCoach = (');
+  const guidedIndex = engine.indexOf('{!solverWorkspaceActive && guidedCoach}', workspaceIndex);
   assert.ok(referenceIndex > 0);
   assert.ok(workspaceIndex > referenceIndex);
+  assert.ok(guidedDeclarationIndex > 0);
   assert.ok(guidedIndex > workspaceIndex);
+  assert.match(engine, /const guidedCoach = \([\s\S]*<GuidedClassworkCoach/);
   assert.match(engine, /taskContextPanel=\{questionReferencePanel\}/);
   assert.match(viewport, /mathmaster-desktop-question-anchor[\s\S]*mathmaster-question-task-context[\s\S]*taskContextPanel/);
   assert.match(viewport, /prompt-body[\s\S]*taskContextPanel/);
-  assert.match(viewport, /\{contextPanel\}[\s\S]*<main className="math-tool-workspace">/, 'attempt/tools context remains outside the task anchor');
+  assert.match(viewport, /\{!workspaceActive && contextPanel\}[\s\S]*<main className="math-tool-workspace">/, 'attempt/tools context remains outside the task anchor in normal mode and is suppressed in solver workspace mode');
   assert.match(engine, /suppressScenarioDisplay/);
 });
 
