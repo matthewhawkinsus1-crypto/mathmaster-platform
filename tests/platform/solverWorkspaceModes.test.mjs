@@ -40,6 +40,16 @@ test('the shared frame reports mode changes upward while remaining the one mount
   assert.equal((source.match(/\{children\}/g) || []).length, 1);
 });
 
+test('workspace Task access is temporary instead of occupying persistent top-bar space', async () => {
+  const frame = await read('src/components/common/SolverWorkspaceFrame.jsx');
+
+  assert.match(frame, /const \[taskOpen, setTaskOpen\] = useState\(false\)/);
+  assert.match(frame, /aria-controls="solver-workspace-task-panel"/);
+  assert.match(frame, /id="solver-workspace-task-panel"/);
+  assert.match(frame, /setTaskOpen\(false\)/);
+  assert.doesNotMatch(frame, /<span title=\{taskText\}>\{taskText\}<\/span>/);
+});
+
 test('workspace toolbar reuses assignment Undo, Scratchpad, Help, and final Submit actions', async () => {
   const question = await read('src/QuestionEngine.jsx');
   const frame = await read('src/components/common/SolverWorkspaceFrame.jsx');
