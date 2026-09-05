@@ -22,6 +22,7 @@ export const STAGE_OUTPUT = Object.freeze({
   POINTS: 'points',
   GRAPH: 'graph',
   MAPPING: 'mapping',
+  MATCH: 'match',
   INTERVAL: 'interval',
   SET: 'set',
   CHOICE: 'choice',
@@ -124,6 +125,18 @@ export const INTERACTION_STAGES = Object.freeze(Object.fromEntries([
       noneLabel: 'string',
       placeholder: 'string',
     },
+  }),
+  stage('figureMatch', {
+    label: 'Match each figure to a category',
+    studentAction: 'Sorts every figure shown into one of the named categories.',
+    // Recognising an exponential among four graphs and writing one from scratch
+    // are different skills; this primitive exists so a question can ask for the
+    // first without the second standing in for it.
+    produces: STAGE_OUTPUT.MATCH,
+    consumes: [],
+    // No `label` on an item, and none accepted: see figureMatch.js. The figures
+    // are Figure 1..N in written order so a name can never cue the answer.
+    fields: { prompt: 'string', items: 'array', categories: 'array' },
   }),
   stage('mappingDiagram', {
     label: 'Build the mapping diagram',

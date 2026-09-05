@@ -9,6 +9,7 @@ import GraphDisplay from '../../GraphDisplay';
 import StepByStepAlgebra from '../../StepByStepAlgebra';
 import IntervalNumberLine from '../../tools/intervalNumberLine/IntervalNumberLine';
 import AxisSetupStage from './AxisSetupStage';
+import FigureMatchStage from './FigureMatchStage';
 import GraphFeatureSelectStage from './GraphFeatureSelectStage';
 import CoordinatePlane from '../../tools/shared/CoordinatePlane';
 import { previewFigures } from './choicePreview';
@@ -754,6 +755,8 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey 
       );
     case 'pointInput':
       return <PointInputStage stage={stage} value={value} onChange={onChange} disabled={disabled} />;
+    case 'figureMatch':
+      return <FigureMatchStage stage={stage} value={value} onChange={onChange} disabled={disabled} />;
     case 'classification':
     case 'multipleChoice':
       return <ChoiceStage stage={stage} value={value} onChange={onChange} disabled={disabled} />;

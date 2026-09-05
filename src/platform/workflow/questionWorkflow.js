@@ -17,6 +17,7 @@
 import { STAGE_OUTPUT, getStage, isKnownStageKind, resolveStageKind } from './interactionStages.js';
 import { expandRecipe } from './questionRecipes.js';
 import { choicePreviewProblems } from './choicePreview.js';
+import { figureMatchKeyProblems, figureMatchProblems } from './figureMatch.js';
 
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
 
@@ -235,6 +236,12 @@ export const validateWorkflow = (workflow = [], { label = 'Question' } = {}) => 
       });
     }
 
+    if (entry.kind === 'figureMatch') {
+      figureMatchProblems(entry).forEach((problem) => {
+        errors.push(`${label} stage "${entry.id}" ${problem}`);
+      });
+    }
+
     // `showWhen` is validated hard, because every way it can be wrong produces a
     // question a student can reach and cannot finish.
     if (isObject(entry.showWhen)) {
@@ -346,6 +353,12 @@ export const validateGrading = (workflow = [], grading = null, { label = 'Questi
       );
       return;
     }
+    if (stage.kind === 'figureMatch') {
+      figureMatchKeyProblems(stage, rule).forEach((problem) => {
+        errors.push(`${label} stage "${key}" ${problem}`);
+      });
+    }
+
     if (!isObject(rule) || !rule.consistentWith) return;
 
     const upstream = byId.get(rule.consistentWith);

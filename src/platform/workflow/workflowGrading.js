@@ -20,6 +20,7 @@
 import { compareMathAnswer, looksLikeFiniteSetNotation, normalizeMathAnswer, parseOrderedPair } from '../../answerUtils.js';
 import { isAlgebraicallyEquivalent } from '../../grading/equivalence.js';
 import { activeStageIds, hasStageResponse } from './questionWorkflow.js';
+import { matchItems, readFigureMatch } from './figureMatch.js';
 import { canonicalizeFunctionExpression, evaluateModelAt, evaluateNumericValue, toEvaluableExpression } from './modelExpression.js';
 export { evaluateModelAt, evaluateNumericValue, toEvaluableExpression } from './modelExpression.js';
 
@@ -189,6 +190,39 @@ const gradePairs = (response, expected) => {
     detail: isCorrect
       ? 'Every value is joined to the one it maps to.'
       : 'The arrows do not match the relation — check which value each one is joined to.',
+  };
+};
+
+/*
+ * MATCHING: marked figure by figure, not all-or-nothing.
+ *
+ * A student who picks out three exponentials and misses the fourth has done
+ * something different from one who guessed, and a single right/wrong verdict
+ * would report them the same. Credit is the share of figures placed correctly.
+ *
+ * A stage with figures still unplaced never reaches here: an incomplete
+ * artifact is reported as unanswered by the same rule that covers a half-filled
+ * table. So the denominator is every keyed figure, and every one of them has
+ * been placed — right or wrong.
+ */
+const gradeFigureMatch = (stage, response, key) => {
+  const assignments = readFigureMatch(response);
+  const ids = matchItems(stage).map((item) => String(item?.id ?? '').trim()).filter(Boolean);
+  const asked = ids.filter((id) => id in key);
+  if (!asked.length) {
+    return { graded: false, isCorrect: false, credit: 0, detail: 'Reviewed by your teacher.' };
+  }
+  const right = asked.filter((id) => assignments[id] && String(assignments[id]) === String(key[id]));
+  const isCorrect = right.length === asked.length;
+  return {
+    graded: true,
+    isCorrect,
+    credit: right.length / asked.length,
+    detail: isCorrect
+      ? 'Every figure is in the right category.'
+      // Which ones are wrong is deliberately not named: saying so would turn a
+      // second attempt into elimination rather than recognition.
+      : `${right.length} of ${asked.length} figures are in the right category.`,
   };
 };
 
@@ -448,6 +482,9 @@ export const gradeStage = ({ stage, rule, responses = {} }) => {
 
   if (['graphFeatureSelect', 'pointInput'].includes(stage.kind) && isObject(rule)) {
     return { ...base, ...gradeFeaturePoints(response, rule) };
+  }
+  if (stage.kind === 'figureMatch' && isObject(rule) && isObject(rule.match)) {
+    return { ...base, ...gradeFigureMatch(stage, response, rule.match) };
   }
   if (isObject(rule) && Array.isArray(rule.pairs)) return { ...base, ...gradePairs(response, rule.pairs) };
   if (isObject(rule) && Array.isArray(rule.set)) return { ...base, ...gradeSet(response, rule.set) };
