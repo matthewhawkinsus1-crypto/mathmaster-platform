@@ -117,6 +117,60 @@ for (const [device, config] of Object.entries(DEVICES)) {
     await page.waitForTimeout(200);
   }
 
+  // 5. PAN AND ZOOM. The buttons are checked rather than the pinch, because they
+  //    are the primary path — everything the gesture does, a button must do — and
+  //    because a synthesised two-finger pinch proves less than it looks like it
+  //    does. What matters most is the last check: zooming must not move where a
+  //    point actually lands.
+  const zoomIn = page.locator('button[aria-label="Zoom in"]').first();
+  if (!(await zoomIn.count())) note(device, 'no zoom control on a plane a student plots on');
+  else {
+    const readAxis = () => page.evaluate(() => {
+      const labels = [...document.querySelectorAll('svg text')]
+        .map((t) => Number((t.textContent || '').trim()))
+        .filter((n) => Number.isFinite(n));
+      return { min: Math.min(...labels), max: Math.max(...labels) };
+    });
+    const before = await readAxis();
+    await zoomIn.click();
+    await page.waitForTimeout(220);
+    const after = await readAxis();
+    if ((after.max - after.min) < (before.max - before.min)) {
+      console.log(`  ok   zooming in narrows the window (${before.max - before.min} -> ${after.max - after.min} units)`);
+    } else {
+      note(device, `zoom in did not narrow the window (${before.max - before.min} -> ${after.max - after.min})`);
+    }
+
+    // The reset has to actually come back, or a student who zooms is stranded.
+    await page.locator('button', { hasText: 'Reset view' }).first().click();
+    await page.waitForTimeout(220);
+    const reset = await readAxis();
+    if ((reset.max - reset.min) === (before.max - before.min)) console.log('  ok   reset returns the original window');
+    else note(device, `reset did not restore the window (${before.max - before.min} -> ${reset.max - reset.min})`);
+
+    // THE ONE THAT MATTERS: a point must land where the student aimed, whatever
+    // the zoom. If the coordinate mapping ignores the view, a zoomed student
+    // plots somewhere they did not choose and cannot tell why they were wrong.
+    await zoomIn.click();
+    await page.waitForTimeout(220);
+    const zoomedBox = await page.locator('svg').first().boundingBox();
+    const aim = { x: zoomedBox.x + zoomedBox.width * 0.5, y: zoomedBox.y + zoomedBox.height * 0.5 };
+    const countBefore = (await readStudentPoints(page)).length;
+    await page.mouse.move(aim.x, aim.y);
+    await page.mouse.down();
+    await page.mouse.move(aim.x + 4, aim.y + 4, { steps: 4 });
+    await page.mouse.up();
+    await page.waitForTimeout(240);
+    const placed = await readStudentPoints(page);
+    if (placed.length > countBefore || placed.length > 0) {
+      const last = placed[placed.length - 1];
+      const screenX = zoomedBox.x + (last.x / 640) * zoomedBox.width;
+      const offBy = Math.abs(screenX - aim.x);
+      if (offBy < zoomedBox.width * 0.12) console.log(`  ok   a point plotted while zoomed lands where it was aimed (${Math.round(offBy)}px off)`);
+      else note(device, `zoomed plot landed ${Math.round(offBy)}px from the aim point`);
+    } else note(device, 'plotting while zoomed produced no point');
+  }
+
   if (errors.length) note(device, `page errors: ${[...new Set(errors)].slice(0, 2).join(' | ')}`);
   await context.close();
 }
