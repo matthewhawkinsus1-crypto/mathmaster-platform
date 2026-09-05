@@ -23,15 +23,28 @@ const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
-const FINDINGS = path.join(repo, 'tests/platform/fixtures/toolOpenFindings.json');
+const FINDINGS_FOR = (device) => path.join(repo, `tests/platform/fixtures/toolOpen${device === 'phone' ? 'Phone' : ''}Findings.json`);
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5199';
 const write = process.argv.includes('--write');
 
-// A Chromebook, minus browser chrome. This is the screen the tools are used on.
-const VIEWPORT = { width: 1366, height: 640 };
+// The screens these tools are actually used on. A Chromebook is the classroom
+// default, but a phone is what a student reaches for at home and in the hall,
+// and it is the one where a question and its answer boxes compete for room.
+const DEVICES = {
+  chromebook: { width: 1366, height: 640, isMobile: false },
+  phone: { width: 390, height: 664, isMobile: true, deviceScaleFactor: 3, hasTouch: true },
+};
+const DEVICE = process.env.AUDIT_DEVICE || 'chromebook';
+const VIEWPORT = DEVICES[DEVICE] || DEVICES.chromebook;
+if (!DEVICES[DEVICE]) throw new Error(`Unknown AUDIT_DEVICE ${DEVICE}. Use: ${Object.keys(DEVICES).join(', ')}`);
 
 const browser = await chromium.launch();
-const context = await browser.newContext({ viewport: VIEWPORT });
+const context = await browser.newContext({
+  viewport: { width: VIEWPORT.width, height: VIEWPORT.height },
+  isMobile: VIEWPORT.isMobile,
+  hasTouch: Boolean(VIEWPORT.hasTouch),
+  deviceScaleFactor: VIEWPORT.deviceScaleFactor || 1,
+});
 
 const idPage = await context.newPage();
 await idPage.goto(`${ORIGIN}/tests/browser/toolOpenAudit.html`, { waitUntil: 'networkidle' });
@@ -138,6 +151,9 @@ for (const toolId of toolIds) {
       visibleAfterScroll,
       promptTopAfterScroll: Math.round(rect.top),
       pageGrew: document.documentElement.scrollHeight > window.innerHeight,
+      // Sideways scrolling is the phone-specific failure: a student drags the
+      // page left and right to reach a control, and loses the question doing it.
+      widthOverflow: Math.max(0, document.documentElement.scrollWidth - window.innerWidth),
     };
   });
 
@@ -162,6 +178,9 @@ for (const toolId of toolIds) {
     }
   }
   if (measured.openDirections.length) problems.push({ rule: 'directions-open-on-arrival', detail: measured.openDirections });
+  if (hasSpec && promptCheck.widthOverflow > 4) {
+    problems.push({ rule: 'scrolls-sideways', detail: `${promptCheck.widthOverflow}px wider than the screen` });
+  }
   if (hasSpec && promptCheck.hasPrompt) {
     if (promptCheck.asCode) problems.push({ rule: 'task-shown-as-code', detail: promptCheck.text });
     if (promptCheck.pageGrew && !promptCheck.visibleAfterScroll) {
@@ -188,7 +207,7 @@ for (const toolId of toolIds) {
 
 await browser.close();
 
-console.log(`\nMeasured ${toolIds.length} tools at ${VIEWPORT.width}x${VIEWPORT.height}\n`);
+console.log(`\nMeasured ${toolIds.length} tools on ${DEVICE} (${VIEWPORT.width}x${VIEWPORT.height})\n`);
 console.log('tool'.padEnd(28), 'control'.padStart(8), 'foldedPx'.padStart(9), 'taskVisible'.padStart(12), 'taskAsCode'.padStart(11));
 rows.forEach((row) => console.log(
   row.toolId.padEnd(28),
@@ -210,7 +229,8 @@ if (findings.length) {
 if (skipped.length) console.log(`\nNo sample question on the preview bench (empty state only): ${skipped.join(', ')}`);
 
 if (write) {
-  writeFileSync(FINDINGS, `${JSON.stringify({ generatedAt: new Date().toISOString(), viewport: VIEWPORT, measured: toolIds.length, findings }, null, 2)}\n`);
-  console.log(`\nWrote ${path.relative(repo, FINDINGS)}`);
+  const target = FINDINGS_FOR(DEVICE);
+  writeFileSync(target, `${JSON.stringify({ generatedAt: new Date().toISOString(), device: DEVICE, viewport: VIEWPORT, measured: toolIds.length, findings }, null, 2)}\n`);
+  console.log(`\nWrote ${path.relative(repo, target)}`);
 }
 process.exit(findings.length ? 1 : 0);

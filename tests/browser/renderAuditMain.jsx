@@ -44,6 +44,13 @@ function Harness() {
   return (
     <div data-audit-id={scene.id}>
       <PathSessionPlayer
+        // KEYED PER QUESTION, because that is what production does — a student
+        // moving to the next question gets a fresh mount, not the previous
+        // component handed different props. Without this the harness reuses one
+        // instance across question types, the hook count changes between
+        // renders, and React throws "Rendered more hooks than during the
+        // previous render" — an artifact of the harness, not of the player.
+        key={scene.id}
         session={SESSION}
         questionInstance={scene.questionInstance}
         // Every optional surface forced on at once. A field that only appears
