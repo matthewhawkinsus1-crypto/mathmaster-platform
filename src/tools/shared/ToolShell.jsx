@@ -171,7 +171,7 @@ export const TaskCard = ({ task, steps = [], note = null, question = null, steps
   return (
     <div className="mathmaster-tool-task-card" style={{
       border: '1px solid #9bb8e8', borderLeft: '6px solid #1a73e8', borderRadius: 12,
-      background: '#f4f8ff', padding: '14px 18px', marginBottom: 18,
+      background: '#f4f8ff', padding: '12px 16px', marginBottom: 12,
     }}>
       {authoredPrompt ? (
         <div className="mathmaster-tool-task-prompt">
@@ -185,16 +185,21 @@ export const TaskCard = ({ task, steps = [], note = null, question = null, steps
           <MathText as="p" style={{ margin: '6px 0 0', fontSize: 16, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{taskText}</MathText>
         </div>
       ) : null}
-      {/* The steps are the same for every question in a section. By the fourth
-          one a student has read them three times and is scrolling past them to
-          reach the graph. They open by default and close only because the
-          student closed them — this is a fold, not a hiding place. */}
+      {/* THE STEPS START FOLDED. They are the same for every question in a
+          section, so by the fourth one a student has read them three times and
+          is scrolling past them to reach the graph. Opening folded puts the tool
+          on screen and ready for input instead; the summary line still names
+          what is inside and how many steps there are, and a student's choice to
+          open them is remembered for that block of text.
+
+          What does NOT fold is the problem itself and the one-line task — those
+          are the question, not the directions about it. */}
       {steps.length ? (
         <QuietDisclosure
           summary={`How to do this (${steps.length} step${steps.length === 1 ? '' : 's'})`}
           storageKey={`mm.tool.steps.${stepsKey || contentKey(steps.join('|'))}`}
-          defaultOpen
-          style={{ margin: '12px 0 0' }}
+          defaultOpen={false}
+          style={{ margin: '10px 0 0' }}
         >
           <ol style={{ margin: 0, paddingLeft: 20, color: '#3c4756', lineHeight: 1.6 }}>
             {steps.map((step, index) => <li key={index}><MathText>{step}</MathText></li>)}
