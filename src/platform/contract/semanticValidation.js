@@ -4,6 +4,7 @@ import { readComposedQuestion, validateGrading, validateWorkflow } from '../work
 import { auditStaticGraphViewport } from '../../graphSpecUtils.js';
 import { validateQuestionInteractionContracts } from '../interaction/interactionContract.js';
 import { validateQuestionGradingContracts } from '../grading/gradingContract.js';
+import { instructionalIntegrityProblems } from './instructionalIntegrity.js';
 
 // Recognising a type name is not validation. `{ type: 'graphAnalysis', prompt:
 // 'A graph falls from left to right until x = 2' }` used to pass because
@@ -458,6 +459,11 @@ export const validateQuestionSemantics = (question = {}, { label = 'Question' } 
 
   auditQuestionGraphs(question, String(type || ''), label, errors, warnings, composed.composed);
   checkPlainTextMath(question, label, errors, warnings);
+
+  // Whether the question still measures what it claims to, once it renders.
+  const integrity = instructionalIntegrityProblems(question);
+  integrity.errors.forEach((problem) => errors.push(`${label} ${problem}`));
+  integrity.warnings.forEach((problem) => warnings.push(`${label} ${problem}`));
 
   return { errors, warnings };
 };

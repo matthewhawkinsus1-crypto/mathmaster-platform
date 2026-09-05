@@ -120,6 +120,11 @@ export const INTERACTION_STAGES = Object.freeze(Object.fromEntries([
     consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.EQUATION],
     fields: {
       prompt: 'string',
+      // WHICH feature, named the same way `graphFeatureSelect` names it. Not
+      // used by the renderer — the prompt already says it — but it is what lets
+      // validation see that a question asks a student to WRITE a feature they
+      // were never asked to FIND, which is two skills marked as one.
+      feature: 'string',
       pointCount: 'number',
       allowNone: 'boolean',
       noneLabel: 'string',

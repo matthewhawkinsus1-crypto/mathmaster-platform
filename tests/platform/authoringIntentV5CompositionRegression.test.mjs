@@ -90,7 +90,7 @@ const payload = {
           // A repair AI adding an internal renderer type must not bypass V5 compilation.
           type: 'graphing',
           standard: 'A.2A',
-          prompt: 'Graph the function f(x) = 0.5x + 1 for the domain x ≥ -3. Complete the table, graph the continuous ray, state the range using an inequality, and classify the function continuity.',
+          prompt: 'Graph the function f(x) = 0.5x + 1 for the domain x ≥ -3. Complete the table, graph the ray, state the range, and classify the function continuity.',
           notation: 'inequality',
           studentActions: ['completeTable', 'constructGraph', 'stateRange', 'classifyContinuity'],
           function: { family: 'linear', m: 0.5, b: 1, domain: { min: -3 } },
@@ -170,19 +170,30 @@ assert.equal(relation.type, 'relationMapping');
 assert.deepEqual(relation.ask, ['mapping', 'plot', 'domain', 'range', 'isFunction']);
 
 assert.equal(discrete.type, 'functionGraph');
-assert.deepEqual(discrete.workflow.map((stage) => stage.kind), ['tableInput', 'classification', 'functionGraph', 'rangeInput']);
+// Two range stages, not one. A question that asks the student to classify the
+// relationship AND state its range compiles one range stage per classification,
+// so the shape of the answer box follows the student's own choice instead of
+// the answer key. Only the branch matching the authored truth is keyed.
+assert.deepEqual(discrete.workflow.map((stage) => stage.kind), ['tableInput', 'classification', 'functionGraph', 'rangeInput', 'rangeInput']);
 assert.equal(discrete.workflow[1].id, 'continuity');
 assert.equal(discrete.workflow[2].graphMode, 'studentSelected');
 assert.equal(discrete.workflow[2].continuityStageId, 'continuity');
 assert.equal(discrete.grading.table.values['3:y'], 3);
 assert.equal(discrete.tableAnswers['0:y'], 0, 'runtime table key must use the function-derived answer, not an AI-authored conflicting key');
-assert.equal(discrete.grading.range, '{0, 1, 2, 3}');
+assert.deepEqual(discrete.workflow.slice(3).map((stage) => [stage.id, stage.notation, stage.showWhen.is]), [
+  ['rangeDiscrete', 'set', 'discrete'],
+  ['rangeContinuous', 'inequality', 'continuous'],
+]);
+assert.equal(discrete.grading.rangeDiscrete, '{0, 1, 2, 3}');
+assert.equal(discrete.grading.rangeContinuous, undefined, 'the branch the authored answer does not answer stays unkeyed');
 
 assert.equal(continuous.type, 'functionGraph', 'stray renderer type hint must be ignored in V5');
-assert.deepEqual(continuous.workflow.map((stage) => stage.kind), ['tableInput', 'classification', 'functionGraph', 'rangeInput']);
+assert.deepEqual(continuous.workflow.map((stage) => stage.kind), ['tableInput', 'classification', 'functionGraph', 'rangeInput', 'rangeInput']);
 assert.equal(continuous.workflow[1].id, 'continuity');
 assert.equal(continuous.workflow[2].graphMode, 'studentSelected');
 assert.equal(continuous.grading.table.values['0:y'], -0.5, 'table key should be derived from the supplied function');
+assert.equal(continuous.grading.rangeContinuous, 'y ≥ -0.5');
+assert.equal(continuous.grading.rangeDiscrete, undefined);
 assert.equal(continuous.functionSpec.domain.min, -3);
 
 assert.equal(chocolate.type, 'relationshipModel');
@@ -232,8 +243,20 @@ assert.deepEqual(axisSemantic.errors, [], axisSemantic.errors.join('\n'));
 const axisQuestion = axisParsed.questions[0];
 assert.deepEqual(axisQuestion.workflow.map((stage) => stage.kind), [
   'quantityRoles', 'axisSetup', 'equationInput', 'tableInput',
-  'classification', 'functionGraph', 'domainInput', 'rangeInput',
+  'classification', 'functionGraph', 'domainInput', 'domainInput', 'rangeInput', 'rangeInput',
 ]);
+assert.deepEqual(
+  axisQuestion.workflow.filter((stage) => stage.showWhen).map((stage) => [stage.id, stage.notation, stage.showWhen.is]),
+  [
+    ['domainDiscrete', 'set', 'discrete'],
+    ['domainContinuous', 'inequality', 'continuous'],
+    ['rangeDiscrete', 'set', 'discrete'],
+    ['rangeContinuous', 'inequality', 'continuous'],
+  ],
+  'the answer box asks in the form the student chose, not the form the key implies',
+);
+assert.equal(axisQuestion.grading.domainContinuous, '0 ≤ x ≤ 4');
+assert.equal(axisQuestion.grading.domainDiscrete, undefined);
 const axisStage = axisQuestion.workflow.find((stage) => stage.kind === 'axisSetup');
 assert.ok(axisStage.graph, 'axis labeling must render a physical graph');
 assert.equal(axisStage.graph.xMin, 0);

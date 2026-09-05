@@ -611,22 +611,70 @@ const compileFunctionWorkflow = (q, actions) => {
     if (source) grading.graph = { consistentWith: source, useStageVerdict: true };
   }
 
-  const addSetStage = (id, kind, prompt, expected, notation, choices = []) => {
+  const addSetStage = (id, kind, prompt, expected, notation, choices = [], showWhen = null) => {
     const stage = { id, kind, prompt, notation };
     if (Array.isArray(choices) && choices.length) stage.choices = choices;
+    if (showWhen) stage.showWhen = showWhen;
     const source = latestStageSource(workflow, ['functionGraph','coordinatePlot','tableInput','equationInput']);
     if (source) stage.source = { fromStage: source };
     workflow.push(stage);
     if (expected !== undefined) grading[id] = expected;
   };
 
-  if (actions.some((action) => ['stateDomain','analyzeDomain'].includes(action))) {
-    addSetStage('domain', 'domainInput', q.domainPrompt || 'State the domain.', expectedDomain(q), defaultDomainRangeNotation(q, continuity), q.domainChoices || q.answerModel?.domainChoices);
+  const asksDomain = actions.some((action) => ['stateDomain','analyzeDomain'].includes(action));
+  const asksRange = actions.some((action) => ['stateRange','analyzeRange'].includes(action));
+
+  /*
+   * THE ANSWER BOX MUST NOT ANSWER THE CLASSIFICATION.
+   *
+   * `defaultDomainRangeNotation` picks roster form for a discrete relation and
+   * an inequality for a continuous one — from the ANSWER KEY. So a question
+   * that asked "is this discrete or continuous?" and then showed an inequality
+   * keypad had already answered itself: the student read the box, not the
+   * mathematics. Every relationship-model question in the bank shipped that way.
+   *
+   * The fix is to ask for the domain in the form the STUDENT chose. Two
+   * branched stages, one per choice, and `showWhen` shows exactly one of them.
+   * The branch that contradicts the authored truth carries NO key, so it is
+   * reported as ungraded rather than wrong: the student already lost the mark
+   * on the classification itself, and a roster-form domain for a relation that
+   * is really continuous has no correct answer to be marked against.
+   *
+   * `showWhen` cannot look forward, so the classification has to be asked
+   * first. When there is a graph to build, it already is — the graph would
+   * otherwise show the answer. When there is not, it is moved up to here.
+   */
+  const branchOnContinuity = actions.includes('classifyContinuity') && (asksDomain || asksRange);
+
+  if (branchOnContinuity && !continuityBeforeGraph) {
+    const stage = { id: 'continuity', kind: 'classification', prompt: q.continuityPrompt || 'Is the relationship discrete or continuous?', choices: ['discrete','continuous'] };
+    const source = latestStageSource(workflow, ['functionGraph','coordinatePlot','tableInput','equationInput']);
+    if (source) stage.source = { fromStage: source };
+    workflow.push(stage);
+    if (continuity) grading.continuity = continuity;
   }
-  if (actions.some((action) => ['stateRange','analyzeRange'].includes(action))) {
-    addSetStage('range', 'rangeInput', q.rangePrompt || 'State the range.', expectedRange(q), defaultDomainRangeNotation(q, continuity), q.rangeChoices || q.answerModel?.rangeChoices);
+
+  // The authored answer, but only for the branch it is actually the answer to.
+  const keyFor = (branch, expected) => (clean(continuity).toLowerCase() === branch ? expected : undefined);
+  const continuousNotation = defaultDomainRangeNotation({ ...q, notation: clean(q.notation) || '' }, 'continuous');
+
+  if (asksDomain) {
+    if (branchOnContinuity) {
+      addSetStage('domainDiscrete', 'domainInput', q.domainPrompt || 'List the domain.', keyFor('discrete', expectedDomain(q)), 'set', q.domainChoices || q.answerModel?.domainChoices, { stage: 'continuity', is: 'discrete' });
+      addSetStage('domainContinuous', 'domainInput', q.domainPrompt || 'Describe the domain.', keyFor('continuous', expectedDomain(q)), continuousNotation, q.domainChoices || q.answerModel?.domainChoices, { stage: 'continuity', is: 'continuous' });
+    } else {
+      addSetStage('domain', 'domainInput', q.domainPrompt || 'State the domain.', expectedDomain(q), defaultDomainRangeNotation(q, continuity), q.domainChoices || q.answerModel?.domainChoices);
+    }
   }
-  if (actions.includes('classifyContinuity') && !continuityBeforeGraph) {
+  if (asksRange) {
+    if (branchOnContinuity) {
+      addSetStage('rangeDiscrete', 'rangeInput', q.rangePrompt || 'List the range.', keyFor('discrete', expectedRange(q)), 'set', q.rangeChoices || q.answerModel?.rangeChoices, { stage: 'continuity', is: 'discrete' });
+      addSetStage('rangeContinuous', 'rangeInput', q.rangePrompt || 'Describe the range.', keyFor('continuous', expectedRange(q)), continuousNotation, q.rangeChoices || q.answerModel?.rangeChoices, { stage: 'continuity', is: 'continuous' });
+    } else {
+      addSetStage('range', 'rangeInput', q.rangePrompt || 'State the range.', expectedRange(q), defaultDomainRangeNotation(q, continuity), q.rangeChoices || q.answerModel?.rangeChoices);
+    }
+  }
+  if (actions.includes('classifyContinuity') && !continuityBeforeGraph && !branchOnContinuity) {
     const stage = { id: 'continuity', kind: 'classification', prompt: q.continuityPrompt || 'Is the relationship discrete or continuous?', choices: ['discrete','continuous'] };
     const source = latestStageSource(workflow, ['functionGraph','coordinatePlot','tableInput','equationInput']);
     if (source) stage.source = { fromStage: source };

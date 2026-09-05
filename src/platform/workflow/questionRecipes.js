@@ -41,6 +41,55 @@ export const relationIsFunction = (pairs = []) => {
 
 // --- Function modelling (the public type `relationshipModel`) ----------------
 
+/*
+ * ONE STEP, TWO STAGES, ONE OF THEM SHOWN.
+ *
+ * A domain step becomes a discrete branch and a continuous branch whenever the
+ * same question also asks the student to classify the relationship, so that the
+ * form of the answer box follows the student's own choice rather than the
+ * answer key. `showWhen` cannot look backwards at a step that has not been
+ * asked yet, so this only fires when continuity is asked first.
+ */
+const askedBefore = (asked, needle, target) => {
+  for (const step of asked) {
+    if (step === needle) return true;
+    if (step === target) return false;
+  }
+  return false;
+};
+
+const branchOnContinuity = (asked, base, { discretePrompt, continuousPrompt } = {}) => {
+  if (!askedBefore(asked, 'continuity', base.id)) return base;
+  const { prompt: _prompt, notation, ...rest } = base;
+  return [
+    {
+      ...rest,
+      id: `${base.id}Discrete`,
+      prompt: discretePrompt || base.prompt,
+      notation: 'set',
+      showWhen: { stage: 'continuity', is: 'discrete' },
+    },
+    {
+      ...rest,
+      id: `${base.id}Continuous`,
+      prompt: continuousPrompt || base.prompt,
+      // A `set` notation here would have come from the answer key saying the
+      // relation is discrete — and putting a roster box on the CONTINUOUS
+      // branch would tell that student they had chosen wrongly.
+      notation: notation === 'set' ? 'inequality' : notation,
+      showWhen: { stage: 'continuity', is: 'continuous' },
+    },
+  ];
+};
+
+/** The branch an authored answer actually answers, or nothing. */
+const continuityBranchKey = (question, base) => {
+  const branch = String(question?.continuity ?? '').trim().toLowerCase();
+  if (branch === 'discrete') return `${base}Discrete`;
+  if (branch === 'continuous') return `${base}Continuous`;
+  return null;
+};
+
 const latestModelSource = (asked) => asked.has('graph') ? 'graph' : asked.has('table') ? 'table' : asked.has('equation') ? 'equation' : null;
 const latestPreGraphModelSource = (asked) => asked.has('table') ? 'table' : asked.has('equation') ? 'equation' : null;
 
@@ -87,13 +136,29 @@ const FUNCTION_MODELING = {
         ? { source: { fromStage: 'table' } }
         : (asked.has('equation') ? { source: { fromStage: 'equation' } } : {})),
     }),
-    domain: (question, asked) => ({
+    /*
+     * THE ANSWER BOX MUST NOT ANSWER THE CLASSIFICATION.
+     *
+     * A question that asks "discrete or continuous?" and then shows a roster-
+     * form box has answered itself: the shape of the box is the classification.
+     * When the same question asks for both, this compiles to one stage per
+     * branch, and `showWhen` shows only the one matching the student's own
+     * choice — so the format follows their reasoning rather than the key.
+     *
+     * `showWhen` cannot look forward, so this only branches when the continuity
+     * step is asked before the domain step; `ask` order is the author's, and
+     * the compiler puts continuity first whenever there is a graph to build.
+     */
+    domain: (question, asked) => branchOnContinuity(asked, {
       id: 'domain',
       kind: 'domainInput',
       prompt: question.domainPrompt || 'State a reasonable domain for this situation.',
       notation: question.notation || 'interval',
       ...(Array.isArray(question.domainChoices) && question.domainChoices.length ? { choices: question.domainChoices } : {}),
       ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
+    }, {
+      discretePrompt: question.domainPrompt || 'List the domain for this situation.',
+      continuousPrompt: question.domainPrompt || 'Describe a reasonable domain for this situation.',
     }),
     domainWords: (question, asked) => ({
       id: 'domainWords',
@@ -113,13 +178,16 @@ const FUNCTION_MODELING = {
       notation: 'inequality',
       ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
     }),
-    range: (question, asked) => ({
+    range: (question, asked) => branchOnContinuity(asked, {
       id: 'range',
       kind: 'rangeInput',
       prompt: question.rangePrompt || 'State the range that goes with it.',
       notation: question.notation || 'interval',
       ...(Array.isArray(question.rangeChoices) && question.rangeChoices.length ? { choices: question.rangeChoices } : {}),
       ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
+    }, {
+      discretePrompt: question.rangePrompt || 'List the range that goes with it.',
+      continuousPrompt: question.rangePrompt || 'Describe the range that goes with it.',
     }),
     rangeWords: (question, asked) => ({
       id: 'rangeWords',
@@ -172,10 +240,23 @@ const FUNCTION_MODELING = {
       else if (asked.has('equation')) rules.graph = { consistentWith: 'equation', useStageVerdict: true };
     }
     if (asked.has('continuity') && question.continuity) rules.continuity = question.continuity;
-    if (asked.has('domain') && question.correctDomain) rules.domain = question.correctDomain;
+    // A branched step keys only the branch the authored answer belongs to. The
+    // other branch is left unkeyed on purpose: a student who called a
+    // continuous relation discrete has already lost that mark, and a roster
+    // form of a continuous domain has no correct answer to be marked against,
+    // so it is reported as ungraded rather than wrong.
+    const domainBranched = askedBefore(asked, 'continuity', 'domain');
+    const rangeBranched = askedBefore(asked, 'continuity', 'range');
+    if (asked.has('domain') && question.correctDomain) {
+      const key = domainBranched ? continuityBranchKey(question, 'domain') : 'domain';
+      if (key) rules[key] = question.correctDomain;
+    }
     if (asked.has('domainWords') && question.correctDomainWords) rules.domainWords = question.correctDomainWords;
     if (asked.has('domainInequality') && question.correctDomainInequality) rules.domainInequality = question.correctDomainInequality;
-    if (asked.has('range') && question.correctRange) rules.range = question.correctRange;
+    if (asked.has('range') && question.correctRange) {
+      const key = rangeBranched ? continuityBranchKey(question, 'range') : 'range';
+      if (key) rules[key] = question.correctRange;
+    }
     if (asked.has('rangeWords') && question.correctRangeWords) rules.rangeWords = question.correctRangeWords;
     if (asked.has('rangeInequality') && question.correctRangeInequality) rules.rangeInequality = question.correctRangeInequality;
     return rules;
@@ -440,6 +521,7 @@ const FUNCTION_CHARACTERISTICS = {
       id: 'xInterceptValue',
       kind: 'pointInput',
       prompt: question.xInterceptValuePrompt || 'Write the x-intercept(s) as ordered pairs.',
+      feature: 'xIntercept',
       pointCount: markCount(xInterceptRule(question)),
       allowNone: true,
     }),
@@ -447,6 +529,7 @@ const FUNCTION_CHARACTERISTICS = {
       id: 'yInterceptValue',
       kind: 'pointInput',
       prompt: question.yInterceptValuePrompt || 'Write the y-intercept as an ordered pair.',
+      feature: 'yIntercept',
       pointCount: 1,
       allowNone: true,
     }),
@@ -454,6 +537,7 @@ const FUNCTION_CHARACTERISTICS = {
       id: 'extremeValue',
       kind: 'pointInput',
       prompt: question.extremeValuePrompt || 'Write the location of the maximum or minimum, or say it does not exist.',
+      feature: 'extremum',
       pointCount: 1,
       allowNone: true,
     }),
@@ -580,7 +664,14 @@ export const expandRecipe = (question = {}, { label = 'Question' } = {}) => {
   });
 
   const asked = new Set(known);
-  const workflow = known.map((step) => recipe.stages[step](question, asked));
+  // A step may compile to MORE than one stage. `domain` becomes one stage per
+  // branch when the same question asks the student to classify continuity, so
+  // the answer box asks for the form THEY chose instead of the form the answer
+  // key implies. See the `domain` builder in FUNCTION_MODELING.
+  const workflow = known.flatMap((step) => {
+    const built = recipe.stages[step](question, asked);
+    return Array.isArray(built) ? built : [built];
+  });
   const derived = recipe.grading(question, asked);
 
   return {
