@@ -179,13 +179,13 @@ export const TaskCard = ({ task, steps = [], note = null, question = null, steps
     }}>
       {authoredPrompt ? (
         <div className="mathmaster-tool-task-prompt">
-          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#174ea6' }}>{promptDiffers ? 'Problem' : 'Your task'}</div>
+          <div className="mathmaster-tool-task-eyebrow" style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#174ea6' }}>{promptDiffers ? 'Problem' : 'Your task'}</div>
           <MathText as="p" style={{ margin: '6px 0 0', fontSize: 17, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{authoredPrompt}</MathText>
         </div>
       ) : null}
       {taskText && (!authoredPrompt || promptDiffers) ? (
         <div className="mathmaster-tool-task-directions">
-          <div style={{ marginTop: authoredPrompt ? 12 : 0, fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#174ea6' }}>{authoredPrompt ? 'What to do' : 'Your task'}</div>
+          <div className="mathmaster-tool-task-eyebrow" style={{ marginTop: authoredPrompt ? 12 : 0, fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#174ea6' }}>{authoredPrompt ? 'What to do' : 'Your task'}</div>
           <MathText as="p" style={{ margin: '6px 0 0', fontSize: 16, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{taskText}</MathText>
         </div>
       ) : null}

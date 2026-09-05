@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-09-05T12:52:22.846Z",
-  "device": "phone",
+  "generatedAt": "2026-09-05T12:52:48.102Z",
+  "device": "phone-landscape",
   "viewport": {
-    "width": 390,
-    "height": 664,
+    "width": 844,
+    "height": 390,
     "isMobile": true,
     "deviceScaleFactor": 3,
     "hasTouch": true

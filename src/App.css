@@ -1874,11 +1874,48 @@
   z-index: 5;
 }
 
-/* On a short screen a permanently parked card costs more than it returns, and
-   the student can still scroll up. Height, not width: a phone in landscape is
-   wide and short, and that is the case this protects. */
+/* A SHORT SCREEN NEEDS THE TASK CONDENSED, NOT UNPINNED.
+   This block used to unpin the card, on the reasoning that 120px — 31% of a
+   390px landscape phone — costs more than it returns. Running the per-tool
+   audit sideways settled it: 10 of the 14 tools then lost the task entirely,
+   the prompt sitting as far as 522px above the answer boxes the student was
+   typing into. Losing the question beats any amount of space it takes.
+
+   So it stays pinned and gets smaller instead. The eyebrow ("YOUR TASK") is
+   what goes: a card parked at the top of the screen does not need a label
+   saying it is the task. Padding tightens, and a long task scrolls inside the
+   card rather than growing it. The folded steps keep their full 44px, because
+   that is a finger target, not decoration. */
 @media (max-height: 560px) {
-  .mathmaster-tool-task-card { position: static; }
+  .mathmaster-tool-task-card {
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    max-height: 38vh;
+    overflow-y: auto;
+  }
+
+  .mathmaster-tool-task-card .mathmaster-tool-task-eyebrow { display: none; }
+
+  /* USE THE AXIS THAT IS ACTUALLY FREE. A phone held sideways is 844px wide and
+     390px tall: width is the surplus, height is the scarcity. Stacking the
+     folded "How to do this" under the task spends 54px of the scarce axis to
+     leave most of the plentiful one empty. Side by side, the card is as tall as
+     its tallest part instead of the sum of both. */
+  .mathmaster-tool-task-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .mathmaster-tool-task-card > *:first-child { flex: 1 1 auto; min-width: 0; }
+
+  /* Never the wrapping element when it is also the first — a card with no steps
+     has one child, and it should still fill the row. */
+  .mathmaster-tool-task-card > *:last-child:not(:first-child) {
+    flex: 0 0 auto;
+    margin-top: 0;
+    max-width: 45%;
+  }
 
   /* A GRAPH MUST NOT BE TALLER THAN THE SCREEN IT IS READ ON.
      On a phone held sideways the plane is laid out from its viewBox aspect

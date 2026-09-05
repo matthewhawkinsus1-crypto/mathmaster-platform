@@ -23,16 +23,35 @@ const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
-const FINDINGS_FOR = (device) => path.join(repo, `tests/platform/fixtures/toolOpen${device === 'phone' ? 'Phone' : ''}Findings.json`);
+// One fixture per device. `chromebook` keeps the unsuffixed name it has always
+// had so the existing test and its history stay put.
+const SUFFIX = {
+  chromebook: '', phone: 'Phone',
+  'phone-landscape': 'PhoneLandscape', tablet: 'Tablet', 'tablet-landscape': 'TabletLandscape',
+};
+const FINDINGS_FOR = (device) => path.join(repo, `tests/platform/fixtures/toolOpen${SUFFIX[device] ?? device}Findings.json`);
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5199';
 const write = process.argv.includes('--write');
 
 // The screens these tools are actually used on. A Chromebook is the classroom
 // default, but a phone is what a student reaches for at home and in the hall,
 // and it is the one where a question and its answer boxes compete for room.
+//
+// A TABLET IS NOT A SMALL LAPTOP OR A BIG PHONE. It is roughly 4:3, wide enough
+// that the mobile stylesheet's phone breakpoint lets go, and short enough in
+// landscape that a graph laid out from its aspect ratio can still overrun the
+// screen. Nothing in this repo measured one until now, and school carts are
+// full of them.
+//
+// Landscape phone is here because "every tool opens ready" had only ever been
+// checked with the phone upright, which is not how anyone holds a phone to use
+// a graph.
 const DEVICES = {
   chromebook: { width: 1366, height: 640, isMobile: false },
   phone: { width: 390, height: 664, isMobile: true, deviceScaleFactor: 3, hasTouch: true },
+  'phone-landscape': { width: 844, height: 390, isMobile: true, deviceScaleFactor: 3, hasTouch: true },
+  tablet: { width: 820, height: 1180, isMobile: true, deviceScaleFactor: 2, hasTouch: true },
+  'tablet-landscape': { width: 1180, height: 820, isMobile: true, deviceScaleFactor: 2, hasTouch: true },
 };
 const DEVICE = process.env.AUDIT_DEVICE || 'chromebook';
 const VIEWPORT = DEVICES[DEVICE] || DEVICES.chromebook;
