@@ -39,15 +39,16 @@ const stateAt = (live, teacherQuestionIndex) => (
 const reasonFor = ({ status, behindBy, inactive, offline, live, attendance }) => {
   if (live?.helpRequestedAt || live?.helpRequested) return 'Help requested';
   if (status === WALKTHROUGH_STATUS.DONE) return 'Teacher question completed';
-  if (status === WALKTHROUGH_STATUS.ON_QUESTION) return 'On this question';
-  if (status === WALKTHROUGH_STATUS.AHEAD) return 'Working ahead';
+  if (status === WALKTHROUGH_STATUS.ON_QUESTION) return attendance.mark === 'late' ? 'Late arrival · on this question' : 'On this question';
+  if (status === WALKTHROUGH_STATUS.AHEAD) return attendance.mark === 'late' ? 'Late arrival · working ahead' : 'Working ahead';
   if (status === WALKTHROUGH_STATUS.ELSEWHERE) return 'Working another assignment';
   if (status !== WALKTHROUGH_STATUS.NEEDS_CHECK) return '';
   if (!live?.assignmentId) return attendance.mark === 'late' ? 'Late arrival · not started' : 'Not started';
-  if (offline) return `${behindBy || 0} behind · connection inactive`;
-  if (inactive) return `${behindBy || 0} behind · no MathMaster activity`;
-  if (live?.activityRole !== 'classwork') return `In ${String(live?.activityRole || 'another section')}`;
-  return `${behindBy || 0} behind · active`;
+  const latePrefix = attendance.mark === 'late' ? 'Late arrival · ' : '';
+  if (offline) return `${latePrefix}${behindBy || 0} behind · connection inactive`;
+  if (inactive) return `${latePrefix}${behindBy || 0} behind · no MathMaster activity`;
+  if (live?.activityRole !== 'classwork') return `${latePrefix}in ${String(live?.activityRole || 'another section')}`;
+  return `${latePrefix}${behindBy || 0} behind · active`;
 };
 
 /**
