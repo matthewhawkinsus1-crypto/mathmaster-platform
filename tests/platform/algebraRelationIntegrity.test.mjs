@@ -37,7 +37,8 @@ test('the exact -2p solving chain preserves pristine truth through p = -5/3', ()
   ).state;
 
   assert.equal(relationStateToText(pristine), relationStateToText(pristineCopy));
-  assert.match(relationStateToText(subtractP).replace(/\s+/g, ''), /-2\*?p-p\+3/);
+  assert.equal(verifyRelationCandidate(subtractP, -5 / 3, 'p'), true);
+  assert.equal(verifyRelationCandidate(subtractP, 5, 'p'), false);
   assert.equal(
     validateRelationTransition(pristine, subtractP, balancedContext('subtract', 'p')).valid,
     true,
