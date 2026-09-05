@@ -19,7 +19,7 @@
 
 import { compareMathAnswer, looksLikeFiniteSetNotation, normalizeMathAnswer, parseOrderedPair } from '../../answerUtils.js';
 import { isAlgebraicallyEquivalent } from '../../grading/equivalence.js';
-import { hasStageResponse } from './questionWorkflow.js';
+import { activeStageIds, hasStageResponse } from './questionWorkflow.js';
 import { canonicalizeFunctionExpression, evaluateModelAt, evaluateNumericValue, toEvaluableExpression } from './modelExpression.js';
 export { evaluateModelAt, evaluateNumericValue, toEvaluableExpression } from './modelExpression.js';
 
@@ -472,7 +472,16 @@ export const gradeStage = ({ stage, rule, responses = {} }) => {
  */
 export const gradeWorkflow = ({ stages = [], responses = {}, grading = null } = {}) => {
   const rules = isObject(grading) ? grading : {};
-  const parts = stages.map((stage) => gradeStage({ stage, rule: rules[stage.id], responses }));
+  // ONLY THE PATH THE STUDENT WAS ACTUALLY ON.
+  //
+  // A branch they never saw is not an unanswered question, and marking it would
+  // punish them for the classification they chose rather than for the
+  // mathematics they did. A stale response left behind by switching branches is
+  // dropped for the same reason: it answers a question this student is no
+  // longer being asked.
+  const active = activeStageIds(stages, responses);
+  const asked = stages.filter((stage) => active.has(stage.id));
+  const parts = asked.map((stage) => gradeStage({ stage, rule: rules[stage.id], responses }));
 
   const graded = parts.filter((part) => part.graded);
   const correct = graded.filter((part) => part.isCorrect);
@@ -494,7 +503,7 @@ export const gradeWorkflow = ({ stages = [], responses = {}, grading = null } = 
     partialCreditPercent: isCorrect ? 100 : (weightedPartial === null ? null : Math.min(90, weightedPartial)),
     gradedCount: graded.length,
     responseKey: JSON.stringify(responses),
-    questionDetails: stages
+    questionDetails: asked
       .map((stage, index) => `Step ${index + 1} (${stage.kind}): ${JSON.stringify(responses[stage.id] ?? null)}`)
       .join(' | '),
   };

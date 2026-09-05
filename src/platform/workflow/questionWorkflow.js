@@ -19,6 +19,9 @@ import { expandRecipe } from './questionRecipes.js';
 
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
 
+// A branch may only follow a step that produces a choice.
+const STAGE_OUTPUT_CHOICE = 'choice';
+
 /**
  * Has the student actually put something here?
  *
@@ -139,6 +142,65 @@ export const lockedStageIds = (workflow = [], reachableIndex = -1) => {
   return locked;
 };
 
+/*
+ * WHICH STEPS THIS STUDENT IS ACTUALLY BEING ASKED.
+ *
+ * A stage may declare `showWhen: { stage: "continuity", is: "discrete" }`. It
+ * then appears only for a student who chose that, and the branch they did not
+ * take is never rendered, never graded, and never counted against them.
+ *
+ * THE CONDITION READS THE STUDENT'S ANSWER, NEVER THE ANSWER KEY. That is the
+ * whole safety property: "is this situation discrete or continuous?" followed
+ * by a braces-and-set input would tell the student they were right before they
+ * finished thinking. Branching on what they SAID keeps the question honest —
+ * a student who answers continuous gets the inequality path and can still be
+ * wrong, which is exactly what an assessment is for.
+ *
+ * An unanswered controller hides its dependants rather than showing them all.
+ * Before the classification is made there is no branch to be on, and revealing
+ * both would leak the shape of the answer.
+ *
+ * Chains resolve in order, so a stage under a stage that is itself inactive is
+ * inactive too.
+ */
+export const activeStageIds = (workflow = [], responses = {}) => {
+  const stages = Array.isArray(workflow) ? workflow : [];
+  const active = new Set();
+  const answerOf = (id) => {
+    const value = responses?.[id];
+    return typeof value === 'string' ? value : (value?.id ?? value?.choice ?? null);
+  };
+
+  stages.forEach((stage) => {
+    const rule = isObject(stage?.showWhen) ? stage.showWhen : null;
+    if (!rule) { active.add(stage.id); return; }
+
+    const controllerId = String(rule.stage || '');
+    // A controller that is itself hidden cannot make anything visible.
+    if (!active.has(controllerId)) return;
+
+    const chosen = answerOf(controllerId);
+    if (chosen === null || chosen === '') return;
+
+    const wanted = Array.isArray(rule.is) ? rule.is : [rule.is];
+    if (wanted.map(String).includes(String(chosen))) active.add(stage.id);
+  });
+
+  return active;
+};
+
+/** The stages a student is on right now, in order. */
+export const activeStages = (workflow = [], responses = {}) => {
+  const active = activeStageIds(workflow, responses);
+  return (Array.isArray(workflow) ? workflow : []).filter((stage) => active.has(stage.id));
+};
+
+/** Every value a choice stage offers, in whichever shape it was authored. */
+const choiceIdsOf = (stage) => (Array.isArray(stage?.choices) ? stage.choices : [])
+  .map((choice) => (typeof choice === 'string' ? choice : choice?.id ?? choice?.label))
+  .filter((value) => value !== undefined && value !== null)
+  .map(String);
+
 /**
  * Validate a composed workflow.
  *
@@ -162,6 +224,46 @@ export const validateWorkflow = (workflow = [], { label = 'Question' } = {}) => 
         + 'Compose from the published stage list; new interactions cannot be invented in JSON.',
       );
       return;
+    }
+
+    // `showWhen` is validated hard, because every way it can be wrong produces a
+    // question a student can reach and cannot finish.
+    if (isObject(entry.showWhen)) {
+      const rule = entry.showWhen;
+      const controllerId = String(rule.stage || '');
+      const controller = byId.get(controllerId);
+      if (!controllerId) {
+        errors.push(`${label} stage "${entry.id}" has a \`showWhen\` with no \`stage\` to depend on.`);
+      } else if (!controller) {
+        errors.push(`${label} stage "${entry.id}" is shown when "${controllerId}" is answered, but that is not a stage in this question.`);
+      } else if (controller.index >= entry.index) {
+        // Depending forwards would hide the stage until a later answer that the
+        // student cannot reach without passing this one — an unfinishable loop.
+        errors.push(`${label} stage "${entry.id}" depends on "${controllerId}", which comes later in the workflow.`);
+      } else if (controller.produces !== STAGE_OUTPUT_CHOICE) {
+        errors.push(
+          `${label} stage "${entry.id}" depends on "${controllerId}", which produces ${controller.produces || 'nothing'}. `
+          + 'A branch can only follow a step where the student picks between named options.',
+        );
+      } else {
+        const wanted = (Array.isArray(rule.is) ? rule.is : [rule.is])
+          .filter((value) => value !== undefined && value !== null && value !== '')
+          .map(String);
+        if (!wanted.length) {
+          errors.push(`${label} stage "${entry.id}" has a \`showWhen\` with no value in \`is\`.`);
+        } else {
+          const offered = choiceIdsOf(controller);
+          // A value the controller never offers means this stage can never be
+          // shown — a step nobody will ever be asked, silently worth nothing.
+          const impossible = wanted.filter((value) => !offered.includes(value));
+          if (offered.length && impossible.length) {
+            errors.push(
+              `${label} stage "${entry.id}" is shown when "${controllerId}" is ${impossible.join(' or ')}, `
+              + `but that step only offers: ${offered.join(', ')}.`,
+            );
+          }
+        }
+      }
     }
 
     if (!entry.sourceStageId) return;
@@ -305,6 +407,11 @@ export const readComposedQuestion = (question = {}) => {
  * The stages a student still has to complete, for progress and partial credit.
  */
 export const summarizeWorkflowProgress = (stages = [], responses = {}) => {
+  // Progress counts the steps this student is being asked, so a branch they did
+  // not take never reads as work left undone.
+  const active = activeStageIds(stages, responses);
+  const asked = (Array.isArray(stages) ? stages : []).filter((stage) => active.has(stage.id));
+  stages = asked;
   const total = stages.length;
   const answered = stages.filter((entry) => hasStageResponse(responses[entry.id])).length;
   return {

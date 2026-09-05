@@ -12,7 +12,7 @@ import AxisSetupStage from './AxisSetupStage';
 import GraphFeatureSelectStage from './GraphFeatureSelectStage';
 import RelationMapping from '../../tools/relationMapping/RelationMapping';
 import { getStage } from './interactionStages';
-import { hasStageResponse, lockedStageIds, readComposedQuestion, resolveStageInput, summarizeWorkflowProgress } from './questionWorkflow';
+import { activeStages, hasStageResponse, lockedStageIds, readComposedQuestion, resolveStageInput, summarizeWorkflowProgress } from './questionWorkflow';
 import { checkTableConsistency, gradeWorkflow } from './workflowGrading';
 import { buildExpressionFunctionSpec, evaluateModelAt, evaluateNumericValue, parseIntervalDomainRestriction } from './modelExpression';
 import { evaluateGraphFunction } from '../../functionGraphUtils';
@@ -863,7 +863,7 @@ export default function WorkflowRunner({
   draftKey = null,
   showPrompt = true,
 }) {
-  const { content, workflow, grading } = useMemo(() => readComposedQuestion(question), [question]);
+  const { content, workflow: authoredWorkflow, grading } = useMemo(() => readComposedQuestion(question), [question]);
   const [responses, setResponses] = useLocalDraftState(
     draftKey ? `${draftKey}:workflow-responses` : null,
     {},
@@ -872,7 +872,22 @@ export default function WorkflowRunner({
     draftKey ? `${draftKey}:workflow-stage` : null,
     0,
   );
-  const focusMode = shouldUseWorkflowFocusMode(workflow);
+  // ONLY THE STEPS THIS STUDENT IS BEING ASKED.
+  //
+  // A stage with `showWhen` appears once its controlling choice matches what
+  // the student picked, so the branch they did not take is never rendered,
+  // never numbered, and never counted. Everything downstream reads this list,
+  // which is why the navigator, the rail, the counter and the grader all agree
+  // without each having to remember about branching.
+  const workflow = useMemo(
+    () => activeStages(authoredWorkflow, responses),
+    [authoredWorkflow, responses],
+  );
+
+  // Focus mode is decided from the AUTHORED workflow, not the visible one. A
+  // branch that took the count under the threshold would otherwise flip the
+  // whole layout mid-question, which is disorienting in the middle of a graph.
+  const focusMode = shouldUseWorkflowFocusMode(authoredWorkflow);
   const onStateChangeRef = useRef(onStateChange);
   const onProgressChangeRef = useRef(onProgressChange);
   useEffect(() => { onStateChangeRef.current = onStateChange; }, [onStateChange]);
