@@ -60,6 +60,22 @@ test('absent students are excluded and late arrival resets inactivity clock', ()
   assert.equal(result.all.find((row) => row.id === 'Late').inactive, false);
 });
 
+test('late arrival context stays visible for a student who is behind but active', () => {
+  const result = buildWalkthroughMonitor({
+    students: [student('Late', live({ sectionQuestionIndex: 0 }))],
+    assignmentId: 'a1',
+    teacherQuestionIndex: 3,
+    attendanceByStudentId: {
+      Late: { mark: 'late', arrivedAt: now - 30000 },
+    },
+    nowValue: now,
+  });
+  const row = result.all[0];
+  assert.equal(row.status, WALKTHROUGH_STATUS.NEEDS_CHECK);
+  assert.equal(row.inactive, false);
+  assert.match(row.reason, /^Late arrival · 3 behind · active$/);
+});
+
 test('offline is distinguished from inactivity', () => {
   const result = buildWalkthroughMonitor({
     students: [
