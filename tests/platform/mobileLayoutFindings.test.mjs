@@ -27,6 +27,17 @@ test('the mobile audits ran at a phone size, not a desktop one', () => {
   assert.ok(mobile.measured >= 8, `expected a real sample, got ${mobile.measured}`);
 });
 
+test('the harness loads the same stylesheets the app does', () => {
+  // FOURTH TIME THIS CLASS OF BUG BIT. A harness that renders the app's
+  // components without the app's CSS measures unstyled document flow and
+  // reports it as fact: with App.css missing, a two-column tool looked like a
+  // 1957px single-column stack, and a desktop layout that works looked broken.
+  const main = readFileSync(new URL('../browser/renderAuditMain.jsx', import.meta.url), 'utf8');
+  assert.match(main, /import '\.\.\/\.\.\/src\/App\.css';/, 'renderAuditMain must load App.css, as App.jsx does');
+  const toolMain = readFileSync(new URL('../browser/toolOpenAuditMain.jsx', import.meta.url), 'utf8');
+  assert.match(toolMain, /import '\.\.\/\.\.\/src\/App\.css';/);
+});
+
 test('the harness pages carry the same viewport meta the app does', () => {
   // The guard for the bug above: without this the mobile audits silently
   // measure a desktop layout and report success.

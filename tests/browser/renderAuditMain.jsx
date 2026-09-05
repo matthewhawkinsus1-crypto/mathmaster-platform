@@ -18,6 +18,10 @@ import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import PathSessionPlayer from '../../src/components/student/PathSessionPlayer.jsx';
 import PathSolutionReview from '../../src/components/student/PathSolutionReview.jsx';
+// THE APP'S STYLESHEET. App.jsx imports this in production, and without it the
+// harness measures unstyled document flow — .mathmaster-tool-split falls back to
+// display:block and a two-column tool looks like a 1957px stack that nobody has.
+import '../../src/App.css';
 
 const listeners = new Set();
 let current = null;
