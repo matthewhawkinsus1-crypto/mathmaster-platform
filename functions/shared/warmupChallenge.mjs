@@ -40,7 +40,9 @@ export const WARMUP_CHALLENGE_ROUTE = Object.freeze({
   // Nothing configured, or the window is not open. The Warm-Up behaves exactly
   // as it always has.
   NONE: 'none',
-  // Configured and due, but the teacher has not opened the room yet.
+  // Configured and due, but the teacher has not opened the room yet — or the
+  // assignment explicitly says the teacher chooses today's Warm-Up and has not
+  // chosen yet.
   WAITING_FOR_TEACHER: 'waitingForTeacher',
   // Hand the student to the challenge runtime.
   PLAY: 'play',
@@ -48,6 +50,20 @@ export const WARMUP_CHALLENGE_ROUTE = Object.freeze({
   // of the assignment.
   CONTINUE: 'continue',
 });
+
+export const WARMUP_CHALLENGE_DELIVERY = Object.freeze({
+  LIVE_CHALLENGE: 'liveChallenge',
+  TEACHER_CHOICE: 'teacherChoice',
+  STANDARD: 'standard',
+});
+
+export const WARMUP_CHALLENGE_DECISION = Object.freeze({
+  CHALLENGE: 'challenge',
+  STANDARD: 'standard',
+});
+
+const DELIVERY_MODES = new Set(Object.values(WARMUP_CHALLENGE_DELIVERY));
+const TEACHER_DECISIONS = new Set(Object.values(WARMUP_CHALLENGE_DECISION));
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -59,12 +75,25 @@ const int = (value) => Math.max(0, Math.round(Number(value) || 0));
  * Off unless explicitly switched on. A Warm-Up that quietly became a timed
  * competition because a default flipped would be a bad surprise in front of a
  * class.
+ *
+ * Existing assignments predate deliveryMode. An explicitly-enabled legacy
+ * record therefore normalizes to `liveChallenge`, preserving the behavior it
+ * had before Teacher Choice and Standard were added.
  */
 export const normalizeWarmupChallengeConfig = (assignment = null) => {
   const raw = assignment?.warmup?.liveChallenge || null;
   const enabled = raw?.enabled === true;
+  const requestedDelivery = String(raw?.deliveryMode || '').trim();
+  const deliveryMode = DELIVERY_MODES.has(requestedDelivery)
+    ? requestedDelivery
+    : (enabled ? WARMUP_CHALLENGE_DELIVERY.LIVE_CHALLENGE : WARMUP_CHALLENGE_DELIVERY.STANDARD);
+  const requestedDecision = String(raw?.teacherDecision || '').trim();
+  const teacherDecision = TEACHER_DECISIONS.has(requestedDecision) ? requestedDecision : null;
+
   return Object.freeze({
     enabled,
+    deliveryMode,
+    teacherDecision,
     standardCode: String(raw?.standardCode || 'mixed').trim() || 'mixed',
     roundCount: clamp(int(raw?.roundCount) || 5, 3, 20),
     // Shorter than a standalone challenge by default: this is a bell-ringer
@@ -74,11 +103,14 @@ export const normalizeWarmupChallengeConfig = (assignment = null) => {
 };
 
 /**
- * Whether this student should be playing right now, and if not, why not.
+ * Whether this student should be playing right now, and if not, why.
  *
  * `roomStatus` is the live room's status when one exists. `alreadyPlayed` is
  * this student's own history, which is what stops a student who finished the
  * game being pulled back into it when they revisit the assignment.
+ *
+ * The Warm-Up window remains the first authority after `enabled`: Teacher
+ * Choice is not allowed to reopen a closed/not-today bell-ringer.
  */
 export const warmupChallengeRoute = ({
   assignment = null,
@@ -88,7 +120,6 @@ export const warmupChallengeRoute = ({
 } = {}) => {
   const config = normalizeWarmupChallengeConfig(assignment);
   if (!config.enabled) return { route: WARMUP_CHALLENGE_ROUTE.NONE, config, reason: 'not_configured' };
-  if (alreadyPlayed) return { route: WARMUP_CHALLENGE_ROUTE.CONTINUE, config, reason: 'already_played' };
 
   // The Warm-Up's own window is the authority. If the Warm-Up is not live for
   // this class right now, neither is the challenge — including when a teacher
@@ -96,6 +127,26 @@ export const warmupChallengeRoute = ({
   if (warmupState?.status !== 'active') {
     return { route: WARMUP_CHALLENGE_ROUTE.NONE, config, reason: `warmup_${warmupState?.status || 'unavailable'}` };
   }
+
+  // Standard delivery is intentionally boring: the existing Warm-Up remains
+  // exactly where it was and the Live Challenge gate disappears.
+  if (config.deliveryMode === WARMUP_CHALLENGE_DELIVERY.STANDARD) {
+    return { route: WARMUP_CHALLENGE_ROUTE.NONE, config, reason: 'standard_delivery' };
+  }
+
+  if (config.deliveryMode === WARMUP_CHALLENGE_DELIVERY.TEACHER_CHOICE) {
+    if (config.teacherDecision === WARMUP_CHALLENGE_DECISION.STANDARD) {
+      return { route: WARMUP_CHALLENGE_ROUTE.NONE, config, reason: 'teacher_selected_standard' };
+    }
+    if (config.teacherDecision !== WARMUP_CHALLENGE_DECISION.CHALLENGE) {
+      // This is deliberately a waiting state rather than ordinary Warm-Up work.
+      // Otherwise students can begin one activity and be yanked into the other
+      // when the teacher makes the classroom-wide choice a minute later.
+      return { route: WARMUP_CHALLENGE_ROUTE.WAITING_FOR_TEACHER, config, reason: 'teacher_choice_pending' };
+    }
+  }
+
+  if (alreadyPlayed) return { route: WARMUP_CHALLENGE_ROUTE.CONTINUE, config, reason: 'already_played' };
 
   if (roomStatus === 'lobby' || roomStatus === 'running') {
     return { route: WARMUP_CHALLENGE_ROUTE.PLAY, config, reason: `room_${roomStatus}` };
@@ -110,10 +161,9 @@ export const warmupChallengeRoute = ({
  * What the assignment records for a student who played.
  *
  * THE POINTS DO NOT COME WITH THEM. A challenge round is scored out of roughly
- * 1150, with speed and streak inside that number. Letting it reach an
- * assignment grade would put the clock in the gradebook and would mean the
- * student who thinks longest is marked down for it — the exact thing the
- * comeback and second-chance work was written against.
+ * 1150 in the legacy game and may use a larger teacher-selected speed cap in
+ * Option B. Either way, speed/streak/comeback/rank are competition mechanics,
+ * not academic evidence, so none of those points enter the assignment grade.
  *
  * What travels instead is what the student did: how many rounds they answered
  * out of the ones they could have, and how many of those were right. Both are
