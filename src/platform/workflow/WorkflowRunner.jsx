@@ -516,6 +516,7 @@ const DELEGATES = {
           plotMode: 'points',
           pointOnly: true,
           pointTasks,
+          stimulus: stage.stimulus || content?.stimulus,
           magneticSnapTargets,
           functionSpec: { type: 'expression', expression: '0', variable: 'x', referencePoints: pairs },
           showCoordinates: coordinateReadout(stage, content),

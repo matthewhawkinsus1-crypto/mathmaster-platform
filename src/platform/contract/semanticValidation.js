@@ -51,6 +51,20 @@ const composedHasStage = (composed, kinds = []) => Boolean(
   && composed.workflow.some((stage) => kinds.includes(stage.kind)),
 );
 
+/*
+ * A stage that DISPLAYS a table, as opposed to one that asks for it back.
+ *
+ * `tableInput` is a table the student fills in; a stage stimulus is a table
+ * they read. Both put one on screen, and the prompt-promises-a-visual rule is
+ * about what is on screen — a question that says "the table shows a function"
+ * is honest either way.
+ */
+const composedShowsTable = (composed) => Boolean(
+  composed?.composed
+  && Array.isArray(composed.workflow)
+  && composed.workflow.some((stage) => nonEmptyArray(stage?.stimulus?.table?.rows)),
+);
+
 const transformationsLabHasGraph = (question = {}) => {
   if (String(question.toolId || question.type) !== 'transformationsLab') return false;
   const mode = String(question.mode || 'match');
@@ -85,7 +99,7 @@ const VISUAL_PROMISES = [
     satisfied: (question, composed) => (
       isObject(question.table) && nonEmptyArray(question.table.rows)
       && TYPES_THAT_RENDER_A_TABLE.has(String(question.toolId || question.type))
-    ) || composedHasStage(composed, ['tableInput']),
+    ) || composedHasStage(composed, ['tableInput']) || composedShowsTable(composed),
     remedy: `Add a \`table\` object with \`columns\` and \`rows\`, and use a type that displays one (${[...TYPES_THAT_RENDER_A_TABLE].join(', ')}), or reword the prompt.`,
   },
   {

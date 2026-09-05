@@ -1,4 +1,8 @@
 import { validateAnalysisRequests } from '../../analysisRequestCatalog.js';
+// Validation asks the RECIPE whether each answer key would derive, rather than
+// keeping its own copy of the rules. A second copy would drift, and the drift
+// would surface as a question that passed Preflight and then graded nobody.
+import { extremeRule, xInterceptRule, yInterceptRule } from '../workflow/questionRecipes.js';
 
 // One description of every question type, used for two things at once: the
 // authoring contract an AI reads, and the semantic validation that rejects a
@@ -244,6 +248,103 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
         { id: 'inc', kind: 'increasing', notation: 'interval' },
         { id: 'dec', kind: 'decreasing', notation: 'interval' },
       ],
+    },
+  },
+
+  functionCharacteristics: {
+    label: 'Build a graph from a table, then describe it',
+    studentAction: 'Plots a table, names the function family, marks the intercepts and any extreme value, writes them as ordered pairs, and states domain and range — as one question, marked step by step.',
+    representation: REPRESENTATIONS.GRAPH,
+    purpose: 'Walk a student through a whole function analysis on a graph they built themselves, with each step marked on its own.',
+    useWhen: [
+      'The source gives a table and asks what kind of function it is and where its features are.',
+      'You want plotting, classifying, locating and stating to be marked separately instead of all-or-nothing.',
+    ],
+    doNotUseWhen: [
+      'The graph is already drawn and the student only reads it — use `graphAnalysis`.',
+      'You only want one of these steps — use the single type for that step.',
+    ],
+    required: [
+      requires('pairs', 'needs `pairs` — the table the student plots, as [[x, y], ...]'),
+      requires('functionFamily', 'needs `functionFamily` ("Linear", "Quadratic" or "Exponential"), or the classify step cannot be marked'),
+    ],
+    validate: (question) => {
+      const errors = [];
+      const pairs = Array.isArray(question.pairs) ? question.pairs : [];
+      if (pairs.length < 3) {
+        errors.push('`pairs` needs at least three points — two cannot show a shape');
+        return errors;
+      }
+
+      // EVERY POINT MUST BE PLOTTABLE. Plotting clamps to the authored window,
+      // so a row outside it can never be placed and the first step is
+      // unwinnable through no fault of the student.
+      const graph = isObject(question.graph) ? question.graph : null;
+      if (graph) {
+        const outside = pairs.filter(([x, y]) => (
+          Number(x) < Number(graph.xMin) || Number(x) > Number(graph.xMax)
+          || Number(y) < Number(graph.yMin) || Number(y) > Number(graph.yMax)
+        ));
+        if (outside.length) {
+          errors.push(`\`graph\` does not contain every table point — ${JSON.stringify(outside[0])} falls outside it, and a point outside the window cannot be plotted`);
+        }
+      }
+
+      // THE EXTREME VALUE MUST BE FINDABLE. Asked to click a maximum, a student
+      // needs one that is actually on the graph. The recipe refuses to key an
+      // extreme value it cannot establish — an endpoint is the largest value
+      // SAMPLED, not a turning point — so if it declines, so does this.
+      const kind = String(question.extreme?.kind || '').toLowerCase();
+      if (kind && !['maximum', 'minimum', 'neither'].includes(kind)) {
+        errors.push('`extreme.kind` must be "maximum", "minimum" or "neither"');
+      }
+      if (['maximum', 'minimum'].includes(kind) && !extremeRule(question)) {
+        errors.push(
+          `\`extreme.kind\` is "${kind}" but no such point can be established: the table's largest value sits at one end, `
+          + 'which is a sample rather than a turning point. Put the vertex in `pairs`, or state it as `extreme.point`',
+        );
+      }
+
+      // INTERCEPTS MUST SIT ON THE GRID. "Click the x-intercept" has no honest
+      // tolerance if the answer is at x = 0.37, and the student is then asked to
+      // write down a coordinate they cannot read off the axes.
+      const lattice = (rule, label) => {
+        if (!rule || !Array.isArray(rule.points)) return;
+        rule.points.forEach(([x, y]) => {
+          if (!Number.isInteger(x) || !Number.isInteger(y)) {
+            errors.push(`the ${label} at (${x}, ${y}) is not on a gridline — a student cannot read it off the axes, and clicking it has no fair tolerance`);
+          }
+        });
+      };
+      lattice(xInterceptRule(question), 'x-intercept');
+      lattice(yInterceptRule(question), 'y-intercept');
+
+      // Algebra I does not use interval notation, and these two steps default
+      // to inequalities for that reason.
+      if (question.notation === 'interval') {
+        errors.push('`notation` "interval" is not used in Algebra I — leave it unset for inequalities, or use "set"');
+      }
+      return errors;
+    },
+    optional: [
+      'graph', 'correctEquation', 'extreme', 'xIntercepts', 'yIntercept',
+      'correctDomain', 'correctRange', 'notation', 'ask',
+    ],
+    example: {
+      type: 'functionCharacteristics',
+      // The steps come from the recipe. V5 fills this in from `studentActions`;
+      // a hand-authored question names it here.
+      recipe: 'functionCharacteristics',
+      prompt: 'The table shows a function. Graph it, then describe what it does.',
+      // The vertex (2, 9) is IN the table on purpose: without it, "click the
+      // maximum" asks for a point the student was never given.
+      pairs: [[-1, 0], [0, 5], [2, 9], [4, 5], [5, 0]],
+      graph: { xMin: -6, xMax: 8, yMin: -4, yMax: 12 },
+      functionFamily: 'Quadratic',
+      correctEquation: '-(x - 2)^2 + 9',
+      extreme: { kind: 'maximum' },
+      correctDomain: 'all real numbers',
+      correctRange: 'y <= 9',
     },
   },
 

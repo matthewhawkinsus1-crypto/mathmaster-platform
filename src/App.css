@@ -489,7 +489,16 @@
    element by far, and Enlarge is there when they want it bigger. Set here
    rather than inline on the SVG so the short-viewport cap further down can
    tighten it — an inline style would win over both. */
-.mathmaster-responsive-canvas { max-height: 70dvh; }
+.mathmaster-responsive-canvas {
+  /* Two limits at once, because a flat fraction of the viewport cannot know
+     what sits above the graph. `70dvh` keeps it from dominating a tall screen;
+     `100dvh - 240px` leaves room for the prompt, the table and the controls
+     that precede it, which is what actually pushed the plane past the fold on a
+     Chromebook and a phone held sideways. The floor stops a very short window
+     from collapsing it to nothing — below that, scrolling is the better
+     failure. */
+  max-height: max(140px, min(70dvh, calc(100dvh - 240px)));
+}
 
 /* Except where the whole point is to be big. */
 .mathmaster-enlarged-figure .mathmaster-responsive-canvas { max-height: 88dvh; }
@@ -1928,13 +1937,4 @@
     max-width: 45%;
   }
 
-  /* A GRAPH MUST NOT BE TALLER THAN THE SCREEN IT IS READ ON.
-     On a phone held sideways the plane is laid out from its viewBox aspect
-     ratio, so a 844px-wide viewport produced a 541px-tall graph on a 390px-tall
-     screen: the axis the student is reading intercepts off ran below the fold.
-     Both planes preserve their aspect ratio, so capping the height scales the
-     whole figure down rather than cropping it. 62dvh is the value the tool
-     panels already use in landscape, kept the same so graphs do not change size
-     depending on which surface they happen to be on. */
-  .mathmaster-responsive-canvas { max-height: 62dvh; }
 }

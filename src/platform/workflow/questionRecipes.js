@@ -290,7 +290,7 @@ const featureGraph = (question) => ({
  * keying on it would mark a correct student wrong. An author whose vertex is
  * off the table must state `extreme.point` themselves.
  */
-const turningPointFromTable = (pairs, kind) => {
+export const turningPointFromTable = (pairs, kind) => {
   if (pairs.length < 3) return null;
   const ordered = [...pairs].sort((a, b) => a[0] - b[0]);
   const wantMax = kind === 'maximum';
@@ -316,7 +316,7 @@ const extremeKindOf = (question) => String(question?.extreme?.kind || '').toLowe
  * Each returns null when nothing is certain, which leaves the stage unkeyed and
  * reported as "reviewed by your teacher" rather than marked against a guess.
  */
-const xInterceptRule = (question) => {
+export const xInterceptRule = (question) => {
   const authored = normalizedPairs(question.xIntercepts);
   if (authored.length) return { points: authored };
   if (question.xIntercepts === 'none' || question.hasNoXIntercept === true) return { none: true };
@@ -327,7 +327,7 @@ const xInterceptRule = (question) => {
   return zeros.length ? { points: zeros } : null;
 };
 
-const yInterceptRule = (question) => {
+export const yInterceptRule = (question) => {
   const authored = normalizedPairs([question.yIntercept]);
   if (authored.length) return { points: authored };
   if (question.yIntercept === 'none' || question.hasNoYIntercept === true) return { none: true };
@@ -337,7 +337,7 @@ const yInterceptRule = (question) => {
   return atZero.length ? { points: atZero } : null;
 };
 
-const extremeRule = (question) => {
+export const extremeRule = (question) => {
   const kind = extremeKindOf(question);
   if (!kind) return null;
   if (kind === 'neither') return { none: true };
@@ -365,6 +365,22 @@ const FUNCTION_CHARACTERISTICS = {
       kind: 'coordinatePlot',
       prompt: question.plotPrompt || 'Plot the points from the table.',
       pairs: normalizedPairs(question.pairs),
+      // THE TABLE HAS TO BE ON SCREEN.
+      //
+      // The plotting surface lists each point by its x only — "P1: x = -1" —
+      // because it is normally used where the student WORKS OUT y from a
+      // function they wrote. Here the pairs are given, and a student told to
+      // "plot the points from the table" with no table to read cannot do it.
+      // Laid out ACROSS, not down: inputs on the top row, outputs beneath. It is
+      // how a coordinate table appears in a textbook, and five points cost two
+      // rows instead of six — which on a desktop was the difference between the
+      // graph fitting on screen and running past the bottom of it.
+      stimulus: {
+        table: {
+          headers: ['x', ...normalizedPairs(question.pairs).map(([x]) => x)],
+          rows: [{ cells: ['y', ...normalizedPairs(question.pairs).map(([, y]) => y)] }],
+        },
+      },
       ...(isObject(question.graph) ? { graph: question.graph } : {}),
     }),
     model: (question, asked) => ({

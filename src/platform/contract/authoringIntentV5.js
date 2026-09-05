@@ -788,6 +788,16 @@ const resolveIntentType = (q, actions) => {
     && !actions.includes('plotRelation')
   ) return 'multiAnswer';
 
+  // BUILD THE GRAPH, THEN READ IT. Plotting a table AND hunting features on the
+  // result is a different task from either half alone: `relationMapping` builds
+  // a relation and asks whether it is a function, and `graphAnalysis` reads a
+  // graph somebody else drew. This has to come first, because the plotRelation
+  // in it would otherwise be claimed by the relation-mapping rule below.
+  if (
+    actions.includes('plotRelation')
+    && actions.some((a) => ['findXIntercepts', 'findYIntercept', 'findMaximum', 'findMinimum', 'findVertex'].includes(a))
+  ) return 'functionCharacteristics';
+
   if (q.relation || q.pairs || actions.some((a) => ['buildMapping','plotRelation','classifyFunction'].includes(a))) return 'relationMapping';
   if (actions.includes('sortIntoOwnGroups') || q.sortBoard || q.validSchemes) return 'openSortBoard';
   if (actions.includes('buildFunctionFromConstraints') || q.constraints && q.allowedFamilies) return 'constraintFunctionBuilder';
@@ -941,6 +951,51 @@ const compileOne = (q, index, repairs) => {
     case 'graphAnalysis':
       out = copyCommon(q, { type, functionSpec: functionSpecFromIntentQuestion(q), analysisRequests: analysisRequestsFromActions(actions, q) });
       break;
+    case 'functionCharacteristics': {
+      // Compiles to a RECIPE rather than to a stage list. The recipe owns which
+      // steps exist and which answer keys can honestly be derived from the
+      // table; naming them here would be a second copy of that, free to drift.
+      //
+      // `ask` is passed through when the author trims the flow — a warm-up that
+      // only wants plot, classify and range says so — and left off otherwise so
+      // the recipe's own default order applies.
+      // The steps follow from what the author said the student must DO, which
+      // is the whole point of intent authoring — but they are emitted in the
+      // RECIPE's order, not the order the actions happened to be listed in.
+      // Marking the intercepts before plotting the points would be nonsense.
+      const wants = (...names) => names.some((name) => actions.includes(name));
+      const derivedAsk = [
+        wants('plotRelation', 'constructGraph', 'completeTable') && 'plot',
+        wants('classifyFunction') && 'model',
+        wants('findXIntercepts') && 'xIntercept',
+        wants('findYIntercept') && 'yIntercept',
+        wants('findMaximum', 'findMinimum', 'findVertex') && 'extremeKind',
+        wants('findMaximum', 'findMinimum', 'findVertex') && 'extremePoint',
+        wants('findXIntercepts') && 'xInterceptValue',
+        wants('findYIntercept') && 'yInterceptValue',
+        wants('findMaximum', 'findMinimum', 'findVertex') && 'extremeValue',
+        wants('analyzeDomain', 'stateDomain') && 'domain',
+        wants('analyzeRange', 'stateRange') && 'range',
+      ].filter(Boolean);
+      // An explicit `ask` still wins: naming the steps is the more specific
+      // instruction, same as it is for a hand-written workflow.
+      const ask = asArray(q.ask).filter(Boolean).length ? asArray(q.ask).filter(Boolean) : derivedAsk;
+      out = copyCommon(q, {
+        type,
+        recipe: ask.length ? { name: 'functionCharacteristics', ask } : 'functionCharacteristics',
+        pairs: q.pairs || q.relation || q.table,
+        graph: graphFromIntent(q),
+        functionFamily: q.functionFamily || q.family,
+        correctEquation: q.correctEquation || q.equation,
+        extreme: q.extreme,
+        xIntercepts: q.xIntercepts,
+        yIntercept: q.yIntercept,
+        correctDomain: q.correctDomain,
+        correctRange: q.correctRange,
+        notation: q.notation,
+      });
+      break;
+    }
     case 'stepAlgebra':
       out = copyCommon(q, {
         type,
