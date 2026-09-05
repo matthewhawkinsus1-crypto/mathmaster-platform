@@ -36,6 +36,7 @@ import {
   relationStateToText,
   resolveRelationNumberLineConfig,
   takeSquareRootOfRelation,
+  validateRelationTransition,
 } from './algebraRelationFoundation.js';
 
 const BASIC_OPERATIONS = [
@@ -764,8 +765,19 @@ export default function MultiRelationAlgebra({
     });
   };
 
-  const commitState = async (next, label, kind = 'relation-step') => {
+  const commitState = async (
+    next,
+    label,
+    kind = 'relation-step',
+    validationContext = { kind: 'equivalentRewrite' },
+  ) => {
     const before = cloneRelationState(relationState);
+    const validation = validateRelationTransition(before, next, validationContext);
+    if (!validation.valid) {
+      setMessage({ tone: 'error', text: validation.reason });
+      return false;
+    }
+
     setHistory((current) => [...current, before]);
     setRelationState(next);
     setRepresentationCorrect(null);
@@ -778,6 +790,7 @@ export default function MultiRelationAlgebra({
     setPlacementByKey({});
     setActiveBranch((current) => Math.min(current, Math.max(0, (next.branches?.length || 1) - 1)));
     await persistStep(before, next, label, kind);
+    return true;
   };
 
   const hasOperationOperand = Boolean(String(operand || '').trim());
@@ -893,7 +906,6 @@ export default function MultiRelationAlgebra({
 
         const flip = flipResults[0];
         const before = cloneRelationState(relationState);
-        setHistory((current) => [...current, before]);
         setRelationState(result.state);
         setRepresentationCorrect(null);
         setCancellationSelection({});
@@ -903,6 +915,12 @@ export default function MultiRelationAlgebra({
           expectedRelations: flip.expectedRelations,
           before,
           label: operationLabel,
+          validationContext: {
+            kind: 'balancedOperation',
+            operation,
+            operandExpression: operand,
+            branchIndices: [flip.branchIndex],
+          },
         });
         setMessage({
           tone: 'growth',
@@ -910,13 +928,20 @@ export default function MultiRelationAlgebra({
         });
       } else {
         const branchCount = stagedBranchIndices.length;
-        await commitState(
+        const committed = await commitState(
           result.state,
           branchCount > 1
             ? `${operationLabel} across ${branchCount} branches`
             : operationLabel,
           branchCount > 1 ? 'multi-branch-relation-step' : 'relation-step',
+          {
+            kind: 'balancedOperation',
+            operation,
+            operandExpression: operand,
+            branchIndices: stagedBranchIndices,
+          },
         );
+        if (!committed) return;
         setMessage({
           tone: 'success',
           text: operation === 'divide'
@@ -992,11 +1017,13 @@ export default function MultiRelationAlgebra({
 
     const next = cloneRelationState(relationState);
     next.branches[activeBranch].expressions[rewriteIndex] = parsed;
-    await commitState(
+    const committed = await commitState(
       next,
       `Student rewrite of expression ${rewriteIndex + 1} on Branch ${branchLabel(activeBranch)}`,
       'student-rewrite',
+      { kind: 'equivalentRewrite' },
     );
+    if (!committed) return;
     setRewriteValue('');
     setRewriteFocusSignal((value) => value + 1);
     setMessage({
@@ -1033,11 +1060,13 @@ export default function MultiRelationAlgebra({
 
     const next = cloneRelationState(relationState);
     next.branches[branchIndex].expressions[expressionIndex] = result.resultExpression;
-    await commitState(
+    const committed = await commitState(
       next,
       `Cancel matching ${result.kind === 'fraction' ? 'factors' : 'terms'} in expression ${expressionIndex + 1}`,
       'student-cancellation',
+      { kind: 'equivalentRewrite' },
     );
+    if (!committed) return;
 
     setMessage({
       tone: 'success',
@@ -1153,6 +1182,19 @@ export default function MultiRelationAlgebra({
     ));
 
     if (complete) {
+      const validation = validateRelationTransition(
+        pending.before,
+        next,
+        pending.validationContext || { kind: 'equivalentRewrite' },
+      );
+      if (!validation.valid) {
+        setRelationState(pending.before);
+        setPendingRelationFlip(null);
+        setRelationPicker(null);
+        setMessage({ tone: 'error', text: validation.reason });
+        return;
+      }
+      setHistory((current) => [...current, cloneRelationState(pending.before)]);
       setPendingRelationFlip(null);
       await persistStep(pending.before, next, pending.label, 'student-relation-direction');
       setMessage({ tone: 'success', text: 'Relation symbols accepted. Continue solving.' });
@@ -1188,7 +1230,13 @@ export default function MultiRelationAlgebra({
       setMessage({ tone: 'growth', text: result.reason });
       return;
     }
-    await commitState(result.state, `Reverse absolute value as ${structure === 'or' ? 'OR branches' : 'an AND compound relation'}`, 'absolute-value-split');
+    const committed = await commitState(
+      result.state,
+      `Reverse absolute value as ${structure === 'or' ? 'OR branches' : 'an AND compound relation'}`,
+      'absolute-value-split',
+      { kind: 'absoluteSplit', branchIndex: activeBranch, structure },
+    );
+    if (!committed) return;
     setAbsoluteSplitOpen(false);
     setAbsoluteSplitStructure(null);
     setAbsoluteSplitValues(['', '']);
@@ -1207,11 +1255,17 @@ export default function MultiRelationAlgebra({
       return;
     }
 
-    await commitState(
+    const committed = await commitState(
       result.state,
       'Reverse absolute value using student-authored OR branch values',
       'absolute-value-split',
+      {
+        kind: 'absoluteSplit',
+        branchIndex: activeBranch,
+        structure: absoluteSplitStructure,
+      },
     );
+    if (!committed) return;
     setAbsoluteSplitOpen(false);
     setAbsoluteSplitStructure(null);
     setAbsoluteSplitValues(['', '']);
@@ -1265,7 +1319,13 @@ export default function MultiRelationAlgebra({
         setMessage({ tone: 'growth', text: result.reason });
         return;
       }
-      await commitState(result.state, 'Take square roots', 'square-root');
+      const committed = await commitState(
+        result.state,
+        'Take square roots',
+        'square-root',
+        { kind: 'squareRoot', branchIndex: activeBranch },
+      );
+      if (!committed) return;
       setMessage({
         tone: 'success',
         text: 'Square-root step applied without dropping the absolute-value consequence.',
@@ -1283,11 +1343,13 @@ export default function MultiRelationAlgebra({
       next.branches = [];
       next.connective = null;
       next.special = requested;
-      await commitState(
+      const committed = await commitState(
         next,
         requested === 'noSolution' ? 'Declare no solution' : 'Declare all real numbers',
         'solution-claim',
+        { kind: 'solutionClaim', claim: requested },
       );
+      if (!committed) return;
       setMessage({
         tone: 'success',
         text: requested === 'noSolution'
@@ -1311,11 +1373,18 @@ export default function MultiRelationAlgebra({
         completeSquareValue,
         { branchIndex: activeBranch },
       );
-      await commitState(
+      const committed = await commitState(
         result.state,
         `Complete-square choice: add ${latexToExpression(completeSquareValue)}`,
         'complete-square',
+        {
+          kind: 'balancedOperation',
+          operation: 'add',
+          operandExpression: completeSquareValue,
+          branchIndices: [activeBranch],
+        },
       );
+      if (!committed) return;
       setCompleteSquareOpen(false);
       setCompleteSquareValue('');
       setMessage({

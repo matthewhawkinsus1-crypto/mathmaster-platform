@@ -337,6 +337,34 @@ const validateBalancedOperation = (
   });
 };
 
+const validateExpectedStructuralState = (expectedState, nextState) => {
+  if (!relationFramesMatch(expectedState, nextState)) return false;
+  if (expectedState.special) return true;
+
+  const variable = expectedState.variable || 'x';
+  const expectedBranches = expectedState.branches || [];
+  const nextBranches = nextState.branches || [];
+
+  // OR branches are mathematically unordered. A student-authored absolute
+  // split may enter the negative branch first, so compare the branch set
+  // rather than forcing presentation order to define correctness.
+  if (expectedState.connective === 'OR') {
+    const used = new Set();
+    return expectedBranches.every((expectedBranch) => {
+      const matchIndex = nextBranches.findIndex((nextBranch, index) => (
+        !used.has(index) && branchExpressionsEquivalent(expectedBranch, nextBranch, variable)
+      ));
+      if (matchIndex < 0) return false;
+      used.add(matchIndex);
+      return true;
+    });
+  }
+
+  return expectedBranches.every((expectedBranch, index) => (
+    branchExpressionsEquivalent(expectedBranch, nextBranches[index], variable)
+  ));
+};
+
 export const validateRelationTransition = (
   previousState,
   nextState,
@@ -354,6 +382,21 @@ export const validateRelationTransition = (
       valid = validateBalancedOperation(previousState, nextState, context);
     } else if (kind === 'equivalentRewrite') {
       valid = validateEquivalentRewrite(previousState, nextState);
+    } else if (kind === 'absoluteSplit') {
+      const expected = buildAbsoluteValueSplit(
+        previousState,
+        Number(context.branchIndex) || 0,
+        context.structure,
+      );
+      valid = Boolean(expected?.ready && validateExpectedStructuralState(expected.state, nextState));
+    } else if (kind === 'squareRoot') {
+      const expected = takeSquareRootOfRelation(previousState, Number(context.branchIndex) || 0);
+      valid = Boolean(expected?.ready && validateExpectedStructuralState(expected.state, nextState));
+    } else if (kind === 'solutionClaim') {
+      valid = obviousSpecialClaim(previousState) === context.claim
+        && nextState.special === context.claim
+        && (nextState.branches?.length || 0) === 0
+        && nextState.connective == null;
     }
   } catch {
     valid = false;

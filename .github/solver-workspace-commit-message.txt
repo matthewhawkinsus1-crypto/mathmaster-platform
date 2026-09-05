@@ -1,1 +1,0 @@
-feat: guard live relation commits with algebra integrity checks
