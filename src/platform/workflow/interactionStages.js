@@ -165,14 +165,18 @@ export const INTERACTION_STAGES = Object.freeze(Object.fromEntries([
     studentAction: 'Chooses between named categories.',
     produces: STAGE_OUTPUT.CHOICE,
     consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.EQUATION],
-    fields: { prompt: 'string', choices: 'array' },
+    // `previewOnGraph` draws whichever option is selected — see choicePreview.js.
+    // Opt-in, because normally the platform does not show a student where an
+    // answer is; here it shows what a symbol MEANS, identically for every
+    // option, so it never says which one is right.
+    fields: { prompt: 'string', choices: 'array', previewOnGraph: 'object' },
   }),
   stage('multipleChoice', {
     label: 'Choose an answer',
     studentAction: 'Selects one supplied option.',
     produces: STAGE_OUTPUT.CHOICE,
     consumes: [],
-    fields: { prompt: 'string', choices: 'array' },
+    fields: { prompt: 'string', choices: 'array', previewOnGraph: 'object' },
   }),
   stage('interpretation', {
     label: 'Interpret in context',

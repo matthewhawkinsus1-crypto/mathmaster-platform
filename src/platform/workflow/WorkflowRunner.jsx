@@ -10,6 +10,8 @@ import StepByStepAlgebra from '../../StepByStepAlgebra';
 import IntervalNumberLine from '../../tools/intervalNumberLine/IntervalNumberLine';
 import AxisSetupStage from './AxisSetupStage';
 import GraphFeatureSelectStage from './GraphFeatureSelectStage';
+import CoordinatePlane from '../../tools/shared/CoordinatePlane';
+import { previewFigures } from './choicePreview';
 import RelationMapping from '../../tools/relationMapping/RelationMapping';
 import { getStage } from './interactionStages';
 import { activeStages, hasStageResponse, lockedStageIds, readComposedQuestion, resolveStageInput, summarizeWorkflowProgress } from './questionWorkflow';
@@ -34,6 +36,8 @@ import './WorkflowFocusMode.css';
 // `{ question, onStateChange }` for the original components and
 // `{ questionData, onAction }` for the newer tools. Adapters live in one table
 // so a stage is a few lines rather than a special case.
+
+const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
 
 const panel = {
   border: '1px solid #dadce0', borderRadius: 12, background: '#fff',
@@ -183,12 +187,68 @@ function PointInputStage({ stage, value, onChange, disabled }) {
   );
 }
 
+/*
+ * THE GRAPH SHOWS WHAT THE SELECTED OPTION MEANS.
+ *
+ * The platform's usual rule is that it does not show a student where an answer
+ * is. This is the deliberate exception, and it is safe for one reason: EVERY
+ * option draws, in exactly the same style. Picking "(-2, 5)" drops a marker
+ * there; picking "(2, 5)" moves it. Neither looks more correct, because the
+ * drawing says what the symbol means, not how close to right it is.
+ *
+ * A student who cannot yet read "x = -2" as a vertical line can now see one,
+ * decide, and still be wrong — which is what makes it a scaffold rather than an
+ * answer key. Validation refuses a stage where only some options can be drawn,
+ * because the one that stayed blank would be marked out as different.
+ */
+function ChoicePreviewGraph({ stage, value }) {
+  const config = isObject(stage?.previewOnGraph) ? stage.previewOnGraph : null;
+  const graph = isObject(config?.graph) ? config.graph : (isObject(config) ? config : {});
+  const model = typeof graph.model === 'string' ? graph.model.trim() : '';
+
+  const functions = useMemo(() => {
+    if (!model) return [];
+    const evaluate = (x) => {
+      const y = evaluateModelAt(model, x);
+      return Number.isFinite(y) ? y : Number.NaN;
+    };
+    return Number.isFinite(evaluate(0)) || Number.isFinite(evaluate(1)) ? [evaluate] : [];
+  }, [model]);
+
+  const figures = previewFigures(value);
+  const given = Array.isArray(graph.points) ? graph.points : [];
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <CoordinatePlane
+        xMin={Number.isFinite(Number(graph.xMin)) ? Number(graph.xMin) : -10}
+        xMax={Number.isFinite(Number(graph.xMax)) ? Number(graph.xMax) : 10}
+        yMin={Number.isFinite(Number(graph.yMin)) ? Number(graph.yMin) : -10}
+        yMax={Number.isFinite(Number(graph.yMax)) ? Number(graph.yMax) : 10}
+        functions={functions}
+        points={[...given, ...figures.points]}
+        lines={figures.lines}
+        verticalLines={figures.verticalLines}
+        horizontalLines={figures.horizontalLines}
+        ariaLabel={value ? `Graph showing the option you selected, ${value}` : 'Graph'}
+      />
+      <p style={{ margin: '6px 0 0', fontSize: 13, color: '#5f6b7a' }} aria-live="polite">
+        {value
+          ? `Showing ${value} on the graph. Try another option to see what it looks like.`
+          : 'Choose an option to see it drawn on the graph.'}
+      </p>
+    </div>
+  );
+}
+
 function ChoiceStage({ stage, value, onChange, disabled }) {
   const choices = stableShuffleChoices(
     strengthenTwoChoiceSet(Array.isArray(stage.choices) ? stage.choices : []),
     choiceSeed(stage.id, stage.prompt, stage.label),
   );
   return (
+    <>
+    {stage?.previewOnGraph ? <ChoicePreviewGraph stage={stage} value={value} /> : null}
     <div style={chipRow}>
       {choices.map((choice) => {
         const id = typeof choice === 'string' ? choice : choice?.id ?? String(choice);
@@ -206,6 +266,7 @@ function ChoiceStage({ stage, value, onChange, disabled }) {
         );
       })}
     </div>
+    </>
   );
 }
 

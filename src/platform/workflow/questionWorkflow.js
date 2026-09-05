@@ -16,6 +16,7 @@
 
 import { STAGE_OUTPUT, getStage, isKnownStageKind, resolveStageKind } from './interactionStages.js';
 import { expandRecipe } from './questionRecipes.js';
+import { choicePreviewProblems } from './choicePreview.js';
 
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
 
@@ -224,6 +225,14 @@ export const validateWorkflow = (workflow = [], { label = 'Question' } = {}) => 
         + 'Compose from the published stage list; new interactions cannot be invented in JSON.',
       );
       return;
+    }
+
+    // A preview that only works for some options is worse than none: the option
+    // that stayed blank would be marked out as different.
+    if (isObject(entry.previewOnGraph)) {
+      choicePreviewProblems(entry).forEach((problem) => {
+        errors.push(`${label} stage "${entry.id}" previews its choices on a graph but ${problem}`);
+      });
     }
 
     // `showWhen` is validated hard, because every way it can be wrong produces a
