@@ -1,0 +1,74 @@
+name: Solver Workspace Branch Verification
+
+on:
+  push:
+    branches:
+      - spec/solver-workspace-undo-integrity
+
+permissions:
+  contents: write
+
+concurrency:
+  group: solver-workspace-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Apply reviewed branch edit when present
+        id: edit
+        shell: bash
+        run: |
+          if [[ -f .github/solver-workspace-edit.mjs ]]; then
+            message="$(cat .github/solver-workspace-commit-message.txt 2>/dev/null || echo 'chore: apply solver workspace edit')"
+            echo "message=$message" >> "$GITHUB_OUTPUT"
+            node .github/solver-workspace-edit.mjs
+            rm -f .github/solver-workspace-edit.mjs .github/solver-workspace-commit-message.txt
+            echo "applied=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "applied=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run focused solver tests
+        shell: bash
+        run: |
+          tests=(tests/platform/solverWorkspaceModes.test.mjs)
+          for f in \
+            tests/platform/algebraAstIntegrity.test.mjs \
+            tests/platform/algebraRelationIntegrity.test.mjs \
+            tests/platform/solverUndoHistory.test.mjs \
+            tests/platform/solverStepCreditReplay.test.mjs
+          do
+            [[ -f "$f" ]] && tests+=("$f")
+          done
+          node --test "${tests[@]}"
+
+      - name: Build production web
+        run: npm run build
+
+      - name: Commit verified edit back to the feature branch
+        if: steps.edit.outputs.applied == 'true'
+        shell: bash
+        run: |
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "Edit script made no changes."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "${{ steps.edit.outputs.message }}"
+          git push origin HEAD:spec/solver-workspace-undo-integrity
