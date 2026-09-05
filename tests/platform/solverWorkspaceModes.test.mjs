@@ -28,7 +28,7 @@ test('QuestionEngine owns the shared solver workspace state and resets it per qu
   assert.match(source, /workspaceMode:\s*solverWorkspaceMode/);
   assert.match(source, /onWorkspaceModeChange:\s*setSolverWorkspaceMode/);
   assert.match(source, /workspaceMode=\{solverWorkspaceMode\}/);
-  assert.match(source, /!solverWorkspaceActive\s*&&\s*\(\s*<GuidedClassworkCoach/);
+  assert.match(source, /!solverWorkspaceActive\s*&&\s*guidedCoach/);
 });
 
 test('the shared frame reports mode changes upward while remaining the one mounted solver shell', async () => {
@@ -38,6 +38,36 @@ test('the shared frame reports mode changes upward while remaining the one mount
   assert.match(source, /onWorkspaceModeChange\?\.\(mode\)/);
   assert.match(source, /onWorkspaceModeChange\?\.\('normal'\)/);
   assert.equal((source.match(/\{children\}/g) || []).length, 1);
+});
+
+test('workspace toolbar reuses assignment Undo, Scratchpad, Help, and final Submit actions', async () => {
+  const question = await read('src/QuestionEngine.jsx');
+  const frame = await read('src/components/common/SolverWorkspaceFrame.jsx');
+  const step = await read('src/StepByStepAlgebra.jsx');
+  const relation = await read('src/MultiRelationAlgebra.jsx');
+
+  assert.equal((question.match(/<GuidedClassworkCoach/g) || []).length, 1);
+  assert.match(question, /const guidedCoachEnabled =/);
+  assert.match(question, /const guidedCoach = \(/);
+  assert.match(question, /const workspaceActions = \{/);
+  assert.match(question, /undo:\s*\{/);
+  assert.match(question, /onClick:\s*\(\) => undoController\?\.onUndo\?\.\(\)/);
+  assert.match(question, /scratchpad:\s*\{/);
+  assert.match(question, /onClick:\s*openScratchpad/);
+  assert.match(question, /help:\s*guidedCoachEnabled/);
+  assert.match(question, /content:\s*guidedCoach/);
+  assert.match(question, /submit:\s*!locked && shouldShowSubmit/);
+  assert.match(question, /onClick:\s*handleSubmit/);
+  assert.match(question, /disabled:\s*submitDisabled/);
+
+  assert.match(step, /workspaceActions=\{props\.workspaceActions\}/);
+  assert.match(relation, /workspaceActions=\{props\.workspaceActions\}/);
+  assert.match(frame, /workspaceActions\s*=\s*null/);
+  assert.match(frame, /workspaceActions\?\.undo/);
+  assert.match(frame, /workspaceActions\?\.scratchpad/);
+  assert.match(frame, /workspaceActions\?\.help/);
+  assert.match(frame, /workspaceActions\?\.submit/);
+  assert.match(frame, /solver-workspace-help-panel/);
 });
 
 test('MobileViewport hides task and normal action bars during enlarged or focus workspace without mutating task collapse state', async () => {
