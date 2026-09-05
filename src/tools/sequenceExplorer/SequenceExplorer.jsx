@@ -332,6 +332,7 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
           // already replaces whatever sits at the n a point lands on. So a drag
           // is just a re-plot at the new spot — no index bookkeeping needed.
           onMovePoint={requirePlot ? (index, point) => handlePlot(point) : null}
+          viewResetKey={questionData?.id ?? questionData?.prompt ?? null}
           snapStep={plotSnapStep}
           cursorLabel="Sequence point"
           ariaLabel="Discrete sequence graph"
@@ -705,6 +706,7 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
           // already replaces whatever sits at the n a point lands on. So a drag
           // is just a re-plot at the new spot — no index bookkeeping needed.
           onMovePoint={requirePlot ? (index, point) => handlePlot(point) : null}
+          viewResetKey={questionData?.id ?? questionData?.prompt ?? null}
           snapStep={plotSnapStep}
           cursorLabel={activeSeries === 'A' ? leftLabel + ' point' : rightLabel + ' point'}
           ariaLabel={requirePlot ? 'Interactive graph for plotting two discrete sequences' : 'Graph comparing two discrete sequences'}

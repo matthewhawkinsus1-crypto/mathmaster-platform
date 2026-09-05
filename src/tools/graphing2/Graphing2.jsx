@@ -200,6 +200,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
             {...bounds}
             onPlot={plot}
             onMovePoint={movePoint}
+            viewResetKey={questionData?.id ?? questionData?.prompt ?? null}
             snapStep={snapStep}
             points={plottedPoints}
             lines={studentLines}

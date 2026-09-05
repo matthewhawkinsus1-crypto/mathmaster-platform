@@ -215,6 +215,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
           <CoordinatePlane
             {...graphBounds}
             snapStep={questionData.snapStep || 1}
+            viewResetKey={questionData?.id ?? questionData?.prompt ?? null}
             onPlot={(point) => {
               if (plottedPoints.length >= expectedTransformedPoints.length) return;
               setPlottedPoints((current) => [...current, point]);

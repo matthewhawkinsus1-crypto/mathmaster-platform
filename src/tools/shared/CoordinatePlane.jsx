@@ -106,6 +106,11 @@ export default function CoordinatePlane({
   // gets it, a read-only figure does not — a static graph is already framed the
   // way its author intended and moving it only loses that framing.
   panZoom = null,
+  // Something that changes when the QUESTION changes. Needed because the tool
+  // is not remounted between questions, and resetting on the bound values alone
+  // misses the common case of two questions sharing a window: a student who
+  // zoomed into a corner on one would arrive already zoomed into the next.
+  viewResetKey = null,
   children,
 }) {
   const pad = 42;
@@ -148,9 +153,13 @@ export default function CoordinatePlane({
   const yMin = view ? view.yMin : domainYMin;
   const yMax = view ? view.yMax : domainYMax;
 
-  // A fresh question means a fresh view; carrying a zoom across questions would
-  // leave a student looking at the wrong corner of a plane they never moved.
-  useEffect(() => { setView(null); }, [domainXMin, domainXMax, domainYMin, domainYMax]);
+  /*
+   * A fresh question means a fresh view. Attempts on the SAME question keep it:
+   * a student who zoomed in to place a point carefully should not be thrown back
+   * out when they try again — the second attempt is the one where the zoom
+   * matters most.
+   */
+  useEffect(() => { setView(null); }, [viewResetKey, domainXMin, domainXMax, domainYMin, domainYMax]);
   const canMovePoints = interactive && typeof onMovePoint === 'function';
   const [pointerPreview, setPointerPreview] = useState(null);
   const [keyboardCursor, setKeyboardCursor] = useState(null);
@@ -244,7 +253,10 @@ export default function CoordinatePlane({
   // leaves a student with no landmarks; zooming out past a few domain widths
   // shrinks the axes back into the uselessness this exists to fix.
   const MIN_SPAN_STEPS = 4;
-  const MAX_DOMAIN_MULTIPLE = 3;
+  // Zooming out exists to recover a little context around the axes, not to make
+  // them small again — and Reset already restores the authored window instantly,
+  // so a large multiple buys nothing and costs legibility. Two is generous.
+  const MAX_DOMAIN_MULTIPLE = 2;
 
   const clampSpan = (span, domainSpan) => Math.min(
     Math.max(span, minorStep * MIN_SPAN_STEPS),

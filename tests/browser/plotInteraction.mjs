@@ -171,6 +171,49 @@ for (const [device, config] of Object.entries(DEVICES)) {
     } else note(device, 'plotting while zoomed produced no point');
   }
 
+  // 6. A REAL TWO-FINGER PINCH, not a mouse pretending to be one.
+  //    Playwright's touchscreen API is single-touch, but the DevTools protocol
+  //    dispatches genuine multi-touch: the page receives two distinct pointer
+  //    ids with pointerType "touch", which is exactly what a hand produces. So
+  //    the pinch path is exercised rather than assumed.
+  if (config.hasTouch) {
+    const readSpan = () => page.evaluate(() => {
+      const labels = [...document.querySelectorAll('svg text')]
+        .map((t) => Number((t.textContent || '').trim()))
+        .filter((n) => Number.isFinite(n));
+      return labels.length ? Math.max(...labels) - Math.min(...labels) : null;
+    });
+    await page.locator('button', { hasText: 'Reset view' }).first().click().catch(() => {});
+    await page.waitForTimeout(200);
+    const spanBefore = await readSpan();
+
+    const plane = await page.locator('svg').first().boundingBox();
+    const cdp = await context.newCDPSession(page);
+    const cx = plane.x + plane.width / 2;
+    const cy = plane.y + plane.height / 2;
+    const pair = (spread) => ([{ x: cx - spread, y: cy, id: 1 }, { x: cx + spread, y: cy, id: 2 }]);
+    // Fingers moving apart = zoom in.
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pair(26) });
+    for (const spread of [40, 56, 72, 88, 104, 120]) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: pair(spread) });
+      await page.waitForTimeout(30);
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForTimeout(300);
+    const spanAfter = await readSpan();
+
+    if (spanBefore && spanAfter && spanAfter < spanBefore) {
+      console.log(`  ok   a real two-finger pinch zooms in (${spanBefore} -> ${spanAfter} units)`);
+    } else {
+      note(device, `two-finger pinch did not zoom (${spanBefore} -> ${spanAfter})`);
+    }
+
+    // And the finger that started the pinch must not have left a point behind.
+    const strayCheck = await readStudentPoints(page);
+    if (strayCheck.length <= 2) console.log('  ok   pinching did not plot a stray point');
+    else note(device, `pinching left ${strayCheck.length} points behind`);
+  }
+
   if (errors.length) note(device, `page errors: ${[...new Set(errors)].slice(0, 2).join(' | ')}`);
   await context.close();
 }

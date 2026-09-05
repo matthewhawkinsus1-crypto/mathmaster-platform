@@ -22,10 +22,28 @@ test('the view shadows the bounds so every drawing path follows it', () => {
   assert.match(plane, /xMin: domainXMin = -10, xMax: domainXMax = 10/);
 });
 
-test('a new question resets the view', () => {
-  // Carrying a zoom across questions leaves a student staring at a corner of a
-  // plane they never moved.
-  assert.match(plane, /useEffect\(\(\) => \{ setView\(null\); \}, \[domainXMin, domainXMax, domainYMin, domainYMax\]\);/);
+test('a new question resets the view, but a retry keeps it', () => {
+  // Resetting on the bound VALUES alone is not enough: the tool is not
+  // remounted between questions, so two questions sharing a -10..10 window
+  // would leave a student already zoomed into a corner of one they never
+  // touched. Hence an explicit question key.
+  //
+  // Attempts on the same question deliberately keep the zoom — the second
+  // attempt is when careful placement matters most.
+  assert.match(plane, /viewResetKey = null,/);
+  assert.match(plane, /useEffect\(\(\) => \{ setView\(null\); \}, \[viewResetKey, domainXMin, domainXMax, domainYMin, domainYMax\]\);/);
+});
+
+test('every tool that can zoom supplies a question key', () => {
+  const files = [
+    'src/tools/graphing2/Graphing2.jsx',
+    'src/tools/transformations/TransformationsLab.jsx',
+    'src/tools/sequenceExplorer/SequenceExplorer.jsx',
+  ];
+  files.forEach((file) => {
+    const source = readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
+    assert.match(source, /viewResetKey=\{questionData\?\.id \?\? questionData\?\.prompt \?\? null\}/, `${file} must reset the view per question`);
+  });
 });
 
 /* ---------- the gesture budget ---------- */
@@ -46,7 +64,10 @@ test('zoom keeps the point under the finger under the finger', () => {
 
 test('zoom is bounded at both ends', () => {
   assert.match(plane, /const MIN_SPAN_STEPS = 4;/);
-  assert.match(plane, /const MAX_DOMAIN_MULTIPLE = 3;/);
+  // Two, not three: zooming out exists to recover a little context, and Reset
+  // already restores the authored window, so a bigger multiple only makes the
+  // axes small again — the exact problem this feature exists to fix.
+  assert.match(plane, /const MAX_DOMAIN_MULTIPLE = 2;/);
   assert.match(plane, /Math\.max\(span, minorStep \* MIN_SPAN_STEPS\)/);
 });
 
