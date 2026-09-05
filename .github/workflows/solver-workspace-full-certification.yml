@@ -1,0 +1,54 @@
+name: Solver Workspace Full Certification
+
+on:
+  push:
+    branches:
+      - spec/solver-workspace-undo-integrity
+    paths:
+      - .github/workflows/solver-workspace-full-certification.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run complete platform test suite
+        run: node --test --test-concurrency=4 tests/platform/*.test.mjs
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Build production web
+        run: npm run build
+
+      - name: Audit solver integrity contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "magnitude: term.magnitudeText" src/algebraAstEngine.js
+          if grep -nE "magnitude: String\(term\.text\).*replace|String\(term\.text\).*replace.*magnitude" src/algebraAstEngine.js; then
+            echo "Found sign reconstruction from term.text in additive placement" >&2
+            exit 1
+          fi
+          grep -q "onWorkspaceModeChange" src/components/common/SolverWorkspaceFrame.jsx
+          grep -q "workspaceActions" src/components/common/SolverWorkspaceFrame.jsx
+          grep -q "multi-relation-branches--dense" src/MultiRelationAlgebraCore.jsx
+          grep -q "multi-relation-split-editor--dense" src/MultiRelationAlgebraCore.jsx
+          grep -q "mathmaster-desktop-action-bar" src/components/student/MobileViewportContainer.jsx
+          echo "Solver source audit passed."
