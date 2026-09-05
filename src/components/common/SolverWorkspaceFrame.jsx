@@ -50,6 +50,7 @@ export default function SolverWorkspaceFrame({
   const [mode, setMode] = useState('normal');
   const [zoom, setZoom] = useState(1);
   const [focusPanelOpen, setFocusPanelOpen] = useState(true);
+  const [taskOpen, setTaskOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const frameRef = useRef(null);
   const returnRef = useRef(null);
@@ -66,12 +67,16 @@ export default function SolverWorkspaceFrame({
     setMode('normal');
     setZoom(1);
     setFocusPanelOpen(true);
+    setTaskOpen(false);
     setHelpOpen(false);
   }, [workspaceKey]);
 
   useEffect(() => {
     onWorkspaceModeChange?.(mode);
-    if (mode === 'normal') setHelpOpen(false);
+    if (mode === 'normal') {
+      setTaskOpen(false);
+      setHelpOpen(false);
+    }
   }, [mode, onWorkspaceModeChange]);
 
   useEffect(() => () => {
@@ -162,7 +167,6 @@ export default function SolverWorkspaceFrame({
       <div className="solver-workspace-modebar">
         <div className="solver-workspace-modebar__context">
           <strong>{mode === 'focus' ? 'Focus workspace' : mode === 'enlarged' ? 'Enlarged tool' : 'Workspace'}</strong>
-          {isOpen && taskText ? <span title={taskText}>{taskText}</span> : null}
         </div>
 
         <div className="solver-workspace-modebar__controls" role="group" aria-label="Solver workspace controls">
@@ -188,6 +192,21 @@ export default function SolverWorkspaceFrame({
           {isOpen && (
             <>
               <span className="solver-workspace-divider" aria-hidden="true" />
+
+              {taskText ? (
+                <button
+                  type="button"
+                  className={taskOpen ? 'solver-workspace-global-action is-active' : 'solver-workspace-global-action'}
+                  onClick={() => {
+                    setTaskOpen((current) => !current);
+                    setHelpOpen(false);
+                  }}
+                  aria-expanded={taskOpen}
+                  aria-controls="solver-workspace-task-panel"
+                >
+                  Task
+                </button>
+              ) : null}
 
               {workspaceActions?.undo ? (
                 <button
@@ -240,7 +259,10 @@ export default function SolverWorkspaceFrame({
                 <button
                   type="button"
                   className={helpOpen ? 'solver-workspace-global-action is-active' : 'solver-workspace-global-action'}
-                  onClick={() => setHelpOpen((current) => !current)}
+                  onClick={() => {
+                    setHelpOpen((current) => !current);
+                    setTaskOpen(false);
+                  }}
                   aria-expanded={helpOpen}
                   aria-controls="solver-workspace-help-panel"
                 >
@@ -283,6 +305,17 @@ export default function SolverWorkspaceFrame({
           )}
         </div>
       </div>
+
+      {isOpen && taskOpen && taskText ? (
+        <div
+          id="solver-workspace-task-panel"
+          className="solver-workspace-help-panel solver-workspace-task-panel"
+          role="region"
+          aria-label="Task directions"
+        >
+          {taskText}
+        </div>
+      ) : null}
 
       {isOpen && helpOpen && workspaceActions?.help?.content ? (
         <div
