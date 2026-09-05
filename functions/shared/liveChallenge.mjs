@@ -106,10 +106,6 @@ export const scoreChallengeRound = ({
   remainingMs = 0,
   totalMs = DEFAULT_ROUND_SECONDS * 1000,
   previousStreak = 0,
-  // Whether this player's previous answered round was a miss. Passed rather
-  // than inferred from previousStreak === 0, which is also true of a player's
-  // very first round — and paying a comeback bonus for turning up would empty
-  // the word of meaning.
   previousRoundMissed = false,
   secondChance = false,
   missedOriginally = false,
@@ -137,8 +133,6 @@ export const scoreChallengeRound = ({
   const basePoints = Math.round(1000 * ratio);
   const speedBonus = isCorrect ? Math.round(100 * remainingRatio) : 0;
   const newStreak = isCorrect ? carriedStreak + 1 : 0;
-  // The first correct answer establishes the streak; bonuses begin with the
-  // second and cap quickly so the game never becomes mostly a speed contest.
   const streakBonus = isCorrect ? Math.min(100, Math.max(0, newStreak - 1) * 25) : 0;
   const comebackBonus = isCorrect && previousRoundMissed === true ? COMEBACK_BONUS : 0;
   return {
@@ -153,17 +147,6 @@ export const scoreChallengeRound = ({
   };
 };
 
-/**
- * Which rounds to replay at the end, most-missed first.
- *
- * Class-level rather than per-student, because every player sees the same
- * question each round — a personal replay would break the one thing that makes
- * this a shared game. Replaying what the room got wrong most is also the better
- * teaching choice: it is the question the class needs a second look at.
- *
- * A question nobody missed is never replayed, so a strong class simply finishes
- * early rather than sitting through a recap of work it already did.
- */
 export const planSecondChanceRounds = ({
   roundMisses = {},
   scheduledRoundCount = 0,
@@ -179,42 +162,11 @@ export const planSecondChanceRounds = ({
       && entry.roundIndex >= 0
       && entry.roundIndex < scheduled
       && entry.misses > 0)
-    // Most missed first; ties resolve by the order the class met them, so the
-    // replay reads as a recap rather than an arbitrary shuffle.
     .sort((a, b) => b.misses - a.misses || a.roundIndex - b.roundIndex)
     .slice(0, cap)
     .map((entry) => entry.roundIndex);
 };
 
-/*
- * WORK-IN-PROGRESS POINTS, AND WHY THEY ARE NOT SCORE.
- *
- * A board that only moves when somebody submits is a board that sits still for
- * forty seconds and then jumps. To make the room feel alive while students are
- * still working, a player may publish a provisional total: what their partial
- * credit is worth SO FAR, from the step credit their solver has already
- * accepted.
- *
- * It is display only. It is reported by the browser, so it is not trusted: it
- * is clamped here, it never reaches `score`, and the server recomputes the real
- * points from the real response at submit. A student who tampered with it would
- * move a number on a leaderboard for a few seconds and earn nothing. That is a
- * deliberate trade — the alternative is grading every step on the server, which
- * would cost a round trip per click and still be gameable by whoever wrote the
- * step.
- */
-/*
- * WHAT KIND OF QUESTION A GAME SHOULD DRAW.
- *
- * Roughly three quarters of the bank is typed or chosen answers, so a random
- * ten-round draw is almost always ten of those. That is a fine game, but it is
- * not the game a teacher means when they say they want students plotting points
- * or working a solver — and no amount of shuffling makes a rare thing common.
- *
- * So the style is a choice rather than a hope. It is applied to candidates
- * before selection, which means a game that cannot be filled says so at create
- * time instead of quietly serving the wrong kind of round.
- */
 export const CHALLENGE_QUESTION_STYLES = ['any', 'tools', 'noTools'];
 
 export const canonicalQuestionStyle = (value) => {
@@ -229,7 +181,131 @@ export const pathToolIdOf = (question) => {
   return trimmed || null;
 };
 
+const CHOICE_RESPONSE_PROFILES = new Set([
+  'choice', 'multiplechoice', 'multiple-choice', 'singlechoice', 'single-choice', 'select',
+]);
+const MATH_RESPONSE_PROFILES = new Set([
+  'basic', 'math', 'expression', 'equation', 'interval', 'inequality', 'set', 'function',
+  'algebra-operation', 'basic+set', 'number', 'numeric', 'integer', 'decimal', 'fraction',
+  'orderedpair', 'ordered-pair',
+]);
+const TEXT_RESPONSE_PROFILES = new Set(['', 'text', 'shortanswer', 'short-answer', 'string']);
+
+const responseProfile = (field = {}) => String(
+  field?.inputProfile ?? field?.inputMode ?? field?.type ?? '',
+).trim().toLowerCase();
+
+const visibleChoices = (question, field) => {
+  const source = Array.isArray(field?.choices) && field.choices.length
+    ? field.choices
+    : (Array.isArray(question?.choices) ? question.choices : []);
+  return source.filter((choice) => {
+    if (choice == null) return false;
+    if (typeof choice === 'object') return String(choice.label ?? choice.text ?? choice.value ?? '').trim() !== '';
+    return String(choice).trim() !== '';
+  });
+};
+
+const explicitlyRequestsChoice = (question, field) => {
+  const text = [field?.label, field?.responseHint, question?.prompt]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return /\b(choose|select)\b/.test(text);
+};
+
+const mathLabelForProfile = (profile) => {
+  if (profile === 'interval') return 'Interval input';
+  if (['number', 'numeric', 'integer', 'decimal', 'fraction'].includes(profile)) return 'Number input';
+  if (['orderedpair', 'ordered-pair'].includes(profile)) return 'Ordered-pair input';
+  if (profile === 'inequality') return 'Inequality input';
+  if (profile === 'set') return 'Set input';
+  if (profile === 'equation') return 'Equation input';
+  return 'Math input';
+};
+
+/**
+ * Whether Live Challenge can actually present the public response contract.
+ *
+ * This is deliberately presentation-only. It never reads expected answers or
+ * grading data. Path's issuability gate still decides whether the server can
+ * grade the question; this gate prevents a securely gradeable question from
+ * reaching a timed round through a UI that cannot let the student answer it.
+ */
+export const liveChallengeResponseReadiness = (question = {}) => {
+  if (pathToolIdOf(question)) {
+    return { eligible: true, mode: 'tool', label: 'Interactive tool', reason: null, choiceCount: 0 };
+  }
+
+  const fields = Array.isArray(question?.responseFields) ? question.responseFields : [];
+  if (!fields.length) {
+    return { eligible: false, mode: 'invalid', label: 'Invalid for Live Challenge', reason: 'no_response_fields', choiceCount: 0 };
+  }
+
+  const modes = [];
+  const labels = [];
+  let choiceCount = 0;
+
+  for (const field of fields) {
+    const profile = responseProfile(field);
+    const choices = visibleChoices(question, field);
+    const choiceProfile = CHOICE_RESPONSE_PROFILES.has(profile);
+
+    if (choiceProfile) {
+      if (choices.length < 2) {
+        return { eligible: false, mode: 'invalid', label: 'Invalid for Live Challenge', reason: 'choice_field_has_no_choices', choiceCount: choices.length };
+      }
+      modes.push('choice');
+      choiceCount += choices.length;
+      labels.push(`Multiple choice · ${choices.length} choices`);
+      continue;
+    }
+
+    // Do not "helpfully" turn a text field into choice UI just because options
+    // are present. Private grading only remaps choice ids for a choice field, so
+    // that would create a beautiful UI whose correct button can never grade.
+    if (explicitlyRequestsChoice(question, field)) {
+      return {
+        eligible: false,
+        mode: 'invalid',
+        label: 'Invalid for Live Challenge',
+        reason: choices.length >= 2 ? 'choice_profile_mismatch' : 'choice_instruction_has_no_choices',
+        choiceCount: choices.length,
+      };
+    }
+
+    const declaresMathNotation = Boolean(
+      field?.answerFormat
+      || field?.inputContract?.format
+      || (Array.isArray(field?.requiredSymbols) && field.requiredSymbols.length)
+      || (Array.isArray(field?.inputContract?.requiredSymbols) && field.inputContract.requiredSymbols.length),
+    );
+    if (MATH_RESPONSE_PROFILES.has(profile) || declaresMathNotation) {
+      modes.push('math');
+      labels.push(mathLabelForProfile(profile));
+      continue;
+    }
+
+    if (TEXT_RESPONSE_PROFILES.has(profile)) {
+      modes.push('text');
+      labels.push('Text input');
+      continue;
+    }
+
+    return { eligible: false, mode: 'invalid', label: 'Invalid for Live Challenge', reason: 'unsupported_response_profile', choiceCount: choices.length };
+  }
+
+  const uniqueModes = [...new Set(modes)];
+  const mode = uniqueModes.length === 1 ? uniqueModes[0] : 'mixed';
+  const label = fields.length === 1 ? labels[0] : `${fields.length} response parts`;
+  return { eligible: true, mode, label, reason: null, choiceCount };
+};
+
 export const matchesQuestionStyle = (question, style) => {
+  // This predicate is the candidate-filter seam used by create and swap. Keep
+  // Live Challenge fail-closed here so an unrenderable field never enters the
+  // round plan even though the Path server could technically grade it.
+  if (!liveChallengeResponseReadiness(question).eligible) return false;
   const normalized = canonicalQuestionStyle(style);
   if (normalized === 'any') return true;
   const hasTool = pathToolIdOf(question) !== null;
@@ -241,18 +317,11 @@ export const LIVE_PROVISIONAL_MAX_POINTS = 1000;
 export const provisionalPointsFor = (player, activeRound = null) => {
   if (activeRound == null) return 0;
   if (Number(player?.provisionalRound) !== Number(activeRound)) return 0;
-  // Once the round is actually answered the real score is authoritative. A
-  // provisional left lying around must never stack on top of it.
   if (Number(player?.answeredRound) === Number(activeRound)) return 0;
   const points = Math.round(Number(player?.provisionalPoints) || 0);
   return Math.max(0, Math.min(LIVE_PROVISIONAL_MAX_POINTS, points));
 };
 
-/*
- * `activeRound` is optional and defaults to off, so every existing caller —
- * the report, the export, the finished standings — keeps ranking on banked
- * score alone and cannot accidentally publish an in-progress number.
- */
 export const publicLeaderboard = (players = {}, { activeRound = null } = {}) => (Array.isArray(players) ? players : Object.values(players || {}))
   .filter((player) => player?.joined !== false)
   .map((player) => {
@@ -284,29 +353,6 @@ export const challengeCanAdvance = ({ joinedCount = 0, answeredCount = 0, roundE
   && (Number(answeredCount) >= Number(joinedCount) || Number(nowMs) >= Number(roundEndsAtMs || 0))
 );
 
-/*
- * HOW MANY ANSWERED EACH ROUND, AND HOW MANY MISSED IT — DERIVED, NOT COUNTED.
- *
- * These two tallies used to be maintained on the private state document: every
- * submission incremented them inside its transaction. That made one document
- * take a write per student per round. A class of 24 answering within a couple of
- * seconds is roughly 24 writes to a single document in that window, and
- * Firestore's guidance for sustained writes to one document is about one per
- * second. Correctness held — a concurrency suite proved no increment was lost —
- * but the shape was a hot spot waiting for a bad day, and the failure mode is a
- * student being told their correct answer did not count.
- *
- * The counts were always redundant. Each player document already records which
- * rounds that student answered and which they missed, because mastery evidence
- * needs both. The room-level numbers are just those arrays added up, and both
- * consumers — the second-chance planner and the post-game report — already load
- * every player. So this deletes state rather than sharding it.
- *
- * REPLAYS ARE EXCLUDED, exactly as the increments excluded them. A second-chance
- * round is the same question offered again; counting it would inflate the
- * denominator of a question the class has already been measured on, and could
- * put a round back on the replay list for being "missed" twice.
- */
 export const deriveRoundTallies = ({
   players = [],
   secondChanceOf = {},
@@ -345,17 +391,6 @@ export const deriveRoundTallies = ({
       });
   });
 
-  /*
-   * A ROOM THAT WAS ALREADY RUNNING WHEN THIS SHIPPED.
-   *
-   * Its early answers were counted the old way and never recorded a per-player
-   * answeredRounds entry, so deriving alone would report zero for those rounds
-   * and could drop a genuinely missed question off the replay list mid-game.
-   * Where a stored count exists and the derived one cannot see it, the stored
-   * number is kept. This is a fallback for rooms in flight across one deploy,
-   * not a second source of truth: nothing writes these fields any more, so it
-   * stops mattering as soon as those rooms end.
-   */
   const withFallback = (derived, stored) => {
     if (!stored || typeof stored !== 'object') return derived;
     const merged = { ...derived };
