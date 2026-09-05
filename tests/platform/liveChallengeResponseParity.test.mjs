@@ -135,12 +135,18 @@ test('unknown response contracts fail closed before candidate selection', () => 
   assert.equal(matchesQuestionStyle(question, 'any'), false);
 });
 
-test('student renderer is wired to MathInput and sanitized runtime choices', () => {
-  const source = readFileSync(new URL('../../src/components/liveChallenge/LiveChallengeStudent.jsx', import.meta.url), 'utf8');
+test('shared field renderer is wired to MathInput and sanitized runtime choices', () => {
+  const source = readFileSync(new URL('../../src/components/liveChallenge/LiveChallengeFieldQuestion.jsx', import.meta.url), 'utf8');
   assert.match(source, /import MathInput from ['"]\.\.\/\.\.\/MathInput\.jsx['"]/);
-  assert.match(source, /field\.choices/);
+  assert.match(source, /field\?\.choices/);
   assert.match(source, /question\?\.choices/);
   assert.match(source, /<MathInput/);
-  assert.match(source, /choice\.id/);
+  assert.match(source, /choice\?\.id/);
   assert.doesNotMatch(source, /choice\.correct|choice\.isCorrect/);
+});
+
+test('ChallengeRound delegates field questions to the shared response renderer', () => {
+  const source = readFileSync(new URL('../../src/components/liveChallenge/LiveChallengeStudent.jsx', import.meta.url), 'utf8');
+  assert.match(source, /LiveChallengeFieldQuestion/);
+  assert.match(source, /<LiveChallengeFieldQuestion/);
 });
