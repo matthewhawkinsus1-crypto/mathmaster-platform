@@ -218,6 +218,8 @@ export default function QuestionEngine({
   const [submitting, setSubmitting] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [undoController, setUndoController] = useState(null);
+  const [solverWorkspaceMode, setSolverWorkspaceMode] = useState('normal');
+  const solverWorkspaceActive = solverWorkspaceMode !== 'normal';
   const [scratchpadOpen, setScratchpadOpen] = useState(false);
   const [scratchpadLoading, setScratchpadLoading] = useState(false);
   const previousSectionCompleteRef = useRef(Boolean(sectionComplete));
@@ -259,6 +261,7 @@ export default function QuestionEngine({
     setSubmitting(false);
     setRequesting(false);
     setUndoController(null);
+    setSolverWorkspaceMode('normal');
     setScratchpadOpen(false);
     setScratchpadDataUrl('');
     setScratchpadPages(null);
@@ -587,6 +590,8 @@ export default function QuestionEngine({
     question: presentationQuestion,
     onStateChange: setAnswerState,
     onUndoStateChange: registerUndo,
+    workspaceMode: solverWorkspaceMode,
+    onWorkspaceModeChange: setSolverWorkspaceMode,
     feedback: showOutcomeFeedback ? feedback : null,
     draftKey,
     disabled: locked || scaffoldRequired || contextScaffoldRequired || submitting,
@@ -873,19 +878,22 @@ export default function QuestionEngine({
         promptText={processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.'}
         taskMeta={questionAlignmentPanel}
         taskContextPanel={questionReferencePanel}
-        contextPanel={questionContextPanel}
+        contextPanel={solverWorkspaceActive ? null : questionContextPanel}
+        workspaceMode={solverWorkspaceMode}
         workBar={questionWorkBar}
         toolWorkspace={(
       <div className="mathmaster-question-tool-workspace" style={{ position: 'relative' }}>
-        <GuidedClassworkCoach
-          question={processedQuestion}
-          draftKey={draftKey}
-          enabled={resolvedActivityPolicy?.hintsAllowed !== false && guidedNotesMode !== 'off' && (guidedMode || supportPresentation.visualChunking)}
-          mode={guidedNotesMode}
-          activeStageId={workflowGuidanceState?.currentStageId || null}
-          workflowProgress={workflowGuidanceState}
-          disabled={locked}
-        />
+        {!solverWorkspaceActive && (
+          <GuidedClassworkCoach
+            question={processedQuestion}
+            draftKey={draftKey}
+            enabled={resolvedActivityPolicy?.hintsAllowed !== false && guidedNotesMode !== 'off' && (guidedMode || supportPresentation.visualChunking)}
+            mode={guidedNotesMode}
+            activeStageId={workflowGuidanceState?.currentStageId || null}
+            workflowProgress={workflowGuidanceState}
+            disabled={locked}
+          />
+        )}
         <fieldset disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <div aria-disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting ? 'true' : undefined} inert={locked || scaffoldRequired || contextScaffoldRequired || submitting ? '' : undefined} style={{ pointerEvents: locked || scaffoldRequired || contextScaffoldRequired || submitting ? 'none' : 'auto', opacity: locked ? 0.72 : scaffoldRequired || contextScaffoldRequired ? 0.5 : 1 }}>
             <QuestionModuleBoundary

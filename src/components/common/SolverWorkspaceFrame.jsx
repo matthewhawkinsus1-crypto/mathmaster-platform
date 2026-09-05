@@ -44,6 +44,7 @@ export default function SolverWorkspaceFrame({
   workspaceKey = '',
   workspaceKind = 'algebra',
   focusPanel = null,
+  onWorkspaceModeChange = null,
 }) {
   const [mode, setMode] = useState('normal');
   const [zoom, setZoom] = useState(1);
@@ -64,6 +65,14 @@ export default function SolverWorkspaceFrame({
     setZoom(1);
     setFocusPanelOpen(true);
   }, [workspaceKey]);
+
+  useEffect(() => {
+    onWorkspaceModeChange?.(mode);
+  }, [mode, onWorkspaceModeChange]);
+
+  useEffect(() => () => {
+    onWorkspaceModeChange?.('normal');
+  }, [onWorkspaceModeChange]);
 
   useEffect(() => {
     if (mode === 'normal') {

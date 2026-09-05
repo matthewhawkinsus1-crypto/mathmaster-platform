@@ -56,6 +56,7 @@ export default function MultiRelationAlgebra(props) {
       workspaceKey={workspaceKey}
       workspaceKind="relation"
       focusPanel={focusPanel}
+      onWorkspaceModeChange={props.onWorkspaceModeChange}
     >
       <MultiRelationAlgebraCore {...props} onStateChange={handleStateChange} />
     </SolverWorkspaceFrame>
