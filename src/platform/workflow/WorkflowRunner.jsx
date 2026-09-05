@@ -12,12 +12,12 @@ import AxisSetupStage from './AxisSetupStage';
 import GraphFeatureSelectStage from './GraphFeatureSelectStage';
 import RelationMapping from '../../tools/relationMapping/RelationMapping';
 import { getStage } from './interactionStages';
-import { hasStageResponse, readComposedQuestion, resolveStageInput, summarizeWorkflowProgress } from './questionWorkflow';
+import { hasStageResponse, lockedStageIds, readComposedQuestion, resolveStageInput, summarizeWorkflowProgress } from './questionWorkflow';
 import { checkTableConsistency, gradeWorkflow } from './workflowGrading';
 import { buildExpressionFunctionSpec, evaluateModelAt, evaluateNumericValue, parseIntervalDomainRestriction } from './modelExpression';
 import { evaluateGraphFunction } from '../../functionGraphUtils';
 import { buildStudentTableMagneticTargets } from '../../graphInteractionPrecision';
-import { buildWorkflowSummaryItems, shouldUseWorkflowFocusMode } from './workflowFocusMode';
+import { buildWorkflowSummaryItems, shouldUseWorkflowFocusMode, summarizeStageResponse } from './workflowFocusMode';
 import { stageFamily, stageFamilyLabel } from './stageFamilies';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
 import './WorkflowFocusMode.css';
@@ -951,6 +951,9 @@ export default function WorkflowRunner({
   const furthestReachableIndex = firstIncompleteIndex >= 0
     ? firstIncompleteIndex
     : Math.max(0, workflow.length - 1);
+  // Steps whose answer a later, already-reachable step has given away. They
+  // stay visible and keep showing what the student put; they stop taking edits.
+  const locked = lockedStageIds(workflow, furthestReachableIndex);
   const safeActiveIndex = Math.min(activeStageIndex, Math.max(0, workflow.length - 1));
   const activeStage = workflow[safeActiveIndex] || workflow[0];
   const activeDefinition = getStage(activeStage?.kind);
@@ -1015,16 +1018,35 @@ export default function WorkflowRunner({
       <section key={stage.id} className={shellClass} style={focusMode ? undefined : panel}>
         {focusMode ? null : <h4 style={stageHeading}>Step {index + 1}. {definition?.label || stage.kind}</h4>}
         {stage.prompt && <QuestionPrompt variant="plain" style={{ fontSize: 16, margin: '0 0 12px' }}>{stage.prompt}</QuestionPrompt>}
-        <StageSource input={input} stages={workflow} />
-        <StageBody
-          stage={effectiveStage}
-          input={input}
-          content={content}
-          value={responses[stage.id]}
-          onChange={(value) => setResponse(stage.id, (readDelegateResponse[stage.kind] || ((raw) => raw))(value, { stage, input, content }))}
-          disabled={disabled}
-          draftKey={draftKey ? `${draftKey}:${stage.id}${stage.sourceStageId && ['functionGraph', 'coordinatePlot'].includes(stage.kind) ? `:${dependencyFingerprint(input.value)}` : ''}` : null}
-        />
+        {locked.has(stage.id) ? (
+          /* THE LIVE COMPONENT IS NOT RENDERED AT ALL, rather than rendered
+             disabled. Several stage components take no `disabled` prop — the
+             plotting workspace, the one that most needs locking, is one of them
+             — so a disabled flag here would have been a lock that did not lock.
+             What the student answered is shown back instead. */
+          <div className="workflow-focus__locked-body">
+            <p className="workflow-focus__locked-note" role="status">
+              This step is closed — a later step showed you the graph. Your answer is kept as you left it.
+            </p>
+            <p className="workflow-focus__locked-answer">
+              {summarizeStageResponse({ ...stage, label: getStage(stage.kind)?.label || stage.kind }, responses[stage.id])?.text
+                || 'Answered.'}
+            </p>
+          </div>
+        ) : (
+          <>
+            <StageSource input={input} stages={workflow} />
+            <StageBody
+              stage={effectiveStage}
+              input={input}
+              content={content}
+              value={responses[stage.id]}
+              onChange={(value) => setResponse(stage.id, (readDelegateResponse[stage.kind] || ((raw) => raw))(value, { stage, input, content }))}
+              disabled={disabled}
+              draftKey={draftKey ? `${draftKey}:${stage.id}${stage.sourceStageId && ['functionGraph', 'coordinatePlot'].includes(stage.kind) ? `:${dependencyFingerprint(input.value)}` : ''}` : null}
+            />
+          </>
+        )}
       </section>
     );
   };
@@ -1087,10 +1109,12 @@ export default function WorkflowRunner({
           const answered = hasStageResponse(responses[stage.id]);
           const active = index === safeActiveIndex;
           const reachable = index <= furthestReachableIndex;
+          const isLocked = locked.has(stage.id);
           const className = [
             'workflow-focus__step',
             active ? 'workflow-focus__step--active' : '',
             answered ? 'workflow-focus__step--answered' : '',
+            isLocked ? 'workflow-focus__step--locked' : '',
           ].filter(Boolean).join(' ');
           return (
             <button
@@ -1100,7 +1124,7 @@ export default function WorkflowRunner({
               data-family={stageFamily(stage.kind)}
               disabled={!reachable}
               aria-current={active ? 'step' : undefined}
-              aria-label={`Step ${index + 1}: ${definition?.label || stage.kind}${answered ? ', answered' : ''}`}
+              aria-label={`Step ${index + 1}: ${definition?.label || stage.kind}${answered ? ', answered' : ''}${isLocked ? ', closed' : ''}`}
               onClick={() => setActiveStageIndex(index)}
             >
               {answered ? <span className="workflow-focus__step-check" aria-hidden="true">✓ </span> : null}

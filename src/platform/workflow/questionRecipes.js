@@ -377,6 +377,10 @@ const FUNCTION_CHARACTERISTICS = {
     xIntercept: (question) => ({
       id: 'xIntercept',
       kind: 'graphFeatureSelect',
+      // Drawing the curve is what makes this answerable, and the curve shows
+      // both the plotted points and the function family. Those two steps close
+      // once this one is within reach.
+      reveals: ['plot', 'model'],
       prompt: question.xInterceptPrompt || 'Mark every x-intercept on the graph.',
       feature: 'xIntercept',
       graph: featureGraph(question),
@@ -386,6 +390,10 @@ const FUNCTION_CHARACTERISTICS = {
     yIntercept: (question) => ({
       id: 'yIntercept',
       kind: 'graphFeatureSelect',
+      // Drawing the curve is what makes this answerable, and the curve shows
+      // both the plotted points and the function family. Those two steps close
+      // once this one is within reach.
+      reveals: ['plot', 'model'],
       prompt: question.yInterceptPrompt || 'Mark the y-intercept on the graph.',
       feature: 'yIntercept',
       graph: featureGraph(question),
@@ -401,6 +409,10 @@ const FUNCTION_CHARACTERISTICS = {
     extremePoint: (question) => ({
       id: 'extremePoint',
       kind: 'graphFeatureSelect',
+      // Drawing the curve is what makes this answerable, and the curve shows
+      // both the plotted points and the function family. Those two steps close
+      // once this one is within reach.
+      reveals: ['plot', 'model'],
       prompt: question.extremePointPrompt || 'Mark that maximum or minimum on the graph.',
       feature: 'extremum',
       graph: featureGraph(question),

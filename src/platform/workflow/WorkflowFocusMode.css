@@ -138,6 +138,32 @@
   filter: saturate(.7);
 }
 
+.workflow-focus__locked-answer {
+  margin: 0;
+  border: 1px solid #dadce0;
+  border-radius: 10px;
+  background: #fff;
+  padding: 12px 14px;
+  color: #202124;
+  font-weight: 700;
+}
+
+.workflow-focus__locked-note {
+  margin: 0 0 12px;
+  border-radius: 8px;
+  background: #f1f3f4;
+  border-left: 3px solid #9aa0a6;
+  padding: 8px 11px;
+  color: #444746;
+  font-size: 13px;
+}
+
+/* A closed step is still a step the student can look at, so it keeps its tick
+   and its label — it just stops inviting a change. */
+.workflow-focus__step--locked:not(.workflow-focus__step--active) {
+  border-style: dashed;
+}
+
 .workflow-focus__summary {
   border: 1px solid #d6e0ee;
   border-radius: 12px;
