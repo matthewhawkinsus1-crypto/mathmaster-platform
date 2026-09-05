@@ -44,11 +44,13 @@ export default function SolverWorkspaceFrame({
   workspaceKey = '',
   workspaceKind = 'algebra',
   focusPanel = null,
+  workspaceActions = null,
   onWorkspaceModeChange = null,
 }) {
   const [mode, setMode] = useState('normal');
   const [zoom, setZoom] = useState(1);
   const [focusPanelOpen, setFocusPanelOpen] = useState(true);
+  const [helpOpen, setHelpOpen] = useState(false);
   const frameRef = useRef(null);
   const returnRef = useRef(null);
   const triggerRef = useRef(null);
@@ -64,10 +66,12 @@ export default function SolverWorkspaceFrame({
     setMode('normal');
     setZoom(1);
     setFocusPanelOpen(true);
+    setHelpOpen(false);
   }, [workspaceKey]);
 
   useEffect(() => {
     onWorkspaceModeChange?.(mode);
+    if (mode === 'normal') setHelpOpen(false);
   }, [mode, onWorkspaceModeChange]);
 
   useEffect(() => () => {
@@ -161,7 +165,7 @@ export default function SolverWorkspaceFrame({
           {isOpen && taskText ? <span title={taskText}>{taskText}</span> : null}
         </div>
 
-        <div className="solver-workspace-modebar__controls" role="group" aria-label="Solver workspace size">
+        <div className="solver-workspace-modebar__controls" role="group" aria-label="Solver workspace controls">
           <button
             type="button"
             onClick={(event) => openMode('enlarged', event)}
@@ -184,6 +188,31 @@ export default function SolverWorkspaceFrame({
           {isOpen && (
             <>
               <span className="solver-workspace-divider" aria-hidden="true" />
+
+              {workspaceActions?.undo ? (
+                <button
+                  type="button"
+                  className="solver-workspace-global-action"
+                  onClick={workspaceActions.undo.onClick}
+                  disabled={workspaceActions.undo.disabled}
+                  title={workspaceActions.undo.title}
+                >
+                  {workspaceActions.undo.label || '↶ Undo'}
+                </button>
+              ) : null}
+
+              {workspaceActions?.scratchpad ? (
+                <button
+                  type="button"
+                  className="solver-workspace-global-action"
+                  onClick={workspaceActions.scratchpad.onClick}
+                  disabled={workspaceActions.scratchpad.disabled}
+                  title={workspaceActions.scratchpad.title}
+                >
+                  {workspaceActions.scratchpad.label || '✎ Scratchpad'}
+                </button>
+              ) : null}
+
               <div className="solver-workspace-zoom" role="group" aria-label="Workspace zoom">
                 <button
                   type="button"
@@ -207,6 +236,18 @@ export default function SolverWorkspaceFrame({
                 </button>
               </div>
 
+              {workspaceActions?.help ? (
+                <button
+                  type="button"
+                  className={helpOpen ? 'solver-workspace-global-action is-active' : 'solver-workspace-global-action'}
+                  onClick={() => setHelpOpen((current) => !current)}
+                  aria-expanded={helpOpen}
+                  aria-controls="solver-workspace-help-panel"
+                >
+                  {workspaceActions.help.label || 'Help'}
+                </button>
+              ) : null}
+
               {focusPanel && mode === 'focus' ? (
                 <button
                   type="button"
@@ -215,6 +256,18 @@ export default function SolverWorkspaceFrame({
                   title={focusPanelOpen ? 'Hide work history for maximum equation space' : 'Show work history'}
                 >
                   {focusPanelOpen ? 'Hide history' : 'Show history'}
+                </button>
+              ) : null}
+
+              {workspaceActions?.submit ? (
+                <button
+                  type="button"
+                  className="solver-workspace-submit"
+                  onClick={workspaceActions.submit.onClick}
+                  disabled={workspaceActions.submit.disabled}
+                  title={workspaceActions.submit.title}
+                >
+                  {workspaceActions.submit.label || 'Submit'}
                 </button>
               ) : null}
 
@@ -230,6 +283,17 @@ export default function SolverWorkspaceFrame({
           )}
         </div>
       </div>
+
+      {isOpen && helpOpen && workspaceActions?.help?.content ? (
+        <div
+          id="solver-workspace-help-panel"
+          className="solver-workspace-help-panel"
+          role="region"
+          aria-label="Solver help"
+        >
+          {workspaceActions.help.content}
+        </div>
+      ) : null}
 
       <div className="solver-workspace-layout">
         <div className="solver-workspace-main">{children}</div>

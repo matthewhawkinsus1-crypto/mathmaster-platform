@@ -645,6 +645,7 @@ export default function QuestionEngine({
           return (
             <MultiRelationAlgebra
               {...commonModuleProps}
+              workspaceActions={workspaceActions}
               questionRecord={record}
               onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
             />
@@ -653,6 +654,7 @@ export default function QuestionEngine({
         return (
           <StepByStepAlgebra
             {...commonModuleProps}
+            workspaceActions={workspaceActions}
             questionRecord={record}
             onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
             maximumAttempts={resolvedMaximumAttempts}
@@ -665,6 +667,7 @@ export default function QuestionEngine({
         return (
           <StepByStepAlgebra
             {...commonModuleProps}
+            workspaceActions={workspaceActions}
             questionRecord={record}
             onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
             maximumAttempts={resolvedMaximumAttempts}
@@ -695,6 +698,7 @@ export default function QuestionEngine({
         return (
           <StepByStepAlgebra
             {...commonModuleProps}
+            workspaceActions={workspaceActions}
             question={literalWorkspace.question}
             questionRecord={record}
             onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
@@ -762,6 +766,52 @@ export default function QuestionEngine({
   const questionReferencePanel = referenceInfo
     ? <ReferenceInfoCard referenceInfo={referenceInfo} />
     : null;
+
+  const guidedCoachEnabled = resolvedActivityPolicy?.hintsAllowed !== false
+    && guidedNotesMode !== 'off'
+    && (guidedMode || supportPresentation.visualChunking);
+  const guidedCoach = (
+    <GuidedClassworkCoach
+      question={processedQuestion}
+      draftKey={draftKey}
+      enabled={guidedCoachEnabled}
+      mode={guidedNotesMode}
+      activeStageId={workflowGuidanceState?.currentStageId || null}
+      workflowProgress={workflowGuidanceState}
+      disabled={locked}
+    />
+  );
+  const submitLabel = submitting
+    ? 'Checking…'
+    : processedQuestion?.type === 'stepAlgebra'
+      ? 'Submit Solved Equation'
+      : record.attemptCount > 0
+        ? 'Submit Another Attempt'
+        : 'Submit Answer';
+  const workspaceActions = {
+    undo: {
+      label: '↶ Undo',
+      onClick: () => undoController?.onUndo?.(),
+      disabled: !undoController?.canUndo || locked,
+      title: undoController?.label || 'Undo the most recent response change',
+    },
+    scratchpad: {
+      label: scratchpadLoading ? 'Opening…' : '✎ Scratchpad',
+      onClick: openScratchpad,
+      disabled: scratchpadLoading,
+      title: 'Open the scratchpad without covering the solver controls',
+    },
+    help: guidedCoachEnabled ? {
+      label: 'Help',
+      content: guidedCoach,
+    } : null,
+    submit: !locked && shouldShowSubmit ? {
+      label: submitLabel,
+      onClick: handleSubmit,
+      disabled: submitDisabled,
+      title: 'Submit this completed question',
+    } : null,
+  };
 
   // UNDO BELONGS WHERE THE HANDS ARE. These lived in a centred row above the
   // tool, which meant that on any question tall enough to scroll — which is most
@@ -883,17 +933,7 @@ export default function QuestionEngine({
         workBar={questionWorkBar}
         toolWorkspace={(
       <div className="mathmaster-question-tool-workspace" style={{ position: 'relative' }}>
-        {!solverWorkspaceActive && (
-          <GuidedClassworkCoach
-            question={processedQuestion}
-            draftKey={draftKey}
-            enabled={resolvedActivityPolicy?.hintsAllowed !== false && guidedNotesMode !== 'off' && (guidedMode || supportPresentation.visualChunking)}
-            mode={guidedNotesMode}
-            activeStageId={workflowGuidanceState?.currentStageId || null}
-            workflowProgress={workflowGuidanceState}
-            disabled={locked}
-          />
-        )}
+        {!solverWorkspaceActive && guidedCoach}
         <fieldset disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <div aria-disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting ? 'true' : undefined} inert={locked || scaffoldRequired || contextScaffoldRequired || submitting ? '' : undefined} style={{ pointerEvents: locked || scaffoldRequired || contextScaffoldRequired || submitting ? 'none' : 'auto', opacity: locked ? 0.72 : scaffoldRequired || contextScaffoldRequired ? 0.5 : 1 }}>
             <QuestionModuleBoundary
@@ -955,7 +995,7 @@ export default function QuestionEngine({
         )}
         actionButtons={!locked && shouldShowSubmit ? (
         <button onClick={handleSubmit} disabled={submitDisabled} style={{ minHeight: '44px', padding: '12px 24px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: submitDisabled ? '#dadce0' : '#1a73e8', color: 'white', cursor: submitDisabled ? 'not-allowed' : 'pointer', boxShadow: submitDisabled ? 'none' : '0 4px 6px rgba(26, 115, 232, 0.2)' }}>
-          {submitting ? 'Checking…' : processedQuestion?.type === 'stepAlgebra' ? 'Submit Solved Equation' : record.attemptCount > 0 ? 'Submit Another Attempt' : 'Submit Answer'}
+          {submitLabel}
         </button>
         ) : null}
       />

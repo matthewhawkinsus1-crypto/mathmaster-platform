@@ -57,6 +57,7 @@ export default function StepByStepAlgebra(props) {
       workspaceKey={workspaceKey}
       workspaceKind="balance"
       focusPanel={focusPanel}
+      workspaceActions={props.workspaceActions}
       onWorkspaceModeChange={props.onWorkspaceModeChange}
     >
       <StepByStepAlgebraCore {...props} onStateChange={handleStateChange} />

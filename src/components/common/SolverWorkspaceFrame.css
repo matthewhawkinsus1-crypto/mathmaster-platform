@@ -1,6 +1,7 @@
 /* Shared full-screen algebra workspace.
-   The question engine itself becomes the overlay so task text, Guided Notes,
-   tries, Undo and the existing Scratchpad remain part of the same live UI. */
+   The mounted solver becomes the workspace while assignment-only chrome is
+   suppressed. Global work actions move into the compact top bar so they never
+   cover equation inputs near the bottom of the solving surface. */
 body.mathmaster-solver-workspace-open::before {
   content: '';
   position: fixed;
@@ -93,7 +94,7 @@ body.mathmaster-solver-workspace-open::before {
   justify-content: flex-end;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .solver-workspace-modebar button {
@@ -124,10 +125,36 @@ body.mathmaster-solver-workspace-open::before {
   opacity: .45;
 }
 
-.solver-workspace-return {
+.solver-workspace-submit {
   border-color: #174ea6 !important;
   background: #174ea6 !important;
   color: #fff !important;
+  box-shadow: 0 3px 9px rgba(23, 78, 166, .18);
+}
+
+.solver-workspace-return {
+  border-color: #8aa5cf !important;
+  background: #fff !important;
+  color: #174ea6 !important;
+}
+
+.solver-workspace-global-action {
+  white-space: nowrap;
+}
+
+.solver-workspace-help-panel {
+  position: sticky;
+  top: 58px;
+  z-index: 75;
+  max-height: min(38vh, 320px);
+  margin: -4px 0 10px;
+  padding: 10px 12px;
+  overflow: auto;
+  border: 1px solid #c8d5ea;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(31, 73, 125, .12);
+  text-align: left;
 }
 
 .solver-workspace-divider {
@@ -308,6 +335,16 @@ body.mathmaster-solver-workspace-open::before {
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
   font-size: 13px;
   line-height: 1.45;
+}
+
+@media (max-width: 1180px) {
+  .solver-workspace-modebar {
+    align-items: flex-start;
+  }
+
+  .solver-workspace-modebar__controls {
+    flex-wrap: wrap;
+  }
 }
 
 @media (max-width: 1020px) {
