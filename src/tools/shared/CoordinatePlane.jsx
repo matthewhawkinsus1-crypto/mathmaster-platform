@@ -80,6 +80,25 @@ export default function CoordinatePlane({
   // question genuinely lives between the gridlines.
   snapStep = 1,
   cursorLabel = 'Point',
+  // COORDINATE READOUT — ON BY DEFAULT, OFF WHERE READING THE PLANE IS THE ANSWER.
+  //
+  // Normally the plane tells a student what they are aiming at, because landing
+  // accurately on (3, -2) is the task and a misread axis is not what is being
+  // assessed. But a question that asks a student to CLICK the x-intercept and
+  // then WRITE it as an ordered pair is assessing exactly that reading, and a
+  // chip printing "(4, 0)" the moment they touch it answers the second half for
+  // them.
+  //
+  // Set false there. Gridlines, axis numbers and the crosshair all STAY —
+  // counting gridlines is the skill, and hiding the grid would not make the
+  // question harder, only unanswerable. What goes is the numeric readout.
+  //
+  // The screen-reader announcement is deliberately NOT suppressed. It is not a
+  // hint, it is the only rendering of the plane a blind student has, and taking
+  // it away makes the question impossible rather than harder. A sighted student
+  // reads position off the axes; a screen-reader student reads it off the live
+  // region. Both are reading the plane.
+  revealCoordinates = true,
   ariaLabel = 'Coordinate plane',
   // EVERY PLANE CAN BE OPENED FULL WINDOW.
   //
@@ -452,11 +471,11 @@ export default function CoordinatePlane({
     if (!preview) return null;
     const cx = sx(preview[0]);
     const cy = sy(preview[1]);
-    const chipWidth = Math.max(58, previewText.length * 7.2);
+    const chipWidth = revealCoordinates ? Math.max(58, previewText.length * 7.2) : 0;
     const left = cx + 12 + chipWidth > width - 4 ? cx - 12 - chipWidth : cx + 12;
     const top = cy - 30 < 4 ? cy + 14 : cy - 30;
     return { cx, cy, left, top, chipWidth };
-  }, [preview, previewText, width, xMin, xMax, yMin, yMax]);
+  }, [preview, previewText, revealCoordinates, width, xMin, xMax, yMin, yMax]);
 
   const plane = (
     <div style={{ position: 'relative', width: '100%' }}>
@@ -585,8 +604,12 @@ export default function CoordinatePlane({
             <line x1={pad} x2={width - pad} y1={chip.cy} y2={chip.cy} stroke="#1a73e8" strokeDasharray="4 4" strokeWidth="1.5" opacity="0.55" />
             <circle cx={chip.cx} cy={chip.cy} r="9" fill="#1a73e8" opacity="0.16" />
             <circle cx={chip.cx} cy={chip.cy} r="5" fill="none" stroke="#1a73e8" strokeWidth="2.5" />
-            <rect x={chip.left} y={chip.top} width={chip.chipWidth} height="22" rx="7" fill="#174ea6" />
-            <text x={chip.left + chip.chipWidth / 2} y={chip.top + 15} textAnchor="middle" fontSize="12" fontWeight="700" fill="#fff">{formatCoordinate(preview)}</text>
+            {revealCoordinates ? (
+              <>
+                <rect x={chip.left} y={chip.top} width={chip.chipWidth} height="22" rx="7" fill="#174ea6" />
+                <text x={chip.left + chip.chipWidth / 2} y={chip.top + 15} textAnchor="middle" fontSize="12" fontWeight="700" fill="#fff">{formatCoordinate(preview)}</text>
+              </>
+            ) : null}
           </g>
         ) : null}
 
@@ -605,7 +628,7 @@ export default function CoordinatePlane({
               {hovered || held ? <circle cx={sx(pointX)} cy={sy(pointY)} r={pointRadius + (held ? 10 : 6)} fill={pointFill} opacity={held ? 0.26 : 0.18} /> : null}
               <circle cx={sx(pointX)} cy={sy(pointY)} r={hovered || held ? pointRadius + 2 : pointRadius} fill={pointFill} stroke="#fff" strokeWidth="2" />
               {point?.label ? <text x={sx(pointX) + 10} y={sy(pointY) - 9} fontSize="11" fontWeight="700" fill="#24324a">{point.label}</text> : null}
-              {hovered ? <text x={sx(pointX) + 10} y={sy(pointY) + 16} fontSize="11" fill="#24324a">{formatCoordinate(point)}</text> : null}
+              {hovered && revealCoordinates ? <text x={sx(pointX) + 10} y={sy(pointY) + 16} fontSize="11" fill="#24324a">{formatCoordinate(point)}</text> : null}
             </g>
           );
         })}

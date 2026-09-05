@@ -9,6 +9,7 @@ import GraphDisplay from '../../GraphDisplay';
 import StepByStepAlgebra from '../../StepByStepAlgebra';
 import IntervalNumberLine from '../../tools/intervalNumberLine/IntervalNumberLine';
 import AxisSetupStage from './AxisSetupStage';
+import GraphFeatureSelectStage from './GraphFeatureSelectStage';
 import RelationMapping from '../../tools/relationMapping/RelationMapping';
 import { getStage } from './interactionStages';
 import { hasStageResponse, readComposedQuestion, resolveStageInput, summarizeWorkflowProgress } from './questionWorkflow';
@@ -120,6 +121,64 @@ function StageSource({ input, stages }) {
       Built from your answer to <strong>{label}</strong>
       {typeof input.value === 'string' && input.value ? <> — <MathDisplay value={input.value} inline /></> : null}
     </p>
+  );
+}
+
+/*
+ * STATING A FEATURE'S COORDINATES — or that it has none.
+ *
+ * The pair is typed rather than pointed at, because this stage is the half of
+ * the work that asks whether the student can READ the plane. Its partner stage
+ * `graphFeatureSelect` asks whether they can find the feature at all.
+ *
+ * "Does not exist" is a stored token rather than free text, so a student who
+ * writes "DNE", "none" or "n/a" is not marked on their phrasing. Nothing here
+ * accepts a typed spelling of it: the button is the only route, which keeps
+ * grading exact.
+ */
+export const POINT_INPUT_NONE = '__none__';
+
+function PointInputStage({ stage, value, onChange, disabled }) {
+  const none = value === POINT_INPUT_NONE;
+  const allowNone = stage?.allowNone !== false;
+  const pointCount = Math.max(1, Number(stage?.pointCount) || 1);
+  const noneLabel = stage?.noneLabel || 'Does not exist';
+  return (
+    <div>
+      {/* Swapped out rather than disabled: MathInput has no disabled state, so
+          leaving it mounted behind the toggle would let a student type a pair
+          that the answer no longer includes. */}
+      {none ? (
+        <p style={{ margin: 0, padding: '10px 12px', borderRadius: 8, background: '#f1f3f4', fontWeight: 700 }}>
+          {noneLabel}
+        </p>
+      ) : (
+        <MathInput
+          value={value || ''}
+          onChange={(next) => onChange(next)}
+          toolProfile="orderedPair"
+          showToolsInitially
+          placeholder={stage?.placeholder || (pointCount > 1 ? '(x, y), (x, y)' : '(x, y)')}
+          ariaLabel={stage?.prompt || 'Coordinates'}
+        />
+      )}
+      {pointCount > 1 && !none ? (
+        <p style={{ margin: '6px 0 0', fontSize: 13, color: '#5f6b7a' }}>
+          There are {pointCount}. Separate them with a comma between the pairs.
+        </p>
+      ) : null}
+      {allowNone ? (
+        <button
+          type="button"
+          disabled={disabled}
+          aria-pressed={none}
+          onClick={() => onChange(none ? '' : POINT_INPUT_NONE)}
+          style={{ ...choiceChip(none), marginTop: 10 }}
+        >
+          {noneLabel}
+        </button>
+      ) : null}
+    </div>
   );
 }
 
@@ -319,6 +378,26 @@ const toolAction = (onChange) => (actionType, payload) => {
 
 // Stages that delegate to an existing component. Each adapter builds the
 // sub-question that component expects; nothing here reimplements a renderer.
+/*
+ * Does the plotting surface print what the student is aiming at?
+ *
+ * Normally yes: a student told to plot (3, -2) is marked on placing it, not on
+ * reading it back, and the readout stops a slip of the finger costing a point.
+ * A question that LATER asks them to write a coordinate turns it off, because
+ * by then reading the plane is the thing being assessed.
+ *
+ * NOTE FOR AUTHORS: InteractiveGraphWorkspace forces the readout back on when
+ * the grid is drawn coarser than one unit, since a value you cannot count to is
+ * a value you cannot read. Suppressing coordinates on a grid stepped by 2 does
+ * nothing at all.
+ */
+const coordinateReadout = (stage, content) => (
+  stage?.showCoordinates
+  ?? stage?.graph?.showCoordinates
+  ?? content?.graph?.showCoordinates
+  ?? true
+);
+
 const DELEGATES = {
   tableInput: ({ stage, input, content, onChange, draftKey }) => {
     const xValues = Array.isArray(stage.xValues) ? stage.xValues : [];
@@ -426,7 +505,7 @@ const DELEGATES = {
           pointTasks,
           magneticSnapTargets,
           functionSpec: { type: 'expression', expression: '0', variable: 'x', referencePoints: pairs },
-          showCoordinates: true,
+          showCoordinates: coordinateReadout(stage, content),
           requireEndpointMarkers: false,
         }}
         mode="construct"
@@ -501,7 +580,7 @@ const DELEGATES = {
           equationLatex: sourceModel || undefined,
           graphAnswer: points.length ? { suggestedPoints: points } : undefined,
           magneticSnapTargets,
-          showCoordinates: true,
+          showCoordinates: coordinateReadout(stage, content),
           studentChoosesX: false,
           pointOnly,
           plotMode: pointOnly ? 'points' : undefined,
@@ -576,6 +655,18 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey 
           ariaLabel={stage.prompt || 'Interval notation'}
         />
       );
+    case 'graphFeatureSelect':
+      return (
+        <GraphFeatureSelectStage
+          stage={stage}
+          sourceGraph={stage.graph || content?.graph || null}
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+        />
+      );
+    case 'pointInput':
+      return <PointInputStage stage={stage} value={value} onChange={onChange} disabled={disabled} />;
     case 'classification':
     case 'multipleChoice':
       return <ChoiceStage stage={stage} value={value} onChange={onChange} disabled={disabled} />;

@@ -6,6 +6,9 @@ export const shouldUseWorkflowFocusMode = (stages = []) => (
 
 const asText = (value) => String(value ?? '').trim();
 
+// Kept in step with PointInputStage: the stored token for "does not exist".
+const POINT_INPUT_NONE = '__none__';
+
 const quantityLabel = (stage, id) => {
   const quantities = Array.isArray(stage?.quantities) ? stage.quantities : [];
   return quantities.find((entry) => entry?.id === id)?.label || id || '';
@@ -58,6 +61,27 @@ export const summarizeStageResponse = (stage, response) => {
     return response.isComplete
       ? { label, text: 'Graph completed', kind: 'text' }
       : null;
+  }
+
+  // WHAT WAS MARKED, NEVER WHERE.
+  //
+  // The summary strip sits on screen while later stages are answered, and a
+  // question of this shape asks the student to mark the x-intercepts and then,
+  // several steps on, to WRITE them. Printing "(-1, 0), (5, 0)" here would hand
+  // over the later answer just as surely as a readout on the plane would.
+  if (stage?.kind === 'graphFeatureSelect' && response && typeof response === 'object') {
+    if (response.none === true) return { label, text: 'Marked: none on this graph', kind: 'text' };
+    const marked = Array.isArray(response.selections) ? response.selections.length : 0;
+    if (!marked) return null;
+    return { label, text: `${marked} marked on the graph`, kind: 'text' };
+  }
+
+  // The student's own typed answer, already committed, so it shows in full.
+  if (stage?.kind === 'pointInput') {
+    if (response === POINT_INPUT_NONE) {
+      return { label, text: stage?.noneLabel || 'Does not exist', kind: 'text' };
+    }
+    return asText(response) ? { label, text: asText(response), kind: 'text' } : null;
   }
 
   if (['classification', 'multipleChoice'].includes(stage?.kind)) {

@@ -17,7 +17,7 @@
 //
 // Pure: no React, no Firestore, no clock.
 
-import { compareMathAnswer, looksLikeFiniteSetNotation, normalizeMathAnswer } from '../../answerUtils.js';
+import { compareMathAnswer, looksLikeFiniteSetNotation, normalizeMathAnswer, parseOrderedPair } from '../../answerUtils.js';
 import { isAlgebraicallyEquivalent } from '../../grading/equivalence.js';
 import { hasStageResponse } from './questionWorkflow.js';
 import { canonicalizeFunctionExpression, evaluateModelAt, evaluateNumericValue, toEvaluableExpression } from './modelExpression.js';
@@ -264,6 +264,108 @@ const gradeTableValues = (response, values) => {
  * Mark one stage. Returns `graded: false` whenever this module has no basis for
  * a verdict, so the caller can tell "not checked" from "checked and wrong".
  */
+
+/*
+ * FEATURE STAGES: marking a feature on a graph, and stating where it is.
+ *
+ * Both answer the same shape of question — a set of points, or the claim that
+ * there are none — so both grade through here. Three rules:
+ *
+ *   Order never matters. A quadratic's two x-intercepts are a set; a student
+ *   who names them right-to-left has named them.
+ *
+ *   "None" is an answer, not a blank. Saying an exponential has no x-intercept
+ *   is CORRECT, and saying it when there is one is WRONG. Treating either as
+ *   unanswered would silently drop the stage from the score.
+ *
+ *   Partial credit is per point, so finding one of two intercepts is worth
+ *   more than finding neither.
+ */
+export const POINT_INPUT_NONE_TOKEN = '__none__';
+
+const normalizeFeaturePoint = (point) => {
+  const x = Array.isArray(point) ? Number(point[0]) : Number(point?.x);
+  const y = Array.isArray(point) ? Number(point[1]) : Number(point?.y);
+  return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
+};
+
+/** Every ordered pair in a typed answer: "(1, 0), (4, 0)" is two points. */
+export const parsePointList = (value) => {
+  const text = normalizeMathAnswer(value);
+  if (!text) return [];
+  const groups = text.match(/\(([^()]*)\)/g);
+  if (groups && groups.length) {
+    return groups.map((group) => parseOrderedPair(group)).filter(Boolean);
+  }
+  const single = parseOrderedPair(text);
+  return single ? [single] : [];
+};
+
+/** What the student claimed, from either stage's response shape. */
+const readFeatureResponse = (response) => {
+  if (isWorkflowArtifact(response, 'featureSelection')) {
+    return {
+      none: response.none === true,
+      points: list(response.selections).map(normalizeFeaturePoint).filter(Boolean),
+    };
+  }
+  if (typeof response === 'string') {
+    if (response.trim() === POINT_INPUT_NONE_TOKEN) return { none: true, points: [] };
+    return { none: false, points: parsePointList(response) };
+  }
+  return { none: false, points: [] };
+};
+
+const samePoint = (a, b, tolerance) => (
+  Math.abs(a[0] - b[0]) <= tolerance && Math.abs(a[1] - b[1]) <= tolerance
+);
+
+export const gradeFeaturePoints = (response, rule) => {
+  const tolerance = Number.isFinite(Number(rule?.tolerance)) && Number(rule.tolerance) >= 0
+    ? Number(rule.tolerance)
+    : 0.5;
+  const expectedNone = rule?.none === true;
+  const expected = list(rule?.points).map(normalizeFeaturePoint).filter(Boolean);
+  const claimed = readFeatureResponse(response);
+
+  if (expectedNone) {
+    return claimed.none
+      ? { graded: true, isCorrect: true, credit: 1, detail: 'Correct — this graph has none.' }
+      : { graded: true, isCorrect: false, credit: 0, detail: 'This graph does not have one.' };
+  }
+  if (!expected.length) {
+    return { graded: false, isCorrect: false, credit: 0, detail: 'Reviewed by your teacher.' };
+  }
+  if (claimed.none) {
+    return { graded: true, isCorrect: false, credit: 0, detail: 'This graph does have one.' };
+  }
+
+  // Each expected point may be claimed once, so naming the same intercept twice
+  // does not score as having found both.
+  const used = new Set();
+  let matched = 0;
+  claimed.points.forEach((point) => {
+    const at = expected.findIndex((target, index) => !used.has(index) && samePoint(point, target, tolerance));
+    if (at >= 0) { used.add(at); matched += 1; }
+  });
+
+  const extra = Math.max(0, claimed.points.length - matched);
+  // A student who marks everything must not score for the ones that happen to
+  // land right, so wrong marks cancel matches rather than being ignored.
+  const net = Math.max(0, matched - extra);
+  const isCorrect = matched === expected.length && extra === 0;
+  return {
+    graded: true,
+    isCorrect,
+    credit: expected.length ? net / expected.length : 0,
+    detail: isCorrect
+      ? 'Correct.'
+      : (extra
+        ? `${matched} of ${expected.length} correct, with ${extra} that ${extra === 1 ? 'is' : 'are'} not there.`
+        : `${matched} of ${expected.length} correct.`),
+  };
+};
+
 export const gradeStage = ({ stage, rule, responses = {} }) => {
   const response = responses[stage.id];
   const answered = hasStageResponse(response);
@@ -280,6 +382,24 @@ export const gradeStage = ({ stage, rule, responses = {} }) => {
   }
   if (!answered) {
     return { ...base, graded: true, isCorrect: false, credit: 0, detail: 'Not answered.' };
+  }
+
+  // A graph workspace grades itself: it knows which points were asked for and
+  // which were placed, and its verdict is finer than anything reconstructable
+  // from the response here. `consistentWith` is not required — a plot built
+  // from an AUTHORED list of pairs has no upstream stage to be consistent with,
+  // but its verdict is just as good.
+  if (isObject(rule) && rule.useStageVerdict && !rule.consistentWith && isWorkflowArtifact(response, 'graph')) {
+    const credit = Number.isFinite(Number(response.partialCreditPercent))
+      ? Math.max(0, Math.min(1, Number(response.partialCreditPercent) / 100))
+      : (response.isCorrect === true ? 1 : 0);
+    return {
+      ...base,
+      graded: true,
+      isCorrect: response.isCorrect === true,
+      credit,
+      detail: response.isCorrect ? 'Every point is plotted correctly.' : 'Some points are not where the table puts them.',
+    };
   }
 
   if (isObject(rule) && rule.consistentWith) {
@@ -326,6 +446,9 @@ export const gradeStage = ({ stage, rule, responses = {} }) => {
     };
   }
 
+  if (['graphFeatureSelect', 'pointInput'].includes(stage.kind) && isObject(rule)) {
+    return { ...base, ...gradeFeaturePoints(response, rule) };
+  }
   if (isObject(rule) && Array.isArray(rule.pairs)) return { ...base, ...gradePairs(response, rule.pairs) };
   if (isObject(rule) && Array.isArray(rule.set)) return { ...base, ...gradeSet(response, rule.set) };
   if (isObject(rule) && rule.values) return { ...base, ...gradeTableValues(responsePayload(response), rule.values) };

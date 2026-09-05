@@ -82,6 +82,49 @@ export const INTERACTION_STAGES = Object.freeze(Object.fromEntries([
     consumes: [STAGE_OUTPUT.EQUATION, STAGE_OUTPUT.TABLE],
     fields: { prompt: 'string', graph: 'object', graphMode: 'string', continuityStageId: 'string' },
   }),
+  stage('graphFeatureSelect', {
+    label: 'Locate the feature',
+    studentAction: 'Marks where a named feature of a graph is, or states that the graph has none.',
+    // A DISTINCT MATHEMATICAL ACT, not a second flavour of plotting.
+    //
+    // `coordinatePlot` gives the student the coordinates and asks them to place
+    // them: the work is in the placing. This gives the student a graph and a
+    // FEATURE NAME and asks where it is: the work is in the locating. A student
+    // who can plot (4, 0) accurately may still not know which point on their
+    // parabola is the y-intercept, and that gap is the whole reason this exists.
+    //
+    // It produces POINTS, so a later stage can be driven by what the student
+    // marked rather than by the answer key.
+    produces: STAGE_OUTPUT.POINTS,
+    consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.EQUATION],
+    fields: {
+      prompt: 'string',
+      graph: 'object',
+      feature: 'string',
+      selectionCount: 'number',
+      // "This graph has no x-intercept" must be a first-class ANSWER, not a
+      // dead end. An exponential has no x-intercept and a line has no maximum;
+      // without this the tool forces a wrong click on a correct student.
+      allowNone: 'boolean',
+      noneLabel: 'string',
+    },
+  }),
+  stage('pointInput', {
+    label: 'State the coordinates',
+    studentAction: 'Writes the location of a feature as an ordered pair, or states that it does not exist.',
+    // Separate from `graphFeatureSelect` on purpose: pointing at the vertex and
+    // reading off that it sits at (2, 9) are two different skills, and a
+    // question that asks for both should mark them separately.
+    produces: STAGE_OUTPUT.POINTS,
+    consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.EQUATION],
+    fields: {
+      prompt: 'string',
+      pointCount: 'number',
+      allowNone: 'boolean',
+      noneLabel: 'string',
+      placeholder: 'string',
+    },
+  }),
   stage('mappingDiagram', {
     label: 'Build the mapping diagram',
     studentAction: 'Draws the arrows from each input to its output.',

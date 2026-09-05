@@ -238,9 +238,257 @@ const RELATION_REPRESENTATIONS = {
   },
 };
 
+
+// --- Function characteristics (the public type `graphAnalysis`) --------------
+//
+// One graph, read end to end: plot the table, decide what kind of function it
+// is, find its intercepts and its extreme value, say where they are, and state
+// the domain and range.
+//
+// WHY THIS IS ONE QUESTION AND NOT SEVEN. Each step is a different skill and
+// deserves its own mark, which is what stages give. But they are not seven
+// questions, because every one of them is about the SAME graph — and the graph
+// is the student's own. Split into separate questions, each would have to
+// either re-draw the graph for the student (handing them the first step) or
+// make them plot it again.
+//
+// WHY "CONNECT THE POINTS" IS NOT A STEP. Drawing a curve through plotted
+// points and naming the function family are the same act: you cannot connect
+// them correctly without knowing which family it is. `model` asks for the
+// family and the graph follows from it, which also means a wrong choice is
+// visible — the curve misses the plotted points.
+//
+// WHY FINDING AND STATING ARE SEPARATE. Pointing at the vertex and reading off
+// that it sits at (2, 9) are different skills. A student who can see the
+// maximum but miscounts the gridlines has made one mistake, not two, and the
+// split is what lets them be told which one.
+//
+// AUTHORING CONSTRAINTS, because these make the question unfair when missed:
+//   - The extreme point must be IN the table, or the student is asked to click
+//     a point they were never given. Derivation below refuses to guess it.
+//   - Intercepts should be lattice points, or "click the x-intercept" has no
+//     honest tolerance.
+//   - Algebra I does not use interval notation, so domain and range default to
+//     inequalities here rather than to intervals.
+
+const FAMILY_CHOICES = ['Linear', 'Quadratic', 'Exponential'];
+const EXTREME_CHOICES = ['Maximum', 'Minimum', 'Neither'];
+
+const featureGraph = (question) => ({
+  ...(isObject(question.graph) ? question.graph : { xMin: -10, xMax: 10, yMin: -10, yMax: 10 }),
+  points: normalizedPairs(question.pairs),
+  ...(typeof question.correctEquation === 'string' && question.correctEquation.trim()
+    ? { model: question.correctEquation.trim() }
+    : {}),
+});
+
+/**
+ * The turning point among the table's own points — or null.
+ *
+ * Refuses to answer when the extreme y sits at either end of the table, because
+ * an endpoint is not a turning point: it is only the largest value SAMPLED, and
+ * keying on it would mark a correct student wrong. An author whose vertex is
+ * off the table must state `extreme.point` themselves.
+ */
+const turningPointFromTable = (pairs, kind) => {
+  if (pairs.length < 3) return null;
+  const ordered = [...pairs].sort((a, b) => a[0] - b[0]);
+  const wantMax = kind === 'maximum';
+  let bestIndex = 0;
+  ordered.forEach(([, y], index) => {
+    const [, best] = ordered[bestIndex];
+    if (wantMax ? y > best : y < best) bestIndex = index;
+  });
+  if (bestIndex === 0 || bestIndex === ordered.length - 1) return null;
+  return ordered[bestIndex];
+};
+
+const extremeKindOf = (question) => String(question?.extreme?.kind || '').toLowerCase();
+
+/*
+ * The intercept and extreme keys, derived ONCE.
+ *
+ * Both the stage builders and the grading rules read these, because they have
+ * to agree: a quadratic whose key holds two x-intercepts while the stage lets
+ * the student mark only one is unanswerable, and that is exactly the bug this
+ * shared derivation exists to make impossible.
+ *
+ * Each returns null when nothing is certain, which leaves the stage unkeyed and
+ * reported as "reviewed by your teacher" rather than marked against a guess.
+ */
+const xInterceptRule = (question) => {
+  const authored = normalizedPairs(question.xIntercepts);
+  if (authored.length) return { points: authored };
+  if (question.xIntercepts === 'none' || question.hasNoXIntercept === true) return { none: true };
+  // A table with no zero does NOT prove there is no x-intercept — the curve can
+  // cross between two sampled points — so this stays unkeyed unless the author
+  // says so. Only zeros actually present in the table are certain.
+  const zeros = normalizedPairs(question.pairs).filter(([, y]) => y === 0);
+  return zeros.length ? { points: zeros } : null;
+};
+
+const yInterceptRule = (question) => {
+  const authored = normalizedPairs([question.yIntercept]);
+  if (authored.length) return { points: authored };
+  if (question.yIntercept === 'none' || question.hasNoYIntercept === true) return { none: true };
+  // A table point at x = 0 IS the y-intercept, by definition rather than by
+  // inference, so this one is always safe when the table has it.
+  const atZero = normalizedPairs(question.pairs).filter(([x]) => x === 0);
+  return atZero.length ? { points: atZero } : null;
+};
+
+const extremeRule = (question) => {
+  const kind = extremeKindOf(question);
+  if (!kind) return null;
+  if (kind === 'neither') return { none: true };
+  const authored = normalizedPairs([question.extreme?.point]);
+  if (authored.length) return { points: authored };
+  const turning = turningPointFromTable(normalizedPairs(question.pairs), kind);
+  return turning ? { points: [turning] } : null;
+};
+
+/** How many marks the student is allowed, from the key itself. */
+const markCount = (rule) => Math.max(1, list(rule?.points).length || 1);
+
+const FUNCTION_CHARACTERISTICS = {
+  label: 'Analyze a function graph',
+  publicType: 'graphAnalysis',
+  defaultAsk: [
+    'plot', 'model',
+    'xIntercept', 'yIntercept', 'extremeKind', 'extremePoint',
+    'xInterceptValue', 'yInterceptValue', 'extremeValue',
+    'domain', 'range',
+  ],
+  stages: {
+    plot: (question) => ({
+      id: 'plot',
+      kind: 'coordinatePlot',
+      prompt: question.plotPrompt || 'Plot the points from the table.',
+      pairs: normalizedPairs(question.pairs),
+      ...(isObject(question.graph) ? { graph: question.graph } : {}),
+    }),
+    model: (question, asked) => ({
+      id: 'model',
+      kind: 'classification',
+      prompt: question.modelPrompt || 'What kind of function do these points make?',
+      choices: list(question.familyChoices).length ? list(question.familyChoices) : FAMILY_CHOICES,
+      ...(asked.has('plot') ? { source: { fromStage: 'plot' } } : {}),
+    }),
+    xIntercept: (question) => ({
+      id: 'xIntercept',
+      kind: 'graphFeatureSelect',
+      prompt: question.xInterceptPrompt || 'Mark every x-intercept on the graph.',
+      feature: 'xIntercept',
+      graph: featureGraph(question),
+      selectionCount: markCount(xInterceptRule(question)),
+      allowNone: true,
+    }),
+    yIntercept: (question) => ({
+      id: 'yIntercept',
+      kind: 'graphFeatureSelect',
+      prompt: question.yInterceptPrompt || 'Mark the y-intercept on the graph.',
+      feature: 'yIntercept',
+      graph: featureGraph(question),
+      selectionCount: 1,
+      allowNone: true,
+    }),
+    extremeKind: (question) => ({
+      id: 'extremeKind',
+      kind: 'classification',
+      prompt: question.extremeKindPrompt || 'Does this graph have an extreme maximum, an extreme minimum, or neither?',
+      choices: list(question.extremeChoices).length ? list(question.extremeChoices) : EXTREME_CHOICES,
+    }),
+    extremePoint: (question) => ({
+      id: 'extremePoint',
+      kind: 'graphFeatureSelect',
+      prompt: question.extremePointPrompt || 'Mark that maximum or minimum on the graph.',
+      feature: 'extremum',
+      graph: featureGraph(question),
+      selectionCount: 1,
+      allowNone: true,
+      noneLabel: 'This graph has neither',
+    }),
+    xInterceptValue: (question) => ({
+      id: 'xInterceptValue',
+      kind: 'pointInput',
+      prompt: question.xInterceptValuePrompt || 'Write the x-intercept(s) as ordered pairs.',
+      pointCount: markCount(xInterceptRule(question)),
+      allowNone: true,
+    }),
+    yInterceptValue: (question) => ({
+      id: 'yInterceptValue',
+      kind: 'pointInput',
+      prompt: question.yInterceptValuePrompt || 'Write the y-intercept as an ordered pair.',
+      pointCount: 1,
+      allowNone: true,
+    }),
+    extremeValue: (question) => ({
+      id: 'extremeValue',
+      kind: 'pointInput',
+      prompt: question.extremeValuePrompt || 'Write the location of the maximum or minimum, or say it does not exist.',
+      pointCount: 1,
+      allowNone: true,
+    }),
+    domain: (question) => ({
+      id: 'domain',
+      kind: 'domainInput',
+      prompt: question.domainPrompt || 'State the domain.',
+      notation: question.notation || 'inequality',
+      ...(list(question.domainChoices).length ? { choices: list(question.domainChoices) } : {}),
+    }),
+    range: (question) => ({
+      id: 'range',
+      kind: 'rangeInput',
+      prompt: question.rangePrompt || 'State the range.',
+      notation: question.notation || 'inequality',
+      ...(list(question.rangeChoices).length ? { choices: list(question.rangeChoices) } : {}),
+    }),
+  },
+  // Derived only where the authored fields make it certain. Everything else is
+  // left unkeyed, which reports as "reviewed by your teacher" rather than
+  // marking a correct student wrong against a guess.
+  grading: (question, asked) => {
+    const pairs = normalizedPairs(question.pairs);
+    const rules = {};
+
+    // The plotting surface marks itself: it was given the exact points to ask
+    // for, so it knows which ones landed. Comparing a graph artifact with a
+    // list of pairs here would just be a worse version of the same check.
+    if (asked.has('plot') && pairs.length) rules.plot = { useStageVerdict: true };
+    if (asked.has('model') && question.functionFamily) rules.model = String(question.functionFamily);
+
+    const xRule = xInterceptRule(question);
+    if (xRule) {
+      if (asked.has('xIntercept')) rules.xIntercept = xRule;
+      if (asked.has('xInterceptValue')) rules.xInterceptValue = xRule;
+    }
+
+    const yRule = yInterceptRule(question);
+    if (yRule) {
+      if (asked.has('yIntercept')) rules.yIntercept = yRule;
+      if (asked.has('yInterceptValue')) rules.yInterceptValue = yRule;
+    }
+
+    const kind = extremeKindOf(question);
+    if (asked.has('extremeKind') && kind) {
+      rules.extremeKind = kind === 'maximum' ? 'Maximum' : kind === 'minimum' ? 'Minimum' : 'Neither';
+    }
+    const extreme = extremeRule(question);
+    if (extreme) {
+      if (asked.has('extremePoint')) rules.extremePoint = extreme;
+      if (asked.has('extremeValue')) rules.extremeValue = extreme;
+    }
+
+    if (asked.has('domain') && question.correctDomain) rules.domain = question.correctDomain;
+    if (asked.has('range') && question.correctRange) rules.range = question.correctRange;
+    return rules;
+  },
+};
+
 export const RECIPES = Object.freeze({
   functionModeling: Object.freeze(FUNCTION_MODELING),
   relationRepresentations: Object.freeze(RELATION_REPRESENTATIONS),
+  functionCharacteristics: Object.freeze(FUNCTION_CHARACTERISTICS),
 });
 
 export const RECIPE_NAMES = Object.freeze(Object.keys(RECIPES));
@@ -249,6 +497,7 @@ export const RECIPE_NAMES = Object.freeze(Object.keys(RECIPES));
 const RECIPE_FOR_TYPE = Object.freeze({
   relationshipModel: 'functionModeling',
   relationMapping: 'relationRepresentations',
+  graphAnalysis: 'functionCharacteristics',
 });
 
 export const getRecipe = (name) => RECIPES[name] || null;
