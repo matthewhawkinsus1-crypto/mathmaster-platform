@@ -1,0 +1,1 @@
+feat: move solver actions into workspace toolbar
