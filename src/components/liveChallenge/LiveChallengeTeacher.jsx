@@ -136,7 +136,7 @@ export function Leaderboard({ rows = [], limit = 12, projector = false }) {
           <strong style={{ textAlign: 'center' }}>#{row.rank}</strong>
           <span style={{ fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.alias}</span>
           <span style={{ color: '#5f6368' }}>{row.correctCount} ✓</span>
-          <strong>{row.score.toLocaleString()}</strong>
+          <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{(row.liveScore ?? row.score).toLocaleString()}</strong>
         </div>
       ))}
     </div>
@@ -263,7 +263,8 @@ export default function LiveChallengeTeacher({
   }, [roomId]);
 
   const coverageRows = useMemo(() => summarizeCoverage(coverage || {}, { onlyGaps: false }).filter((row) => row.studentReady), [coverage]);
-  const leaderboard = useMemo(() => publicLeaderboard(players), [players]);
+  const activeRound = room?.status === 'running' ? Number(room.currentRound) : null;
+  const leaderboard = useMemo(() => publicLeaderboard(players, { activeRound }), [players, activeRound]);
 
   // The report is written once when the room closes, so this reads it once
   // rather than holding a listener on a document that will not move again.

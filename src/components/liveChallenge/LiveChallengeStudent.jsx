@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import QuestionEngine from '../../QuestionEngine.jsx';
 import MathText from '../common/MathText.jsx';
-import { publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
+import { publicLeaderboard, LIVE_PROVISIONAL_MAX_POINTS } from '../../../functions/shared/liveChallenge.mjs';
+import { calculateStepPartialCredit, emptyQuestionRecord, recordQuestionStep } from '../../attemptPolicy.js';
 import { questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
 import {
   joinLiveChallenge,
+  reportLiveChallengeProgress,
   submitLiveChallengeResponse,
   timestampMillis,
   watchLiveChallengePlayers,
@@ -21,6 +23,8 @@ function useNow(active = true) {
   return now;
 }
 
+const clampPercent = (value) => Math.max(0, Math.min(100, Number(value) || 0));
+
 const formatClock = (milliseconds) => {
   const total = Math.max(0, Math.ceil(milliseconds / 1000));
   const minutes = Math.floor(total / 60);
@@ -28,13 +32,81 @@ const formatClock = (milliseconds) => {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 };
 
-function MiniLeaderboard({ rows = [], playerKey }) {
+/*
+ * A BOARD THAT MOVES WHILE PEOPLE ARE STILL WORKING.
+ *
+ * Two things make it feel live rather than merely correct. Rows are keyed by
+ * player and positioned by transform, so React reuses the same node when the
+ * order changes and the row slides instead of blinking into a new place. And
+ * the number counts up to its target rather than snapping, so a jump of 400
+ * points reads as a surge instead of a repaint.
+ *
+ * Points still being earned are shown separately from points already banked,
+ * because they are not the same promise: one is decided, one is in progress.
+ */
+const ROW_HEIGHT = 44;
+
+function useCountUp(target, durationMs = 420) {
+  const [shown, setShown] = useState(target);
+  const fromRef = useRef(target);
+  useEffect(() => {
+    const from = fromRef.current;
+    if (from === target) return undefined;
+    let raf = 0;
+    const started = performance.now();
+    const tick = (nowTs) => {
+      const t = Math.min(1, (nowTs - started) / durationMs);
+      // Ease out, so the number decelerates into place instead of stopping dead.
+      const eased = 1 - ((1 - t) ** 3);
+      setShown(Math.round(from + ((target - from) * eased)));
+      if (t < 1) raf = requestAnimationFrame(tick);
+      else fromRef.current = target;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, durationMs]);
+  useEffect(() => { fromRef.current = shown; }, [shown]);
+  return shown;
+}
+
+function LeaderRow({ row, index, isSelf }) {
+  const shown = useCountUp(row.liveScore ?? row.score);
+  const working = Number(row.provisionalPoints) || 0;
   return (
-    <div style={{ display: 'grid', gap: 7 }}>
-      {rows.slice(0, 5).map((row) => (
-        <div key={row.playerKey || row.alias} style={{ display: 'grid', gridTemplateColumns: '34px minmax(0,1fr) auto', gap: 8, alignItems: 'center', padding: '8px 10px', borderRadius: 9, background: row.playerKey === playerKey ? '#e8f0fe' : '#f8f9fa', border: row.playerKey === playerKey ? '2px solid #1a73e8' : '1px solid #e1e5ea' }}>
-          <strong>#{row.rank}</strong><span style={{ fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.alias}</span><strong>{row.score.toLocaleString()}</strong>
-        </div>
+    <div
+      style={{
+        position: 'absolute',
+        insetInline: 0,
+        transform: `translateY(${index * ROW_HEIGHT}px)`,
+        transition: 'transform .38s cubic-bezier(.2,.8,.2,1), background .3s',
+        display: 'grid',
+        gridTemplateColumns: '34px minmax(0,1fr) auto',
+        gap: 8,
+        alignItems: 'center',
+        padding: '8px 10px',
+        height: ROW_HEIGHT - 8,
+        boxSizing: 'border-box',
+        borderRadius: 9,
+        background: isSelf ? '#e8f0fe' : working > 0 ? '#fff7e0' : '#f8f9fa',
+        border: isSelf ? '2px solid #1a73e8' : working > 0 ? '1px solid #f9ab00' : '1px solid #e1e5ea',
+      }}
+    >
+      <strong>#{row.rank}</strong>
+      <span style={{ fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {row.alias}
+        {working > 0 && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 900, color: '#7a4f00' }}>working…</span>}
+      </span>
+      <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{shown.toLocaleString()}</strong>
+    </div>
+  );
+}
+
+function MiniLeaderboard({ rows = [], playerKey }) {
+  const visible = rows.slice(0, 5);
+  return (
+    <div style={{ position: 'relative', height: Math.max(1, visible.length) * ROW_HEIGHT }}>
+      {visible.map((row, index) => (
+        <LeaderRow key={row.playerKey || row.alias} row={row} index={index} isSelf={row.playerKey === playerKey} />
       ))}
     </div>
   );
@@ -108,6 +180,7 @@ export function ChallengeRound({
   studentProfile,
   onResult,
   submitResponse = submitLiveChallengeResponse,
+  reportProgress = reportLiveChallengeProgress,
   showLeaderboard = true,
   beforeQuestion = null,
 }) {
@@ -119,6 +192,16 @@ export function ChallengeRound({
   const expired = endsAtMs > 0 && remainingMs <= 0;
   const [result, setResult] = useState(null);
   const [submitError, setSubmitError] = useState('');
+  // The solver already grades each step and already de-duplicates a step that
+  // is undone and redone (attemptPolicy's stepCreditVersion 2). Holding the
+  // same record shape here means the running total inherits that integrity
+  // instead of re-deriving it and getting it subtly wrong.
+  const [stepRecord, setStepRecord] = useState(() => emptyQuestionRecord());
+  const stepRecordRef = useRef(stepRecord);
+  const workingPoints = useMemo(
+    () => Math.round((LIVE_PROVISIONAL_MAX_POINTS * clampPercent(calculateStepPartialCredit(stepRecord.stepGrades, stepRecord.variantIndex))) / 100),
+    [stepRecord],
+  );
   const secureQuestion = useMemo(
     () => questionFromToolPayload(question),
     // The round's instance id is the reset boundary for the real math tool.
@@ -126,7 +209,36 @@ export function ChallengeRound({
     [question?.questionInstanceId, question?.pathToolId],
   );
 
-  useEffect(() => { setResult(null); setSubmitError(''); }, [roundIndex, question?.questionInstanceId]);
+  useEffect(() => {
+    setResult(null);
+    setSubmitError('');
+    const fresh = emptyQuestionRecord();
+    stepRecordRef.current = fresh;
+    setStepRecord(fresh);
+  }, [roundIndex, question?.questionInstanceId]);
+
+  /*
+   * PUBLISHING THE RUNNING TOTAL, ON A LEASH.
+   *
+   * One write per second at most, and only when the number actually changed, so
+   * a student clicking quickly does not turn into a write per click. The write
+   * lands on that student's own player document, so twenty-four students are
+   * twenty-four documents rather than one contended one.
+   *
+   * Failures are swallowed on purpose. This is decoration on a leaderboard; a
+   * dropped report costs a moment of staleness, and surfacing an error for it
+   * mid-round would interrupt a student who is answering correctly.
+   */
+  const reportedRef = useRef(-1);
+  useEffect(() => {
+    if (result || expired || !room?.roomId) return undefined;
+    if (workingPoints === reportedRef.current) return undefined;
+    const timer = window.setTimeout(() => {
+      reportedRef.current = workingPoints;
+      Promise.resolve(reportProgress({ roomId: room.roomId, roundIndex, provisionalPoints: workingPoints })).catch(() => {});
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [workingPoints, result, expired, room?.roomId, roundIndex, reportProgress]);
 
   const submit = async (responsePayload) => {
     if (result || expired) return null;
@@ -177,6 +289,19 @@ export function ChallengeRound({
               pathToolId: question.pathToolId,
               submit: async (rawWork) => submit({ raw: rawWork }),
             }}
+            onStepGrade={async ({ stepGrade, countsAttempt, statePatch, supportUsage = null }) => {
+              const outcome = recordQuestionStep({
+                record: stepRecordRef.current,
+                stepGrade,
+                countsAttempt,
+                statePatch,
+                supportUsage,
+                maximumAttempts: 1,
+              });
+              stepRecordRef.current = outcome.record;
+              setStepRecord(outcome.record);
+              return outcome.result;
+            }}
             onGrade={() => null}
           />
         </section>
@@ -213,7 +338,7 @@ export function ChallengeRound({
 
       {showLeaderboard && (
         <section style={{ padding: 16, borderRadius: 12, background: '#fff', border: '1px solid #d8dde6', textAlign: 'left' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}><strong>Top 5</strong>{currentSelf && <span style={{ color: '#5f6368', fontSize: 13 }}>You: #{currentSelf.rank} · {currentSelf.score.toLocaleString()}</span>}</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}><strong>Top 5</strong>{currentSelf && <span style={{ color: '#5f6368', fontSize: 13 }}>You: #{currentSelf.rank} · {(currentSelf.liveScore ?? currentSelf.score).toLocaleString()}</span>}</div>
           <MiniLeaderboard rows={leaderboard} playerKey={playerKey} />
         </section>
       )}
@@ -241,7 +366,11 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
     return watchLiveChallengePlayers(roomId, setPlayers, (watchError) => setError(watchError?.message || 'Could not load Live Challenge standings.'));
   }, [roomId]);
 
-  const leaderboard = useMemo(() => publicLeaderboard(players), [players]);
+  // Ranking on liveScore is what makes the board move while people are still
+  // working. Outside a running round activeRound is null and this is exactly
+  // the old banked-score board.
+  const activeRound = room?.status === 'running' ? Number(room.currentRound) : null;
+  const leaderboard = useMemo(() => publicLeaderboard(players, { activeRound }), [players, activeRound]);
 
   // Opening the challenge is the student's join action. No code to type and no
   // second account identity to reconcile with the class roster.

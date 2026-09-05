@@ -268,6 +268,8 @@ export default function ChallengeDryRun({ courseId, standardCode, roundCount, ro
       leaderboard={[]}
       studentProfile={{}}
       submitResponse={submitResponse}
+      // No room, no players, nobody to tell. A rehearsal publishes nothing.
+      reportProgress={async () => ({ recorded: false })}
       showLeaderboard={false}
       beforeQuestion={controls}
     />
