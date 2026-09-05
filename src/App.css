@@ -1844,3 +1844,15 @@
   font-weight: 600;
   opacity: 0.85;
 }
+
+/* Live Challenge — the last ten seconds of a round.
+   Guarded so a viewer who has asked for less motion gets a still clock rather
+   than a pulsing one; the colour shift already carries the urgency. */
+@keyframes challengePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [style*="challengePulse"] { animation: none !important; }
+}

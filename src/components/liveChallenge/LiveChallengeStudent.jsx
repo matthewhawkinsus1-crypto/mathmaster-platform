@@ -190,6 +190,7 @@ export function ChallengeRound({
   const endsAtMs = timestampMillis(room.roundEndsAt);
   const remainingMs = Math.max(0, endsAtMs - now);
   const expired = endsAtMs > 0 && remainingMs <= 0;
+  const urgent = !expired && remainingMs <= 10000;
   const [result, setResult] = useState(null);
   const [submitError, setSubmitError] = useState('');
   // The solver already grades each step and already de-duplicates a step that
@@ -268,9 +269,67 @@ export function ChallengeRound({
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       {beforeQuestion}
-      <section style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap', padding: '14px 17px', borderRadius: 12, background: remainingMs <= 10000 ? '#fce8e6' : '#e8f0fe', color: remainingMs <= 10000 ? '#a50e0e' : '#174ea6' }}>
-        <div><strong>Round {roundIndex + 1} of {room.roundCount}</strong><div style={{ marginTop: 3, fontSize: 13 }}>{question?.teksCode || 'Mixed review'} · {alias}</div></div>
-        <div style={{ fontSize: 32, fontWeight: 1000 }}>{formatClock(remainingMs)}</div>
+      {/* THE GAME BAR. An assignment tells you what to do; a game tells you where
+          you stand. Round pips, an alias badge, the clock as the loudest thing on
+          the screen, and — while a solver is banking partial credit — the points
+          you have earned this round ticking up. The bar goes dark as the timer
+          drops so the room feels the last ten seconds without being told. */}
+      <section
+        style={{
+          display: 'grid',
+          gap: 10,
+          padding: '14px 17px',
+          borderRadius: 14,
+          background: urgent ? 'linear-gradient(135deg,#7f1d1d,#a50e0e)' : 'linear-gradient(135deg,#174ea6,#1a73e8)',
+          color: '#fff',
+          transition: 'background .5s',
+          boxShadow: '0 2px 10px rgba(23,78,166,.25)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,.18)', fontWeight: 900, fontSize: 13 }}>{alias}</span>
+            <span style={{ fontWeight: 900, fontSize: 15 }}>Round {roundIndex + 1} of {room.roundCount}</span>
+            <span style={{ opacity: .82, fontSize: 13 }}>{question?.teksCode || 'Mixed review'}</span>
+          </div>
+          <div
+            aria-label={`${Math.ceil(remainingMs / 1000)} seconds left`}
+            style={{
+              fontSize: 40,
+              fontWeight: 1000,
+              lineHeight: 1,
+              fontVariantNumeric: 'tabular-nums',
+              // A pulse only in the last ten seconds, and only if the viewer has
+              // not asked for less motion.
+              animation: urgent ? 'challengePulse .9s ease-in-out infinite' : 'none',
+            }}
+          >
+            {formatClock(remainingMs)}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 5 }} aria-hidden="true">
+          {Array.from({ length: Math.max(1, Number(room.roundCount) || 1) }).map((_, pip) => (
+            <span
+              key={pip}
+              style={{
+                flex: 1,
+                height: 5,
+                borderRadius: 999,
+                background: pip < roundIndex ? 'rgba(255,255,255,.85)' : pip === roundIndex ? '#fdd663' : 'rgba(255,255,255,.25)',
+                transition: 'background .3s',
+              }}
+            />
+          ))}
+        </div>
+
+        {workingPoints > 0 && !result && (
+          <div aria-live="polite" style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontWeight: 900 }}>
+            <span style={{ fontSize: 13, opacity: .85 }}>Points banked this round</span>
+            <span style={{ fontSize: 22, fontVariantNumeric: 'tabular-nums', color: '#fdd663' }}>+{workingPoints.toLocaleString()}</span>
+            <span style={{ fontSize: 12, opacity: .8 }}>keep going — every correct step adds more</span>
+          </div>
+        )}
       </section>
 
       {secureQuestion ? (

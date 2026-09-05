@@ -26,7 +26,7 @@ test('a teacher can reach the dry run from the create-a-challenge panel', () => 
 test('the dry run rehearses the settings the teacher is about to launch', () => {
   // A rehearsal of a different course, standard or clock would be worse than
   // none: it would answer a question the teacher did not ask.
-  for (const prop of ['courseId', 'standardCode', 'roundCount', 'roundSeconds']) {
+  for (const prop of ['courseId', 'standardCode', 'questionStyle', 'roundCount', 'roundSeconds']) {
     assert.match(
       teacher,
       new RegExp(`<ChallengeDryRun[\\s\\S]{0,400}${prop}=\\{${prop}\\}`),
@@ -36,9 +36,11 @@ test('the dry run rehearses the settings the teacher is about to launch', () => 
 });
 
 test('changing any of those settings closes a stale rehearsal', () => {
+  // Every setting the rehearsal was built from, question style included: a
+  // dry run of a different draw than the one about to launch is worse than none.
   assert.match(
     teacher,
-    /useEffect\(\(\) => \{ setDryRunOpen\(false\); \}, \[classId, courseId, standardCode, roundCount, roundSeconds\]\)/,
+    /useEffect\(\(\) => \{ setDryRunOpen\(false\); \}, \[classId, courseId, standardCode, questionStyle, roundCount, roundSeconds\]\)/,
   );
 });
 

@@ -212,6 +212,9 @@ export default function LiveChallengeTeacher({
   const [courseId, setCourseId] = useState(selectedClass?.course || courseProfiles?.[classPeriod]?.course || 'algebra1');
   const [coverage, setCoverage] = useState(null);
   const [standardCode, setStandardCode] = useState('mixed');
+  // Roughly three quarters of the bank is typed or chosen answers, so leaving
+  // this to chance means a game almost never contains a solver or a graph.
+  const [questionStyle, setQuestionStyle] = useState('any');
   const [roundCount, setRoundCount] = useState(10);
   const [roundSeconds, setRoundSeconds] = useState(45);
   const [title, setTitle] = useState('');
@@ -238,7 +241,7 @@ export default function LiveChallengeTeacher({
     setStandardCode('mixed');
   }, [classId, classPeriod, selectedClass, courseProfiles]);
 
-  useEffect(() => { setDryRunOpen(false); }, [classId, courseId, standardCode, roundCount, roundSeconds]);
+  useEffect(() => { setDryRunOpen(false); }, [classId, courseId, standardCode, questionStyle, roundCount, roundSeconds]);
 
   useEffect(() => {
     let alive = true;
@@ -323,6 +326,7 @@ export default function LiveChallengeTeacher({
         classPeriod,
         courseId,
         standardCode,
+        questionStyle,
         roundCount,
         roundSeconds,
         assignmentId: warmupAssignmentId || null,
@@ -344,13 +348,14 @@ export default function LiveChallengeTeacher({
           <div>
             <h2 style={{ margin: 0 }}>Live Challenge dry run</h2>
             <p style={{ color: '#5f6368', maxWidth: 820, lineHeight: 1.55 }}>
-              {courseLabel(courseId)} · {standardCode === 'mixed' ? 'Mixed review' : standardCode} · {roundCount} rounds · {roundSeconds}s each.
+              {courseLabel(courseId)} · {standardCode === 'mixed' ? 'Mixed review' : standardCode} · {questionStyle === 'tools' ? 'Interactive tools only' : questionStyle === 'noTools' ? 'Typed and chosen answers only' : 'Any question'} · {roundCount} rounds · {roundSeconds}s each.
               Closing this throws the rehearsal away; creating the lobby draws a fresh set of questions.
             </p>
           </div>
           <ChallengeDryRun
             courseId={courseId}
             standardCode={standardCode}
+            questionStyle={questionStyle}
             roundCount={roundCount}
             roundSeconds={roundSeconds}
             title={title.trim() || `${selectedClass?.name || classPeriod || 'Class'} Live Challenge`}
@@ -403,6 +408,19 @@ export default function LiveChallengeTeacher({
                   <option value="mixed">Mixed review — {courseLabel(courseId)}</option>
                   {coverageRows.map((row) => <option key={row.displayCode} value={row.displayCode}>{row.displayCode} · {row.issuableCount} usable families</option>)}
                 </select>
+              </label>
+              <label style={{ fontWeight: 800 }}>Question style
+                <select value={questionStyle} onChange={(event) => setQuestionStyle(event.target.value)} style={{ display: 'block', width: '100%', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid #b7bec8' }}>
+                  <option value="any">Any question</option>
+                  <option value="tools">Interactive tools only</option>
+                  <option value="noTools">Typed and chosen answers only</option>
+                </select>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 13, color: '#5f6368' }}>
+                  Interactive rounds put students in the real solver, coordinate plane, number line or
+                  systems workspace, and partial credit builds as they work — which is what makes the
+                  leaderboard move mid-round. Most of the bank is typed answers, so a narrow skill set
+                  plus tools only may not fill a long game; the dry run will tell you before a class does.
+                </span>
               </label>
               <label style={{ fontWeight: 800 }}>Rounds
                 <select value={roundCount} onChange={(event) => setRoundCount(Number(event.target.value))} style={{ display: 'block', width: '100%', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid #b7bec8' }}>

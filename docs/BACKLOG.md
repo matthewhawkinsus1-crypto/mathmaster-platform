@@ -183,6 +183,31 @@ already believe.
 - **Handicap scoring** against each student's own baseline, so the student who
   improved most can win
 
+### ~~Live Challenge: question style, live board, game surface~~ — shipped
+
+**Status:** shipped
+
+**Question style** on the create panel — Any / Interactive tools only / Typed
+and chosen answers only — filters candidates on the server before selection, so
+every draw honours it including a dry-run swap. About three quarters of the bank
+has no tool, so a narrow skill set plus tools only may not fill a long game; the
+shortage message names the style rather than reporting a baffling count against
+a bank of 800.
+
+**The board moves mid-round.** A player publishes a running total — what their
+step credit is worth so far — to their OWN public player document, at most once
+a second and only when it changes. That is not the hot document: Firestore's
+sustained write limit is per document, so twenty-four students are twenty-four
+documents. It is display only, clamped, never written to `score`, and dropped
+the instant the round is answered. `publicLeaderboard` takes `activeRound` as an
+opt-in defaulting to off, so the report, the export and the final standings rank
+on banked score without each caller having to remember.
+
+**Still open:** tool depth in the bank. stepAlgebra has one Algebra I question
+and none in Algebra II, so "interactive tools only" leans hard on
+systemsWorkspace, dataModelingLab and functionInvestigation. Authoring is the
+next constraint, not code.
+
 ### ~~Teacher dry run before launching~~ — shipped
 **Status:** shipped
 

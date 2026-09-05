@@ -203,6 +203,39 @@ export const planSecondChanceRounds = ({
  * would cost a round trip per click and still be gameable by whoever wrote the
  * step.
  */
+/*
+ * WHAT KIND OF QUESTION A GAME SHOULD DRAW.
+ *
+ * Roughly three quarters of the bank is typed or chosen answers, so a random
+ * ten-round draw is almost always ten of those. That is a fine game, but it is
+ * not the game a teacher means when they say they want students plotting points
+ * or working a solver — and no amount of shuffling makes a rare thing common.
+ *
+ * So the style is a choice rather than a hope. It is applied to candidates
+ * before selection, which means a game that cannot be filled says so at create
+ * time instead of quietly serving the wrong kind of round.
+ */
+export const CHALLENGE_QUESTION_STYLES = ['any', 'tools', 'noTools'];
+
+export const canonicalQuestionStyle = (value) => {
+  const style = String(value ?? '').trim();
+  return CHALLENGE_QUESTION_STYLES.includes(style) ? style : 'any';
+};
+
+// Bank records spell the tool three different ways depending on their vintage.
+export const pathToolIdOf = (question) => {
+  const id = question?.pathToolId || question?.toolId || question?.tool?.id || '';
+  const trimmed = String(id).trim();
+  return trimmed || null;
+};
+
+export const matchesQuestionStyle = (question, style) => {
+  const normalized = canonicalQuestionStyle(style);
+  if (normalized === 'any') return true;
+  const hasTool = pathToolIdOf(question) !== null;
+  return normalized === 'tools' ? hasTool : !hasTool;
+};
+
 export const LIVE_PROVISIONAL_MAX_POINTS = 1000;
 
 export const provisionalPointsFor = (player, activeRound = null) => {
