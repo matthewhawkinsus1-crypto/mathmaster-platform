@@ -514,6 +514,7 @@ export default function MultiRelationAlgebra({
   questionRecord = null,
   disabled = false,
   draftKey = null,
+  denseWorkspace = false,
 }) {
   const pristine = useMemo(() => {
     const source = relationSourceFromQuestion(question);
@@ -1868,6 +1869,7 @@ export default function MultiRelationAlgebra({
 
       {absoluteSplitOpen && (
         <div
+          className={`multi-relation-absolute-split${denseWorkspace ? ' multi-relation-absolute-split--dense' : ''}`}
           style={{
             display: 'flex',
             gap: 7,
@@ -1907,6 +1909,7 @@ export default function MultiRelationAlgebra({
             && absoluteSplitModel.studentAuthorsBranchValues
             && absoluteSplitStructure === 'or' && (
             <div
+              className={`multi-relation-absolute-split-fields${denseWorkspace ? ' multi-relation-absolute-split-fields--dense' : ''}`}
               style={{
                 width: '100%',
                 display: 'grid',
@@ -1916,16 +1919,19 @@ export default function MultiRelationAlgebra({
                 borderTop: '1px solid #d7e2f3',
               }}
             >
-              <div style={{ color: '#5f6368', fontSize: 11.5, lineHeight: 1.4 }}>
+              <div className="multi-relation-absolute-split-instructions" style={{ color: '#5f6368', fontSize: 11.5, lineHeight: 1.4 }}>
                 Type the right side of both equations. The platform will not create the positive/negative pair for you.
               </div>
 
               {absoluteSplitValues.map((value, index) => (
                 <div
                   key={index}
+                  className="multi-relation-absolute-split-branch"
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'minmax(120px, auto) minmax(160px, 1fr)',
+                    gridTemplateColumns: denseWorkspace
+                      ? 'minmax(88px, auto) minmax(0, 1fr)'
+                      : 'minmax(120px, auto) minmax(160px, 1fr)',
                     gap: 10,
                     alignItems: 'center',
                   }}
@@ -1965,7 +1971,7 @@ export default function MultiRelationAlgebra({
                 </div>
               ))}
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
+              <div className="multi-relation-absolute-split-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={() => {
@@ -2003,19 +2009,27 @@ export default function MultiRelationAlgebra({
           {relationState.special === 'noSolution' ? 'No solution' : 'All real numbers'}
         </div>
       ) : (
-        <div style={{ display: 'grid', gap: 10 }}>
+        <div
+          className={`multi-relation-branches${denseWorkspace && relationState.branches.length > 1 ? ' multi-relation-branches--dense' : ''}`}
+          style={{ display: 'grid', gap: 10 }}
+        >
+          {denseWorkspace && relationState.branches.length > 1 && relationState.connective === 'OR' && (
+            <div className="multi-relation-dense-connective" aria-label="Branches are connected by OR">OR</div>
+          )}
+          {denseWorkspace && relationState.branches.length > 1 && operationDock}
+
           {relationState.branches.map((branch, branchIndex) => (
-            <div key={branchIndex}>
-              {branchIndex > 0 && relationState.connective === 'OR' && (
+            <div key={branchIndex} className="multi-relation-branch-slot">
+              {!denseWorkspace && branchIndex > 0 && relationState.connective === 'OR' && (
                 <div style={{ textAlign: 'center', fontWeight: 900, color: '#5f6368', marginBottom: 4 }}>
                   OR
                 </div>
               )}
 
-              {branchIndex === 1 && relationState.branches.length > 1 && operationDock}
+              {!denseWorkspace && branchIndex === 1 && relationState.branches.length > 1 && operationDock}
 
               <div
-                className={`multi-relation-branch ${activeBranch === branchIndex ? 'is-active' : ''}`}
+                className={`multi-relation-branch${denseWorkspace ? ' multi-relation-branch--dense' : ''} ${activeBranch === branchIndex ? 'is-active' : ''}`}
                 onClick={() => setActiveBranch(branchIndex)}
                 style={{
                   width: '100%',
@@ -2258,8 +2272,13 @@ export default function MultiRelationAlgebra({
               </div>
 
               {relationState.branches.length > 1 && (
-                <div style={{ textAlign: 'center', fontSize: 11, color: activeBranch === branchIndex ? '#174ea6' : '#6b7280', marginTop: 3 }}>
-                  Branch {branchLabel(branchIndex)}{activeBranch === branchIndex ? ' · active' : ' · click to work here'}
+                <div
+                  className={`multi-relation-branch-status${denseWorkspace ? ' multi-relation-branch-status--dense' : ''}`}
+                  style={{ textAlign: 'center', fontSize: 11, color: activeBranch === branchIndex ? '#174ea6' : '#6b7280', marginTop: 3 }}
+                >
+                  {denseWorkspace
+                    ? <>Branch {branchLabel(branchIndex)}{activeBranch === branchIndex ? ' · active' : ''}</>
+                    : <>Branch {branchLabel(branchIndex)}{activeBranch === branchIndex ? ' · active' : ' · click to work here'}</>}
                 </div>
               )}
             </div>
