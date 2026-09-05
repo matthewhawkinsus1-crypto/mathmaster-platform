@@ -13,6 +13,14 @@ import {
 import { getStoredAssignmentQuestions } from '../../platform/contract/storedAssignmentV5.js';
 import { resolveQuestionActivityRole } from '../../platform/policies/activityPolicies.js';
 import { buildWalkthroughMonitor, WALKTHROUGH_STATUS } from '../../platform/teacher/walkthroughMonitor.js';
+import {
+  LIVE_ATTENDANCE_MARK,
+  attendanceByStudentForDay,
+  attendanceIsAbsent,
+  buildLiveAttendanceEvent,
+  localAttendanceDateKey,
+  normalizeLiveAttendance,
+} from '../../platform/teacher/liveAttendance.js';
 import { studentsInClass } from '../../../functions/shared/classModel.mjs';
 import { suggestMovesForClass } from '../../platform/teacher/liveCoaching.js';
 import {
@@ -56,6 +64,14 @@ const WALKTHROUGH_STYLE = {
   [WALKTHROUGH_STATUS.AHEAD]: { border: '#188038', background: '#e6f4ea', color: '#137333', label: 'Ahead' },
   [WALKTHROUGH_STATUS.DONE]: { border: '#188038', background: '#e6f4ea', color: '#137333', label: 'Completed' },
   [WALKTHROUGH_STATUS.ELSEWHERE]: { border: '#9aa0a6', background: '#f8f9fa', color: '#5f6368', label: 'Elsewhere' },
+};
+
+const ATTENDANCE_LABEL = {
+  [LIVE_ATTENDANCE_MARK.PRESENT]: 'Present',
+  [LIVE_ATTENDANCE_MARK.LATE]: 'Late',
+  [LIVE_ATTENDANCE_MARK.ABSENT]: 'Absent',
+  excused: 'Absent',
+  unexcused: 'Absent',
 };
 
 function ProgressStrip({ questionStates, questionIndex }) {
@@ -221,11 +237,15 @@ function withClassworkStates(roster, selectedAssignment, progressPositions) {
 
 function WalkthroughCard({ row, onChecked, onOpenStudent }) {
   const style = WALKTHROUGH_STYLE[row.status] || WALKTHROUGH_STYLE[WALKTHROUGH_STATUS.ELSEWHERE];
+  const attendanceMark = normalizeLiveAttendance(row.attendance).mark;
   return (
     <div style={{ padding: '12px 14px', borderRadius: 12, border: `2px solid ${style.border}`, background: style.background, display: 'grid', gap: 7 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <strong style={{ color: '#202124' }}>{row.name}</strong>
-        <span style={{ fontSize: 11, fontWeight: 900, color: style.color }}>{style.label}</span>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {attendanceMark === LIVE_ATTENDANCE_MARK.LATE && <span style={{ fontSize: 10.5, fontWeight: 900, color: '#7a4f00', background: '#fff4ce', borderRadius: 999, padding: '2px 6px' }}>Late arrival</span>}
+          <span style={{ fontSize: 11, fontWeight: 900, color: style.color }}>{style.label}</span>
+        </div>
       </div>
       <div style={{ fontSize: 12.5, fontWeight: 800, color: style.color }}>{row.reason}</div>
       {row.live?.assignmentId && (
@@ -240,6 +260,52 @@ function WalkthroughCard({ row, onChecked, onOpenStudent }) {
         {row.status === WALKTHROUGH_STATUS.NEEDS_CHECK && !row.checked && (
           <button type="button" onClick={() => onChecked(row.id)} style={{ ...smallButtonStyle, borderColor: '#188038', background: '#e6f4ea', color: '#137333' }}>Checked</button>
         )}
+      </div>
+    </div>
+  );
+}
+
+function AttendancePanel({ roster, attendanceByStudentId, onMark, busyStudentId = null }) {
+  const sorted = [...roster].sort((a, b) => String(a?.displayName || a?.name || a?.id || '').localeCompare(String(b?.displayName || b?.name || b?.id || '')));
+  return (
+    <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '1px solid #c9ced6', background: '#f8f9fa' }}>
+      <div style={{ fontWeight: 900, color: '#202124' }}>Today&apos;s Live Attendance</div>
+      <div style={{ marginTop: 3, marginBottom: 10, fontSize: 12, color: '#5f6368' }}>
+        Absent students are removed from live monitoring for today only. Mark Present or Late if a student arrives; their saved assignment work is never changed.
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 7 }}>
+        {sorted.map((student) => {
+          const id = String(student?.id || student?.studentId || '');
+          const name = student?.displayName || student?.name || student?.studentName || id;
+          const mark = normalizeLiveAttendance(attendanceByStudentId[id]).mark || LIVE_ATTENDANCE_MARK.PRESENT;
+          const busy = busyStudentId === id;
+          return (
+            <div key={id} style={{ background: '#fff', border: '1px solid #e0e3e7', borderRadius: 9, padding: '8px 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <div>
+                <strong style={{ fontSize: 12.5 }}>{name}</strong>
+                <div style={{ fontSize: 10.5, color: attendanceIsAbsent(mark) ? '#b3261e' : mark === LIVE_ATTENDANCE_MARK.LATE ? '#7a4f00' : '#137333', fontWeight: 900 }}>{ATTENDANCE_LABEL[mark] || 'Present'}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {[
+                  [LIVE_ATTENDANCE_MARK.PRESENT, 'Present'],
+                  [LIVE_ATTENDANCE_MARK.LATE, 'Late'],
+                  [LIVE_ATTENDANCE_MARK.ABSENT, 'Absent'],
+                ].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onMark(student, value)}
+                    aria-pressed={mark === value || (value === LIVE_ATTENDANCE_MARK.ABSENT && attendanceIsAbsent(mark))}
+                    style={{ ...smallButtonStyle, padding: '4px 6px', background: mark === value || (value === LIVE_ATTENDANCE_MARK.ABSENT && attendanceIsAbsent(mark)) ? '#e8f0fe' : '#fff', borderColor: mark === value || (value === LIVE_ATTENDANCE_MARK.ABSENT && attendanceIsAbsent(mark)) ? '#1a73e8' : '#dadce0', opacity: busy ? 0.55 : 1 }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -271,6 +337,9 @@ export default function LiveClassMonitor({
   const [teacherQuestionIndex, setTeacherQuestionIndex] = useState(0);
   const [walkthroughFilter, setWalkthroughFilter] = useState('needsCheck');
   const [checkedStudentIds, setCheckedStudentIds] = useState([]);
+  const [showAttendance, setShowAttendance] = useState(false);
+  const [attendanceOverrides, setAttendanceOverrides] = useState({});
+  const [attendanceBusyStudentId, setAttendanceBusyStudentId] = useState(null);
 
   const roster = useMemo(() => {
     if (activeClassId) return studentsInClass({ students, classes, classId: activeClassId });
@@ -279,18 +348,37 @@ export default function LiveClassMonitor({
 
   const selectedAssignment = useMemo(() => assignments.find((assignment) => String(assignment.id) === String(assignmentId)) || null, [assignments, assignmentId]);
   const selectedClasswork = useMemo(() => classworkModel(selectedAssignment), [selectedAssignment]);
-  const walkthroughRoster = useMemo(() => withClassworkStates(roster, selectedAssignment, selectedClasswork.progressPositions), [roster, selectedAssignment, selectedClasswork]);
+  const attendanceDateKey = useMemo(() => localAttendanceDateKey(nowValue), [nowValue]);
+  const activeClassRecord = useMemo(() => (
+    activeClassId ? classes.find((entry) => String(entry?.classId || '') === String(activeClassId)) || null : null
+  ), [activeClassId, classes]);
+  const attendanceClassPeriod = activeClassRecord?.period || (classPeriod !== 'all' ? classPeriod : null);
+
+  const eventAttendance = useMemo(() => attendanceByStudentForDay({
+    supportEvents,
+    classId: activeClassId || null,
+    classPeriod: activeClassId ? null : attendanceClassPeriod,
+    dateKey: attendanceDateKey,
+  }), [supportEvents, activeClassId, attendanceClassPeriod, attendanceDateKey]);
 
   const effectiveAttendance = useMemo(() => {
-    const result = { ...(attendanceByStudentId || {}) };
+    const result = {};
     roster.forEach((student) => {
       const id = String(student?.id || student?.studentId || '');
-      if (!id || result[id]) return;
+      if (!id) return;
       const embedded = student?.attendanceToday || student?.currentAttendance || null;
       if (embedded) result[id] = embedded;
     });
+    Object.assign(result, attendanceByStudentId || {}, eventAttendance, attendanceOverrides);
     return result;
-  }, [attendanceByStudentId, roster]);
+  }, [attendanceByStudentId, attendanceOverrides, eventAttendance, roster]);
+
+  const monitoredRoster = useMemo(() => roster.filter((student) => {
+    const id = String(student?.id || student?.studentId || '');
+    return !attendanceIsAbsent(effectiveAttendance[id]);
+  }), [roster, effectiveAttendance]);
+
+  const walkthroughRoster = useMemo(() => withClassworkStates(monitoredRoster, selectedAssignment, selectedClasswork.progressPositions), [monitoredRoster, selectedAssignment, selectedClasswork]);
 
   const walkthrough = useMemo(() => buildWalkthroughMonitor({
     students: walkthroughRoster,
@@ -301,11 +389,12 @@ export default function LiveClassMonitor({
     nowValue,
   }), [walkthroughRoster, selectedAssignment, teacherQuestionIndex, checkedStudentIds, effectiveAttendance, nowValue]);
 
-  const { rows, classStats, counts } = useMemo(() => summarizeLiveClass(roster, {
+  const { rows, classStats, counts } = useMemo(() => summarizeLiveClass(monitoredRoster, {
     nowValue,
     assignmentId: assignmentId === 'all' ? null : assignmentId,
-  }), [roster, nowValue, assignmentId]);
+  }), [monitoredRoster, nowValue, assignmentId]);
 
+  const absentCount = Math.max(0, roster.length - monitoredRoster.length);
   const visibleRows = mode === 'attention' ? rows.filter((row) => row.severity !== LIVE_SEVERITY.OK) : rows;
 
   const timerContext = useMemo(() => {
@@ -345,6 +434,36 @@ export default function LiveClassMonitor({
       .map((row) => [row.id, buildIntegrityReviewSignal({ row, profile: learningProfilesByStudentId[row.id] || null })])
       .filter(([, signal]) => Boolean(signal)),
   ), [visibleRows, learningProfilesByStudentId, supportEvents]);
+
+  const handleAttendanceMark = async (student, mark) => {
+    if (!onRecordSupportEvent) return;
+    const id = String(student?.id || student?.studentId || '');
+    if (!id) return;
+    const previous = attendanceOverrides[id];
+    const arrivedAt = mark === LIVE_ATTENDANCE_MARK.ABSENT ? null : Number(nowValue);
+    setAttendanceOverrides((current) => ({ ...current, [id]: { mark, arrivedAt, markedAt: Number(nowValue) } }));
+    setAttendanceBusyStudentId(id);
+    try {
+      await onRecordSupportEvent(buildLiveAttendanceEvent({
+        student,
+        mark,
+        classId: activeClassId || null,
+        classPeriod: attendanceClassPeriod,
+        nowValue,
+        dateKey: attendanceDateKey,
+      }));
+    } catch (error) {
+      setAttendanceOverrides((current) => {
+        const next = { ...current };
+        if (previous === undefined) delete next[id];
+        else next[id] = previous;
+        return next;
+      });
+      console.error('Could not update live attendance:', error);
+    } finally {
+      setAttendanceBusyStudentId(null);
+    }
+  };
 
   const handleSupportAction = (row, kind, stage, integritySignal = null, extra = {}) => {
     if (!onRecordSupportEvent) return;
@@ -412,7 +531,8 @@ export default function LiveClassMonitor({
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 12 }}>
         <h2 style={{ margin: 0, fontSize: 20, color: '#202124' }}>Live Class</h2>
         <span style={{ fontSize: 13, color: '#5f6368' }}>
-          {counts.online} of {counts.total} working
+          {counts.online} of {counts.total} present students working
+          {absentCount > 0 && <span> · {absentCount} absent</span>}
           {counts.needsAttention > 0 && <strong style={{ color: '#d93025' }}> · {counts.needsAttention} need a look</strong>}
           {classStats.meanAccuracy !== null && ` · class average ${classStats.meanAccuracy}%`}
         </span>
@@ -440,7 +560,19 @@ export default function LiveClassMonitor({
           {assignments.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.title || 'Untitled'}</option>)}
         </select>
         {mode === 'room' && <button type="button" onClick={() => setRoomMode((current) => !current)} aria-pressed={roomMode} style={{ ...controlStyle, cursor: 'pointer', fontWeight: 700, background: roomMode ? '#e8f0fe' : '#fff', borderColor: roomMode ? '#1a73e8' : '#dadce0', color: roomMode ? '#174ea6' : '#202124' }}>Large room tiles</button>}
+        <button type="button" onClick={() => setShowAttendance((current) => !current)} aria-expanded={showAttendance} style={{ ...controlStyle, cursor: 'pointer', fontWeight: 800, background: showAttendance ? '#fff4ce' : '#fff', borderColor: showAttendance ? '#d9a400' : '#dadce0', color: showAttendance ? '#6b4c00' : '#202124' }}>
+          Attendance{absentCount > 0 ? ` · ${absentCount} absent` : ''}
+        </button>
       </div>
+
+      {showAttendance && (
+        <AttendancePanel
+          roster={roster}
+          attendanceByStudentId={effectiveAttendance}
+          onMark={handleAttendanceMark}
+          busyStudentId={attendanceBusyStudentId}
+        />
+      )}
 
       {activeSectionTimers.length > 0 && (
         <div aria-label="Active class timers" style={{ margin: '-2px 0 14px', padding: '10px 12px', borderRadius: 10, border: '1px solid #d8dde6', background: '#f8faff', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -471,7 +603,7 @@ export default function LiveClassMonitor({
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', fontSize: 12, fontWeight: 800 }}>
-                <span>{walkthrough.counts.present} monitored</span>
+                <span>{walkthrough.counts.present} present students monitored</span>
                 <span style={{ color: '#b3261e' }}>· {walkthrough.counts.needsCheck} need check</span>
                 <span style={{ color: '#174ea6' }}>· {walkthrough.counts.onQuestion} here</span>
                 <span style={{ color: '#137333' }}>· {walkthrough.counts.aheadDone} ahead/done</span>
@@ -516,7 +648,7 @@ export default function LiveClassMonitor({
         )
       ) : visibleRows.length === 0 ? (
         <div style={{ padding: 20, border: '1px dashed #dadce0', borderRadius: 12, color: '#5f6368', fontSize: 14 }}>
-          {rows.length === 0 ? 'No students in this period yet. Tiles appear as soon as students open an assignment.' : 'Nobody needs attention right now.'}
+          {rows.length === 0 ? (absentCount === roster.length && roster.length ? 'All students in this class are marked absent for today.' : 'No present students in this period have an assignment open yet.') : 'Nobody needs attention right now.'}
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${roomMode ? 330 : 230}px, 1fr))`, gap: roomMode ? 16 : 12 }}>
