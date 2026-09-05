@@ -100,3 +100,15 @@ test('the enlarged view is a real dialog a keyboard can leave', () => {
   // Clicking the plane must not close the panel: plotting a point is a click.
   assert.match(source, /event\.target === event\.currentTarget/);
 });
+
+test('the enlarge and close controls are finger-sized', () => {
+  // 44px, not the 34 this used to be. The mobile foundation stylesheet forces
+  // 44 inside the phone layout, but it is scoped to that layout — a touchscreen
+  // Chromebook at 1366px is outside it, and the button floating over the corner
+  // of a graph is exactly the kind of control a finger misses.
+  const source = codeOf('src/components/common/EnlargeableFigure.jsx');
+  const control = source.match(/const CONTROL = \{[\s\S]*?\n\};/);
+  assert.ok(control, 'CONTROL style block not found');
+  assert.match(control[0], /minHeight: 44,/);
+  assert.doesNotMatch(control[0], /minHeight: (?!44)\d+/, 'one size, so the two states cannot drift');
+});

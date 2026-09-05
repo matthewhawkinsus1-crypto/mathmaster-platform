@@ -58,6 +58,30 @@ const visiblyFocusable = (element) => {
   return true;
 };
 
+/**
+ * Should a question put the cursor in an answer field the moment it opens?
+ *
+ * On a Chromebook with one text box, yes: the student lands on the page ready
+ * to type instead of hunting for the field. Two cases turn it off, and both
+ * were found by measuring a real phone rather than by reasoning about one:
+ *
+ * A PHONE ANSWERS WITH A KEYBOARD, AND THE KEYBOARD COVERS THE WORK. Focusing
+ * a numeric field opens the on-screen keypad — 266px of a 664px screen — and
+ * the layout then scrolls that field into view, which on a graphing question
+ * scrolled the workspace 721px of its 1440 and left the student looking at the
+ * middle of a stage they had not read yet, graph and prompt both off screen.
+ * Nobody asked to type; the keypad should arrive when they tap a field.
+ *
+ * A COMPOSED QUESTION HAS NO "THE" ANSWER BOX. Its first focusable input is one
+ * cell of a workspace — a coordinate of the third point of a table the student
+ * is meant to plot — and putting the cursor there says the question starts
+ * with typing when it starts with reading a graph. That one is wrong on every
+ * device, so it is not conditioned on width.
+ */
+export const shouldFocusAnswerOnOpen = ({ composed = false, narrowViewport = false } = {}) => (
+  !composed && !narrowViewport
+);
+
 /** Put the cursor in the first real answer-entry control in a question/workspace. */
 export const focusFirstAnswerControl = (root) => {
   if (!root?.querySelectorAll) return false;
@@ -74,6 +98,7 @@ export const focusFirstAnswerControl = (root) => {
 
 export default {
   focusFirstAnswerControl,
+  shouldFocusAnswerOnOpen,
   isSingleLineAnswerTarget,
   shouldSubmitAnswerOnEnter,
   shouldAdvanceOnEnter,

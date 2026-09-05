@@ -1073,9 +1073,15 @@ export default function WorkflowRunner({
     const continuityReady = !stage.continuityStageId || hasStageResponse(responses?.[stage.continuityStageId]);
     const waiting = (Boolean(stage.sourceStageId) && !input.ready) || !continuityReady;
     const waitingStageId = !continuityReady ? stage.continuityStageId : stage.sourceStageId;
+    // `workflow-stage` in BOTH modes, focus or not. The mobile stylesheet hides
+    // the prompt inside a tool workspace, because a single-tool question repeats
+    // the question prompt there and the phone layout already shows it above. A
+    // composed question's stage prompt is not that repetition — it is the only
+    // sentence saying what THIS step wants — so the stylesheet needs a hook to
+    // tell the two apart, and a stage with no class at all gave it none.
     const shellClass = focusMode
-      ? `workflow-focus__stage-shell${focused ? ' workflow-focus__stage-shell--active' : ''}`
-      : '';
+      ? `workflow-stage workflow-focus__stage-shell${focused ? ' workflow-focus__stage-shell--active' : ''}`
+      : 'workflow-stage';
 
     if (waiting) {
       const upstream = workflow.find((entry) => entry.id === waitingStageId);

@@ -284,9 +284,16 @@
   align-items: start;
 }
 
+/* `backwards`, not `both`. The keyframes end at `transform: none`, but an
+   ANIMATED `transform: none` computes to the identity matrix, and fill-mode
+   `both` holds that value forever. An identity transform is still a transform:
+   it makes this element the containing block for every `position: fixed`
+   descendant, which trapped the enlarged-graph modal inside the stage — 344px
+   wide on a 390px phone, with the graph itself scrolled off the bottom of it.
+   `backwards` gives the same entrance and leaves no residue. */
 .workflow-focus__active-stage {
   min-width: 0;
-  animation: workflowStageArrive .34s cubic-bezier(.22, .9, .3, 1) both;
+  animation: workflowStageArrive .34s cubic-bezier(.22, .9, .3, 1) backwards;
 }
 
 .workflow-focus__graph-reference {

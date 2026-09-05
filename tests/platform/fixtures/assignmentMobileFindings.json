@@ -1,0 +1,24 @@
+{
+  "generatedAt": "2026-09-05T23:30:09.215Z",
+  "devices": [
+    {
+      "id": "phone-360",
+      "width": 360,
+      "height": 740
+    },
+    {
+      "id": "phone-390",
+      "width": 390,
+      "height": 664
+    },
+    {
+      "id": "foldable-344",
+      "width": 344,
+      "height": 882
+    }
+  ],
+  "minTap": 44,
+  "minPlaneRead": 180,
+  "measured": 15,
+  "findings": []
+}

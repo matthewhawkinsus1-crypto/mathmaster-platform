@@ -22,7 +22,11 @@ const CONTROL = {
   top: 8,
   right: 8,
   zIndex: 2,
-  minHeight: 34,
+  // 44px, not the 34 this used to be. The button floats over the figure's
+  // corner, so every pixel of it covers graph — but a control under 44px is
+  // one a fingertip misses, and a student who misses the enlarge button on a
+  // 360px phone has no other way to see the graph properly.
+  minHeight: 44,
   padding: '0 12px',
   border: '1px solid #c5d5ef',
   borderRadius: 8,
@@ -176,7 +180,7 @@ export default function EnlargeableFigure({
           // A student did not ask for this panel when it opens itself, so the
           // way out is stated in full rather than as a bare glyph.
           style={openEnlarged
-            ? { ...CONTROL, minHeight: 44, borderColor: '#1a73e8', background: '#e8f0fe', fontWeight: 900 }
+            ? { ...CONTROL, borderColor: '#1a73e8', background: '#e8f0fe', fontWeight: 900 }
             : CONTROL}
         >
           {openEnlarged ? 'Close full screen ✕' : 'Close ✕'}
@@ -192,6 +196,27 @@ export default function EnlargeableFigure({
 
   if (!enlarged) return figure;
 
+  /*
+   * RENDERED IN PLACE, AND THAT PLACE HAS TO STAY UNTRANSFORMED.
+   *
+   * `position: fixed` covers the viewport only while no ancestor has a
+   * transform, filter or containment — any one of those makes that ancestor the
+   * containing block instead. A stage-entry animation holding an identity
+   * transform (fill-mode `both` over keyframes ending at `transform: none`) was
+   * enough to shrink this panel to 344x395 inside a 390x664 phone and push the
+   * graph out of the bottom of it, turning the one control that makes a small
+   * embedded plane workable into a no-op. That animation is fixed in
+   * WorkflowFocusMode.css.
+   *
+   * Portalling to the body would make the panel immune to that, but it would
+   * also take the panel out of `.mathmaster-question-container` and
+   * `.mathmaster-mobile-interaction-root` — and with them the phone layout that
+   * stacks this workspace into one column and holds its controls at 44px. The
+   * cure was worse: a full-width modal with a 220px sidebar, a 120px graph and
+   * 32px buttons. So it stays here, and tests/browser/assignmentMobile.mjs
+   * measures the enlarged plane against the embedded one on every run, which is
+   * what catches the next ancestor that grows a transform.
+   */
   return (
     <div
       style={BACKDROP}

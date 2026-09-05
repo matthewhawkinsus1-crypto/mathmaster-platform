@@ -24,6 +24,11 @@ const detectMobile = () => {
   const { width, height } = viewportSize();
   return width > 0 && (width <= 768 || (height <= 500 && width <= 1024));
 };
+
+// Exported so QuestionEngine asks the SAME question this container asks. Two
+// definitions of "is this a phone" drifting apart would mean a layout that
+// opens the on-screen keypad and a runtime that does not know it did.
+export const isMobileQuestionViewport = detectMobile;
 const detectLandscape = () => {
   const { width, height } = viewportSize();
   return detectMobile() && width > height && height <= 500;

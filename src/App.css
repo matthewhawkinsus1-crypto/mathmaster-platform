@@ -520,6 +520,25 @@
   display: block;
 }
 
+/* ENLARGING A PLOTTING WORKSPACE ON A PHONE PUTS THE GRAPH FIRST.
+   The workspace stacks into one column on a narrow screen, sidebar above
+   graph, which is right when embedded: the point list is what the student
+   reads first. Inside the enlarged panel it is wrong — the sidebar is 522px of
+   a 664px phone, so the student presses "enlarge graph" and gets a list, with
+   the graph they asked for below the fold of the panel they just opened.
+   The controls stay in the panel, one scroll below, so nobody has to close it
+   to answer. */
+@media (max-width: 700px) {
+  [data-enlarged="true"] .mathmaster-function-workspace-grid {
+    display: flex;
+    flex-direction: column;
+  }
+
+  [data-enlarged="true"] .mathmaster-function-workspace-grid > .mathmaster-function-workspace-graph {
+    order: -1;
+  }
+}
+
 /* Enlarged domain/range analysis uses the extra horizontal space instead of
    making a student scroll through a tall left rail. Domain stays left of the
    graph and range moves to the right. The normal embedded workspace is

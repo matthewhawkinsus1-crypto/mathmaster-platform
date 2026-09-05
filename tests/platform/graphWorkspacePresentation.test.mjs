@@ -119,7 +119,12 @@ test('opening a figure by itself never removes a way out of it', () => {
   assert.match(source, /role="dialog"/);
   // And the way out is named in full rather than shown as a bare glyph.
   assert.match(source, /Close full screen ✕/);
-  assert.match(source, /openEnlarged\s*\?\s*\{ \.\.\.CONTROL, minHeight: 44/);
+  // It used to be that only the auto-opened panel's close button was raised to
+  // 44px, as an exception to a 34px default. The default is 44 now, so the
+  // exception is gone and every state of this control is finger-sized —
+  // asserted on CONTROL itself in enlargeableFigureCoverage.test.mjs.
+  const control = source.match(/const CONTROL = \{[\s\S]*?\n\};/);
+  assert.match(control[0], /minHeight: 44,/);
 });
 
 test('a dismissal that cannot be read leaves the default in place', () => {
