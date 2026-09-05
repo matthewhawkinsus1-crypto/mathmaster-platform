@@ -72,6 +72,29 @@ export const submitLiveChallengeResponse = async (payload) => {
   };
 };
 
+/*
+ * The progress report, doing exactly what the real callable does to Firestore:
+ * a clamped provisional total on this player's OWN document, and nothing else.
+ * Stubbing it as a no-op would leave the harness unable to see the one thing
+ * this feature exists for — the board moving while a student is still working.
+ */
+export const reportLiveChallengeProgress = async (payload) => {
+  record('reportLiveChallengeProgress', payload);
+  const { roomId, roundIndex, provisionalPoints } = payload || {};
+  const playerKey = window.__mmGamePlayerKey;
+  if (!roomId || !playerKey) return { recorded: false };
+  await setDoc(
+    doc(db, 'liveChallengeRooms', roomId, 'players', playerKey),
+    {
+      provisionalPoints: Math.max(0, Math.min(1000, Math.round(Number(provisionalPoints) || 0))),
+      provisionalRound: roundIndex,
+      provisionalAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+  return { recorded: true };
+};
+
 export const createLiveChallenge = async (payload) => { record('createLiveChallenge', payload); return {}; };
 export const startLiveChallenge = async (payload) => { record('startLiveChallenge', payload); return {}; };
 export const advanceLiveChallenge = async (payload) => { record('advanceLiveChallenge', payload); return {}; };

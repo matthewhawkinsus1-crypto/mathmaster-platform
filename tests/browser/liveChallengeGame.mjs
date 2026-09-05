@@ -237,8 +237,13 @@ const step = async (name, { mustContain = [], mustNotContain = [], mustHaveButto
 // prompt is rendered by the same components, so it is checked here too.
 const NO_MARKUP = ['$', '\\frac', '\\left', 'undefined', 'NaN', '[object Object]'];
 
+// The lobby used to say "You are in the lobby as". It now says "You are in as",
+// so the literal word this once matched is gone — deliberately: "lobby" is the
+// teacher's word for the screen, not something a student needs. What a student
+// does need is to know they are waiting rather than late, so the check moved
+// from the jargon to the three facts that actually carry that.
 await step('lobby', {
-  mustContain: ['Swift Otter', 'LOBBY'],
+  mustContain: ['Swift Otter', 'players in', 'teacher starts'],
   mustNotContain: NO_MARKUP,
   mustHaveButton: 'Back to Warm-Up',
 });

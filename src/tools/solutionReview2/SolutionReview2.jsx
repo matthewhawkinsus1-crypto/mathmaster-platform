@@ -43,14 +43,20 @@ const describeValue = (value) => {
 };
 
 export default function SolutionReview2({ questionData = {}, attemptRecord = {}, review = {} }) {
-  const steps = review.steps || questionData.solutionSteps || [
+  // A DEFAULT PARAMETER ONLY COVERS `undefined`. Passed an explicit null — which
+  // a caller with "no attempt yet" naturally does — every read below threw and
+  // the student got a blank screen instead of a review. Normalise first, then
+  // destructure; the same shape of bug as `= {}` on a nullable options object.
+  const record = attemptRecord || {};
+  const reviewData = review || {};
+  const steps = reviewData.steps || questionData.solutionSteps || [
     'Identify what the question is actually asking for.',
     'Choose a representation or operation that keeps the relationship true.',
     'Check the result against the original problem.',
   ];
-  const misconceptions = review.misconceptions || attemptRecord.misconceptions || [];
-  const responseEntries = describeResponse(attemptRecord.response);
-  const scoreText = typeof attemptRecord.score === 'number' ? `${Math.round(attemptRecord.score * 100)}%` : null;
+  const misconceptions = reviewData.misconceptions || record.misconceptions || [];
+  const responseEntries = describeResponse(record.response);
+  const scoreText = typeof record.score === 'number' ? `${Math.round(record.score * 100)}%` : null;
 
   return (
     <ToolShell
@@ -62,16 +68,16 @@ export default function SolutionReview2({ questionData = {}, attemptRecord = {},
         <Panel title="What you submitted">
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 12px', borderRadius: 999, fontWeight: 800,
-            background: attemptRecord.isCorrect ? '#e6f4ea' : '#fef7e0',
-            color: attemptRecord.isCorrect ? '#137333' : '#7a4f01',
+            background: record.isCorrect ? '#e6f4ea' : '#fef7e0',
+            color: record.isCorrect ? '#137333' : '#7a4f01',
           }}>
-            {attemptRecord.isCorrect ? '✓ Correct' : '↻ Worth another look'}
+            {record.isCorrect ? '✓ Correct' : '↻ Worth another look'}
           </div>
 
           <dl style={{ margin: '14px 0 0', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 14px', alignItems: 'baseline' }}>
-            {attemptRecord.attemptNumber != null ? <>
+            {record.attemptNumber != null ? <>
               <dt style={{ color: '#5f6b7a', fontSize: 13 }}>Attempt</dt>
-              <dd style={{ margin: 0, fontWeight: 700 }}>{attemptRecord.attemptNumber}</dd>
+              <dd style={{ margin: 0, fontWeight: 700 }}>{record.attemptNumber}</dd>
             </> : null}
             {scoreText ? <>
               <dt style={{ color: '#5f6b7a', fontSize: 13 }}>Credit earned</dt>

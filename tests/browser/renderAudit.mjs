@@ -73,11 +73,34 @@ const LEAK_PATTERNS = [
   { id: 'unsubstituted-placeholder', pattern: /\{\{\s*[A-Za-z_][A-Za-z0-9_]*\s*(?:\|[a-z]+)?\s*\}\}/g },
 ];
 
+/*
+ * TWO PRICES IN A SENTENCE ARE NOT A LATEX SPAN.
+ *
+ * "You start with $22 plus $8 each week" contains a matched pair of dollar
+ * signs, so the span rule flags it — but the dollars are IN the text because
+ * they belong there, and the student is seeing exactly what was authored.
+ *
+ * The tell is what follows the closing delimiter. A price is followed by its
+ * digits; a closed LaTeX span is followed by a space, a full stop or the end of
+ * the string. Narrow on purpose: `$x$`, `$\frac{1}{2}$` and `$7(x-9)=63$` are
+ * all still leaks, and this rule has caught a real one on a live screen.
+ */
+const isCurrencyPair = (text, match) => {
+  const at = String(text).indexOf(match);
+  if (at < 0) return false;
+  const after = String(text)[at + match.length];
+  return /[0-9]/.test(after || '');
+};
+
 const findLeaks = (text) => {
   const found = [];
   for (const { id, pattern } of LEAK_PATTERNS) {
     pattern.lastIndex = 0;
-    const matches = String(text).match(pattern);
+    let matches = String(text).match(pattern);
+    if (matches && id === 'dollar-delimited-latex') {
+      matches = matches.filter((match) => !isCurrencyPair(text, match));
+      if (!matches.length) matches = null;
+    }
     if (matches) found.push({ rule: id, samples: [...new Set(matches)].slice(0, 4) });
   }
   return found;
