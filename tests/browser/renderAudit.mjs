@@ -199,6 +199,18 @@ for (const item of selected) {
   // eslint-disable-next-line no-await-in-loop
   if (await hintButton.count()) await hintButton.click().catch(() => {});
 
+  // THE SCRATCHPAD RE-STATES THE QUESTION, so it is a second surface the same
+  // markup can leak onto — and the one a student is looking at precisely when
+  // they cannot see the original. Open it, let it audit, close it again.
+  const scratchpadButton = page.locator('button', { hasText: 'Scratchpad' }).first();
+  // eslint-disable-next-line no-await-in-loop
+  if (await scratchpadButton.count()) {
+    // eslint-disable-next-line no-await-in-loop
+    await scratchpadButton.click().catch(() => {});
+    // eslint-disable-next-line no-await-in-loop
+    await page.waitForTimeout(120);
+  }
+
   // The text a student can actually read, with rendered mathematics removed.
   //
   // NOT `document.body.innerText`. KaTeX keeps the TeX source in a hidden

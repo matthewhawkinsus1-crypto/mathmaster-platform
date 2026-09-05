@@ -60,7 +60,11 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
       borderRadius: 18,
       background: '#fff',
       boxShadow: '0 16px 44px rgba(15, 23, 42, 0.08)',
-      overflow: 'hidden',
+      // `clip`, not `hidden`. Both keep the corners rounded, but `hidden`
+      // creates a scroll container, and a `position: sticky` descendant sticks
+      // to its nearest scroll container — one that never scrolls, so the task
+      // card silently did not stick. `clip` does not create one.
+      overflow: 'clip',
     }}>
       {/* ONE LINE, NOT THREE.
           This header was a 24px heading, a full sentence describing the tool,

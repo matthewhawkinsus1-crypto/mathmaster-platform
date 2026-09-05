@@ -1856,3 +1856,22 @@
 @media (prefers-reduced-motion: reduce) {
   [style*="challengePulse"] { animation: none !important; }
 }
+
+/* WHAT THE STUDENT WAS ASKED STAYS ON SCREEN WHILE THEY WORK.
+   A tool's process unfolds downward — steps appear, panels open, the page
+   grows — and the task that started at the top scrolls away. A student then
+   answers from memory or scrolls back and loses their place. The card is
+   already compact (prompt, one-line task, steps folded), so it can simply
+   stay put. */
+.mathmaster-tool-task-card {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+/* On a short screen a permanently parked card costs more than it returns, and
+   the student can still scroll up. Height, not width: a phone in landscape is
+   wide and short, and that is the case this protects. */
+@media (max-height: 560px) {
+  .mathmaster-tool-task-card { position: static; }
+}

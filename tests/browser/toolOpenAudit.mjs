@@ -102,6 +102,45 @@ for (const toolId of toolIds) {
     };
   });
 
+  /*
+   * CAN THE STUDENT STILL SEE WHAT THEY WERE ASKED, ONCE THEY ARE WORKING?
+   *
+   * Opening ready is only half of it. A student scrolls down to the boxes, the
+   * process unfolds and the page grows, and the question that started at the top
+   * is gone. They then answer from memory, or scroll back and lose their place.
+   * So this scrolls to where the student would actually be working and asks
+   * whether the task is still on screen.
+   */
+  const promptCheck = await page.evaluate(() => {
+    const card = document.querySelector('.mathmaster-tool-task-card');
+    const promptEl = card?.querySelector('.mathmaster-tool-task-prompt, .mathmaster-tool-task-directions');
+    if (!promptEl) return { hasPrompt: false };
+
+    const text = (promptEl.innerText || '').trim();
+    // Markup that reached the screen instead of being rendered as mathematics.
+    const asCode = /\$[^$\n]{1,160}\$|\\(?:frac|sqrt|left|right|cdot|times|le|ge|text|begin)\b|\{\{\s*[A-Za-z_]/.test(text);
+    const mathNodes = promptEl.querySelectorAll('math-span, math-div, .katex, mjx-container').length;
+
+    const ANSWER = 'input:not([type=hidden]), textarea, select, math-field, [contenteditable="true"]';
+    const target = [...document.querySelectorAll(ANSWER)].filter((el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    }).pop() || document.body;
+    target.scrollIntoView({ block: 'center' });
+
+    const rect = promptEl.getBoundingClientRect();
+    const visibleAfterScroll = rect.bottom > 0 && rect.top < window.innerHeight;
+    return {
+      hasPrompt: true,
+      text: text.slice(0, 90),
+      asCode,
+      mathNodes,
+      visibleAfterScroll,
+      promptTopAfterScroll: Math.round(rect.top),
+      pageGrew: document.documentElement.scrollHeight > window.innerHeight,
+    };
+  });
+
   const problems = [];
   if (errors.length) problems.push({ rule: 'page-error', detail: errors.slice(0, 2) });
   if (!hasSpec) {
@@ -123,6 +162,12 @@ for (const toolId of toolIds) {
     }
   }
   if (measured.openDirections.length) problems.push({ rule: 'directions-open-on-arrival', detail: measured.openDirections });
+  if (hasSpec && promptCheck.hasPrompt) {
+    if (promptCheck.asCode) problems.push({ rule: 'task-shown-as-code', detail: promptCheck.text });
+    if (promptCheck.pageGrew && !promptCheck.visibleAfterScroll) {
+      problems.push({ rule: 'task-scrolls-away-while-working', detail: `prompt at ${promptCheck.promptTopAfterScroll}px once the student is at the answer boxes` });
+    }
+  }
   // A folded disclosure should read as one row. Two folds is the most any tool
   // has, so anything past ~130px means a fold is still carrying a body.
   if (measured.foldedHeight > 130) problems.push({ rule: 'folded-panel-too-tall', detail: `${measured.foldedHeight}px folded` });
@@ -132,6 +177,8 @@ for (const toolId of toolIds) {
     firstControl: measured.actionableTop,
     surface: measured.surfaceTop,
     foldedPx: measured.foldedHeight,
+    taskVisible: promptCheck.hasPrompt ? promptCheck.visibleAfterScroll : null,
+    taskAsCode: promptCheck.hasPrompt ? promptCheck.asCode : null,
     openFolds: measured.openDirections.length,
     focusedAnswer: measured.focusedIsAnswer,
   });
@@ -142,14 +189,13 @@ for (const toolId of toolIds) {
 await browser.close();
 
 console.log(`\nMeasured ${toolIds.length} tools at ${VIEWPORT.width}x${VIEWPORT.height}\n`);
-console.log('tool'.padEnd(28), 'control'.padStart(8), 'surface'.padStart(8), 'foldedPx'.padStart(9), 'openFolds'.padStart(10), 'focused'.padStart(8));
+console.log('tool'.padEnd(28), 'control'.padStart(8), 'foldedPx'.padStart(9), 'taskVisible'.padStart(12), 'taskAsCode'.padStart(11));
 rows.forEach((row) => console.log(
   row.toolId.padEnd(28),
   String(row.firstControl ?? '—').padStart(8),
-  String(row.surface ?? '—').padStart(8),
   String(row.foldedPx).padStart(9),
-  String(row.openFolds).padStart(10),
-  String(row.focusedAnswer).padStart(8),
+  String(row.taskVisible ?? '—').padStart(12),
+  String(row.taskAsCode ?? '—').padStart(11),
 ));
 
 if (findings.length) {
