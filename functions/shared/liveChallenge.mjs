@@ -301,16 +301,35 @@ export const liveChallengeResponseReadiness = (question = {}) => {
   return { eligible: true, mode, label, reason: null, choiceCount };
 };
 
+/**
+ * Does this question match the style the teacher asked for?
+ *
+ * STYLE ONLY. Whether the response can be rendered safely is a separate
+ * question with a separate answer, and `liveChallengeEligible` below is where
+ * it is asked. Folding the two together made `matchesQuestionStyle(q, 'any')`
+ * able to return false, which is a contradiction in terms — and it cost the
+ * teacher the one diagnostic this feature exists for. A game that cannot be
+ * filled is supposed to name the style that emptied it; with both filters in
+ * one predicate, a teacher who picked "Any" and got nothing was told their
+ * style was at fault when the truth was that the bank held nothing renderable.
+ */
 export const matchesQuestionStyle = (question, style) => {
-  // This predicate is the candidate-filter seam used by create and swap. Keep
-  // Live Challenge fail-closed here so an unrenderable field never enters the
-  // round plan even though the Path server could technically grade it.
-  if (!liveChallengeResponseReadiness(question).eligible) return false;
   const normalized = canonicalQuestionStyle(style);
   if (normalized === 'any') return true;
   const hasTool = pathToolIdOf(question) !== null;
   return normalized === 'tools' ? hasTool : !hasTool;
 };
+
+/**
+ * Can a live round actually render and grade this question's response?
+ *
+ * Live Challenge fails closed: the Path server could technically grade a field
+ * this round cannot draw — a choose-one prompt with no options, say — and a
+ * student would meet an unanswerable question under a countdown. Applied as its
+ * own step in the candidate filter, so "nothing renderable" and "nothing in
+ * your chosen style" stay distinguishable.
+ */
+export const liveChallengeEligible = (question) => liveChallengeResponseReadiness(question).eligible === true;
 
 export const LIVE_PROVISIONAL_MAX_POINTS = 1000;
 

@@ -6304,6 +6304,15 @@ async function loadChallengeCandidates(db, { courseId, standardCode, questionSty
     .map((questionDoc) => ({ id: questionDoc.id, ...questionDoc.data() }))
     .filter((question) => question.active !== false)
     .filter((question) => normalized !== "mixed" || String(question.courseId || courseId) === courseId)
+    // TWO SEPARATE GATES, ON PURPOSE.
+    //
+    // Eligibility is "a live round can draw and grade this response at all" —
+    // a choose-one prompt with no options is gradeable by the Path server and
+    // unanswerable under a countdown, so Live Challenge fails closed on it.
+    // Style is "the teacher asked for tool questions". Folding the two into one
+    // predicate made matchesQuestionStyle(q, "any") able to return false, and
+    // told a teacher who picked Any that their style had emptied the game.
+    .filter((question) => challenge.liveChallengeEligible(question))
     .filter((question) => challenge.matchesQuestionStyle(question, style));
 
   const planned = await Promise.all(candidates.map(async (question) => ({

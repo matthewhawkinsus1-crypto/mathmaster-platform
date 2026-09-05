@@ -1,9 +1,34 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
-const student = read('../../src/components/liveChallenge/LiveChallengeStudent.jsx');
+
+/*
+ * THE WHOLE STUDENT SURFACE, NOT ONE FILE.
+ *
+ * These checks used to read LiveChallengeStudent.jsx alone. When the field
+ * rendering was extracted into LiveChallengeFieldQuestion.jsx they all failed
+ * while the behaviour they protect was perfectly intact — the code had simply
+ * moved next door. A test that breaks on a refactor it should not care about
+ * teaches people to edit the test, which is exactly how a real leak gets waved
+ * through.
+ *
+ * So the subject is the directory. Wherever a live round draws a prompt or a
+ * field label, it is in here, and `doesNotMatch` gets stronger rather than
+ * weaker: raw markup anywhere in the surface now fails.
+ */
+const LIVE_DIR = new URL('../../src/components/liveChallenge/', import.meta.url);
+const liveFiles = readdirSync(LIVE_DIR).filter((name) => name.endsWith('.jsx')).sort();
+const student = liveFiles
+  .map((name) => `/* ${name} */\n${readFileSync(new URL(name, LIVE_DIR), 'utf8')}`)
+  .join('\n');
+
+test('the student surface is actually being read', () => {
+  // An empty or mis-pathed read would let every assertion below pass silently.
+  assert.ok(liveFiles.includes('LiveChallengeStudent.jsx'), `found only: ${liveFiles.join(', ')}`);
+  assert.ok(student.length > 5000, `expected the live challenge surface, read ${student.length} chars`);
+});
 
 test('a whole Live Challenge renders clean in a real browser', () => {
   const findings = JSON.parse(read('./fixtures/liveChallengeGameFindings.json'));
@@ -24,6 +49,15 @@ test('the round prompt is rendered as mathematics, not as text', () => {
 test('response field labels go through the same renderer', () => {
   // "Solve for $x$" is a label, not a prompt, and leaked identically.
   assert.match(student, /<MathText as="span">\{`\$\{field\.label \|\| 'Answer'\}/);
+  // AND NONE IS DRAWN RAW. The positive match above is satisfied by a single
+  // call site, so on its own it would still pass with a second label rendered
+  // as plain text somewhere else in the surface — which is exactly the leak
+  // this file exists to catch. The negative is the assertion with teeth.
+  assert.doesNotMatch(
+    student,
+    /<(?:span|div|label|p|h[1-6])[^>]*>\{`?\$\{field\.label/,
+    'a response field label is being rendered as text instead of through MathText',
+  );
 });
 
 /* ---------- no white screen mid-round ---------- */

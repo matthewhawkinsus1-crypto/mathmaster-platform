@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 import {
   focusFirstAnswerControl,
@@ -54,7 +54,13 @@ test('shared student runtimes use the answer-entry behavior', () => {
   const engine = readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
   const pathFields = readFileSync(new URL('../../src/components/student/PathResponseFields.jsx', import.meta.url), 'utf8');
   const secureExam = readFileSync(new URL('../../src/components/assessment/SecureExamQuestionPlayer.jsx', import.meta.url), 'utf8');
-  const live = readFileSync(new URL('../../src/components/liveChallenge/LiveChallengeStudent.jsx', import.meta.url), 'utf8');
+  // The whole live-challenge surface, not one file: the field rendering moved
+  // into LiveChallengeFieldQuestion.jsx and this assertion failed while the
+  // autofocus it protects was intact one file over.
+  const liveDir = new URL('../../src/components/liveChallenge/', import.meta.url);
+  const liveFiles = readdirSync(liveDir).filter((name) => name.endsWith('.jsx'));
+  assert.ok(liveFiles.length >= 2, `expected the live challenge components, found ${liveFiles.join(', ')}`);
+  const live = liveFiles.map((name) => readFileSync(new URL(name, liveDir), 'utf8')).join('\n');
   const shell = readFileSync(new URL('../../src/tools/shared/ToolShell.jsx', import.meta.url), 'utf8');
   const pathPlayer = readFileSync(new URL('../../src/components/student/PathSessionPlayer.jsx', import.meta.url), 'utf8');
 
