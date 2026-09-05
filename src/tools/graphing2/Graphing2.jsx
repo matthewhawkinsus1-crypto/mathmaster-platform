@@ -116,6 +116,18 @@ export default function Graphing2({ questionData = {}, onAction }) {
     );
   };
 
+  /*
+   * The plane is handed the GIVEN points first and the student's after them, so
+   * the index it reports is into that combined list. Anything before the offset
+   * is a given point and is not the student's to move.
+   */
+  const movePoint = (index, point) => {
+    const studentIndex = index - givenPoints.length;
+    if (studentIndex < 0) return;
+    clearFeedback();
+    setPoints((current) => current.map((existing, i) => (i === studentIndex ? point : existing)));
+  };
+
   const undoLastPoint = () => { clearFeedback(); setPoints((current) => current.slice(0, -1)); };
   const clear = () => { setPoints([]); clearFeedback(); };
 
@@ -187,6 +199,8 @@ export default function Graphing2({ questionData = {}, onAction }) {
           <CoordinatePlane
             {...bounds}
             onPlot={plot}
+            onMovePoint={movePoint}
+            viewResetKey={questionData?.id ?? questionData?.prompt ?? null}
             snapStep={snapStep}
             points={plottedPoints}
             lines={studentLines}

@@ -478,6 +478,31 @@
 
 /* The interactive plane is a click target, so it needs a visible focus ring of
    its own for keyboard plotting. */
+/* NEVER TALLER THAN THE BOX IT WAS GIVEN, OR THAN THE SCREEN.
+   A plane is laid out from its viewBox aspect ratio, so its height follows
+   whatever WIDTH it is handed and nothing was watching the other axis. Given a
+   full workspace column it reached 895px on a 1366x640 Chromebook and 1271px on
+   a 1920x1080 desktop: a student marking an x-intercept could not see the whole
+   parabola, on the biggest screens in the building.
+
+   70dvh keeps the entire figure on screen while still leaving it the largest
+   element by far, and Enlarge is there when they want it bigger. Set here
+   rather than inline on the SVG so the short-viewport cap further down can
+   tighten it — an inline style would win over both. */
+.mathmaster-responsive-canvas {
+  /* Two limits at once, because a flat fraction of the viewport cannot know
+     what sits above the graph. `70dvh` keeps it from dominating a tall screen;
+     `100dvh - 240px` leaves room for the prompt, the table and the controls
+     that precede it, which is what actually pushed the plane past the fold on a
+     Chromebook and a phone held sideways. The floor stops a very short window
+     from collapsing it to nothing — below that, scrolling is the better
+     failure. */
+  max-height: max(140px, min(70dvh, calc(100dvh - 240px)));
+}
+
+/* Except where the whole point is to be big. */
+.mathmaster-enlarged-figure .mathmaster-responsive-canvas { max-height: 88dvh; }
+
 .mathmaster-responsive-canvas:focus-visible {
   outline: 3px solid var(--mm-primary, #1a73e8);
   outline-offset: 2px;
@@ -1843,4 +1868,73 @@
 .mathmaster-question-attempt-strip .mathmaster-attempt-detail {
   font-weight: 600;
   opacity: 0.85;
+}
+
+/* Live Challenge — the last ten seconds of a round.
+   Guarded so a viewer who has asked for less motion gets a still clock rather
+   than a pulsing one; the colour shift already carries the urgency. */
+@keyframes challengePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [style*="challengePulse"] { animation: none !important; }
+}
+
+/* WHAT THE STUDENT WAS ASKED STAYS ON SCREEN WHILE THEY WORK.
+   A tool's process unfolds downward — steps appear, panels open, the page
+   grows — and the task that started at the top scrolls away. A student then
+   answers from memory or scrolls back and loses their place. The card is
+   already compact (prompt, one-line task, steps folded), so it can simply
+   stay put. */
+.mathmaster-tool-task-card {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+/* A SHORT SCREEN NEEDS THE TASK CONDENSED, NOT UNPINNED.
+   This block used to unpin the card, on the reasoning that 120px — 31% of a
+   390px landscape phone — costs more than it returns. Running the per-tool
+   audit sideways settled it: 10 of the 14 tools then lost the task entirely,
+   the prompt sitting as far as 522px above the answer boxes the student was
+   typing into. Losing the question beats any amount of space it takes.
+
+   So it stays pinned and gets smaller instead. The eyebrow ("YOUR TASK") is
+   what goes: a card parked at the top of the screen does not need a label
+   saying it is the task. Padding tightens, and a long task scrolls inside the
+   card rather than growing it. The folded steps keep their full 44px, because
+   that is a finger target, not decoration. */
+@media (max-height: 560px) {
+  .mathmaster-tool-task-card {
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    max-height: 38vh;
+    overflow-y: auto;
+  }
+
+  .mathmaster-tool-task-card .mathmaster-tool-task-eyebrow { display: none; }
+
+  /* USE THE AXIS THAT IS ACTUALLY FREE. A phone held sideways is 844px wide and
+     390px tall: width is the surplus, height is the scarcity. Stacking the
+     folded "How to do this" under the task spends 54px of the scarce axis to
+     leave most of the plentiful one empty. Side by side, the card is as tall as
+     its tallest part instead of the sum of both. */
+  .mathmaster-tool-task-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .mathmaster-tool-task-card > *:first-child { flex: 1 1 auto; min-width: 0; }
+
+  /* Never the wrapping element when it is also the first — a card with no steps
+     has one child, and it should still fill the row. */
+  .mathmaster-tool-task-card > *:last-child:not(:first-child) {
+    flex: 0 0 auto;
+    margin-top: 0;
+    max-width: 45%;
+  }
+
 }

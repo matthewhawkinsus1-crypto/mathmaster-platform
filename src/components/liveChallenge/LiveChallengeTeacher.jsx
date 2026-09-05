@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import ChallengeDryRun from './ChallengeDryRun.jsx';
+import MathText from '../common/MathText.jsx';
 import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
 import { summarizeCoverage } from '../../../functions/shared/pathCoverage.mjs';
 import { challengeCanAdvance, publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
@@ -126,7 +127,7 @@ const formatClock = (milliseconds) => {
 
 const courseLabel = (courseId) => courseId === 'algebra2' ? 'Algebra II' : 'Algebra I';
 
-function Leaderboard({ rows = [], limit = 12, projector = false }) {
+export function Leaderboard({ rows = [], limit = 12, projector = false }) {
   if (!rows.length) return <p style={{ color: '#5f6368', margin: 0 }}>Students who join will appear here by anonymous game name.</p>;
   return (
     <div style={{ display: 'grid', gap: 8 }}>
@@ -135,9 +136,60 @@ function Leaderboard({ rows = [], limit = 12, projector = false }) {
           <strong style={{ textAlign: 'center' }}>#{row.rank}</strong>
           <span style={{ fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.alias}</span>
           <span style={{ color: '#5f6368' }}>{row.correctCount} ✓</span>
-          <strong>{row.score.toLocaleString()}</strong>
+          <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{(row.liveScore ?? row.score).toLocaleString()}</strong>
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * What the teacher is looking at while a round is live.
+ *
+ * Extracted so the dry run can show a teacher THIS screen — the one they will
+ * actually be reading in front of a class — rather than a mock-up of it. The
+ * same reasoning as ChallengeRound on the student side: a lookalike would
+ * rehearse a screen that does not exist.
+ */
+export function ChallengeLiveStatus({ room, remainingMs, answeredCount = 0, joinedCount = 0 }) {
+  const low = remainingMs <= 10000;
+  return (
+    <section style={{ ...panel, border: '2px solid #1a73e8' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 18, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ color: '#174ea6', fontSize: 12, fontWeight: 1000, textTransform: 'uppercase' }}>Round {(room.currentRound || 0) + 1} of {room.roundCount} · {room.currentQuestion?.teksCode || 'Mixed review'}</div>
+          <MathText as="div" style={{ marginTop: 8, whiteSpace: 'pre-wrap', fontSize: 20, lineHeight: 1.45, fontWeight: 700 }}>{room.currentQuestion?.prompt}</MathText>
+        </div>
+        <div style={{ minWidth: 140, textAlign: 'center', padding: 12, borderRadius: 12, background: low ? '#fce8e6' : '#e8f0fe', color: low ? '#a50e0e' : '#174ea6' }}>
+          <div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>Time left</div>
+          <div style={{ fontSize: 38, fontWeight: 1000 }}>{formatClock(remainingMs)}</div>
+        </div>
+      </div>
+      <div style={{ marginTop: 14, fontWeight: 800, color: '#5f6368' }}>{answeredCount} of {joinedCount} joined students answered</div>
+    </section>
+  );
+}
+
+/** The board on the wall. Same component the real game projects. */
+export function ChallengeProjector({ room, leaderboard = [], joinedCount = 0, remainingMs = 0, onExit }) {
+  return (
+    <div style={{ minHeight: '70vh', background: '#202124', color: '#fff', borderRadius: 18, padding: 28, display: 'grid', gap: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div><div style={{ opacity: .72, textTransform: 'uppercase', fontWeight: 900 }}>MathMaster Live Challenge</div><h1 style={{ margin: '4px 0 0', fontSize: 38 }}>{room.title}</h1></div>
+        <button type="button" onClick={onExit} style={secondary}>Exit Projector View</button>
+      </div>
+      {room.status === 'lobby' && <div style={{ textAlign: 'center', padding: 30 }}><div style={{ fontSize: 80, fontWeight: 1000 }}>{joinedCount}</div><div style={{ fontSize: 24 }}>students joined · waiting for teacher</div></div>}
+      {room.status === 'running' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(280px,.8fr)', gap: 24, alignItems: 'start' }}>
+          <section>
+            <div style={{ fontSize: 20, fontWeight: 900, color: '#aecbfa' }}>Round {(room.currentRound || 0) + 1} of {room.roundCount} · {room.currentQuestion?.teksCode || 'Mixed review'}</div>
+            <div style={{ fontSize: 64, fontWeight: 1000, margin: '10px 0' }}>{formatClock(remainingMs)}</div>
+            <MathText as="div" style={{ whiteSpace: 'pre-wrap', fontSize: 28, lineHeight: 1.45 }}>{room.currentQuestion?.prompt}</MathText>
+          </section>
+          <section><h2 style={{ marginTop: 0 }}>Leaderboard</h2><Leaderboard rows={leaderboard} limit={8} projector /></section>
+        </div>
+      )}
+      {room.status === 'finished' && <section><h2 style={{ textAlign: 'center', fontSize: 34 }}>Final Standings</h2><div style={{ maxWidth: 700, margin: '0 auto' }}><Leaderboard rows={leaderboard} limit={12} projector /></div></section>}
     </div>
   );
 }
@@ -160,6 +212,9 @@ export default function LiveChallengeTeacher({
   const [courseId, setCourseId] = useState(selectedClass?.course || courseProfiles?.[classPeriod]?.course || 'algebra1');
   const [coverage, setCoverage] = useState(null);
   const [standardCode, setStandardCode] = useState('mixed');
+  // Roughly three quarters of the bank is typed or chosen answers, so leaving
+  // this to chance means a game almost never contains a solver or a graph.
+  const [questionStyle, setQuestionStyle] = useState('any');
   const [roundCount, setRoundCount] = useState(10);
   const [roundSeconds, setRoundSeconds] = useState(45);
   const [title, setTitle] = useState('');
@@ -186,7 +241,7 @@ export default function LiveChallengeTeacher({
     setStandardCode('mixed');
   }, [classId, classPeriod, selectedClass, courseProfiles]);
 
-  useEffect(() => { setDryRunOpen(false); }, [classId, courseId, standardCode, roundCount, roundSeconds]);
+  useEffect(() => { setDryRunOpen(false); }, [classId, courseId, standardCode, questionStyle, roundCount, roundSeconds]);
 
   useEffect(() => {
     let alive = true;
@@ -211,7 +266,8 @@ export default function LiveChallengeTeacher({
   }, [roomId]);
 
   const coverageRows = useMemo(() => summarizeCoverage(coverage || {}, { onlyGaps: false }).filter((row) => row.studentReady), [coverage]);
-  const leaderboard = useMemo(() => publicLeaderboard(players), [players]);
+  const activeRound = room?.status === 'running' ? Number(room.currentRound) : null;
+  const leaderboard = useMemo(() => publicLeaderboard(players, { activeRound }), [players, activeRound]);
 
   // The report is written once when the room closes, so this reads it once
   // rather than holding a listener on a document that will not move again.
@@ -270,6 +326,7 @@ export default function LiveChallengeTeacher({
         classPeriod,
         courseId,
         standardCode,
+        questionStyle,
         roundCount,
         roundSeconds,
         assignmentId: warmupAssignmentId || null,
@@ -291,15 +348,17 @@ export default function LiveChallengeTeacher({
           <div>
             <h2 style={{ margin: 0 }}>Live Challenge dry run</h2>
             <p style={{ color: '#5f6368', maxWidth: 820, lineHeight: 1.55 }}>
-              {courseLabel(courseId)} · {standardCode === 'mixed' ? 'Mixed review' : standardCode} · {roundCount} rounds · {roundSeconds}s each.
+              {courseLabel(courseId)} · {standardCode === 'mixed' ? 'Mixed review' : standardCode} · {questionStyle === 'tools' ? 'Interactive tools only' : questionStyle === 'noTools' ? 'Typed and chosen answers only' : 'Any question'} · {roundCount} rounds · {roundSeconds}s each.
               Closing this throws the rehearsal away; creating the lobby draws a fresh set of questions.
             </p>
           </div>
           <ChallengeDryRun
             courseId={courseId}
             standardCode={standardCode}
+            questionStyle={questionStyle}
             roundCount={roundCount}
             roundSeconds={roundSeconds}
+            title={title.trim() || `${selectedClass?.name || classPeriod || 'Class'} Live Challenge`}
             onClose={() => setDryRunOpen(false)}
           />
         </div>
@@ -350,6 +409,19 @@ export default function LiveChallengeTeacher({
                   {coverageRows.map((row) => <option key={row.displayCode} value={row.displayCode}>{row.displayCode} · {row.issuableCount} usable families</option>)}
                 </select>
               </label>
+              <label style={{ fontWeight: 800 }}>Question style
+                <select value={questionStyle} onChange={(event) => setQuestionStyle(event.target.value)} style={{ display: 'block', width: '100%', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid #b7bec8' }}>
+                  <option value="any">Any question</option>
+                  <option value="tools">Interactive tools only</option>
+                  <option value="noTools">Typed and chosen answers only</option>
+                </select>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 13, color: '#5f6368' }}>
+                  Interactive rounds put students in the real solver, coordinate plane, number line or
+                  systems workspace, and partial credit builds as they work — which is what makes the
+                  leaderboard move mid-round. Most of the bank is typed answers, so a narrow skill set
+                  plus tools only may not fill a long game; the dry run will tell you before a class does.
+                </span>
+              </label>
               <label style={{ fontWeight: 800 }}>Rounds
                 <select value={roundCount} onChange={(event) => setRoundCount(Number(event.target.value))} style={{ display: 'block', width: '100%', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid #b7bec8' }}>
                   {[5, 8, 10, 12, 15, 20].map((count) => <option key={count} value={count}>{count}</option>)}
@@ -365,6 +437,35 @@ export default function LiveChallengeTeacher({
               </label>
             </div>
           )}
+          {/* Where the need actually shows up. The importer already exists and
+              works — it is just filed under Path bank maintenance, which is not
+              where anyone looks after a dry run comes up short. */}
+          <details style={{ marginTop: 14, padding: '10px 14px', borderRadius: 10, background: '#f8f9fa', border: '1px solid #d8dde6' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#3c4043' }}>Not enough interactive questions? Add your own</summary>
+            <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.6, color: '#3c4043' }}>
+              <p style={{ marginTop: 0 }}>
+                Most of the secure bank is typed or chosen answers, so <strong>Interactive tools only</strong> draws
+                from a small pool. You can upload more without waiting on anyone:
+              </p>
+              <ol style={{ margin: '0 0 10px', paddingLeft: 20 }}>
+                <li>Open <strong>My Math Path → Path coverage</strong>.</li>
+                <li>Expand <strong>Import a different seed package instead</strong>.</li>
+                <li>Choose one or more JSON files.</li>
+              </ol>
+              <p style={{ margin: '0 0 8px' }}>
+                A plain array works, as does an object with <code>documents</code>, <code>items</code> or{' '}
+                <code>questions</code>. Give a question a <code>pathToolId</code> — <code>stepAlgebra</code>,{' '}
+                <code>graphing2</code>, <code>systemsWorkspace</code>, <code>intervalNumberLine</code>,{' '}
+                <code>relationMapping</code>, <code>dataModelingLab</code>, <code>functionInvestigation</code> —
+                and it becomes an interactive round here.
+              </p>
+              <p style={{ margin: 0, color: '#5f6368' }}>
+                Every document is validated before anything is written, and a package that fails validation
+                writes nothing at all. Released SAT, ACT, TSIA2 and ASVAB content is refused by that importer
+                on purpose — those move only through their own release refresh.
+              </p>
+            </div>
+          </details>
           <div style={{ marginTop: 16, padding: 12, borderRadius: 10, background: '#e8f0fe', color: '#174ea6', fontSize: 13, lineHeight: 1.5 }}>
             <strong>Scoring:</strong> up to 1,000 points for mathematical correctness, at most 100 for speed, and at most 100 for a streak. Partial-credit tools earn proportional base points. Game results do not change report-card grades or mastery in this first version.
           </div>
@@ -385,20 +486,13 @@ export default function LiveChallengeTeacher({
 
   if (projector && ['lobby', 'running', 'finished'].includes(room.status)) {
     return (
-      <div style={{ minHeight: '70vh', background: '#202124', color: '#fff', borderRadius: 18, padding: 28, display: 'grid', gap: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div><div style={{ opacity: .72, textTransform: 'uppercase', fontWeight: 900 }}>MathMaster Live Challenge</div><h1 style={{ margin: '4px 0 0', fontSize: 38 }}>{room.title}</h1></div>
-          <button type="button" onClick={() => setProjector(false)} style={secondary}>Exit Projector View</button>
-        </div>
-        {room.status === 'lobby' && <div style={{ textAlign: 'center', padding: 30 }}><div style={{ fontSize: 80, fontWeight: 1000 }}>{joinedCount}</div><div style={{ fontSize: 24 }}>students joined · waiting for teacher</div></div>}
-        {room.status === 'running' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(280px,.8fr)', gap: 24, alignItems: 'start' }}>
-            <section><div style={{ fontSize: 20, fontWeight: 900, color: '#aecbfa' }}>Round {(room.currentRound || 0) + 1} of {room.roundCount} · {room.currentQuestion?.teksCode || 'Mixed review'}</div><div style={{ fontSize: 64, fontWeight: 1000, margin: '10px 0' }}>{formatClock(remainingMs)}</div><div style={{ whiteSpace: 'pre-wrap', fontSize: 28, lineHeight: 1.45 }}>{room.currentQuestion?.prompt}</div></section>
-            <section><h2 style={{ marginTop: 0 }}>Leaderboard</h2><Leaderboard rows={leaderboard} limit={8} projector /></section>
-          </div>
-        )}
-        {room.status === 'finished' && <section><h2 style={{ textAlign: 'center', fontSize: 34 }}>Final Standings</h2><div style={{ maxWidth: 700, margin: '0 auto' }}><Leaderboard rows={leaderboard} limit={12} projector /></div></section>}
-      </div>
+      <ChallengeProjector
+        room={room}
+        leaderboard={leaderboard}
+        joinedCount={joinedCount}
+        remainingMs={remainingMs}
+        onExit={() => setProjector(false)}
+      />
     );
   }
 
@@ -430,13 +524,7 @@ export default function LiveChallengeTeacher({
 
       {room.status === 'running' && (
         <>
-          <section style={{ ...panel, border: '2px solid #1a73e8' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 18, flexWrap: 'wrap' }}>
-              <div><div style={{ color: '#174ea6', fontSize: 12, fontWeight: 1000, textTransform: 'uppercase' }}>Round {(room.currentRound || 0) + 1} of {room.roundCount} · {room.currentQuestion?.teksCode || 'Mixed review'}</div><div style={{ marginTop: 8, whiteSpace: 'pre-wrap', fontSize: 20, lineHeight: 1.45, fontWeight: 700 }}>{room.currentQuestion?.prompt}</div></div>
-              <div style={{ minWidth: 140, textAlign: 'center', padding: 12, borderRadius: 12, background: remainingMs <= 10000 ? '#fce8e6' : '#e8f0fe', color: remainingMs <= 10000 ? '#a50e0e' : '#174ea6' }}><div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>Time left</div><div style={{ fontSize: 38, fontWeight: 1000 }}>{formatClock(remainingMs)}</div></div>
-            </div>
-            <div style={{ marginTop: 14, fontWeight: 800, color: '#5f6368' }}>{answeredCount} of {joinedCount} joined students answered</div>
-          </section>
+          <ChallengeLiveStatus room={room} remainingMs={remainingMs} answeredCount={answeredCount} joinedCount={joinedCount} />
           <section style={panel}><h3 style={{ marginTop: 0 }}>Leaderboard</h3><Leaderboard rows={leaderboard} /></section>
           <ChallengeReport report={report} />
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>

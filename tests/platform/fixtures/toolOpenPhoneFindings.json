@@ -1,0 +1,13 @@
+{
+  "generatedAt": "2026-09-05T13:38:35.892Z",
+  "device": "phone",
+  "viewport": {
+    "width": 390,
+    "height": 664,
+    "isMobile": true,
+    "deviceScaleFactor": 3,
+    "hasTouch": true
+  },
+  "measured": 19,
+  "findings": []
+}

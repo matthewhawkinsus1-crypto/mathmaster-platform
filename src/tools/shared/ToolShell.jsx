@@ -60,7 +60,11 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
       borderRadius: 18,
       background: '#fff',
       boxShadow: '0 16px 44px rgba(15, 23, 42, 0.08)',
-      overflow: 'hidden',
+      // `clip`, not `hidden`. Both keep the corners rounded, but `hidden`
+      // creates a scroll container, and a `position: sticky` descendant sticks
+      // to its nearest scroll container — one that never scrolls, so the task
+      // card silently did not stick. `clip` does not create one.
+      overflow: 'clip',
     }}>
       {/* ONE LINE, NOT THREE.
           This header was a 24px heading, a full sentence describing the tool,
@@ -171,30 +175,35 @@ export const TaskCard = ({ task, steps = [], note = null, question = null, steps
   return (
     <div className="mathmaster-tool-task-card" style={{
       border: '1px solid #9bb8e8', borderLeft: '6px solid #1a73e8', borderRadius: 12,
-      background: '#f4f8ff', padding: '14px 18px', marginBottom: 18,
+      background: '#f4f8ff', padding: '12px 16px', marginBottom: 12,
     }}>
       {authoredPrompt ? (
         <div className="mathmaster-tool-task-prompt">
-          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#174ea6' }}>{promptDiffers ? 'Problem' : 'Your task'}</div>
+          <div className="mathmaster-tool-task-eyebrow" style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#174ea6' }}>{promptDiffers ? 'Problem' : 'Your task'}</div>
           <MathText as="p" style={{ margin: '6px 0 0', fontSize: 17, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{authoredPrompt}</MathText>
         </div>
       ) : null}
       {taskText && (!authoredPrompt || promptDiffers) ? (
         <div className="mathmaster-tool-task-directions">
-          <div style={{ marginTop: authoredPrompt ? 12 : 0, fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#174ea6' }}>{authoredPrompt ? 'What to do' : 'Your task'}</div>
+          <div className="mathmaster-tool-task-eyebrow" style={{ marginTop: authoredPrompt ? 12 : 0, fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#174ea6' }}>{authoredPrompt ? 'What to do' : 'Your task'}</div>
           <MathText as="p" style={{ margin: '6px 0 0', fontSize: 16, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{taskText}</MathText>
         </div>
       ) : null}
-      {/* The steps are the same for every question in a section. By the fourth
-          one a student has read them three times and is scrolling past them to
-          reach the graph. They open by default and close only because the
-          student closed them — this is a fold, not a hiding place. */}
+      {/* THE STEPS START FOLDED. They are the same for every question in a
+          section, so by the fourth one a student has read them three times and
+          is scrolling past them to reach the graph. Opening folded puts the tool
+          on screen and ready for input instead; the summary line still names
+          what is inside and how many steps there are, and a student's choice to
+          open them is remembered for that block of text.
+
+          What does NOT fold is the problem itself and the one-line task — those
+          are the question, not the directions about it. */}
       {steps.length ? (
         <QuietDisclosure
           summary={`How to do this (${steps.length} step${steps.length === 1 ? '' : 's'})`}
           storageKey={`mm.tool.steps.${stepsKey || contentKey(steps.join('|'))}`}
-          defaultOpen
-          style={{ margin: '12px 0 0' }}
+          defaultOpen={false}
+          style={{ margin: '10px 0 0' }}
         >
           <ol style={{ margin: 0, paddingLeft: 20, color: '#3c4756', lineHeight: 1.6 }}>
             {steps.map((step, index) => <li key={index}><MathText>{step}</MathText></li>)}

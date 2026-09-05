@@ -73,11 +73,34 @@ const LEAK_PATTERNS = [
   { id: 'unsubstituted-placeholder', pattern: /\{\{\s*[A-Za-z_][A-Za-z0-9_]*\s*(?:\|[a-z]+)?\s*\}\}/g },
 ];
 
+/*
+ * TWO PRICES IN A SENTENCE ARE NOT A LATEX SPAN.
+ *
+ * "You start with $22 plus $8 each week" contains a matched pair of dollar
+ * signs, so the span rule flags it — but the dollars are IN the text because
+ * they belong there, and the student is seeing exactly what was authored.
+ *
+ * The tell is what follows the closing delimiter. A price is followed by its
+ * digits; a closed LaTeX span is followed by a space, a full stop or the end of
+ * the string. Narrow on purpose: `$x$`, `$\frac{1}{2}$` and `$7(x-9)=63$` are
+ * all still leaks, and this rule has caught a real one on a live screen.
+ */
+const isCurrencyPair = (text, match) => {
+  const at = String(text).indexOf(match);
+  if (at < 0) return false;
+  const after = String(text)[at + match.length];
+  return /[0-9]/.test(after || '');
+};
+
 const findLeaks = (text) => {
   const found = [];
   for (const { id, pattern } of LEAK_PATTERNS) {
     pattern.lastIndex = 0;
-    const matches = String(text).match(pattern);
+    let matches = String(text).match(pattern);
+    if (matches && id === 'dollar-delimited-latex') {
+      matches = matches.filter((match) => !isCurrencyPair(text, match));
+      if (!matches.length) matches = null;
+    }
     if (matches) found.push({ rule: id, samples: [...new Set(matches)].slice(0, 4) });
   }
   return found;
@@ -86,9 +109,13 @@ const findLeaks = (text) => {
 // --- run -----------------------------------------------------------------------
 
 const items = loadSeedItems();
-const selected = stride
-  ? items.filter((unused, index) => index % stride === 0)
-  : (limit ? items.slice(0, limit) : items);
+// `--only a,b` narrows to named ids, for chasing one crash without a full sweep.
+const only = String(argOf('--only', '')).split(',').map((id) => id.trim()).filter(Boolean);
+const selected = only.length
+  ? items.filter((item) => only.includes(item.id))
+  : stride
+    ? items.filter((unused, index) => index % stride === 0)
+    : (limit ? items.slice(0, limit) : items);
 console.log(`Auditing ${selected.length} of ${items.length} seed questions against ${ORIGIN}`);
 
 const browser = await chromium.launch({
@@ -96,7 +123,14 @@ const browser = await chromium.launch({
   args: ['--no-sandbox'],
 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
-page.on('pageerror', (error) => console.error('  page error:', error.message));
+// WHICH question crashed matters more than that one did. A bare message left
+// a 3337-question sweep reporting "a page error" with no way to reproduce it.
+let currentQuestionId = null;
+const crashes = [];
+page.on('pageerror', (error) => {
+  crashes.push({ id: currentQuestionId, message: error.message });
+  console.error(`  page error on ${currentQuestionId}: ${error.message}`);
+});
 await page.goto(`${ORIGIN}/tests/browser/renderAudit.html`, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => typeof window.__mmRenderAudit === 'function');
 
@@ -141,10 +175,22 @@ for (const item of selected) {
     hint: Array.isArray(issued.supportHints) ? issued.supportHints[0] || null : null,
   };
 
+  currentQuestionId = item.id;
   // eslint-disable-next-line no-await-in-loop
   await page.evaluate((payload) => window.__mmRenderAudit(payload), scene);
-  // eslint-disable-next-line no-await-in-loop
-  await page.waitForFunction((id) => document.querySelector(`[data-audit-id="${id}"]`) !== null, item.id, { timeout: 5000 });
+  try {
+    // eslint-disable-next-line no-await-in-loop
+    await page.waitForFunction((id) => document.querySelector(`[data-audit-id="${id}"]`) !== null, item.id, { timeout: 5000 });
+  } catch {
+    // A question that never mounts is a finding, not a reason to abandon the
+    // remaining three thousand. Record it and carry on.
+    findings.push({ id: item.id, leaks: [{ rule: 'did-not-render', samples: ['component threw before mounting'] }] });
+    // eslint-disable-next-line no-await-in-loop
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    // eslint-disable-next-line no-await-in-loop
+    await page.waitForFunction(() => typeof window.__mmRenderAudit === 'function');
+    continue;
+  }
 
   // Open the hint panel if this question has one — a student can, so the audit
   // must. It is a button, not a prop, so it cannot be forced from the scene.
@@ -152,6 +198,18 @@ for (const item of selected) {
   const hintButton = page.locator('button', { hasText: 'Show me something to think about' }).first();
   // eslint-disable-next-line no-await-in-loop
   if (await hintButton.count()) await hintButton.click().catch(() => {});
+
+  // THE SCRATCHPAD RE-STATES THE QUESTION, so it is a second surface the same
+  // markup can leak onto — and the one a student is looking at precisely when
+  // they cannot see the original. Open it, let it audit, close it again.
+  const scratchpadButton = page.locator('button', { hasText: 'Scratchpad' }).first();
+  // eslint-disable-next-line no-await-in-loop
+  if (await scratchpadButton.count()) {
+    // eslint-disable-next-line no-await-in-loop
+    await scratchpadButton.click().catch(() => {});
+    // eslint-disable-next-line no-await-in-loop
+    await page.waitForTimeout(120);
+  }
 
   // The text a student can actually read, with rendered mathematics removed.
   //

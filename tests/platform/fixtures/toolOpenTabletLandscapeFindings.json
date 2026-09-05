@@ -1,0 +1,13 @@
+{
+  "generatedAt": "2026-09-05T13:39:51.790Z",
+  "device": "tablet-landscape",
+  "viewport": {
+    "width": 1180,
+    "height": 820,
+    "isMobile": true,
+    "deviceScaleFactor": 2,
+    "hasTouch": true
+  },
+  "measured": 19,
+  "findings": []
+}

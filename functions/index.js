@@ -6279,9 +6279,16 @@ async function loadChallengeRoster(db, teacherEmail, { classId = null, classPeri
     .map((studentDoc) => ({ studentId: studentDoc.id, ...studentDoc.data() }));
 }
 
-async function loadChallengeCandidates(db, { courseId, standardCode }) {
+const questionStyleLabel = (style) => (
+  style === "tools" ? " that use an interactive tool"
+    : style === "noTools" ? " without an interactive tool"
+      : ""
+);
+
+async function loadChallengeCandidates(db, { courseId, standardCode, questionStyle = "any" }) {
   const challenge = await liveChallengeRules();
   const normalized = challenge.canonicalChallengeStandard(standardCode);
+  const style = challenge.canonicalQuestionStyle(questionStyle);
   // A RANDOM WINDOW, NOT THE FIRST PAGE. Without ordering, Firestore returns
   // document-ID order, so a mixed Algebra I game saw the same first 300 of 837
   // questions every time and the rest of the bank was unreachable. See
@@ -6296,7 +6303,8 @@ async function loadChallengeCandidates(db, { courseId, standardCode }) {
   const candidates = sampledDocs
     .map((questionDoc) => ({ id: questionDoc.id, ...questionDoc.data() }))
     .filter((question) => question.active !== false)
-    .filter((question) => normalized !== "mixed" || String(question.courseId || courseId) === courseId);
+    .filter((question) => normalized !== "mixed" || String(question.courseId || courseId) === courseId)
+    .filter((question) => challenge.matchesQuestionStyle(question, style));
 
   const planned = await Promise.all(candidates.map(async (question) => ({
     question,
@@ -6463,13 +6471,14 @@ exports.createLiveChallenge = onCall(async (request) => {
   const roster = await loadChallengeRoster(db, teacherEmail, { classId, classPeriod });
   if (!roster.length) throw new HttpsError("failed-precondition", `No students assigned to you were found in ${className || classPeriod}.`);
 
-  const candidates = await loadChallengeCandidates(db, { courseId, standardCode });
+  const questionStyle = challenge.canonicalQuestionStyle(request.data?.questionStyle);
+  const candidates = await loadChallengeCandidates(db, { courseId, standardCode, questionStyle });
   if (candidates.length < challenge.MIN_ROUND_COUNT) {
     throw new HttpsError(
       "failed-precondition",
       standardCode === "mixed"
         ? `The secure ${courseId === "algebra2" ? "Algebra II" : "Algebra I"} bank needs at least ${challenge.MIN_ROUND_COUNT} usable questions before a Live Challenge can start.`
-        : `${standardCode} has only ${candidates.length} securely gradeable challenge question${candidates.length === 1 ? "" : "s"}. At least ${challenge.MIN_ROUND_COUNT} are required.`,
+        : `${standardCode} has only ${candidates.length} securely gradeable challenge question${candidates.length === 1 ? "" : "s"}${questionStyleLabel(questionStyle)}. At least ${challenge.MIN_ROUND_COUNT} are required.`,
     );
   }
   const selected = selectChallengeQuestions(candidates, requestedRoundCount);
@@ -6504,6 +6513,7 @@ exports.createLiveChallenge = onCall(async (request) => {
     className: className || null,
     courseId,
     standardCode,
+    questionStyle,
     status: challenge.LIVE_CHALLENGE_STATUS.LOBBY,
     roundCount: actualRoundCount,
     requestedRoundCount,
@@ -6673,11 +6683,14 @@ exports.createChallengeDryRun = onCall(async (request) => {
   const requestedRoundCount = challenge.normalizeRoundCount(request.data?.roundCount);
   const roundSeconds = challenge.normalizeRoundSeconds(request.data?.roundSeconds);
 
-  const candidates = await loadChallengeCandidates(db, { courseId, standardCode });
+  const questionStyle = challenge.canonicalQuestionStyle(request.data?.questionStyle);
+  const candidates = await loadChallengeCandidates(db, { courseId, standardCode, questionStyle });
   if (candidates.length < challenge.MIN_ROUND_COUNT) {
     throw new HttpsError(
       "failed-precondition",
-      `That selection has only ${candidates.length} securely gradeable questions. At least ${challenge.MIN_ROUND_COUNT} are required.`,
+      // "Only 2 questions" is baffling on a bank of 800. "Only 2 that use an
+      // interactive tool" is the actual situation the teacher has to act on.
+      `That selection has only ${candidates.length} securely gradeable questions${questionStyleLabel(questionStyle)}. At least ${challenge.MIN_ROUND_COUNT} are required.`,
     );
   }
   const selected = selectChallengeQuestions(candidates, requestedRoundCount);
@@ -6689,6 +6702,7 @@ exports.createChallengeDryRun = onCall(async (request) => {
     teacherEmail,
     courseId,
     standardCode,
+    questionStyle,
     roundSeconds,
     questionIds,
     createdAt: FieldValue.serverTimestamp(),
@@ -6700,7 +6714,7 @@ exports.createChallengeDryRun = onCall(async (request) => {
     question: await buildLiveChallengePublicQuestion(db, { roomId: ref.id, roundIndex, questionId }),
   })));
 
-  return { dryRunId: ref.id, courseId, standardCode, roundSeconds, roundCount: rounds.length, rounds };
+  return { dryRunId: ref.id, courseId, standardCode, questionStyle, roundSeconds, roundCount: rounds.length, rounds };
 });
 
 exports.swapChallengeDryRunRound = onCall(async (request) => {
@@ -6715,7 +6729,13 @@ exports.swapChallengeDryRunRound = onCall(async (request) => {
   // A fresh draw, then the first candidate this dry run is not already using.
   // Swapping a question for one already in the set would look like the button
   // did nothing.
-  const candidates = await loadChallengeCandidates(db, { courseId: dryRun.courseId, standardCode: dryRun.standardCode });
+  const candidates = await loadChallengeCandidates(db, {
+    courseId: dryRun.courseId,
+    standardCode: dryRun.standardCode,
+    // A swap that ignored the style would quietly hand back the kind of
+    // question the teacher chose not to have.
+    questionStyle: dryRun.questionStyle,
+  });
   const inUse = new Set(questionIds);
   const replacement = selectChallengeQuestions(candidates, candidates.length)
     .map((entry) => entry.question.id)
@@ -7136,6 +7156,66 @@ exports.cancelLiveChallenge = onCall(async (request) => {
   const privateSnapshot = await privateRef.get();
   if (!privateSnapshot.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
   return finishLiveChallengeRoom({ db, roomRef, privateRef, room, status: challenge.LIVE_CHALLENGE_STATUS.CANCELLED });
+});
+
+/*
+ * A PLAYER SAYING HOW FAR THEY HAVE GOT, MID-ROUND.
+ *
+ * This exists so the board moves while people are still working. It writes ONE
+ * field group on the player's OWN public document — not the room document. That
+ * distinction is the whole reason this is safe to call every second: the hot
+ * document removed two releases ago was a single shared doc taking a write per
+ * student per round, and Firestore's sustained write limit is per document.
+ * Twenty-four students each writing their own doc is twenty-four documents.
+ *
+ * What it writes is NOT score. It is clamped, it is display only, it is ignored
+ * by grading, by the report, by the export and by mastery evidence, and it is
+ * dropped the moment the round it belongs to is answered or moves on. A student
+ * who forged it would push a number around a leaderboard and earn nothing.
+ */
+exports.reportLiveChallengeProgress = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const db = getFirestore();
+  const challenge = await liveChallengeRules();
+  const roomId = String(request.data?.roomId || "").trim();
+  const roundIndex = Number(request.data?.roundIndex);
+  if (!roomId || !Number.isInteger(roundIndex) || roundIndex < 0) {
+    throw new HttpsError("invalid-argument", "roomId and roundIndex are required.");
+  }
+
+  const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId);
+  const privatePlayerRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId).collection("players").doc(studentId);
+  const inviteRef = db.collection(LIVE_CHALLENGE_INVITES).doc(studentId);
+  const [roomSnapshot, playerSnapshot, inviteSnapshot] = await Promise.all([
+    roomRef.get(), privatePlayerRef.get(), inviteRef.get(),
+  ]);
+  if (!roomSnapshot.exists || !playerSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge is no longer available.");
+  if (!inviteSnapshot.exists || inviteSnapshot.data()?.roomId !== roomId) {
+    throw new HttpsError("permission-denied", "This Live Challenge was not assigned to you.");
+  }
+  const room = roomSnapshot.data() || {};
+  const player = playerSnapshot.data() || {};
+  if (room.status !== challenge.LIVE_CHALLENGE_STATUS.RUNNING || Number(room.currentRound) !== roundIndex) {
+    // Not an error worth surfacing: the student simply moved on, or the teacher
+    // advanced while a debounced report was in flight. Report nothing, quietly.
+    return { recorded: false };
+  }
+  if (!player.joined) throw new HttpsError("failed-precondition", "Join the Live Challenge before playing.");
+  // Nothing to publish once the round is really answered — the banked score is
+  // authoritative from then on.
+  if (Number(player.answeredRound) === roundIndex) return { recorded: false };
+
+  const provisionalPoints = Math.max(
+    0,
+    Math.min(challenge.LIVE_PROVISIONAL_MAX_POINTS, Math.round(Number(request.data?.provisionalPoints) || 0)),
+  );
+  await roomRef.collection("players").doc(String(player.playerKey)).set({
+    provisionalPoints,
+    provisionalRound: roundIndex,
+    provisionalAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  return { recorded: true, provisionalPoints };
 });
 
 exports.submitLiveChallengeResponse = onCall(async (request) => {

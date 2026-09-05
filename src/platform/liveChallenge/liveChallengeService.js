@@ -14,6 +14,7 @@ export const advanceLiveChallenge = call('advanceLiveChallenge');
 export const finishLiveChallenge = call('finishLiveChallenge');
 export const cancelLiveChallenge = call('cancelLiveChallenge');
 export const submitLiveChallengeResponse = call('submitLiveChallengeResponse');
+export const reportLiveChallengeProgress = call('reportLiveChallengeProgress');
 
 // A teacher rehearsing their own challenge. None of these touch a room, a
 // roster, or anybody's record — see the dry-run block in functions/index.js.

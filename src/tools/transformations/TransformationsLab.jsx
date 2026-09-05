@@ -215,9 +215,18 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
           <CoordinatePlane
             {...graphBounds}
             snapStep={questionData.snapStep || 1}
+            viewResetKey={questionData?.id ?? questionData?.prompt ?? null}
             onPlot={(point) => {
               if (plottedPoints.length >= expectedTransformedPoints.length) return;
               setPlottedPoints((current) => [...current, point]);
+              resetFeedback();
+            }}
+            // The source points come first in `points`, so anything below that
+            // offset is the given shape and is not the student's to drag.
+            onMovePoint={(index, point) => {
+              const studentIndex = index - sourcePoints.length;
+              if (studentIndex < 0) return;
+              setPlottedPoints((current) => current.map((existing, i) => (i === studentIndex ? point : existing)));
               resetFeedback();
             }}
             polylines={[

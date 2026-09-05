@@ -26,7 +26,7 @@ test('a teacher can reach the dry run from the create-a-challenge panel', () => 
 test('the dry run rehearses the settings the teacher is about to launch', () => {
   // A rehearsal of a different course, standard or clock would be worse than
   // none: it would answer a question the teacher did not ask.
-  for (const prop of ['courseId', 'standardCode', 'roundCount', 'roundSeconds']) {
+  for (const prop of ['courseId', 'standardCode', 'questionStyle', 'roundCount', 'roundSeconds']) {
     assert.match(
       teacher,
       new RegExp(`<ChallengeDryRun[\\s\\S]{0,400}${prop}=\\{${prop}\\}`),
@@ -36,9 +36,11 @@ test('the dry run rehearses the settings the teacher is about to launch', () => 
 });
 
 test('changing any of those settings closes a stale rehearsal', () => {
+  // Every setting the rehearsal was built from, question style included: a
+  // dry run of a different draw than the one about to launch is worse than none.
   assert.match(
     teacher,
-    /useEffect\(\(\) => \{ setDryRunOpen\(false\); \}, \[classId, courseId, standardCode, roundCount, roundSeconds\]\)/,
+    /useEffect\(\(\) => \{ setDryRunOpen\(false\); \}, \[classId, courseId, standardCode, questionStyle, roundCount, roundSeconds\]\)/,
   );
 });
 
@@ -132,4 +134,57 @@ test('the rehearsal scores with the real scorer, not an invented number', () => 
   assert.match(block, /remainingMs: 0/);
   assert.match(block, /previousStreak: 0/);
   assert.match(block, /dryRun: true/);
+});
+
+/* ---------- what the teacher sees while a round is live ---------- */
+
+test('the dry run offers the student screen, the control screen and the projector', () => {
+  for (const label of ['Student view', 'Your control screen', 'Projector']) {
+    assert.ok(dryRun.includes(label), `the dry run must offer "${label}"`);
+  }
+});
+
+test('the teacher views are the real components, not a second copy', () => {
+  // The same rule as ChallengeRound on the student side. If these were rebuilt
+  // inside the dry run, a teacher would rehearse a screen that does not exist.
+  assert.match(dryRun, /import \{ ChallengeLiveStatus, ChallengeProjector, Leaderboard \} from '\.\/LiveChallengeTeacher\.jsx'/);
+  assert.match(teacher, /export function ChallengeLiveStatus\(/);
+  assert.match(teacher, /export function ChallengeProjector\(/);
+  assert.match(teacher, /export function Leaderboard\(/);
+});
+
+test('the live game renders those same components rather than inline copies', () => {
+  // Extraction is only honest if the real game now goes through it too.
+  assert.match(teacher, /<ChallengeLiveStatus room=\{room\}/);
+  assert.match(teacher, /<ChallengeProjector\n?\s*room=\{room\}/);
+  assert.equal(teacher.split('<ChallengeLiveStatus').length - 1, 1, 'one live-status mount in the teacher screen');
+});
+
+test('a prompt on the wall is rendered as mathematics, not as raw LaTeX', () => {
+  // The student round was fixed for this earlier; the projector board and the
+  // teacher status panel were still interpolating the prompt as bare text, so
+  // an authored `$7(x-9)=63$` reached the screen in front of the class.
+  assert.match(teacher, /import MathText from '\.\.\/common\/MathText\.jsx'/);
+  assert.doesNotMatch(teacher, /\{room\.currentQuestion\?\.prompt\}<\/div>/);
+  assert.equal(
+    (teacher.match(/<MathText as="div"[\s\S]{0,200}currentQuestion\?\.prompt/g) || []).length,
+    2,
+    'both the control screen and the projector must render the prompt through MathText',
+  );
+});
+
+test('the sample leaderboard cannot be mistaken for a real class', () => {
+  // Fabricated rows that looked like real students would be a report a teacher
+  // could act on. Every alias says what it is, and the panel says it too.
+  const aliases = [...dryRun.matchAll(/alias: '([^']+)'/g)].map((m) => m[1]);
+  assert.ok(aliases.length >= 5, 'the sample board needs enough rows to show its shape');
+  aliases.forEach((alias) => assert.match(alias, /^Sample · /, `${alias} must be labelled a sample`));
+  assert.match(dryRun, /made up[\s\S]{0,80}Nobody has joined a dry run/);
+});
+
+test('the dry run never claims the real Next Round gate applies', () => {
+  // In a real game Next Round unlocks on "everyone answered or time is up".
+  // A rehearsal has nobody to wait for, so it must say so rather than let a
+  // teacher believe they have tested that gate.
+  assert.match(dryRun, /Next Round stays locked[\s\S]{0,160}nobody to wait for/);
 });

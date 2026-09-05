@@ -195,6 +195,10 @@ export default function EnlargeableFigure({
   return (
     <div
       style={BACKDROP}
+      // Named so the app-wide "no graph taller than 70dvh" cap can stand down
+      // here. Enlarging exists to make the figure big; applying the same cap
+      // inside the modal would make the button do almost nothing.
+      className="mathmaster-enlarged-figure"
       role="dialog"
       aria-modal="true"
       aria-label={`${label}, enlarged`}

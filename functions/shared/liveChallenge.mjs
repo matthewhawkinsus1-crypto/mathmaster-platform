@@ -186,18 +186,91 @@ export const planSecondChanceRounds = ({
     .map((entry) => entry.roundIndex);
 };
 
-export const publicLeaderboard = (players = {}) => (Array.isArray(players) ? players : Object.values(players || {}))
+/*
+ * WORK-IN-PROGRESS POINTS, AND WHY THEY ARE NOT SCORE.
+ *
+ * A board that only moves when somebody submits is a board that sits still for
+ * forty seconds and then jumps. To make the room feel alive while students are
+ * still working, a player may publish a provisional total: what their partial
+ * credit is worth SO FAR, from the step credit their solver has already
+ * accepted.
+ *
+ * It is display only. It is reported by the browser, so it is not trusted: it
+ * is clamped here, it never reaches `score`, and the server recomputes the real
+ * points from the real response at submit. A student who tampered with it would
+ * move a number on a leaderboard for a few seconds and earn nothing. That is a
+ * deliberate trade — the alternative is grading every step on the server, which
+ * would cost a round trip per click and still be gameable by whoever wrote the
+ * step.
+ */
+/*
+ * WHAT KIND OF QUESTION A GAME SHOULD DRAW.
+ *
+ * Roughly three quarters of the bank is typed or chosen answers, so a random
+ * ten-round draw is almost always ten of those. That is a fine game, but it is
+ * not the game a teacher means when they say they want students plotting points
+ * or working a solver — and no amount of shuffling makes a rare thing common.
+ *
+ * So the style is a choice rather than a hope. It is applied to candidates
+ * before selection, which means a game that cannot be filled says so at create
+ * time instead of quietly serving the wrong kind of round.
+ */
+export const CHALLENGE_QUESTION_STYLES = ['any', 'tools', 'noTools'];
+
+export const canonicalQuestionStyle = (value) => {
+  const style = String(value ?? '').trim();
+  return CHALLENGE_QUESTION_STYLES.includes(style) ? style : 'any';
+};
+
+// Bank records spell the tool three different ways depending on their vintage.
+export const pathToolIdOf = (question) => {
+  const id = question?.pathToolId || question?.toolId || question?.tool?.id || '';
+  const trimmed = String(id).trim();
+  return trimmed || null;
+};
+
+export const matchesQuestionStyle = (question, style) => {
+  const normalized = canonicalQuestionStyle(style);
+  if (normalized === 'any') return true;
+  const hasTool = pathToolIdOf(question) !== null;
+  return normalized === 'tools' ? hasTool : !hasTool;
+};
+
+export const LIVE_PROVISIONAL_MAX_POINTS = 1000;
+
+export const provisionalPointsFor = (player, activeRound = null) => {
+  if (activeRound == null) return 0;
+  if (Number(player?.provisionalRound) !== Number(activeRound)) return 0;
+  // Once the round is actually answered the real score is authoritative. A
+  // provisional left lying around must never stack on top of it.
+  if (Number(player?.answeredRound) === Number(activeRound)) return 0;
+  const points = Math.round(Number(player?.provisionalPoints) || 0);
+  return Math.max(0, Math.min(LIVE_PROVISIONAL_MAX_POINTS, points));
+};
+
+/*
+ * `activeRound` is optional and defaults to off, so every existing caller —
+ * the report, the export, the finished standings — keeps ranking on banked
+ * score alone and cannot accidentally publish an in-progress number.
+ */
+export const publicLeaderboard = (players = {}, { activeRound = null } = {}) => (Array.isArray(players) ? players : Object.values(players || {}))
   .filter((player) => player?.joined !== false)
-  .map((player) => ({
-    playerKey: player?.playerKey ? String(player.playerKey).slice(0, 80) : null,
-    alias: String(player.alias || 'Player').slice(0, 60),
-    score: Math.max(0, Math.round(Number(player.score) || 0)),
-    correctCount: Math.max(0, Math.round(Number(player.correctCount) || 0)),
-    roundsAnswered: Math.max(0, Math.round(Number(player.roundsAnswered) || 0)),
-    streak: Math.max(0, Math.round(Number(player.streak) || 0)),
-    answeredRound: Number.isInteger(Number(player.answeredRound)) ? Number(player.answeredRound) : -1,
-  }))
-  .sort((a, b) => b.score - a.score || b.correctCount - a.correctCount || a.alias.localeCompare(b.alias))
+  .map((player) => {
+    const score = Math.max(0, Math.round(Number(player.score) || 0));
+    const provisionalPoints = provisionalPointsFor(player, activeRound);
+    return {
+      playerKey: player?.playerKey ? String(player.playerKey).slice(0, 80) : null,
+      alias: String(player.alias || 'Player').slice(0, 60),
+      score,
+      provisionalPoints,
+      liveScore: score + provisionalPoints,
+      correctCount: Math.max(0, Math.round(Number(player.correctCount) || 0)),
+      roundsAnswered: Math.max(0, Math.round(Number(player.roundsAnswered) || 0)),
+      streak: Math.max(0, Math.round(Number(player.streak) || 0)),
+      answeredRound: Number.isInteger(Number(player.answeredRound)) ? Number(player.answeredRound) : -1,
+    };
+  })
+  .sort((a, b) => b.liveScore - a.liveScore || b.correctCount - a.correctCount || a.alias.localeCompare(b.alias))
   .map((player, index) => ({ ...player, rank: index + 1 }));
 
 export const joinedPlayerCount = (players = {}) => (Array.isArray(players) ? players : Object.values(players || {}))

@@ -47,13 +47,21 @@ test('the tool header is a label, not a headline plus a paragraph', () => {
   assert.match(about.slice(0, 400), /defaultOpen=\{false\}/);
 });
 
-test('the steps fold but start open, because they are still directions', () => {
-  // Hiding instructions by default would trade one problem for a worse one.
+test('the steps fold and start folded, so the tool is what opens', () => {
+  // THIS REVERSES AN EARLIER DECISION, deliberately. The steps used to start
+  // open on the reasoning that folding directions by default trades one problem
+  // for a worse one. In practice they are identical for every question in a
+  // section, so on a Chromebook the first screen was directions the student had
+  // already read three times and the tool was below the fold.
+  //
+  // Folded is not hidden: the summary names the block and its step count, the
+  // control is a 44px target, and the student's choice to open is remembered.
+  // What never folds is the problem itself and the one-line task — those are
+  // asserted separately, because losing THOSE would be the worse trade.
   const source = codeOf('src/tools/shared/ToolShell.jsx');
   const steps = source.slice(source.indexOf('How to do this'));
-  assert.match(steps.slice(0, 500), /defaultOpen\b/);
-  assert.doesNotMatch(steps.slice(0, 500), /defaultOpen=\{false\}/);
-  // The count is named, so a student who folds them knows what is inside.
+  assert.match(steps.slice(0, 500), /defaultOpen=\{false\}/);
+  // The count is named, so a student who has not opened them knows what is inside.
   assert.match(source, /How to do this \(\$\{steps\.length\} step/);
 });
 

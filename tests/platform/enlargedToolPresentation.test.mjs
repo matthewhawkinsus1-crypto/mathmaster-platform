@@ -14,14 +14,24 @@ const codeOf = (path) => readFileSync(path, 'utf8')
 
 const AIMING = ['graphing2', 'transformations', 'intervalNumberLine'];
 
-test('a plane a student plots on never enlarges by itself', () => {
-  // The enlarged view is a modal and CoordinatePlane holds only the plane, so
-  // the Check button, the task list and the feedback all stay behind the
-  // backdrop. Enlarging a read-only graph to look at it is complete; enlarging
-  // a plane you answer with is a dead end you must close before you can submit.
+test('a plane a student plots on can be enlarged to plot in', () => {
+  // THIS REVERSES AN EARLIER DECISION. The rule used to be that an interactive
+  // plane never enlarged, because CoordinatePlane holds only the plane and the
+  // Check button would be stranded behind the backdrop — a dead end.
+  //
+  // In practice the plane a student AIMS at is the one that most needs to be
+  // bigger, and the dead end was overstated: plotting inside the enlarged view
+  // updates the same tool state, so closing it returns to the question with the
+  // work already done. Verified by doing it in a browser rather than reasoning
+  // about it — tests/browser/plotInteraction.mjs plots inside the enlarged view
+  // on both a Chromebook and a phone and checks the point took.
   const source = codeOf('src/tools/shared/CoordinatePlane.jsx');
-  assert.match(source, /if \(!enlargeable \|\| interactive\) return plane;/);
+  assert.match(source, /if \(!enlargeable\) return plane;/);
+  assert.doesNotMatch(source, /if \(!enlargeable \|\| interactive\) return plane;/);
   assert.match(source, /const interactive = typeof onPlot === 'function';/);
+  // Named for what it is for, so the control reads as an invitation to work
+  // rather than an invitation to look.
+  assert.match(source, /enlargeLabel=\{interactive \? 'Enlarge to plot' : 'Enlarge graph'\}/);
 });
 
 test('every tool that opens itself carries its controls into the panel', () => {

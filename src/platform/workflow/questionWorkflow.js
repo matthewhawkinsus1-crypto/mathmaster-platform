@@ -98,6 +98,47 @@ export const normalizeWorkflow = (workflow = []) => {
   });
 };
 
+/*
+ * WHICH EARLIER STEPS A STUDENT MAY NO LONGER CHANGE.
+ *
+ * Some steps hand over an earlier step's answer as a side effect of being
+ * answerable at all. "Mark the x-intercepts" has to draw the correct curve —
+ * you cannot look for a feature on a graph that is not there — and that curve
+ * shows both the points the student was asked to plot in step one and the
+ * function family they were asked to name in step two.
+ *
+ * Focus mode lets a student walk back to any answered step, so without this a
+ * wrong plot could be quietly corrected from the picture two steps later, and
+ * the first two marks would stop meaning anything.
+ *
+ * A stage declares `reveals: ['plot', 'model']`. Once the revealing stage is
+ * REACHABLE — which is to say the student has answered everything before it and
+ * could open it — the named stages lock. Reachable rather than answered,
+ * because seeing the graph is enough; they do not have to do anything with it.
+ *
+ * Locking is not hiding. A locked step still shows the student what they
+ * answered, so the summary strip and the step itself stay honest; it just stops
+ * accepting changes.
+ */
+export const lockedStageIds = (workflow = [], reachableIndex = -1) => {
+  const stages = Array.isArray(workflow) ? workflow : [];
+  const byId = new Map(stages.map((stage, index) => [stage?.id, index]));
+  const locked = new Set();
+
+  stages.forEach((stage, index) => {
+    if (index > reachableIndex) return;
+    const reveals = Array.isArray(stage?.reveals) ? stage.reveals : [];
+    reveals.forEach((id) => {
+      const target = byId.get(id);
+      // Only earlier steps can be given away. A stage naming itself or one that
+      // comes later is an authoring slip, not a lock.
+      if (target !== undefined && target < index) locked.add(id);
+    });
+  });
+
+  return locked;
+};
+
 /**
  * Validate a composed workflow.
  *

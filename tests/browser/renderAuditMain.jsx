@@ -18,6 +18,10 @@ import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import PathSessionPlayer from '../../src/components/student/PathSessionPlayer.jsx';
 import PathSolutionReview from '../../src/components/student/PathSolutionReview.jsx';
+// THE APP'S STYLESHEET. App.jsx imports this in production, and without it the
+// harness measures unstyled document flow — .mathmaster-tool-split falls back to
+// display:block and a two-column tool looks like a 1957px stack that nobody has.
+import '../../src/App.css';
 
 const listeners = new Set();
 let current = null;
@@ -44,6 +48,13 @@ function Harness() {
   return (
     <div data-audit-id={scene.id}>
       <PathSessionPlayer
+        // KEYED PER QUESTION, because that is what production does — a student
+        // moving to the next question gets a fresh mount, not the previous
+        // component handed different props. Without this the harness reuses one
+        // instance across question types, the hook count changes between
+        // renders, and React throws "Rendered more hooks than during the
+        // previous render" — an artifact of the harness, not of the player.
+        key={scene.id}
         session={SESSION}
         questionInstance={scene.questionInstance}
         // Every optional surface forced on at once. A field that only appears

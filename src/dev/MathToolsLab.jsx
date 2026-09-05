@@ -2,7 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { getToolDefinition, listTools } from '../tools/toolRegistry';
 import { ToolRuntimeProvider } from '../tools/shared/ToolRuntimeContext';
 
-const SAMPLE_SPECS = {
+// Exported so the browser open-audit can mount every tool with the same
+// realistic spec a teacher sees on the preview bench.
+export const SAMPLE_SPECS = {
   dataModelingLab: { mode:'full', points:[[1,2],[2,3],[3,5],[4,5],[5,7],[6,8],[7,10]], causationSupported:false, expectedModel:'linear', predictionX:8 },
   inverseCompositionLab: { mode:'restriction', f:{type:'quadratic',a:1,h:2,k:-1,inverseBranch:'right',domain:{min:2}}, g:{type:'linear',a:-1,h:0,k:4}, x:5 },
   systemsWorkspace: { mode:'linearQuadratic', linearQuadratic:{line:{m:1,b:2},quadratic:{a:1,b:0,c:-4}} },

@@ -17,10 +17,9 @@ test('the shared coordinate plane can be opened full window', () => {
   const source = codeOf('src/tools/shared/CoordinatePlane.jsx');
   assert.match(source, /import EnlargeableFigure/);
   assert.match(source, /enlargeable = true/);
-  // Read-only planes enlarge themselves. An interactive one does not, because
-  // this component holds only the plane and its controls would be stranded
-  // behind the backdrop — those tools wrap their whole split instead.
-  assert.match(source, /if \(!enlargeable \|\| interactive\) return plane;/);
+  // Every plane enlarges now, interactive ones included — see
+  // enlargedToolPresentation.test.mjs for why that exclusion was dropped.
+  assert.match(source, /if \(!enlargeable\) return plane;/);
   assert.match(source, /<EnlargeableFigure/);
 });
 

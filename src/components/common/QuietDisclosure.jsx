@@ -11,9 +11,14 @@ import React, { useCallback, useEffect, useState } from 'react';
  * they have already absorbed.
  *
  * So the supporting material folds away, and STAYS folded for that student on
- * that surface. The thing this is not is a way to hide instructions: it opens by
- * default, the summary line always names what is inside, and the student is the
- * only one who ever closes it.
+ * that surface. Callers choose the starting state: directions a student has
+ * already read start folded so the tool is on screen and ready for input, while
+ * anything they have not seen starts open. Either way the summary line always
+ * names what is inside, and nothing is ever hidden — only folded.
+ *
+ * A FOLDED PANEL COSTS ONE ROW. The bottom margin exists to separate the open
+ * body from what follows it; while closed there is no body, so reserving that
+ * space would make a fold that saves nothing.
  *
  * PERSISTENCE IS BEST-EFFORT AND MUST NEVER BE LOAD-BEARING. A private window,
  * cleared site data, or a browser set to block storage all make the read throw
@@ -80,7 +85,7 @@ export default function QuietDisclosure({
     <div
       className="mathmaster-quiet-disclosure"
       data-open={open ? 'true' : 'false'}
-      style={{ margin: '0 0 10px', ...style }}
+      style={{ margin: open ? '0 0 10px' : 0, ...style }}
     >
       <button
         type="button"
