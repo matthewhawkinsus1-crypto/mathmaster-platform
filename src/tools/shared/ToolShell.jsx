@@ -75,21 +75,38 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
 
           The subtitle describes what the TOOL is. That is worth reading once
           and is not worth a paragraph on every question, so it folds. */}
-      <header className="mathmaster-tool-shell-header" style={{ padding: '12px 20px', borderBottom: '1px solid #e5e7eb', background: 'linear-gradient(135deg,#f8fbff,#eef4ff)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+      {/* ONE ROW, NOT THREE.
+          The name of the tool, its badge and "About this tool" used to stack:
+          a title row, then a margin, then a 44px fold, for 99px of chrome
+          before the student reached any mathematics. On a phone that pushed the
+          answer control to 558px of a 664px screen.
+
+          The header is wide and mostly empty, so they sit on one line and the
+          fold goes to the far end. Opened, App.css gives it the whole row via
+          its `data-open` attribute, so the text reads at full width instead of
+          being squeezed into whatever the summary left over. */}
+      <header className="mathmaster-tool-shell-header" style={{ padding: '9px 16px', borderBottom: '1px solid #e5e7eb', background: 'linear-gradient(135deg,#f8fbff,#eef4ff)' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#172033' }}>{title}</h2>
-          {badge ? <span style={{ borderRadius: 999, background: '#e8f0fe', color: '#174ea6', padding: '5px 10px', fontWeight: 800, fontSize: 11 }}>{badge}</span> : null}
-        </div>
-        {subtitle ? (
-          <QuietDisclosure
-            summary="About this tool"
-            storageKey={`mm.tool.about.${shellKey || contentKey(`${title}|${subtitle}`)}`}
-            defaultOpen={false}
-            style={{ margin: '8px 0 0' }}
-          >
+          {badge ? <span className="mathmaster-tool-shell-badge" style={{ borderRadius: 999, background: '#e8f0fe', color: '#174ea6', padding: '5px 10px', fontWeight: 800, fontSize: 11 }}>{badge}</span> : null}
+          {subtitle ? (
+            <QuietDisclosure
+              summary="About this tool"
+              storageKey={`mm.tool.about.${shellKey || contentKey(`${title}|${subtitle}`)}`}
+              defaultOpen={false}
+              style={{ margin: 0, marginLeft: 'auto' }}
+            >
+              {/* The badge is repeated here so a phone can drop it from the
+                header row without losing it. At 390px "Graphing" plus the badge
+                plus this fold wrapped onto three lines — 101px of naming a tool
+                the student is already looking at. */}
+            {badge ? (
+              <p className="mathmaster-tool-shell-badge-echo" style={{ margin: '0 0 6px', color: '#174ea6', fontWeight: 800, fontSize: 13 }}>{badge}</p>
+            ) : null}
             <p style={{ margin: 0, color: '#5f6b7a', lineHeight: 1.45, fontSize: 14 }}>{subtitle}</p>
-          </QuietDisclosure>
-        ) : null}
+            </QuietDisclosure>
+          ) : null}
+        </div>
       </header>
       <div className="mathmaster-tool-shell-body" style={{ padding: 24 }}>{children}</div>
       {footer ? <footer style={{ padding: '14px 24px', borderTop: '1px solid #e5e7eb', background: '#fafafa', color: '#5f6b7a', fontSize: 13 }}>{footer}</footer> : null}
