@@ -109,9 +109,13 @@ const findLeaks = (text) => {
 // --- run -----------------------------------------------------------------------
 
 const items = loadSeedItems();
-const selected = stride
-  ? items.filter((unused, index) => index % stride === 0)
-  : (limit ? items.slice(0, limit) : items);
+// `--only a,b` narrows to named ids, for chasing one crash without a full sweep.
+const only = String(argOf('--only', '')).split(',').map((id) => id.trim()).filter(Boolean);
+const selected = only.length
+  ? items.filter((item) => only.includes(item.id))
+  : stride
+    ? items.filter((unused, index) => index % stride === 0)
+    : (limit ? items.slice(0, limit) : items);
 console.log(`Auditing ${selected.length} of ${items.length} seed questions against ${ORIGIN}`);
 
 const browser = await chromium.launch({
@@ -119,7 +123,14 @@ const browser = await chromium.launch({
   args: ['--no-sandbox'],
 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
-page.on('pageerror', (error) => console.error('  page error:', error.message));
+// WHICH question crashed matters more than that one did. A bare message left
+// a 3337-question sweep reporting "a page error" with no way to reproduce it.
+let currentQuestionId = null;
+const crashes = [];
+page.on('pageerror', (error) => {
+  crashes.push({ id: currentQuestionId, message: error.message });
+  console.error(`  page error on ${currentQuestionId}: ${error.message}`);
+});
 await page.goto(`${ORIGIN}/tests/browser/renderAudit.html`, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => typeof window.__mmRenderAudit === 'function');
 
@@ -164,10 +175,22 @@ for (const item of selected) {
     hint: Array.isArray(issued.supportHints) ? issued.supportHints[0] || null : null,
   };
 
+  currentQuestionId = item.id;
   // eslint-disable-next-line no-await-in-loop
   await page.evaluate((payload) => window.__mmRenderAudit(payload), scene);
-  // eslint-disable-next-line no-await-in-loop
-  await page.waitForFunction((id) => document.querySelector(`[data-audit-id="${id}"]`) !== null, item.id, { timeout: 5000 });
+  try {
+    // eslint-disable-next-line no-await-in-loop
+    await page.waitForFunction((id) => document.querySelector(`[data-audit-id="${id}"]`) !== null, item.id, { timeout: 5000 });
+  } catch {
+    // A question that never mounts is a finding, not a reason to abandon the
+    // remaining three thousand. Record it and carry on.
+    findings.push({ id: item.id, leaks: [{ rule: 'did-not-render', samples: ['component threw before mounting'] }] });
+    // eslint-disable-next-line no-await-in-loop
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    // eslint-disable-next-line no-await-in-loop
+    await page.waitForFunction(() => typeof window.__mmRenderAudit === 'function');
+    continue;
+  }
 
   // Open the hint panel if this question has one — a student can, so the audit
   // must. It is a button, not a prop, so it cannot be forced from the scene.
