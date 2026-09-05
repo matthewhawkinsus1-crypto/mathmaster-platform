@@ -18,6 +18,7 @@ import { buildExpressionFunctionSpec, evaluateModelAt, evaluateNumericValue, par
 import { evaluateGraphFunction } from '../../functionGraphUtils';
 import { buildStudentTableMagneticTargets } from '../../graphInteractionPrecision';
 import { buildWorkflowSummaryItems, shouldUseWorkflowFocusMode } from './workflowFocusMode';
+import { stageFamily, stageFamilyLabel } from './stageFamilies';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
 import './WorkflowFocusMode.css';
 
@@ -1034,9 +1035,27 @@ export default function WorkflowRunner({
   const canGoPrevious = safeActiveIndex > 0;
   const canGoNext = safeActiveIndex < workflow.length - 1 && safeActiveIndex < furthestReachableIndex;
 
+  const activeFamily = stageFamily(activeStage?.kind);
+  // Answered steps rather than position, so the rail measures work done, not
+  // how far the student has clicked.
+  const railPercent = workflow.length
+    ? Math.round((progress.answered / workflow.length) * 100)
+    : 0;
+
   return (
-    <div className="workflow-focus">
+    <div className="workflow-focus" data-family={activeFamily}>
       {promptAndScenario}
+
+      <div
+        className="workflow-focus__rail"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={workflow.length}
+        aria-valuenow={progress.answered}
+        aria-label={`${progress.answered} of ${workflow.length} steps answered`}
+      >
+        <div className="workflow-focus__rail-fill" style={{ width: `${railPercent}%` }} />
+      </div>
 
       <nav className="workflow-focus__navigator" aria-label="Question steps">
         {workflow.map((stage, index) => {
@@ -1054,12 +1073,14 @@ export default function WorkflowRunner({
               key={stage.id}
               type="button"
               className={className}
+              data-family={stageFamily(stage.kind)}
               disabled={!reachable}
               aria-current={active ? 'step' : undefined}
               aria-label={`Step ${index + 1}: ${definition?.label || stage.kind}${answered ? ', answered' : ''}`}
               onClick={() => setActiveStageIndex(index)}
             >
-              {answered ? '✓ ' : ''}{index + 1}. {definition?.label || stage.kind}
+              {answered ? <span className="workflow-focus__step-check" aria-hidden="true">✓ </span> : null}
+              {index + 1}. {definition?.label || stage.kind}
             </button>
           );
         })}
@@ -1099,11 +1120,14 @@ export default function WorkflowRunner({
 
       <main className="workflow-focus__workspace">
         <div className="workflow-focus__workspace-heading">
-          <h4>Step {safeActiveIndex + 1}. {activeDefinition?.label || activeStage?.kind}</h4>
+          <div className="workflow-focus__workspace-heading-left">
+            <h4>Step {safeActiveIndex + 1}. {activeDefinition?.label || activeStage?.kind}</h4>
+            <span className="workflow-focus__family">{stageFamilyLabel(activeStage?.kind)}</span>
+          </div>
           <span className="workflow-focus__counter">{safeActiveIndex + 1} of {workflow.length}</span>
         </div>
         <div className={graphReference ? 'workflow-focus__workspace-body workflow-focus__workspace-body--with-graph' : 'workflow-focus__workspace-body'}>
-          <div className="workflow-focus__active-stage">
+          <div className="workflow-focus__active-stage" key={activeStage?.id || safeActiveIndex}>
             {workflow.map((stage, index) => renderStage(stage, index, { focused: index === safeActiveIndex }))}
           </div>
           {graphReference && (

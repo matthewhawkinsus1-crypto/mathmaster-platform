@@ -1,7 +1,70 @@
+/* THE PROCESS, NOT A FORM.
+ *
+ * A composed question is a walk through several different mathematical acts,
+ * and it used to look like eleven identical blue pills above one white box.
+ * Colour here carries which KIND of act a step is — build, find, decide, state
+ * (see stageFamilies.js) — so the workspace visibly changes character as the
+ * student moves, and the same kind of thinking always arrives in the same
+ * colour.
+ *
+ * Every family declares the same four variables and everything downstream reads
+ * only those, so adding a fifth family is one block, not a sweep.
+ *
+ * Colour is a SECOND channel. Numbers, labels and ticks all survive without it.
+ */
+
 .workflow-focus {
   display: grid;
   gap: 14px;
   text-align: left;
+
+  /* Defaults, overridden per family below. */
+  --wf-accent: #1a73e8;
+  --wf-accent-dark: #174ea6;
+  --wf-tint: #eaf2ff;
+  --wf-edge: #b7d0f5;
+}
+
+.workflow-focus[data-family="build"],
+.workflow-focus [data-family="build"] {
+  --wf-accent: #1a73e8; --wf-accent-dark: #14508f; --wf-tint: #eaf2ff; --wf-edge: #b7d0f5;
+}
+
+.workflow-focus[data-family="locate"],
+.workflow-focus [data-family="locate"] {
+  --wf-accent: #7b3fbf; --wf-accent-dark: #59268f; --wf-tint: #f3ebfd; --wf-edge: #d3bcf0;
+}
+
+/* Amber needs a much darker text tone than its fill to stay readable — the
+   swatch that looks right on a chip is unreadable as body text. */
+.workflow-focus[data-family="decide"],
+.workflow-focus [data-family="decide"] {
+  --wf-accent: #b06000; --wf-accent-dark: #8a4b00; --wf-tint: #fdf1de; --wf-edge: #edc78d;
+}
+
+.workflow-focus[data-family="state"],
+.workflow-focus [data-family="state"] {
+  --wf-accent: #0b7285; --wf-accent-dark: #075766; --wf-tint: #e3f5f8; --wf-edge: #a4d8e2;
+}
+
+/* ------------------------------------------------------------ progress rail */
+
+/* How far through, at a glance and without counting pills. It fills in the
+   colour of the step the student is on, so the rail and the workspace agree. */
+.workflow-focus__rail {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: #e7ebf1;
+  overflow: hidden;
+}
+
+.workflow-focus__rail-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--wf-accent-dark), var(--wf-accent));
+  transition: width .45s cubic-bezier(.22, .9, .3, 1), background .3s ease;
 }
 
 .workflow-focus__navigator {
@@ -15,10 +78,14 @@
 .workflow-focus__step {
   flex: 0 0 auto;
   min-height: 42px;
-  border: 1px solid #c9d3e3;
+  /* Tinted even when it is not the current step: a student can see at a glance
+     that this question is build, then decide, then two finds — the shape of the
+     work ahead — instead of a row of identical grey chips. Kept faint so the
+     current step still wins the eye. */
+  border: 1px solid var(--wf-edge);
   border-radius: 999px;
-  background: #fff;
-  color: #465468;
+  background: color-mix(in srgb, var(--wf-tint) 45%, #fff);
+  color: var(--wf-accent-dark);
   padding: 8px 13px;
   font: inherit;
   font-weight: 800;
@@ -27,26 +94,48 @@
 }
 
 .workflow-focus__step:hover:not(:disabled) {
-  border-color: #1a73e8;
+  border-color: var(--wf-accent);
+  background: var(--wf-tint);
 }
 
 .workflow-focus__step--active {
-  border: 2px solid #1a73e8;
-  background: #eaf2ff;
-  color: #174ea6;
-  box-shadow: 0 0 0 2px rgba(26, 115, 232, .08);
+  border: 2px solid var(--wf-accent);
+  background: var(--wf-tint);
+  color: var(--wf-accent-dark);
+  box-shadow: 0 2px 10px -2px color-mix(in srgb, var(--wf-accent) 45%, transparent);
 }
 
+/* Answered stays green whatever the family: done is done, and it should not
+   take a second look to tell finished from current. */
 .workflow-focus__step--answered:not(.workflow-focus__step--active) {
-  border-color: #5f8f7b;
-  background: #f1faf5;
-  color: #246244;
+  border-color: #7fb79b;
+  background: #eefaf3;
+  color: #1c6444;
 }
 
+/* A small acknowledgement the moment a step is completed. */
+@keyframes workflowStepDone {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.075); }
+  100% { transform: scale(1); }
+}
+
+.workflow-focus__step--answered { animation: workflowStepDone .32s ease-out; }
+
+.workflow-focus__step-check {
+  color: #188038;
+  font-weight: 900;
+}
+
+/* A step not yet reachable keeps its family tint rather than washing out to
+   grey. Greying it made the whole route grey — you can only ever reach the next
+   unanswered step — which threw away the point of colouring the steps at all.
+   Fading and the not-allowed cursor carry "not yet"; the hue carries "this one
+   will be a decision". */
 .workflow-focus__step:disabled {
   cursor: not-allowed;
-  opacity: .5;
-  background: #f5f6f8;
+  opacity: .62;
+  filter: saturate(.7);
 }
 
 .workflow-focus__summary {
@@ -108,11 +197,53 @@
 }
 
 .workflow-focus__workspace {
-  border: 1px solid #c9d7ea;
+  position: relative;
+  border: 1px solid var(--wf-edge);
   border-radius: 14px;
-  background: #fff;
+  /* A tint that fades out downward: the panel reads as lit from its own top
+     edge rather than as a flat white rectangle, and the work itself still sits
+     on white where the student is reading and typing. */
+  background:
+    linear-gradient(180deg, var(--wf-tint) 0, #fff 190px),
+    #fff;
   padding: 18px;
-  box-shadow: 0 2px 8px rgba(31, 55, 90, .05);
+  box-shadow: 0 2px 8px rgba(31, 55, 90, .05), 0 1px 0 rgba(255, 255, 255, .9) inset;
+  transition: border-color .3s ease, background .3s ease;
+}
+
+/* The coloured edge that says which kind of step this is. */
+.workflow-focus__workspace::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  border-radius: 14px 14px 0 0;
+  background: linear-gradient(90deg, var(--wf-accent-dark), var(--wf-accent));
+}
+
+/* Each step arrives rather than blinking into place. Keyed on the stage id in
+   the renderer, so it replays on every move — including backwards. */
+@keyframes workflowStageArrive {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: none; }
+}
+
+
+/* The family name, so the colour is never carrying meaning on its own. */
+.workflow-focus__family {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  background: var(--wf-tint);
+  border: 1px solid var(--wf-edge);
+  padding: 3px 10px;
+  color: var(--wf-accent-dark);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 
@@ -129,6 +260,7 @@
 
 .workflow-focus__active-stage {
   min-width: 0;
+  animation: workflowStageArrive .34s cubic-bezier(.22, .9, .3, 1) both;
 }
 
 .workflow-focus__graph-reference {
@@ -168,9 +300,17 @@
 
 .workflow-focus__workspace-heading h4 {
   margin: 0;
-  color: #174ea6;
-  font-size: 15px;
+  color: var(--wf-accent-dark);
+  font-size: 16px;
   font-weight: 900;
+}
+
+.workflow-focus__workspace-heading-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .workflow-focus__counter {
@@ -215,9 +355,10 @@
 }
 
 .workflow-focus__nav-button--primary {
-  border-color: #1a73e8;
-  background: #1a73e8;
+  border-color: var(--wf-accent-dark);
+  background: linear-gradient(180deg, var(--wf-accent), var(--wf-accent-dark));
   color: #fff;
+  box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--wf-accent) 55%, transparent);
 }
 
 .workflow-focus__nav-button:disabled {
@@ -263,5 +404,20 @@
   .workflow-focus__summary-item {
     width: 100%;
     box-sizing: border-box;
+  }
+}
+
+/* Everything above is decoration over a layout that already works, so a student
+   who asks their device for less motion simply gets the still version. */
+@media (prefers-reduced-motion: reduce) {
+  .workflow-focus__active-stage,
+  .workflow-focus__step--answered {
+    animation: none;
+  }
+
+  .workflow-focus__rail-fill,
+  .workflow-focus__workspace,
+  .workflow-focus__step {
+    transition: none;
   }
 }
