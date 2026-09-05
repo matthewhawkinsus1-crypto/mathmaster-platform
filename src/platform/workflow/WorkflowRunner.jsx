@@ -499,7 +499,19 @@ const DELEGATES = {
     return (
       <InteractiveGraphWorkspace
         question={{
-          prompt: '',
+          // THE STAGE PROMPT, NOT AN EMPTY STRING.
+          //
+          // The workspace shows its own title and a fallback question card only
+          // when it believes nobody else is showing a prompt — which is what an
+          // empty string told it. But the stage prompt is rendered directly
+          // above it by renderStage, so a student read the same instruction
+          // three times: the step heading, the stage prompt, then "Plot the
+          // Points" over "YOUR QUESTION: Plot every point from your table."
+          //
+          // The workspace renders nothing for a non-empty prompt — it only uses
+          // it to know somebody else has this covered — so passing the real one
+          // removes the duplicates and the ~130px they cost above the plane.
+          prompt: stage.prompt || '',
           graph: expandGraphWindowToPoints(stage.graph || content?.graph || { xMin: -10, xMax: 10, yMin: -10, yMax: 10 }, pairs),
           plotMode: 'points',
           pointOnly: true,
@@ -575,7 +587,19 @@ const DELEGATES = {
     return (
       <InteractiveGraphWorkspace
         question={{
-          prompt: '',
+          // THE STAGE PROMPT, NOT AN EMPTY STRING.
+          //
+          // The workspace shows its own title and a fallback question card only
+          // when it believes nobody else is showing a prompt — which is what an
+          // empty string told it. But the stage prompt is rendered directly
+          // above it by renderStage, so a student read the same instruction
+          // three times: the step heading, the stage prompt, then "Plot the
+          // Points" over "YOUR QUESTION: Plot every point from your table."
+          //
+          // The workspace renders nothing for a non-empty prompt — it only uses
+          // it to know somebody else has this covered — so passing the real one
+          // removes the duplicates and the ~130px they cost above the plane.
+          prompt: stage.prompt || '',
           graph: graphWindow,
           functionSpec,
           equationLatex: sourceModel || undefined,

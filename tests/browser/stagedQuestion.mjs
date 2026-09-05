@@ -32,8 +32,11 @@ const WRITE = process.argv.includes('--write');
 
 const DEVICES = [
   { id: 'phone-portrait', width: 390, height: 664, mobile: true },
-  { id: 'phone-landscape', width: 844, height: 390, mobile: true },
-  { id: 'chromebook', width: 1366, height: 768, mobile: false },
+  { id: 'phone-landscape', width: 664, height: 390, mobile: true },
+  { id: 'foldable-closed', width: 344, height: 882, mobile: true },
+  { id: 'tablet', width: 820, height: 1180, mobile: true },
+  { id: 'chromebook', width: 1366, height: 640, mobile: false },
+  { id: 'desktop', width: 1920, height: 1080, mobile: false },
 ];
 
 // y = -(x - 2)^2 + 9. Zeros at -1 and 5, y-intercept (0, 5), maximum (2, 9) —
@@ -129,6 +132,19 @@ for (const device of DEVICES) {
     }
     if (!measured.controlVisible) {
       findings.push({ device: device.id, stage: stage.id, issue: 'answer control not visible without scrolling' });
+    }
+    // A GRAPH YOU CANNOT SEE ALL OF. The plane is laid out from its viewBox
+    // aspect ratio, so its height follows whatever width it is handed and
+    // nothing watched the other axis: given a full workspace column it reached
+    // 895px on a Chromebook and 1271px on a desktop, and a student marking an
+    // x-intercept could not see the whole parabola on the biggest screens in
+    // the building.
+    if (measured.planeHeight > 0 && measured.planeBottom > measured.viewport) {
+      findings.push({
+        device: device.id,
+        stage: stage.id,
+        issue: `graph runs ${measured.planeBottom - measured.viewport}px below the fold`,
+      });
     }
     if (MUST_NOT_LEAK.has(stage.id) && measured.svgPairs.length) {
       findings.push({

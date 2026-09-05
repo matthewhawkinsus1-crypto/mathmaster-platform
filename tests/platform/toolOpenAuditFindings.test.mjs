@@ -24,9 +24,12 @@ import { readFileSync } from 'node:fs';
 const DEVICES = [
   ['chromebook', 'toolOpenFindings.json', 1366, 640],
   ['phone', 'toolOpenPhoneFindings.json', 390, 664],
-  ['phone-landscape', 'toolOpenPhoneLandscapeFindings.json', 844, 390],
+  ['phone-landscape', 'toolOpenPhoneLandscapeFindings.json', 664, 390],
   ['tablet', 'toolOpenTabletFindings.json', 820, 1180],
   ['tablet-landscape', 'toolOpenTabletLandscapeFindings.json', 1180, 820],
+  ['desktop', 'toolOpenDesktopFindings.json', 1920, 1080],
+  ['foldable-closed', 'toolOpenFoldableClosedFindings.json', 344, 882],
+  ['foldable-open', 'toolOpenFoldableOpenFindings.json', 904, 1114],
 ];
 
 const load = (file) => JSON.parse(readFileSync(new URL(`./fixtures/${file}`, import.meta.url), 'utf8'));
@@ -49,6 +52,16 @@ DEVICES.forEach(([device, file, width, height]) => {
     assert.equal(recorded.viewport.height, height);
     assert.ok(recorded.measured >= 19, `expected at least 19 tools measured, got ${recorded.measured}`);
   });
+});
+
+test('the narrowest and widest screens are both covered', () => {
+  // Room is not automatically safe and neither is a squeeze. A folded phone is
+  // 344px across — narrower than any phone — which is where sideways scrolling
+  // shows first; a 1920px desktop is where a centred layout can strand its
+  // controls.
+  const widths = DEVICES.map(([, , width]) => width);
+  assert.ok(Math.min(...widths) <= 344, 'nothing as narrow as a folded phone is covered');
+  assert.ok(Math.max(...widths) >= 1920, 'no full-size desktop is covered');
 });
 
 test('both orientations are covered for every portable device', () => {

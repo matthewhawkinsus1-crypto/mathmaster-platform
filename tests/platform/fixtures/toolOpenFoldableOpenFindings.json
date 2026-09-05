@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-09-05T13:16:28.254Z",
-  "device": "phone",
+  "generatedAt": "2026-09-05T13:19:00.070Z",
+  "device": "foldable-open",
   "viewport": {
-    "width": 390,
-    "height": 664,
+    "width": 904,
+    "height": 1114,
     "isMobile": true,
     "deviceScaleFactor": 3,
     "hasTouch": true

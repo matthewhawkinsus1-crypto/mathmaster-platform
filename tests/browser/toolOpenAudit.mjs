@@ -28,6 +28,7 @@ const repo = path.resolve(here, '../..');
 const SUFFIX = {
   chromebook: '', phone: 'Phone',
   'phone-landscape': 'PhoneLandscape', tablet: 'Tablet', 'tablet-landscape': 'TabletLandscape',
+  desktop: 'Desktop', 'foldable-closed': 'FoldableClosed', 'foldable-open': 'FoldableOpen',
 };
 const FINDINGS_FOR = (device) => path.join(repo, `tests/platform/fixtures/toolOpen${SUFFIX[device] ?? device}Findings.json`);
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5199';
@@ -49,9 +50,22 @@ const write = process.argv.includes('--write');
 const DEVICES = {
   chromebook: { width: 1366, height: 640, isMobile: false },
   phone: { width: 390, height: 664, isMobile: true, deviceScaleFactor: 3, hasTouch: true },
-  'phone-landscape': { width: 844, height: 390, isMobile: true, deviceScaleFactor: 3, hasTouch: true },
+  // 664x390, not 844x390. A large phone rotated has width to spare; a small one
+  // does not, and it is the small one that breaks. The mobile layout audit
+  // already used this figure — the two disagreeing was a way to pass a check on
+  // one harness that the other would have failed.
+  'phone-landscape': { width: 664, height: 390, isMobile: true, deviceScaleFactor: 3, hasTouch: true },
   tablet: { width: 820, height: 1180, isMobile: true, deviceScaleFactor: 2, hasTouch: true },
   'tablet-landscape': { width: 1180, height: 820, isMobile: true, deviceScaleFactor: 2, hasTouch: true },
+  // Room is not automatically safe: a layout that centres on a max-width can
+  // strand its controls, and a graph sized from its aspect ratio grows with the
+  // width it is given.
+  desktop: { width: 1920, height: 1080, isMobile: false },
+  // A folded phone is 344px across — narrower than any phone here — which is
+  // where sideways scrolling shows up first. Open, it is nearly square, a shape
+  // neither the phone nor the tablet rules were written for.
+  'foldable-closed': { width: 344, height: 882, isMobile: true, deviceScaleFactor: 3, hasTouch: true },
+  'foldable-open': { width: 904, height: 1114, isMobile: true, deviceScaleFactor: 3, hasTouch: true },
 };
 const DEVICE = process.env.AUDIT_DEVICE || 'chromebook';
 const VIEWPORT = DEVICES[DEVICE] || DEVICES.chromebook;
