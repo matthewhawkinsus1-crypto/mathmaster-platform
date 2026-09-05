@@ -70,7 +70,7 @@ test('the exact -2p solving chain preserves pristine truth through p = -5/3', ()
     true,
   );
 
-  const finalState = parseRelationSource('p = -5/3', 'p');
+  const finalState = parseRelationSource('-5/3 = p', 'p');
   assert.equal(
     validateRelationTransition(divideNegativeThree, finalState, { kind: 'equivalentRewrite' }).valid,
     true,
