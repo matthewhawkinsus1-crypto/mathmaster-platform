@@ -112,7 +112,7 @@ const clampPercent = (value) =>
   Math.max(0, Math.min(100, Number.isFinite(Number(value)) ? Number(value) : 0));
 
 const compactStepStateKey = (value) => String(value || '')
-  .replace(/\\s+/g, '')
+  .replace(/\s+/g, '')
   .replace(/[−–—]/g, '-');
 
 export const calculateStepPartialCredit = (stepGrades = [], variantIndex = 0) => {
