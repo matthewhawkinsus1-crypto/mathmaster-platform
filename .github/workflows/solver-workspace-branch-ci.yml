@@ -96,7 +96,7 @@ jobs:
           grep -q "onWorkspaceModeChange" src/components/common/SolverWorkspaceFrame.jsx
           grep -q "workspaceActions" src/components/common/SolverWorkspaceFrame.jsx
           grep -q "multi-relation-branches--dense" src/MultiRelationAlgebraCore.jsx
-          grep -q "multi-relation-split-editor--dense" src/MultiRelationAlgebraCore.jsx
+          grep -q "multi-relation-absolute-split-fields--dense" src/MultiRelationAlgebraCore.jsx
           grep -q "mathmaster-desktop-action-bar" src/components/student/MobileViewportContainer.jsx
           echo "Solver source audit passed."
 
