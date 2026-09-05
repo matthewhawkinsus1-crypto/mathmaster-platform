@@ -44,6 +44,16 @@ const FUNCTION_KEYS = [
   { label: 'g(x)', command: 'g(x)', ariaLabel: 'Insert g of x' },
 ];
 
+const NUMBER_KEYS = [
+  { label: 'a⁄b', command: '\\frac{#0}{#?}', ariaLabel: 'Insert stacked fraction' },
+];
+
+const ORDERED_PAIR_KEYS = [
+  { label: '(', command: '(', ariaLabel: 'Insert open parenthesis' },
+  { label: ')', command: ')', ariaLabel: 'Insert close parenthesis' },
+  { label: 'a⁄b', command: '\\frac{#0}{#?}', ariaLabel: 'Insert stacked fraction' },
+];
+
 const EQUATION_ENTRY_KEYS = [
   { label: 'x', command: 'x', ariaLabel: 'Insert x' },
   { label: 'y', command: 'y', ariaLabel: 'Insert y' },
@@ -167,6 +177,13 @@ const getToolKeys = (profile, { isMobile = false, contextSymbols = [], functionN
   if (profile === 'basic+set') return withExit([...BASIC_KEYS, ...SET_KEYS, ...INEQUALITY_KEYS]);
   if (profile === 'equation') return withExit([...EQUATION_ENTRY_KEYS, ...BASIC_KEYS]);
   if (profile === 'expression') return withExit(BASIC_KEYS);
+  // A number answer needs digits, a sign, a decimal point and — because
+  // fractions are numbers — a stacked fraction. Nothing else. Anything a
+  // particular question genuinely requires still arrives through
+  // `requiredSymbols`, which surfaces its own row of keys.
+  if (profile === 'number') return withExit(NUMBER_KEYS);
+  // An ordered pair is two numbers, a comma and a pair of brackets.
+  if (profile === 'orderedPair') return withExit(ORDERED_PAIR_KEYS);
   return withExit(BASIC_KEYS);
 };
 

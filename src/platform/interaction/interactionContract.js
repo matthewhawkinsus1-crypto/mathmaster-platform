@@ -41,8 +41,14 @@ export const toolProfileForInputProfile = (value) => {
     set: 'set',
     equation: 'equation',
     expression: 'expression',
-    orderedPair: 'expression',
-    number: 'expression',
+    // A NUMERIC ANSWER IS NOT AN EXPRESSION. Both of these used to point at
+    // 'expression', which is the full algebra pad — so a student answering
+    // "how many buses" was handed pi, e, log, nth root, absolute value and
+    // exponents. Measured on a phone: 28 keys and 329px, half the screen. The
+    // bank has 891 number fields and 49 ordered pairs, so this was the most
+    // common keyboard in the product.
+    orderedPair: 'orderedPair',
+    number: 'number',
   })[profile] || 'expression';
 };
 
