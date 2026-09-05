@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 
 import {
   applyBalancedOperationToRelation,
@@ -106,4 +107,27 @@ test('absolute-value candidate verification is anchored to the original relation
   assert.equal(verifyRelationCandidate(pristine, 8, 'x'), true);
   assert.equal(verifyRelationCandidate(pristine, -2, 'x'), true);
   assert.equal(verifyRelationCandidate(pristine, 2, 'x'), false);
+});
+
+test('the live multi-relation solver validates commits before history, state, or persistence', async () => {
+  const source = await readFile(new URL('../../src/MultiRelationAlgebraCore.jsx', import.meta.url), 'utf8');
+
+  assert.match(source, /validateRelationTransition/);
+  assert.match(source, /kind:\s*'balancedOperation'/);
+  assert.match(source, /branchIndices:\s*stagedBranchIndices/);
+
+  const commitStart = source.indexOf('const commitState = async');
+  const commitEnd = source.indexOf('const hasOperationOperand', commitStart);
+  assert.ok(commitStart >= 0 && commitEnd > commitStart, 'commitState block should be readable');
+  const commitBlock = source.slice(commitStart, commitEnd);
+
+  const validationIndex = commitBlock.indexOf('validateRelationTransition');
+  const historyIndex = commitBlock.indexOf('setHistory');
+  const stateIndex = commitBlock.indexOf('setRelationState');
+  const persistenceIndex = commitBlock.indexOf('persistStep');
+
+  assert.ok(validationIndex >= 0, 'commitState must validate the proposed relation state');
+  assert.ok(validationIndex < historyIndex, 'validation must happen before history is changed');
+  assert.ok(validationIndex < stateIndex, 'validation must happen before visible solver state changes');
+  assert.ok(validationIndex < persistenceIndex, 'validation must happen before grading/persistence');
 });
