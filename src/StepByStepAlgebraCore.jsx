@@ -178,6 +178,12 @@ export default function StepByStepAlgebra({
     [rawSavedDraft, initialEquation],
   );
   const [equation, setEquation] = useState(savedDraft?.equation || initialEquation);
+  const [committedHistory, setCommittedHistory] = useState([]);
+  const pushCommittedEquation = (snapshot) => {
+    if (!snapshot?.left || !snapshot?.right) return;
+    const copy = JSON.parse(JSON.stringify(snapshot));
+    setCommittedHistory((current) => [...current.slice(-59), copy]);
+  };
   // One 1-5 support scale. `resolveSupportLevel` also reads the old
   // rigorous/exploratory values, so saved drafts and old assignment JSON keep
   // working without a migration pass.
@@ -257,6 +263,7 @@ export default function StepByStepAlgebra({
 
   useEffect(() => {
     if (savedDraft) return;
+    setCommittedHistory([]);
     // getInitialEquation returns { equation, error }, not an equation. Putting
     // the wrapper into state left `equation.left` undefined on every question
     // change that had no saved draft — which is every fresh question after the
@@ -281,6 +288,14 @@ export default function StepByStepAlgebra({
     setPlacedOperationPositions({});
     setTapPlacementArmed(false);
   }, [question, savedDraft]);
+
+  // A saved draft skips the fresh-question reset block above, so clear Undo
+  // history explicitly whenever the question/draft identity changes. History
+  // belongs to this mounted work session; it is not reconstructed from old
+  // server state and can never leak into the next problem.
+  useEffect(() => {
+    setCommittedHistory([]);
+  }, [question, localDraftKey]);
 
   useEffect(() => {
     // A JSON author cannot turn this on for the whole class. The automatic
@@ -340,26 +355,111 @@ export default function StepByStepAlgebra({
     });
   }, [equation, question, promptAnswers, onStateChange]);
 
+  const hasTransientUndo = Boolean(
+    pendingMove
+    || crossedSides.length
+    || Object.keys(cancelledPairIds).some((side) => cancelledPairIds[side]?.length)
+    || Object.values(selectedCancellationIndices).some((indices) => indices?.length)
+    || Object.keys(simplificationAnswers).length
+    || rewriteOpen
+    || Object.values(rewriteAnswers).some((value) => String(value || '').trim())
+    || armedTile
+    || placedOperationSides.length
+    || tapPlacementArmed
+    || String(operand || '').trim()
+  );
+
   useEffect(() => {
     onUndoStateChange?.({
-      canUndo: Boolean(pendingMove || crossedSides.length || Object.keys(cancelledPairIds).some((side) => cancelledPairIds[side]?.length) || Object.keys(simplificationAnswers).length),
+      canUndo: hasTransientUndo || committedHistory.length > 0,
       onUndo: () => {
         const answerKeys = Object.keys(simplificationAnswers);
         const pairSides = Object.keys(cancelledPairIds).filter((side) => cancelledPairIds[side]?.length);
-        if (answerKeys.length) setSimplificationAnswers((current) => { const next = { ...current }; delete next[answerKeys[answerKeys.length - 1]]; return next; });
-        else if (Object.values(selectedCancellationIndices).some((indices) => indices?.length)) setSelectedCancellationIndices({});
-        else if (pairSides.length) {
+        const hasSelectedCancellation = Object.values(selectedCancellationIndices)
+          .some((indices) => indices?.length);
+        const hasRewriteEntry = rewriteOpen
+          || Object.values(rewriteAnswers).some((value) => String(value || '').trim());
+        const hasOperationStaging = Boolean(
+          armedTile
+          || placedOperationSides.length
+          || tapPlacementArmed
+          || String(operand || '').trim()
+        );
+
+        if (answerKeys.length) {
+          setSimplificationAnswers((current) => {
+            const next = { ...current };
+            delete next[answerKeys[answerKeys.length - 1]];
+            return next;
+          });
+        } else if (hasSelectedCancellation) {
+          setSelectedCancellationIndices({});
+        } else if (pairSides.length) {
           const side = pairSides[pairSides.length - 1];
           setCancelledPairIds((current) => ({ ...current, [side]: current[side].slice(0, -1) }));
           setCrossedSides((current) => current.filter((entry) => entry !== side));
-        } else if (crossedSides.length) setCrossedSides((current) => current.slice(0, -1));
-        else setPendingMove(null);
+        } else if (crossedSides.length) {
+          setCrossedSides((current) => current.slice(0, -1));
+        } else if (pendingMove) {
+          setPendingMove(null);
+          setCancelledPairIds({});
+          setSelectedCancellationIndices({});
+          setSimplificationAnswers({});
+        } else if (hasRewriteEntry) {
+          setRewriteOpen(false);
+          setRewriteAnswers({ left: '', right: '' });
+        } else if (hasOperationStaging) {
+          setArmedTile(null);
+          setOperand('');
+          setPlacedOperationSides([]);
+          setPlacedOperationPositions({});
+          setTapPlacementArmed(false);
+        } else if (committedHistory.length) {
+          setCommittedHistory((current) => {
+            if (!current.length) return current;
+            const previous = current[current.length - 1];
+            setEquation(previous);
+            setPendingMove(null);
+            setCrossedSides([]);
+            setCancelledPairIds({});
+            setSelectedCancellationIndices({});
+            setSimplificationAnswers({});
+            setRewriteOpen(false);
+            setRewriteAnswers({ left: '', right: '' });
+            setArmedTile(null);
+            setOperand('');
+            setPlacedOperationSides([]);
+            setPlacedOperationPositions({});
+            setTapPlacementArmed(false);
+            setMessage({ tone: 'growth', text: 'Last completed algebra step undone.' });
+            return current.slice(0, -1);
+          });
+          return;
+        }
+
         setMessage({ tone: 'growth', text: 'The pending algebra action was undone before it changed your saved equation.' });
       },
-      label: 'Undo the pending balanced operation or cancellation mark',
+      label: committedHistory.length && !hasTransientUndo
+        ? 'Undo the last completed algebra step'
+        : 'Undo the pending algebra action',
     });
     return () => onUndoStateChange?.(null);
-  }, [pendingMove, crossedSides, cancelledPairIds, selectedCancellationIndices, simplificationAnswers, onUndoStateChange]);
+  }, [
+    armedTile,
+    cancelledPairIds,
+    committedHistory,
+    crossedSides,
+    hasTransientUndo,
+    onUndoStateChange,
+    operand,
+    pendingMove,
+    placedOperationSides,
+    rewriteAnswers,
+    rewriteOpen,
+    selectedCancellationIndices,
+    simplificationAnswers,
+    tapPlacementArmed,
+  ]);
 
   const triggerShake = () => {
     setShake(false);
@@ -418,6 +518,7 @@ export default function StepByStepAlgebra({
       // silently replace their intentionally-unsimplified work with the engine's
       // prettiest equivalent form.
       await saveStep({ move, earned, possible: 2, countsAttempt: false, accepted: true, equationAfter: nextEquation });
+      pushCommittedEquation(equation);
       setEquation(nextEquation);
       setPendingMove(null);
       setCrossedSides([]);
@@ -586,6 +687,7 @@ export default function StepByStepAlgebra({
     }
 
     await persistStudentRewrite(equation, nextEquation, changedSides);
+    pushCommittedEquation(equation);
     setEquation(nextEquation);
     setRewriteAnswers({ left: '', right: '' });
     setRewriteOpen(false);
@@ -606,6 +708,7 @@ export default function StepByStepAlgebra({
     if (!confirmed) return;
 
     setEquation(pristineEquation);
+    setCommittedHistory([]);
     setOperand('');
     setPendingMove(null);
     setCrossedSides([]);
@@ -791,6 +894,7 @@ export default function StepByStepAlgebra({
           });
         }
 
+        pushCommittedEquation(beforeEquation);
         setEquation(nextEquation);
         setCancelledPairIds((current) => ({ ...current, [side]: [] }));
         setSelectedCancellationIndices((current) => ({ ...current, [side]: [] }));

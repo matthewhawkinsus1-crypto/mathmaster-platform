@@ -717,11 +717,51 @@ export default function MultiRelationAlgebra({
     summary,
   ]);
 
+  const hasTransientUndo = Boolean(
+    pendingRelationFlip
+    || operation
+    || String(operand || '').trim()
+    || Object.keys(placementByKey).length
+    || rewriteOpen
+    || String(rewriteValue || '').trim()
+    || completeSquareOpen
+    || String(completeSquareValue || '').trim()
+    || Object.keys(cancellationSelection).length
+    || relationPicker
+    || absoluteSplitOpen
+    || absoluteSplitStructure
+    || absoluteSplitValues.some((value) => String(value || '').trim())
+  );
+
   useEffect(() => {
     onUndoStateChange?.({
-      canUndo: history.length > 0,
-      label: 'Undo the last relation step',
+      canUndo: hasTransientUndo || history.length > 0,
+      label: hasTransientUndo ? 'Undo the pending relation action' : 'Undo the last relation step',
       onUndo: () => {
+        if (hasTransientUndo) {
+          if (pendingRelationFlip?.before) {
+            setRelationState(cloneRelationState(pendingRelationFlip.before));
+          }
+          setOperation(null);
+          setOperand('');
+          setPlacementByKey({});
+          setRewriteOpen(false);
+          setRewriteValue('');
+          setCompleteSquareOpen(false);
+          setCompleteSquareValue('');
+          setCancellationSelection({});
+          setDragCancellationKey(null);
+          setDragStroke(null);
+          dragStrokeRef.current = null;
+          setPendingRelationFlip(null);
+          setRelationPicker(null);
+          setAbsoluteSplitOpen(false);
+          setAbsoluteSplitStructure(null);
+          setAbsoluteSplitValues(['', '']);
+          setMessage({ tone: 'growth', text: 'Pending relation action undone.' });
+          return;
+        }
+
         setHistory((current) => {
           if (!current.length) return current;
           setRelationState(current[current.length - 1]);
@@ -741,7 +781,24 @@ export default function MultiRelationAlgebra({
       },
     });
     return () => onUndoStateChange?.(null);
-  }, [history, onUndoStateChange]);
+  }, [
+    absoluteSplitOpen,
+    absoluteSplitStructure,
+    absoluteSplitValues,
+    cancellationSelection,
+    completeSquareOpen,
+    completeSquareValue,
+    hasTransientUndo,
+    history,
+    onUndoStateChange,
+    operand,
+    operation,
+    pendingRelationFlip,
+    placementByKey,
+    relationPicker,
+    rewriteOpen,
+    rewriteValue,
+  ]);
 
   const persistStep = async (before, after, label, kind = 'relation-step') => {
     if (!onStepGrade) return;
@@ -778,7 +835,7 @@ export default function MultiRelationAlgebra({
       return false;
     }
 
-    setHistory((current) => [...current, before]);
+    setHistory((current) => [...current.slice(-59), before]);
     setRelationState(next);
     setRepresentationCorrect(null);
     setCandidateChecks({});

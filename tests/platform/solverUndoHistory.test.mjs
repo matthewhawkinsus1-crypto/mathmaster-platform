@@ -53,9 +53,11 @@ test('StepByStep records the pre-commit equation for every accepted student math
 test('StepByStep clears committed history on question reset and Reset Work', async () => {
   const source = await read('src/StepByStepAlgebraCore.jsx');
   const questionReset = blockBetween(source, 'useEffect(() => {\n    if (savedDraft) return;', '  useEffect(() => {\n    // A JSON author');
+  const identityReset = blockBetween(source, '// A saved draft skips the fresh-question reset block above', '  useEffect(() => {\n    // A JSON author');
   const resetBlock = blockBetween(source, 'const resetQuestionWork = () =>', '  const attemptMove');
 
   assert.match(questionReset, /setCommittedHistory\(\[\]\)/);
+  assert.match(identityReset, /setCommittedHistory\(\[\]\)/);
   assert.match(resetBlock, /setCommittedHistory\(\[\]\)/);
 });
 
