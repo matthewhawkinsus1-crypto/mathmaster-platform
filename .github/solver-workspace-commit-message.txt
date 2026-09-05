@@ -1,1 +1,1 @@
-feat: validate relation transitions before commit
+feat: protect relation state integrity
