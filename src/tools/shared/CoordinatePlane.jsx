@@ -57,6 +57,10 @@ export default function CoordinatePlane({
   width = 560, height = 380,
   points = [], lines = [], functions = [], polylines = [], regions = [], verticalLines = [], horizontalLines = [],
   onPlot = null,
+  // Given, an existing point can be picked up and moved instead of only being
+  // replaced by plotting a new one. Optional: a tool that does not own indexed
+  // points simply keeps the plot-only behaviour.
+  onMovePoint = null,
   // Whole numbers by default: an Algebra I student asked to plot (3, -2) should
   // never be able to land on (3, -1.5). Tools pass 0.5/0.25 only when the
   // question genuinely lives between the gridlines.
@@ -90,10 +94,15 @@ export default function CoordinatePlane({
   const innerW = width - pad * 2;
   const innerH = height - pad * 2;
   const interactive = typeof onPlot === 'function';
+  const canMovePoints = interactive && typeof onMovePoint === 'function';
   const [pointerPreview, setPointerPreview] = useState(null);
   const [keyboardCursor, setKeyboardCursor] = useState(null);
   const [hoveredPointIndex, setHoveredPointIndex] = useState(null);
   const [keyboardActive, setKeyboardActive] = useState(false);
+  // Which existing point the finger or mouse currently has hold of, and where it
+  // has been dragged to. Null when the gesture is placing a new point instead.
+  const [dragIndex, setDragIndex] = useState(null);
+  const [gestureActive, setGestureActive] = useState(false);
 
   const sx = (x) => pad + ((Number(x) - xMin) / (xMax - xMin)) * innerW;
   const sy = (y) => height - pad - ((Number(y) - yMin) / (yMax - yMin)) * innerH;
@@ -158,21 +167,79 @@ export default function CoordinatePlane({
     return [clamp(x, xMin, xMax), clamp(y, yMin, yMax)];
   };
 
+  /*
+   * PRESS, DRAG, LIFT — the gesture a finger already expects.
+   *
+   * This used to be a bare click. On a phone that means the point lands wherever
+   * the finger first touched down, which is under the finger and therefore
+   * unseen; a student aiming at (4, -1) found out where they had actually hit
+   * only after letting go. Now the press starts a placement, the preview follows
+   * the finger, and the point is committed on LIFT — so what a student sees
+   * before releasing is what they get, and they can slide to correct it without
+   * ever having plotted wrong.
+   *
+   * The same gesture picks up an existing point when the tool accepts moves, so
+   * a misplaced point is dragged rather than re-plotted.
+   */
+  const HIT_RADIUS = 18;
+
+  const pointIndexNear = (graphPoint) => {
+    if (!canMovePoints || !graphPoint) return null;
+    let best = null;
+    let bestDistance = Infinity;
+    points.forEach((point, index) => {
+      const [px, py] = pointXY(point);
+      if (!Number.isFinite(px) || !Number.isFinite(py)) return;
+      const distance = Math.hypot(sx(px) - sx(graphPoint[0]), sy(py) - sy(graphPoint[1]));
+      if (distance < bestDistance) { bestDistance = distance; best = index; }
+    });
+    return bestDistance <= HIT_RADIUS ? best : null;
+  };
+
+  const handlePointerDown = (event) => {
+    if (!interactive) return;
+    const point = graphPointFromEvent(event);
+    if (!point) return;
+    setKeyboardActive(false);
+    setGestureActive(true);
+    setDragIndex(pointIndexNear(point));
+    setPointerPreview(point);
+    // Capture so the gesture survives the finger leaving the plane's bounds —
+    // without it a drag toward the edge silently stops updating.
+    try { event.currentTarget.setPointerCapture?.(event.pointerId); } catch { /* not fatal */ }
+  };
+
   const handlePointerMove = (event) => {
     if (!interactive) return;
     setKeyboardActive(false);
     setPointerPreview(graphPointFromEvent(event));
   };
 
-  const handlePointerLeave = () => {
-    setPointerPreview(null);
-    setHoveredPointIndex(null);
+  const handlePointerUp = (event) => {
+    if (!interactive || !gestureActive) return;
+    const point = graphPointFromEvent(event) || pointerPreview;
+    const movedIndex = dragIndex;
+    setGestureActive(false);
+    setDragIndex(null);
+    try { event.currentTarget.releasePointerCapture?.(event.pointerId); } catch { /* not fatal */ }
+    if (!point) return;
+    if (movedIndex != null) onMovePoint(movedIndex, point);
+    else onPlot(point);
+    // A finger leaves no cursor behind, so the preview goes with it. A mouse
+    // keeps hovering, and its next move re-establishes the preview anyway.
+    if (event.pointerType === 'touch') setPointerPreview(null);
   };
 
-  const handleClick = (event) => {
-    if (!interactive) return;
-    const point = graphPointFromEvent(event);
-    if (point) onPlot(point);
+  const handlePointerCancel = () => {
+    setGestureActive(false);
+    setDragIndex(null);
+    setPointerPreview(null);
+  };
+
+  const handlePointerLeave = () => {
+    if (gestureActive) return;
+    setPointerPreview(null);
+    setHoveredPointIndex(null);
   };
 
   const moveKeyboardCursor = (dx, dy) => {
@@ -232,8 +299,10 @@ export default function CoordinatePlane({
         role={interactive ? 'application' : 'img'}
         aria-label={interactive ? `${ariaLabel}. Click to plot, or use the arrow keys to move the crosshair and Enter to plot.` : ariaLabel}
         tabIndex={interactive ? 0 : undefined}
-        onClick={handleClick}
+        onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
         onPointerLeave={handlePointerLeave}
         onKeyDown={handleKeyDown}
         style={{
@@ -348,12 +417,16 @@ export default function CoordinatePlane({
           const hovered = hoveredPointIndex === index;
           const pointFill = resolvePointFill(point, '#1a73e8');
           const pointRadius = resolvePointRadius(point, 6);
-          const [pointX, pointY] = pointXY(point);
+          let [pointX, pointY] = pointXY(point);
+          // While a point is held, draw it where the finger is. Leaving it at
+          // its old coordinates makes the drag look broken until release.
+          if (dragIndex === index && pointerPreview) [pointX, pointY] = pointerPreview;
           if (!Number.isFinite(pointX) || !Number.isFinite(pointY)) return null;
+          const held = dragIndex === index;
           return (
             <g key={`p${index}`} onPointerEnter={() => setHoveredPointIndex(index)} onPointerLeave={() => setHoveredPointIndex(null)}>
-              {hovered ? <circle cx={sx(pointX)} cy={sy(pointY)} r={pointRadius + 6} fill={pointFill} opacity="0.18" /> : null}
-              <circle cx={sx(pointX)} cy={sy(pointY)} r={hovered ? pointRadius + 2 : pointRadius} fill={pointFill} stroke="#fff" strokeWidth="2" />
+              {hovered || held ? <circle cx={sx(pointX)} cy={sy(pointY)} r={pointRadius + (held ? 10 : 6)} fill={pointFill} opacity={held ? 0.26 : 0.18} /> : null}
+              <circle cx={sx(pointX)} cy={sy(pointY)} r={hovered || held ? pointRadius + 2 : pointRadius} fill={pointFill} stroke="#fff" strokeWidth="2" />
               {point?.label ? <text x={sx(pointX) + 10} y={sy(pointY) - 9} fontSize="11" fontWeight="700" fill="#24324a">{point.label}</text> : null}
               {hovered ? <text x={sx(pointX) + 10} y={sy(pointY) + 16} fontSize="11" fill="#24324a">{formatCoordinate(point)}</text> : null}
             </g>
@@ -367,18 +440,34 @@ export default function CoordinatePlane({
         <>
           <p aria-live="polite" className="mm-sr-only">{previewText}</p>
           <p style={{ margin: '6px 0 0', fontSize: 12, color: '#5f6b7a' }}>
-            Click the grid to plot{minorStep === 1 ? ' a whole-number point' : ''}. Keyboard: arrow keys move the crosshair
-            {minorStep === 1 ? ' one unit' : ` by ${tidy(minorStep)}`} (Shift for five), Enter plots it.
+            Press the grid and slide to aim{minorStep === 1 ? ' at a whole-number point' : ''} — the point lands where you
+            let go{canMovePoints ? ', and you can drag a point you have already placed' : ''}. Keyboard: arrow keys move the
+            crosshair{minorStep === 1 ? ' one unit' : ` by ${tidy(minorStep)}`} (Shift for five), Enter plots it.
           </p>
         </>
       ) : null}
     </div>
   );
 
-  if (!enlargeable || interactive) return plane;
+  if (!enlargeable) return plane;
 
+  /*
+   * AN INTERACTIVE PLANE IS THE ONE THAT MOST NEEDS ENLARGING, and it used to be
+   * the only one that could not. The original reasoning was that a plane you
+   * answer with becomes a dead end in a modal, because the Check button stays
+   * behind the backdrop. But plotting inside the enlarged view updates the same
+   * tool state, so closing it returns to the question with the work done — the
+   * modal is a bigger place to aim, not a separate one. That is worth far more
+   * than the round trip costs, especially on a phone where the embedded plane is
+   * a few hundred pixels across and a student is aiming at a target the width of
+   * a fingertip.
+   */
   return (
-    <EnlargeableFigure label={ariaLabel} enlargeLabel="Enlarge graph" style={{ width: '100%' }}>
+    <EnlargeableFigure
+      label={ariaLabel}
+      enlargeLabel={interactive ? 'Enlarge to plot' : 'Enlarge graph'}
+      style={{ width: '100%' }}
+    >
       {plane}
     </EnlargeableFigure>
   );

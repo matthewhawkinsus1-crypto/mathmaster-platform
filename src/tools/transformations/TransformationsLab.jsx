@@ -220,6 +220,14 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
               setPlottedPoints((current) => [...current, point]);
               resetFeedback();
             }}
+            // The source points come first in `points`, so anything below that
+            // offset is the given shape and is not the student's to drag.
+            onMovePoint={(index, point) => {
+              const studentIndex = index - sourcePoints.length;
+              if (studentIndex < 0) return;
+              setPlottedPoints((current) => current.map((existing, i) => (i === studentIndex ? point : existing)));
+              resetFeedback();
+            }}
             polylines={[
               { points: sourcePoints, stroke: '#5f6b7a', strokeWidth: 3 },
               { points: plottedPoints, stroke: '#1a73e8', strokeWidth: 3 },
