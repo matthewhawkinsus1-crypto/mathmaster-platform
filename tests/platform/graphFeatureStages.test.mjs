@@ -231,3 +231,29 @@ test('every recipe still expands, so the new one did not disturb the others', ()
   assert.deepEqual(relation.errors, []);
   assert.equal(relation.grading.isFunction, 'Yes');
 });
+
+/* ---------- enlarging must not strand the student ---------- */
+
+test('enlarging a feature stage brings the answering with it', () => {
+  // CoordinatePlane can enlarge itself, but that opens a modal holding only the
+  // plane: a student who went full-window to find an intercept accurately then
+  // had to close it again to press "this graph has none". On a phone that is
+  // the difference between a usable question and an unusable one.
+  const source = readFileSync('src/platform/workflow/GraphFeatureSelectStage.jsx', 'utf8');
+
+  // The plane's own enlarge is off...
+  assert.match(source, /enlargeable=\{false\}/);
+  // ...and the whole stage is what gets enlarged instead.
+  assert.match(source, /<EnlargeableFigure/);
+  const wrapper = source.slice(source.indexOf('<EnlargeableFigure'));
+  assert.match(wrapper, /\{body\}/, 'the marks, the buttons and the count all go in');
+
+  // The modal covers the question that sent them there, so the prompt rides
+  // along rather than being lost behind the backdrop.
+  assert.match(wrapper, /taskText=\{stage\?\.prompt/);
+
+  // The body must actually contain the response controls, not just the plane.
+  const body = source.slice(source.indexOf('const body = ('), source.indexOf('<EnlargeableFigure'));
+  assert.match(body, /Clear my marks/);
+  assert.match(body, /noneButtonLabel\(stage\)/, 'the "there is none" answer must be inside the enlarged view');
+});
