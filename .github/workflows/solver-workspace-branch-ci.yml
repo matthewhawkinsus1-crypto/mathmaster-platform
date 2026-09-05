@@ -57,7 +57,29 @@ jobs:
           node --test "${tests[@]}"
 
       - name: Run complete platform test suite
-        run: node --test --test-concurrency=4 tests/platform/*.test.mjs
+        shell: bash
+        run: |
+          set +e
+          node --test --test-concurrency=4 tests/platform/*.test.mjs > /tmp/platform-tests.log 2>&1
+          status=$?
+          set -e
+          if [[ $status -ne 0 ]]; then
+            echo "Full platform suite failed. Printing only failure neighborhoods."
+            mapfile -t failed_lines < <(grep -n "not ok " /tmp/platform-tests.log | cut -d: -f1 || true)
+            if [[ ${#failed_lines[@]} -eq 0 ]]; then
+              tail -n 160 /tmp/platform-tests.log
+            else
+              for line in "${failed_lines[@]}"; do
+                start=$(( line > 8 ? line - 8 : 1 ))
+                end=$(( line + 55 ))
+                echo "----- failure near line $line -----"
+                sed -n "${start},${end}p" /tmp/platform-tests.log
+              done
+              echo "----- suite totals -----"
+              grep -E '^# (tests|pass|fail|cancelled|skipped|todo|duration_ms)' /tmp/platform-tests.log | tail -n 12 || true
+            fi
+          fi
+          exit $status
 
       - name: Run lint
         run: npm run lint
