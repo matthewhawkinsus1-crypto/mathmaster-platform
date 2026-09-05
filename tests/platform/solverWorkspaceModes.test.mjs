@@ -108,3 +108,24 @@ test('focus mode expands the work surface and keeps operation controls available
   assert.match(css, /\.solver-workspace-focus-panel/);
   assert.match(css, /@media \(max-width: 780px\)/);
 });
+
+test('multi-relation workspace uses presentation-only density for branches and absolute-value split entry', async () => {
+  const wrapper = await read('src/MultiRelationAlgebra.jsx');
+  const core = await read('src/MultiRelationAlgebraCore.jsx');
+  const css = await read('src/components/common/SolverWorkspaceFrame.css');
+
+  assert.match(wrapper, /const denseWorkspace = props\.workspaceMode !== 'normal'/);
+  assert.match(wrapper, /denseWorkspace=\{denseWorkspace\}/);
+  assert.match(core, /denseWorkspace = false/);
+  assert.match(core, /multi-relation-branches--dense/);
+  assert.match(core, /multi-relation-branch--dense/);
+  assert.match(core, /multi-relation-absolute-split-fields--dense/);
+  assert.match(core, /denseWorkspace && relationState\.branches\.length > 1 && operationDock/);
+  assert.match(core, /!denseWorkspace && branchIndex === 1 && relationState\.branches\.length > 1 && operationDock/);
+  assert.equal((core.match(/className="multi-relation-operation-dock"/g) || []).length, 1);
+
+  assert.match(css, /\.multi-relation-branches--dense\s*\{/);
+  assert.match(css, /grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\)/);
+  assert.match(css, /\.multi-relation-absolute-split-fields--dense/);
+  assert.match(css, /@media \(max-width: 780px\)[\s\S]*\.multi-relation-branches--dense[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+});
