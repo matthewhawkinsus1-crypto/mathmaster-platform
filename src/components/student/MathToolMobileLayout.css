@@ -198,7 +198,10 @@
 @media (orientation: landscape) and (max-height: 500px) {
   .mathmaster-question-container.mode-landscape {
     display: grid;
-    grid-template-columns: minmax(220px, 35%) minmax(0, 65%);
+    /* The prompt is text in a scrollable column and reads fine narrow; the
+       graph cannot be worked at all below roughly 250px. Width goes where it
+       changes whether the task is possible. */
+    grid-template-columns: minmax(170px, 26%) minmax(0, 74%);
     grid-template-rows: 1fr;
   }
 
@@ -229,6 +232,79 @@
   .mathmaster-question-container.mode-landscape .mathmaster-function-workspace-grid {
     grid-template-columns: minmax(150px, 34%) minmax(0, 66%) !important;
     gap: 8px !important;
+  }
+
+  /* A LANDSCAPE PHONE HAS WIDTH TO SPARE AND ALMOST NO HEIGHT.
+     The tool layouts collapse to one column below 900px, which is right for a
+     portrait phone and wrong here: stacked inside a 390px-tall workspace, a
+     236px graph leaves no room for the controls under it. Measured, the graph
+     and the answer box became mutually exclusive — scroll to the box and the
+     graph you are answering about leaves the screen — and a plotting tool
+     opened with its plane off screen entirely.
+
+     So in landscape they go back to two columns and sit side by side, which is
+     what the shape of the screen was offering all along. */
+  .mathmaster-question-container.mode-landscape .mathmaster-tool-split,
+  .mathmaster-question-container.mode-landscape .mathmaster-tool-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) !important;
+    gap: 10px !important;
+    align-items: start !important;
+  }
+
+  /* The graph keeps the height it can actually use. Without a cap it grows to
+     its natural aspect and pushes its own controls out of the column again. */
+  .mathmaster-question-container.mode-landscape .mathmaster-tool-panel svg,
+  .mathmaster-question-container.mode-landscape .mathmaster-tool-panel canvas {
+    max-height: 62dvh;
+  }
+
+  /* Tool chrome that earns its space on a laptop is most of the screen here. */
+  .mathmaster-question-container.mode-landscape .mathmaster-tool-shell-body {
+    padding: 10px !important;
+  }
+
+  .mathmaster-question-container.mode-landscape .mathmaster-tool-task-card {
+    padding: 8px 10px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .mathmaster-question-container.mode-landscape .mathmaster-tool-panel {
+    padding: 10px !important;
+  }
+
+  /* IN LANDSCAPE THE QUESTION IS ALREADY ON SCREEN, PERMANENTLY, in its own
+     column. So the chrome that repeats it inside the workspace is pure cost:
+     measured, a plotting tool had 436px of header and task card above its plane
+     on a 390px screen, which is a graph the student never sees.
+
+     The tool's name is a label, and the left column has already told them what
+     they are doing. The task card stops being sticky for the same reason —
+     nothing can scroll the question away here. */
+  .mathmaster-question-container.mode-landscape .mathmaster-tool-shell-header {
+    padding: 6px 10px !important;
+  }
+
+  .mathmaster-question-container.mode-landscape .mathmaster-tool-shell-header h2,
+  .mathmaster-question-container.mode-landscape .mathmaster-tool-shell-header .mathmaster-quiet-disclosure {
+    display: none !important;
+  }
+
+  .mathmaster-question-container.mode-landscape .mathmaster-tool-task-card {
+    position: static !important;
+  }
+
+  .mathmaster-question-container.mode-landscape .mathmaster-tool-task-card .mathmaster-tool-task-prompt,
+  .mathmaster-question-container.mode-landscape .mathmaster-tool-task-card .mathmaster-tool-task-directions {
+    display: none !important;
+  }
+
+  /* What survives is the folded steps pill — one row, still openable. The
+     question and the instruction both live in the left column here, and
+     repeating them costs a third of the height the graph needs. */
+  .mathmaster-question-container.mode-landscape .mathmaster-tool-task-card:empty,
+  .mathmaster-question-container.mode-landscape .mathmaster-tool-task-card:not(:has(.mathmaster-quiet-disclosure)) {
+    display: none !important;
   }
 
   .mathmaster-question-container.mode-landscape .landscape-action-bar {

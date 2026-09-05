@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 const read = (name) => JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8'));
 const mobile = read('mobileLayoutFindings.json');
 const phone = read('toolOpenPhoneFindings.json');
+const landscape = read('mobileLayoutLandscapeFindings.json');
 
 test('a student on a phone can reach the answer and the submit control', () => {
   // Recorded by tests/browser/mobileLayoutAudit.mjs driving PathSessionPlayer —
@@ -16,6 +17,29 @@ test('a student on a phone can reach the answer and the submit control', () => {
 test('every tool also opens ready on a phone, not just on a Chromebook', () => {
   assert.deepEqual(phone.findings, [], `phone tool-open problems:\n${JSON.stringify(phone.findings, null, 2)}`);
   assert.equal(phone.viewport.width, 390);
+});
+
+test('a phone held sideways can still see the graph and reach the answer', () => {
+  // Landscape was the weakest layout of the three, and measurably broken rather
+  // than merely cramped: the tool layouts collapse to one column below 900px,
+  // so inside a 390px-tall workspace a graph and its controls could not both
+  // fit. The graph and the answer box became mutually exclusive, and a plotting
+  // tool opened with its plane entirely off screen.
+  assert.deepEqual(landscape.findings, [], `landscape layout problems:\n${JSON.stringify(landscape.findings, null, 2)}`);
+  assert.equal(landscape.orientation, 'landscape');
+  assert.equal(landscape.viewport.width, 664);
+  assert.equal(landscape.viewport.height, 390);
+});
+
+test('landscape gives the tool the width, and stops repeating the question', () => {
+  // In landscape the question has its own permanent column, so the task card
+  // and tool header inside the workspace are pure cost — measured at 436px of
+  // chrome above a plotting tool's plane on a 390px screen.
+  const css = readFileSync(new URL('../../src/components/student/MathToolMobileLayout.css', import.meta.url), 'utf8');
+  const block = css.slice(css.indexOf('@media (orientation: landscape) and (max-height: 500px)'));
+  assert.match(block, /mode-landscape \.mathmaster-tool-split[\s\S]{0,200}grid-template-columns: minmax\(0, 1\.5fr\) minmax\(0, 1fr\)/);
+  assert.match(block, /mode-landscape \.mathmaster-tool-shell-header h2/);
+  assert.match(block, /mathmaster-tool-task-directions/);
 });
 
 test('the mobile audits ran at a phone size, not a desktop one', () => {

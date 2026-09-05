@@ -30,7 +30,9 @@ const mathPath = require('../../functions/lib/mathPath.js');
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
 const SEED_DIR = path.join(repo, 'functions/seeds/pathQuestionBank');
-const FINDINGS = path.join(repo, 'tests/platform/fixtures/mobileLayoutFindings.json');
+const ORIENTATION = process.env.AUDIT_ORIENTATION === 'landscape' ? 'landscape' : 'portrait';
+const VIEWPORT = ORIENTATION === 'landscape' ? { width: 664, height: 390 } : { width: 390, height: 664 };
+const FINDINGS = path.join(repo, `tests/platform/fixtures/mobileLayout${ORIENTATION === 'landscape' ? 'Landscape' : ''}Findings.json`);
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5199';
 const write = process.argv.includes('--write');
 const argOf = (name, fallback) => {
@@ -41,7 +43,6 @@ const perTool = Number(argOf('--per-tool', '2')) || 2;
 
 // A mid-range phone in portrait. Not the smallest possible screen — the point is
 // the common case, not a worst case nobody has.
-const VIEWPORT = { width: 390, height: 664 };
 
 const items = readdirSync(SEED_DIR)
   .filter((name) => name.endsWith('.json') && name.includes('pathQuestionBank'))
@@ -134,6 +135,9 @@ for (const item of sample) {
       submitTop: topOf(submit),
       submitLabel: (submit?.textContent || '').trim().slice(0, 30),
       submitInActionBar: Boolean(submit?.closest('.portrait-action-bar')),
+      surfaceTop: surface ? Math.round(surface.getBoundingClientRect().top) : null,
+      surfaceOnScreen: surface ? (surface.getBoundingClientRect().top < window.innerHeight
+        && surface.getBoundingClientRect().bottom > 0) : null,
       pageHeight: doc.scrollHeight,
       widthOverflow: Math.max(0, doc.scrollWidth - window.innerWidth),
       answerCount: answers.length + choice.length,
@@ -172,6 +176,12 @@ for (const item of sample) {
   const problems = [];
   const screen = VIEWPORT.height;
   if (m.widthOverflow > 4) problems.push({ rule: 'scrolls-sideways', detail: `${m.widthOverflow}px` });
+  // A TOOL WHOSE WORKING SURFACE OPENS OFF SCREEN IS UNUSABLE, not merely
+  // awkward — a student cannot tell there is a graph to work in at all. This is
+  // what landscape was doing to a plotting tool before the column split.
+  if (m.surfaceOnScreen === false) {
+    problems.push({ rule: 'working-surface-off-screen', detail: `surface at ${m.surfaceTop}px on a ${VIEWPORT.height}px screen` });
+  }
   if (m.firstAnswerTop === null) problems.push({ rule: 'no-answer-control', detail: 'nothing to answer with' });
   // More than one full screen of scrolling between the question and the box you
   // answer it in is the thing this audit exists to catch.
@@ -196,7 +206,7 @@ for (const item of sample) {
 
 await browser.close();
 
-console.log(`\nMeasured ${rows.length} real bank questions through PathSessionPlayer at ${VIEWPORT.width}x${VIEWPORT.height}\n`);
+console.log(`\nMeasured ${rows.length} real bank questions through PathSessionPlayer at ${VIEWPORT.width}x${VIEWPORT.height} (${ORIENTATION})\n`);
 console.log('tool'.padEnd(22), 'prompt'.padStart(7), 'answer'.padStart(7), 'page'.padStart(6), 'submitReachable'.padStart(16), 'inBar'.padStart(6));
 rows.forEach((r) => console.log(
   String(r.tool).padEnd(22),
@@ -217,7 +227,7 @@ if (findings.length) {
   console.log('\nEvery sampled question keeps its answer control within reach on a phone.');
 }
 if (write) {
-  writeFileSync(FINDINGS, `${JSON.stringify({ generatedAt: new Date().toISOString(), viewport: VIEWPORT, measured: rows.length, findings }, null, 2)}\n`);
+  writeFileSync(FINDINGS, `${JSON.stringify({ generatedAt: new Date().toISOString(), orientation: ORIENTATION, viewport: VIEWPORT, measured: rows.length, findings }, null, 2)}\n`);
   console.log(`\nWrote ${path.relative(repo, FINDINGS)}`);
 }
 process.exit(findings.length ? 1 : 0);
