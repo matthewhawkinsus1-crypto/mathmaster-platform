@@ -437,6 +437,35 @@ export default function LiveChallengeTeacher({
               </label>
             </div>
           )}
+          {/* Where the need actually shows up. The importer already exists and
+              works — it is just filed under Path bank maintenance, which is not
+              where anyone looks after a dry run comes up short. */}
+          <details style={{ marginTop: 14, padding: '10px 14px', borderRadius: 10, background: '#f8f9fa', border: '1px solid #d8dde6' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#3c4043' }}>Not enough interactive questions? Add your own</summary>
+            <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.6, color: '#3c4043' }}>
+              <p style={{ marginTop: 0 }}>
+                Most of the secure bank is typed or chosen answers, so <strong>Interactive tools only</strong> draws
+                from a small pool. You can upload more without waiting on anyone:
+              </p>
+              <ol style={{ margin: '0 0 10px', paddingLeft: 20 }}>
+                <li>Open <strong>My Math Path → Path coverage</strong>.</li>
+                <li>Expand <strong>Import a different seed package instead</strong>.</li>
+                <li>Choose one or more JSON files.</li>
+              </ol>
+              <p style={{ margin: '0 0 8px' }}>
+                A plain array works, as does an object with <code>documents</code>, <code>items</code> or{' '}
+                <code>questions</code>. Give a question a <code>pathToolId</code> — <code>stepAlgebra</code>,{' '}
+                <code>graphing2</code>, <code>systemsWorkspace</code>, <code>intervalNumberLine</code>,{' '}
+                <code>relationMapping</code>, <code>dataModelingLab</code>, <code>functionInvestigation</code> —
+                and it becomes an interactive round here.
+              </p>
+              <p style={{ margin: 0, color: '#5f6368' }}>
+                Every document is validated before anything is written, and a package that fails validation
+                writes nothing at all. Released SAT, ACT, TSIA2 and ASVAB content is refused by that importer
+                on purpose — those move only through their own release refresh.
+              </p>
+            </div>
+          </details>
           <div style={{ marginTop: 16, padding: 12, borderRadius: 10, background: '#e8f0fe', color: '#174ea6', fontSize: 13, lineHeight: 1.5 }}>
             <strong>Scoring:</strong> up to 1,000 points for mathematical correctness, at most 100 for speed, and at most 100 for a streak. Partial-credit tools earn proportional base points. Game results do not change report-card grades or mastery in this first version.
           </div>

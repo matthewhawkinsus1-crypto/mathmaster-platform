@@ -119,3 +119,49 @@ test('the last-ten-seconds pulse respects prefers-reduced-motion', () => {
   assert.match(css, /@keyframes challengePulse/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]{0,200}challengePulse[\s\S]{0,60}animation: none/);
 });
+
+/* ---------- the student surface is a different place from an assignment ---------- */
+
+test('the whole student shell is themed, not just one bar', () => {
+  // A game bar bolted onto an assignment-coloured page still reads as the
+  // assignment. Every status a student can land on gets the game ground.
+  assert.match(student, /radial-gradient\(120% 90% at 50% 0%, #1f2a44/);
+  assert.doesNotMatch(student, /background: '#f0f2f5'/, 'the old worksheet ground must be gone');
+  for (const status of ['lobby', 'running', 'finished', 'cancelled']) {
+    assert.ok(student.includes(`room.status === '${status}'`), `${status} must still render`);
+  }
+});
+
+test('the question card itself stays light so the math tools keep their contrast', () => {
+  // Recolouring a coordinate plane or a solver to match a dark theme trades a
+  // game feel for a legibility problem in the one place that cannot afford it.
+  assert.match(student, /<section style=\{\{ background: '#fff', borderRadius: 14, border: '1px solid #d8dde6', overflow: 'hidden' \}\}>/);
+});
+
+test('a student can see where they stand without waiting for the round to end', () => {
+  assert.match(student, /Your score/);
+  assert.match(student, /selfRow\.liveScore \?\? selfRow\.score/);
+  // And the finish screen leads with their own result, not with the list.
+  assert.match(student, /#\{selfRow\.rank\}/);
+});
+
+test('every exit route out of the game still exists', () => {
+  // A themed dead end is worse than an ugly one. Cancelled and finished both
+  // have to get a student back.
+  const exits = student.match(/onClick=\{onExit\}/g) || [];
+  assert.ok(exits.length >= 3, `expected an exit from header, finished and cancelled; found ${exits.length}`);
+});
+
+/* ---------- uploading more questions ---------- */
+
+test('the teacher is told where to upload questions, at the point of need', () => {
+  // The importer already exists under Path coverage. What was missing was any
+  // mention of it where a teacher discovers the pool is thin.
+  assert.match(teacher, /Not enough interactive questions\? Add your own/);
+  assert.match(teacher, /Import a different seed package instead/);
+  assert.match(teacher, /pathToolId/);
+  // Named tools must be ones the filter actually recognises.
+  for (const tool of ['stepAlgebra', 'graphing2', 'systemsWorkspace']) {
+    assert.ok(teacher.includes(tool), `${tool} must be named`);
+  }
+});

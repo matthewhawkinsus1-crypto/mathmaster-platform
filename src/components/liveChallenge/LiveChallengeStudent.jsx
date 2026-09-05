@@ -87,14 +87,17 @@ function LeaderRow({ row, index, isSelf }) {
         height: ROW_HEIGHT - 8,
         boxSizing: 'border-box',
         borderRadius: 9,
-        background: isSelf ? '#e8f0fe' : working > 0 ? '#fff7e0' : '#f8f9fa',
-        border: isSelf ? '2px solid #1a73e8' : working > 0 ? '1px solid #f9ab00' : '1px solid #e1e5ea',
+        // On the dark game ground; the self row and a working row still read
+        // as themselves without borrowing the assignment palette.
+        background: isSelf ? 'rgba(66,133,244,.30)' : working > 0 ? 'rgba(249,171,0,.22)' : 'rgba(255,255,255,.07)',
+        border: isSelf ? '2px solid #8ab4f8' : working > 0 ? '1px solid #f9ab00' : '1px solid rgba(255,255,255,.12)',
+        color: '#eef1f6',
       }}
     >
       <strong>#{row.rank}</strong>
       <span style={{ fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {row.alias}
-        {working > 0 && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 900, color: '#7a4f00' }}>working…</span>}
+        {working > 0 && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 900, color: '#fdd663' }}>working…</span>}
       </span>
       <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{shown.toLocaleString()}</strong>
     </div>
@@ -368,8 +371,8 @@ export function ChallengeRound({
         <FieldQuestion question={question} disabled={Boolean(result) || expired} onSubmit={submit} />
       )}
 
-      {submitError && <div role="alert" style={{ padding: 11, borderRadius: 9, background: '#fff4ce', color: '#7a4f00' }}>{submitError}</div>}
-      {expired && !result && <div aria-live="polite" style={{ padding: 15, borderRadius: 11, background: '#f1f3f4', color: '#3c4043', fontWeight: 900 }}>Time is up. Wait for your teacher to start the next round.</div>}
+      {submitError && <div role="alert" style={{ padding: 11, borderRadius: 9, background: '#4a3708', color: '#ffe9a8', border: '1px solid #f9ab00' }}>{submitError}</div>}
+      {expired && !result && <div aria-live="polite" style={{ padding: 15, borderRadius: 11, background: 'rgba(255,255,255,.08)', color: '#eef1f6', border: '1px solid rgba(255,255,255,.16)', fontWeight: 900 }}>Time is up. Wait for your teacher to start the next round.</div>}
       {result && (
         <section aria-live="polite" style={{ padding: 16, borderRadius: 12, background: result.isCorrect ? '#e6f4ea' : '#fff4ce', color: result.isCorrect ? '#137333' : '#7a4f00', textAlign: 'left' }}>
           <div style={{ fontSize: 22, fontWeight: 1000 }}>{result.isCorrect ? 'Correct!' : `${Number(result.scorePercent) || 0}% credit`}</div>
@@ -396,8 +399,8 @@ export function ChallengeRound({
       )}
 
       {showLeaderboard && (
-        <section style={{ padding: 16, borderRadius: 12, background: '#fff', border: '1px solid #d8dde6', textAlign: 'left' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}><strong>Top 5</strong>{currentSelf && <span style={{ color: '#5f6368', fontSize: 13 }}>You: #{currentSelf.rank} · {(currentSelf.liveScore ?? currentSelf.score).toLocaleString()}</span>}</div>
+        <section style={{ padding: 16, borderRadius: 14, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.14)', textAlign: 'left', color: '#eef1f6' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}><strong>Top 5</strong>{currentSelf && <span style={{ color: '#9fb0cc', fontSize: 13 }}>You: #{currentSelf.rank} · {(currentSelf.liveScore ?? currentSelf.score).toLocaleString()}</span>}</div>
           <MiniLeaderboard rows={leaderboard} playerKey={playerKey} />
         </section>
       )}
@@ -448,24 +451,66 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   }
 
   if (!room) {
-    return <div style={{ minHeight: '100vh', padding: 40, background: '#f0f2f5', textAlign: 'center' }}><h2>Opening {invite.title || 'Live Challenge'}…</h2>{error && <p style={{ color: '#a50e0e' }}>{error}</p>}</div>;
+    // Same ground as the game itself. Loading on the worksheet colour and then
+    // swapping to the game colour reads as a mis-load rather than an opening.
+    return (
+      <div style={{ minHeight: '100vh', padding: 40, background: 'radial-gradient(120% 90% at 50% 0%, #1f2a44 0%, #131722 55%, #0d1017 100%)', color: '#eef1f6', textAlign: 'center', fontFamily: '"Segoe UI", sans-serif' }}>
+        <h2 style={{ color: '#fff' }}>Opening {invite.title || 'Live Challenge'}…</h2>
+        {error && <p style={{ color: '#ffb4ab' }}>{error}</p>}
+      </div>
+    );
   }
 
+  const selfRow = leaderboard.find((entry) => entry.playerKey === invite.playerKey);
+
+  /*
+   * A DIFFERENT PLACE FROM AN ASSIGNMENT.
+   *
+   * The whole surround is dark, because that is the cheapest and most complete
+   * signal that this is not the worksheet — a student knows before reading a
+   * word. The one light region is the question card itself, so the real math
+   * tools keep the contrast and the colour vocabulary they were designed and
+   * tested against; recolouring a coordinate plane to match a theme would be
+   * trading a game feel for a legibility problem.
+   */
   return (
-    <div style={{ minHeight: '100vh', background: '#f0f2f5', padding: '20px 14px 50px', fontFamily: '"Segoe UI", sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: 'radial-gradient(120% 90% at 50% 0%, #1f2a44 0%, #131722 55%, #0d1017 100%)', padding: '20px 14px 50px', fontFamily: '"Segoe UI", sans-serif', color: '#eef1f6' }}>
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
-          <div style={{ textAlign: 'left' }}><div style={{ color: '#174ea6', fontSize: 12, fontWeight: 1000, textTransform: 'uppercase' }}>MathMaster Live Challenge</div><h1 style={{ margin: '4px 0 0', fontSize: 25 }}>{room.title}</h1></div>
-          <button type="button" onClick={onExit} style={{ padding: '9px 14px', border: '1px solid #b7bec8', borderRadius: 8, background: '#fff', fontWeight: 900 }}>{exitLabel}</button>
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ color: '#fdd663', fontSize: 12, fontWeight: 1000, textTransform: 'uppercase', letterSpacing: '.08em' }}>MathMaster Live Challenge</div>
+            <h1 style={{ margin: '4px 0 0', fontSize: 25, color: '#fff' }}>{room.title}</h1>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {selfRow && room.status === 'running' && (
+              <div style={{ textAlign: 'right', lineHeight: 1.2 }}>
+                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: '#9fb0cc', fontWeight: 900 }}>Your score</div>
+                <div style={{ fontSize: 22, fontWeight: 1000, fontVariantNumeric: 'tabular-nums', color: '#fdd663' }}>
+                  {(selfRow.liveScore ?? selfRow.score).toLocaleString()}
+                </div>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={onExit}
+              style={{ minHeight: 44, padding: '9px 14px', border: '1px solid rgba(255,255,255,.35)', borderRadius: 8, background: 'transparent', color: '#eef1f6', fontWeight: 900, cursor: 'pointer' }}
+            >
+              {exitLabel}
+            </button>
+          </div>
         </header>
-        {error && <div role="alert" style={{ marginBottom: 14, padding: 11, borderRadius: 9, background: '#fff4ce', color: '#7a4f00' }}>{error}</div>}
+        {error && <div role="alert" style={{ marginBottom: 14, padding: 11, borderRadius: 9, background: '#4a3708', color: '#ffe9a8', border: '1px solid #f9ab00' }}>{error}</div>}
 
         {room.status === 'lobby' && (
-          <section style={{ padding: 30, borderRadius: 16, background: '#e8f0fe', border: '2px solid #aecbfa', textAlign: 'center' }}>
-            <div style={{ fontSize: 14, fontWeight: 900, color: '#174ea6', textTransform: 'uppercase' }}>You are in the lobby as</div>
-            <div style={{ marginTop: 8, fontSize: 32, fontWeight: 1000 }}>{invite.alias || 'Player'}</div>
-            <div style={{ marginTop: 14, fontSize: 18 }}>{joining ? 'Joining…' : `${leaderboard.length} students joined`}</div>
-            <p style={{ marginBottom: 0, color: '#5f6368' }}>Keep this screen open. Your teacher will start Round 1.</p>
+          <section style={{ padding: 30, borderRadius: 18, background: 'linear-gradient(135deg,#1d3a6e,#25508f)', border: '1px solid rgba(174,203,250,.35)', textAlign: 'center' }}>
+            <div style={{ fontSize: 13, fontWeight: 900, color: '#aecbfa', textTransform: 'uppercase', letterSpacing: '.08em' }}>You are in as</div>
+            <div style={{ marginTop: 8, fontSize: 38, fontWeight: 1000, color: '#fff' }}>{invite.alias || 'Player'}</div>
+            <div style={{ marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 9, padding: '8px 16px', borderRadius: 999, background: 'rgba(0,0,0,.28)' }}>
+              {/* A quiet heartbeat, so a waiting screen does not look frozen. */}
+              <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: '#81c995', animation: 'challengePulse 1.6s ease-in-out infinite' }} />
+              <span style={{ fontSize: 17, fontWeight: 800 }}>{joining ? 'Joining…' : `${leaderboard.length} ${leaderboard.length === 1 ? 'player' : 'players'} in`}</span>
+            </div>
+            <p style={{ margin: '18px 0 0', color: '#c3d2ea' }}>Keep this screen open. Your teacher starts Round 1.</p>
           </section>
         )}
 
@@ -475,12 +520,30 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
 
         {room.status === 'finished' && (
           <div style={{ display: 'grid', gap: 16 }}>
-            <section style={{ padding: 24, borderRadius: 15, background: '#e6f4ea', border: '2px solid #9bd2aa', textAlign: 'center' }}><div style={{ color: '#137333', fontWeight: 1000, textTransform: 'uppercase' }}>Challenge complete</div><h2 style={{ margin: '6px 0' }}>Final Standings</h2><p style={{ margin: 0, color: '#5f6368' }}>Your game score is practice feedback; it does not change your assignment grade.</p></section>
-            <section style={{ padding: 18, borderRadius: 14, background: '#fff', border: '1px solid #d8dde6' }}><MiniLeaderboard rows={leaderboard} playerKey={invite.playerKey} /></section>
+            <section style={{ padding: 26, borderRadius: 18, background: 'linear-gradient(135deg,#14532d,#1c7a44)', border: '1px solid rgba(129,201,149,.4)', textAlign: 'center' }}>
+              <div style={{ color: '#b7e4c7', fontWeight: 1000, textTransform: 'uppercase', letterSpacing: '.08em', fontSize: 13 }}>Challenge complete</div>
+              {selfRow && (
+                <div style={{ margin: '10px 0 4px' }}>
+                  <div style={{ fontSize: 52, fontWeight: 1000, color: '#fff', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>#{selfRow.rank}</div>
+                  <div style={{ marginTop: 6, fontSize: 19, fontWeight: 900, color: '#fdd663' }}>{selfRow.score.toLocaleString()} points · {selfRow.correctCount} correct</div>
+                </div>
+              )}
+              <h2 style={{ margin: '12px 0 6px', color: '#fff' }}>Final Standings</h2>
+              <p style={{ margin: 0, color: '#c9e7d4' }}>Your game score is practice feedback. It does not change your assignment grade.</p>
+            </section>
+            <section style={{ padding: 18, borderRadius: 16, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.14)' }}>
+              <MiniLeaderboard rows={leaderboard} playerKey={invite.playerKey} />
+            </section>
+            <button type="button" onClick={onExit} style={{ justifySelf: 'center', minHeight: 44, padding: '11px 20px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>{exitLabel}</button>
           </div>
         )}
 
-        {room.status === 'cancelled' && <section style={{ padding: 24, borderRadius: 14, background: '#fff', border: '1px solid #d8dde6', textAlign: 'center' }}><h2>This challenge was cancelled.</h2><button type="button" onClick={onExit}>{exitLabel}</button></section>}
+        {room.status === 'cancelled' && (
+          <section style={{ padding: 26, borderRadius: 16, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.14)', textAlign: 'center' }}>
+            <h2 style={{ marginTop: 0, color: '#fff' }}>This challenge was cancelled.</h2>
+            <button type="button" onClick={onExit} style={{ minHeight: 44, padding: '11px 20px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>{exitLabel}</button>
+          </section>
+        )}
       </div>
     </div>
   );
