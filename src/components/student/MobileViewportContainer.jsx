@@ -48,10 +48,12 @@ export const MobileViewportContainer = ({
   actionButtons = null,
   workBar = null,
   responseFields = null,
+  workspaceMode = 'normal',
 }) => {
   const rootRef = useRef(null);
   const focusedScrollerLockRef = useRef({ element: null, left: 0 });
   const [isPromptCollapsed, setIsPromptCollapsed] = useState(false);
+  const workspaceActive = workspaceMode !== 'normal';
   const [isMobile, setIsMobile] = useState(detectMobile);
   const [isLandscape, setIsLandscape] = useState(detectLandscape);
   const [numericTarget, setNumericTarget] = useState(null);
@@ -254,12 +256,13 @@ export const MobileViewportContainer = ({
   if (!isMobile) {
     return <div
       ref={rootRef}
-      className="mathmaster-desktop-question-content mathmaster-mobile-interaction-root"
+      className={`mathmaster-desktop-question-content mathmaster-mobile-interaction-root ${workspaceActive ? 'solver-workspace-active' : ''}`}
       onFocusCapture={handleFocusCapture}
       onInputCapture={handleInputCapture}
       onKeyDownCapture={handleKeyDownCapture}
       onBlurCapture={handleBlurCapture}
     >
+      {!workspaceActive && (
       <div className={`mathmaster-desktop-question-anchor${isPromptCollapsed ? ' is-collapsed' : ''}`}>
         <div className="mathmaster-desktop-task-toggle-row">
           {!isPromptCollapsed && <span>Your task</span>}
@@ -283,14 +286,15 @@ export const MobileViewportContainer = ({
           </>
         )}
       </div>
-      {contextPanel}{responseFields}{toolWorkspace}
+      )}
+      {!workspaceActive && contextPanel}{responseFields}{toolWorkspace}
       {/* WHY THIS IS STICKY. The desktop branch used to append the Check button
           after the tool, so on a tall question — a graph plus five response
           fields — a student finished typing and then had to scroll to find the
           button that submits it. The tools a student uses WHILE working (undo,
           scratchpad) belong in the same place for the same reason: next to the
           hands, not at the top of a page they have already scrolled past. */}
-      {(workBar || actionButtons) && (
+      {!workspaceActive && (workBar || actionButtons) && (
         <div className="mathmaster-desktop-action-bar">
           {workBar && <div className="mathmaster-desktop-action-bar-tools">{workBar}</div>}
           {actionButtons && <div className="mathmaster-desktop-action-bar-primary">{actionButtons}</div>}
@@ -306,7 +310,7 @@ export const MobileViewportContainer = ({
       onInputCapture={handleInputCapture}
       onKeyDownCapture={handleKeyDownCapture}
       onBlurCapture={handleBlurCapture}
-      className={`mathmaster-question-container mathmaster-mobile-interaction-root ${isLandscape ? 'mode-landscape' : 'mode-portrait'} ${numericTarget ? 'numeric-keypad-open' : ''}`}
+      className={`mathmaster-question-container mathmaster-mobile-interaction-root ${isLandscape ? 'mode-landscape' : 'mode-portrait'} ${numericTarget ? 'numeric-keypad-open' : ''} ${workspaceActive ? 'solver-workspace-active' : ''}`}
       style={{
         '--mm-visual-viewport-width': `${visualViewport.width}px`,
         '--mm-visual-viewport-height': `${visualViewport.height}px`,
@@ -314,6 +318,7 @@ export const MobileViewportContainer = ({
         '--mm-visual-viewport-offset-left': `${visualViewport.offsetLeft}px`,
       }}
     >
+      {!workspaceActive && (
       <section className="question-prompt-panel" aria-label="Question prompt and response controls">
         <div className="question-prompt-heading">
           <span>YOUR TASK</span>
@@ -321,13 +326,14 @@ export const MobileViewportContainer = ({
         </div>
         {!isPromptCollapsed && <div className="prompt-body"><QuestionPrompt variant="plain" style={{ color: '#202124', fontWeight: 800, fontSize: 18, margin: 0 }}>{promptText || 'Complete the math task.'}</QuestionPrompt>{taskMeta && <div className="mathmaster-question-task-meta">{taskMeta}</div>}{taskContextPanel && <div className="mathmaster-question-task-context">{taskContextPanel}</div>}</div>}
         {responseFields && <div className="response-inputs-section">{responseFields}</div>}
-        {isLandscape && (actionButtons || workBar) && <div className="landscape-action-bar">{workBar}{actionButtons}</div>}
+        {!workspaceActive && isLandscape && (actionButtons || workBar) && <div className="landscape-action-bar">{workBar}{actionButtons}</div>}
       </section>
+      )}
 
-      {contextPanel}
+      {!workspaceActive && contextPanel}
       <main className="math-tool-workspace">{toolWorkspace}</main>
 
-      {!isLandscape && (actionButtons || workBar) && <div className="portrait-action-bar">{workBar}{actionButtons}</div>}
+      {!workspaceActive && !isLandscape && (actionButtons || workBar) && <div className="portrait-action-bar">{workBar}{actionButtons}</div>}
       {numericKeypad}
     </div>
   );

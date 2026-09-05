@@ -14,6 +14,7 @@ const appendHistory = (current, value) => {
 
 export default function MultiRelationAlgebra(props) {
   const { question = {}, onStateChange } = props;
+  const denseWorkspace = props.workspaceMode !== 'normal';
   const workspaceKey = useMemo(() => [
     props.draftKey,
     question.id,
@@ -56,8 +57,10 @@ export default function MultiRelationAlgebra(props) {
       workspaceKey={workspaceKey}
       workspaceKind="relation"
       focusPanel={focusPanel}
+      workspaceActions={props.workspaceActions}
+      onWorkspaceModeChange={props.onWorkspaceModeChange}
     >
-      <MultiRelationAlgebraCore {...props} onStateChange={handleStateChange} />
+      <MultiRelationAlgebraCore {...props} denseWorkspace={denseWorkspace} onStateChange={handleStateChange} />
     </SolverWorkspaceFrame>
   );
 }
