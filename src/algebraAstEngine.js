@@ -233,19 +233,45 @@ const flattenAdditiveChain = (node, sign, terms) => {
   return terms;
 };
 
+const additiveTermDescriptor = ({ node, sign }, index) => {
+  let effectiveSign = sign < 0 ? -1 : 1;
+  let magnitudeText = node.toString({ parenthesis: 'auto', implicit: 'hide' }).trim();
+  let magnitudeLatex = cleanImplicitMultiplicationLatex(
+    node.toTex({ parenthesis: 'keep', implicit: 'hide' }),
+  ).trim();
+
+  // MathJS can encode a negative coefficient inside an opaque product node
+  // instead of as the additive chain's unary-minus sign. Canonicalize that
+  // leading sign once, here at the AST/presentation boundary, so every caller
+  // receives a true additive sign plus an unsigned magnitude. Transformation
+  // code must never have to infer mathematical sign from display text again.
+  const textCarriesNegative = /^-\s*/.test(magnitudeText);
+  const latexCarriesNegative = /^-\s*/.test(magnitudeLatex);
+  if (textCarriesNegative || latexCarriesNegative) {
+    effectiveSign *= -1;
+    magnitudeText = magnitudeText.replace(/^-\s*/, '');
+    magnitudeLatex = magnitudeLatex.replace(/^-\s*/, '');
+  }
+
+  const isFirst = index === 0;
+  const operator = effectiveSign < 0 ? '-' : '+';
+  return {
+    text: isFirst
+      ? (effectiveSign < 0 ? '-' : '') + magnitudeText
+      : operator + ' ' + magnitudeText,
+    latex: isFirst
+      ? (effectiveSign < 0 ? '-' : '') + magnitudeLatex
+      : operator + ' ' + magnitudeLatex,
+    sign: effectiveSign,
+    magnitudeText,
+    magnitudeLatex,
+  };
+};
+
 export const splitAdditiveTerms = (expression) => {
   try {
     const parts = flattenAdditiveChain(parse(String(expression)), 1, []);
-    return parts.map(({ node, sign }, index) => {
-      const magnitudeText = node.toString({ parenthesis: 'auto', implicit: 'hide' });
-      const magnitudeLatex = cleanImplicitMultiplicationLatex(node.toTex({ parenthesis: 'keep', implicit: 'hide' }));
-      const isFirst = index === 0;
-      return {
-        text: isFirst ? (sign < 0 ? `-${magnitudeText}` : magnitudeText) : `${sign < 0 ? '-' : '+'} ${magnitudeText}`,
-        latex: isFirst ? (sign < 0 ? `-${magnitudeLatex}` : magnitudeLatex) : `${sign < 0 ? '-' : '+'} ${magnitudeLatex}`,
-        sign,
-      };
-    });
+    return parts.map(additiveTermDescriptor);
   } catch {
     return null;
   }
@@ -539,7 +565,7 @@ export const applyAdditiveOperationAtPlacement = (
 
   const items = terms.map((term) => ({
     sign: term.sign < 0 ? -1 : 1,
-    magnitude: String(term.text).replace(/^[+-]\s*/, ''),
+    magnitude: term.magnitudeText,
   }));
   const inserted = {
     sign: operation === 'subtract' ? -1 : 1,
