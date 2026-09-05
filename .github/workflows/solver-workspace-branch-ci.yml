@@ -15,7 +15,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,6 +55,28 @@ jobs:
             [[ -f "$f" ]] && tests+=("$f")
           done
           node --test "${tests[@]}"
+
+      - name: Run complete platform test suite
+        run: node --test --test-concurrency=4 tests/platform/*.test.mjs
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Audit solver integrity contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "magnitude: term.magnitudeText" src/algebraAstEngine.js
+          if grep -nE "magnitude: String\(term\.text\).*replace|String\(term\.text\).*replace.*magnitude" src/algebraAstEngine.js; then
+            echo "Found sign reconstruction from term.text in additive placement" >&2
+            exit 1
+          fi
+          grep -q "onWorkspaceModeChange" src/components/common/SolverWorkspaceFrame.jsx
+          grep -q "workspaceActions" src/components/common/SolverWorkspaceFrame.jsx
+          grep -q "multi-relation-branches--dense" src/MultiRelationAlgebraCore.jsx
+          grep -q "multi-relation-split-editor--dense" src/MultiRelationAlgebraCore.jsx
+          grep -q "mathmaster-desktop-action-bar" src/components/student/MobileViewportContainer.jsx
+          echo "Solver source audit passed."
 
       - name: Build production web
         run: npm run build
