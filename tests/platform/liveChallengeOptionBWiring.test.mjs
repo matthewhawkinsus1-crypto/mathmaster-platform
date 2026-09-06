@@ -29,7 +29,8 @@ test('the teacher experience exposes scoring, identity, audio and question-libra
   assert.match(teacher, /ChallengeQuestionLibrary/);
   assert.match(teacher, /speedInfluencePercent/);
   assert.match(teacher, /playerDisplayMode/);
-  assert.match(teacher, /Scoring\s*&\s*Competition/i);
+  // JSX may encode the literal ampersand as &amp;; both render the same heading.
+  assert.match(teacher, /Scoring\s*(?:&|&amp;)\s*Competition/i);
   assert.match(teacher, /Music/);
   assert.match(teacher, /Announcer/);
   assert.match(teacher, /Effects/);
@@ -59,6 +60,14 @@ test('service exposes experience callables without duplicating score logic in th
   assert.match(service, /configureLiveChallengeExperience/);
   assert.match(service, /getLiveChallengeExperience/);
   assert.doesNotMatch(service, /speedBonus\s*=|pointsAwarded\s*=/);
+});
+
+test('configured speed is returned synchronously while the trigger remains a retry fallback', () => {
+  const entry = readRequired('functions/entry.js');
+  assert.match(entry, /legacySubmitLiveChallengeResponse\.run\(request\)/);
+  assert.match(entry, /exports\.submitLiveChallengeResponse\s*=\s*onCall/);
+  assert.match(entry, /applyExperienceSpeedAdjustment/);
+  assert.match(entry, /fallback trigger/i);
 });
 
 test('Warm-Up waiting is a focused overlay, not a contradictory panel above standard work', () => {
