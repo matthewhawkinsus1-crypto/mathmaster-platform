@@ -20,6 +20,14 @@ test('game state selects lobby, battle, final-round and victory music', async ()
   assert.equal(challengeMusicState({ status: 'cancelled' }), null);
 });
 
+test('music transitions use the approved 650ms crossfade envelope', async () => {
+  const { AUDIO_CROSSFADE_MS, crossfadeVolumesAt } = await loadAudio();
+  assert.equal(AUDIO_CROSSFADE_MS, 650);
+  assert.deepEqual(crossfadeVolumesAt({ elapsedMs: 0, durationMs: 650, outgoingVolume: 0.24, incomingVolume: 0.24 }), { outgoing: 0.24, incoming: 0 });
+  assert.deepEqual(crossfadeVolumesAt({ elapsedMs: 325, durationMs: 650, outgoingVolume: 0.24, incomingVolume: 0.24 }), { outgoing: 0.12, incoming: 0.12 });
+  assert.deepEqual(crossfadeVolumesAt({ elapsedMs: 650, durationMs: 650, outgoingVolume: 0.24, incomingVolume: 0.24 }), { outgoing: 0, incoming: 0.24 });
+});
+
 test('new #1 must hold first place for two seconds before the celebration fires', async () => {
   const { nextLeaderHoldState, NEW_LEADER_HOLD_MS } = await loadAudio();
   assert.equal(NEW_LEADER_HOLD_MS, 2000);
