@@ -1,6 +1,7 @@
 import { validateInstructionalScopeV5 } from '../curriculum/instructionalScope.js';
 import { looksLikeFiniteSetNotation } from '../../../functions/shared/answerEquivalence.mjs';
 import { normalizeStaticGraphPoints } from '../../graphPointUtils.js';
+import { getDomainRangeAcceptedAnswers } from '../../interactiveGraphEngine.js';
 import { normalizeLabDefinition } from '../labs/labDefinitionSchema.js';
 import {
   axisExpectedOptions,
@@ -307,6 +308,24 @@ const orderDomainRangeResponseFields = (fields = []) => {
  * anything else returns null and the caller falls back to plotted points,
  * because a wrong expression would draw a curve that is not the question.
  */
+/** The accepted domain/range answers a function's own shape implies. */
+const derivedSetAnswers = (q = {}, kind = 'domain') => {
+  // The SAME spec the question compiles with, restriction included. Using the
+  // bare function here answered "all real numbers" for a graph the author had
+  // explicitly bounded to -2 <= x < 5.
+  const spec = functionSpecFromIntentQuestion(q);
+  if (!clean(spec.type)) return undefined;
+  const notation = clean(q.notation) || 'inequality';
+  try {
+    const accepted = getDomainRangeAcceptedAnswers(spec, kind, notation);
+    return Array.isArray(accepted) && accepted.length ? accepted : undefined;
+  } catch {
+    // A family the engine cannot reason about leaves the step unkeyed, which
+    // reports as teacher-reviewed rather than marking a student against a guess.
+    return undefined;
+  }
+};
+
 const expressionFromSpec = (raw = {}) => {
   const spec = coreFunctionSpec(raw);
   const num = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
@@ -905,9 +924,12 @@ const resolveIntentType = (q, actions) => {
    * question. Describe the features as ACTIONS and you get the staged
    * sequence; write the boxes yourself and you get your boxes.
    */
+  const readsDomainOrRange = actions.some((a) => (
+    ['analyzeDomain', 'stateDomain', 'analyzeRange', 'stateRange'].includes(a)
+  ));
   if (
     actions.includes('readGraph')
-    && readsFeatures
+    && (readsFeatures || readsDomainOrRange)
     && (q.function || q.functionSpec || q.graph || q.pairs)
   ) return 'functionCharacteristics';
 
@@ -1144,8 +1166,15 @@ const compileOne = (q, index, repairs) => {
         behaviorChoices: q.behaviorChoices,
         familyChoices: q.familyChoices,
         functionSpec: functionSpecFromIntentQuestion(q),
-        correctDomain: q.correctDomain,
-        correctRange: q.correctRange,
+        // DERIVED FROM THE FUNCTION WHEN THE AUTHOR DID NOT WRITE IT.
+        //
+        // The graph-analysis tool has always worked this answer out from the
+        // spec rather than trusting an authored string, and this is the same
+        // derivation, so a question that moves to the staged runtime keeps a
+        // real answer key instead of quietly becoming teacher-reviewed. An
+        // authored value still wins — it is the more specific instruction.
+        correctDomain: q.correctDomain || derivedSetAnswers(q, 'domain'),
+        correctRange: q.correctRange || derivedSetAnswers(q, 'range'),
         notation: q.notation,
       });
       break;

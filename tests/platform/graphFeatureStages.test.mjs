@@ -341,3 +341,28 @@ test('the axis of symmetry is an equation, and the vertex is a point', () => {
     ['axisOfSymmetry'],
   );
 });
+
+test('a domain-and-range question is staged, and draws its graph once', () => {
+  // It used to compile to a single panel: both answer boxes, both math
+  // keyboards, no way to take one step at a time. Fifty keypad keys on a 390px
+  // phone, most belonging to a box the student was not answering yet.
+  const { workflow } = expand({
+    recipe: { name: 'functionCharacteristics', ask: ['domain', 'range'] },
+    graph: { xMin: -6, xMax: 7, yMin: -10, yMax: 9 },
+    correctEquation: '2*x - 1',
+    correctDomain: '-3 <= x < 4',
+    correctRange: '-7 <= y < 7',
+  });
+  assert.deepEqual(workflow.map((stage) => stage.id), ['domain', 'range']);
+  // Each carries the figure, because either may be the only step on screen.
+  workflow.forEach((stage) => assert.ok(stage.graph, `${stage.id} has no graph to read`));
+  assert.equal(workflow[0].graph.model, '2*x - 1');
+
+  const runner = readFileSync('src/platform/workflow/WorkflowRunner.jsx', 'utf8');
+  // Stacked, consecutive steps about the same graph draw it once.
+  assert.match(runner, /const figureStageIds = useMemo/);
+  assert.match(runner, /showFigure=\{focusMode \|\| figureStageIds\.has\(stage\.id\)\}/);
+  // And only one math keyboard opens itself.
+  assert.match(runner, /const openKeypadStageId = useMemo/);
+  assert.match(runner, /showToolsInitially=\{openKeypad\}/);
+});

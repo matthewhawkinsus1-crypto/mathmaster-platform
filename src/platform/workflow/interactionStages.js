@@ -162,14 +162,20 @@ export const INTERACTION_STAGES = Object.freeze(Object.fromEntries([
     studentAction: 'States the domain.',
     produces: STAGE_OUTPUT.SET,
     consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.EQUATION],
-    fields: { prompt: 'string', notation: 'string', choices: 'array' },
+    // `graph` is the figure being read. A step that says "state the domain of
+    // the graph shown" with no graph on it is unanswerable, and that is what a
+    // staged domain question was before this field existed.
+    fields: { prompt: 'string', notation: 'string', choices: 'array', graph: 'object' },
   }),
   stage('rangeInput', {
     label: 'State the range',
     studentAction: 'States the range.',
     produces: STAGE_OUTPUT.SET,
     consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.EQUATION],
-    fields: { prompt: 'string', notation: 'string', choices: 'array' },
+    // `graph` is the figure being read. A step that says "state the domain of
+    // the graph shown" with no graph on it is unanswerable, and that is what a
+    // staged domain question was before this field existed.
+    fields: { prompt: 'string', notation: 'string', choices: 'array', graph: 'object' },
   }),
   stage('valueSet', {
     label: 'Write the values',
@@ -182,14 +188,14 @@ export const INTERACTION_STAGES = Object.freeze(Object.fromEntries([
     // x-intercept and x = 4 is the zero, and telling those apart is the skill.
     produces: STAGE_OUTPUT.SET,
     consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.EQUATION],
-    fields: { prompt: 'string', notation: 'string', placeholder: 'string', choices: 'array' },
+    fields: { prompt: 'string', notation: 'string', placeholder: 'string', choices: 'array', graph: 'object' },
   }),
   stage('intervalInput', {
     label: 'Write the interval',
     studentAction: 'Writes an interval or union in the requested notation.',
     produces: STAGE_OUTPUT.INTERVAL,
     consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.INTERVAL],
-    fields: { prompt: 'string', notation: 'string' },
+    fields: { prompt: 'string', notation: 'string', graph: 'object' },
   }),
   stage('classification', {
     label: 'Classify',

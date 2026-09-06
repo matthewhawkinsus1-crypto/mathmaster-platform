@@ -278,6 +278,12 @@ function StageFigure({ graph, label }) {
           ? { x: point[0], y: point[1], fill: '#1a73e8', r: 5 }
           : point))}
         revealCoordinates={false}
+        // Zoomable even though it takes no answer. On a 390px phone the plane
+        // is 338px wide and a restricted domain's endpoints can sit two
+        // gridlines apart; being able to zoom in on the part that matters is
+        // the difference between reading it and guessing. Buttons, not just
+        // pinch — see the note in CoordinatePlane.
+        panZoom
         ariaLabel={label || 'Graph'}
       />
     </div>
@@ -767,7 +773,7 @@ const DELEGATES = {
 
 const NOTATION_PROFILE = { interval: 'interval', inequality: 'inequality', set: 'set' };
 
-function StageBody({ stage, input, content, value, onChange, disabled, draftKey, controlsBranch = false }) {
+function StageBody({ stage, input, content, value, onChange, disabled, draftKey, controlsBranch = false, openKeypad = true, showFigure = true }) {
   const delegate = DELEGATES[stage.kind];
   if (delegate) return delegate({ stage, input, content, onChange, draftKey, disabled });
 
@@ -801,16 +807,19 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey,
         return <ChoiceStage stage={stage} value={value} onChange={onChange} disabled={disabled} controlsBranch={controlsBranch} />;
       }
       return (
-        <MathInput
-          value={value || ''}
-          onChange={onChange}
-          // A set of specific values is written in braces, so a `valueSet` step
-          // defaults to the set keyboard rather than to interval notation.
-          toolProfile={NOTATION_PROFILE[stage.notation] || (stage.kind === 'valueSet' ? 'set' : 'interval')}
-          showToolsInitially
-          placeholder={stage.placeholder || stage.notation || (stage.kind === 'valueSet' ? '{ }' : 'interval notation')}
-          ariaLabel={stage.prompt || (stage.kind === 'valueSet' ? 'Values' : 'Interval notation')}
-        />
+        <>
+          {showFigure ? <StageFigure graph={stage?.graph} label={stage?.prompt} /> : null}
+          <MathInput
+            value={value || ''}
+            onChange={onChange}
+            // A set of specific values is written in braces, so a `valueSet`
+            // step defaults to the set keyboard rather than to interval notation.
+            toolProfile={NOTATION_PROFILE[stage.notation] || (stage.kind === 'valueSet' ? 'set' : 'interval')}
+            showToolsInitially={openKeypad}
+            placeholder={stage.placeholder || stage.notation || (stage.kind === 'valueSet' ? '{ }' : 'interval notation')}
+            ariaLabel={stage.prompt || (stage.kind === 'valueSet' ? 'Values' : 'Interval notation')}
+          />
+        </>
       );
     case 'graphFeatureSelect':
       return (
@@ -1028,6 +1037,49 @@ export default function WorkflowRunner({
       .map((stage) => (isObject(stage?.showWhen) ? String(stage.showWhen.stage || '') : ''))
       .filter(Boolean),
   ), [authoredWorkflow]);
+
+  /*
+   * ONE MATH KEYBOARD AT A TIME.
+   *
+   * Every notation step opens its keypad on mount so a student lands ready to
+   * type. In focus mode that is one keypad, because one step is on screen. In a
+   * stacked question it is one per step: a domain-and-range question opened on
+   * a 390px phone with fifty keypad keys visible at once, most of them belonging
+   * to a box the student was not answering yet.
+   *
+   * So only the first unanswered notation step opens itself; the rest open when
+   * the student taps into them, which is when they wanted a keyboard anyway.
+   */
+  /*
+   * THE SAME GRAPH, DRAWN ONCE.
+   *
+   * Every set step carries the figure it is about, because it may be the only
+   * step on screen. In focus mode it is — one step at a time — so each draws
+   * its own. Stacked, consecutive steps about the SAME graph would draw it
+   * once each: a domain-and-range question rendered two identical planes on a
+   * 390px phone, half the screen spent saying the same thing twice.
+   */
+  const figureStageIds = useMemo(() => {
+    const ids = new Set();
+    let previous = '';
+    (Array.isArray(workflow) ? workflow : []).forEach((stage) => {
+      if (!isObject(stage?.graph)) return;
+      let fingerprint = '';
+      try { fingerprint = JSON.stringify(stage.graph); } catch { fingerprint = String(stage.id); }
+      if (fingerprint !== previous) ids.add(stage.id);
+      previous = fingerprint;
+    });
+    return ids;
+  }, [workflow]);
+
+  const KEYPAD_KINDS = ['domainInput', 'rangeInput', 'intervalInput', 'valueSet'];
+  const openKeypadStageId = useMemo(() => {
+    const notationStages = (Array.isArray(workflow) ? workflow : [])
+      .filter((stage) => KEYPAD_KINDS.includes(stage?.kind));
+    if (notationStages.length <= 1) return notationStages[0]?.id ?? null;
+    const firstUnanswered = notationStages.find((stage) => !hasStageResponse(responses[stage.id]));
+    return (firstUnanswered || notationStages[0]).id;
+  }, [workflow, responses]);
   const onStateChangeRef = useRef(onStateChange);
   const onProgressChangeRef = useRef(onProgressChange);
   useEffect(() => { onStateChangeRef.current = onStateChange; }, [onStateChange]);
@@ -1206,6 +1258,8 @@ export default function WorkflowRunner({
               onChange={(value) => setResponse(stage.id, (readDelegateResponse[stage.kind] || ((raw) => raw))(value, { stage, input, content }))}
               disabled={disabled}
               controlsBranch={branchControllerIds.has(stage.id)}
+              openKeypad={stage.id === openKeypadStageId}
+              showFigure={focusMode || figureStageIds.has(stage.id)}
               draftKey={draftKey ? `${draftKey}:${stage.id}${stage.sourceStageId && ['functionGraph', 'coordinatePlot'].includes(stage.kind) ? `:${dependencyFingerprint(input.value)}` : ''}` : null}
             />
           </>

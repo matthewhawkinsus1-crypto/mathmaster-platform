@@ -636,11 +636,15 @@ const FUNCTION_CHARACTERISTICS = {
       choices: list(question.behaviorChoices).length ? list(question.behaviorChoices) : BEHAVIOR_CHOICES,
       graph: featureGraph(question),
     }),
+    // The graph rides along, because these are the only steps in this recipe a
+    // student can be shown ALONE — a question that asks nothing but the domain
+    // and range has no earlier step still on screen holding the figure.
     domain: (question) => ({
       id: 'domain',
       kind: 'domainInput',
       prompt: question.domainPrompt || 'State the domain.',
       notation: question.notation || 'inequality',
+      graph: featureGraph(question),
       ...(list(question.domainChoices).length ? { choices: list(question.domainChoices) } : {}),
     }),
     range: (question) => ({
@@ -648,6 +652,7 @@ const FUNCTION_CHARACTERISTICS = {
       kind: 'rangeInput',
       prompt: question.rangePrompt || 'State the range.',
       notation: question.notation || 'inequality',
+      graph: featureGraph(question),
       ...(list(question.rangeChoices).length ? { choices: list(question.rangeChoices) } : {}),
     }),
   },

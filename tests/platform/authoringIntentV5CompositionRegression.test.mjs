@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { parseAssignmentBlueprintText, validateAssignmentQuestions } from '../../src/assignmentBlueprint.js';
 import { validateQuestionsSemantics } from '../../src/platform/contract/semanticValidation.js';
 import { buildFixRequest } from '../../src/platform/contract/authoringContract.js';
+import { readComposedQuestion } from '../../src/platform/workflow/questionWorkflow.js';
 
 const payload = {
   schemaVersion: 5,
@@ -157,11 +158,21 @@ assert.deepEqual(semantic.warnings, [], semantic.warnings.join('\n'));
 const [boundedInterval, unboundedInterval, graphDomainRange, graphBehavior, relation, discrete, continuous, chocolate, shower] = parsed.questions;
 assert.equal(boundedInterval.type, 'intervalNumberLine');
 assert.equal(unboundedInterval.type, 'intervalNumberLine');
-assert.equal(graphDomainRange.type, 'graphAnalysis');
+// Reading domain and range off a graph is staged now: one step at a time, each
+// carrying the graph, rather than one panel with both answer boxes and both
+// math keyboards open at once.
+assert.equal(graphDomainRange.type, 'functionCharacteristics');
 assert.equal(graphDomainRange.functionSpec.type, 'quadratic');
 assert.equal(graphDomainRange.functionSpec.domain.min, -2, 'structured V5 domain intent should restrict the compiled function');
-assert.ok(!graphDomainRange.graph, 'renderer graph plumbing should not survive V5 graph-analysis compilation');
-assert.deepEqual(graphDomainRange.analysisRequests.map((request) => request.kind), ['domain', 'range']);
+const graphDomainRangeComposed = readComposedQuestion(graphDomainRange);
+assert.deepEqual(graphDomainRangeComposed.workflow.map((stage) => stage.id), ['domain', 'range']);
+// The answer key is derived from the RESTRICTED spec, the same derivation the
+// graph-analysis tool has always used — a staged question must not lose its key.
+assert.deepEqual(graphDomainRangeComposed.grading.domain, ['-2<=x<5']);
+assert.ok(graphDomainRangeComposed.grading.range, 'the range step lost its answer key');
+// Each step shows the graph it is about. A domain step with no graph on it is
+// the only step in this recipe a student can meet with nothing to read.
+assert.ok(graphDomainRangeComposed.workflow.every((stage) => stage.graph), 'every staged set step draws its graph');
 assert.equal(graphBehavior.type, 'graphAnalysis');
 assert.deepEqual(graphBehavior.analysisRequests.map((request) => request.kind), ['increasing', 'decreasing', 'positive', 'negative']);
 assert.ok(!graphBehavior.responses, 'derived graph analysis must not trust an AI-authored answer key');
