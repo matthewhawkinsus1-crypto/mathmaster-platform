@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { collection, doc, getDoc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../firebase.js';
 
@@ -15,6 +15,33 @@ export const finishLiveChallenge = call('finishLiveChallenge');
 export const cancelLiveChallenge = call('cancelLiveChallenge');
 export const submitLiveChallengeResponse = call('submitLiveChallengeResponse');
 export const reportLiveChallengeProgress = call('reportLiveChallengeProgress');
+
+// Option B room experience. These remain server-authoritative: the browser
+// chooses a policy, but the server owns public aliases and speed-score scaling.
+export const configureLiveChallengeExperience = call('configureLiveChallengeExperience');
+export const getLiveChallengeExperience = call('getLiveChallengeExperience');
+
+// The assignment already belongs to the signed-in teacher and Firestore rules
+// protect the write. Keeping this tiny persistence seam here avoids teaching the
+// Live Challenge UI about assignment collection paths in multiple places.
+export const setWarmupChallengeDelivery = async (assignmentId, {
+  deliveryMode = 'liveChallenge',
+  teacherDecision = null,
+} = {}) => {
+  const id = String(assignmentId || '').trim();
+  if (!id) throw new Error('Choose a Warm-Up assignment first.');
+  const validModes = new Set(['liveChallenge', 'teacherChoice', 'standard']);
+  const validDecisions = new Set(['challenge', 'standard']);
+  const mode = validModes.has(deliveryMode) ? deliveryMode : 'liveChallenge';
+  const decision = validDecisions.has(teacherDecision) ? teacherDecision : null;
+  await updateDoc(doc(db, 'assignments', id), {
+    'warmup.liveChallenge.enabled': mode !== 'standard',
+    'warmup.liveChallenge.deliveryMode': mode,
+    'warmup.liveChallenge.teacherDecision': decision,
+    'warmup.liveChallenge.updatedAt': serverTimestamp(),
+  });
+  return { assignmentId: id, deliveryMode: mode, teacherDecision: decision };
+};
 
 // A teacher rehearsing their own challenge. None of these touch a room, a
 // roster, or anybody's record — see the dry-run block in functions/index.js.

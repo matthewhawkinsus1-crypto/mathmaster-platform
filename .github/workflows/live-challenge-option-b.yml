@@ -1,0 +1,32 @@
+name: Live Challenge Option B
+
+on:
+  pull_request:
+    paths:
+      - 'functions/**'
+      - 'src/components/liveChallenge/**'
+      - 'src/platform/liveChallenge/**'
+      - 'tests/platform/liveChallenge*.test.mjs'
+      - 'tests/platform/warmupChallengeOptionB.test.mjs'
+      - '.github/workflows/live-challenge-option-b.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run Option B contract
+        run: >-
+          node --test
+          tests/platform/liveChallengeExperience.test.mjs
+          tests/platform/liveChallengeAudio.test.mjs
+          tests/platform/liveChallengeQuestionLibrary.test.mjs
+          tests/platform/liveChallengeOptionBWiring.test.mjs
+          tests/platform/warmupChallengeOptionB.test.mjs

@@ -1,12 +1,12 @@
 {
   "name": "functions",
-  "description": "Cloud Functions for MathMaster \u2013 Google Classroom bidirectional sync",
+  "description": "Cloud Functions for MathMaster – Google Classroom bidirectional sync",
   "private": true,
   "type": "commonjs",
   "engines": {
     "node": "22"
   },
-  "main": "index.js",
+  "main": "entry.js",
   "scripts": {
     "serve": "firebase emulators:start --only functions",
     "shell": "firebase functions:shell",
