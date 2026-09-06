@@ -248,7 +248,11 @@ export const PathQuestionStimulus = ({ stimulus }) => {
 
   return (
     <section style={shell} aria-label={stimulus.title || 'Question information'}>
-      {stimulus.title && <h2 style={titleStyle}>{stimulus.title}</h2>}
+      {/* Titles carry mathematics as often as the cells beneath them do —
+          "Candidate check for $\sqrt{x+1}=x-(-1)$" is a stimulus title in the
+          Algebra II bank — so the heading gets the same rendering the rest of
+          this component already gave its content. */}
+      {stimulus.title && <h2 style={titleStyle}><MathText>{stimulus.title}</MathText></h2>}
       <StimulusGraph graph={stimulus.graph} />
       <StimulusTable table={stimulus.table} />
       <OrderedPairList pairs={stimulus.orderedPairs} />

@@ -112,3 +112,12 @@ test('the enlarge and close controls are finger-sized', () => {
   assert.match(control[0], /minHeight: 44,/);
   assert.doesNotMatch(control[0], /minHeight: (?!44)\d+/, 'one size, so the two states cannot drift');
 });
+
+test('the task repeated inside the enlarged panel is rendered as mathematics', () => {
+  // It IS the prompt, shown again where the modal covers it, so it carries the
+  // same `$…$`. Printed raw, a student who enlarged a number-line question read
+  // "Solve $-6x- 6 \ge 24$" instead of the inequality.
+  const source = codeOf('src/components/common/EnlargeableFigure.jsx');
+  assert.match(source, /import MathText/);
+  assert.match(source, /<MathText>\{taskText\}<\/MathText>/);
+});

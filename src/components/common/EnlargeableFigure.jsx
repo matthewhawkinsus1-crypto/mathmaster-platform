@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import MathText from './MathText.jsx';
 
 // A graph a student can actually see.
 //
@@ -169,7 +170,11 @@ export default function EnlargeableFigure({
             lineHeight: 1.4,
           }}
         >
-          {taskText}
+          {/* The task carries the same `$…$` mathematics the prompt does — this
+              IS the prompt, repeated where the modal covers it — so it needs the
+              same rendering. Printed raw, a student who enlarged a number-line
+              question read "Solve $-6x- 6 \ge 24$". */}
+          <MathText>{taskText}</MathText>
         </p>
       ) : null}
       {enlarged ? (
