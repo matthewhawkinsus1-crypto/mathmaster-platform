@@ -4,6 +4,7 @@
 export const LIVE_CHALLENGE_AUDIO_MANIFEST_URL = '/audio/live-challenge/v6/live-challenge-audio-manifest-v6.json';
 export const LIVE_CHALLENGE_AUDIO_ROOT = '/audio/live-challenge/v6/';
 export const NEW_LEADER_HOLD_MS = 2000;
+export const AUDIO_CROSSFADE_MS = 650;
 export const AUDIO_MIX_STORAGE_KEY = 'mathmaster.liveChallenge.audio.v6';
 
 const DEFAULT_MIX = Object.freeze({ music: 0.24, announcer: 0.82, effects: 0.62, muted: false });
@@ -19,7 +20,7 @@ const FALLBACK_MANIFEST = Object.freeze({
       newLeader: { file: 'music_16bit/new_leader_stinger.wav', loop: false },
     },
   },
-  mixing: { fadeBetweenGameStatesMs: 650, duckMusicDuringAnnouncer: true },
+  mixing: { fadeBetweenGameStatesMs: AUDIO_CROSSFADE_MS, duckMusicDuringAnnouncer: true },
   sfx: {
     defaultVolume: 0.62,
     cooldownsMs: { rankMovement: 900, leaderboardShuffle: 1200, newLeader: 2000 },
@@ -45,6 +46,21 @@ export const normalizeChallengeAudioMix = (value = null) => ({
   effects: clamp01(value?.effects, DEFAULT_MIX.effects),
   muted: value?.muted === true,
 });
+
+export const crossfadeVolumesAt = ({
+  elapsedMs = 0,
+  durationMs = AUDIO_CROSSFADE_MS,
+  outgoingVolume = 0,
+  incomingVolume = 0,
+} = {}) => {
+  const duration = Math.max(1, Number(durationMs) || AUDIO_CROSSFADE_MS);
+  const ratio = Math.max(0, Math.min(1, (Number(elapsedMs) || 0) / duration));
+  const round = (value) => Math.round(clamp01(value) * 10000) / 10000;
+  return {
+    outgoing: round(clamp01(outgoingVolume) * (1 - ratio)),
+    incoming: round(clamp01(incomingVolume) * ratio),
+  };
+};
 
 export const challengeMusicState = (room = {}) => {
   const status = String(room?.status || '');
@@ -94,6 +110,7 @@ export class LiveChallengeAudioDirector {
     this.music = null;
     this.musicKey = null;
     this.transient = new Set();
+    this.fadeTimers = new Set();
     this.previous = null;
     this.leaderHold = {};
     this.cooldowns = new Map();
@@ -113,7 +130,7 @@ export class LiveChallengeAudioDirector {
   setMix(next = {}) {
     this.mix = normalizeChallengeAudioMix({ ...this.mix, ...next });
     try { this.storage?.setItem?.(AUDIO_MIX_STORAGE_KEY, JSON.stringify(this.mix)); } catch { /* best effort */ }
-    if (this.music) this.music.volume = this.mix.muted ? 0 : this.mix.music;
+    if (this.music && this.fadeTimers.size === 0) this.music.volume = this.mix.muted ? 0 : this.mix.music;
     return this.getMix();
   }
 
@@ -146,17 +163,60 @@ export class LiveChallengeAudioDirector {
     audio.play?.()?.catch?.(() => {});
   }
 
+  #crossfade(outgoing, incoming, durationMs) {
+    const duration = Math.max(1, Number(durationMs) || AUDIO_CROSSFADE_MS);
+    const outgoingStart = clamp01(outgoing?.volume, this.mix.music);
+    const incomingTarget = this.mix.muted ? 0 : this.mix.music;
+    if (incoming) incoming.volume = 0;
+    const startedAt = this.now();
+    let timer = null;
+    const tick = () => {
+      const volumes = crossfadeVolumesAt({
+        elapsedMs: this.now() - startedAt,
+        durationMs: duration,
+        outgoingVolume: outgoingStart,
+        incomingVolume: incomingTarget,
+      });
+      if (outgoing) outgoing.volume = this.mix.muted ? 0 : volumes.outgoing;
+      if (incoming) incoming.volume = this.mix.muted ? 0 : volumes.incoming;
+      if (this.now() - startedAt >= duration) {
+        if (timer) {
+          globalThis?.clearInterval?.(timer);
+          this.fadeTimers.delete(timer);
+        }
+        if (outgoing) {
+          outgoing.pause?.();
+          try { outgoing.currentTime = 0; } catch { /* non-seekable audio */ }
+          this.transient.delete(outgoing);
+        }
+        if (incoming) incoming.volume = this.mix.muted ? 0 : this.mix.music;
+      }
+    };
+    timer = globalThis?.setInterval?.(tick, 40) || null;
+    if (timer) this.fadeTimers.add(timer);
+    tick();
+  }
+
   switchMusic(key) {
     if (!this.primed || key === this.musicKey) return;
-    const old = this.music;
-    this.music = null; this.musicKey = key || null;
-    if (old) { old.pause?.(); old.currentTime = 0; this.transient.delete(old); }
-    if (!key) return;
+    const outgoing = this.music;
+    this.music = null;
+    this.musicKey = key || null;
+    const fadeMs = Number(this.manifest?.mixing?.fadeBetweenGameStatesMs) || AUDIO_CROSSFADE_MS;
+
+    if (!key) {
+      this.#crossfade(outgoing, null, fadeMs);
+      return;
+    }
     const track = this.manifest?.music?.tracks?.[key] || FALLBACK_MANIFEST.music.tracks[key];
-    const audio = this.#makeAudio(track?.file, this.mix.music, track?.loop === true);
-    if (!audio) return;
-    this.music = audio;
-    this.#play(audio);
+    const incoming = this.#makeAudio(track?.file, 0, track?.loop === true);
+    if (!incoming) {
+      this.#crossfade(outgoing, null, fadeMs);
+      return;
+    }
+    this.music = incoming;
+    this.#play(incoming);
+    this.#crossfade(outgoing, incoming, fadeMs);
   }
 
   #cooldown(key, ms) {
@@ -186,7 +246,7 @@ export class LiveChallengeAudioDirector {
     if (!audio) return;
     if (this.music && this.manifest?.mixing?.duckMusicDuringAnnouncer !== false) {
       this.music.volume = this.mix.muted ? 0 : Math.min(this.mix.music, clamp01(this.manifest?.announcer?.musicDuckTo, 0.1));
-      const restore = () => { if (this.music) this.music.volume = this.mix.muted ? 0 : this.mix.music; };
+      const restore = () => { if (this.music && this.fadeTimers.size === 0) this.music.volume = this.mix.muted ? 0 : this.mix.music; };
       audio.addEventListener?.('ended', restore, { once: true });
       globalThis?.clearTimeout?.(this.duckTimer);
       this.duckTimer = globalThis?.setTimeout?.(restore, 5000);
@@ -246,6 +306,8 @@ export class LiveChallengeAudioDirector {
 
   dispose() {
     globalThis?.clearTimeout?.(this.duckTimer);
+    this.fadeTimers.forEach((timer) => globalThis?.clearInterval?.(timer));
+    this.fadeTimers.clear();
     this.music?.pause?.();
     this.transient.forEach((audio) => audio.pause?.());
     this.transient.clear(); this.music = null; this.previous = null; this.primed = false;
