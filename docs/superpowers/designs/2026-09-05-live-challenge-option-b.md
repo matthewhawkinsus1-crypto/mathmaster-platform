@@ -29,9 +29,11 @@ Each room may have a `speedInfluencePercent` setting. Presets:
 
 The percentage describes the maximum speed bonus relative to the 1,000-point correctness base. A Standard room therefore has a maximum 200-point speed bonus.
 
-The existing server scorer awards a 100-point maximum speed bonus (10%). To avoid a risky rewrite of the mature submit callable, an experience-layer Firestore trigger adjusts the score exactly once after an ordinary fully-correct submission. It derives the original speed component from the score delta and the existing base/streak/comeback rules, then scales only that component. Second-chance rounds receive no speed adjustment.
+The mature server grader still owns the mathematical decision and still computes its existing 100-point (10%) speed component. Option B does **not** create a second grader. The exported submit transport calls that mature handler first, then an experience-layer helper scales only the known speed component to the room setting before the callable returns. This is necessary because the student result panel immediately displays `speedBonus`, `pointsAwarded`, and `totalScore`; a trigger-only adjustment would make the screen briefly disagree with the leaderboard and with the teacher preview.
 
-The trigger writes an idempotency marker for the answered round before/with the score correction so a Firestore retry or its own follow-up update cannot double-adjust the score.
+The score adjustment and the public/private leaderboard update use one idempotent primitive. It writes `experienceSpeedAdjustedRound` and `experienceSpeedAdjustment`, so a retry cannot pay the bonus twice. A Firestore write trigger calls that same primitive as a fallback repair path if the synchronous adjustment had a transient failure. Second-chance rounds receive no speed adjustment.
+
+If the mathematical submission has already been safely recorded but the experience adjustment fails, the callable returns the recorded grader result rather than turning a correct answer into a visible submission error; the trigger can repair the competition bonus afterward.
 
 ### Teacher preview
 
@@ -67,7 +69,7 @@ State music:
 - final scheduled round -> `final_round_overdrive_loop.wav`
 - finish -> `victory_champion_stinger.wav`
 
-Use Dark Arena Human announcements and the V6 16-bit SFX. The director observes room/leaderboard state and rate-limits noisy events. A new #1 must hold first place for about two seconds before the new-leader stinger/announcement fires.
+Game-state music transitions crossfade over 650 ms instead of stopping/restarting abruptly. Use Dark Arena Human announcements and the V6 16-bit SFX. The director observes room/leaderboard state and rate-limits noisy events. A new #1 must hold first place for about two seconds before the new-leader stinger/announcement fires.
 
 Teacher controls:
 
@@ -109,13 +111,13 @@ Rules:
 - `teacherChoice` + `standard`: normal Warm-Up.
 - `teacherChoice` + `challenge`: same behavior as `liveChallenge`.
 
-The waiting gate becomes a true focus overlay so students are not simultaneously told to wait for a challenge while continuing the standard Warm-Up underneath. The teacher screen provides `Use Standard Warm-Up` as an explicit fallback; selecting/creating the challenge writes `teacherDecision: challenge`.
+The delivery selector persists immediately. In particular, choosing `teacherChoice` writes the pending state **before** a lobby exists, so students in the active Warm-Up window really do enter the waiting route. The waiting gate becomes a true focus overlay so students are not simultaneously told to wait for a challenge while continuing the standard Warm-Up underneath. The teacher screen provides `Use Standard Warm-Up` as an explicit fallback; creating the challenge writes `teacherDecision: challenge`.
 
 This first integration keeps the assignment-level decision shape used by the existing Warm-Up link. A later class-scoped decision map can be added when the parent assignment runtime passes class identity into `resolveWarmupChallenge`; this PR must not invent a second client-side class identity source.
 
 ## 6. Deployment/runtime seam
 
-Cloud Functions currently export from `functions/index.js`, which is intentionally large and mature. To keep this upgrade isolated, change `functions/package.json` main to `entry.js` and make `entry.js` re-export every existing function from `index.js` plus the new experience callable/trigger. Existing callable names and behavior remain unchanged.
+Cloud Functions currently export from `functions/index.js`, which is intentionally large and mature. To keep this upgrade isolated, change `functions/package.json` main to `entry.js` and make `entry.js` re-export every existing function from `index.js` plus the new experience callables/trigger and the wrapped Live Challenge submit transport. Existing non-Live-Challenge callable names and behavior remain unchanged.
 
 `entry.js` must load cleanly and preserve all prior exports. Tests must explicitly assert representative legacy exports plus the new exports exist.
 
@@ -124,10 +126,12 @@ Cloud Functions currently export from `functions/index.js`, which is intentional
 Required focused checks:
 
 - pure scoring/display/warmup tests;
-- entry-point export test;
+- 650 ms crossfade and new-leader hold tests;
+- entry-point export and synchronous-submit wiring tests;
 - source-wiring tests for audio director, teacher controls, question library, and Warm-Up gate;
 - existing `npm run test:live-challenge`;
 - platform test suite/lint/build through CI;
-- functions entry loads with all legacy exports plus the new experience exports.
+- functions entry loads with all legacy exports plus the new experience exports;
+- emulator integration for room configuration and configured speed-score idempotency.
 
 No production deployment occurs from this branch. Merge/deploy is a separate explicit step after CI is green.
