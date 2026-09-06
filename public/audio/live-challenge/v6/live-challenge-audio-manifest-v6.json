@@ -1,0 +1,70 @@
+{
+  "packName": "MathMaster Live Challenge \u2014 Dark Arena + 16-Bit Music + SFX",
+  "version": 6,
+  "announcer": {
+    "defaultStyle": "dark_arena_human",
+    "folder": "announcer_dark_arena",
+    "musicDuckTo": 0.1,
+    "announcementCooldownMs": 1500,
+    "newLeaderHoldMs": 2000
+  },
+  "music": {
+    "style": "Original 16-bit console-era arcade soundtrack",
+    "defaultMusicVolume": 0.24,
+    "tracks": {
+      "lobby": {
+        "file": "music_16bit/lobby_neon_grid_loop.wav",
+        "loop": true
+      },
+      "round": {
+        "file": "music_16bit/round_battle_circuit_loop.wav",
+        "loop": true
+      },
+      "finalRound": {
+        "file": "music_16bit/final_round_overdrive_loop.wav",
+        "loop": true
+      },
+      "victory": {
+        "file": "music_16bit/victory_champion_stinger.wav",
+        "loop": false
+      },
+      "newLeader": {
+        "file": "music_16bit/new_leader_stinger.wav",
+        "loop": false
+      }
+    }
+  },
+  "mixing": {
+    "projectorHostOnly": true,
+    "duckMusicDuringAnnouncer": true,
+    "fadeBetweenGameStatesMs": 650,
+    "doNotRestartLoopEveryQuestion": true
+  },
+  "sfx": {
+    "defaultVolume": 0.62,
+    "projectorHostOnlyForGlobalEffects": true,
+    "studentDevicePersonalEffectsDefault": false,
+    "cooldownsMs": {
+      "rankMovement": 900,
+      "leaderboardShuffle": 1200,
+      "newLeader": 2000
+    },
+    "events": {
+      "correct": "sfx_16bit/correct.wav",
+      "wrong": "sfx_16bit/wrong.wav",
+      "countdownTick": "sfx_16bit/countdown_tick.wav",
+      "countdownGo": "sfx_16bit/countdown_go.wav",
+      "rankUp": "sfx_16bit/rank_up.wav",
+      "rankDown": "sfx_16bit/rank_down.wav",
+      "overtake": "sfx_16bit/overtake.wav",
+      "streak": "sfx_16bit/streak.wav",
+      "newLeaderBurst": "sfx_16bit/new_leader_burst.wav",
+      "roundStart": "sfx_16bit/round_start.wav",
+      "finalRoundAlarm": "sfx_16bit/final_round_alarm.wav",
+      "questionLockIn": "sfx_16bit/question_lock_in.wav",
+      "leaderboardShuffle": "sfx_16bit/leaderboard_shuffle.wav",
+      "tie": "sfx_16bit/tie.wav",
+      "victorySparkle": "sfx_16bit/victory_sparkle.wav"
+    }
+  }
+}
