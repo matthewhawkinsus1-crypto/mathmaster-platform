@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import fs from 'node:fs';
 
 const require = createRequire(import.meta.url);
 const {
@@ -250,4 +251,12 @@ test('provider accepts a complete required two-page lesson notes package', async
   const parsed = JSON.parse(result.assignmentJson);
   assert.equal(parsed.outputProfiles.lessonNotesPdf.targetPages, 2);
   assert.equal(parsed.outputProfiles.lessonNotesPdf.sections.length, 2);
+});
+
+test('Gemini Honors provider is implemented as a separate server-side module', () => {
+  assert.equal(
+    fs.existsSync('functions/lib/geminiAssignmentAi.js'),
+    true,
+    'Honors V5 needs a dedicated Gemini provider module before the browser can route Honors additions to it.',
+  );
 });
