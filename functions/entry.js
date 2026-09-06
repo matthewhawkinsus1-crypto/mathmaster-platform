@@ -249,3 +249,164 @@ exports.adjustLiveChallengeExperienceScore = onDocumentWritten(
     return applyExperienceSpeedAdjustment({ db: getFirestore(), roomId, studentId, answeredRound, originalSpeedBonus });
   },
 );
+
+// --- Assignment V5 Honors-depth Gemini --------------------------------------
+// This endpoint is intentionally separate from the mature OpenAI assignment
+// callables in index.js. Only the audited Honors repair prompt may enter here,
+// and the Gemini secret is bound only to this function.
+const {
+  HONORS_ASSIGNMENT_AI_SECRETS,
+  readGeminiApiKey,
+} = require('./lib/config');
+const { AssignmentAiError } = require('./lib/assignmentAi');
+const {
+  DEFAULT_GEMINI_ASSIGNMENT_MODEL,
+  callGeminiAssignmentAuthor,
+} = require('./lib/geminiAssignmentAi');
+
+exports.authorHonorsAssignmentWithGemini = onCall({
+  secrets: HONORS_ASSIGNMENT_AI_SECRETS,
+  timeoutSeconds: 300,
+  memory: '1GiB',
+}, async (request) => {
+  const ASSIGNMENT_AI_USAGE_COLLECTION = 'assignmentAiUsage';
+  const ASSIGNMENT_AI_MIN_INTERVAL_MS = 12 * 1000;
+  const ASSIGNMENT_AI_DAILY_LIMIT = 50;
+  const ASSIGNMENT_AI_REFUNDABLE_CODES = new Set([
+    'failed-precondition',
+    'unavailable',
+    'deadline-exceeded',
+    'resource-exhausted',
+  ]);
+
+  const teacherUid = String(request.auth?.uid || '').trim();
+  if (!teacherUid) throw new HttpsError('unauthenticated', 'Sign in before using MathMaster AI.');
+  if (request.auth?.token?.role !== 'teacher') {
+    throw new HttpsError('permission-denied', 'Teacher access is required to build Honors depth.');
+  }
+  const teacherEmail = String(request.auth?.token?.email || '').trim().toLowerCase() || null;
+  const prompt = String(request.data?.prompt || '').trim();
+  if (!prompt) throw new HttpsError('invalid-argument', 'Finish the Honors-depth repair request before building with AI.');
+  if (!prompt.startsWith('# MathMaster Honors-depth repair')) {
+    throw new HttpsError('invalid-argument', 'This Gemini endpoint accepts only MathMaster Honors-depth repair requests.');
+  }
+
+  const db = getFirestore();
+  const usageRef = db.collection(ASSIGNMENT_AI_USAGE_COLLECTION).doc(teacherUid);
+  let reservation = null;
+
+  try {
+    reservation = await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(usageRef);
+      const data = snapshot.exists ? (snapshot.data() || {}) : {};
+      const lastStartedAt = data.lastStartedAt;
+      const previous = typeof lastStartedAt?.toMillis === 'function'
+        ? lastStartedAt.toMillis()
+        : (typeof lastStartedAt?.toDate === 'function' ? lastStartedAt.toDate().getTime() : Number(lastStartedAt) || 0);
+      const now = Date.now();
+      const dayKey = new Date(now).toISOString().slice(0, 10);
+      if (previous && now - previous < ASSIGNMENT_AI_MIN_INTERVAL_MS) {
+        throw new HttpsError('resource-exhausted', 'An assignment is already being built. Wait a few seconds before starting another one.');
+      }
+      const dayCount = data.dayKey === dayKey ? Math.max(0, Number(data.dayCount) || 0) : 0;
+      if (dayCount >= ASSIGNMENT_AI_DAILY_LIMIT) {
+        throw new HttpsError('resource-exhausted', "This teacher account reached MathMaster's daily AI assignment-build limit. Use the copy/paste AI workflow or try again tomorrow.");
+      }
+      transaction.set(usageRef, {
+        dayKey,
+        dayCount: dayCount + 1,
+        lastStartedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      return { dayKey, dayCount: dayCount + 1 };
+    });
+
+    const result = await callGeminiAssignmentAuthor({
+      apiKey: readGeminiApiKey(),
+      prompt,
+      model: DEFAULT_GEMINI_ASSIGNMENT_MODEL,
+    });
+
+    await db.collection('assignmentAiAudit').add({
+      teacherUid,
+      teacherEmail,
+      provider: 'gemini',
+      outcome: 'success',
+      surface: 'honorsDepthRepair',
+      mode: 'assignment',
+      model: result.model,
+      responseId: result.responseId,
+      usage: result.usage || null,
+      diagnostics: result.diagnostics || null,
+      promptCharacters: prompt.length,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return result;
+  } catch (error) {
+    let translated;
+    if (error instanceof HttpsError) {
+      translated = error;
+    } else if (error instanceof AssignmentAiError) {
+      translated = new HttpsError(
+        error.code || 'internal',
+        error.message || 'MathMaster Honors AI could not complete this repair.',
+        error.details || undefined,
+      );
+    } else if (/GEMINI_API_KEY\s+is not configured/i.test(String(error?.message || error || ''))) {
+      translated = new HttpsError(
+        'failed-precondition',
+        'MathMaster Honors AI is not configured on this Firebase deployment. Set GEMINI_API_KEY in Firebase Secret Manager and redeploy authorHonorsAssignmentWithGemini.',
+      );
+    } else {
+      console.error('Gemini Honors Assignment AI failed:', error);
+      translated = new HttpsError(
+        'internal',
+        'MathMaster Honors AI hit a server error. Nothing was changed; use the outside-AI import option while the server configuration is checked.',
+      );
+    }
+
+    const code = String(translated?.code || '').replace(/^functions\//, '');
+    const refundable = Boolean(reservation && ASSIGNMENT_AI_REFUNDABLE_CODES.has(code));
+    if (refundable) {
+      try {
+        await db.runTransaction(async (transaction) => {
+          const snapshot = await transaction.get(usageRef);
+          if (!snapshot.exists) return;
+          const data = snapshot.data() || {};
+          if (data.dayKey !== reservation.dayKey) return;
+          const dayCount = Math.max(0, Number(data.dayCount) || 0);
+          if (!dayCount) return;
+          transaction.set(usageRef, {
+            dayCount: dayCount - 1,
+            updatedAt: FieldValue.serverTimestamp(),
+          }, { merge: true });
+        });
+      } catch (refundError) {
+        console.warn('Could not refund a Gemini Honors AI usage reservation:', refundError?.message || String(refundError));
+      }
+    }
+
+    if (reservation) {
+      try {
+        await db.collection('assignmentAiAudit').add({
+          teacherUid,
+          teacherEmail,
+          provider: 'gemini',
+          outcome: 'failure',
+          surface: 'honorsDepthRepair',
+          mode: 'assignment',
+          model: DEFAULT_GEMINI_ASSIGNMENT_MODEL,
+          code,
+          diagnostics: error instanceof AssignmentAiError ? (error.details || null) : null,
+          message: String(translated?.message || '').slice(0, 500),
+          promptCharacters: prompt.length,
+          refunded: refundable,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+      } catch (auditError) {
+        console.warn('Could not write Gemini Honors AI failure audit:', auditError?.message || String(auditError));
+      }
+    }
+    throw translated;
+  }
+});

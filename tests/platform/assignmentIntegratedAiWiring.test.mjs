@@ -4,7 +4,9 @@ import fs from 'node:fs';
 
 const config = fs.readFileSync('functions/lib/config.js', 'utf8');
 const functionsIndex = fs.readFileSync('functions/index.js', 'utf8');
+const functionsEntry = fs.readFileSync('functions/entry.js', 'utf8');
 const provider = fs.readFileSync('functions/lib/assignmentAi.js', 'utf8');
+const geminiProvider = fs.readFileSync('functions/lib/geminiAssignmentAi.js', 'utf8');
 const service = fs.readFileSync('src/services/assignmentAiService.js', 'utf8');
 const intake = fs.readFileSync('src/AssignmentIntake.jsx', 'utf8');
 const preflight = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
@@ -18,8 +20,19 @@ test('OpenAI credential is defined and read only in server Functions code', () =
   assert.doesNotMatch(intake, /OPENAI_API_KEY|api\.openai\.com/);
 });
 
+test('Gemini credential is defined and read only in server Functions code', () => {
+  assert.match(config, /defineSecret\("GEMINI_API_KEY"\)/);
+  assert.match(config, /HONORS_ASSIGNMENT_AI_SECRETS:\s*\[GEMINI_API_KEY\]/);
+  assert.match(config, /readGeminiApiKey/);
+  assert.match(functionsEntry, /secrets:\s*HONORS_ASSIGNMENT_AI_SECRETS/);
+  assert.match(functionsEntry, /readGeminiApiKey\(\)/);
+  assert.doesNotMatch(service, /GEMINI_API_KEY|generativelanguage\.googleapis\.com/);
+  assert.doesNotMatch(intake, /GEMINI_API_KEY|generativelanguage\.googleapis\.com/);
+  assert.doesNotMatch(preflight, /GEMINI_API_KEY|generativelanguage\.googleapis\.com/);
+});
+
 test('integrated authoring callable requires teacher auth and usage reservation before provider call', () => {
-  // Every integrated AI surface now shares one runner, so the auth and quota
+  // Every integrated OpenAI surface shares one runner, so the auth and quota
   // guarantees are asserted once, where they are actually enforced.
   const start = functionsIndex.indexOf('async function runAssignmentAiRequest');
   const block = functionsIndex.slice(start, functionsIndex.indexOf('exports.authorAssignmentWithAI'));
@@ -34,6 +47,41 @@ test('integrated authoring callable requires teacher auth and usage reservation 
     assert.ok(site >= 0, `${callable} must exist`);
     assert.match(functionsIndex.slice(site, site + 600), /runAssignmentAiRequest\(request/);
   }
+});
+
+test('Honors V5 has a dedicated Gemini callable with teacher auth, shared quota, and audit logging', () => {
+  const start = functionsEntry.indexOf('exports.authorHonorsAssignmentWithGemini');
+  assert.ok(start >= 0, 'dedicated Gemini Honors callable must exist');
+  const block = functionsEntry.slice(start, start + 7000);
+  assert.match(block, /secrets:\s*HONORS_ASSIGNMENT_AI_SECRETS/);
+  assert.match(block, /request\.auth\?\.uid/);
+  assert.match(block, /# MathMaster Honors-depth repair/);
+  assert.match(block, /assignmentAiUsage/);
+  assert.match(block, /ASSIGNMENT_AI_MIN_INTERVAL_MS/);
+  assert.match(block, /ASSIGNMENT_AI_DAILY_LIMIT/);
+  assert.match(block, /readGeminiApiKey\(\)/);
+  assert.match(block, /callGeminiAssignmentAuthor/);
+  assert.match(block, /assignmentAiAudit/);
+  assert.match(block, /provider:\s*['"]gemini['"]/);
+  assert.doesNotMatch(block, /prompt:\s*prompt|apiKey:\s*apiKey/);
+});
+
+test('only the Honors-depth build path routes to Gemini while normal Assignment V5 AI stays on OpenAI', () => {
+  assert.match(service, /authorHonorsAssignmentWithGemini/);
+  assert.match(service, /# MathMaster Honors-depth repair/);
+  assert.match(service, /isHonorsDepthRequest/);
+  assert.match(service, /isHonorsDepthRequest\(text\)\s*\?\s*authorHonorsAssignment\s*:\s*authorAssignment/);
+  assert.match(service, /httpsCallable\(functions, 'authorAssignmentWithAI'/);
+  assert.match(preflight, /buildHonorsDepthAiRepairRequest/);
+  assert.match(preflight, /buildAssignmentWithAI\(request\)/);
+});
+
+test('Gemini provider uses the Google REST boundary and never needs a browser SDK', () => {
+  assert.match(geminiProvider, /generativelanguage\.googleapis\.com\/v1beta\/models/);
+  assert.match(geminiProvider, /x-goog-api-key/);
+  assert.match(geminiProvider, /responseFormat/);
+  assert.match(geminiProvider, /mimeType:\s*['"]application\/json['"]/);
+  assert.doesNotMatch(service, /@google\/genai|GoogleGenAI/);
 });
 
 test('every AI failure is logged and audited, and infrastructure failures refund the daily allowance', () => {
