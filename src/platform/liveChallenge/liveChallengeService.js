@@ -16,6 +16,11 @@ export const cancelLiveChallenge = call('cancelLiveChallenge');
 export const submitLiveChallengeResponse = call('submitLiveChallengeResponse');
 export const reportLiveChallengeProgress = call('reportLiveChallengeProgress');
 
+// Option B room experience. These remain server-authoritative: the browser
+// chooses a policy, but the server owns public aliases and speed-score scaling.
+export const configureLiveChallengeExperience = call('configureLiveChallengeExperience');
+export const getLiveChallengeExperience = call('getLiveChallengeExperience');
+
 // A teacher rehearsing their own challenge. None of these touch a room, a
 // roster, or anybody's record — see the dry-run block in functions/index.js.
 export const createChallengeDryRun = call('createChallengeDryRun');
