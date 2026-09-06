@@ -36,7 +36,7 @@ const sample = {
       },
       {
         standard: 'A.12B',
-        prompt: 'Complete the table, graph the discrete points, state the range, and classify the relationship.',
+        prompt: 'Complete the table, graph the points, state the range, and classify the relationship.',
         studentActions: ['completeTable', 'constructGraph', 'analyzeRange', 'classifyContinuity'],
         function: { family: 'linear', m: 0.5, b: 1 },
         table: { columns: ['x', 'f(x)'], rows: [[-2, null], [0, null], [2, null], [4, null]] },
