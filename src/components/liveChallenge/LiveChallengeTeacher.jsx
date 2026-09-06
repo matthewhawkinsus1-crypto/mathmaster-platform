@@ -417,6 +417,17 @@ export default function LiveChallengeTeacher({
                   <option value="">No — students join from their dashboard</option>
                   {warmupAssignmentOptions.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.title || assignment.id}</option>)}
                 </select>
+                {/* WHAT REACHES THE GRADEBOOK. A teacher choosing to run the
+                    game as a Warm-Up is choosing what gets recorded, and the
+                    answer is not obvious: the academic credit is participation
+                    and accuracy, while the competition score stays a game
+                    result. Without this sentence the setting looks like it
+                    might put a leaderboard position into the gradebook. */}
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 13, color: '#5f6368' }}>
+                  Students who open that assignment during its Warm-Up window are put straight into the
+                  game — no invite to spot and no code to type. Their participation and accuracy are
+                  recorded on the assignment; the challenge score is not.
+                </span>
               </label>
               {warmupAssignmentId && (
                 <label style={{ fontWeight: 800 }}>Warm-Up delivery

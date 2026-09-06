@@ -104,6 +104,20 @@ export default function ChallengeQuestionLibrary({ assignments = [], onImported 
         Add questions here without leaving Live Challenge. This uses the same secure My Math Path bank and the same server validator as normal Path imports—there is not a second answer bank to maintain.
       </p>
 
+      {/* WHAT MAKES A QUESTION INTERACTIVE.
+          A teacher opens this because "Interactive tools only" came up short,
+          and uploading more typed-answer questions does not fix that. The one
+          field that decides it is `pathToolId`, so it is named here rather
+          than left to be discovered. */}
+      <p style={{ color: '#3c4043', lineHeight: 1.55, marginBottom: 12, fontSize: 13 }}>
+        Most of the secure bank is typed or chosen answers, so <strong>Interactive tools only</strong> draws from a
+        small pool. Give a question a <code>pathToolId</code> — <code>stepAlgebra</code>, <code>graphing2</code>,{' '}
+        <code>systemsWorkspace</code>, <code>intervalNumberLine</code>, <code>relationMapping</code>,{' '}
+        <code>dataModelingLab</code>, <code>functionInvestigation</code> — and it becomes an interactive round here.
+        Released SAT, ACT, TSIA2 and ASVAB content is refused on purpose; that moves only through its own release
+        refresh.
+      </p>
+
       <div role="tablist" aria-label="Question library import method" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="button" role="tab" aria-selected={tab === 'upload'} onClick={() => setTab('upload')} style={{ ...button, background: tab === 'upload' ? '#e8f0fe' : '#fff' }}>Upload JSON</button>
         <button type="button" role="tab" aria-selected={tab === 'assignment'} onClick={() => setTab('assignment')} style={{ ...button, background: tab === 'assignment' ? '#e8f0fe' : '#fff' }}>Import from assignment</button>

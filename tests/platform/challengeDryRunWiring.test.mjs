@@ -35,13 +35,43 @@ test('the dry run rehearses the settings the teacher is about to launch', () => 
   }
 });
 
+/**
+ * The settings the rehearsal is built from, read off the mount itself.
+ *
+ * Only the ones passed through by identity (`roundCount={roundCount}`) count:
+ * those ARE the draw. A prop computed inline, like the title, cannot change
+ * what the rehearsal plays.
+ */
+const dryRunSettings = (source) => {
+  const start = source.indexOf('<ChallengeDryRun');
+  const mount = source.slice(start, source.indexOf('/>', start));
+  return [...mount.matchAll(/(\w+)=\{\1\}/g)].map((match) => match[1]);
+};
+
+const staleRehearsalDeps = (source) => {
+  const match = /useEffect\(\(\) => \{ setDryRunOpen\(false\); \}, \[([^\]]*)\]\)/.exec(source);
+  return match ? match[1].split(',').map((name) => name.trim()).filter(Boolean) : null;
+};
+
 test('changing any of those settings closes a stale rehearsal', () => {
-  // Every setting the rehearsal was built from, question style included: a
-  // dry run of a different draw than the one about to launch is worse than none.
-  assert.match(
-    teacher,
-    /useEffect\(\(\) => \{ setDryRunOpen\(false\); \}, \[classId, courseId, standardCode, questionStyle, roundCount, roundSeconds\]\)/,
-  );
+  // Every setting the rehearsal was built from: a dry run of a different draw
+  // than the one about to launch is worse than none.
+  //
+  // Derived from the mount rather than frozen as a literal list. The literal
+  // version failed the moment a new setting was added and passed to the dry
+  // run — correctly wired, wrongly reported — while still being unable to
+  // catch the case that matters, which is a new setting reaching the rehearsal
+  // with no dependency to close it.
+  const deps = staleRehearsalDeps(teacher);
+  assert.ok(deps, 'the effect that closes a stale rehearsal must exist');
+  const settings = dryRunSettings(teacher);
+  assert.ok(settings.length >= 5, `expected the rehearsal to take real settings, found ${settings.join(', ')}`);
+  settings.forEach((setting) => {
+    assert.ok(deps.includes(setting), `${setting} reaches the dry run but does not close a stale one`);
+  });
+  // The class it belongs to is not a dry-run prop, but switching class must
+  // still close a rehearsal drawn for the previous one.
+  assert.ok(deps.includes('classId'), 'switching class must close a stale rehearsal');
 });
 
 test('the dry run is not reachable once a room exists', () => {

@@ -13,6 +13,13 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const functionsIndex = read('../../functions/index.js');
 const teacher = read('../../src/components/liveChallenge/LiveChallengeTeacher.jsx');
 const student = read('../../src/components/liveChallenge/LiveChallengeStudent.jsx');
+// Comments stripped: a promise made to a teacher has to be in the markup they
+// read, not in a note to the next developer. Without this, a comment mentioning
+// `pathToolId` satisfied the assertion while the panel said nothing.
+const withoutComments = (source) => source
+  .replace(/\/\*[\s\S]*?\*\//g, ' ')
+  .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+const library = withoutComments(read('../../src/components/liveChallenge/ChallengeQuestionLibrary.jsx'));
 const css = read('../../src/App.css');
 
 /* ---------- the style contract ---------- */
@@ -96,7 +103,16 @@ test('the control exists and rehearses with the dry run', () => {
     assert.match(teacher, new RegExp(`<option value="${value}"`), `${value} must be offered`);
   }
   assert.match(teacher, /questionStyle=\{questionStyle\}/, 'the dry run must rehearse the chosen style');
-  assert.match(teacher, /setDryRunOpen\(false\); \}, \[classId, courseId, standardCode, questionStyle, roundCount, roundSeconds\]/);
+  // Changing the style must close a rehearsal drawn under the old one. Asserted
+  // by reading the dependency list rather than matching it as a frozen literal,
+  // which broke as soon as a new setting was correctly added to it — and which
+  // never could have caught the failure that matters here.
+  const deps = /setDryRunOpen\(false\); \}, \[([^\]]*)\]/.exec(teacher);
+  assert.ok(deps, 'the effect that closes a stale rehearsal must exist');
+  assert.ok(
+    deps[1].split(',').map((name) => name.trim()).includes('questionStyle'),
+    'a style change must close a rehearsal drawn under the old style',
+  );
   assert.match(teacher, /courseId,\n        standardCode,\n        questionStyle,/, 'createLiveChallenge must send it');
 });
 
@@ -154,14 +170,29 @@ test('every exit route out of the game still exists', () => {
 
 /* ---------- uploading more questions ---------- */
 
-test('the teacher is told where to upload questions, at the point of need', () => {
-  // The importer already exists under Path coverage. What was missing was any
-  // mention of it where a teacher discovers the pool is thin.
-  assert.match(teacher, /Not enough interactive questions\? Add your own/);
-  assert.match(teacher, /Import a different seed package instead/);
-  assert.match(teacher, /pathToolId/);
+test('the teacher can add questions at the point of need, not by leaving', () => {
+  // This used to be a paragraph telling the teacher to go and find the
+  // importer under Path coverage. It is now the importer itself, mounted where
+  // a teacher discovers the pool is thin — a stronger answer to the same need,
+  // so the assertion follows the mechanism rather than the old prose.
+  assert.match(teacher, /<ChallengeQuestionLibrary/, 'the library must be mounted in the teacher view');
+  assert.match(teacher, /import ChallengeQuestionLibrary from '\.\/ChallengeQuestionLibrary\.jsx'/);
+  // And it must really import, through the same secure server path as any
+  // other Path import rather than a second bank of its own.
+  assert.match(library, /import \{ seedPathQuestionBank \}/);
+  assert.match(library, /seedPathQuestionBank\(/);
+});
+
+test('the teacher is told what actually makes a question interactive', () => {
+  // The reason a teacher opens the library is that "Interactive tools only"
+  // came up short, and uploading more typed-answer questions does not fix
+  // that. `pathToolId` is the single field that decides it.
+  assert.match(library, /pathToolId/);
   // Named tools must be ones the filter actually recognises.
   for (const tool of ['stepAlgebra', 'graphing2', 'systemsWorkspace']) {
-    assert.ok(teacher.includes(tool), `${tool} must be named`);
+    assert.ok(library.includes(tool), `${tool} must be named`);
   }
+  // A tool id is exactly what the filter looks for, so the advice is true.
+  assert.equal(pathToolIdOf({ pathToolId: 'graphing2' }), 'graphing2');
+  assert.equal(pathToolIdOf({ answer: '5' }), null);
 });
