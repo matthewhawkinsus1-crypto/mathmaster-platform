@@ -36,7 +36,7 @@ const sample = {
       },
       {
         standard: 'A.12B',
-        prompt: 'Complete the table, graph the discrete points, state the range, and classify the relationship.',
+        prompt: 'Complete the table, graph the points, state the range, and classify the relationship.',
         studentActions: ['completeTable', 'constructGraph', 'analyzeRange', 'classifyContinuity'],
         function: { family: 'linear', m: 0.5, b: 1 },
         table: { columns: ['x', 'f(x)'], rows: [[-2, null], [0, null], [2, null], [4, null]] },
@@ -58,7 +58,11 @@ if (semantic.errors.length || semantic.warnings.length) {
 
 const rich = parsed.questions[1];
 const kinds = rich?.workflow?.map((stage) => stage.kind) || [];
-const expectedKinds = ['tableInput', 'classification', 'functionGraph', 'rangeInput'];
+// Continuity is a student decision that changes how range must be entered. The
+// compiler therefore keeps one conditional range stage for the discrete branch
+// and one for the continuous branch; only the branch matching the student's
+// classification is presented at runtime.
+const expectedKinds = ['tableInput', 'classification', 'functionGraph', 'rangeInput', 'rangeInput'];
 if (JSON.stringify(kinds) !== JSON.stringify(expectedKinds)) {
   throw new Error(`V5 composition regressed: expected ${expectedKinds.join(' -> ')}, got ${kinds.join(' -> ') || '(none)'}.`);
 }

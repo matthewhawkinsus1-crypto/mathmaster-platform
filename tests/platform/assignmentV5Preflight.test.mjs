@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
+import { canonicalV5PersistencePatch } from '../../src/platform/contract/storedAssignmentV5.js';
 import { planClassroomPublication } from '../../src/platform/publishing/publicationPlanner.js';
 
 const question = (prompt, role) => ({
@@ -53,6 +54,54 @@ test('native Preflight blocks structurally invalid V5 instead of normalizing it 
   });
   assert.equal(model.isValid, false);
   assert.ok(model.errors.some((error) => /non-empty sections array|no questions/i.test(error)));
+});
+
+test('Preflight auto-repairs known coordinate-pair nested arrays before Firestore save', () => {
+  const candidate = structuredClone(assignmentV5);
+  candidate.sections[0].questions[0].xIntercepts = [[3, 0], [-1, 0]];
+  candidate.sections[0].questions[0].figures = [
+    { id: 'graph-a', points: [[-3, 2], [1, 3]] },
+  ];
+
+  const model = buildAssignmentV5PreflightModel(candidate);
+  const repaired = model.assignmentV5.sections[0].questions[0];
+
+  assert.deepEqual(repaired.xIntercepts, [
+    { x: 3, y: 0 },
+    { x: -1, y: 0 },
+  ]);
+  assert.deepEqual(repaired.figures[0].points, [
+    { x: -3, y: 2 },
+    { x: 1, y: 3 },
+  ]);
+  assert.ok(model.warnings.some((warning) => /auto-?repaired.*coordinate/i.test(warning)));
+  assert.equal(model.errors.some((error) => /Firestore.*array directly inside another array/i.test(error)), false);
+});
+
+test('Preflight blocks unknown nested arrays and reports the path before Save to Library', () => {
+  const candidate = structuredClone(assignmentV5);
+  candidate.sections[0].questions[0].xIntercepts = [[3, 0, 99]];
+
+  const model = buildAssignmentV5PreflightModel(candidate);
+
+  assert.equal(model.isValid, false);
+  assert.ok(model.errors.some((error) => (
+    /Firestore cannot save an array directly inside another array/i.test(error)
+    && error.includes('$.sections[0].questions[0].xIntercepts[0]')
+  )));
+});
+
+test('canonical V5 persistence also repairs known coordinate pairs as a save-path safety net', () => {
+  const candidate = structuredClone(assignmentV5);
+  candidate.sections[0].questions[0].xIntercepts = [[4, 0]];
+  candidate.sections[0].questions[0].figures = [
+    { id: 'graph-a', points: [[2, -4]] },
+  ];
+
+  const patch = canonicalV5PersistencePatch(candidate);
+
+  assert.deepEqual(patch.sections[0].questions[0].xIntercepts, [{ x: 4, y: 0 }]);
+  assert.deepEqual(patch.sections[0].questions[0].figures[0].points, [{ x: 2, y: -4 }]);
 });
 
 test('Classroom publication planning reads V5 sections directly', () => {

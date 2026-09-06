@@ -3,6 +3,7 @@ import {
   normalizeAssignmentV5,
   rebuildV5SectionsFromQuestions,
 } from './assignmentSchemaV5.js';
+import { repairKnownFirestoreNestedArrays } from '../persistence/firestoreAssignmentSafety.js';
 
 const clean = (value) => String(value ?? '').trim();
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
@@ -221,25 +222,33 @@ export const storedAssignmentToV5 = (assignment = {}, {
   });
 };
 
-export const canonicalV5PersistencePatch = (assignmentV5 = {}) => ({
-  schemaVersion: 5,
-  title: assignmentV5.assignment?.title || '',
-  courseId: assignmentV5.assignment?.courseId || null,
-  folder: assignmentV5.assignment?.folder || null,
-  instructionalPurpose: assignmentV5.assignment?.instructionalPurpose || 'lesson',
-  gradingPurpose: assignmentV5.assignment?.gradingPurpose ?? null,
-  sections: assignmentV5.sections || [],
-  variantPolicy: assignmentV5.variantPolicy || {},
-  differentiationPolicy: assignmentV5.differentiationPolicy || null,
-  supportPolicy: assignmentV5.supportPolicy || null,
-  toolPolicy: assignmentV5.toolPolicy || null,
-  deliveryPolicy: assignmentV5.deliveryPolicy || null,
-  gradingPolicy: assignmentV5.gradingPolicy || null,
-  evidencePolicy: assignmentV5.evidencePolicy || null,
-  outputProfiles: assignmentV5.outputProfiles || null,
-  classroomIntegration: assignmentV5.classroomIntegration || null,
-  provenance: assignmentV5.provenance || null,
-  preflight: assignmentV5.preflight || { required: true },
-});
+export const canonicalV5PersistencePatch = (assignmentV5 = {}) => {
+  // Preflight normally hands persistence an already repaired V5 object. Run the
+  // same deterministic coordinate repair again here so controlled save paths
+  // cannot reintroduce Firestore-illegal point tuples between validation and
+  // the final write assertion.
+  const { value: safeAssignmentV5 } = repairKnownFirestoreNestedArrays(assignmentV5);
+
+  return {
+    schemaVersion: 5,
+    title: safeAssignmentV5.assignment?.title || '',
+    courseId: safeAssignmentV5.assignment?.courseId || null,
+    folder: safeAssignmentV5.assignment?.folder || null,
+    instructionalPurpose: safeAssignmentV5.assignment?.instructionalPurpose || 'lesson',
+    gradingPurpose: safeAssignmentV5.assignment?.gradingPurpose ?? null,
+    sections: safeAssignmentV5.sections || [],
+    variantPolicy: safeAssignmentV5.variantPolicy || {},
+    differentiationPolicy: safeAssignmentV5.differentiationPolicy || null,
+    supportPolicy: safeAssignmentV5.supportPolicy || null,
+    toolPolicy: safeAssignmentV5.toolPolicy || null,
+    deliveryPolicy: safeAssignmentV5.deliveryPolicy || null,
+    gradingPolicy: safeAssignmentV5.gradingPolicy || null,
+    evidencePolicy: safeAssignmentV5.evidencePolicy || null,
+    outputProfiles: safeAssignmentV5.outputProfiles || null,
+    classroomIntegration: safeAssignmentV5.classroomIntegration || null,
+    provenance: safeAssignmentV5.provenance || null,
+    preflight: safeAssignmentV5.preflight || { required: true },
+  };
+};
 
 export default storedAssignmentToV5;
