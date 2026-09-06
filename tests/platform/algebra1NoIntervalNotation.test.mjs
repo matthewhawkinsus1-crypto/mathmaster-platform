@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
+import { readComposedQuestion } from '../../src/platform/workflow/questionWorkflow.js';
 
 const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
 
@@ -85,10 +86,19 @@ test('Algebra I canonical graph-analysis re-import cannot regress domain/range t
     }],
   }).package.sections[0].questions[0];
 
-  assert.equal(compiled.type, 'graphAnalysis');
+  // Reading domain and range off a graph now compiles to the staged runtime,
+  // one step at a time. What this test is actually about is unchanged: a stale
+  // `notation: "interval"` must not survive into an Algebra I question, in
+  // whatever shape that question takes.
+  assert.equal(compiled.type, 'functionCharacteristics');
+  const composed = readComposedQuestion(compiled);
   assert.deepEqual(
-    compiled.analysisRequests.map((request) => request.notation),
-    ['inequality', 'inequality'],
+    composed.workflow.map((stage) => [stage.id, stage.notation]),
+    [['domain', 'inequality'], ['range', 'inequality']],
   );
   assert.deepEqual(collectViolations(compiled), []);
+  // And the step is still marked. Moving a question to the staged runtime must
+  // not quietly turn a graded answer into one a teacher has to read.
+  assert.ok(composed.grading.domain, 'the domain step lost its answer key');
+  assert.ok(composed.grading.range, 'the range step lost its answer key');
 });

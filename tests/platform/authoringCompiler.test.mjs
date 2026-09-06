@@ -5,6 +5,7 @@ import {
   validateAssignmentQuestions,
 } from '../../src/assignmentBlueprint.js';
 import { auditStaticGraphViewport } from '../../src/graphSpecUtils.js';
+import { readComposedQuestion } from '../../src/platform/workflow/questionWorkflow.js';
 import { buildAuthoringContract, buildFixRequest } from '../../src/platform/contract/authoringContract.js';
 
 const rawV5 = `\`\`python
@@ -84,20 +85,27 @@ const restrictedDomainInvestigation = parseAssignmentBlueprintText(JSON.stringif
     }],
   }],
 }));
-assert.equal(
+// What this guards is the ROUTE AWAY FROM functionInvestigation2, which
+// normalizes a function down to its family parameters and loses the
+// restriction — so a bounded segment asked there has the wrong domain. It used
+// to land on the graph-analysis panel; it lands on the staged runtime now, and
+// the requirement is the same either way: the bounds survive and domain and
+// range are both asked.
+assert.notEqual(
   restrictedDomainInvestigation.questions[0].type,
-  'graphAnalysis',
-  'a restricted-domain investigation uses the full graph-analysis workspace',
+  'functionInvestigation2',
+  'a restricted domain must not be normalized away by the family-investigation tool',
 );
+assert.equal(restrictedDomainInvestigation.questions[0].type, 'functionCharacteristics');
 assert.deepEqual(
   restrictedDomainInvestigation.questions[0].functionSpec.domain,
   { min: -4, max: 3, minInclusive: true, maxInclusive: false },
   'restricted-domain bounds and endpoint inclusion survive V5 compilation',
 );
 assert.deepEqual(
-  restrictedDomainInvestigation.questions[0].analysisRequests.map((request) => request.kind),
+  readComposedQuestion(restrictedDomainInvestigation.questions[0]).workflow.map((stage) => stage.id),
   ['domain', 'range'],
-  'domain/range analysis requests survive restricted-domain routing',
+  'domain/range steps survive restricted-domain routing',
 );
 
 

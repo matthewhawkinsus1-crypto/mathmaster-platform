@@ -474,6 +474,7 @@
   .mathmaster-tool-split {
     grid-template-columns: minmax(0, 1fr);
   }
+
 }
 
 /* The interactive plane is a click target, so it needs a visible focus ring of
@@ -517,6 +518,25 @@
 
 [data-enlarged="true"] .mathmaster-enlarged-graph-equation {
   display: block;
+}
+
+/* ENLARGING A PLOTTING WORKSPACE ON A PHONE PUTS THE GRAPH FIRST.
+   The workspace stacks into one column on a narrow screen, sidebar above
+   graph, which is right when embedded: the point list is what the student
+   reads first. Inside the enlarged panel it is wrong — the sidebar is 522px of
+   a 664px phone, so the student presses "enlarge graph" and gets a list, with
+   the graph they asked for below the fold of the panel they just opened.
+   The controls stay in the panel, one scroll below, so nobody has to close it
+   to answer. */
+@media (max-width: 700px) {
+  [data-enlarged="true"] .mathmaster-function-workspace-grid {
+    display: flex;
+    flex-direction: column;
+  }
+
+  [data-enlarged="true"] .mathmaster-function-workspace-grid > .mathmaster-function-workspace-graph {
+    order: -1;
+  }
 }
 
 /* Enlarged domain/range analysis uses the extra horizontal space instead of
@@ -1888,6 +1908,54 @@
    answers from memory or scrolls back and loses their place. The card is
    already compact (prompt, one-line task, steps folded), so it can simply
    stay put. */
+/* THE TOOL HEADER IS ONE ROW.
+   Name, badge and "About this tool" sit on a line together, because the header
+   was otherwise spending 99px of vertical space on three stacked items before
+   the student reached any mathematics.
+
+   Opened, the fold takes the whole row so its text reads at full width rather
+   than in the sliver the summary left at the end of the line. */
+/* On a phone the header row cannot hold all three, and wrapping cost 101px of
+   naming a tool the student is already looking at. The badge steps out of the
+   row and reappears inside "About this tool", so nothing is lost — it is just
+   not spending a line of a 664px screen. */
+@media (max-width: 700px) {
+  .mathmaster-tool-shell-badge { display: none; }
+
+  /* THE SAME FREE-AXIS TRICK, UPRIGHT.
+     A phone in portrait is short too — 664px with the graph starting past the
+     halfway mark. Stacking the folded "How to do this" under the one-line task
+     spends 54px of that to leave the row beside it empty. Side by side, the
+     card is as tall as its tallest part. The eyebrow goes for the same reason
+     it goes in landscape: a card at the top of the workspace does not need a
+     label saying it is the task. */
+  .mathmaster-tool-task-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 12px;
+  }
+
+  .mathmaster-tool-task-card .mathmaster-tool-task-eyebrow { display: none; }
+
+  .mathmaster-tool-task-card > *:first-child { flex: 1 1 auto; min-width: 0; }
+
+  .mathmaster-tool-task-card > *:last-child:not(:first-child) {
+    flex: 0 0 auto;
+    margin-top: 0;
+    max-width: 46%;
+  }
+}
+
+@media (min-width: 701px) {
+  .mathmaster-tool-shell-badge-echo { display: none; }
+}
+
+.mathmaster-tool-shell-header .mathmaster-quiet-disclosure[data-open="true"] {
+  flex-basis: 100%;
+  margin-left: 0 !important;
+}
+
 .mathmaster-tool-task-card {
   position: sticky;
   top: 0;

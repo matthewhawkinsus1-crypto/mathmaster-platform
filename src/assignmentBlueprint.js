@@ -685,6 +685,12 @@ export const CORE_QUESTION_TYPES = Object.freeze([
   'system', 'table', 'orderedPair', 'multiAnswer', 'relationshipModel',
   'graphScenarioMatch', 'graphComparison', 'graphStory', 'contextInterpretation',
   'modelingLab',
+  // COMPOSED TYPES. These name a workflow rather than a renderer, so they have
+  // no entry in the tool registry and none in the type catalogue — a composed
+  // question is validated by its stages. `functionCharacteristics` compiled and
+  // rendered for months while this list still rejected it, because nothing had
+  // ever run a compiled one back through the assignment validator.
+  'functionCharacteristics', 'figureMatch', 'graphChoicePreview',
 ]);
 
 export const SUPPORTED_QUESTION_TYPES = Object.freeze([...CORE_QUESTION_TYPES, ...MISSING_TOOL_IDS]);

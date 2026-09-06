@@ -1,0 +1,1391 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra I — District DOL #1 Technology Graph Analysis Review",
+    "courseId": "algebra1",
+    "instructionalPurpose": "review",
+    "gradingPurpose": "classwork"
+  },
+  "sections": [
+    {
+      "id": "section-1",
+      "role": "warmup",
+      "title": "Warm-Up — Recognize the Family and Read One Feature",
+      "questions": [
+        {
+          "standard": "A.12A",
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Build the mapping for this relation, then decide whether it is a function.",
+          "studentActions": [
+            "buildMapping",
+            "classifyFunction"
+          ],
+          "pairs": [
+            {
+              "x": -2,
+              "y": 4
+            },
+            {
+              "x": 0,
+              "y": 1
+            },
+            {
+              "x": 3,
+              "y": 4
+            },
+            {
+              "x": 5,
+              "y": -1
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Function rule",
+                "instruction": "Each input may have only one output. Two inputs sharing an output is still a function."
+              }
+            ]
+          }
+        },
+        {
+          "standard": "A.3C",
+          "dok": 2,
+          "difficultyBand": 1,
+          "prompt": "Sort each graph into the function family it belongs to.",
+          "studentActions": [
+            "matchFigures"
+          ],
+          "graph": {
+            "xMin": -6,
+            "xMax": 6,
+            "yMin": -8,
+            "yMax": 12
+          },
+          "figures": [
+            {
+              "id": "w2a",
+              "function": {
+                "family": "linear",
+                "m": 2,
+                "b": 1
+              },
+              "category": "linear"
+            },
+            {
+              "id": "w2b",
+              "function": {
+                "family": "exponential",
+                "a": 1,
+                "base": 2
+              },
+              "category": "exponential"
+            },
+            {
+              "id": "w2c",
+              "function": {
+                "family": "quadratic",
+                "a": 1,
+                "h": 0,
+                "k": -4
+              },
+              "category": "quadratic"
+            },
+            {
+              "id": "w2d",
+              "function": {
+                "family": "linear",
+                "m": -1,
+                "b": 3
+              },
+              "category": "linear"
+            }
+          ],
+          "categories": [
+            {
+              "id": "linear",
+              "label": "Linear"
+            },
+            {
+              "id": "quadratic",
+              "label": "Quadratic"
+            },
+            {
+              "id": "exponential",
+              "label": "Exponential"
+            }
+          ]
+        },
+        {
+          "standard": "A.7A",
+          "dok": 2,
+          "difficultyBand": 1,
+          "prompt": "Which ordered pair is the vertex of the graph shown?",
+          "studentActions": [
+            "readGraph"
+          ],
+          "previewChoicesOnGraph": true,
+          "function": {
+            "family": "quadratic",
+            "a": 1,
+            "h": 2,
+            "k": -4
+          },
+          "graph": {
+            "xMin": -4,
+            "xMax": 8,
+            "yMin": -6,
+            "yMax": 10
+          },
+          "choices": [
+            {
+              "id": "w3a",
+              "label": "(2, -4)"
+            },
+            {
+              "id": "w3b",
+              "label": "(-2, 4)"
+            },
+            {
+              "id": "w3c",
+              "label": "(0, 0)"
+            },
+            {
+              "id": "w3d",
+              "label": "(4, 0)"
+            }
+          ],
+          "answer": "w3a"
+        },
+        {
+          "standard": "A.9D",
+          "dok": 2,
+          "difficultyBand": 1,
+          "prompt": "Sort each exponential graph by whether it shows growth or decay.",
+          "studentActions": [
+            "matchFigures"
+          ],
+          "graph": {
+            "xMin": -3,
+            "xMax": 4,
+            "yMin": -1,
+            "yMax": 16
+          },
+          "figures": [
+            {
+              "id": "w4a",
+              "function": {
+                "family": "exponential",
+                "a": 1,
+                "base": 2
+              },
+              "category": "growth"
+            },
+            {
+              "id": "w4b",
+              "function": {
+                "family": "exponential",
+                "a": 8,
+                "base": 0.5
+              },
+              "category": "decay"
+            },
+            {
+              "id": "w4c",
+              "function": {
+                "family": "exponential",
+                "a": 1,
+                "base": 3
+              },
+              "category": "growth"
+            },
+            {
+              "id": "w4d",
+              "function": {
+                "family": "exponential",
+                "a": 12,
+                "base": 0.25
+              },
+              "category": "decay"
+            },
+            {
+              "id": "w4e",
+              "function": {
+                "family": "exponential",
+                "a": 3,
+                "base": 2
+              },
+              "category": "growth"
+            },
+            {
+              "id": "w4f",
+              "function": {
+                "family": "exponential",
+                "a": 15,
+                "base": 0.5
+              },
+              "category": "decay"
+            }
+          ],
+          "categories": [
+            {
+              "id": "growth",
+              "label": "Exponential growth"
+            },
+            {
+              "id": "decay",
+              "label": "Exponential decay"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "section-2",
+      "role": "classwork",
+      "title": "Classwork / Guided Review — Every District DOL #1 Concept",
+      "questions": [
+        {
+          "standard": "A.2A",
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "The graph shows a function over a restricted set of inputs. Determine its domain and range using inequalities.",
+          "studentActions": [
+            "readGraph",
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "linear",
+            "m": 2,
+            "b": -1,
+            "domain": {
+              "min": -3,
+              "max": 4,
+              "minClosed": true,
+              "maxClosed": false
+            }
+          },
+          "graph": {
+            "xMin": -6,
+            "xMax": 7,
+            "yMin": -10,
+            "yMax": 9
+          },
+          "correctDomain": "-3 <= x < 4",
+          "correctRange": "-7 <= y < 7",
+          "notation": "inequality",
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Domain",
+                "instruction": "Read the x-values from left to right. A closed dot is included; an open dot is not."
+              },
+              {
+                "title": "Range",
+                "instruction": "Read the y-values from bottom to top, using the same open and closed dots."
+              }
+            ]
+          }
+        },
+        {
+          "standard": "A.2A",
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "A school bus can carry at most 48 students. Let x be the number of students riding the bus.",
+          "scenario": "A school bus can carry at most 48 students. Let x be the number of students riding the bus.",
+          "studentActions": [
+            "classifyContinuity",
+            "stateDomain"
+          ],
+          "quantities": [
+            {
+              "id": "students",
+              "label": "Students riding"
+            },
+            {
+              "id": "seats",
+              "label": "Seats used"
+            }
+          ],
+          "correctIndependentId": "students",
+          "correctDependentId": "seats",
+          "answerModel": {
+            "domain": "{0, 1, 2, ..., 48}",
+            "continuity": "discrete"
+          }
+        },
+        {
+          "standard": "A.3C",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Use the graph shown to find the intercepts and zeros of this function.",
+          "studentActions": [
+            "readGraph",
+            "findXIntercepts",
+            "findZeros",
+            "findYIntercept",
+            "analyzeIncreasing"
+          ],
+          "function": {
+            "family": "linear",
+            "m": 2,
+            "b": -6
+          },
+          "graph": {
+            "xMin": -4,
+            "xMax": 8,
+            "yMin": -10,
+            "yMax": 8
+          },
+          "xIntercepts": [
+            [
+              3,
+              0
+            ]
+          ],
+          "yIntercept": [
+            0,
+            -6
+          ],
+          "behavior": "Increasing everywhere"
+        },
+        {
+          "standard": "A.3C",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A gym charges a one-time sign-up fee plus a fixed cost per visit. The graph shows the total cost for a reasonable number of visits.",
+          "studentActions": [
+            "readGraph",
+            "findXIntercepts",
+            "findYIntercept",
+            "analyzeIncreasing",
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "linear",
+            "m": 8,
+            "b": 15,
+            "domain": {
+              "min": 0,
+              "max": 10,
+              "minClosed": true,
+              "maxClosed": true
+            }
+          },
+          "graph": {
+            "xMin": -1,
+            "xMax": 11,
+            "yMin": -5,
+            "yMax": 100
+          },
+          "xIntercepts": "none",
+          "yIntercept": [
+            0,
+            15
+          ],
+          "behavior": "Increasing everywhere",
+          "correctDomain": "0 <= x <= 10",
+          "correctRange": "15 <= y <= 95",
+          "notation": "inequality"
+        },
+        {
+          "standard": "A.6A",
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Determine the domain and range of the graph shown. Use inequalities, or the All Real Numbers button where it applies.",
+          "studentActions": [
+            "readGraph",
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "quadratic",
+            "a": 1,
+            "h": 1,
+            "k": -4
+          },
+          "graph": {
+            "xMin": -6,
+            "xMax": 8,
+            "yMin": -6,
+            "yMax": 12
+          },
+          "correctDomain": "all real numbers",
+          "correctRange": "y >= -4",
+          "notation": "inequality"
+        },
+        {
+          "standard": "A.6A",
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Determine the domain and range of the graph shown. Use inequalities, or the All Real Numbers button where it applies.",
+          "studentActions": [
+            "readGraph",
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "quadratic",
+            "a": -1,
+            "h": -3,
+            "k": 7
+          },
+          "graph": {
+            "xMin": -10,
+            "xMax": 4,
+            "yMin": -8,
+            "yMax": 10
+          },
+          "correctDomain": "all real numbers",
+          "correctRange": "y <= 7",
+          "notation": "inequality"
+        },
+        {
+          "standard": "A.7A",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Use the graph shown to describe this quadratic function completely.",
+          "studentActions": [
+            "readGraph",
+            "findXIntercepts",
+            "findZeros",
+            "findYIntercept",
+            "findMinimum",
+            "findAxisOfSymmetry",
+            "analyzeIncreasing",
+            "analyzeDecreasing"
+          ],
+          "function": {
+            "family": "quadratic",
+            "a": 1,
+            "h": 2,
+            "k": -9
+          },
+          "graph": {
+            "xMin": -6,
+            "xMax": 9,
+            "yMin": -12,
+            "yMax": 8
+          },
+          "xIntercepts": [
+            [
+              -1,
+              0
+            ],
+            [
+              5,
+              0
+            ]
+          ],
+          "yIntercept": [
+            0,
+            -5
+          ],
+          "extreme": {
+            "kind": "minimum",
+            "point": [
+              2,
+              -9
+            ]
+          },
+          "axisOfSymmetry": "x = 2",
+          "behavior": "Decreasing, then increasing"
+        },
+        {
+          "standard": "A.7A",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Use the graph shown to describe this quadratic function completely.",
+          "studentActions": [
+            "readGraph",
+            "findXIntercepts",
+            "findZeros",
+            "findYIntercept",
+            "findMaximum",
+            "findAxisOfSymmetry",
+            "analyzeIncreasing",
+            "analyzeDecreasing"
+          ],
+          "function": {
+            "family": "quadratic",
+            "a": -1,
+            "h": -1,
+            "k": 4
+          },
+          "graph": {
+            "xMin": -7,
+            "xMax": 5,
+            "yMin": -8,
+            "yMax": 7
+          },
+          "xIntercepts": [
+            [
+              -3,
+              0
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          "yIntercept": [
+            0,
+            3
+          ],
+          "extreme": {
+            "kind": "maximum",
+            "point": [
+              -1,
+              4
+            ]
+          },
+          "axisOfSymmetry": "x = -1",
+          "behavior": "Increasing, then decreasing"
+        },
+        {
+          "standard": "A.9D",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Use the graph shown to describe this exponential function.",
+          "studentActions": [
+            "readGraph",
+            "findXIntercepts",
+            "findYIntercept",
+            "findAsymptote",
+            "analyzeIncreasing"
+          ],
+          "function": {
+            "family": "exponential",
+            "a": 3,
+            "base": 2
+          },
+          "graph": {
+            "xMin": -4,
+            "xMax": 5,
+            "yMin": -2,
+            "yMax": 30
+          },
+          "xIntercepts": "none",
+          "yIntercept": [
+            0,
+            3
+          ],
+          "asymptote": "y = 0",
+          "behavior": "Exponential growth",
+          "behaviorChoices": [
+            "Exponential growth",
+            "Exponential decay"
+          ]
+        },
+        {
+          "standard": "A.9D",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Use the graph shown to describe this exponential function.",
+          "studentActions": [
+            "readGraph",
+            "findXIntercepts",
+            "findYIntercept",
+            "findAsymptote",
+            "analyzeDecreasing"
+          ],
+          "function": {
+            "family": "exponential",
+            "a": 12,
+            "base": 0.5,
+            "k": 2
+          },
+          "graph": {
+            "xMin": -3,
+            "xMax": 6,
+            "yMin": -2,
+            "yMax": 30
+          },
+          "xIntercepts": "none",
+          "yIntercept": [
+            0,
+            14
+          ],
+          "asymptote": "y = 2",
+          "behavior": "Exponential decay",
+          "behaviorChoices": [
+            "Exponential growth",
+            "Exponential decay"
+          ]
+        },
+        {
+          "standard": "A.9A",
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Determine the domain and range of the graph shown. Use inequalities, or the All Real Numbers button where it applies.",
+          "studentActions": [
+            "readGraph",
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "exponential",
+            "a": 5,
+            "base": 3,
+            "k": -4
+          },
+          "graph": {
+            "xMin": -5,
+            "xMax": 4,
+            "yMin": -8,
+            "yMax": 30
+          },
+          "correctDomain": "all real numbers",
+          "correctRange": "y > -4",
+          "notation": "inequality"
+        },
+        {
+          "standard": "A.12C",
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "An arithmetic sequence starts at 7 and each term is 4 more than the term before it. Find the second, third and fifth terms.",
+          "studentActions": [
+            "findSequenceTerm"
+          ],
+          "sequence": {
+            "kind": "arithmetic",
+            "first": 7,
+            "commonDifference": 4
+          },
+          "answerFields": [
+            {
+              "id": "a2",
+              "label": "a(2)",
+              "answer": "11"
+            },
+            {
+              "id": "a3",
+              "label": "a(3)",
+              "answer": "15"
+            },
+            {
+              "id": "a5",
+              "label": "a(5)",
+              "answer": "23"
+            }
+          ]
+        },
+        {
+          "standard": "A.2A",
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Honors extension: a delivery van holds at most 30 boxes and each box weighs 4 pounds. A student claims the reasonable domain is every real number from 0 to 30. Decide whether the claim is correct and give the reasonable domain and range.",
+          "scenario": "A delivery van holds at most 30 boxes. Each box weighs 4 pounds.",
+          "studentActions": [
+            "classifyContinuity",
+            "stateDomain",
+            "stateRange"
+          ],
+          "quantities": [
+            {
+              "id": "boxes",
+              "label": "Boxes loaded"
+            },
+            {
+              "id": "weight",
+              "label": "Total weight"
+            }
+          ],
+          "correctIndependentId": "boxes",
+          "correctDependentId": "weight",
+          "answerModel": {
+            "equation": "f(x)=4x",
+            "domain": "{0, 1, 2, ..., 30}",
+            "range": "{0, 4, 8, ..., 120}",
+            "continuity": "discrete"
+          }
+        }
+      ]
+    },
+    {
+      "id": "section-3",
+      "role": "practice",
+      "title": "Independent Practice — Mixed District DOL Simulation",
+      "questions": [
+        {
+          "standard": "A.2A",
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "The graph shows a function over a restricted set of inputs. Determine its domain and range using inequalities.",
+          "studentActions": [
+            "readGraph",
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "linear",
+            "m": -1,
+            "b": 4,
+            "domain": {
+              "min": -2,
+              "max": 5,
+              "minClosed": false,
+              "maxClosed": true
+            }
+          },
+          "graph": {
+            "xMin": -6,
+            "xMax": 8,
+            "yMin": -4,
+            "yMax": 9
+          },
+          "correctDomain": "-2 < x <= 5",
+          "correctRange": "-1 <= y < 6",
+          "notation": "inequality"
+        },
+        {
+          "standard": "A.3C",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Use the graph shown to find the intercepts and zeros of this function.",
+          "studentActions": [
+            "readGraph",
+            "findXIntercepts",
+            "findZeros",
+            "findYIntercept",
+            "analyzeDecreasing"
+          ],
+          "function": {
+            "family": "linear",
+            "m": -3,
+            "b": 9
+          },
+          "graph": {
+            "xMin": -3,
+            "xMax": 7,
+            "yMin": -8,
+            "yMax": 12
+          },
+          "xIntercepts": [
+            [
+              3,
+              0
+            ]
+          ],
+          "yIntercept": [
+            0,
+            9
+          ],
+          "behavior": "Decreasing everywhere"
+        },
+        {
+          "standard": "A.6A",
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Determine the domain and range of the graph shown. Use inequalities, or the All Real Numbers button where it applies.",
+          "studentActions": [
+            "readGraph",
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "quadratic",
+            "a": -2,
+            "h": 4,
+            "k": 6
+          },
+          "graph": {
+            "xMin": -2,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 9
+          },
+          "correctDomain": "all real numbers",
+          "correctRange": "y <= 6",
+          "notation": "inequality"
+        },
+        {
+          "standard": "A.7A",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Use the graph shown to describe this quadratic function completely.",
+          "studentActions": [
+            "readGraph",
+            "findXIntercepts",
+            "findZeros",
+            "findYIntercept",
+            "findMinimum",
+            "findAxisOfSymmetry",
+            "analyzeIncreasing",
+            "analyzeDecreasing"
+          ],
+          "function": {
+            "family": "quadratic",
+            "a": 1,
+            "h": -1,
+            "k": -4
+          },
+          "graph": {
+            "xMin": -7,
+            "xMax": 5,
+            "yMin": -7,
+            "yMax": 9
+          },
+          "xIntercepts": [
+            [
+              -3,
+              0
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          "yIntercept": [
+            0,
+            -3
+          ],
+          "extreme": {
+            "kind": "minimum",
+            "point": [
+              -1,
+              -4
+            ]
+          },
+          "axisOfSymmetry": "x = -1",
+          "behavior": "Decreasing, then increasing"
+        },
+        {
+          "standard": "A.9D",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Use the graph shown to describe this exponential function.",
+          "studentActions": [
+            "readGraph",
+            "findXIntercepts",
+            "findZeros",
+            "findYIntercept",
+            "findAsymptote",
+            "analyzeDecreasing"
+          ],
+          "function": {
+            "family": "exponential",
+            "a": 4,
+            "base": 0.25,
+            "k": -1
+          },
+          "graph": {
+            "xMin": -2,
+            "xMax": 6,
+            "yMin": -3,
+            "yMax": 16
+          },
+          "xIntercepts": [
+            [
+              1,
+              0
+            ]
+          ],
+          "yIntercept": [
+            0,
+            3
+          ],
+          "asymptote": "y = -1",
+          "behavior": "Exponential decay",
+          "behaviorChoices": [
+            "Exponential growth",
+            "Exponential decay"
+          ]
+        },
+        {
+          "standard": "A.9A",
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Determine the domain and range of the graph shown. Use inequalities, or the All Real Numbers button where it applies.",
+          "studentActions": [
+            "readGraph",
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "exponential",
+            "a": -2,
+            "base": 3,
+            "k": 5
+          },
+          "graph": {
+            "xMin": -5,
+            "xMax": 4,
+            "yMin": -20,
+            "yMax": 8
+          },
+          "correctDomain": "all real numbers",
+          "correctRange": "y < 5",
+          "notation": "inequality"
+        },
+        {
+          "standard": "A.12A",
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Sort each relation by whether it is a function.",
+          "studentActions": [
+            "matchFigures"
+          ],
+          "graph": {
+            "xMin": -6,
+            "xMax": 6,
+            "yMin": -6,
+            "yMax": 6
+          },
+          "figures": [
+            {
+              "id": "p7a",
+              "points": [
+                [
+                  -3,
+                  2
+                ],
+                [
+                  -1,
+                  0
+                ],
+                [
+                  1,
+                  3
+                ],
+                [
+                  4,
+                  -2
+                ]
+              ],
+              "category": "function"
+            },
+            {
+              "id": "p7b",
+              "points": [
+                [
+                  2,
+                  4
+                ],
+                [
+                  2,
+                  -1
+                ],
+                [
+                  -3,
+                  1
+                ],
+                [
+                  0,
+                  3
+                ]
+              ],
+              "category": "notFunction"
+            },
+            {
+              "id": "p7c",
+              "points": [
+                [
+                  -4,
+                  -3
+                ],
+                [
+                  -2,
+                  -3
+                ],
+                [
+                  0,
+                  1
+                ],
+                [
+                  3,
+                  5
+                ]
+              ],
+              "category": "function"
+            },
+            {
+              "id": "p7d",
+              "points": [
+                [
+                  -1,
+                  2
+                ],
+                [
+                  3,
+                  0
+                ],
+                [
+                  3,
+                  4
+                ],
+                [
+                  5,
+                  -2
+                ]
+              ],
+              "category": "notFunction"
+            }
+          ],
+          "categories": [
+            {
+              "id": "function",
+              "label": "Is a function"
+            },
+            {
+              "id": "notFunction",
+              "label": "Not a function"
+            }
+          ]
+        },
+        {
+          "standard": "A.12C",
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "A geometric sequence starts at 3 and each term is twice the term before it. Find the second, third and fifth terms.",
+          "studentActions": [
+            "findSequenceTerm"
+          ],
+          "sequence": {
+            "kind": "geometric",
+            "first": 3,
+            "commonRatio": 2
+          },
+          "answerFields": [
+            {
+              "id": "g2",
+              "label": "g(2)",
+              "answer": "6"
+            },
+            {
+              "id": "g3",
+              "label": "g(3)",
+              "answer": "12"
+            },
+            {
+              "id": "g5",
+              "label": "g(5)",
+              "answer": "48"
+            }
+          ]
+        },
+        {
+          "standard": "A.12A",
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Build the mapping for this relation, then decide whether it is a function.",
+          "studentActions": [
+            "buildMapping",
+            "classifyFunction"
+          ],
+          "pairs": [
+            {
+              "x": -2,
+              "y": 5
+            },
+            {
+              "x": 0,
+              "y": 1
+            },
+            {
+              "x": 2,
+              "y": -3
+            },
+            {
+              "x": 2,
+              "y": 7
+            }
+          ]
+        },
+        {
+          "standard": "A.2A",
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "A tank fills steadily for 10 minutes, going from 0 gallons to 60 gallons.",
+          "scenario": "A tank fills steadily for 10 minutes, going from 0 gallons to 60 gallons.",
+          "studentActions": [
+            "classifyContinuity",
+            "stateDomain",
+            "stateRange"
+          ],
+          "quantities": [
+            {
+              "id": "minutes",
+              "label": "Minutes filling"
+            },
+            {
+              "id": "gallons",
+              "label": "Gallons in the tank"
+            }
+          ],
+          "correctIndependentId": "minutes",
+          "correctDependentId": "gallons",
+          "answerModel": {
+            "equation": "f(x)=6x",
+            "domain": "0 <= x <= 10",
+            "range": "0 <= y <= 60",
+            "continuity": "continuous"
+          }
+        }
+      ]
+    },
+    {
+      "id": "section-4",
+      "role": "dol",
+      "title": "Readiness Check — 8-Standard Mixed Exit Ticket",
+      "questions": [
+        {
+          "standard": "A.2A",
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "The graph shows a function over a restricted set of inputs. Determine its domain and range using inequalities.",
+          "studentActions": [
+            "readGraph",
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "linear",
+            "m": 3,
+            "b": 1,
+            "domain": {
+              "min": -1,
+              "max": 4,
+              "minClosed": true,
+              "maxClosed": false
+            }
+          },
+          "graph": {
+            "xMin": -4,
+            "xMax": 7,
+            "yMin": -6,
+            "yMax": 16
+          },
+          "correctDomain": "-1 <= x < 4",
+          "correctRange": "-2 <= y < 13",
+          "notation": "inequality"
+        },
+        {
+          "standard": "A.3C",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Use the graph shown to find the intercepts and zeros of this function.",
+          "studentActions": [
+            "readGraph",
+            "findXIntercepts",
+            "findZeros",
+            "findYIntercept",
+            "analyzeIncreasing"
+          ],
+          "function": {
+            "family": "linear",
+            "m": 1,
+            "b": -4
+          },
+          "graph": {
+            "xMin": -3,
+            "xMax": 9,
+            "yMin": -8,
+            "yMax": 6
+          },
+          "xIntercepts": [
+            [
+              4,
+              0
+            ]
+          ],
+          "yIntercept": [
+            0,
+            -4
+          ],
+          "behavior": "Increasing everywhere"
+        },
+        {
+          "standard": "A.6A",
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Determine the domain and range of the graph shown. Use inequalities, or the All Real Numbers button where it applies.",
+          "studentActions": [
+            "readGraph",
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "quadratic",
+            "a": 2,
+            "h": -2,
+            "k": -6
+          },
+          "graph": {
+            "xMin": -8,
+            "xMax": 4,
+            "yMin": -9,
+            "yMax": 14
+          },
+          "correctDomain": "all real numbers",
+          "correctRange": "y >= -6",
+          "notation": "inequality"
+        },
+        {
+          "standard": "A.7A",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Use the graph shown to describe this quadratic function completely.",
+          "studentActions": [
+            "readGraph",
+            "findXIntercepts",
+            "findZeros",
+            "findYIntercept",
+            "findMaximum",
+            "findAxisOfSymmetry",
+            "analyzeIncreasing",
+            "analyzeDecreasing"
+          ],
+          "function": {
+            "family": "quadratic",
+            "a": -1,
+            "h": 2,
+            "k": 9
+          },
+          "graph": {
+            "xMin": -6,
+            "xMax": 9,
+            "yMin": -6,
+            "yMax": 12
+          },
+          "xIntercepts": [
+            [
+              -1,
+              0
+            ],
+            [
+              5,
+              0
+            ]
+          ],
+          "yIntercept": [
+            0,
+            5
+          ],
+          "extreme": {
+            "kind": "maximum",
+            "point": [
+              2,
+              9
+            ]
+          },
+          "axisOfSymmetry": "x = 2",
+          "behavior": "Increasing, then decreasing"
+        },
+        {
+          "standard": "A.9D",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Use the graph shown to describe this exponential function.",
+          "studentActions": [
+            "readGraph",
+            "findXIntercepts",
+            "findYIntercept",
+            "findAsymptote",
+            "analyzeDecreasing"
+          ],
+          "function": {
+            "family": "exponential",
+            "a": 6,
+            "base": 0.5,
+            "k": 3
+          },
+          "graph": {
+            "xMin": -3,
+            "xMax": 6,
+            "yMin": -2,
+            "yMax": 24
+          },
+          "xIntercepts": "none",
+          "yIntercept": [
+            0,
+            9
+          ],
+          "asymptote": "y = 3",
+          "behavior": "Exponential decay",
+          "behaviorChoices": [
+            "Exponential growth",
+            "Exponential decay"
+          ]
+        },
+        {
+          "standard": "A.9A",
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Determine the domain and range of the graph shown. Use inequalities, or the All Real Numbers button where it applies.",
+          "studentActions": [
+            "readGraph",
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "function": {
+            "family": "exponential",
+            "a": 7,
+            "base": 2,
+            "k": 1
+          },
+          "graph": {
+            "xMin": -5,
+            "xMax": 4,
+            "yMin": -3,
+            "yMax": 40
+          },
+          "correctDomain": "all real numbers",
+          "correctRange": "y > 1",
+          "notation": "inequality"
+        },
+        {
+          "standard": "A.12A",
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Build the mapping for this relation, then decide whether it is a function.",
+          "studentActions": [
+            "buildMapping",
+            "classifyFunction"
+          ],
+          "pairs": [
+            {
+              "x": 1,
+              "y": 4
+            },
+            {
+              "x": 2,
+              "y": 7
+            },
+            {
+              "x": 3,
+              "y": 7
+            },
+            {
+              "x": 4,
+              "y": 10
+            }
+          ]
+        },
+        {
+          "standard": "A.12C",
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "A sequence starts at 20 and each term is 3 less than the term before it. Find the fourth term.",
+          "studentActions": [
+            "findSequenceTerm"
+          ],
+          "sequence": {
+            "kind": "arithmetic",
+            "first": 20,
+            "commonDifference": -3
+          },
+          "answerFields": [
+            {
+              "id": "a4",
+              "label": "a(4)",
+              "answer": "11"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -73,7 +73,16 @@ test('model-so-far keeps graph labels after the axis stage', () => {
 
 test('WorkflowRunner uses one active workspace while keeping every stage mounted', async () => {
   const source = await readFile(new URL('../../src/platform/workflow/WorkflowRunner.jsx', import.meta.url), 'utf8');
-  assert.match(source, /shouldUseWorkflowFocusMode\(workflow\)/);
+  // The AUTHORED workflow, not the visible one. Stages can be hidden by a
+  // `showWhen` branch, and deciding focus mode from the visible list would flip
+  // the entire layout mid-question when a student's classification took the
+  // count under the threshold.
+  assert.match(source, /shouldUseWorkflowFocusMode\(authoredWorkflow\)/);
+  assert.doesNotMatch(
+    source,
+    /shouldUseWorkflowFocusMode\(workflow\)/,
+    'focus mode must not be decided from the branch-filtered list',
+  );
   assert.match(source, /workflow-focus__navigator/);
   assert.match(source, /workflow-focus__summary/);
   assert.match(source, /workflow-focus__summary-link/);

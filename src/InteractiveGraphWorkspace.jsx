@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { zoomedWindow } from './graphWorkspaceViewport.js';
 import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
 import MathText from './components/common/MathText.jsx';
@@ -44,6 +45,21 @@ import {
   sampleVisibleFunctionPaths,
   getSignAcceptedAnswers,
 } from './interactiveGraphEngine';
+
+// Matched to CoordinatePlane's zoom buttons so the two planes a student meets
+// in one assignment do not have different-looking controls for the same act.
+const ZOOM_BUTTON = {
+  minWidth: 44,
+  minHeight: 44,
+  padding: '9px 14px',
+  border: '1px solid #c5d5ef',
+  borderRadius: '8px',
+  background: '#fff',
+  color: '#174ea6',
+  fontWeight: 'bold',
+  fontSize: 18,
+  lineHeight: 1,
+};
 
 const WIDTH = 760;
 const HEIGHT = 540;
@@ -373,6 +389,29 @@ export default function InteractiveGraphWorkspace({
       yMax: Math.max(Number(baseWindow.yMax), ...inversePreviewPoints.map((point) => point[1] + margin)),
     };
   }, [baseWindow, inverseReflectionEnabled, inversePreviewPoints]);
+  /*
+   * PAN AND ZOOM OVER THE AUTHORED DOMAIN.
+   *
+   * `viewWindow` stays what the question said the plane is: every task, every
+   * answer key and every clamp is expressed in it, and none of that may move
+   * when a student zooms. `renderWindow` is only what is currently on screen.
+   *
+   * The reason this exists is the same measurement that put pan and zoom in
+   * CoordinatePlane: on a 390px phone this plane is about 320px wide, and
+   * enlarging it wins roughly twelve percent — not enough to make a lattice
+   * point the size of a fingertip. Zooming in on the part that matters does.
+   * This workspace draws its own SVG rather than using CoordinatePlane, so it
+   * had none of that; typing an exact coordinate was the only precise path.
+   *
+   * NOT PINCH, HERE. One finger already means "place a point" and a second
+   * finger already means "draw a stroke" on this surface, so a pinch would have
+   * to be taken from one of them. The buttons and the wheel do the whole job,
+   * and the buttons are the accessible path anyway — a student on a bus with
+   * one hand, a trackpad, or a switch cannot pinch.
+   */
+  const [zoomView, setZoomView] = useState(null);
+  const renderWindow = zoomView || viewWindow;
+
   const xGridStep = Math.max(0.000001, Number(viewWindow.xStep ?? 1));
   const yGridStep = Math.max(0.000001, Number(viewWindow.yStep ?? 1));
   const skipCounting = xGridStep > 1 || yGridStep > 1;
@@ -439,16 +478,38 @@ export default function InteractiveGraphWorkspace({
 
   const innerWidth = WIDTH - PADDING * 2;
   const innerHeight = HEIGHT - PADDING * 2;
-  const toScreenX = (x) => PADDING + ((x - viewWindow.xMin) / (viewWindow.xMax - viewWindow.xMin)) * innerWidth;
-  const toScreenY = (y) => PADDING + ((viewWindow.yMax - y) / (viewWindow.yMax - viewWindow.yMin)) * innerHeight;
-  const fromScreenX = (screenX) => viewWindow.xMin + ((screenX - PADDING) / innerWidth) * (viewWindow.xMax - viewWindow.xMin);
-  const fromScreenY = (screenY) => viewWindow.yMax - ((screenY - PADDING) / innerHeight) * (viewWindow.yMax - viewWindow.yMin);
-  const xTicks = useMemo(() => buildTicks(viewWindow.xMin, viewWindow.xMax, viewWindow.xStep ?? 1), [viewWindow]);
-  const yTicks = useMemo(() => buildTicks(viewWindow.yMin, viewWindow.yMax, viewWindow.yStep ?? 1), [viewWindow]);
-  const axisX = viewWindow.yMin <= 0 && viewWindow.yMax >= 0 ? toScreenY(0) : toScreenY(viewWindow.yMin);
-  const axisY = viewWindow.xMin <= 0 && viewWindow.xMax >= 0 ? toScreenX(0) : toScreenX(viewWindow.xMin);
-  const idealPaths = useMemo(() => visiblePaths.map((path) => buildSmoothGraphPath(path, toScreenX, toScreenY)), [visiblePaths, viewWindow]);
-  const idealScreenPointPaths = useMemo(() => visiblePaths.map((path) => path.map(([x, y]) => [toScreenX(x), toScreenY(y)])), [visiblePaths, viewWindow]);
+  // Screen mapping, ticks and axes follow what is ON SCREEN. Everything else in
+  // this component — tasks, keys, clamping — stays on the authored window.
+  const toScreenX = (x) => PADDING + ((x - renderWindow.xMin) / (renderWindow.xMax - renderWindow.xMin)) * innerWidth;
+  const toScreenY = (y) => PADDING + ((renderWindow.yMax - y) / (renderWindow.yMax - renderWindow.yMin)) * innerHeight;
+  const fromScreenX = (screenX) => renderWindow.xMin + ((screenX - PADDING) / innerWidth) * (renderWindow.xMax - renderWindow.xMin);
+  const fromScreenY = (screenY) => renderWindow.yMax - ((screenY - PADDING) / innerHeight) * (renderWindow.yMax - renderWindow.yMin);
+  const xTicks = useMemo(() => buildTicks(renderWindow.xMin, renderWindow.xMax, renderWindow.xStep ?? 1), [renderWindow]);
+  const yTicks = useMemo(() => buildTicks(renderWindow.yMin, renderWindow.yMax, renderWindow.yStep ?? 1), [renderWindow]);
+  const axisX = renderWindow.yMin <= 0 && renderWindow.yMax >= 0 ? toScreenY(0) : toScreenY(renderWindow.yMin);
+  const axisY = renderWindow.xMin <= 0 && renderWindow.xMax >= 0 ? toScreenX(0) : toScreenX(renderWindow.xMin);
+  /*
+   * ZOOM CONTROLS.
+   *
+   * The span is clamped both ways: never tighter than two grid steps, because
+   * below that the axis labels collide and there is nothing left to count; and
+   * never wider than the authored window, because zooming out past the axes
+   * would let a student place a point outside the domain the question defined.
+   */
+  const zoomBy = (factor) => setZoomView((current) => zoomedWindow({
+    from: current || viewWindow,
+    authored: viewWindow,
+    factor,
+    xStep: xGridStep,
+    yStep: yGridStep,
+  }));
+  const resetZoom = () => setZoomView(null);
+  const zoomed = Boolean(zoomView);
+  // One id per mount, so two workspaces on a page cannot share a clip path.
+  const clipId = useMemo(() => `mm-plot-clip-${Math.random().toString(36).slice(2, 9)}`, []);
+
+  const idealPaths = useMemo(() => visiblePaths.map((path) => buildSmoothGraphPath(path, toScreenX, toScreenY)), [visiblePaths, renderWindow]);
+  const idealScreenPointPaths = useMemo(() => visiblePaths.map((path) => path.map(([x, y]) => [toScreenX(x), toScreenY(y)])), [visiblePaths, renderWindow]);
   const inverseVisiblePaths = useMemo(
     () => inverseReflectionEnabled
       ? visiblePaths
@@ -457,12 +518,12 @@ export default function InteractiveGraphWorkspace({
       : [],
     [inverseReflectionEnabled, visiblePaths, viewWindow],
   );
-  const inverseIdealPaths = useMemo(() => inverseVisiblePaths.map((path) => buildSmoothGraphPath(path, toScreenX, toScreenY)), [inverseVisiblePaths, viewWindow]);
-  const inverseIdealScreenPointPaths = useMemo(() => inverseVisiblePaths.map((path) => path.map(([x, y]) => [toScreenX(x), toScreenY(y)])), [inverseVisiblePaths, viewWindow]);
+  const inverseIdealPaths = useMemo(() => inverseVisiblePaths.map((path) => buildSmoothGraphPath(path, toScreenX, toScreenY)), [inverseVisiblePaths, renderWindow]);
+  const inverseIdealScreenPointPaths = useMemo(() => inverseVisiblePaths.map((path) => path.map(([x, y]) => [toScreenX(x), toScreenY(y)])), [inverseVisiblePaths, renderWindow]);
   const reflectionLineMin = Math.max(viewWindow.xMin, viewWindow.yMin);
   const reflectionLineMax = Math.min(viewWindow.xMax, viewWindow.yMax);
   const resolvedPointTasks = useMemo(() => tasks.map((task) => ({ ...task, resolvedExpected: resolveTaskExpected(task, functionSpec, construction.chosenXValues) })), [tasks, functionSpec, construction.chosenXValues]);
-  const requiredGraphPoints = useMemo(() => resolvedPointTasks.filter((task) => Array.isArray(task.resolvedExpected) && task.role !== 'center').map((task) => [toScreenX(task.resolvedExpected[0]), toScreenY(task.resolvedExpected[1])]), [resolvedPointTasks, viewWindow]);
+  const requiredGraphPoints = useMemo(() => resolvedPointTasks.filter((task) => Array.isArray(task.resolvedExpected) && task.role !== 'center').map((task) => [toScreenX(task.resolvedExpected[0]), toScreenY(task.resolvedExpected[1])]), [resolvedPointTasks, renderWindow]);
   const requiredStrokeCount = functionSpec.type === 'rational' ? 2 : 1;
   const pointParts = useMemo(() => gradePointPlacements(tasks, construction.placements, functionSpec, construction.chosenXValues, Math.max(0.22, snapStep * 0.48)), [tasks, construction.placements, construction.chosenXValues, functionSpec, snapStep]);
   const allMarkersPlaced = endpointRequirements.every((requirement) => Boolean(construction.markerPlacements[requirement.id]));
@@ -544,7 +605,7 @@ export default function InteractiveGraphWorkspace({
   const inversePointGrades = useMemo(() => inversePointParts.map((part) => analysisGradeParts.find((grade) => grade.id === part.id)).filter(Boolean), [inversePointParts, analysisGradeParts]);
   const inversePointsComplete = inversePointGrades.length > 0 && inversePointGrades.every((part) => part.isComplete);
   const inversePointsCorrect = inversePointGrades.length > 0 && inversePointGrades.every((part) => part.isCorrect);
-  const inverseRequiredGraphPoints = useMemo(() => inversePointParts.flatMap((part) => part.expected || []).map(([x, y]) => [toScreenX(x), toScreenY(y)]), [inversePointParts, viewWindow]);
+  const inverseRequiredGraphPoints = useMemo(() => inversePointParts.flatMap((part) => part.expected || []).map(([x, y]) => [toScreenX(x), toScreenY(y)]), [inversePointParts, renderWindow]);
   const inverseSketchRequired = Boolean(inverseReflectionEnabled && inverseReflection?.requireInverseSketch !== false);
   const inverseSketchComplete = !inverseSketchRequired || Boolean(analysis.inverseSnapped);
 
@@ -1229,10 +1290,20 @@ export default function InteractiveGraphWorkspace({
             }}
             onPointerDown={beginDrawing} onPointerMove={continueDrawing} onPointerUp={endDrawing} onPointerCancel={endDrawing} onPointerLeave={() => { setHoverPoint(null); if (!draggingTaskId) { setDropCandidate(null); setDropMagneticTarget(null); } }}
             style={{ display: 'block', width: '100%', height: 'auto', touchAction: 'none', cursor: stage === 'analysis' || (!construction.pointsValidated && activeTaskId) || (construction.snapped && activeMarker) ? 'crosshair' : (!pointOnly && construction.pointsValidated && !construction.snapped ? 'crosshair' : 'default') }}>
+            {/* Everything mathematical is drawn inside this rectangle. Without
+                it, zooming in pushes the curve and the placed points out over
+                the axis numbers and the plane's own border. Ticks and their
+                labels stay outside the clip, because they ARE the border. */}
+            <defs>
+              <clipPath id={clipId}>
+                <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} />
+              </clipPath>
+            </defs>
             <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} fill="#fff" stroke={(draggingTaskId || draggingMarkerType) && dropCandidate ? POINT_GUIDE_COLOR : '#cfd4da'} strokeWidth={(draggingTaskId || draggingMarkerType) && dropCandidate ? 4 : 1} />
             {xTicks.map((tick) => { const x = toScreenX(tick); return <g key={`x-${tick}`}><line x1={x} y1={PADDING} x2={x} y2={HEIGHT - PADDING} stroke="#eceff1" /><text x={x} y={axisX + 20} textAnchor="middle" fontSize="12" fill="#5f6368">{tick}</text></g>; })}
             {yTicks.map((tick) => { const y = toScreenY(tick); return <g key={`y-${tick}`}><line x1={PADDING} y1={y} x2={WIDTH - PADDING} y2={y} stroke="#eceff1" />{tick !== 0 && <text x={axisY - 9} y={y + 4} textAnchor="end" fontSize="12" fill="#5f6368">{tick}</text>}</g>; })}
             <line x1={PADDING} y1={axisX} x2={WIDTH - PADDING} y2={axisX} stroke="#5f6368" strokeWidth="2" /><line x1={axisY} y1={PADDING} x2={axisY} y2={HEIGHT - PADDING} stroke="#5f6368" strokeWidth="2" />
+            <g clipPath={`url(#${clipId})`}>
             {stage === 'analysis' && inverseReflectionEnabled && inverseReflection?.showReferenceLine !== false && reflectionLineMax > reflectionLineMin && (
               <g pointerEvents="none">
                 <line x1={toScreenX(reflectionLineMin)} y1={toScreenY(reflectionLineMin)} x2={toScreenX(reflectionLineMax)} y2={toScreenY(reflectionLineMax)} stroke="#9334e6" strokeWidth="2.5" strokeDasharray="10 8" opacity="0.65" />
@@ -1265,6 +1336,7 @@ export default function InteractiveGraphWorkspace({
             {construction.snapped && endpointRequirements.map((requirement) => { const placement = construction.markerPlacements[requirement.id]; const displayPoint = markerPoint(placement) || requirement.point; const x = toScreenX(displayPoint[0]); const y = toScreenY(displayPoint[1]); const correctX = toScreenX(requirement.point[0]); const correctY = toScreenY(requirement.point[1]); const angle = (Math.atan2(toScreenY(requirement.point[1] + requirement.vector[1]) - correctY, toScreenX(requirement.point[0] + requirement.vector[0]) - correctX) * 180) / Math.PI; return <g key={requirement.id}>{!placement && <><circle cx={correctX} cy={correctY} r="25" fill="rgba(251,188,4,0.10)" stroke="#f9ab00" strokeWidth="2" strokeDasharray="6 6" className="mathmaster-endpoint-pulse" /><text x={correctX} y={correctY - 31} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#8a5a00">Graph end {endpointRequirements.indexOf(requirement) + 1}</text></>}{placement && <EndpointMarker type={markerValue(placement)} x={x} y={y} angle={angle} />}</g>; })}
             {markerGhostActive && <EndpointMarker type={draggingMarkerType || activeMarker} x={toScreenX(dropCandidate[0])} y={toScreenY(dropCandidate[1])} opacity={0.55} scale={1.15} />}
             {showCoordinates && hoverPoint && <g pointerEvents="none"><rect x={Math.min(WIDTH - 132, toScreenX(hoverPoint[0]) + 10)} y={Math.max(12, toScreenY(hoverPoint[1]) - 35)} width="116" height="27" rx="6" fill="#202124" opacity="0.66" /><text x={Math.min(WIDTH - 122, toScreenX(hoverPoint[0]) + 20)} y={Math.max(31, toScreenY(hoverPoint[1]) - 16)} fontSize="13" fill="#fff">{pointLabel(hoverPoint)}</text></g>}
+            </g>
           </svg>
           <figcaption style={{ color: '#5f6368', fontSize: '13px', padding: '8px 4px 0' }}>{pointOnly ? 'Plot each ordered pair from your completed table.' : boundaryOnly ? 'This relationship has a finite domain. Its graph must stop at explicit open or closed boundary markers.' : continuationOnly ? 'Arrows show that the function continues beyond the visible coordinate plane.' : 'Arrows show continuation; open and closed circles show finite-domain boundaries.'}</figcaption>
         </figure>
@@ -1372,6 +1444,36 @@ export default function InteractiveGraphWorkspace({
             style={{ padding: '9px 14px', border: '1px solid #e0b4b0', borderRadius: '8px', background: '#fff', color: '#a50e0e', fontWeight: 'bold' }}
           >
             {stage === 'analysis' && inverseReflectionEnabled ? 'Reset Inverse' : 'Reset Graph'}
+          </button>
+
+          {/* Zoom, as buttons. A student who cannot pinch — one hand, a
+              trackpad, a switch — needs the same reach as one who can, and on
+              this surface a pinch would have to be taken from the gesture that
+              places a point or the one that draws a stroke. */}
+          <button
+            type="button"
+            onClick={() => zoomBy(1 / 1.4)}
+            aria-label="Zoom in"
+            style={ZOOM_BUTTON}
+          >
+            +
+          </button>
+          <button
+            type="button"
+            onClick={() => zoomBy(1.4)}
+            aria-label="Zoom out"
+            disabled={!zoomed}
+            style={{ ...ZOOM_BUTTON, opacity: zoomed ? 1 : 0.45 }}
+          >
+            −
+          </button>
+          <button
+            type="button"
+            onClick={resetZoom}
+            disabled={!zoomed}
+            style={{ padding: '9px 14px', minHeight: 44, border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold', opacity: zoomed ? 1 : 0.45 }}
+          >
+            Reset view
           </button>
         </div>
 

@@ -20620,7 +20620,7 @@
           "rows": [
             [
               "$R(t)$",
-              "$${{m}}t{{b|signed}}$"
+              "${{m}}t{{b|signed}}$"
             ],
             [
               "Target",

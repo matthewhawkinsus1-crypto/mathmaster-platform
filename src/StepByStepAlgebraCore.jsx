@@ -347,7 +347,7 @@ export default function StepByStepAlgebra({
       isComplete: solved && promptsComplete,
       isCorrect: solved && promptsCorrect,
       responseKey: solved && promptsComplete ? `${equationToLatex(equation)}|${JSON.stringify(promptAnswers)}` : '',
-      questionDetails: solved ? `Solved step-by-step: ${equationToLatex(equation)}. ${promptParts.map((part) => `${part.label}: ${part.response}`).join('; ')}` : `Current equation: ${equationToLatex(equation)}`,
+      questionDetails: solved ? `Solved step-by-step: $${equationToLatex(equation)}$. ${promptParts.map((part) => `${part.label}: ${part.response}`).join('; ')}` : `Current equation: $${equationToLatex(equation)}$`,
       parts: [
         { id: 'algebra-objective', label: question.objective?.label || (equation.objective?.kind === 'slopeIntercept' ? 'Write in slope-intercept form' : `Isolate ${equation.objective?.variable || equation.variable}`), isComplete: solved, isCorrect: solved, response: equationToLatex(equation) },
         ...promptParts,
@@ -489,7 +489,7 @@ export default function StepByStepAlgebra({
         countsAttempt,
         statePatch: accepted ? {
           algebraState: { equation: equationAfter, supportLevel, stepNumber: Number(normalizedRecord.algebraState?.stepNumber || 0) + 1 },
-          questionDetails: `Current equation: ${equationToLatex(equationAfter)}`,
+          questionDetails: `Current equation: $${equationToLatex(equationAfter)}$`,
         } : { questionDetails: `Rejected move: ${describeOperation(move.operation, move.operandExpression)}` },
       });
     } finally {
@@ -610,7 +610,7 @@ export default function StepByStepAlgebra({
             supportLevel,
             stepNumber: Number(normalizedRecord.algebraState?.stepNumber || 0) + 1,
           },
-          questionDetails: `Current equation: ${equationToLatex(nextEquation)}`,
+          questionDetails: `Current equation: $${equationToLatex(nextEquation)}$`,
         },
       });
     } finally {
@@ -889,7 +889,7 @@ export default function StepByStepAlgebra({
                 supportLevel,
                 stepNumber: Number(normalizedRecord.algebraState?.stepNumber || 0) + 1,
               },
-              questionDetails: `Current equation: ${equationToLatex(nextEquation)}`,
+              questionDetails: `Current equation: $${equationToLatex(nextEquation)}$`,
             },
           });
         }

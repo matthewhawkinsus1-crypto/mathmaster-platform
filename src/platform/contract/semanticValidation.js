@@ -4,6 +4,7 @@ import { readComposedQuestion, validateGrading, validateWorkflow } from '../work
 import { auditStaticGraphViewport } from '../../graphSpecUtils.js';
 import { validateQuestionInteractionContracts } from '../interaction/interactionContract.js';
 import { validateQuestionGradingContracts } from '../grading/gradingContract.js';
+import { instructionalIntegrityProblems } from './instructionalIntegrity.js';
 
 // Recognising a type name is not validation. `{ type: 'graphAnalysis', prompt:
 // 'A graph falls from left to right until x = 2' }` used to pass because
@@ -75,6 +76,18 @@ const transformationsLabHasGraph = (question = {}) => {
   return false;
 };
 
+const composedStages = (composed) => (composed?.composed && Array.isArray(composed.workflow) ? composed.workflow : []);
+
+const composedDrawsFigureGraphs = (composed) => composedStages(composed).some((stage) => (
+  stage?.kind === 'figureMatch'
+  && Array.isArray(stage.items)
+  && stage.items.some((item) => isObject(item?.graph))
+));
+
+const composedPreviewsChoicesOnGraph = (composed) => composedStages(composed).some((stage) => (
+  isObject(stage?.previewOnGraph)
+));
+
 const VISUAL_PROMISES = [
   {
     id: 'graph',
@@ -89,7 +102,13 @@ const VISUAL_PROMISES = [
       // compiler defect.
       || (String(question.type) === 'functionInvestigation2' && has(get(question, 'function.type')))
       || transformationsLabHasGraph(question)
-      || composedHasStage(composed, ['functionGraph', 'coordinatePlot']),
+      || composedHasStage(composed, ['functionGraph', 'coordinatePlot', 'graphFeatureSelect'])
+      // A matching step draws one plane per figure, and a choice step with
+      // `previewOnGraph` draws one the options are plotted on. Both put a graph
+      // in front of the student, so a prompt that says "the graph shown" is
+      // telling the truth.
+      || composedDrawsFigureGraphs(composed)
+      || composedPreviewsChoicesOnGraph(composed),
     remedy: 'Add a `graph` object or a `functionSpec` so the graph is actually drawn, or reword the prompt so it does not refer to one.',
   },
   {
@@ -458,6 +477,11 @@ export const validateQuestionSemantics = (question = {}, { label = 'Question' } 
 
   auditQuestionGraphs(question, String(type || ''), label, errors, warnings, composed.composed);
   checkPlainTextMath(question, label, errors, warnings);
+
+  // Whether the question still measures what it claims to, once it renders.
+  const integrity = instructionalIntegrityProblems(question);
+  integrity.errors.forEach((problem) => errors.push(`${label} ${problem}`));
+  integrity.warnings.forEach((problem) => warnings.push(`${label} ${problem}`));
 
   return { errors, warnings };
 };

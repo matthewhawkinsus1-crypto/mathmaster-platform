@@ -30,7 +30,7 @@ import { buildSupportUsage, getStudentSupportPresentation } from './studentSuppo
 import { removeQuestionDraftFamily } from './questionDraftStorage';
 import CalculatorPanel from './components/CalculatorPanel';
 import ProblemUnderstandingPanel from './components/ProblemUnderstandingPanel';
-import MobileViewportContainer from './components/student/MobileViewportContainer';
+import MobileViewportContainer, { isMobileQuestionViewport } from './components/student/MobileViewportContainer';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
 import { getEffectiveActivityPolicy } from './platform/policies/activityPolicies';
 import { resolveCalculatorPolicy } from './platform/policies/calculatorPolicy';
@@ -51,7 +51,7 @@ import {
   resolveQuestionMaximumAttempts,
 } from './attemptPolicy';
 import { stableStringify } from './utils/idUtils';
-import { ENTER_TO_CONTINUE_HINT, focusFirstAnswerControl, shouldAdvanceOnEnter, shouldSubmitAnswerOnEnter } from './platform/interaction/answerEntryUx.js';
+import { ENTER_TO_CONTINUE_HINT, focusFirstAnswerControl, shouldAdvanceOnEnter, shouldFocusAnswerOnOpen, shouldSubmitAnswerOnEnter } from './platform/interaction/answerEntryUx.js';
 import { normalizeQuestionWeight } from './platform/grading/questionWeights.js';
 
 const EMPTY_ANSWER_STATE = {
@@ -303,14 +303,20 @@ export default function QuestionEngine({
   const terminalFeedbackHidden = !showOutcomeFeedback && (isCorrect || isExpired);
 
   // Every ordinary assignment and canonical Path question passes through this
-  // runtime. Focus the first real answer control once the question is ready.
+  // runtime. Focus the first real answer control once the question is ready —
+  // unless doing so would open a keypad over work the student has not read, or
+  // would point at one cell of a composed workspace as though it were the
+  // answer. See shouldFocusAnswerOnOpen.
   useEffect(() => {
     if (locked || scaffoldRequired || contextScaffoldRequired) return undefined;
+    if (!shouldFocusAnswerOnOpen({ composed: isComposed, narrowViewport: isMobileQuestionViewport() })) {
+      return undefined;
+    }
     const frame = window.requestAnimationFrame(() => {
       focusFirstAnswerControl(questionEngineRef.current);
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [processedQuestion, record.variantIndex, locked, scaffoldRequired, contextScaffoldRequired]);
+  }, [processedQuestion, record.variantIndex, locked, scaffoldRequired, contextScaffoldRequired, isComposed]);
 
   // Two-step keyboard flow: Enter submits a complete single-line answer; after
   // the platform confirms it is correct, the NEXT Enter advances. Keeping the

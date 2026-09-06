@@ -61,10 +61,34 @@ const isCurrencyProseOpening = (text, start, end) => {
   // one. So the command names were never removed, "times" read as prose, and
   // "$3 \times 18.25 = \$54.75$" was classified as currency and left in the
   // prose — the student saw "3 \times 18.25 = \" instead of the mathematics.
-  const withoutLatexCommands = afterAmount.replace(/\\[A-Za-z]+/g, '');
+  //
+  // A command's BRACED ARGUMENT goes with it. `\text{ with }` is how LaTeX puts
+  // a word inside mathematics, so stripping only the command name left "with"
+  // behind — and one prose word after the amount is exactly what this function
+  // looks for. Every `$3 \text{ with } 32$` in the bank was therefore
+  // classified as currency and shown to the student as raw markup.
+  const stripLatex = (value) => {
+    let text = value;
+    for (let pass = 0; pass < 4; pass += 1) {
+      const next = text.replace(/\\[A-Za-z]+\s*(?:\{[^{}]*\})*/g, '');
+      if (next === text) return text;
+      text = next;
+    }
+    return text;
+  };
+  const withoutLatexCommands = stripLatex(afterAmount);
   // "$3 + 2$" remains valid legacy inline math because there are no prose
   // words after the numeric prefix. "$15 per month. Solve $..." is currency.
-  return /[A-Za-z]{2,}/.test(withoutLatexCommands);
+  //
+  // THREE letters, not two. A product of single-letter variables reads as a
+  // word to any letter-counting rule — "$2(lw+lh+wh)$" and "$2\pi rh$" were
+  // both classified as an amount of money followed by prose, and shown to
+  // students as markup. English prose after a price is reliably longer than
+  // that ("per", "each", "cash"), and a two-letter product is only reachable
+  // here at all when the amount is followed by punctuation or an operator:
+  // "$2abc$" never gets this far, because a letter directly after the digits
+  // already means it was never currency.
+  return /[A-Za-z]{3,}/.test(withoutLatexCommands);
 };
 
 const findSingleDollarEnd = (text, start) => {
