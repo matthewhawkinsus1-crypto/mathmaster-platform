@@ -449,8 +449,8 @@ const FUNCTION_CHARACTERISTICS = {
     'plot', 'model',
     'xInterceptExists', 'xIntercept', 'xInterceptValue', 'zeros',
     'yInterceptExists', 'yIntercept', 'yInterceptValue',
-    'extremeKind', 'extremePoint', 'extremeValue',
-    'behavior', 'domain', 'range',
+    'extremeKind', 'extremePoint', 'extremeValue', 'axisOfSymmetry',
+    'asymptote', 'behavior', 'domain', 'range',
   ],
   stages: {
     plot: (question) => ({
@@ -606,6 +606,29 @@ const FUNCTION_CHARACTERISTICS = {
       pointCount: 1,
       allowNone: true,
     }),
+    /*
+     * The axis of symmetry is an EQUATION, not a point and not a value.
+     * A student who writes "2" instead of "x = 2" has named the vertex's
+     * x-coordinate, which is a different (and correct) fact about a different
+     * question — so the two are asked, and marked, apart.
+     */
+    axisOfSymmetry: (question) => ({
+      id: 'axisOfSymmetry',
+      kind: 'equationInput',
+      prompt: question.axisOfSymmetryPrompt || 'Write the equation of the axis of symmetry.',
+      placeholder: 'x = ',
+    }),
+    /*
+     * The asymptote is an equation too, for the same reason the axis of
+     * symmetry is: "2" names a number, "y = 2" names the line the graph
+     * approaches, and only one of those answers the question.
+     */
+    asymptote: (question) => ({
+      id: 'asymptote',
+      kind: 'equationInput',
+      prompt: question.asymptotePrompt || 'Write the equation of the horizontal asymptote.',
+      placeholder: 'y = ',
+    }),
     behavior: (question) => ({
       id: 'behavior',
       kind: 'classification',
@@ -663,6 +686,16 @@ const FUNCTION_CHARACTERISTICS = {
     }
 
     if (asked.has('behavior') && question.behavior) rules.behavior = String(question.behavior);
+    if (asked.has('asymptote') && question.asymptote) rules.asymptote = String(question.asymptote);
+    if (asked.has('axisOfSymmetry')) {
+      // Derived from the vertex the same key already knows, so the two can
+      // never disagree; an author may still state it for a graph whose vertex
+      // is off the table.
+      const authored = String(question.axisOfSymmetry ?? '').trim();
+      const vertex = list(extremeRule(question)?.points)[0];
+      const derived = authored || (vertex ? `x = ${vertex[0]}` : '');
+      if (derived) rules.axisOfSymmetry = derived;
+    }
 
     const kind = extremeKindOf(question);
     if (asked.has('extremeKind') && kind) {

@@ -41,6 +41,10 @@ const RIGHT = {
   extremeKind: 'Maximum',
   extremePoint: selection([[2, 9]]),
   extremeValue: '(2, 9)',
+  axisOfSymmetry: 'x = 2',
+  // A parabola has no horizontal asymptote, so this stage carries no key and
+  // reports as reviewed rather than wrong; it still has to be answered.
+  asymptote: 'none',
   behavior: 'Increasing, then decreasing',
   domain: 'all real numbers',
   range: 'y <= 9',
@@ -68,8 +72,8 @@ test('the recipe expands the whole flow with no authoring errors', () => {
     'plot', 'model',
     'xInterceptExists', 'xIntercept', 'xInterceptValue', 'zeros',
     'yInterceptExists', 'yIntercept', 'yInterceptValue',
-    'extremeKind', 'extremePoint', 'extremeValue',
-    'behavior', 'domain', 'range',
+    'extremeKind', 'extremePoint', 'extremeValue', 'axisOfSymmetry',
+    'asymptote', 'behavior', 'domain', 'range',
   ]);
   // The locating and stating steps are only shown to a student who said there
   // is something there, so pressing them is an act of locating rather than a
@@ -320,5 +324,20 @@ test('the zeros are the x-values, not the ordered pairs', () => {
   assert.deepEqual(
     wrongForm.parts.filter((part) => part.graded && !part.isCorrect).map((part) => part.id),
     ['zeros'],
+  );
+});
+
+test('the axis of symmetry is an equation, and the vertex is a point', () => {
+  // A student who writes "2" has named the vertex's x-coordinate — a correct
+  // fact about a different question. The two are asked and marked apart, and
+  // the key is derived from the vertex so they cannot disagree.
+  const { workflow, grading } = expand(QUADRATIC);
+  assert.equal(workflow.find((stage) => stage.id === 'axisOfSymmetry').kind, 'equationInput');
+  assert.equal(grading.axisOfSymmetry, 'x = 2');
+
+  const bare = gradeWorkflow({ stages: workflow, responses: { ...RIGHT, axisOfSymmetry: '2' }, grading });
+  assert.deepEqual(
+    bare.parts.filter((part) => part.graded && !part.isCorrect).map((part) => part.id),
+    ['axisOfSymmetry'],
   );
 });

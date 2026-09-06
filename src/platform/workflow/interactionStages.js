@@ -200,14 +200,19 @@ export const INTERACTION_STAGES = Object.freeze(Object.fromEntries([
     // Opt-in, because normally the platform does not show a student where an
     // answer is; here it shows what a symbol MEANS, identically for every
     // option, so it never says which one is right.
-    fields: { prompt: 'string', choices: 'array', previewOnGraph: 'object' },
+    //
+    // `graph` is the figure the question is ABOUT, drawn read-only above the
+    // options. A step that asks "does this graph have an x-intercept?" with no
+    // graph on screen is unanswerable, and that is what shipped when the field
+    // was missing here and the authored value was silently dropped.
+    fields: { prompt: 'string', choices: 'array', previewOnGraph: 'object', graph: 'object' },
   }),
   stage('multipleChoice', {
     label: 'Choose an answer',
     studentAction: 'Selects one supplied option.',
     produces: STAGE_OUTPUT.CHOICE,
     consumes: [],
-    fields: { prompt: 'string', choices: 'array', previewOnGraph: 'object' },
+    fields: { prompt: 'string', choices: 'array', previewOnGraph: 'object', graph: 'object' },
   }),
   stage('interpretation', {
     label: 'Interpret in context',

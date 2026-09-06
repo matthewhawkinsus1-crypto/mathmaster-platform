@@ -76,6 +76,18 @@ const transformationsLabHasGraph = (question = {}) => {
   return false;
 };
 
+const composedStages = (composed) => (composed?.composed && Array.isArray(composed.workflow) ? composed.workflow : []);
+
+const composedDrawsFigureGraphs = (composed) => composedStages(composed).some((stage) => (
+  stage?.kind === 'figureMatch'
+  && Array.isArray(stage.items)
+  && stage.items.some((item) => isObject(item?.graph))
+));
+
+const composedPreviewsChoicesOnGraph = (composed) => composedStages(composed).some((stage) => (
+  isObject(stage?.previewOnGraph)
+));
+
 const VISUAL_PROMISES = [
   {
     id: 'graph',
@@ -90,7 +102,13 @@ const VISUAL_PROMISES = [
       // compiler defect.
       || (String(question.type) === 'functionInvestigation2' && has(get(question, 'function.type')))
       || transformationsLabHasGraph(question)
-      || composedHasStage(composed, ['functionGraph', 'coordinatePlot']),
+      || composedHasStage(composed, ['functionGraph', 'coordinatePlot', 'graphFeatureSelect'])
+      // A matching step draws one plane per figure, and a choice step with
+      // `previewOnGraph` draws one the options are plotted on. Both put a graph
+      // in front of the student, so a prompt that says "the graph shown" is
+      // telling the truth.
+      || composedDrawsFigureGraphs(composed)
+      || composedPreviewsChoicesOnGraph(composed),
     remedy: 'Add a `graph` object or a `functionSpec` so the graph is actually drawn, or reword the prompt so it does not refer to one.',
   },
   {

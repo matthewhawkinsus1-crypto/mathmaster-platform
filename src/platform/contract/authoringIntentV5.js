@@ -45,6 +45,9 @@ const ACTION_ALIASES = Object.freeze({
   analyzepositive: 'analyzePositive', positive: 'analyzePositive',
   analyzenegative: 'analyzeNegative', negative: 'analyzeNegative',
   findvertex: 'findVertex', vertex: 'findVertex', findxintercepts: 'findXIntercepts', xintercepts: 'findXIntercepts',
+  findzeros: 'findZeros', zeros: 'findZeros', solutions: 'findZeros',
+  findaxisofsymmetry: 'findAxisOfSymmetry', axisofsymmetry: 'findAxisOfSymmetry',
+  findasymptote: 'findAsymptote', asymptote: 'findAsymptote', horizontalasymptote: 'findAsymptote',
   findyintercept: 'findYIntercept', yintercept: 'findYIntercept', findmaximum: 'findMaximum', findminimum: 'findMinimum',
   solveforvariable: 'solveLiteral', solveliteral: 'solveLiteral',
   solvesystem: 'solveSystem', graphsystem: 'graphSystem', solveinequalitysystem: 'solveInequalitySystem', rowreduce: 'rowReduce',
@@ -54,6 +57,7 @@ const ACTION_ALIASES = Object.freeze({
   identifyquantities: 'identifyQuantities', identifyvariables: 'identifyQuantities', configureaxes: 'configureAxes', labelaxes: 'configureAxes', choosescale: 'configureAxes', writeequation: 'writeEquation',
   classifycontinuity: 'classifyContinuity', classifyrelationship: 'classifyContinuity',
   matchgraphstostories: 'matchGraphsToStories', matchscenarios: 'matchGraphsToStories', comparegraphs: 'compareGraphs',
+  matchfigures: 'matchFigures', sortfigures: 'matchFigures', sortgraphs: 'matchFigures', matchgraphs: 'matchFigures',
   writegraphstory: 'writeGraphStory', interpretpoint: 'interpretPointInContext', interpretpointincontext: 'interpretPointInContext',
   buildmapping: 'buildMapping', plotrelation: 'plotRelation', classifyfunction: 'classifyFunction', statefunctionstatus: 'classifyFunction',
   analyzesequence: 'analyzeSequence', classifysequence: 'analyzeSequence', findterm: 'findSequenceTerm',
@@ -292,6 +296,35 @@ const orderDomainRangeResponseFields = (fields = []) => {
   moveInequalityBeforeWords(['domainInequalities', 'domainInequality'], 'domainWords');
   moveInequalityBeforeWords(['rangeInequalities', 'rangeInequality'], 'rangeWords');
   return ordered;
+};
+
+/*
+ * A CORE FUNCTION SPEC AS AN EXPRESSION.
+ *
+ * The stages that draw a curve take a model expression rather than a spec, so
+ * a figure the author described as `{ family: "exponential", a: 3, base: 2 }`
+ * needs turning into "3*2^(x)". Only the Algebra I families are covered;
+ * anything else returns null and the caller falls back to plotted points,
+ * because a wrong expression would draw a curve that is not the question.
+ */
+const expressionFromSpec = (raw = {}) => {
+  const spec = coreFunctionSpec(raw);
+  const num = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
+  const shifted = (h) => (h === 0 ? 'x' : `(x ${h > 0 ? '-' : '+'} ${Math.abs(h)})`);
+  const plus = (k) => (k === 0 ? '' : ` ${k > 0 ? '+' : '-'} ${Math.abs(k)}`);
+  const type = clean(spec.type);
+  if (type === 'linear' || type === 'line') {
+    const m = num(spec.m, num(spec.a, 1));
+    const b = num(spec.b, num(spec.k, 0));
+    return `${m}*x${plus(b)}`;
+  }
+  if (type === 'quadratic') return `${num(spec.a, 1)}*${shifted(num(spec.h))}^2${plus(num(spec.k))}`;
+  if (type === 'absolute') return `${num(spec.a, 1)}*abs${shifted(num(spec.h))}${plus(num(spec.k))}`;
+  if (type === 'exponential') {
+    const base = num(spec.base ?? spec.b, 2);
+    return `${num(spec.a, 1)}*${base}^${shifted(num(spec.h))}${plus(num(spec.k))}`;
+  }
+  return null;
 };
 
 const normalizeGraphChoices = (choices = []) => asArray(choices).map((item, index) => {
@@ -710,7 +743,19 @@ const compileRelationshipModel = (q, actions) => {
   if (actions.includes('writeEquation')) ask.push('equation');
   if (actions.includes('completeTable')) ask.push('table');
   const continuityBeforeGraph = actions.includes('constructGraph') && actions.includes('classifyContinuity');
-  if (continuityBeforeGraph) ask.push('continuity');
+  /*
+   * ASK THE CLASSIFICATION BEFORE THE ANSWER BOX THAT WOULD REVEAL IT.
+   *
+   * The recipe compiles a domain or range step into one branch per
+   * classification, so the box asks in the form the STUDENT chose rather than
+   * the form the answer key implies — but `showWhen` cannot look forward, so
+   * the classification has to have been asked already. With a graph to build it
+   * already is, because the graph would otherwise show the answer; without one
+   * it used to be asked last, which left the domain box unbranched and telling.
+   */
+  const continuityShapesTheAnswer = actions.includes('classifyContinuity')
+    && actions.some((a) => ['stateDomain', 'analyzeDomain', 'stateRange', 'analyzeRange'].includes(a));
+  if (continuityBeforeGraph || (continuityShapesTheAnswer && !actions.includes('constructGraph'))) ask.push('continuity');
   if (actions.includes('constructGraph')) ask.push('graph');
   if (actions.some((a) => ['stateDomain','analyzeDomain'].includes(a))) {
     const hasWords = responseById(q, 'domainWords');
@@ -729,7 +774,7 @@ const compileRelationshipModel = (q, actions) => {
     if (hasWords) ask.push('rangeWords');
     if (!hasWords && !hasInequality) ask.push('range');
   }
-  if (actions.includes('classifyContinuity') && !continuityBeforeGraph) ask.push('continuity');
+  if (actions.includes('classifyContinuity') && !continuityBeforeGraph && !continuityShapesTheAnswer) ask.push('continuity');
   // Axis labeling/scale is a distinct mathematical act handled by the
   // relationshipModel component itself. Do not route that question through the
   // generic function-modeling workflow, which intentionally has no axis-setup
@@ -841,14 +886,53 @@ const resolveIntentType = (q, actions) => {
   // a relation and asks whether it is a function, and `graphAnalysis` reads a
   // graph somebody else drew. This has to come first, because the plotRelation
   // in it would otherwise be claimed by the relation-mapping rule below.
+  const readsFeatures = actions.some((a) => (
+    ['findXIntercepts', 'findZeros', 'findYIntercept', 'findMaximum', 'findMinimum', 'findVertex', 'findAxisOfSymmetry', 'findAsymptote'].includes(a)
+  ));
+  if (actions.includes('plotRelation') && readsFeatures) return 'functionCharacteristics';
+
+  /*
+   * A GRAPH SOMEBODY ELSE DREW GETS THE SAME SEQUENCE.
+   *
+   * Reading features off a given graph used to compile to a single panel with
+   * every feature asked at once, or to a list of hand-authored response boxes.
+   * Both ask "where is the x-intercept" without ever asking whether there is
+   * one, and both mark finding it and writing it as a single act.
+   *
+   * An author who hand-writes response fields still keeps the field grader:
+   * the rule directly above claims those, and it runs first. Those fields can
+   * ask things no recipe step covers, and silently dropping one would lose the
+   * question. Describe the features as ACTIONS and you get the staged
+   * sequence; write the boxes yourself and you get your boxes.
+   */
   if (
-    actions.includes('plotRelation')
-    && actions.some((a) => ['findXIntercepts', 'findYIntercept', 'findMaximum', 'findMinimum', 'findVertex'].includes(a))
+    actions.includes('readGraph')
+    && readsFeatures
+    && (q.function || q.functionSpec || q.graph || q.pairs)
   ) return 'functionCharacteristics';
 
   if (q.relation || q.pairs || actions.some((a) => ['buildMapping','plotRelation','classifyFunction'].includes(a))) return 'relationMapping';
   if (actions.includes('sortIntoOwnGroups') || q.sortBoard || q.validSchemes) return 'openSortBoard';
   if (actions.includes('buildFunctionFromConstraints') || q.constraints && q.allowedFamilies) return 'constraintFunctionBuilder';
+  /*
+   * A CHOICE THE STUDENT CAN SEE ON THE GRAPH.
+   *
+   * The platform's usual rule is that it never shows a student where an answer
+   * is. This is the deliberate exception, and it is only safe because every
+   * option draws in exactly the same style: the graph says what a symbol
+   * MEANS, not how close to right it is. A student who cannot yet read
+   * "x = -2" as a vertical line can see one, decide, and still be wrong.
+   *
+   * Opt-in per question, because it is scaffolding: on a warm-up it turns a
+   * guess into a reading, and on an exit ticket it would be a hint.
+   */
+  if (q.previewChoicesOnGraph === true && (q.choices || q.options)) return 'graphChoicePreview';
+
+  // SORTING SEVERAL FIGURES INTO NAMED CATEGORIES. Distinct from
+  // `graphScenarioMatch`, which pairs graphs with written stories, and from
+  // `graphComparison`, which asks one question about a row of graphs and
+  // leaves the rest unassessed.
+  if (actions.includes('matchFigures') || (q.figures && q.categories)) return 'figureMatch';
   if (actions.includes('matchGraphsToStories') || (q.stories && q.candidateGraphs)) return 'graphScenarioMatch';
   if (actions.includes('compareGraphs') || (q.graphs && q.comparisonFields)) return 'graphComparison';
   if (actions.includes('writeGraphStory')) return 'graphStory';
@@ -1012,16 +1096,27 @@ const compileOne = (q, index, repairs) => {
       // RECIPE's order, not the order the actions happened to be listed in.
       // Marking the intercepts before plotting the points would be nonsense.
       const wants = (...names) => names.some((name) => actions.includes(name));
+      // Does it exist, where is it, what is it — then how the function behaves,
+      // then the domain and range. Each existence step is emitted alongside the
+      // feature it guards, because the recipe branches the locating and stating
+      // steps on it: without the existence step they carry their own "there
+      // isn't one" button instead, which asks the same thing in a worse place.
       const derivedAsk = [
         wants('plotRelation', 'constructGraph', 'completeTable') && 'plot',
         wants('classifyFunction') && 'model',
+        wants('findXIntercepts', 'findZeros') && 'xInterceptExists',
         wants('findXIntercepts') && 'xIntercept',
+        wants('findXIntercepts') && 'xInterceptValue',
+        wants('findZeros') && 'zeros',
+        wants('findYIntercept') && 'yInterceptExists',
         wants('findYIntercept') && 'yIntercept',
+        wants('findYIntercept') && 'yInterceptValue',
         wants('findMaximum', 'findMinimum', 'findVertex') && 'extremeKind',
         wants('findMaximum', 'findMinimum', 'findVertex') && 'extremePoint',
-        wants('findXIntercepts') && 'xInterceptValue',
-        wants('findYIntercept') && 'yInterceptValue',
         wants('findMaximum', 'findMinimum', 'findVertex') && 'extremeValue',
+        wants('findAxisOfSymmetry') && 'axisOfSymmetry',
+        wants('findAsymptote') && 'asymptote',
+        wants('analyzeIncreasing', 'analyzeDecreasing') && 'behavior',
         wants('analyzeDomain', 'stateDomain') && 'domain',
         wants('analyzeRange', 'stateRange') && 'range',
       ].filter(Boolean);
@@ -1034,10 +1129,21 @@ const compileOne = (q, index, repairs) => {
         pairs: q.pairs || q.relation || q.table,
         graph: graphFromIntent(q),
         functionFamily: q.functionFamily || q.family,
-        correctEquation: q.correctEquation || q.equation,
+        // The curve the student reads has to be DRAWN, and the feature stages
+        // draw from a model expression rather than from a spec. Derived here so
+        // an author who describes the function structurally still gets a curve
+        // — and it stays out of the prompt, which is the whole point: printing
+        // "f(x) = 2^x" beside "what is its domain?" answers the question.
+        correctEquation: q.correctEquation || q.equation || expressionFromSpec(q.function || q.functionSpec),
         extreme: q.extreme,
         xIntercepts: q.xIntercepts,
         yIntercept: q.yIntercept,
+        axisOfSymmetry: q.axisOfSymmetry,
+        asymptote: q.asymptote,
+        behavior: q.behavior,
+        behaviorChoices: q.behaviorChoices,
+        familyChoices: q.familyChoices,
+        functionSpec: functionSpecFromIntentQuestion(q),
         correctDomain: q.correctDomain,
         correctRange: q.correctRange,
         notation: q.notation,
@@ -1083,6 +1189,77 @@ const compileOne = (q, index, repairs) => {
     case 'relationshipModel':
       out = compileRelationshipModel(q, actions);
       break;
+    case 'graphChoicePreview': {
+      const window = graphFromIntent(q) || {};
+      const spec = q.function || q.functionSpec;
+      const model = spec ? expressionFromSpec(spec) : null;
+      const choices = asArray(q.choices || q.options).map((choice, index) => (isObject(choice)
+        ? { id: clean(choice.id) || `c${index + 1}`, label: clean(choice.label ?? choice.text ?? choice.value) }
+        : { id: `c${index + 1}`, label: String(choice) }));
+      const answer = clean(q.answer ?? q.correctChoice);
+      const keyed = choices.find((choice) => choice.id === answer || choice.label === answer);
+      out = copyCommon(q, {
+        type,
+        workflow: [{
+          id: 'choice',
+          kind: 'multipleChoice',
+          prompt: q.choicePrompt || q.prompt,
+          choices,
+          previewOnGraph: {
+            graph: { ...window, ...(model ? { model } : {}) },
+          },
+        }],
+        grading: keyed ? { choice: keyed.id } : undefined,
+      });
+      break;
+    }
+    case 'figureMatch': {
+      /*
+       * Compiles to a WORKFLOW with one matching stage.
+       *
+       * The author gives each figure an `id` and the category it belongs to,
+       * and never a name: `figureMatch` labels them Figure 1..N itself so a
+       * name cannot hint at the answer. That is why the answer key is built
+       * here from `figure.category` rather than being written separately —
+       * there is no other handle on a figure to key against.
+       */
+      const window = graphFromIntent(q) || {};
+      const figures = asArray(q.figures).filter(isObject).map((figure, index) => {
+        const id = clean(figure.id) || `k${index + 1}`;
+        const spec = figure.function || figure.functionSpec;
+        const model = spec ? expressionFromSpec(spec) : null;
+        const points = asArray(figure.points || figure.pairs);
+        return {
+          id,
+          category: clean(figure.category || figure.answer),
+          item: {
+            id,
+            ...(clean(figure.math) ? { math: figure.math } : {}),
+            ...(clean(figure.text) ? { text: figure.text } : {}),
+            ...(model || points.length
+              ? { graph: { ...(isObject(figure.graph) ? figure.graph : window), ...(model ? { model } : {}), ...(points.length ? { points } : {}) } }
+              : {}),
+          },
+        };
+      });
+      const categories = asArray(q.categories).map((category, index) => (isObject(category)
+        ? { id: clean(category.id) || `c${index + 1}`, label: clean(category.label) || clean(category.id) }
+        : { id: normalizeToken(category) || `c${index + 1}`, label: String(category) }));
+      const match = {};
+      figures.forEach((figure) => { if (figure.category) match[figure.id] = figure.category; });
+      out = copyCommon(q, {
+        type,
+        workflow: [{
+          id: 'sort',
+          kind: 'figureMatch',
+          prompt: q.matchPrompt || q.prompt,
+          items: figures.map((figure) => figure.item),
+          categories,
+        }],
+        grading: Object.keys(match).length ? { sort: { match } } : undefined,
+      });
+      break;
+    }
     case 'graphScenarioMatch':
       out = copyCommon(q, { type, scenarios: q.scenarios || asArray(q.stories).map((story, i) => isObject(story) ? { id: story.id || `s${i + 1}`, title: story.title, description: story.description || story.text || story.prompt } : { id: `s${i + 1}`, description: story }), graphs: normalizeGraphChoices(q.graphs || q.candidateGraphs), correctMatches: q.correctMatches || q.matches });
       break;

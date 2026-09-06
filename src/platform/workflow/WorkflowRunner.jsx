@@ -242,14 +242,80 @@ function ChoicePreviewGraph({ stage, value }) {
   );
 }
 
-function ChoiceStage({ stage, value, onChange, disabled }) {
+/*
+ * THE FIGURE THE QUESTION IS ABOUT, DRAWN READ-ONLY.
+ *
+ * Not the same thing as ChoicePreviewGraph, which draws the OPTION the student
+ * is considering. This draws the graph the question asks about — "does this
+ * graph have an x-intercept?" is unanswerable without it, and the existence
+ * steps shipped exactly that way until it was measured in a browser.
+ *
+ * Read-only and coordinate-suppressed for the same reason every feature stage
+ * is: a later step asks the student to write the intercept down.
+ */
+function StageFigure({ graph, label }) {
+  const spec = isObject(graph) ? graph : {};
+  const model = typeof spec.model === 'string' ? spec.model.trim() : '';
+  const functions = useMemo(() => {
+    if (!model) return [];
+    const evaluate = (x) => {
+      const y = evaluateModelAt(model, x);
+      return Number.isFinite(y) ? y : Number.NaN;
+    };
+    return Number.isFinite(evaluate(0)) || Number.isFinite(evaluate(1)) ? [evaluate] : [];
+  }, [model]);
+  const points = Array.isArray(spec.points) ? spec.points : [];
+  if (!functions.length && !points.length) return null;
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <CoordinatePlane
+        xMin={Number.isFinite(Number(spec.xMin)) ? Number(spec.xMin) : -10}
+        xMax={Number.isFinite(Number(spec.xMax)) ? Number(spec.xMax) : 10}
+        yMin={Number.isFinite(Number(spec.yMin)) ? Number(spec.yMin) : -10}
+        yMax={Number.isFinite(Number(spec.yMax)) ? Number(spec.yMax) : 10}
+        functions={functions}
+        points={points.map((point) => (Array.isArray(point)
+          ? { x: point[0], y: point[1], fill: '#1a73e8', r: 5 }
+          : point))}
+        revealCoordinates={false}
+        ariaLabel={label || 'Graph'}
+      />
+    </div>
+  );
+}
+
+function ChoiceStage({ stage, value, onChange, disabled, controlsBranch = false }) {
+  /*
+   * A BRANCH CONTROLLER RENDERS EXACTLY THE CHOICES PREFLIGHT VALIDATED.
+   *
+   * `strengthenTwoChoiceSet` turns a bare yes/no into four options so a binary
+   * question is not a coin flip — good for a standalone multiple choice, and
+   * wrong here twice over. "Both yes and no" is not a possible answer to "does
+   * this graph have an x-intercept?", and a student who picks an injected
+   * option satisfies no `showWhen`, so every step that depended on this one
+   * silently disappears and the question ends early.
+   *
+   * Where extra options ARE wanted — "neither discrete nor continuous" is a
+   * real misconception worth offering — they belong in the authored choice
+   * list, where validation can see them and the author decides what each one
+   * leads to. An option injected at render time is invisible to both.
+   */
+  const authored = Array.isArray(stage.choices) ? stage.choices : [];
+  // A `classification` names the categories the mathematics actually has, so
+  // the platform never adds one. "Both exponential growth and decay" is not a
+  // thing a graph can be, and neither is a fourth function family beyond the
+  // three the step listed. `multipleChoice` is the general step and keeps the
+  // strengthener, which exists so a bare two-option item is not a coin flip.
+  const closedSet = controlsBranch || stage.kind === 'classification';
   const choices = stableShuffleChoices(
-    strengthenTwoChoiceSet(Array.isArray(stage.choices) ? stage.choices : []),
+    closedSet ? authored : strengthenTwoChoiceSet(authored),
     choiceSeed(stage.id, stage.prompt, stage.label),
   );
   return (
     <>
-    {stage?.previewOnGraph ? <ChoicePreviewGraph stage={stage} value={value} /> : null}
+    {stage?.previewOnGraph
+      ? <ChoicePreviewGraph stage={stage} value={value} />
+      : <StageFigure graph={stage?.graph} label={stage?.prompt} />}
     <div style={chipRow}>
       {choices.map((choice) => {
         const id = typeof choice === 'string' ? choice : choice?.id ?? String(choice);
@@ -701,7 +767,7 @@ const DELEGATES = {
 
 const NOTATION_PROFILE = { interval: 'interval', inequality: 'inequality', set: 'set' };
 
-function StageBody({ stage, input, content, value, onChange, disabled, draftKey }) {
+function StageBody({ stage, input, content, value, onChange, disabled, draftKey, controlsBranch = false }) {
   const delegate = DELEGATES[stage.kind];
   if (delegate) return delegate({ stage, input, content, onChange, draftKey, disabled });
 
@@ -732,7 +798,7 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey 
     case 'intervalInput':
     case 'valueSet':
       if (Array.isArray(stage.choices) && stage.choices.length) {
-        return <ChoiceStage stage={stage} value={value} onChange={onChange} disabled={disabled} />;
+        return <ChoiceStage stage={stage} value={value} onChange={onChange} disabled={disabled} controlsBranch={controlsBranch} />;
       }
       return (
         <MathInput
@@ -762,7 +828,7 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey 
       return <FigureMatchStage stage={stage} value={value} onChange={onChange} disabled={disabled} />;
     case 'classification':
     case 'multipleChoice':
-      return <ChoiceStage stage={stage} value={value} onChange={onChange} disabled={disabled} />;
+      return <ChoiceStage stage={stage} value={value} onChange={onChange} disabled={disabled} controlsBranch={controlsBranch} />;
     case 'quantityRoles':
       return <QuantityRolesStage stage={stage} value={value} onChange={onChange} disabled={disabled} />;
     case 'interpretation':
@@ -955,6 +1021,13 @@ export default function WorkflowRunner({
   // branch that took the count under the threshold would otherwise flip the
   // whole layout mid-question, which is disorienting in the middle of a graph.
   const focusMode = shouldUseWorkflowFocusMode(authoredWorkflow);
+  // Which steps some other step branches on. Their choice lists are rendered
+  // exactly as authored — see ChoiceStage.
+  const branchControllerIds = useMemo(() => new Set(
+    (Array.isArray(authoredWorkflow) ? authoredWorkflow : [])
+      .map((stage) => (isObject(stage?.showWhen) ? String(stage.showWhen.stage || '') : ''))
+      .filter(Boolean),
+  ), [authoredWorkflow]);
   const onStateChangeRef = useRef(onStateChange);
   const onProgressChangeRef = useRef(onProgressChange);
   useEffect(() => { onStateChangeRef.current = onStateChange; }, [onStateChange]);
@@ -1132,6 +1205,7 @@ export default function WorkflowRunner({
               value={responses[stage.id]}
               onChange={(value) => setResponse(stage.id, (readDelegateResponse[stage.kind] || ((raw) => raw))(value, { stage, input, content }))}
               disabled={disabled}
+              controlsBranch={branchControllerIds.has(stage.id)}
               draftKey={draftKey ? `${draftKey}:${stage.id}${stage.sourceStageId && ['functionGraph', 'coordinatePlot'].includes(stage.kind) ? `:${dependencyFingerprint(input.value)}` : ''}` : null}
             />
           </>

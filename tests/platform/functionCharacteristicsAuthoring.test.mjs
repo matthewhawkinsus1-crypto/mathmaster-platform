@@ -53,10 +53,13 @@ test('plotting a table and then hunting features is its own type', () => {
 test('the steps follow from the actions, in the order the mathematics needs', () => {
   const composed = readComposedQuestion(compile(intent(FULL)));
   assert.ok(composed.composed);
+  // Does it exist, where is it, what is it — one feature at a time, rather
+  // than every "mark it" step and then every "write it" step.
   assert.deepEqual(composed.workflow.map((stage) => stage.id), [
     'plot', 'model',
-    'xIntercept', 'yIntercept', 'extremeKind', 'extremePoint',
-    'xInterceptValue', 'yInterceptValue', 'extremeValue',
+    'xInterceptExists', 'xIntercept', 'xInterceptValue',
+    'yInterceptExists', 'yIntercept', 'yInterceptValue',
+    'extremeKind', 'extremePoint', 'extremeValue',
     'domain', 'range',
   ]);
 });
@@ -64,7 +67,7 @@ test('the steps follow from the actions, in the order the mathematics needs', ()
 test('a trimmed action list produces a trimmed question, still in order', () => {
   // A warm-up that only wants part of the arc says so by listing fewer actions.
   const composed = readComposedQuestion(compile(intent(['plotRelation', 'classifyFunction', 'findYIntercept', 'analyzeRange'])));
-  assert.deepEqual(composed.workflow.map((stage) => stage.id), ['plot', 'model', 'yIntercept', 'yInterceptValue', 'range']);
+  assert.deepEqual(composed.workflow.map((stage) => stage.id), ['plot', 'model', 'yInterceptExists', 'yIntercept', 'yInterceptValue', 'range']);
 });
 
 test('marking a feature is never asked before the graph exists', () => {
@@ -151,4 +154,48 @@ test('validation and grading agree about what can be established', () => {
   ['xIntercept', 'yIntercept', 'extremePoint'].forEach((id) => {
     assert.ok(composed.grading[id], `${id} validated but has no answer key`);
   });
+});
+
+test('a graph somebody else drew gets the same sequence, without a plotting step', () => {
+  // The assignment case: a technology-generated graph the student reads. It
+  // used to compile to one panel asking every feature at once, which never
+  // asks whether the feature exists and marks finding it and writing it as a
+  // single act.
+  const question = compile({
+    standard: 'A.7A',
+    prompt: 'Use the graph to describe this function.',
+    studentActions: ['readGraph', 'findXIntercepts', 'findZeros', 'findYIntercept', 'findVertex', 'findAxisOfSymmetry', 'analyzeIncreasing', 'analyzeDecreasing', 'analyzeDomain', 'analyzeRange'],
+    function: { family: 'quadratic', a: 1, h: 2, k: -9 },
+    graph: { xMin: -6, xMax: 8, yMin: -12, yMax: 6 },
+    xIntercepts: [[-1, 0], [5, 0]],
+    yIntercept: [0, -5],
+    extreme: { kind: 'minimum', point: [2, -9] },
+    behavior: 'Decreasing, then increasing',
+    correctDomain: 'all real numbers',
+    correctRange: 'y >= -9',
+  });
+  assert.equal(question.type, 'functionCharacteristics');
+  const composed = readComposedQuestion(question);
+  assert.deepEqual(composed.workflow.map((stage) => stage.id), [
+    'xInterceptExists', 'xIntercept', 'xInterceptValue', 'zeros',
+    'yInterceptExists', 'yIntercept', 'yInterceptValue',
+    'extremeKind', 'extremePoint', 'extremeValue', 'axisOfSymmetry',
+    'behavior', 'domain', 'range',
+  ]);
+  assert.equal(composed.grading.zeros, '{-1, 5}');
+  assert.equal(composed.grading.axisOfSymmetry, 'x = 2');
+  assert.equal(composed.grading.extremeKind, 'Minimum');
+});
+
+test('hand-authored response fields keep the field grader', () => {
+  // Those boxes can ask things no recipe step covers. Routing them to the
+  // recipe would silently drop the question the author actually wrote.
+  const question = compile({
+    standard: 'A.7A',
+    prompt: 'Use the graph to answer.',
+    studentActions: ['readGraph', 'findVertex', 'multipleResponses'],
+    function: { family: 'quadratic', a: 1, h: 2, k: -9 },
+    answerFields: [{ id: 'vertex', label: 'Vertex', answer: '(2, -9)' }],
+  });
+  assert.notEqual(question.type, 'functionCharacteristics');
 });

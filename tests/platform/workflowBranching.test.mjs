@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 import { activeStageIds, activeStages, summarizeWorkflowProgress, validateWorkflow } from '../../src/platform/workflow/questionWorkflow.js';
 import { gradeWorkflow } from '../../src/platform/workflow/workflowGrading.js';
+import { strengthenTwoChoiceSet } from '../../src/platform/interaction/choiceOptions.js';
 
 /*
  * A step may depend on what the student CHOSE, never on whether they were right.
@@ -199,4 +200,35 @@ test('the runtime never consults the answer key to decide what to show', () => {
   const body = source.slice(start, source.indexOf('\nexport const activeStages'));
   assert.ok(start > 0, 'activeStageIds must exist');
   assert.ok(!/grading|answerKey|expected|correct/.test(body), 'the branch decision must not read grading state');
+});
+
+test('a branch controller offers exactly the choices Preflight validated', () => {
+  // `strengthenTwoChoiceSet` turns a bare yes/no into four options so a binary
+  // item is not a coin flip. On a controller that is wrong twice: "both yes and
+  // no" is not a possible answer to "does this graph have an x-intercept?", and
+  // a student who picks an injected option satisfies no `showWhen` — so every
+  // step depending on this one silently disappears and the question ends early.
+  const runner = readFileSync('src/platform/workflow/WorkflowRunner.jsx', 'utf8');
+  assert.match(runner, /controlsBranch \|\| stage\.kind === 'classification'/);
+  assert.match(runner, /closedSet \? authored : strengthenTwoChoiceSet\(authored\)/);
+  // Derived from the authored workflow, so a branch cannot change what the
+  // controller offers part-way through.
+  assert.match(runner, /branchControllerIds = useMemo\(\(\) => new Set\(/);
+  assert.match(runner, /controlsBranch=\{branchControllerIds\.has\(stage\.id\)\}/);
+});
+
+test('an injected option would strand the student, and is provably absent', () => {
+  // The behaviour being suppressed is real: left alone it invents two options.
+  const injected = strengthenTwoChoiceSet(['Yes', 'No']);
+  assert.equal(injected.length, 4);
+  assert.ok(injected.includes('both yes and no'));
+
+  // And an injected option matches no branch, so the workflow would end early.
+  const workflow = [
+    { id: 'exists', kind: 'classification', choices: ['Yes', 'No'] },
+    { id: 'mark', kind: 'graphFeatureSelect', showWhen: { stage: 'exists', is: 'Yes' } },
+    { id: 'state', kind: 'pointInput', showWhen: { stage: 'exists', is: 'Yes' } },
+  ];
+  assert.deepEqual([...activeStageIds(workflow, { exists: 'Yes' })], ['exists', 'mark', 'state']);
+  assert.deepEqual([...activeStageIds(workflow, { exists: 'both yes and no' })], ['exists']);
 });

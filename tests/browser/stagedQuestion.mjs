@@ -86,12 +86,14 @@ for (const device of DEVICES) {
   await page.waitForFunction(() => typeof window.__mmStaged === 'function');
 
   for (const stage of expanded.workflow) {
-    // `source` is stripped: a stage mounted alone has no upstream stage to be
-    // built from, and the runner correctly refuses to render one that is
-    // waiting on work that is not there ("Finish plot first"). That gating is
-    // right, and it is unit-tested; keeping it here would only measure the
-    // harness.
-    const { source: _source, ...solo } = stage;
+    // `source` and `showWhen` are stripped: a stage mounted alone has no
+    // upstream stage to be built from and no controller to branch on, and the
+    // runner correctly refuses to render one that is waiting on work that is
+    // not there ("Finish plot first") or hides one whose branch was never
+    // taken. Both are right, and both are unit-tested — tests/platform/
+    // graphFeatureStages.test.mjs and workflowBranching.test.mjs. Keeping them
+    // here would only measure the harness.
+    const { source: _source, showWhen: _showWhen, ...solo } = stage;
     await page.evaluate(({ id, one, prompt }) => window.__mmStaged({
       id,
       question: { prompt, workflow: [one], content: { prompt }, grading: {} },

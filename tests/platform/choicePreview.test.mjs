@@ -107,7 +107,11 @@ test('the preview never consults the answer key', () => {
 test('the runner renders the preview above the options', () => {
   const runner = readFileSync('src/platform/workflow/WorkflowRunner.jsx', 'utf8');
   assert.match(runner, /ChoicePreviewGraph/);
-  assert.match(runner, /stage\?\.previewOnGraph \? <ChoicePreviewGraph/);
+  assert.match(runner, /stage\?\.previewOnGraph[\s\S]{0,40}<ChoicePreviewGraph/);
+  // The other branch draws the figure the question is ABOUT, read-only. Two
+  // different jobs: one shows what the student picked, the other shows what
+  // they are picking about.
+  assert.match(runner, /<StageFigure graph=\{stage\?\.graph\}/);
   // It is the student's own selection that is drawn, not anything else.
   assert.match(runner, /previewFigures\(value\)/);
 });
