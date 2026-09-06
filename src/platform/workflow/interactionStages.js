@@ -171,6 +171,19 @@ export const INTERACTION_STAGES = Object.freeze(Object.fromEntries([
     consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.EQUATION],
     fields: { prompt: 'string', notation: 'string', choices: 'array' },
   }),
+  stage('valueSet', {
+    label: 'Write the values',
+    studentAction: 'Writes the specific values that satisfy a condition — the zeros of a function, say — as a set.',
+    // Distinct from `domainInput` on purpose. A domain is every input the
+    // function accepts; the zeros are the particular inputs where it is zero.
+    // A student can state one correctly and the other wrongly, and a question
+    // that asks for both should be able to say which.
+    // Distinct from `pointInput` for the same reason: (4, 0) is the
+    // x-intercept and x = 4 is the zero, and telling those apart is the skill.
+    produces: STAGE_OUTPUT.SET,
+    consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.EQUATION],
+    fields: { prompt: 'string', notation: 'string', placeholder: 'string', choices: 'array' },
+  }),
   stage('intervalInput', {
     label: 'Write the interval',
     studentAction: 'Writes an interval or union in the requested notation.',

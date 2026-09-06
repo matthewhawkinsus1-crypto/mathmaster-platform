@@ -354,6 +354,15 @@ const RELATION_REPRESENTATIONS = {
 
 const FAMILY_CHOICES = ['Linear', 'Quadratic', 'Exponential'];
 const EXTREME_CHOICES = ['Maximum', 'Minimum', 'Neither'];
+const EXISTS_CHOICES = ['Yes', 'No'];
+// Enough to describe a line and a parabola without interval notation, which
+// Algebra I has not reached.
+const BEHAVIOR_CHOICES = [
+  'Increasing everywhere',
+  'Decreasing everywhere',
+  'Decreasing, then increasing',
+  'Increasing, then decreasing',
+];
 
 const featureGraph = (question) => ({
   ...(isObject(question.graph) ? question.graph : { xMin: -10, xMax: 10, yMin: -10, yMax: 10 }),
@@ -434,11 +443,14 @@ const markCount = (rule) => Math.max(1, list(rule?.points).length || 1);
 const FUNCTION_CHARACTERISTICS = {
   label: 'Analyze a function graph',
   publicType: 'graphAnalysis',
+  // The order a teacher asks in: does it exist, where is it, what is it, how
+  // does the function behave, and only then the domain and range.
   defaultAsk: [
     'plot', 'model',
-    'xIntercept', 'yIntercept', 'extremeKind', 'extremePoint',
-    'xInterceptValue', 'yInterceptValue', 'extremeValue',
-    'domain', 'range',
+    'xInterceptExists', 'xIntercept', 'xInterceptValue', 'zeros',
+    'yInterceptExists', 'yIntercept', 'yInterceptValue',
+    'extremeKind', 'extremePoint', 'extremeValue',
+    'behavior', 'domain', 'range',
   ],
   stages: {
     plot: (question) => ({
@@ -471,7 +483,37 @@ const FUNCTION_CHARACTERISTICS = {
       choices: list(question.familyChoices).length ? list(question.familyChoices) : FAMILY_CHOICES,
       ...(asked.has('plot') ? { source: { fromStage: 'plot' } } : {}),
     }),
-    xIntercept: (question) => ({
+    /*
+     * DOES IT EXIST, THEN WHERE IS IT, THEN WHAT IS IT.
+     *
+     * Three questions a teacher asks in that order, and three different things
+     * a student can get wrong. Rolled into one "mark the x-intercept, or press
+     * the button if there isn't one" step, a student who does not realise an
+     * exponential never crosses the axis and one who knows but misses the click
+     * score identically.
+     *
+     * Asking existence first also means the marking step is only shown to a
+     * student who said there is something to mark — so pressing it is an act of
+     * locating, not a second chance to reconsider. `showWhen` looks backwards
+     * only, which is why these come first.
+     */
+    xInterceptExists: (question) => ({
+      id: 'xInterceptExists',
+      kind: 'classification',
+      reveals: ['plot', 'model'],
+      prompt: question.xInterceptExistsPrompt || 'Does this graph have an x-intercept?',
+      choices: EXISTS_CHOICES,
+      graph: featureGraph(question),
+    }),
+    yInterceptExists: (question) => ({
+      id: 'yInterceptExists',
+      kind: 'classification',
+      reveals: ['plot', 'model'],
+      prompt: question.yInterceptExistsPrompt || 'Does this graph have a y-intercept?',
+      choices: EXISTS_CHOICES,
+      graph: featureGraph(question),
+    }),
+    xIntercept: (question, asked) => ({
       id: 'xIntercept',
       kind: 'graphFeatureSelect',
       // Drawing the curve is what makes this answerable, and the curve shows
@@ -482,9 +524,13 @@ const FUNCTION_CHARACTERISTICS = {
       feature: 'xIntercept',
       graph: featureGraph(question),
       selectionCount: markCount(xInterceptRule(question)),
-      allowNone: true,
+      // The "there isn't one" button belongs to whichever step asks the
+      // existence question. Offering it twice invites a student to answer it
+      // differently in two places.
+      allowNone: !asked.has('xInterceptExists'),
+      ...(asked.has('xInterceptExists') ? { showWhen: { stage: 'xInterceptExists', is: 'Yes' } } : {}),
     }),
-    yIntercept: (question) => ({
+    yIntercept: (question, asked) => ({
       id: 'yIntercept',
       kind: 'graphFeatureSelect',
       // Drawing the curve is what makes this answerable, and the curve shows
@@ -495,7 +541,8 @@ const FUNCTION_CHARACTERISTICS = {
       feature: 'yIntercept',
       graph: featureGraph(question),
       selectionCount: 1,
-      allowNone: true,
+      allowNone: !asked.has('yInterceptExists'),
+      ...(asked.has('yInterceptExists') ? { showWhen: { stage: 'yInterceptExists', is: 'Yes' } } : {}),
     }),
     extremeKind: (question) => ({
       id: 'extremeKind',
@@ -517,21 +564,39 @@ const FUNCTION_CHARACTERISTICS = {
       allowNone: true,
       noneLabel: 'This graph has neither',
     }),
-    xInterceptValue: (question) => ({
+    xInterceptValue: (question, asked) => ({
       id: 'xInterceptValue',
       kind: 'pointInput',
       prompt: question.xInterceptValuePrompt || 'Write the x-intercept(s) as ordered pairs.',
       feature: 'xIntercept',
       pointCount: markCount(xInterceptRule(question)),
-      allowNone: true,
+      allowNone: !asked.has('xInterceptExists'),
+      ...(asked.has('xInterceptExists') ? { showWhen: { stage: 'xInterceptExists', is: 'Yes' } } : {}),
     }),
-    yInterceptValue: (question) => ({
+    /*
+     * (4, 0) IS THE X-INTERCEPT. x = 4 IS THE ZERO.
+     *
+     * Algebra I asks for both by name, and a student can hold one and not the
+     * other — writing "4" for the intercept, or "(4, 0)" for the zero, is the
+     * single most common way this is confused. Asking only for the ordered pair
+     * never finds out.
+     */
+    zeros: (question, asked) => ({
+      id: 'zeros',
+      kind: 'valueSet',
+      prompt: question.zerosPrompt || 'What are the zeros of this function?',
+      notation: 'set',
+      placeholder: '{ }',
+      ...(asked.has('xInterceptExists') ? { showWhen: { stage: 'xInterceptExists', is: 'Yes' } } : {}),
+    }),
+    yInterceptValue: (question, asked) => ({
       id: 'yInterceptValue',
       kind: 'pointInput',
       prompt: question.yInterceptValuePrompt || 'Write the y-intercept as an ordered pair.',
       feature: 'yIntercept',
       pointCount: 1,
-      allowNone: true,
+      allowNone: !asked.has('yInterceptExists'),
+      ...(asked.has('yInterceptExists') ? { showWhen: { stage: 'yInterceptExists', is: 'Yes' } } : {}),
     }),
     extremeValue: (question) => ({
       id: 'extremeValue',
@@ -540,6 +605,13 @@ const FUNCTION_CHARACTERISTICS = {
       feature: 'extremum',
       pointCount: 1,
       allowNone: true,
+    }),
+    behavior: (question) => ({
+      id: 'behavior',
+      kind: 'classification',
+      prompt: question.behaviorPrompt || 'Where is this function increasing and where is it decreasing?',
+      choices: list(question.behaviorChoices).length ? list(question.behaviorChoices) : BEHAVIOR_CHOICES,
+      graph: featureGraph(question),
     }),
     domain: (question) => ({
       id: 'domain',
@@ -571,15 +643,26 @@ const FUNCTION_CHARACTERISTICS = {
 
     const xRule = xInterceptRule(question);
     if (xRule) {
+      // The existence question is answered by the same key that says where the
+      // intercepts are: a key holding points means yes, a key saying `none`
+      // means no. Deriving it rather than asking the author for it again is
+      // what stops the two from ever disagreeing.
+      if (asked.has('xInterceptExists')) rules.xInterceptExists = xRule.none === true ? 'No' : 'Yes';
       if (asked.has('xIntercept')) rules.xIntercept = xRule;
       if (asked.has('xInterceptValue')) rules.xInterceptValue = xRule;
+      if (asked.has('zeros') && list(xRule.points).length) {
+        rules.zeros = `{${list(xRule.points).map(([x]) => x).join(', ')}}`;
+      }
     }
 
     const yRule = yInterceptRule(question);
     if (yRule) {
+      if (asked.has('yInterceptExists')) rules.yInterceptExists = yRule.none === true ? 'No' : 'Yes';
       if (asked.has('yIntercept')) rules.yIntercept = yRule;
       if (asked.has('yInterceptValue')) rules.yInterceptValue = yRule;
     }
+
+    if (asked.has('behavior') && question.behavior) rules.behavior = String(question.behavior);
 
     const kind = extremeKindOf(question);
     if (asked.has('extremeKind') && kind) {

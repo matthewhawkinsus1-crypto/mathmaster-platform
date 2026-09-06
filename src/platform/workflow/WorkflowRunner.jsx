@@ -730,6 +730,7 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey 
     case 'domainInput':
     case 'rangeInput':
     case 'intervalInput':
+    case 'valueSet':
       if (Array.isArray(stage.choices) && stage.choices.length) {
         return <ChoiceStage stage={stage} value={value} onChange={onChange} disabled={disabled} />;
       }
@@ -737,10 +738,12 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey 
         <MathInput
           value={value || ''}
           onChange={onChange}
-          toolProfile={NOTATION_PROFILE[stage.notation] || 'interval'}
+          // A set of specific values is written in braces, so a `valueSet` step
+          // defaults to the set keyboard rather than to interval notation.
+          toolProfile={NOTATION_PROFILE[stage.notation] || (stage.kind === 'valueSet' ? 'set' : 'interval')}
           showToolsInitially
-          placeholder={stage.notation || 'interval notation'}
-          ariaLabel={stage.prompt || 'Interval notation'}
+          placeholder={stage.placeholder || stage.notation || (stage.kind === 'valueSet' ? '{ }' : 'interval notation')}
+          ariaLabel={stage.prompt || (stage.kind === 'valueSet' ? 'Values' : 'Interval notation')}
         />
       );
     case 'graphFeatureSelect':

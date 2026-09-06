@@ -55,6 +55,7 @@ const FAMILY_OF_KIND = Object.freeze({
   // You say what is true, in mathematical notation or in words.
   equationInput: 'state',
   pointInput: 'state',
+  valueSet: 'state',
   domainInput: 'state',
   rangeInput: 'state',
   intervalInput: 'state',
