@@ -5,6 +5,10 @@ import { toEnforcedActivityPolicy } from '../policies/activityPolicies.js';
 import { validateAssignmentInteractionContracts } from '../interaction/interactionContract.js';
 import { auditAssignmentWorksheetPrintability } from './worksheetPrintPreflight.js';
 import { auditAssignmentSupportDifferentiation } from './supportDifferentiationPreflight.js';
+import {
+  findFirestoreUnsafeNestedArrays,
+  repairKnownFirestoreNestedArrays,
+} from '../persistence/firestoreAssignmentSafety.js';
 
 const clean = (value) => String(value ?? '').trim();
 
@@ -18,13 +22,21 @@ const titleForRole = (role) => ({
 }[role] || 'Section');
 
 export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = null } = {}) => {
-  const source = normalizeAssignmentV5({
+  const normalizedSource = normalizeAssignmentV5({
     ...input,
     assignment: {
       ...(input?.assignment || {}),
       ...(clean(titleOverride) ? { title: clean(titleOverride) } : {}),
     },
   });
+
+  // Coordinate pairs such as [[3, 0], [5, 0]] are natural authoring JSON but
+  // illegal Firestore values because an array cannot directly contain another
+  // array. Repair only known point-list fields; anything else remains visible
+  // to the generic detector below and becomes a blocking Preflight error.
+  const firestoreRepair = repairKnownFirestoreNestedArrays(normalizedSource);
+  const source = firestoreRepair.value;
+  const firestoreUnsafePaths = findFirestoreUnsafeNestedArrays(source);
 
   const structural = validateAssignmentV5(source);
   const sections = (source.sections || []).map((section, index) => ({
@@ -46,6 +58,9 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   const worksheetPrint = auditAssignmentWorksheetPrintability({ ...source, sections }, questions);
   const supportDifferentiation = auditAssignmentSupportDifferentiation({ ...source, sections }, questions);
   const errors = [
+    ...firestoreUnsafePaths.map((path) => (
+      `Firestore cannot save an array directly inside another array (found at ${path}). MathMaster cannot safely auto-repair this structure because it is not a recognized coordinate-pair list.`
+    )),
     ...structural.errors,
     ...semantic.errors,
     ...interaction.errors,
@@ -53,6 +68,9 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     ...supportDifferentiation.errors,
   ];
   const warnings = [
+    ...(firestoreRepair.repairCount > 0
+      ? [`MathMaster auto-repaired ${firestoreRepair.repairCount} coordinate pair${firestoreRepair.repairCount === 1 ? '' : 's'} into Firestore-safe point objects before save.`]
+      : []),
     ...structural.warnings,
     ...semantic.warnings,
     ...interaction.warnings,
@@ -74,13 +92,16 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   });
   warnings.push(...auditAlignmentSpecificity(questions).warnings);
 
+  const uniqueErrors = [...new Set(errors)];
+  const uniqueWarnings = [...new Set(warnings)];
+
   return {
     assignmentV5: { ...source, sections },
     sections,
     questions,
-    errors: [...new Set(errors)],
-    warnings: [...new Set(warnings)],
-    isValid: errors.length === 0,
+    errors: uniqueErrors,
+    warnings: uniqueWarnings,
+    isValid: uniqueErrors.length === 0,
   };
 };
 
