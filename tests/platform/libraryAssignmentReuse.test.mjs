@@ -106,13 +106,17 @@ test('stored Library reuse preserves a composed workflow instead of recompiling 
   const library = buildCanonicalLibraryLesson();
   const before = getStoredAssignmentQuestions(library)[0];
   assert.equal(before.type, 'functionGraph');
-  assert.equal(before.workflow.length, 8);
+  // Ten, not the eight this used to be: asking a student to classify the
+  // relationship AND state its domain and range now compiles the domain and
+  // range into one branch per classification, so the answer box no longer
+  // tells them which one it is. See authoringIntentV5.js.
+  assert.equal(before.workflow.length, 10);
   assert.equal(before.grading.equation, 'V = 12t');
 
   const prepared = prepareStoredAssignmentForReuse(library);
   const after = prepared.questions[0];
   assert.equal(after.type, 'functionGraph');
-  assert.equal(after.workflow.length, 8);
+  assert.equal(after.workflow.length, 10);
   assert.deepEqual(after.workflow, before.workflow);
   assert.deepEqual(after.grading, before.grading);
   assert.equal(after.studentChoosesX, undefined);
@@ -150,7 +154,7 @@ test('safe repair restores only the collapsed live workflow and keeps question i
   assert.deepEqual(repaired.map((question) => question.questionId), [
     '0cc8d298-a87d-49d2-82ac-fc71d4aaec09',
   ]);
-  assert.equal(repaired[0].workflow.length, 8);
+  assert.equal(repaired[0].workflow.length, 10);
   assert.equal(repaired[0].grading.equation, 'V = 12t');
   assert.equal(repair.repairedQuestionIds.length, 1);
 });
@@ -236,7 +240,7 @@ test('Honors CCMR hydration preserves unchanged canonical workflow questions byt
   const after = hydrated.questions[0];
   assert.equal(hydrated.replacements, 0);
   assert.deepEqual(after, before);
-  assert.equal(after.workflow.length, 8);
+  assert.equal(after.workflow.length, 10);
   assert.equal(after.grading.equation, 'V = 12t');
   assert.equal(after.studentChoosesX, undefined);
 });

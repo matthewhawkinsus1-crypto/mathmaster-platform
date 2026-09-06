@@ -22,6 +22,7 @@ export const STAGE_OUTPUT = Object.freeze({
   POINTS: 'points',
   GRAPH: 'graph',
   MAPPING: 'mapping',
+  MATCH: 'match',
   INTERVAL: 'interval',
   SET: 'set',
   CHOICE: 'choice',
@@ -119,11 +120,28 @@ export const INTERACTION_STAGES = Object.freeze(Object.fromEntries([
     consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.EQUATION],
     fields: {
       prompt: 'string',
+      // WHICH feature, named the same way `graphFeatureSelect` names it. Not
+      // used by the renderer — the prompt already says it — but it is what lets
+      // validation see that a question asks a student to WRITE a feature they
+      // were never asked to FIND, which is two skills marked as one.
+      feature: 'string',
       pointCount: 'number',
       allowNone: 'boolean',
       noneLabel: 'string',
       placeholder: 'string',
     },
+  }),
+  stage('figureMatch', {
+    label: 'Match each figure to a category',
+    studentAction: 'Sorts every figure shown into one of the named categories.',
+    // Recognising an exponential among four graphs and writing one from scratch
+    // are different skills; this primitive exists so a question can ask for the
+    // first without the second standing in for it.
+    produces: STAGE_OUTPUT.MATCH,
+    consumes: [],
+    // No `label` on an item, and none accepted: see figureMatch.js. The figures
+    // are Figure 1..N in written order so a name can never cue the answer.
+    fields: { prompt: 'string', items: 'array', categories: 'array' },
   }),
   stage('mappingDiagram', {
     label: 'Build the mapping diagram',
@@ -144,35 +162,63 @@ export const INTERACTION_STAGES = Object.freeze(Object.fromEntries([
     studentAction: 'States the domain.',
     produces: STAGE_OUTPUT.SET,
     consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.EQUATION],
-    fields: { prompt: 'string', notation: 'string', choices: 'array' },
+    // `graph` is the figure being read. A step that says "state the domain of
+    // the graph shown" with no graph on it is unanswerable, and that is what a
+    // staged domain question was before this field existed.
+    fields: { prompt: 'string', notation: 'string', choices: 'array', graph: 'object' },
   }),
   stage('rangeInput', {
     label: 'State the range',
     studentAction: 'States the range.',
     produces: STAGE_OUTPUT.SET,
     consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.EQUATION],
-    fields: { prompt: 'string', notation: 'string', choices: 'array' },
+    // `graph` is the figure being read. A step that says "state the domain of
+    // the graph shown" with no graph on it is unanswerable, and that is what a
+    // staged domain question was before this field existed.
+    fields: { prompt: 'string', notation: 'string', choices: 'array', graph: 'object' },
+  }),
+  stage('valueSet', {
+    label: 'Write the values',
+    studentAction: 'Writes the specific values that satisfy a condition — the zeros of a function, say — as a set.',
+    // Distinct from `domainInput` on purpose. A domain is every input the
+    // function accepts; the zeros are the particular inputs where it is zero.
+    // A student can state one correctly and the other wrongly, and a question
+    // that asks for both should be able to say which.
+    // Distinct from `pointInput` for the same reason: (4, 0) is the
+    // x-intercept and x = 4 is the zero, and telling those apart is the skill.
+    produces: STAGE_OUTPUT.SET,
+    consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.EQUATION],
+    fields: { prompt: 'string', notation: 'string', placeholder: 'string', choices: 'array', graph: 'object' },
   }),
   stage('intervalInput', {
     label: 'Write the interval',
     studentAction: 'Writes an interval or union in the requested notation.',
     produces: STAGE_OUTPUT.INTERVAL,
     consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.INTERVAL],
-    fields: { prompt: 'string', notation: 'string' },
+    fields: { prompt: 'string', notation: 'string', graph: 'object' },
   }),
   stage('classification', {
     label: 'Classify',
     studentAction: 'Chooses between named categories.',
     produces: STAGE_OUTPUT.CHOICE,
     consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.EQUATION],
-    fields: { prompt: 'string', choices: 'array' },
+    // `previewOnGraph` draws whichever option is selected — see choicePreview.js.
+    // Opt-in, because normally the platform does not show a student where an
+    // answer is; here it shows what a symbol MEANS, identically for every
+    // option, so it never says which one is right.
+    //
+    // `graph` is the figure the question is ABOUT, drawn read-only above the
+    // options. A step that asks "does this graph have an x-intercept?" with no
+    // graph on screen is unanswerable, and that is what shipped when the field
+    // was missing here and the authored value was silently dropped.
+    fields: { prompt: 'string', choices: 'array', previewOnGraph: 'object', graph: 'object' },
   }),
   stage('multipleChoice', {
     label: 'Choose an answer',
     studentAction: 'Selects one supplied option.',
     produces: STAGE_OUTPUT.CHOICE,
     consumes: [],
-    fields: { prompt: 'string', choices: 'array' },
+    fields: { prompt: 'string', choices: 'array', previewOnGraph: 'object', graph: 'object' },
   }),
   stage('interpretation', {
     label: 'Interpret in context',

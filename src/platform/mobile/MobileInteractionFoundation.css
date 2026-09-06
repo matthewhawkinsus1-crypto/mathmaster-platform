@@ -18,8 +18,15 @@
   overflow-x: clip;
 }
 
+/* !important because this rule was being defeated in silence. A component
+   written for a desktop workspace sets `style={{ minHeight: '40px' }}` on its
+   own controls, and an inline style beats any class selector — so the plotting
+   workspace shipped 40px coordinate boxes and a 40px "Place at this
+   coordinate" button on a phone while this file claimed 44. A foundation any
+   component can override by accident is not a foundation. It is scoped to the
+   mobile root, so a dense desktop layout is unaffected. */
 .mathmaster-mobile-interaction-root :is(button, [role="button"], input, select, textarea, math-field) {
-  min-height: 44px;
+  min-height: 44px !important;
 }
 
 .mathmaster-mobile-local-scroll {

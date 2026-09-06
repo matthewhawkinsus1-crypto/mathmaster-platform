@@ -58,8 +58,20 @@
   line-height: 1.45 !important;
 }
 
+/* A single-tool question renders the question prompt twice: once in the sticky
+   panel above and once inside the tool. Hide the copy inside the workspace. */
 .mathmaster-question-container .math-tool-workspace .mathmaster-question-prompt {
   display: none !important;
+}
+
+/* EXCEPT in a composed question, where it is not a copy.
+   Every stage carries its own instruction — "Plot the points from the table",
+   "Click the x-intercept", "State the range" — and the panel above holds only
+   the question's opening sentence. The rule above was hiding all eleven of
+   them, so a student on a phone got a graph, a row of numbered chips, and no
+   words anywhere saying what the current step wanted. */
+.mathmaster-question-container .math-tool-workspace .workflow-stage .mathmaster-question-prompt {
+  display: block !important;
 }
 
 .mathmaster-question-container .math-tool-workspace {

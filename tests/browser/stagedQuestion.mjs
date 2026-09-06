@@ -58,6 +58,12 @@ const QUESTION = {
 // Stages where a printed coordinate would answer a later stage for the student.
 const MUST_NOT_LEAK = new Set(['xIntercept', 'yIntercept', 'extremePoint']);
 
+// Stages where the student's answer is a POINT they put on the plane. On a
+// phone the plane is about 320px and enlarging it wins twelve percent, so
+// zooming is what makes a lattice point the size of a fingertip reachable —
+// and the buttons are the only path for a student who cannot pinch.
+const MUST_OFFER_ZOOM = new Set(['plot', 'xIntercept', 'yIntercept', 'extremePoint']);
+
 const findings = [];
 const browser = await chromium.launch();
 
@@ -86,12 +92,14 @@ for (const device of DEVICES) {
   await page.waitForFunction(() => typeof window.__mmStaged === 'function');
 
   for (const stage of expanded.workflow) {
-    // `source` is stripped: a stage mounted alone has no upstream stage to be
-    // built from, and the runner correctly refuses to render one that is
-    // waiting on work that is not there ("Finish plot first"). That gating is
-    // right, and it is unit-tested; keeping it here would only measure the
-    // harness.
-    const { source: _source, ...solo } = stage;
+    // `source` and `showWhen` are stripped: a stage mounted alone has no
+    // upstream stage to be built from and no controller to branch on, and the
+    // runner correctly refuses to render one that is waiting on work that is
+    // not there ("Finish plot first") or hides one whose branch was never
+    // taken. Both are right, and both are unit-tested — tests/platform/
+    // graphFeatureStages.test.mjs and workflowBranching.test.mjs. Keeping them
+    // here would only measure the harness.
+    const { source: _source, showWhen: _showWhen, ...solo } = stage;
     await page.evaluate(({ id, one, prompt }) => window.__mmStaged({
       id,
       question: { prompt, workflow: [one], content: { prompt }, grading: {} },
@@ -124,6 +132,9 @@ for (const device of DEVICES) {
         docHeight: Math.round(document.documentElement.scrollHeight),
         viewport: window.innerHeight,
         svgPairs: svgPairs.slice(0, 6),
+        zoomControls: ['zoom in', 'zoom out', 'reset view'].every((wanted) => [...root.querySelectorAll('button')]
+          .filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; })
+          .some((el) => `${el.textContent || ''} ${el.getAttribute('aria-label') || ''}`.toLowerCase().includes(wanted))),
       };
     });
 
@@ -146,6 +157,13 @@ for (const device of DEVICES) {
         issue: `graph runs ${measured.planeBottom - measured.viewport}px below the fold`,
       });
     }
+    if (MUST_OFFER_ZOOM.has(stage.id) && !measured.zoomControls) {
+      findings.push({
+        device: device.id,
+        stage: stage.id,
+        issue: 'a plane the student marks, with no zoom buttons',
+      });
+    }
     if (MUST_NOT_LEAK.has(stage.id) && measured.svgPairs.length) {
       findings.push({
         device: device.id,
@@ -158,7 +176,8 @@ for (const device of DEVICES) {
       + ` prompt=${measured.promptVisible ? 'y' : 'N'} control=${measured.controlVisible ? 'y' : 'N'}`
       + ` plane=${String(measured.planeHeight).padStart(3)}px`
       + ` page=${String(measured.docHeight).padStart(4)}/${measured.viewport}`
-      + ` pairsOnPlane=${measured.svgPairs.length}`,
+      + ` pairsOnPlane=${measured.svgPairs.length}`
+      + ` zoom=${measured.zoomControls ? 'y' : 'N'}`,
     );
   }
 

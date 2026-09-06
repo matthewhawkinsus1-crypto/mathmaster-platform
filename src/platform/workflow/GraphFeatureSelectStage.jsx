@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import CoordinatePlane from '../../tools/shared/CoordinatePlane';
+import EnlargeableFigure from '../../components/common/EnlargeableFigure';
 import { evaluateModelAt } from './modelExpression';
 
 /*
@@ -126,7 +127,20 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
 
   const marks = none ? [] : selections.map(([x, y]) => ({ x, y, fill: '#d93025', r: 7 }));
 
-  return (
+  /*
+   * ENLARGE TAKES THE ANSWERING WITH IT.
+   *
+   * CoordinatePlane can enlarge itself, but that opens a modal holding only the
+   * plane: a student who went full-window to find an intercept accurately then
+   * had to close it again to press "this graph has none" or to move on. On a
+   * phone that is the difference between a usable question and an unusable one.
+   *
+   * So the plane's own enlarge is off and the WHOLE STAGE goes into the modal —
+   * the marks, the Clear button, the none-of-these button and the running
+   * count. The prompt rides along as `taskText`, because the modal covers the
+   * question that sent them there.
+   */
+  const body = (
     <div>
       <CoordinatePlane
         {...viewWindow}
@@ -144,6 +158,7 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
         cursorLabel={featureLabel(stage?.feature)}
         ariaLabel={`Graph. Mark the ${featureLabel(stage?.feature)}.`}
         snapStep={Number(graph.snapStep) > 0 ? Number(graph.snapStep) : 1}
+        enlargeable={false}
       />
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
@@ -174,5 +189,16 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
           : `${selections.length} of ${selectionCount} marked.`}
       </p>
     </div>
+  );
+
+  return (
+    <EnlargeableFigure
+      label={`Graph for marking the ${featureLabel(stage?.feature)}`}
+      enlargeLabel="Enlarge to mark"
+      taskText={stage?.prompt || ''}
+      style={{ width: '100%' }}
+    >
+      {body}
+    </EnlargeableFigure>
   );
 }

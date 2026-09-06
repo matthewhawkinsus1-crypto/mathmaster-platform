@@ -9,10 +9,13 @@ import GraphDisplay from '../../GraphDisplay';
 import StepByStepAlgebra from '../../StepByStepAlgebra';
 import IntervalNumberLine from '../../tools/intervalNumberLine/IntervalNumberLine';
 import AxisSetupStage from './AxisSetupStage';
+import FigureMatchStage from './FigureMatchStage';
 import GraphFeatureSelectStage from './GraphFeatureSelectStage';
+import CoordinatePlane from '../../tools/shared/CoordinatePlane';
+import { previewFigures } from './choicePreview';
 import RelationMapping from '../../tools/relationMapping/RelationMapping';
 import { getStage } from './interactionStages';
-import { hasStageResponse, lockedStageIds, readComposedQuestion, resolveStageInput, summarizeWorkflowProgress } from './questionWorkflow';
+import { activeStages, hasStageResponse, lockedStageIds, readComposedQuestion, resolveStageInput, summarizeWorkflowProgress } from './questionWorkflow';
 import { checkTableConsistency, gradeWorkflow } from './workflowGrading';
 import { buildExpressionFunctionSpec, evaluateModelAt, evaluateNumericValue, parseIntervalDomainRestriction } from './modelExpression';
 import { evaluateGraphFunction } from '../../functionGraphUtils';
@@ -34,6 +37,8 @@ import './WorkflowFocusMode.css';
 // `{ question, onStateChange }` for the original components and
 // `{ questionData, onAction }` for the newer tools. Adapters live in one table
 // so a stage is a few lines rather than a special case.
+
+const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
 
 const panel = {
   border: '1px solid #dadce0', borderRadius: 12, background: '#fff',
@@ -183,12 +188,140 @@ function PointInputStage({ stage, value, onChange, disabled }) {
   );
 }
 
-function ChoiceStage({ stage, value, onChange, disabled }) {
+/*
+ * THE GRAPH SHOWS WHAT THE SELECTED OPTION MEANS.
+ *
+ * The platform's usual rule is that it does not show a student where an answer
+ * is. This is the deliberate exception, and it is safe for one reason: EVERY
+ * option draws, in exactly the same style. Picking "(-2, 5)" drops a marker
+ * there; picking "(2, 5)" moves it. Neither looks more correct, because the
+ * drawing says what the symbol means, not how close to right it is.
+ *
+ * A student who cannot yet read "x = -2" as a vertical line can now see one,
+ * decide, and still be wrong — which is what makes it a scaffold rather than an
+ * answer key. Validation refuses a stage where only some options can be drawn,
+ * because the one that stayed blank would be marked out as different.
+ */
+function ChoicePreviewGraph({ stage, value }) {
+  const config = isObject(stage?.previewOnGraph) ? stage.previewOnGraph : null;
+  const graph = isObject(config?.graph) ? config.graph : (isObject(config) ? config : {});
+  const model = typeof graph.model === 'string' ? graph.model.trim() : '';
+
+  const functions = useMemo(() => {
+    if (!model) return [];
+    const evaluate = (x) => {
+      const y = evaluateModelAt(model, x);
+      return Number.isFinite(y) ? y : Number.NaN;
+    };
+    return Number.isFinite(evaluate(0)) || Number.isFinite(evaluate(1)) ? [evaluate] : [];
+  }, [model]);
+
+  const figures = previewFigures(value);
+  const given = Array.isArray(graph.points) ? graph.points : [];
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <CoordinatePlane
+        xMin={Number.isFinite(Number(graph.xMin)) ? Number(graph.xMin) : -10}
+        xMax={Number.isFinite(Number(graph.xMax)) ? Number(graph.xMax) : 10}
+        yMin={Number.isFinite(Number(graph.yMin)) ? Number(graph.yMin) : -10}
+        yMax={Number.isFinite(Number(graph.yMax)) ? Number(graph.yMax) : 10}
+        functions={functions}
+        points={[...given, ...figures.points]}
+        lines={figures.lines}
+        verticalLines={figures.verticalLines}
+        horizontalLines={figures.horizontalLines}
+        ariaLabel={value ? `Graph showing the option you selected, ${value}` : 'Graph'}
+      />
+      <p style={{ margin: '6px 0 0', fontSize: 13, color: '#5f6b7a' }} aria-live="polite">
+        {value
+          ? `Showing ${value} on the graph. Try another option to see what it looks like.`
+          : 'Choose an option to see it drawn on the graph.'}
+      </p>
+    </div>
+  );
+}
+
+/*
+ * THE FIGURE THE QUESTION IS ABOUT, DRAWN READ-ONLY.
+ *
+ * Not the same thing as ChoicePreviewGraph, which draws the OPTION the student
+ * is considering. This draws the graph the question asks about — "does this
+ * graph have an x-intercept?" is unanswerable without it, and the existence
+ * steps shipped exactly that way until it was measured in a browser.
+ *
+ * Read-only and coordinate-suppressed for the same reason every feature stage
+ * is: a later step asks the student to write the intercept down.
+ */
+function StageFigure({ graph, label }) {
+  const spec = isObject(graph) ? graph : {};
+  const model = typeof spec.model === 'string' ? spec.model.trim() : '';
+  const functions = useMemo(() => {
+    if (!model) return [];
+    const evaluate = (x) => {
+      const y = evaluateModelAt(model, x);
+      return Number.isFinite(y) ? y : Number.NaN;
+    };
+    return Number.isFinite(evaluate(0)) || Number.isFinite(evaluate(1)) ? [evaluate] : [];
+  }, [model]);
+  const points = Array.isArray(spec.points) ? spec.points : [];
+  if (!functions.length && !points.length) return null;
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <CoordinatePlane
+        xMin={Number.isFinite(Number(spec.xMin)) ? Number(spec.xMin) : -10}
+        xMax={Number.isFinite(Number(spec.xMax)) ? Number(spec.xMax) : 10}
+        yMin={Number.isFinite(Number(spec.yMin)) ? Number(spec.yMin) : -10}
+        yMax={Number.isFinite(Number(spec.yMax)) ? Number(spec.yMax) : 10}
+        functions={functions}
+        points={points.map((point) => (Array.isArray(point)
+          ? { x: point[0], y: point[1], fill: '#1a73e8', r: 5 }
+          : point))}
+        revealCoordinates={false}
+        // Zoomable even though it takes no answer. On a 390px phone the plane
+        // is 338px wide and a restricted domain's endpoints can sit two
+        // gridlines apart; being able to zoom in on the part that matters is
+        // the difference between reading it and guessing. Buttons, not just
+        // pinch — see the note in CoordinatePlane.
+        panZoom
+        ariaLabel={label || 'Graph'}
+      />
+    </div>
+  );
+}
+
+function ChoiceStage({ stage, value, onChange, disabled, controlsBranch = false }) {
+  /*
+   * A BRANCH CONTROLLER RENDERS EXACTLY THE CHOICES PREFLIGHT VALIDATED.
+   *
+   * `strengthenTwoChoiceSet` turns a bare yes/no into four options so a binary
+   * question is not a coin flip — good for a standalone multiple choice, and
+   * wrong here twice over. "Both yes and no" is not a possible answer to "does
+   * this graph have an x-intercept?", and a student who picks an injected
+   * option satisfies no `showWhen`, so every step that depended on this one
+   * silently disappears and the question ends early.
+   *
+   * Where extra options ARE wanted — "neither discrete nor continuous" is a
+   * real misconception worth offering — they belong in the authored choice
+   * list, where validation can see them and the author decides what each one
+   * leads to. An option injected at render time is invisible to both.
+   */
+  const authored = Array.isArray(stage.choices) ? stage.choices : [];
+  // A `classification` names the categories the mathematics actually has, so
+  // the platform never adds one. "Both exponential growth and decay" is not a
+  // thing a graph can be, and neither is a fourth function family beyond the
+  // three the step listed. `multipleChoice` is the general step and keeps the
+  // strengthener, which exists so a bare two-option item is not a coin flip.
+  const closedSet = controlsBranch || stage.kind === 'classification';
   const choices = stableShuffleChoices(
-    strengthenTwoChoiceSet(Array.isArray(stage.choices) ? stage.choices : []),
+    closedSet ? authored : strengthenTwoChoiceSet(authored),
     choiceSeed(stage.id, stage.prompt, stage.label),
   );
   return (
+    <>
+    {stage?.previewOnGraph
+      ? <ChoicePreviewGraph stage={stage} value={value} />
+      : <StageFigure graph={stage?.graph} label={stage?.prompt} />}
     <div style={chipRow}>
       {choices.map((choice) => {
         const id = typeof choice === 'string' ? choice : choice?.id ?? String(choice);
@@ -206,6 +339,7 @@ function ChoiceStage({ stage, value, onChange, disabled }) {
         );
       })}
     </div>
+    </>
   );
 }
 
@@ -639,7 +773,7 @@ const DELEGATES = {
 
 const NOTATION_PROFILE = { interval: 'interval', inequality: 'inequality', set: 'set' };
 
-function StageBody({ stage, input, content, value, onChange, disabled, draftKey }) {
+function StageBody({ stage, input, content, value, onChange, disabled, draftKey, controlsBranch = false, openKeypad = true, showFigure = true }) {
   const delegate = DELEGATES[stage.kind];
   if (delegate) return delegate({ stage, input, content, onChange, draftKey, disabled });
 
@@ -668,18 +802,24 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey 
     case 'domainInput':
     case 'rangeInput':
     case 'intervalInput':
+    case 'valueSet':
       if (Array.isArray(stage.choices) && stage.choices.length) {
-        return <ChoiceStage stage={stage} value={value} onChange={onChange} disabled={disabled} />;
+        return <ChoiceStage stage={stage} value={value} onChange={onChange} disabled={disabled} controlsBranch={controlsBranch} />;
       }
       return (
-        <MathInput
-          value={value || ''}
-          onChange={onChange}
-          toolProfile={NOTATION_PROFILE[stage.notation] || 'interval'}
-          showToolsInitially
-          placeholder={stage.notation || 'interval notation'}
-          ariaLabel={stage.prompt || 'Interval notation'}
-        />
+        <>
+          {showFigure ? <StageFigure graph={stage?.graph} label={stage?.prompt} /> : null}
+          <MathInput
+            value={value || ''}
+            onChange={onChange}
+            // A set of specific values is written in braces, so a `valueSet`
+            // step defaults to the set keyboard rather than to interval notation.
+            toolProfile={NOTATION_PROFILE[stage.notation] || (stage.kind === 'valueSet' ? 'set' : 'interval')}
+            showToolsInitially={openKeypad}
+            placeholder={stage.placeholder || stage.notation || (stage.kind === 'valueSet' ? '{ }' : 'interval notation')}
+            ariaLabel={stage.prompt || (stage.kind === 'valueSet' ? 'Values' : 'Interval notation')}
+          />
+        </>
       );
     case 'graphFeatureSelect':
       return (
@@ -693,9 +833,11 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey 
       );
     case 'pointInput':
       return <PointInputStage stage={stage} value={value} onChange={onChange} disabled={disabled} />;
+    case 'figureMatch':
+      return <FigureMatchStage stage={stage} value={value} onChange={onChange} disabled={disabled} />;
     case 'classification':
     case 'multipleChoice':
-      return <ChoiceStage stage={stage} value={value} onChange={onChange} disabled={disabled} />;
+      return <ChoiceStage stage={stage} value={value} onChange={onChange} disabled={disabled} controlsBranch={controlsBranch} />;
     case 'quantityRoles':
       return <QuantityRolesStage stage={stage} value={value} onChange={onChange} disabled={disabled} />;
     case 'interpretation':
@@ -863,7 +1005,7 @@ export default function WorkflowRunner({
   draftKey = null,
   showPrompt = true,
 }) {
-  const { content, workflow, grading } = useMemo(() => readComposedQuestion(question), [question]);
+  const { content, workflow: authoredWorkflow, grading } = useMemo(() => readComposedQuestion(question), [question]);
   const [responses, setResponses] = useLocalDraftState(
     draftKey ? `${draftKey}:workflow-responses` : null,
     {},
@@ -872,7 +1014,72 @@ export default function WorkflowRunner({
     draftKey ? `${draftKey}:workflow-stage` : null,
     0,
   );
-  const focusMode = shouldUseWorkflowFocusMode(workflow);
+  // ONLY THE STEPS THIS STUDENT IS BEING ASKED.
+  //
+  // A stage with `showWhen` appears once its controlling choice matches what
+  // the student picked, so the branch they did not take is never rendered,
+  // never numbered, and never counted. Everything downstream reads this list,
+  // which is why the navigator, the rail, the counter and the grader all agree
+  // without each having to remember about branching.
+  const workflow = useMemo(
+    () => activeStages(authoredWorkflow, responses),
+    [authoredWorkflow, responses],
+  );
+
+  // Focus mode is decided from the AUTHORED workflow, not the visible one. A
+  // branch that took the count under the threshold would otherwise flip the
+  // whole layout mid-question, which is disorienting in the middle of a graph.
+  const focusMode = shouldUseWorkflowFocusMode(authoredWorkflow);
+  // Which steps some other step branches on. Their choice lists are rendered
+  // exactly as authored — see ChoiceStage.
+  const branchControllerIds = useMemo(() => new Set(
+    (Array.isArray(authoredWorkflow) ? authoredWorkflow : [])
+      .map((stage) => (isObject(stage?.showWhen) ? String(stage.showWhen.stage || '') : ''))
+      .filter(Boolean),
+  ), [authoredWorkflow]);
+
+  /*
+   * ONE MATH KEYBOARD AT A TIME.
+   *
+   * Every notation step opens its keypad on mount so a student lands ready to
+   * type. In focus mode that is one keypad, because one step is on screen. In a
+   * stacked question it is one per step: a domain-and-range question opened on
+   * a 390px phone with fifty keypad keys visible at once, most of them belonging
+   * to a box the student was not answering yet.
+   *
+   * So only the first unanswered notation step opens itself; the rest open when
+   * the student taps into them, which is when they wanted a keyboard anyway.
+   */
+  /*
+   * THE SAME GRAPH, DRAWN ONCE.
+   *
+   * Every set step carries the figure it is about, because it may be the only
+   * step on screen. In focus mode it is — one step at a time — so each draws
+   * its own. Stacked, consecutive steps about the SAME graph would draw it
+   * once each: a domain-and-range question rendered two identical planes on a
+   * 390px phone, half the screen spent saying the same thing twice.
+   */
+  const figureStageIds = useMemo(() => {
+    const ids = new Set();
+    let previous = '';
+    (Array.isArray(workflow) ? workflow : []).forEach((stage) => {
+      if (!isObject(stage?.graph)) return;
+      let fingerprint = '';
+      try { fingerprint = JSON.stringify(stage.graph); } catch { fingerprint = String(stage.id); }
+      if (fingerprint !== previous) ids.add(stage.id);
+      previous = fingerprint;
+    });
+    return ids;
+  }, [workflow]);
+
+  const KEYPAD_KINDS = ['domainInput', 'rangeInput', 'intervalInput', 'valueSet'];
+  const openKeypadStageId = useMemo(() => {
+    const notationStages = (Array.isArray(workflow) ? workflow : [])
+      .filter((stage) => KEYPAD_KINDS.includes(stage?.kind));
+    if (notationStages.length <= 1) return notationStages[0]?.id ?? null;
+    const firstUnanswered = notationStages.find((stage) => !hasStageResponse(responses[stage.id]));
+    return (firstUnanswered || notationStages[0]).id;
+  }, [workflow, responses]);
   const onStateChangeRef = useRef(onStateChange);
   const onProgressChangeRef = useRef(onProgressChange);
   useEffect(() => { onStateChangeRef.current = onStateChange; }, [onStateChange]);
@@ -994,9 +1201,15 @@ export default function WorkflowRunner({
     const continuityReady = !stage.continuityStageId || hasStageResponse(responses?.[stage.continuityStageId]);
     const waiting = (Boolean(stage.sourceStageId) && !input.ready) || !continuityReady;
     const waitingStageId = !continuityReady ? stage.continuityStageId : stage.sourceStageId;
+    // `workflow-stage` in BOTH modes, focus or not. The mobile stylesheet hides
+    // the prompt inside a tool workspace, because a single-tool question repeats
+    // the question prompt there and the phone layout already shows it above. A
+    // composed question's stage prompt is not that repetition — it is the only
+    // sentence saying what THIS step wants — so the stylesheet needs a hook to
+    // tell the two apart, and a stage with no class at all gave it none.
     const shellClass = focusMode
-      ? `workflow-focus__stage-shell${focused ? ' workflow-focus__stage-shell--active' : ''}`
-      : '';
+      ? `workflow-stage workflow-focus__stage-shell${focused ? ' workflow-focus__stage-shell--active' : ''}`
+      : 'workflow-stage';
 
     if (waiting) {
       const upstream = workflow.find((entry) => entry.id === waitingStageId);
@@ -1044,6 +1257,9 @@ export default function WorkflowRunner({
               value={responses[stage.id]}
               onChange={(value) => setResponse(stage.id, (readDelegateResponse[stage.kind] || ((raw) => raw))(value, { stage, input, content }))}
               disabled={disabled}
+              controlsBranch={branchControllerIds.has(stage.id)}
+              openKeypad={stage.id === openKeypadStageId}
+              showFigure={focusMode || figureStageIds.has(stage.id)}
               draftKey={draftKey ? `${draftKey}:${stage.id}${stage.sourceStageId && ['functionGraph', 'coordinatePlot'].includes(stage.kind) ? `:${dependencyFingerprint(input.value)}` : ''}` : null}
             />
           </>

@@ -1284,7 +1284,7 @@
         "headline": "At a constant rate, output is rate times time.",
         "reasoning": [
           "Each minute contributes {{r}} parts.",
-          "${{r}}\times{{t}}={{parts}}$."
+          "${{r}}\\times{{t}}={{parts}}$."
         ],
         "answerSummary": "{{parts}}"
       },
@@ -1701,7 +1701,7 @@
       "solutionReview": {
         "headline": "Time equals total output divided by unit rate.",
         "reasoning": [
-          "Use $\text{time}=\text{pages}/\text{rate}$.",
+          "Use $\\text{time}=\\text{pages}/\\text{rate}$.",
           "${{pages}}/{{r}}={{t}}$ minutes."
         ],
         "answerSummary": "{{t}}"
@@ -2522,7 +2522,7 @@
         "source": "MathMaster generative Path authoring",
         "kit": 2
       },
-      "prompt": "Use $1\text{ in}\\approx2.5\text{ cm}$. About how many centimeters are {{inch}} inches?",
+      "prompt": "Use $1\\text{ in}\\approx2.5\\text{ cm}$. About how many centimeters are {{inch}} inches?",
       "responseFields": [
         {
           "id": "answer",
@@ -2535,7 +2535,7 @@
         "headline": "Multiply by the conversion rate in centimeters per inch.",
         "reasoning": [
           "Use $2.5$ centimeters for each inch.",
-          "${{inch}}\times2.5={{cm}}$ centimeters."
+          "${{inch}}\\times2.5={{cm}}$ centimeters."
         ],
         "answerSummary": "{{cm}}"
       },
@@ -2579,7 +2579,7 @@
         "source": "MathMaster generative Path authoring",
         "kit": 2
       },
-      "prompt": "Use $1\text{ mi}\\approx1.6\text{ km}$. About how many kilometers are {{mi}} miles?",
+      "prompt": "Use $1\\text{ mi}\\approx1.6\\text{ km}$. About how many kilometers are {{mi}} miles?",
       "responseFields": [
         {
           "id": "answer",
@@ -2636,7 +2636,7 @@
         "source": "MathMaster generative Path authoring",
         "kit": 2
       },
-      "prompt": "Use $1\text{ ft}\\approx0.3\text{ m}$. About how many meters are {{ft}} feet?",
+      "prompt": "Use $1\\text{ ft}\\approx0.3\\text{ m}$. About how many meters are {{ft}} feet?",
       "stimulus": {
         "table": {
           "headers": [
@@ -2667,7 +2667,7 @@
         "headline": "Scale both sides of the conversion relationship.",
         "reasoning": [
           "Each foot corresponds to about 0.3 meter.",
-          "${{ft}}\times0.3={{m}}$."
+          "${{ft}}\\times0.3={{m}}$."
         ],
         "answerSummary": "{{m}}"
       },
@@ -2711,7 +2711,7 @@
         "source": "MathMaster generative Path authoring",
         "kit": 2
       },
-      "prompt": "Use $1\text{ mi}\\approx1.6\text{ km}$. A trip is {{km}} km. About how many miles is that?",
+      "prompt": "Use $1\\text{ mi}\\approx1.6\\text{ km}$. A trip is {{km}} km. About how many miles is that?",
       "responseFields": [
         {
           "id": "answer",
@@ -2768,11 +2768,11 @@
         "source": "MathMaster generative Path authoring",
         "kit": 2
       },
-      "prompt": "A length is {{inch}} inches. Which expression converts it to centimeters using $1\text{ in}\\approx2.5\text{ cm}$?",
+      "prompt": "A length is {{inch}} inches. Which expression converts it to centimeters using $1\\text{ in}\\approx2.5\\text{ cm}$?",
       "choices": [
         {
           "id": "mul",
-          "label": "${{inch}}\times2.5$"
+          "label": "${{inch}}\\times2.5$"
         },
         {
           "id": "div",
@@ -2911,7 +2911,7 @@
         "headline": "Multiply corresponding lengths by the scale factor.",
         "reasoning": [
           "The larger figure is {{k}} times the smaller.",
-          "${{a}}\times{{k}}={{b}}$."
+          "${{a}}\\times{{k}}={{b}}$."
         ],
         "answerSummary": "{{b}}"
       },
@@ -3526,7 +3526,7 @@
         "headline": "Scale drawings use proportional corresponding distances.",
         "reasoning": [
           "Each map centimeter represents {{k}} kilometers.",
-          "${{cm}}\times{{k}}={{km}}$ kilometers."
+          "${{cm}}\\times{{k}}={{km}}$ kilometers."
         ],
         "answerSummary": "{{km}}"
       },
@@ -3588,7 +3588,7 @@
         "headline": "Multiply drawing length by the scale factor.",
         "reasoning": [
           "The scale factor is {{k}} feet per drawing inch.",
-          "${{inch}}\times{{k}}={{feet}}$ feet."
+          "${{inch}}\\times{{k}}={{feet}}$ feet."
         ],
         "answerSummary": "{{feet}}"
       },
@@ -3927,7 +3927,7 @@
         "headline": "A compound sample space multiplies the choices from each stage.",
         "reasoning": [
           "The spinner has {{s}} outcomes and the coin has 2.",
-          "${{s}}\times2={{count}}$ ordered outcomes."
+          "${{s}}\\times2={{count}}$ ordered outcomes."
         ],
         "answerSummary": "{{count}}"
       },
@@ -4109,7 +4109,7 @@
         "headline": "A complete tree has one leaf for every combination.",
         "reasoning": [
           "Multiply the number of branches at each stage.",
-          "${{a}}\times{{b}}\times{{c}}={{count}}$."
+          "${{a}}\\times{{b}}\\times{{c}}={{count}}$."
         ],
         "answerSummary": "{{count}}"
       },
@@ -4902,7 +4902,7 @@
         "source": "MathMaster generative Path authoring",
         "kit": 2
       },
-      "prompt": "A fair spinner has {{total}} equal sections, {{fav}} of which are blue. What is $P(\text{blue})$?",
+      "prompt": "A fair spinner has {{total}} equal sections, {{fav}} of which are blue. What is $P(\\text{blue})$?",
       "responseFields": [
         {
           "id": "answer",
@@ -4915,7 +4915,7 @@
         "headline": "Theoretical probability is favorable outcomes over total equally likely outcomes.",
         "reasoning": [
           "There are {{fav}} favorable sections out of {{total}}.",
-          "$P(\text{blue})={{fav}}/{{total}}$."
+          "$P(\\text{blue})={{fav}}/{{total}}$."
         ],
         "answerSummary": "{{fav}}/{{total}}"
       },
@@ -4976,7 +4976,7 @@
       "solutionReview": {
         "headline": "A specified outcome of two independent equal-outcome stages has probability one over the sample-space size.",
         "reasoning": [
-          "The sample space has ${{a}}\times{{b}}={{total}}$ ordered outcomes.",
+          "The sample space has ${{a}}\\times{{b}}={{total}}$ ordered outcomes.",
           "Exactly one is the specified pair, so the probability is $1/{{total}}$."
         ],
         "answerSummary": "1/{{total}}"
@@ -6556,7 +6556,7 @@
         "headline": "Compare predicted counts by applying each experimental rate to the same number of trials.",
         "reasoning": [
           "A predicts ${{a}}\\%$ of {{n}} and B predicts ${{b}}\\%$.",
-          "The difference is $({{a}}-{{b}})\times{{k}}={{diff}}$."
+          "The difference is $({{a}}-{{b}})\\times{{k}}={{diff}}$."
         ],
         "answerSummary": "{{diff}}"
       },
@@ -7587,7 +7587,7 @@
       "solutionReview": {
         "headline": "First find rectangular base area, then take one-third of base-area times height.",
         "reasoning": [
-          "Base area is ${{l}}\times{{w}}$.",
+          "Base area is ${{l}}\\times{{w}}$.",
           "Then $V=({{l}}\\cdot{{w}}\\cdot{{h}})/3={{v}}$."
         ],
         "answerSummary": "{{v}}"
@@ -8337,7 +8337,7 @@
       "solutionReview": {
         "headline": "A rectangular prism uses $V=lwh$.",
         "reasoning": [
-          "Base area is ${{l}}\times{{w}}$.",
+          "Base area is ${{l}}\\times{{w}}$.",
           "Multiply by height {{h}} to get volume {{v}}."
         ],
         "answerSummary": "{{v}}"
@@ -8405,7 +8405,7 @@
         "headline": "Any prism has volume base area times prism height.",
         "reasoning": [
           "The triangular base area is already {{B}}.",
-          "${{B}}\times{{h}}={{v}}$."
+          "${{B}}\\times{{h}}={{v}}$."
         ],
         "answerSummary": "{{v}}"
       },
@@ -8964,7 +8964,7 @@
       "solutionReview": {
         "headline": "Add the areas of non-overlapping component figures.",
         "reasoning": [
-          "Rectangle area is ${{w}}\times{{h}}$.",
+          "Rectangle area is ${{w}}\\times{{h}}$.",
           "Triangle area is ${{b}}{{t}}/2$; their sum is {{A}}."
         ],
         "answerSummary": "{{A}}"
@@ -9111,7 +9111,7 @@
       "solutionReview": {
         "headline": "A semicircle contributes half the area of a full circle.",
         "reasoning": [
-          "Rectangle area is ${{w}}\times{{h}}$.",
+          "Rectangle area is ${{w}}\\times{{h}}$.",
           "Semicircle area is $3.14({{r}}^2)/2$; together they total {{A}}."
         ],
         "answerSummary": "{{A}}"

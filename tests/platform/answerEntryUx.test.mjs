@@ -5,6 +5,7 @@ import {
   focusFirstAnswerControl,
   isSingleLineAnswerTarget,
   shouldAdvanceOnEnter,
+  shouldFocusAnswerOnOpen,
   shouldSubmitAnswerOnEnter,
 } from '../../src/platform/interaction/answerEntryUx.js';
 
@@ -75,4 +76,42 @@ test('shared student runtimes use the answer-entry behavior', () => {
   assert.match(pathPlayer, /shouldAdvanceOnEnter/);
   assert.doesNotMatch(pathPlayer, /tierInfo\.label/);
   assert.match(pathPlayer, /challenge\.label/);
+});
+
+test('a question with one answer box still opens ready to type', () => {
+  // The behaviour this guard narrows, not replaces: on a Chromebook with a
+  // single text answer, landing on the page with the cursor already in the box
+  // is the whole point.
+  assert.equal(shouldFocusAnswerOnOpen({ composed: false, narrowViewport: false }), true);
+  assert.equal(shouldFocusAnswerOnOpen(), true);
+});
+
+test('a phone does not get a keypad it did not ask for', () => {
+  // Measured, not reasoned: focusing a numeric field on a 390x664 phone opened
+  // the on-screen keypad over 266px of the screen and scrolled the workspace
+  // 721px of its 1440, so a graphing question opened in the middle of itself
+  // with the graph and the prompt both off screen.
+  assert.equal(shouldFocusAnswerOnOpen({ composed: false, narrowViewport: true }), false);
+});
+
+test('a composed question has no "the" answer box to focus', () => {
+  // Its first focusable input is one cell of a workspace — a coordinate of the
+  // third point of a table the student is meant to plot. Putting the cursor
+  // there says the question starts with typing when it starts with reading a
+  // graph, which is wrong on a desktop too.
+  assert.equal(shouldFocusAnswerOnOpen({ composed: true, narrowViewport: false }), false);
+  assert.equal(shouldFocusAnswerOnOpen({ composed: true, narrowViewport: true }), false);
+});
+
+test('the runtime asks that question before it focuses anything', () => {
+  const engine = readFileSync('src/QuestionEngine.jsx', 'utf8');
+  assert.match(engine, /shouldFocusAnswerOnOpen\(\{ composed: isComposed, narrowViewport: isMobileQuestionViewport\(\) \}\)/);
+  // One definition of "is this a phone", shared with the layout that opens the
+  // keypad — two that could drift would mean a runtime unaware of what the
+  // layout just did.
+  assert.match(engine, /import MobileViewportContainer, \{ isMobileQuestionViewport \}/);
+  assert.match(
+    readFileSync('src/components/student/MobileViewportContainer.jsx', 'utf8'),
+    /export const isMobileQuestionViewport = detectMobile;/,
+  );
 });

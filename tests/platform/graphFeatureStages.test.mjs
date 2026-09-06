@@ -21,8 +21,33 @@ const QUADRATIC = {
   graph: { xMin: -6, xMax: 8, yMin: -4, yMax: 12 },
   functionFamily: 'Quadratic',
   extreme: { kind: 'maximum' },
+  behavior: 'Increasing, then decreasing',
   correctDomain: 'all real numbers',
   correctRange: 'y <= 9',
+};
+
+// Everything a student who understands this graph would answer. Kept in one
+// place because two grading tests differ only by the mistake they inject.
+const RIGHT = {
+  plot: { __mathmasterWorkflowArtifact: 'graph', isComplete: true, isCorrect: true },
+  model: 'Quadratic',
+  xInterceptExists: 'Yes',
+  xIntercept: selection([[-1, 0], [5, 0]]),
+  xInterceptValue: '(-1, 0), (5, 0)',
+  zeros: '{-1, 5}',
+  yInterceptExists: 'Yes',
+  yIntercept: selection([[0, 5]]),
+  yInterceptValue: '(0, 5)',
+  extremeKind: 'Maximum',
+  extremePoint: selection([[2, 9]]),
+  extremeValue: '(2, 9)',
+  axisOfSymmetry: 'x = 2',
+  // A parabola has no horizontal asymptote, so this stage carries no key and
+  // reports as reviewed rather than wrong; it still has to be answered.
+  asymptote: 'none',
+  behavior: 'Increasing, then decreasing',
+  domain: 'all real numbers',
+  range: 'y <= 9',
 };
 
 const expand = (question) => expandRecipe(question, { label: 'Q' });
@@ -39,12 +64,34 @@ test('both feature primitives are registered and reachable', () => {
 test('the recipe expands the whole flow with no authoring errors', () => {
   const { workflow, errors } = expand(QUADRATIC);
   assert.deepEqual(errors, []);
+  // The order a teacher asks in: does it exist, where is it, what is it. Each
+  // is a different thing a student can get wrong, and rolled into one step a
+  // student who does not know an exponential never crosses the axis scores the
+  // same as one who knows and misses the click.
   assert.deepEqual(workflow.map((stage) => stage.id), [
     'plot', 'model',
-    'xIntercept', 'yIntercept', 'extremeKind', 'extremePoint',
-    'xInterceptValue', 'yInterceptValue', 'extremeValue',
-    'domain', 'range',
+    'xInterceptExists', 'xIntercept', 'xInterceptValue', 'zeros',
+    'yInterceptExists', 'yIntercept', 'yInterceptValue',
+    'extremeKind', 'extremePoint', 'extremeValue', 'axisOfSymmetry',
+    'asymptote', 'behavior', 'domain', 'range',
   ]);
+  // The locating and stating steps are only shown to a student who said there
+  // is something there, so pressing them is an act of locating rather than a
+  // second chance to reconsider.
+  assert.deepEqual(
+    workflow.filter((stage) => stage.showWhen).map((stage) => [stage.id, stage.showWhen.stage, stage.showWhen.is]),
+    [
+      ['xIntercept', 'xInterceptExists', 'Yes'],
+      ['xInterceptValue', 'xInterceptExists', 'Yes'],
+      ['zeros', 'xInterceptExists', 'Yes'],
+      ['yIntercept', 'yInterceptExists', 'Yes'],
+      ['yInterceptValue', 'yInterceptExists', 'Yes'],
+    ],
+  );
+  // And the "there isn't one" button belongs to whichever step asks the
+  // existence question — never to two steps at once.
+  assert.equal(workflow.find((stage) => stage.id === 'xIntercept').allowNone, false);
+  assert.equal(workflow.find((stage) => stage.id === 'extremePoint').allowNone, true);
   // Four or more stages is what puts the runner into focus mode: one stage on
   // screen at a time, which is the whole screen-real-estate answer.
   assert.ok(workflow.length >= 4);
@@ -139,20 +186,7 @@ test('an unkeyed feature stage is reviewed, never marked wrong', () => {
 
 test('a student who gets everything right scores every stage', () => {
   const { workflow, grading } = expand(QUADRATIC);
-  const responses = {
-    plot: { __mathmasterWorkflowArtifact: 'graph', isComplete: true, isCorrect: true },
-    model: 'Quadratic',
-    xIntercept: selection([[-1, 0], [5, 0]]),
-    yIntercept: selection([[0, 5]]),
-    extremeKind: 'Maximum',
-    extremePoint: selection([[2, 9]]),
-    xInterceptValue: '(-1, 0), (5, 0)',
-    yInterceptValue: '(0, 5)',
-    extremeValue: '(2, 9)',
-    domain: 'all real numbers',
-    range: 'y <= 9',
-  };
-  const result = gradeWorkflow({ stages: workflow, responses, grading });
+  const result = gradeWorkflow({ stages: workflow, responses: RIGHT, grading });
   const wrong = result.parts.filter((part) => part.graded && !part.isCorrect);
   assert.deepEqual(wrong.map((part) => part.id), [], 'every graded stage should be correct');
   assert.equal(result.isCorrect, true);
@@ -160,19 +194,7 @@ test('a student who gets everything right scores every stage', () => {
 
 test('one mis-marked intercept costs one stage, not the question', () => {
   const { workflow, grading } = expand(QUADRATIC);
-  const responses = {
-    plot: { __mathmasterWorkflowArtifact: 'graph', isComplete: true, isCorrect: true },
-    model: 'Quadratic',
-    xIntercept: selection([[-1, 0], [4, 0]]),
-    yIntercept: selection([[0, 5]]),
-    extremeKind: 'Maximum',
-    extremePoint: selection([[2, 9]]),
-    xInterceptValue: '(-1, 0), (5, 0)',
-    yInterceptValue: '(0, 5)',
-    extremeValue: '(2, 9)',
-    domain: 'all real numbers',
-    range: 'y <= 9',
-  };
+  const responses = { ...RIGHT, xIntercept: selection([[-1, 0], [4, 0]]) };
   const result = gradeWorkflow({ stages: workflow, responses, grading });
   assert.equal(result.isCorrect, false);
   assert.deepEqual(
@@ -230,4 +252,117 @@ test('every recipe still expands, so the new one did not disturb the others', ()
   );
   assert.deepEqual(relation.errors, []);
   assert.equal(relation.grading.isFunction, 'Yes');
+});
+
+/* ---------- enlarging must not strand the student ---------- */
+
+test('enlarging a feature stage brings the answering with it', () => {
+  // CoordinatePlane can enlarge itself, but that opens a modal holding only the
+  // plane: a student who went full-window to find an intercept accurately then
+  // had to close it again to press "this graph has none". On a phone that is
+  // the difference between a usable question and an unusable one.
+  const source = readFileSync('src/platform/workflow/GraphFeatureSelectStage.jsx', 'utf8');
+
+  // The plane's own enlarge is off...
+  assert.match(source, /enlargeable=\{false\}/);
+  // ...and the whole stage is what gets enlarged instead.
+  assert.match(source, /<EnlargeableFigure/);
+  const wrapper = source.slice(source.indexOf('<EnlargeableFigure'));
+  assert.match(wrapper, /\{body\}/, 'the marks, the buttons and the count all go in');
+
+  // The modal covers the question that sent them there, so the prompt rides
+  // along rather than being lost behind the backdrop.
+  assert.match(wrapper, /taskText=\{stage\?\.prompt/);
+
+  // The body must actually contain the response controls, not just the plane.
+  const body = source.slice(source.indexOf('const body = ('), source.indexOf('<EnlargeableFigure'));
+  assert.match(body, /Clear my marks/);
+  assert.match(body, /noneButtonLabel\(stage\)/, 'the "there is none" answer must be inside the enlarged view');
+});
+
+test('saying there is no intercept skips finding one, and is not wrong', () => {
+  // An exponential never crosses the x-axis. A student who knows that answers
+  // the existence question and is never shown a plane to hunt on — and the
+  // steps they were never asked are not counted against them.
+  const exponential = {
+    recipe: { name: 'functionCharacteristics', ask: ['xInterceptExists', 'xIntercept', 'xInterceptValue', 'zeros', 'yInterceptExists', 'yIntercept', 'yInterceptValue'] },
+    pairs: [[0, 3], [1, 6], [2, 12]],
+    graph: { xMin: -4, xMax: 5, yMin: -2, yMax: 16 },
+    xIntercepts: 'none',
+  };
+  const { workflow, grading } = expand(exponential);
+  assert.equal(grading.xInterceptExists, 'No');
+  assert.equal(grading.yInterceptExists, 'Yes');
+  assert.equal(grading.zeros, undefined, 'a graph with no x-intercept has no zeros to key');
+
+  const result = gradeWorkflow({
+    stages: workflow,
+    responses: {
+      xInterceptExists: 'No',
+      yInterceptExists: 'Yes',
+      yIntercept: selection([[0, 3]]),
+      yInterceptValue: '(0, 3)',
+    },
+    grading,
+  });
+  assert.deepEqual(result.parts.map((part) => part.id), ['xInterceptExists', 'yInterceptExists', 'yIntercept', 'yInterceptValue']);
+  assert.equal(result.isCorrect, true);
+});
+
+test('the zeros are the x-values, not the ordered pairs', () => {
+  // Writing "(4, 0)" where the zero was asked for is the single most common way
+  // this is confused, and asking only for the ordered pair never finds out.
+  const { grading, workflow } = expand(QUADRATIC);
+  assert.equal(grading.zeros, '{-1, 5}');
+  assert.equal(workflow.find((stage) => stage.id === 'zeros').kind, 'valueSet');
+
+  const wrongForm = gradeWorkflow({
+    stages: workflow,
+    responses: { ...RIGHT, zeros: '(-1, 0), (5, 0)' },
+    grading,
+  });
+  assert.deepEqual(
+    wrongForm.parts.filter((part) => part.graded && !part.isCorrect).map((part) => part.id),
+    ['zeros'],
+  );
+});
+
+test('the axis of symmetry is an equation, and the vertex is a point', () => {
+  // A student who writes "2" has named the vertex's x-coordinate — a correct
+  // fact about a different question. The two are asked and marked apart, and
+  // the key is derived from the vertex so they cannot disagree.
+  const { workflow, grading } = expand(QUADRATIC);
+  assert.equal(workflow.find((stage) => stage.id === 'axisOfSymmetry').kind, 'equationInput');
+  assert.equal(grading.axisOfSymmetry, 'x = 2');
+
+  const bare = gradeWorkflow({ stages: workflow, responses: { ...RIGHT, axisOfSymmetry: '2' }, grading });
+  assert.deepEqual(
+    bare.parts.filter((part) => part.graded && !part.isCorrect).map((part) => part.id),
+    ['axisOfSymmetry'],
+  );
+});
+
+test('a domain-and-range question is staged, and draws its graph once', () => {
+  // It used to compile to a single panel: both answer boxes, both math
+  // keyboards, no way to take one step at a time. Fifty keypad keys on a 390px
+  // phone, most belonging to a box the student was not answering yet.
+  const { workflow } = expand({
+    recipe: { name: 'functionCharacteristics', ask: ['domain', 'range'] },
+    graph: { xMin: -6, xMax: 7, yMin: -10, yMax: 9 },
+    correctEquation: '2*x - 1',
+    correctDomain: '-3 <= x < 4',
+    correctRange: '-7 <= y < 7',
+  });
+  assert.deepEqual(workflow.map((stage) => stage.id), ['domain', 'range']);
+  // Each carries the figure, because either may be the only step on screen.
+  workflow.forEach((stage) => assert.ok(stage.graph, `${stage.id} has no graph to read`));
+  assert.equal(workflow[0].graph.model, '2*x - 1');
+
+  const runner = readFileSync('src/platform/workflow/WorkflowRunner.jsx', 'utf8');
+  // Stacked, consecutive steps about the same graph draw it once.
+  assert.match(runner, /const figureStageIds = useMemo/);
+  assert.match(runner, /showFigure=\{focusMode \|\| figureStageIds\.has\(stage\.id\)\}/);
+  // And only one math keyboard opens itself.
+  assert.match(runner, /const openKeypadStageId = useMemo/);
+  assert.match(runner, /showToolsInitially=\{openKeypad\}/);
 });

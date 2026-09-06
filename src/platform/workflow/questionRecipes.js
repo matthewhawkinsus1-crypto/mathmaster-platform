@@ -41,6 +41,55 @@ export const relationIsFunction = (pairs = []) => {
 
 // --- Function modelling (the public type `relationshipModel`) ----------------
 
+/*
+ * ONE STEP, TWO STAGES, ONE OF THEM SHOWN.
+ *
+ * A domain step becomes a discrete branch and a continuous branch whenever the
+ * same question also asks the student to classify the relationship, so that the
+ * form of the answer box follows the student's own choice rather than the
+ * answer key. `showWhen` cannot look backwards at a step that has not been
+ * asked yet, so this only fires when continuity is asked first.
+ */
+const askedBefore = (asked, needle, target) => {
+  for (const step of asked) {
+    if (step === needle) return true;
+    if (step === target) return false;
+  }
+  return false;
+};
+
+const branchOnContinuity = (asked, base, { discretePrompt, continuousPrompt } = {}) => {
+  if (!askedBefore(asked, 'continuity', base.id)) return base;
+  const { prompt: _prompt, notation, ...rest } = base;
+  return [
+    {
+      ...rest,
+      id: `${base.id}Discrete`,
+      prompt: discretePrompt || base.prompt,
+      notation: 'set',
+      showWhen: { stage: 'continuity', is: 'discrete' },
+    },
+    {
+      ...rest,
+      id: `${base.id}Continuous`,
+      prompt: continuousPrompt || base.prompt,
+      // A `set` notation here would have come from the answer key saying the
+      // relation is discrete — and putting a roster box on the CONTINUOUS
+      // branch would tell that student they had chosen wrongly.
+      notation: notation === 'set' ? 'inequality' : notation,
+      showWhen: { stage: 'continuity', is: 'continuous' },
+    },
+  ];
+};
+
+/** The branch an authored answer actually answers, or nothing. */
+const continuityBranchKey = (question, base) => {
+  const branch = String(question?.continuity ?? '').trim().toLowerCase();
+  if (branch === 'discrete') return `${base}Discrete`;
+  if (branch === 'continuous') return `${base}Continuous`;
+  return null;
+};
+
 const latestModelSource = (asked) => asked.has('graph') ? 'graph' : asked.has('table') ? 'table' : asked.has('equation') ? 'equation' : null;
 const latestPreGraphModelSource = (asked) => asked.has('table') ? 'table' : asked.has('equation') ? 'equation' : null;
 
@@ -87,13 +136,29 @@ const FUNCTION_MODELING = {
         ? { source: { fromStage: 'table' } }
         : (asked.has('equation') ? { source: { fromStage: 'equation' } } : {})),
     }),
-    domain: (question, asked) => ({
+    /*
+     * THE ANSWER BOX MUST NOT ANSWER THE CLASSIFICATION.
+     *
+     * A question that asks "discrete or continuous?" and then shows a roster-
+     * form box has answered itself: the shape of the box is the classification.
+     * When the same question asks for both, this compiles to one stage per
+     * branch, and `showWhen` shows only the one matching the student's own
+     * choice — so the format follows their reasoning rather than the key.
+     *
+     * `showWhen` cannot look forward, so this only branches when the continuity
+     * step is asked before the domain step; `ask` order is the author's, and
+     * the compiler puts continuity first whenever there is a graph to build.
+     */
+    domain: (question, asked) => branchOnContinuity(asked, {
       id: 'domain',
       kind: 'domainInput',
       prompt: question.domainPrompt || 'State a reasonable domain for this situation.',
       notation: question.notation || 'interval',
       ...(Array.isArray(question.domainChoices) && question.domainChoices.length ? { choices: question.domainChoices } : {}),
       ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
+    }, {
+      discretePrompt: question.domainPrompt || 'List the domain for this situation.',
+      continuousPrompt: question.domainPrompt || 'Describe a reasonable domain for this situation.',
     }),
     domainWords: (question, asked) => ({
       id: 'domainWords',
@@ -113,13 +178,16 @@ const FUNCTION_MODELING = {
       notation: 'inequality',
       ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
     }),
-    range: (question, asked) => ({
+    range: (question, asked) => branchOnContinuity(asked, {
       id: 'range',
       kind: 'rangeInput',
       prompt: question.rangePrompt || 'State the range that goes with it.',
       notation: question.notation || 'interval',
       ...(Array.isArray(question.rangeChoices) && question.rangeChoices.length ? { choices: question.rangeChoices } : {}),
       ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
+    }, {
+      discretePrompt: question.rangePrompt || 'List the range that goes with it.',
+      continuousPrompt: question.rangePrompt || 'Describe the range that goes with it.',
     }),
     rangeWords: (question, asked) => ({
       id: 'rangeWords',
@@ -172,10 +240,23 @@ const FUNCTION_MODELING = {
       else if (asked.has('equation')) rules.graph = { consistentWith: 'equation', useStageVerdict: true };
     }
     if (asked.has('continuity') && question.continuity) rules.continuity = question.continuity;
-    if (asked.has('domain') && question.correctDomain) rules.domain = question.correctDomain;
+    // A branched step keys only the branch the authored answer belongs to. The
+    // other branch is left unkeyed on purpose: a student who called a
+    // continuous relation discrete has already lost that mark, and a roster
+    // form of a continuous domain has no correct answer to be marked against,
+    // so it is reported as ungraded rather than wrong.
+    const domainBranched = askedBefore(asked, 'continuity', 'domain');
+    const rangeBranched = askedBefore(asked, 'continuity', 'range');
+    if (asked.has('domain') && question.correctDomain) {
+      const key = domainBranched ? continuityBranchKey(question, 'domain') : 'domain';
+      if (key) rules[key] = question.correctDomain;
+    }
     if (asked.has('domainWords') && question.correctDomainWords) rules.domainWords = question.correctDomainWords;
     if (asked.has('domainInequality') && question.correctDomainInequality) rules.domainInequality = question.correctDomainInequality;
-    if (asked.has('range') && question.correctRange) rules.range = question.correctRange;
+    if (asked.has('range') && question.correctRange) {
+      const key = rangeBranched ? continuityBranchKey(question, 'range') : 'range';
+      if (key) rules[key] = question.correctRange;
+    }
     if (asked.has('rangeWords') && question.correctRangeWords) rules.rangeWords = question.correctRangeWords;
     if (asked.has('rangeInequality') && question.correctRangeInequality) rules.rangeInequality = question.correctRangeInequality;
     return rules;
@@ -273,6 +354,15 @@ const RELATION_REPRESENTATIONS = {
 
 const FAMILY_CHOICES = ['Linear', 'Quadratic', 'Exponential'];
 const EXTREME_CHOICES = ['Maximum', 'Minimum', 'Neither'];
+const EXISTS_CHOICES = ['Yes', 'No'];
+// Enough to describe a line and a parabola without interval notation, which
+// Algebra I has not reached.
+const BEHAVIOR_CHOICES = [
+  'Increasing everywhere',
+  'Decreasing everywhere',
+  'Decreasing, then increasing',
+  'Increasing, then decreasing',
+];
 
 const featureGraph = (question) => ({
   ...(isObject(question.graph) ? question.graph : { xMin: -10, xMax: 10, yMin: -10, yMax: 10 }),
@@ -353,11 +443,14 @@ const markCount = (rule) => Math.max(1, list(rule?.points).length || 1);
 const FUNCTION_CHARACTERISTICS = {
   label: 'Analyze a function graph',
   publicType: 'graphAnalysis',
+  // The order a teacher asks in: does it exist, where is it, what is it, how
+  // does the function behave, and only then the domain and range.
   defaultAsk: [
     'plot', 'model',
-    'xIntercept', 'yIntercept', 'extremeKind', 'extremePoint',
-    'xInterceptValue', 'yInterceptValue', 'extremeValue',
-    'domain', 'range',
+    'xInterceptExists', 'xIntercept', 'xInterceptValue', 'zeros',
+    'yInterceptExists', 'yIntercept', 'yInterceptValue',
+    'extremeKind', 'extremePoint', 'extremeValue', 'axisOfSymmetry',
+    'asymptote', 'behavior', 'domain', 'range',
   ],
   stages: {
     plot: (question) => ({
@@ -390,7 +483,37 @@ const FUNCTION_CHARACTERISTICS = {
       choices: list(question.familyChoices).length ? list(question.familyChoices) : FAMILY_CHOICES,
       ...(asked.has('plot') ? { source: { fromStage: 'plot' } } : {}),
     }),
-    xIntercept: (question) => ({
+    /*
+     * DOES IT EXIST, THEN WHERE IS IT, THEN WHAT IS IT.
+     *
+     * Three questions a teacher asks in that order, and three different things
+     * a student can get wrong. Rolled into one "mark the x-intercept, or press
+     * the button if there isn't one" step, a student who does not realise an
+     * exponential never crosses the axis and one who knows but misses the click
+     * score identically.
+     *
+     * Asking existence first also means the marking step is only shown to a
+     * student who said there is something to mark — so pressing it is an act of
+     * locating, not a second chance to reconsider. `showWhen` looks backwards
+     * only, which is why these come first.
+     */
+    xInterceptExists: (question) => ({
+      id: 'xInterceptExists',
+      kind: 'classification',
+      reveals: ['plot', 'model'],
+      prompt: question.xInterceptExistsPrompt || 'Does this graph have an x-intercept?',
+      choices: EXISTS_CHOICES,
+      graph: featureGraph(question),
+    }),
+    yInterceptExists: (question) => ({
+      id: 'yInterceptExists',
+      kind: 'classification',
+      reveals: ['plot', 'model'],
+      prompt: question.yInterceptExistsPrompt || 'Does this graph have a y-intercept?',
+      choices: EXISTS_CHOICES,
+      graph: featureGraph(question),
+    }),
+    xIntercept: (question, asked) => ({
       id: 'xIntercept',
       kind: 'graphFeatureSelect',
       // Drawing the curve is what makes this answerable, and the curve shows
@@ -401,9 +524,13 @@ const FUNCTION_CHARACTERISTICS = {
       feature: 'xIntercept',
       graph: featureGraph(question),
       selectionCount: markCount(xInterceptRule(question)),
-      allowNone: true,
+      // The "there isn't one" button belongs to whichever step asks the
+      // existence question. Offering it twice invites a student to answer it
+      // differently in two places.
+      allowNone: !asked.has('xInterceptExists'),
+      ...(asked.has('xInterceptExists') ? { showWhen: { stage: 'xInterceptExists', is: 'Yes' } } : {}),
     }),
-    yIntercept: (question) => ({
+    yIntercept: (question, asked) => ({
       id: 'yIntercept',
       kind: 'graphFeatureSelect',
       // Drawing the curve is what makes this answerable, and the curve shows
@@ -414,7 +541,8 @@ const FUNCTION_CHARACTERISTICS = {
       feature: 'yIntercept',
       graph: featureGraph(question),
       selectionCount: 1,
-      allowNone: true,
+      allowNone: !asked.has('yInterceptExists'),
+      ...(asked.has('yInterceptExists') ? { showWhen: { stage: 'yInterceptExists', is: 'Yes' } } : {}),
     }),
     extremeKind: (question) => ({
       id: 'extremeKind',
@@ -436,32 +564,87 @@ const FUNCTION_CHARACTERISTICS = {
       allowNone: true,
       noneLabel: 'This graph has neither',
     }),
-    xInterceptValue: (question) => ({
+    xInterceptValue: (question, asked) => ({
       id: 'xInterceptValue',
       kind: 'pointInput',
       prompt: question.xInterceptValuePrompt || 'Write the x-intercept(s) as ordered pairs.',
+      feature: 'xIntercept',
       pointCount: markCount(xInterceptRule(question)),
-      allowNone: true,
+      allowNone: !asked.has('xInterceptExists'),
+      ...(asked.has('xInterceptExists') ? { showWhen: { stage: 'xInterceptExists', is: 'Yes' } } : {}),
     }),
-    yInterceptValue: (question) => ({
+    /*
+     * (4, 0) IS THE X-INTERCEPT. x = 4 IS THE ZERO.
+     *
+     * Algebra I asks for both by name, and a student can hold one and not the
+     * other — writing "4" for the intercept, or "(4, 0)" for the zero, is the
+     * single most common way this is confused. Asking only for the ordered pair
+     * never finds out.
+     */
+    zeros: (question, asked) => ({
+      id: 'zeros',
+      kind: 'valueSet',
+      prompt: question.zerosPrompt || 'What are the zeros of this function?',
+      notation: 'set',
+      placeholder: '{ }',
+      ...(asked.has('xInterceptExists') ? { showWhen: { stage: 'xInterceptExists', is: 'Yes' } } : {}),
+    }),
+    yInterceptValue: (question, asked) => ({
       id: 'yInterceptValue',
       kind: 'pointInput',
       prompt: question.yInterceptValuePrompt || 'Write the y-intercept as an ordered pair.',
+      feature: 'yIntercept',
       pointCount: 1,
-      allowNone: true,
+      allowNone: !asked.has('yInterceptExists'),
+      ...(asked.has('yInterceptExists') ? { showWhen: { stage: 'yInterceptExists', is: 'Yes' } } : {}),
     }),
     extremeValue: (question) => ({
       id: 'extremeValue',
       kind: 'pointInput',
       prompt: question.extremeValuePrompt || 'Write the location of the maximum or minimum, or say it does not exist.',
+      feature: 'extremum',
       pointCount: 1,
       allowNone: true,
     }),
+    /*
+     * The axis of symmetry is an EQUATION, not a point and not a value.
+     * A student who writes "2" instead of "x = 2" has named the vertex's
+     * x-coordinate, which is a different (and correct) fact about a different
+     * question — so the two are asked, and marked, apart.
+     */
+    axisOfSymmetry: (question) => ({
+      id: 'axisOfSymmetry',
+      kind: 'equationInput',
+      prompt: question.axisOfSymmetryPrompt || 'Write the equation of the axis of symmetry.',
+      placeholder: 'x = ',
+    }),
+    /*
+     * The asymptote is an equation too, for the same reason the axis of
+     * symmetry is: "2" names a number, "y = 2" names the line the graph
+     * approaches, and only one of those answers the question.
+     */
+    asymptote: (question) => ({
+      id: 'asymptote',
+      kind: 'equationInput',
+      prompt: question.asymptotePrompt || 'Write the equation of the horizontal asymptote.',
+      placeholder: 'y = ',
+    }),
+    behavior: (question) => ({
+      id: 'behavior',
+      kind: 'classification',
+      prompt: question.behaviorPrompt || 'Where is this function increasing and where is it decreasing?',
+      choices: list(question.behaviorChoices).length ? list(question.behaviorChoices) : BEHAVIOR_CHOICES,
+      graph: featureGraph(question),
+    }),
+    // The graph rides along, because these are the only steps in this recipe a
+    // student can be shown ALONE — a question that asks nothing but the domain
+    // and range has no earlier step still on screen holding the figure.
     domain: (question) => ({
       id: 'domain',
       kind: 'domainInput',
       prompt: question.domainPrompt || 'State the domain.',
       notation: question.notation || 'inequality',
+      graph: featureGraph(question),
       ...(list(question.domainChoices).length ? { choices: list(question.domainChoices) } : {}),
     }),
     range: (question) => ({
@@ -469,6 +652,7 @@ const FUNCTION_CHARACTERISTICS = {
       kind: 'rangeInput',
       prompt: question.rangePrompt || 'State the range.',
       notation: question.notation || 'inequality',
+      graph: featureGraph(question),
       ...(list(question.rangeChoices).length ? { choices: list(question.rangeChoices) } : {}),
     }),
   },
@@ -487,14 +671,35 @@ const FUNCTION_CHARACTERISTICS = {
 
     const xRule = xInterceptRule(question);
     if (xRule) {
+      // The existence question is answered by the same key that says where the
+      // intercepts are: a key holding points means yes, a key saying `none`
+      // means no. Deriving it rather than asking the author for it again is
+      // what stops the two from ever disagreeing.
+      if (asked.has('xInterceptExists')) rules.xInterceptExists = xRule.none === true ? 'No' : 'Yes';
       if (asked.has('xIntercept')) rules.xIntercept = xRule;
       if (asked.has('xInterceptValue')) rules.xInterceptValue = xRule;
+      if (asked.has('zeros') && list(xRule.points).length) {
+        rules.zeros = `{${list(xRule.points).map(([x]) => x).join(', ')}}`;
+      }
     }
 
     const yRule = yInterceptRule(question);
     if (yRule) {
+      if (asked.has('yInterceptExists')) rules.yInterceptExists = yRule.none === true ? 'No' : 'Yes';
       if (asked.has('yIntercept')) rules.yIntercept = yRule;
       if (asked.has('yInterceptValue')) rules.yInterceptValue = yRule;
+    }
+
+    if (asked.has('behavior') && question.behavior) rules.behavior = String(question.behavior);
+    if (asked.has('asymptote') && question.asymptote) rules.asymptote = String(question.asymptote);
+    if (asked.has('axisOfSymmetry')) {
+      // Derived from the vertex the same key already knows, so the two can
+      // never disagree; an author may still state it for a graph whose vertex
+      // is off the table.
+      const authored = String(question.axisOfSymmetry ?? '').trim();
+      const vertex = list(extremeRule(question)?.points)[0];
+      const derived = authored || (vertex ? `x = ${vertex[0]}` : '');
+      if (derived) rules.axisOfSymmetry = derived;
     }
 
     const kind = extremeKindOf(question);
@@ -580,7 +785,14 @@ export const expandRecipe = (question = {}, { label = 'Question' } = {}) => {
   });
 
   const asked = new Set(known);
-  const workflow = known.map((step) => recipe.stages[step](question, asked));
+  // A step may compile to MORE than one stage. `domain` becomes one stage per
+  // branch when the same question asks the student to classify continuity, so
+  // the answer box asks for the form THEY chose instead of the form the answer
+  // key implies. See the `domain` builder in FUNCTION_MODELING.
+  const workflow = known.flatMap((step) => {
+    const built = recipe.stages[step](question, asked);
+    return Array.isArray(built) ? built : [built];
+  });
   const derived = recipe.grading(question, asked);
 
   return {
