@@ -26,5 +26,7 @@ jobs:
         run: >-
           node --test
           tests/platform/liveChallengeExperience.test.mjs
+          tests/platform/liveChallengeAudio.test.mjs
+          tests/platform/liveChallengeQuestionLibrary.test.mjs
           tests/platform/liveChallengeOptionBWiring.test.mjs
           tests/platform/warmupChallengeOptionB.test.mjs
