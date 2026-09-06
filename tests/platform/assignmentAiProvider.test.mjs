@@ -13,6 +13,12 @@ const {
   postJsonWithNativeHttps,
   callOpenAiAssignmentAuthor,
 } = require('../../functions/lib/assignmentAi.js');
+const {
+  DEFAULT_GEMINI_ASSIGNMENT_MODEL,
+  buildGeminiAssignmentRequest,
+  extractGeminiResponseText,
+  callGeminiAssignmentAuthor,
+} = require('../../functions/lib/geminiAssignmentAi.js');
 
 const validAssignment = {
   schemaVersion: 5,
@@ -258,5 +264,89 @@ test('Gemini Honors provider is implemented as a separate server-side module', (
     fs.existsSync('functions/lib/geminiAssignmentAi.js'),
     true,
     'Honors V5 needs a dedicated Gemini provider module before the browser can route Honors additions to it.',
+  );
+});
+
+test('Gemini Honors request uses the stable Flash model and structured Assignment V5 JSON', () => {
+  assert.equal(DEFAULT_GEMINI_ASSIGNMENT_MODEL, 'gemini-3.8-flash');
+  const body = buildGeminiAssignmentRequest({ prompt: '# MathMaster Honors-depth repair\nRepair only the missing Honors depth.' });
+  assert.equal(body.contents[0].role, 'user');
+  assert.match(body.contents[0].parts[0].text, /Honors-depth repair/);
+  assert.equal(body.generationConfig.responseFormat.text.mimeType, 'application/json');
+  assert.equal(body.generationConfig.responseFormat.text.schema.properties.schemaVersion.enum[0], 5);
+  assert.ok(body.generationConfig.maxOutputTokens >= 10000);
+});
+
+test('Gemini Honors provider sends the API key only in the server request header and normalizes usage', async () => {
+  let request;
+  const result = await callGeminiAssignmentAuthor({
+    apiKey: 'server-gemini-key',
+    prompt: '# MathMaster Honors-depth repair\nRepair only the missing Honors depth.',
+    fetchImpl: async (url, options) => {
+      request = { url, options };
+      return response(200, {
+        responseId: 'gemini-response-1',
+        modelVersion: 'gemini-3.8-flash',
+        candidates: [{ content: { parts: [{ text: JSON.stringify(validAssignment) }] }, finishReason: 'STOP' }],
+        usageMetadata: { promptTokenCount: 101, candidatesTokenCount: 202, totalTokenCount: 303 },
+      });
+    },
+  });
+
+  assert.match(request.url, /generativelanguage\.googleapis\.com\/v1beta\/models\/gemini-3\.8-flash:generateContent/);
+  assert.equal(request.options.headers['x-goog-api-key'], 'server-gemini-key');
+  assert.equal(request.options.headers.Authorization, undefined);
+  assert.equal(JSON.parse(result.assignmentJson).schemaVersion, 5);
+  assert.equal(result.responseId, 'gemini-response-1');
+  assert.equal(result.model, 'gemini-3.8-flash');
+  assert.deepEqual(result.usage, { inputTokens: 101, outputTokens: 202, totalTokens: 303 });
+});
+
+test('Gemini response extraction joins text parts and ignores non-text parts', () => {
+  assert.equal(
+    extractGeminiResponseText({ candidates: [{ content: { parts: [{ text: '{"schemaVersion":' }, { thoughtSignature: 'opaque' }, { text: '5}' }] } }] }),
+    '{"schemaVersion":5}',
+  );
+});
+
+test('Gemini Honors provider classifies credential, quota, and output-budget failures safely', async () => {
+  await assert.rejects(
+    () => callGeminiAssignmentAuthor({
+      apiKey: 'bad',
+      prompt: '# MathMaster Honors-depth repair',
+      fetchImpl: async () => response(403, { error: { status: 'PERMISSION_DENIED', message: 'provider detail' } }),
+    }),
+    (error) => error.code === 'failed-precondition' && /GEMINI_API_KEY/.test(error.message),
+  );
+  await assert.rejects(
+    () => callGeminiAssignmentAuthor({
+      apiKey: 'busy',
+      prompt: '# MathMaster Honors-depth repair',
+      fetchImpl: async () => response(429, { error: { status: 'RESOURCE_EXHAUSTED', message: 'quota' } }),
+    }),
+    (error) => error.code === 'resource-exhausted' && /rate|quota/i.test(error.message),
+  );
+  await assert.rejects(
+    () => callGeminiAssignmentAuthor({
+      apiKey: 'ok',
+      prompt: '# MathMaster Honors-depth repair',
+      fetchImpl: async () => response(200, {
+        candidates: [{ content: { parts: [{ text: '{"schemaVersion":5}' }] }, finishReason: 'MAX_TOKENS' }],
+      }),
+    }),
+    (error) => error.code === 'resource-exhausted' && /output budget/i.test(error.message),
+  );
+});
+
+test('Gemini Honors provider fails closed on malformed or non-V5 output', async () => {
+  await assert.rejects(
+    () => callGeminiAssignmentAuthor({
+      apiKey: 'ok',
+      prompt: '# MathMaster Honors-depth repair',
+      fetchImpl: async () => response(200, {
+        candidates: [{ content: { parts: [{ text: '{"schemaVersion":4}' }] }, finishReason: 'STOP' }],
+      }),
+    }),
+    /complete current MathMaster assignment/,
   );
 });
