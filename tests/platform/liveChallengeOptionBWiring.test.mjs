@@ -37,6 +37,13 @@ test('the teacher experience exposes scoring, identity, audio and question-libra
   assert.match(teacher, /Mute All/i);
 });
 
+test('Teacher Choice is persisted while it is still pending, before any lobby exists', () => {
+  const teacher = readFileSync('src/components/liveChallenge/LiveChallengeTeacher.jsx', 'utf8');
+  assert.match(teacher, /changeWarmupDeliveryMode/);
+  assert.match(teacher, /setWarmupChallengeDelivery\(warmupAssignmentId,[\s\S]*deliveryMode:\s*nextMode[\s\S]*teacherDecision:\s*null/);
+  assert.match(teacher, /onChange=\{\(event\)\s*=>\s*changeWarmupDeliveryMode\(event\.target\.value\)\}/);
+});
+
 test('the question library reuses the secure Path importer', () => {
   const library = readRequired('src/components/liveChallenge/ChallengeQuestionLibrary.jsx');
   assert.match(library, /seedPathQuestionBank/);
