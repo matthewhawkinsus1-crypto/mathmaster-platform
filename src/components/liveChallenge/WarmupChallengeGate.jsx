@@ -4,14 +4,10 @@ import { WARMUP_CHALLENGE_ROUTE } from '../../platform/liveChallenge/warmupChall
 /*
  * WHAT THE WARM-UP SHOWS WHEN IT IS A CHALLENGE.
  *
- * This renders one of three things and decides none of them — the decision
- * arrives already made, from resolveWarmupChallenge. Keeping the choice out of
- * the component is what lets the rules that protect a student mid-lesson be
- * tested without a browser.
- *
- * Returning null is the important case: it means "the Warm-Up behaves exactly
- * as it always has", and it is what every unconfigured assignment, every closed
- * window, and every unrecognised state resolves to.
+ * The routing decision arrives from resolveWarmupChallenge. WAITING is a focus
+ * overlay on purpose: Teacher Choice cannot tell a student to wait while the
+ * standard Warm-Up remains clickable underneath, then pull them out halfway
+ * through when the teacher selects the game.
  */
 export default function WarmupChallengeGate({
   decision = null,
@@ -25,9 +21,6 @@ export default function WarmupChallengeGate({
     return (
       <section aria-label="Warm-Up Live Challenge" style={{ marginBottom: 16 }}>
         <LiveChallengeStudent
-          // The invite is re-pointed at the room the decision approved rather
-          // than passed through, so a stale or unrelated invite cannot reach
-          // the game runtime even if one is handed in.
           invite={{ ...(invite || {}), roomId: decision.roomId }}
           studentProfile={studentProfile}
           onExit={onExitToAssignment}
@@ -38,25 +31,45 @@ export default function WarmupChallengeGate({
   }
 
   if (route === WARMUP_CHALLENGE_ROUTE.WAITING_FOR_TEACHER) {
+    const teacherChoicePending = decision?.reason === 'teacher_choice_pending';
     return (
       <section
         aria-label="Warm-Up Live Challenge"
         aria-live="polite"
         style={{
-          marginBottom: 16,
-          padding: '20px 22px',
-          borderRadius: 13,
+          position: 'fixed',
+          inset: 0,
+          zIndex: 10000,
+          display: 'grid',
+          placeItems: 'center',
+          padding: 20,
+          background: 'rgba(10, 18, 34, .86)',
+          backdropFilter: 'blur(5px)',
+        }}
+      >
+        <div style={{
+          width: 'min(620px, 100%)',
+          padding: '28px 30px',
+          borderRadius: 18,
           background: '#e8f0fe',
           border: '3px solid #1a73e8',
           color: '#174ea6',
           textAlign: 'left',
-        }}
-      >
-        <strong style={{ display: 'block', fontSize: 20 }}>⚡ Today&rsquo;s Warm-Up is a Live Challenge</strong>
-        <span>
-          Stay on this screen. It starts as soon as your teacher opens it — you do not need to join
-          anything or type a code.
-        </span>
+          boxShadow: '0 24px 80px rgba(0,0,0,.35)',
+        }}>
+          <strong style={{ display: 'block', fontSize: 24, marginBottom: 10 }}>
+            {teacherChoicePending ? '⚡ Your teacher is choosing today’s Warm-Up' : '⚡ Today’s Warm-Up is a Live Challenge'}
+          </strong>
+          {teacherChoicePending ? (
+            <span style={{ fontSize: 17, lineHeight: 1.55 }}>
+              Stay here for a moment. Your teacher will choose either the Live Challenge or the standard Warm-Up for the class. You do not need to start either one yet.
+            </span>
+          ) : (
+            <span style={{ fontSize: 17, lineHeight: 1.55 }}>
+              Stay on this screen. The game starts as soon as your teacher opens it. You do not need to join anything or type a code. If your teacher switches back to the standard Warm-Up, this screen will release automatically.
+            </span>
+          )}
+        </div>
       </section>
     );
   }
