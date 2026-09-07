@@ -31,6 +31,11 @@ const sanitizeDiagnostics = (diagnostics = []) => (
   jsonSafe(Array.isArray(diagnostics) ? diagnostics : [])
 );
 
+const revisionNumber = (value, fallback = null) => {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 1 ? number : fallback;
+};
+
 export const restoreIncompleteAssignmentV5 = (record) => {
   const serialized = record?.authoringDraft?.canonicalJson;
   if (!serialized) {
@@ -73,6 +78,7 @@ export const buildIncompleteAssignmentDraftRecord = ({
     title: String(canonical.assignment?.title || 'Incomplete Assignment').trim() || 'Incomplete Assignment',
     courseId: canonical.assignment?.courseId || null,
     authoringState: AUTHORING_STATES.INCOMPLETE,
+    assignmentRevision: 1,
     authoringReview: {
       state: AUTHORING_STATES.INCOMPLETE,
       sourceName: String(sourceName || 'Imported assignment'),
@@ -145,5 +151,35 @@ export const markIncompleteDraftForReview = (
       sourceSchemaVersion: 5,
     },
     updatedAt: timestamp,
+  };
+};
+
+/**
+ * Turn an already-validated Step 5 repair commit into the next persisted draft
+ * record. The assignment, review context, and revision advance together so the
+ * Firestore record can never say "revision 13" while still carrying revision
+ * 12's question JSON or teacher flags.
+ */
+export const applyIncompleteDraftRepairCommit = (
+  record,
+  committedRepair = {},
+  { nowIso = new Date().toISOString() } = {},
+) => {
+  const canonical = requireAssignmentV5(committedRepair?.assignmentV5, 'Committed repaired assignment');
+  const currentRevision = revisionNumber(record?.assignmentRevision, 1);
+  const committedRevision = revisionNumber(committedRepair?.committedRevision, null);
+  if (committedRevision == null || committedRevision <= currentRevision) {
+    throw new Error(`A saved repair must advance the assignment revision beyond ${currentRevision}.`);
+  }
+
+  const reviewed = markIncompleteDraftForReview(record, canonical, { nowIso });
+  return {
+    ...reviewed,
+    assignmentRevision: committedRevision,
+    teacherReviewContext: jsonSafe(
+      committedRepair?.teacherReviewContext
+      || record?.teacherReviewContext
+      || emptyTeacherReviewContext(),
+    ),
   };
 };
