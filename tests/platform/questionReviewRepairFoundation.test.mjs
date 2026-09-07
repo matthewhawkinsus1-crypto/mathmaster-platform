@@ -5,7 +5,9 @@ import { getAssignmentLifecycle } from '../../src/assignmentLifecycle.js';
 import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
 import {
   AUTHORING_STATES,
+  canSalvageV5IntakeResult,
   deriveAssignmentAuthoringState,
+  isAssignmentEligibleForNormalLibrary,
 } from '../../src/platform/preflight/assignmentAuthoringState.js';
 
 const alignedQuestion = (overrides = {}) => ({
@@ -90,6 +92,48 @@ test('Preflight exposes machine-readable diagnostics while preserving legacy err
   assert.equal(typeof diagnostic.fieldPath, 'string');
   assert.ok(diagnostic.fieldPath.includes('questionWeight'));
   assert.ok(model.errors.includes(diagnostic.message));
+});
+
+test('parseable V5 validation failures can be salvaged into Assignment Review', () => {
+  const parsed = {
+    sourceSchemaVersion: 5,
+    assignmentV5: assignment(),
+    questions: [alignedQuestion()],
+  };
+  assert.equal(canSalvageV5IntakeResult({
+    ok: false,
+    errors: ['Question 1 needs repair.'],
+    parsed,
+    sourceSchemaVersion: 5,
+  }), true);
+});
+
+test('malformed, unparseable, or unsupported intake results are never treated as repairable V5 drafts', () => {
+  assert.equal(canSalvageV5IntakeResult({
+    ok: false,
+    errors: ['Unexpected token.'],
+    parsed: null,
+    sourceSchemaVersion: null,
+  }), false);
+
+  assert.equal(canSalvageV5IntakeResult({
+    ok: false,
+    errors: ['V4 is unsupported.'],
+    parsed: { assignmentV5: { schemaVersion: 4 } },
+    sourceSchemaVersion: 4,
+  }), false);
+});
+
+test('normal Assignment Library excludes explicit incomplete or needs-review drafts but preserves legacy library items', () => {
+  assert.equal(isAssignmentEligibleForNormalLibrary({ authoringState: AUTHORING_STATES.INCOMPLETE }), false);
+  assert.equal(isAssignmentEligibleForNormalLibrary({ authoringState: AUTHORING_STATES.NEEDS_REVIEW }), false);
+  assert.equal(isAssignmentEligibleForNormalLibrary({ authoringState: AUTHORING_STATES.READY }), true);
+  assert.equal(isAssignmentEligibleForNormalLibrary({ authoringState: AUTHORING_STATES.PUBLISHED }), true);
+  assert.equal(isAssignmentEligibleForNormalLibrary({ authoringReview: { state: AUTHORING_STATES.INCOMPLETE } }), false);
+
+  // Existing assignments created before authoringState existed must not vanish
+  // from the Library simply because they predate the migration.
+  assert.equal(isAssignmentEligibleForNormalLibrary({ title: 'Legacy clean library assignment' }), true);
 });
 
 console.log('questionReviewRepairFoundation.test.mjs: all assertions passed');
