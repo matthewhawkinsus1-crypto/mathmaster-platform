@@ -8,6 +8,7 @@ import {
 } from '../../src/platform/publishing/publicationPlanner.js';
 
 const app = fs.readFileSync('src/App.jsx', 'utf8');
+const preflight = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
 
 const assignmentWithCoreSections = () => ({
   schemaVersion: 5,
@@ -156,6 +157,16 @@ test('malformed null section entries are ignored instead of crashing publication
   assert.equal(plan.plannedPosts.length, 1);
   assert.equal(plan.plannedPosts[0].title, 'Classwork — Solving Absolute Value Equations');
   assert.deepEqual(plan.plannedPosts[0].sourceActivityIds, ['classwork']);
+});
+
+test('Assignment V5 Review defaults to one Classroom post per section without legacy strategy controls', () => {
+  assert.match(preflight, /publicationStrategy:\s*PUBLICATION_STRATEGIES\.SPLIT/);
+  assert.match(preflight, /strategy:\s*PUBLICATION_STRATEGIES\.SPLIT/);
+  assert.match(preflight, /includeWarmupInClassroom:\s*true/);
+  assert.doesNotMatch(preflight, /<option value="hybrid">Hybrid<\/option>/);
+  assert.doesNotMatch(preflight, /<option value="bundle">Bundle<\/option>/);
+  assert.doesNotMatch(preflight, /Include Warm-Up as a Classroom post/);
+  assert.match(preflight, /Each assignment section gets its own Google Classroom post and grade column/);
 });
 
 console.log('assignmentV5PostCreationWiring.test.mjs: all assertions passed');
