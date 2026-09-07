@@ -28,16 +28,15 @@
 ### Task 1: Lock the regression behavior with tests
 
 **Files:**
-- Create: `tests/platform/publicationPlannerV5PerSection.test.mjs`
-- Modify: `package.json`
+- Modify: `tests/platform/assignmentV5PostCreationWiring.test.mjs`
 
 **Interfaces:**
 - Consumes: `planClassroomPublication()` and `PUBLICATION_STRATEGIES.SPLIT` from `src/platform/publishing/publicationPlanner.js`.
-- Produces: regression coverage for four-post V5 planning, section-first titles, concise descriptions, homework due dates, section IDs, and null-section safety.
+- Produces: regression coverage for four-post V5 planning, section-first titles, concise descriptions, homework due dates, section IDs, null-section safety, and V5 Review wiring.
 
-- [ ] **Step 1: Write the failing behavior tests.**
-- [ ] **Step 2: Add the test file to `npm run test:authoring-v5`.**
-- [ ] **Step 3: Run CI and verify the tests fail because split mode currently dereferences `lessonBundle.bundleId` and omits Warm-Up.**
+- [x] **Step 1: Write the failing behavior tests.**
+- [x] **Step 2: Run CI and verify the planner tests fail because split mode dereferences `lessonBundle.bundleId` and null sections are unsafe.**
+- [x] **Step 3: Add a failing review-wiring test for the legacy Hybrid/Warm-Up controls.**
 
 ### Task 2: Repair per-section planner behavior
 
@@ -48,12 +47,12 @@
 - Consumes: canonical Assignment V5 sections from `assignmentV5PublicationView()`.
 - Produces: one planned post per valid section with `sourceActivityIds` preserved.
 
-- [ ] **Step 1: Filter invalid/null section entries while creating the V5 publication view.**
-- [ ] **Step 2: Add a small section-label helper for Warm-Up, Classwork, Practice, DOL, Quiz, and Test.**
-- [ ] **Step 3: Make SPLIT iterate every valid activity, including Warm-Up and assessments, using the normalized `publicationSource` rather than nullable `lessonBundle`.**
-- [ ] **Step 4: Use section-first titles and concise descriptions for each post.**
-- [ ] **Step 5: Avoid double-adding Warm-Up/Quiz/Test posts in SPLIT mode.**
-- [ ] **Step 6: Verify targeted tests pass.**
+- [x] **Step 1: Filter invalid/null section entries while creating the V5 publication view.**
+- [x] **Step 2: Add a small section-label helper for Warm-Up, Classwork, Practice, DOL, Quiz, and Test.**
+- [x] **Step 3: Make SPLIT iterate every valid activity, including Warm-Up and assessments, using the normalized `publicationSource` rather than nullable `lessonBundle`.**
+- [x] **Step 4: Use section-first titles and concise descriptions for each post.**
+- [x] **Step 5: Avoid double-adding Warm-Up/Quiz/Test posts in SPLIT mode.**
+- [x] **Step 6: Verify targeted planner tests pass.**
 
 ### Task 3: Make V5 review default and display the new behavior
 
@@ -65,11 +64,11 @@
 - Consumes: the planner's SPLIT/per-section behavior.
 - Produces: a teacher review screen that always previews one Classroom post per section and does not ask teachers to choose Hybrid/Bundle/Split or whether Warm-Up should post.
 
-- [ ] **Step 1: Add failing wiring assertions that V5 review forces SPLIT and Warm-Up inclusion.**
-- [ ] **Step 2: Normalize review drafts to `publicationStrategy: SPLIT` and `includeWarmupInClassroom: true`, including assignments that previously saved Hybrid.**
-- [ ] **Step 3: Compute V5 publication previews with SPLIT and Warm-Up included regardless of stale legacy draft values.**
-- [ ] **Step 4: Replace the strategy dropdown and Warm-Up checkbox with plain teacher-facing explanation plus the optional homework due-date control.**
-- [ ] **Step 5: Verify authoring V5 tests and production build pass.**
+- [x] **Step 1: Add failing wiring assertions that V5 review forces SPLIT and Warm-Up inclusion.**
+- [x] **Step 2: Normalize review drafts to `publicationStrategy: SPLIT` and `includeWarmupInClassroom: true`, including assignments that previously saved Hybrid.**
+- [x] **Step 3: Compute V5 publication previews with SPLIT and Warm-Up included regardless of stale legacy draft values.**
+- [x] **Step 4: Replace the strategy dropdown and Warm-Up checkbox with plain teacher-facing explanation plus the optional Practice due-date control.**
+- [ ] **Step 5: Verify authoring V5 tests and production build pass on the final head.**
 
 ### Task 4: Final verification and PR handoff
 
@@ -79,6 +78,6 @@
 **Interfaces:**
 - Produces: a reviewable PR based on post-PR-151 `main`.
 
-- [ ] **Step 1: Run the Assignment V5 Foundation workflow on the final head.**
-- [ ] **Step 2: Inspect the final diff for unrelated changes.**
+- [ ] **Step 1: Run the Assignment V5 Foundation and Full Platform Test Suite workflows on the final head.**
+- [x] **Step 2: Inspect the final diff for unrelated changes and remove temporary implementation scaffolding.**
 - [ ] **Step 3: Confirm the exact final head SHA and green checks before recommending merge.**
