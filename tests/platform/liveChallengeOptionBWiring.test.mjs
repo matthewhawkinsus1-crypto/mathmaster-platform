@@ -7,9 +7,14 @@ const readRequired = (file) => {
   return readFileSync(file, 'utf8');
 };
 
-test('Cloud Functions enters through the additive Live Challenge experience wrapper', () => {
+test('Cloud Functions preserves the additive Live Challenge experience wrapper through the platform entry', () => {
   const pkg = JSON.parse(readFileSync('functions/package.json', 'utf8'));
-  assert.equal(pkg.main, 'entry.js');
+  assert.equal(pkg.main, 'platformEntry.js');
+
+  const platformEntry = readRequired('functions/platformEntry.js');
+  assert.match(platformEntry, /require\(['"]\.\/entry\.js['"]\)/);
+  assert.match(platformEntry, /Object\.assign\(exports,\s*base\)/);
+
   const entry = readRequired('functions/entry.js');
   assert.match(entry, /require\(['"]\.\/index\.js['"]\)/);
   assert.match(entry, /configureLiveChallengeExperience/);
