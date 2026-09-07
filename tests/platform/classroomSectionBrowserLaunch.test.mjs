@@ -78,10 +78,11 @@ test('section launch target uses only included questions with the effective acti
     nowValue: Date.parse('2026-09-01T10:00:00.000Z'),
   });
 
-  // c2 explicitly overrides its containing classwork section to practice,
-  // so it is the first practice question in canonical flattened order.
-  assert.deepEqual(target.questionIndices, [2, 3]);
-  assert.equal(target.questionIndex, 2);
+  // Canonical flattened order is w1, w2, c1, c2, p1, d1. c2 explicitly
+  // overrides its containing classwork section to practice, so practice owns
+  // indices 3 and 4; excluded w2 remains irrelevant to this section.
+  assert.deepEqual(target.questionIndices, [3, 4]);
+  assert.equal(target.questionIndex, 3);
   assert.equal(target.sectionKey, 'practice');
   assert.equal(target.showFrozenReportFirst, false);
 });
