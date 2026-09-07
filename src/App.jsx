@@ -162,7 +162,8 @@ import RecommendedSkills from './components/student/RecommendedSkills.jsx';
 import { teksCodeFromSkillId } from './platform/path/skillGraph.js';
 import { buildStudentPathOptions } from './platform/path/studentPathOptions.js';
 import { fetchStudentEvidenceEvents } from './platform/history/evidencePersistence.js';
-import { COMPARABILITY, describeDeliveredRigor, explainGrade, rigorComparability, splitGrade } from './platform/teacher/gradeEvidence.js';
+import { COMPARABILITY, describeDeliveredRigor, explainGrade, rigorComparability, splitGrade, splitGradesBySection } from './platform/teacher/gradeEvidence.js';
+import { classroomLaunchTarget, parseClassroomLaunchSearch } from './platform/classroom/classroomLaunchRoute.js';
 import { buildStudentDashboardModel, resolveNextAction } from './studentDashboardModel.js';
 import {
   readStudentRouteState,
@@ -379,16 +380,25 @@ function App() {
   const [sessionHydrating, setSessionHydrating] = useState(false);
   const [sessionHydrationError, setSessionHydrationError] = useState(null);
 
-  // Google Classroom launch link: ?launch=<assignmentId> drops a student
-  // straight into that assignment once they log in.
+  // Google Classroom launches preserve the server-verified publication and
+  // section identity all the way into the browser. Legacy whole-assignment
+  // links still parse as sectionKey="whole" and follow the original behavior.
   const [launchAssignment, setLaunchAssignment] = useState(null);
-  const [pendingLaunchAssignmentId, setPendingLaunchAssignmentId] = useState(null);
+  const [pendingClassroomLaunch, setPendingClassroomLaunch] = useState(null);
+  const [classroomSectionReport, setClassroomSectionReport] = useState(null);
+  const [activeClassroomSectionKey, setActiveClassroomSectionKey] = useState(null);
 
   useEffect(() => {
-    const assignmentId = new URLSearchParams(window.location.search).get('launch');
-    if (!assignmentId) return;
-    setPendingLaunchAssignmentId(assignmentId);
-    getAssignmentByLaunchId({ assignmentId })
+    let launch = null;
+    try {
+      launch = parseClassroomLaunchSearch(window.location.search);
+    } catch (error) {
+      console.error('Rejected invalid Classroom launch link:', error);
+      return;
+    }
+    if (!launch) return;
+    setPendingClassroomLaunch(launch);
+    getAssignmentByLaunchId({ assignmentId: launch.assignmentId })
       .then((assignment) => setLaunchAssignment(assignment))
       .catch((err) => console.error('Failed to resolve Classroom launch link:', err));
   }, []);
@@ -830,28 +840,54 @@ function App() {
   }, [user?.role, teacherTab, activeClass.classId, classes, weeklyGoalsByClass]);
 
   useEffect(() => {
-    if (!pendingLaunchAssignmentId) return;
+    if (!pendingClassroomLaunch) return;
     if (user?.role !== 'student') return;
     const targetAssignment = assignments.find(
-      (assignment) => assignment.id === pendingLaunchAssignmentId
+      (assignment) => assignment.id === pendingClassroomLaunch.assignmentId,
     );
     if (!targetAssignment) return;
 
-    // A Google Classroom launch link is a doorway, not authorization. The
-    // signed-in MathMaster student must still belong to an assigned class.
+    // A Classroom link is a doorway, not authorization. The signed-in student
+    // must still belong to the MathMaster class that owns this assignment.
     if (!assignmentIsForStudent(targetAssignment, { classId: user.classId || null, classPeriod: user.classPeriod })) {
       toastWarning(
         'Assignment not available',
         'This Google Classroom assignment is not assigned to your MathMaster class.',
       );
-      setPendingLaunchAssignmentId(null);
+      setPendingClassroomLaunch(null);
       return;
     }
 
-    startAssignment(pendingLaunchAssignmentId);
-    setPendingLaunchAssignmentId(null);
+    try {
+      const target = classroomLaunchTarget({
+        assignment: targetAssignment,
+        launch: pendingClassroomLaunch,
+        nowValue: Date.now(),
+      });
+
+      // A permanently closed split post is an official grade/report link first.
+      // Starting voluntary practice is a separate action so opening Classroom
+      // can never silently replace the frozen record with an ungraded tracker.
+      if (target.showFrozenReportFirst) {
+        setClassroomSectionReport(target);
+        setActiveClassroomSectionKey(target.sectionKey);
+        setActiveAssignmentId(target.assignmentId);
+        setCurrentQuestionIndex(target.questionIndex);
+        setActiveView('classroomSectionReport');
+      } else {
+        startAssignment(target.assignmentId, target.questionIndex, {
+          sectionKey: target.isSectionLaunch ? target.sectionKey : null,
+        });
+      }
+    } catch (error) {
+      console.error('Could not open Classroom section link:', error);
+      toastWarning('Classroom link unavailable', error?.message || 'This Classroom section could not be opened.');
+    } finally {
+      setPendingClassroomLaunch(null);
+    }
+    // startAssignment intentionally reads the latest assignment/tracker state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingLaunchAssignmentId, user, assignments]);
+  }, [pendingClassroomLaunch, user, assignments, tracker]);
 
   // Holds the normalized text of the JSON currently in preflight. Nothing edits
   // it by hand any more; it exists so publishing can re-parse exactly what the
@@ -1619,6 +1655,8 @@ function App() {
 
   const leaveUnavailableAssignment = () => {
     setActiveAssignmentId(null);
+    setActiveClassroomSectionKey(null);
+    setClassroomSectionReport(null);
     setActiveView('dashboard');
     setPracticeTracker({});
     setPracticeScratchpads({});
@@ -1757,6 +1795,9 @@ function App() {
     setTeacherTab('home');
     setTeacherWorkspaceMode('teacher');
     setActiveAssignmentId(null);
+    setActiveClassroomSectionKey(null);
+    setClassroomSectionReport(null);
+    setPendingClassroomLaunch(null);
     setPracticeTracker({});
     setPracticeScratchpads({});
     setPreviewTracker({});
@@ -2718,7 +2759,7 @@ function App() {
     setTeacherWorksheetDialog({ assignmentId: assignment.id, requiresStudent });
   };
 
-  const startAssignment = (assignmentId, requestedQuestionIndex = 0) => {
+  const startAssignment = (assignmentId, requestedQuestionIndex = 0, options = {}) => {
     const assignmentData = assignments.find(
       (assignment) => assignment.id === assignmentId,
     );
@@ -2749,6 +2790,12 @@ function App() {
     const safeQuestionIndex = includedQuestionIndices.includes(requested)
       ? requested
       : includedQuestionIndices[0];
+    const requestedSectionKey = String(options?.sectionKey || '').trim().toLowerCase();
+    const scopedSectionKey = ['warmup', 'classwork', 'practice', 'dol'].includes(requestedSectionKey)
+      ? requestedSectionKey
+      : null;
+    setActiveClassroomSectionKey(scopedSectionKey);
+    setClassroomSectionReport(null);
     setActiveAssignmentId(assignmentId);
     setCurrentQuestionIndex(safeQuestionIndex);
     setAssignmentNavigationCollapsed(false);
@@ -6239,7 +6286,12 @@ function App() {
     }
 
     const questions = getStoredAssignmentQuestions(assignment);
-    const includedQuestionIndices = getIncludedQuestionIndices(questions);
+    const allIncludedQuestionIndices = getIncludedQuestionIndices(questions);
+    const includedQuestionIndices = activeClassroomSectionKey
+      ? allIncludedQuestionIndices.filter((index) => (
+          resolveQuestionActivityRole({ question: questions[index], assignment }) === activeClassroomSectionKey
+        ))
+      : allIncludedQuestionIndices;
     const lifecycle = getAssignmentLifecycle(assignment, now);
     const recordedTracker = tracker[activeAssignmentId] || {};
     const workingTracker = preview
@@ -6387,6 +6439,10 @@ function App() {
     const currentSectionQuestionCount = currentNavigationSection?.entries.length || 1;
     const currentSectionCompletedCount = currentNavigationSection?.entries.filter((entry) => sectionQuestionIsComplete(entry.index)).length || 0;
     const currentSectionRemainingCount = Math.max(0, currentSectionQuestionCount - currentSectionCompletedCount);
+    const currentSectionGrades = splitGradesBySection({ tracker: workingTracker, assignment });
+    const currentSectionOfficialGrades = splitGradesBySection({ tracker: recordedTracker, assignment });
+    const currentSectionGrade = currentSectionGrades[activeQuestionRole] || null;
+    const currentSectionOfficialGrade = currentSectionOfficialGrades[activeQuestionRole] || null;
     const warmupCanBeViewed = ['active', 'closed', 'ended'].includes(warmupState.status);
     const entryIsAvailable = (entry) => {
       if (preview || lifecycle.isPracticeOnly) return true;
@@ -6668,6 +6724,15 @@ function App() {
                       : `${currentSectionCompletedCount} of ${currentSectionQuestionCount} complete · ${currentSectionRemainingCount} remaining`}
                   </span>
                   <small>Question {currentSectionQuestionNumber} of {currentSectionQuestionCount} · {lifecycleBadge.label}</small>
+                  <small style={{ marginTop: 2, fontWeight: 900, color: currentSectionMeta.color }}>
+                    {preview
+                      ? `${currentSectionMeta.label} section score ${currentSectionGrade?.score ?? 0}% · ${currentSectionGrade?.attempted ?? 0}/${currentSectionGrade?.total ?? 0} answered`
+                      : assignmentFeedbackHeld
+                        ? `${currentSectionMeta.label} section score available after teacher release`
+                        : lifecycle.isPracticeOnly
+                          ? `${currentSectionMeta.label} section score ${currentSectionOfficialGrade?.score ?? 0}% · official grade frozen · practice score ${currentSectionGrade?.score ?? 0}%`
+                          : `${currentSectionMeta.label} section score ${currentSectionGrade?.score ?? 0}% · ${currentSectionGrade?.attempted ?? 0}/${currentSectionGrade?.total ?? 0} answered`}
+                  </small>
                   <small style={{ marginTop: 2, fontWeight: 850, color: assignmentFeedbackHeld ? '#174ea6' : '#3c4043' }}>
                     {preview
                       ? `Preview progress · ${progress.correct}/${progress.total} correct`
@@ -7636,7 +7701,7 @@ function App() {
                 )}
 
                 {selectedGradebookPeriod && selectedAssignment && !gradebookFilter.student && (
-                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '12px' }}>Student</th><th>Score</th><th>Instructional condition</th><th>Activity</th><th>DOL / Classwork</th><th></th></tr></thead><tbody>{selectedClassStudents.map((student) => { const grades = student.gradesByAssignment?.[selectedAssignment.id]; const score = grades ? calculateGrade(grades, selectedAssignment) : null; const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; const dolEntries = Object.entries(student.dolGradesByAssignment?.[selectedAssignment.id] || {}).sort(([a], [b]) => a.localeCompare(b)); const latestDol = dolEntries.at(-1)?.[1]; const latestDolScore = latestDol ? calculateDOLSectionScore(grades || {}, latestDol.questionIndices || [latestDol.questionIndex].filter(Number.isInteger), selectedAssignment) : null; const classwork = student.classworkGradesByAssignment?.[selectedAssignment.id]; return <tr key={student.id} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? '#6f2da8' : score >= 70 ? '#188038' : '#202124' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8', fontWeight: 900, fontSize: '11px' }}>MOD</span>}
+                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '12px' }}>Student</th><th>Overall</th><th>Warm-Up</th><th>Classwork</th><th>Practice</th><th>DOL</th><th>Instructional condition</th><th>Activity</th><th></th></tr></thead><tbody>{selectedClassStudents.map((student) => { const grades = student.gradesByAssignment?.[selectedAssignment.id]; const score = grades ? calculateGrade(grades, selectedAssignment) : null; const sectionGrades = splitGradesBySection({ tracker: grades, assignment: selectedAssignment }); const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <tr key={student.id} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? '#6f2da8' : score >= 70 ? '#188038' : '#202124' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8', fontWeight: 900, fontSize: '11px' }}>MOD</span>}
                     {/*
                       COMPLETION AND PERFORMANCE, VISUALLY APART.
                       The grade above is unchanged. These two lines are what a
@@ -7658,7 +7723,7 @@ function App() {
                         )}
                       </div>
                     )}
-                    {gradeExplanation && <div style={{ marginTop: 4, fontSize: 11, color: '#5f6368', lineHeight: 1.4, maxWidth: 280 }}>{gradeExplanation}</div>}</td><td style={{ fontSize: '12px' }}>{modified ? `Modified: ${(usage.modifications || []).join(', ')}` : (usage.accommodations || []).length ? `Accommodated: ${usage.accommodations.join(', ')}` : 'Standard'}</td><td style={{ fontSize: '12px', lineHeight: 1.45 }}>Total {formatTime(activity.totalTimeSeconds || 0)}<br />On time {formatTime(activity.onTimeSeconds || 0)} · Late {formatTime(activity.lateSeconds || 0)}<br />Last on-time: {formatTimeStamp(activity.lastActiveBeforeDue)}<br />Last late: {formatTimeStamp(activity.lastActiveLate)}</td><td style={{ fontSize: '12px' }}>DOL: {latestDolScore !== null ? `${latestDolScore}%` : '—'}<br />Classwork: {classwork?.score ? `${classwork.score}%` : '—'}</td><td><button onClick={() => setGradebookFilter((current) => ({ ...current, student }))} disabled={!grades} style={{ padding: '8px 12px', border: 0, borderRadius: '6px', background: grades ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Details</button></td></tr>; })}</tbody></table></div>
+                    {gradeExplanation && <div style={{ marginTop: 4, fontSize: 11, color: '#5f6368', lineHeight: 1.4, maxWidth: 280 }}>{gradeExplanation}</div>}</td><td style={{ fontSize: '12px' }}>{modified ? `Modified: ${(usage.modifications || []).join(', ')}` : (usage.accommodations || []).length ? `Accommodated: ${usage.accommodations.join(', ')}` : 'Standard'}</td><td style={{ fontSize: '12px', lineHeight: 1.45 }}>Total {formatTime(activity.totalTimeSeconds || 0)}<br />On time {formatTime(activity.onTimeSeconds || 0)} · Late {formatTime(activity.lateSeconds || 0)}<br />Last on-time: {formatTimeStamp(activity.lastActiveBeforeDue)}<br />Last late: {formatTimeStamp(activity.lastActiveLate)}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.warmup.total ? `${sectionGrades.warmup.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.classwork.total ? `${sectionGrades.classwork.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.practice.total ? `${sectionGrades.practice.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.dol.total ? `${sectionGrades.dol.score}%` : '—'}</td><td><button onClick={() => setGradebookFilter((current) => ({ ...current, student }))} disabled={!grades} style={{ padding: '8px 12px', border: 0, borderRadius: '6px', background: grades ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Details</button></td></tr>; })}</tbody></table></div>
                 )}
 
                 {gradebookFilter.student && selectedAssignment && (() => { const student = gradebookFilter.student; const studentGrades = student.gradesByAssignment?.[selectedAssignment.id] || {}; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{calculateGrade(studentGrades, selectedAssignment)}%</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div>{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: '#fff', border: '1px solid #d8dde6' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: '#202124' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{getStoredAssignmentQuestions(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type} · Grade ×{normalizeQuestionWeight(question)}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button></article>; })}</div></div>; })()}
@@ -7834,6 +7899,38 @@ function App() {
           onChooseSkill: handleChooseSkill,
         }}
         />
+      </>
+    );
+  }
+
+  if (user.role === 'student' && activeView === 'classroomSectionReport' && classroomSectionReport) {
+    const reportAssignment = assignments.find((assignment) => assignment.id === classroomSectionReport.assignmentId) || null;
+    const reportSections = splitGradesBySection({
+      tracker: tracker[classroomSectionReport.assignmentId] || {},
+      assignment: reportAssignment,
+    });
+    const reportGrade = reportSections[classroomSectionReport.sectionKey] || null;
+    return (
+      <>
+        {renderStudentPackUpBanner()}
+        {renderStudentWarmupBanner()}
+        <main style={{ minHeight: '100vh', background: '#f5f7fb', padding: '28px 18px', fontFamily: '"Segoe UI", sans-serif' }}>
+          <section style={{ maxWidth: 760, margin: '0 auto', padding: 24, borderRadius: 14, background: '#fff', border: '1px solid #d8dde6', boxShadow: '0 6px 20px rgba(0,0,0,.06)' }}>
+            <div style={{ fontSize: 12, fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>Google Classroom · official frozen report</div>
+            <h1 style={{ margin: '8px 0 4px', fontSize: 24, color: '#202124' }}>{reportAssignment?.title || 'MathMaster Assignment'}</h1>
+            <h2 style={{ margin: '0 0 18px', fontSize: 18, color: '#174ea6' }}>{classroomSectionReport.sectionLabel} section</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 18 }}>
+              <div style={{ padding: 14, borderRadius: 10, background: '#e8f0fe' }}><div style={{ fontSize: 11, fontWeight: 900, color: '#5f6368' }}>SECTION GRADE</div><strong style={{ display: 'block', marginTop: 4, fontSize: 28, color: '#174ea6' }}>{reportGrade?.score ?? 0}%</strong></div>
+              <div style={{ padding: 14, borderRadius: 10, background: '#f8f9fa' }}><div style={{ fontSize: 11, fontWeight: 900, color: '#5f6368' }}>ANSWERED</div><strong style={{ display: 'block', marginTop: 4, fontSize: 22, color: '#202124' }}>{reportGrade?.attempted ?? 0} / {reportGrade?.total ?? classroomSectionReport.questionIndices?.length ?? 0}</strong></div>
+              <div style={{ padding: 14, borderRadius: 10, background: '#e6f4ea' }}><div style={{ fontSize: 11, fontWeight: 900, color: '#5f6368' }}>STATUS</div><strong style={{ display: 'block', marginTop: 4, fontSize: 16, color: '#137333' }}>Official grade frozen</strong></div>
+            </div>
+            <p style={{ color: '#5f6368', lineHeight: 1.55 }}>This is the recorded {classroomSectionReport.sectionLabel} grade tied to this Google Classroom post. Practice after the final late deadline is separate and cannot change this frozen grade, evidence, mastery, or Classroom score.</p>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }}>
+              <button type="button" onClick={() => startAssignment(classroomSectionReport.assignmentId, classroomSectionReport.questionIndex, { sectionKey: classroomSectionReport.sectionKey })} style={{ padding: '10px 15px', border: 0, borderRadius: 8, background: '#174ea6', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Practice this section</button>
+              <button type="button" onClick={() => { setClassroomSectionReport(null); setActiveClassroomSectionKey(null); setActiveAssignmentId(null); setActiveView('dashboard'); }} style={{ padding: '10px 15px', border: '1px solid #c9ced6', borderRadius: 8, background: '#fff', color: '#3c4043', fontWeight: 800, cursor: 'pointer' }}>Return to dashboard</button>
+            </div>
+          </section>
+        </main>
       </>
     );
   }
