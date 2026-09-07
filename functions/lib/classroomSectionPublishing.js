@@ -2,6 +2,7 @@
 
 const {
   PUBLICATION_SECTION_KEYS,
+  publicationDocumentId,
   publicationSectionLabel,
 } = require("./publication");
 const {
@@ -66,9 +67,35 @@ function classroomPublicationSpecs({ assignment = {}, requestData = {} } = {}) {
   });
 }
 
+function classroomPublicationTargets({
+  assignmentId,
+  assignment = {},
+  courseIds = [],
+  requestData = {},
+} = {}) {
+  const cleanAssignmentId = String(assignmentId || "").trim();
+  if (!cleanAssignmentId) throw new TypeError("assignmentId is required.");
+
+  const specs = classroomPublicationSpecs({ assignment, requestData });
+  const cleanCourseIds = [...new Set(
+    courseIds.map((value) => String(value).trim()).filter(Boolean)
+  )];
+
+  return cleanCourseIds.flatMap((courseId) => specs.map((spec) => ({
+    ...spec,
+    courseId,
+    publicationId: publicationDocumentId(
+      cleanAssignmentId,
+      courseId,
+      spec.sectionKey
+    ),
+  })));
+}
+
 module.exports = {
   requestedSectionKeys,
   sectionTitle,
   sectionInstructions,
   classroomPublicationSpecs,
+  classroomPublicationTargets,
 };
