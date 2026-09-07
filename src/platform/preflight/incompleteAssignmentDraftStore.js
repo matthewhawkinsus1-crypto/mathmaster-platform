@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../../firebase.js';
 import {
+  applyIncompleteDraftRepairCommit,
   buildIncompleteAssignmentDraftRecord,
   markIncompleteDraftForReview,
   restoreIncompleteAssignmentV5,
@@ -59,6 +60,33 @@ export const updateIncompleteAssignmentDraft = async (draft, repairedAssignmentV
   const { id: _id, ...patch } = next;
   await updateDoc(doc(db, INCOMPLETE_ASSIGNMENT_DRAFTS_COLLECTION, draft.id), patch);
   return next;
+};
+
+/** Persist a staged Step 5 repair only after questionRepairImport has approved it. */
+export const commitIncompleteAssignmentDraftRepair = async (draft, committedRepair) => {
+  if (!draft?.id) throw new Error('The incomplete assignment draft is missing its saved ID.');
+  currentTeacherIdentity();
+  const next = applyIncompleteDraftRepairCommit(draft, committedRepair);
+  const { id: _id, ...patch } = next;
+  await updateDoc(doc(db, INCOMPLETE_ASSIGNMENT_DRAFTS_COLLECTION, draft.id), patch);
+  return next;
+};
+
+/** Teacher flags are human-owned review state and may be saved without rewriting a question. */
+export const saveIncompleteAssignmentTeacherReviewContext = async (draft, teacherReviewContext) => {
+  if (!draft?.id) throw new Error('The incomplete assignment draft is missing its saved ID.');
+  currentTeacherIdentity();
+  const updatedAt = new Date().toISOString();
+  const safeContext = JSON.parse(JSON.stringify(teacherReviewContext || { flags: [] }));
+  await updateDoc(doc(db, INCOMPLETE_ASSIGNMENT_DRAFTS_COLLECTION, draft.id), {
+    teacherReviewContext: safeContext,
+    updatedAt,
+  });
+  return {
+    ...draft,
+    teacherReviewContext: safeContext,
+    updatedAt,
+  };
 };
 
 export const deleteIncompleteAssignmentDraft = async (draftId) => {
