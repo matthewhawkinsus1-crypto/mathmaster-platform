@@ -1,4 +1,16 @@
 import { Component } from 'react';
+import TeacherQuestionReviewPanel from './components/teacher/TeacherQuestionReviewPanel.jsx';
+
+const teacherPreviewTarget = (resetKey) => {
+  const parts = String(resetKey || '').split('|');
+  const markerIndex = parts.indexOf('teacher-preview');
+  if (markerIndex <= 0 || markerIndex + 1 >= parts.length) return null;
+  const questionIndex = Number(parts[markerIndex + 1]);
+  if (!Number.isInteger(questionIndex) || questionIndex < 0) return null;
+  const assignmentId = String(parts[markerIndex - 1] || '').trim();
+  if (!assignmentId) return null;
+  return { assignmentId, questionIndex };
+};
 
 /*
  * Last line of defence around a single question's response module.
@@ -37,26 +49,41 @@ export default class QuestionModuleBoundary extends Component {
   }
 
   render() {
-    if (!this.state.error) return this.props.children;
+    const previewTarget = teacherPreviewTarget(this.props.resetKey);
+    const reviewPanel = previewTarget
+      ? <TeacherQuestionReviewPanel assignmentId={previewTarget.assignmentId} questionIndex={previewTarget.questionIndex} />
+      : null;
+
+    if (!this.state.error) {
+      return (
+        <>
+          {this.props.children}
+          {reviewPanel}
+        </>
+      );
+    }
 
     return (
-      <div
-        role="alert"
-        style={{
-          padding: '22px 24px', margin: '0 auto', maxWidth: '640px', textAlign: 'left',
-          borderRadius: '12px', background: 'var(--mm-warning-soft, #fef7e0)',
-          border: '1px solid var(--mm-warning, #f9ab00)',
-        }}
-      >
-        <h3 style={{ margin: 0, color: 'var(--mm-warning-text, #7a4f00)' }}>This question could not be displayed</h3>
-        <p style={{ margin: '10px 0 0', lineHeight: 1.55, color: 'var(--mm-ink, #202124)' }}>
-          Something in how this question was set up stopped it from loading. Nothing you did caused this and your
-          grade is not affected. Skip to the next question and let your teacher know.
-        </p>
-        <p style={{ margin: '12px 0 0', fontSize: '12px', color: 'var(--mm-ink-muted, #5f6368)' }}>
-          Details for your teacher: {this.props.questionType || 'unknown type'} &mdash; {String(this.state.error?.message || this.state.error)}
-        </p>
-      </div>
+      <>
+        <div
+          role="alert"
+          style={{
+            padding: '22px 24px', margin: '0 auto', maxWidth: '640px', textAlign: 'left',
+            borderRadius: '12px', background: 'var(--mm-warning-soft, #fef7e0)',
+            border: '1px solid var(--mm-warning, #f9ab00)',
+          }}
+        >
+          <h3 style={{ margin: 0, color: 'var(--mm-warning-text, #7a4f00)' }}>This question could not be displayed</h3>
+          <p style={{ margin: '10px 0 0', lineHeight: 1.55, color: 'var(--mm-ink, #202124)' }}>
+            Something in how this question was set up stopped it from loading. Nothing you did caused this and your
+            grade is not affected. Skip to the next question and let your teacher know.
+          </p>
+          <p style={{ margin: '12px 0 0', fontSize: '12px', color: 'var(--mm-ink-muted, #5f6368)' }}>
+            Details for your teacher: {this.props.questionType || 'unknown type'} &mdash; {String(this.state.error?.message || this.state.error)}
+          </p>
+        </div>
+        {reviewPanel}
+      </>
     );
   }
 }
