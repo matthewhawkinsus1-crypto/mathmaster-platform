@@ -201,7 +201,22 @@ export default function AssignmentIntake({
     setBusy(true);
     try {
       const result = await onJsonReady({ text, sourceName });
-      if (result?.ok) {
+      if (result?.salvaged) {
+        // The assignment parsed, was saved as an Incomplete draft, and its
+        // Repair Center is already open below. Showing the rejection panel here
+        // would tell the teacher their work was thrown away; showing the success
+        // toast would send them to a Preflight that is not open. This is its own
+        // outcome: keep the blocking-error list, say where the work went.
+        setFailure({
+          sourceName,
+          rawJson: text,
+          errors: result?.errors?.length ? result.errors : ['This assignment has questions that still need repair.'],
+          warnings: result?.warnings || [],
+          sourceSchemaVersion: 5,
+          compilerDefect: false,
+          salvaged: true,
+        });
+      } else if (result?.ok) {
         const repairCount = Array.isArray(result.repairs) ? result.repairs.length : 0;
         toastSuccess?.(
           'Assignment read',
@@ -638,16 +653,25 @@ export default function AssignmentIntake({
       </div>
 
       {failure && (
-        <div style={{ ...card, borderColor: '#f1a5a0', background: '#fff8f7' }} role="alert">
-          <h3 style={{ margin: '0 0 6px', fontSize: 16, color: '#a50e0e' }}>
-            This assignment needs attention{failure.sourceName ? ` — ${failure.sourceName}` : ''}
+        <div
+          style={failure.salvaged
+            ? { ...card, borderColor: '#f0c36d', background: '#fffdf5' }
+            : { ...card, borderColor: '#f1a5a0', background: '#fff8f7' }}
+          role="alert"
+        >
+          <h3 style={{ margin: '0 0 6px', fontSize: 16, color: failure.salvaged ? '#7a4f01' : '#a50e0e' }}>
+            {failure.salvaged
+              ? `Saved for repair${failure.sourceName ? ` — ${failure.sourceName}` : ''}`
+              : `This assignment needs attention${failure.sourceName ? ` — ${failure.sourceName}` : ''}`}
           </h3>
           <p style={{ margin: '0 0 10px', color: '#5f6b7a', fontSize: 13, lineHeight: 1.55 }}>
-            {failure.compilerDefect
-              ? 'The assignment contains enough mathematical intent, but MathMaster failed while building its renderer/runtime plumbing. This is a platform defect; do not rewrite the assignment into an older format.'
-              : Number(failure.sourceSchemaVersion) === 5
-                ? 'MathMaster owns renderer plumbing. The remaining issue should be a genuine mathematical/content omission or a malformed assignment field.'
-                : 'This file uses an older unsupported assignment format. Recreate the assignment with the creator above.'}
+            {failure.salvaged
+              ? 'Nothing was discarded. This assignment was saved to Incomplete Assignments and its Repair Center is open below. These questions are what still block publication; the rest of the assignment is already fine.'
+              : failure.compilerDefect
+                ? 'The assignment contains enough mathematical intent, but MathMaster failed while building its renderer/runtime plumbing. This is a platform defect; do not rewrite the assignment into an older format.'
+                : Number(failure.sourceSchemaVersion) === 5
+                  ? 'MathMaster owns renderer plumbing. The remaining issue should be a genuine mathematical/content omission or a malformed assignment field.'
+                  : 'This file uses an older unsupported assignment format. Recreate the assignment with the creator above.'}
           </p>
           <ul style={{ margin: '0 0 14px', paddingLeft: 20, color: '#3c4756', lineHeight: 1.6, fontSize: 13 }}>
             {failure.errors.map((error, index) => <li key={index}>{error}</li>)}

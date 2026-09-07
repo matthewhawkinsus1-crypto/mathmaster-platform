@@ -73,13 +73,17 @@ export default function AssignmentIntake(props) {
         'Saved to Incomplete Assignments',
         `${saved.authoringReview?.blockingCount || result.errors?.length || 1} blocking question issue${(saved.authoringReview?.blockingCount || result.errors?.length || 1) === 1 ? '' : 's'} found. The assignment was preserved and its Repair Center is open below; only the questions that need attention block publication.`,
       );
-      // Saving a salvageable V5 is a successful intake outcome even though the
-      // assignment is not publishable yet. Returning ok:true prevents the base
-      // intake from showing its hard-rejection panel. `salvaged` keeps this
-      // distinct from a fully valid assignment for callers and regression tests.
+      // Salvage is a third outcome, and it needs to stay one. It is not a
+      // rejection: the draft is saved and its Repair Center is open below, so
+      // the hard-rejection panel would be a lie. But it is not `ok` either —
+      // the base intake treats `ok` as publishable and answers it with "Review
+      // the details and publish from Preflight", which names a screen that is
+      // not open and drops the blocking-error list the teacher repairs from.
+      // `salvaged` is what the base branches on; it renders the saved-for-repair
+      // panel, which keeps the error list and points at the Repair Center.
       return {
         ...result,
-        ok: true,
+        ok: false,
         salvaged: true,
         incompleteDraftId: saved.id,
         teacherReviewContext: saved.teacherReviewContext,
