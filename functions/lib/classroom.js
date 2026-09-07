@@ -315,11 +315,23 @@ function toClassroomMaterial(material) {
   };
 }
 
+function classroomScheduleParts(publishAt, now = new Date()) {
+  if (!publishAt) return { state: "PUBLISHED", scheduledTime: undefined };
+
+  const scheduled = publishAt instanceof Date ? publishAt : new Date(publishAt);
+  if (!Number.isFinite(scheduled.getTime()) || scheduled.getTime() <= now.getTime()) {
+    return { state: "PUBLISHED", scheduledTime: undefined };
+  }
+
+  return { state: "DRAFT", scheduledTime: scheduled.toISOString() };
+}
+
 async function createCourseWork(
   classroom,
-  { courseId, title, description, dueDate, materials, launchUrl, maxPoints, topicId }
+  { courseId, title, description, dueDate, materials, launchUrl, maxPoints, topicId, publishAt }
 ) {
   const dueParts = classroomDueParts(dueDate);
+  const scheduleParts = classroomScheduleParts(publishAt);
   const materialItems = [
     ...(materials || []).map(toClassroomMaterial),
     { link: { url: launchUrl, title: "Open in MathMaster" } },
@@ -332,7 +344,8 @@ async function createCourseWork(
       description,
       materials: materialItems,
       workType: "ASSIGNMENT",
-      state: "PUBLISHED",
+      state: scheduleParts.state,
+      scheduledTime: scheduleParts.scheduledTime,
       assigneeMode: "ALL_STUDENTS",
       maxPoints: maxPoints ?? 100,
       topicId: topicId || undefined,
@@ -572,6 +585,7 @@ module.exports = {
   getDriveClient,
   listCourses,
   listStudents,
+  classroomScheduleParts,
   createCourseWork,
   patchCourseWork,
   modifyCourseWorkAssignees,
