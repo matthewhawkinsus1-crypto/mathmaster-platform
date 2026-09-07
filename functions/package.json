@@ -6,7 +6,7 @@
   "engines": {
     "node": "22"
   },
-  "main": "entry.js",
+  "main": "platformEntry.js",
   "scripts": {
     "serve": "firebase emulators:start --only functions",
     "shell": "firebase functions:shell",
