@@ -119,10 +119,14 @@ const initialReviewDraft = (draft = {}) => {
     dolInstructionDate: '',
     dolInstructionDatesByClassPeriod: {},
     dolQuestionIndex: null,
-    publicationStrategy: PUBLICATION_STRATEGIES.HYBRID,
-    includeWarmupInClassroom: false,
     homeworkDueAt: '',
     ...rest,
+    // Assignment V5 always publishes one Classroom post per authored section.
+    // Put these after legacy saved draft fields so reopening an older Hybrid
+    // setup previews the new per-section contract without changing Classroom
+    // until the teacher explicitly saves.
+    publicationStrategy: PUBLICATION_STRATEGIES.SPLIT,
+    includeWarmupInClassroom: true,
     assignedClassPeriods: Array.isArray(assignedClassPeriods) ? [...assignedClassPeriods] : [],
     assignedClassIds: Array.isArray(assignedClassIds) ? [...assignedClassIds] : [],
   };
@@ -153,7 +157,6 @@ const StepBlockers = ({ blockers }) => {
 
 export const LessonPreflightModal = ({
   assignmentV5,
-  publicationPlan: suppliedPublicationPlan = null,
   initialDraft = {},
   classPeriods = [],
   classes = [],
@@ -232,15 +235,13 @@ export const LessonPreflightModal = ({
 
   const computedPublicationPlan = useMemo(() => planClassroomPublication({
     assignmentV5: effectiveAssignmentV5,
-    strategy: draft.publicationStrategy || PUBLICATION_STRATEGIES.HYBRID,
+    strategy: PUBLICATION_STRATEGIES.SPLIT,
     mainDueDate: draft.dueAt || null,
     homeworkDueDate: draft.homeworkDueAt || null,
-    includeWarmupInClassroom: draft.includeWarmupInClassroom === true,
-  }), [effectiveAssignmentV5, draft.publicationStrategy, draft.dueAt, draft.homeworkDueAt, draft.includeWarmupInClassroom]);
+    includeWarmupInClassroom: true,
+  }), [effectiveAssignmentV5, draft.dueAt, draft.homeworkDueAt]);
 
-  const publicationPlan = suppliedPublicationPlan && !initialDraft.publicationStrategy
-    ? suppliedPublicationPlan
-    : computedPublicationPlan;
+  const publicationPlan = computedPublicationPlan;
   const posts = Array.isArray(publicationPlan?.plannedPosts) ? publicationPlan.plannedPosts : [];
   const currentActivity = activities[demoActivityIndex] || null;
   const questions = Array.isArray(currentActivity?.questions) ? currentActivity.questions : [];
@@ -1220,13 +1221,12 @@ export const LessonPreflightModal = ({
       </fieldset>
 
       <fieldset style={fieldsetStyle}>
-        <legend style={legendStyle}>Publication plan</legend>
-        <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-          <label style={labelStyle}>Strategy<select value={draft.publicationStrategy} onChange={(event) => setField('publicationStrategy', event.target.value)} style={inputStyle}><option value="hybrid">Hybrid</option><option value="bundle">Bundle</option><option value="split">Split by section</option></select></label>
-          <label style={labelStyle}>Separate homework due date (optional)<input type="datetime-local" value={draft.homeworkDueAt || ''} onChange={(event) => setField('homeworkDueAt', event.target.value)} style={inputStyle} /></label>
-        </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, marginTop: 8, fontWeight: 800 }}><input type="checkbox" style={checkboxStyle} checked={draft.includeWarmupInClassroom === true} onChange={(event) => setField('includeWarmupInClassroom', event.target.checked)} /> Include Warm-Up as a Classroom post</label>
-        <div style={{ marginTop: 8, color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>{publicationPlan.summary} {publicationPlan.omittedWarmupCount ? `${publicationPlan.omittedWarmupCount} Warm-Up section omitted by default.` : ''}</div>
+        <legend style={legendStyle}>Google Classroom posts</legend>
+        <p style={{ margin: '0 0 12px', color: '#3c4043', fontSize: 13, lineHeight: 1.5 }}>
+          Each assignment section gets its own Google Classroom post and grade column. Titles start with the section name, followed by the assignment name, so student gradebooks stay easy to scan.
+        </p>
+        <label style={labelStyle}>Separate Practice due date (optional)<input type="datetime-local" value={draft.homeworkDueAt || ''} onChange={(event) => setField('homeworkDueAt', event.target.value)} style={inputStyle} /></label>
+        <div style={{ marginTop: 8, color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>{publicationPlan.summary}</div>
       </fieldset>
 
       <details style={{ ...fieldsetStyle, padding: 0 }}>

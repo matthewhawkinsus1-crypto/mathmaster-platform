@@ -9,10 +9,25 @@ export const PUBLICATION_STRATEGIES = Object.freeze({
 
 const VALID_STRATEGIES = new Set(Object.values(PUBLICATION_STRATEGIES));
 const ASSESSMENT_ROLES = new Set([ACTIVITY_ROLES.QUIZ, ACTIVITY_ROLES.TEST]);
+const CLASSROOM_SECTION_LABELS = Object.freeze({
+  [ACTIVITY_ROLES.WARMUP]: 'Warm-Up',
+  [ACTIVITY_ROLES.CLASSWORK]: 'Classwork',
+  [ACTIVITY_ROLES.PRACTICE]: 'Practice',
+  [ACTIVITY_ROLES.DOL]: 'DOL',
+  [ACTIVITY_ROLES.QUIZ]: 'Quiz',
+  [ACTIVITY_ROLES.TEST]: 'Test',
+});
+
+const classroomSectionLabel = (activity) => (
+  CLASSROOM_SECTION_LABELS[activity?.role]
+  || String(activity?.title || activity?.role || 'Section')
+);
 
 const assignmentV5PublicationView = (assignmentV5) => {
   if (!assignmentV5 || typeof assignmentV5 !== 'object' || Array.isArray(assignmentV5)) return null;
-  const sections = Array.isArray(assignmentV5.sections) ? assignmentV5.sections : [];
+  const sections = Array.isArray(assignmentV5.sections)
+    ? assignmentV5.sections.filter((section) => section && typeof section === 'object' && !Array.isArray(section))
+    : [];
   const bundleId = String(
     assignmentV5.assignment?.assignmentKey
     || assignmentV5.assignment?.id
@@ -94,6 +109,32 @@ export const planClassroomPublication = ({
   const practices = activities.filter((activity) => activity.role === ACTIVITY_ROLES.PRACTICE);
   const sameDayPractices = practices.filter(() => !homeworkDueDate || datesRepresentSameMoment(homeworkDueDate, mainDueDate));
   const homeworkPractices = practices.filter(() => homeworkDueDate && !datesRepresentSameMoment(homeworkDueDate, mainDueDate));
+
+  // Assignment V5 review uses one Classroom post per authored section. Keep each
+  // section's activity id intact so grade passback lands in the matching column.
+  if (strategy === PUBLICATION_STRATEGIES.SPLIT) {
+    activities.forEach((activity) => {
+      const isHomework = activity.role === ACTIVITY_ROLES.PRACTICE && homeworkPractices.includes(activity);
+      const sectionLabel = classroomSectionLabel(activity);
+      posts.push(postForActivities({
+        lessonBundle: publicationSource,
+        kind: `split-${activity.activityId}`,
+        activities: [activity],
+        dueDate: isHomework ? homeworkDueDate : mainDueDate,
+        title: `${sectionLabel} — ${title}`,
+        description: `Complete the ${sectionLabel} in MathMaster.`,
+      }));
+    });
+    const plannedPosts = posts.filter(Boolean);
+    return {
+      sourceKind: assignmentV5 ? 'assignmentV5' : 'lessonBundle',
+      strategy,
+      plannedPosts,
+      omittedWarmupCount: 0,
+      summary: `${plannedPosts.length} Google Classroom post${plannedPosts.length === 1 ? '' : 's'} planned.`,
+    };
+  }
+
   const assessments = separateAssessmentPosts(publicationSource, activities, mainDueDate);
 
   // Warm-Ups never enter an accuracy/composite post. Their engagement grade has
@@ -149,23 +190,9 @@ export const planClassroomPublication = ({
       description: "Complete today's lesson in MathMaster.",
     });
     if (bundlePost) posts.push(bundlePost);
-  } else {
-    activities
-      .filter((activity) => activity.role !== ACTIVITY_ROLES.WARMUP && !ASSESSMENT_ROLES.has(activity.role))
-      .forEach((activity) => {
-        const isHomework = activity.role === ACTIVITY_ROLES.PRACTICE && homeworkPractices.includes(activity);
-        posts.push(postForActivities({
-          lessonBundle,
-          kind: `split-${activity.activityId}`,
-          activities: [activity],
-          dueDate: isHomework ? homeworkDueDate : mainDueDate,
-          title: `${title} — ${activity.title}`,
-          description: `Complete ${activity.title} in MathMaster.`,
-        }));
-      });
   }
 
-  if (homeworkPractices.length && strategy !== PUBLICATION_STRATEGIES.SPLIT) {
+  if (homeworkPractices.length) {
     posts.push(postForActivities({
       lessonBundle: publicationSource,
       kind: 'homework',
