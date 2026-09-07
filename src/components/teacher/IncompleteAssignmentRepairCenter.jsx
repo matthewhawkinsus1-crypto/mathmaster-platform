@@ -14,6 +14,14 @@ import {
   resolveTeacherReviewFlag,
 } from '../../platform/preflight/teacherReviewContext.js';
 import {
+  buildAssignmentRepairTriage,
+  buildPlatformBugReproductionFixture,
+  isDiagnosticOverridden,
+  recordTeacherDiagnosticOverride,
+  repairAllSafeTechnicalIssues,
+  triageDiagnostic,
+} from '../../platform/preflight/assignmentRepairTriage.js';
+import {
   commitIncompleteAssignmentDraftRepair,
   restoreIncompleteAssignmentV5,
   saveIncompleteAssignmentTeacherReviewContext,
@@ -77,6 +85,7 @@ export default function IncompleteAssignmentRepairCenter({
   const [verificationFlagIds, setVerificationFlagIds] = useState([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [overrideReason, setOverrideReason] = useState('');
 
   const revision = revisionOf(currentDraft);
   const preflightModel = useMemo(
@@ -90,6 +99,14 @@ export default function IncompleteAssignmentRepairCenter({
       teacherReviewContext,
     }),
     [preflightModel, teacherReviewContext],
+  );
+  // Step 6: the same diagnostics, separated by what a teacher can actually do
+  // about each one. A single blocker list invites exactly one response — ask an
+  // AI to rewrite the question — which is wrong for a storage fault and
+  // actively harmful for a defect in MathMaster.
+  const triage = useMemo(
+    () => buildAssignmentRepairTriage(preflightModel.diagnostics),
+    [preflightModel],
   );
   const questionIds = useMemo(() => allQuestionIds(repairCenterModel), [repairCenterModel]);
   const focusedRow = repairCenterModel.questions.find((row) => row.questionId === focusedQuestionId)
@@ -239,6 +256,70 @@ export default function IncompleteAssignmentRepairCenter({
     }
   };
 
+  // A quality judgement can be wrong and the teacher is the subject expert, so
+  // this is the only class they may overrule — with a reason, because it
+  // removes a blocker from a live assignment. It saves through the review
+  // context, so nothing about the question is rewritten and the revision does
+  // not move.
+  const overrideFalsePositive = async (finding) => {
+    setBusy(true);
+    try {
+      const next = recordTeacherDiagnosticOverride(teacherReviewContext, finding, {
+        reason: overrideReason,
+        assignmentRevision: revision,
+      });
+      await persistTeacherContext(next);
+      setOverrideReason('');
+      setMessage(`Override saved for ${finding.code}. The question was not changed and the revision did not move.`);
+    } catch (overrideError) {
+      setMessage(overrideError?.message || 'That diagnostic could not be overridden.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Deterministic, mathematically neutral fixes only. Whatever the whitelist
+  // does not recognise is reported as still unsafe rather than guessed at.
+  const repairAllSafe = async () => {
+    setBusy(true);
+    try {
+      const result = repairAllSafeTechnicalIssues(assignmentV5);
+      if (!result.changed) {
+        setMessage('There are no safe technical repairs to apply. Every remaining blocker needs a decision.');
+        return;
+      }
+      const saved = await commitIncompleteAssignmentDraftRepair(currentDraft, {
+        assignmentV5: result.assignmentV5,
+        teacherReviewContext,
+        committedRevision: revision + 1,
+      });
+      setAssignmentV5(result.assignmentV5);
+      updateSavedDraft(saved);
+      setMessage(`Repaired ${result.repairs.length} storage structure${result.repairs.length === 1 ? '' : 's'}; the mathematics is unchanged.${result.remainingUnsafePaths.length ? ` ${result.remainingUnsafePaths.length} unknown nested structure(s) were left for review rather than guessed at.` : ''}`);
+    } catch (repairError) {
+      setMessage(repairError?.message || 'The safe repairs could not be applied.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // A platform defect is reported, never repaired. Rewriting a correct question
+  // to dodge a MathMaster bug hides the bug and lowers the rigor of the lesson.
+  const copyPlatformBugHandoff = async (finding, platformIssue = null) => {
+    try {
+      const fixture = buildPlatformBugReproductionFixture({
+        assignmentV5,
+        questionId: finding.questionId || actualFocusedQuestionId,
+        diagnostic: finding,
+        platformIssue,
+      });
+      await navigator.clipboard.writeText(JSON.stringify(fixture, null, 2));
+      setMessage(`Platform bug handoff copied for ${fixture.issue.componentId || 'the affected tool'}. Do not rewrite the question: the authored content is correct and the defect is in MathMaster.`);
+    } catch (copyError) {
+      setMessage(copyError?.message || 'That platform bug handoff could not be copied.');
+    }
+  };
+
   const applyStaged = async () => {
     if (!stagedImport) return;
     setBusy(true);
@@ -305,6 +386,17 @@ export default function IncompleteAssignmentRepairCenter({
         Fix one question or a selected batch without replacing the assignment. Pasted AI output is staged first; MathMaster verifies the immutable questionId, shows the before/after changes, reruns Preflight, and only then enables Apply.
       </p>
 
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 12, padding: 10, borderRadius: 9, background: '#fff', border: '1px solid #d9e2f1' }}>
+        <span style={{ fontWeight: 900, fontSize: 12.5 }}>Blockers by what you can do about them:</span>
+        <span style={{ fontSize: 12.5 }}><strong>{triage.summary.technicalBlockers}</strong> technical</span>
+        <span style={{ fontSize: 12.5 }}><strong>{triage.summary.qualityBlockers}</strong> quality</span>
+        <span style={{ fontSize: 12.5 }}><strong>{triage.summary.platformIssues}</strong> platform</span>
+        <span style={{ fontSize: 12.5, color: '#5f6368' }}>{triage.summary.warnings} warning{triage.summary.warnings === 1 ? '' : 's'}</span>
+        <button type="button" disabled={busy} onClick={repairAllSafe} style={{ ...button, marginLeft: 'auto' }}>
+          Repair All Safe Technical Issues
+        </button>
+      </div>
+
       <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
         {repairCenterModel.questions.map((row) => {
           const focused = row.questionId === actualFocusedQuestionId;
@@ -321,14 +413,55 @@ export default function IncompleteAssignmentRepairCenter({
               </div>
               {row.automatedFindings.length > 0 && (
                 <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
-                  {row.automatedFindings.map((finding, index) => (
-                    <div key={`${finding.code || 'finding'}-${index}`} style={{ padding: 7, borderRadius: 7, background: '#fff4f3', color: '#8a1c13', fontSize: 11.5, lineHeight: 1.45 }}>
-                      <strong>{finding.severity || 'finding'} · {finding.code || 'diagnostic'}</strong>
-                      {finding.source ? ` · ${finding.source}` : ''}
-                      {finding.fieldPath ? ` · ${finding.fieldPath}` : ''}
-                      <div>{finding.requirement || finding.message}</div>
-                    </div>
-                  ))}
+                  {row.automatedFindings.map((finding, index) => {
+                    const triaged = triageDiagnostic(finding);
+                    const overridden = isDiagnosticOverridden(teacherReviewContext, finding);
+                    const platform = triaged.issueKind === 'platformIssue';
+                    const triageLabel = platform
+                      ? 'Platform issue'
+                      : triaged.triageClass === 'technicalBlocker'
+                        ? 'Technical blocker'
+                        : triaged.triageClass === 'qualityBlocker'
+                          ? 'Quality blocker'
+                          : 'Warning';
+                    return (
+                      <div key={`${finding.code || 'finding'}-${index}`} style={{ padding: 7, borderRadius: 7, background: overridden ? '#f1f3f4' : platform ? '#eef3ff' : '#fff4f3', color: overridden ? '#5f6368' : platform ? '#174ea6' : '#8a1c13', fontSize: 11.5, lineHeight: 1.45 }}>
+                        <strong>{triageLabel} · {finding.code || 'diagnostic'}</strong>
+                        {finding.source ? ` · ${finding.source}` : ''}
+                        {finding.fieldPath ? ` · ${finding.fieldPath}` : ''}
+                        <div>{finding.requirement || finding.message}</div>
+
+                        {overridden && <div style={{ marginTop: 4, fontStyle: 'italic' }}>Override saved by the teacher; this is not blocking publication.</div>}
+
+                        {platform && (
+                          <div style={{ marginTop: 6 }}>
+                            <div style={{ fontWeight: 800 }}>Do not rewrite the question — the authored content is correct and the defect is in MathMaster.</div>
+                            <button type="button" disabled={busy} onClick={() => copyPlatformBugHandoff(finding)} style={{ ...button, marginTop: 5 }}>
+                              Copy platform bug handoff
+                            </button>
+                          </div>
+                        )}
+
+                        {!platform && triaged.teacherOverrideEligible && !overridden && (
+                          <div style={{ marginTop: 6, display: 'grid', gap: 5 }}>
+                            <label style={{ fontWeight: 800 }} htmlFor={`override-${finding.code}-${index}`}>
+                              Why is this a false positive?
+                            </label>
+                            <input
+                              id={`override-${finding.code}-${index}`}
+                              value={overrideReason}
+                              onChange={(event) => setOverrideReason(event.target.value)}
+                              placeholder="The validator is applying the wrong rule to this representation."
+                              style={{ padding: 7, border: '1px solid #b7bec8', borderRadius: 7 }}
+                            />
+                            <button type="button" disabled={busy || !clean(overrideReason)} onClick={() => overrideFalsePositive(finding)} style={{ ...button, justifySelf: 'start' }}>
+                              Override false positive
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               {row.teacherFlags.filter(teacherFlagNeedsReview).map((flag) => (
