@@ -87,10 +87,19 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   });
   await setDoc(doc(db, 'presence/S1042'), { studentId: 'S1042', classId: 'class-1', assignmentId: 'A1' });
   await setDoc(doc(db, 'presence/S2000'), { studentId: 'S2000', classId: 'class-2', assignmentId: 'A2' });
+  await setDoc(doc(db, 'assignmentAuthoringDrafts/draft-mine'), {
+    title: 'Unit 3 draft',
+    authoringReview: { ownerUid: 'teacher-uid', state: 'incomplete', blockingCount: 2 },
+  });
+  await setDoc(doc(db, 'assignmentAuthoringDrafts/draft-theirs'), {
+    title: 'Someone else draft',
+    authoringReview: { ownerUid: 'other-teacher-uid', state: 'incomplete', blockingCount: 1 },
+  });
 });
 
 const teacher = testEnv.authenticatedContext('teacher-uid', { role: 'teacher', email: TEACHER_EMAIL }).firestore();
 const rootAdmin = testEnv.authenticatedContext('root-admin-uid', { role: 'teacher', admin: true, rootAdmin: true, email: 'root@school.org' }).firestore();
+const otherTeacher = testEnv.authenticatedContext('other-teacher-uid', { role: 'teacher', email: OTHER_TEACHER_EMAIL }).firestore();
 const student = testEnv.authenticatedContext('student:S1042', { role: 'student', studentId: 'S1042' }).firestore();
 // Someone who signed in with Google but has no role claim yet.
 const roleless = testEnv.authenticatedContext('random-uid', {}).firestore();
@@ -217,6 +226,37 @@ for (const [name, path] of [
   await check(`student CANNOT read ${name}`, assertFails(getDoc(doc(student, path))));
   await check(`student CANNOT write ${name}`, assertFails(setDoc(doc(student, path), { hack: true }, { merge: true })));
 }
+
+// --- Incomplete authoring drafts are private to the teacher who owns them ---
+// These rules are new and were previously asserted only by a regex over the
+// rules text, which cannot tell whether a student can actually read a draft or
+// whether one teacher can take another's. Each claim the block makes is
+// exercised here against the emulator.
+const draftDoc = (db, id) => doc(db, `assignmentAuthoringDrafts/${id}`);
+const ownedDraft = (ownerUid) => ({ title: 'x', authoringReview: { ownerUid, state: 'incomplete' } });
+
+await check('teacher reads own authoring draft', assertSucceeds(getDoc(draftDoc(teacher, 'draft-mine'))));
+await check('teacher creates own authoring draft', assertSucceeds(setDoc(draftDoc(teacher, 'draft-new'), ownedDraft('teacher-uid'))));
+await check('teacher updates own authoring draft', assertSucceeds(setDoc(draftDoc(teacher, 'draft-mine'), { title: 'renamed' }, { merge: true })));
+await check('teacher deletes own authoring draft', assertSucceeds(deleteDoc(draftDoc(teacher, 'draft-new'))));
+
+await check('teacher CANNOT read another teacher draft', assertFails(getDoc(draftDoc(teacher, 'draft-theirs'))));
+await check('teacher CANNOT update another teacher draft', assertFails(setDoc(draftDoc(teacher, 'draft-theirs'), { title: 'hax' }, { merge: true })));
+await check('teacher CANNOT delete another teacher draft', assertFails(deleteDoc(draftDoc(teacher, 'draft-theirs'))));
+await check('teacher CANNOT create a draft owned by someone else', assertFails(setDoc(draftDoc(teacher, 'draft-forged'), ownedDraft('other-teacher-uid'))));
+await check('teacher CANNOT take over a draft by rewriting ownerUid', assertFails(setDoc(draftDoc(teacher, 'draft-mine'), ownedDraft('other-teacher-uid'))));
+await check('other teacher reads their own draft', assertSucceeds(getDoc(draftDoc(otherTeacher, 'draft-theirs'))));
+// The drafts panel lists with this exact owner filter; an unlistable query would
+// break the feature at runtime while every single-document check still passed.
+await check('teacher lists own authoring drafts by owner filter', assertSucceeds(getDocs(query(collection(teacher, 'assignmentAuthoringDrafts'), where('authoringReview.ownerUid', '==', 'teacher-uid')))));
+await check('teacher CANNOT list another teacher drafts by owner filter', assertFails(getDocs(query(collection(teacher, 'assignmentAuthoringDrafts'), where('authoringReview.ownerUid', '==', 'other-teacher-uid')))));
+
+await check('student CANNOT read an authoring draft', assertFails(getDoc(draftDoc(student, 'draft-mine'))));
+await check('student CANNOT list authoring drafts', assertFails(getDocs(collection(student, 'assignmentAuthoringDrafts'))));
+await check('student CANNOT write an authoring draft', assertFails(setDoc(draftDoc(student, 'draft-mine'), { title: 'hax' }, { merge: true })));
+await check('roleless user CANNOT read an authoring draft', assertFails(getDoc(draftDoc(roleless, 'draft-mine'))));
+await check('anonymous CANNOT read an authoring draft', assertFails(getDoc(draftDoc(anon, 'draft-mine'))));
+await check('root admin reads any authoring draft', assertSucceeds(getDoc(draftDoc(rootAdmin, 'draft-theirs'))));
 
 await testEnv.cleanup();
 

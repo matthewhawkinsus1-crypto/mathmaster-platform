@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
+import { assignmentIntakeSource } from './helpers/intakeSource.mjs';
 
 test('teacher assignment intake exposes guided planning rather than raw schema editing', () => {
-  const source = fs.readFileSync('src/AssignmentIntake.jsx', 'utf8');
+  const source = assignmentIntakeSource();
   assert.match(source, /Assignment creator steps/);
   assert.match(source, /1\. Lesson and purpose/);
   assert.match(source, /2\. Sections, student versions, and rigor/);
@@ -33,7 +33,7 @@ test('teacher assignment intake exposes guided planning rather than raw schema e
 });
 
 test('all canonical V5 section roles are available to the creator', () => {
-  const source = fs.readFileSync('src/AssignmentIntake.jsx', 'utf8');
+  const source = assignmentIntakeSource();
   assert.match(source, /warmup.*classwork.*practice.*dol.*quiz.*test/);
 });
 

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { assignmentIntakeSource } from './helpers/intakeSource.mjs';
 
 const config = fs.readFileSync('functions/lib/config.js', 'utf8');
 const functionsIndex = fs.readFileSync('functions/index.js', 'utf8');
@@ -8,7 +9,7 @@ const functionsEntry = fs.readFileSync('functions/entry.js', 'utf8');
 const provider = fs.readFileSync('functions/lib/assignmentAi.js', 'utf8');
 const geminiProvider = fs.readFileSync('functions/lib/geminiAssignmentAi.js', 'utf8');
 const service = fs.readFileSync('src/services/assignmentAiService.js', 'utf8');
-const intake = fs.readFileSync('src/AssignmentIntake.jsx', 'utf8');
+const intake = assignmentIntakeSource();
 const preflight = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
 
 test('OpenAI credential is defined and read only in server Functions code', () => {
