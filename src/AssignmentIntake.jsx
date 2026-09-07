@@ -4,6 +4,7 @@ import IncompleteAssignmentRepairCenter from './components/teacher/IncompleteAss
 import { canSalvageV5IntakeResult } from './platform/preflight/assignmentAuthoringState.js';
 import {
   deleteIncompleteAssignmentDraft,
+  finalizeIncompleteAssignmentDraftReview,
   listIncompleteAssignmentDrafts,
   restoreIncompleteAssignmentV5,
   saveIncompleteAssignmentDraft,
@@ -61,24 +62,33 @@ export default function AssignmentIntake(props) {
         rawText: text,
         sourceName,
       });
+      // Put the saved record on screen immediately so the teacher never sees a
+      // parseable V5 assignment as a rejected upload while a refresh is in
+      // flight. The refresh then reconciles with Firestore as the source of
+      // truth, and the same draft is kept open in Repair Center.
+      setDrafts((current) => [saved, ...current.filter((draft) => draft.id !== saved.id)]);
+      setRepairDraftId(saved.id);
       await refreshDrafts();
+      setRepairDraftId(saved.id);
       toastInfo?.(
         'Saved to Incomplete Assignments',
-        `${saved.authoringReview?.blockingCount || result.errors?.length || 1} blocking question issue${(saved.authoringReview?.blockingCount || result.errors?.length || 1) === 1 ? '' : 's'} found. The assignment was saved instead of rejected, and it remains outside the normal Assignment Library until repaired.`,
+        `${saved.authoringReview?.blockingCount || result.errors?.length || 1} blocking question issue${(saved.authoringReview?.blockingCount || result.errors?.length || 1) === 1 ? '' : 's'} found. The assignment was preserved and its Repair Center is open below; only the questions that need attention block publication.`,
       );
-      // The draft is preserved, but the import did not succeed: these questions
-      // still block publication, and App's intake handler returns before
-      // openAssignmentPreflight() for a failed result. Reporting ok here would
-      // fire the creator's success toast — "Review the details and publish from
-      // Preflight" — for a Preflight that is not on screen, and would swap the
-      // blocking-error list a teacher needs for repair with nothing at all.
-      // Salvage adds the saved draft; it does not turn a failed import into a
-      // successful one. When task 2A opens Assignment Review for salvageable
-      // results, this is the seam that changes with it.
+      // Salvage is a third outcome, and it needs to stay one. It is not a
+      // rejection: the draft is saved and its Repair Center is open below, so
+      // the hard-rejection panel would be a lie. But it is not `ok` either —
+      // the base intake treats `ok` as publishable and answers it with "Review
+      // the details and publish from Preflight", which names a screen that is
+      // not open and drops the blocking-error list the teacher repairs from.
+      // `salvaged` is what the base branches on; it renders the saved-for-repair
+      // panel, which keeps the error list and points at the Repair Center.
       return {
         ...result,
+        ok: false,
         salvaged: true,
         incompleteDraftId: saved.id,
+        teacherReviewContext: saved.teacherReviewContext,
+        authoringState: saved.authoringState,
       };
     } catch (error) {
       console.error('Could not save salvageable Assignment V5 draft:', error);
@@ -94,6 +104,10 @@ export default function AssignmentIntake(props) {
       const result = await onJsonReady({
         text: JSON.stringify(assignmentV5),
         sourceName: `Incomplete · ${draft.title}`,
+        // Publication closes this draft, so Assignment Review has to know which
+        // draft it came from. Without it the repaired assignment reaches the
+        // Library and the pre-repair draft stays behind asking to be fixed.
+        incompleteDraftId: draft.id,
       });
       if (result?.ok) {
         toastSuccess?.('Assignment Review opened', 'The repaired draft now passes the assignment checks. Finish the normal review before saving it to the Library or assigning it to a class.');
@@ -104,6 +118,31 @@ export default function AssignmentIntake(props) {
       }
     } catch (error) {
       toastError?.('Could not open incomplete assignment', error?.message || 'MathMaster could not restore this draft.');
+    } finally {
+      setDraftBusyId(null);
+    }
+  };
+
+  /**
+   * The boundary between "the checks pass" and "a teacher says this is ready".
+   *
+   * finalizeIncompleteAssignmentDraftReview refuses and explains when the draft
+   * cannot advance — real blockers, or a teacher flag nobody has closed — so the
+   * failure is shown to the teacher rather than swallowed. Reaching Ready does
+   * not publish: that stays a separate act in the normal Library flow.
+   */
+  const completeFinalReview = async (draft) => {
+    setDraftBusyId(draft.id);
+    try {
+      const next = await finalizeIncompleteAssignmentDraftReview(draft, { published: false });
+      updateDraftInList(next);
+      await refreshDrafts();
+      toastSuccess?.(
+        'Marked ready for the Library',
+        `“${next.title}” passed final review. Open Review to publish it; it stays out of the normal Library until you do.`,
+      );
+    } catch (error) {
+      toastError?.('Final review is not complete', error?.message || 'This draft cannot be marked ready yet.');
     } finally {
       setDraftBusyId(null);
     }
@@ -182,6 +221,11 @@ export default function AssignmentIntake(props) {
                       <button type="button" disabled={busy} onClick={() => openDraftForReview(draft)} style={{ ...button, opacity: busy ? 0.6 : 1 }}>
                         {busy ? 'Opening…' : 'Recheck / Open Review'}
                       </button>
+                      {blockingCount === 0 && draft.authoringState !== 'ready' && draft.authoringState !== 'published' && (
+                        <button type="button" disabled={busy} onClick={() => completeFinalReview(draft)} style={{ ...button, borderColor: '#1e8e3e', color: '#1e8e3e', opacity: busy ? 0.6 : 1 }}>
+                          Complete final review
+                        </button>
+                      )}
                       <button type="button" disabled={busy} onClick={() => removeDraft(draft)} style={{ ...button, color: '#a50e0e', borderColor: '#f1b6b2', opacity: busy ? 0.6 : 1 }}>
                         Delete Draft
                       </button>

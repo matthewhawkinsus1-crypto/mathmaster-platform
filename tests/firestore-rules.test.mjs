@@ -95,6 +95,16 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     title: 'Someone else draft',
     authoringReview: { ownerUid: 'other-teacher-uid', state: 'incomplete', blockingCount: 1 },
   });
+  await setDoc(doc(db, 'assignmentQuestionReviews/teacher-uid__A1'), {
+    ownerUid: 'teacher-uid',
+    assignmentId: 'A1',
+    teacherReviewContext: { flags: [{ id: 'f1', scope: 'question', targetId: 'q-1', note: 'Private note about a student.' }] },
+  });
+  await setDoc(doc(db, 'assignmentQuestionReviews/other-teacher-uid__A1'), {
+    ownerUid: 'other-teacher-uid',
+    assignmentId: 'A1',
+    teacherReviewContext: { flags: [{ id: 'f2', scope: 'question', targetId: 'q-1', note: 'Another teacher private note.' }] },
+  });
 });
 
 const teacher = testEnv.authenticatedContext('teacher-uid', { role: 'teacher', email: TEACHER_EMAIL }).firestore();
@@ -257,6 +267,37 @@ await check('student CANNOT write an authoring draft', assertFails(setDoc(draftD
 await check('roleless user CANNOT read an authoring draft', assertFails(getDoc(draftDoc(roleless, 'draft-mine'))));
 await check('anonymous CANNOT read an authoring draft', assertFails(getDoc(draftDoc(anon, 'draft-mine'))));
 await check('root admin reads any authoring draft', assertSucceeds(getDoc(draftDoc(rootAdmin, 'draft-theirs'))));
+
+/*
+ * Library review notes live in their own collection precisely because
+ * /assignments is student-readable. That makes these rules the only thing
+ * standing between one teacher's private notes — which can name a student and
+ * describe what they got wrong — and every other signed-in account. The store
+ * only ever reads its own document by id, so a green string match on the rules
+ * file proves nothing about any of the paths below.
+ */
+const reviewDoc = (db, id) => doc(db, `assignmentQuestionReviews/${id}`);
+
+await check('teacher reads own assignment review notes', assertSucceeds(getDoc(reviewDoc(teacher, 'teacher-uid__A1'))));
+await check('teacher updates own assignment review notes', assertSucceeds(setDoc(reviewDoc(teacher, 'teacher-uid__A1'), { ownerUid: 'teacher-uid', assignmentId: 'A1', teacherReviewContext: { flags: [] } })));
+await check('teacher creates own assignment review notes', assertSucceeds(setDoc(reviewDoc(teacher, 'teacher-uid__A2'), { ownerUid: 'teacher-uid', assignmentId: 'A2', teacherReviewContext: { flags: [] } })));
+await check('teacher deletes own assignment review notes', assertSucceeds(deleteDoc(reviewDoc(teacher, 'teacher-uid__A2'))));
+
+await check('teacher CANNOT read another teacher review notes', assertFails(getDoc(reviewDoc(teacher, 'other-teacher-uid__A1'))));
+await check('teacher CANNOT overwrite another teacher review notes', assertFails(setDoc(reviewDoc(teacher, 'other-teacher-uid__A1'), { ownerUid: 'other-teacher-uid', assignmentId: 'A1', teacherReviewContext: { flags: [] } })));
+await check('teacher CANNOT delete another teacher review notes', assertFails(deleteDoc(reviewDoc(teacher, 'other-teacher-uid__A1'))));
+await check('teacher CANNOT create review notes owned by someone else', assertFails(setDoc(reviewDoc(teacher, 'forged'), { ownerUid: 'other-teacher-uid', assignmentId: 'A1', teacherReviewContext: { flags: [] } })));
+await check('teacher CANNOT reassign ownership of own review notes', assertFails(setDoc(reviewDoc(teacher, 'teacher-uid__A1'), { ownerUid: 'other-teacher-uid', assignmentId: 'A1', teacherReviewContext: { flags: [] } })));
+await check('teacher CANNOT repoint review notes at a different assignment', assertFails(setDoc(reviewDoc(teacher, 'teacher-uid__A1'), { ownerUid: 'teacher-uid', assignmentId: 'A9', teacherReviewContext: { flags: [] } })));
+await check('teacher CANNOT create review notes with no assignment id', assertFails(setDoc(reviewDoc(teacher, 'teacher-uid__none'), { ownerUid: 'teacher-uid', teacherReviewContext: { flags: [] } })));
+
+await check('other teacher reads their own review notes', assertSucceeds(getDoc(reviewDoc(otherTeacher, 'other-teacher-uid__A1'))));
+await check('student CANNOT read teacher review notes', assertFails(getDoc(reviewDoc(student, 'teacher-uid__A1'))));
+await check('student CANNOT list teacher review notes', assertFails(getDocs(collection(student, 'assignmentQuestionReviews'))));
+await check('student CANNOT write teacher review notes', assertFails(setDoc(reviewDoc(student, 'teacher-uid__A1'), { ownerUid: 'student:S1042', assignmentId: 'A1' })));
+await check('roleless user CANNOT read teacher review notes', assertFails(getDoc(reviewDoc(roleless, 'teacher-uid__A1'))));
+await check('anonymous CANNOT read teacher review notes', assertFails(getDoc(reviewDoc(anon, 'teacher-uid__A1'))));
+await check('root admin reads any teacher review notes', assertSucceeds(getDoc(reviewDoc(rootAdmin, 'teacher-uid__A1'))));
 
 await testEnv.cleanup();
 

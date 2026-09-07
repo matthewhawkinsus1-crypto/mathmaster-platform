@@ -10,8 +10,12 @@ promoted to the Library only when both the machine and a person say it is ready.
 ## What a teacher does with it
 
 1. **Paste an assignment that does not fully pass.** If it parses as V5 it is
-   saved as an Incomplete draft. It does *not* appear in the normal Library —
-   a half-repaired assignment must never be assignable by accident.
+   saved as an Incomplete draft and its Repair Center opens straight away. The
+   screen says *Saved for repair*, keeps the blocking-error list, and states
+   that nothing was discarded — this is neither the rejection panel nor the
+   success path, because the assignment was kept but is not publishable. It does
+   *not* appear in the normal Library: a half-repaired assignment must never be
+   assignable by accident.
 2. **Open the Repair Center.** Findings are grouped by what the teacher can do
    about each one, not by severity alone:
    - **Technical blockers** — the assignment cannot be stored or delivered as
@@ -31,8 +35,15 @@ promoted to the Library only when both the machine and a person say it is ready.
 4. **Override a false positive** where the finding is genuinely wrong. Overrides
    are recorded with a reason and persisted; they are only honoured for findings
    that are eligible for override in the first place.
-5. **Finish review.** Promotion to Ready is a separate, explicit act, and
-   Publishing is separate again.
+5. **Flag what an AI must not change**, at whichever scope the concern actually
+   has: this question, every question in this section, or the whole assignment.
+   The note becomes a hard constraint on any repair packet for the questions it
+   governs, and only a teacher can close it.
+6. **Finish review.** *Complete final review* promotes the draft to Ready once
+   nothing is blocking and no teacher flag is still open; it refuses and says
+   why otherwise. Ready is not Published — publishing goes through the normal
+   Library flow, and doing so closes the Incomplete draft so the repaired
+   assignment is the only copy.
 
 ## Boundaries that are not negotiable
 
@@ -81,6 +92,8 @@ for the measurement and the two contracts that keep the decision from rotting.
 | Single-question clipboard | `src/platform/contract/questionRepairClipboard.js` |
 | Batch packet / request / response | `src/platform/contract/questionBatchRepairPacket.js` |
 | Repair Center UI | `src/components/teacher/IncompleteAssignmentRepairCenter.jsx` |
+| Review panel in teacher preview | `src/components/teacher/TeacherQuestionReviewPanel.jsx` |
+| Library review-note persistence | `src/platform/preflight/assignmentQuestionReviewStore.js` |
 | Intake wiring | `src/AssignmentIntake.jsx`, `src/AssignmentIntakeBase.jsx` |
 
 ## Data and security
@@ -89,7 +102,19 @@ Drafts live in the `assignmentAuthoringDrafts` collection, never in
 `assignments`. Rules scope every operation to the owning teacher (or the root
 administrator) and pin `authoringReview.ownerUid` on both create and update, so
 a teacher cannot read another teacher's broken draft and cannot transfer one by
-editing its UID. The emulator cases are in `tests/firestore-rules.test.mjs`.
+editing its UID.
+
+Review notes on **published** assignments live in `assignmentQuestionReviews`,
+and they live there for one reason: `assignments` is student-readable, and these
+notes can name a student and describe what they got wrong. Rules restrict every
+operation to the owning teacher, refuse a forged `ownerUid` on create, and pin
+both `ownerUid` and `assignmentId` on update.
+
+The emulator cases for both collections are in `tests/firestore-rules.test.mjs`,
+and they are the security boundary — the teacher review panel that mounts inside
+the student question runtime is kept off a student's screen by a preview check,
+but it is these rules that mean a student could not read the notes even if it
+mounted. Treat a change to either as a change to student data privacy.
 
 ## Verifying a change here
 

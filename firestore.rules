@@ -278,6 +278,33 @@ service cloud.firestore {
       );
     }
 
+    // Private teacher review notes for normal Library assignments. Assignments
+    // themselves are student-readable, so flags/repair notes must never be
+    // stored on /assignments. The owner and assignment identity are immutable
+    // so a browser cannot transfer a private review document to another user or
+    // point it at a different assignment after creation.
+    match /assignmentQuestionReviews/{reviewId} {
+      allow create: if rootAdmin() || (
+        teacher()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.assignmentId is string
+      );
+      allow read: if rootAdmin() || (
+        teacher()
+        && resource.data.ownerUid == request.auth.uid
+      );
+      allow update: if rootAdmin() || (
+        teacher()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.assignmentId == resource.data.assignmentId
+      );
+      allow delete: if rootAdmin() || (
+        teacher()
+        && resource.data.ownerUid == request.auth.uid
+      );
+    }
+
     match /settings/{docId} {
       allow read: if signedIn();
       allow create, update, delete: if teacher();
