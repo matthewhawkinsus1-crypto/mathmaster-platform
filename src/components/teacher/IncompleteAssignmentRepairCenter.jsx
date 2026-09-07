@@ -80,6 +80,7 @@ export default function IncompleteAssignmentRepairCenter({
   const [focusedQuestionId, setFocusedQuestionId] = useState('');
   const [selectedQuestionIds, setSelectedQuestionIds] = useState([]);
   const [teacherNote, setTeacherNote] = useState('');
+  const [reviewScope, setReviewScope] = useState('question');
   const [singleJson, setSingleJson] = useState('');
   const [batchJson, setBatchJson] = useState('');
   const [stagedImport, setStagedImport] = useState(null);
@@ -151,24 +152,42 @@ export default function IncompleteAssignmentRepairCenter({
     ));
   };
 
+  // The review context has always inherited assignment -> section -> question,
+  // but the only flag this screen could create was a question flag, so the two
+  // wider scopes were unreachable. A concern that covers a whole section ("every
+  // graph in the DOL uses the wrong axis labels") had to be retyped onto each
+  // question, and then closed one at a time.
+  const flagTargetId = reviewScope === 'assignment'
+    ? null
+    : reviewScope === 'section'
+      ? (focusedRow?.sectionId || null)
+      : actualFocusedQuestionId;
+
   const addQuestionFlag = async () => {
-    if (!actualFocusedQuestionId) return;
+    // An assignment flag has no target by design; the other two scopes are
+    // meaningless without one, and addTeacherReviewFlag rejects them.
+    if (reviewScope !== 'assignment' && !flagTargetId) {
+      setMessage(`This assignment does not give MathMaster a ${reviewScope} to attach the flag to.`);
+      return;
+    }
     if (!clean(teacherNote)) {
-      setMessage('Write the teacher note first. That note becomes a hard repair constraint for this question.');
+      setMessage('Write the teacher note first. That note becomes a hard repair constraint for the work it covers.');
       return;
     }
     setBusy(true);
     try {
       const nextContext = addTeacherReviewFlag(teacherReviewContext, {
-        scope: 'question',
-        targetId: actualFocusedQuestionId,
+        scope: reviewScope,
+        targetId: flagTargetId,
         category: 'teacherReview',
         severity: 'needsEditing',
         note: clean(teacherNote),
       }, { assignmentRevision: revision });
       await persistTeacherContext(nextContext);
       setTeacherNote('');
-      setMessage('Teacher flag saved. Any AI repair packet for this question now carries that note as a hard constraint.');
+      setMessage(reviewScope === 'question'
+        ? 'Teacher flag saved. Any AI repair packet for this question now carries that note as a hard constraint.'
+        : `Teacher flag saved for the whole ${reviewScope}. Every question it covers inherits the note as a repair constraint.`);
     } catch (error) {
       setMessage(error.message);
       toastError?.('Could not save teacher flag', error.message);
@@ -513,6 +532,25 @@ export default function IncompleteAssignmentRepairCenter({
       {focusedRow && (
         <fieldset style={{ marginTop: 14, padding: 12, border: '1px solid #d8dde6', borderRadius: 9 }}>
           <legend style={{ fontWeight: 900 }}>Teacher review · Question {focusedRow.questionNumber}</legend>
+          <label style={{ display: 'block', fontSize: 12.5, fontWeight: 800, marginBottom: 8 }}>
+            Review scope
+            <select
+              value={reviewScope}
+              onChange={(event) => setReviewScope(event.target.value)}
+              style={{ display: 'block', marginTop: 6, padding: '6px 8px', borderRadius: 7, border: '1px solid #d8dde6', fontSize: 13, fontWeight: 600 }}
+            >
+              <option value="question">This question only</option>
+              <option value="section">Every question in this section</option>
+              <option value="assignment">The whole assignment</option>
+            </select>
+          </label>
+          <p style={{ margin: '0 0 8px', fontSize: 11.5, color: '#5f6368' }}>
+            {reviewScope === 'question'
+              ? 'The note becomes a repair constraint on this question.'
+              : reviewScope === 'section'
+                ? 'Every question in this section inherits the note, and the flag is closed once for all of them.'
+                : 'Every question in the assignment inherits the note.'}
+          </p>
           <label style={{ display: 'block', fontSize: 12.5, fontWeight: 800 }}>
             Flag this question and save a repair note
             <textarea value={teacherNote} onChange={(event) => setTeacherNote(event.target.value)} placeholder="Example: Keep the graph, but remove the text that gives away the answer." style={{ ...textarea, minHeight: 72, marginTop: 6, fontFamily: 'inherit', fontSize: 13 }} />
