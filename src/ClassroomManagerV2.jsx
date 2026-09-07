@@ -34,6 +34,7 @@ import {
   suggestClassroomTopic,
 } from './classroomRosterMatching';
 import { blobToBase64, generateLessonNotesPdfBlob, notesPdfSummary } from './platform/resources/lessonNotesPdf';
+import ClassroomSectionGradeSelector from './components/ClassroomSectionGradeSelector';
 
 const card = { background: '#fff', border: '1px solid #e0e3e7', borderRadius: 12, padding: 16 };
 const label = { display: 'block', fontSize: 12, fontWeight: 800, color: '#5f6368', marginBottom: 6 };
@@ -93,6 +94,7 @@ export default function ClassroomManagerV2({
   const [identityRows, setIdentityRows] = useState([]);
   const [identityRejected, setIdentityRejected] = useState([]);
   const [assignmentId, setAssignmentId] = useState(() => String(initialAssignmentId || ''));
+  const [selectedClassroomSectionKeys, setSelectedClassroomSectionKeys] = useState(['whole']);
   const [topicName, setTopicName] = useState('');
   const [instructions, setInstructions] = useState('');
   const [resourceMode, setResourceMode] = useState('separate');
@@ -268,6 +270,7 @@ export default function ClassroomManagerV2({
     if (!selectedAssignment) return;
     const classroom = selectedAssignment?.classroomPackage || {};
     const notes = selectedAssignment?.lessonResources?.notesPdf || null;
+    setSelectedClassroomSectionKeys(['whole']);
     setTopicName(classroom?.topic?.name || suggestClassroomTopic(selectedAssignment));
     setInstructions(classroom?.assignmentPost?.instructions
       || `Complete "${selectedAssignment.title}" in MathMaster. Use the Open in MathMaster link below.`);
@@ -492,6 +495,7 @@ export default function ClassroomManagerV2({
     const response = await publishAssignmentToClassrooms({
       courseIds: selectedCourseIds,
       assignmentId: selectedAssignment.id,
+      sectionKeys: selectedClassroomSectionKeys,
       classroomTitle: classroom?.assignmentPost?.title || selectedAssignment.title,
       maxPoints: Number(classroom?.assignmentPost?.maxPoints) || 100,
       gradePassbackEnabled: classroom?.gradePassback?.enabled !== false,
@@ -881,6 +885,16 @@ export default function ClassroomManagerV2({
             ))}
             <button style={secondary} onClick={() => setMaterials((current) => [...current, { title: '', url: '' }])}>+ Add resource link</button>
           </div>
+          {selectedAssignment && (
+            <div style={{ marginTop: 12, padding: '12px 14px', border: '1px solid #d8dee6', borderRadius: 10, background: '#f8fafc' }}>
+              <div style={{ ...label, marginBottom: 8 }}>Google Classroom grade represents</div>
+              <ClassroomSectionGradeSelector
+                assignment={selectedAssignment}
+                selectedKeys={selectedClassroomSectionKeys}
+                onChange={setSelectedClassroomSectionKeys}
+              />
+            </div>
+          )}
           <button style={{ ...primary, marginTop: 12 }} disabled={busy || !selectedAssignment} onClick={handlePublishAssignment}>Publish assignment package</button>
           <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 10, background: '#fff4ce', border: '2px solid #f9ab00', color: '#5f4400' }}>
             <strong>Post missing but MathMaster says it exists?</strong>
@@ -985,9 +999,7 @@ export default function ClassroomManagerV2({
 
                     <button style={danger} disabled={busy} onClick={() => {
                       const confirmed = window.confirm(
-                        `Remove "${assignment.title}" and its linked Notes & Resources post from Google Classroom?
-
-The MathMaster assignment, student work, and MathMaster grades will remain.`
+                        `Remove "${assignment.title}" and its linked Notes & Resources post from Google Classroom?\n\nThe MathMaster assignment, student work, and MathMaster grades will remain.`
                       );
                       if (!confirmed) return;
                       run(async () => {
