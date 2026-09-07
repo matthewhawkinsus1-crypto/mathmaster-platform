@@ -164,10 +164,70 @@ test('server passback re-derives algebra step credit and versioned reconciliatio
 });
 
 
+/*
+ * The DOL a teacher sees must be RECALCULATED, never a stored snapshot.
+ *
+ * A DOL score is written to `dolGradesByAssignment` when the window closes.
+ * That record is a point-in-time snapshot: it goes stale the moment a grade is
+ * repaired, a question is regraded, or step credit is re-derived on passback.
+ * A gradebook that renders the snapshot shows a number the platform itself no
+ * longer agrees with.
+ *
+ * This test previously froze the exact line that did the recalculation, so any
+ * legitimate rewrite of the gradebook broke it while a genuine regression that
+ * kept the line intact would have passed. It now asserts the two things that
+ * actually matter, derived from the source rather than pinned to one phrasing:
+ * the DOL cell is computed from the saved tracker, and the gradebook row does
+ * not read a score off the finalized DOL snapshot.
+ */
+const gradebookStudentRow = (app) => {
+  const start = app.indexOf('<th>Overall</th>');
+  assert.notEqual(start, -1, 'teacher gradebook table not found in App.jsx');
+  const end = app.indexOf('</table>', start);
+  assert.notEqual(end, -1, 'teacher gradebook table is unterminated');
+  return app.slice(start, end);
+};
+
 test('closed DOL gradebook display recalculates from saved question records instead of freezing an old snapshot', () => {
-  const app = read('src/App.jsx');
-  assert.match(app, /const latestDolScore = latestDol \? calculateDOLSectionScore\(grades \|\| \{\}, latestDol\.questionIndices/);
-  assert.match(app, /DOL: \{latestDolScore !== null \? `\$\{latestDolScore\}%` : '—'\}/);
+  const row = gradebookStudentRow(read('src/App.jsx'));
+
+  // The section scores come from the canonical tracker split, so they re-derive
+  // from saved question records every render.
+  assert.match(row, /const grades = student\.gradesByAssignment\?\.\[selectedAssignment\.id\]/);
+  assert.match(row, /splitGradesBySection\(\{\s*tracker:\s*grades,\s*assignment:\s*selectedAssignment\s*\}\)/);
+  assert.match(row, /sectionGrades\.dol\.score/);
+
+  // The frozen snapshot must not be what the teacher is shown.
+  assert.doesNotMatch(
+    row,
+    /dolGradesByAssignment/,
+    'the gradebook row must not read the finalized DOL snapshot; section scores recalculate from the tracker',
+  );
+});
+
+/*
+ * A section nobody has started is not a zero.
+ *
+ * `splitGradesBySection` reports total=2, attempted=0, score=0 for a DOL whose
+ * window has not opened yet. Rendering that raw would put 0% against every
+ * student for work that has not been assigned — the exact conversion of
+ * unanswered work into academic failure that gradeEvidence.js exists to
+ * prevent. Gate the cell on evidence, not on the section merely existing.
+ */
+test('teacher gradebook section scores show no evidence rather than a zero for unattempted sections', () => {
+  const row = gradebookStudentRow(read('src/App.jsx'));
+  for (const section of ['warmup', 'classwork', 'practice', 'dol']) {
+    assert.match(
+      row,
+      new RegExp(`sectionGrades\\.${section}\\.attempted \\?`),
+      `${section} cell must render from attempted evidence, not from section size`,
+    );
+    assert.doesNotMatch(
+      row,
+      new RegExp(`sectionGrades\\.${section}\\.total \\?`),
+      `${section} cell must not treat an unstarted section as a scored zero`,
+    );
+  }
 });
 
 test('already-synced Classroom grades can be recalculated and resent without reopening student work', () => {

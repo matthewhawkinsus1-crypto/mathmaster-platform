@@ -26,6 +26,20 @@ function runtimeIncludedQuestionIndices(assignment = {}) {
   }, []);
 }
 
+function runtimeIncludedQuestionIndicesForSection(assignment = {}, sectionKey = "whole") {
+  const normalizedSectionKey = String(sectionKey ?? "").trim().toLowerCase();
+  if (normalizedSectionKey === "whole") return runtimeIncludedQuestionIndices(assignment);
+  if (!["warmup", "classwork", "practice", "dol"].includes(normalizedSectionKey)) return [];
+
+  return runtimeQuestionsFromAssignment(assignment).reduce((indices, question, index) => {
+    const activityRole = String(question?.activityRole || "").trim().toLowerCase();
+    if (question?.teacherExcluded !== true && activityRole === normalizedSectionKey) {
+      indices.push(index);
+    }
+    return indices;
+  }, []);
+}
+
 function runtimeIncludedQuestionCount(assignment = {}) {
   return runtimeIncludedQuestionIndices(assignment).length;
 }
@@ -34,5 +48,6 @@ module.exports = {
   runtimeQuestionsFromAssignment,
   runtimeQuestionCount,
   runtimeIncludedQuestionIndices,
+  runtimeIncludedQuestionIndicesForSection,
   runtimeIncludedQuestionCount,
 };

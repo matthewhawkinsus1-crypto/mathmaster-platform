@@ -43,20 +43,25 @@ export const GRADE_SHAPE = Object.freeze({
   COMPLETE: 'complete',
 });
 
-/**
- * The grade, and the two numbers that explain it.
- *
- * `score` is exactly what the gradebook has always shown — unchanged, and
- * deliberately so. Everything else is context around it.
- */
-export const splitGrade = ({ tracker = null, assignment = null } = {}) => {
-  const included = getIncludedQuestionIndices(assignment);
-  if (!included.length) {
-    return {
-      score: null, attempted: 0, total: 0, unanswered: 0,
-      creditOnAttempted: null, shape: GRADE_SHAPE.NOT_STARTED,
-    };
-  }
+export const SECTION_GRADE_KEYS = Object.freeze([
+  'warmup',
+  'classwork',
+  'practice',
+  'dol',
+]);
+
+const emptyGradeSplit = () => ({
+  score: null,
+  attempted: 0,
+  total: 0,
+  unanswered: 0,
+  creditOnAttempted: null,
+  shape: GRADE_SHAPE.NOT_STARTED,
+});
+
+const splitGradeForIndices = ({ tracker = null, questions = [], indices = [] } = {}) => {
+  const included = Array.isArray(indices) ? indices : [];
+  if (!included.length) return emptyGradeSplit();
 
   let attempted = 0;
   included.forEach((index) => {
@@ -64,9 +69,6 @@ export const splitGrade = ({ tracker = null, assignment = null } = {}) => {
     if (record.status !== 'unattempted') attempted += 1;
   });
 
-  const questions = assignment?.schemaVersion === 5
-    ? (assignment.sections || []).flatMap((section) => section?.questions || [])
-    : [];
   const weighted = weightedQuestionTotals({
     tracker,
     questions,
@@ -86,6 +88,54 @@ export const splitGrade = ({ tracker = null, assignment = null } = {}) => {
       ? GRADE_SHAPE.NOT_STARTED
       : unanswered > 0 ? GRADE_SHAPE.INCOMPLETE : GRADE_SHAPE.COMPLETE,
   };
+};
+
+/**
+ * The grade, and the two numbers that explain it.
+ *
+ * `score` is exactly what the gradebook has always shown — unchanged, and
+ * deliberately so. Everything else is context around it.
+ */
+export const splitGrade = ({ tracker = null, assignment = null } = {}) => {
+  const included = getIncludedQuestionIndices(assignment);
+  const questions = assignment?.schemaVersion === 5
+    ? (assignment.sections || []).flatMap((section) => section?.questions || [])
+    : [];
+  return splitGradeForIndices({ tracker, questions, indices: included });
+};
+
+/**
+ * The four lesson-section grades shown by the teacher gradebook and student
+ * working header. This is a view of the SAME canonical tracker data used by the
+ * overall grade; it does not create another grade store.
+ *
+ * V5 flattening treats an explicit question.activityRole as authoritative over
+ * its containing section role, so the role list below mirrors that same rule.
+ * Teacher-excluded questions are removed by getIncludedQuestionIndices before
+ * section partitioning. A missing section stays empty rather than borrowing a
+ * score from another section.
+ */
+export const splitGradesBySection = ({ tracker = null, assignment = null } = {}) => {
+  const included = getIncludedQuestionIndices(assignment);
+  const questions = assignment?.schemaVersion === 5
+    ? (assignment.sections || []).flatMap((section) => section?.questions || [])
+    : [];
+  const roles = assignment?.schemaVersion === 5
+    ? (assignment.sections || []).flatMap((section) => (
+      (Array.isArray(section?.questions) ? section.questions : []).map((question) => (
+        String(question?.activityRole || section?.role || '').trim().toLowerCase()
+      ))
+    ))
+    : [];
+
+  return Object.fromEntries(SECTION_GRADE_KEYS.map((sectionKey) => [
+    sectionKey,
+    splitGradeForIndices({
+      tracker,
+      questions,
+      indices: included.filter((index) => roles[index] === sectionKey),
+    }),
+  ]));
 };
 
 /**

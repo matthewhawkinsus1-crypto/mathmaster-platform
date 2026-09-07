@@ -4,6 +4,7 @@ import {
 } from '../../livePresence';
 import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 import DOLCountdown from '../student/DOLCountdown.jsx';
+import { formatStudentName } from '../../platform/studentName';
 import {
   assignmentIsForStudent,
   getDOLState,
@@ -266,7 +267,8 @@ function WalkthroughCard({ row, onChecked, onOpenStudent }) {
 }
 
 function AttendancePanel({ roster, attendanceByStudentId, onMark, busyStudentId = null }) {
-  const sorted = [...roster].sort((a, b) => String(a?.displayName || a?.name || a?.id || '').localeCompare(String(b?.displayName || b?.name || b?.id || '')));
+  const attendanceName = (student) => formatStudentName(student, { lastFirst: false, fallbackToId: false });
+  const sorted = [...roster].sort((a, b) => attendanceName(a).localeCompare(attendanceName(b)));
   return (
     <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '1px solid #c9ced6', background: '#f8f9fa' }}>
       <div style={{ fontWeight: 900, color: '#202124' }}>Today&apos;s Live Attendance</div>
@@ -276,13 +278,14 @@ function AttendancePanel({ roster, attendanceByStudentId, onMark, busyStudentId 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 7 }}>
         {sorted.map((student) => {
           const id = String(student?.id || student?.studentId || '');
-          const name = student?.displayName || student?.name || student?.studentName || id;
+          const name = formatStudentName(student, { lastFirst: false, fallbackToId: false }) || 'Student';
           const mark = normalizeLiveAttendance(attendanceByStudentId[id]).mark || LIVE_ATTENDANCE_MARK.PRESENT;
           const busy = busyStudentId === id;
           return (
             <div key={id} style={{ background: '#fff', border: '1px solid #e0e3e7', borderRadius: 9, padding: '8px 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
               <div>
                 <strong style={{ fontSize: 12.5 }}>{name}</strong>
+                {id && <div style={{ marginTop: 1, fontSize: 10, color: '#80868b' }}>ID {id}</div>}
                 <div style={{ fontSize: 10.5, color: attendanceIsAbsent(mark) ? '#b3261e' : mark === LIVE_ATTENDANCE_MARK.LATE ? '#7a4f00' : '#137333', fontWeight: 900 }}>{ATTENDANCE_LABEL[mark] || 'Present'}</div>
               </div>
               <div style={{ display: 'flex', gap: 4 }}>
