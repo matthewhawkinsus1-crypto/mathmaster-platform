@@ -158,6 +158,86 @@ export const markIncompleteDraftForReview = (
 };
 
 /**
+ * Complete the human review boundary after repair.
+ *
+ * A successful repair import only proves that the candidate introduced no new
+ * blocker. It does not approve the teacher's own flags, and it does not mean
+ * the assignment should silently appear in the normal Library. Final review
+ * reruns Preflight against the saved canonical V5 plus the persisted teacher
+ * context. True blockers and unresolved teacher flags refuse promotion.
+ *
+ * Warnings are deliberately retained rather than erased. Reaching this function
+ * is the teacher's explicit acknowledgement that they reviewed those warnings,
+ * so a warning may remain in authoringReview while the draft advances to Ready.
+ * Publishing is a separate explicit choice. Neither action mutates question
+ * JSON or advances assignmentRevision.
+ */
+export const finalizeIncompleteAssignmentReview = (
+  record,
+  {
+    published = false,
+    nowIso = new Date().toISOString(),
+  } = {},
+) => {
+  const canonical = restoreIncompleteAssignmentV5(record);
+  const teacherReviewContext = record?.teacherReviewContext || emptyTeacherReviewContext();
+  const model = buildAssignmentV5PreflightModel(canonical, { teacherReviewContext });
+  const diagnostics = sanitizeDiagnostics(model.diagnostics);
+  const errors = uniqueStrings(model.errors || []);
+  const warnings = uniqueStrings(model.warnings || []);
+  const timestamp = String(nowIso || new Date().toISOString());
+
+  // model.isValid counts every blocking diagnostic, including ones the teacher
+  // has already overridden as false positives — so gating on it means an
+  // override changes the Repair Center display and nothing else, and the draft
+  // can never reach Ready. Eligibility is re-derived here rather than trusted
+  // from the stored list: overrides live in a Firestore document, and no row in
+  // a document makes an unstorable question publishable.
+  const overrideKeyOf = (entry) => `${String(entry?.code ?? entry?.diagnosticCode ?? '').trim()}::${String(entry?.questionId ?? '').trim()}`;
+  const diagnosticOverrides = Array.isArray(teacherReviewContext?.diagnosticOverrides)
+    ? teacherReviewContext.diagnosticOverrides
+    : [];
+  const blockingDiagnostics = diagnostics.filter((entry) => {
+    if (!['blocking', 'error'].includes(String(entry?.severity || '').toLowerCase())) return false;
+    const overridden = diagnosticOverrides.some((override) => overrideKeyOf(override) === overrideKeyOf(entry));
+    return !(overridden && teacherMayOverrideDiagnostic(entry));
+  });
+
+  if (blockingDiagnostics.length > 0) {
+    throw new Error(`This assignment still has ${blockingDiagnostics.length} blocking repair issue${blockingDiagnostics.length === 1 ? '' : 's'}. Finish the Repair Center work before final review.`);
+  }
+
+  const unresolvedTeacherFlags = (Array.isArray(teacherReviewContext?.flags) ? teacherReviewContext.flags : [])
+    .filter(teacherFlagNeedsReview);
+  if (unresolvedTeacherFlags.length > 0) {
+    throw new Error(`Teacher review is not complete: ${unresolvedTeacherFlags.length} teacher flag${unresolvedTeacherFlags.length === 1 ? '' : 's'} still need verification or resolution.`);
+  }
+
+  const state = published === true ? AUTHORING_STATES.PUBLISHED : AUTHORING_STATES.READY;
+  return {
+    ...record,
+    schemaVersion: 5,
+    title: String(canonical.assignment?.title || record?.title || 'Incomplete Assignment').trim() || 'Incomplete Assignment',
+    courseId: canonical.assignment?.courseId || record?.courseId || null,
+    authoringState: state,
+    authoringReview: {
+      ...(record?.authoringReview || {}),
+      state,
+      reviewedAt: timestamp,
+      finalizedAt: timestamp,
+      ...(published === true ? { publishedAt: timestamp } : {}),
+      questionCount: countQuestions(canonical),
+      blockingCount: 0,
+      warningCount: diagnostics.filter((entry) => entry?.severity === 'warning').length || warnings.length,
+      errors,
+      warnings,
+      diagnostics,
+    },
+    updatedAt: timestamp,
+  };
+};
+
+/**
  * Turn an already-validated Step 5 repair commit into the next persisted draft
  * record. The assignment, review context, and revision advance together so the
  * Firestore record can never say "revision 13" while still carrying revision
@@ -222,69 +302,5 @@ export const applyIncompleteDraftRepairCommit = (
     repairHistory: historyEntry
       ? [...(Array.isArray(record?.repairHistory) ? record.repairHistory : []), historyEntry]
       : (Array.isArray(record?.repairHistory) ? record.repairHistory : []),
-  };
-};
-
-const BLOCKING = new Set(['blocking', 'error']);
-const overrideKeyOf = (entry) => `${String(entry?.code ?? entry?.diagnosticCode ?? '').trim()}::${String(entry?.questionId ?? '').trim()}`;
-
-/**
- * The boundary between "the checks pass" and "a teacher says this is ready".
- *
- * Two different things gate it, and neither can stand in for the other.
- *
- * Deterministic blockers are not a matter of opinion: the assignment cannot be
- * stored or delivered as authored, so no amount of review makes it publishable.
- * An overridden quality blocker is genuinely gone — the teacher decided that —
- * but eligibility is re-derived here rather than trusted from the stored list,
- * so a corrupted override cannot promote an unstorable question.
- *
- * Open teacher flags are the opposite case: the machine is satisfied and a
- * person is not. A repair import can record that a revision may have addressed
- * a concern, and that is all it may do. If finalisation ignored open flags, an
- * import would in effect approve its own work, which is the whole failure this
- * workspace was built to prevent.
- *
- * Ready is also not Published. Reaching the Library and being given to students
- * are separate decisions, so publishing is an explicit argument rather than
- * something readiness quietly implies. Neither changes question content, and
- * neither moves the revision: reviewing is not editing.
- */
-export const finalizeIncompleteAssignmentReview = (record, { nowIso = new Date().toISOString(), published = false } = {}) => {
-  const canonical = restoreIncompleteAssignmentV5(record);
-  const model = buildAssignmentV5PreflightModel(canonical, {
-    teacherReviewContext: record?.teacherReviewContext || null,
-  });
-
-  const overrides = Array.isArray(record?.teacherReviewContext?.diagnosticOverrides)
-    ? record.teacherReviewContext.diagnosticOverrides
-    : [];
-  const blocking = (Array.isArray(model.diagnostics) ? model.diagnostics : []).filter((entry) => {
-    if (!BLOCKING.has(String(entry?.severity ?? '').trim().toLowerCase())) return false;
-    const overridden = overrides.some((override) => overrideKeyOf(override) === overrideKeyOf(entry));
-    return !(overridden && teacherMayOverrideDiagnostic(entry));
-  });
-  if (blocking.length) {
-    throw new Error(`This assignment still has ${blocking.length} blocking issue${blocking.length === 1 ? '' : 's'}, so it stays Incomplete until they are repaired: ${blocking.map((entry) => entry.code || entry.message).slice(0, 3).join('; ')}`);
-  }
-
-  const openFlags = (Array.isArray(record?.teacherReviewContext?.flags) ? record.teacherReviewContext.flags : [])
-    .filter(teacherFlagNeedsReview);
-  if (openFlags.length) {
-    throw new Error(`${openFlags.length} teacher review flag${openFlags.length === 1 ? '' : 's'} still open. A repair may record that a revision might have addressed a teacher's concern, but only the teacher can close it.`);
-  }
-
-  const state = published === true ? AUTHORING_STATES.PUBLISHED : AUTHORING_STATES.READY;
-  const timestamp = String(nowIso || new Date().toISOString());
-
-  return {
-    ...record,
-    authoringState: state,
-    authoringReview: {
-      ...(record?.authoringReview || {}),
-      state,
-      reviewedAt: timestamp,
-    },
-    updatedAt: timestamp,
   };
 };
