@@ -1,0 +1,1 @@
+This temporary marker preserves a checkpoint while AssignmentIntake is split into an exact base component plus a salvage wrapper. It will be removed before Step 2 is marked complete.
