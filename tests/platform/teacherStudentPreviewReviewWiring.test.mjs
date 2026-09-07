@@ -7,9 +7,10 @@ const boundarySource = readFileSync(new URL('../../src/QuestionModuleBoundary.js
 const panelSource = readFileSync(new URL('../../src/components/teacher/TeacherQuestionReviewPanel.jsx', import.meta.url), 'utf8');
 
 test('actual teacher View as Student runtime reaches the review panel through the question runtime boundary', () => {
-  assert.match(appSource, /generationStudentKey\s*=([\s\S]{0,200})teacher-preview/,
-    'App must continue marking the real View-as-Student question runtime with teacher-preview');
-  assert.match(boundarySource, /teacher-preview/);
+  assert.match(appSource, /teacherPreview=\{preview === true\}/,
+    'App must tell the question runtime outright that it is a teacher preview');
+  assert.match(appSource, /previewAssignmentId=\{activeAssignmentId\}/);
+  assert.match(appSource, /previewQuestionIndex=\{currentQuestionIndex\}/);
   assert.match(boundarySource, /TeacherQuestionReviewPanel/);
   assert.match(boundarySource, /assignmentId=\{previewTarget\.assignmentId\}/);
   assert.match(boundarySource, /questionIndex=\{previewTarget\.questionIndex\}/);
@@ -65,16 +66,52 @@ test('the review panel is mounted only for a teacher preview, never unconditiona
     'a fallback or literal in the gate defeats it: the panel must mount only when this runtime is genuinely a teacher preview');
 });
 
-test('the preview marker is derived strictly, so a student runtime cannot look like a preview', () => {
+test('teacher preview is stated by the caller, never inferred from the generation key', () => {
   const start = boundarySource.indexOf('const teacherPreviewTarget');
-  const parser = boundarySource.slice(start, boundarySource.indexOf('/*', start));
+  const parser = boundarySource.slice(start, boundarySource.indexOf('/*', start + 10));
 
-  assert.match(parser, /parts\.indexOf\(['"]teacher-preview['"]\)/,
-    'the marker must be matched as a whole key segment, not as a substring of the key');
-  assert.match(parser, /markerIndex\s*<=\s*0/,
-    'the marker cannot be the first segment: the assignment id is read from the segment before it');
+  assert.match(parser, /teacherPreview !== true/,
+    'the preview decision must come from an explicit flag');
   assert.match(parser, /Number\.isInteger\(questionIndex\)/,
     'a non-integer question index must not produce a preview target');
   assert.match(parser, /return null/,
     'anything that does not parse as a preview must yield no target rather than a partial one');
+
+  assert.doesNotMatch(
+    parser,
+    /resetKey/,
+    'the preview decision must not be read out of resetKey. That is a cache key: in a shared-version section it reads shared-version:<assignment>:<role> for teacher and student alike, on purpose, so the teacher previews the version the class receives. Sniffing it for a marker found nothing in exactly the sections that show "SAME VERSION", and the review controls silently never appeared there.',
+  );
+});
+
+/*
+ * The regression this file exists for, asserted where it actually broke.
+ *
+ * The teacher-preview marker was built into generationStudentKey, and that
+ * expression checks shared variant mode FIRST. So in any shared-version section
+ * the key was shared-version:... and never carried the marker, teacher or not.
+ * Every source contract passed while View as Student showed no review controls
+ * at all on the sections a teacher is most likely to open.
+ *
+ * The key must keep behaving that way — a teacher has to preview the version
+ * the class receives — which is precisely why the preview flag cannot live in
+ * it.
+ */
+test('shared-version sections still generate the version students receive, preview or not', () => {
+  // Anchored on currentSectionVariantMode, which is unique to the interactive
+  // runtime. A bare 'const generationStudentKey' also matches an earlier
+  // non-interactive path that has no preview concept at all, and anchoring
+  // there made this assertion vacuous — verified: folding the preview flag into
+  // the real expression left it green.
+  const start = appSource.indexOf('const generationStudentKey = currentSectionVariantMode');
+  assert.notEqual(start, -1, 'the interactive runtime must still derive a generation student key');
+  const expression = appSource.slice(start, appSource.indexOf(';', start));
+
+  assert.match(expression, /shared-version/,
+    'a shared-version section must still key generation on the shared version');
+  assert.doesNotMatch(
+    expression,
+    /teacherPreview/,
+    'the explicit preview flag must not be folded back into the generation key, or a teacher would preview a different variant than the class receives in shared-version sections',
+  );
 });

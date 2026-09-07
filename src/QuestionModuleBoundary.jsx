@@ -1,13 +1,27 @@
 import { Component } from 'react';
 import TeacherQuestionReviewPanel from './components/teacher/TeacherQuestionReviewPanel.jsx';
 
-const teacherPreviewTarget = (resetKey) => {
-  const parts = String(resetKey || '').split('|');
-  const markerIndex = parts.indexOf('teacher-preview');
-  if (markerIndex <= 0 || markerIndex + 1 >= parts.length) return null;
-  const questionIndex = Number(parts[markerIndex + 1]);
+/*
+ * Whether this runtime is a teacher preview, stated by the caller.
+ *
+ * This used to be recovered by looking for a 'teacher-preview' segment inside
+ * resetKey. That key is a cache key — it decides which variant gets generated —
+ * and in a shared-version section it reads `shared-version:<assignment>:<role>`
+ * for teacher and student alike, on purpose, so that a teacher previews the
+ * exact version the class receives. The marker was therefore absent in exactly
+ * the sections that show "SAME VERSION", and the review controls silently never
+ * appeared there. Presentation was being inferred from a value that belongs to
+ * question generation, and the two drifted apart the moment they disagreed.
+ *
+ * The caller says so directly now. Both identifiers still have to be real: an
+ * assignment id and a whole, non-negative question index, or there is no target
+ * and nothing mounts.
+ */
+const teacherPreviewTarget = ({ teacherPreview, previewAssignmentId, previewQuestionIndex }) => {
+  if (teacherPreview !== true) return null;
+  const questionIndex = Number(previewQuestionIndex);
   if (!Number.isInteger(questionIndex) || questionIndex < 0) return null;
-  const assignmentId = String(parts[markerIndex - 1] || '').trim();
+  const assignmentId = String(previewAssignmentId || '').trim();
   if (!assignmentId) return null;
   return { assignmentId, questionIndex };
 };
@@ -49,7 +63,11 @@ export default class QuestionModuleBoundary extends Component {
   }
 
   render() {
-    const previewTarget = teacherPreviewTarget(this.props.resetKey);
+    const previewTarget = teacherPreviewTarget({
+      teacherPreview: this.props.teacherPreview,
+      previewAssignmentId: this.props.previewAssignmentId,
+      previewQuestionIndex: this.props.previewQuestionIndex,
+    });
     const reviewPanel = previewTarget
       ? <TeacherQuestionReviewPanel assignmentId={previewTarget.assignmentId} questionIndex={previewTarget.questionIndex} />
       : null;

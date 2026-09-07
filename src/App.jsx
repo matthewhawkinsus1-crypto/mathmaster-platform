@@ -3402,7 +3402,42 @@ function App() {
     try {
       parsed = parseAssignmentBlueprintText(rawText);
     } catch (error) {
-      return { ok: false, errors: [error.message], warnings, sourceSchemaVersion: null, compilerDefect: false };
+      // A compile throw is not the same as unreadable input, and treating it as
+      // one is what made salvage unreachable for the case it exists for. The
+      // commonest V5 failure is a single question the compiler refuses — "V5
+      // question 3 does not contain enough mathematical intent" — thrown from
+      // the middle of the compile. The document itself is still a perfectly
+      // legible V5 with nineteen good questions in it, but discarding it here
+      // left the salvage check with no assignment to look at and no schema
+      // version to recognise, so the teacher was told to take the whole
+      // assignment back to the AI over one question.
+      //
+      // The raw text is re-read as plain JSON instead. This is deliberately not
+      // a second compiler: it recovers the authored document so it can be saved
+      // and repaired, and every question in it still has to pass Preflight
+      // before anything can be published.
+      let recoveredV5 = null;
+      try {
+        const document = JSON.parse(rawText);
+        if (document && typeof document === 'object' && Number(document.schemaVersion) === 5) {
+          recoveredV5 = document;
+        }
+      } catch {
+        recoveredV5 = null;
+      }
+
+      if (!recoveredV5) {
+        return { ok: false, errors: [error.message], warnings, sourceSchemaVersion: null, compilerDefect: false };
+      }
+
+      return {
+        ok: false,
+        errors: [error.message],
+        warnings,
+        parsed: { assignmentV5: recoveredV5, questions: [] },
+        sourceSchemaVersion: 5,
+        compilerDefect: V5_COMPILER_PLUMBING_ERROR.test(String(error.message)),
+      };
     }
 
     try {
@@ -6895,6 +6930,17 @@ function App() {
               question={questions[currentQuestionIndex]}
               questionRecord={workingTracker?.[currentQuestionIndex]}
               generationKey={`${activeAssignmentId}|${generationStudentKey}|${currentQuestionIndex}|variant:${currentRecord.variantIndex}`}
+              // Teacher preview is stated outright rather than inferred from the
+              // generation key. That key is a cache key: it decides which variant
+              // is generated, and in a shared-version section it deliberately
+              // reads `shared-version:...` for teacher and student alike so the
+              // teacher previews the exact version the class receives. Sniffing
+              // it for a preview marker therefore found nothing in precisely the
+              // sections where "SAME VERSION" is shown, and the review controls
+              // silently did not appear.
+              teacherPreview={preview === true}
+              previewAssignmentId={activeAssignmentId}
+              previewQuestionIndex={currentQuestionIndex}
               adaptation={currentAdaptation}
               onGrade={handleGradeSubmit}
               onStepGrade={handleStepGrade}
