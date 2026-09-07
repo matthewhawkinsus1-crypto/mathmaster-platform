@@ -1,4 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../firebase.js';
+import { getStoredAssignmentQuestions } from '../../platform/contract/storedAssignmentV5.js';
 import { buildQuestionRepairRequest } from '../../platform/contract/questionRepairRequest.js';
 import {
   addTeacherReviewFlag,
@@ -11,14 +15,16 @@ import {
 } from '../../platform/preflight/assignmentQuestionReviewStore.js';
 
 const panelStyle = {
-  maxWidth: 860,
-  margin: '0 auto 14px',
+  width: 'min(720px, calc(100vw - 24px))',
+  maxHeight: 'min(72vh, 680px)',
+  overflow: 'auto',
   padding: '12px 14px',
   border: '2px solid #1a73e8',
   borderRadius: 12,
   background: '#f8fbff',
   textAlign: 'left',
   color: '#202124',
+  boxShadow: '0 12px 34px rgba(0,0,0,.24)',
 };
 
 const buttonStyle = {
@@ -51,35 +57,48 @@ const writeClipboardText = async (text) => {
 
 export default function TeacherQuestionReviewPanel({
   assignmentId,
-  questionId,
-  question,
+  questionId: questionIdProp = '',
+  question: questionProp = null,
+  questionIndex = null,
 }) {
   const [context, setContext] = useState({ flags: [] });
+  const [resolvedQuestion, setResolvedQuestion] = useState(questionProp);
   const [category, setCategory] = useState('content');
   const [severity, setSeverity] = useState('needsEditing');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     if (!assignmentId) return undefined;
-    setMessage('Loading teacher review notes…');
-    loadAssignmentTeacherReviewContext(assignmentId)
-      .then((next) => {
+    Promise.all([
+      loadAssignmentTeacherReviewContext(assignmentId),
+      questionProp || questionIdProp || !Number.isInteger(Number(questionIndex))
+        ? Promise.resolve(null)
+        : getDoc(doc(db, 'assignments', assignmentId)),
+    ])
+      .then(([nextContext, assignmentSnapshot]) => {
         if (cancelled) return;
-        setContext(next || { flags: [] });
+        setContext(nextContext || { flags: [] });
+        if (questionProp) setResolvedQuestion(questionProp);
+        else if (assignmentSnapshot?.exists?.()) {
+          const questions = getStoredAssignmentQuestions({ id: assignmentSnapshot.id, ...assignmentSnapshot.data() });
+          setResolvedQuestion(questions[Number(questionIndex)] || null);
+        }
         setMessage('');
       })
       .catch((error) => {
         if (!cancelled) setMessage(error.message || 'Could not load teacher review notes.');
       });
     return () => { cancelled = true; };
-  }, [assignmentId]);
+  }, [assignmentId, questionIdProp, questionIndex, questionProp]);
 
+  const questionId = String(questionIdProp || resolvedQuestion?.questionId || '').trim();
   const questionFlags = useMemo(() => (
     (Array.isArray(context?.flags) ? context.flags : []).filter((flag) => (
-      flag?.scope === 'question' && String(flag?.targetId || '') === String(questionId || '')
+      flag?.scope === 'question' && String(flag?.targetId || '') === questionId
     ))
   ), [context, questionId]);
   const openFlags = questionFlags.filter(teacherFlagNeedsReview);
@@ -100,6 +119,10 @@ export default function TeacherQuestionReviewPanel({
 
   const saveFlag = async () => {
     const trimmed = String(note || '').trim();
+    if (!questionId) {
+      setMessage('This saved question is missing its stable questionId, so MathMaster will not attach a repair note to the wrong question.');
+      return;
+    }
     if (!trimmed) {
       setMessage('Write the repair note before saving the flag.');
       return;
@@ -124,15 +147,16 @@ export default function TeacherQuestionReviewPanel({
     const instructions = openFlags
       .map((flag) => String(flag?.note || '').trim())
       .filter(Boolean);
-    if (!instructions.length) {
-      setMessage('Save a teacher flag/note first so the repair request contains the exact issue to fix.');
+    if (!instructions.length || !resolvedQuestion) {
+      setMessage('Save a teacher flag/note first so the repair request contains the exact issue and question to fix.');
       return;
     }
     try {
       const request = buildQuestionRepairRequest({
         assignment: { title: `Assignment ${assignmentId}` },
-        question,
+        question: resolvedQuestion,
         instruction: instructions.map((value, index) => `${index + 1}. ${value}`).join('\n'),
+        questionNumber: Number.isInteger(Number(questionIndex)) ? Number(questionIndex) + 1 : null,
       });
       await writeClipboardText(request);
       setMessage('Question-only repair request copied. It includes this question and your open teacher notes, not the whole assignment.');
@@ -141,66 +165,74 @@ export default function TeacherQuestionReviewPanel({
     }
   };
 
-  if (!assignmentId || !questionId) return null;
+  if (!assignmentId || typeof document === 'undefined') return null;
 
-  return (
-    <aside aria-label="Teacher question review" style={panelStyle}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div>
-          <strong style={{ color: '#174ea6' }}>Teacher review · student preview</strong>
-          <div style={{ marginTop: 2, color: '#5f6368', fontSize: 11 }}>
-            Private teacher notes · Question ID <code>{questionId}</code>
-          </div>
-        </div>
-        <button type="button" onClick={copyRepairRequest} disabled={busy || !openFlags.length} style={{ ...buttonStyle, opacity: busy || !openFlags.length ? 0.55 : 1 }}>
-          Copy repair request
-        </button>
-      </div>
-
-      {questionFlags.length > 0 && (
-        <div style={{ display: 'grid', gap: 7, marginTop: 10 }}>
-          {questionFlags.map((flag) => (
-            <div key={flag.id} style={{ padding: 9, border: '1px solid #d9e2f1', borderRadius: 8, background: flag.status === 'resolved' ? '#f1f3f4' : '#fff8e1' }}>
-              <div style={{ fontSize: 12, fontWeight: 900 }}>{flag.status === 'resolved' ? 'Resolved' : 'Needs editing'} · {flag.category || 'review'}</div>
-              <div style={{ marginTop: 3, fontSize: 12.5 }}>{flag.note || 'Teacher review requested'}</div>
-              {teacherFlagNeedsReview(flag) && (
-                <button type="button" onClick={() => verifyFixed(flag.id)} disabled={busy} style={{ ...buttonStyle, marginTop: 7, color: '#137333', borderColor: '#81c995' }}>
-                  Verify fixed
-                </button>
-              )}
+  return createPortal(
+    <div style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 15000, display: 'grid', justifyItems: 'end', gap: 8 }}>
+      {expanded && (
+        <aside aria-label="Teacher question review" style={panelStyle}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div>
+              <strong style={{ color: '#174ea6' }}>Teacher review · student preview</strong>
+              <div style={{ marginTop: 2, color: '#5f6368', fontSize: 11 }}>
+                Private teacher notes{questionId ? <> · Question ID <code>{questionId}</code></> : ' · loading question identity…'}
+              </div>
             </div>
-          ))}
-        </div>
-      )}
+            <button type="button" onClick={copyRepairRequest} disabled={busy || !openFlags.length || !resolvedQuestion} style={{ ...buttonStyle, opacity: busy || !openFlags.length || !resolvedQuestion ? 0.55 : 1 }}>
+              Copy repair request
+            </button>
+          </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(130px, 0.7fr) minmax(150px, 0.8fr) minmax(240px, 2fr)', gap: 8, marginTop: 10 }}>
-        <label style={{ fontSize: 12, fontWeight: 800 }}>
-          Category
-          <select value={category} onChange={(event) => setCategory(event.target.value)} style={{ display: 'block', width: '100%', minHeight: 40, marginTop: 4, border: '1px solid #bdc7d6', borderRadius: 7, background: '#fff' }}>
-            <option value="content">Content/math</option>
-            <option value="directions">Directions</option>
-            <option value="answerKey">Answer/grading</option>
-            <option value="toolBehavior">Tool behavior</option>
-            <option value="accessibility">Accessibility</option>
-            <option value="other">Other</option>
-          </select>
-        </label>
-        <label style={{ fontSize: 12, fontWeight: 800 }}>
-          Severity
-          <select value={severity} onChange={(event) => setSeverity(event.target.value)} style={{ display: 'block', width: '100%', minHeight: 40, marginTop: 4, border: '1px solid #bdc7d6', borderRadius: 7, background: '#fff' }}>
-            <option value="needsEditing">Needs editing</option>
-            <option value="blocksStudentUse">Blocks student use</option>
-          </select>
-        </label>
-        <label style={{ fontSize: 12, fontWeight: 800 }}>
-          Repair note
-          <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Describe exactly what needs to change on this question." style={{ display: 'block', width: '100%', minHeight: 62, boxSizing: 'border-box', marginTop: 4, padding: 8, border: '1px solid #bdc7d6', borderRadius: 7, fontFamily: 'inherit' }} />
-        </label>
-      </div>
-      <button type="button" onClick={saveFlag} disabled={busy || !String(note || '').trim()} style={{ ...buttonStyle, marginTop: 8, background: '#1a73e8', borderColor: '#1a73e8', color: '#fff', opacity: busy || !String(note || '').trim() ? 0.55 : 1 }}>
-        Save teacher flag
+          {questionFlags.length > 0 && (
+            <div style={{ display: 'grid', gap: 7, marginTop: 10 }}>
+              {questionFlags.map((flag) => (
+                <div key={flag.id} style={{ padding: 9, border: '1px solid #d9e2f1', borderRadius: 8, background: flag.status === 'resolved' ? '#f1f3f4' : '#fff8e1' }}>
+                  <div style={{ fontSize: 12, fontWeight: 900 }}>{flag.status === 'resolved' ? 'Resolved' : 'Needs editing'} · {flag.category || 'review'}</div>
+                  <div style={{ marginTop: 3, fontSize: 12.5 }}>{flag.note || 'Teacher review requested'}</div>
+                  {teacherFlagNeedsReview(flag) && (
+                    <button type="button" onClick={() => verifyFixed(flag.id)} disabled={busy} style={{ ...buttonStyle, marginTop: 7, color: '#137333', borderColor: '#81c995' }}>
+                      Verify fixed
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8, marginTop: 10 }}>
+            <label style={{ fontSize: 12, fontWeight: 800 }}>
+              Category
+              <select value={category} onChange={(event) => setCategory(event.target.value)} style={{ display: 'block', width: '100%', minHeight: 40, marginTop: 4, border: '1px solid #bdc7d6', borderRadius: 7, background: '#fff' }}>
+                <option value="content">Content/math</option>
+                <option value="directions">Directions</option>
+                <option value="answerKey">Answer/grading</option>
+                <option value="toolBehavior">Tool behavior</option>
+                <option value="accessibility">Accessibility</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label style={{ fontSize: 12, fontWeight: 800 }}>
+              Severity
+              <select value={severity} onChange={(event) => setSeverity(event.target.value)} style={{ display: 'block', width: '100%', minHeight: 40, marginTop: 4, border: '1px solid #bdc7d6', borderRadius: 7, background: '#fff' }}>
+                <option value="needsEditing">Needs editing</option>
+                <option value="blocksStudentUse">Blocks student use</option>
+              </select>
+            </label>
+          </div>
+          <label style={{ display: 'block', marginTop: 8, fontSize: 12, fontWeight: 800 }}>
+            Repair note
+            <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Describe exactly what needs to change on this question." style={{ display: 'block', width: '100%', minHeight: 72, boxSizing: 'border-box', marginTop: 4, padding: 8, border: '1px solid #bdc7d6', borderRadius: 7, fontFamily: 'inherit' }} />
+          </label>
+          <button type="button" onClick={saveFlag} disabled={busy || !String(note || '').trim() || !questionId} style={{ ...buttonStyle, marginTop: 8, background: '#1a73e8', borderColor: '#1a73e8', color: '#fff', opacity: busy || !String(note || '').trim() || !questionId ? 0.55 : 1 }}>
+            Save teacher flag
+          </button>
+          {message && <div role="status" style={{ marginTop: 8, color: '#5f6368', fontSize: 12 }}>{message}</div>}
+        </aside>
+      )}
+      <button type="button" onClick={() => setExpanded((current) => !current)} aria-expanded={expanded} style={{ ...buttonStyle, minHeight: 44, background: '#174ea6', borderColor: '#174ea6', color: '#fff', boxShadow: '0 6px 18px rgba(0,0,0,.22)' }}>
+        {expanded ? 'Close teacher review' : `Teacher review${openFlags.length ? ` · ${openFlags.length} open` : ''}`}
       </button>
-      {message && <div role="status" style={{ marginTop: 8, color: '#5f6368', fontSize: 12 }}>{message}</div>}
-    </aside>
+    </div>,
+    document.body,
   );
 }
