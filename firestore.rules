@@ -258,6 +258,26 @@ service cloud.firestore {
       allow create, update, delete: if teacher();
     }
 
+    // Broken or unfinished authoring drafts never enter the shared assignments
+    // collection. They are visible only to the teacher who owns the draft (or
+    // the root administrator). Ownership is immutable from the client so one
+    // teacher cannot transfer a draft to another teacher by editing its UID.
+    match /assignmentAuthoringDrafts/{draftId} {
+      allow create: if rootAdmin() || (
+        teacher()
+        && request.resource.data.authoringReview.ownerUid == request.auth.uid
+      );
+      allow read, delete: if rootAdmin() || (
+        teacher()
+        && resource.data.authoringReview.ownerUid == request.auth.uid
+      );
+      allow update: if rootAdmin() || (
+        teacher()
+        && resource.data.authoringReview.ownerUid == request.auth.uid
+        && request.resource.data.authoringReview.ownerUid == request.auth.uid
+      );
+    }
+
     match /settings/{docId} {
       allow read: if signedIn();
       allow create, update, delete: if teacher();
