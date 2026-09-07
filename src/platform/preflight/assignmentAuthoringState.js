@@ -7,6 +7,7 @@ export const AUTHORING_STATES = Object.freeze({
 
 const BLOCKING_SEVERITIES = new Set(['blocking', 'error']);
 const RESOLVED_FLAG_STATUSES = new Set(['fixed', 'resolved', 'dismissed', 'closed']);
+const NORMAL_LIBRARY_STATES = new Set([AUTHORING_STATES.READY, AUTHORING_STATES.PUBLISHED]);
 
 const normalizedSeverity = (value) => String(value || '').trim().toLowerCase();
 const normalizedStatus = (value) => String(value || 'open').trim().toLowerCase();
@@ -14,6 +15,30 @@ const normalizedStatus = (value) => String(value || 'open').trim().toLowerCase()
 export const teacherFlagNeedsReview = (flag) => {
   if (!flag || typeof flag !== 'object') return false;
   return !RESOLVED_FLAG_STATUSES.has(normalizedStatus(flag.status));
+};
+
+/**
+ * A failed intake result is salvageable only when MathMaster successfully
+ * parsed a current Assignment V5 and the remaining failures are downstream
+ * validation/review findings. Malformed JSON, raw arrays, and unsupported
+ * schema versions never cross this boundary.
+ */
+export const canSalvageV5IntakeResult = (result) => (
+  result?.ok === false
+  && Number(result?.sourceSchemaVersion) === 5
+  && Number(result?.parsed?.assignmentV5?.schemaVersion) === 5
+);
+
+/**
+ * The normal Assignment Library should contain work that is ready to reuse or
+ * already published. Explicit incomplete/needs-review drafts belong in the
+ * repair workflow instead. Assignments created before authoringState existed
+ * remain visible for backward compatibility until they are reviewed/migrated.
+ */
+export const isAssignmentEligibleForNormalLibrary = (assignment = {}) => {
+  const explicitState = assignment?.authoringState || assignment?.authoringReview?.state || null;
+  if (!explicitState) return true;
+  return NORMAL_LIBRARY_STATES.has(explicitState);
 };
 
 /**
