@@ -55,6 +55,7 @@ import {
   assertFirestoreSafeAssignmentPayload,
 } from './assignmentBlueprint';
 import AssignmentIntake from './AssignmentIntake';
+import { markIncompleteAssignmentDraftPublished } from './platform/preflight/incompleteAssignmentDraftStore.js';
 import { hydrateAssignmentCcmr } from './services/assignmentCcmrService.js';
 import { auditAlignmentSpecificity, validateAlignments } from './platform/contract/alignments';
 import { validateQuestionsSemantics } from './platform/contract/semanticValidation';
@@ -3508,6 +3509,11 @@ function App() {
         mode: reviewOptions.mode === 'update' ? 'update' : 'create',
         existingAssignmentId: reviewOptions.existingAssignmentId || null,
         allowQuestionRepair: reviewOptions.allowQuestionRepair !== false,
+        // When this review started from an Incomplete draft, remember which one.
+        // Publishing has to close that draft, or the same assignment sits in the
+        // Library and in Incomplete Assignments at once, and the stale copy is
+        // the one still holding the pre-repair question JSON.
+        incompleteDraftId: reviewOptions.incompleteDraftId || null,
       });
       return true;
     } catch (error) {
@@ -3516,7 +3522,7 @@ function App() {
   };
 
   // Single entry point for pasted, uploaded and dropped JSON.
-  const handleAssignmentJsonReady = async ({ text, sourceName }) => {
+  const handleAssignmentJsonReady = async ({ text, sourceName, incompleteDraftId = null }) => {
     let sourceText = text;
     let ccmrAudit = null;
 
@@ -3553,7 +3559,7 @@ function App() {
       );
     }
     const warnings = [...(result.warnings || []), ...bankWarnings];
-    const opened = openAssignmentPreflight({ ...result.parsed, authoringWarnings: warnings }, sourceName);
+    const opened = openAssignmentPreflight({ ...result.parsed, authoringWarnings: warnings }, sourceName, {}, { incompleteDraftId });
     if (opened !== true) {
       return { ok: false, errors: [opened?.error || 'Could not build Assignment Review from this assignment.'], warnings, sourceSchemaVersion: result.sourceSchemaVersion, compilerDefect: false };
     }
@@ -3562,6 +3568,7 @@ function App() {
 
 
   const handleCreateAssignment = async (teacherReview, reviewedAssignmentV5) => {
+    const sourceIncompleteDraftId = assignmentPreflight?.incompleteDraftId || null;
     try {
       if (!teacherReview || typeof teacherReview !== 'object') {
         throw new Error('Publishing requires the completed Assignment Review settings.');
@@ -3928,6 +3935,23 @@ function App() {
       // no local `parsed` result in this function; referencing one here used
       // to throw after Firestore had successfully saved the assignment, making
       // a successful library save look like a failure.
+      // The draft existed to hold this assignment while it was unpublishable.
+      // It is published now, so the draft's job is done. This runs after the
+      // Firestore write and deliberately does not fail the publication: the
+      // assignment is live either way, and a leftover draft is a tidiness
+      // problem, not a reason to tell the teacher publishing failed.
+      if (sourceIncompleteDraftId) {
+        try {
+          await markIncompleteAssignmentDraftPublished(sourceIncompleteDraftId);
+        } catch (draftCleanupError) {
+          console.error('Published the assignment but could not close its incomplete draft:', draftCleanupError);
+          toastWarning(
+            'Published, but the incomplete draft is still listed',
+            `“${title}” is saved. Its Incomplete Assignments entry could not be removed automatically — delete it there so the repaired copy is the only one.`,
+          );
+        }
+      }
+
       const repairMessage = '';
       const sourceMessage = 'Created with MathMaster Assignment Creator after teacher review.';
       toastSuccess(

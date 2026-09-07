@@ -12,6 +12,7 @@ import { db, auth } from '../../firebase.js';
 import {
   applyIncompleteDraftRepairCommit,
   buildIncompleteAssignmentDraftRecord,
+  finalizeIncompleteAssignmentReview,
   markIncompleteDraftForReview,
   restoreIncompleteAssignmentV5,
 } from './incompleteAssignmentDraft.js';
@@ -87,6 +88,42 @@ export const saveIncompleteAssignmentTeacherReviewContext = async (draft, teache
     teacherReviewContext: safeContext,
     updatedAt,
   };
+};
+
+/**
+ * Promote a repaired draft to Ready, or to Published.
+ *
+ * finalizeIncompleteAssignmentReview decides whether the draft may advance —
+ * blocking diagnostics refuse, an override counts only where the finding is
+ * eligible for one, and any open teacher flag refuses outright. It throws with
+ * the reason when it will not, and this deliberately does not catch: a draft
+ * that cannot advance must not be written as though it did.
+ *
+ * Ready is not Published. Reaching the Library and being given to students are
+ * separate decisions, so publishing is an explicit argument rather than
+ * something readiness implies. Neither rewrites question JSON, and neither
+ * advances assignmentRevision — reviewing is not editing.
+ */
+export const finalizeIncompleteAssignmentDraftReview = async (draft, { published = false } = {}) => {
+  if (!draft?.id) throw new Error('The incomplete assignment draft is missing its saved ID.');
+  currentTeacherIdentity();
+  const next = finalizeIncompleteAssignmentReview(draft, { published });
+  const { id: _id, ...patch } = next;
+  await updateDoc(doc(db, INCOMPLETE_ASSIGNMENT_DRAFTS_COLLECTION, draft.id), patch);
+  return next;
+};
+
+/**
+ * The draft's job ends when the assignment it was standing in for is published.
+ *
+ * Leaving it behind means the teacher sees the same assignment in two places —
+ * once in the Library and once in Incomplete Assignments, still asking to be
+ * repaired — and the stale copy is the one that keeps the old question JSON.
+ */
+export const markIncompleteAssignmentDraftPublished = async (draftId) => {
+  if (!draftId) return;
+  currentTeacherIdentity();
+  await deleteDoc(doc(db, INCOMPLETE_ASSIGNMENT_DRAFTS_COLLECTION, draftId));
 };
 
 export const deleteIncompleteAssignmentDraft = async (draftId) => {
