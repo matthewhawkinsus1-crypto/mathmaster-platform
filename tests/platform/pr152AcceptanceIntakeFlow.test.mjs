@@ -12,10 +12,10 @@ test('salvageable V5 assignments open their saved Repair Center immediately', ()
   assert.match(intakeWrapper, /salvaged:\s*true/);
 });
 
-test('salvaged assignments are not rendered through the normal rejection panel', () => {
-  assert.match(intakeBase, /result\?\.salvaged/,
-    'AssignmentIntakeBase must distinguish a preserved repairable draft from a hard parse/schema failure');
-  assert.match(intakeBase, /Saved to Incomplete Assignments|Open Repair Center|repair/i);
+test('salvaged assignments become a successful preserved-draft intake rather than a rejection result', () => {
+  assert.match(intakeWrapper, /ok:\s*true[\s\S]{0,160}salvaged:\s*true/,
+    'only a draft that was successfully persisted may be promoted out of the hard-rejection path');
+  assert.match(intakeWrapper, /Repair Center is open below|Repair Center/i);
 });
 
 test('hard failures remain available for malformed or unsupported input', () => {
