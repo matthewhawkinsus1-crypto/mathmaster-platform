@@ -57,7 +57,12 @@ const scopeOf = (flag) => text(flag?.scope).toLowerCase();
 
 export const emptyTeacherReviewContext = () => ({ flags: [] });
 
+// Spread first: the review context grows over time (Step 6 adds diagnostic
+// overrides beside the flags), and a normaliser that rebuilds it from a fixed
+// shape silently drops whatever it has not been taught about. Adding a flag
+// must never delete a teacher's override.
 const normalizeContext = (context) => ({
+  ...(context && typeof context === 'object' ? context : {}),
   flags: Array.isArray(context?.flags) ? context.flags : [],
 });
 
