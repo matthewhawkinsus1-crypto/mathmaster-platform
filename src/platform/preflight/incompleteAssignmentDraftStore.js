@@ -53,29 +53,40 @@ export const listIncompleteAssignmentDrafts = async () => {
     .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
 };
 
-/**
- * Save a repaired draft.
- *
- * A repair committed through the Repair Center carries a teacher review context
- * and the revision it was committed at, and those must land with the assignment
- * rather than beside it: storing the questions while dropping the revision
- * leaves the next repair to be built against a number that no longer describes
- * the draft, which is exactly what the stale-repair guard reads. Callers that
- * pass neither keep the plain revalidation behaviour.
- */
-export const updateIncompleteAssignmentDraft = async (draft, repairedAssignmentV5, commit = null) => {
+export const updateIncompleteAssignmentDraft = async (draft, repairedAssignmentV5) => {
   if (!draft?.id) throw new Error('The incomplete assignment draft is missing its saved ID.');
   currentTeacherIdentity();
-  const next = commit
-    ? applyIncompleteDraftRepairCommit(draft, {
-      assignmentV5: repairedAssignmentV5,
-      teacherReviewContext: commit.teacherReviewContext ?? draft.teacherReviewContext ?? null,
-      committedRevision: commit.committedRevision,
-    })
-    : markIncompleteDraftForReview(draft, repairedAssignmentV5);
+  const next = markIncompleteDraftForReview(draft, repairedAssignmentV5);
   const { id: _id, ...patch } = next;
   await updateDoc(doc(db, INCOMPLETE_ASSIGNMENT_DRAFTS_COLLECTION, draft.id), patch);
   return next;
+};
+
+/** Persist a staged Step 5 repair only after questionRepairImport has approved it. */
+export const commitIncompleteAssignmentDraftRepair = async (draft, committedRepair) => {
+  if (!draft?.id) throw new Error('The incomplete assignment draft is missing its saved ID.');
+  currentTeacherIdentity();
+  const next = applyIncompleteDraftRepairCommit(draft, committedRepair);
+  const { id: _id, ...patch } = next;
+  await updateDoc(doc(db, INCOMPLETE_ASSIGNMENT_DRAFTS_COLLECTION, draft.id), patch);
+  return next;
+};
+
+/** Teacher flags are human-owned review state and may be saved without rewriting a question. */
+export const saveIncompleteAssignmentTeacherReviewContext = async (draft, teacherReviewContext) => {
+  if (!draft?.id) throw new Error('The incomplete assignment draft is missing its saved ID.');
+  currentTeacherIdentity();
+  const updatedAt = new Date().toISOString();
+  const safeContext = JSON.parse(JSON.stringify(teacherReviewContext || { flags: [] }));
+  await updateDoc(doc(db, INCOMPLETE_ASSIGNMENT_DRAFTS_COLLECTION, draft.id), {
+    teacherReviewContext: safeContext,
+    updatedAt,
+  });
+  return {
+    ...draft,
+    teacherReviewContext: safeContext,
+    updatedAt,
+  };
 };
 
 export const deleteIncompleteAssignmentDraft = async (draftId) => {

@@ -31,6 +31,11 @@ const sanitizeDiagnostics = (diagnostics = []) => (
   jsonSafe(Array.isArray(diagnostics) ? diagnostics : [])
 );
 
+const revisionNumber = (value, fallback = null) => {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 1 ? number : fallback;
+};
+
 export const restoreIncompleteAssignmentV5 = (record) => {
   const serialized = record?.authoringDraft?.canonicalJson;
   if (!serialized) {
@@ -73,6 +78,7 @@ export const buildIncompleteAssignmentDraftRecord = ({
     title: String(canonical.assignment?.title || 'Incomplete Assignment').trim() || 'Incomplete Assignment',
     courseId: canonical.assignment?.courseId || null,
     authoringState: AUTHORING_STATES.INCOMPLETE,
+    assignmentRevision: 1,
     authoringReview: {
       state: AUTHORING_STATES.INCOMPLETE,
       sourceName: String(sourceName || 'Imported assignment'),
@@ -149,32 +155,31 @@ export const markIncompleteDraftForReview = (
 };
 
 /**
- * Persist a committed repair onto the saved draft.
- *
- * The repaired assignment, the teacher's review context and the revision it was
- * committed at move together. Saving the assignment without the revision would
- * let the next repair be built against a number that no longer describes the
- * draft, and the stale-repair guard would wave through work that should be
- * refused. Saving it without the review context would drop the record of which
- * flags the repair might have addressed.
- *
- * Revalidation goes through markIncompleteDraftForReview so a repaired draft
- * and a reopened one cannot disagree about the state of the same assignment.
- * The teacher review context passed in is stored exactly as given: the caller
- * has already decided what an import may say about a teacher's flag, and it is
- * never "resolved".
+ * Turn an already-validated Step 5 repair commit into the next persisted draft
+ * record. The assignment, review context, and revision advance together so the
+ * Firestore record can never say "revision 13" while still carrying revision
+ * 12's question JSON or teacher flags.
  */
 export const applyIncompleteDraftRepairCommit = (
   record,
-  { assignmentV5 = null, teacherReviewContext = null, committedRevision = null } = {},
+  committedRepair = {},
   { nowIso = new Date().toISOString() } = {},
 ) => {
-  const revalidated = markIncompleteDraftForReview(record, assignmentV5, { nowIso });
+  const canonical = requireAssignmentV5(committedRepair?.assignmentV5, 'Committed repaired assignment');
+  const currentRevision = revisionNumber(record?.assignmentRevision, 1);
+  const committedRevision = revisionNumber(committedRepair?.committedRevision, null);
+  if (committedRevision == null || committedRevision <= currentRevision) {
+    throw new Error(`A saved repair must advance the assignment revision beyond ${currentRevision}.`);
+  }
+
+  const reviewed = markIncompleteDraftForReview(record, canonical, { nowIso });
   return {
-    ...revalidated,
-    assignmentRevision: Number.isFinite(Number(committedRevision))
-      ? Number(committedRevision)
-      : (record?.assignmentRevision ?? null),
-    teacherReviewContext: teacherReviewContext ?? revalidated.teacherReviewContext ?? null,
+    ...reviewed,
+    assignmentRevision: committedRevision,
+    teacherReviewContext: jsonSafe(
+      committedRepair?.teacherReviewContext
+      || record?.teacherReviewContext
+      || emptyTeacherReviewContext(),
+    ),
   };
 };

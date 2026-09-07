@@ -6,7 +6,6 @@ import {
   deleteIncompleteAssignmentDraft,
   listIncompleteAssignmentDrafts,
   restoreIncompleteAssignmentV5,
-  updateIncompleteAssignmentDraft,
   saveIncompleteAssignmentDraft,
 } from './platform/preflight/incompleteAssignmentDraftStore.js';
 
@@ -34,7 +33,7 @@ export default function AssignmentIntake(props) {
   const [drafts, setDrafts] = useState([]);
   const [loadingDrafts, setLoadingDrafts] = useState(true);
   const [draftBusyId, setDraftBusyId] = useState(null);
-  const [repairCenterDraft, setRepairCenterDraft] = useState(null);
+  const [repairCenterDraftId, setRepairCenterDraftId] = useState(null);
 
   const refreshDrafts = useCallback(async () => {
     setLoadingDrafts(true);
@@ -176,10 +175,10 @@ export default function AssignmentIntake(props) {
                       <button
                         type="button"
                         disabled={busy}
-                        onClick={() => setRepairCenterDraft((current) => (current?.id === draft.id ? null : draft))}
+                        onClick={() => setRepairCenterDraftId((current) => (current === draft.id ? null : draft.id))}
                         style={{ ...button, opacity: busy ? 0.6 : 1 }}
                       >
-                        {repairCenterDraft?.id === draft.id ? 'Close Repair Center' : 'Open Repair Center'}
+                        {repairCenterDraftId === draft.id ? 'Close Repair Center' : 'Open Repair Center'}
                       </button>
                       <button type="button" disabled={busy} onClick={() => removeDraft(draft)} style={{ ...button, color: '#a50e0e', borderColor: '#f1b6b2', opacity: busy ? 0.6 : 1 }}>
                         Delete Draft
@@ -187,26 +186,13 @@ export default function AssignmentIntake(props) {
                     </div>
                   </div>
 
-                  {repairCenterDraft?.id === draft.id && (
+                  {repairCenterDraftId === draft.id && (
                     <IncompleteAssignmentRepairCenter
                       draft={draft}
-                      assignmentV5={restoreIncompleteAssignmentV5(draft)}
-                      teacherReviewContext={draft.teacherReviewContext || null}
-                      currentRevision={draft.assignmentRevision ?? null}
-                      toastError={toastError}
                       toastSuccess={toastSuccess}
-                      onCommit={async (committed) => {
-                        try {
-                          await updateIncompleteAssignmentDraft(draft, committed.assignmentV5, {
-                            teacherReviewContext: committed.teacherReviewContext,
-                            committedRevision: committed.revision,
-                          });
-                          await refreshDrafts();
-                          setRepairCenterDraft(null);
-                        } catch (commitError) {
-                          toastError?.('Could not save the repaired draft', commitError?.message || 'The repair was not saved.');
-                        }
-                      }}
+                      toastError={toastError}
+                      onSaved={refreshDrafts}
+                      onClose={() => setRepairCenterDraftId(null)}
                     />
                   )}
                 </article>

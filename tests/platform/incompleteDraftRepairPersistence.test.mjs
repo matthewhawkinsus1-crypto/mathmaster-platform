@@ -68,15 +68,41 @@ test('a committed repair keeps the revision and the review context with the assi
   assert.equal(next.authoringReview.ownerUid, 'teacher-1', 'ownership must survive a repair, or the rules stop matching the document');
 });
 
-test('the draft store passes a commit through instead of falling back to plain revalidation', () => {
+test('the draft store persists a committed repair through the commit helper', () => {
   const store = readFileSync(new URL('../../src/platform/preflight/incompleteAssignmentDraftStore.js', import.meta.url), 'utf8');
-  const start = store.indexOf('export const updateIncompleteAssignmentDraft');
-  assert.notEqual(start, -1, 'updateIncompleteAssignmentDraft not found');
+  const start = store.indexOf('export const commitIncompleteAssignmentDraftRepair');
+  assert.notEqual(start, -1, 'commitIncompleteAssignmentDraftRepair not found: a committed repair has no way to reach Firestore');
   const body = store.slice(start, store.indexOf('\n};', start));
 
+  // Going through the helper is what keeps the assignment, the revision and the
+  // review context in one write. Rebuilding the patch by hand here is how they
+  // drift apart.
   assert.match(body, /applyIncompleteDraftRepairCommit\(/, 'a commit must be persisted through applyIncompleteDraftRepairCommit');
-  assert.match(body, /committedRevision/, 'the committed revision must reach the stored document');
-  assert.match(body, /teacherReviewContext/, 'the teacher review context must reach the stored document');
+  assert.match(body, /updateDoc\(/, 'the commit must actually be written');
+});
+
+/*
+ * Verifying a flag is not a question edit.
+ *
+ * A teacher pressing "Verify fixed" is recording a human judgement about work
+ * that already happened. If the only way to persist that were the repair-commit
+ * path, verifying would either rewrite a question that nobody changed or bump
+ * the revision for no reason — and a revision bump invalidates any repair
+ * packet a teacher is holding.
+ */
+test('teacher review state can be saved without rewriting a question', () => {
+  const store = readFileSync(new URL('../../src/platform/preflight/incompleteAssignmentDraftStore.js', import.meta.url), 'utf8');
+  const start = store.indexOf('export const saveIncompleteAssignmentTeacherReviewContext');
+  assert.notEqual(start, -1, 'saveIncompleteAssignmentTeacherReviewContext not found');
+  const body = store.slice(start, store.indexOf('\n};', start));
+
+  assert.match(body, /teacherReviewContext/);
+  assert.match(body, /updateDoc\(/);
+  assert.doesNotMatch(
+    body,
+    /assignmentRevision|canonicalJson/,
+    'saving a verification must not bump the revision or rewrite the assignment',
+  );
 });
 
 /*
@@ -97,9 +123,41 @@ test('the Repair Center is actually rendered by the intake, not merely imported'
     'AssignmentIntake.jsx must render <IncompleteAssignmentRepairCenter />; importing it is not enough',
   );
   assert.match(intake, /Open Repair Center/, 'a teacher needs a control that opens it');
-  // The commit has to reach the store, or a repair is shown and then lost.
-  assert.match(intake, /updateIncompleteAssignmentDraft\(/);
-  assert.match(intake, /committedRevision/);
+  // The component saves through the store itself, so the intake must hand it
+  // the draft and refresh once it reports a save; otherwise a committed repair
+  // is written and the list still shows the old state.
+  assert.match(intake, /draft=\{draft\}/);
+  assert.match(intake, /onSaved=/);
+});
+
+/*
+ * A SAVED REPAIR MUST ADVANCE THE REVISION.
+ *
+ * The revision is the whole staleness mechanism: a repair packet records the
+ * revision it was built from, and the parser refuses a reply whose baseRevision
+ * no longer matches the draft. That only works while every committed repair
+ * moves the number forward.
+ *
+ * Save a repair at the revision it started from and the content changes while
+ * the number does not. A packet a teacher generated BEFORE that repair still
+ * claims the current revision, so the staleness check waves it through and it
+ * overwrites the repair that just landed — silently, and looking like success.
+ * Going backwards is worse for the same reason.
+ */
+test('committing a repair at or below the current revision is refused', () => {
+  const repaired = structuredClone(assignmentV5);
+  repaired.sections[0].questions[0].prompt = 'Solve x + 2 = 5. Show one step.';
+
+  const commit = (committedRevision) => applyIncompleteDraftRepairCommit(draft(), {
+    assignmentV5: repaired,
+    teacherReviewContext: draft().teacherReviewContext,
+    committedRevision,
+  });
+
+  assert.equal(commit(13).assignmentRevision, 13, 'advancing the revision is the normal case');
+  assert.throws(() => commit(12), /revision/i, 'saving at the same revision changes content without changing the number');
+  assert.throws(() => commit(11), /revision/i, 'saving backwards is the same failure in the other direction');
+  assert.throws(() => commit(null), /revision/i, 'a commit with no revision cannot be checked for staleness later');
 });
 
 console.log('incompleteDraftRepairPersistence.test.mjs: all assertions passed');
