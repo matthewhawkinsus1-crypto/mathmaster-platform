@@ -9,6 +9,7 @@ import {
 } from './assignmentFolders';
 import { SMART_VIEWS, matchesSmartView } from './assignmentSmartViews';
 import { getAssignmentLifecycle } from './assignmentLifecycle';
+import { isAssignmentEligibleForNormalLibrary } from './platform/preflight/assignmentAuthoringState.js';
 
 const dialogOverlayStyle = {
   position: 'fixed',
@@ -151,12 +152,14 @@ export default function AssignmentLibrary({
 
   const topLevelFolders = getFolderChildren(folderPaths, '');
 
-  // Smart view (including the implicit "hide archived unless viewing
-  // Archived" rule baked into matchesSmartView) applies before folder/search
-  // narrowing, so the folder counts below stay consistent with what's
-  // actually shown in the list.
+  // Authoring/review readiness is separate from the student deadline
+  // lifecycle. Explicit incomplete/needs-review drafts stay in the repair
+  // workflow and do not leak into the normal reusable Assignment Library.
+  // Legacy assignments without an authoringState remain visible until they
+  // are reviewed/migrated so this rollout never makes old library work vanish.
   const visibleForSmartView = useMemo(() => assignments.filter((assignment) => (
-    matchesSmartView(assignment, smartView, { nowValue, classSchedule, classes })
+    isAssignmentEligibleForNormalLibrary(assignment)
+    && matchesSmartView(assignment, smartView, { nowValue, classSchedule, classes })
   )), [assignments, smartView, nowValue, classSchedule, classes]);
 
   const filteredAssignments = useMemo(() => {
