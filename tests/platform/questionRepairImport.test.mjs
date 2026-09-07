@@ -92,7 +92,7 @@ test('single-question paste accepts fenced AI JSON but refuses a different quest
 
   assert.throws(() => parseSingleQuestionRepairJson(JSON.stringify(assignmentV5), {
     expectedQuestionId: 'q-cw-1',
-  }), /one question|single question/i);
+  }), /one repaired question|full assignment/i);
 });
 
 test('single repair stages only the selected immutable id and produces a before/after diff plus revalidation', () => {
