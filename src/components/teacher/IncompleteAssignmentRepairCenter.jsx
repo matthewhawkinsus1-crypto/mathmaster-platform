@@ -13,6 +13,7 @@ import {
   addTeacherReviewFlag,
   resolveTeacherReviewFlag,
 } from '../../platform/preflight/teacherReviewContext.js';
+import { prepareQuestionRevisionRestore } from '../../platform/preflight/assignmentRepairHistory.js';
 import {
   buildAssignmentRepairTriage,
   buildPlatformBugReproductionFixture,
@@ -324,6 +325,37 @@ export default function IncompleteAssignmentRepairCenter({
     }
   };
 
+  // Restoring goes through staging like any other repair, deliberately.
+  //
+  // An old version is not automatically a good version: the assignment has
+  // moved since, and the question that was fine at revision 4 may now conflict
+  // with something. Committing it directly would be the one edit in this whole
+  // workspace that skips revalidation and the before/after review — and it
+  // would do so on the path a teacher reaches for when something has already
+  // gone wrong.
+  const stageHistoryRestore = (historyEntry) => {
+    setMessage('');
+    try {
+      const restore = prepareQuestionRevisionRestore({
+        assignmentV5,
+        historyEntry,
+        questionId: actualFocusedQuestionId,
+        currentRevision: revision,
+      });
+      setStagedImport(stageSingleQuestionRepairImport({
+        assignmentV5,
+        questionId: restore.questionId,
+        replacementQuestion: restore.restoredQuestion,
+        baseRevision: revision,
+        currentRevision: revision,
+        teacherReviewContext,
+      }));
+      setMessage(`Staged the version recorded at revision ${restore.restoredFromRevision}. Review the before/after and revalidation, then apply it as revision ${restore.nextRevision}.`);
+    } catch (restoreError) {
+      setMessage(restoreError?.message || 'That recorded version could not be staged.');
+    }
+  };
+
   const applyStaged = async () => {
     if (!stagedImport) return;
     setBusy(true);
@@ -489,6 +521,46 @@ export default function IncompleteAssignmentRepairCenter({
             <button type="button" onClick={addQuestionFlag} disabled={busy} style={button}>Save teacher flag</button>
             <button type="button" onClick={copyQuestionJson} disabled={busy} style={button}>Copy Question JSON</button>
           </div>
+        </fieldset>
+      )}
+
+      {focusedRow && (
+        <fieldset style={{ marginTop: 14, padding: 12, border: '1px solid #d8dde6', borderRadius: 9 }}>
+          <legend style={{ fontWeight: 900 }}>Revision history · Question {focusedRow.questionNumber}</legend>
+          {(() => {
+            // Only this question's recorded versions. History is question-scoped,
+            // and showing every entry would bury the one the teacher is looking at.
+            const entries = list(currentDraft?.repairHistory)
+              .map((entry, index) => ({ entry, index }))
+              .filter(({ entry }) => list(entry?.questions).some((q) => clean(q?.questionId) === actualFocusedQuestionId))
+              .reverse();
+
+            if (!entries.length) {
+              return <p style={{ margin: 0, color: '#5f6368', fontSize: 12.5 }}>No recorded versions of this question yet. A version is recorded each time a repair changes it.</p>;
+            }
+
+            return (
+              <div style={{ display: 'grid', gap: 8 }}>
+                {entries.map(({ entry, index }) => {
+                  const recorded = list(entry.questions).find((q) => clean(q?.questionId) === actualFocusedQuestionId);
+                  return (
+                    <article key={`${entry.committedAt || 'entry'}-${index}`} style={{ padding: 9, borderRadius: 8, border: '1px solid #e3e7ee', background: '#fff' }}>
+                      <div style={{ fontSize: 12, color: '#5f6368' }}>
+                        Revision {entry.fromRevision} → {entry.toRevision}
+                        {entry.committedAt ? ` · ${String(entry.committedAt).replace('T', ' ').replace('Z', '')}` : ''}
+                      </div>
+                      <div style={{ marginTop: 4, fontSize: 12.5, color: '#3c4043' }}>
+                        {brief(recorded?.beforeQuestion?.prompt || recorded?.beforeQuestion?.scenario || 'Recorded version')}
+                      </div>
+                      <button type="button" disabled={busy} onClick={() => stageHistoryRestore(entry)} style={{ ...button, marginTop: 7 }}>
+                        Stage restore
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </fieldset>
       )}
 
