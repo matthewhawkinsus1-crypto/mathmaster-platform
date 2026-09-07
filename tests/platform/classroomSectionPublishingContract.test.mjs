@@ -3,7 +3,10 @@ import { createRequire } from 'node:module';
 import test from 'node:test';
 
 const require = createRequire(import.meta.url);
-const { classroomPublicationSpecs } = require('../../functions/lib/classroomSectionPublishing.js');
+const {
+  classroomPublicationSpecs,
+  classroomPublicationTargets,
+} = require('../../functions/lib/classroomSectionPublishing.js');
 
 test('whole assignment remains the default publication contract', () => {
   const [spec] = classroomPublicationSpecs({
@@ -53,5 +56,32 @@ test('split publication fails closed for unknown or empty sections', () => {
   assert.throws(
     () => classroomPublicationSpecs({ assignment, requestData: { sectionKeys: ['dol'] } }),
     /has no included questions/i,
+  );
+});
+
+test('publication targets expand every selected course and section with deterministic independent ids', () => {
+  const targets = classroomPublicationTargets({
+    assignmentId: 'a1',
+    assignment: {
+      schemaVersion: 5,
+      title: 'Functions Review',
+      sections: [
+        { role: 'warmup', questions: [{ id: 'w1' }] },
+        { role: 'dol', questions: [{ id: 'd1' }] },
+      ],
+    },
+    courseIds: ['course-1', 'course-2'],
+    requestData: { sectionKeys: ['warmup', 'dol'] },
+  });
+
+  assert.equal(targets.length, 4);
+  assert.equal(new Set(targets.map((target) => target.publicationId)).size, 4);
+  assert.deepEqual(
+    targets.map((target) => target.sectionKey),
+    ['warmup', 'dol', 'warmup', 'dol'],
+  );
+  assert.deepEqual(
+    targets.map((target) => target.courseId),
+    ['course-1', 'course-1', 'course-2', 'course-2'],
   );
 });
