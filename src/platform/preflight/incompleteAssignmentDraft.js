@@ -2,9 +2,11 @@ import { buildAssignmentV5PreflightModel } from './assignmentV5PreflightModel.js
 import {
   AUTHORING_STATES,
   canSalvageV5IntakeResult,
+  teacherFlagNeedsReview,
 } from './assignmentAuthoringState.js';
 import { emptyTeacherReviewContext } from './teacherReviewContext.js';
 import { buildRepairHistoryEntry } from './assignmentRepairHistory.js';
+import { teacherMayOverrideDiagnostic } from './assignmentRepairTriage.js';
 
 const jsonSafe = (value) => JSON.parse(JSON.stringify(value));
 
@@ -220,5 +222,69 @@ export const applyIncompleteDraftRepairCommit = (
     repairHistory: historyEntry
       ? [...(Array.isArray(record?.repairHistory) ? record.repairHistory : []), historyEntry]
       : (Array.isArray(record?.repairHistory) ? record.repairHistory : []),
+  };
+};
+
+const BLOCKING = new Set(['blocking', 'error']);
+const overrideKeyOf = (entry) => `${String(entry?.code ?? entry?.diagnosticCode ?? '').trim()}::${String(entry?.questionId ?? '').trim()}`;
+
+/**
+ * The boundary between "the checks pass" and "a teacher says this is ready".
+ *
+ * Two different things gate it, and neither can stand in for the other.
+ *
+ * Deterministic blockers are not a matter of opinion: the assignment cannot be
+ * stored or delivered as authored, so no amount of review makes it publishable.
+ * An overridden quality blocker is genuinely gone — the teacher decided that —
+ * but eligibility is re-derived here rather than trusted from the stored list,
+ * so a corrupted override cannot promote an unstorable question.
+ *
+ * Open teacher flags are the opposite case: the machine is satisfied and a
+ * person is not. A repair import can record that a revision may have addressed
+ * a concern, and that is all it may do. If finalisation ignored open flags, an
+ * import would in effect approve its own work, which is the whole failure this
+ * workspace was built to prevent.
+ *
+ * Ready is also not Published. Reaching the Library and being given to students
+ * are separate decisions, so publishing is an explicit argument rather than
+ * something readiness quietly implies. Neither changes question content, and
+ * neither moves the revision: reviewing is not editing.
+ */
+export const finalizeIncompleteAssignmentReview = (record, { nowIso = new Date().toISOString(), published = false } = {}) => {
+  const canonical = restoreIncompleteAssignmentV5(record);
+  const model = buildAssignmentV5PreflightModel(canonical, {
+    teacherReviewContext: record?.teacherReviewContext || null,
+  });
+
+  const overrides = Array.isArray(record?.teacherReviewContext?.diagnosticOverrides)
+    ? record.teacherReviewContext.diagnosticOverrides
+    : [];
+  const blocking = (Array.isArray(model.diagnostics) ? model.diagnostics : []).filter((entry) => {
+    if (!BLOCKING.has(String(entry?.severity ?? '').trim().toLowerCase())) return false;
+    const overridden = overrides.some((override) => overrideKeyOf(override) === overrideKeyOf(entry));
+    return !(overridden && teacherMayOverrideDiagnostic(entry));
+  });
+  if (blocking.length) {
+    throw new Error(`This assignment still has ${blocking.length} blocking issue${blocking.length === 1 ? '' : 's'}, so it stays Incomplete until they are repaired: ${blocking.map((entry) => entry.code || entry.message).slice(0, 3).join('; ')}`);
+  }
+
+  const openFlags = (Array.isArray(record?.teacherReviewContext?.flags) ? record.teacherReviewContext.flags : [])
+    .filter(teacherFlagNeedsReview);
+  if (openFlags.length) {
+    throw new Error(`${openFlags.length} teacher review flag${openFlags.length === 1 ? '' : 's'} still open. A repair may record that a revision might have addressed a teacher's concern, but only the teacher can close it.`);
+  }
+
+  const state = published === true ? AUTHORING_STATES.PUBLISHED : AUTHORING_STATES.READY;
+  const timestamp = String(nowIso || new Date().toISOString());
+
+  return {
+    ...record,
+    authoringState: state,
+    authoringReview: {
+      ...(record?.authoringReview || {}),
+      state,
+      reviewedAt: timestamp,
+    },
+    updatedAt: timestamp,
   };
 };
