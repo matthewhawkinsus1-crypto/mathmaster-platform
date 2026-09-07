@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AssignmentIntakeBase from './AssignmentIntakeBase.jsx';
+import IncompleteAssignmentRepairCenter from './components/teacher/IncompleteAssignmentRepairCenter.jsx';
 import { canSalvageV5IntakeResult } from './platform/preflight/assignmentAuthoringState.js';
 import {
   deleteIncompleteAssignmentDraft,
@@ -32,6 +33,7 @@ export default function AssignmentIntake(props) {
   const [drafts, setDrafts] = useState([]);
   const [loadingDrafts, setLoadingDrafts] = useState(true);
   const [draftBusyId, setDraftBusyId] = useState(null);
+  const [repairDraftId, setRepairDraftId] = useState(null);
 
   const refreshDrafts = useCallback(async () => {
     setLoadingDrafts(true);
@@ -111,6 +113,7 @@ export default function AssignmentIntake(props) {
     setDraftBusyId(draft.id);
     try {
       await deleteIncompleteAssignmentDraft(draft.id);
+      if (repairDraftId === draft.id) setRepairDraftId(null);
       await refreshDrafts();
       toastSuccess?.('Incomplete draft deleted', `“${draft.title}” was removed from Incomplete Assignments.`);
     } catch (error) {
@@ -119,6 +122,11 @@ export default function AssignmentIntake(props) {
       setDraftBusyId(null);
     }
   };
+
+  const updateDraftInList = useCallback((nextDraft) => {
+    if (!nextDraft?.id) return;
+    setDrafts((current) => current.map((draft) => (draft.id === nextDraft.id ? nextDraft : draft)));
+  }, []);
 
   const draftSummary = useMemo(() => {
     const blockers = drafts.reduce((sum, draft) => sum + Number(draft.authoringReview?.blockingCount || 0), 0);
@@ -155,6 +163,7 @@ export default function AssignmentIntake(props) {
           <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
             {drafts.map((draft) => {
               const busy = draftBusyId === draft.id;
+              const repairOpen = repairDraftId === draft.id;
               const blockingCount = Number(draft.authoringReview?.blockingCount || 0);
               const questionCount = Number(draft.authoringReview?.questionCount || 0);
               return (
@@ -163,10 +172,13 @@ export default function AssignmentIntake(props) {
                     <div>
                       <strong style={{ color: '#202124' }}>{draft.title || 'Incomplete Assignment'}</strong>
                       <div style={{ marginTop: 4, color: '#5f6368', fontSize: 12 }}>
-                        {questionCount} question{questionCount === 1 ? '' : 's'} · {blockingCount} blocking issue{blockingCount === 1 ? '' : 's'} · saved {String(draft.updatedAt || draft.createdAt || '').replace('T', ' ').replace('Z', '')}
+                        {questionCount} question{questionCount === 1 ? '' : 's'} · {blockingCount} blocking issue{blockingCount === 1 ? '' : 's'} · revision {Number(draft.assignmentRevision) || 1} · saved {String(draft.updatedAt || draft.createdAt || '').replace('T', ' ').replace('Z', '')}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button type="button" disabled={busy} onClick={() => setRepairDraftId(repairOpen ? null : draft.id)} style={{ ...button, borderColor: '#1a73e8', background: repairOpen ? '#e8f0fe' : '#fff', opacity: busy ? 0.6 : 1 }}>
+                        {repairOpen ? 'Close Repair Center' : 'Open Repair Center'}
+                      </button>
                       <button type="button" disabled={busy} onClick={() => openDraftForReview(draft)} style={{ ...button, opacity: busy ? 0.6 : 1 }}>
                         {busy ? 'Opening…' : 'Recheck / Open Review'}
                       </button>
@@ -175,6 +187,16 @@ export default function AssignmentIntake(props) {
                       </button>
                     </div>
                   </div>
+
+                  {repairOpen && (
+                    <IncompleteAssignmentRepairCenter
+                      draft={draft}
+                      onSaved={updateDraftInList}
+                      onClose={() => setRepairDraftId(null)}
+                      toastSuccess={toastSuccess}
+                      toastError={toastError}
+                    />
+                  )}
                 </article>
               );
             })}
