@@ -3,6 +3,7 @@ import {
   AUTHORING_STATES,
   canSalvageV5IntakeResult,
 } from './assignmentAuthoringState.js';
+import { emptyTeacherReviewContext } from './teacherReviewContext.js';
 
 const jsonSafe = (value) => JSON.parse(JSON.stringify(value));
 
@@ -85,6 +86,11 @@ export const buildIncompleteAssignmentDraftRecord = ({
       warnings,
       diagnostics,
     },
+    // Present from the first save, so a draft document has one shape whether or
+    // not the teacher has flagged anything yet. listIncompleteAssignmentDrafts()
+    // reads these records back; a field that only exists once someone adds a
+    // flag is a field every reader has to guard against.
+    teacherReviewContext: emptyTeacherReviewContext(),
     authoringDraft: {
       sourceJson: String(rawText || JSON.stringify(canonical)),
       canonicalJson: JSON.stringify(canonical),
