@@ -4,6 +4,7 @@ import {
   canSalvageV5IntakeResult,
 } from './assignmentAuthoringState.js';
 import { emptyTeacherReviewContext } from './teacherReviewContext.js';
+import { buildRepairHistoryEntry } from './assignmentRepairHistory.js';
 
 const jsonSafe = (value) => JSON.parse(JSON.stringify(value));
 
@@ -172,7 +173,41 @@ export const applyIncompleteDraftRepairCommit = (
     throw new Error(`A saved repair must advance the assignment revision beyond ${currentRevision}.`);
   }
 
+  // Once an assignment has reached students, this is the wrong door.
+  //
+  // MathMaster already has a path for changing delivered work: Safe Live Repair
+  // restricts edits to response-entry mechanics, preserves attempts and credit,
+  // and records liveCorrectionHistory. This path does none of that — it
+  // replaces whole questions. Letting a delivered assignment through here would
+  // be a second, weaker live-mutation path, and the first thing it would break
+  // is the scoring history of students who have already answered.
+  const liveSignals = [
+    Array.isArray(record?.assignedClassIds) && record.assignedClassIds.length > 0,
+    Array.isArray(record?.assignedClassPeriods) && record.assignedClassPeriods.length > 0,
+    record?.hasLiveProtection === true,
+    Number(record?.studentEvidenceCount) > 0,
+  ];
+  if (liveSignals.some(Boolean)) {
+    throw new Error('This assignment has been delivered to students, so it cannot be repaired through the authoring draft path. Use Safe Live Repair, which preserves student attempts and scoring history.');
+  }
+
+  const beforeAssignmentV5 = (() => {
+    try {
+      return JSON.parse(String(record?.authoringDraft?.canonicalJson || 'null'));
+    } catch (error) {
+      return null;
+    }
+  })();
+
   const reviewed = markIncompleteDraftForReview(record, canonical, { nowIso });
+  const historyEntry = buildRepairHistoryEntry({
+    beforeAssignmentV5,
+    afterAssignmentV5: canonical,
+    fromRevision: currentRevision,
+    toRevision: committedRevision,
+    committedAt: nowIso,
+  });
+
   return {
     ...reviewed,
     assignmentRevision: committedRevision,
@@ -181,5 +216,9 @@ export const applyIncompleteDraftRepairCommit = (
       || record?.teacherReviewContext
       || emptyTeacherReviewContext(),
     ),
+    // Appended, never replaced: the point of history is that it accumulates.
+    repairHistory: historyEntry
+      ? [...(Array.isArray(record?.repairHistory) ? record.repairHistory : []), historyEntry]
+      : (Array.isArray(record?.repairHistory) ? record.repairHistory : []),
   };
 };
