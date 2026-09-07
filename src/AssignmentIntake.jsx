@@ -61,24 +61,29 @@ export default function AssignmentIntake(props) {
         rawText: text,
         sourceName,
       });
+      // Put the saved record on screen immediately so the teacher never sees a
+      // parseable V5 assignment as a rejected upload while a refresh is in
+      // flight. The refresh then reconciles with Firestore as the source of
+      // truth, and the same draft is kept open in Repair Center.
+      setDrafts((current) => [saved, ...current.filter((draft) => draft.id !== saved.id)]);
+      setRepairDraftId(saved.id);
       await refreshDrafts();
+      setRepairDraftId(saved.id);
       toastInfo?.(
         'Saved to Incomplete Assignments',
-        `${saved.authoringReview?.blockingCount || result.errors?.length || 1} blocking question issue${(saved.authoringReview?.blockingCount || result.errors?.length || 1) === 1 ? '' : 's'} found. The assignment was saved instead of rejected, and it remains outside the normal Assignment Library until repaired.`,
+        `${saved.authoringReview?.blockingCount || result.errors?.length || 1} blocking question issue${(saved.authoringReview?.blockingCount || result.errors?.length || 1) === 1 ? '' : 's'} found. The assignment was preserved and its Repair Center is open below; only the questions that need attention block publication.`,
       );
-      // The draft is preserved, but the import did not succeed: these questions
-      // still block publication, and App's intake handler returns before
-      // openAssignmentPreflight() for a failed result. Reporting ok here would
-      // fire the creator's success toast — "Review the details and publish from
-      // Preflight" — for a Preflight that is not on screen, and would swap the
-      // blocking-error list a teacher needs for repair with nothing at all.
-      // Salvage adds the saved draft; it does not turn a failed import into a
-      // successful one. When task 2A opens Assignment Review for salvageable
-      // results, this is the seam that changes with it.
+      // Saving a salvageable V5 is a successful intake outcome even though the
+      // assignment is not publishable yet. Returning ok:true prevents the base
+      // intake from showing its hard-rejection panel. `salvaged` keeps this
+      // distinct from a fully valid assignment for callers and regression tests.
       return {
         ...result,
+        ok: true,
         salvaged: true,
         incompleteDraftId: saved.id,
+        teacherReviewContext: saved.teacherReviewContext,
+        authoringState: saved.authoringState,
       };
     } catch (error) {
       console.error('Could not save salvageable Assignment V5 draft:', error);
