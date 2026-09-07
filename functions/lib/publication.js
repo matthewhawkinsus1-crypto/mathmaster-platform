@@ -32,6 +32,15 @@ function normalizePublicationSectionKey(value) {
   return PUBLICATION_SECTION_KEYS.includes(normalized) ? normalized : "whole";
 }
 
+function publicationSectionKey(value) {
+  if (value == null || String(value).trim() === "") return "whole";
+  const normalized = String(value).trim().toLowerCase();
+  if (!PUBLICATION_SECTION_KEYS.includes(normalized)) {
+    throw new TypeError(`Unsupported Classroom section: ${String(value)}`);
+  }
+  return normalized;
+}
+
 function publicationSectionLabel(value) {
   return PUBLICATION_SECTION_LABELS[normalizePublicationSectionKey(value)];
 }
@@ -64,6 +73,7 @@ module.exports = {
   PUBLICATION_SECTION_KEYS,
   stableDocumentId,
   normalizePublicationSectionKey,
+  publicationSectionKey,
   publicationSectionLabel,
   publicationDocumentId,
   rosterLinkDocumentId,
