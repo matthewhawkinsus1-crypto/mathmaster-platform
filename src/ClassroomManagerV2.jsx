@@ -35,6 +35,11 @@ import {
 } from './classroomRosterMatching';
 import { blobToBase64, generateLessonNotesPdfBlob, notesPdfSummary } from './platform/resources/lessonNotesPdf';
 import ClassroomSectionGradeSelector from './components/ClassroomSectionGradeSelector';
+import {
+  gradeSyncStudentDisplay,
+  gradeSyncStatusLabel,
+  retryEligibleGradeSyncs,
+} from './classroomGradeSyncUi';
 
 const card = { background: '#fff', border: '1px solid #e0e3e7', borderRadius: 12, padding: 16 };
 const label = { display: 'block', fontSize: 12, fontWeight: 800, color: '#5f6368', marginBottom: 6 };
@@ -136,6 +141,7 @@ export default function ClassroomManagerV2({
     () => new Map(rosterLinks.map((link) => [String(link.googleUserId || ''), link])),
     [rosterLinks],
   );
+  const retryableGradeSyncs = useMemo(() => retryEligibleGradeSyncs(gradeSyncs), [gradeSyncs]);
   const topicPlan = useMemo(() => buildTopicPlan(assignments.filter((a) => !a.archived)), [assignments]);
   const syncByAssignment = useMemo(
     () => assignments
@@ -285,7 +291,6 @@ export default function ClassroomManagerV2({
       setStatus(`AI prepared ${notes.title || 'student notes'} (${Number(notes.targetPages) === 1 ? 1 : 2} page target) and Classroom publishing information.`);
     }
   }, [selectedAssignment?.id, mappings, classes]);
-
 
   const run = async (work) => {
     setBusy(true);
@@ -455,9 +460,6 @@ export default function ClassroomManagerV2({
     const notesPdf = selectedAssignment?.lessonResources?.notesPdf || null;
     const resourceLinks = cleanMaterials();
 
-    // The V5 JSON contains structured notes, not a binary file. Generate the
-    // 1–2 page PDF only when the teacher actually publishes, then store it once
-    // and reuse its public-by-token Firebase Storage link in Classroom.
     if (notesPdf?.enabled && !notesPdf?.asset?.url) {
       setStatus(`Generating ${notesPdf.title || 'student notes'}…`);
       const generated = await generateLessonNotesPdfBlob({ assignment: selectedAssignment, notesPdf });
@@ -508,7 +510,6 @@ export default function ClassroomManagerV2({
     setLinks((await listPublishedAssignments()).links || []);
     setGradeSyncs((await listClassroomGradeSyncs()).syncs || []);
   });
-
 
   const handleForceRepublish = () => run(async () => {
     assertPublishable(selectedAssignment);
@@ -1028,6 +1029,35 @@ export default function ClassroomManagerV2({
         <p style={{ color: '#5f6368', fontSize: 13 }}>
           MathMaster sends progress checkpoints while students work, a due-date checkpoint, and a final grade at completion or the final cutoff. Failures stay visible instead of disappearing silently.
         </p>
+        {retryableGradeSyncs.length > 0 && (
+          <div style={{ margin: '0 0 12px', padding: '10px 12px', borderRadius: 9, background: '#fce8e6', border: '1px solid #f4c7c3' }}>
+            <div style={{ color: '#a50e0e', fontSize: 12, fontWeight: 900 }}>
+              {retryableGradeSyncs.length} grade passback failure{retryableGradeSyncs.length === 1 ? '' : 's'} can be retried now.
+            </div>
+            <div style={{ marginTop: 4, color: '#5f6368', fontSize: 12, lineHeight: 1.45 }}>
+              Rows marked Needs roster link are intentionally excluded until the student is linked to Google Classroom.
+            </div>
+            <button
+              type="button"
+              style={{ ...secondary, marginTop: 8, borderColor: '#a50e0e', color: '#a50e0e', background: '#fff' }}
+              disabled={busy}
+              onClick={() => run(async () => {
+                for (const sync of retryableGradeSyncs) {
+                  // eslint-disable-next-line no-await-in-loop
+                  await retryClassroomGradeSync({
+                    publicationId: sync.publicationId,
+                    studentId: sync.studentId,
+                    assignmentId: sync.assignmentId,
+                  });
+                }
+                setGradeSyncs((await listClassroomGradeSyncs()).syncs || []);
+                setStatus(`Retried ${retryableGradeSyncs.length} eligible grade passback failure${retryableGradeSyncs.length === 1 ? '' : 's'}.`);
+              })}
+            >
+              Retry all eligible failures
+            </button>
+          </div>
+        )}
         {selectedAssignmentGradeSyncs.length > 0 && (
           <div style={{ margin: '0 0 12px', padding: '10px 12px', borderRadius: 9, background: '#eef4ff', border: '1px solid #c7d7f4' }}>
             <div style={{ color: '#174ea6', fontSize: 12, fontWeight: 900 }}>
@@ -1074,42 +1104,55 @@ export default function ClassroomManagerV2({
                 <th style={{ padding: 7 }}>Student</th><th style={{ padding: 7 }}>Assignment</th><th style={{ padding: 7 }}>Course</th><th style={{ padding: 7 }}>Grade / progress</th><th style={{ padding: 7 }}>Stage</th><th style={{ padding: 7 }}>Status</th><th></th>
               </tr></thead>
               <tbody>
-                {gradeSyncs.slice(0, 100).map((sync) => (
-                  <tr key={sync.syncId || `${sync.publicationId}-${sync.studentId}`} style={{ borderTop: '1px solid #edf0f2' }}>
-                    <td style={{ padding: 7 }}>{sync.studentId}</td>
-                    <td style={{ padding: 7 }}>{sync.assignmentId}</td>
-                    <td style={{ padding: 7 }}>{sync.courseId}</td>
-                    <td style={{ padding: 7 }}>
-                      <strong>{sync.grade ?? '—'}{sync.grade != null ? '%' : ''}</strong>
-                      {Number.isFinite(Number(sync.attempted)) && Number.isFinite(Number(sync.total)) && (
-                        <div style={{ marginTop: 3, color: '#5f6368' }}>{sync.attempted}/{sync.total} attempted{sync.creditOnAttempted != null ? ` · ${sync.creditOnAttempted}% on attempted` : ''}</div>
-                      )}
-                    </td>
-                    <td style={{ padding: 7 }}>
-                      <span style={sync.isFinal ? okPill : warnPill}>
-                        {sync.isFinal ? 'FINAL' : String(sync.stage || 'progress').replaceAll('-', ' ').toUpperCase()}
-                      </span>
-                      <div style={{ marginTop: 4, color: sync.studentVisible ? '#137333' : '#5f6368', fontSize: 10.5, fontWeight: 900 }}>
-                        {sync.studentVisible ? 'RELEASED TO STUDENT' : 'TEACHER DRAFT'}
-                      </div>
-                    </td>
-                    <td style={{ padding: 7 }}><span style={sync.status === 'synced' ? okPill : sync.status?.startsWith('skipped') ? warnPill : badPill}>{sync.status || 'unknown'}</span></td>
-                    <td style={{ padding: 7 }}>
-                      {sync.publicationId && sync.assignmentId && sync.studentId && (
-                        <button style={secondary} disabled={busy} onClick={() => run(async () => {
-                          await retryClassroomGradeSync({
-                            publicationId: sync.publicationId,
-                            studentId: sync.studentId,
-                            assignmentId: sync.assignmentId,
-                          });
-                          setStatus(sync.status === 'synced'
-                            ? 'Grade recalculation and resend queued from the student\'s saved MathMaster work.'
-                            : 'Grade retry queued. The passback trigger will run again.');
-                        })}>{sync.status === 'synced' ? 'Recalculate & resend' : 'Retry'}</button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {gradeSyncs.slice(0, 100).map((sync) => {
+                  const studentDisplay = gradeSyncStudentDisplay(sync, students);
+                  const statusLabel = sync.status === 'skipped-unlinked'
+                    ? 'Needs roster link'
+                    : gradeSyncStatusLabel(sync);
+                  return (
+                    <tr key={sync.syncId || `${sync.publicationId}-${sync.studentId}`} style={{ borderTop: '1px solid #edf0f2' }}>
+                      <td style={{ padding: 7 }}>
+                        <strong>{studentDisplay.name}</strong>
+                        {studentDisplay.studentId && <div style={{ marginTop: 3, color: '#80868b', fontSize: 10.5 }}>ID {studentDisplay.studentId}</div>}
+                      </td>
+                      <td style={{ padding: 7 }}>{sync.assignmentId}</td>
+                      <td style={{ padding: 7 }}>{sync.courseId}</td>
+                      <td style={{ padding: 7 }}>
+                        <strong>{sync.grade ?? '—'}{sync.grade != null ? '%' : ''}</strong>
+                        {Number.isFinite(Number(sync.attempted)) && Number.isFinite(Number(sync.total)) && (
+                          <div style={{ marginTop: 3, color: '#5f6368' }}>{sync.attempted}/{sync.total} attempted{sync.creditOnAttempted != null ? ` · ${sync.creditOnAttempted}% on attempted` : ''}</div>
+                        )}
+                      </td>
+                      <td style={{ padding: 7 }}>
+                        <span style={sync.isFinal ? okPill : warnPill}>
+                          {sync.isFinal ? 'FINAL' : String(sync.stage || 'progress').replaceAll('-', ' ').toUpperCase()}
+                        </span>
+                        <div style={{ marginTop: 4, color: sync.studentVisible ? '#137333' : '#5f6368', fontSize: 10.5, fontWeight: 900 }}>
+                          {sync.studentVisible ? 'RELEASED TO STUDENT' : 'TEACHER DRAFT'}
+                        </div>
+                      </td>
+                      <td style={{ padding: 7 }}>
+                        <span style={sync.status === 'synced' ? okPill : sync.status?.startsWith('skipped') ? warnPill : badPill}>{statusLabel}</span>
+                      </td>
+                      <td style={{ padding: 7 }}>
+                        {sync.status === 'skipped-unlinked' ? (
+                          <span style={{ color: '#7a4f00', fontSize: 11, fontWeight: 800 }}>Link roster first</span>
+                        ) : sync.publicationId && sync.assignmentId && sync.studentId ? (
+                          <button style={secondary} disabled={busy} onClick={() => run(async () => {
+                            await retryClassroomGradeSync({
+                              publicationId: sync.publicationId,
+                              studentId: sync.studentId,
+                              assignmentId: sync.assignmentId,
+                            });
+                            setStatus(sync.status === 'synced'
+                              ? 'Grade recalculation and resend queued from the student\'s saved MathMaster work.'
+                              : 'Grade retry queued. The passback trigger will run again.');
+                          })}>{sync.status === 'synced' ? 'Recalculate & resend' : 'Retry'}</button>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
