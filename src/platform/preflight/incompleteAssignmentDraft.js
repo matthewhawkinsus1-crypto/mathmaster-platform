@@ -2,6 +2,7 @@ import { buildAssignmentV5PreflightModel } from './assignmentV5PreflightModel.js
 import {
   AUTHORING_STATES,
   canSalvageV5IntakeResult,
+  teacherFlagNeedsReview,
 } from './assignmentAuthoringState.js';
 import { emptyTeacherReviewContext } from './teacherReviewContext.js';
 import { buildRepairHistoryEntry } from './assignmentRepairHistory.js';
@@ -150,6 +151,71 @@ export const markIncompleteDraftForReview = (
       ...(record?.authoringDraft || {}),
       canonicalJson: JSON.stringify(canonical),
       sourceSchemaVersion: 5,
+    },
+    updatedAt: timestamp,
+  };
+};
+
+/**
+ * Complete the human review boundary after repair.
+ *
+ * A successful repair import only proves that the candidate introduced no new
+ * blocker. It does not approve the teacher's own flags, and it does not mean
+ * the assignment should silently appear in the normal Library. Final review
+ * reruns Preflight against the saved canonical V5 plus the persisted teacher
+ * context. True blockers and unresolved teacher flags refuse promotion.
+ *
+ * Warnings are deliberately retained rather than erased. Reaching this function
+ * is the teacher's explicit acknowledgement that they reviewed those warnings,
+ * so a warning may remain in authoringReview while the draft advances to Ready.
+ * Publishing is a separate explicit choice. Neither action mutates question
+ * JSON or advances assignmentRevision.
+ */
+export const finalizeIncompleteAssignmentReview = (
+  record,
+  {
+    published = false,
+    nowIso = new Date().toISOString(),
+  } = {},
+) => {
+  const canonical = restoreIncompleteAssignmentV5(record);
+  const teacherReviewContext = record?.teacherReviewContext || emptyTeacherReviewContext();
+  const model = buildAssignmentV5PreflightModel(canonical, { teacherReviewContext });
+  const diagnostics = sanitizeDiagnostics(model.diagnostics);
+  const errors = uniqueStrings(model.errors || []);
+  const warnings = uniqueStrings(model.warnings || []);
+  const timestamp = String(nowIso || new Date().toISOString());
+
+  if (!model.isValid) {
+    const blockingCount = diagnostics.filter((entry) => ['blocking', 'error'].includes(String(entry?.severity || '').toLowerCase())).length || errors.length;
+    throw new Error(`This assignment still has ${blockingCount || 'one or more'} blocking repair issue${blockingCount === 1 ? '' : 's'}. Finish the Repair Center work before final review.`);
+  }
+
+  const unresolvedTeacherFlags = (Array.isArray(teacherReviewContext?.flags) ? teacherReviewContext.flags : [])
+    .filter(teacherFlagNeedsReview);
+  if (unresolvedTeacherFlags.length > 0) {
+    throw new Error(`Teacher review is not complete: ${unresolvedTeacherFlags.length} teacher flag${unresolvedTeacherFlags.length === 1 ? '' : 's'} still need verification or resolution.`);
+  }
+
+  const state = published === true ? AUTHORING_STATES.PUBLISHED : AUTHORING_STATES.READY;
+  return {
+    ...record,
+    schemaVersion: 5,
+    title: String(canonical.assignment?.title || record?.title || 'Incomplete Assignment').trim() || 'Incomplete Assignment',
+    courseId: canonical.assignment?.courseId || record?.courseId || null,
+    authoringState: state,
+    authoringReview: {
+      ...(record?.authoringReview || {}),
+      state,
+      reviewedAt: timestamp,
+      finalizedAt: timestamp,
+      ...(published === true ? { publishedAt: timestamp } : {}),
+      questionCount: countQuestions(canonical),
+      blockingCount: 0,
+      warningCount: diagnostics.filter((entry) => entry?.severity === 'warning').length || warnings.length,
+      errors,
+      warnings,
+      diagnostics,
     },
     updatedAt: timestamp,
   };
