@@ -9,6 +9,11 @@ import {
   deriveAssignmentAuthoringState,
   isAssignmentEligibleForNormalLibrary,
 } from '../../src/platform/preflight/assignmentAuthoringState.js';
+import {
+  buildIncompleteAssignmentDraftRecord,
+  markIncompleteDraftForReview,
+  restoreIncompleteAssignmentV5,
+} from '../../src/platform/preflight/incompleteAssignmentDraft.js';
 
 const alignedQuestion = (overrides = {}) => ({
   questionId: 'q-cw-1',
@@ -134,6 +139,93 @@ test('normal Assignment Library excludes explicit incomplete or needs-review dra
   // Existing assignments created before authoringState existed must not vanish
   // from the Library simply because they predate the migration.
   assert.equal(isAssignmentEligibleForNormalLibrary({ title: 'Legacy clean library assignment' }), true);
+});
+
+test('a salvageable intake becomes a Firestore-safe incomplete draft without structurally storing broken question JSON', () => {
+  const broken = assignment(alignedQuestion({ questionWeight: 99 }));
+  const model = buildAssignmentV5PreflightModel(broken);
+  const intakeResult = {
+    ok: false,
+    errors: [...model.errors],
+    warnings: [...model.warnings],
+    parsed: {
+      sourceSchemaVersion: 5,
+      assignmentV5: broken,
+      questions: [broken.sections[0].questions[0]],
+    },
+    sourceSchemaVersion: 5,
+  };
+  const record = buildIncompleteAssignmentDraftRecord({
+    intakeResult,
+    rawText: JSON.stringify(broken),
+    sourceName: 'broken.json',
+    ownerUid: 'teacher-1',
+    ownerEmail: 'teacher@example.org',
+    nowIso: '2026-09-07T12:00:00.000Z',
+  });
+
+  assert.equal(record.schemaVersion, 5);
+  assert.equal(record.title, 'Repair Foundation');
+  assert.equal(record.courseId, 'algebra1');
+  assert.equal(record.authoringState, AUTHORING_STATES.INCOMPLETE);
+  assert.equal(record.authoringReview.state, AUTHORING_STATES.INCOMPLETE);
+  assert.equal(record.authoringReview.ownerUid, 'teacher-1');
+  assert.equal(record.authoringReview.questionCount, 1);
+  assert.ok(record.authoringReview.blockingCount >= 1);
+  assert.ok(record.authoringReview.diagnostics.some((entry) => entry.questionId === 'q-cw-1'));
+  assert.equal(typeof record.authoringDraft.sourceJson, 'string');
+  assert.equal(typeof record.authoringDraft.canonicalJson, 'string');
+  assert.equal(Object.prototype.hasOwnProperty.call(record, 'sections'), false);
+  assert.deepEqual(record.assignedClassIds, []);
+  assert.deepEqual(record.assignedClassPeriods, []);
+  assert.equal(record.dueAt, null);
+});
+
+test('saved incomplete drafts restore the exact V5 assignment for later repair', () => {
+  const original = assignment(alignedQuestion({ questionWeight: 99 }));
+  const record = buildIncompleteAssignmentDraftRecord({
+    intakeResult: {
+      ok: false,
+      errors: ['Question 1 needs repair.'],
+      warnings: [],
+      parsed: { sourceSchemaVersion: 5, assignmentV5: original, questions: [original.sections[0].questions[0]] },
+      sourceSchemaVersion: 5,
+    },
+    rawText: JSON.stringify(original),
+    sourceName: 'resume.json',
+    ownerUid: 'teacher-1',
+    nowIso: '2026-09-07T12:00:00.000Z',
+  });
+
+  assert.deepEqual(restoreIncompleteAssignmentV5(record), original);
+});
+
+test('a repaired draft stays outside the normal Library until the teacher finishes the normal review flow', () => {
+  const original = assignment(alignedQuestion({ questionWeight: 99 }));
+  const fixed = assignment(alignedQuestion({ questionWeight: 1 }));
+  const record = buildIncompleteAssignmentDraftRecord({
+    intakeResult: {
+      ok: false,
+      errors: ['Question 1 needs repair.'],
+      warnings: [],
+      parsed: { sourceSchemaVersion: 5, assignmentV5: original, questions: [original.sections[0].questions[0]] },
+      sourceSchemaVersion: 5,
+    },
+    rawText: JSON.stringify(original),
+    sourceName: 'repair.json',
+    ownerUid: 'teacher-1',
+    nowIso: '2026-09-07T12:00:00.000Z',
+  });
+
+  const reviewed = markIncompleteDraftForReview(record, fixed, {
+    nowIso: '2026-09-07T12:15:00.000Z',
+  });
+
+  assert.equal(reviewed.authoringState, AUTHORING_STATES.NEEDS_REVIEW);
+  assert.equal(reviewed.authoringReview.state, AUTHORING_STATES.NEEDS_REVIEW);
+  assert.equal(reviewed.updatedAt, '2026-09-07T12:15:00.000Z');
+  assert.deepEqual(restoreIncompleteAssignmentV5(reviewed), fixed);
+  assert.equal(isAssignmentEligibleForNormalLibrary(reviewed), false);
 });
 
 console.log('questionReviewRepairFoundation.test.mjs: all assertions passed');
