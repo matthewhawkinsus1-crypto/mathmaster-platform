@@ -552,7 +552,40 @@ export default function IncompleteAssignmentRepairCenter({
           )}
           {list(stagedImport.platformIssues).length > 0 && (
             <div style={{ marginTop: 9, padding: 8, borderRadius: 7, background: '#e8f0fe', color: '#174ea6', fontSize: 12 }}>
-              <strong>Platform issues reported — questions were not rewritten:</strong> {stagedImport.platformIssues.map((issue) => issue.suspectedComponent || issue.reason || issue.questionId).join('; ')}
+              <strong>Platform issues reported — questions were not rewritten.</strong>
+              {/*
+                Each report gets its own action. Joining them into a sentence
+                tells a teacher something is wrong with MathMaster and then
+                leaves them nowhere to go — and the only route out of a dead end
+                like that is to "repair" a question that was never broken.
+              */}
+              <div style={{ display: 'grid', gap: 7, marginTop: 7 }}>
+                {stagedImport.platformIssues.map((issue, index) => (
+                  <div key={`${issue.questionId || 'platform'}-${index}`} style={{ padding: 7, borderRadius: 6, background: '#fff' }}>
+                    <div>
+                      <strong>{issue.suspectedComponent || 'MathMaster tool'}</strong>
+                      {issue.questionId ? ` · question ${issue.questionId}` : ''}
+                    </div>
+                    <div style={{ marginTop: 3 }}>{issue.reason || 'The reporting AI classified this as a platform defect rather than an authoring defect.'}</div>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => copyPlatformBugHandoff({
+                        questionId: issue.questionId,
+                        code: `platform.${issue.suspectedComponent || 'unknown'}`,
+                        message: issue.reason || null,
+                        issueKind: 'platformIssue',
+                        componentId: issue.suspectedComponent || null,
+                        severity: 'blocking',
+                        source: 'interaction',
+                      }, issue)}
+                      style={{ ...button, marginTop: 6 }}
+                    >
+                      Copy platform bug handoff
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 11 }}>
