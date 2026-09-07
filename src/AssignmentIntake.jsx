@@ -64,12 +64,19 @@ export default function AssignmentIntake(props) {
         'Saved to Incomplete Assignments',
         `${saved.authoringReview?.blockingCount || result.errors?.length || 1} blocking question issue${(saved.authoringReview?.blockingCount || result.errors?.length || 1) === 1 ? '' : 's'} found. The assignment was saved instead of rejected, and it remains outside the normal Assignment Library until repaired.`,
       );
+      // The draft is preserved, but the import did not succeed: these questions
+      // still block publication, and App's intake handler returns before
+      // openAssignmentPreflight() for a failed result. Reporting ok here would
+      // fire the creator's success toast — "Review the details and publish from
+      // Preflight" — for a Preflight that is not on screen, and would swap the
+      // blocking-error list a teacher needs for repair with nothing at all.
+      // Salvage adds the saved draft; it does not turn a failed import into a
+      // successful one. When task 2A opens Assignment Review for salvageable
+      // results, this is the seam that changes with it.
       return {
         ...result,
-        ok: true,
         salvaged: true,
         incompleteDraftId: saved.id,
-        repairs: [],
       };
     } catch (error) {
       console.error('Could not save salvageable Assignment V5 draft:', error);
