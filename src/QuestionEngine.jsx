@@ -108,12 +108,6 @@ export default function QuestionEngine({
   onLoadScratchpad,
   onSaveScratchpad,
   generationKey,
-  // Whether this runtime is a teacher previewing the assignment, and which
-  // question they are looking at. Passed explicitly because generationKey is a
-  // cache key whose contents change with variant mode.
-  teacherPreview = false,
-  previewAssignmentId = null,
-  previewQuestionIndex = null,
   // The assignment-adaptation decision for this student and this question,
   // resolved by the caller so the generator and the evidence writer agree.
   // Null means "not adapted", which is what preview and every legacy
@@ -951,9 +945,6 @@ export default function QuestionEngine({
             <QuestionModuleBoundary
               questionType={processedQuestion?.type}
               resetKey={`${generationKey}|${record.variantIndex}`}
-              teacherPreview={teacherPreview}
-              previewAssignmentId={previewAssignmentId}
-              previewQuestionIndex={previewQuestionIndex}
             >
               {renderModule()}
             </QuestionModuleBoundary>

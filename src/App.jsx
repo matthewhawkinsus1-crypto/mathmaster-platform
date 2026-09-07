@@ -55,6 +55,7 @@ import {
   assertFirestoreSafeAssignmentPayload,
 } from './assignmentBlueprint';
 import AssignmentIntake from './AssignmentIntake';
+import TeacherQuestionReviewPanel from './components/teacher/TeacherQuestionReviewPanel.jsx';
 import { markIncompleteAssignmentDraftPublished } from './platform/preflight/incompleteAssignmentDraftStore.js';
 import { hydrateAssignmentCcmr } from './services/assignmentCcmrService.js';
 import { auditAlignmentSpecificity, validateAlignments } from './platform/contract/alignments';
@@ -6593,6 +6594,26 @@ function App() {
           fontSize: supportPresentation.largeText ? '120%' : undefined,
         }}
       >
+        {/*
+          * Teacher review controls, mounted once for the whole preview.
+          *
+          * They belong here rather than inside the question runtime for two
+          * reasons. The point of View as Student is to see the formatting and
+          * sizing a student gets, so these controls portal to a fixed overlay
+          * and never enter the student layout. And a teacher needs them the
+          * whole time they are looking at student-facing work — on the section
+          * overview, between questions, in Focus view, and when a question
+          * module fails to render at all. Mounted inside the module boundary
+          * they existed only while a module was on screen, which is the one
+          * moment a teacher is least likely to be judging the page.
+          */}
+        {preview && activeAssignmentId && (
+          <TeacherQuestionReviewPanel
+            assignmentId={activeAssignmentId}
+            question={questions[currentQuestionIndex] || null}
+            questionIndex={currentQuestionIndex}
+          />
+        )}
         {!preview && renderStudentPackUpBanner()}
         {!preview && renderStudentWarmupBanner()}
         {!preview && shouldShowWarmupWaitingPanel({ decision: warmupChallengeDecision, invite: liveChallengeInvite }) && (
@@ -6930,17 +6951,6 @@ function App() {
               question={questions[currentQuestionIndex]}
               questionRecord={workingTracker?.[currentQuestionIndex]}
               generationKey={`${activeAssignmentId}|${generationStudentKey}|${currentQuestionIndex}|variant:${currentRecord.variantIndex}`}
-              // Teacher preview is stated outright rather than inferred from the
-              // generation key. That key is a cache key: it decides which variant
-              // is generated, and in a shared-version section it deliberately
-              // reads `shared-version:...` for teacher and student alike so the
-              // teacher previews the exact version the class receives. Sniffing
-              // it for a preview marker therefore found nothing in precisely the
-              // sections where "SAME VERSION" is shown, and the review controls
-              // silently did not appear.
-              teacherPreview={preview === true}
-              previewAssignmentId={activeAssignmentId}
-              previewQuestionIndex={currentQuestionIndex}
               adaptation={currentAdaptation}
               onGrade={handleGradeSubmit}
               onStepGrade={handleStepGrade}

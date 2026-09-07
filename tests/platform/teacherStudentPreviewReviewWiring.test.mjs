@@ -6,14 +6,57 @@ const appSource = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'u
 const boundarySource = readFileSync(new URL('../../src/QuestionModuleBoundary.jsx', import.meta.url), 'utf8');
 const panelSource = readFileSync(new URL('../../src/components/teacher/TeacherQuestionReviewPanel.jsx', import.meta.url), 'utf8');
 
-test('actual teacher View as Student runtime reaches the review panel through the question runtime boundary', () => {
-  assert.match(appSource, /teacherPreview=\{preview === true\}/,
-    'App must tell the question runtime outright that it is a teacher preview');
-  assert.match(appSource, /previewAssignmentId=\{activeAssignmentId\}/);
-  assert.match(appSource, /previewQuestionIndex=\{currentQuestionIndex\}/);
-  assert.match(boundarySource, /TeacherQuestionReviewPanel/);
-  assert.match(boundarySource, /assignmentId=\{previewTarget\.assignmentId\}/);
-  assert.match(boundarySource, /questionIndex=\{previewTarget\.questionIndex\}/);
+/*
+ * WHERE THE REVIEW CONTROLS LIVE, AND WHY IT IS NOT THE QUESTION RUNTIME.
+ *
+ * View as Student exists so a teacher can see the formatting and sizing a
+ * student gets. Anything these controls add to that layout defeats the purpose,
+ * so the panel portals to a fixed overlay and never enters the student flow.
+ *
+ * It is mounted once for the whole preview rather than inside the question
+ * module boundary. Mounted there it existed only while a response module was on
+ * screen — not on the section overview, not between questions, and not when a
+ * module failed to render, which is the moment a teacher most needs to write a
+ * note about it. A teacher looking at student-facing work should always be one
+ * click from sending one.
+ */
+test('the review panel is mounted once for the whole teacher preview', () => {
+  const start = appSource.indexOf('<TeacherQuestionReviewPanel');
+  assert.notEqual(start, -1, 'the teacher preview must mount the review panel');
+  const mount = appSource.slice(appSource.lastIndexOf('{', start), appSource.indexOf('/>', start));
+
+  assert.match(mount, /preview &&/,
+    'the panel must be gated on preview, so a student never mounts teacher controls');
+  assert.match(mount, /assignmentId=\{activeAssignmentId\}/,
+    'the panel must be told which assignment is on screen');
+  assert.match(mount, /questionIndex=\{currentQuestionIndex\}/,
+    'the panel must follow the question the teacher is looking at');
+  assert.match(mount, /question=\{questions\[currentQuestionIndex\]/,
+    'handing over the live question avoids a second fetch and keeps the note attached to the question actually on screen');
+});
+
+test('the review panel is not mounted inside the question runtime', () => {
+  assert.doesNotMatch(
+    boundarySource,
+    /TeacherQuestionReviewPanel/,
+    'QuestionModuleBoundary is an error boundary. Mounting the review panel there tied a teacher tool to whether a response module happened to render, and left it absent from every other part of the student view.',
+  );
+  assert.doesNotMatch(
+    boundarySource,
+    /teacherPreview|previewAssignmentId/,
+    'the boundary must not carry preview wiring at all',
+  );
+});
+
+test('the panel stays out of the student layout it exists to let a teacher judge', () => {
+  // Anchored to the return: a bare /createPortal/ also matches the import line,
+  // so the panel could stop portalling and render inline with this green.
+  assert.match(panelSource, /return createPortal\(/,
+    'the panel must RENDER through a portal, not merely import one; rendered inline it lands in the student layout the teacher is trying to judge');
+  assert.match(panelSource, /position:\s*['"]fixed['"]/,
+    'it must be positioned against the viewport, not laid out inside the assignment');
+  assert.match(panelSource, /zIndex/,
+    'it must sit above the student view rather than displacing it');
 });
 
 test('teacher preview review panel resolves the canonical saved question to its stable questionId', () => {
@@ -53,37 +96,6 @@ test('teacher preview review panel saves notes, resolves them, and builds a ques
  * screen: teacher-only note-entry controls, and a permission error, appearing in
  * the middle of their assignment.
  */
-test('the review panel is mounted only for a teacher preview, never unconditionally', () => {
-  const start = boundarySource.indexOf('const reviewPanel');
-  assert.notEqual(start, -1, 'the boundary must decide whether to mount the review panel');
-  const decision = boundarySource.slice(start, boundarySource.indexOf(';', start));
-
-  assert.match(decision, /previewTarget\s*\n?\s*\?/,
-    'the panel must be mounted on the preview target itself; any always-true gate puts teacher note controls inside a student assignment');
-  assert.match(decision, /:\s*null/,
-    'the non-preview case must render nothing at all');
-  assert.doesNotMatch(decision, /\|\||true/,
-    'a fallback or literal in the gate defeats it: the panel must mount only when this runtime is genuinely a teacher preview');
-});
-
-test('teacher preview is stated by the caller, never inferred from the generation key', () => {
-  const start = boundarySource.indexOf('const teacherPreviewTarget');
-  const parser = boundarySource.slice(start, boundarySource.indexOf('/*', start + 10));
-
-  assert.match(parser, /teacherPreview !== true/,
-    'the preview decision must come from an explicit flag');
-  assert.match(parser, /Number\.isInteger\(questionIndex\)/,
-    'a non-integer question index must not produce a preview target');
-  assert.match(parser, /return null/,
-    'anything that does not parse as a preview must yield no target rather than a partial one');
-
-  assert.doesNotMatch(
-    parser,
-    /resetKey/,
-    'the preview decision must not be read out of resetKey. That is a cache key: in a shared-version section it reads shared-version:<assignment>:<role> for teacher and student alike, on purpose, so the teacher previews the version the class receives. Sniffing it for a marker found nothing in exactly the sections that show "SAME VERSION", and the review controls silently never appeared there.',
-  );
-});
-
 /*
  * The regression this file exists for, asserted where it actually broke.
  *
