@@ -147,3 +147,34 @@ export const markIncompleteDraftForReview = (
     updatedAt: timestamp,
   };
 };
+
+/**
+ * Persist a committed repair onto the saved draft.
+ *
+ * The repaired assignment, the teacher's review context and the revision it was
+ * committed at move together. Saving the assignment without the revision would
+ * let the next repair be built against a number that no longer describes the
+ * draft, and the stale-repair guard would wave through work that should be
+ * refused. Saving it without the review context would drop the record of which
+ * flags the repair might have addressed.
+ *
+ * Revalidation goes through markIncompleteDraftForReview so a repaired draft
+ * and a reopened one cannot disagree about the state of the same assignment.
+ * The teacher review context passed in is stored exactly as given: the caller
+ * has already decided what an import may say about a teacher's flag, and it is
+ * never "resolved".
+ */
+export const applyIncompleteDraftRepairCommit = (
+  record,
+  { assignmentV5 = null, teacherReviewContext = null, committedRevision = null } = {},
+  { nowIso = new Date().toISOString() } = {},
+) => {
+  const revalidated = markIncompleteDraftForReview(record, assignmentV5, { nowIso });
+  return {
+    ...revalidated,
+    assignmentRevision: Number.isFinite(Number(committedRevision))
+      ? Number(committedRevision)
+      : (record?.assignmentRevision ?? null),
+    teacherReviewContext: teacherReviewContext ?? revalidated.teacherReviewContext ?? null,
+  };
+};

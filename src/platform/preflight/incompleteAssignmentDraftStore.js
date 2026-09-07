@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../../firebase.js';
 import {
+  applyIncompleteDraftRepairCommit,
   buildIncompleteAssignmentDraftRecord,
   markIncompleteDraftForReview,
   restoreIncompleteAssignmentV5,
@@ -52,10 +53,26 @@ export const listIncompleteAssignmentDrafts = async () => {
     .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
 };
 
-export const updateIncompleteAssignmentDraft = async (draft, repairedAssignmentV5) => {
+/**
+ * Save a repaired draft.
+ *
+ * A repair committed through the Repair Center carries a teacher review context
+ * and the revision it was committed at, and those must land with the assignment
+ * rather than beside it: storing the questions while dropping the revision
+ * leaves the next repair to be built against a number that no longer describes
+ * the draft, which is exactly what the stale-repair guard reads. Callers that
+ * pass neither keep the plain revalidation behaviour.
+ */
+export const updateIncompleteAssignmentDraft = async (draft, repairedAssignmentV5, commit = null) => {
   if (!draft?.id) throw new Error('The incomplete assignment draft is missing its saved ID.');
   currentTeacherIdentity();
-  const next = markIncompleteDraftForReview(draft, repairedAssignmentV5);
+  const next = commit
+    ? applyIncompleteDraftRepairCommit(draft, {
+      assignmentV5: repairedAssignmentV5,
+      teacherReviewContext: commit.teacherReviewContext ?? draft.teacherReviewContext ?? null,
+      committedRevision: commit.committedRevision,
+    })
+    : markIncompleteDraftForReview(draft, repairedAssignmentV5);
   const { id: _id, ...patch } = next;
   await updateDoc(doc(db, INCOMPLETE_ASSIGNMENT_DRAFTS_COLLECTION, draft.id), patch);
   return next;
