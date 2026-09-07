@@ -88,9 +88,13 @@ export default function IncompleteAssignmentRepairCenter({
   const [overrideReason, setOverrideReason] = useState('');
 
   const revision = revisionOf(currentDraft);
+  // The review context carries the teacher's diagnostic overrides, so readiness
+  // has to be computed with it. Without this the Repair Center tells a teacher
+  // an overridden finding is not blocking publication while the assignment
+  // stays Incomplete forever.
   const preflightModel = useMemo(
-    () => buildAssignmentV5PreflightModel(assignmentV5),
-    [assignmentV5],
+    () => buildAssignmentV5PreflightModel(assignmentV5, { teacherReviewContext }),
+    [assignmentV5, teacherReviewContext],
   );
   const repairCenterModel = useMemo(
     () => buildAssignmentRepairCenterModel({

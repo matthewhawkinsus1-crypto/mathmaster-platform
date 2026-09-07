@@ -1,3 +1,5 @@
+import { teacherMayOverrideDiagnostic } from './assignmentRepairTriage.js';
+
 export const AUTHORING_STATES = Object.freeze({
   INCOMPLETE: 'incomplete',
   NEEDS_REVIEW: 'needsReview',
@@ -47,15 +49,40 @@ export const isAssignmentEligibleForNormalLibrary = (assignment = {}) => {
  * perfectly healthy reusable library item; likewise a future assignment can
  * be incomplete and require repair before it is publishable.
  */
+const overrideKey = (entry) => `${String(entry?.code ?? entry?.diagnosticCode ?? '').trim()}::${String(entry?.questionId ?? '').trim()}`;
+
+/**
+ * Readiness has to honour a teacher's override, or the override is theatre.
+ *
+ * The Repair Center tells a teacher that an overridden finding is no longer
+ * blocking publication. If readiness ignores overrides, that sentence is false:
+ * the finding greys out, the assignment stays Incomplete forever, and the
+ * teacher has done exactly what they were told with no effect.
+ *
+ * Eligibility is re-checked HERE rather than trusted from the stored list.
+ * Overrides live in a Firestore document, so a hand-edited or corrupted entry
+ * must not be able to wave through a technical blocker or a platform defect —
+ * the two classes a teacher was never allowed to override in the first place.
+ */
+const overriddenAway = (entry, overrides) => (
+  overrides.some((override) => overrideKey(override) === overrideKey(entry))
+  && teacherMayOverrideDiagnostic(entry)
+);
+
 export const deriveAssignmentAuthoringState = ({
   diagnostics = [],
   teacherFlags = [],
   published = false,
+  diagnosticOverrides = [],
 } = {}) => {
   const safeDiagnostics = Array.isArray(diagnostics) ? diagnostics : [];
   const safeFlags = Array.isArray(teacherFlags) ? teacherFlags : [];
+  const overrides = Array.isArray(diagnosticOverrides) ? diagnosticOverrides : [];
 
-  if (safeDiagnostics.some((entry) => BLOCKING_SEVERITIES.has(normalizedSeverity(entry?.severity)))) {
+  if (safeDiagnostics.some((entry) => (
+    BLOCKING_SEVERITIES.has(normalizedSeverity(entry?.severity))
+    && !overriddenAway(entry, overrides)
+  ))) {
     return AUTHORING_STATES.INCOMPLETE;
   }
 

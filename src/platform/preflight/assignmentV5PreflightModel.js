@@ -25,6 +25,18 @@ const titleForRole = (role) => ({
 
 const asMessages = (value) => (Array.isArray(value) ? value.filter(Boolean).map(String) : []);
 
+// Overrides ride with the review context in the Repair Center, and on the
+// assignment itself for a stored draft. Readiness must see them either way, or
+// a teacher's override applies on screen and vanishes on reload.
+const diagnosticOverridesFrom = (assignmentV5 = {}, teacherReviewContext = null) => {
+  const candidates = [
+    teacherReviewContext?.diagnosticOverrides,
+    assignmentV5?.teacherReviewContext?.diagnosticOverrides,
+    assignmentV5?.authoringReview?.diagnosticOverrides,
+  ];
+  return candidates.find(Array.isArray) || [];
+};
+
 const teacherFlagsFrom = (assignmentV5 = {}) => {
   const candidates = [
     assignmentV5?.authoringReview?.teacherFlags,
@@ -41,7 +53,7 @@ const explicitlyPublished = (assignmentV5 = {}) => (
   || clean(assignmentV5?.authoringState).toLowerCase() === 'published'
 );
 
-export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = null } = {}) => {
+export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = null, teacherReviewContext = null } = {}) => {
   const normalizedSource = normalizeAssignmentV5({
     ...input,
     assignment: {
@@ -140,6 +152,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     diagnostics,
     teacherFlags: teacherFlagsFrom(source),
     published: explicitlyPublished(source),
+    diagnosticOverrides: diagnosticOverridesFrom(source, teacherReviewContext),
   });
 
   return {
