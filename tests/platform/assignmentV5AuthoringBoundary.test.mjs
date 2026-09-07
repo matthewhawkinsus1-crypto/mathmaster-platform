@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { assignmentIntakeSource } from './helpers/intakeSource.mjs';
 
 const app = fs.readFileSync('src/App.jsx', 'utf8');
-const intake = fs.readFileSync('src/AssignmentIntake.jsx', 'utf8');
+const intake = assignmentIntakeSource();
 const modal = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
 const questionEditor = fs.readFileSync('src/AssignmentQuestionEditor.jsx', 'utf8');
 
