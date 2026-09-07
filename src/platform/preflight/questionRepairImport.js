@@ -173,7 +173,7 @@ const pendingTeacherFlagsFor = (teacherReviewContext, row) => (
 export const parseSingleQuestionRepairJson = (rawText, { expectedQuestionId = null } = {}) => {
   const parsed = parseExternalAiJson(rawText);
   if (Array.isArray(parsed?.sections) || (isObject(parsed?.assignment) && Number(parsed?.schemaVersion) === 5)) {
-    throw new Error('Paste one repaired question JSON object, not the full assignment.');
+    throw new Error('Paste a single question JSON object — the repaired question by itself, not the full assignment.');
   }
   const expected = text(expectedQuestionId);
   if (!expected) throw new Error('The question being repaired must be identified before pasted JSON can be imported.');
