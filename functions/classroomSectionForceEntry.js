@@ -108,7 +108,11 @@ async function queueGradeSignalForAssignmentAudience({ db, assignmentId, assignm
       batch.update(
         gradeDoc.ref,
         new FieldPath("classroomReleaseSignals", assignmentId),
-        { requestedAt, reason: "initial-reconcile" }
+        // A forced repost replaces the Google CourseWork destination but keeps
+        // the same MathMaster publication id. Mark this as a manual retry so
+        // the section sync cannot skip an equal grade merely because the old
+        // CourseWork already received that grade.
+        { requestedAt, reason: "manual-retry" }
       );
     });
     // eslint-disable-next-line no-await-in-loop
