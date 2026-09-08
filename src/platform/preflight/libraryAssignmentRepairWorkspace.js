@@ -142,15 +142,18 @@ const browserSessionStorage = () => (
 export const queuePendingRepairUpload = ({
   assignmentId,
   rawText,
+  baseRevision = null,
   storage = browserSessionStorage(),
 } = {}) => {
   const text = clean(rawText);
   if (!text) throw new Error('The repair upload is empty.');
   if (!storage?.setItem) throw new Error('This browser cannot queue the repair upload between Teacher Review and Repair/Edit Questions.');
   const key = pendingRepairUploadKey(assignmentId);
+  const revision = Number(baseRevision);
   storage.setItem(key, JSON.stringify({
     assignmentId: clean(assignmentId),
     rawText: text,
+    baseRevision: Number.isFinite(revision) && revision >= 1 ? revision : null,
     queuedAt: new Date().toISOString(),
   }));
   return key;
