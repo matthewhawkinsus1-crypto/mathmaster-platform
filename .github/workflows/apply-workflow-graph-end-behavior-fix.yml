@@ -1,0 +1,45 @@
+name: Apply workflow graph end-behavior fix
+
+on:
+  push:
+    branches:
+      - fix/workflow-graph-end-behavior
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/workflow-graph-end-behavior
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Apply production patch
+        run: node scripts/apply-workflow-graph-end-behavior-fix.mjs
+
+      - name: Verify targeted regression
+        run: node --test tests/platform/workflowGraphEndBehavior.test.mjs
+
+      - name: Commit verified production changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/platform/workflow/workflowGraphVisuals.js \
+                  src/platform/workflow/questionRecipes.js \
+                  src/platform/workflow/WorkflowRunner.jsx \
+                  src/platform/workflow/GraphFeatureSelectStage.jsx \
+                  src/platform/workflow/FigureMatchStage.jsx \
+                  src/tools/shared/CoordinatePlane.jsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix workflow graph endpoints arrows and asymptotes"
+          git push origin HEAD:fix/workflow-graph-end-behavior
