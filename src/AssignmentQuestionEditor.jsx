@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import AssignmentQuestionEditorBase from './AssignmentQuestionEditorBase.jsx';
 import { getStoredAssignmentQuestions, storedAssignmentToV5 } from './platform/contract/storedAssignmentV5.js';
 import { flattenV5Sections } from './platform/contract/assignmentSchemaV5.js';
@@ -13,16 +14,18 @@ import {
 } from './platform/preflight/questionRepairImport.js';
 import {
   buildAllOpenTeacherFlagRepairRequest,
+  clearPendingRepairUpload,
   getOpenFlaggedQuestionIds,
   parseUnifiedRepairUpload,
+  readPendingRepairUpload,
 } from './platform/preflight/libraryAssignmentRepairWorkspace.js';
 import { screenshotIdsInContext } from './platform/preflight/teacherReviewScreenshot.js';
 import { loadTeacherReviewScreenshot } from './platform/preflight/teacherReviewScreenshotStore.js';
 import { teacherFlagNeedsReview } from './platform/preflight/assignmentAuthoringState.js';
 
 const buttonStyle = {
-  minHeight: 42,
-  padding: '9px 13px',
+  minHeight: 40,
+  padding: '8px 12px',
   border: '1px solid #aecbfa',
   borderRadius: 9,
   background: '#fff',
@@ -32,9 +35,12 @@ const buttonStyle = {
 };
 
 const clean = (value) => String(value ?? '').trim();
-const revisionOf = (assignment) => {
-  const revision = Number(assignment?.assignmentRevision);
-  return Number.isFinite(revision) && revision >= 1 ? revision : 1;
+const revisionOf = (assignment, teacherReviewContext = null) => {
+  const candidates = [
+    Number(assignment?.assignmentRevision),
+    Number(teacherReviewContext?.repairRevision),
+  ].filter((value) => Number.isFinite(value) && value >= 1);
+  return candidates.length ? Math.max(...candidates) : 1;
 };
 
 const assignmentIdOf = (assignment) => clean(
@@ -53,10 +59,9 @@ const clipboardWrite = async (text) => {
 /**
  * Repair Center wrapper around the existing Question Editor.
  *
- * The base editor remains unchanged and continues to own manual edits and the
- * existing Safe Live Repair Pack. This wrapper adds the teacher-flag-driven,
- * one-click outside-AI workflow and deliberately lands through the same onSave
- * boundary as every other question edit.
+ * Manual question editing remains owned by AssignmentQuestionEditorBase. This
+ * wrapper owns teacher-flag repair packets and AI repair imports, but now mounts
+ * its controls inside that editor instead of in a detached floating window.
  */
 export default function AssignmentQuestionEditor(props) {
   const {
@@ -65,19 +70,19 @@ export default function AssignmentQuestionEditor(props) {
     onSave,
   } = props;
   const assignmentId = assignmentIdOf(assignment);
-  const baseRevision = revisionOf(assignment);
   const uploadInputRef = useRef(null);
-  const [repairOpen, setRepairOpen] = useState(false);
+  const pendingUploadAttemptRef = useRef('');
+  const [inlineHost, setInlineHost] = useState(null);
+  const [repairOpen, setRepairOpen] = useState(true);
   const [teacherReviewContext, setTeacherReviewContext] = useState({ flags: [] });
-  // Images are fetched only when the Repair Center is actually open. They live
-  // in their own documents precisely so that reading a teacher's notes does not
-  // drag megabytes of base64 along with it.
   const [screenshotsById, setScreenshotsById] = useState({});
   const [reviewLoading, setReviewLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [pastedRepair, setPastedRepair] = useState('');
   const [stagedRepair, setStagedRepair] = useState(null);
+
+  const baseRevision = revisionOf(assignment, teacherReviewContext);
 
   const assignmentV5 = useMemo(() => {
     const rebuilt = storedAssignmentToV5(assignment);
@@ -89,6 +94,38 @@ export default function AssignmentQuestionEditor(props) {
       },
     };
   }, [assignment, assignmentId]);
+
+  // AssignmentQuestionEditorBase owns the modal. Create one small React portal
+  // slot in its scroll body immediately above the question cards. This keeps the
+  // Repair Center visually and functionally inside Repair/Edit Questions without
+  // duplicating the base editor or covering question controls with a fixed panel.
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const dialog = document.querySelector('section[aria-label="Edit assignment questions"]');
+    if (!dialog) return undefined;
+    const scroller = Array.from(dialog.children).find((child) => (
+      child instanceof HTMLElement && child.style.overflowY === 'auto'
+    ));
+    if (!scroller) return undefined;
+
+    const existing = scroller.querySelector('[data-assignment-repair-center-slot="true"]');
+    if (existing) {
+      setInlineHost(existing);
+      return undefined;
+    }
+
+    const host = document.createElement('div');
+    host.dataset.assignmentRepairCenterSlot = 'true';
+    host.style.marginBottom = '14px';
+    const questionGrid = scroller.children[2] || null;
+    scroller.insertBefore(host, questionGrid);
+    setInlineHost(host);
+
+    return () => {
+      setInlineHost(null);
+      host.remove();
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -149,7 +186,7 @@ export default function AssignmentQuestionEditor(props) {
         baseRevision,
       });
       await clipboardWrite(built.request);
-      setMessage(`AI Fix Package copied for ${built.questionIds.length} flagged question${built.questionIds.length === 1 ? '' : 's'}. Paste it into ChatGPT, Claude, Gemini, or another AI, then upload the JSON response here.`);
+      setMessage(`AI Fix Package copied for all ${built.questionIds.length} flagged question${built.questionIds.length === 1 ? '' : 's'}. Paste it into ChatGPT, Claude, Gemini, or another AI, then upload the JSON response here.`);
     } catch (error) {
       setMessage(error.message || 'MathMaster could not build the AI Fix Package.');
     } finally {
@@ -178,11 +215,14 @@ export default function AssignmentQuestionEditor(props) {
         teacherReviewContext,
       });
       setStagedRepair(staged);
+      setRepairOpen(true);
       setMessage(staged.canCommit
         ? `${staged.questionResults.length} repaired question${staged.questionResults.length === 1 ? '' : 's'} staged. Review the changes below, then choose Apply Repairs.`
         : 'The uploaded repair introduced a new blocking validation issue. Nothing has been applied.');
+      return true;
     } catch (error) {
       setMessage(error.message || 'MathMaster could not stage this AI repair JSON.');
+      return false;
     } finally {
       setBusy(false);
     }
@@ -192,8 +232,27 @@ export default function AssignmentQuestionEditor(props) {
     const file = event.target.files?.[0] || null;
     event.target.value = '';
     if (!file) return;
-    await stageRepairText(await file.text());
+    const rawText = await file.text();
+    setPastedRepair(rawText);
+    await stageRepairText(rawText);
   };
+
+  // A repair response uploaded from Teacher Review is queued, not applied, on
+  // that student-preview surface. As soon as Repair/Edit Questions opens we
+  // consume the handoff, revalidate it here, and show the normal staged diff.
+  useEffect(() => {
+    if (reviewLoading || !assignmentId) return;
+    const pending = readPendingRepairUpload({ assignmentId });
+    if (!pending?.rawText) return;
+    const attemptKey = `${pending.queuedAt || ''}:${pending.rawText.length}`;
+    if (pendingUploadAttemptRef.current === attemptKey) return;
+    pendingUploadAttemptRef.current = attemptKey;
+    setRepairOpen(true);
+    setPastedRepair(pending.rawText);
+    stageRepairText(pending.rawText).then((accepted) => {
+      if (accepted) clearPendingRepairUpload({ assignmentId });
+    });
+  }, [assignmentId, reviewLoading, baseRevision, openFlaggedQuestionIds.length]);
 
   const buildLiveRepairMetadata = (candidateQuestions, questionResults) => {
     if (!hasLiveProtection) return [];
@@ -237,6 +296,10 @@ export default function AssignmentQuestionEditor(props) {
         currentRevision: baseRevision,
         nextRevision: baseRevision + 1,
       });
+      const contextWithRevision = {
+        ...committed.teacherReviewContext,
+        repairRevision: committed.committedRevision,
+      };
 
       await onSave({
         title: clean(assignment?.title || assignmentV5?.assignment?.title),
@@ -245,7 +308,7 @@ export default function AssignmentQuestionEditor(props) {
       });
       const savedContext = await saveAssignmentTeacherReviewContext(
         assignmentId,
-        committed.teacherReviewContext,
+        contextWithRevision,
       );
       setTeacherReviewContext(savedContext);
       setStagedRepair(null);
@@ -258,60 +321,66 @@ export default function AssignmentQuestionEditor(props) {
     }
   };
 
-  return (
-    <>
-      <AssignmentQuestionEditorBase {...props} />
-
-      <div style={{ position: 'fixed', left: 22, top: 22, zIndex: 16020, display: 'grid', gap: 8 }}>
-        <button
-          type="button"
-          onClick={() => setRepairOpen((current) => !current)}
-          style={{ ...buttonStyle, background: '#174ea6', borderColor: '#174ea6', color: '#fff', boxShadow: '0 8px 24px rgba(0,0,0,.28)' }}
-          aria-expanded={repairOpen}
-        >
-          {repairOpen ? 'Close Repair Center' : `Repair Center${openFlaggedQuestionIds.length ? ` · ${openFlaggedQuestionIds.length} flagged` : ''}`}
-        </button>
-      </div>
-
-      {repairOpen && (
-        <aside
-          aria-label="Assignment Repair Center"
-          style={{
-            position: 'fixed',
-            left: 22,
-            top: 76,
-            zIndex: 16021,
-            width: 'min(620px, calc(100vw - 44px))',
-            maxHeight: 'calc(100vh - 98px)',
-            overflow: 'auto',
-            boxSizing: 'border-box',
-            padding: 18,
-            border: '2px solid #1a73e8',
-            borderRadius: 14,
-            background: '#f8fbff',
-            color: '#202124',
-            boxShadow: '0 18px 48px rgba(0,0,0,.34)',
-          }}
-        >
-          <h2 style={{ margin: 0, color: '#174ea6' }}>Assignment Repair Center</h2>
-          <p style={{ margin: '6px 0 14px', color: '#5f6368', lineHeight: 1.45 }}>
+  const repairCenter = (
+    <section
+      aria-label="Assignment Repair Center"
+      style={{
+        padding: 14,
+        border: '2px solid #1a73e8',
+        borderRadius: 12,
+        background: '#f8fbff',
+        color: '#202124',
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div>
+          <h3 style={{ margin: 0, color: '#174ea6', fontSize: 17 }}>Repair Center · teacher flags</h3>
+          <div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>
             {reviewLoading
               ? 'Loading private teacher flags…'
-              : `${openFlaggedQuestionIds.length} question${openFlaggedQuestionIds.length === 1 ? '' : 's'} currently covered by open teacher flags. Notes stay private and are included automatically.`}
-          </p>
+              : `${openFlaggedQuestionIds.length} flagged question${openFlaggedQuestionIds.length === 1 ? '' : 's'} · revision ${baseRevision}`}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={copyAiFixPackage}
+            disabled={busy || reviewLoading || !openFlaggedQuestionIds.length}
+            style={{ ...buttonStyle, background: '#174ea6', borderColor: '#174ea6', color: '#fff', opacity: busy || reviewLoading || !openFlaggedQuestionIds.length ? 0.55 : 1 }}
+          >
+            Copy All Flagged AI Fix Package
+          </button>
+          <input
+            ref={uploadInputRef}
+            type="file"
+            accept=".json,application/json"
+            onChange={uploadAiRepairs}
+            style={{ display: 'none' }}
+          />
+          <button
+            type="button"
+            onClick={() => uploadInputRef.current?.click()}
+            disabled={busy || reviewLoading || !openFlaggedQuestionIds.length}
+            style={{ ...buttonStyle, background: '#188038', borderColor: '#188038', color: '#fff', opacity: busy || reviewLoading || !openFlaggedQuestionIds.length ? 0.55 : 1 }}
+          >
+            Upload AI Repair JSON
+          </button>
+          <button type="button" onClick={() => setRepairOpen((current) => !current)} style={buttonStyle} aria-expanded={repairOpen}>
+            {repairOpen ? 'Hide details' : 'Show details'}
+          </button>
+        </div>
+      </div>
 
-          {/*
-            * The teacher's own evidence, shown where the repair happens.
-            *
-            * A note says what is wrong; the screenshot beside it shows the
-            * thing being described. Both are private to this teacher and both
-            * stay out of the assignment document students can read. The image
-            * is displayed here and deliberately never travels in the AI Fix
-            * Package: it cannot help a text repair, and one screenshot can
-            * dwarf the question JSON it belongs to.
-            */}
+      {!reviewLoading && !openFlaggedQuestionIds.length && (
+        <div style={{ marginTop: 9, padding: 9, borderRadius: 8, background: '#fff', color: '#5f6368', fontSize: 12.5 }}>
+          No open teacher flags yet. Use View as Student → Teacher review to flag questions and write the exact repair notes. They will appear here automatically.
+        </div>
+      )}
+
+      {repairOpen && (
+        <>
           {openTeacherFlags.length > 0 && (
-            <div style={{ display: 'grid', gap: 8, margin: '0 0 14px' }}>
+            <div style={{ display: 'grid', gap: 8, margin: '12px 0 0' }}>
               {openTeacherFlags.map((flag) => {
                 const shot = flag.screenshotId ? screenshotsById[flag.screenshotId] : null;
                 return (
@@ -339,35 +408,8 @@ export default function AssignmentQuestionEditor(props) {
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={copyAiFixPackage}
-              disabled={busy || reviewLoading || !openFlaggedQuestionIds.length}
-              style={{ ...buttonStyle, background: '#174ea6', borderColor: '#174ea6', color: '#fff', opacity: busy || reviewLoading || !openFlaggedQuestionIds.length ? 0.55 : 1 }}
-            >
-              Copy AI Fix Package
-            </button>
-
-            <input
-              ref={uploadInputRef}
-              type="file"
-              accept=".json,application/json"
-              onChange={uploadAiRepairs}
-              style={{ display: 'none' }}
-            />
-            <button
-              type="button"
-              onClick={() => uploadInputRef.current?.click()}
-              disabled={busy || reviewLoading || !openFlaggedQuestionIds.length}
-              style={{ ...buttonStyle, background: '#188038', borderColor: '#188038', color: '#fff', opacity: busy || reviewLoading || !openFlaggedQuestionIds.length ? 0.55 : 1 }}
-            >
-              Upload AI Repairs
-            </button>
-          </div>
-
           <details style={{ marginTop: 12 }}>
-            <summary style={{ cursor: 'pointer', fontWeight: 900, color: '#174ea6' }}>Paste JSON instead</summary>
+            <summary style={{ cursor: 'pointer', fontWeight: 900, color: '#174ea6' }}>Paste JSON instead of uploading a file</summary>
             <textarea
               value={pastedRepair}
               onChange={(event) => setPastedRepair(event.target.value)}
@@ -417,10 +459,17 @@ export default function AssignmentQuestionEditor(props) {
               </div>
             </section>
           )}
-
-          {message && <div role="status" style={{ marginTop: 12, padding: 9, borderRadius: 8, background: '#fff', color: '#3c4043', fontSize: 12.5, lineHeight: 1.45 }}>{message}</div>}
-        </aside>
+        </>
       )}
+
+      {message && <div role="status" style={{ marginTop: 10, padding: 9, borderRadius: 8, background: '#fff', color: '#3c4043', fontSize: 12.5, lineHeight: 1.45 }}>{message}</div>}
+    </section>
+  );
+
+  return (
+    <>
+      <AssignmentQuestionEditorBase {...props} />
+      {inlineHost ? createPortal(repairCenter, inlineHost) : null}
     </>
   );
 }
