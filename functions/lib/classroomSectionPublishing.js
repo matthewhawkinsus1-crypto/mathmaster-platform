@@ -10,6 +10,12 @@ const {
 } = require("./assignmentRuntime");
 
 const PUBLICATION_SECTION_SET = new Set(PUBLICATION_SECTION_KEYS);
+const SECTION_GRADING = Object.freeze({
+  warmup: Object.freeze({ maxPoints: 5, gradingMode: "engagement" }),
+  classwork: Object.freeze({ maxPoints: 100, gradingMode: "accuracy" }),
+  practice: Object.freeze({ maxPoints: 100, gradingMode: "accuracyWithRecovery" }),
+  dol: Object.freeze({ maxPoints: 100, gradingMode: "accuracy" }),
+});
 
 function requestedSectionKeys(requestData = {}) {
   const raw = Array.isArray(requestData?.sectionKeys) && requestData.sectionKeys.length
@@ -48,6 +54,7 @@ function classroomPublicationSpecs({ assignment = {}, requestData = {} } = {}) {
   const keys = requestedSectionKeys(requestData);
   const baseTitle = String(requestData.classroomTitle || assignment.title || "MathMaster Assignment").trim();
   const publishAt = assignment.releaseAt || null;
+  const wholePoints = Number(requestData.maxPoints);
 
   return keys.map((sectionKey) => {
     const questionIndices = runtimeIncludedQuestionIndicesForSection(assignment, sectionKey);
@@ -57,6 +64,7 @@ function classroomPublicationSpecs({ assignment = {}, requestData = {} } = {}) {
       );
     }
     const title = sectionTitle(baseTitle, sectionKey);
+    const sectionGrading = SECTION_GRADING[sectionKey] || null;
     return {
       sectionKey,
       sectionLabel: publicationSectionLabel(sectionKey),
@@ -64,6 +72,9 @@ function classroomPublicationSpecs({ assignment = {}, requestData = {} } = {}) {
       title,
       instructions: sectionInstructions(requestData.instructions, title, sectionKey),
       publishAt,
+      maxPoints: sectionGrading?.maxPoints
+        ?? (Number.isFinite(wholePoints) && wholePoints > 0 ? wholePoints : 100),
+      gradingMode: sectionGrading?.gradingMode || "composite",
     };
   });
 }
@@ -94,6 +105,7 @@ function classroomPublicationTargets({
 }
 
 module.exports = {
+  SECTION_GRADING,
   requestedSectionKeys,
   sectionTitle,
   sectionInstructions,
