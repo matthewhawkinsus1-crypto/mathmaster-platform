@@ -1063,10 +1063,18 @@ const compileOne = (q, index, repairs) => {
       throw new Error(`V5 question ${index + 1} quantity-role answer ids must match the supplied quantity choices.`);
     }
   }
-  if (q.type || q.toolId) {
+  // Most V5 authoring must still be compiled from mathematical intent rather
+  // than renderer ids. graphChoicePreview is the narrow exception because its
+  // canonical contract can contain multiple explicitly authored, graded stages
+  // that cannot be reconstructed from one top-level choices array.
+  const authoredWorkflow = asArray(q.workflow).filter(isObject);
+  const explicitWorkflowType = authoredWorkflow.length > 0 && clean(q.type) === 'graphChoicePreview'
+    ? 'graphChoicePreview'
+    : '';
+  if ((q.type || q.toolId) && !explicitWorkflowType) {
     repairs.push(`ignored internal type hint on V5 question ${index + 1}; compiled from studentActions instead`);
   }
-  const type = resolveIntentType(q, actions);
+  const type = explicitWorkflowType || resolveIntentType(q, actions);
   if (!type) throw new Error(`V5 question ${index + 1} does not contain enough mathematical intent to choose a student tool. Add studentActions and the needed mathematical data.`);
   let out;
   switch (type) {
@@ -1236,6 +1244,54 @@ const compileOne = (q, index, repairs) => {
       out = compileRelationshipModel(q, actions);
       break;
     case 'graphChoicePreview': {
+      if (explicitWorkflowType) {
+        const seenStageIds = new Set();
+        authoredWorkflow.forEach((stage, stageIndex) => {
+          const stageId = clean(stage.id);
+          const stageKind = clean(stage.kind);
+          if (!stageId || !stageKind) {
+            throw new Error(`V5 question ${index + 1} explicit workflow stage ${stageIndex + 1} requires both id and kind.`);
+          }
+          if (seenStageIds.has(stageId)) {
+            throw new Error(`V5 question ${index + 1} explicit workflow has duplicate stage id "${stageId}".`);
+          }
+          seenStageIds.add(stageId);
+          if (stageKind === 'multipleChoice') {
+            const choices = asArray(stage.choices).filter(isObject);
+            if (choices.length < 2) {
+              throw new Error(`V5 question ${index + 1} multiple-choice stage "${stageId}" requires at least two choices.`);
+            }
+            const choiceIds = choices.map((choice) => clean(choice.id)).filter(Boolean);
+            if (choiceIds.length !== choices.length || new Set(choiceIds).size !== choiceIds.length) {
+              throw new Error(`V5 question ${index + 1} multiple-choice stage "${stageId}" requires unique non-empty choice ids.`);
+            }
+            const answerId = clean(q.grading?.[stageId]);
+            if (!answerId || !choiceIds.includes(answerId)) {
+              throw new Error(`V5 question ${index + 1} multiple-choice stage "${stageId}" must have a grading key that matches one supplied choice id.`);
+            }
+          }
+        });
+        // Every grading key must name a stage that exists. The per-stage checks
+        // above look outward from each stage and so never see a key that
+        // belongs to no stage — a renamed or mistyped stage id leaves its
+        // answer behind, and the stage it was meant for is then graded by
+        // nothing at all. Silent, and only visible as students losing marks on
+        // a question that looks correct.
+        if (isObject(q.grading)) {
+          const stageIds = new Set(authoredWorkflow.map((stage) => clean(stage.id)).filter(Boolean));
+          const orphaned = Object.keys(q.grading).filter((key) => !stageIds.has(clean(key)));
+          if (orphaned.length) {
+            throw new Error(`V5 question ${index + 1} grades stages that do not exist: ${orphaned.join(', ')}. Check for a renamed or mistyped stage id.`);
+          }
+        }
+        out = copyCommon(q, {
+          type,
+          workflow: authoredWorkflow.map((stage) => ({ ...stage })),
+          grading: isObject(q.grading) ? { ...q.grading } : q.grading,
+        });
+        repairs.push(`preserved explicit V5 question ${index + 1} graph-choice workflow`);
+        break;
+      }
       const window = graphFromIntent(q) || {};
       const spec = q.function || q.functionSpec;
       const model = spec ? expressionFromSpec(spec) : null;
