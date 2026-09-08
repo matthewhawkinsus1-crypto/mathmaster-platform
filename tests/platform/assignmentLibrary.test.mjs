@@ -7,6 +7,7 @@ import {
   resolveAssignmentDates, resolveCreationMode,
 } from '../../src/assignmentDestinations.js';
 import { collectReviewBlockers, describePreflightAction } from '../../src/components/teacher/preflightSteps.js';
+import { assignmentLibrarySource } from './helpers/splitComponentSource.mjs';
 
 const CLASSES = [
   { classId: 'c-1', name: 'Algebra I — 1st', period: '1st', course: 'algebra1', courseLevel: 'standard', status: 'active' },
@@ -179,7 +180,7 @@ test('a null draft does not throw', () => {
 
 
 test('Library UI exposes a direct Assign to class action instead of forcing export/import copies', () => {
-  const source = fs.readFileSync('src/AssignmentLibrary.jsx', 'utf8');
+  const source = assignmentLibrarySource();
   const app = fs.readFileSync('src/App.jsx', 'utf8');
   assert.match(source, /onAssignAssignment/);
   assert.match(source, />\s*Assign to class\s*</);

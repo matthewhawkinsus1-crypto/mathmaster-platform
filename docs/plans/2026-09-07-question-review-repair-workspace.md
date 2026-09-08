@@ -38,7 +38,11 @@ promoted to the Library only when both the machine and a person say it is ready.
 5. **Flag what an AI must not change**, at whichever scope the concern actually
    has: this question, every question in this section, or the whole assignment.
    The note becomes a hard constraint on any repair packet for the questions it
-   governs, and only a teacher can close it.
+   governs, and only a teacher can close it. A **screenshot** can be attached as
+   evidence — pasted or picked — and appears in Repair Center beside the note,
+   where it can be replaced or removed. It supplements the note and never
+   replaces it: saving stays disabled until the note is written, because a
+   picture with no words gives a repairing AI nothing to act on.
 6. **Finish review.** *Complete final review* promotes the draft to Ready once
    nothing is blocking and no teacher flag is still open; it refuses and says
    why otherwise. Ready is not Published — publishing goes through the normal
@@ -68,6 +72,10 @@ which is the failure this workspace exists to prevent.
 built from and the parser refuses a mismatch, so a stale paste cannot silently
 overwrite newer repairs.
 
+**A screenshot never reaches a model.** It is evidence for a person. Images
+cannot help a text repair and one screenshot can dwarf the question JSON it
+belongs to, so the AI package sends the written note and the question only.
+
 **Validation is never incremental.** Preflight judges the assignment as a whole
 — duplicate question numbers, duplicate choice ids, section coverage, alignment
 spread — so caching per question would serve stale cross-question findings.
@@ -94,6 +102,10 @@ for the measurement and the two contracts that keep the decision from rotting.
 | Repair Center UI | `src/components/teacher/IncompleteAssignmentRepairCenter.jsx` |
 | Review panel in teacher preview | `src/components/teacher/TeacherQuestionReviewPanel.jsx` |
 | Library review-note persistence | `src/platform/preflight/assignmentQuestionReviewStore.js` |
+| Screenshot rules and shape | `src/platform/preflight/teacherReviewScreenshot.js` |
+| Screenshot persistence | `src/platform/preflight/teacherReviewScreenshotStore.js` |
+| Screenshot capture and downscaling | `src/platform/preflight/teacherReviewScreenshotCapture.js` |
+| Library Repair Center | `src/AssignmentQuestionEditor.jsx` |
 | Intake wiring | `src/AssignmentIntake.jsx`, `src/AssignmentIntakeBase.jsx` |
 
 ## Data and security
@@ -110,7 +122,16 @@ notes can name a student and describe what they got wrong. Rules restrict every
 operation to the owning teacher, refuse a forged `ownerUid` on create, and pin
 both `ownerUid` and `assignmentId` on update.
 
-The emulator cases for both collections are in `tests/firestore-rules.test.mjs`,
+Screenshots attached to those notes live in `assignmentReviewScreenshots`, one
+document per image, referenced from a flag by id. Two things force that split.
+Review context is a single document read every time the panel opens, and
+Firestore documents stop at 1 MiB — base64 inside it would blow the limit after
+one or two screenshots and drag megabytes through every read. And because the
+image is in neither the review context nor the question JSON, the compact AI
+repair package **cannot** carry it: that requirement holds structurally rather
+than by remembering to strip it.
+
+The emulator cases for all three collections are in `tests/firestore-rules.test.mjs`,
 and they are the security boundary — the teacher review panel that mounts inside
 the student question runtime is kept off a student's screen by a preview check,
 but it is these rules that mean a student could not read the notes even if it

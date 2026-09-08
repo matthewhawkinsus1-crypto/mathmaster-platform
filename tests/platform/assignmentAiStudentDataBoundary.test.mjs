@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 import { buildQuestionRepairRequest } from '../../src/platform/contract/questionRepairRequest.js';
+import { assignmentQuestionEditorSource } from './helpers/splitComponentSource.mjs';
 
 const preflight = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
-const editor = fs.readFileSync('src/AssignmentQuestionEditor.jsx', 'utf8');
+const editor = assignmentQuestionEditorSource();
 const functionsIndex = fs.readFileSync('functions/index.js', 'utf8');
 
 // The site now carries real student records. Nothing on an AI path may carry a

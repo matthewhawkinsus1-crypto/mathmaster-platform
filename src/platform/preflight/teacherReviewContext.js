@@ -99,6 +99,10 @@ export const addTeacherReviewFlag = (context, flag = {}, options = {}) => {
     category: text(flag.category) || 'general',
     severity: text(flag.severity) || 'needsEditing',
     note: text(flag.note),
+    // A screenshot is optional evidence beside the note, stored as an id only:
+    // the image itself lives in its own document so this context stays small
+    // and so nothing built from it can carry base64 to an AI.
+    screenshotId: text(flag.screenshotId) || null,
     status: 'open',
     assignmentRevision: revision,
     potentiallyAddressedByRevision: null,

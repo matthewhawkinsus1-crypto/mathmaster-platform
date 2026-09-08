@@ -1,8 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { assignmentQuestionEditorSource } from './helpers/splitComponentSource.mjs';
 
-const editor = fs.readFileSync('src/AssignmentQuestionEditor.jsx', 'utf8');
+// AssignmentQuestionEditor now has a thin Repair Center wrapper around the
+// original no-code editor. Keep testing the complete implementation rather than
+// weakening the existing behavioral source contracts just because the component
+// was split into two focused files.
+const editor = [
+  assignmentQuestionEditorSource(),
+  fs.readFileSync('src/AssignmentQuestionEditorBase.jsx', 'utf8'),
+].join('\n');
 
 test('normal question editor no longer exposes raw JSON editing', () => {
   assert.doesNotMatch(editor, /Edit JSON/);

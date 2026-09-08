@@ -88,33 +88,36 @@ export default function AssignmentCardMenu({ items, ariaLabel = 'More actions' }
           <button type="button" onClick={() => setOpen(false)} aria-label="Close assignment actions" style={{ width: 44, height: 44, border: 0, borderRadius: 9, background: '#f1f3f4', fontWeight: 900 }}>×</button>
         </div>
       )}
-      {items.map((item) => (
-        <button
-          key={item.key}
-          type="button"
-          role="menuitem"
-          disabled={item.disabled}
-          onClick={() => { setOpen(false); item.onClick(); }}
-          style={{
-            display: 'block',
-            width: '100%',
-            minHeight: mobileInteraction.isMobile ? 48 : 40,
-            textAlign: 'left',
-            padding: '9px 12px',
-            border: 'none',
-            borderRadius: '7px',
-            background: 'transparent',
-            color: item.disabled ? '#bdc1c6' : item.tone === 'danger' ? '#d93025' : '#3c4043',
-            fontWeight: item.tone === 'danger' ? 'bold' : 600,
-            fontSize: mobileInteraction.isMobile ? '15px' : '13px',
-            cursor: item.disabled ? 'not-allowed' : 'pointer',
-          }}
-          onMouseEnter={(event) => { if (!item.disabled) event.currentTarget.style.background = '#f1f3f4'; }}
-          onMouseLeave={(event) => { event.currentTarget.style.background = 'transparent'; }}
-        >
-          {item.label}
-        </button>
-      ))}
+      {items.map((item) => {
+        const label = item.key === 'edit-questions' ? 'Repair Center / Edit Questions' : item.label;
+        return (
+          <button
+            key={item.key}
+            type="button"
+            role="menuitem"
+            disabled={item.disabled}
+            onClick={() => { setOpen(false); item.onClick(); }}
+            style={{
+              display: 'block',
+              width: '100%',
+              minHeight: mobileInteraction.isMobile ? 48 : 40,
+              textAlign: 'left',
+              padding: '9px 12px',
+              border: 'none',
+              borderRadius: '7px',
+              background: 'transparent',
+              color: item.disabled ? '#bdc1c6' : item.tone === 'danger' ? '#d93025' : '#3c4043',
+              fontWeight: item.tone === 'danger' ? 'bold' : 600,
+              fontSize: mobileInteraction.isMobile ? '15px' : '13px',
+              cursor: item.disabled ? 'not-allowed' : 'pointer',
+            }}
+            onMouseEnter={(event) => { if (!item.disabled) event.currentTarget.style.background = '#f1f3f4'; }}
+            onMouseLeave={(event) => { event.currentTarget.style.background = 'transparent'; }}
+          >
+            {label}
+          </button>
+        );
+      })}
     </div>
   );
 

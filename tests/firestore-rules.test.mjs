@@ -105,6 +105,14 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     assignmentId: 'A1',
     teacherReviewContext: { flags: [{ id: 'f2', scope: 'question', targetId: 'q-1', note: 'Another teacher private note.' }] },
   });
+  await setDoc(doc(db, 'assignmentReviewScreenshots/shot-mine'), {
+    ownerUid: 'teacher-uid', assignmentId: 'A1', questionId: 'q-1', flagId: 'f1',
+    mediaType: 'image/png', byteSize: 128, dataUrl: 'data:image/png;base64,AAAA',
+  });
+  await setDoc(doc(db, 'assignmentReviewScreenshots/shot-theirs'), {
+    ownerUid: 'other-teacher-uid', assignmentId: 'A1', questionId: 'q-1', flagId: 'f2',
+    mediaType: 'image/png', byteSize: 128, dataUrl: 'data:image/png;base64,BBBB',
+  });
 });
 
 const teacher = testEnv.authenticatedContext('teacher-uid', { role: 'teacher', email: TEACHER_EMAIL }).firestore();
@@ -298,6 +306,35 @@ await check('student CANNOT write teacher review notes', assertFails(setDoc(revi
 await check('roleless user CANNOT read teacher review notes', assertFails(getDoc(reviewDoc(roleless, 'teacher-uid__A1'))));
 await check('anonymous CANNOT read teacher review notes', assertFails(getDoc(reviewDoc(anon, 'teacher-uid__A1'))));
 await check('root admin reads any teacher review notes', assertSucceeds(getDoc(reviewDoc(rootAdmin, 'teacher-uid__A1'))));
+
+/*
+ * A review screenshot is a picture of a student-facing screen, captured by a
+ * teacher, annotated with what is wrong. It is the most sensitive artefact in
+ * this feature: it lives outside /assignments precisely so a student can never
+ * read it, and outside the review context so it never bloats a note. These are
+ * the rules that make the first half of that true.
+ */
+const shotDoc = (db, id) => doc(db, `assignmentReviewScreenshots/${id}`);
+
+await check('teacher reads own review screenshot', assertSucceeds(getDoc(shotDoc(teacher, 'shot-mine'))));
+await check('teacher creates own review screenshot', assertSucceeds(setDoc(shotDoc(teacher, 'shot-new'), { ownerUid: 'teacher-uid', assignmentId: 'A1', mediaType: 'image/png', dataUrl: 'data:image/png;base64,AAAA' })));
+await check('teacher replaces own review screenshot', assertSucceeds(setDoc(shotDoc(teacher, 'shot-mine'), { ownerUid: 'teacher-uid', assignmentId: 'A1', mediaType: 'image/png', dataUrl: 'data:image/png;base64,CCCC' })));
+await check('teacher deletes own review screenshot', assertSucceeds(deleteDoc(shotDoc(teacher, 'shot-new'))));
+
+await check('teacher CANNOT read another teacher screenshot', assertFails(getDoc(shotDoc(teacher, 'shot-theirs'))));
+await check('teacher CANNOT delete another teacher screenshot', assertFails(deleteDoc(shotDoc(teacher, 'shot-theirs'))));
+await check('teacher CANNOT overwrite another teacher screenshot', assertFails(setDoc(shotDoc(teacher, 'shot-theirs'), { ownerUid: 'other-teacher-uid', assignmentId: 'A1', dataUrl: 'data:image/png;base64,DDDD' })));
+await check('teacher CANNOT create a screenshot owned by someone else', assertFails(setDoc(shotDoc(teacher, 'shot-forged'), { ownerUid: 'other-teacher-uid', assignmentId: 'A1', dataUrl: 'data:image/png;base64,AAAA' })));
+await check('teacher CANNOT reassign ownership of own screenshot', assertFails(setDoc(shotDoc(teacher, 'shot-mine'), { ownerUid: 'other-teacher-uid', assignmentId: 'A1', dataUrl: 'data:image/png;base64,AAAA' })));
+await check('teacher CANNOT repoint a screenshot at another assignment', assertFails(setDoc(shotDoc(teacher, 'shot-mine'), { ownerUid: 'teacher-uid', assignmentId: 'A9', dataUrl: 'data:image/png;base64,AAAA' })));
+await check('teacher CANNOT create a screenshot with no assignment id', assertFails(setDoc(shotDoc(teacher, 'shot-orphan'), { ownerUid: 'teacher-uid', dataUrl: 'data:image/png;base64,AAAA' })));
+
+await check('student CANNOT read a review screenshot', assertFails(getDoc(shotDoc(student, 'shot-mine'))));
+await check('student CANNOT list review screenshots', assertFails(getDocs(collection(student, 'assignmentReviewScreenshots'))));
+await check('student CANNOT write a review screenshot', assertFails(setDoc(shotDoc(student, 'shot-mine'), { ownerUid: 'student:S1042', assignmentId: 'A1' })));
+await check('roleless user CANNOT read a review screenshot', assertFails(getDoc(shotDoc(roleless, 'shot-mine'))));
+await check('anonymous CANNOT read a review screenshot', assertFails(getDoc(shotDoc(anon, 'shot-mine'))));
+await check('root admin reads any review screenshot', assertSucceeds(getDoc(shotDoc(rootAdmin, 'shot-theirs'))));
 
 await testEnv.cleanup();
 
