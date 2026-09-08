@@ -2,20 +2,23 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   inferRelationVariable,
-  parseRelationSource,
-  relationSolutionSummary,
-  relationSourceFromQuestion,
-} from '../../src/algebraRelationFoundation.js';
+  withPromptRelationSource,
+} from '../../src/stepAlgebraRelationRouting.js';
 
-test('reads canonical inequality fields as relation sources', () => {
-  assert.equal(
-    relationSourceFromQuestion({ inequality: '10 <= 3y - 2 < 19' }),
-    '10 <= 3y - 2 < 19',
-  );
-  assert.equal(
-    relationSourceFromQuestion({ inequalityText: '|d| < 2' }),
-    '|d| < 2',
-  );
+test('promotes canonical inequality fields into the runtime equation source', () => {
+  const compound = withPromptRelationSource({
+    type: 'stepAlgebra',
+    inequality: '10 <= 3y - 2 < 19',
+  });
+  assert.equal(compound.equation, '10 <= 3y - 2 < 19');
+  assert.equal(compound.solveFor, 'y');
+
+  const absolute = withPromptRelationSource({
+    type: 'stepAlgebra',
+    inequalityText: '|d| < 2',
+  });
+  assert.equal(absolute.equation, '|d| < 2');
+  assert.equal(absolute.solveFor, 'd');
 });
 
 test('infers the single algebra variable instead of defaulting every relation to x', () => {
@@ -28,12 +31,11 @@ test('does not guess when a relation genuinely contains multiple unknown symbols
   assert.equal(inferRelationVariable('a + b > 7'), null);
 });
 
-test('parses a non-x compound inequality with the inferred variable', () => {
-  const state = parseRelationSource('4 <= y < 7');
-  assert.equal(state.variable, 'y');
-  assert.deepEqual(relationSolutionSummary(state), {
-    solved: true,
-    kind: 'intervals',
-    intervals: [{ min: 4, max: 7, minClosed: true, maxClosed: false }],
-  });
+test('keeps an explicitly authored solving variable', () => {
+  const question = {
+    type: 'stepAlgebra',
+    equation: '2y + 1 > 5',
+    solveFor: 't',
+  };
+  assert.equal(withPromptRelationSource(question), question);
 });
