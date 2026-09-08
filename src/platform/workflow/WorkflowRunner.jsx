@@ -267,6 +267,17 @@ function StageFigure({ graph, label }) {
   const spec = isObject(graph) ? graph : {};
   const structuredFunction = staticGraphSpec(spec.functionSpec);
 
+  const model = typeof spec.model === 'string' ? spec.model.trim() : '';
+  const functions = useMemo(() => {
+    if (!model) return [];
+    const evaluate = (x) => {
+      const y = evaluateModelAt(model, x);
+      return Number.isFinite(y) ? y : Number.NaN;
+    };
+    return Number.isFinite(evaluate(0)) || Number.isFinite(evaluate(1)) ? [evaluate] : [];
+  }, [model]);
+  const points = Array.isArray(spec.points) ? spec.points : [];
+
   // Function-characteristics used to throw away functionSpec and sample only
   // the equation string. That made a restricted function look unrestricted.
   // The canonical static renderer already owns domain clipping, endpoint
@@ -288,16 +299,6 @@ function StageFigure({ graph, label }) {
       </div>
     );
   }
-  const model = typeof spec.model === 'string' ? spec.model.trim() : '';
-  const functions = useMemo(() => {
-    if (!model) return [];
-    const evaluate = (x) => {
-      const y = evaluateModelAt(model, x);
-      return Number.isFinite(y) ? y : Number.NaN;
-    };
-    return Number.isFinite(evaluate(0)) || Number.isFinite(evaluate(1)) ? [evaluate] : [];
-  }, [model]);
-  const points = Array.isArray(spec.points) ? spec.points : [];
   if (!functions.length && !points.length) return null;
   return (
     <div style={{ marginBottom: 12 }}>
