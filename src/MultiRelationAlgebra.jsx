@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import MultiRelationAlgebraCore from './MultiRelationAlgebraCore';
 import SolverWorkspaceFrame from './components/common/SolverWorkspaceFrame';
+import { withPromptRelationSource } from './stepAlgebraRelationRouting.js';
 
 export * from './MultiRelationAlgebraCore';
 
@@ -14,16 +15,17 @@ const appendHistory = (current, value) => {
 
 export default function MultiRelationAlgebra(props) {
   const { question = {}, onStateChange } = props;
+  const relationQuestion = useMemo(() => withPromptRelationSource(question), [question]);
   const denseWorkspace = props.workspaceMode !== 'normal';
   const workspaceKey = useMemo(() => [
     props.draftKey,
-    question.id,
-    question.questionId,
-    question.equationLatex,
-    question.equationAscii,
-    typeof question.equation === 'string' ? question.equation : '',
-    question.prompt,
-  ].filter(Boolean).join('|') || 'multi-relation-algebra', [props.draftKey, question]);
+    relationQuestion.id,
+    relationQuestion.questionId,
+    relationQuestion.equationLatex,
+    relationQuestion.equationAscii,
+    typeof relationQuestion.equation === 'string' ? relationQuestion.equation : '',
+    relationQuestion.prompt,
+  ].filter(Boolean).join('|') || 'multi-relation-algebra', [props.draftKey, relationQuestion]);
   const [workHistory, setWorkHistory] = useState([]);
 
   useEffect(() => setWorkHistory([]), [workspaceKey]);
@@ -53,14 +55,19 @@ export default function MultiRelationAlgebra(props) {
   return (
     <SolverWorkspaceFrame
       label="Equation and inequality solver"
-      taskText={question.prompt || 'Solve the equation or inequality.'}
+      taskText={relationQuestion.prompt || 'Solve the equation or inequality.'}
       workspaceKey={workspaceKey}
       workspaceKind="relation"
       focusPanel={focusPanel}
       workspaceActions={props.workspaceActions}
       onWorkspaceModeChange={props.onWorkspaceModeChange}
     >
-      <MultiRelationAlgebraCore {...props} denseWorkspace={denseWorkspace} onStateChange={handleStateChange} />
+      <MultiRelationAlgebraCore
+        {...props}
+        question={relationQuestion}
+        denseWorkspace={denseWorkspace}
+        onStateChange={handleStateChange}
+      />
     </SolverWorkspaceFrame>
   );
 }

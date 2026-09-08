@@ -9,16 +9,36 @@ const normalizePrompt = (value) => String(value ?? '')
   .replace(/\s+/g, ' ')
   .trim();
 
-const hasStructuredRelation = (question = {}) => [
-  question.equation,
-  question.inequality,
-  question.relation,
-  question.expression,
-  question?.metadata?.equation,
-  question?.metadata?.inequality,
-  question?.metadata?.relation,
-  question?.metadata?.expression,
-].some((value) => typeof value === 'string' && value.trim());
+const relationSourceDescriptor = (question = {}) => {
+  const candidates = [
+    [question.equation, false],
+    [question.inequalityText, true],
+    [question.inequality, true],
+    [question.equationAscii, false],
+    [question.initialEquation, false],
+    [question.formula, false],
+    [question.equationLatex, false],
+    [question?.metadata?.equation, false],
+    [question?.metadata?.inequalityText, true],
+    [question?.metadata?.inequality, true],
+  ];
+
+  const match = candidates.find(([value]) => (
+    typeof value === 'string' && value.trim() && RELATION_TOKEN_RE.test(value)
+  ));
+  if (!match) return null;
+  return { source: String(match[0]).trim(), promoteToEquation: match[1] };
+};
+
+export const inferRelationVariable = (source) => {
+  const identifiers = String(source ?? '').match(/[A-Za-z_][A-Za-z0-9_]*/g) || [];
+  const variables = [...new Set(
+    identifiers
+      .filter((identifier) => identifier.length === 1)
+      .filter((identifier) => identifier.toLowerCase() !== 'e'),
+  )];
+  return variables.length === 1 ? variables[0] : null;
+};
 
 export const extractPromptRelationSource = (question = {}) => {
   const type = String(question?.type || '').trim();
@@ -28,7 +48,7 @@ export const extractPromptRelationSource = (question = {}) => {
   if (!prompt) return '';
 
   const match = prompt.match(
-    /\b(?:solve|determine(?:\s+the\s+solution(?:\s+set)?)?|find(?:\s+the\s+solution(?:\s+set)?)?)\s+(.+?)(?=,\s*(?:then\b|and\b)|;\s*|[.?!]\s*$|$)/i,
+    /\b(?:solve|determine(?:\s+the\s+solution(?:\s+set)?)?|find(?:\s+the\s+solution(?:\s+set)?)?)\s+(.+?)(?=,\s*(?:then\b|and\b)|\s+(?:step\s+by\s+step|then\s+(?:graph|write|state)\b|and\s+(?:graph|write|state)\b)|;\s*|[.?!](?:\s|$)|$)/i,
   );
   const candidate = String(match?.[1] || '')
     .trim()
@@ -42,7 +62,28 @@ export const extractPromptRelationSource = (question = {}) => {
 };
 
 export const withPromptRelationSource = (question = {}) => {
-  if (hasStructuredRelation(question)) return question;
-  const source = extractPromptRelationSource(question);
-  return source ? { ...question, equation: source } : question;
+  const type = String(question?.type || '').trim();
+  if (type && !['stepAlgebra', 'stepAlgebra2'].includes(type)) return question;
+
+  const structured = relationSourceDescriptor(question);
+  const promptSource = structured ? '' : extractPromptRelationSource(question);
+  const source = structured?.source || promptSource;
+  if (!source) return question;
+
+  const additions = {};
+  if (!question.equation && (structured?.promoteToEquation || promptSource)) {
+    additions.equation = source;
+  }
+
+  const authoredVariable = question.solveFor
+    || question.variable
+    || question.objective?.variable;
+  if (!authoredVariable) {
+    const inferredVariable = inferRelationVariable(source);
+    // x is already the relation workspace's legacy default. Only materialize a
+    // solveFor field when the fallback would otherwise choose the WRONG letter.
+    if (inferredVariable && inferredVariable !== 'x') additions.solveFor = inferredVariable;
+  }
+
+  return Object.keys(additions).length ? { ...question, ...additions } : question;
 };

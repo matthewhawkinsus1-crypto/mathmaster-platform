@@ -27,6 +27,23 @@ test('routes an absolute-value equation even when its relation is equality', () 
   assert.equal(extractPromptRelationSource(question), '|x - 2| = 5');
 });
 
+test('stops before step-by-step instructional prose in a prompt-only absolute-value equation', () => {
+  const question = {
+    type: 'stepAlgebra',
+    prompt: 'Solve |x − 4| = 7 step by step. Give the complete solution set.',
+  };
+  assert.equal(extractPromptRelationSource(question), '|x - 4| = 7');
+  assert.equal(withPromptRelationSource(question).equation, '|x - 4| = 7');
+});
+
+test('stops before graphing directions even when the author omitted a comma', () => {
+  const question = {
+    type: 'stepAlgebra',
+    prompt: 'Solve |d| > 3 then graph the complete solution set.',
+  };
+  assert.equal(extractPromptRelationSource(question), '|d| > 3');
+});
+
 test('does not reroute an ordinary prompt-only equation', () => {
   const question = { type: 'stepAlgebra', prompt: 'Solve 3x + 7 = 22.' };
   assert.equal(extractPromptRelationSource(question), '');
