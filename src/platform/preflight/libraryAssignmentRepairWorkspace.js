@@ -7,6 +7,7 @@ import { buildAssignmentRepairCenterModel } from './assignmentRepairCenterModel.
 
 const clean = (value) => String(value ?? '').trim();
 const list = (value) => (Array.isArray(value) ? value : []);
+const PENDING_REPAIR_UPLOAD_PREFIX = 'mathmaster:pending-repair-upload:';
 
 const repairCenterFor = ({ assignmentV5, teacherReviewContext }) => (
   buildAssignmentRepairCenterModel({
@@ -121,8 +122,72 @@ export const parseUnifiedRepairUpload = (rawText, {
   });
 };
 
+/**
+ * Student Preview and Repair/Edit Questions are separate teacher surfaces. A
+ * teacher should be able to upload the AI response while they are still looking
+ * at the flagged student view, without making that preview surface a second
+ * assignment mutation path. Queue the already-validated text in sessionStorage;
+ * the canonical Repair Center consumes and revalidates it before Apply Repairs.
+ */
+export const pendingRepairUploadKey = (assignmentId) => {
+  const id = clean(assignmentId);
+  if (!id) throw new Error('A saved assignment ID is required for the repair upload handoff.');
+  return `${PENDING_REPAIR_UPLOAD_PREFIX}${id}`;
+};
+
+const browserSessionStorage = () => (
+  typeof window !== 'undefined' && window?.sessionStorage ? window.sessionStorage : null
+);
+
+export const queuePendingRepairUpload = ({
+  assignmentId,
+  rawText,
+  storage = browserSessionStorage(),
+} = {}) => {
+  const text = clean(rawText);
+  if (!text) throw new Error('The repair upload is empty.');
+  if (!storage?.setItem) throw new Error('This browser cannot queue the repair upload between Teacher Review and Repair/Edit Questions.');
+  const key = pendingRepairUploadKey(assignmentId);
+  storage.setItem(key, JSON.stringify({
+    assignmentId: clean(assignmentId),
+    rawText: text,
+    queuedAt: new Date().toISOString(),
+  }));
+  return key;
+};
+
+export const readPendingRepairUpload = ({
+  assignmentId,
+  storage = browserSessionStorage(),
+} = {}) => {
+  if (!storage?.getItem) return null;
+  const key = pendingRepairUploadKey(assignmentId);
+  const raw = storage.getItem(key);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (clean(parsed?.assignmentId) !== clean(assignmentId) || !clean(parsed?.rawText)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+export const clearPendingRepairUpload = ({
+  assignmentId,
+  storage = browserSessionStorage(),
+} = {}) => {
+  if (!storage?.removeItem) return false;
+  storage.removeItem(pendingRepairUploadKey(assignmentId));
+  return true;
+};
+
 export default {
   buildAllOpenTeacherFlagRepairRequest,
+  clearPendingRepairUpload,
   getOpenFlaggedQuestionIds,
   parseUnifiedRepairUpload,
+  pendingRepairUploadKey,
+  queuePendingRepairUpload,
+  readPendingRepairUpload,
 };
