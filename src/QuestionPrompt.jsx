@@ -1,5 +1,6 @@
 import MathDisplay from './MathDisplay';
 import { isMathSegment, normalizePlainMathTypography, splitMathSegments, unwrapMathSegment } from './components/common/mathSegments.js';
+import { studentSafePromptText } from './platform/content/studentFacingTextSafety.js';
 
 /**
  * Displays ordinary directions plus optional math delimited with:
@@ -12,7 +13,11 @@ export default function QuestionPrompt({
   variant = 'question',
   footer = null,
 }) {
-  const text = String(children ?? '');
+  // Question templates use {{name}} / {{name|filter}} while they are being
+  // authored. The assignment generator is responsible for replacing every one
+  // before student delivery, but this display boundary is deliberately a second
+  // line of defense: authoring syntax is never acceptable student-facing prose.
+  const text = studentSafePromptText(children);
   const segments = splitMathSegments(text);
 
   const isPlain = variant === 'plain';
