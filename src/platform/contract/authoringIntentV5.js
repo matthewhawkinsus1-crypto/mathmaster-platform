@@ -104,62 +104,6 @@ const copyCommon = (source, target = {}) => {
 };
 
 const answerOf = (q) => q.answer ?? q.expectedAnswer ?? q.response?.answer ?? q.answerModel?.answer;
-
-/*
- * AN EXPLICITLY AUTHORED MULTI-STAGE WORKFLOW, PRESERVED RATHER THAN RE-DERIVED.
- *
- * V5 normally compiles a renderer from mathematical intent: studentActions and
- * the data say what the student does, and MathMaster picks the tool. That is
- * the right default and it stays the default.
- *
- * It has no answer, though, for a question whose stages ARE the intent — two
- * multiple-choice stages over one graph, each previewing its own candidate
- * before the student commits. There is no single tool to infer, so inference
- * returned nothing and a completely valid question was refused at publish time
- * with "does not contain enough mathematical intent". The assignment was fine;
- * the compiler was looking for something that was never going to be there.
- *
- * So an explicit workflow is honoured, and honoured strictly. This is not a
- * bypass: a question taking this path still has to say what every stage is and
- * grade every stage it defines. What it skips is inference, which had nothing
- * left to do.
- */
-const explicitWorkflowOf = (q, index) => {
-  const stages = Array.isArray(q?.workflow) ? q.workflow : null;
-  if (!stages || !stages.length) return null;
-
-  const ids = [];
-  stages.forEach((stage, stageIndex) => {
-    const id = clean(stage?.id);
-    const kind = clean(stage?.kind);
-    if (!id) throw new Error(`V5 question ${index + 1} authored workflow stage ${stageIndex + 1} is missing an id, so its answer cannot be graded against it.`);
-    if (!kind) throw new Error(`V5 question ${index + 1} authored workflow stage "${id}" is missing a kind, so MathMaster cannot render it.`);
-    if (ids.includes(id)) throw new Error(`V5 question ${index + 1} repeats workflow stage id "${id}"; stage ids must be unique for grading to address them.`);
-    ids.push(id);
-  });
-
-  // Grading is keyed by stage id. A key naming no stage is a typo that would
-  // otherwise silently never be marked, and a stage with no key is a question
-  // a student can answer and never be credited for.
-  const grading = q?.grading;
-  if (grading == null || typeof grading !== 'object' || Array.isArray(grading)) {
-    throw new Error(`V5 question ${index + 1} authors an explicit workflow but supplies no grading for its stages.`);
-  }
-  const gradedKeys = Object.keys(grading);
-  const unknown = gradedKeys.filter((key) => !ids.includes(key));
-  if (unknown.length) {
-    throw new Error(`V5 question ${index + 1} grades stages that do not exist: ${unknown.join(', ')}.`);
-  }
-  // Not every stage is answerable — a workflow may show a graph to read before
-  // it asks anything — so this does not demand a key per stage. It demands that
-  // the question grades something: a workflow that grades nothing is one a
-  // student can complete and never be credited for.
-  if (!gradedKeys.length) {
-    throw new Error(`V5 question ${index + 1} authors an explicit workflow but grades none of its stages, so a student could complete it and receive no credit.`);
-  }
-
-  return { workflow: stages, grading };
-};
 const acceptedOf = (q) => q.acceptedAnswers ?? q.response?.acceptedAnswers ?? q.answerModel?.acceptedAnswers;
 
 const coreFunctionSpec = (raw = {}) => {
@@ -1119,34 +1063,18 @@ const compileOne = (q, index, repairs) => {
       throw new Error(`V5 question ${index + 1} quantity-role answer ids must match the supplied quantity choices.`);
     }
   }
-  const inferredType = resolveIntentType(q, actions);
-
-  /*
-   * Only reached when inference found nothing, which is deliberate.
-   *
-   * Canonical MathMaster questions carry a workflow too — that is what the
-   * compiler produces — and they round-trip through here whenever an assignment
-   * is re-imported or CCMR-hydrated. Rescuing on "has a workflow" alone would
-   * intercept every one of them and re-validate compiled output against
-   * hand-authoring rules it was never written to satisfy. So the rescue runs
-   * only where the alternative is the throw below: nothing that compiles today
-   * changes path.
-   */
-  if (!inferredType) {
-    const authored = explicitWorkflowOf(q, index);
-    if (authored) {
-      return copyCommon(q, {
-        type: clean(q.type) || 'workflow',
-        workflow: authored.workflow,
-        grading: authored.grading,
-      });
-    }
-  }
-
-  if (q.type || q.toolId) {
+  // Most V5 authoring must still be compiled from mathematical intent rather
+  // than renderer ids. graphChoicePreview is the narrow exception because its
+  // canonical contract can contain multiple explicitly authored, graded stages
+  // that cannot be reconstructed from one top-level choices array.
+  const authoredWorkflow = asArray(q.workflow).filter(isObject);
+  const explicitWorkflowType = authoredWorkflow.length > 0 && clean(q.type) === 'graphChoicePreview'
+    ? 'graphChoicePreview'
+    : '';
+  if ((q.type || q.toolId) && !explicitWorkflowType) {
     repairs.push(`ignored internal type hint on V5 question ${index + 1}; compiled from studentActions instead`);
   }
-  const type = inferredType;
+  const type = explicitWorkflowType || resolveIntentType(q, actions);
   if (!type) throw new Error(`V5 question ${index + 1} does not contain enough mathematical intent to choose a student tool. Add studentActions and the needed mathematical data.`);
   let out;
   switch (type) {
@@ -1316,6 +1244,54 @@ const compileOne = (q, index, repairs) => {
       out = compileRelationshipModel(q, actions);
       break;
     case 'graphChoicePreview': {
+      if (explicitWorkflowType) {
+        const seenStageIds = new Set();
+        authoredWorkflow.forEach((stage, stageIndex) => {
+          const stageId = clean(stage.id);
+          const stageKind = clean(stage.kind);
+          if (!stageId || !stageKind) {
+            throw new Error(`V5 question ${index + 1} explicit workflow stage ${stageIndex + 1} requires both id and kind.`);
+          }
+          if (seenStageIds.has(stageId)) {
+            throw new Error(`V5 question ${index + 1} explicit workflow has duplicate stage id "${stageId}".`);
+          }
+          seenStageIds.add(stageId);
+          if (stageKind === 'multipleChoice') {
+            const choices = asArray(stage.choices).filter(isObject);
+            if (choices.length < 2) {
+              throw new Error(`V5 question ${index + 1} multiple-choice stage "${stageId}" requires at least two choices.`);
+            }
+            const choiceIds = choices.map((choice) => clean(choice.id)).filter(Boolean);
+            if (choiceIds.length !== choices.length || new Set(choiceIds).size !== choiceIds.length) {
+              throw new Error(`V5 question ${index + 1} multiple-choice stage "${stageId}" requires unique non-empty choice ids.`);
+            }
+            const answerId = clean(q.grading?.[stageId]);
+            if (!answerId || !choiceIds.includes(answerId)) {
+              throw new Error(`V5 question ${index + 1} multiple-choice stage "${stageId}" must have a grading key that matches one supplied choice id.`);
+            }
+          }
+        });
+        // Every grading key must name a stage that exists. The per-stage checks
+        // above look outward from each stage and so never see a key that
+        // belongs to no stage — a renamed or mistyped stage id leaves its
+        // answer behind, and the stage it was meant for is then graded by
+        // nothing at all. Silent, and only visible as students losing marks on
+        // a question that looks correct.
+        if (isObject(q.grading)) {
+          const stageIds = new Set(authoredWorkflow.map((stage) => clean(stage.id)).filter(Boolean));
+          const orphaned = Object.keys(q.grading).filter((key) => !stageIds.has(clean(key)));
+          if (orphaned.length) {
+            throw new Error(`V5 question ${index + 1} grades stages that do not exist: ${orphaned.join(', ')}. Check for a renamed or mistyped stage id.`);
+          }
+        }
+        out = copyCommon(q, {
+          type,
+          workflow: authoredWorkflow.map((stage) => ({ ...stage })),
+          grading: isObject(q.grading) ? { ...q.grading } : q.grading,
+        });
+        repairs.push(`preserved explicit V5 question ${index + 1} graph-choice workflow`);
+        break;
+      }
       const window = graphFromIntent(q) || {};
       const spec = q.function || q.functionSpec;
       const model = spec ? expressionFromSpec(spec) : null;
