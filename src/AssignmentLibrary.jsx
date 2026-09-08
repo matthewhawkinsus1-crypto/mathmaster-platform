@@ -1,421 +1,157 @@
 import { useMemo, useState } from 'react';
+import { doc, updateDoc } from 'firebase/firestore';
+import AssignmentLibraryBase from './AssignmentLibraryBase.jsx';
+import AssignmentQuestionEditor from './AssignmentQuestionEditor.jsx';
+import { db } from './firebase.js';
 import {
-  UNCATEGORIZED,
-  assignmentFolderMatches,
-  getFolderChildren,
-  getFolderLabel,
-  normalizeFolderPath,
-  titleOrFolderMatches,
-} from './assignmentFolders';
-import { SMART_VIEWS, matchesSmartView } from './assignmentSmartViews';
-import { getAssignmentLifecycle } from './assignmentLifecycle';
-import { isAssignmentEligibleForNormalLibrary } from './platform/preflight/assignmentAuthoringState.js';
+  canonicalV5PersistencePatch,
+  storedAssignmentToV5,
+} from './platform/contract/storedAssignmentV5.js';
+import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 
-const dialogOverlayStyle = {
-  position: 'fixed',
-  inset: 0,
-  zIndex: 10000,
-  background: 'rgba(32,33,36,0.72)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '20px',
+const clean = (value) => String(value ?? '').trim();
+const isUnassignedLibraryItem = (assignment) => (
+  (!Array.isArray(assignment?.assignedClassIds) || assignment.assignedClassIds.filter(Boolean).length === 0)
+  && (!Array.isArray(assignment?.assignedClassPeriods) || assignment.assignedClassPeriods.filter(Boolean).length === 0)
+);
+
+const revisionOf = (assignment) => {
+  const revision = Number(assignment?.assignmentRevision);
+  return Number.isFinite(revision) && revision >= 1 ? revision : 1;
 };
 
-const dialogCardStyle = {
-  width: '100%',
-  maxWidth: '440px',
-  background: '#fff',
-  borderRadius: '14px',
-  boxShadow: '0 24px 70px rgba(0,0,0,0.3)',
-  padding: '24px',
-  textAlign: 'left',
-};
+/**
+ * Library wrapper that makes Repair Center a first-class Library action.
+ *
+ * Unassigned reusable lessons can be repaired directly here because they have
+ * no student history. Assigned/live lessons are intentionally routed back to
+ * the Assignments workspace, whose existing save transaction protects attempts,
+ * grades, evidence, and Google Classroom reconciliation.
+ */
+export default function AssignmentLibrary(props) {
+  const {
+    assignments = [],
+    onNavigateToAssignments,
+  } = props;
+  const repairChoices = useMemo(() => (
+    [...assignments]
+      .filter((assignment) => assignment?.id && Number(assignment?.schemaVersion) === 5)
+      .sort((left, right) => clean(left.title).localeCompare(clean(right.title)))
+  ), [assignments]);
+  const firstUnassignedId = repairChoices.find(isUnassignedLibraryItem)?.id || repairChoices[0]?.id || '';
+  const [selectedRepairId, setSelectedRepairId] = useState('');
+  const [repairAssignment, setRepairAssignment] = useState(null);
+  const [message, setMessage] = useState('');
 
-function FolderRow({
-  path,
-  depth,
-  folderPaths,
-  selectedFolder,
-  onSelect,
-  onOpenDialog,
-  dragOverFolder,
-  onDragOverFolder,
-  onDropOnFolder,
-  expandedPaths,
-  onToggleExpanded,
-}) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const children = getFolderChildren(folderPaths, path);
-  const active = selectedFolder === path;
-  const isDragOver = dragOverFolder === path;
-  const expanded = expandedPaths.has(path);
+  const effectiveRepairId = selectedRepairId || firstUnassignedId;
+  const selectedAssignment = repairChoices.find((assignment) => assignment.id === effectiveRepairId) || null;
+  const selectedIsUnassigned = Boolean(selectedAssignment && isUnassignedLibraryItem(selectedAssignment));
+
+  const openRepairCenter = () => {
+    if (!selectedAssignment) {
+      setMessage('There are no Assignment V5 lessons available in this Library view yet.');
+      return;
+    }
+    if (!selectedIsUnassigned) {
+      setMessage('This lesson is already assigned or has live delivery context. MathMaster is opening Assignments so the live-student repair protections stay active. Open its “Repair Center / Edit Questions” action there.');
+      onNavigateToAssignments?.({
+        folder: selectedAssignment.folder || '',
+        smartView: '',
+        search: selectedAssignment.title || '',
+        assignmentId: selectedAssignment.id,
+      });
+      return;
+    }
+    setMessage('');
+    setRepairAssignment(selectedAssignment);
+  };
+
+  const saveLibraryRepair = async ({ title, questions }) => {
+    if (!repairAssignment?.id) throw new Error('MathMaster lost the Library assignment being repaired. Close Repair Center and reopen it.');
+    if (!isUnassignedLibraryItem(repairAssignment)) {
+      throw new Error('This assignment is no longer an untouched Library template. Open it from Assignments so MathMaster can protect live student records.');
+    }
+
+    const candidateV5 = storedAssignmentToV5(repairAssignment, {
+      titleOverride: clean(title) || repairAssignment.title,
+      questions,
+    });
+    const model = buildAssignmentV5PreflightModel(candidateV5);
+    if (!model.isValid) {
+      throw new Error(`MathMaster refused to save this Library repair:\n${model.errors.join('\n')}`);
+    }
+
+    const nowIso = new Date().toISOString();
+    await updateDoc(doc(db, 'assignments', repairAssignment.id), {
+      ...canonicalV5PersistencePatch(model.assignmentV5),
+      assignmentRevision: revisionOf(repairAssignment) + 1,
+      updatedAt: nowIso,
+    });
+    setMessage('Library repairs saved. Teacher flags remain open until you verify the corrected questions in View as Student.');
+  };
+
   return (
-    <div>
-      <div
-        onDragOver={(event) => { event.preventDefault(); onDragOverFolder(path); }}
-        onDragLeave={() => onDragOverFolder(null)}
-        onDrop={(event) => { event.preventDefault(); onDropOnFolder(path); }}
+    <>
+      <section
+        aria-label="Library Repair Center launcher"
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '6px',
-          padding: '6px 8px',
-          marginLeft: `${depth * 16}px`,
-          borderRadius: '7px',
-          background: isDragOver ? '#e6f4ea' : active ? '#e8f0fe' : 'transparent',
-          border: isDragOver ? '2px dashed #188038' : '2px solid transparent',
+          marginBottom: 14,
+          padding: '14px 16px',
+          border: '2px solid #aecbfa',
+          borderRadius: 12,
+          background: '#f8fbff',
+          textAlign: 'left',
         }}
       >
-        <button
-          type="button"
-          onClick={() => children.length && onToggleExpanded(path)}
-          aria-label={children.length ? `${expanded ? 'Collapse' : 'Expand'} ${getFolderLabel(path)}` : undefined}
-          style={{ width: 22, border: 0, background: 'transparent', color: '#5f6368', cursor: children.length ? 'pointer' : 'default', padding: 0 }}
-        >
-          {children.length ? (expanded ? '⌄' : '›') : '·'}
-        </button>
-        <button
-          type="button"
-          onClick={() => onSelect(path)}
-          style={{
-            flex: 1,
-            textAlign: 'left',
-            border: 'none',
-            background: 'transparent',
-            cursor: 'pointer',
-            padding: 0,
-            fontWeight: active ? 800 : 600,
-            color: active ? '#1a73e8' : '#3c4043',
-            fontSize: '13px',
-          }}
-        >
-          {getFolderLabel(path)}
-        </button>
-        <div style={{ position: 'relative' }}>
-          <button type="button" onClick={() => setMenuOpen((value) => !value)} aria-label={`Folder actions for ${getFolderLabel(path)}`} title="Folder actions" style={{ fontSize: '16px', width: 28, height: 28, border: '1px solid #dadce0', borderRadius: '6px', background: '#fff', color: '#5f6368', cursor: 'pointer' }}>⋯</button>
-          {menuOpen && <div style={{ position: 'absolute', right: 0, top: 31, zIndex: 20, minWidth: 130, padding: 5, border: '1px solid #d8dde6', borderRadius: 8, background: '#fff', boxShadow: '0 8px 22px rgba(0,0,0,.14)' }}>
-            <button type="button" onClick={() => { setMenuOpen(false); onOpenDialog({ mode: 'create', parentPath: path, input: `${path}/` }); }} style={{ display: 'block', width: '100%', padding: 7, border: 0, background: '#fff', textAlign: 'left' }}>New subfolder</button>
-            <button type="button" onClick={() => { setMenuOpen(false); onOpenDialog({ mode: 'rename', path, input: path }); }} style={{ display: 'block', width: '100%', padding: 7, border: 0, background: '#fff', textAlign: 'left' }}>Rename</button>
-            <button type="button" onClick={() => { setMenuOpen(false); onOpenDialog({ mode: 'delete', path }); }} style={{ display: 'block', width: '100%', padding: 7, border: 0, background: '#fff', color: '#c5221f', textAlign: 'left' }}>Delete</button>
-          </div>}
-        </div>
-      </div>
-      {expanded && children.map((childPath) => (
-        <FolderRow
-          key={childPath}
-          path={childPath}
-          depth={depth + 1}
-          folderPaths={folderPaths}
-          selectedFolder={selectedFolder}
-          onSelect={onSelect}
-          onOpenDialog={onOpenDialog}
-          dragOverFolder={dragOverFolder}
-          onDragOverFolder={onDragOverFolder}
-          onDropOnFolder={onDropOnFolder}
-          expandedPaths={expandedPaths}
-          onToggleExpanded={onToggleExpanded}
-        />
-      ))}
-    </div>
-  );
-}
-
-export default function AssignmentLibrary({
-  assignments = [],
-  folderPaths = [],
-  onCreateFolder,
-  onRenameFolder,
-  onDeleteFolder,
-  onMoveAssignment,
-  onAssignAssignment,
-  onNavigateToAssignments,
-  nowValue = Date.now(),
-  classSchedule,
-  classes = [],
-}) {
-  const [selectedFolder, setSelectedFolder] = useState('');
-  const [smartView, setSmartView] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [draggedAssignmentId, setDraggedAssignmentId] = useState(null);
-  const [dragOverFolder, setDragOverFolder] = useState(null);
-  const [folderDialog, setFolderDialog] = useState(null); // { mode, path?, parentPath?, input }
-  const [dialogError, setDialogError] = useState(null);
-  const [folderPaneCollapsed, setFolderPaneCollapsed] = useState(() => {
-    try { return window.localStorage.getItem('mathmaster:library:folder-pane-collapsed') === 'true'; } catch { return false; }
-  });
-  const [expandedPaths, setExpandedPaths] = useState(() => {
-    try { return new Set(JSON.parse(window.localStorage.getItem('mathmaster:library:expanded-folders') || '[]')); } catch { return new Set(); }
-  });
-  const [sortMode, setSortMode] = useState('title');
-
-  const topLevelFolders = getFolderChildren(folderPaths, '');
-
-  // Authoring/review readiness is separate from the student deadline
-  // lifecycle. Explicit incomplete/needs-review drafts stay in the repair
-  // workflow and do not leak into the normal reusable Assignment Library.
-  // Legacy assignments without an authoringState remain visible until they
-  // are reviewed/migrated so this rollout never makes old library work vanish.
-  const visibleForSmartView = useMemo(() => assignments.filter((assignment) => (
-    isAssignmentEligibleForNormalLibrary(assignment)
-    && matchesSmartView(assignment, smartView, { nowValue, classSchedule, classes })
-  )), [assignments, smartView, nowValue, classSchedule, classes]);
-
-  const filteredAssignments = useMemo(() => {
-    const items = visibleForSmartView.filter((assignment) => (
-      assignmentFolderMatches(assignment, selectedFolder)
-      && titleOrFolderMatches(assignment, searchQuery)
-    ));
-    return [...items].sort((left, right) => {
-      if (sortMode === 'due') return new Date(left.dueAt || left.dueDate || 0).getTime() - new Date(right.dueAt || right.dueDate || 0).getTime();
-      if (sortMode === 'status') return getAssignmentLifecycle(left, nowValue).status.localeCompare(getAssignmentLifecycle(right, nowValue).status);
-      return String(left.title || '').localeCompare(String(right.title || ''));
-    });
-  }, [visibleForSmartView, selectedFolder, searchQuery, sortMode, nowValue]);
-
-  const uncategorizedCount = visibleForSmartView.filter((assignment) => !normalizeFolderPath(assignment.folder)).length;
-
-  const closeDialog = () => { setFolderDialog(null); setDialogError(null); };
-
-  const submitDialog = () => {
-    if (!folderDialog) return;
-    const value = normalizeFolderPath(folderDialog.input);
-    if (folderDialog.mode === 'delete') {
-      onDeleteFolder(folderDialog.path);
-      if (selectedFolder === folderDialog.path) setSelectedFolder('');
-      closeDialog();
-      return;
-    }
-    if (!value) {
-      setDialogError('Enter a folder name.');
-      return;
-    }
-    if (folderDialog.mode === 'create') {
-      if (folderPaths.includes(value)) {
-        setDialogError('That folder already exists.');
-        return;
-      }
-      onCreateFolder(value);
-    } else if (folderDialog.mode === 'rename') {
-      if (value !== folderDialog.path && folderPaths.includes(value)) {
-        setDialogError('That folder already exists.');
-        return;
-      }
-      onRenameFolder(folderDialog.path, value);
-      if (selectedFolder === folderDialog.path) setSelectedFolder(value);
-    }
-    closeDialog();
-  };
-
-  const handleDropOnFolder = (folderPath) => {
-    setDragOverFolder(null);
-    if (draggedAssignmentId) onMoveAssignment(draggedAssignmentId, folderPath);
-    setDraggedAssignmentId(null);
-  };
-
-  const toggleFolderPane = () => setFolderPaneCollapsed((current) => {
-    const next = !current;
-    try { window.localStorage.setItem('mathmaster:library:folder-pane-collapsed', String(next)); } catch { /* best effort */ }
-    return next;
-  });
-
-  const toggleExpanded = (path) => setExpandedPaths((current) => {
-    const next = new Set(current);
-    if (next.has(path)) next.delete(path); else next.add(path);
-    try { window.localStorage.setItem('mathmaster:library:expanded-folders', JSON.stringify([...next])); } catch { /* best effort */ }
-    return next;
-  });
-
-  return (
-    <div style={{ textAlign: 'left' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
-        <h2 style={{ margin: 0 }}>Library</h2>
-        <button
-          type="button"
-          onClick={() => onNavigateToAssignments({ folder: selectedFolder, smartView })}
-          style={{ padding: '9px 16px', background: '#1a73e8', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
-        >
-          View {filteredAssignments.length} in Assignments &rarr;
-        </button>
-      </div>
-
-      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '14px' }}>
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder="Search title or folder"
-          style={{ flex: '1 1 220px', padding: '9px 12px', border: '1px solid #c9ced6', borderRadius: '8px' }}
-        />
-        <select value={sortMode} onChange={(event) => setSortMode(event.target.value)} aria-label="Sort library assignments" style={{ padding: '8px 10px', border: '1px solid #dadce0', borderRadius: 8, background: '#fff' }}><option value="title">Sort: Title</option><option value="due">Sort: Due date</option><option value="status">Sort: Status</option></select>
-        {SMART_VIEWS.map((view) => (
-          <button
-            type="button"
-            key={view.id}
-            onClick={() => setSmartView((current) => (current === view.id ? '' : view.id))}
-            style={{
-              padding: '7px 12px',
-              borderRadius: '999px',
-              border: smartView === view.id ? '1px solid #1a73e8' : '1px solid #dadce0',
-              background: smartView === view.id ? '#e8f0fe' : '#fff',
-              color: smartView === view.id ? '#1a73e8' : '#5f6368',
-              fontWeight: 'bold',
-              fontSize: '12px',
-              cursor: 'pointer',
-            }}
-          >
-            {view.label}
-          </button>
-        ))}
-      </div>
-
-      <div style={{ display: 'flex', gap: '18px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        {folderPaneCollapsed ? <button type="button" onClick={toggleFolderPane} aria-label="Expand folders" title="Expand folders" style={{ flex: '0 0 44px', width: 44, minHeight: 170, border: '1px solid #e0e3e7', borderRadius: 10, background: '#f8f9fa', color: '#174ea6', fontWeight: 900, cursor: 'pointer', writingMode: 'vertical-rl' }}>› Folders</button> : <div style={{ flex: '0 0 260px', minWidth: '220px', border: '1px solid #e0e3e7', borderRadius: '10px', padding: '12px', background: '#f8f9fa' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <strong style={{ fontSize: '13px', color: '#5f6368', textTransform: 'uppercase' }}>Folders</strong>
-            <div style={{ display: 'flex', gap: 5 }}><button type="button" onClick={() => setFolderDialog({ mode: 'create', input: '' })} style={{ fontSize: '11px', padding: '3px 8px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#fff', color: '#1a73e8', fontWeight: 'bold', cursor: 'pointer' }}>+ New</button><button type="button" onClick={toggleFolderPane} title="Collapse folders" aria-label="Collapse folders" style={{ width: 28, border: '1px solid #dadce0', borderRadius: 6, background: '#fff', color: '#5f6368' }}>‹</button></div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setSelectedFolder('')}
-            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', marginBottom: '2px', border: 'none', borderRadius: '7px', background: selectedFolder === '' ? '#e8f0fe' : 'transparent', color: selectedFolder === '' ? '#1a73e8' : '#3c4043', fontWeight: selectedFolder === '' ? 800 : 600, fontSize: '13px', cursor: 'pointer' }}
-          >
-            All ({visibleForSmartView.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelectedFolder(UNCATEGORIZED)}
-            onDragOver={(event) => { event.preventDefault(); setDragOverFolder(UNCATEGORIZED); }}
-            onDragLeave={() => setDragOverFolder(null)}
-            onDrop={(event) => { event.preventDefault(); handleDropOnFolder(''); }}
-            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', marginBottom: '8px', border: dragOverFolder === UNCATEGORIZED ? '2px dashed #188038' : '2px solid transparent', borderRadius: '7px', background: dragOverFolder === UNCATEGORIZED ? '#e6f4ea' : selectedFolder === UNCATEGORIZED ? '#e8f0fe' : 'transparent', color: selectedFolder === UNCATEGORIZED ? '#1a73e8' : '#3c4043', fontWeight: selectedFolder === UNCATEGORIZED ? 800 : 600, fontSize: '13px', cursor: 'pointer' }}
-          >
-            Uncategorized ({uncategorizedCount})
-          </button>
-
-          {topLevelFolders.length === 0 && <p style={{ fontSize: '12px', color: '#80868b', margin: '4px 0' }}>No folders yet. Create one to start organizing assignments.</p>}
-          {topLevelFolders.map((path) => (
-            <FolderRow
-              key={path}
-              path={path}
-              depth={0}
-              folderPaths={folderPaths}
-              selectedFolder={selectedFolder}
-              onSelect={setSelectedFolder}
-              onOpenDialog={setFolderDialog}
-              dragOverFolder={dragOverFolder}
-              onDragOverFolder={setDragOverFolder}
-              onDropOnFolder={handleDropOnFolder}
-              expandedPaths={expandedPaths}
-              onToggleExpanded={toggleExpanded}
-            />
-          ))}
-        </div>}
-
-        <div style={{ flex: '1 1 320px', minWidth: '260px' }}>
-          {filteredAssignments.length === 0 && <p style={{ color: '#80868b' }}>No assignments match this filter.</p>}
-          {filteredAssignments.map((assignment) => {
-            const lifecycle = getAssignmentLifecycle(assignment, nowValue);
-            const isUnassigned = (!Array.isArray(assignment.assignedClassIds) || assignment.assignedClassIds.filter(Boolean).length === 0)
-              && (!Array.isArray(assignment.assignedClassPeriods) || assignment.assignedClassPeriods.filter(Boolean).length === 0);
-            return (
-              <div
-                key={assignment.id}
-                draggable
-                onDragStart={() => setDraggedAssignmentId(assignment.id)}
-                onDragEnd={() => setDraggedAssignmentId(null)}
-                onClick={() => onNavigateToAssignments({ folder: selectedFolder, smartView })}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '10px 12px',
-                  marginBottom: '8px',
-                  borderRadius: '8px',
-                  border: '1px solid #e0e3e7',
-                  background: draggedAssignmentId === assignment.id ? '#f1f3f4' : '#fff',
-                  cursor: 'grab',
-                }}
-              >
-                <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-                  <div style={{ fontWeight: 'bold' }}>{assignment.title}</div>
-                  <div style={{ fontSize: '12px', color: '#5f6368' }}>
-                    {normalizeFolderPath(assignment.folder) || 'Uncategorized'} &middot; {assignment.archived ? 'archived' : lifecycle.status}
-                  </div>
-                </div>
-                {isUnassigned && typeof onAssignAssignment === 'function' && (
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onAssignAssignment(assignment);
-                    }}
-                    onMouseDown={(event) => event.stopPropagation()}
-                    style={{
-                      flex: '0 0 auto',
-                      minHeight: 38,
-                      padding: '7px 12px',
-                      border: '1px solid #1a73e8',
-                      borderRadius: 8,
-                      background: '#1a73e8',
-                      color: '#fff',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Assign to class
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {folderDialog && (
-        <div role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeDialog(); }} style={dialogOverlayStyle}>
-          <div role="dialog" aria-modal="true" style={dialogCardStyle}>
-            {folderDialog.mode === 'delete' ? (
-              <>
-                <h3 style={{ marginTop: 0 }}>Delete &ldquo;{getFolderLabel(folderDialog.path)}&rdquo;?</h3>
-                <p style={{ color: '#5f6368', fontSize: '13px' }}>
-                  Assignments inside this folder become Uncategorized. Subfolders are removed too. This does not delete any assignment.
-                </p>
-              </>
-            ) : (
-              <>
-                <h3 style={{ marginTop: 0 }}>{folderDialog.mode === 'create' ? 'New folder' : 'Rename folder'}</h3>
-                <label style={{ display: 'block', fontWeight: 'bold', fontSize: '13px', marginBottom: '6px' }}>
-                  Folder path
-                  <input
-                    autoFocus
-                    type="text"
-                    value={folderDialog.input}
-                    onChange={(event) => setFolderDialog((current) => ({ ...current, input: event.target.value }))}
-                    placeholder="Algebra I/Module 1/Topic 1"
-                    style={{ display: 'block', width: '100%', marginTop: '6px', padding: '10px', border: '1px solid #c9ced6', borderRadius: '7px', boxSizing: 'border-box' }}
-                  />
-                </label>
-                <p style={{ fontSize: '11px', color: '#80868b', margin: '4px 0 0' }}>Use &ldquo;/&rdquo; to nest a subfolder, e.g. Algebra I/Module 1.</p>
-              </>
-            )}
-            {dialogError && <p style={{ color: '#c5221f', fontWeight: 'bold', fontSize: '13px' }}>{dialogError}</p>}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px' }}>
-              <button type="button" onClick={closeDialog} style={{ padding: '9px 14px', border: '1px solid #dadce0', borderRadius: '8px', background: '#fff', color: '#5f6368', fontWeight: 'bold', cursor: 'pointer' }}>Cancel</button>
-              <button
-                type="button"
-                onClick={submitDialog}
-                style={{ padding: '9px 16px', border: 'none', borderRadius: '8px', background: folderDialog.mode === 'delete' ? '#c5221f' : '#1a73e8', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}
-              >
-                {folderDialog.mode === 'delete' ? 'Delete' : folderDialog.mode === 'create' ? 'Create' : 'Save'}
-              </button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <strong style={{ color: '#174ea6', fontSize: 16 }}>Library Repair Center</strong>
+            <div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>
+              Open a saved Library lesson, copy all teacher flags into one AI Fix Package, then upload one repair JSON.
             </div>
           </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <select
+              value={effectiveRepairId}
+              onChange={(event) => { setSelectedRepairId(event.target.value); setMessage(''); }}
+              aria-label="Choose Library assignment for Repair Center"
+              style={{ minWidth: 240, maxWidth: 'min(460px, 70vw)', minHeight: 42, padding: '7px 9px', border: '1px solid #bdc7d6', borderRadius: 8, background: '#fff' }}
+            >
+              {repairChoices.length === 0 && <option value="">No V5 Library assignments</option>}
+              {repairChoices.map((assignment) => (
+                <option key={assignment.id} value={assignment.id}>
+                  {assignment.title || 'Untitled assignment'}{isUnassignedLibraryItem(assignment) ? ' · Library' : ' · Assigned/live'}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={openRepairCenter}
+              disabled={!selectedAssignment}
+              style={{ minHeight: 42, padding: '9px 15px', border: 0, borderRadius: 8, background: '#174ea6', color: '#fff', fontWeight: 900, cursor: selectedAssignment ? 'pointer' : 'default', opacity: selectedAssignment ? 1 : 0.55 }}
+            >
+              Repair Center
+            </button>
+          </div>
         </div>
+        {selectedAssignment && !selectedIsUnassigned && (
+          <div style={{ marginTop: 8, color: '#7a4f00', fontSize: 11.5 }}>
+            This lesson has assignment/live context. Repair Center will route it through the protected Assignments workflow instead of editing student-facing data directly from Library.
+          </div>
+        )}
+        {message && <div role="status" style={{ marginTop: 9, color: '#3c4043', fontSize: 12 }}>{message}</div>}
+      </section>
+
+      <AssignmentLibraryBase {...props} />
+
+      {repairAssignment && (
+        <AssignmentQuestionEditor
+          assignment={repairAssignment}
+          hasLiveProtection={false}
+          onSave={saveLibraryRepair}
+          onClose={() => setRepairAssignment(null)}
+        />
       )}
-    </div>
+    </>
   );
 }
