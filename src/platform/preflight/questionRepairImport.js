@@ -265,8 +265,38 @@ export const stageBatchQuestionRepairImport = ({
   const pendingTeacherFlagIds = [...new Set(questionResults.flatMap((result) => result.pendingTeacherFlagIds))];
   const allQuestionsSafe = questionResults.every((result) => result.canCommit);
 
+  /*
+   * WHAT KIND OF ANSWER THIS IS, WHICH IS NOT THE SAME AS WHETHER IT APPLIES.
+   *
+   * An AI that examines a flagged question, finds the authoring correct, and
+   * reports a platform defect instead of rewriting it has done exactly what the
+   * triage rules ask of it. That response carries no replacements, so every
+   * signal that only counts replacements reads it as a failure — and the
+   * teacher, who was right to flag the question, is told their repair did not
+   * work. Worse, the obvious next move is to send it back and insist on a
+   * rewrite, which is how valid mathematics gets damaged to work around a
+   * renderer bug.
+   *
+   * So the shape of the answer is named separately from its applicability:
+   *
+   *   replacements — the AI returned questions to stage
+   *   reportOnly   — no replacements, but it told us why: a platform issue or
+   *                  something it could not classify. A real, useful answer
+   *                  that deliberately changes nothing.
+   *   empty        — no replacements and no explanation. Nothing came back.
+   *
+   * canCommit stays false for the last two either way; this only lets the
+   * screen say which happened.
+   */
+  const reportedIssueCount = list(parsedResponse?.platformIssues).length
+    + list(parsedResponse?.unclearIssues).length;
+  const responseKind = replacements.length > 0
+    ? 'replacements'
+    : (reportedIssueCount > 0 ? 'reportOnly' : 'empty');
+
   return {
     kind: 'batchQuestionRepairImport',
+    responseKind,
     baseRevision: base,
     questionResults,
     previousRevision: {
