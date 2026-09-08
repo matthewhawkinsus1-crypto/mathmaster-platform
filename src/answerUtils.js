@@ -12,8 +12,121 @@ export const normalizeMathAnswer = normalizeAnswer;
 export const parseNumericAnswer = asNumber;
 export { looksLikeFiniteSetNotation, parseFiniteSetNotation, sameFiniteSetNotation };
 
+const ELLIPSIS_TOKEN = '__mathmaster_ellipsis__';
+const ELLIPSIS_PATTERN = /(?:\.\.\.|…|\\ldots|\\cdots)/g;
+
+const normalizeSequenceToken = (value) => String(value ?? '')
+  .replace(ELLIPSIS_PATTERN, ELLIPSIS_TOKEN);
+
+const parseNumericRoster = (value, { allowUnenclosed = false } = {}) => {
+  const prepared = normalizeSequenceToken(value);
+  const authoredSet = parseFiniteSetNotation(prepared);
+  let parts = authoredSet;
+
+  if (parts === null && allowUnenclosed) {
+    const normalized = normalizeMathAnswer(prepared);
+    // An unenclosed comma list is accepted only when it is plainly a roster,
+    // never when it could be an ordered pair or interval. Three or more entries
+    // (or an ellipsis) is enough to distinguish the finite-domain use case.
+    if (/^[\[\(]/.test(normalized) || /[\]\)]$/.test(normalized)) return null;
+    const split = normalized.split(',').filter((part) => part !== '');
+    if (split.length < 3 && !normalized.includes(ELLIPSIS_TOKEN)) return null;
+    parts = split;
+  }
+
+  if (!Array.isArray(parts)) return null;
+  if (!parts.length) return [];
+
+  const normalizedParts = parts.map((part) => normalizeMathAnswer(normalizeSequenceToken(part)));
+  const ellipsisIndexes = normalizedParts
+    .map((part, index) => (part === ELLIPSIS_TOKEN ? index : -1))
+    .filter((index) => index >= 0);
+
+  if (!ellipsisIndexes.length) {
+    const numbers = normalizedParts.map((part) => asNumber(part));
+    return numbers.every((number) => number !== null) ? numbers : null;
+  }
+
+  if (ellipsisIndexes.length !== 1) return null;
+  const ellipsisIndex = ellipsisIndexes[0];
+  // Require at least two visible terms before the ellipsis and one final term.
+  // That gives us an unambiguous arithmetic step without guessing student intent.
+  if (ellipsisIndex < 2 || ellipsisIndex !== normalizedParts.length - 2) return null;
+
+  const prefix = normalizedParts.slice(0, ellipsisIndex).map((part) => asNumber(part));
+  const finalValue = asNumber(normalizedParts[ellipsisIndex + 1]);
+  if (prefix.some((number) => number === null) || finalValue === null) return null;
+
+  const step = prefix[1] - prefix[0];
+  if (!Number.isFinite(step) || Math.abs(step) < 1e-12) return null;
+  for (let index = 2; index < prefix.length; index += 1) {
+    if (Math.abs((prefix[index] - prefix[index - 1]) - step) > 1e-9) return null;
+  }
+
+  const directionMatches = step > 0
+    ? finalValue >= prefix[prefix.length - 1]
+    : finalValue <= prefix[prefix.length - 1];
+  if (!directionMatches) return null;
+
+  const expanded = [...prefix];
+  let current = prefix[prefix.length - 1] + step;
+  // A malformed response must never create an unbounded loop in a grader.
+  const MAX_SEQUENCE_TERMS = 10000;
+  while (expanded.length < MAX_SEQUENCE_TERMS) {
+    if ((step > 0 && current > finalValue + 1e-9) || (step < 0 && current < finalValue - 1e-9)) break;
+    expanded.push(current);
+    if (Math.abs(current - finalValue) <= 1e-9) break;
+    current += step;
+  }
+
+  if (expanded.length >= MAX_SEQUENCE_TERMS) return null;
+  if (Math.abs(expanded[expanded.length - 1] - finalValue) > 1e-9) return null;
+  return expanded;
+};
+
+const sameNumericRoster = (left, right, tolerance = 1e-9) => {
+  const leftIsSet = looksLikeFiniteSetNotation(normalizeSequenceToken(left));
+  const rightIsSet = looksLikeFiniteSetNotation(normalizeSequenceToken(right));
+  const leftHasEllipsis = ELLIPSIS_PATTERN.test(String(left ?? ''));
+  ELLIPSIS_PATTERN.lastIndex = 0;
+  const rightHasEllipsis = ELLIPSIS_PATTERN.test(String(right ?? ''));
+  ELLIPSIS_PATTERN.lastIndex = 0;
+
+  // Only broaden comma-list parsing when the comparison is actually about a
+  // finite set/sequence. This keeps ordered-pair and interval grading strict.
+  if (!leftIsSet && !rightIsSet && !leftHasEllipsis && !rightHasEllipsis) return false;
+
+  const a = parseNumericRoster(left, { allowUnenclosed: rightIsSet || rightHasEllipsis });
+  const b = parseNumericRoster(right, { allowUnenclosed: leftIsSet || leftHasEllipsis });
+  if (!a || !b) return false;
+
+  const uniqueSorted = (values) => [...values]
+    .sort((x, y) => x - y)
+    .filter((value, index, all) => index === 0 || Math.abs(value - all[index - 1]) > tolerance);
+  const aa = uniqueSorted(a);
+  const bb = uniqueSorted(b);
+  return aa.length === bb.length && aa.every((value, index) => Math.abs(value - bb[index]) <= tolerance);
+};
+
+const sameSingletonSetAndScalar = (left, right, tolerance = 1e-9) => {
+  const leftSet = parseNumericRoster(left);
+  const rightSet = parseNumericRoster(right);
+  const leftNumber = asNumber(left);
+  const rightNumber = asNumber(right);
+
+  if (leftSet?.length === 1 && rightNumber !== null) {
+    return Math.abs(leftSet[0] - rightNumber) <= tolerance;
+  }
+  if (rightSet?.length === 1 && leftNumber !== null) {
+    return Math.abs(rightSet[0] - leftNumber) <= tolerance;
+  }
+  return false;
+};
+
 export const compareMathAnswer = (studentAnswer, acceptedAnswer, tolerance = 1e-9) => (
   sameValue(studentAnswer, acceptedAnswer, tolerance)
+  || sameSingletonSetAndScalar(studentAnswer, acceptedAnswer, tolerance)
+  || sameNumericRoster(studentAnswer, acceptedAnswer, tolerance)
 );
 
 export const matchesAnyAnswer = (studentAnswer, acceptedAnswers = []) =>
