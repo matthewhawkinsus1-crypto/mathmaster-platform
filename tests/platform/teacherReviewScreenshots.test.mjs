@@ -148,6 +148,37 @@ test('a teacher can attach, replace and remove a screenshot where they see the s
   assert.match(panelSource, /Attach screenshot/i);
 });
 
+/*
+ * The gesture teachers actually use: take the screenshot, click into the note,
+ * Ctrl-V. The first version of this feature put the paste target on a dashed
+ * box beside the note field, which meant pasting while writing the note did
+ * nothing at all — the textarea is a sibling, so the event never reached it.
+ * A paste target the teacher has to go and find first is one that does not get
+ * used.
+ */
+test('pasting a screenshot into the note field attaches it', () => {
+  const start = panelSource.indexOf('<textarea');
+  assert.notEqual(start, -1, 'the panel must have a note field');
+  const field = panelSource.slice(start, panelSource.indexOf('/>', start));
+
+  assert.match(field, /onPaste=\{handleScreenshotPaste\}/,
+    'the note field itself must accept a pasted image; a paste area beside it is not where a teacher pastes');
+  assert.match(field, /Ctrl-V/,
+    'the placeholder should say so, because nothing else on screen reveals it');
+});
+
+test('pasting ordinary text into the note still behaves normally', () => {
+  const start = panelSource.indexOf('const handleScreenshotPaste');
+  const handler = panelSource.slice(start, panelSource.indexOf('const attachScreenshot', start));
+
+  assert.match(handler, /if \(!file\) return;/,
+    'a paste with no image must fall through untouched');
+  assert.ok(
+    handler.indexOf('if (!file) return;') < handler.indexOf('preventDefault'),
+    'preventDefault must come after the image check, or pasting text into the note would silently do nothing',
+  );
+});
+
 test('the note is still required, so evidence supplements it rather than replacing it', () => {
   const start = panelSource.indexOf('const saveFlag');
   const handler = panelSource.slice(start, panelSource.indexOf('const attachScreenshot', start));

@@ -180,6 +180,22 @@ export default function TeacherQuestionReviewPanel({
     }
   };
 
+  /*
+   * Ctrl-V is the gesture teachers actually use: take the screenshot, click
+   * into the note, paste. So the note field itself accepts the image, not just
+   * the drop area beside it — a paste target the teacher has to find first is a
+   * paste target that does not get used.
+   *
+   * preventDefault only when an image is actually on the clipboard, so pasting
+   * text into the note keeps working normally.
+   */
+  const handleScreenshotPaste = (event) => {
+    const file = screenshotFileFromPaste(event);
+    if (!file) return;
+    event.preventDefault();
+    attachScreenshot(file);
+  };
+
   const attachScreenshot = async (source) => {
     if (!source) return;
     setMessage('Preparing screenshot…');
@@ -328,7 +344,13 @@ export default function TeacherQuestionReviewPanel({
           </div>
           <label style={{ display: 'block', marginTop: 8, fontSize: 12, fontWeight: 800 }}>
             Repair note
-            <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Describe exactly what needs to change on this question." style={{ display: 'block', width: '100%', minHeight: 72, boxSizing: 'border-box', marginTop: 4, padding: 8, border: '1px solid #bdc7d6', borderRadius: 7, fontFamily: 'inherit' }} />
+            <textarea
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              onPaste={handleScreenshotPaste}
+              placeholder="Describe exactly what needs to change on this question. Paste a screenshot here (Ctrl-V) to attach it."
+              style={{ display: 'block', width: '100%', minHeight: 72, boxSizing: 'border-box', marginTop: 4, padding: 8, border: '1px solid #bdc7d6', borderRadius: 7, fontFamily: 'inherit' }}
+            />
           </label>
           {/*
             * Evidence, beside the words rather than instead of them. A picture
@@ -338,13 +360,7 @@ export default function TeacherQuestionReviewPanel({
             * save button stays disabled until it is written.
             */}
           <div
-            onPaste={(event) => {
-              const file = screenshotFileFromPaste(event);
-              if (file) {
-                event.preventDefault();
-                attachScreenshot(file);
-              }
-            }}
+            onPaste={handleScreenshotPaste}
             style={{ marginTop: 8, padding: 8, border: '1px dashed #aecbfa', borderRadius: 8, background: '#fff' }}
           >
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -358,7 +374,7 @@ export default function TeacherQuestionReviewPanel({
                 />
               </label>
               <span style={{ fontSize: 11.5, color: '#5f6368' }}>
-                {pendingShot ? 'Screenshot ready — save the flag to attach it.' : 'Or paste one here. Optional; the note is what the AI receives.'}
+                {pendingShot ? 'Screenshot ready — save the flag to attach it.' : 'Or paste one straight into the note above. Optional; the note is what the AI receives.'}
               </span>
               {pendingShot && (
                 <button type="button" onClick={() => setPendingShot(null)} style={{ ...buttonStyle, minHeight: 0, padding: '5px 9px', fontSize: 11.5, color: '#a50e0e', borderColor: '#f1b6b2' }}>
