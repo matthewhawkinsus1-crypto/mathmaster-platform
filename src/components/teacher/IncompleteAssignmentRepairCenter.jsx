@@ -288,9 +288,19 @@ export default function IncompleteAssignmentRepairCenter({
         teacherReviewContext,
       });
       setStagedImport(staged);
-      setMessage(staged.canCommit
-        ? `Batch repair staged for ${staged.questionResults.length} question${staged.questionResults.length === 1 ? '' : 's'}. Review the diff before applying the atomic batch.`
-        : 'Batch repair is not safe to apply. At least one replacement introduced a new blocker, so MathMaster will apply none of them.');
+      if (staged.responseKind === 'reportOnly') {
+        const platformCount = list(staged.platformIssues).length;
+        const unclearCount = list(staged.unclearIssues).length;
+        const reported = [
+          platformCount ? `${platformCount} platform issue${platformCount === 1 ? '' : 's'}` : '',
+          unclearCount ? `${unclearCount} issue${unclearCount === 1 ? '' : 's'} needing clarification` : '',
+        ].filter(Boolean).join(' and ');
+        setMessage(`No question replacements were supplied. The AI reported ${reported || 'issues for review'}. Review the reported issues below; MathMaster did not change the assignment.`);
+      } else {
+        setMessage(staged.canCommit
+          ? `Batch repair staged for ${staged.questionResults.length} question${staged.questionResults.length === 1 ? '' : 's'}. Review the diff before applying the atomic batch.`
+          : 'Batch repair is not safe to apply. At least one replacement introduced a new blocker, so MathMaster will apply none of them.');
+      }
     } catch (error) {
       setStagedImport(null);
       setMessage(error.message);
