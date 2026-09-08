@@ -1,0 +1,88 @@
+name: Apply compound inequality number-line fix
+
+on:
+  push:
+    branches:
+      - fix/compound-inequality-number-line
+    paths:
+      - .github/workflows/apply-compound-inequality-number-line-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/compound-inequality-number-line
+          fetch-depth: 0
+
+      - name: Patch the V5 compiler
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('src/platform/contract/authoringIntentV5.js')
+          text = path.read_text(encoding='utf-8')
+
+          old = """    case 'stepAlgebra':
+              out = copyCommon(q, {
+                type,
+                equation: q.equation,
+                generator: q.generator,
+                workspaceDifficulty: q.workspaceDifficulty,
+                solveFor: q.solveFor || inferSingleEquationVariable(q.equation),
+              });
+              break;
+          """
+
+          new = """    case 'stepAlgebra': {
+              // solveStepByStep can be composed with constructInterval. Keep the
+              // algebra workspace as the primary renderer, but preserve the
+              // inequality and number-line contract instead of dropping it during
+              // V5 intent compilation.
+              const equation = q.equation || q.inequalityText || q.inequality;
+              const intervals = asArray(q.intervals?.length ? q.intervals : q.intervalNumberLine?.intervals)
+                .filter(isObject);
+              const wantsIntervalGraph = actions.includes('constructInterval');
+              out = copyCommon(q, {
+                type,
+                equation,
+                inequalityText: q.inequalityText || q.inequality,
+                intervals: wantsIntervalGraph && intervals.length ? intervals : undefined,
+                intervalNumberLine: wantsIntervalGraph && intervals.length
+                  ? {
+                      ...(isObject(q.intervalNumberLine) ? q.intervalNumberLine : {}),
+                      intervals,
+                    }
+                  : undefined,
+                generator: q.generator,
+                workspaceDifficulty: q.workspaceDifficulty,
+                solveFor: q.solveFor || inferSingleEquationVariable(equation),
+              });
+              break;
+            }
+          """
+
+          if old not in text:
+              raise SystemExit('Expected stepAlgebra compiler block was not found; refusing to patch a different revision.')
+
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused V5 compiler regression test
+        run: node tests/platform/authoringIntentV5.test.mjs
+
+      - name: Commit compiler repair
+        run: |
+          git config user.name "MathMaster repair bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/platform/contract/authoringIntentV5.js
+          git diff --cached --check
+          git commit -m "fix: preserve solve-and-graph inequality data"
+          git push origin HEAD:fix/compound-inequality-number-line
