@@ -89,4 +89,38 @@ assert.equal(advancedSolverQuestion.type, 'stepAlgebra');
 assert.equal(advancedSolverQuestion.equation, '|8 + p| = 2p - 3');
 assert.equal(needsMultiRelationWorkspace(advancedSolverQuestion), true);
 
+// A solve-and-graph inequality is one composed task: stepAlgebra owns the
+// solving workspace, but it must keep the relation and number-line grading data
+// needed by the constructInterval action. Dropping either makes the student
+// workspace incomplete and makes Preflight falsely report that no number line
+// exists.
+const compoundInequalityGraphIntent = compileAuthoringIntentV5({
+  schemaVersion: 5,
+  assignment: { title: 'Compound inequality graph routing', courseId: 'algebra2' },
+  sections: [{
+    role: 'classwork',
+    questions: [{
+      standard: 'A.5B',
+      prompt: 'Solve 10 ≤ 3y − 2 < 19 as a compound inequality, then graph the intersection on the number line.',
+      studentActions: ['solveStepByStep', 'constructInterval'],
+      inequality: '10 <= 3y - 2 < 19',
+      intervals: [{ min: 4, max: 7, minClosed: true, maxClosed: false }],
+      intervalNumberLine: {
+        intervals: [{ min: 4, max: 7, minClosed: true, maxClosed: false }],
+      },
+    }],
+  }],
+});
+const compoundInequalityGraphQuestion = compoundInequalityGraphIntent.package.sections[0].questions[0];
+assert.equal(compoundInequalityGraphQuestion.type, 'stepAlgebra');
+assert.equal(compoundInequalityGraphQuestion.equation, '10 <= 3y - 2 < 19');
+assert.equal(compoundInequalityGraphQuestion.inequalityText, '10 <= 3y - 2 < 19');
+assert.deepEqual(compoundInequalityGraphQuestion.intervals, [
+  { min: 4, max: 7, minClosed: true, maxClosed: false },
+]);
+assert.deepEqual(compoundInequalityGraphQuestion.intervalNumberLine, {
+  intervals: [{ min: 4, max: 7, minClosed: true, maxClosed: false }],
+});
+assert.equal(needsMultiRelationWorkspace(compoundInequalityGraphQuestion), true);
+
 console.log('authoringIntentV5.test.mjs: all assertions passed');
