@@ -1179,15 +1179,32 @@ const compileOne = (q, index, repairs) => {
       });
       break;
     }
-    case 'stepAlgebra':
-      out = copyCommon(q, {
-        type,
-        equation: q.equation,
-        generator: q.generator,
-        workspaceDifficulty: q.workspaceDifficulty,
-        solveFor: q.solveFor || inferSingleEquationVariable(q.equation),
-      });
-      break;
+    case 'stepAlgebra': {
+  // solveStepByStep can be composed with constructInterval. Keep the
+  // algebra workspace as the primary renderer, but preserve the
+  // inequality and number-line contract instead of dropping it during
+  // V5 intent compilation.
+  const equation = q.equation || q.inequalityText || q.inequality;
+  const intervals = asArray(q.intervals?.length ? q.intervals : q.intervalNumberLine?.intervals)
+    .filter(isObject);
+  const wantsIntervalGraph = actions.includes('constructInterval');
+  out = copyCommon(q, {
+    type,
+    equation,
+    inequalityText: q.inequalityText || q.inequality,
+    intervals: wantsIntervalGraph && intervals.length ? intervals : undefined,
+    intervalNumberLine: wantsIntervalGraph && intervals.length
+      ? {
+          ...(isObject(q.intervalNumberLine) ? q.intervalNumberLine : {}),
+          intervals,
+        }
+      : undefined,
+    generator: q.generator,
+    workspaceDifficulty: q.workspaceDifficulty,
+    solveFor: q.solveFor || inferSingleEquationVariable(equation),
+  });
+  break;
+}
     case 'literal':
       out = copyCommon(q, { type, equation: q.equation, solveFor: q.solveFor, answer: answerOf(q) });
       break;
