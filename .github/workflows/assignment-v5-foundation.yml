@@ -86,6 +86,9 @@ jobs:
       - name: Canonical V5 tests
         run: npm run test:authoring-v5
 
+      - name: Graph analysis repair regressions
+        run: node --test tests/platform/assignmentGraphAnalysisV5Repair.test.mjs
+
       - name: Permanent V5 validator
         run: npm run validate:authoring-v5
 
