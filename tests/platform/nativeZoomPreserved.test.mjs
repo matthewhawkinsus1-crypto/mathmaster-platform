@@ -57,11 +57,35 @@ test('the gesture is taken only where a tool genuinely needs it', () => {
   });
 });
 
-test('a plane that takes the gesture gives a zoom back in its place', () => {
-  // The one place we remove the browser's zoom is the one place we owe the
-  // student a replacement, or pinching a graph would do nothing at all.
+test('a plane either leaves the gesture alone or gives a zoom back in its place', () => {
+  /*
+   * The rule this file protects is conditional, and the condition changed.
+   *
+   * It used to read `touch-action: none` — the plane took the touch gesture, so
+   * it owed the student a replacement zoom or pinching a graph would do nothing
+   * at all. The plane now declares `pan-y pinch-zoom` and hands the gesture back
+   * to the browser, because intercepting the wheel and pinch meant scrolling the
+   * page rewrote the graph's mathematical window underneath the student.
+   *
+   * Handing it back satisfies this file's actual purpose better than the old
+   * arrangement did: browser pinch-zoom, the only zoom some students have, now
+   * works ON the plane rather than being suppressed there. So the obligation is
+   * written as the alternative it always was — take the gesture and replace it,
+   * or do not take it — and the buttons are required either way, since this
+   * suite already calls them the primary path rather than a fallback.
+   */
   const plane = read('src/tools/shared/CoordinatePlane.jsx');
-  assert.match(plane, /touchAction: interactive \? 'none' : 'auto'/);
-  assert.match(plane, /const zoomable = panZoom == null \? interactive : Boolean\(panZoom\);/);
-  assert.match(plane, /aria-label="Zoom in"/);
+  const takesGesture = /touchAction: interactive \? 'none' : 'auto'/.test(plane);
+  const leavesGesture = /touchAction: interactive \? 'pan-y pinch-zoom' : 'auto'/.test(plane);
+
+  assert.ok(
+    takesGesture || leavesGesture,
+    'the plane must state its touch-action deliberately: either it handles touch itself or it lets the browser scroll and zoom',
+  );
+  if (takesGesture) {
+    assert.match(plane, /const zoomable = panZoom == null \? interactive : Boolean\(panZoom\);/,
+      'a plane that suppresses the browser zoom must offer its own');
+  }
+  assert.match(plane, /aria-label="Zoom in"/,
+    'the zoom buttons are the primary path for a trackpad, a switch, or one hand on a bus — they are required whichever way the gesture goes');
 });

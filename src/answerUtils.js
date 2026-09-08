@@ -29,8 +29,20 @@ const parseNumericRoster = (value, { allowUnenclosed = false } = {}) => {
     // never when it could be an ordered pair or interval. Three or more entries
     // (or an ellipsis) is enough to distinguish the finite-domain use case.
     if (/^[\[\(]/.test(normalized) || /[\]\)]$/.test(normalized)) return null;
+    // An unenclosed list is accepted ONLY when it carries an ellipsis.
+    //
+    // A bare comma list is not set notation, and setAnswerEquivalence has
+    // asserted since before this feature that `-4,-3,-2,-1,0,1,2` must not
+    // satisfy an authored `{-4,...,2}` — writing a set as a set is part of what
+    // the question is assessing. An ellipsis is different: `0, 1, 2, ..., 48`
+    // is unambiguous sequence notation that cannot be mistaken for anything
+    // else, and it is the form a student reaches for when the roster is too
+    // long to write out.
+    //
+    // The singleton case this feature was really about — `3` matching `{3}` —
+    // does not come through here at all; sameSingletonSetAndScalar handles it.
     const split = normalized.split(',').filter((part) => part !== '');
-    if (split.length < 3 && !normalized.includes(ELLIPSIS_TOKEN)) return null;
+    if (!normalized.includes(ELLIPSIS_TOKEN)) return null;
     parts = split;
   }
 

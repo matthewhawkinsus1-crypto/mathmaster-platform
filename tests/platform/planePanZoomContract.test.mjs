@@ -48,11 +48,35 @@ test('every tool that can zoom supplies a question key', () => {
 
 /* ---------- the gesture budget ---------- */
 
-test('two fingers zoom, and cancel the placement they interrupted', () => {
-  // One finger still plots. Without the cancel, starting a pinch would leave a
-  // point behind wherever the first finger happened to land.
-  assert.match(plane, /if \(zoomable && gesturePointers\.current\.size === 2\) \{[\s\S]{0,200}setGestureActive\(false\);[\s\S]{0,120}setPointerPreview\(null\);/);
-  assert.match(plane, /pinchRef\.current = \{ distance: pointerDistance\(\), midpoint: pointerMidpoint\(\) \}/);
+test('a gesture the browser takes over cannot leave a point behind', () => {
+  /*
+   * The guarantee is unchanged and the mechanism is better.
+   *
+   * This used to count pointers: on the second finger the plane cancelled the
+   * placement itself, because otherwise starting a pinch would plot a point
+   * wherever the first finger happened to land — a wrong answer recorded
+   * against a student who was only trying to zoom.
+   *
+   * The plane no longer intercepts pinch, so the browser takes the gesture and
+   * sends pointercancel. That covers strictly more than two fingers ever did:
+   * page scroll, pinch, and anything else the browser claims mid-placement.
+   *
+   * Both halves are asserted, because either alone is useless. Cancel must
+   * clear the in-flight gesture, AND the commit path must refuse to fire
+   * without it — a pointerup arriving after a cancel is exactly the sequence
+   * that would otherwise plot the stray point.
+   */
+  assert.match(plane, /onPointerCancel=\{handlePointerCancel\}/,
+    'the plane must handle the browser taking a gesture away from it');
+
+  const cancel = plane.slice(plane.indexOf('const handlePointerCancel'));
+  const cancelBody = cancel.slice(0, cancel.indexOf('};'));
+  assert.match(cancelBody, /setGestureActive\(false\)/, 'a cancelled gesture is no longer in flight');
+  assert.match(cancelBody, /setPointerPreview\(null\)/, 'and leaves no preview behind');
+
+  const up = plane.slice(plane.indexOf('const handlePointerUp'));
+  assert.match(up.slice(0, 160), /if \(!interactive \|\| !gestureActive\) return;/,
+    'pointerup must refuse to plot when the gesture was already cancelled; without this the cancel above only hides the preview while the point still lands');
 });
 
 test('zoom keeps the point under the finger under the finger', () => {
