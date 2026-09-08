@@ -119,4 +119,31 @@ test('Incomplete Assignments exposes the staged repair center instead of immedia
   assert.match(repairCenterSource, /questionId/);
 });
 
+test('parseable incomplete V5 opens Preflight for student preview while publication remains blocked', () => {
+  const appSource = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+  const start = appSource.indexOf('const handleAssignmentJsonReady');
+  const end = appSource.indexOf('const handleCreateAssignment', start);
+  const intakeRegion = appSource.slice(start, end);
+
+  assert.notEqual(start, -1, 'handleAssignmentJsonReady was not found');
+  assert.match(intakeRegion, /canSalvageV5IntakeResult/);
+  assert.match(intakeRegion, /buildAssignmentV5PreflightModel\(result\.parsed\.assignmentV5/);
+  assert.match(intakeRegion, /openAssignmentPreflight/);
+  assert.match(intakeRegion, /previewOpened:\s*true/);
+});
+
+test('Repair Center offers exact individual-safe subsets and explains preview versus publication', () => {
+  const repairCenterSource = readFileSync(new URL('../../src/components/teacher/IncompleteAssignmentRepairCenter.jsx', import.meta.url), 'utf8');
+  const intakeSource = readFileSync(new URL('../../src/AssignmentIntake.jsx', import.meta.url), 'utf8');
+
+  assert.match(repairCenterSource, /Select questions needing repair/);
+  assert.match(repairCenterSource, /Select teacher-flagged/);
+  assert.match(repairCenterSource, /Select this section/);
+  assert.match(repairCenterSource, /Student preview available/i);
+  assert.match(repairCenterSource, /prevent Library publication/i);
+  assert.match(repairCenterSource, /currentDraft\?\.id/);
+  assert.match(repairCenterSource, /validSelectedQuestionIds\.length/);
+  assert.match(intakeSource, /Open Student Preview \/ Review/);
+});
+
 console.log('incompleteAssignmentRepairCenter.test.mjs: all assertions passed');
