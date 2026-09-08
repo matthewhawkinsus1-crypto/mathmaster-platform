@@ -264,9 +264,17 @@ export const stageBatchQuestionRepairImport = ({
   const aggregateValidation = validationSummary(beforeModel, combinedAfterModel);
   const pendingTeacherFlagIds = [...new Set(questionResults.flatMap((result) => result.pendingTeacherFlagIds))];
   const allQuestionsSafe = questionResults.every((result) => result.canCommit);
+  const platformIssues = cloneJson(list(parsedResponse?.platformIssues));
+  const unclearIssues = cloneJson(list(parsedResponse?.unclearIssues));
+  const responseKind = replacements.length === 0 && (platformIssues.length > 0 || unclearIssues.length > 0)
+    ? 'reportOnly'
+    : replacements.length === 0
+      ? 'empty'
+      : 'replacementBatch';
 
   return {
     kind: 'batchQuestionRepairImport',
+    responseKind,
     baseRevision: base,
     questionResults,
     previousRevision: {
@@ -283,8 +291,8 @@ export const stageBatchQuestionRepairImport = ({
       && aggregateValidation.newBlockingDiagnostics.length === 0,
     requiresTeacherVerification: pendingTeacherFlagIds.length > 0,
     pendingTeacherFlagIds,
-    platformIssues: cloneJson(list(parsedResponse?.platformIssues)),
-    unclearIssues: cloneJson(list(parsedResponse?.unclearIssues)),
+    platformIssues,
+    unclearIssues,
   };
 };
 
