@@ -138,6 +138,7 @@ import {
   storedAssignmentToV5,
 } from './platform/contract/storedAssignmentV5.js';
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
+import { canSalvageV5IntakeResult } from './platform/preflight/assignmentAuthoringState.js';
 import {
   questionFingerprint,
   repairAssignmentTrackerForCurrentGrader,
@@ -3587,7 +3588,6 @@ function App() {
     }
 
     const result = readAssignmentJson(sourceText);
-    if (!result.ok) return result;
     const bankWarnings = [];
     if (ccmrAudit?.autoSourced > 0 || ccmrAudit?.replaced > 0) {
       bankWarnings.push(
@@ -3595,6 +3595,38 @@ function App() {
       );
     }
     const warnings = [...(result.warnings || []), ...bankWarnings];
+    if (!result.ok) {
+      if (!canSalvageV5IntakeResult(result)) return { ...result, warnings };
+
+      // Publication validity and previewability are different boundaries.
+      // A parseable V5 with question-level blockers still opens Preflight.
+      const preflightModel = buildAssignmentV5PreflightModel(result.parsed.assignmentV5);
+      const salvageResult = {
+        ...result,
+        ok: false,
+        errors: [...new Set([...(result.errors || []), ...(preflightModel.errors || [])])],
+        warnings: [...new Set([...warnings, ...(preflightModel.warnings || [])])],
+        parsed: {
+          ...result.parsed,
+          assignmentV5: preflightModel.assignmentV5,
+          questions: preflightModel.questions,
+        },
+      };
+      const previewOpenResult = openAssignmentPreflight(
+        { ...salvageResult.parsed, authoringWarnings: salvageResult.warnings },
+        sourceName,
+        {},
+        { incompleteDraftId },
+      );
+      if (previewOpenResult !== true) {
+        return {
+          ...salvageResult,
+          errors: [...salvageResult.errors, previewOpenResult?.error || 'Could not build Assignment Review from this assignment.'],
+          previewOpened: false,
+        };
+      }
+      return { ...salvageResult, previewOpened: true, ccmrAudit };
+    }
     const opened = openAssignmentPreflight({ ...result.parsed, authoringWarnings: warnings }, sourceName, {}, { incompleteDraftId });
     if (opened !== true) {
       return { ok: false, errors: [opened?.error || 'Could not build Assignment Review from this assignment.'], warnings, sourceSchemaVersion: result.sourceSchemaVersion, compilerDefect: false };
