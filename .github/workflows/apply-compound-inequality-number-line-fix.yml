@@ -24,53 +24,55 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          import re
 
           path = Path('src/platform/contract/authoringIntentV5.js')
           text = path.read_text(encoding='utf-8')
 
-          old = """    case 'stepAlgebra':
-              out = copyCommon(q, {
-                type,
-                equation: q.equation,
-                generator: q.generator,
-                workspaceDifficulty: q.workspaceDifficulty,
-                solveFor: q.solveFor || inferSingleEquationVariable(q.equation),
-              });
-              break;
+          pattern = re.compile(
+              r"    case 'stepAlgebra':\n"
+              r"      out = copyCommon\(q, \{\n"
+              r"        type,\n"
+              r"        equation: q\.equation,\n"
+              r"        generator: q\.generator,\n"
+              r"        workspaceDifficulty: q\.workspaceDifficulty,\n"
+              r"        solveFor: q\.solveFor \|\| inferSingleEquationVariable\(q\.equation\),\n"
+              r"      \}\);\n"
+              r"      break;\n"
+          )
+
+          replacement = """    case 'stepAlgebra': {
+            // solveStepByStep can be composed with constructInterval. Keep the
+            // algebra workspace as the primary renderer, but preserve the
+            // inequality and number-line contract instead of dropping it during
+            // V5 intent compilation.
+            const equation = q.equation || q.inequalityText || q.inequality;
+            const intervals = asArray(q.intervals?.length ? q.intervals : q.intervalNumberLine?.intervals)
+              .filter(isObject);
+            const wantsIntervalGraph = actions.includes('constructInterval');
+            out = copyCommon(q, {
+              type,
+              equation,
+              inequalityText: q.inequalityText || q.inequality,
+              intervals: wantsIntervalGraph && intervals.length ? intervals : undefined,
+              intervalNumberLine: wantsIntervalGraph && intervals.length
+                ? {
+                    ...(isObject(q.intervalNumberLine) ? q.intervalNumberLine : {}),
+                    intervals,
+                  }
+                : undefined,
+              generator: q.generator,
+              workspaceDifficulty: q.workspaceDifficulty,
+              solveFor: q.solveFor || inferSingleEquationVariable(equation),
+            });
+            break;
+          }
           """
 
-          new = """    case 'stepAlgebra': {
-              // solveStepByStep can be composed with constructInterval. Keep the
-              // algebra workspace as the primary renderer, but preserve the
-              // inequality and number-line contract instead of dropping it during
-              // V5 intent compilation.
-              const equation = q.equation || q.inequalityText || q.inequality;
-              const intervals = asArray(q.intervals?.length ? q.intervals : q.intervalNumberLine?.intervals)
-                .filter(isObject);
-              const wantsIntervalGraph = actions.includes('constructInterval');
-              out = copyCommon(q, {
-                type,
-                equation,
-                inequalityText: q.inequalityText || q.inequality,
-                intervals: wantsIntervalGraph && intervals.length ? intervals : undefined,
-                intervalNumberLine: wantsIntervalGraph && intervals.length
-                  ? {
-                      ...(isObject(q.intervalNumberLine) ? q.intervalNumberLine : {}),
-                      intervals,
-                    }
-                  : undefined,
-                generator: q.generator,
-                workspaceDifficulty: q.workspaceDifficulty,
-                solveFor: q.solveFor || inferSingleEquationVariable(equation),
-              });
-              break;
-            }
-          """
-
-          if old not in text:
-              raise SystemExit('Expected stepAlgebra compiler block was not found; refusing to patch a different revision.')
-
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          updated, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'Expected exactly one stepAlgebra compiler block, found {count}; refusing unsafe patch.')
+          path.write_text(updated, encoding='utf-8')
 
       - name: Install dependencies
         run: npm ci
