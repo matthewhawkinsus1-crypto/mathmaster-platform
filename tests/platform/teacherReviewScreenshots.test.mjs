@@ -185,8 +185,13 @@ test('the note is still required, so evidence supplements it rather than replaci
   assert.match(handler, /Write the repair note before saving the flag/,
     'a screenshot with no words gives a repairing AI nothing to act on; the note is what becomes the constraint');
 
+  // Matched on the guarantee, not the spelling: `!String(note||'').trim()` and
+  // `!clean(note)` are the same rule, and pinning one of them makes an ordinary
+  // refactor look like a regression while a real one — dropping note from the
+  // condition entirely — is what must fail.
   const button = panelSource.slice(panelSource.indexOf('onClick={saveFlag}'));
-  assert.match(button.slice(0, 240), /!String\(note \|\| ''\)\.trim\(\)/,
+  const disabled = button.slice(button.indexOf('disabled={'), button.indexOf('style='));
+  assert.match(disabled, /\bnote\b/,
     'saving must stay disabled until the note is written, screenshot or not');
 });
 

@@ -159,21 +159,63 @@ export const queuePendingRepairUpload = ({
   return key;
 };
 
+/**
+ * Read back an upload queued from Teacher Review.
+ *
+ * The queue spans two screens and an unbounded amount of time: a teacher can
+ * upload an AI response in student preview, edit the assignment by hand, close
+ * the tab, come back, and only then open Repair/Edit Questions. The queued
+ * response was built against the revision that existed when it was made, and
+ * applying it afterwards would silently overwrite whatever changed in between.
+ *
+ * So the stored revision is compared against the assignment's current one and a
+ * mismatch is REFUSED — and refused visibly. Returning null for a stale upload
+ * would be worse than useless: the teacher would open Repair Center, see
+ * nothing, and reasonably conclude the upload worked and there was nothing to
+ * fix. A stale result is returned marked as such, with a reason to show, so the
+ * screen can say the response is out of date and needs rebuilding from the
+ * current questions.
+ *
+ * `currentRevision` omitted means "do not check" — used by callers that only
+ * want to know whether anything is queued at all.
+ */
 export const readPendingRepairUpload = ({
   assignmentId,
+  currentRevision = null,
   storage = browserSessionStorage(),
 } = {}) => {
   if (!storage?.getItem) return null;
   const key = pendingRepairUploadKey(assignmentId);
   const raw = storage.getItem(key);
   if (!raw) return null;
+  let parsed = null;
   try {
-    const parsed = JSON.parse(raw);
-    if (clean(parsed?.assignmentId) !== clean(assignmentId) || !clean(parsed?.rawText)) return null;
-    return parsed;
+    parsed = JSON.parse(raw);
   } catch {
     return null;
   }
+  if (clean(parsed?.assignmentId) !== clean(assignmentId) || !clean(parsed?.rawText)) return null;
+
+  const queuedRevision = Number(parsed?.baseRevision);
+  const nowRevision = Number(currentRevision);
+  if (Number.isFinite(nowRevision) && nowRevision >= 1) {
+    if (!Number.isFinite(queuedRevision) || queuedRevision < 1) {
+      return {
+        ...parsed,
+        stale: true,
+        staleReason: 'This queued AI repair response did not record which revision of the assignment it was built from, so MathMaster cannot prove it still matches. Copy the flagged questions again and rebuild the response.',
+      };
+    }
+    if (queuedRevision !== nowRevision) {
+      return {
+        ...parsed,
+        stale: true,
+        staleReason: `This AI repair response was built from revision ${queuedRevision} and the assignment is now at revision ${nowRevision}. Applying it would overwrite the changes made since. Copy the flagged questions again and rebuild the response.`,
+      };
+    }
+  }
+
+  return { ...parsed, stale: false, staleReason: null };
 };
 
 export const clearPendingRepairUpload = ({

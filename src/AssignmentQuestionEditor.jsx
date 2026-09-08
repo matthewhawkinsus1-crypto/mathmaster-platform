@@ -242,12 +242,27 @@ export default function AssignmentQuestionEditor(props) {
   // consume the handoff, revalidate it here, and show the normal staged diff.
   useEffect(() => {
     if (reviewLoading || !assignmentId) return;
-    const pending = readPendingRepairUpload({ assignmentId });
+    // The revision is what makes this handoff safe. A response queued in student
+    // preview can sit here across hand edits and whole sessions, and applying a
+    // response built from an older revision would silently overwrite whatever
+    // changed since.
+    const pending = readPendingRepairUpload({ assignmentId, currentRevision: baseRevision });
     if (!pending?.rawText) return;
     const attemptKey = `${pending.queuedAt || ''}:${pending.rawText.length}`;
     if (pendingUploadAttemptRef.current === attemptKey) return;
     pendingUploadAttemptRef.current = attemptKey;
     setRepairOpen(true);
+
+    if (pending.stale) {
+      // Said out loud, and the stale response discarded. Staying silent here
+      // would be the worst outcome available: the teacher opens Repair Center,
+      // sees nothing staged, and concludes the upload worked.
+      clearPendingRepairUpload({ assignmentId });
+      setPastedRepair('');
+      setMessage(pending.staleReason);
+      return;
+    }
+
     setPastedRepair(pending.rawText);
     stageRepairText(pending.rawText).then((accepted) => {
       if (accepted) clearPendingRepairUpload({ assignmentId });

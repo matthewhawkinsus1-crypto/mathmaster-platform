@@ -139,8 +139,17 @@ test('repair workspace source exposes the teacher-facing one-click controls and 
   const editorSource = await readFile(new URL('../../src/AssignmentQuestionEditor.jsx', import.meta.url), 'utf8');
   const librarySource = await readFile(new URL('../../src/AssignmentLibrary.jsx', import.meta.url), 'utf8');
 
-  assert.match(editorSource, /Copy AI Fix Package/);
-  assert.match(editorSource, /Upload AI Repairs/);
+  // Renamed to "Copy All Flagged AI Fix Package" in #156. Matched on the
+  // capability so the rename is not read as a removal; the handler assertion
+  // below is what actually holds the behaviour.
+  assert.match(editorSource, /Copy All Flagged AI Fix Package|Copy AI Fix Package/,
+    'the Repair Center must offer a one-click package covering every flagged question');
+  assert.match(editorSource, /onClick=\{copyAiFixPackage\}/,
+    'and that control must be wired to the builder, not just labelled');
+  assert.match(editorSource, /Upload AI Repair JSON|Upload AI Repairs/,
+    'the Repair Center must accept the AI response back');
+  assert.match(editorSource, /onChange=\{uploadAiRepairs\}/,
+    'and that control must be wired to the importer');
   assert.match(editorSource, /type=["']file["']/);
   assert.match(editorSource, /Apply Repairs/);
   assert.match(librarySource, /Repair Center/);

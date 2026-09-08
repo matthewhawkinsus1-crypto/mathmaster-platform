@@ -343,7 +343,10 @@ export default function TeacherQuestionReviewPanel({
       const replacementCount = Array.isArray(parsed?.replacements) ? parsed.replacements.length : 0;
       if (!replacementCount) throw new Error('The uploaded repair contains no replacement questions.');
 
-      queuePendingRepairUpload({ assignmentId, rawText });
+      // The revision this response was built from travels with it. Without it
+      // Repair Center has no way to tell a fresh response from one built before
+      // the assignment was edited, and cannot refuse the stale one.
+      queuePendingRepairUpload({ assignmentId, rawText, baseRevision });
       setMessage(`Repair JSON accepted for ${replacementCount} flagged question${replacementCount === 1 ? '' : 's'} and queued safely. Open Repair/Edit Questions next; its Repair Center will load and revalidate this upload automatically before anything can be applied.`);
     } catch (error) {
       setMessage(error.message || 'MathMaster refused this repair upload. Nothing was queued or changed.');
