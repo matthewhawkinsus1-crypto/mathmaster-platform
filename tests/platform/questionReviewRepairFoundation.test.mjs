@@ -200,6 +200,27 @@ test('saved incomplete drafts restore the exact V5 assignment for later repair',
   assert.deepEqual(restoreIncompleteAssignmentV5(record), original);
 });
 
+test('legacy incomplete drafts without question ids restore deterministic immutable ids', () => {
+  const legacyQuestion = alignedQuestion({ questionId: undefined, questionWeight: 99 });
+  const legacyAssignment = assignment(legacyQuestion);
+  const record = {
+    schemaVersion: 5,
+    title: 'Legacy incomplete draft',
+    assignmentRevision: 1,
+    authoringDraft: {
+      canonicalJson: JSON.stringify(legacyAssignment),
+      sourceSchemaVersion: 5,
+    },
+  };
+
+  const firstRestore = restoreIncompleteAssignmentV5(record);
+  const secondRestore = restoreIncompleteAssignmentV5(record);
+  const firstId = firstRestore.sections[0].questions[0].questionId;
+
+  assert.ok(firstId, 'opening an older incomplete draft must assign its missing question id');
+  assert.equal(secondRestore.sections[0].questions[0].questionId, firstId, 'the generated id must be stable every time the draft is opened');
+});
+
 test('a repaired draft stays outside the normal Library until the teacher finishes the normal review flow', () => {
   const original = assignment(alignedQuestion({ questionWeight: 99 }));
   const fixed = assignment(alignedQuestion({ questionWeight: 1 }));

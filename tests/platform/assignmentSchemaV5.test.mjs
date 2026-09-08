@@ -39,4 +39,33 @@ assert.equal(rebuilt.find((section) => section.id === 'practice').questions.leng
 const old = validateAssignmentV5({ schemaVersion: 4, assignment: { title: 'old', courseId: 'algebra1' }, sections: [{ role: 'practice', questions: [{}] }] });
 assert.ok(old.errors.some((error) => /V4 and earlier assignments are intentionally unsupported/.test(error)));
 
+// Question identity is platform metadata, not something an outside AI or teacher
+// should have to invent. Canonical V5 normalization is the earliest common
+// boundary shared by Preflight, Incomplete drafts, Repair Center, and publish.
+// Missing or duplicate authored IDs therefore have to become stable, unique IDs
+// here — before any of those workflows tries to select or repair a question.
+const identitySource = normalizeAssignmentV5({
+  schemaVersion: 5,
+  assignment: { title: 'Question identity', courseId: 'algebra1' },
+  sections: [{
+    id: 'cw',
+    role: 'classwork',
+    title: 'Classwork',
+    questions: [
+      { prompt: 'Missing id one', type: 'algebra' },
+      { questionId: 'keep-me', prompt: 'Keep this id', type: 'algebra' },
+      { questionId: 'keep-me', prompt: 'Duplicate id must be replaced', type: 'algebra' },
+    ],
+  }],
+});
+const identityIds = identitySource.sections[0].questions.map((question) => question.questionId);
+assert.ok(identityIds.every(Boolean), 'normalization should assign every question a stable id');
+assert.equal(identityIds[1], 'keep-me', 'an existing unique question id must stay unchanged');
+assert.equal(new Set(identityIds).size, identityIds.length, 'canonical question ids must be unique');
+assert.deepEqual(
+  normalizeAssignmentV5(identitySource).sections[0].questions.map((question) => question.questionId),
+  identityIds,
+  'normalizing a canonical assignment again must not move immutable question ids',
+);
+
 console.log('assignmentSchemaV5.test.mjs: all assertions passed');

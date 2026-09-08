@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase.js';
-import { getStoredAssignmentQuestions } from '../../platform/contract/storedAssignmentV5.js';
+import { getStoredAssignmentQuestions, storedAssignmentToV5 } from '../../platform/contract/storedAssignmentV5.js';
 import { buildQuestionRepairRequest } from '../../platform/contract/questionRepairRequest.js';
 import {
   addTeacherReviewFlag,
@@ -13,6 +13,12 @@ import {
   loadAssignmentTeacherReviewContext,
   saveAssignmentTeacherReviewContext,
 } from '../../platform/preflight/assignmentQuestionReviewStore.js';
+import {
+  buildAllOpenTeacherFlagRepairRequest,
+  getOpenFlaggedQuestionIds,
+  parseUnifiedRepairUpload,
+  queuePendingRepairUpload,
+} from '../../platform/preflight/libraryAssignmentRepairWorkspace.js';
 import {
   attachScreenshotToFlag,
   detachScreenshotFromFlag,
@@ -27,8 +33,8 @@ import {
 } from '../../platform/preflight/teacherReviewScreenshotCapture.js';
 
 const panelStyle = {
-  width: 'min(720px, calc(100vw - 24px))',
-  maxHeight: 'min(72vh, 680px)',
+  width: 'min(760px, calc(100vw - 24px))',
+  maxHeight: 'min(78vh, 740px)',
   overflow: 'auto',
   padding: '12px 14px',
   border: '2px solid #1a73e8',
@@ -49,6 +55,8 @@ const buttonStyle = {
   fontWeight: 900,
   cursor: 'pointer',
 };
+
+const clean = (value) => String(value ?? '').trim();
 
 const writeClipboardText = async (text) => {
   if (navigator.clipboard?.writeText) {
@@ -73,7 +81,9 @@ export default function TeacherQuestionReviewPanel({
   question: questionProp = null,
   questionIndex = null,
 }) {
+  const repairUploadInputRef = useRef(null);
   const [context, setContext] = useState({ flags: [] });
+  const [assignmentRecord, setAssignmentRecord] = useState(null);
   const [resolvedQuestion, setResolvedQuestion] = useState(questionProp);
   const [category, setCategory] = useState('content');
   const [severity, setSeverity] = useState('needsEditing');
@@ -81,26 +91,33 @@ export default function TeacherQuestionReviewPanel({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [expanded, setExpanded] = useState(false);
-  // Held until the flag is saved, so the note and its evidence land together
-  // and a teacher never ends up with a picture attached to nothing.
   const [pendingShot, setPendingShot] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
     if (!assignmentId) return undefined;
+
     Promise.all([
       loadAssignmentTeacherReviewContext(assignmentId),
-      questionProp || questionIdProp || !Number.isInteger(Number(questionIndex))
-        ? Promise.resolve(null)
-        : getDoc(doc(db, 'assignments', assignmentId)),
+      getDoc(doc(db, 'assignments', assignmentId)),
     ])
       .then(([nextContext, assignmentSnapshot]) => {
         if (cancelled) return;
         setContext(nextContext || { flags: [] });
-        if (questionProp) setResolvedQuestion(questionProp);
-        else if (assignmentSnapshot?.exists?.()) {
-          const questions = getStoredAssignmentQuestions({ id: assignmentSnapshot.id, ...assignmentSnapshot.data() });
-          setResolvedQuestion(questions[Number(questionIndex)] || null);
+        if (assignmentSnapshot?.exists?.()) {
+          const record = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
+          setAssignmentRecord(record);
+          if (questionProp) setResolvedQuestion(questionProp);
+          else {
+            const questions = getStoredAssignmentQuestions(record);
+            const byId = clean(questionIdProp)
+              ? questions.find((item) => clean(item?.questionId) === clean(questionIdProp))
+              : null;
+            setResolvedQuestion(byId || (Number.isInteger(Number(questionIndex)) ? questions[Number(questionIndex)] : null) || null);
+          }
+        } else {
+          setAssignmentRecord(null);
+          if (questionProp) setResolvedQuestion(questionProp);
         }
         setMessage('');
       })
@@ -110,13 +127,40 @@ export default function TeacherQuestionReviewPanel({
     return () => { cancelled = true; };
   }, [assignmentId, questionIdProp, questionIndex, questionProp]);
 
-  const questionId = String(questionIdProp || resolvedQuestion?.questionId || '').trim();
+  const assignmentV5 = useMemo(() => {
+    if (!assignmentRecord) return null;
+    try {
+      const rebuilt = storedAssignmentToV5(assignmentRecord);
+      return {
+        ...rebuilt,
+        assignment: {
+          ...rebuilt.assignment,
+          assignmentId: clean(assignmentId) || rebuilt.assignment?.assignmentId || null,
+        },
+      };
+    } catch {
+      return null;
+    }
+  }, [assignmentRecord, assignmentId]);
+
+  const baseRevision = useMemo(() => {
+    const candidates = [
+      Number(assignmentRecord?.assignmentRevision),
+      Number(context?.repairRevision),
+    ].filter((value) => Number.isFinite(value) && value >= 1);
+    return candidates.length ? Math.max(...candidates) : 1;
+  }, [assignmentRecord, context]);
+
+  const questionId = clean(questionIdProp || resolvedQuestion?.questionId);
   const questionFlags = useMemo(() => (
     (Array.isArray(context?.flags) ? context.flags : []).filter((flag) => (
-      flag?.scope === 'question' && String(flag?.targetId || '') === questionId
+      flag?.scope === 'question' && clean(flag?.targetId) === questionId
     ))
   ), [context, questionId]);
   const openFlags = questionFlags.filter(teacherFlagNeedsReview);
+  const allFlaggedQuestionIds = useMemo(() => (
+    assignmentV5 ? getOpenFlaggedQuestionIds({ assignmentV5, teacherReviewContext: context }) : []
+  ), [assignmentV5, context]);
 
   const persist = async (nextContext, successMessage) => {
     setBusy(true);
@@ -133,7 +177,7 @@ export default function TeacherQuestionReviewPanel({
   };
 
   const saveFlag = async () => {
-    const trimmed = String(note || '').trim();
+    const trimmed = clean(note);
     if (!questionId) {
       setMessage('This saved question is missing its stable questionId, so MathMaster will not attach a repair note to the wrong question.');
       return;
@@ -145,9 +189,6 @@ export default function TeacherQuestionReviewPanel({
     setBusy(true);
     setMessage('Saving…');
     try {
-      // The screenshot is written first so the flag can point at a row that
-      // exists. If this fails the flag is not saved either, and the teacher
-      // still has their typed note on screen to retry with.
       let screenshotId = null;
       if (pendingShot) {
         const stored = await saveTeacherReviewScreenshot({
@@ -165,7 +206,7 @@ export default function TeacherQuestionReviewPanel({
         severity,
         note: trimmed,
         screenshotId,
-      });
+      }, { assignmentRevision: baseRevision });
       const saved = await saveAssignmentTeacherReviewContext(assignmentId, next);
       setContext(saved);
       setNote('');
@@ -180,15 +221,6 @@ export default function TeacherQuestionReviewPanel({
     }
   };
 
-  /*
-   * Ctrl-V is the gesture teachers actually use: take the screenshot, click
-   * into the note, paste. So the note field itself accepts the image, not just
-   * the drop area beside it — a paste target the teacher has to find first is a
-   * paste target that does not get used.
-   *
-   * preventDefault only when an image is actually on the clipboard, so pasting
-   * text into the note keeps working normally.
-   */
   const handleScreenshotPaste = (event) => {
     const file = screenshotFileFromPaste(event);
     if (!file) return;
@@ -213,8 +245,6 @@ export default function TeacherQuestionReviewPanel({
       const next = detachScreenshotFromFlag(context, flag.id);
       const saved = await saveAssignmentTeacherReviewContext(assignmentId, next);
       setContext(saved);
-      // Only after the reference is gone, so a failure here leaves an unused
-      // row rather than a flag pointing at a screenshot that no longer exists.
       await deleteTeacherReviewScreenshot(flag.screenshotId);
       setMessage('Screenshot removed. Your written note is unchanged.');
     } catch (error) {
@@ -250,7 +280,7 @@ export default function TeacherQuestionReviewPanel({
 
   const copyRepairRequest = async () => {
     const instructions = openFlags
-      .map((flag) => String(flag?.note || '').trim())
+      .map((flag) => clean(flag?.note))
       .filter(Boolean);
     if (!instructions.length || !resolvedQuestion) {
       setMessage('Save a teacher flag/note first so the repair request contains the exact issue and question to fix.');
@@ -258,15 +288,70 @@ export default function TeacherQuestionReviewPanel({
     }
     try {
       const request = buildQuestionRepairRequest({
-        assignment: { title: `Assignment ${assignmentId}` },
+        assignment: { title: assignmentRecord?.title || `Assignment ${assignmentId}` },
         question: resolvedQuestion,
         instruction: instructions.map((value, index) => `${index + 1}. ${value}`).join('\n'),
         questionNumber: Number.isInteger(Number(questionIndex)) ? Number(questionIndex) + 1 : null,
       });
       await writeClipboardText(request);
-      setMessage('Question-only repair request copied. It includes this question and your open teacher notes, not the whole assignment.');
+      setMessage('This-question repair request copied. It includes this question and its open teacher notes, not the whole assignment.');
     } catch (error) {
       setMessage(error.message || 'Could not copy the repair request.');
+    }
+  };
+
+  const copyAllFlaggedRepairRequest = async () => {
+    if (!assignmentV5) {
+      setMessage('MathMaster could not reconstruct the saved assignment yet, so it will not build a batch repair package from partial data.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const built = buildAllOpenTeacherFlagRepairRequest({
+        assignmentV5,
+        teacherReviewContext: context,
+        assignmentId,
+        baseRevision,
+      });
+      await writeClipboardText(built.request);
+      setMessage(`All-flag AI Fix Package copied for ${built.questionIds.length} question${built.questionIds.length === 1 ? '' : 's'}. It contains only the flagged questions plus the teacher constraints that apply to them.`);
+    } catch (error) {
+      setMessage(error.message || 'Could not copy the all-flag AI Fix Package.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const uploadRepairFromTeacherReview = async (event) => {
+    const file = event.target.files?.[0] || null;
+    event.target.value = '';
+    if (!file) return;
+    if (!assignmentV5 || !allFlaggedQuestionIds.length) {
+      setMessage('Save at least one teacher flag before uploading a repair response.');
+      return;
+    }
+
+    setBusy(true);
+    setMessage('Checking uploaded repair JSON…');
+    try {
+      const rawText = await file.text();
+      const parsed = parseUnifiedRepairUpload(rawText, {
+        assignmentId,
+        baseRevision,
+        allowedQuestionIds: allFlaggedQuestionIds,
+      });
+      const replacementCount = Array.isArray(parsed?.replacements) ? parsed.replacements.length : 0;
+      if (!replacementCount) throw new Error('The uploaded repair contains no replacement questions.');
+
+      // The revision this response was built from travels with it. Without it
+      // Repair Center has no way to tell a fresh response from one built before
+      // the assignment was edited, and cannot refuse the stale one.
+      queuePendingRepairUpload({ assignmentId, rawText, baseRevision });
+      setMessage(`Repair JSON accepted for ${replacementCount} flagged question${replacementCount === 1 ? '' : 's'} and queued safely. Open Repair/Edit Questions next; its Repair Center will load and revalidate this upload automatically before anything can be applied.`);
+    } catch (error) {
+      setMessage(error.message || 'MathMaster refused this repair upload. Nothing was queued or changed.');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -283,9 +368,33 @@ export default function TeacherQuestionReviewPanel({
                 Private teacher notes{questionId ? <> · Question ID <code>{questionId}</code></> : ' · loading question identity…'}
               </div>
             </div>
-            <button type="button" onClick={copyRepairRequest} disabled={busy || !openFlags.length || !resolvedQuestion} style={{ ...buttonStyle, opacity: busy || !openFlags.length || !resolvedQuestion ? 0.55 : 1 }}>
-              Copy repair request
-            </button>
+            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <button type="button" onClick={copyRepairRequest} disabled={busy || !openFlags.length || !resolvedQuestion} style={{ ...buttonStyle, opacity: busy || !openFlags.length || !resolvedQuestion ? 0.55 : 1 }}>
+                Copy this question
+              </button>
+              <button type="button" onClick={copyAllFlaggedRepairRequest} disabled={busy || !assignmentV5 || !allFlaggedQuestionIds.length} style={{ ...buttonStyle, background: '#174ea6', borderColor: '#174ea6', color: '#fff', opacity: busy || !assignmentV5 || !allFlaggedQuestionIds.length ? 0.55 : 1 }}>
+                Copy all flagged ({allFlaggedQuestionIds.length})
+              </button>
+              <input
+                ref={repairUploadInputRef}
+                type="file"
+                accept=".json,application/json"
+                onChange={uploadRepairFromTeacherReview}
+                style={{ display: 'none' }}
+              />
+              <button
+                type="button"
+                onClick={() => repairUploadInputRef.current?.click()}
+                disabled={busy || !assignmentV5 || !allFlaggedQuestionIds.length}
+                style={{ ...buttonStyle, background: '#188038', borderColor: '#188038', color: '#fff', opacity: busy || !assignmentV5 || !allFlaggedQuestionIds.length ? 0.55 : 1 }}
+              >
+                Upload AI repair JSON
+              </button>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 8, padding: 8, borderRadius: 8, background: '#e8f0fe', color: '#174ea6', fontSize: 11.5, lineHeight: 1.4 }}>
+            Batch copy includes every question covered by an open teacher flag, including section/assignment flags. Uploads are checked here, then queued for the Repair Center in Repair/Edit Questions so Student Preview never mutates the assignment directly.
           </div>
 
           {questionFlags.length > 0 && (
@@ -352,13 +461,6 @@ export default function TeacherQuestionReviewPanel({
               style={{ display: 'block', width: '100%', minHeight: 72, boxSizing: 'border-box', marginTop: 4, padding: 8, border: '1px solid #bdc7d6', borderRadius: 7, fontFamily: 'inherit' }}
             />
           </label>
-          {/*
-            * Evidence, beside the words rather than instead of them. A picture
-            * of a collided graph label is instant to take and near-impossible
-            * to describe, but a screenshot alone gives a repairing AI nothing
-            * to act on — the note is what becomes the repair constraint, so the
-            * save button stays disabled until it is written.
-            */}
           <div
             onPaste={handleScreenshotPaste}
             style={{ marginTop: 8, padding: 8, border: '1px dashed #aecbfa', borderRadius: 8, background: '#fff' }}
@@ -386,10 +488,10 @@ export default function TeacherQuestionReviewPanel({
               <img src={pendingShot} alt="Screenshot to attach to this teacher note" style={{ marginTop: 8, maxWidth: '100%', maxHeight: 180, borderRadius: 6, border: '1px solid #d9e2f1' }} />
             )}
           </div>
-          <button type="button" onClick={saveFlag} disabled={busy || !String(note || '').trim() || !questionId} style={{ ...buttonStyle, marginTop: 8, background: '#1a73e8', borderColor: '#1a73e8', color: '#fff', opacity: busy || !String(note || '').trim() || !questionId ? 0.55 : 1 }}>
+          <button type="button" onClick={saveFlag} disabled={busy || !clean(note) || !questionId} style={{ ...buttonStyle, marginTop: 8, background: '#1a73e8', borderColor: '#1a73e8', color: '#fff', opacity: busy || !clean(note) || !questionId ? 0.55 : 1 }}>
             Save teacher flag
           </button>
-          {message && <div role="status" style={{ marginTop: 8, color: '#5f6368', fontSize: 12 }}>{message}</div>}
+          {message && <div role="status" style={{ marginTop: 8, color: '#5f6368', fontSize: 12, lineHeight: 1.45 }}>{message}</div>}
         </aside>
       )}
       <button type="button" onClick={() => setExpanded((current) => !current)} aria-expanded={expanded} style={{ ...buttonStyle, minHeight: 44, background: '#174ea6', borderColor: '#174ea6', color: '#fff', boxShadow: '0 6px 18px rgba(0,0,0,.22)' }}>

@@ -52,6 +52,70 @@ const normalizeSection = (section, index) => {
   };
 };
 
+const questionIdPart = (value, fallback) => (
+  clean(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  || fallback
+);
+
+/**
+ * questionId is MathMaster-owned identity, not authoring content.
+ *
+ * Repair Center selection, teacher flags, revision history, and outside-AI
+ * repair packets all join on this value. Letting a missing id reach those
+ * systems makes several questions share the same empty key. The canonical V5
+ * boundary therefore gives every question a deterministic identity before any
+ * review workflow sees it. Existing unique ids are immutable; only missing or
+ * duplicate ids are synthesized.
+ */
+const normalizeQuestionIds = (sections = []) => {
+  const reserved = new Set(
+    sections.flatMap((section) => (
+      Array.isArray(section?.questions) ? section.questions : []
+    )).map((question) => clean(question?.questionId)).filter(Boolean),
+  );
+  const claimed = new Set();
+
+  return sections.map((section, sectionIndex) => ({
+    ...section,
+    questions: (Array.isArray(section?.questions) ? section.questions : []).map((question, questionIndex) => {
+      const sourceQuestion = isObject(question) ? question : {};
+      const existing = clean(sourceQuestion.questionId);
+      if (existing && !claimed.has(existing)) {
+        claimed.add(existing);
+        return { ...sourceQuestion, questionId: existing };
+      }
+
+      const sectionPart = questionIdPart(section?.id || section?.role, `section-${sectionIndex + 1}`);
+      const base = `q_${sectionPart}_${sectionIndex + 1}_${questionIndex + 1}`;
+      let candidate = base;
+      let suffix = 2;
+      while (reserved.has(candidate) || claimed.has(candidate)) {
+        candidate = `${base}_${suffix}`;
+        suffix += 1;
+      }
+      claimed.add(candidate);
+      return { ...sourceQuestion, questionId: candidate };
+    }),
+  }));
+};
+
+/**
+ * Upgrade identity on an already-shaped V5 assignment without changing any
+ * other authoring fields. This is used when an older saved Incomplete draft is
+ * reopened: it needs modern immutable ids, but reopening must not silently add
+ * unrelated defaults or rewrite the teacher's saved JSON.
+ */
+export const ensureAssignmentV5QuestionIds = (input = {}) => {
+  if (!isObject(input)) throw new Error('MathMaster Assignment V5 must be a JSON object.');
+  return {
+    ...input,
+    sections: normalizeQuestionIds(Array.isArray(input.sections) ? input.sections : []),
+  };
+};
+
 const normalizeVariantPolicy = (raw = {}) => {
   const source = isObject(raw) ? raw : {};
   const requestedMode = clean(source.mode).toLowerCase();
@@ -74,6 +138,7 @@ export const normalizeAssignmentV5 = (input = {}) => {
   const assignmentSource = isObject(input.assignment) ? input.assignment : {};
   const outputSource = isObject(input.outputProfiles) ? input.outputProfiles : {};
   const defaults = defaultOutputProfiles();
+  const normalizedSections = (Array.isArray(input.sections) ? input.sections : []).map(normalizeSection);
 
   return {
     ...input,
@@ -86,7 +151,7 @@ export const normalizeAssignmentV5 = (input = {}) => {
       instructionalPurpose: clean(assignmentSource.instructionalPurpose) || 'lesson',
       gradingPurpose: clean(assignmentSource.gradingPurpose) || null,
     },
-    sections: (Array.isArray(input.sections) ? input.sections : []).map(normalizeSection),
+    sections: normalizeQuestionIds(normalizedSections),
     variantPolicy: normalizeVariantPolicy(input.variantPolicy),
     differentiationPolicy: {
       mode: 'bounded',

@@ -65,7 +65,7 @@ const brief = (value) => {
   return String(text ?? 'null').length > 220 ? `${String(text).slice(0, 217)}…` : String(text ?? 'null');
 };
 
-const allQuestionIds = (model) => list(model?.questions).map((row) => clean(row?.questionId)).filter(Boolean);
+const allQuestionIds = (model) => [...new Set(list(model?.questions).map((row) => clean(row?.questionId)).filter(Boolean))];
 
 export default function IncompleteAssignmentRepairCenter({
   draft,
@@ -120,6 +120,21 @@ export default function IncompleteAssignmentRepairCenter({
     || repairCenterModel.questions[0]
     || null;
   const actualFocusedQuestionId = focusedRow?.questionId || '';
+  const validSelectedQuestionIds = useMemo(() => {
+    const available = new Set(questionIds);
+    return [...new Set(selectedQuestionIds.map(clean).filter((id) => available.has(id)))];
+  }, [selectedQuestionIds, questionIds]);
+  const validSelectedQuestionIdSet = useMemo(() => new Set(validSelectedQuestionIds), [validSelectedQuestionIds]);
+  const needsRepairQuestionIds = useMemo(() => allQuestionIds({
+    questions: repairCenterModel.questions.filter((row) => row.status === 'needsRepair'),
+  }), [repairCenterModel]);
+  const teacherFlaggedQuestionIds = useMemo(() => allQuestionIds({
+    questions: repairCenterModel.questions.filter((row) => row.isTeacherFlagged),
+  }), [repairCenterModel]);
+  const focusedSectionQuestionIds = useMemo(() => allQuestionIds({
+    questions: repairCenterModel.questions.filter((row) => row.sectionId === focusedRow?.sectionId),
+  }), [repairCenterModel, focusedRow?.sectionId]);
+  const draftAssignmentId = clean(assignmentV5?.assignment?.assignmentId) || clean(currentDraft?.id) || null;
 
   const pendingVerificationFlags = useMemo(() => {
     const explicit = new Set(verificationFlagIds);
@@ -145,10 +160,12 @@ export default function IncompleteAssignmentRepairCenter({
   };
 
   const toggleSelected = (questionId) => {
+    const normalizedQuestionId = clean(questionId);
+    if (!normalizedQuestionId || !questionIds.includes(normalizedQuestionId)) return;
     setSelectedQuestionIds((current) => (
-      current.includes(questionId)
-        ? current.filter((id) => id !== questionId)
-        : [...current, questionId]
+      current.includes(normalizedQuestionId)
+        ? current.filter((id) => id !== normalizedQuestionId)
+        : [...current, normalizedQuestionId]
     ));
   };
 
@@ -208,7 +225,7 @@ export default function IncompleteAssignmentRepairCenter({
   };
 
   const copySelectedRepairRequest = async () => {
-    if (!selectedQuestionIds.length) {
+    if (!validSelectedQuestionIds.length) {
       setMessage('Select at least one question before building a batch repair request.');
       return;
     }
@@ -217,12 +234,12 @@ export default function IncompleteAssignmentRepairCenter({
       const request = buildQuestionBatchRepairRequest({
         assignmentV5,
         repairCenterModel,
-        selectedQuestionIds,
-        assignmentId: assignmentV5?.assignment?.assignmentId,
+        selectedQuestionIds: validSelectedQuestionIds,
+        assignmentId: draftAssignmentId,
         baseRevision: revision,
       });
       await navigator.clipboard.writeText(request);
-      setMessage(`${selectedQuestionIds.length} selected question${selectedQuestionIds.length === 1 ? '' : 's'} copied as a compact repair request. The rest of the assignment was not included.`);
+      setMessage(`${validSelectedQuestionIds.length} selected question${validSelectedQuestionIds.length === 1 ? '' : 's'} copied as a compact repair request. The rest of the assignment was not included.`);
     } catch (error) {
       setMessage(error.message);
     }
@@ -253,15 +270,15 @@ export default function IncompleteAssignmentRepairCenter({
   };
 
   const stageBatch = () => {
-    if (!selectedQuestionIds.length) {
+    if (!validSelectedQuestionIds.length) {
       setMessage('Select the questions this batch reply is allowed to replace before pasting it.');
       return;
     }
     try {
       const parsedResponse = parseQuestionBatchRepairResponse(batchJson, {
-        expectedAssignmentId: assignmentV5?.assignment?.assignmentId || null,
+        expectedAssignmentId: draftAssignmentId,
         expectedBaseRevision: revision,
-        allowedQuestionIds: selectedQuestionIds,
+        allowedQuestionIds: validSelectedQuestionIds,
       });
       const staged = stageBatchQuestionRepairImport({
         assignmentV5,
@@ -441,6 +458,10 @@ export default function IncompleteAssignmentRepairCenter({
         Fix one question or a selected batch without replacing the assignment. Pasted AI output is staged first; MathMaster verifies the immutable questionId, shows the before/after changes, reruns Preflight, and only then enables Apply.
       </p>
 
+      <div style={{ marginTop: 10, padding: 10, borderRadius: 9, background: '#e8f0fe', color: '#174ea6', fontSize: 12.5, lineHeight: 1.45 }}>
+        <strong>Student preview available.</strong> The blocking issues below prevent Library publication, but a parseable V5 draft can still be opened in Student Preview / Review so you can inspect exactly what students would see while you repair it.
+      </div>
+
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 12, padding: 10, borderRadius: 9, background: '#fff', border: '1px solid #d9e2f1' }}>
         <span style={{ fontWeight: 900, fontSize: 12.5 }}>Blockers by what you can do about them:</span>
         <span style={{ fontSize: 12.5 }}><strong>{triage.summary.technicalBlockers}</strong> technical</span>
@@ -455,11 +476,11 @@ export default function IncompleteAssignmentRepairCenter({
       <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
         {repairCenterModel.questions.map((row) => {
           const focused = row.questionId === actualFocusedQuestionId;
-          const selected = selectedQuestionIds.includes(row.questionId);
+          const selected = validSelectedQuestionIdSet.has(clean(row.questionId));
           return (
             <article key={row.questionId || row.questionIndex} style={{ padding: 10, border: focused ? '2px solid #1a73e8' : '1px solid #d9e2f1', borderRadius: 8, background: '#fff' }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <input type="checkbox" checked={selected} onChange={() => toggleSelected(row.questionId)} aria-label={`Select question ${row.questionNumber} for batch repair`} />
+                <input type="checkbox" checked={selected} disabled={!clean(row.questionId)} onChange={() => toggleSelected(row.questionId)} aria-label={`Select question ${row.questionNumber} for batch repair`} />
                 <button type="button" onClick={() => setFocusedQuestionId(row.questionId)} style={{ flex: 1, textAlign: 'left', border: 0, background: 'transparent', padding: 0, cursor: 'pointer' }}>
                   <strong>Question {row.questionNumber} · {row.sectionTitle || row.sectionRole || row.sectionId}</strong>
                   <div style={{ marginTop: 2, color: '#5f6368', fontSize: 11 }}>Stable ID: <code>{row.questionId}</code> · status: {row.status}</div>
@@ -605,12 +626,15 @@ export default function IncompleteAssignmentRepairCenter({
       <fieldset style={{ marginTop: 14, padding: 12, border: '1px solid #d8dde6', borderRadius: 9 }}>
         <legend style={{ fontWeight: 900 }}>Outside-AI repair handoff</legend>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 9 }}>
+          <button type="button" onClick={() => setSelectedQuestionIds(needsRepairQuestionIds)} disabled={busy || !needsRepairQuestionIds.length} style={button}>Select questions needing repair</button>
+          <button type="button" onClick={() => setSelectedQuestionIds(teacherFlaggedQuestionIds)} disabled={busy || !teacherFlaggedQuestionIds.length} style={button}>Select teacher-flagged</button>
+          <button type="button" onClick={() => setSelectedQuestionIds(focusedSectionQuestionIds)} disabled={busy || !focusedSectionQuestionIds.length} style={button}>Select this section</button>
           <button type="button" onClick={() => setSelectedQuestionIds(questionIds)} disabled={busy || !questionIds.length} style={button}>Select all questions</button>
           <button type="button" onClick={() => setSelectedQuestionIds([])} disabled={busy} style={button}>Clear selection</button>
-          <button type="button" onClick={copySelectedRepairRequest} disabled={busy || !selectedQuestionIds.length} style={button}>Copy selected AI repair request</button>
+          <button type="button" onClick={copySelectedRepairRequest} disabled={busy || !validSelectedQuestionIds.length} style={button}>Copy selected AI repair request</button>
         </div>
         <div style={{ color: '#5f6368', fontSize: 11.5, marginBottom: 10 }}>
-          {selectedQuestionIds.length} selected. The request includes only those questions, their diagnostics, and teacher constraints—not the full assignment.
+          {validSelectedQuestionIds.length} selected. The request includes only those questions, their diagnostics, and teacher constraints—not the full assignment.
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
@@ -623,7 +647,7 @@ export default function IncompleteAssignmentRepairCenter({
           <label style={{ display: 'block', fontSize: 12.5, fontWeight: 900 }}>
             Paste batch repair JSON
             <textarea value={batchJson} onChange={(event) => setBatchJson(event.target.value)} placeholder="Paste the batch response for the selected questions here." style={{ ...textarea, marginTop: 6 }} />
-            <button type="button" onClick={stageBatch} disabled={busy || !selectedQuestionIds.length || !clean(batchJson)} style={{ ...button, marginTop: 8 }}>Stage batch repair</button>
+            <button type="button" onClick={stageBatch} disabled={busy || !validSelectedQuestionIds.length || !clean(batchJson)} style={{ ...button, marginTop: 8 }}>Stage batch repair</button>
           </label>
         </div>
       </fieldset>

@@ -173,6 +173,30 @@ test('parser accepts one batch JSON object and rejects replacements for question
   }), /not part of this repair request/i);
 });
 
+test('parser reattaches the selected immutable id when an outside AI omits it inside the repaired question', () => {
+  const parsed = parseQuestionBatchRepairResponse(JSON.stringify({
+    repairPacketVersion: 1,
+    assignmentId: 'assignment-17',
+    baseRevision: 12,
+    replacements: [{
+      questionId: 'q-wu-1',
+      question: {
+        type: 'algebra',
+        prompt: 'Repaired warm-up without duplicated platform metadata.',
+        answer: '1',
+      },
+    }],
+    platformIssues: [],
+    unclearIssues: [],
+  }), {
+    expectedAssignmentId: 'assignment-17',
+    expectedBaseRevision: 12,
+    allowedQuestionIds: ['q-wu-1'],
+  });
+
+  assert.equal(parsed.replacements[0].question.questionId, 'q-wu-1');
+});
+
 test('parser enforces assignment and base revision so a stale repair cannot overwrite a newer draft', () => {
   const response = JSON.stringify({
     repairPacketVersion: 1,

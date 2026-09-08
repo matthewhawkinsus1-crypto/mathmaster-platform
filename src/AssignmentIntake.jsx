@@ -111,6 +111,8 @@ export default function AssignmentIntake(props) {
       });
       if (result?.ok) {
         toastSuccess?.('Assignment Review opened', 'The repaired draft now passes the assignment checks. Finish the normal review before saving it to the Library or assigning it to a class.');
+      } else if (canSalvageV5IntakeResult(result) && result.previewOpened === true) {
+        toastInfo?.('Student Preview opened', `${result.errors?.length || 1} blocking issue${result.errors?.length === 1 ? '' : 's'} still prevent Library publication, but you can inspect the assignment exactly as a student while you repair it.`);
       } else if (canSalvageV5IntakeResult(result)) {
         toastInfo?.('This draft still needs repair', `${result.errors?.length || 1} blocking issue${result.errors?.length === 1 ? '' : 's'} remain. The saved draft is still safe in Incomplete Assignments.`);
       } else {
@@ -219,7 +221,7 @@ export default function AssignmentIntake(props) {
                         {repairOpen ? 'Close Repair Center' : 'Open Repair Center'}
                       </button>
                       <button type="button" disabled={busy} onClick={() => openDraftForReview(draft)} style={{ ...button, opacity: busy ? 0.6 : 1 }}>
-                        {busy ? 'Opening…' : 'Recheck / Open Review'}
+                        {busy ? 'Opening…' : 'Open Student Preview / Review'}
                       </button>
                       {blockingCount === 0 && draft.authoringState !== 'ready' && draft.authoringState !== 'published' && (
                         <button type="button" disabled={busy} onClick={() => completeFinalReview(draft)} style={{ ...button, borderColor: '#1e8e3e', color: '#1e8e3e', opacity: busy ? 0.6 : 1 }}>

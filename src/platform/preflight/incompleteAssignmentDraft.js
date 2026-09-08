@@ -1,3 +1,4 @@
+import { ensureAssignmentV5QuestionIds } from '../contract/assignmentSchemaV5.js';
 import { buildAssignmentV5PreflightModel } from './assignmentV5PreflightModel.js';
 import {
   AUTHORING_STATES,
@@ -16,6 +17,10 @@ const requireAssignmentV5 = (candidate, label = 'Assignment draft') => {
   }
   return candidate;
 };
+
+const withStableQuestionIds = (candidate, label = 'Assignment draft') => (
+  ensureAssignmentV5QuestionIds(requireAssignmentV5(candidate, label))
+);
 
 const countQuestions = (assignmentV5) => (
   (Array.isArray(assignmentV5?.sections) ? assignmentV5.sections : []).reduce(
@@ -52,7 +57,10 @@ export const restoreIncompleteAssignmentV5 = (record) => {
     throw new Error('This incomplete assignment draft contains corrupted saved V5 JSON.');
   }
 
-  return requireAssignmentV5(parsed, 'Saved incomplete assignment');
+  // Older drafts predate immutable question ids. Upgrade identity in memory on
+  // every open so the same saved JSON always receives the same IDs before
+  // Repair Center selection, flags, history, or AI packets use it.
+  return withStableQuestionIds(parsed, 'Saved incomplete assignment');
 };
 
 export const buildIncompleteAssignmentDraftRecord = ({
@@ -67,7 +75,7 @@ export const buildIncompleteAssignmentDraftRecord = ({
     throw new Error('Only parseable Assignment V5 validation failures can be saved as incomplete drafts.');
   }
 
-  const canonical = requireAssignmentV5(intakeResult.parsed.assignmentV5);
+  const canonical = withStableQuestionIds(intakeResult.parsed.assignmentV5);
   const model = buildAssignmentV5PreflightModel(canonical);
   const errors = uniqueStrings(model.errors?.length ? model.errors : intakeResult.errors);
   const warnings = uniqueStrings([...(model.warnings || []), ...(intakeResult.warnings || [])]);
@@ -123,7 +131,7 @@ export const markIncompleteDraftForReview = (
   repairedAssignmentV5,
   { nowIso = new Date().toISOString() } = {},
 ) => {
-  const canonical = requireAssignmentV5(repairedAssignmentV5, 'Repaired assignment');
+  const canonical = withStableQuestionIds(repairedAssignmentV5, 'Repaired assignment');
   const model = buildAssignmentV5PreflightModel(canonical);
   const errors = uniqueStrings(model.errors || []);
   const warnings = uniqueStrings(model.warnings || []);
@@ -248,7 +256,7 @@ export const applyIncompleteDraftRepairCommit = (
   committedRepair = {},
   { nowIso = new Date().toISOString() } = {},
 ) => {
-  const canonical = requireAssignmentV5(committedRepair?.assignmentV5, 'Committed repaired assignment');
+  const canonical = withStableQuestionIds(committedRepair?.assignmentV5, 'Committed repaired assignment');
   const currentRevision = revisionNumber(record?.assignmentRevision, 1);
   const committedRevision = revisionNumber(committedRepair?.committedRevision, null);
   if (committedRevision == null || committedRevision <= currentRevision) {
@@ -275,7 +283,7 @@ export const applyIncompleteDraftRepairCommit = (
 
   const beforeAssignmentV5 = (() => {
     try {
-      return JSON.parse(String(record?.authoringDraft?.canonicalJson || 'null'));
+      return restoreIncompleteAssignmentV5(record);
     } catch (error) {
       return null;
     }

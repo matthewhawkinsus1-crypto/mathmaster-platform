@@ -189,7 +189,10 @@ export const parseQuestionBatchRepairResponse = (responseText, {
       throw new Error(`The replacement for "${questionId}" contains a question whose questionId is "${innerId}".`);
     }
 
-    return { questionId, question };
+    // questionId belongs to MathMaster. Outside AIs are asked to echo it for
+    // clarity, but an otherwise valid repair should not lose identity merely
+    // because the AI omitted duplicated platform metadata inside the question.
+    return { questionId, question: { ...question, questionId } };
   });
 
   return {
