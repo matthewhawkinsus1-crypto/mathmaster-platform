@@ -16,6 +16,9 @@ import {
   getOpenFlaggedQuestionIds,
   parseUnifiedRepairUpload,
 } from './platform/preflight/libraryAssignmentRepairWorkspace.js';
+import { screenshotIdsInContext } from './platform/preflight/teacherReviewScreenshot.js';
+import { loadTeacherReviewScreenshot } from './platform/preflight/teacherReviewScreenshotStore.js';
+import { teacherFlagNeedsReview } from './platform/preflight/assignmentAuthoringState.js';
 
 const buttonStyle = {
   minHeight: 42,
@@ -66,6 +69,10 @@ export default function AssignmentQuestionEditor(props) {
   const uploadInputRef = useRef(null);
   const [repairOpen, setRepairOpen] = useState(false);
   const [teacherReviewContext, setTeacherReviewContext] = useState({ flags: [] });
+  // Images are fetched only when the Repair Center is actually open. They live
+  // in their own documents precisely so that reading a teacher's notes does not
+  // drag megabytes of base64 along with it.
+  const [screenshotsById, setScreenshotsById] = useState({});
   const [reviewLoading, setReviewLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -107,6 +114,25 @@ export default function AssignmentQuestionEditor(props) {
 
     return () => { cancelled = true; };
   }, [assignmentId]);
+
+  const openTeacherFlags = useMemo(() => (
+    (Array.isArray(teacherReviewContext?.flags) ? teacherReviewContext.flags : []).filter(teacherFlagNeedsReview)
+  ), [teacherReviewContext]);
+
+  useEffect(() => {
+    if (!repairOpen) return undefined;
+    let cancelled = false;
+    const wanted = screenshotIdsInContext(teacherReviewContext).filter((id) => !screenshotsById[id]);
+    if (!wanted.length) return undefined;
+    Promise.all(wanted.map((id) => loadTeacherReviewScreenshot(id).catch(() => null)))
+      .then((records) => {
+        if (cancelled) return;
+        const next = {};
+        records.filter(Boolean).forEach((record) => { next[record.id] = record; });
+        if (Object.keys(next).length) setScreenshotsById((current) => ({ ...current, ...next }));
+      });
+    return () => { cancelled = true; };
+  }, [repairOpen, teacherReviewContext, screenshotsById]);
 
   const openFlaggedQuestionIds = useMemo(() => (
     getOpenFlaggedQuestionIds({ assignmentV5, teacherReviewContext })
@@ -273,6 +299,45 @@ export default function AssignmentQuestionEditor(props) {
               ? 'Loading private teacher flags…'
               : `${openFlaggedQuestionIds.length} question${openFlaggedQuestionIds.length === 1 ? '' : 's'} currently covered by open teacher flags. Notes stay private and are included automatically.`}
           </p>
+
+          {/*
+            * The teacher's own evidence, shown where the repair happens.
+            *
+            * A note says what is wrong; the screenshot beside it shows the
+            * thing being described. Both are private to this teacher and both
+            * stay out of the assignment document students can read. The image
+            * is displayed here and deliberately never travels in the AI Fix
+            * Package: it cannot help a text repair, and one screenshot can
+            * dwarf the question JSON it belongs to.
+            */}
+          {openTeacherFlags.length > 0 && (
+            <div style={{ display: 'grid', gap: 8, margin: '0 0 14px' }}>
+              {openTeacherFlags.map((flag) => {
+                const shot = flag.screenshotId ? screenshotsById[flag.screenshotId] : null;
+                return (
+                  <div key={flag.id} style={{ padding: 10, border: '1px solid #d9e2f1', borderRadius: 9, background: '#fff' }}>
+                    <div style={{ fontSize: 11.5, fontWeight: 900, color: '#7a4f01' }}>
+                      {flag.scope === 'question' ? `Question ${flag.targetId}` : `${flag.scope} note`} · {flag.category || 'review'}
+                    </div>
+                    <div style={{ marginTop: 4, fontSize: 13, lineHeight: 1.45 }}>{flag.note || 'Teacher review requested'}</div>
+                    {flag.screenshotId && (
+                      shot
+                        ? (
+                          <a href={shot.dataUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 8 }}>
+                            <img
+                              src={shot.dataUrl}
+                              alt={`Teacher screenshot for ${flag.targetId || 'this assignment'}`}
+                              style={{ maxWidth: '100%', maxHeight: 220, borderRadius: 7, border: '1px solid #d9e2f1' }}
+                            />
+                          </a>
+                        )
+                        : <div style={{ marginTop: 6, fontSize: 11.5, color: '#5f6368' }}>Loading screenshot…</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
             <button

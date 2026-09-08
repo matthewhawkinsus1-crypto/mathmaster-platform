@@ -68,6 +68,10 @@ test('teacher can persist a question-specific review flag against the immutable 
     category: 'rendering',
     severity: 'needsEditing',
     note: 'The graph gives away the intercepts before the student answers.',
+    // Present from the first save rather than appearing once a teacher attaches
+    // evidence, so every reader sees one flag shape. The image itself lives in
+    // its own document; only the reference belongs here.
+    screenshotId: null,
     status: 'open',
     assignmentRevision: 12,
     potentiallyAddressedByRevision: null,

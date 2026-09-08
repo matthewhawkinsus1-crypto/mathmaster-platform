@@ -305,6 +305,29 @@ service cloud.firestore {
       );
     }
 
+    // Teacher review screenshots. Stored apart from both the assignment (which
+    // students can read) and the review context (which is capped at 1 MiB and
+    // read constantly), so the image never reaches a student and never bloats a
+    // note. Ownership is pinned on create and immutable on update, exactly as
+    // for the written notes these belong to.
+    match /assignmentReviewScreenshots/{screenshotId} {
+      allow create: if rootAdmin() || (
+        teacher()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.assignmentId is string
+      );
+      allow read, delete: if rootAdmin() || (
+        teacher()
+        && resource.data.ownerUid == request.auth.uid
+      );
+      allow update: if rootAdmin() || (
+        teacher()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.assignmentId == resource.data.assignmentId
+      );
+    }
+
     match /settings/{docId} {
       allow read: if signedIn();
       allow create, update, delete: if teacher();

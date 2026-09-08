@@ -13,6 +13,18 @@ import {
   loadAssignmentTeacherReviewContext,
   saveAssignmentTeacherReviewContext,
 } from '../../platform/preflight/assignmentQuestionReviewStore.js';
+import {
+  attachScreenshotToFlag,
+  detachScreenshotFromFlag,
+} from '../../platform/preflight/teacherReviewScreenshot.js';
+import {
+  deleteTeacherReviewScreenshot,
+  saveTeacherReviewScreenshot,
+} from '../../platform/preflight/teacherReviewScreenshotStore.js';
+import {
+  prepareScreenshotDataUrl,
+  screenshotFileFromPaste,
+} from '../../platform/preflight/teacherReviewScreenshotCapture.js';
 
 const panelStyle = {
   width: 'min(720px, calc(100vw - 24px))',
@@ -69,6 +81,9 @@ export default function TeacherQuestionReviewPanel({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [expanded, setExpanded] = useState(false);
+  // Held until the flag is saved, so the note and its evidence land together
+  // and a teacher never ends up with a picture attached to nothing.
+  const [pendingShot, setPendingShot] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,15 +142,89 @@ export default function TeacherQuestionReviewPanel({
       setMessage('Write the repair note before saving the flag.');
       return;
     }
-    const next = addTeacherReviewFlag(context, {
-      scope: 'question',
-      targetId: questionId,
-      category,
-      severity,
-      note: trimmed,
-    });
-    await persist(next, 'Teacher flag saved. It will remain open until you verify the fix.');
-    setNote('');
+    setBusy(true);
+    setMessage('Saving…');
+    try {
+      // The screenshot is written first so the flag can point at a row that
+      // exists. If this fails the flag is not saved either, and the teacher
+      // still has their typed note on screen to retry with.
+      let screenshotId = null;
+      if (pendingShot) {
+        const stored = await saveTeacherReviewScreenshot({
+          dataUrl: pendingShot,
+          assignmentId,
+          questionId,
+        });
+        screenshotId = stored.id;
+      }
+
+      const next = addTeacherReviewFlag(context, {
+        scope: 'question',
+        targetId: questionId,
+        category,
+        severity,
+        note: trimmed,
+        screenshotId,
+      });
+      const saved = await saveAssignmentTeacherReviewContext(assignmentId, next);
+      setContext(saved);
+      setNote('');
+      setPendingShot(null);
+      setMessage(screenshotId
+        ? 'Teacher flag saved with a screenshot. Both are visible in Repair Center and stay open until you verify the fix.'
+        : 'Teacher flag saved. It will remain open until you verify the fix.');
+    } catch (error) {
+      setMessage(error.message || 'Could not save the teacher flag.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const attachScreenshot = async (source) => {
+    if (!source) return;
+    setMessage('Preparing screenshot…');
+    try {
+      setPendingShot(await prepareScreenshotDataUrl(source));
+      setMessage('Screenshot ready. Write the note that says what is wrong, then save the flag.');
+    } catch (error) {
+      setMessage(error.message || 'Could not read that screenshot.');
+    }
+  };
+
+  const removeSavedScreenshot = async (flag) => {
+    setBusy(true);
+    try {
+      const next = detachScreenshotFromFlag(context, flag.id);
+      const saved = await saveAssignmentTeacherReviewContext(assignmentId, next);
+      setContext(saved);
+      // Only after the reference is gone, so a failure here leaves an unused
+      // row rather than a flag pointing at a screenshot that no longer exists.
+      await deleteTeacherReviewScreenshot(flag.screenshotId);
+      setMessage('Screenshot removed. Your written note is unchanged.');
+    } catch (error) {
+      setMessage(error.message || 'Could not remove that screenshot.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const replaceSavedScreenshot = async (flag, source) => {
+    if (!source) return;
+    setBusy(true);
+    setMessage('Preparing screenshot…');
+    try {
+      const dataUrl = await prepareScreenshotDataUrl(source);
+      const stored = await saveTeacherReviewScreenshot({ dataUrl, assignmentId, questionId, flagId: flag.id });
+      const next = attachScreenshotToFlag(context, flag.id, stored.id);
+      const saved = await saveAssignmentTeacherReviewContext(assignmentId, next);
+      setContext(saved);
+      if (flag.screenshotId) await deleteTeacherReviewScreenshot(flag.screenshotId);
+      setMessage('Screenshot replaced. Your written note is unchanged.');
+    } catch (error) {
+      setMessage(error.message || 'Could not replace that screenshot.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const verifyFixed = async (flagId) => {
@@ -189,6 +278,24 @@ export default function TeacherQuestionReviewPanel({
                 <div key={flag.id} style={{ padding: 9, border: '1px solid #d9e2f1', borderRadius: 8, background: flag.status === 'resolved' ? '#f1f3f4' : '#fff8e1' }}>
                   <div style={{ fontSize: 12, fontWeight: 900 }}>{flag.status === 'resolved' ? 'Resolved' : 'Needs editing'} · {flag.category || 'review'}</div>
                   <div style={{ marginTop: 3, fontSize: 12.5 }}>{flag.note || 'Teacher review requested'}</div>
+                  {flag.screenshotId && (
+                    <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11.5, color: '#5f6368' }}>📎 Screenshot attached · visible in Repair Center</span>
+                      <label style={{ ...buttonStyle, padding: '5px 9px', minHeight: 0, fontSize: 11.5, cursor: busy ? 'default' : 'pointer' }}>
+                        Replace
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={busy}
+                          onChange={(event) => replaceSavedScreenshot(flag, event.target.files?.[0])}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
+                      <button type="button" onClick={() => removeSavedScreenshot(flag)} disabled={busy} style={{ ...buttonStyle, padding: '5px 9px', minHeight: 0, fontSize: 11.5, color: '#a50e0e', borderColor: '#f1b6b2' }}>
+                        Remove
+                      </button>
+                    </div>
+                  )}
                   {teacherFlagNeedsReview(flag) && (
                     <button type="button" onClick={() => verifyFixed(flag.id)} disabled={busy} style={{ ...buttonStyle, marginTop: 7, color: '#137333', borderColor: '#81c995' }}>
                       Verify fixed
@@ -223,6 +330,46 @@ export default function TeacherQuestionReviewPanel({
             Repair note
             <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Describe exactly what needs to change on this question." style={{ display: 'block', width: '100%', minHeight: 72, boxSizing: 'border-box', marginTop: 4, padding: 8, border: '1px solid #bdc7d6', borderRadius: 7, fontFamily: 'inherit' }} />
           </label>
+          {/*
+            * Evidence, beside the words rather than instead of them. A picture
+            * of a collided graph label is instant to take and near-impossible
+            * to describe, but a screenshot alone gives a repairing AI nothing
+            * to act on — the note is what becomes the repair constraint, so the
+            * save button stays disabled until it is written.
+            */}
+          <div
+            onPaste={(event) => {
+              const file = screenshotFileFromPaste(event);
+              if (file) {
+                event.preventDefault();
+                attachScreenshot(file);
+              }
+            }}
+            style={{ marginTop: 8, padding: 8, border: '1px dashed #aecbfa', borderRadius: 8, background: '#fff' }}
+          >
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <label style={{ ...buttonStyle, minHeight: 0, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>
+                📷 Attach screenshot
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => attachScreenshot(event.target.files?.[0])}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              <span style={{ fontSize: 11.5, color: '#5f6368' }}>
+                {pendingShot ? 'Screenshot ready — save the flag to attach it.' : 'Or paste one here. Optional; the note is what the AI receives.'}
+              </span>
+              {pendingShot && (
+                <button type="button" onClick={() => setPendingShot(null)} style={{ ...buttonStyle, minHeight: 0, padding: '5px 9px', fontSize: 11.5, color: '#a50e0e', borderColor: '#f1b6b2' }}>
+                  Discard
+                </button>
+              )}
+            </div>
+            {pendingShot && (
+              <img src={pendingShot} alt="Screenshot to attach to this teacher note" style={{ marginTop: 8, maxWidth: '100%', maxHeight: 180, borderRadius: 6, border: '1px solid #d9e2f1' }} />
+            )}
+          </div>
           <button type="button" onClick={saveFlag} disabled={busy || !String(note || '').trim() || !questionId} style={{ ...buttonStyle, marginTop: 8, background: '#1a73e8', borderColor: '#1a73e8', color: '#fff', opacity: busy || !String(note || '').trim() || !questionId ? 0.55 : 1 }}>
             Save teacher flag
           </button>
