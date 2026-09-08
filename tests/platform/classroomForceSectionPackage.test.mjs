@@ -101,3 +101,9 @@ test('Classroom Manager sends the selected grade targets to force repost and ren
   assert.match(manager, /ClassroomForceRepublishPreview/);
   assert.match(manager, /selectedKeys=\{selectedClassroomSectionKeys\}/);
 });
+
+test('regular automatic Classroom publish forwards the authored V5 section package instead of collapsing to whole', () => {
+  const app = read('src/App.jsx');
+  assert.match(app, /classroomSectionKeysForAssignment/);
+  assert.match(app, /sectionKeys:\s*classroomSectionKeysForAssignment\(assignment\)/);
+});
