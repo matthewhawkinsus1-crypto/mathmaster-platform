@@ -367,6 +367,9 @@ const BEHAVIOR_CHOICES = [
 const featureGraph = (question) => ({
   ...(isObject(question.graph) ? question.graph : { xMin: -10, xMax: 10, yMin: -10, yMax: 10 }),
   points: normalizedPairs(question.pairs),
+  // Preserve the structured function. The workflow needs its family and domain
+  // to draw restrictions, continuation arrows and asymptotes correctly.
+  ...(isObject(question.functionSpec) ? { functionSpec: question.functionSpec } : {}),
   ...(typeof question.correctEquation === 'string' && question.correctEquation.trim()
     ? { model: question.correctEquation.trim() }
     : {}),

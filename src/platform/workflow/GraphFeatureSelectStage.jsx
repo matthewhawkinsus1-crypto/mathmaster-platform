@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import CoordinatePlane from '../../tools/shared/CoordinatePlane';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure';
 import { evaluateModelAt } from './modelExpression';
+import { restrictEvaluatorToDomain, workflowEndpointMarkers, workflowHorizontalAsymptotes } from './workflowGraphVisuals.js';
 
 /*
  * MARKING A NAMED FEATURE ON A GRAPH.
@@ -78,18 +79,28 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
     yMax: Number.isFinite(Number(graph.yMax)) ? Number(graph.yMax) : 10,
   };
 
-  // The curve the student is reading. A model expression is sampled; a bare
-  // list of points is drawn as points, which is correct for a discrete relation.
+  // Keep one unrestricted evaluator to compute exact boundary points, then
+  // restrict only the curve that is drawn.
   const model = typeof graph.model === 'string' ? graph.model.trim() : '';
-  const functions = useMemo(() => {
-    if (!model) return [];
+  const functionSpec = graph.functionSpec && typeof graph.functionSpec === 'object' ? graph.functionSpec : null;
+  const functionDomain = functionSpec?.domain || graph.domain || null;
+  const baseEvaluate = useMemo(() => {
+    if (!model) return null;
     const evaluate = (x) => {
       const y = evaluateModelAt(model, x);
       return Number.isFinite(y) ? y : Number.NaN;
     };
-    // An unevaluable model must not render as a flat line at zero.
-    return Number.isFinite(evaluate(viewWindow.xMin)) || Number.isFinite(evaluate(0)) ? [evaluate] : [];
+    return Number.isFinite(evaluate(viewWindow.xMin)) || Number.isFinite(evaluate(0)) ? evaluate : null;
   }, [model, viewWindow.xMin]);
+  const functions = useMemo(
+    () => (baseEvaluate ? [restrictEvaluatorToDomain(baseEvaluate, functionDomain)] : []),
+    [baseEvaluate, functionDomain],
+  );
+  const endpointMarkers = useMemo(
+    () => (baseEvaluate ? workflowEndpointMarkers({ evaluate: baseEvaluate, domain: functionDomain, viewWindow }) : []),
+    [baseEvaluate, functionDomain, viewWindow.xMin, viewWindow.xMax, viewWindow.yMin, viewWindow.yMax],
+  );
+  const asymptotes = useMemo(() => workflowHorizontalAsymptotes(functionSpec), [functionSpec]);
 
   const curvePoints = useMemo(
     () => (Array.isArray(graph.points) ? graph.points : []).map(normalizePoint).filter(Boolean),
@@ -146,8 +157,19 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
         {...viewWindow}
         // The graph the student is reading is drawn in blue; what they mark is
         // drawn in red, so a mark never reads as part of the figure.
-        points={[...curvePoints.map(([x, y]) => ({ x, y, fill: '#1a73e8', r: 5 })), ...marks]}
+        // Keep student marks first so onMovePoint(index) still indexes the
+        // student's selections. The curve's given points and endpoint markers
+        // are fixed visual annotations.
+        points={[
+          ...marks,
+          ...curvePoints.map(([x, y]) => ({ x, y, fill: '#1a73e8', r: 5, movable: false })),
+          ...endpointMarkers,
+        ]}
         functions={functions}
+        horizontalLines={[
+          ...(Array.isArray(graph.horizontalLines) ? graph.horizontalLines : []),
+          ...asymptotes,
+        ]}
         {...(!model && curvePoints.length > 1 && graph.connect !== false
           ? { polylines: [curvePoints] }
           : {})}

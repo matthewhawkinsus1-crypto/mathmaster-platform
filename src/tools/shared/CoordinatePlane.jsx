@@ -280,6 +280,7 @@ export default function CoordinatePlane({
     let best = null;
     let bestDistance = Infinity;
     points.forEach((point, index) => {
+      if (point?.movable === false || point?.marker) return;
       const [px, py] = pointXY(point);
       if (!Number.isFinite(px) || !Number.isFinite(py)) return;
       const distance = Math.hypot(sx(px) - sx(graphPoint[0]), sy(py) - sy(graphPoint[1]));
@@ -528,6 +529,44 @@ export default function CoordinatePlane({
           // its old coordinates makes the drag look broken until release.
           if (dragIndex === index && pointerPreview) [pointX, pointY] = pointerPreview;
           if (!Number.isFinite(pointX) || !Number.isFinite(pointY)) return null;
+
+          if (point?.marker === 'arrow') {
+            const vector = Array.isArray(point?.vector) ? point.vector : [1, 0];
+            const dx = Number(vector[0]);
+            const dy = Number(vector[1]);
+            const angle = Math.atan2(-dy, dx) * 180 / Math.PI;
+            const cx = sx(pointX);
+            const cy = sy(pointY);
+            const size = Math.max(8, pointRadius + 2);
+            return (
+              <polygon
+                key={`p${index}`}
+                points={`${cx},${cy} ${cx - size * 1.7},${cy - size * 0.72} ${cx - size * 1.7},${cy + size * 0.72}`}
+                transform={`rotate(${angle} ${cx} ${cy})`}
+                fill={pointFill}
+                stroke={pointFill}
+                strokeWidth="1.5"
+                pointerEvents="none"
+              />
+            );
+          }
+
+          if (point?.marker === 'open' || point?.marker === 'closed') {
+            const open = point?.marker === 'open';
+            return (
+              <circle
+                key={`p${index}`}
+                cx={sx(pointX)}
+                cy={sy(pointY)}
+                r={Math.max(7, pointRadius)}
+                fill={open ? '#fff' : pointFill}
+                stroke={pointFill}
+                strokeWidth="3"
+                pointerEvents="none"
+              />
+            );
+          }
+
           const held = dragIndex === index;
           return (
             <g key={`p${index}`} onPointerEnter={() => setHoveredPointIndex(index)} onPointerLeave={() => setHoveredPointIndex(null)}>

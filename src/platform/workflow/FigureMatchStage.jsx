@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import CoordinatePlane from '../../tools/shared/CoordinatePlane';
 import MathDisplay from '../../MathDisplay';
 import { evaluateModelAt } from './modelExpression';
+import { workflowEndpointMarkers } from './workflowGraphVisuals.js';
 import {
   buildFigureMatchResponse,
   figureLabel,
@@ -90,11 +91,18 @@ function FigureGraph({ graph, label }) {
     () => (Array.isArray(spec.points) ? spec.points : []).map(normalizePoint).filter(Boolean),
     [spec.points],
   );
+  const endpointMarkers = useMemo(
+    () => (functions.length ? workflowEndpointMarkers({ evaluate: functions[0], viewWindow }) : []),
+    [functions, viewWindow.xMin, viewWindow.xMax, viewWindow.yMin, viewWindow.yMax],
+  );
 
   return (
     <CoordinatePlane
       {...viewWindow}
-      points={points.map(([x, y]) => ({ x, y, fill: '#1a73e8', r: 5 }))}
+      points={[
+        ...points.map(([x, y]) => ({ x, y, fill: '#1a73e8', r: 5, movable: false })),
+        ...endpointMarkers,
+      ]}
       functions={functions}
       {...(!model && points.length > 1 && spec.connect !== false ? { polylines: [points] } : {})}
       revealCoordinates={false}
