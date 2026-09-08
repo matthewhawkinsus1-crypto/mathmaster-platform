@@ -24,8 +24,8 @@ jobs:
         with:
           node-version: 20
 
-      - name: Apply production patch
-        run: python3 scripts/apply-workflow-graph-end-behavior-fix.py
+      - name: Fix structured graph hook order
+        run: python3 scripts/fix-workflow-stage-hook-order.py
 
       - name: Verify targeted regression
         run: node --test tests/platform/workflowGraphEndBehavior.test.mjs
@@ -34,12 +34,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/platform/workflow/workflowGraphVisuals.js \
-                  src/platform/workflow/questionRecipes.js \
-                  src/platform/workflow/WorkflowRunner.jsx \
-                  src/platform/workflow/GraphFeatureSelectStage.jsx \
-                  src/platform/workflow/FigureMatchStage.jsx \
-                  src/tools/shared/CoordinatePlane.jsx
+          git add src/platform/workflow/WorkflowRunner.jsx
           git diff --cached --quiet && exit 0
-          git commit -m "Fix workflow graph endpoints arrows and asymptotes"
+          git commit -m "Keep structured graph branch hook-safe"
           git push origin HEAD:fix/workflow-graph-end-behavior
