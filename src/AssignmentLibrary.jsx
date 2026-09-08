@@ -1,32 +1,16 @@
 import { useMemo, useState } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
 import AssignmentLibraryBase from './AssignmentLibraryBase.jsx';
-import AssignmentQuestionEditor from './AssignmentQuestionEditor.jsx';
-import { db } from './firebase.js';
-import {
-  canonicalV5PersistencePatch,
-  storedAssignmentToV5,
-} from './platform/contract/storedAssignmentV5.js';
-import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 
 const clean = (value) => String(value ?? '').trim();
-const isUnassignedLibraryItem = (assignment) => (
-  (!Array.isArray(assignment?.assignedClassIds) || assignment.assignedClassIds.filter(Boolean).length === 0)
-  && (!Array.isArray(assignment?.assignedClassPeriods) || assignment.assignedClassPeriods.filter(Boolean).length === 0)
-);
-
-const revisionOf = (assignment) => {
-  const revision = Number(assignment?.assignmentRevision);
-  return Number.isFinite(revision) && revision >= 1 ? revision : 1;
-};
 
 /**
  * Library wrapper that makes Repair Center a first-class Library action.
  *
- * Unassigned reusable lessons can be repaired directly here because they have
- * no student history. Assigned/live lessons are intentionally routed back to
- * the Assignments workspace, whose existing save transaction protects attempts,
- * grades, evidence, and Google Classroom reconciliation.
+ * The Library does not decide whether an assignment is "safe to edit directly."
+ * A lesson can look unassigned today and still have historical student records.
+ * Every launch therefore routes to the normal Assignments workspace, where App
+ * already calculates authoritative live protection from assignment state plus
+ * student grade history before opening AssignmentQuestionEditor.
  */
 export default function AssignmentLibrary(props) {
   const {
@@ -38,56 +22,30 @@ export default function AssignmentLibrary(props) {
       .filter((assignment) => assignment?.id && Number(assignment?.schemaVersion) === 5)
       .sort((left, right) => clean(left.title).localeCompare(clean(right.title)))
   ), [assignments]);
-  const firstUnassignedId = repairChoices.find(isUnassignedLibraryItem)?.id || repairChoices[0]?.id || '';
   const [selectedRepairId, setSelectedRepairId] = useState('');
-  const [repairAssignment, setRepairAssignment] = useState(null);
   const [message, setMessage] = useState('');
 
-  const effectiveRepairId = selectedRepairId || firstUnassignedId;
+  const effectiveRepairId = selectedRepairId || repairChoices[0]?.id || '';
   const selectedAssignment = repairChoices.find((assignment) => assignment.id === effectiveRepairId) || null;
-  const selectedIsUnassigned = Boolean(selectedAssignment && isUnassignedLibraryItem(selectedAssignment));
 
   const openRepairCenter = () => {
     if (!selectedAssignment) {
       setMessage('There are no Assignment V5 lessons available in this Library view yet.');
       return;
     }
-    if (!selectedIsUnassigned) {
-      setMessage('This lesson is already assigned or has live delivery context. MathMaster is opening Assignments so the live-student repair protections stay active. Open its “Repair Center / Edit Questions” action there.');
-      onNavigateToAssignments?.({
-        folder: selectedAssignment.folder || '',
-        smartView: '',
-        search: selectedAssignment.title || '',
-        assignmentId: selectedAssignment.id,
-      });
+    if (typeof onNavigateToAssignments !== 'function') {
+      setMessage('MathMaster could not open the protected repair workflow from this screen. Open Assignments and choose “Repair Center / Edit Questions” for this lesson.');
       return;
     }
-    setMessage('');
-    setRepairAssignment(selectedAssignment);
-  };
 
-  const saveLibraryRepair = async ({ title, questions }) => {
-    if (!repairAssignment?.id) throw new Error('MathMaster lost the Library assignment being repaired. Close Repair Center and reopen it.');
-    if (!isUnassignedLibraryItem(repairAssignment)) {
-      throw new Error('This assignment is no longer an untouched Library template. Open it from Assignments so MathMaster can protect live student records.');
-    }
-
-    const candidateV5 = storedAssignmentToV5(repairAssignment, {
-      titleOverride: clean(title) || repairAssignment.title,
-      questions,
+    setMessage('Opening this lesson in the protected Assignments workflow. Use “Repair Center / Edit Questions” on the matching assignment.');
+    onNavigateToAssignments({
+      folder: selectedAssignment.folder || '',
+      smartView: '',
+      search: selectedAssignment.title || '',
+      assignmentId: selectedAssignment.id,
+      requestedAction: 'repairCenter',
     });
-    const model = buildAssignmentV5PreflightModel(candidateV5);
-    if (!model.isValid) {
-      throw new Error(`MathMaster refused to save this Library repair:\n${model.errors.join('\n')}`);
-    }
-
-    const nowIso = new Date().toISOString();
-    await updateDoc(doc(db, 'assignments', repairAssignment.id), {
-      ...canonicalV5PersistencePatch(model.assignmentV5),
-      assignmentRevision: revisionOf(repairAssignment) + 1,
-      updatedAt: nowIso,
-    });
-    setMessage('Library repairs saved. Teacher flags remain open until you verify the corrected questions in View as Student.');
   };
 
   return (
@@ -107,7 +65,7 @@ export default function AssignmentLibrary(props) {
           <div>
             <strong style={{ color: '#174ea6', fontSize: 16 }}>Library Repair Center</strong>
             <div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>
-              Open a saved Library lesson, copy all teacher flags into one AI Fix Package, then upload one repair JSON.
+              Choose any saved Library lesson. MathMaster opens its protected assignment view so teacher flags, AI repair uploads, and any existing student history use the same safe repair rules.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -120,7 +78,7 @@ export default function AssignmentLibrary(props) {
               {repairChoices.length === 0 && <option value="">No V5 Library assignments</option>}
               {repairChoices.map((assignment) => (
                 <option key={assignment.id} value={assignment.id}>
-                  {assignment.title || 'Untitled assignment'}{isUnassignedLibraryItem(assignment) ? ' · Library' : ' · Assigned/live'}
+                  {assignment.title || 'Untitled assignment'}
                 </option>
               ))}
             </select>
@@ -134,24 +92,10 @@ export default function AssignmentLibrary(props) {
             </button>
           </div>
         </div>
-        {selectedAssignment && !selectedIsUnassigned && (
-          <div style={{ marginTop: 8, color: '#7a4f00', fontSize: 11.5 }}>
-            This lesson has assignment/live context. Repair Center will route it through the protected Assignments workflow instead of editing student-facing data directly from Library.
-          </div>
-        )}
         {message && <div role="status" style={{ marginTop: 9, color: '#3c4043', fontSize: 12 }}>{message}</div>}
       </section>
 
       <AssignmentLibraryBase {...props} />
-
-      {repairAssignment && (
-        <AssignmentQuestionEditor
-          assignment={repairAssignment}
-          hasLiveProtection={false}
-          onSave={saveLibraryRepair}
-          onClose={() => setRepairAssignment(null)}
-        />
-      )}
     </>
   );
 }
