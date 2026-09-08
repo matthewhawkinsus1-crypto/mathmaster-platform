@@ -35,6 +35,18 @@ function requestedSectionKeys(requestData = {}) {
   return result.length ? result : ["whole"];
 }
 
+function automaticClassroomSectionKeys(assignment = {}) {
+  if (Number(assignment?.schemaVersion) !== 5 || !Array.isArray(assignment?.sections)) {
+    return ["whole"];
+  }
+
+  const splitKeys = PUBLICATION_SECTION_KEYS
+    .filter((sectionKey) => sectionKey !== "whole")
+    .filter((sectionKey) => runtimeIncludedQuestionIndicesForSection(assignment, sectionKey).length > 0);
+
+  return splitKeys.length ? splitKeys : ["whole"];
+}
+
 function sectionTitle(baseTitle, sectionKey) {
   const cleanTitle = String(baseTitle || "MathMaster Assignment").trim() || "MathMaster Assignment";
   return sectionKey === "whole"
@@ -107,6 +119,7 @@ function classroomPublicationTargets({
 module.exports = {
   SECTION_GRADING,
   requestedSectionKeys,
+  automaticClassroomSectionKeys,
   sectionTitle,
   sectionInstructions,
   classroomPublicationSpecs,
