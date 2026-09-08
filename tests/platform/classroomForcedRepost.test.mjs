@@ -44,7 +44,15 @@ test('browser exposes exact destination selection and an explicit duplicate warn
 
   assert.match(api, /forceRepublishAssignmentToClassrooms = call\("forceRepublishAssignmentToClassrooms"\)/);
   assert.match(manager, /selectedCourseIds/);
-  assert.match(manager, /FORCE A NEW GOOGLE CLASSROOM POST/);
+  // The heading pluralises now that one force can create several section
+  // posts, so this matches the capability rather than the exact wording. What
+  // must not disappear is the confirmation itself.
+  assert.match(manager, /FORCE NEW GOOGLE CLASSROOM POST|FORCE A NEW GOOGLE CLASSROOM POST/,
+    'forcing a new post must be confirmed explicitly, since it deliberately bypasses duplicate protection');
+  assert.match(manager, /brand-new graded post/,
+    'the teacher must be told these are new graded posts, not edits to existing ones');
+  assert.match(manager, /\$\{totalPosts\}/,
+    'the confirmation must state HOW MANY posts will be created; a section selection can now create four per course, and "a new post" would understate it');
   assert.match(manager, /students may see both/);
   assert.match(manager, /Force NEW post to selected Classroom/);
   assert.match(manager, /grade-passback destination/);

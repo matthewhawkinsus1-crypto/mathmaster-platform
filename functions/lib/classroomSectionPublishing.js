@@ -10,6 +10,12 @@ const {
 } = require("./assignmentRuntime");
 
 const PUBLICATION_SECTION_SET = new Set(PUBLICATION_SECTION_KEYS);
+const SECTION_GRADING = Object.freeze({
+  warmup: Object.freeze({ maxPoints: 5, gradingMode: "engagement" }),
+  classwork: Object.freeze({ maxPoints: 100, gradingMode: "accuracy" }),
+  practice: Object.freeze({ maxPoints: 100, gradingMode: "accuracyWithRecovery" }),
+  dol: Object.freeze({ maxPoints: 100, gradingMode: "accuracy" }),
+});
 
 function requestedSectionKeys(requestData = {}) {
   const raw = Array.isArray(requestData?.sectionKeys) && requestData.sectionKeys.length
@@ -29,24 +35,38 @@ function requestedSectionKeys(requestData = {}) {
   return result.length ? result : ["whole"];
 }
 
+function automaticClassroomSectionKeys(assignment = {}) {
+  if (Number(assignment?.schemaVersion) !== 5 || !Array.isArray(assignment?.sections)) {
+    return ["whole"];
+  }
+
+  const splitKeys = PUBLICATION_SECTION_KEYS
+    .filter((sectionKey) => sectionKey !== "whole")
+    .filter((sectionKey) => runtimeIncludedQuestionIndicesForSection(assignment, sectionKey).length > 0);
+
+  return splitKeys.length ? splitKeys : ["whole"];
+}
+
 function sectionTitle(baseTitle, sectionKey) {
   const cleanTitle = String(baseTitle || "MathMaster Assignment").trim() || "MathMaster Assignment";
   return sectionKey === "whole"
     ? cleanTitle
-    : `${cleanTitle} — ${publicationSectionLabel(sectionKey)}`;
+    : `${publicationSectionLabel(sectionKey)} — ${cleanTitle}`;
 }
 
 function sectionInstructions(baseInstructions, title, sectionKey) {
   const clean = String(baseInstructions || "").trim();
-  const primary = clean || `Complete "${title}" in MathMaster.`;
-  if (sectionKey === "whole") return primary;
-  return `${primary}\n\nThis Google Classroom grade represents the ${publicationSectionLabel(sectionKey)} section only.`;
+  if (sectionKey === "whole") {
+    return clean || `Complete "${title}" in MathMaster.`;
+  }
+  return `Complete the ${publicationSectionLabel(sectionKey)} in MathMaster.`;
 }
 
 function classroomPublicationSpecs({ assignment = {}, requestData = {} } = {}) {
   const keys = requestedSectionKeys(requestData);
   const baseTitle = String(requestData.classroomTitle || assignment.title || "MathMaster Assignment").trim();
   const publishAt = assignment.releaseAt || null;
+  const wholePoints = Number(requestData.maxPoints);
 
   return keys.map((sectionKey) => {
     const questionIndices = runtimeIncludedQuestionIndicesForSection(assignment, sectionKey);
@@ -56,6 +76,7 @@ function classroomPublicationSpecs({ assignment = {}, requestData = {} } = {}) {
       );
     }
     const title = sectionTitle(baseTitle, sectionKey);
+    const sectionGrading = SECTION_GRADING[sectionKey] || null;
     return {
       sectionKey,
       sectionLabel: publicationSectionLabel(sectionKey),
@@ -63,6 +84,9 @@ function classroomPublicationSpecs({ assignment = {}, requestData = {} } = {}) {
       title,
       instructions: sectionInstructions(requestData.instructions, title, sectionKey),
       publishAt,
+      maxPoints: sectionGrading?.maxPoints
+        ?? (Number.isFinite(wholePoints) && wholePoints > 0 ? wholePoints : 100),
+      gradingMode: sectionGrading?.gradingMode || "composite",
     };
   });
 }
@@ -93,7 +117,9 @@ function classroomPublicationTargets({
 }
 
 module.exports = {
+  SECTION_GRADING,
   requestedSectionKeys,
+  automaticClassroomSectionKeys,
   sectionTitle,
   sectionInstructions,
   classroomPublicationSpecs,

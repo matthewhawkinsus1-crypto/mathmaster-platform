@@ -35,6 +35,7 @@ import {
 } from './classroomRosterMatching';
 import { blobToBase64, generateLessonNotesPdfBlob, notesPdfSummary } from './platform/resources/lessonNotesPdf';
 import ClassroomSectionGradeSelector from './components/ClassroomSectionGradeSelector';
+import ClassroomForceRepublishPreview from './components/ClassroomForceRepublishPreview';
 import {
   gradeSyncStudentDisplay,
   gradeSyncStatusLabel,
@@ -518,12 +519,14 @@ export default function ClassroomManagerV2({
     const selectedNames = courses
       .filter((course) => selectedCourseIds.includes(String(course.id)))
       .map((course) => courseLabel(course));
+    const postsPerCourse = selectedClassroomSectionKeys.includes('whole') ? 1 : selectedClassroomSectionKeys.length;
+    const totalPosts = postsPerCourse * selectedCourseIds.length;
     const confirmed = window.confirm(
-      'FORCE A NEW GOOGLE CLASSROOM POST?\n\n'
-      + 'MathMaster will create a brand-new assignment post even if an older post still exists.\n\n'
+      'FORCE NEW GOOGLE CLASSROOM POST' + (totalPosts === 1 ? '?' : 'S?') + '\n\n'
+      + `MathMaster will create ${totalPosts} brand-new graded post${totalPosts === 1 ? '' : 's'} using the preview shown below, even if older posts still exist.\n\n`
       + 'Selected: ' + (selectedNames.join(', ') || selectedCourseIds.join(', ')) + '\n\n'
-      + 'Student MathMaster progress will NOT be reset. Grade passback will move to the newly created post. '
-      + 'If Google is already showing the old post, students may see both.'
+      + 'Student MathMaster progress will NOT be reset. Each new post becomes the grade-passback destination for the section it represents. '
+      + 'If Google is already showing an old post, students may see both.'
     );
     if (!confirmed) return;
 
@@ -531,6 +534,7 @@ export default function ClassroomManagerV2({
     const response = await forceRepublishAssignmentToClassrooms({
       assignmentId: selectedAssignment.id,
       courseIds: selectedCourseIds,
+      sectionKeys: selectedClassroomSectionKeys,
       forceRequestId: typeof globalThis.crypto?.randomUUID === 'function'
         ? globalThis.crypto.randomUUID()
         : 'force-' + Date.now() + '-' + Math.random().toString(36).slice(2),
@@ -549,17 +553,17 @@ export default function ClassroomManagerV2({
     if (!created && failed) {
       const details = (response?.results || [])
         .filter((item) => item.status === 'failed')
-        .map((item) => (item.courseName || item.courseId) + ': ' + (item.error || 'failed'))
+        .map((item) => `${item.sectionLabel ? `${item.sectionLabel} · ` : ''}${item.courseName || item.courseId}: ${item.error || 'failed'}`)
         .join(' | ');
       throw new Error(details || 'Google Classroom did not create the forced repost.');
     }
 
     setStatus(
-      'Forced ' + created + ' new Classroom assignment post' + (created === 1 ? '' : 's')
-      + ' and made the new post the grade-passback destination. Queued '
-      + queuedGrades + ' linked student grade record' + (queuedGrades === 1 ? '' : 's')
+      'Forced ' + created + ' new Classroom graded post' + (created === 1 ? '' : 's')
+      + ' and made each new post the grade-passback destination for its represented section. Queued '
+      + queuedGrades + ' student grade record' + (queuedGrades === 1 ? '' : 's')
       + ' for passback review.'
-      + (failed ? ' ' + failed + ' selected destination' + (failed === 1 ? '' : 's') + ' failed.' : '')
+      + (failed ? ' ' + failed + ' selected post' + (failed === 1 ? '' : 's') + ' failed.' : '')
     );
     setLinks((await listPublishedAssignments()).links || []);
     setGradeSyncs((await listClassroomGradeSyncs()).syncs || []);
@@ -900,8 +904,19 @@ export default function ClassroomManagerV2({
           <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 10, background: '#fff4ce', border: '2px solid #f9ab00', color: '#5f4400' }}>
             <strong>Post missing but MathMaster says it exists?</strong>
             <div style={{ marginTop: 5, fontSize: 12, lineHeight: 1.5 }}>
-              Select the exact Google Classroom course(s) above, then force a new post. This intentionally bypasses duplicate protection. Your MathMaster assignment and student progress stay intact; the newly created post becomes the grade-passback destination.
+              Select the exact Google Classroom course(s) and grade target(s) above. The preview below is what Force NEW post will create. This intentionally bypasses duplicate protection. Your MathMaster assignment and student progress stay intact; each newly created post becomes the grade-passback destination for the section it represents.
             </div>
+            {selectedAssignment && (
+              <ClassroomForceRepublishPreview
+                assignment={selectedAssignment}
+                selectedKeys={selectedClassroomSectionKeys}
+                classroomTitle={selectedAssignment.classroomPackage?.assignmentPost?.title || selectedAssignment.title}
+                instructions={instructions}
+                selectedCourseNames={courses
+                  .filter((course) => selectedCourseIds.includes(String(course.id)))
+                  .map((course) => courseLabel(course))}
+              />
+            )}
             <button
               style={{ ...danger, marginTop: 10, background: '#fff', borderColor: '#b06000', color: '#8a4b00' }}
               disabled={busy || !selectedAssignment || !selectedCourseIds.length}
