@@ -10,7 +10,10 @@ const root = path.resolve(here, '../..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 const require = createRequire(import.meta.url);
 
-const { classroomPublicationSpecs } = require('../../functions/lib/classroomSectionPublishing.js');
+const {
+  classroomPublicationSpecs,
+  automaticClassroomSectionKeys,
+} = require('../../functions/lib/classroomSectionPublishing.js');
 const uiModule = await import(pathToFileURL(path.join(root, 'src/classroomSectionPublishingUi.js')).href);
 
 test('selected section publication content is section-first and concise', () => {
@@ -102,8 +105,24 @@ test('Classroom Manager sends the selected grade targets to force repost and ren
   assert.match(manager, /selectedKeys=\{selectedClassroomSectionKeys\}/);
 });
 
-test('regular automatic Classroom publish forwards the authored V5 section package instead of collapsing to whole', () => {
-  const app = read('src/App.jsx');
-  assert.match(app, /classroomSectionKeysForAssignment/);
-  assert.match(app, /sectionKeys:\s*classroomSectionKeysForAssignment\(assignment\)/);
+test('regular automatic Classroom publish defaults an omitted V5 selection to every authored grading section', () => {
+  assert.equal(typeof automaticClassroomSectionKeys, 'function');
+  assert.deepEqual(
+    automaticClassroomSectionKeys({
+      schemaVersion: 5,
+      sections: [
+        { role: 'warmup', questions: [{ id: 'w1' }] },
+        { role: 'classwork', questions: [{ id: 'c1' }] },
+        { role: 'practice', questions: [{ id: 'p1' }] },
+        { role: 'dol', questions: [{ id: 'd1' }] },
+      ],
+    }),
+    ['warmup', 'classwork', 'practice', 'dol'],
+  );
+  assert.deepEqual(automaticClassroomSectionKeys({ schemaVersion: 4 }), ['whole']);
+
+  const entry = read('functions/platformEntry.js');
+  assert.match(entry, /withAutomaticV5SectionKeys/);
+  assert.match(entry, /automaticClassroomSectionKeys/);
+  assert.match(entry, /publishAssignmentSectionsHandler\(routedRequest\)/);
 });
