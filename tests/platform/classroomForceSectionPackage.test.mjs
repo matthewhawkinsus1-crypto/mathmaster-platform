@@ -85,6 +85,15 @@ test('platform entry routes split force requests without replacing the legacy wh
   assert.match(entry, /return legacyForceRepublishAssignmentToClassrooms\.run\(request\)/);
 });
 
+test('forced section repost keeps section identity and explicitly resends grades to the replacement CourseWork', () => {
+  const forceEntry = read('functions/classroomSectionForceEntry.js');
+  assert.match(forceEntry, /forcePublicationInstanceMarker\(forceRequestId, target\.publicationId\)/);
+  assert.match(forceEntry, /findCourseWorkByPublicationMarker[\s\S]*?\[instanceMarker\]/);
+  assert.match(forceEntry, /sectionGradePassbackEnabled:\s*gradePassbackEnabled !== false/);
+  assert.match(forceEntry, /supersededCourseworkIds\s*=\s*FieldValue\.arrayUnion/);
+  assert.match(forceEntry, /reason:\s*"manual-retry"/);
+});
+
 test('Classroom Manager sends the selected grade targets to force repost and renders the force preview', () => {
   const manager = read('src/ClassroomManagerV2.jsx');
   const forceHandler = manager.match(/const handleForceRepublish[\s\S]*?const handlePublishMaterial/)?.[0] || '';
