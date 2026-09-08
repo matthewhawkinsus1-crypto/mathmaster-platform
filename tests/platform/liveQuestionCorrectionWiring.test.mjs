@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { assignmentQuestionEditorSource } from './helpers/splitComponentSource.mjs';
 
 const app = fs.readFileSync('src/App.jsx', 'utf8');
 
@@ -55,7 +56,7 @@ test('automatic grader repair is monotonic and does not require another student 
 });
 
 test('question editor exposes one-action Safe Live Repair Pack import and immediate transactional save', () => {
-  const editor = fs.readFileSync('src/AssignmentQuestionEditor.jsx', 'utf8');
+  const editor = assignmentQuestionEditorSource();
   assert.match(editor, /Import Safe Repair Pack/);
   assert.match(editor, /accept=".json,application\/json"/);
   assert.match(editor, /prepareSafeLiveRepairPack/);

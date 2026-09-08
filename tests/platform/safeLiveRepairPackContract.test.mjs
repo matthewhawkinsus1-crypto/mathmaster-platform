@@ -7,6 +7,7 @@ import {
   buildSafeLiveRepairPackRequest,
 } from '../../src/platform/contract/safeLiveRepairPackContract.js';
 import { buildAuthoringContract } from '../../src/platform/contract/authoringContract.js';
+import { assignmentQuestionEditorSource } from './helpers/splitComponentSource.mjs';
 
 const liveQuestion = {
   questionId: 'q-live-1',
@@ -53,7 +54,7 @@ test('standard Assignment V5 authoring contract routes live-history repairs to t
 });
 
 test('live assignment editor exposes copy-prompt and import actions together', async () => {
-  const source = await readFile(new URL('../../src/AssignmentQuestionEditor.jsx', import.meta.url), 'utf8');
+  const source = assignmentQuestionEditorSource();
   assert.match(source, /buildSafeLiveRepairPackRequest/);
   assert.match(source, /Copy Safe Repair Pack Prompt/);
   assert.match(source, /Import Safe Repair Pack/);

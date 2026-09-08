@@ -13,13 +13,14 @@ import {
   splitClassPeriodsByRigor,
 } from '../../src/platform/rigor/courseRigor.js';
 import { createDemoSeed, DEMO_STORAGE_KEY } from '../../src/demo/demoExperienceData.js';
+import { assignmentLibrarySource } from './helpers/splitComponentSource.mjs';
 
 const require = createRequire(import.meta.url);
 const serverRigor = require('../../functions/lib/rigorPolicy.js');
 const appSource = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const sidebarSource = readFileSync(new URL('../../src/TeacherSidebar.jsx', import.meta.url), 'utf8');
 const adminUiSource = readFileSync(new URL('../../src/SignInAccess.jsx', import.meta.url), 'utf8');
-const librarySource = readFileSync(new URL('../../src/AssignmentLibrary.jsx', import.meta.url), 'utf8');
+const librarySource = assignmentLibrarySource();
 const functionsSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
 const firestoreRules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
 

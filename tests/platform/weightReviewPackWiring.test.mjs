@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { assignmentQuestionEditorSource } from './helpers/splitComponentSource.mjs';
 
-const editor = fs.readFileSync('src/AssignmentQuestionEditor.jsx', 'utf8');
+const editor = assignmentQuestionEditorSource();
 const pack = fs.readFileSync('src/platform/grading/weightReviewPack.js', 'utf8');
 
 test('question editor exposes portable AI weight review copy and paste controls', () => {

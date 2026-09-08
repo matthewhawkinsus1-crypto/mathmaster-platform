@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { assignmentQuestionEditorSource } from './helpers/splitComponentSource.mjs';
 
 const app = fs.readFileSync('src/App.jsx', 'utf8');
-const editor = fs.readFileSync('src/AssignmentQuestionEditor.jsx', 'utf8');
+const editor = assignmentQuestionEditorSource();
 const engine = fs.readFileSync('src/QuestionEngine.jsx', 'utf8');
 const functionsIndex = fs.readFileSync('functions/index.js', 'utf8');
 
