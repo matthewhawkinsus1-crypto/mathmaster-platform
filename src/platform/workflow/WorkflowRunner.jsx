@@ -23,6 +23,7 @@ import { buildStudentTableMagneticTargets } from '../../graphInteractionPrecisio
 import { buildWorkflowSummaryItems, shouldUseWorkflowFocusMode, summarizeStageResponse } from './workflowFocusMode';
 import { stageFamily, stageFamilyLabel } from './stageFamilies';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
+import { workflowEndpointMarkers } from './workflowGraphVisuals.js';
 import './WorkflowFocusMode.css';
 
 // Renders a question composed from interaction primitives.
@@ -218,6 +219,15 @@ function ChoicePreviewGraph({ stage, value }) {
 
   const figures = previewFigures(value);
   const given = Array.isArray(graph.points) ? graph.points : [];
+  const viewWindow = {
+    xMin: Number.isFinite(Number(graph.xMin)) ? Number(graph.xMin) : -10,
+    xMax: Number.isFinite(Number(graph.xMax)) ? Number(graph.xMax) : 10,
+    yMin: Number.isFinite(Number(graph.yMin)) ? Number(graph.yMin) : -10,
+    yMax: Number.isFinite(Number(graph.yMax)) ? Number(graph.yMax) : 10,
+  };
+  const endpointMarkers = functions.length
+    ? workflowEndpointMarkers({ evaluate: functions[0], viewWindow })
+    : [];
 
   return (
     <div style={{ marginBottom: 12 }}>
@@ -227,7 +237,7 @@ function ChoicePreviewGraph({ stage, value }) {
         yMin={Number.isFinite(Number(graph.yMin)) ? Number(graph.yMin) : -10}
         yMax={Number.isFinite(Number(graph.yMax)) ? Number(graph.yMax) : 10}
         functions={functions}
-        points={[...given, ...figures.points]}
+        points={[...given, ...figures.points, ...endpointMarkers]}
         lines={figures.lines}
         verticalLines={figures.verticalLines}
         horizontalLines={figures.horizontalLines}
@@ -255,6 +265,8 @@ function ChoicePreviewGraph({ stage, value }) {
  */
 function StageFigure({ graph, label }) {
   const spec = isObject(graph) ? graph : {};
+  const structuredFunction = staticGraphSpec(spec.functionSpec);
+
   const model = typeof spec.model === 'string' ? spec.model.trim() : '';
   const functions = useMemo(() => {
     if (!model) return [];
@@ -265,6 +277,28 @@ function StageFigure({ graph, label }) {
     return Number.isFinite(evaluate(0)) || Number.isFinite(evaluate(1)) ? [evaluate] : [];
   }, [model]);
   const points = Array.isArray(spec.points) ? spec.points : [];
+
+  // Function-characteristics used to throw away functionSpec and sample only
+  // the equation string. That made a restricted function look unrestricted.
+  // The canonical static renderer already owns domain clipping, endpoint
+  // circles, continuation arrows, and automatic asymptotes, so structured
+  // workflow graphs delegate to it instead of reimplementing those rules.
+  if (structuredFunction) {
+    const displayGraph = {
+      ...spec,
+      functions: [structuredFunction],
+      points: Array.isArray(spec.points) ? spec.points : [],
+      ariaLabel: label || spec.ariaLabel || 'Graph',
+    };
+    delete displayGraph.model;
+    delete displayGraph.functionSpec;
+    delete displayGraph.endpointRequirements;
+    return (
+      <div style={{ marginBottom: 12 }}>
+        <GraphDisplay graph={displayGraph} title={label || 'Graph'} />
+      </div>
+    );
+  }
   if (!functions.length && !points.length) return null;
   return (
     <div style={{ marginBottom: 12 }}>
