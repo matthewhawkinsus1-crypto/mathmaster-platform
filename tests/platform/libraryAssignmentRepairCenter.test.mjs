@@ -134,7 +134,7 @@ test('batch upload is accepted and an unflagged replacement is refused', () => {
   }), /not part of this repair request/i);
 });
 
-test('repair workspace source exposes the teacher-facing one-click controls', async () => {
+test('repair workspace source exposes the teacher-facing one-click controls and routes Library repairs through protected assignment flow', async () => {
   const { readFile } = await import('node:fs/promises');
   const editorSource = await readFile(new URL('../../src/AssignmentQuestionEditor.jsx', import.meta.url), 'utf8');
   const librarySource = await readFile(new URL('../../src/AssignmentLibrary.jsx', import.meta.url), 'utf8');
@@ -144,4 +144,7 @@ test('repair workspace source exposes the teacher-facing one-click controls', as
   assert.match(editorSource, /type=["']file["']/);
   assert.match(editorSource, /Apply Repairs/);
   assert.match(librarySource, /Repair Center/);
+  assert.match(librarySource, /onNavigateToAssignments/);
+  assert.doesNotMatch(librarySource, /updateDoc\s*\(/);
+  assert.doesNotMatch(librarySource, /hasLiveProtection=\{false\}/);
 });
