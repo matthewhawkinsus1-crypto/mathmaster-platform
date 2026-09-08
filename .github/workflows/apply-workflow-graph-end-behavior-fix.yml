@@ -25,7 +25,7 @@ jobs:
           node-version: 20
 
       - name: Apply production patch
-        run: node scripts/apply-workflow-graph-end-behavior-fix.mjs
+        run: python3 scripts/apply-workflow-graph-end-behavior-fix.py
 
       - name: Verify targeted regression
         run: node --test tests/platform/workflowGraphEndBehavior.test.mjs
