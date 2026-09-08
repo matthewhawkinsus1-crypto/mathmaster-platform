@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { clientPointToGraphCoordinate } from '../../utils/responsiveCoordinates.js';
 import { resolvePointFill, resolvePointRadius } from '../../graphSpecUtils';
 import { readGraphPointCoordinates } from '../../graphPointUtils';
@@ -13,8 +13,9 @@ const MAX_TICKS = 200;
 // being countable squares and just grey the plot out, so we drop them.
 const MAX_MINOR_LINES = 90;
 
-// Square, and at the touch minimum. A zoom control small enough to miss is a
-// zoom control that makes aiming worse, which is the problem it is here to fix.
+// Square, and at the touch minimum. Zoom is intentionally button-driven. Mouse
+// wheel and browser pinch belong to page navigation/magnification and must never
+// silently rewrite the mathematical coordinate window.
 const ZOOM_BUTTON = {
   minWidth: 44,
   minHeight: 44,
@@ -121,14 +122,17 @@ export default function CoordinatePlane({
   // have to close before you can submit. Tools whose plane is interactive wrap
   // their whole split instead, so the controls come with it.
   enlargeable = true,
-  // Pan and zoom. Null means "decide from context": a plane a student plots on
-  // gets it, a read-only figure does not — a static graph is already framed the
-  // way its author intended and moving it only loses that framing.
+  // Intentional mathematical viewport zoom. Null means decide from context: a
+  // plotting plane gets visible +/- controls, while a read-only figure normally
+  // keeps its authored frame. Crucially, this permission applies only to those
+  // explicit controls. Mouse wheel, trackpad scroll, and browser pinch remain
+  // native page/browser gestures and never mutate xMin/xMax/yMin/yMax.
   panZoom = null,
   // Something that changes when the QUESTION changes. Needed because the tool
   // is not remounted between questions, and resetting on the bound values alone
   // misses the common case of two questions sharing a window: a student who
-  // zoomed into a corner on one would arrive already zoomed into the next.
+  // intentionally zoomed with the buttons on one should not arrive zoomed into
+  // the next.
   viewResetKey = null,
   children,
 }) {
@@ -137,33 +141,6 @@ export default function CoordinatePlane({
   const innerH = height - pad * 2;
   const interactive = typeof onPlot === 'function';
 
-  /*
-   * PAN AND ZOOM, WITHOUT STEALING THE PLOTTING FINGER.
-   *
-   * The reason this exists is a measurement: on a 390px phone the embedded plane
-   * is 310px and enlarging it reaches 348px, because there is simply no more
-   * room in portrait. Twelve percent does not make a target the width of a
-   * fingertip any easier to hit. Being able to zoom in on the part of the plane
-   * that matters does.
-   *
-   * THE GESTURE BUDGET IS THE WHOLE DESIGN PROBLEM. One finger already means
-   * "place a point", and that must not change — it is the gesture students
-   * learn first and use most. So:
-   *
-   *   one finger      place or drag a point   (unchanged)
-   *   two fingers     pinch to zoom, slide to pan
-   *   wheel           zoom about the cursor   (desktop)
-   *   buttons         zoom in, zoom out, reset
-   *
-   * The buttons are not a fallback, they are the primary path for anyone who
-   * cannot make a two-finger gesture — a trackpad user, someone using a
-   * switch, a student with one hand on a bus. Everything reachable by pinch is
-   * reachable by button.
-   *
-   * The view is a WINDOW ONTO the authored domain, never a replacement for it:
-   * a plotted point is still clamped to the domain the question defined, so
-   * zooming out past the axes cannot be used to answer outside them.
-   */
   const domain = { xMin: domainXMin, xMax: domainXMax, yMin: domainYMin, yMax: domainYMax };
   const [view, setView] = useState(null);
   const zoomable = panZoom == null ? interactive : Boolean(panZoom);
@@ -174,9 +151,8 @@ export default function CoordinatePlane({
 
   /*
    * A fresh question means a fresh view. Attempts on the SAME question keep it:
-   * a student who zoomed in to place a point carefully should not be thrown back
-   * out when they try again — the second attempt is the one where the zoom
-   * matters most.
+   * a student who intentionally used the zoom buttons to place a point carefully
+   * should not be thrown back out when they try again.
    */
   useEffect(() => { setView(null); }, [viewResetKey, domainXMin, domainXMax, domainYMin, domainYMax]);
   const canMovePoints = interactive && typeof onMovePoint === 'function';
@@ -249,8 +225,8 @@ export default function CoordinatePlane({
     const x = snapValue(point.x, snapStep);
     const y = snapValue(point.y, snapStep);
     if (x == null || y == null) return null;
-    // CLAMPED TO THE AUTHORED DOMAIN, not to the current view. Zooming out past
-    // the axes must not become a way to answer outside them.
+    // CLAMPED TO THE AUTHORED DOMAIN, not to the current view. Intentional
+    // button zoom must not become a way to answer outside the authored graph.
     return [clamp(x, domainXMin, domainXMax), clamp(y, domainYMin, domainYMax)];
   };
 
@@ -268,13 +244,10 @@ export default function CoordinatePlane({
    * The same gesture picks up an existing point when the tool accepts moves, so
    * a misplaced point is dragged rather than re-plotted.
    */
-  // How far in and out the window may go. Zooming in past a few grid steps
-  // leaves a student with no landmarks; zooming out past a few domain widths
-  // shrinks the axes back into the uselessness this exists to fix.
+  // How far the explicit zoom buttons may move the window. Zooming in past a
+  // few grid steps leaves a student with no landmarks; zooming out past a few
+  // domain widths shrinks the axes back into uselessness.
   const MIN_SPAN_STEPS = 4;
-  // Zooming out exists to recover a little context around the axes, not to make
-  // them small again — and Reset already restores the authored window instantly,
-  // so a large multiple buys nothing and costs legibility. Two is generous.
   const MAX_DOMAIN_MULTIPLE = 2;
 
   const clampSpan = (span, domainSpan) => Math.min(
@@ -282,9 +255,6 @@ export default function CoordinatePlane({
     domainSpan * MAX_DOMAIN_MULTIPLE,
   );
 
-  // Zoom about a fixed graph point, so the thing under the finger stays under
-  // the finger. Zooming about the centre instead makes the plane slide away
-  // from whatever the student was looking at.
   const applyZoom = (factor, focus = null) => {
     if (!zoomable) return;
     setView((current) => {
@@ -302,29 +272,7 @@ export default function CoordinatePlane({
     });
   };
 
-  const applyPan = (dx, dy) => {
-    if (!zoomable) return;
-    setView((current) => {
-      const from = current || domain;
-      return { xMin: from.xMin + dx, xMax: from.xMax + dx, yMin: from.yMin + dy, yMax: from.yMax + dy };
-    });
-  };
-
   const resetView = () => setView(null);
-
-  // Live pointers, so a second finger can turn a plot gesture into a pinch.
-  const gesturePointers = useRef(new Map());
-  const pinchRef = useRef(null);
-
-  const pointerDistance = () => {
-    const [a, b] = [...gesturePointers.current.values()];
-    return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
-  };
-  const pointerMidpoint = () => {
-    const [a, b] = [...gesturePointers.current.values()];
-    return a && b ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : null;
-  };
-
   const HIT_RADIUS = 18;
 
   const pointIndexNear = (graphPoint) => {
@@ -341,16 +289,6 @@ export default function CoordinatePlane({
   };
 
   const handlePointerDown = (event) => {
-    if (zoomable) gesturePointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    // A SECOND FINGER CANCELS THE PLACEMENT IT INTERRUPTED. Otherwise starting a
-    // pinch would leave a point behind wherever the first finger happened to be.
-    if (zoomable && gesturePointers.current.size === 2) {
-      setGestureActive(false);
-      setDragIndex(null);
-      setPointerPreview(null);
-      pinchRef.current = { distance: pointerDistance(), midpoint: pointerMidpoint() };
-      return;
-    }
     if (!interactive) return;
     const point = graphPointFromEvent(event);
     if (!point) return;
@@ -359,46 +297,18 @@ export default function CoordinatePlane({
     setDragIndex(pointIndexNear(point));
     setPointerPreview(point);
     // Capture so the gesture survives the finger leaving the plane's bounds —
-    // without it a drag toward the edge silently stops updating.
+    // without it a drag toward the edge silently stops updating. If the browser
+    // takes the gesture for page scroll/pinch it will send pointercancel instead.
     try { event.currentTarget.setPointerCapture?.(event.pointerId); } catch { /* not fatal */ }
   };
 
   const handlePointerMove = (event) => {
-    if (zoomable && gesturePointers.current.has(event.pointerId)) {
-      gesturePointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    }
-    if (zoomable && gesturePointers.current.size === 2 && pinchRef.current) {
-      const distance = pointerDistance();
-      const midpoint = pointerMidpoint();
-      const previous = pinchRef.current;
-      if (distance > 0 && previous.distance > 0) {
-        // Pinch and slide are one gesture, so they are applied together: the
-        // ratio zooms, the midpoint movement pans. Splitting them into modes
-        // makes two fingers feel like they are fighting the plane.
-        const factor = previous.distance / distance;
-        const rect = event.currentTarget.getBoundingClientRect();
-        const focus = clientPointToGraphCoordinate({
-          clientX: midpoint.x, clientY: midpoint.y, rect,
-          viewBoxWidth: width, viewBoxHeight: height, padding: pad, xMin, xMax, yMin, yMax,
-        });
-        if (Math.abs(factor - 1) > 0.005) applyZoom(factor, focus ? [focus.x, focus.y] : null);
-        const unitsPerPx = (xMax - xMin) / Math.max(1, rect.width);
-        const unitsPerPy = (yMax - yMin) / Math.max(1, rect.height);
-        applyPan(-(midpoint.x - previous.midpoint.x) * unitsPerPx, (midpoint.y - previous.midpoint.y) * unitsPerPy);
-      }
-      pinchRef.current = { distance, midpoint };
-      return;
-    }
     if (!interactive) return;
     setKeyboardActive(false);
     setPointerPreview(graphPointFromEvent(event));
   };
 
   const handlePointerUp = (event) => {
-    if (zoomable) {
-      gesturePointers.current.delete(event.pointerId);
-      if (gesturePointers.current.size < 2) pinchRef.current = null;
-    }
     if (!interactive || !gestureActive) return;
     const point = graphPointFromEvent(event) || pointerPreview;
     const movedIndex = dragIndex;
@@ -413,11 +323,7 @@ export default function CoordinatePlane({
     if (event.pointerType === 'touch') setPointerPreview(null);
   };
 
-  const handlePointerCancel = (event) => {
-    if (zoomable) {
-      gesturePointers.current.delete(event?.pointerId);
-      if (gesturePointers.current.size < 2) pinchRef.current = null;
-    }
+  const handlePointerCancel = () => {
     setGestureActive(false);
     setDragIndex(null);
     setPointerPreview(null);
@@ -486,15 +392,6 @@ export default function CoordinatePlane({
         role={interactive ? 'application' : 'img'}
         aria-label={interactive ? `${ariaLabel}. Click to plot, or use the arrow keys to move the crosshair and Enter to plot.` : ariaLabel}
         tabIndex={interactive ? 0 : undefined}
-        onWheel={zoomable ? (event) => {
-          event.preventDefault();
-          const rect = event.currentTarget.getBoundingClientRect();
-          const focus = clientPointToGraphCoordinate({
-            clientX: event.clientX, clientY: event.clientY, rect,
-            viewBoxWidth: width, viewBoxHeight: height, padding: pad, xMin, xMax, yMin, yMax,
-          });
-          applyZoom(event.deltaY > 0 ? 1.15 : 1 / 1.15, focus ? [focus.x, focus.y] : null);
-        } : undefined}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -511,7 +408,10 @@ export default function CoordinatePlane({
           width: '100%', height: 'auto', maxWidth: '100%',
           border: '1px solid #d9e2f1', borderRadius: 12, background: '#fff',
           cursor: interactive ? 'crosshair' : 'default',
-          touchAction: interactive ? 'none' : 'auto', userSelect: 'none',
+          // Vertical page scroll and browser pinch-zoom are native gestures.
+          // A deliberate tap/short drag can still plot; a scrolling gesture is
+          // allowed to leave the graph instead of changing its mathematics.
+          touchAction: interactive ? 'pan-y pinch-zoom' : 'auto', userSelect: 'none',
           outlineOffset: 2,
         }}
       >
@@ -668,7 +568,7 @@ export default function CoordinatePlane({
             Press the grid and slide to aim{minorStep === 1 ? ' at a whole-number point' : ''} — the point lands where you
             let go{canMovePoints ? ', and you can drag a point you have already placed' : ''}. Keyboard: arrow keys move the
             crosshair{minorStep === 1 ? ' one unit' : ` by ${tidy(minorStep)}`} (Shift for five), Enter plots it.
-            {zoomable ? ' Pinch with two fingers, or scroll, to zoom — or use the buttons below.' : ''}
+            {zoomable ? ' Use the +/− buttons below when you intentionally need a closer view.' : ''}
           </p>
         </>
       ) : null}
