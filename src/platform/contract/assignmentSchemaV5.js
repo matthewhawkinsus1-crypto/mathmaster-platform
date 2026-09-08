@@ -102,6 +102,20 @@ const normalizeQuestionIds = (sections = []) => {
   }));
 };
 
+/**
+ * Upgrade identity on an already-shaped V5 assignment without changing any
+ * other authoring fields. This is used when an older saved Incomplete draft is
+ * reopened: it needs modern immutable ids, but reopening must not silently add
+ * unrelated defaults or rewrite the teacher's saved JSON.
+ */
+export const ensureAssignmentV5QuestionIds = (input = {}) => {
+  if (!isObject(input)) throw new Error('MathMaster Assignment V5 must be a JSON object.');
+  return {
+    ...input,
+    sections: normalizeQuestionIds(Array.isArray(input.sections) ? input.sections : []),
+  };
+};
+
 const normalizeVariantPolicy = (raw = {}) => {
   const source = isObject(raw) ? raw : {};
   const requestedMode = clean(source.mode).toLowerCase();
