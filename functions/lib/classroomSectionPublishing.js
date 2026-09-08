@@ -33,14 +33,15 @@ function sectionTitle(baseTitle, sectionKey) {
   const cleanTitle = String(baseTitle || "MathMaster Assignment").trim() || "MathMaster Assignment";
   return sectionKey === "whole"
     ? cleanTitle
-    : `${cleanTitle} — ${publicationSectionLabel(sectionKey)}`;
+    : `${publicationSectionLabel(sectionKey)} — ${cleanTitle}`;
 }
 
 function sectionInstructions(baseInstructions, title, sectionKey) {
   const clean = String(baseInstructions || "").trim();
-  const primary = clean || `Complete "${title}" in MathMaster.`;
-  if (sectionKey === "whole") return primary;
-  return `${primary}\n\nThis Google Classroom grade represents the ${publicationSectionLabel(sectionKey)} section only.`;
+  if (sectionKey === "whole") {
+    return clean || `Complete "${title}" in MathMaster.`;
+  }
+  return `Complete the ${publicationSectionLabel(sectionKey)} in MathMaster.`;
 }
 
 function classroomPublicationSpecs({ assignment = {}, requestData = {} } = {}) {
