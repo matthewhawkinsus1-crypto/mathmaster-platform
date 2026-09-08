@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import MathDisplay from './MathDisplay';
+import MultiRelationAlgebra from './MultiRelationAlgebra';
 import StepByStepAlgebraCore from './StepByStepAlgebraCore';
 import SolverWorkspaceFrame from './components/common/SolverWorkspaceFrame';
+import { needsMultiRelationWorkspace } from './algebraRelationFoundation';
+import { withPromptRelationSource } from './stepAlgebraRelationRouting';
 
 export * from './StepByStepAlgebraCore';
 
@@ -15,6 +18,11 @@ const appendHistory = (current, value) => {
 
 export default function StepByStepAlgebra(props) {
   const { question = {}, onStateChange } = props;
+  const relationQuestion = useMemo(() => withPromptRelationSource(question), [question]);
+  const shouldUseRelationWorkspace = useMemo(
+    () => needsMultiRelationWorkspace(relationQuestion),
+    [relationQuestion],
+  );
   const workspaceKey = useMemo(() => [
     props.draftKey,
     question.id,
@@ -49,6 +57,15 @@ export default function StepByStepAlgebra(props) {
       ) : <p>Your first equation will appear as soon as the solver is ready.</p>}
     </div>
   );
+
+  // Legacy assignments often authored the entire inequality only in `prompt`.
+  // QuestionEngine cannot identify those before choosing this host, so keep a
+  // second, conservative handoff here. The enriched question gives the
+  // relation-aware workspace the exact expression it needs without rewriting
+  // or special-casing the assignment itself.
+  if (shouldUseRelationWorkspace) {
+    return <MultiRelationAlgebra {...props} question={relationQuestion} />;
+  }
 
   return (
     <SolverWorkspaceFrame

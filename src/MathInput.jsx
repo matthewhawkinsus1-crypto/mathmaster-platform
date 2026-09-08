@@ -161,6 +161,17 @@ const opensAGroup = (key) => /#0|#\?|#@/.test(String(key?.command || ''));
 
 const withExit = (keys) => (keys.some(opensAGroup) ? [...keys, EXIT_GROUP_KEY] : [...keys]);
 
+const mergeToolKeys = (...groups) => {
+  const seen = new Set();
+  return groups.flat().filter((tool) => {
+    if (!tool) return false;
+    const key = String(tool.label || tool.ariaLabel || tool.command || '').trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 const getToolKeys = (profile, { isMobile = false, contextSymbols = [], functionNotationKeys = [] } = {}) => {
   const authoredFunctionKeys = (Array.isArray(functionNotationKeys) ? functionNotationKeys : [])
     .filter((entry) => entry?.label && entry?.command)
@@ -210,7 +221,7 @@ export default function MathInput({
 }) {
   const mfRef = useRef(null);
   const onChangeRef = useRef(onChange);
-  const [showTools, setShowTools] = useState(showToolsInitially);
+  const [showTools, setShowTools] = useState(showToolsInitially || requiredSymbols.length > 0);
   const [isMobile, setIsMobile] = useState(detectMobileInput);
 
   const stabilizeMobileViewport = useCallback(() => {
@@ -238,7 +249,10 @@ export default function MathInput({
   );
   const shouldSuppressNativeKeyboard = isMobile && toolProfile !== 'function' && unservedRequiredSymbols.length === 0;
   const tools = useMemo(() => {
-    if (!isMobile) return getToolKeys(toolProfile, { contextSymbols, functionNotationKeys });
+    if (!isMobile) return mergeToolKeys(
+      getToolKeys(toolProfile, { contextSymbols, functionNotationKeys }),
+      requiredTools,
+    );
 
     // Mobile equation pads are intentionally opinionated:
     // - parentheses are ALWAYS directly reachable;
