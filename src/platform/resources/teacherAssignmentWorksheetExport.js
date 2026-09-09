@@ -6,7 +6,10 @@ import {
   getSectionVariantMode,
   questionIsIncluded,
 } from '../../assignmentLifecycle.js';
-import { getStoredAssignmentQuestions } from '../contract/storedAssignmentV5.js';
+import {
+  getStoredAssignmentQuestions,
+  prepareAssignmentForRuntime,
+} from '../contract/storedAssignmentV5.js';
 import { resolveQuestionActivityRole } from '../policies/activityPolicies.js';
 import { resolveDeliveredQuestionMetadata } from '../assignments/assignmentAdaptation.js';
 import { normalizeContextualQuestion } from '../context/wordProblemLayer.js';
@@ -35,12 +38,13 @@ const assignmentHasAudience = (assignment = {}) => (
 );
 
 export const assignmentNeedsStudentForWorksheet = (assignment = {}) => {
-  const questions = getStoredAssignmentQuestions(assignment);
-  return getIncludedQuestionIndices(assignment).some((index) => {
+  const runtimeAssignment = prepareAssignmentForRuntime(assignment, { source: 'teacherWorksheetAudience' }).assignment;
+  const questions = getStoredAssignmentQuestions(runtimeAssignment);
+  return getIncludedQuestionIndices(runtimeAssignment).some((index) => {
     const question = questions[index];
     if (!question || !questionIsIncluded(question)) return false;
-    const sectionRole = resolveQuestionActivityRole({ question, assignment });
-    return getSectionVariantMode(assignment, sectionRole) !== 'shared';
+    const sectionRole = resolveQuestionActivityRole({ question, assignment: runtimeAssignment });
+    return getSectionVariantMode(runtimeAssignment, sectionRole) !== 'shared';
   });
 };
 
@@ -60,10 +64,12 @@ export const buildTeacherAssignmentWorksheetModel = ({
   studentProfile = null,
   outputMode = PRINT_OUTPUT_MODES.STUDENT,
 } = {}) => {
-  const questions = getStoredAssignmentQuestions(assignment);
+  const runtimeRepair = prepareAssignmentForRuntime(assignment, { source: 'teacherWorksheet' });
+  const runtimeAssignment = runtimeRepair.assignment;
+  const questions = getStoredAssignmentQuestions(runtimeAssignment);
   if (!questions.length) throw new Error('This assignment does not contain printable questions.');
 
-  const needsStudent = assignmentNeedsStudentForWorksheet(assignment);
+  const needsStudent = assignmentNeedsStudentForWorksheet(runtimeAssignment);
   if (needsStudent && !student?.id) {
     const error = new Error('Choose a student to export the exact personalized worksheet version.');
     error.code = 'student-required';
@@ -78,16 +84,16 @@ export const buildTeacherAssignmentWorksheetModel = ({
       || student?.profile?.courseLevel
       || '',
   ).toLowerCase() === 'honors';
-  const assignmentTracker = student?.gradesByAssignment?.[assignment.id] || {};
+  const assignmentTracker = student?.gradesByAssignment?.[runtimeAssignment.id] || {};
 
-  for (const index of getIncludedQuestionIndices(assignment)) {
+  for (const index of getIncludedQuestionIndices(runtimeAssignment)) {
     const question = questions[index];
     if (!question || !questionIsIncluded(question)) continue;
 
-    const sectionRole = resolveQuestionActivityRole({ question, assignment });
-    const sectionVariantMode = getSectionVariantMode(assignment, sectionRole);
+    const sectionRole = resolveQuestionActivityRole({ question, assignment: runtimeAssignment });
+    const sectionVariantMode = getSectionVariantMode(runtimeAssignment, sectionRole);
     const generationStudentKey = sectionVariantMode === 'shared'
-      ? `shared-version:${assignment.id}:${sectionRole}`
+      ? `shared-version:${runtimeAssignment.id}:${sectionRole}`
       : student.id;
     const record = normalizeQuestionRecord(assignmentTracker?.[index]);
     const adaptation = resolveDeliveredQuestionMetadata({
@@ -97,7 +103,7 @@ export const buildTeacherAssignmentWorksheetModel = ({
       variationMode: sectionVariantMode,
       honors,
     });
-    const generationKey = `${assignment.id}|${generationStudentKey}|${index}|variant:${record.variantIndex}`;
+    const generationKey = `${runtimeAssignment.id}|${generationStudentKey}|${index}|variant:${record.variantIndex}`;
     const resolvedQuestion = normalizeContextualQuestion(generateQuestion(
       question,
       generationKey,
@@ -115,7 +121,7 @@ export const buildTeacherAssignmentWorksheetModel = ({
   }
 
   return buildAssignmentWorksheetModel({
-    assignment,
+    assignment: runtimeAssignment,
     student: student
       ? { displayName: displayNameFor(student), classPeriod: student.classPeriod || '' }
       : { displayName: '', classPeriod: '' },

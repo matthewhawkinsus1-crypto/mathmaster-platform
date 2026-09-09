@@ -34,7 +34,10 @@ jobs:
       # suite fails on a missing module rather than on anything it tests.
       - run: npm --prefix functions ci
       - name: Run every platform test
-        run: node --test tests/platform/*.test.mjs
+        # Wrapped so a failure explains itself in the CI log. The wrapper runs the
+        # same tests and exits non-zero the same way; it only adds guidance
+        # after the TAP output. See docs/handoffs/SOURCE_CONTRACT_PLAYBOOK.md.
+        run: npm run test:platform
 
       - name: Run standalone tool tests
         run: node --test tests/tools/*.test.mjs
