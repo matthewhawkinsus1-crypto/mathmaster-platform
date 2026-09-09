@@ -104,13 +104,10 @@ test('authored workflow remains explicit and is not rewritten by the shared runt
   assert.equal(composed.workflow.some((stage) => stage.kind === 'graphConstruction'), true);
 });
 
-test('student active-assignment path uses one prepared runtime assignment before deriving questions', () => {
-  const source = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
-  assert.match(source, /prepareAssignmentForRuntime/);
-  assert.match(source, /rawActiveAssignmentData/);
-  assert.match(source, /activeRuntimeRepair/);
-  assert.match(source, /activeAssignmentData\s*=\s*activeRuntimeRepair\.assignment/);
-  assert.match(source, /getStoredAssignmentQuestions\(activeAssignmentData\)/);
+test('student QuestionEngine routes composed questions through the shared self-healing reader', () => {
+  const source = readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
+  assert.match(source, /readComposedQuestion\(processedQuestion\)\.composed/);
+  assert.match(source, /<WorkflowRunner/);
 });
 
 test('preflight and teacher worksheet consumers use the prepared runtime assignment', () => {
