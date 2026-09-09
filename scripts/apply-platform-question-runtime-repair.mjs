@@ -114,8 +114,12 @@ import { stageFamily, stageFamilyLabel } from './stageFamilies';`,
 
   await replaceOnce(
     path,
-`      return <ChoiceStage stage={stage} value={value} onChange={onChange} disabled={disabled} controlsBranch={controlsBranch} />;`,
-`      return <ChoiceStage stage={stage} value={value} onChange={onChange} disabled={disabled} controlsBranch={controlsBranch} showFigure={showFigure} />;`,
+`    case 'classification':
+    case 'multipleChoice':
+      return <ChoiceStage stage={stage} value={value} onChange={onChange} disabled={disabled} controlsBranch={controlsBranch} />;`,
+`    case 'classification':
+    case 'multipleChoice':
+      return <ChoiceStage stage={stage} value={value} onChange={onChange} disabled={disabled} controlsBranch={controlsBranch} showFigure={showFigure} />;`,
   );
 
   await replaceOnce(
