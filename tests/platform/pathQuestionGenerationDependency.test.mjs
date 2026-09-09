@@ -42,7 +42,7 @@ test('generic Path/CCMR generation resolves derived values by dependency instead
   assert.equal(generated.parameters.d2, 10);
   assert.equal(generated.parameters.d3, 7);
   assert.match(generated.question.prompt, /At x=3/);
-  assert.deepEqual(generated.question.answerFields[0].acceptedAnswers, ['14']);
+  assert.deepEqual(generated.question.answerFields[0].acceptedAnswers, [14]);
 });
 
 test('generic generation reports an explicit unknown derived dependency', () => {
@@ -69,14 +69,14 @@ test('generic generation reports a derived dependency cycle instead of retrying 
     generator: {
       ...outOfOrderTemplate.generator,
       derived: {
-        a: 'b + 1',
-        b: 'a + 1',
+        alpha: 'beta + 1',
+        beta: 'alpha + 1',
       },
     },
   }, 'derived-cycle');
 
   assert.equal(generated.question, null);
   assert.match(String(generated.reason), /^derived_cycle:/);
-  assert.match(String(generated.reason), /a/);
-  assert.match(String(generated.reason), /b/);
+  assert.match(String(generated.reason), /alpha/);
+  assert.match(String(generated.reason), /beta/);
 });

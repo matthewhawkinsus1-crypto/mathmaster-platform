@@ -325,7 +325,7 @@ function StageFigure({ graph, label }) {
   );
 }
 
-function ChoiceStage({ stage, value, onChange, disabled, controlsBranch = false }) {
+function ChoiceStage({ stage, value, onChange, disabled, controlsBranch = false, showFigure = true }) {
   /*
    * A BRANCH CONTROLLER RENDERS EXACTLY THE CHOICES PREFLIGHT VALIDATED.
    *
@@ -356,7 +356,7 @@ function ChoiceStage({ stage, value, onChange, disabled, controlsBranch = false 
     <>
     {stage?.previewOnGraph
       ? <ChoicePreviewGraph stage={stage} value={value} />
-      : <StageFigure graph={stage?.graph} label={stage?.prompt} />}
+      : showFigure ? <StageFigure graph={stage?.graph} label={stage?.prompt} /> : null}
     <div style={chipRow}>
       {choices.map((choice) => {
         const id = typeof choice === 'string' ? choice : choice?.id ?? String(choice);
@@ -860,19 +860,27 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey,
       return (
         <GraphFeatureSelectStage
           stage={stage}
-          sourceGraph={stage.graph || content?.graph || null}
+          // Prefer the exact authored evidence graph over a stage-level
+          // reconstructed fallback. This preserves the original window, points,
+          // labels, restrictions, and styling the student is meant to analyze.
+          sourceGraph={content?.graph || stage.graph || null}
           value={value}
           onChange={onChange}
           disabled={disabled}
         />
       );
     case 'pointInput':
-      return <PointInputStage stage={stage} value={value} onChange={onChange} disabled={disabled} />;
+      return (
+        <>
+          {showFigure ? <StageFigure graph={stage?.graph} label={stage?.prompt} /> : null}
+          <PointInputStage stage={stage} value={value} onChange={onChange} disabled={disabled} />
+        </>
+      );
     case 'figureMatch':
       return <FigureMatchStage stage={stage} value={value} onChange={onChange} disabled={disabled} />;
     case 'classification':
     case 'multipleChoice':
-      return <ChoiceStage stage={stage} value={value} onChange={onChange} disabled={disabled} controlsBranch={controlsBranch} />;
+      return <ChoiceStage stage={stage} value={value} onChange={onChange} disabled={disabled} controlsBranch={controlsBranch} showFigure={showFigure} />;
     case 'quantityRoles':
       return <QuantityRolesStage stage={stage} value={value} onChange={onChange} disabled={disabled} />;
     case 'interpretation':
@@ -1216,6 +1224,8 @@ export default function WorkflowRunner({
     activeStageIndex: safeActiveIndex,
   });
   const graphReference = selectPersistentWorkflowGraph({ content, workflow, checkedGraph });
+  const activeStageHasOwnGraphWorkspace = ['graphFeatureSelect', 'coordinatePlot', 'functionGraph'].includes(activeStage?.kind);
+  const showPersistentGraphReference = Boolean(graphReference && !activeStageHasOwnGraphWorkspace);
   const graphReferenceTitle = checkedGraph ? 'Your checked graph' : 'Graph for this question';
   const graphReferenceDescription = checkedGraph
     ? 'Use the graph you just completed while answering the remaining analysis steps.'
@@ -1301,7 +1311,7 @@ export default function WorkflowRunner({
               disabled={disabled}
               controlsBranch={branchControllerIds.has(stage.id)}
               openKeypad={stage.id === openKeypadStageId}
-              showFigure={focusMode ? !graphReference : figureStageIds.has(stage.id)}
+              showFigure={focusMode ? !showPersistentGraphReference : figureStageIds.has(stage.id)}
               draftKey={draftKey ? `${draftKey}:${stage.id}${stage.sourceStageId && ['functionGraph', 'coordinatePlot'].includes(stage.kind) ? `:${dependencyFingerprint(input.value)}` : ''}` : null}
             />
           </>
@@ -1433,11 +1443,11 @@ export default function WorkflowRunner({
           </div>
           <span className="workflow-focus__counter">{safeActiveIndex + 1} of {workflow.length}</span>
         </div>
-        <div className={graphReference ? 'workflow-focus__workspace-body workflow-focus__workspace-body--with-graph' : 'workflow-focus__workspace-body'}>
+        <div className={showPersistentGraphReference ? 'workflow-focus__workspace-body workflow-focus__workspace-body--with-graph' : 'workflow-focus__workspace-body'}>
           <div className="workflow-focus__active-stage" key={activeStage?.id || safeActiveIndex}>
             {workflow.map((stage, index) => renderStage(stage, index, { focused: index === safeActiveIndex }))}
           </div>
-          {graphReference && (
+          {showPersistentGraphReference && (
             <aside className="workflow-focus__graph-reference" aria-label={graphReferenceTitle}>
               <div className="workflow-focus__graph-reference-title">{graphReferenceTitle}</div>
               <p>{graphReferenceDescription}</p>

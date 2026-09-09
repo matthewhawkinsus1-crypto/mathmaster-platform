@@ -84,13 +84,14 @@ test('PR #163 invariant remains protected: continuity/domain functionModeling do
   assert.equal(expanded.workflow.some((stage) => stage.id === 'graph' || stage.kind === 'graphConstruction'), false);
 });
 
-test('WorkflowRunner and MobileViewportContainer wire active task and persistent graph presentation into the student shell', async () => {
+test('WorkflowRunner and QuestionEngine wire active task and one persistent graph into the student shell', async () => {
   const runner = await readFile(new URL('../../src/platform/workflow/WorkflowRunner.jsx', import.meta.url), 'utf8');
-  const viewport = await readFile(new URL('../../src/components/student/MobileViewportContainer.jsx', import.meta.url), 'utf8');
+  const engine = await readFile(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
 
   assert.match(runner, /currentStagePrompt/);
   assert.match(runner, /selectPersistentWorkflowGraph/);
-  assert.match(runner, /content\?\.graph \|\| stage\.graph/);
-  assert.match(viewport, /workflow-focus__stage-shell--active/);
-  assert.match(viewport, /workflowTaskPrompt/);
+  assert.match(runner, /showPersistentGraphReference/);
+  assert.match(runner, /sourceGraph=\{content\?\.graph \|\| stage\.graph \|\| null\}/);
+  assert.match(runner, /showFigure=\{showFigure\}/);
+  assert.match(engine, /workflowGuidanceState\?\.currentStagePrompt/);
 });
