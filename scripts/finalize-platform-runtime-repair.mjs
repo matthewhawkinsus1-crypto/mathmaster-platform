@@ -111,4 +111,27 @@ await update('tests/platform/workflowPresentationRuntime.test.mjs', (source) => 
   return replaceOnce(source, before, after, 'workflow presentation wiring regression');
 });
 
+await update('tests/platform/pathQuestionGenerationDependency.test.mjs', (source) => {
+  let next = source;
+  next = replaceOnce(
+    next,
+    "  assert.deepEqual(generated.question.answerFields[0].acceptedAnswers, ['14']);",
+    "  assert.deepEqual(generated.question.answerFields[0].acceptedAnswers, [14]);",
+    'numeric placeholder type expectation',
+  );
+  next = replaceOnce(
+    next,
+    "      derived: {\n        a: 'b + 1',\n        b: 'a + 1',\n      },",
+    "      derived: {\n        alpha: 'beta + 1',\n        beta: 'alpha + 1',\n      },",
+    'true derived cycle fixture',
+  );
+  next = replaceOnce(
+    next,
+    "  assert.match(String(generated.reason), /a/);\n  assert.match(String(generated.reason), /b/);",
+    "  assert.match(String(generated.reason), /alpha/);\n  assert.match(String(generated.reason), /beta/);",
+    'cycle diagnostic assertions',
+  );
+  return next;
+});
+
 console.log('Final workflow presentation repair applied.');
