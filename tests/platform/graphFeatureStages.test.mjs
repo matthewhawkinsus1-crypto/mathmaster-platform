@@ -359,9 +359,35 @@ test('a domain-and-range question is staged, and draws its graph once', () => {
   assert.equal(workflow[0].graph.model, '2*x - 1');
 
   const runner = readFileSync('src/platform/workflow/WorkflowRunner.jsx', 'utf8');
-  // Stacked, consecutive steps about the same graph draw it once.
-  assert.match(runner, /const figureStageIds = useMemo/);
-  assert.match(runner, /showFigure=\{focusMode \|\| figureStageIds\.has\(stage\.id\)\}/);
+
+  /*
+   * ONCE, ASSERTED AS ONCE.
+   *
+   * This matched the whole expression `focusMode || figureStageIds.has(...)`,
+   * which pinned one particular way of drawing the figure once rather than the
+   * fact of it. Focus mode later grew a persistent graph reference rendered
+   * beside the active stage, and `focusMode || ...` then drew the stage's own
+   * figure on top of it — the graph twice, which is the thing this test exists
+   * to prevent. The expression that satisfied the old assertion had become the
+   * bug.
+   *
+   * So the two halves are asserted separately, by what each has to be true of:
+   * stacked stages defer to figureStageIds, and a focused stage does not draw
+   * its own figure while a persistent reference is already on screen.
+   */
+  assert.match(runner, /const figureStageIds = useMemo/,
+    'stacked, consecutive steps about the same graph must share one figure decision');
+
+  // Anchored at the StageBody call site: `showFigure` also appears as a prop
+  // default and a pass-through, and slicing from the first occurrence picks up
+  // neither of the two decisions this test is about.
+  const callSite = runner.indexOf('openKeypad={stage.id === openKeypadStageId}');
+  assert.notEqual(callSite, -1, 'could not find the stage call site');
+  const showFigure = runner.slice(callSite, callSite + 400);
+  assert.match(showFigure, /figureStageIds\.has\(stage\.id\)/,
+    'the stacked case must still defer to figureStageIds, or every step redraws the same graph');
+  assert.match(showFigure, /showPersistentGraphReference/,
+    'the focused case must account for the persistent graph reference; drawing the stage figure as well puts the same graph on screen twice');
   // And only one math keyboard opens itself.
   assert.match(runner, /const openKeypadStageId = useMemo/);
   assert.match(runner, /showToolsInitially=\{openKeypad\}/);
