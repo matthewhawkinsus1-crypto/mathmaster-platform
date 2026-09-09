@@ -6,6 +6,12 @@ const GRAPH_EVIDENCE_STAGE_KINDS = new Set([
   'graphFeatureSelect',
 ]);
 
+const GRAPH_CONSTRUCTION_STAGE_KINDS = new Set([
+  'coordinatePlot',
+  'functionGraph',
+  'graphConstruction',
+]);
+
 /**
  * The sentence that belongs in the student's global YOUR TASK strip.
  *
@@ -19,7 +25,7 @@ export const resolveWorkflowTaskPrompt = ({ workflow = [], activeStageIndex = 0 
   const stages = Array.isArray(workflow) ? workflow : [];
   if (!stages.length) return '';
   const index = Math.min(Math.max(0, Number(activeStageIndex) || 0), stages.length - 1);
-  return String(stages[index]?.prompt || '').trim();
+  return String(stages[index]?.prompt || stages[index]?.label || '').trim();
 };
 
 export const workflowUsesGraphEvidence = (workflow = []) => (
@@ -34,10 +40,12 @@ export const workflowUsesGraphEvidence = (workflow = []) => (
  * workflow moves through graph-reading subtasks.
  *
  * A checked graph the student actually built outranks the original evidence.
- * Otherwise an authored `content.graph` is returned BY IDENTITY — not rebuilt
- * from an equation/functionSpec — so labels, window, points and styling remain
- * exactly the graph the question started with. Text-only workflows return null
- * and therefore can never acquire a synthetic y=x graph.
+ * Otherwise an authored graph is returned BY IDENTITY — not rebuilt from an
+ * equation/functionSpec — so labels, window, points and styling remain exactly
+ * the graph the question started with. An authored answer graph is never shown
+ * while the workflow is asking the student to construct that graph themselves.
+ * Text-only workflows return null and therefore can never acquire a synthetic
+ * y=x graph.
  */
 export const selectPersistentWorkflowGraph = ({
   content = {},
@@ -45,6 +53,12 @@ export const selectPersistentWorkflowGraph = ({
   checkedGraph = null,
 } = {}) => {
   if (isObject(checkedGraph)) return checkedGraph;
-  if (!workflowUsesGraphEvidence(workflow)) return null;
-  return isObject(content?.graph) ? content.graph : null;
+
+  const stages = Array.isArray(workflow) ? workflow : [];
+  if (stages.some((stage) => GRAPH_CONSTRUCTION_STAGE_KINDS.has(stage?.kind))) return null;
+  if (!workflowUsesGraphEvidence(stages)) return null;
+  if (isObject(content?.graph)) return content.graph;
+
+  const stageGraph = stages.find((stage) => isObject(stage?.graph))?.graph;
+  return stageGraph || null;
 };
