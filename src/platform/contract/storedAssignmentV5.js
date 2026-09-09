@@ -4,6 +4,7 @@ import {
   rebuildV5SectionsFromQuestions,
 } from './assignmentSchemaV5.js';
 import { repairKnownFirestoreNestedArrays } from '../persistence/firestoreAssignmentSafety.js';
+import { repairAssignmentForCurrentRuntime } from '../assignments/assignmentRuntimeRepair.js';
 
 const clean = (value) => String(value ?? '').trim();
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
@@ -20,6 +21,27 @@ const isObject = (value) => Boolean(value && typeof value === 'object' && !Array
 export const getStoredAssignmentQuestions = (assignment = {}) => {
   if (!isObject(assignment) || Number(assignment.schemaVersion) !== 5) return [];
   return flattenV5Sections(assignment);
+};
+
+/**
+ * Build the compatibility view used by current renderers and validators.
+ *
+ * This is intentionally pure. The saved Assignment V5 object remains the
+ * literal source of truth until an explicit teacher-side persistence flow
+ * chooses to write a repair in a later step. Runtime consumers can therefore
+ * benefit from known platform corrections without changing student progress or
+ * silently rewriting the library record.
+ */
+export const prepareAssignmentForRuntime = (assignment = {}, context = {}) => (
+  repairAssignmentForCurrentRuntime(assignment, {
+    ...context,
+    source: context?.source || 'storedAssignmentV5',
+  })
+);
+
+export const getRuntimeAssignmentQuestions = (assignment = {}, context = {}) => {
+  const prepared = prepareAssignmentForRuntime(assignment, context);
+  return getStoredAssignmentQuestions(prepared.assignment);
 };
 
 export const getStoredVariantPolicy = (assignment = {}) => (
