@@ -567,34 +567,72 @@ const getReplacementKeyParts = (generationKey) => {
  * differentiation decides the band exactly as it always did — so an assignment
  * that was never made adaptive behaves identically.
  */
+const buildPlatformQuestionError = (question, error) => {
+  const rawReason = String(
+    error?.generationReason
+    || error?.reason
+    || error?.message
+    || 'question_generation_failed',
+  );
+  const reason = rawReason
+    .replace(/^Could not generate assignment question:\s*/i, '')
+    .replace(/\.$/, '')
+    .trim() || 'question_generation_failed';
+  const questionId = question?.questionId || question?.id || null;
+
+  return {
+    ...(questionId ? { id: questionId, questionId } : { id: 'platform-question-error' }),
+    type: 'platformQuestionError',
+    activityRole: question?.activityRole,
+    prompt: 'This question could not be prepared. Continue with the rest of the assignment.',
+    platformError: {
+      sourceType: question?.type || null,
+      reason,
+    },
+    ...(question?.standard ? { standard: question.standard } : {}),
+    ...(question?.teks ? { teks: question.teks } : {}),
+    ...(Array.isArray(question?.alignments) ? { alignments: question.alignments } : {}),
+    ...(question?.dok != null ? { dok: question.dok } : {}),
+    ...(question?.difficultyBand != null ? { difficultyBand: question.difficultyBand } : {}),
+  };
+};
+
 export const generateQuestion = (question, generationKey, studentProfile = null, adaptation = null) => {
   if (!question) return null;
-  const adaptiveQuestion = applyAdaptiveDifferentiation(question, studentProfile, {
-    targetBandOverride: adaptation?.adapted ? adaptation.difficultyBand : null,
-  }).question;
-  // Apply accommodations/modifications after adaptive selection so a student
-  // support plan always wins if the two would otherwise change the same field.
-  const supportedQuestion = applyStudentSupportToQuestion(adaptiveQuestion, studentProfile).question;
-  const candidate = generateQuestionFromKey(supportedQuestion, generationKey);
-  const replacement = getReplacementKeyParts(generationKey);
-  if (!replacement || replacement.variantIndex <= 0) return candidate;
 
-  const previous = generateQuestionFromKey(
-    supportedQuestion,
-    `${replacement.baseKey}|variant:${replacement.variantIndex - 1}`,
-  );
-  const previousFingerprint = JSON.stringify(previous);
-  if (JSON.stringify(candidate) !== previousFingerprint) return candidate;
+  try {
+    const adaptiveQuestion = applyAdaptiveDifferentiation(question, studentProfile, {
+      targetBandOverride: adaptation?.adapted ? adaptation.difficultyBand : null,
+    }).question;
+    // Apply accommodations/modifications after adaptive selection so a student
+    // support plan always wins if the two would otherwise change the same field.
+    const supportedQuestion = applyStudentSupportToQuestion(adaptiveQuestion, studentProfile).question;
+    const candidate = generateQuestionFromKey(supportedQuestion, generationKey);
+    const replacement = getReplacementKeyParts(generationKey);
+    if (!replacement || replacement.variantIndex <= 0) return candidate;
 
-  for (let reroll = 1; reroll <= 12; reroll += 1) {
-    const rerolled = generateQuestionFromKey(
+    const previous = generateQuestionFromKey(
       supportedQuestion,
-      `${generationKey}|replacement-reroll:${reroll}`,
+      `${replacement.baseKey}|variant:${replacement.variantIndex - 1}`,
     );
-    if (JSON.stringify(rerolled) !== previousFingerprint) return rerolled;
-  }
+    const previousFingerprint = JSON.stringify(previous);
+    if (JSON.stringify(candidate) !== previousFingerprint) return candidate;
 
-  return candidate;
+    for (let reroll = 1; reroll <= 12; reroll += 1) {
+      const rerolled = generateQuestionFromKey(
+        supportedQuestion,
+        `${generationKey}|replacement-reroll:${reroll}`,
+      );
+      if (JSON.stringify(rerolled) !== previousFingerprint) return rerolled;
+    }
+
+    return candidate;
+  } catch (error) {
+    // Generation/preparation failures belong to the individual question. The
+    // assignment shell must remain usable so the student can continue and the
+    // teacher can repair this one item without losing the rest of the work.
+    return buildPlatformQuestionError(question, error);
+  }
 };
 
 export const isPersonalizedBlueprint = (question) => {

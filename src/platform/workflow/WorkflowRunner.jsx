@@ -24,6 +24,7 @@ import { buildWorkflowSummaryItems, shouldUseWorkflowFocusMode, summarizeStageRe
 import { stageFamily, stageFamilyLabel } from './stageFamilies';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
 import { workflowEndpointMarkers } from './workflowGraphVisuals.js';
+import { resolveWorkflowTaskPrompt, selectPersistentWorkflowGraph } from './workflowPresentation.js';
 import './WorkflowFocusMode.css';
 
 // Renders a question composed from interaction primitives.
@@ -1175,11 +1176,13 @@ export default function WorkflowRunner({
       ? Math.min(Math.max(0, activeStageIndex), Math.max(0, stages.length - 1))
       : fallbackIndex;
     const currentStage = stages[currentIndex] || null;
+    const currentStagePrompt = resolveWorkflowTaskPrompt({ workflow: stages, activeStageIndex: currentIndex });
     onProgressChangeRef.current?.({
       ...progressState,
       currentStageId: currentStage?.id || null,
       currentStageKind: currentStage?.kind || null,
       currentStageIndex: currentStage ? currentIndex : null,
+      currentStagePrompt,
     });
   }, [responses, activeStageIndex, focusMode]);
 
@@ -1205,13 +1208,18 @@ export default function WorkflowRunner({
     label: getStage(stage.kind)?.label || stage.kind,
   }));
   const summaryItems = buildWorkflowSummaryItems(summaryStages, responses);
-  const graphReference = checkedGraphReference({
+  const checkedGraph = checkedGraphReference({
     workflow,
     responses,
     content,
     grading,
     activeStageIndex: safeActiveIndex,
   });
+  const graphReference = selectPersistentWorkflowGraph({ content, workflow, checkedGraph });
+  const graphReferenceTitle = checkedGraph ? 'Your checked graph' : 'Graph for this question';
+  const graphReferenceDescription = checkedGraph
+    ? 'Use the graph you just completed while answering the remaining analysis steps.'
+    : 'Keep this graph in view while you answer each analysis step.';
 
   const renderStage = (stage, index, { focused = false } = {}) => {
     const definition = getStage(stage.kind);
@@ -1293,7 +1301,7 @@ export default function WorkflowRunner({
               disabled={disabled}
               controlsBranch={branchControllerIds.has(stage.id)}
               openKeypad={stage.id === openKeypadStageId}
-              showFigure={focusMode || figureStageIds.has(stage.id)}
+              showFigure={focusMode ? !graphReference : figureStageIds.has(stage.id)}
               draftKey={draftKey ? `${draftKey}:${stage.id}${stage.sourceStageId && ['functionGraph', 'coordinatePlot'].includes(stage.kind) ? `:${dependencyFingerprint(input.value)}` : ''}` : null}
             />
           </>
@@ -1430,10 +1438,10 @@ export default function WorkflowRunner({
             {workflow.map((stage, index) => renderStage(stage, index, { focused: index === safeActiveIndex }))}
           </div>
           {graphReference && (
-            <aside className="workflow-focus__graph-reference" aria-label="Your checked graph">
-              <div className="workflow-focus__graph-reference-title">Your checked graph</div>
-              <p>Use the graph you just completed while answering the remaining analysis steps.</p>
-              <GraphDisplay graph={graphReference} title="Your checked graph" />
+            <aside className="workflow-focus__graph-reference" aria-label={graphReferenceTitle}>
+              <div className="workflow-focus__graph-reference-title">{graphReferenceTitle}</div>
+              <p>{graphReferenceDescription}</p>
+              <GraphDisplay graph={graphReference} title={graphReferenceTitle} />
             </aside>
           )}
         </div>
