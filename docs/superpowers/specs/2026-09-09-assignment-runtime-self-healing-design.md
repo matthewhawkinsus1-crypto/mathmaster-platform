@@ -111,17 +111,17 @@ Example shape:
 
 Repair rules are append-only compatibility knowledge. Old rules can become no-ops once all known saved content is current, but their tests remain so the bug cannot reappear.
 
-### 3. Runtime contract version
+### 3. Runtime compatibility version
 
-Introduce a platform constant such as:
+Introduce a platform constant:
 
-`ASSIGNMENT_RUNTIME_REPAIR_VERSION`
+`ASSIGNMENT_RUNTIME_REPAIR_VERSION = 1`
 
-and persist a lightweight assignment compatibility stamp, proposed as:
+and support a lightweight assignment compatibility stamp:
 
 ```js
 runtimeCompatibility: {
-  repairVersion: 3,
+  repairVersion: 1,
   repairedAt: '2026-09-09T...',
   repairKeys: ['...']
 }
@@ -132,6 +132,8 @@ This stamp is metadata only. It does not replace `schemaVersion: 5`; schema vers
 Assignments without the stamp are treated as version 0 and evaluated safely.
 
 The runtime must still run cheap detector guards even when the version is current, so a malformed/stale delivery copy cannot bypass protection merely because metadata was copied incorrectly.
+
+`assignmentSchemaV5.js` and `storedAssignmentV5.js` must explicitly understand this metadata. In particular, `canonicalV5PersistencePatch()` must not silently drop a compatibility stamp after a successful safe repair.
 
 ### 4. Canonical read integration
 
@@ -146,7 +148,7 @@ Recommended split:
 
 This prevents a harmless read helper from secretly becoming a Firestore migration mechanism.
 
-### 5. Safe background persistence
+### 5. Safe teacher-side persistence
 
 When a teacher opens or manages a V5 assignment, MathMaster may persist repairs only when the compatibility module proves all changes are platform-only and `safeToPersist`.
 
@@ -164,7 +166,20 @@ If any check fails, do not write. Surface a Repair Center/platform diagnostic.
 
 Student runtime should use safe in-memory repairs immediately; it should not require the student client to have permission to mutate assignment documents.
 
-### 6. Repair Center integration
+### 6. Portable exports, duplication, and delivery copies
+
+A compatibility stamp must never become a false claim that another copy has already been checked.
+
+Rules:
+
+- portable/export packages omit `runtimeCompatibility`;
+- a library duplication/reset-assignment-key flow omits the old stamp and re-evaluates the new copy under the current runtime;
+- destination-specific delivery copies may receive the current stamp only after their final canonical question state has passed the compatibility layer;
+- copying a malformed/stale delivery record cannot carry a trusted “already repaired” version around the detector guards.
+
+This keeps compatibility metadata local to the exact stored question state that was evaluated.
+
+### 7. Repair Center integration
 
 A `platformIssue` from an AI repair packet should become a tracked platform repair diagnostic instead of a dead-end report.
 
@@ -177,7 +192,7 @@ Store enough metadata to reconnect the report to a future platform repair:
   suspectedComponent,
   status: 'open' | 'resolvedByPlatformUpdate',
   resolvedRepairKey: null | '...',
-  resolvedRuntimeVersion: null | 3
+  resolvedRuntimeVersion: null | 1
 }
 ```
 
@@ -209,7 +224,9 @@ Required current behavior:
 - no synthetic `y=x` graph;
 - no unrelated graph evidence panel.
 
-If an old saved platform-generated workflow contains the known default graph stage, the compatibility layer may remove only that generated stage when it can prove there is no authored graph request, no graph grading key, and no graph student action.
+The current saved District DOL question has no explicit workflow. On a current runtime, recipe expansion alone should therefore already produce the correct no-graph experience and require no persistence write. If the live site still shows a graph for this exact saved shape, MathMaster should diagnose a stale deployed client or a different stale delivery artifact rather than inventing an assignment rewrite.
+
+If another old saved copy does contain a known platform-generated graph stage, the compatibility layer may remove only that generated stage when it can prove there is no authored graph request, no graph grading key, and no graph student action.
 
 If the workflow appears genuinely hand-authored or graph grading depends on it, fail closed and report instead of deleting it.
 
@@ -279,11 +296,11 @@ Proposed metadata:
 window.__MATHMASTER_BUILD__ = {
   gitSha: '...',
   builtAt: '...',
-  assignmentRuntimeRepairVersion: 3
+  assignmentRuntimeRepairVersion: 1
 }
 ```
 
-Expose it in an admin/diagnostic surface and optionally in teacher Repair Center diagnostics.
+Expose it in an admin/diagnostic surface and in Repair Center diagnostics when a platform issue is present.
 
 When a teacher reports “PR is merged but the assignment still behaves the old way,” MathMaster should be able to say one of:
 
@@ -292,6 +309,8 @@ When a teacher reports “PR is merged but the assignment still behaves the old 
 - live runtime and assignment repair version are current — genuine remaining regression.
 
 This avoids conflating deployment state with assignment state.
+
+The revision diagnostic does not itself deploy the app. Deployment remains an explicit release action, but after deployment there must be an objective way to verify which build students are using.
 
 ## Student-data handling
 
@@ -339,7 +358,8 @@ Use the real authored shapes for both flagged questions.
 - grading change makes `safeToPersist` false unless routed through live-correction safety;
 - ambiguous explicit workflow is preserved and diagnosed;
 - rerunning a repair is idempotent;
-- current-version assignment produces no write.
+- current-version assignment produces no write;
+- portable export/duplication does not preserve a stale compatibility stamp.
 
 ### Student-state safety
 
@@ -354,7 +374,8 @@ Fixture a live tracker with attempts/partial credit before migration and assert 
 ### Deployment metadata
 
 - build exposes revision and repair version;
-- diagnostic UI can compare live repair version with assignment repair version.
+- diagnostic UI can compare live repair version with assignment repair version;
+- exact District DOL no-workflow fixture reports deployment mismatch rather than suggesting an unnecessary question rewrite if old behavior is observed under an older build.
 
 ## Rollout
 
