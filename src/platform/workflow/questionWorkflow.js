@@ -18,6 +18,7 @@ import { STAGE_OUTPUT, getStage, isKnownStageKind, resolveStageKind } from './in
 import { expandRecipe } from './questionRecipes.js';
 import { choicePreviewProblems } from './choicePreview.js';
 import { figureMatchKeyProblems, figureMatchProblems } from './figureMatch.js';
+import { repairQuestionForCurrentRuntime } from '../assignments/assignmentRuntimeRepair.js';
 
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
 
@@ -37,7 +38,7 @@ export const hasStageResponse = (value) => {
   if (Array.isArray(value)) return value.length > 0;
   if (typeof value === 'object') {
     // Workflow artifacts may carry useful metadata before the student has
-    // finished the stage.  Downstream work must wait for the artifact itself
+    // finished the stage. Downstream work must wait for the artifact itself
     // to say it is complete; otherwise a graph could unlock after only one
     // table cell was entered.
     if (value.__mathmasterWorkflowArtifact) return value.isComplete === true;
@@ -400,12 +401,20 @@ const contentWithoutAnswers = (source) => {
 };
 
 export const readComposedQuestion = (question = {}) => {
-  const source = isObject(question) ? question : {};
+  const literalSource = isObject(question) ? question : {};
+  // Compatibility repair happens before the explicit-workflow precedence rule.
+  // This is the shared student/teacher runtime boundary, so a known old
+  // platform-generated workflow cannot keep outranking the corrected recipe.
+  // The repair function is pure and fails closed for authored/ambiguous state.
+  const runtimeRepair = repairQuestionForCurrentRuntime(literalSource, {
+    source: 'readComposedQuestion',
+  });
+  const source = isObject(runtimeRepair.question) ? runtimeRepair.question : literalSource;
   const explicit = Array.isArray(source.workflow) && source.workflow.length > 0;
   // A named recipe is expanded here, so a recipe question and a hand-composed
   // one are the same thing everywhere downstream: one runtime, one validator,
-  // one grader. An explicit workflow always wins — naming the stages is the
-  // more specific instruction.
+  // one grader. An explicit authored/current workflow still wins — naming the
+  // stages is the more specific instruction after compatibility repair.
   const expanded = explicit ? null : expandRecipe(source);
   const workflow = explicit ? source.workflow : (expanded?.workflow || []);
   const composed = workflow.length > 0;
