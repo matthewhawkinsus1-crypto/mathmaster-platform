@@ -730,6 +730,15 @@ export default function QuestionEngine({
         return <GraphStory {...commonModuleProps} />;
       case 'contextInterpretation':
         return <ContextInterpretation {...commonModuleProps} />;
+      case 'platformQuestionError':
+        return (
+          <div role="alert" style={{ padding: '22px 24px', margin: '0 auto', maxWidth: '640px', borderRadius: '12px', background: '#fef7e0', border: '1px solid #f9ab00', textAlign: 'left' }}>
+            <h3 style={{ margin: 0, color: '#7a4f00' }}>This question is temporarily unavailable</h3>
+            <p style={{ margin: '10px 0 0', lineHeight: 1.55 }}>
+              MathMaster could not prepare this question correctly. You can continue with the rest of the assignment; this item will not trap you on this screen.
+            </p>
+          </div>
+        );
       default:
         // Batch A-D interactive tools never reach this switch: they resolve
         // through the shared registry above, so a new tool becomes
@@ -749,7 +758,7 @@ export default function QuestionEngine({
   };
 
   const submitDisabled = !answerState.isComplete || submitting || locked || scaffoldRequired || contextScaffoldRequired;
-  const shouldShowSubmit = !missingToolDefinition && processedQuestion?.type !== 'modelingLab' && (processedQuestion?.type !== 'stepAlgebra' || answerState.isComplete);
+  const shouldShowSubmit = !missingToolDefinition && processedQuestion?.type !== 'modelingLab' && processedQuestion?.type !== 'platformQuestionError' && (processedQuestion?.type !== 'stepAlgebra' || answerState.isComplete);
   const scratchpadQuestionDetails = answerState.questionDetails || processedQuestion?.prompt || 'Show your work for this question.';
   const partialPercent = Math.max(Number(record.bestPartialCredit) || 0, Number(feedback?.partialCredit) || 0);
   const expiredAlmost = isExpired && partialPercent >= 50;
@@ -931,7 +940,7 @@ export default function QuestionEngine({
       style={{ position: 'relative', padding: '10px', textAlign: 'center', fontFamily: 'sans-serif', overflow: 'visible' }}
     >
       <MobileViewportContainer
-        promptText={processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.'}
+        promptText={workflowGuidanceState?.currentStagePrompt || processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.'}
         taskMeta={questionAlignmentPanel}
         taskContextPanel={questionReferencePanel}
         contextPanel={solverWorkspaceActive ? null : questionContextPanel}

@@ -236,6 +236,76 @@ export const evaluateExpression = (text, scope = {}) => {
   return result;
 };
 
+// Derived expressions are a dependency graph, not an ordered script. JSON key
+// order must never decide whether a valid family can issue. Build a stable
+// topological order once per template, then evaluate in that order for each
+// deterministic parameter draw.
+const expressionDependencies = (text) => {
+  const tokens = tokenizeExpression(text);
+  if (!tokens || !tokens.length) return null;
+  const dependencies = new Set();
+  tokens.forEach((token, index) => {
+    if (token.kind !== 'name') return;
+    // A name immediately followed by '(' is one of the closed-list functions,
+    // not a parameter dependency. Unknown functions are rejected later by the
+    // evaluator as invalid expressions.
+    if (tokens[index + 1]?.kind === '(') return;
+    dependencies.add(token.value);
+  });
+  return [...dependencies];
+};
+
+const orderDerivedExpressions = (parameterNames, derived) => {
+  const entries = Object.entries(derived || {});
+  if (!entries.length) return { entries: [], reason: null };
+
+  const derivedNames = new Set(entries.map(([name]) => name));
+  const known = new Set(parameterNames);
+  const pending = entries.map(([name, expression]) => {
+    const dependencies = expressionDependencies(expression);
+    if (!dependencies) return { name, expression, dependencies: null };
+    return { name, expression, dependencies };
+  });
+
+  const invalid = pending.find((entry) => entry.dependencies === null);
+  if (invalid) return { entries: [], reason: `derived_invalid_expression:${invalid.name}` };
+
+  for (const entry of pending) {
+    const unknown = entry.dependencies.filter((name) => !known.has(name) && !derivedNames.has(name));
+    if (unknown.length) {
+      return {
+        entries: [],
+        reason: `derived_unknown_dependencies:${entry.name}->${[...new Set(unknown)].sort().join(',')}`,
+      };
+    }
+  }
+
+  const ordered = [];
+  const remaining = [...pending];
+  while (remaining.length) {
+    let progressed = false;
+    for (let index = 0; index < remaining.length;) {
+      const entry = remaining[index];
+      if (!entry.dependencies.every((name) => known.has(name))) {
+        index += 1;
+        continue;
+      }
+      ordered.push([entry.name, entry.expression]);
+      known.add(entry.name);
+      remaining.splice(index, 1);
+      progressed = true;
+    }
+    if (!progressed) {
+      return {
+        entries: [],
+        reason: `derived_cycle:${remaining.map((entry) => entry.name).sort().join(',')}`,
+      };
+    }
+  }
+
+  return { entries: ordered, reason: null };
+};
+
 // --- drawing the parameters ----------------------------------------------------
 
 const drawParameter = (spec, random) => {
@@ -608,8 +678,17 @@ export const generatePathInstance = (template, seedKey, options = {}) => {
   const random = createSeededRandom(`${resolvedTemplate.id || 'template'}|${seedKey}|v${generator.version || 1}`);
   const parameterNames = Object.keys(generator.parameters);
   const derived = generator.derived && typeof generator.derived === 'object' ? generator.derived : {};
+  const derivedPlan = orderDerivedExpressions(parameterNames, derived);
   const constraints = Array.isArray(generator.constraints) ? generator.constraints : [];
   const attempts = Math.min(400, Math.max(1, Number(generator.attempts) || 120));
+
+  // Missing names, invalid syntax and dependency cycles are structural authoring
+  // faults. A different random seed cannot repair them, so report them now
+  // instead of burning through 120 draws and returning a misleading constraint
+  // failure.
+  if (derivedPlan.reason) {
+    return { question: null, parameters: null, reason: derivedPlan.reason };
+  }
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const scope = {};
@@ -631,8 +710,10 @@ export const generatePathInstance = (template, seedKey, options = {}) => {
     }
     if (!usable) continue;
 
-    for (const [name, expression] of Object.entries(derived)) {
+    for (const [name, expression] of derivedPlan.entries) {
       const value = evaluateExpression(expression, scope);
+      // This can still be value-specific (for example division by a drawn zero),
+      // so keep the historic retry behavior after dependency order is known.
       if (value === null) { usable = false; break; }
       scope[name] = value;
     }
@@ -685,8 +766,12 @@ export const samplePathInstances = (template, count = 8) => Array.from({ length:
 export const generatePathInstanceWithRetries = (template, seedKey, retries = 4, options = {}) => {
   const first = generatePathInstance(template, seedKey, options);
   if (first.question || !hasPathGenerator(template)) return first;
-  // An unbound placeholder is a fault in the document and no seed will fix it.
-  if (String(first.reason || '').startsWith('unbound_placeholders')) return first;
+  // Structural faults are independent of the random draw. Do not rerun a
+  // broken dependency graph four more times before telling the caller what is
+  // actually wrong.
+  if (/^(unbound_placeholders|derived_unknown_dependencies|derived_cycle|derived_invalid_expression)/.test(String(first.reason || ''))) {
+    return first;
+  }
   for (let attempt = 1; attempt <= retries; attempt += 1) {
     const next = generatePathInstance(template, `${seedKey}|retry-${attempt}`, options);
     if (next.question) return next;
