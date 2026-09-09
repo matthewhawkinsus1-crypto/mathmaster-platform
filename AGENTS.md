@@ -4,15 +4,40 @@ MathMaster is a live platform with real student data. Assignments, grades,
 attempt history and Google Classroom grade columns are all production state.
 Prefer being slow and correct.
 
+## Run the suite this way
+
+```
+npm run test:platform
+```
+
+Same tests, same exit code as `node --test tests/platform/*.test.mjs` — but when
+something fails it tells you **what kind** of failure it is and what to do. Use
+it instead of the raw command; CI does.
+
 ## The failure that will most likely stop you
 
-About a quarter of `tests/platform` reads component source as **text** and
-matches strings against it. Nothing here renders React — node cannot import
-`.jsx` — so this is the only way to assert a screen is wired to its logic.
+**Across PRs #152 and #155–#166, 26 of 27 failures in this suite were not
+regressions.** They were assertions pinned to a *representation* — the text of a
+file, a value a normaliser rewrites, a frozen object shape — that a correct
+refactor had moved. Exactly one was a real bug.
 
-These tests fail whenever code is refactored, and **the failure usually is not a
-regression**: the behaviour is intact and the text moved. Splitting a component,
-renaming a button, or rewriting an expression each turn them red.
+That base rate is the trap. A red suite looks identical either way, so reverting
+your change until the assertion matches *looks* like the careful option. It is
+usually wrong, and it can be actively harmful: on PR #165 the pinned expression
+had itself become the double-draw bug the test existed to prevent.
+
+Three shapes account for nearly all of it:
+
+| Shape | Example | Fix |
+| --- | --- | --- |
+| Source text | component split, button renamed, expression rewritten | assert the capability, not the wording |
+| Canonicalised value | `graphConstruction` → `functionGraph` via `normalizeWorkflow` | assert what survives normalisation — an id, a role |
+| Frozen object shape | `deepEqual` on a record that gained a field | add the field, with a comment saying why |
+
+About a quarter of `tests/platform` reads component source as **text**. Nothing
+here renders React — node cannot import `.jsx` — so this is the only way to
+assert a screen is wired to its logic. It is worth keeping, and it is why these
+tests are fragile.
 
 When one fails, do not revert the code to make the regex match. Run this:
 

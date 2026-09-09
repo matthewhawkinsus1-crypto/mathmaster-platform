@@ -101,7 +101,38 @@ test('authored workflow remains explicit and is not rewritten by the shared runt
   const question = staleGeneratedQuestion();
   question.workflowProvenance = { source: 'authored' };
   const composed = readComposedQuestion(question);
-  assert.equal(composed.workflow.some((stage) => stage.kind === 'graphConstruction'), true);
+
+  /*
+   * The stage SURVIVES; its kind name does not, and that is by design.
+   *
+   * `graphConstruction` is an authoring-facing alias. normalizeWorkflow
+   * resolves it to the renderer that will actually run — coordinatePlot when
+   * graphMode is discrete, functionGraph otherwise (interactionStages.js) — so
+   * asserting `kind === 'graphConstruction'` after a composed read asserts a
+   * string that never survives normalisation, whether or not the guard works.
+   *
+   * What must hold is that an authored graph stage is still there. Self-healing
+   * removes graph stages it generated itself; it must never remove one a
+   * teacher authored, because that silently deletes the work the question asks
+   * for. Asserted by identity and by rendering as a graph, both of which
+   * survive normalisation.
+   *
+   * Two guards in assignmentRuntimeRepair protect this, and they are
+   * deliberately redundant: one matches `authored` explicitly, and one fails
+   * closed on any provenance not proven to be `recipeExpansion`. Removing
+   * either alone leaves this green, because the other still holds. Removing
+   * both turns it red. If you are mutation-testing this and a single guard
+   * does not bite, that is the redundancy working — not a hole here.
+   */
+  const graphStage = composed.workflow.find((stage) => stage.id === 'graph');
+  assert.ok(
+    graphStage,
+    'an authored graph stage must survive the self-healing reader; removing it deletes the work the question asks a student to do',
+  );
+  assert.ok(
+    ['functionGraph', 'coordinatePlot'].includes(graphStage.kind),
+    `the preserved stage must still render as a graph, not be downgraded to something else (was ${graphStage.kind})`,
+  );
 });
 
 test('student QuestionEngine routes composed questions through the shared self-healing reader', () => {
