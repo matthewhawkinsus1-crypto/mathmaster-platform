@@ -1,6 +1,7 @@
 import { normalizeAssignmentV5, validateAssignmentV5, flattenV5Sections } from '../contract/assignmentSchemaV5.js';
 import { validateQuestionsSemantics } from '../contract/semanticValidation.js';
 import { validateAlignments, auditAlignmentSpecificity } from '../contract/alignments.js';
+import { prepareAssignmentForRuntime } from '../contract/storedAssignmentV5.js';
 import { toEnforcedActivityPolicy } from '../policies/activityPolicies.js';
 import { validateAssignmentInteractionContracts } from '../interaction/interactionContract.js';
 import { auditAssignmentWorksheetPrintability } from './worksheetPrintPreflight.js';
@@ -53,6 +54,19 @@ const explicitlyPublished = (assignmentV5 = {}) => (
   || clean(assignmentV5?.authoringState).toLowerCase() === 'published'
 );
 
+const withRuntimeSectionMetadata = (section, index) => ({
+  ...section,
+  id: clean(section?.id) || `section-${index + 1}`,
+  sectionId: clean(section?.id) || `section-${index + 1}`,
+  title: clean(section?.title) || titleForRole(section?.role),
+  policy: toEnforcedActivityPolicy(section?.role),
+  questions: (section?.questions || []).map((question) => ({
+    ...question,
+    sectionId: question.sectionId || section?.id || `section-${index + 1}`,
+    activityRole: question.activityRole || section?.role,
+  })),
+});
+
 export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = null, teacherReviewContext = null } = {}) => {
   const normalizedSource = normalizeAssignmentV5({
     ...input,
@@ -70,25 +84,23 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   const source = firestoreRepair.value;
   const firestoreUnsafePaths = findFirestoreUnsafeNestedArrays(source);
 
-  const structural = validateAssignmentV5(source);
-  const sections = (source.sections || []).map((section, index) => ({
-    ...section,
-    id: clean(section.id) || `section-${index + 1}`,
-    sectionId: clean(section.id) || `section-${index + 1}`,
-    title: clean(section.title) || titleForRole(section.role),
-    policy: toEnforcedActivityPolicy(section.role),
-    questions: (section.questions || []).map((question) => ({
-      ...question,
-      sectionId: question.sectionId || section.id || `section-${index + 1}`,
-      activityRole: question.activityRole || section.role,
-    })),
-  }));
+  // Runtime compatibility repair is deliberately a read-time view here. The
+  // Preflight renderer and interaction/worksheet audits should judge what the
+  // current platform will actually show, but assignmentV5 below remains the
+  // literal normalized persistence shape until the guarded teacher-side
+  // persistence step explicitly stamps and saves a safe repair.
+  const runtimeRepair = prepareAssignmentForRuntime(source, { source: 'preflight' });
+  const runtimeSource = runtimeRepair.assignment;
 
-  const questions = flattenV5Sections({ ...source, sections });
+  const structural = validateAssignmentV5(source);
+  const sections = (runtimeSource.sections || []).map(withRuntimeSectionMetadata);
+  const persistenceSections = (source.sections || []).map(withRuntimeSectionMetadata);
+
+  const questions = flattenV5Sections({ ...runtimeSource, sections });
   const semantic = validateQuestionsSemantics(questions);
   const interaction = validateAssignmentInteractionContracts(questions);
-  const worksheetPrint = auditAssignmentWorksheetPrintability({ ...source, sections }, questions);
-  const supportDifferentiation = auditAssignmentSupportDifferentiation({ ...source, sections }, questions);
+  const worksheetPrint = auditAssignmentWorksheetPrintability({ ...runtimeSource, sections }, questions);
+  const supportDifferentiation = auditAssignmentSupportDifferentiation({ ...runtimeSource, sections }, questions);
 
   const persistenceErrors = firestoreUnsafePaths.map((path) => (
     `Firestore cannot save an array directly inside another array (found at ${path}). MathMaster cannot safely auto-repair this structure because it is not a recognized coordinate-pair list.`
@@ -156,9 +168,10 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   });
 
   return {
-    assignmentV5: { ...source, sections },
+    assignmentV5: { ...source, sections: persistenceSections },
     sections,
     questions,
+    runtimeRepair,
     errors: uniqueErrors,
     warnings: uniqueWarnings,
     diagnostics,
