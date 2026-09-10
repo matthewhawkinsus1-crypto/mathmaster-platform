@@ -10248,6 +10248,7 @@ async function runAssignmentAiRequest(request, {
   mode,
   reasoningEffort,
   surface,
+  ccmrEnrichment = false,
 }) {
   const teacherUid = await requireTeacher(request);
   const db = getFirestore();
@@ -10270,6 +10271,7 @@ async function runAssignmentAiRequest(request, {
       mode,
       reasoningEffort: assignmentAiReasoningEffort(reasoningEffort),
       timeoutMs: assignmentAi.DEFAULT_PROVIDER_TIMEOUT_MS,
+      ccmrEnrichment,
     });
 
     await db.collection("assignmentAiAudit").add({
@@ -10323,6 +10325,7 @@ exports.authorAssignmentWithAI = onCall({
   mode: "assignment",
   reasoningEffort: "medium",
   surface: "assignmentBuild",
+  ccmrEnrichment: request.data?.ccmrEnrichment === true,
 }));
 
 // Preflight's per-question repair. It asks for one replacement question rather

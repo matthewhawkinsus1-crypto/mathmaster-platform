@@ -50,6 +50,15 @@ test('integrated authoring callable requires teacher auth and usage reservation 
   }
 });
 
+test('integrated assignment AI gates CCMR mutation on one explicit teacher request flag', () => {
+  const callableStart = functionsIndex.indexOf('exports.authorAssignmentWithAI');
+  const callableBlock = functionsIndex.slice(callableStart, functionsIndex.indexOf('exports.repairAssignmentQuestionWithAI', callableStart));
+  assert.match(callableBlock, /ccmrEnrichment:\s*request\.data\?\.ccmrEnrichment === true/);
+  assert.match(provider, /ccmrEnrichment === true[\s\S]*replaceDirectCcmrQuestionsWithAuditedBank\(parsed, \{ ensurePracticeTarget: true \}\)/);
+  assert.match(service, /buildAssignmentWithAI\(prompt, \{ ccmrEnrichment = false \} = \{\}\)/);
+  assert.match(service, /ccmrEnrichment:\s*ccmrEnrichment === true/);
+});
+
 test('Honors V5 has a dedicated Gemini callable with teacher auth, shared quota, and audit logging', () => {
   const start = functionsEntry.indexOf('exports.authorHonorsAssignmentWithGemini');
   assert.ok(start >= 0, 'dedicated Gemini Honors callable must exist');

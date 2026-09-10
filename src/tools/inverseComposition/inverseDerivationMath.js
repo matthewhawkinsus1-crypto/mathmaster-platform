@@ -117,7 +117,8 @@ export const createLinearInverseDerivation = (functionSpec = {}) => {
 
 export const formatInverseDerivationRelation = (state) => `${formatSide(state.left)} = ${formatSide(state.right)}`;
 
-export const isLinearInverseSolved = (state) => Boolean(deriveInverse(state.left, state.right));
+export const isLinearInverseSolved = (state) => state?.phase !== 'original'
+  && Boolean(deriveInverse(state.left, state.right));
 
 const mapRelation = (relation, transform) => ({
   x: clean(transform(relation.x)),

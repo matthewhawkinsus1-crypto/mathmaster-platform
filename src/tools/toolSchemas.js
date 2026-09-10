@@ -49,6 +49,23 @@ const validateFunctionOperationSpec = (spec, label) => {
   return errors;
 };
 
+const functionOperationPolynomialDegree = (spec = {}) => {
+  const type = String(spec.type || spec.family || '').trim();
+  if (['linear', 'line'].includes(type)) return Math.abs(Number(spec.a ?? spec.m ?? 1)) <= 1e-9 ? 0 : 1;
+  if (type === 'quadratic') return Math.abs(Number(spec.a ?? 1)) <= 1e-9 ? 0 : 2;
+  if (type === 'cubic') return Math.abs(Number(spec.a ?? 1)) <= 1e-9 ? 0 : 3;
+  if (type !== 'polynomial' || !Array.isArray(spec.coefficients)) return null;
+  const firstNonzero = spec.coefficients.findIndex((value) => Math.abs(Number(value)) > 1e-9);
+  return firstNonzero < 0 ? 0 : spec.coefficients.length - firstNonzero - 1;
+};
+
+const hasAuthoredFunctionRestrictions = (restrictions) => (
+  Array.isArray(restrictions) ? restrictions.length > 0 : Boolean(
+    restrictions && typeof restrictions === 'object'
+    && ['excludedValues', 'exclude', 'values'].some((key) => Array.isArray(restrictions[key]) && restrictions[key].length > 0)
+  )
+);
+
 const validateSequenceSpec = (spec = {}, fallbackKind = 'arithmetic', label = 'sequence') => {
   const errors = [];
   const kind = spec.kind || fallbackKind;
@@ -118,6 +135,10 @@ export const validateToolQuestion = (question = {}) => {
         && Math.abs(Number(question.g.a ?? question.g.m ?? 1)) <= 1e-9
         && Math.abs(Number(question.g.k ?? question.g.b ?? 0)) <= 1e-9;
       if (polynomialIsZero || linearIsZero) errors.push('functionOperationsLab quotient cannot divide by the zero function.');
+      const denominatorDegree = functionOperationPolynomialDegree(question.g);
+      if (denominatorDegree > 2 && !hasAuthoredFunctionRestrictions(question.restrictions)) {
+        errors.push('functionOperationsLab nonlinear quotient denominators above degree 2 require explicitly authored restrictions/excluded values.');
+      }
     }
   }
   if (toolId === 'parabolaGeometryLab') {
