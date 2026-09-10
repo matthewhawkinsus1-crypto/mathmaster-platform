@@ -25,7 +25,9 @@ const isSuperset = (before, after) => {
 
 const leastSquares = (points = []) => {
   const rows = (Array.isArray(points) ? points : [])
-    .map((point) => ({ x: Number(point?.x), y: Number(point?.y) }))
+    .map((point) => Array.isArray(point)
+      ? ({ x: Number(point[0]), y: Number(point[1]) })
+      : ({ x: Number(point?.x), y: Number(point?.y) }))
     .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
   if (rows.length < 2) return null;
   const meanX = rows.reduce((sum, p) => sum + p.x, 0) / rows.length;
