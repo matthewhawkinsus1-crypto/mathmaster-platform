@@ -99,9 +99,9 @@ const assignmentOf = (...questions) => ({
   }],
 });
 
-test('runtime repair version begins at 1 and exposes stable repair keys', () => {
+test('runtime repair version is 2 and exposes stable repair keys', () => {
   const api = requireRuntimeRepair();
-  assert.equal(api.ASSIGNMENT_RUNTIME_REPAIR_VERSION, 1);
+  assert.equal(api.ASSIGNMENT_RUNTIME_REPAIR_VERSION, 2);
   assert.equal(
     api.RUNTIME_REPAIR_KEYS.NO_SYNTHETIC_FUNCTION_MODELING_GRAPH,
     'function-modeling-exact-ask-no-synthetic-graph-v1',

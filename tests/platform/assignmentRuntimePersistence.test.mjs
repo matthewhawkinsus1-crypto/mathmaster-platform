@@ -6,6 +6,7 @@ import {
   RUNTIME_REPAIR_KEYS,
 } from '../../src/platform/assignments/assignmentRuntimeRepair.js';
 import { buildRuntimeRepairPersistencePatch } from '../../src/platform/assignments/assignmentRuntimeRepairPersistence.js';
+import { ASSIGNMENT_RUNTIME_REPAIR_VERSION } from '../../src/platform/assignments/assignmentRuntimeRepair.js';
 
 const staleQuestion = () => ({
   questionId: '0d24f506-f272-4004-9a1e-5b4986492b51',
@@ -48,7 +49,11 @@ test('safe generated-workflow cleanup yields only sections plus a compatibility 
 
   assert.deepEqual(Object.keys(result.patch).sort(), ['runtimeCompatibility', 'sections']);
   assert.equal(result.patch.sections[0].questions[0].workflow.some((stage) => stage.kind === 'graphConstruction'), false);
-  assert.equal(result.patch.runtimeCompatibility.repairVersion, 1);
+  // The stamp records the version that produced it, so this tracks the
+  // constant rather than a literal. The version exists to be bumped — that is
+  // how assignments stamped by an older release get re-evaluated — so a test
+  // pinning it to 1 fails on every future bump by construction.
+  assert.equal(result.patch.runtimeCompatibility.repairVersion, ASSIGNMENT_RUNTIME_REPAIR_VERSION);
   assert.equal(result.patch.runtimeCompatibility.repairedAt, '2026-09-09T23:59:00.000Z');
   assert.deepEqual(result.patch.runtimeCompatibility.repairKeys, [RUNTIME_REPAIR_KEYS.NO_SYNTHETIC_FUNCTION_MODELING_GRAPH]);
 });

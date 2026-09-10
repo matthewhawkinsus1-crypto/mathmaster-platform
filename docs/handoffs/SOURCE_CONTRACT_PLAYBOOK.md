@@ -89,6 +89,38 @@ parse the language, which is fine for a haystack.
 If you are writing a new forbidden-identifier check, use `executableSource` from
 the start.
 
+## The self-detonating one: constants that are meant to change
+
+PR #169 advanced `ASSIGNMENT_RUNTIME_REPAIR_VERSION` from 1 to 2 — which is the
+entire point of that constant: when a release adds a repair, assignments stamped
+by an earlier release must be re-evaluated. Three tests failed at once.
+
+All three hardcoded `1`, and all three *meant* "current":
+
+```js
+test('... when build is current', ...)        // fixture: assignmentRuntimeRepairVersion: 1
+test('a current compatibility stamp ...', ...) // fixture: repairVersion: 1
+assert.equal(patch.runtimeCompatibility.repairVersion, 1);
+```
+
+The literal said "current" only while 1 happened to be current. After the bump
+each fixture silently became a **stale** stamp, so the tests asserted the
+opposite of their own names — and the implementation was correct the whole time.
+
+Fix: import the constant.
+
+```js
+import { ASSIGNMENT_RUNTIME_REPAIR_VERSION } from '.../assignmentRuntimeRepair.js';
+repairVersion: ASSIGNMENT_RUNTIME_REPAIR_VERSION,          // means "current"
+repairVersion: ASSIGNMENT_RUNTIME_REPAIR_VERSION - 1,      // means "stale"
+```
+
+**Then check the counterpart exists.** Making these version-agnostic is correct,
+but it removes the only thing that referenced the bump — so nothing proved the
+bump did its job. #169 added the missing half: an assignment stamped at
+`CURRENT - 1` must be re-evaluated. Without it, reverting the bump left the
+suite green while the new repair reached nothing already stamped.
+
 ## The quieter failure: assertions that cannot fail
 
 The opposite mistake, and the one that produces false confidence. Nine of these

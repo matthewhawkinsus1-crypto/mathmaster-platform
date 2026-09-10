@@ -1068,6 +1068,20 @@ export default function WorkflowRunner({
     () => activeStages(authoredWorkflow, responses),
     [authoredWorkflow, responses],
   );
+  // A primitive signature lets the guidance effect notice a genuinely new
+  // composed question without depending on workflow array identity. Include the
+  // authored question key because two recipe-generated questions may have the
+  // same stage prompts; navigation between them must still republish YOUR TASK.
+  const workflowGuidanceSignature = useMemo(() => JSON.stringify({
+    questionKey: question?.questionId || question?.id || question?.prompt || null,
+    stages: (Array.isArray(authoredWorkflow) ? authoredWorkflow : []).map((stage) => ({
+      id: stage?.id || null,
+      kind: stage?.kind || null,
+      prompt: stage?.prompt || null,
+      label: stage?.label || null,
+      showWhen: stage?.showWhen || null,
+    })),
+  }), [question?.questionId, question?.id, question?.prompt, authoredWorkflow]);
 
   // Focus mode is decided from the AUTHORED workflow, not the visible one. A
   // branch that took the count under the threshold would otherwise flip the
@@ -1192,7 +1206,7 @@ export default function WorkflowRunner({
       currentStageIndex: currentStage ? currentIndex : null,
       currentStagePrompt,
     });
-  }, [responses, activeStageIndex, focusMode]);
+  }, [responses, activeStageIndex, focusMode, workflowGuidanceSignature]);
 
   useEffect(() => {
     setActiveStageIndex((current) => Math.min(current, Math.max(0, workflow.length - 1)));
