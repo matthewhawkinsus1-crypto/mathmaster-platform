@@ -399,6 +399,7 @@ service cloud.firestore {
     match /assignmentRepairAudits/{docId} { allow read, write: if false; }
     match /assignmentRepairHistory/{docId} { allow read, write: if false; }
     match /assignmentPlatformIssues/{docId} { allow read, write: if false; }
+    match /assignmentVersionEvents/{docId} { allow read, write: if false; }
     match /classJoinCodes/{docId} { allow read, write: if false; }
     match /authThrottle/{docId} { allow read, write: if false; }
     match /activePathLocks/{docId} { allow read, write: if false; }
