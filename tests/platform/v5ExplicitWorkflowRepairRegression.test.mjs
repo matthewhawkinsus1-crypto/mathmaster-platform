@@ -133,7 +133,7 @@ const repairAssignment = {
   ],
 };
 
-test('a batch response with zero replacements and platform issues is classified as report-only, not as a failed replacement', () => {
+test('a batch response with zero replacements and platform issues is saveable report-only metadata, not a failed replacement', () => {
   const platformIssue = {
     questionId: 'q-cw-1',
     classification: 'platformIssue',
@@ -156,7 +156,7 @@ test('a batch response with zero replacements and platform issues is classified 
   });
 
   assert.equal(staged.questionResults.length, 0);
-  assert.equal(staged.canCommit, false, 'a report-only packet must never mutate the assignment');
+  assert.equal(staged.canCommit, true, 'report-only metadata needs a save action even though it cannot replace any question');
   assert.equal(staged.responseKind, 'reportOnly');
   assert.equal(staged.platformIssues.length, 1);
   assert.deepEqual(staged.platformIssues[0], platformIssue);
