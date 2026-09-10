@@ -105,6 +105,48 @@ test('V5 compiler preserves b and ALEKS-style source points for transformation p
   assert.equal(compiled.snapStep, 1);
 });
 
+test('V5 transformation constructGraph intent infers plotTransform and preserves authored geometry', () => {
+  const source = {
+    schemaVersion: 5,
+    assignment: {
+      title: 'Semantic transformation plotting smoke test',
+      courseId: 'algebra2',
+      instructionalPurpose: 'lesson',
+      gradingPurpose: 'classwork',
+    },
+    sections: [{
+      role: 'classwork',
+      title: 'Classwork',
+      questions: [{
+        standard: 'A2.2A',
+        prompt: 'Use the defining points of h to construct the transformed graph.',
+        studentActions: ['constructGraph'],
+        transformation: { family: 'linear' },
+        function: { family: 'linear', a: -2, b: 1, h: 3, k: -1 },
+        sourcePoints: [[-2, -3], [0, 1], [3, 7]],
+        sourceLabel: 'h(x)',
+        graphBounds: { xMin: -10, xMax: 10, yMin: -12, yMax: 12 },
+        snapStep: 0.5,
+        dok: 2,
+        difficultyBand: 2,
+      }],
+    }],
+  };
+
+  const compiled = compileAuthoringIntentV5(source).package.sections[0].questions[0];
+  assert.equal(compiled.type, 'transformationsLab');
+  assert.equal(compiled.mode, 'plotTransform');
+  assert.deepEqual(compiled.sourcePoints, [
+    { x: -2, y: -3 },
+    { x: 0, y: 1 },
+    { x: 3, y: 7 },
+  ]);
+  assert.equal(compiled.sourceLabel, 'h(x)');
+  assert.deepEqual(compiled.graphBounds, { xMin: -10, xMax: 10, yMin: -12, yMax: 12 });
+  assert.equal(compiled.snapStep, 0.5);
+  assert.deepEqual(validateToolQuestion(compiled).errors, []);
+});
+
 test('CoordinatePlane exposes reusable polyline rendering for source and student graphs', () => {
   const source = fs.readFileSync('src/tools/shared/CoordinatePlane.jsx', 'utf8');
   assert.match(source, /polylines = \[\]/);
