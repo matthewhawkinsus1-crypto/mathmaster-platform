@@ -53,6 +53,36 @@ test('matching runtime manifest marks the persisted issue resolved by that exact
   assert.equal(resolved[0].resolvedRuntimeVersion, 1);
 });
 
+test('AI report without an internal key can resolve only when its component/reason matches that registered repair', () => {
+  const aiReported = { ...reported };
+  delete aiReported.repairKey;
+  const issues = mergeAssignmentPlatformIssues([], [aiReported], { nowIso: '2026-09-09T20:00:00.000Z' });
+  const resolved = resolveAssignmentPlatformIssues(issues, [{
+    questionId: reported.questionId,
+    repairKey: RUNTIME_REPAIR_KEYS.NO_SYNTHETIC_FUNCTION_MODELING_GRAPH,
+    runtimeVersion: 1,
+  }]);
+
+  assert.equal(resolved[0].status, 'resolvedByPlatformUpdate');
+  assert.equal(resolved[0].resolvedRepairKey, RUNTIME_REPAIR_KEYS.NO_SYNTHETIC_FUNCTION_MODELING_GRAPH);
+});
+
+test('AI report without an internal key never resolves against an unrelated repair on the same question', () => {
+  const aiReported = {
+    ...reported,
+    repairKey: undefined,
+    suspectedComponent: 'answer grading',
+    reason: 'A correct numeric answer is marked incorrect.',
+  };
+  const issues = mergeAssignmentPlatformIssues([], [aiReported], { nowIso: '2026-09-09T20:00:00.000Z' });
+  const resolved = resolveAssignmentPlatformIssues(issues, [{
+    questionId: reported.questionId,
+    repairKey: RUNTIME_REPAIR_KEYS.NO_SYNTHETIC_FUNCTION_MODELING_GRAPH,
+    runtimeVersion: 1,
+  }]);
+  assert.equal(resolved[0].status, 'open');
+});
+
 test('runtime version alone can never resolve an issue', () => {
   const issues = mergeAssignmentPlatformIssues([], [reported], { nowIso: '2026-09-09T20:00:00.000Z' });
   const resolved = resolveAssignmentPlatformIssues(issues, [{ runtimeVersion: 1 }]);
