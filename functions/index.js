@@ -69,6 +69,7 @@ const ccmrAssignmentBank = require("./lib/ccmrAssignmentBank");
 const studentSessionSummary = require("./lib/studentSessionSummary");
 const fullAssignmentRepair = require("./lib/fullAssignmentRepair");
 const assignmentContentVersion = require("./lib/assignmentContentVersion");
+const assignmentContentTrackerMigration = require("./lib/assignmentContentTrackerMigration");
 
 // HTTPS/callable transport must be reachable by the Firebase client SDK.
 // MathMaster authorization still happens INSIDE each callable through
@@ -10553,6 +10554,207 @@ exports.previewAssignmentContentUpgrade = onCall(async (request) => {
   } catch (error) {
     if (error instanceof HttpsError) throw error;
     throw new HttpsError("failed-precondition", error.message || "MathMaster could not preview this content upgrade.");
+  }
+});
+
+exports.commitAssignmentContentUpgrade = onCall(async (request) => {
+  const db = getFirestore();
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const targetAssignmentId = String(request.data?.targetAssignmentId || "").trim();
+  const expectedPlanHash = String(request.data?.expectedPlanHash || "").trim();
+  const expectedAssignmentRevision = Number(request.data?.expectedAssignmentRevision);
+  const expectedTargetRevision = Number(request.data?.expectedTargetRevision);
+  const fundamentalChoices = request.data?.fundamentalChoices && typeof request.data.fundamentalChoices === "object"
+    ? request.data.fundamentalChoices
+    : {};
+
+  if (!assignmentId || !targetAssignmentId || !expectedPlanHash) {
+    throw new HttpsError("invalid-argument", "Preview this content upgrade before committing it.");
+  }
+
+  const initialLiveSnapshot = await db.collection("assignments").doc(assignmentId).get();
+  if (!initialLiveSnapshot.exists) throw new HttpsError("not-found", "The assigned copy no longer exists.");
+  const initialLive = { id: initialLiveSnapshot.id, ...initialLiveSnapshot.data() };
+  await requireContentUpgradeOwner(db, request, initialLive);
+
+  const actorEmail = callerEmail(request);
+  const isRoot = Boolean(authLib.isRootAdminEmail(actorEmail) && request.auth?.token?.rootAdmin === true);
+  const eventRef = db.collection("assignmentVersionEvents").doc();
+
+  try {
+    return await db.runTransaction(async (transaction) => {
+      const liveRef = db.collection("assignments").doc(assignmentId);
+      const targetRef = db.collection("assignments").doc(targetAssignmentId);
+      const liveSnapshot = await transaction.get(liveRef);
+      const targetSnapshot = await transaction.get(targetRef);
+      if (!liveSnapshot.exists || !targetSnapshot.exists) {
+        throw new HttpsError("not-found", "The assigned copy or target content release no longer exists.");
+      }
+
+      const liveAssignment = { id: liveSnapshot.id, ...liveSnapshot.data() };
+      const targetAssignment = { id: targetSnapshot.id, ...targetSnapshot.data() };
+      if (Number(liveAssignment.assignmentRevision || 1) !== expectedAssignmentRevision
+        || Number(targetAssignment.assignmentRevision || 1) !== expectedTargetRevision) {
+        throw new HttpsError(
+          "failed-precondition",
+          "This assignment or its target release changed after preview. Preview the upgrade again."
+        );
+      }
+      if (targetAssignment?.contentLineage?.releaseStatus !== "current"
+        || (targetAssignment.assignedClassIds || []).filter(Boolean).length) {
+        throw new HttpsError("failed-precondition", "The selected target is no longer the current unassigned Library release.");
+      }
+
+      const plan = await assignmentContentVersion.buildContentUpgradePlan({
+        liveAssignment,
+        targetAssignment,
+      });
+      if (plan.planHash !== expectedPlanHash) {
+        throw new HttpsError(
+          "failed-precondition",
+          "The content upgrade plan changed after preview. Nothing was changed; preview it again."
+        );
+      }
+
+      const fundamentalIds = plan.changes
+        .filter((change) => change.classification === "fundamental")
+        .map((change) => change.questionId);
+      for (const questionId of fundamentalIds) {
+        if (!["retire-only", "retire-and-replace"].includes(fundamentalChoices[questionId])) {
+          throw new HttpsError(
+            "failed-precondition",
+            `Choose Retire only or Retire + replacement for fundamental correction "${questionId}".`
+          );
+        }
+      }
+
+      const classIds = [...new Set(
+        (Array.isArray(liveAssignment.assignedClassIds) ? liveAssignment.assignedClassIds : [])
+          .map((value) => String(value || "").trim()).filter(Boolean)
+      )];
+      if (!isRoot) {
+        const classSnapshots = [];
+        for (const classId of classIds) {
+          // All reads occur before any transaction write.
+          // eslint-disable-next-line no-await-in-loop
+          classSnapshots.push(await transaction.get(db.collection("classes").doc(classId)));
+        }
+        const ownsEveryClass = classSnapshots.length > 0 && classSnapshots.every((snapshot) => (
+          snapshot.exists
+          && String(snapshot.data()?.teacherOfRecord || "").trim().toLowerCase() === actorEmail
+        ));
+        if (!ownsEveryClass) {
+          throw new HttpsError(
+            "permission-denied",
+            "Class ownership changed after preview. Only the current teacher of record may upgrade this live assignment."
+          );
+        }
+      }
+
+      const gradeSnapshot = await transaction.get(
+        db.collection("grades").select("gradesByAssignment", "classroomReleaseSignals")
+      );
+      const trackerDocs = gradeSnapshot.docs.filter((gradeDoc) => (
+        gradeDoc.data()?.gradesByAssignment?.[assignmentId] !== undefined
+      ));
+      if (trackerDocs.length > 450) {
+        throw new HttpsError(
+          "resource-exhausted",
+          "This assignment has more than 450 saved student records. Use the server migration path in smaller cohorts instead of a partial content upgrade."
+        );
+      }
+
+      const upgraded = assignmentContentVersion.buildUpgradedAssignment({
+        liveAssignment,
+        targetAssignment,
+        plan,
+        fundamentalChoices,
+      });
+      const correctedAt = new Date().toISOString();
+      let migratedStudents = 0;
+      let gradeReconciliationRequested = false;
+
+      const migratedRows = trackerDocs.map((gradeDoc) => {
+        const data = gradeDoc.data() || {};
+        const tracker = data.gradesByAssignment?.[assignmentId];
+        const migration = assignmentContentTrackerMigration.migrateTrackerForContentUpgrade({
+          tracker,
+          plan,
+          correctedAt,
+        });
+        if (migration.changed) migratedStudents += 1;
+        if (migration.gradeMayChange) gradeReconciliationRequested = true;
+        return { gradeDoc, migration };
+      });
+
+      transaction.update(liveRef, {
+        sections: upgraded.assignment.sections,
+        assignmentRevision: upgraded.assignment.assignmentRevision,
+        contentLineage: upgraded.assignment.contentLineage,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      migratedRows.forEach(({ gradeDoc, migration }) => {
+        if (!migration.changed) return;
+        transaction.update(
+          gradeDoc.ref,
+          new FieldPath("gradesByAssignment", assignmentId),
+          migration.tracker
+        );
+        if (migration.gradeMayChange) {
+          transaction.update(
+            gradeDoc.ref,
+            new FieldPath("classroomReleaseSignals", assignmentId),
+            {
+              requestedAt: correctedAt,
+              reason: "content-version-upgrade",
+              source: "assignment-content-version",
+            }
+          );
+        }
+      });
+
+      transaction.set(eventRef, {
+        eventType: "liveUpgrade",
+        familyId: upgraded.assignment.contentLineage.familyId,
+        sourceAssignmentId: assignmentId,
+        targetAssignmentId,
+        sourceContentVersion: plan.fromVersion,
+        targetContentVersion: plan.toVersion,
+        actorUid: request.auth.uid,
+        actorEmail: actorEmail || null,
+        actorAuthorizationType: isRoot ? "administrator" : "teacherOwner",
+        fromAssignmentRevision: plan.liveAssignmentRevision,
+        toAssignmentRevision: upgraded.assignment.assignmentRevision,
+        changeCounts: plan.counts,
+        affectedQuestionIds: plan.changes
+          .filter((change) => change.classification !== "unchanged")
+          .map((change) => change.questionId),
+        replacementQuestionIds: upgraded.replacementQuestionIds,
+        affectedStudentCount: trackerDocs.length,
+        migratedStudentCount: migratedStudents,
+        gradeReconciliationRequested,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+
+      return {
+        assignmentId,
+        targetAssignmentId,
+        contentVersion: plan.toVersion,
+        assignmentRevision: upgraded.assignment.assignmentRevision,
+        counts: plan.counts,
+        replacementQuestionIds: upgraded.replacementQuestionIds,
+        affectedStudentCount: trackerDocs.length,
+        migratedStudentCount: migratedStudents,
+        gradeReconciliationRequested,
+      };
+    });
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError(
+      "failed-precondition",
+      error.message || "MathMaster refused the live content upgrade."
+    );
   }
 });
 
