@@ -33,20 +33,22 @@ const currentTeacherIdentity = () => {
 const draftCollection = () => collection(db, INCOMPLETE_ASSIGNMENT_DRAFTS_COLLECTION);
 const sameJson = (left, right) => JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 
-const refreshDraftPlatformIssues = async (record) => {
-  if (!Array.isArray(record?.platformIssues) || record.platformIssues.length === 0) return record;
-  let repairManifest = [];
+const runtimeRepairManifestForDraft = (record) => {
   try {
     const canonical = restoreIncompleteAssignmentV5(record);
-    repairManifest = prepareAssignmentForRuntime(canonical, {
+    return prepareAssignmentForRuntime(canonical, {
       source: 'incompleteAssignmentDraftStore',
     }).repairManifest || [];
   } catch {
     // A damaged draft still belongs in Repair Center. Failure to compute a
     // compatibility manifest must never hide it or mark an issue resolved.
-    return record;
+    return [];
   }
+};
 
+const refreshDraftPlatformIssues = async (record) => {
+  if (!Array.isArray(record?.platformIssues) || record.platformIssues.length === 0) return record;
+  const repairManifest = runtimeRepairManifestForDraft(record);
   const refreshed = refreshIncompleteDraftPlatformIssues(record, { repairManifest });
   const issuesChanged = !sameJson(refreshed.platformIssues, record.platformIssues);
   const mirrorChanged = !sameJson(
@@ -101,7 +103,18 @@ export const updateIncompleteAssignmentDraft = async (draft, repairedAssignmentV
 export const commitIncompleteAssignmentDraftRepair = async (draft, committedRepair) => {
   if (!draft?.id) throw new Error('The incomplete assignment draft is missing its saved ID.');
   currentTeacherIdentity();
-  const next = applyIncompleteDraftRepairCommit(draft, committedRepair);
+  let next = applyIncompleteDraftRepairCommit(draft, committedRepair);
+
+  // A report-only packet can already be describing a defect that the deployed
+  // runtime fixes. Resolve that exact question/repair-key match in the same save
+  // so the teacher does not have to close and reopen Repair Center to learn the
+  // platform issue is already handled. This still changes only review metadata.
+  if (committedRepair?.kind === 'platformIssueReport') {
+    next = refreshIncompleteDraftPlatformIssues(next, {
+      repairManifest: runtimeRepairManifestForDraft(next),
+    });
+  }
+
   const { id: _id, ...patch } = next;
   await updateDoc(doc(db, INCOMPLETE_ASSIGNMENT_DRAFTS_COLLECTION, draft.id), patch);
 
