@@ -186,3 +186,30 @@ test('live upgrade writes an allow-list and cannot reset the assignment or publi
   assert.doesNotMatch(liveUpdate, /assignedClassIds|dueAt|classroomPackage|accommodation|CourseWork/i);
   assert.doesNotMatch(commit, /resetAssignment|delete\(|createCourseWork|publishAssignment/);
 });
+
+
+test('live upgrade authority supports legacy period-only live assignments and verified root email', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const indexSource = await readFile('functions/index.js', 'utf8');
+  const start = indexSource.indexOf('async function requireContentUpgradeOwner');
+  const end = indexSource.indexOf('async function loadSavedAssignmentTrackers', start);
+  const authority = indexSource.slice(start, end);
+  assert.match(authority, /assignedClassPeriods/);
+  assert.match(authority, /loadClasses\(db\)/);
+  assert.match(authority, /period/i);
+  assert.match(authority, /isRootAdminEmail\(email\)/);
+  assert.doesNotMatch(authority, /isRootAdminEmail\(email\)\s*&&\s*request\.auth\?\.token\?\.rootAdmin/);
+});
+
+test('preview wraps the full server path and logs unexpected failures instead of leaking bare internal', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const indexSource = await readFile('functions/index.js', 'utf8');
+  const start = indexSource.indexOf('exports.previewAssignmentContentUpgrade = onCall');
+  const end = indexSource.indexOf('exports.commitAssignmentContentUpgrade = onCall', start);
+  const preview = indexSource.slice(start, end);
+  const tryIndex = preview.indexOf('try {');
+  const firstFirestoreRead = preview.indexOf('db.collection("assignments")');
+  assert.ok(tryIndex >= 0 && firstFirestoreRead > tryIndex, 'preview should enter try/catch before Firestore reads');
+  assert.match(preview, /logger\.error\("Content V2 upgrade preview failed"/);
+  assert.match(preview, /MathMaster could not preview this Content V2 upgrade/);
+});
