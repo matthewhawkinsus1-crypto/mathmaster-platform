@@ -1,7 +1,7 @@
 import { validateSortQuestion } from './openSortBoard/openSortMath.js';
 import { validateConstraintBuilderQuestion } from './constraintFunctionBuilder/constraintFunctionMath.js';
 const TOOL_IDS = new Set([
-  'dataModelingLab','inverseCompositionLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
+  'dataModelingLab','inverseCompositionLab','functionOperationsLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
   'signSolutionAnalyzer','sequenceExplorer','complexPlaneLab','exponentialLogBridge','transformationsLab',
   'representationMatch','functionInvestigation2','graphing2','stepAlgebra2','solutionReview2',
   'intervalNumberLine','relationMapping','openSortBoard','constraintFunctionBuilder',
@@ -11,6 +11,8 @@ const isPositiveInteger = (value) => Number.isInteger(Number(value)) && Number(v
 const isValidLogBase = (value) => Number.isFinite(Number(value)) && Number(value) > 0 && Math.abs(Number(value) - 1) > 1e-6;
 const isFiniteComplex = (value) => value && Number.isFinite(Number(value.re)) && Number.isFinite(Number(value.im));
 const FUNCTION_FAMILIES = ['linear','quadratic','absolute','cubic','cubeRoot','squareRoot','exponential','logarithmic','rational'];
+const FUNCTION_OPERATION_FAMILIES = ['linear','line','quadratic','cubic','polynomial'];
+const FUNCTION_OPERATION_NAMES = ['sum','difference','product','quotient','composition'];
 const isFinitePoint = (value) => {
   if (Array.isArray(value)) return value.length === 2 && value.every((entry) => Number.isFinite(Number(entry)));
   return Boolean(value && typeof value === 'object'
@@ -27,6 +29,23 @@ const validateFunctionSpec = (spec = {}, label = 'function') => {
   if (Number.isFinite(Number(spec.a)) && Math.abs(Number(spec.a)) <= 1e-9) errors.push(`${label} vertical scale a cannot be 0.`);
   if (Number.isFinite(Number(spec.b)) && Math.abs(Number(spec.b)) <= 1e-9) errors.push(`${label} horizontal input scale b cannot be 0.`);
   if (['exponential','logarithmic'].includes(spec.type) && !isValidLogBase(spec.base ?? 2)) errors.push(`${label} base must be positive and not equal to 1.`);
+  return errors;
+};
+
+const validateFunctionOperationSpec = (spec, label) => {
+  const errors = [];
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return [`functionOperationsLab requires ${label}.`];
+  const type = String(spec.type || spec.family || '').trim();
+  if (!FUNCTION_OPERATION_FAMILIES.includes(type)) errors.push(`${label} type must be linear, quadratic, cubic, or polynomial.`);
+  if (type === 'polynomial') {
+    if (!Array.isArray(spec.coefficients) || spec.coefficients.length < 1 || spec.coefficients.some((value) => !Number.isFinite(Number(value)))) {
+      errors.push(`${label} polynomial requires a finite coefficients array.`);
+    }
+  } else {
+    ['a','h','k'].forEach((key) => {
+      if (spec[key] != null && !Number.isFinite(Number(spec[key]))) errors.push(`${label} ${key} must be finite.`);
+    });
+  }
   return errors;
 };
 
@@ -80,6 +99,25 @@ export const validateToolQuestion = (question = {}) => {
     if (['exponential','logarithmic'].includes(f.type)) {
       const base = Number(f.base ?? 2);
       if (!(base > 0) || base === 1) errors.push('Inverse/composition exponential or logarithmic base must be positive and not equal to 1.');
+    }
+  }
+  if (toolId === 'functionOperationsLab') {
+    errors.push(...validateFunctionOperationSpec(question.f, 'f'));
+    errors.push(...validateFunctionOperationSpec(question.g, 'g'));
+    const operations = Array.isArray(question.operations) ? question.operations : [];
+    if (!operations.length) errors.push('functionOperationsLab requires at least one requested operation.');
+    operations.forEach((operation) => {
+      if (!FUNCTION_OPERATION_NAMES.includes(operation)) errors.push(`Unsupported functionOperationsLab operation: ${operation}.`);
+    });
+    if (question.composeOrder && !['fOfG','gOfF'].includes(question.composeOrder)) errors.push('functionOperationsLab composeOrder must be fOfG or gOfF.');
+    if (operations.includes('quotient') && question.g) {
+      const gType = String(question.g.type || question.g.family || '').trim();
+      const coefficients = Array.isArray(question.g.coefficients) ? question.g.coefficients.map(Number) : null;
+      const polynomialIsZero = gType === 'polynomial' && coefficients?.length && coefficients.every((value) => Number.isFinite(value) && Math.abs(value) <= 1e-9);
+      const linearIsZero = ['linear','line'].includes(gType)
+        && Math.abs(Number(question.g.a ?? question.g.m ?? 1)) <= 1e-9
+        && Math.abs(Number(question.g.k ?? question.g.b ?? 0)) <= 1e-9;
+      if (polynomialIsZero || linearIsZero) errors.push('functionOperationsLab quotient cannot divide by the zero function.');
     }
   }
   if (toolId === 'parabolaGeometryLab') {
