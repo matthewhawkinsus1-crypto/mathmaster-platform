@@ -14,8 +14,10 @@ import {
   buildIncompleteAssignmentDraftRecord,
   finalizeIncompleteAssignmentReview,
   markIncompleteDraftForReview,
+  refreshIncompleteDraftPlatformIssues,
   restoreIncompleteAssignmentV5,
 } from './incompleteAssignmentDraft.js';
+import { prepareAssignmentForRuntime } from '../contract/storedAssignmentV5.js';
 
 export const INCOMPLETE_ASSIGNMENT_DRAFTS_COLLECTION = 'assignmentAuthoringDrafts';
 
@@ -29,6 +31,38 @@ const currentTeacherIdentity = () => {
 };
 
 const draftCollection = () => collection(db, INCOMPLETE_ASSIGNMENT_DRAFTS_COLLECTION);
+const sameJson = (left, right) => JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+
+const refreshDraftPlatformIssues = async (record) => {
+  if (!Array.isArray(record?.platformIssues) || record.platformIssues.length === 0) return record;
+  let repairManifest = [];
+  try {
+    const canonical = restoreIncompleteAssignmentV5(record);
+    repairManifest = prepareAssignmentForRuntime(canonical, {
+      source: 'incompleteAssignmentDraftStore',
+    }).repairManifest || [];
+  } catch {
+    // A damaged draft still belongs in Repair Center. Failure to compute a
+    // compatibility manifest must never hide it or mark an issue resolved.
+    return record;
+  }
+
+  const refreshed = refreshIncompleteDraftPlatformIssues(record, { repairManifest });
+  const issuesChanged = !sameJson(refreshed.platformIssues, record.platformIssues);
+  const mirrorChanged = !sameJson(
+    refreshed.teacherReviewContext?.platformIssues,
+    record.teacherReviewContext?.platformIssues,
+  );
+  if (!issuesChanged && !mirrorChanged) return record;
+
+  const updatedAt = refreshed.updatedAt;
+  await updateDoc(doc(db, INCOMPLETE_ASSIGNMENT_DRAFTS_COLLECTION, record.id), {
+    platformIssues: refreshed.platformIssues,
+    teacherReviewContext: refreshed.teacherReviewContext,
+    updatedAt,
+  });
+  return refreshed;
+};
 
 export const saveIncompleteAssignmentDraft = async ({ intakeResult, rawText, sourceName } = {}) => {
   const owner = currentTeacherIdentity();
@@ -49,9 +83,9 @@ export const listIncompleteAssignmentDrafts = async () => {
     draftCollection(),
     where('authoringReview.ownerUid', '==', owner.uid),
   ));
-  return snapshot.docs
-    .map((entry) => ({ id: entry.id, ...entry.data() }))
-    .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
+  const records = snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
+  const refreshed = await Promise.all(records.map(refreshDraftPlatformIssues));
+  return refreshed.sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
 };
 
 export const updateIncompleteAssignmentDraft = async (draft, repairedAssignmentV5) => {
@@ -70,6 +104,16 @@ export const commitIncompleteAssignmentDraftRepair = async (draft, committedRepa
   const next = applyIncompleteDraftRepairCommit(draft, committedRepair);
   const { id: _id, ...patch } = next;
   await updateDoc(doc(db, INCOMPLETE_ASSIGNMENT_DRAFTS_COLLECTION, draft.id), patch);
+
+  // IncompleteAssignmentRepairCenter currently keeps teacherReviewContext as its
+  // own React state. Mirror the metadata-only save back into the staged object
+  // so the already-mounted screen shows the durable platform report immediately
+  // after the await, without pretending the question itself changed.
+  if (committedRepair?.kind === 'platformIssueReport' && committedRepair && typeof committedRepair === 'object') {
+    committedRepair.teacherReviewContext = next.teacherReviewContext;
+    committedRepair.platformIssues = next.platformIssues;
+    committedRepair.committedRevision = next.assignmentRevision;
+  }
   return next;
 };
 
