@@ -213,3 +213,40 @@ test('preview wraps the full server path and logs unexpected failures instead of
   assert.match(preview, /logger\.error\("Content V2 upgrade preview failed"/);
   assert.match(preview, /MathMaster could not preview this Content V2 upgrade/);
 });
+
+
+test('content upgrade tracker reads stay scoped to the assignment audience', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const indexSource = await readFile('functions/index.js', 'utf8');
+  const helperStart = indexSource.indexOf('function contentUpgradeGradeQueries');
+  const previewStart = indexSource.indexOf('exports.previewAssignmentContentUpgrade = onCall');
+  const commitStart = indexSource.indexOf('exports.commitAssignmentContentUpgrade = onCall');
+  assert.ok(helperStart >= 0, 'content upgrade should define audience-scoped grade queries');
+  const helper = indexSource.slice(helperStart, previewStart);
+  assert.match(helper, /where\("classId",\s*"=="/);
+  assert.match(helper, /where\("classPeriod",\s*"=="/);
+  assert.doesNotMatch(helper, /collection\("grades"\)\.select/);
+  const commit = indexSource.slice(commitStart, indexSource.indexOf('/**\n * Create the next human-facing', commitStart));
+  assert.doesNotMatch(commit, /collection\("grades"\)\.select/);
+});
+
+test('repeat Content V2 commit is idempotent after an earlier successful save', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const indexSource = await readFile('functions/index.js', 'utf8');
+  const start = indexSource.indexOf('exports.commitAssignmentContentUpgrade = onCall');
+  const end = indexSource.indexOf('/**\n * Create the next human-facing', start);
+  const commit = indexSource.slice(start, end);
+  assert.match(commit, /alreadyUpgraded/);
+  assert.match(commit, /contentLineage\?\.familyId/);
+  assert.match(commit, /contentLineage\?\.version/);
+});
+
+test('preview recognizes an already-current live assignment instead of treating it as an error', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const indexSource = await readFile('functions/index.js', 'utf8');
+  const start = indexSource.indexOf('exports.previewAssignmentContentUpgrade = onCall');
+  const end = indexSource.indexOf('exports.commitAssignmentContentUpgrade = onCall', start);
+  const preview = indexSource.slice(start, end);
+  assert.match(preview, /alreadyCurrent/);
+  assert.match(preview, /Content V\$\{liveVersion\} is already applied/);
+});
