@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { TOOL_CATALOG } from '../../src/tools/toolCatalog.js';
 import { validateToolQuestion } from '../../src/tools/toolSchemas.js';
 
 const linear = { type: 'linear', a: -3, h: 0, k: 9 };
@@ -59,4 +60,9 @@ test('linear inverse derivation requires swap, preserves balance, supports undo 
 
   assert.throws(() => applyInverseDerivationOperation(swapped, 'divide', 0), /divide/i);
   assert.throws(() => applyInverseDerivationOperation(swapped, 'multiply', 0), /loses/i);
+});
+
+test('graphing2 is available to both Algebra I and Algebra II', () => {
+  assert.ok(TOOL_CATALOG.graphing2.courses.includes('Algebra I'));
+  assert.ok(TOOL_CATALOG.graphing2.courses.includes('Algebra II'));
 });
