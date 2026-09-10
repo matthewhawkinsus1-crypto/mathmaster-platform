@@ -68,6 +68,7 @@ const weeklyPathSync = require("./lib/weeklyPathSync");
 const ccmrAssignmentBank = require("./lib/ccmrAssignmentBank");
 const studentSessionSummary = require("./lib/studentSessionSummary");
 const fullAssignmentRepair = require("./lib/fullAssignmentRepair");
+const assignmentContentVersion = require("./lib/assignmentContentVersion");
 
 // HTTPS/callable transport must be reachable by the Firebase client SDK.
 // MathMaster authorization still happens INSIDE each callable through
@@ -10446,6 +10447,208 @@ exports.commitFullAssignmentRepair = onCall(async (request) => {
   } catch (error) {
     if (error instanceof HttpsError) throw error;
     throw new HttpsError("failed-precondition", error.message || "The full assignment repair was refused.");
+  }
+});
+
+/**
+ * Create the next human-facing Content V# release from one reviewed Full Assignment Audit.
+ * This never edits the source question content and never assigns the successor to students.
+ */
+exports.createAssignmentContentVersion = onCall(async (request) => {
+  let authorizationType;
+  try {
+    authorizationType = fullAssignmentRepair.requireRepairAuthority(request.auth);
+  } catch (error) {
+    throw new HttpsError(error.code || "permission-denied", error.message);
+  }
+
+  const db = getFirestore();
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  if (!assignmentId) {
+    throw new HttpsError("invalid-argument", "Choose an assignment before creating a corrected content release.");
+  }
+
+  const sourceRef = db.collection("assignments").doc(assignmentId);
+  const releaseRef = db.collection("assignments").doc();
+  const auditRef = db.collection("assignmentRepairAudits").doc();
+  const eventRef = db.collection("assignmentVersionEvents").doc();
+
+  try {
+    return await db.runTransaction(async (transaction) => {
+      const sourceSnapshot = await transaction.get(sourceRef);
+      if (!sourceSnapshot.exists) {
+        throw new HttpsError("not-found", "That assignment no longer exists.");
+      }
+
+      const stored = { id: sourceSnapshot.id, ...sourceSnapshot.data() };
+      const reviewed = fullAssignmentRepair.prepareCommit({
+        assignment: stored,
+        request: request.data,
+      });
+      if (!reviewed.changedQuestionIds.length) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Select at least one approved assignment repair before creating a corrected content release."
+        );
+      }
+
+      const rawLineage = stored.contentLineage && typeof stored.contentLineage === "object"
+        ? stored.contentLineage
+        : {};
+      const existingFamilyId = String(rawLineage.familyId || "").trim();
+      const familyId = existingFamilyId || crypto.randomUUID();
+      const sourceVersion = Number.isInteger(Number(rawLineage.version)) && Number(rawLineage.version) > 0
+        ? Number(rawLineage.version)
+        : 1;
+
+      let familyDocs = [];
+      if (existingFamilyId) {
+        const familyQuery = db.collection("assignments")
+          .where("contentLineage.familyId", "==", familyId);
+        const familySnapshot = await transaction.get(familyQuery);
+        familyDocs = familySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data(), ref: doc.ref }));
+      } else {
+        familyDocs = [{ ...stored, ref: sourceRef }];
+      }
+
+      const highestVersion = familyDocs.reduce((highest, entry) => {
+        const version = Number(entry?.contentLineage?.version || (entry.id === stored.id ? sourceVersion : 1));
+        return Number.isInteger(version) && version > highest ? version : highest;
+      }, sourceVersion);
+
+      if (sourceVersion !== highestVersion || rawLineage.releaseStatus === "superseded") {
+        throw new HttpsError(
+          "failed-precondition",
+          `This assignment is Content V${sourceVersion}, but a newer family release already exists. Create the next correction from the current release instead.`
+        );
+      }
+
+      const nextVersion = highestVersion + 1;
+      const preparedRelease = assignmentContentVersion.prepareContentRelease({
+        sourceAssignment: stored,
+        reviewedAssignment: reviewed.assignment,
+        familyId,
+        nextVersion,
+        actorUid: request.auth.uid,
+        auditId: auditRef.id,
+      });
+      const release = {
+        ...preparedRelease.release,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+
+      transaction.set(releaseRef, release);
+
+      const sourceLineage = {
+        ...rawLineage,
+        familyId,
+        version: sourceVersion,
+        label: `V${sourceVersion}`,
+        releaseStatus: "superseded",
+        supersedesVersion: Number.isInteger(Number(rawLineage.supersedesVersion))
+          ? Number(rawLineage.supersedesVersion)
+          : null,
+        sourceAssignmentId: rawLineage.sourceAssignmentId || null,
+        createdFromAuditId: rawLineage.createdFromAuditId || null,
+        createdBy: rawLineage.createdBy || request.auth.uid,
+      };
+      transaction.update(sourceRef, { contentLineage: sourceLineage });
+
+      familyDocs
+        .filter((entry) => entry.id !== stored.id && entry?.contentLineage?.releaseStatus === "current")
+        .forEach((entry) => {
+          transaction.update(entry.ref, {
+            "contentLineage.releaseStatus": "superseded",
+          });
+        });
+
+      const auditResults = Array.isArray(request.data?.auditResults) ? request.data.auditResults : [];
+      const count = (classification) => auditResults.filter((item) => item?.classification === classification).length;
+      transaction.set(auditRef, {
+        assignmentId,
+        startingRevision: reviewed.fromRevision,
+        resultingRevision: reviewed.fromRevision,
+        auditScope: fullAssignmentRepair.SCOPE,
+        actorUid: request.auth.uid,
+        actorEmail: callerEmail(request) || null,
+        actorAuthorizationType: authorizationType,
+        questionIdsChanged: reviewed.changedQuestionIds,
+        numberAudited: auditResults.length,
+        numberPassed: count("passed"),
+        numberAssignmentIssues: count("assignmentIssue"),
+        numberPlatformIssues: count("platformIssue"),
+        numberUnclear: count("unclear"),
+        proposedRepairsAccepted: reviewed.changedQuestionIds.length,
+        proposedRepairsRejected: Math.max(
+          0,
+          (request.data?.replacements?.length || 0) - reviewed.changedQuestionIds.length
+        ),
+        commitOutcome: "content-version-created",
+        createdContentAssignmentId: releaseRef.id,
+        createdContentVersion: nextVersion,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+
+      const classifiedPlatformIssues = auditResults
+        .filter((item) => item?.classification === "platformIssue")
+        .map((item) => ({ ...item }));
+      const globalPlatformIssues = (Array.isArray(request.data?.globalFindings) ? request.data.globalFindings : [])
+        .filter((item) => item?.classification === "platformIssue")
+        .map((item) => ({ ...item, questionId: null }));
+      const platformIssues = [
+        ...(Array.isArray(request.data?.platformIssues) ? request.data.platformIssues : []),
+        ...classifiedPlatformIssues,
+        ...globalPlatformIssues,
+      ];
+      for (const issue of platformIssues) {
+        const issueRef = db.collection("assignmentPlatformIssues").doc();
+        transaction.set(issueRef, {
+          assignmentId,
+          auditId: auditRef.id,
+          classification: "platformIssue",
+          questionId: String(issue?.questionId || "").trim() || null,
+          reason: String(issue?.reason || "").trim().slice(0, 2000),
+          suspectedComponent: String(issue?.suspectedComponent || "MathMaster platform").trim().slice(0, 500),
+          status: "open",
+          reportedAt: FieldValue.serverTimestamp(),
+        });
+      }
+
+      transaction.set(eventRef, {
+        eventType: "releaseCreated",
+        familyId,
+        sourceAssignmentId: assignmentId,
+        targetAssignmentId: releaseRef.id,
+        sourceContentVersion: sourceVersion,
+        targetContentVersion: nextVersion,
+        actorUid: request.auth.uid,
+        actorAuthorizationType: authorizationType,
+        originatingAuditId: auditRef.id,
+        fromAssignmentRevision: reviewed.fromRevision,
+        toAssignmentRevision: 1,
+        changedQuestionIds: reviewed.changedQuestionIds,
+        changedQuestionCount: reviewed.changedQuestionIds.length,
+        affectedStudentCount: 0,
+        gradeReconciliationRequested: false,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+
+      return {
+        assignmentId: releaseRef.id,
+        sourceAssignmentId: assignmentId,
+        familyId,
+        contentVersion: nextVersion,
+        auditId: auditRef.id,
+        changedQuestionIds: reviewed.changedQuestionIds,
+      };
+    });
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError(
+      "failed-precondition",
+      error.message || "MathMaster could not create the corrected content release."
+    );
   }
 });
 
