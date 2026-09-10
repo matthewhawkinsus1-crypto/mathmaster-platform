@@ -202,6 +202,26 @@ const noSyntheticGraphRule = (question = {}) => {
   };
 };
 
+/**
+ * Recognize only the exact pre-provenance V5 collapse that already carries
+ * enough recipe intent to rebuild itself. Nothing is written: readComposedQuestion
+ * expands the saved recipe in memory. The marker exists so library/review code
+ * knows it must not hunt for a sibling assignment or copy somebody else's JSON.
+ */
+const isKnownSelfContainedCollapsedWorkflow = (question = {}) => {
+  if (asArray(question?.workflow).length > 0) return false;
+  if (generatedWorkflowSource(question)) return false;
+  if (lower(question?.type) !== 'functiongraph') return false;
+  if (question?.studentChoosesX !== true) return false;
+  if (recipeName(question) !== 'functionmodeling') return false;
+  const ask = recipeAsk(question);
+  if (ask.length < 2 || !ask.includes('graph')) return false;
+  const functionSpec = isObject(question?.functionSpec) ? question.functionSpec : {};
+  return lower(functionSpec.type) === 'linear'
+    && Number(functionSpec.m) === 1
+    && Number(functionSpec.b) === 0;
+};
+
 const presentationRulesFor = (question = {}) => {
   const keys = [];
 
@@ -214,6 +234,10 @@ const presentationRulesFor = (question = {}) => {
     if (hasAuthoredGraphEvidence(question)) {
       keys.push(RUNTIME_REPAIR_KEYS.AUTHORED_GRAPH_PERSISTENCE);
     }
+  }
+
+  if (isKnownSelfContainedCollapsedWorkflow(question)) {
+    keys.push(RUNTIME_REPAIR_KEYS.COLLAPSED_WORKFLOW);
   }
 
   return keys;
