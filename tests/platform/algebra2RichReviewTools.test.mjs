@@ -62,6 +62,10 @@ test('linear inverse derivation requires swap, preserves balance, supports undo 
   assert.equal(divideNegativeThree.inverse.slope, -1 / 3);
   assert.equal(divideNegativeThree.inverse.intercept, 3);
 
+  const undone = applyInverseDerivationOperation(divideNegativeThree, 'undo');
+  assert.equal(formatInverseDerivationRelation(undone), 'x - 9 = -3y');
+  assert.equal(isLinearInverseSolved(undone), false);
+
   assert.throws(() => applyInverseDerivationOperation(swapped, 'divide', 0), /divide/i);
   assert.throws(() => applyInverseDerivationOperation(swapped, 'multiply', 0), /loses/i);
 });
@@ -92,6 +96,39 @@ test('function operations math derives requested polynomial results, restriction
   assert.equal(formatPolynomialExpression(result.composition.coefficients), 'x^2 - 2x');
 });
 
+test('function quotient restrictions come from the original denominator and fail closed when roots are unsupported', async () => {
+  const { deriveFunctionOperations } = await import('../../src/tools/functionOperations/functionOperationsMath.js');
+
+  const canceledFactor = deriveFunctionOperations({
+    f: { type: 'polynomial', coefficients: [1, 0, -1] },
+    g: { type: 'polynomial', coefficients: [1, -1] },
+    operations: ['quotient'],
+  });
+  assert.equal(canceledFactor.quotient.expression, 'x + 1');
+  assert.deepEqual(canceledFactor.quotient.excludedValues, [1]);
+
+  const quadraticDenominator = deriveFunctionOperations({
+    f: { type: 'linear', a: 1, h: 0, k: 0 },
+    g: { type: 'polynomial', coefficients: [1, 0, -1] },
+    operations: ['quotient'],
+  });
+  assert.deepEqual(quadraticDenominator.quotient.excludedValues, [-1, 1]);
+
+  assert.throws(() => deriveFunctionOperations({
+    f: { type: 'linear', a: 1, h: 0, k: 0 },
+    g: { type: 'polynomial', coefficients: [1, 0, 0, -1] },
+    operations: ['quotient'],
+  }), /explicitly authored restrictions/i);
+
+  const authored = deriveFunctionOperations({
+    f: { type: 'linear', a: 1, h: 0, k: 0 },
+    g: { type: 'polynomial', coefficients: [1, 0, 0, -1] },
+    operations: ['quotient'],
+    restrictions: { excludedValues: [1] },
+  });
+  assert.deepEqual(authored.quotient.excludedValues, [1]);
+});
+
 test('functionOperationsLab validates f, g, operation names, and Algebra II catalog availability', () => {
   assert.deepEqual(TOOL_CATALOG.functionOperationsLab.courses, ['Algebra II']);
 
@@ -112,6 +149,15 @@ test('functionOperationsLab validates f, g, operation names, and Algebra II cata
   });
   assert.ok(invalid.errors.some((message) => message.includes('g')));
   assert.ok(invalid.errors.some((message) => message.includes('mystery')));
+
+  const unsafeQuotient = validateToolQuestion({
+    toolId: 'functionOperationsLab',
+    f: { type: 'linear', a: 2, h: 0, k: 1 },
+    g: { type: 'polynomial', coefficients: [1, 0, 0, -1] },
+    operations: ['quotient'],
+    alignments: [{ framework: 'teks', code: 'A2.7B' }],
+  });
+  assert.ok(unsafeQuotient.errors.some((message) => /explicitly authored restrictions/i.test(message)));
 });
 
 test('V5 function-operation aliases route to functionOperationsLab and preserve authored mathematics', () => {

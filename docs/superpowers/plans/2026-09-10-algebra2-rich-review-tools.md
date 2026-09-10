@@ -19,6 +19,10 @@
 - Curated review assignments must not receive unsolicited CCMR question injection.
 - Every CI/test error found while implementing this plan is logged in the PR body with a classification and resolution/status.
 
+## Completion handoff
+
+Tasks 1–4 are implemented and covered in `tests/platform/algebra2RichReviewTools.test.mjs` and `tests/platform/assignmentTransformationsFullModel.test.mjs`. Task 5 now gates the real integrated assignment-AI mutation path behind one explicit `ccmrEnrichment` option (default `false`), while the existing Honors destination hydration path remains explicit and destination-aware. Function-operation quotients retain original-denominator exclusions, derive linear/quadratic real zeros, and fail closed for unsupported higher-degree zeros without authored restrictions. Task 6 capability declarations and mobile form layout are audited by the platform suite. See `docs/architecture/tool-authoring-guide.md` and `docs/architecture/aleks-mathmaster-parity-audit.md` for the verified scope; neither document claims arbitrary nonlinear inverse or polynomial-root support.
+
 ---
 
 ### Task 1: Linear inverse derivation inside Inverse & Composition Lab

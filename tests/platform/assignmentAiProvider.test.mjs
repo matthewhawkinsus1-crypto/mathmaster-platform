@@ -150,6 +150,75 @@ test('successful provider call returns normalized assignment JSON and usage', as
   assert.deepEqual(result.usage, { inputTokens: 100, outputTokens: 200, totalTokens: 300 });
 });
 
+test('curated AI authoring preserves authored CCMR-looking questions unless enrichment is explicit', async () => {
+  const curated = {
+    schemaVersion: 5,
+    assignment: { title: 'Curated review', courseId: 'algebra1', instructionalPurpose: 'review' },
+    sections: [{
+      id: 'practice',
+      role: 'practice',
+      title: 'Practice',
+      questions: [{
+        questionId: 'teacher-authored-1',
+        prompt: 'Teacher-authored SAT-style equation question.',
+        studentActions: ['solveEquation'],
+        equation: '3x+4=40',
+        answer: '12',
+        standard: 'A.5A',
+        alignments: [
+          { framework: 'teks', code: 'A.5A', role: 'primary', evidenceLevel: 'assessed' },
+          { framework: 'digitalSAT', domainId: 'algebra', role: 'primary', evidenceMode: 'direct' },
+        ],
+        assessmentContext: { framework: 'digitalSAT', examStyle: true },
+      }],
+    }],
+  };
+  const result = await callOpenAiAssignmentAuthor({
+    apiKey: 'ok',
+    prompt: '# Curated review request',
+    fetchImpl: async () => response(200, {
+      output: [{ content: [{ type: 'output_text', text: JSON.stringify(curated) }] }],
+    }),
+  });
+
+  assert.deepEqual(JSON.parse(result.assignmentJson).sections, curated.sections);
+  assert.equal(result.ccmrBank, null);
+});
+
+test('explicit AI CCMR enrichment uses audited replacement and the Practice target', async () => {
+  const sourceQuestions = Array.from({ length: 8 }, (unused, index) => ({
+    questionId: `authored-${index + 1}`,
+    prompt: index === 0 ? 'Direct Digital SAT equation.' : `Course review equation ${index + 1}.`,
+    studentActions: ['solveEquation'],
+    equation: `${index + 2}x+4=${(index + 2) * 6 + 4}`,
+    answer: '6',
+    standard: 'A.5A',
+    alignments: [
+      { framework: 'teks', code: 'A.5A', role: 'primary', evidenceLevel: 'assessed' },
+      ...(index === 0 ? [{ framework: 'digitalSAT', domainId: 'algebra', role: 'primary', evidenceMode: 'direct' }] : []),
+    ],
+    ...(index === 0 ? { assessmentContext: { framework: 'digitalSAT', examStyle: true } } : {}),
+  }));
+  const result = await callOpenAiAssignmentAuthor({
+    apiKey: 'ok',
+    prompt: '# Explicit CCMR enrichment request',
+    ccmrEnrichment: true,
+    fetchImpl: async () => response(200, {
+      output: [{ content: [{ type: 'output_text', text: JSON.stringify({
+        schemaVersion: 5,
+        assignment: { title: 'Enriched review', courseId: 'algebra1' },
+        sections: [{ id: 'practice', role: 'practice', title: 'Practice', questions: sourceQuestions }],
+      }) }] }],
+    }),
+  });
+  const questions = JSON.parse(result.assignmentJson).sections[0].questions;
+
+  assert.equal(questions.length, sourceQuestions.length);
+  assert.equal(result.ccmrBank.replaced, 1);
+  assert.equal(result.ccmrBank.targetCount, 1);
+  assert.equal(questions.filter((question) => question.ccmrSource?.source === 'auditedBank').length, 1);
+});
+
 test('provider errors are translated into safe service categories', async () => {
   await assert.rejects(
     () => callOpenAiAssignmentAuthor({
