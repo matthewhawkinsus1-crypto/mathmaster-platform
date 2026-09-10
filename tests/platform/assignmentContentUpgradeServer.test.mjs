@@ -160,7 +160,7 @@ test('commit callable revalidates the preview and writes no replacement Classroo
 test('live upgrade authority is class ownership, never designated repair authority', async () => {
   const { readFile } = await import('node:fs/promises');
   const indexSource = await readFile('functions/index.js', 'utf8');
-  const start = indexSource.indexOf('async function requireContentUpgradeOwner');
+  const start = indexSource.indexOf('function contentUpgradeAudience');
   const end = indexSource.indexOf('async function loadSavedAssignmentTrackers', start);
   const authority = indexSource.slice(start, end);
   assert.match(authority, /assignedClassIds/);
@@ -191,7 +191,7 @@ test('live upgrade writes an allow-list and cannot reset the assignment or publi
 test('live upgrade authority supports legacy period-only live assignments and verified root email', async () => {
   const { readFile } = await import('node:fs/promises');
   const indexSource = await readFile('functions/index.js', 'utf8');
-  const start = indexSource.indexOf('async function requireContentUpgradeOwner');
+  const start = indexSource.indexOf('function contentUpgradeAudience');
   const end = indexSource.indexOf('async function loadSavedAssignmentTrackers', start);
   const authority = indexSource.slice(start, end);
   assert.match(authority, /assignedClassPeriods/);
