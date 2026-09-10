@@ -4,6 +4,10 @@ import {
   storedAssignmentToV5,
 } from '../contract/storedAssignmentV5.js';
 import { buildAssignmentV5PreflightModel } from '../preflight/assignmentV5PreflightModel.js';
+import {
+  repairAssignmentForCurrentRuntime,
+  RUNTIME_REPAIR_KEYS,
+} from './assignmentRuntimeRepair.js';
 
 const clean = (value) => String(value ?? '').trim();
 const isObject = (value) => Boolean(value && typeof value === 'object' && !Array.isArray(value));
@@ -65,6 +69,31 @@ export const inspectLibraryContentRepair = (targetAssignment, assignments = []) 
   if (!targetQuestions.length) {
     return { source: null, questionIds: [], reason: 'target-has-no-questions' };
   }
+
+  // First ask the current deterministic runtime whether this historical record
+  // already contains enough intent to recover itself. If it does, copying JSON
+  // from a sibling is unnecessary and creates a second source of truth for a
+  // live assignment. This path is presentation-only: no saved question or
+  // student work is mutated.
+  const runtimeRepair = repairAssignmentForCurrentRuntime(targetAssignment, {
+    source: 'inspectLibraryContentRepair',
+  });
+  const selfContainedIds = [...new Set((runtimeRepair.repairManifest || [])
+    .filter((entry) => (
+      entry?.repairKey === RUNTIME_REPAIR_KEYS.COLLAPSED_WORKFLOW
+      && entry?.changed === false
+      && entry?.presentationOnly === true
+    ))
+    .map((entry) => clean(entry?.questionId))
+    .filter(Boolean))];
+  if (selfContainedIds.length > 0) {
+    return {
+      source: null,
+      questionIds: selfContainedIds,
+      reason: 'runtime-self-contained',
+    };
+  }
+
   const targetIds = orderedQuestionIds(targetAssignment);
 
   const candidates = (Array.isArray(assignments) ? assignments : [])
