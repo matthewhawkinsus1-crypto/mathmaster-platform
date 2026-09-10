@@ -1,3 +1,5 @@
+import { RUNTIME_REPAIR_KEYS } from '../assignments/assignmentRuntimeRepair.js';
+
 const clean = (value) => String(value ?? '').trim();
 const asArray = (value) => (Array.isArray(value) ? value : []);
 const normalizedText = (value) => clean(value).toLowerCase().replace(/\s+/g, ' ');
@@ -69,20 +71,52 @@ export const mergeAssignmentPlatformIssues = (
   return cloneJson(merged);
 };
 
+const issueMatchesRegisteredRepair = (issue = {}, repairKey = '') => {
+  const explicit = clean(issue?.repairKey);
+  if (explicit) return explicit === clean(repairKey);
+
+  // External repair AIs know the affected question/component, but they should
+  // not be expected to invent MathMaster's private repair-key strings. For a
+  // report with no key, match only a narrow semantic signature owned by that
+  // registered repair. This is metadata resolution only; it never changes the
+  // question. An unrelated grading/rendering complaint therefore remains open.
+  const component = normalizedText(issue?.suspectedComponent);
+  const reason = normalizedText(issue?.reason);
+  const combined = `${component} ${reason}`;
+
+  if (repairKey === RUNTIME_REPAIR_KEYS.NO_SYNTHETIC_FUNCTION_MODELING_GRAPH) {
+    return component.includes('functionmodeling') && combined.includes('graph');
+  }
+  if (repairKey === RUNTIME_REPAIR_KEYS.ACTIVE_WORKFLOW_TASK) {
+    return combined.includes('your task') && (combined.includes('workflow') || combined.includes('stage'));
+  }
+  if (repairKey === RUNTIME_REPAIR_KEYS.AUTHORED_GRAPH_PERSISTENCE) {
+    return combined.includes('graph')
+      && (combined.includes('disappear') || combined.includes('persist') || combined.includes('visible'));
+  }
+  if (repairKey === RUNTIME_REPAIR_KEYS.COLLAPSED_WORKFLOW) {
+    return combined.includes('workflow')
+      && (combined.includes('collapse') || combined.includes('y=x') || combined.includes('free plot'));
+  }
+  return false;
+};
+
 /**
- * Resolve only when a runtime repair manifest proves the exact question and
- * exact repair key. A runtime version by itself is intentionally insufficient:
- * otherwise every old report would disappear after any unrelated deployment.
+ * Resolve only when a runtime repair manifest proves the exact question and a
+ * matching registered repair. A runtime version by itself is intentionally
+ * insufficient: otherwise every old report would disappear after any unrelated
+ * deployment. AI reports may omit MathMaster's internal repair-key string, but
+ * then the component/reason must match the registered repair's narrow signature.
  */
 export const resolveAssignmentPlatformIssues = (issues = [], repairManifest = []) => (
   asArray(issues).map((rawIssue) => {
     const issue = normalizeExistingIssue(rawIssue);
     if (issue.status === 'resolvedByPlatformUpdate') return issue;
-    if (!issue.questionId || !issue.repairKey) return issue;
+    if (!issue.questionId) return issue;
 
     const match = asArray(repairManifest).find((entry) => (
       clean(entry?.questionId) === issue.questionId
-      && clean(entry?.repairKey) === issue.repairKey
+      && issueMatchesRegisteredRepair(issue, clean(entry?.repairKey))
       && Number.isFinite(Number(entry?.runtimeVersion))
       && Number(entry.runtimeVersion) >= 1
     ));
