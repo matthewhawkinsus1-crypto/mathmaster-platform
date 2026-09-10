@@ -15,7 +15,7 @@ export const TOOL_CATALOG = Object.freeze({
   transformationsLab: { label: 'Transformations Lab', courses: ['Algebra I', 'Algebra II'] },
   representationMatch: { label: 'Representation Match', courses: ['Algebra I', 'Algebra II'] },
   functionInvestigation2: { label: 'Function Investigation', courses: ['Algebra I', 'Algebra II'] },
-  graphing2: { label: 'Graphing', courses: ['Algebra I'] },
+  graphing2: { label: 'Graphing', courses: ['Algebra I', 'Algebra II'] },
   stepAlgebra2: { label: 'Solving Equations Step by Step', courses: ['Algebra I', 'Algebra II'] },
   solutionReview2: { label: 'Solution Review', courses: ['Shared'] },
   intervalNumberLine: { label: 'Number Line and Intervals', courses: ['Algebra I', 'Algebra II'] },
