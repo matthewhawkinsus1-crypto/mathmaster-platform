@@ -53,6 +53,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(db, 'classJoinCodes/K7M4QP'), { classPeriod: 'Period 1' });
   await setDoc(doc(db, 'teacherDirectory/t@school.org'), { active: true });
   await setDoc(doc(db, 'adminAuditLog/audit-1'), { action: 'teacher_access_granted' });
+  await setDoc(doc(db, 'assignmentVersionEvents/version-event-1'), { eventType: 'liveUpgrade', familyId: 'fam-1' });
   await setDoc(doc(db, 'authThrottle/student_S1042'), { failures: 1 });
   await setDoc(doc(db, 'studentDirectory/kid@school.org'), { studentId: 'S1042' });
   await setDoc(doc(db, 'grades/S1042/evidenceEvents/ev_existing'), { eventKey: 'ev_existing', studentId: 'S1042', occurredAt: 1, authorizedTeacherEmails: [TEACHER_EMAIL] });
@@ -147,6 +148,11 @@ await check('student lists assignments', assertSucceeds(getDocs(collection(stude
 await check('student CANNOT write assignments', assertFails(setDoc(doc(student, 'assignments/A1'), { title: 'hax' }, { merge: true })));
 await check('student reads class schedule', assertSucceeds(getDoc(doc(student, 'settings/classSchedule'))));
 await check('student CANNOT write settings', assertFails(setDoc(doc(student, 'settings/classSchedule'), { periods: {} }, { merge: true })));
+
+await check('student CANNOT read assignment version events', assertFails(getDoc(doc(student, 'assignmentVersionEvents/version-event-1'))));
+await check('teacher CANNOT read assignment version events directly', assertFails(getDoc(doc(teacher, 'assignmentVersionEvents/version-event-1'))));
+await check('teacher CANNOT write assignment version events directly', assertFails(setDoc(doc(teacher, 'assignmentVersionEvents/version-event-2'), { eventType: 'liveUpgrade' })));
+await check('root admin CANNOT bypass callable to write assignment version events', assertFails(setDoc(doc(rootAdmin, 'assignmentVersionEvents/version-event-3'), { eventType: 'releaseCreated' })));
 
 // --- Teacher ---------------------------------------------------------------
 await check('teacher CANNOT run an unconstrained roster query', assertFails(getDocs(collection(teacher, 'grades'))));
