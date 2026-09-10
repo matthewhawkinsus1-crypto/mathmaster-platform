@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import AssignmentLibraryBase from './AssignmentLibraryBase.jsx';
+import { findAssignmentsNeedingRuntimeRepairPersistence } from './platform/assignments/assignmentRuntimeRepairAutoWriteback.js';
+import { persistRuntimeRepairForTeacher } from './platform/assignments/assignmentRuntimeRepairPersistenceStore.js';
 
 const clean = (value) => String(value ?? '').trim();
 
@@ -11,6 +13,13 @@ const clean = (value) => String(value ?? '').trim();
  * Every launch therefore routes to the normal Assignments workspace, where App
  * already calculates authoritative live protection from assignment state plus
  * student grade history before opening AssignmentQuestionEditor.
+ *
+ * This wrapper is also the teacher-only automatic write-back boundary for
+ * deterministic Assignment Runtime Self-Healing. The scan is pure; an actual
+ * Firestore write is attempted only for a V5 assignment whose current repair
+ * engine changed content and certified that exact change safe to persist. The
+ * persistence layer independently verifies it again before writing only
+ * sections + runtimeCompatibility. Student runtime never imports this path.
  */
 export default function AssignmentLibrary(props) {
   const {
@@ -22,8 +31,52 @@ export default function AssignmentLibrary(props) {
       .filter((assignment) => assignment?.id && Number(assignment?.schemaVersion) === 5)
       .sort((left, right) => clean(left.title).localeCompare(clean(right.title)))
   ), [assignments]);
+  const runtimeRepairCandidates = useMemo(() => (
+    findAssignmentsNeedingRuntimeRepairPersistence(assignments)
+  ), [assignments]);
   const [selectedRepairId, setSelectedRepairId] = useState('');
   const [message, setMessage] = useState('');
+
+  // Teacher Library is the narrow automatic persistence shell. Processing is
+  // sequential to avoid a burst of writes when an older library contains more
+  // than one safely repairable record. React StrictMode can invoke an effect
+  // twice in development; assignmentRuntimeRepairPersistenceStore guards the
+  // same certified patch with an in-flight key, and the Firestore snapshot then
+  // removes the stamped assignment from this candidate list.
+  useEffect(() => {
+    if (!runtimeRepairCandidates.length) return undefined;
+
+    let disposed = false;
+    const persistCertifiedRepairs = async () => {
+      for (const candidate of runtimeRepairCandidates) {
+        if (disposed) break;
+        try {
+          const result = await persistRuntimeRepairForTeacher({
+            assignmentId: candidate.assignmentId,
+            storedAssignment: candidate.assignment,
+            actorRole: 'teacher',
+          });
+          if (result?.persisted) {
+            console.info(
+              `MathMaster permanently saved certified runtime repair(s) for ${candidate.assignmentId}: ${candidate.repairKeys.join(', ')}`,
+            );
+          }
+        } catch (error) {
+          // Runtime rendering already has the in-memory correction, so a
+          // persistence failure must never prevent the teacher from opening the
+          // Library or students from using the assignment. Keep the diagnostic
+          // visible in the console and allow a later Library open to retry.
+          console.warn(
+            `MathMaster could not persist the certified runtime repair for ${candidate.assignmentId}:`,
+            error,
+          );
+        }
+      }
+    };
+
+    persistCertifiedRepairs();
+    return () => { disposed = true; };
+  }, [runtimeRepairCandidates]);
 
   const effectiveRepairId = selectedRepairId || repairChoices[0]?.id || '';
   const selectedAssignment = repairChoices.find((assignment) => assignment.id === effectiveRepairId) || null;
