@@ -65,9 +65,17 @@ export const validateToolQuestion = (question = {}) => {
     if (mode === 'linearQuadratic' && Number(question.linearQuadratic?.quadratic?.a ?? 1) === 0) errors.push('linearQuadratic mode requires a nonzero quadratic coefficient.');
   }
   if (toolId === 'inverseCompositionLab') {
-    const modes = ['full','composition','inverse','restriction'];
+    const modes = ['full','composition','inverse','restriction','deriveInverse'];
+    const mode = question.mode || 'full';
     if (question.mode && !modes.includes(question.mode)) errors.push(`Unsupported inverseCompositionLab mode: ${question.mode}.`);
     const f = question.f || {};
+    if (mode === 'deriveInverse') {
+      if (f.type !== 'linear') errors.push('inverseCompositionLab deriveInverse mode currently supports linear functions only.');
+      const slope = Number(f.a ?? 1);
+      if (!Number.isFinite(slope) || Math.abs(slope) <= 1e-9) errors.push('inverseCompositionLab deriveInverse mode requires a finite nonzero linear slope.');
+      if (f.h != null && !Number.isFinite(Number(f.h))) errors.push('inverseCompositionLab deriveInverse mode requires finite h when supplied.');
+      if (f.k != null && !Number.isFinite(Number(f.k))) errors.push('inverseCompositionLab deriveInverse mode requires finite k when supplied.');
+    }
     if (f.type === 'quadratic' && !f.inverseBranch && f.domain?.min == null && f.domain?.max == null) warnings.push('Quadratic inverse family should declare inverseBranch or a one-sided domain restriction.');
     if (['exponential','logarithmic'].includes(f.type)) {
       const base = Number(f.base ?? 2);
@@ -119,7 +127,7 @@ export const validateToolQuestion = (question = {}) => {
       const spec = question.sequence || {};
       errors.push(...validateSequenceSpec(spec, spec.kind || question.kind || 'arithmetic'));
       if (question.kind && !['arithmetic','geometric'].includes(question.kind)) errors.push('sequenceExplorer kind must be arithmetic or geometric.');
-      if (question.targetN != null && !isPositiveInteger(question.targetN)) errors.push('sequenceExplorer targetN must be a positive integer.');
+      if (question.targetN != null && !isPositiveInteger(Number(question.targetN))) errors.push('sequenceExplorer targetN must be a positive integer.');
       if (mode === 'missingTerm' && !isPositiveInteger(question.missingIndex)) errors.push('missingTerm mode requires missingIndex as a positive integer.');
       if (mode === 'partialSum' && !isPositiveInteger(question.sumN)) errors.push('partialSum mode requires sumN as a positive integer.');
     }
