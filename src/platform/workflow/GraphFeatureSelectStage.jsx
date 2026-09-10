@@ -153,6 +153,8 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
     [graph.points],
   );
 
+  const fixedPointCount = curvePoints.length + endpointMarkers.length;
+
   const emit = (next) => {
     const complete = next.none === true || next.selections.length >= selectionCount;
     onChange({
@@ -176,7 +178,16 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
   const movePoint = (index, point) => {
     const normalized = normalizePoint(point);
     if (!normalized) return;
-    emit({ selections: selections.map((entry, at) => (at === index ? normalized : entry)), none: false });
+    // CoordinatePlane reports the index in its combined points array. Fixed
+    // authored points render first and student marks render last so a student's
+    // mark stays visible even when it lands exactly on an authored endpoint.
+    // Translate that combined-array index back to the student's selections.
+    const selectionIndex = index - fixedPointCount;
+    if (selectionIndex < 0 || selectionIndex >= selections.length) return;
+    emit({
+      selections: selections.map((entry, at) => (at === selectionIndex ? normalized : entry)),
+      none: false,
+    });
   };
 
   const clear = () => emit({ selections: [], none: false });
@@ -202,14 +213,14 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
       <CoordinatePlane
         {...viewWindow}
         // The graph the student is reading is drawn in blue; what they mark is
-        // drawn in red, so a mark never reads as part of the figure.
-        // Keep student marks first so onMovePoint(index) still indexes the
-        // student's selections. The curve's given points and endpoint markers
-        // are fixed visual annotations.
+        // drawn in red, so a mark never reads as part of the figure. SVG paints
+        // later points above earlier ones, so fixed authored points go first and
+        // the student's marks go last. movePoint translates the combined index
+        // back to the selection index so dragging still edits the right mark.
         points={[
-          ...marks,
           ...curvePoints.map(([x, y]) => ({ x, y, fill: '#1a73e8', r: 5, movable: false })),
           ...endpointMarkers,
+          ...marks,
         ]}
         functions={functions}
         horizontalLines={[
