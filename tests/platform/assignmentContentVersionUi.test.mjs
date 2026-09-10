@@ -18,3 +18,31 @@ test('Library shows Content version and hides superseded siblings by default', a
   assert.match(source, /SUPERSEDED/);
   assert.match(source, /CURRENT/);
 });
+
+
+test('assigned copy exposes V2 preview and fundamental repair choices', async () => {
+  const [appSource, modalSource] = await Promise.all([
+    readFile('src/App.jsx', 'utf8'),
+    readFile('src/components/teacher/AssignmentContentUpgradeModal.jsx', 'utf8'),
+  ]);
+  assert.match(appSource, /latestCurrentLibraryRelease/);
+  assert.match(appSource, /Upgrade to Content V/);
+  assert.match(modalSource, /affectedStudentCount/);
+  assert.match(modalSource, /Retire flawed question only/);
+  assert.match(modalSource, /Retire \+ add corrected replacement/);
+  assert.match(modalSource, /expectedPlanHash/);
+  assert.match(modalSource, /commitAssignmentContentUpgrade/);
+});
+
+test('Library delivery carries lineage while ordinary Duplicate starts a new family', async () => {
+  const appSource = await readFile('src/App.jsx', 'utf8');
+  assert.match(appSource, /sourceContentLineage/);
+  assert.match(appSource, /contentLineage: assignmentPreflight\?\.sourceContentLineage/);
+  assert.match(appSource, /contentLineage: _contentLineage/);
+});
+
+test('student gets a one-time preserved-work correction notice', async () => {
+  const appSource = await readFile('src/App.jsx', 'utf8');
+  assert.match(appSource, /This assignment was corrected by your teacher\. Your previous work was preserved\./);
+  assert.match(appSource, /mathmaster:content-upgrade-notice/);
+});
