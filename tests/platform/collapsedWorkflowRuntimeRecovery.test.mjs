@@ -53,11 +53,11 @@ test('known pre-provenance collapsed workflow recovers from its own recipe witho
   assert.ok(runtime.workflow.length >= 4);
 });
 
-test('library inspection does not search siblings when the collapsed workflow is self-contained', () => {
+test('self-contained runtime recovery does not replace the explicit Library source-repair contract', () => {
   const inspection = inspectLibraryContentRepair(liveAssignment(), []);
   assert.equal(inspection.source, null);
-  assert.equal(inspection.reason, 'runtime-self-contained');
-  assert.deepEqual(inspection.questionIds, ['legacy-collapsed-q1']);
+  assert.equal(inspection.reason, 'no-matching-canonical-source');
+  assert.deepEqual(inspection.questionIds, []);
 });
 
 test('ambiguous no-workflow question without a known recipe remains outside automatic recovery', () => {
