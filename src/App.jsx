@@ -7256,11 +7256,15 @@ function App() {
             targetAssignment={contentUpgradeRequest.targetAssignment}
             onClose={() => setContentUpgradeRequest(null)}
             onUpgraded={async (result) => {
-              setContentUpgradeRequest(null);
-              await Promise.all([fetchAssignments(), fetchStudents()]);
+              const refreshResults = await Promise.allSettled([fetchAssignments(), fetchStudents()]);
+              const refreshFailed = refreshResults.some((entry) => entry.status === 'rejected');
               toastSuccess(
-                `Upgraded to Content V${result.contentVersion}`,
-                'Student work and Google Classroom links were preserved.',
+                result?.alreadyUpgraded
+                  ? `Content V${result.contentVersion} already saved`
+                  : `Upgraded to Content V${result.contentVersion}`,
+                refreshFailed
+                  ? 'The assignment save succeeded. One dashboard panel did not refresh yet; press Done, then refresh the page.'
+                  : 'Student work and Google Classroom links were preserved.',
               );
             }}
           />
