@@ -6,6 +6,33 @@ import {
   getMathMasterBuildInfo,
   diagnoseRuntimeCompatibility,
 } from '../../src/platform/runtime/buildInfo.js';
+import { buildAssignmentRepairCenterModel } from '../../src/platform/preflight/assignmentRepairCenterModel.js';
+
+const repairKey = 'function-modeling-exact-ask-no-synthetic-graph-v1';
+const assignment = (repairVersion = 0) => ({
+  schemaVersion: 5,
+  assignment: { title: 'Build diagnostic fixture', courseId: 'algebra1' },
+  ...(repairVersion > 0 ? {
+    runtimeCompatibility: {
+      repairVersion,
+      repairedAt: '2026-09-09T23:00:00.000Z',
+      repairKeys: [repairKey],
+    },
+  } : {}),
+  sections: [{
+    id: 'cw', role: 'classwork', title: 'Classwork', questions: [{ questionId: 'q1', prompt: 'Analyze.' }],
+  }],
+});
+const reviewContext = {
+  flags: [],
+  platformIssues: [{
+    questionId: 'q1',
+    status: 'open',
+    suspectedComponent: 'functionModeling graph stage',
+    reason: 'The graph should not be here.',
+    repairKey,
+  }],
+};
 
 test('build metadata exposes deployed sha, build time, and assignment runtime repair version', () => {
   const info = getMathMasterBuildInfo({
@@ -41,6 +68,36 @@ test('runtime diagnosis distinguishes stale deployment, pending persistence, and
     storedRepairVersion: 1,
     issueReproduces: true,
   }).status, 'remainingRegression');
+});
+
+test('Repair Center explains deployment mismatch for an open known platform issue', () => {
+  const previousWindow = globalThis.window;
+  globalThis.window = { __MATHMASTER_BUILD__: { gitSha: 'oldsha', builtAt: 'old', assignmentRuntimeRepairVersion: 0 } };
+  try {
+    const model = buildAssignmentRepairCenterModel({ assignmentV5: assignment(0), diagnostics: [], teacherReviewContext: reviewContext });
+    assert.match(model.questions[0].automatedFindings[0].message, /deployment mismatch/i);
+    assert.equal(model.questions[0].automatedFindings[0].runtimeDiagnosis.status, 'deploymentMismatch');
+  } finally {
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+});
+
+test('Repair Center explains pending persistence and remaining regression when build is current', () => {
+  const previousWindow = globalThis.window;
+  globalThis.window = { __MATHMASTER_BUILD__: { gitSha: 'newsha', builtAt: 'now', assignmentRuntimeRepairVersion: 1 } };
+  try {
+    const pending = buildAssignmentRepairCenterModel({ assignmentV5: assignment(0), diagnostics: [], teacherReviewContext: reviewContext });
+    assert.equal(pending.questions[0].automatedFindings[0].runtimeDiagnosis.status, 'persistencePending');
+    assert.match(pending.questions[0].automatedFindings[0].message, /persistence pending/i);
+
+    const remaining = buildAssignmentRepairCenterModel({ assignmentV5: assignment(1), diagnostics: [], teacherReviewContext: reviewContext });
+    assert.equal(remaining.questions[0].automatedFindings[0].runtimeDiagnosis.status, 'remainingRegression');
+    assert.match(remaining.questions[0].automatedFindings[0].message, /remaining regression/i);
+  } finally {
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
 });
 
 test('Firebase hosting build injects one sha, timestamp, and runtime repair version', () => {
