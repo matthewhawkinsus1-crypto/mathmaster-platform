@@ -243,6 +243,10 @@ export const teacherAdmin = {
     callable('assignStudentToTeacher')({ studentId, teacherEmail, classPeriod }).then((result) => result.data || {}),
   setTeacherAccess: (email, active) =>
     callable('setTeacherAccess')({ email, active }).then((result) => result.data || {}),
+  setAssignmentRepairerAccess: (email, enabled) =>
+    callable('setAssignmentRepairerAccess')({ email, enabled }).then((result) => result.data || {}),
+  commitFullAssignmentRepair: (payload) =>
+    callable('commitFullAssignmentRepair')(payload).then((result) => result.data || {}),
 
   // Classes, rosters, and the three different things "remove" can mean.
   listClasses: () => callable('listClasses')().then((result) => result.data || {}),

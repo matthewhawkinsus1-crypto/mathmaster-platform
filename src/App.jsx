@@ -7225,6 +7225,8 @@ function App() {
               !isLibraryAssignment(questionEditorAssignment)
               || allStudents.some((student) => student.gradesByAssignment?.[questionEditorAssignment.id] !== undefined)
             }
+            fullAuditAuthorized={rootAdminUiEligible || user.assignmentRepairer === true}
+            studentActivityStatus={allStudents.some((student) => student.gradesByAssignment?.[questionEditorAssignment.id] !== undefined) ? 'present' : 'unavailable'}
             onSave={saveQuestionEditor}
             onClose={() => setQuestionEditorAssignment(null)}
           />

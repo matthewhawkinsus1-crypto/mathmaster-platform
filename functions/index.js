@@ -67,6 +67,7 @@ const assignmentAi = require("./lib/assignmentAi");
 const weeklyPathSync = require("./lib/weeklyPathSync");
 const ccmrAssignmentBank = require("./lib/ccmrAssignmentBank");
 const studentSessionSummary = require("./lib/studentSessionSummary");
+const fullAssignmentRepair = require("./lib/fullAssignmentRepair");
 
 // HTTPS/callable transport must be reachable by the Firebase client SDK.
 // MathMaster authorization still happens INSIDE each callable through
@@ -696,13 +697,18 @@ exports.resolveSignedInRole = onCall(async (request) => {
 
   if (await isAuthorizedTeacher(db, email)) {
     const isRootAdmin = authLib.isRootAdminEmail(email);
+    const teacherDirectory = isRootAdmin
+      ? null
+      : await db.collection(authLib.TEACHER_COLLECTION).doc(email).get();
+    const assignmentRepairer = teacherDirectory?.data()?.assignmentRepairer === true;
     const nextClaims = isRootAdmin
       ? { role: "teacher", admin: true, rootAdmin: true }
-      : { role: "teacher" };
+      : { role: "teacher", assignmentRepairer };
     if (
       token.role !== "teacher"
       || Boolean(token.admin) !== isRootAdmin
       || Boolean(token.rootAdmin) !== isRootAdmin
+      || Boolean(token.assignmentRepairer) !== assignmentRepairer
     ) {
       await assignClaims(uid, nextClaims);
     }
@@ -716,7 +722,7 @@ exports.resolveSignedInRole = onCall(async (request) => {
       },
       { merge: true },
     );
-    return { role: "teacher", email, accessLevel: isRootAdmin ? "rootAdmin" : "teacher", rootAdmin: isRootAdmin };
+    return { role: "teacher", email, accessLevel: isRootAdmin ? "rootAdmin" : "teacher", rootAdmin: isRootAdmin, assignmentRepairer };
   }
 
   if (email) {
@@ -1178,6 +1184,7 @@ exports.listSignInAccess = onCall(async (request) => {
       return {
         email: teacherDoc.id,
         active: data.active !== false,
+        assignmentRepairer: data.assignmentRepairer === true,
         accessLevel: authLib.isRootAdminEmail(teacherDoc.id) ? "rootAdmin" : "teacher",
         hasSignedIn: Boolean(data.uid),
         lastSignInAt: serializableDate(data.lastSignInAt),
@@ -2822,7 +2829,8 @@ exports.setTeacherAccess = onCall(async (request) => {
   if (uid) {
     if (active) {
       await getAuth().updateUser(uid, { disabled: false });
-      await assignClaims(uid, { role: "teacher" });
+      const userRecord = await getAuth().getUser(uid);
+      await assignClaims(uid, { ...userRecord.customClaims, role: "teacher" });
     } else {
       // Disabling the Firebase user closes the gap in which an already-issued
       // teacher token could otherwise retain access until its normal expiry.
@@ -2845,6 +2853,28 @@ exports.setTeacherAccess = onCall(async (request) => {
   });
 
   return { email, active };
+});
+
+/** Root-admin action: grant/revoke the narrow shared-library repair capability. */
+exports.setAssignmentRepairerAccess = onCall(async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+  let email;
+  try { email = authLib.normalizeEmail(request.data?.email); } catch (error) { throw translateAuthError(error); }
+  if (authLib.isRootAdminEmail(email)) throw new HttpsError("failed-precondition", "Administrators already have Full Assignment Audit authority.");
+  const ref = db.collection(authLib.TEACHER_COLLECTION).doc(email);
+  const snapshot = await ref.get();
+  if (!snapshot.exists || snapshot.data()?.active === false) throw new HttpsError("failed-precondition", "Assignment Repairer access can only be changed for an active teacher.");
+  const enabled = request.data?.enabled === true;
+  const uid = snapshot.data()?.uid || null;
+  if (uid) {
+    const userRecord = await getAuth().getUser(uid);
+    await assignClaims(uid, { ...userRecord.customClaims, role: "teacher", assignmentRepairer: enabled });
+    await getAuth().revokeRefreshTokens(uid);
+  }
+  await ref.set({ assignmentRepairer: enabled, updatedAt: FieldValue.serverTimestamp(), updatedBy: actor.uid }, { merge: true });
+  await writeAdminAudit(db, actor, enabled ? "assignment_repairer_granted" : "assignment_repairer_revoked", email, { hasSignedIn: Boolean(uid) });
+  return { email, assignmentRepairer: enabled, tokenRefreshRequired: Boolean(uid) };
 });
 
 async function recursiveDeleteDocument(db, ref, deleted, label) {
@@ -10341,6 +10371,83 @@ exports.repairAssignmentQuestionWithAI = onCall({
   reasoningEffort: "low",
   surface: "questionRepair",
 }));
+
+/**
+ * The only write path for elevated full-assignment repairs. Authorization and
+ * revision are read from trusted server state again inside one transaction.
+ */
+exports.commitFullAssignmentRepair = onCall(async (request) => {
+  let authorizationType;
+  try { authorizationType = fullAssignmentRepair.requireRepairAuthority(request.auth); } catch (error) {
+    throw new HttpsError(error.code || "permission-denied", error.message);
+  }
+  const db = getFirestore();
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  if (!assignmentId) throw new HttpsError("invalid-argument", "Choose a Library assignment to repair.");
+  const assignmentRef = db.collection("assignments").doc(assignmentId);
+  const auditRef = db.collection("assignmentRepairAudits").doc();
+  const historyRef = db.collection("assignmentRepairHistory").doc();
+
+  try {
+    return await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(assignmentRef);
+      if (!snapshot.exists) throw new HttpsError("not-found", "That Library assignment no longer exists.");
+      const stored = { id: snapshot.id, ...snapshot.data() };
+      const prepared = fullAssignmentRepair.prepareCommit({ assignment: stored, request: request.data });
+      // Only authored question containers and the revision are written. This
+      // allow-list excludes publication, grades, submissions and historical data.
+      const update = { assignmentRevision: prepared.toRevision };
+      if (Array.isArray(prepared.assignment.sections)) update.sections = prepared.assignment.sections;
+      else update.questions = prepared.assignment.questions;
+      transaction.update(assignmentRef, update);
+
+      const auditResults = Array.isArray(request.data?.auditResults) ? request.data.auditResults : [];
+      const count = (classification) => auditResults.filter((item) => item?.classification === classification).length;
+      transaction.set(historyRef, {
+        assignmentId, fromRevision: prepared.fromRevision, toRevision: prepared.toRevision,
+        scope: fullAssignmentRepair.SCOPE, questionIds: prepared.changedQuestionIds,
+        questions: prepared.changedQuestions,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      transaction.set(auditRef, {
+        assignmentId, startingRevision: prepared.fromRevision, resultingRevision: prepared.toRevision,
+        auditScope: fullAssignmentRepair.SCOPE, actorUid: request.auth.uid,
+        actorEmail: callerEmail(request) || null, actorAuthorizationType: authorizationType,
+        questionIdsChanged: prepared.changedQuestionIds, numberAudited: auditResults.length,
+        numberPassed: count("passed"), numberAssignmentIssues: count("assignmentIssue"),
+        numberPlatformIssues: count("platformIssue"), numberUnclear: count("unclear"),
+        proposedRepairsAccepted: prepared.changedQuestionIds.length,
+        proposedRepairsRejected: Math.max(0, (request.data?.replacements?.length || 0) - prepared.changedQuestionIds.length),
+        commitOutcome: "committed", createdAt: FieldValue.serverTimestamp(),
+      });
+      const classifiedPlatformIssues = auditResults
+        .filter((item) => item?.classification === "platformIssue")
+        .map((item) => ({ ...item }));
+      const globalPlatformIssues = (Array.isArray(request.data?.globalFindings) ? request.data.globalFindings : [])
+        .filter((item) => item?.classification === "platformIssue")
+        .map((item) => ({ ...item, questionId: null }));
+      const platformIssues = [
+        ...(Array.isArray(request.data?.platformIssues) ? request.data.platformIssues : []),
+        ...classifiedPlatformIssues,
+        ...globalPlatformIssues,
+      ];
+      for (const issue of platformIssues) {
+        const issueRef = db.collection("assignmentPlatformIssues").doc();
+        transaction.set(issueRef, {
+          assignmentId, auditId: auditRef.id, classification: "platformIssue",
+          questionId: String(issue?.questionId || "").trim() || null,
+          reason: String(issue?.reason || "").trim().slice(0, 2000),
+          suspectedComponent: String(issue?.suspectedComponent || "MathMaster platform").trim().slice(0, 500),
+          status: "open", reportedAt: FieldValue.serverTimestamp(),
+        });
+      }
+      return { assignmentId, revision: prepared.toRevision, changedQuestionIds: prepared.changedQuestionIds, auditId: auditRef.id };
+    });
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError("failed-precondition", error.message || "The full assignment repair was refused.");
+  }
+});
 
 // Administrator connectivity check. Deliberately tiny: it proves the credential,
 // the model entitlement, the billing quota and the egress path in one call, and

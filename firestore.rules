@@ -393,6 +393,12 @@ service cloud.firestore {
     match /studentDirectory/{docId} { allow read, write: if false; }
     match /teacherDirectory/{docId} { allow read, write: if false; }
     match /adminAuditLog/{docId} { allow read, write: if false; }
+    // Full-audit actor metadata, question history and platform defect reports
+    // are callable-only. /assignments is student-readable and must never carry
+    // this private maintenance evidence.
+    match /assignmentRepairAudits/{docId} { allow read, write: if false; }
+    match /assignmentRepairHistory/{docId} { allow read, write: if false; }
+    match /assignmentPlatformIssues/{docId} { allow read, write: if false; }
     match /classJoinCodes/{docId} { allow read, write: if false; }
     match /authThrottle/{docId} { allow read, write: if false; }
     match /activePathLocks/{docId} { allow read, write: if false; }
