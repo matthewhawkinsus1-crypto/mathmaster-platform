@@ -3,11 +3,11 @@ const clean = (value) => String(value ?? '').trim();
 const lower = (value) => clean(value).toLowerCase();
 const asArray = (value) => Array.isArray(value) ? value : [];
 
-// Version 2 adds a deterministic structural signature for the exact
-// pre-provenance functionModeling graph defect. Version 1 assignments therefore
-// must be evaluated again instead of being skipped merely because #167 stamped
-// them before this legacy shape was understood.
-export const ASSIGNMENT_RUNTIME_REPAIR_VERSION = 2;
+// Version 3 adds a runtime-only cleanup for the historical identity-graph
+// fallback when it was attached directly to the continuity classification
+// stage. Version 2 handled the separate stale graphConstruction shape, so old
+// compatibility stamps must be evaluated again for this newly proven variant.
+export const ASSIGNMENT_RUNTIME_REPAIR_VERSION = 3;
 
 export const RUNTIME_REPAIR_KEYS = Object.freeze({
   NO_SYNTHETIC_FUNCTION_MODELING_GRAPH: 'function-modeling-exact-ask-no-synthetic-graph-v1',
@@ -80,6 +80,83 @@ const exactBranchStage = (stage, { id, kind, controller, choice }) => (
   && clean(stage?.showWhen?.stage) === controller
   && lower(stage?.showWhen?.is) === lower(choice)
 );
+
+const ownsAnyNonEmptyGraphAnnotation = (graph = {}) => (
+  ['points', 'lines', 'polylines', 'regions', 'verticalLines', 'horizontalLines']
+    .some((key) => asArray(graph?.[key]).length > 0)
+);
+
+const identityFunctionSpec = (spec = {}) => {
+  if (!isObject(spec)) return false;
+  const type = lower(spec.type || spec.family);
+  if (type !== 'linear' && type !== 'line') return false;
+
+  const slopeKeys = ['m', 'slope', 'a'];
+  const interceptKeys = ['b', 'intercept', 'k'];
+  const slopeKey = slopeKeys.find((key) => spec[key] !== undefined && spec[key] !== null && spec[key] !== '');
+  const interceptKey = interceptKeys.find((key) => spec[key] !== undefined && spec[key] !== null && spec[key] !== '');
+  if (!slopeKey || !interceptKey) return false;
+
+  const slope = Number(spec[slopeKey]);
+  const intercept = Number(spec[interceptKey]);
+  const horizontalShift = spec.h == null || spec.h === '' ? 0 : Number(spec.h);
+  return Number.isFinite(slope)
+    && Number.isFinite(intercept)
+    && Number.isFinite(horizontalShift)
+    && slope === 1
+    && intercept === 0
+    && horizontalShift === 0;
+};
+
+const identityModel = (model) => {
+  let token = lower(model).replace(/\s+/g, '').replace(/\*/g, '');
+  if (!token) return false;
+  token = token.replace(/^f\(x\)=/, '').replace(/^y=/, '').replace(/[()]/g, '');
+  return /^(?:1)?x(?:\+0|-0)?$/.test(token);
+};
+
+/**
+ * The old fallback graph was not mathematical authoring. It was the identity
+ * function created when an empty/default linear spec reached a renderer that
+ * expected a function. Keep this signature deliberately narrow: one plain
+ * identity function and no authored annotations. A real graph with points,
+ * asymptotes, regions, extra lines, or a non-identity function is never swept
+ * up by this compatibility rule.
+ */
+const isKnownSyntheticIdentityGraph = (graph = {}) => {
+  if (!isObject(graph) || ownsAnyNonEmptyGraphAnnotation(graph)) return false;
+  if (identityModel(graph.model)) return true;
+  if (identityFunctionSpec(graph.functionSpec)) return true;
+
+  const functions = asArray(graph.functions).filter(isObject);
+  return functions.length === 1 && identityFunctionSpec(functions[0]);
+};
+
+const isContinuityClassificationStage = (stage = {}) => (
+  isObject(stage)
+  && clean(stage.id) === 'continuity'
+  && lower(stage.kind) === 'classification'
+  && sameChoiceList(stage.choices, ['discrete', 'continuous'])
+);
+
+const hasKnownSyntheticContinuityStageGraph = (question = {}) => (
+  asArray(question?.workflow).some((stage) => (
+    isContinuityClassificationStage(stage)
+    && isKnownSyntheticIdentityGraph(stage.graph)
+  ))
+);
+
+const stripKnownSyntheticContinuityStageGraph = (question = {}) => {
+  let changed = false;
+  const workflow = asArray(question?.workflow).map((stage) => {
+    if (!isContinuityClassificationStage(stage) || !isKnownSyntheticIdentityGraph(stage.graph)) return stage;
+    const next = { ...stage };
+    delete next.graph;
+    changed = true;
+    return next;
+  });
+  return changed ? { ...question, workflow } : question;
+};
 
 /**
  * The old bug existed before workflowProvenance was stamped. Failing closed on
@@ -155,8 +232,11 @@ const noSyntheticGraphRule = (question = {}) => {
     return { applies: false };
   }
 
+  const provenance = generatedWorkflowSource(question);
+  const staleContinuityGraph = hasKnownSyntheticContinuityStageGraph(question);
   const graphStages = workflowGraphStages(question);
-  if (!graphStages.length) {
+
+  if (!staleContinuityGraph && !graphStages.length) {
     // The authored/current District DOL shape is already correct. Recording the
     // evaluated compatibility key lets Repair Center resolve the old platform
     // report without manufacturing or persisting a workflow just to do so.
@@ -169,7 +249,6 @@ const noSyntheticGraphRule = (question = {}) => {
     };
   }
 
-  const provenance = generatedWorkflowSource(question);
   if (provenance === 'authored') {
     return {
       applies: true,
@@ -180,8 +259,68 @@ const noSyntheticGraphRule = (question = {}) => {
         question,
         repairKey,
         code: 'blocked',
-        message: 'The graph stage is marked as an authored workflow, so MathMaster preserved it instead of treating it as generated compatibility state.',
+        message: 'The graph state is marked as an authored workflow, so MathMaster preserved it instead of treating it as generated compatibility state.',
       })],
+    };
+  }
+
+  if (hasAuthoredGraphEvidence(question)) {
+    return {
+      applies: true,
+      question,
+      changed: false,
+      safeToPersist: false,
+      diagnostics: [diagnostic({
+        question,
+        repairKey,
+        code: 'blocked',
+        message: 'The question contains authored graph evidence, so MathMaster preserved it and did not apply an automatic content repair.',
+      })],
+    };
+  }
+
+  if (hasGraphStudentAction(question)) {
+    return {
+      applies: true,
+      question,
+      changed: false,
+      safeToPersist: false,
+      diagnostics: [diagnostic({
+        question,
+        repairKey,
+        code: 'blocked',
+        message: 'The authored student actions include graph work, so MathMaster preserved the graph state.',
+      })],
+    };
+  }
+
+  if (gradingUsesGraph(question?.grading)) {
+    return {
+      applies: true,
+      question,
+      changed: false,
+      safeToPersist: false,
+      diagnostics: [diagnostic({
+        question,
+        repairKey,
+        code: 'blocked',
+        message: 'The grading contract depends on graph work, so MathMaster preserved the graph state instead of changing grading meaning.',
+      })],
+    };
+  }
+
+  if (staleContinuityGraph) {
+    const repairedQuestion = stripKnownSyntheticContinuityStageGraph(question);
+    // recipeExpansion is explicit proof that MathMaster generated the workflow,
+    // so teacher-side safe writeback may clean it permanently. Pre-provenance
+    // state gets the same immediate student-facing repair in memory, but is not
+    // persisted because authorship cannot be proven from the stored record.
+    return {
+      applies: true,
+      question: repairedQuestion,
+      changed: repairedQuestion !== question,
+      safeToPersist: provenance === 'recipeexpansion',
+      diagnostics: [],
     };
   }
 
@@ -197,51 +336,6 @@ const noSyntheticGraphRule = (question = {}) => {
         repairKey,
         code: 'ambiguous',
         message: 'The workflow contains a graph stage but its origin is ambiguous. MathMaster preserved it rather than guessing that it was platform-generated.',
-      })],
-    };
-  }
-
-  if (hasAuthoredGraphEvidence(question)) {
-    return {
-      applies: true,
-      question,
-      changed: false,
-      safeToPersist: false,
-      diagnostics: [diagnostic({
-        question,
-        repairKey,
-        code: 'blocked',
-        message: 'The question contains authored graph evidence, so MathMaster preserved the graph workflow and did not apply an automatic content repair.',
-      })],
-    };
-  }
-
-  if (hasGraphStudentAction(question)) {
-    return {
-      applies: true,
-      question,
-      changed: false,
-      safeToPersist: false,
-      diagnostics: [diagnostic({
-        question,
-        repairKey,
-        code: 'blocked',
-        message: 'The authored student actions include graph work, so MathMaster preserved the graph stage.',
-      })],
-    };
-  }
-
-  if (gradingUsesGraph(question?.grading)) {
-    return {
-      applies: true,
-      question,
-      changed: false,
-      safeToPersist: false,
-      diagnostics: [diagnostic({
-        question,
-        repairKey,
-        code: 'blocked',
-        message: 'The grading contract depends on graph work, so MathMaster preserved the graph stage instead of changing grading meaning.',
       })],
     };
   }
