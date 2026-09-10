@@ -7,6 +7,7 @@ import {
   diagnoseRuntimeCompatibility,
 } from '../../src/platform/runtime/buildInfo.js';
 import { buildAssignmentRepairCenterModel } from '../../src/platform/preflight/assignmentRepairCenterModel.js';
+import { ASSIGNMENT_RUNTIME_REPAIR_VERSION } from '../../src/platform/assignments/assignmentRuntimeRepair.js';
 
 const repairKey = 'function-modeling-exact-ask-no-synthetic-graph-v1';
 const assignment = (repairVersion = 0) => ({
@@ -85,13 +86,21 @@ test('Repair Center explains deployment mismatch for an open known platform issu
 
 test('Repair Center explains pending persistence and remaining regression when build is current', () => {
   const previousWindow = globalThis.window;
-  globalThis.window = { __MATHMASTER_BUILD__: { gitSha: 'newsha', builtAt: 'now', assignmentRuntimeRepairVersion: 1 } };
+  // This test is named "when build is current", so the fixture has to MEAN
+  // current. A literal stops meaning current the moment the version is bumped,
+  // which is the one thing this constant exists to allow.
+  globalThis.window = { __MATHMASTER_BUILD__: { gitSha: 'newsha', builtAt: 'now', assignmentRuntimeRepairVersion: ASSIGNMENT_RUNTIME_REPAIR_VERSION } };
   try {
     const pending = buildAssignmentRepairCenterModel({ assignmentV5: assignment(0), diagnostics: [], teacherReviewContext: reviewContext });
     assert.equal(pending.questions[0].automatedFindings[0].runtimeDiagnosis.status, 'persistencePending');
     assert.match(pending.questions[0].automatedFindings[0].message, /persistence pending/i);
 
-    const remaining = buildAssignmentRepairCenterModel({ assignmentV5: assignment(1), diagnostics: [], teacherReviewContext: reviewContext });
+    // Stamped at the CURRENT version and still reporting the problem — that is
+    // what "remaining regression" means. The literal 1 said that only while 1
+    // happened to be current; once the version advanced, this fixture became a
+    // STALE stamp and the model correctly reported persistencePending instead,
+    // so the test failed while asserting the opposite of its own name.
+    const remaining = buildAssignmentRepairCenterModel({ assignmentV5: assignment(ASSIGNMENT_RUNTIME_REPAIR_VERSION), diagnostics: [], teacherReviewContext: reviewContext });
     assert.equal(remaining.questions[0].automatedFindings[0].runtimeDiagnosis.status, 'remainingRegression');
     assert.match(remaining.questions[0].automatedFindings[0].message, /remaining regression/i);
   } finally {

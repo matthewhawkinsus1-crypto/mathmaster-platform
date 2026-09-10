@@ -34,6 +34,7 @@ Three shapes account for nearly all of it:
 | Canonicalised value | `graphConstruction` → `functionGraph` via `normalizeWorkflow` | assert what survives normalisation — an id, a role |
 | Frozen object shape | `deepEqual` on a record that gained a field | add the field, with a comment saying why |
 | Forbidden word in a **comment** | `doesNotMatch(source, /evidence/)` fires on a comment explaining the safety boundary | assert against `executableSource(source)` — **do not delete the comment** |
+| Versioned constant | `repairVersion: 1` in a fixture named *"when build is current"* | import the constant; use `CURRENT - 1` for a deliberately stale value |
 
 About a quarter of `tests/platform` reads component source as **text**. Nothing
 here renders React — node cannot import `.jsx` — so this is the only way to
