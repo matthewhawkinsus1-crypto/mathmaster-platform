@@ -53,6 +53,7 @@ import {
 import { stableStringify } from './utils/idUtils';
 import { ENTER_TO_CONTINUE_HINT, focusFirstAnswerControl, shouldAdvanceOnEnter, shouldFocusAnswerOnOpen, shouldSubmitAnswerOnEnter } from './platform/interaction/answerEntryUx.js';
 import { normalizeQuestionWeight } from './platform/grading/questionWeights.js';
+import { resolveTaskContextPresentation } from './platform/workflow/taskContextPresentation.js';
 
 const EMPTY_ANSWER_STATE = {
   isComplete: false,
@@ -244,6 +245,11 @@ export default function QuestionEngine({
   const [calculatorUsed, setCalculatorUsed] = useState(false);
   const [hintUsed, setHintUsed] = useState(false);
   const [workflowGuidanceState, setWorkflowGuidanceState] = useState(null);
+  const taskContextPresentation = resolveTaskContextPresentation({
+    originalTaskPrompt: processedQuestion?.prompt || processedQuestion?.scenario,
+    currentStagePrompt: workflowGuidanceState?.currentStagePrompt,
+    composed: isComposed,
+  });
 
   const supportPresentation = useMemo(
     () => processedQuestion?.supportPresentation || getStudentSupportPresentation(stableStudentProfile),
@@ -620,6 +626,7 @@ export default function QuestionEngine({
           disabled={commonModuleProps.disabled}
           draftKey={draftKey}
           showPrompt={false}
+          showStagePrompt={false}
         />
       );
     }
@@ -940,7 +947,8 @@ export default function QuestionEngine({
       style={{ position: 'relative', padding: '10px', textAlign: 'center', fontFamily: 'sans-serif', overflow: 'visible' }}
     >
       <MobileViewportContainer
-        promptText={workflowGuidanceState?.currentStagePrompt || processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.'}
+        originalTaskPrompt={processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.'}
+        currentStagePrompt={taskContextPresentation.currentStagePrompt}
         taskMeta={questionAlignmentPanel}
         taskContextPanel={questionReferencePanel}
         contextPanel={solverWorkspaceActive ? null : questionContextPanel}

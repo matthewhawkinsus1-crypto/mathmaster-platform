@@ -1047,6 +1047,7 @@ export default function WorkflowRunner({
   disabled = false,
   draftKey = null,
   showPrompt = true,
+  showStagePrompt = true,
 }) {
   const { content, workflow: authoredWorkflow, grading } = useMemo(() => readComposedQuestion(question), [question]);
   const [responses, setResponses] = useLocalDraftState(
@@ -1297,7 +1298,7 @@ export default function WorkflowRunner({
     return (
       <section key={stage.id} className={shellClass} style={focusMode ? undefined : panel}>
         {focusMode ? null : <h4 style={stageHeading}>Step {index + 1}. {definition?.label || stage.kind}</h4>}
-        {stage.prompt && <QuestionPrompt variant="plain" style={{ fontSize: 16, margin: '0 0 12px' }}>{stage.prompt}</QuestionPrompt>}
+        {showStagePrompt && stage.prompt && <QuestionPrompt variant="plain" style={{ fontSize: 16, margin: '0 0 12px' }}>{stage.prompt}</QuestionPrompt>}
         {locked.has(stage.id) ? (
           /* THE LIVE COMPONENT IS NOT RENDERED AT ALL, rather than rendered
              disabled. Several stage components take no `disabled` prop — the

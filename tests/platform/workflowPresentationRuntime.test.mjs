@@ -8,7 +8,7 @@ import {
 } from '../../src/platform/workflow/workflowPresentation.js';
 import { expandRecipe } from '../../src/platform/workflow/questionRecipes.js';
 
-test('workflow presentation publishes the active stage prompt for YOUR TASK', () => {
+test('workflow presentation publishes the active stage prompt for CURRENT QUESTION', () => {
   const workflow = [
     { id: 'first', kind: 'classification', prompt: 'Does this graph have an x-intercept?' },
     { id: 'second', kind: 'pointInput', prompt: 'Write the x-intercept as an ordered pair.' },
@@ -84,7 +84,7 @@ test('PR #163 invariant remains protected: continuity/domain functionModeling do
   assert.equal(expanded.workflow.some((stage) => stage.id === 'graph' || stage.kind === 'graphConstruction'), false);
 });
 
-test('WorkflowRunner and QuestionEngine wire active task and one persistent graph into the student shell', async () => {
+test('WorkflowRunner and QuestionEngine wire the active instruction and one persistent graph into the student shell', async () => {
   const runner = await readFile(new URL('../../src/platform/workflow/WorkflowRunner.jsx', import.meta.url), 'utf8');
   const engine = await readFile(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
 
@@ -93,5 +93,5 @@ test('WorkflowRunner and QuestionEngine wire active task and one persistent grap
   assert.match(runner, /showPersistentGraphReference/);
   assert.match(runner, /sourceGraph=\{content\?\.graph \|\| stage\.graph \|\| null\}/);
   assert.match(runner, /showFigure=\{showFigure\}/);
-  assert.match(engine, /workflowGuidanceState\?\.currentStagePrompt/);
+  assert.match(engine, /currentStagePrompt:\s*workflowGuidanceState\?\.currentStagePrompt/);
 });

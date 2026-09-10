@@ -8,7 +8,9 @@ const source = fs.readFileSync(new URL('../../src/components/student/MobileViewp
 test('MobileViewportContainer owns and imports the canonical student task prompt', () => {
   assert.match(source, /import\s+QuestionPrompt\s+from\s+['"]\.\.\/\.\.\/QuestionPrompt['"];?/);
   assert.match(source, /mathmaster-desktop-question-anchor[\s\S]*<QuestionPrompt[\s\S]*variant="task"/);
-  assert.match(source, /promptText \|\| 'Complete the math task\.'/);
+  assert.match(source, /originalTaskPrompt \|\| 'Complete the math task\.'/);
+  assert.match(source, /mathmaster-current-question[\s\S]*currentStagePrompt/,
+    'the canonical task anchor must also own the distinct active-stage instruction');
 });
 
 

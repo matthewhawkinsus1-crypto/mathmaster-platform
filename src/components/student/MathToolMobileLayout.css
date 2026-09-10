@@ -58,6 +58,29 @@
   line-height: 1.45 !important;
 }
 
+.mathmaster-current-question {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid #d7e2f3;
+  text-align: left;
+}
+
+.mathmaster-current-question > span {
+  display: block;
+  margin-bottom: 4px;
+  color: #174ea6;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mathmaster-current-question .mathmaster-question-prompt {
+  margin: 0 !important;
+  font-size: 0.98rem !important;
+  line-height: 1.4 !important;
+}
+
 /* A single-tool question renders the question prompt twice: once in the sticky
    panel above and once inside the tool. Hide the copy inside the workspace. */
 .mathmaster-question-container .math-tool-workspace .mathmaster-question-prompt {
