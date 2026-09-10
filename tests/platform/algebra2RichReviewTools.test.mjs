@@ -80,7 +80,7 @@ test('function operations math derives requested polynomial results, restriction
     composeOrder: 'fOfG',
   });
 
-  assert.equal(formatPolynomialExpression(result.sum.coefficients), '2x^2 - x - 1');
+  assert.equal(formatPolynomialExpression(result.sum.coefficients), 'x^2 + x - 2');
   assert.equal(formatPolynomialExpression(result.difference.coefficients), 'x^2 - x');
   assert.equal(formatPolynomialExpression(result.product.coefficients), 'x^3 - x^2 - x + 1');
   assert.equal(result.quotient.expression, 'x + 1');
