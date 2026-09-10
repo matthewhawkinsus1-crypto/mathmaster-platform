@@ -42,12 +42,18 @@ const formatVariableTerm = (coefficient, variable, isFirst) => {
   if (numeric === 0) return null;
   const sign = numeric < 0 ? '-' : '+';
   const magnitude = Math.abs(numeric);
+  const fraction = fractionParts(numeric);
+
+  if (fraction && fraction.denominator > 1) {
+    if (isFirst) return `(${formatNumber(numeric)})${variable}`;
+    return `${sign} (${formatNumber(magnitude)})${variable}`;
+  }
+
   let core;
   if (Math.abs(magnitude - 1) <= EPSILON) {
     core = variable;
   } else {
-    const formatted = formatNumber(magnitude);
-    core = formatted.includes('/') ? `(${formatted})${variable}` : `${formatted}${variable}`;
+    core = `${formatNumber(magnitude)}${variable}`;
   }
   if (isFirst) return numeric < 0 ? `-${core}` : core;
   return `${sign} ${core}`;
@@ -136,7 +142,7 @@ export const applyInverseDerivationOperation = (state, operation, operand) => {
   if (operationType === 'swapVariables') {
     if (state.phase !== 'original') throw new Error('Swap x and y exactly once before solving for y.');
     const swap = (relation) => ({ x: clean(relation.y), y: clean(relation.x), c: clean(relation.c) });
-    const next = {
+    return {
       ...state,
       left: swap(state.left),
       right: swap(state.right),
@@ -144,7 +150,6 @@ export const applyInverseDerivationOperation = (state, operation, operand) => {
       inverse: null,
       history: [...(state.history || []), cloneSnapshot(state)],
     };
-    return next;
   }
 
   if (!['add', 'subtract', 'multiply', 'divide'].includes(operationType)) {
@@ -157,36 +162,32 @@ export const applyInverseDerivationOperation = (state, operation, operand) => {
   if (operationType === 'divide' && Math.abs(numeric) <= EPSILON) throw new Error('Cannot divide both sides by zero.');
   if (operationType === 'multiply' && Math.abs(numeric) <= EPSILON) throw new Error('Multiplying both sides by zero loses equation equivalence.');
 
-  let transform;
   if (operationType === 'add') {
     const adjust = (relation) => ({ ...relation, c: clean(relation.c + numeric) });
-    const next = {
+    return withSolvedMetadata({
       ...state,
       left: adjust(state.left),
       right: adjust(state.right),
       history: [...(state.history || []), cloneSnapshot(state)],
-    };
-    return withSolvedMetadata(next);
+    });
   }
   if (operationType === 'subtract') {
     const adjust = (relation) => ({ ...relation, c: clean(relation.c - numeric) });
-    const next = {
+    return withSolvedMetadata({
       ...state,
       left: adjust(state.left),
       right: adjust(state.right),
       history: [...(state.history || []), cloneSnapshot(state)],
-    };
-    return withSolvedMetadata(next);
+    });
   }
 
-  transform = operationType === 'multiply'
+  const transform = operationType === 'multiply'
     ? (coefficient) => coefficient * numeric
     : (coefficient) => coefficient / numeric;
-  const next = {
+  return withSolvedMetadata({
     ...state,
     left: mapRelation(state.left, transform),
     right: mapRelation(state.right, transform),
     history: [...(state.history || []), cloneSnapshot(state)],
-  };
-  return withSolvedMetadata(next);
+  });
 };
