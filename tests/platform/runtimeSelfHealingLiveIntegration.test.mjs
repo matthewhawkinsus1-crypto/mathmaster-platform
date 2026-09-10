@@ -54,8 +54,24 @@ const exactPreProvenanceContinuityDomain = () => ({
   },
 });
 
-test('runtime repair version advances when the known pre-provenance repair contract expands', () => {
-  assert.equal(ASSIGNMENT_RUNTIME_REPAIR_VERSION, 2);
+test('runtime repair version is past its first release, so stamped assignments can be re-evaluated', () => {
+  /*
+   * This asked whether the version "advances", and answered it with === 2.
+   *
+   * Advancing is a relationship between two releases; a single snapshot cannot
+   * see it. The literal only ever meant "the value on the day this was
+   * written", so it failed the next time the contract expanded — which is
+   * precisely the event it was meant to welcome.
+   *
+   * A floor is the strongest thing a snapshot can honestly assert here, and it
+   * survives every future bump. The behaviour that actually matters — an
+   * assignment stamped by an earlier release is looked at again — is asserted
+   * directly in runtimeRepairAutoWriteback against CURRENT - 1.
+   */
+  assert.ok(
+    Number.isInteger(ASSIGNMENT_RUNTIME_REPAIR_VERSION) && ASSIGNMENT_RUNTIME_REPAIR_VERSION > 1,
+    'the pre-provenance repair contract has expanded beyond the first release, so the version must be past 1',
+  );
 });
 
 test('exact pre-provenance functionModeling synthetic graph is safely removed', () => {

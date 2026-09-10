@@ -99,9 +99,33 @@ const assignmentOf = (...questions) => ({
   }],
 });
 
-test('runtime repair version is 2 and exposes stable repair keys', () => {
+test('runtime repair keys are stable identifiers and the version is a real version', () => {
   const api = requireRuntimeRepair();
-  assert.equal(api.ASSIGNMENT_RUNTIME_REPAIR_VERSION, 2);
+
+  /*
+   * The version is asserted as a shape, not a number.
+   *
+   * It exists to be incremented — that is how assignments stamped by an earlier
+   * release get re-evaluated — so pinning it to a literal fails on every bump
+   * by construction, which is what it did here and in PR #169. A floor stays
+   * true after every future bump; an equality cannot.
+   *
+   * That the version ADVANCES when repairs are added is a property between two
+   * releases and cannot be checked from one snapshot. What can be checked is
+   * the consequence, and it is: runtimeRepairAutoWriteback asserts that an
+   * assignment stamped at CURRENT - 1 is evaluated again.
+   */
+  assert.ok(
+    Number.isInteger(api.ASSIGNMENT_RUNTIME_REPAIR_VERSION) && api.ASSIGNMENT_RUNTIME_REPAIR_VERSION >= 1,
+    'the runtime repair version must be a positive integer',
+  );
+
+  /*
+   * The keys, by contrast, must NEVER change. They are written into assignment
+   * documents as runtimeCompatibility.repairKeys and into platform issue
+   * records as resolvedRepairKey, so renaming one orphans every stored
+   * reference to it and a resolved issue silently reopens.
+   */
   assert.equal(
     api.RUNTIME_REPAIR_KEYS.NO_SYNTHETIC_FUNCTION_MODELING_GRAPH,
     'function-modeling-exact-ask-no-synthetic-graph-v1',

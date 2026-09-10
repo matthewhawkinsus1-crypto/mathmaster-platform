@@ -121,6 +121,21 @@ bump did its job. #169 added the missing half: an assignment stamped at
 `CURRENT - 1` must be re-evaluated. Without it, reverting the bump left the
 suite green while the new repair reached nothing already stamped.
 
+### Which versions may be pinned
+
+Not every numeric version assertion is a mistake, and a blanket sweep would
+destroy the good ones.
+
+| Kind | Example | Pin it? |
+| --- | --- | --- |
+| Format identifier | `schemaVersion === 5`, `CONTRACT_SCHEMA_VERSION` | **Yes.** V5 names the assignment format and V4 is refused on purpose. If it becomes V6 these *should* fail — that is a migration someone must see. |
+| Monotonic counter | `ASSIGNMENT_RUNTIME_REPAIR_VERSION` | **No.** It exists to be incremented; that is how stamped assignments get re-evaluated. |
+
+`tests/platform/monotonicConstantsNotPinned.test.mjs` enforces the second row,
+and only for constants listed in it. Add new monotonic constants there. If it
+fails, do not change the number — use the constant, or `CURRENT - 1` for a
+deliberately stale fixture.
+
 ## The quieter failure: assertions that cannot fail
 
 The opposite mistake, and the one that produces false confidence. Nine of these
