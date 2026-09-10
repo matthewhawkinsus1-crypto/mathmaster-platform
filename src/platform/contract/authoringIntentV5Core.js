@@ -1017,6 +1017,50 @@ const resolveIntentType = (q, actions) => {
   return null;
 };
 
+/*
+ * WHO BUILT THIS WORKFLOW — recorded once, where every compile path ends.
+ *
+ * Runtime self-healing repairs workflows the platform generated and must never
+ * touch one a teacher wrote, so it needs to tell them apart. It reads this
+ * field, and it fails closed without it: an unstamped workflow is treated as
+ * unknown and left alone. That is the safe default, and it is also why the
+ * compiler has to stamp what it generates — otherwise nothing is ever
+ * repairable and the whole mechanism is inert.
+ *
+ * Three cases, and the third is the point:
+ *
+ *   generated          the compiler built the stages from studentActions
+ *   authored           the teacher wrote multiple stages explicitly
+ *   ambiguous          one explicit stage, which is exactly what a compiler
+ *                      emits for a simple question and exactly what a teacher
+ *                      writes for a single multiple choice. Nothing here can
+ *                      tell those apart, so nothing is claimed. It stays
+ *                      unstamped and self-healing leaves it alone, which is
+ *                      the correct outcome for a question we cannot classify.
+ *
+ * Stamped at the end of compileOne rather than in each branch: the compiler
+ * emits workflows from several places, and a rule applied in some of them is
+ * worse than no rule, because the gaps look like deliberate "unknown".
+ */
+const WORKFLOW_GENERATOR_VERSION = 1;
+
+const stampWorkflowProvenance = (out, source) => {
+  if (!Array.isArray(out?.workflow) || out.workflow.length === 0) return;
+  if (isObject(out.workflowProvenance)) return;
+
+  const authoredStages = Array.isArray(source?.workflow) ? source.workflow.length : 0;
+  if (authoredStages > 0) {
+    if (authoredStages < 2) return;
+    out.workflowProvenance = { source: 'authored' };
+    return;
+  }
+
+  out.workflowProvenance = {
+    source: 'recipeExpansion',
+    generatorVersion: WORKFLOW_GENERATOR_VERSION,
+  };
+};
+
 const compileOne = (q, index, repairs) => {
   if (!isObject(q)) throw new Error(`V5 question ${index + 1} must be an object.`);
   // Assignment V5 is the only authoring contract. Renderer types remain an
@@ -1575,6 +1619,7 @@ const compileOne = (q, index, repairs) => {
       throw new Error(`V5 question ${index + 1} selected unsupported destination ${type}.`);
   }
   Object.keys(out).forEach((key) => out[key] === undefined && delete out[key]);
+  stampWorkflowProvenance(out, q);
   repairs.push(`compiled V5 question ${index + 1} intent → ${out.type}`);
   return out;
 };

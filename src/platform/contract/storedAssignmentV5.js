@@ -10,6 +10,17 @@ const clean = (value) => String(value ?? '').trim();
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 const isObject = (value) => Boolean(value && typeof value === 'object' && !Array.isArray(value));
 
+const validRuntimeCompatibility = (value) => {
+  if (!isObject(value)) return null;
+  const repairVersion = Number(value.repairVersion);
+  const repairedAt = clean(value.repairedAt);
+  const repairKeys = Array.isArray(value.repairKeys)
+    ? [...new Set(value.repairKeys.map(clean).filter(Boolean))]
+    : [];
+  if (!Number.isInteger(repairVersion) || repairVersion < 1 || !repairedAt || !repairKeys.length) return null;
+  return { repairVersion, repairedAt, repairKeys };
+};
+
 /**
  * Canonical runtime readers.
  *
@@ -212,6 +223,7 @@ export const storedAssignmentToV5 = (assignment = {}, {
   const title = clean(titleOverride ?? assignment.title ?? assignment.assignment?.title);
   const sourceVariantPolicy = getStoredVariantPolicy(assignment);
   const sectionModes = getStoredSectionVariantModes(assignment);
+  const runtimeCompatibility = resetAssignmentKey ? null : validRuntimeCompatibility(assignment.runtimeCompatibility);
 
   return normalizeAssignmentV5({
     schemaVersion: 5,
@@ -241,6 +253,7 @@ export const storedAssignmentToV5 = (assignment = {}, {
     classroomIntegration: reusableClassroomIntegration(assignment),
     provenance: assignment.provenance,
     preflight: assignment.preflight,
+    ...(runtimeCompatibility ? { runtimeCompatibility } : {}),
   });
 };
 
@@ -250,6 +263,7 @@ export const canonicalV5PersistencePatch = (assignmentV5 = {}) => {
   // cannot reintroduce Firestore-illegal point tuples between validation and
   // the final write assertion.
   const { value: safeAssignmentV5 } = repairKnownFirestoreNestedArrays(assignmentV5);
+  const runtimeCompatibility = validRuntimeCompatibility(safeAssignmentV5.runtimeCompatibility);
 
   return {
     schemaVersion: 5,
@@ -270,6 +284,7 @@ export const canonicalV5PersistencePatch = (assignmentV5 = {}) => {
     classroomIntegration: safeAssignmentV5.classroomIntegration || null,
     provenance: safeAssignmentV5.provenance || null,
     preflight: safeAssignmentV5.preflight || { required: true },
+    ...(runtimeCompatibility ? { runtimeCompatibility } : {}),
   };
 };
 

@@ -226,6 +226,10 @@ export const stageSingleQuestionRepairImport = (options = {}) => stageSingle(opt
  * Stage a parsed batch reply atomically. Per-question staging tells the teacher
  * which replacement is unsafe; the combined candidate is commit-eligible only
  * when every replacement and the aggregate assignment are safe.
+ *
+ * A report-only response is also save-eligible, but it is never a question
+ * replacement. Commit handles that as review metadata and does not advance the
+ * canonical assignment revision.
  */
 export const stageBatchQuestionRepairImport = ({
   assignmentV5,
@@ -286,9 +290,11 @@ export const stageBatchQuestionRepairImport = ({
     },
     candidateAssignmentV5,
     validation: aggregateValidation,
-    canCommit: replacements.length > 0
-      && allQuestionsSafe
-      && aggregateValidation.newBlockingDiagnostics.length === 0,
+    canCommit: responseKind === 'reportOnly'
+      ? true
+      : replacements.length > 0
+        && allQuestionsSafe
+        && aggregateValidation.newBlockingDiagnostics.length === 0,
     requiresTeacherVerification: pendingTeacherFlagIds.length > 0,
     pendingTeacherFlagIds,
     platformIssues,
@@ -314,14 +320,26 @@ export const commitStagedQuestionRepairImport = ({
     throw new Error('This staged repair cannot be committed because it has a new blocking validation issue or no safe replacement to apply.');
   }
 
-  requireRevisionMatch({
+  const current = requireRevisionMatch({
     baseRevision: stagedImport.baseRevision,
     currentRevision,
   });
 
+  if (stagedImport.responseKind === 'reportOnly') {
+    return {
+      kind: 'platformIssueReport',
+      assignmentV5: stagedImport.candidateAssignmentV5,
+      teacherReviewContext: cloneJson(teacherReviewContext || { flags: [] }),
+      committedRevision: current,
+      requiresTeacherVerification: false,
+      pendingTeacherFlagIds: [],
+      platformIssues: cloneJson(list(stagedImport.platformIssues)),
+      unclearIssues: cloneJson(list(stagedImport.unclearIssues)),
+    };
+  }
+
   const next = numberOrNull(nextRevision);
-  const current = numberOrNull(currentRevision);
-  if (next == null || current == null || next <= current) {
+  if (next == null || next <= current) {
     throw new Error('Committing a repair requires a next assignment revision greater than the current revision.');
   }
 

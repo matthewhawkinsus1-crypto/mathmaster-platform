@@ -32,6 +32,41 @@ test('a completed section becomes an immediately student-visible final-complete 
   );
 });
 
+test('legacy persisted string records keep earned credit during Classroom passback', () => {
+  const progress = assignmentGradeProgress(
+    {
+      0: 'correct',
+      1: 'expired',
+      2: 'correct',
+      3: 'attempted',
+    },
+    [0, 1, 2, 3],
+    [{}, {}, {}, {}],
+  );
+
+  assert.equal(progress.attempted, 4);
+  assert.equal(progress.terminal, 3);
+  assert.equal(progress.grade, 50);
+  assert.equal(progress.creditOnAttempted, 50);
+});
+
+test('legacy object statuses without attempt counters still count as attempted', () => {
+  const progress = assignmentGradeProgress(
+    {
+      0: { status: 'correct' },
+      1: { status: 'incorrect' },
+      2: { status: 'attempted', bestPartialCredit: 40 },
+      3: { status: 'unattempted' },
+    },
+    [0, 1, 2, 3],
+    [{}, {}, {}, {}],
+  );
+
+  assert.equal(progress.attempted, 3);
+  assert.equal(progress.grade, 35);
+  assert.equal(progress.creditOnAttempted, 47);
+});
+
 test('a section with only early progress remains teacher-draft-only before its due date', () => {
   const progress = assignmentGradeProgress(
     { 0: { status: 'working', totalAttempts: 1 } },

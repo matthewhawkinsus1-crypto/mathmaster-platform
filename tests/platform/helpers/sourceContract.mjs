@@ -89,4 +89,29 @@ export const region = (source, startNeedle, endNeedle, label = 'region') => {
   return source.slice(start, end === -1 ? source.length : end);
 };
 
-export default { componentSource, assertCapability, region };
+
+/**
+ * The same source with comments removed.
+ *
+ * Use this for every `assert.doesNotMatch(source, /forbiddenThing/)`. Those
+ * assertions mean "this code must not touch X", but they run over the whole
+ * file — so they also fail when a comment *explains* that the code must not
+ * touch X. The store contract in PR #167 failed exactly that way: the only
+ * occurrence of `evidence` in the file was a comment stating the safety
+ * boundary the test enforces, and the only way to make it pass was to delete
+ * the explanation.
+ *
+ * A forbidden-identifier check is about what the code DOES. Comments are not
+ * code, and a test that punishes documenting an invariant will get the
+ * documentation deleted, which is the opposite of what it wants.
+ *
+ * Deliberately simple: line and block comments only. It does not parse the
+ * language, so a `//` inside a string literal is also stripped. That is
+ * acceptable here — the result is only ever used as a haystack for
+ * forbidden-identifier checks, never rendered or executed.
+ */
+export const executableSource = (source) => String(source ?? '')
+  .replace(/\/\*[\s\S]*?\*\//g, ' ')
+  .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+
+export default { componentSource, assertCapability, region, executableSource };

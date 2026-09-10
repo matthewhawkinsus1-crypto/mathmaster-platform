@@ -51,6 +51,26 @@ const GUIDANCE = {
       'If the record should not have changed, that is a real finding — investigate the code.',
     ],
   },
+  forbiddenInComment: {
+    label: 'FORBIDDEN IDENTIFIER MATCHED IN A COMMENT',
+    why: 'A doesNotMatch assertion means "this code must not touch X", but it runs over the whole file — so it also fires when a COMMENT explains that the code must not touch X. Deleting the explanation is not the fix.',
+    steps: [
+      'Find where the forbidden word actually occurs: grep -n <word> <file>.',
+      'If every occurrence is inside a comment, the code is correct and the assertion is over-scoped.',
+      'Scope it to code: import { executableSource } from ./helpers/sourceContract.mjs and assert against executableSource(source).',
+      'Then confirm it still bites: add a real reference to the forbidden field in code and check the test fails.',
+    ],
+  },
+  versionedConstant: {
+    label: 'PINNED TO A CONSTANT THAT IS MEANT TO CHANGE',
+    why: 'The test hardcodes a value like a schema or repair version that exists precisely so it can be incremented. The fixture usually MEANT "current" — and silently came to mean "stale" the moment the constant advanced, so the test then asserts the opposite of its own name.',
+    steps: [
+      'Read the test name. If it says "current", the fixture must track the constant, not a literal.',
+      'Import the constant and use it: repairVersion: ASSIGNMENT_RUNTIME_REPAIR_VERSION.',
+      'For a deliberately OLD value, write CURRENT - 1 rather than a literal, so it stays old after the next bump.',
+      'Check the counterpart exists: if one test proves a current stamp suppresses work, another should prove a stale one does not.',
+    ],
+  },
   behavioural: {
     label: 'BEHAVIOURAL',
     why: 'This compares computed output, not source text. It is more likely than the others to be a genuine defect — but it can still be pinned to a representation (see the canonical-value case).',
@@ -75,11 +95,25 @@ const classify = ({ operator, actual, error }) => {
   const looksLikeSource = /^\s*(import|const|function|export|\/\*|<)/m.test(String(actual || ''))
     || /\.jsx?['"]/.test(String(actual || ''));
 
-  if (operator === 'match' || operator === 'doesNotMatch') {
+  if (operator === 'doesNotMatch') {
+    // A forbidden-identifier check that fired only because of prose is the most
+    // misleading failure in this suite: the obvious way to green it is to
+    // delete the comment documenting the safety boundary being enforced.
+    return looksLikeSource ? 'forbiddenInComment' : 'behavioural';
+  }
+  if (operator === 'match') {
     return looksLikeSource ? 'sourceText' : 'behavioural';
   }
   if (operator === 'deepStrictEqual' || operator === 'notDeepStrictEqual') return 'frozenShape';
-  if (operator === 'strictEqual' && /^['"]?[a-zA-Z][a-zA-Z0-9_]*['"]?$/.test(String(actual || '').trim())) {
+  const bare = String(actual || '').trim();
+  const equality = operator === 'strictEqual' || operator === '==';
+  // A small integer on one side of an equality is very often a version or
+  // schema constant that has just been incremented: the fixture said 1 while 1
+  // happened to be current, and stopped meaning "current" on the bump.
+  if (equality && /^\d{1,3}$/.test(bare)) return 'versionedConstant';
+  // A single bare word is usually a canonicalised name — 'functionGraph' where
+  // the test expected 'graphConstruction'. Booleans carry no such signal.
+  if (equality && /^['"]?[a-zA-Z][a-zA-Z0-9_]*['"]?$/.test(bare) && !/^(true|false|null|undefined)$/.test(bare)) {
     return 'canonicalValue';
   }
   if (/did not match the regular expression/i.test(String(error || ''))) return 'sourceText';

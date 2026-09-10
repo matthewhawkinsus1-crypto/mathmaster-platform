@@ -55,6 +55,72 @@ prevent. The expression that satisfied the assertion had become the defect.
 Restoring it to make CI green would have shipped the bug the test was written to
 catch. This is why step 2 is read-the-behaviour, never match-the-regex.
 
+## The defective one: forbidden identifiers matched in comments
+
+There are **381 `assert.doesNotMatch` assertions across 140 files** that read a
+source file. Each means *"this code must not touch X"* — and each runs over the
+whole file, comments included.
+
+So writing a comment that explains the boundary fails the build.
+
+PR #167 hit it exactly. The persistence store's only occurrence of `evidence`
+was this line:
+
+```js
+ * stamp — and never student attempts, grades, evidence, or Classroom identity.
+```
+
+A comment stating the safety property the test enforces. The test failed, and
+the obvious way to green it was to **delete the explanation**. That is a test
+working against the codebase.
+
+**This one is the test's fault, not the code's.** Fix it:
+
+```js
+import { executableSource } from './helpers/sourceContract.mjs';
+const code = executableSource(source);   // comments stripped
+assert.doesNotMatch(code, /studentAttempts|evidence|gradesByAssignment/, '...');
+```
+
+Then confirm it still bites — add a real reference to the forbidden field in
+code and check it fails. `executableSource` removes comments only; it does not
+parse the language, which is fine for a haystack.
+
+If you are writing a new forbidden-identifier check, use `executableSource` from
+the start.
+
+## The self-detonating one: constants that are meant to change
+
+PR #169 advanced `ASSIGNMENT_RUNTIME_REPAIR_VERSION` from 1 to 2 — which is the
+entire point of that constant: when a release adds a repair, assignments stamped
+by an earlier release must be re-evaluated. Three tests failed at once.
+
+All three hardcoded `1`, and all three *meant* "current":
+
+```js
+test('... when build is current', ...)        // fixture: assignmentRuntimeRepairVersion: 1
+test('a current compatibility stamp ...', ...) // fixture: repairVersion: 1
+assert.equal(patch.runtimeCompatibility.repairVersion, 1);
+```
+
+The literal said "current" only while 1 happened to be current. After the bump
+each fixture silently became a **stale** stamp, so the tests asserted the
+opposite of their own names — and the implementation was correct the whole time.
+
+Fix: import the constant.
+
+```js
+import { ASSIGNMENT_RUNTIME_REPAIR_VERSION } from '.../assignmentRuntimeRepair.js';
+repairVersion: ASSIGNMENT_RUNTIME_REPAIR_VERSION,          // means "current"
+repairVersion: ASSIGNMENT_RUNTIME_REPAIR_VERSION - 1,      // means "stale"
+```
+
+**Then check the counterpart exists.** Making these version-agnostic is correct,
+but it removes the only thing that referenced the bump — so nothing proved the
+bump did its job. #169 added the missing half: an assignment stamped at
+`CURRENT - 1` must be re-evaluated. Without it, reverting the bump left the
+suite green while the new repair reached nothing already stamped.
+
 ## The quieter failure: assertions that cannot fail
 
 The opposite mistake, and the one that produces false confidence. Nine of these

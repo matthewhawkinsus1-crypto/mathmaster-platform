@@ -4,6 +4,7 @@ import './index.css';
 import App from './App.jsx';
 import { AuthProvider } from './auth/AuthProvider.jsx';
 import { ToastProvider } from './ui/Toast.jsx';
+import { getMathMasterBuildInfo } from './platform/runtime/buildInfo.js';
 
 class AppErrorBoundary extends Component {
   constructor(props) {
@@ -84,6 +85,13 @@ class AppErrorBoundary extends Component {
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error('The MathMaster root element was not found in index.html.');
+}
+
+// Support/debugging can now distinguish "the code is fixed" from "this browser
+// is still running an older Firebase Hosting build" without asking a teacher to
+// inspect bundles or guess which deployment they received.
+if (typeof window !== 'undefined') {
+  window.__MATHMASTER_BUILD__ = getMathMasterBuildInfo();
 }
 
 createRoot(rootElement).render(

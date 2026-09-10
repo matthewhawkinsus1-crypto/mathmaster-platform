@@ -3,9 +3,15 @@ import {
   reviewContextForQuestion,
   teacherRepairConstraintsForQuestion,
 } from './teacherReviewContext.js';
+import {
+  diagnoseRuntimeCompatibility,
+  getMathMasterBuildInfo,
+} from '../runtime/buildInfo.js';
+import { ASSIGNMENT_RUNTIME_REPAIR_VERSION } from '../assignments/assignmentRuntimeRepair.js';
 
 const clean = (value) => String(value ?? '').trim();
 const normalizedSeverity = (value) => clean(value).toLowerCase();
+const list = (value) => (Array.isArray(value) ? value : []);
 
 const sectionsFrom = (assignmentV5 = {}) => (
   Array.isArray(assignmentV5?.sections) ? assignmentV5.sections : []
@@ -95,25 +101,74 @@ const statusFor = (automatedFindings, teacherFlags) => {
   return 'passed';
 };
 
+const browserBuildInfo = () => {
+  const fromWindow = typeof globalThis !== 'undefined'
+    ? globalThis?.window?.__MATHMASTER_BUILD__
+    : null;
+  return fromWindow || getMathMasterBuildInfo({});
+};
+
+const runtimeDiagnosisLabel = (status) => ({
+  deploymentMismatch: 'Deployment mismatch',
+  persistencePending: 'Persistence pending',
+  remainingRegression: 'Remaining regression',
+  current: 'Runtime current',
+})[status] || 'Runtime status';
+
+const platformIssueDiagnostics = (teacherReviewContext = {}, assignmentV5 = {}) => list(teacherReviewContext?.platformIssues)
+  .map((issue, index) => {
+    const resolved = clean(issue?.status) === 'resolvedByPlatformUpdate';
+    const repairKey = clean(issue?.repairKey) || null;
+    const storedRepairVersion = Number(assignmentV5?.runtimeCompatibility?.repairVersion) || 0;
+    const runtimeDiagnosis = !resolved && repairKey
+      ? diagnoseRuntimeCompatibility({
+        requiredRuntimeVersion: ASSIGNMENT_RUNTIME_REPAIR_VERSION,
+        liveBuildInfo: browserBuildInfo(),
+        storedRepairVersion,
+        // If the saved compatibility stamp is already current and the report is
+        // still open, this is no longer merely a pending write-back state.
+        issueReproduces: storedRepairVersion >= ASSIGNMENT_RUNTIME_REPAIR_VERSION,
+      })
+      : null;
+    const reportedMessage = clean(issue?.reason)
+      || 'MathMaster has a reported platform defect for this question. Do not rewrite correct authored content to work around it.';
+
+    return {
+      source: 'runtimeCompatibility',
+      code: resolved
+        ? `platform.resolved.${clean(issue?.resolvedRepairKey) || index}`
+        : `platform.reported.${repairKey || index}`,
+      severity: resolved ? 'warning' : 'blocking',
+      issueKind: resolved ? 'resolvedPlatformIssue' : 'platformIssue',
+      questionId: clean(issue?.questionId) || null,
+      componentId: clean(issue?.suspectedComponent) || null,
+      repairKey,
+      runtimeDiagnosis,
+      message: resolved
+        ? `Resolved by platform update${issue?.resolvedRepairKey ? ` (${issue.resolvedRepairKey})` : ''}. The authored question was not rewritten.`
+        : runtimeDiagnosis
+          ? `${runtimeDiagnosisLabel(runtimeDiagnosis.status)}: ${runtimeDiagnosis.message} ${reportedMessage}`
+          : reportedMessage,
+      persistedPlatformIssue: true,
+    };
+  });
+
 /**
  * Build the single question-level view MathMaster can use for Assignment Review.
  *
- * Automated validation and teacher review are deliberately merged here instead
- * of being rendered as two separate repair systems. Stable questionId is the
- * primary join key; the flat index remains only as a migration fallback for
- * diagnostics produced before immutable ids were available everywhere.
- *
- * Assignment- and section-level teacher notes flow into a question's repair
- * constraints, but they do not inflate the "teacherFlagged" count. That count
- * answers the teacher-facing question "how many individual questions did I
- * flag?" while inherited context remains visible on every question it governs.
+ * Automated validation, durable platform reports, and teacher review are merged
+ * here instead of becoming three competing repair systems. Stable questionId is
+ * the primary join key; the flat index remains only as a migration fallback.
  */
 export const buildAssignmentRepairCenterModel = ({
   assignmentV5 = {},
   diagnostics = [],
   teacherReviewContext = null,
 } = {}) => {
-  const safeDiagnostics = Array.isArray(diagnostics) ? diagnostics.filter(Boolean) : [];
+  const safeDiagnostics = [
+    ...(Array.isArray(diagnostics) ? diagnostics.filter(Boolean) : []),
+    ...platformIssueDiagnostics(teacherReviewContext, assignmentV5),
+  ];
   const baseRows = questionRowsFrom(assignmentV5);
 
   const questions = baseRows.map((row) => {
