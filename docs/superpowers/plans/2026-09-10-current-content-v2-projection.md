@@ -415,7 +415,32 @@ Do not replace those indices with logical ordinal values.
 
 Use an eight-storage-section V2 fixture with four correction sections and assert rendered section-role data reduces to exactly `['warmup','classwork','practice','dol']` and each replacement appears once.
 
-- [ ] **Step 8: Run GREEN and commit**
+- [ ] **Step 8: Lock Overview and Focus View to the same projection**
+
+Add source/runtime assertions proving neither view rebuilds question order from raw `assignment.sections` or `includedQuestionIndices`. Both must consume the already projected `visibleQuestionEntries` / `navigationSections`:
+
+```js
+test('Overview and Focus View share projected current-content ordering', async () => {
+  const source = await readFile('src/App.jsx', 'utf8');
+  const overviewStart = source.indexOf('Overview');
+  const focusStart = source.indexOf('Focus view');
+  assert.ok(overviewStart >= 0 && focusStart >= 0);
+  assert.match(source, /visibleQuestionEntries/);
+  assert.match(source, /navigationSections/);
+  assert.doesNotMatch(
+    source.slice(Math.max(0, overviewStart - 2500), overviewStart + 7000),
+    /assignment\.sections\.flatMap/
+  );
+  assert.doesNotMatch(
+    source.slice(Math.max(0, focusStart - 2500), focusStart + 7000),
+    /assignment\.sections\.flatMap/
+  );
+});
+```
+
+If either view currently derives its own list, replace that local derivation with the shared projected entries. Do not create a second projection helper.
+
+- [ ] **Step 9: Run GREEN and commit**
 
 Run:
 
