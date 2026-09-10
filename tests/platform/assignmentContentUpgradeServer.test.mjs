@@ -151,7 +151,38 @@ test('commit callable revalidates the preview and writes no replacement Classroo
   assert.match(indexSource, /exports\.commitAssignmentContentUpgrade\s*=\s*onCall/);
   assert.match(indexSource, /expectedPlanHash/);
   assert.match(indexSource, /assignmentVersionEvents/);
-  assert.match(indexSource, /content-version-upgrade/);
+  assert.match(indexSource, /reason: "section-grade-reconcile"/);
+  assert.match(indexSource, /source: "assignment-content-version"/);
   assert.doesNotMatch(indexSource.match(/exports\.commitAssignmentContentUpgrade[\s\S]*?(?=\n\/\*\*|\nexports\.|$)/)?.[0] || '', /createCourseWork|publishAssignment/);
   assert.match(authSource, /commitAssignmentContentUpgrade/);
+});
+
+test('live upgrade authority is class ownership, never designated repair authority', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const indexSource = await readFile('functions/index.js', 'utf8');
+  const start = indexSource.indexOf('async function requireContentUpgradeOwner');
+  const end = indexSource.indexOf('async function loadSavedAssignmentTrackers', start);
+  const authority = indexSource.slice(start, end);
+  assert.match(authority, /assignedClassIds/);
+  assert.match(authority, /every\(\(snapshot\)/);
+  assert.match(authority, /teacherOfRecord/);
+  assert.match(authority, /isRootAdminEmail/);
+  assert.doesNotMatch(authority, /requireRepairAuthority|designated/i);
+});
+
+test('live upgrade writes an allow-list and cannot reset the assignment or publication metadata', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const indexSource = await readFile('functions/index.js', 'utf8');
+  const start = indexSource.indexOf('exports.commitAssignmentContentUpgrade = onCall');
+  const end = indexSource.indexOf('/**\n * Create the next human-facing', start);
+  const commit = indexSource.slice(start, end);
+  const liveUpdateStart = commit.indexOf('transaction.update(liveRef');
+  const liveUpdateEnd = commit.indexOf('migratedRows.forEach', liveUpdateStart);
+  const liveUpdate = commit.slice(liveUpdateStart, liveUpdateEnd);
+  assert.match(liveUpdate, /sections: upgraded\.assignment\.sections/);
+  assert.match(liveUpdate, /assignmentRevision:/);
+  assert.match(liveUpdate, /contentLineage:/);
+  assert.match(liveUpdate, /contentUpgrade:/);
+  assert.doesNotMatch(liveUpdate, /assignedClassIds|dueAt|classroomPackage|accommodation|CourseWork/i);
+  assert.doesNotMatch(commit, /resetAssignment|delete\(|createCourseWork|publishAssignment/);
 });

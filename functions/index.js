@@ -10714,7 +10714,10 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
             new FieldPath("classroomReleaseSignals", assignmentId),
             {
               requestedAt: correctedAt,
-              reason: "content-version-upgrade",
+              // Reuse the section-grade reconciliation trigger delivered by
+              // PR #177.  A content upgrade may change the derived grade, but
+              // it must not invent a parallel Classroom passback protocol.
+              reason: "section-grade-reconcile",
               source: "assignment-content-version",
             }
           );
