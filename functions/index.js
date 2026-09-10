@@ -10691,6 +10691,13 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
         sections: upgraded.assignment.sections,
         assignmentRevision: upgraded.assignment.assignmentRevision,
         contentLineage: upgraded.assignment.contentLineage,
+        contentUpgrade: {
+          fromVersion: plan.fromVersion,
+          toVersion: plan.toVersion,
+          targetAssignmentId,
+          upgradedAt: correctedAt,
+          upgradedBy: request.auth.uid,
+        },
         updatedAt: FieldValue.serverTimestamp(),
       });
 
