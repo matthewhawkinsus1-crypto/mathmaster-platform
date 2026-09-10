@@ -65,6 +65,12 @@ export const inspectLibraryContentRepair = (targetAssignment, assignments = []) 
   if (!targetQuestions.length) {
     return { source: null, questionIds: [], reason: 'target-has-no-questions' };
   }
+
+  // Runtime self-healing and explicit Library repair are complementary paths.
+  // The runtime may recover a historical question in memory, but this inspector
+  // still keeps its original job: find an intact canonical Library/sibling copy
+  // when the teacher explicitly asks to repair saved content. Do not short-circuit
+  // that source-repair workflow merely because presentation can already recover.
   const targetIds = orderedQuestionIds(targetAssignment);
 
   const candidates = (Array.isArray(assignments) ? assignments : [])

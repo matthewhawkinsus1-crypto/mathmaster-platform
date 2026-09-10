@@ -8,6 +8,10 @@ import {
 import { emptyTeacherReviewContext } from './teacherReviewContext.js';
 import { buildRepairHistoryEntry } from './assignmentRepairHistory.js';
 import { teacherMayOverrideDiagnostic } from './assignmentRepairTriage.js';
+import {
+  mergeAssignmentPlatformIssues,
+  resolveAssignmentPlatformIssues,
+} from './assignmentPlatformIssues.js';
 
 const jsonSafe = (value) => JSON.parse(JSON.stringify(value));
 
@@ -43,6 +47,11 @@ const revisionNumber = (value, fallback = null) => {
   const number = Number(value);
   return Number.isFinite(number) && number >= 1 ? number : fallback;
 };
+
+const mirrorPlatformIssuesIntoReviewContext = (record, platformIssues) => ({
+  ...(record?.teacherReviewContext || emptyTeacherReviewContext()),
+  platformIssues: jsonSafe(Array.isArray(platformIssues) ? platformIssues : []),
+});
 
 export const restoreIncompleteAssignmentV5 = (record) => {
   const serialized = record?.authoringDraft?.canonicalJson;
@@ -103,11 +112,15 @@ export const buildIncompleteAssignmentDraftRecord = ({
       warnings,
       diagnostics,
     },
-    // Present from the first save, so a draft document has one shape whether or
-    // not the teacher has flagged anything yet. listIncompleteAssignmentDrafts()
-    // reads these records back; a field that only exists once someone adds a
-    // flag is a field every reader has to guard against.
-    teacherReviewContext: emptyTeacherReviewContext(),
+    // Platform defects are review metadata, not question JSON. Keeping this list
+    // separate means a report-only AI reply cannot silently become a content
+    // revision. The review-context mirror lets the existing Repair Center model
+    // render the same durable reports without a second UI state system.
+    platformIssues: [],
+    teacherReviewContext: {
+      ...emptyTeacherReviewContext(),
+      platformIssues: [],
+    },
     authoringDraft: {
       sourceJson: String(rawText || JSON.stringify(canonical)),
       canonicalJson: JSON.stringify(canonical),
@@ -166,6 +179,45 @@ export const markIncompleteDraftForReview = (
 };
 
 /**
+ * Save report-only platform findings without changing canonical assignment JSON,
+ * assignmentRevision, teacher flags, or repair history.
+ */
+export const applyIncompleteDraftPlatformIssueReport = (
+  record,
+  incomingIssues = [],
+  {
+    repairManifest = [],
+    nowIso = new Date().toISOString(),
+  } = {},
+) => {
+  const merged = mergeAssignmentPlatformIssues(record?.platformIssues || [], incomingIssues, { nowIso });
+  const platformIssues = resolveAssignmentPlatformIssues(merged, repairManifest);
+  return {
+    ...record,
+    platformIssues,
+    teacherReviewContext: mirrorPlatformIssuesIntoReviewContext(record, platformIssues),
+    updatedAt: String(nowIso || new Date().toISOString()),
+  };
+};
+
+/** Re-evaluate existing reports against the current deterministic repair manifest. */
+export const refreshIncompleteDraftPlatformIssues = (
+  record,
+  {
+    repairManifest = [],
+    nowIso = new Date().toISOString(),
+  } = {},
+) => {
+  const platformIssues = resolveAssignmentPlatformIssues(record?.platformIssues || [], repairManifest);
+  return {
+    ...record,
+    platformIssues,
+    teacherReviewContext: mirrorPlatformIssuesIntoReviewContext(record, platformIssues),
+    updatedAt: String(nowIso || new Date().toISOString()),
+  };
+};
+
+/**
  * Complete the human review boundary after repair.
  *
  * A successful repair import only proves that the candidate introduced no new
@@ -195,12 +247,6 @@ export const finalizeIncompleteAssignmentReview = (
   const warnings = uniqueStrings(model.warnings || []);
   const timestamp = String(nowIso || new Date().toISOString());
 
-  // model.isValid counts every blocking diagnostic, including ones the teacher
-  // has already overridden as false positives — so gating on it means an
-  // override changes the Repair Center display and nothing else, and the draft
-  // can never reach Ready. Eligibility is re-derived here rather than trusted
-  // from the stored list: overrides live in a Firestore document, and no row in
-  // a document makes an unstorable question publishable.
   const overrideKeyOf = (entry) => `${String(entry?.code ?? entry?.diagnosticCode ?? '').trim()}::${String(entry?.questionId ?? '').trim()}`;
   const diagnosticOverrides = Array.isArray(teacherReviewContext?.diagnosticOverrides)
     ? teacherReviewContext.diagnosticOverrides
@@ -246,16 +292,23 @@ export const finalizeIncompleteAssignmentReview = (
 };
 
 /**
- * Turn an already-validated Step 5 repair commit into the next persisted draft
- * record. The assignment, review context, and revision advance together so the
- * Firestore record can never say "revision 13" while still carrying revision
- * 12's question JSON or teacher flags.
+ * Turn an already-validated Step 5 repair into the next persisted draft record.
+ * Assignment content repairs advance the canonical revision. Report-only
+ * platform findings take the metadata-only branch above and never do.
  */
 export const applyIncompleteDraftRepairCommit = (
   record,
   committedRepair = {},
   { nowIso = new Date().toISOString() } = {},
 ) => {
+  if (committedRepair?.kind === 'platformIssueReport') {
+    return applyIncompleteDraftPlatformIssueReport(
+      record,
+      committedRepair?.platformIssues || [],
+      { nowIso },
+    );
+  }
+
   const canonical = withStableQuestionIds(committedRepair?.assignmentV5, 'Committed repaired assignment');
   const currentRevision = revisionNumber(record?.assignmentRevision, 1);
   const committedRevision = revisionNumber(committedRepair?.committedRevision, null);
@@ -263,14 +316,6 @@ export const applyIncompleteDraftRepairCommit = (
     throw new Error(`A saved repair must advance the assignment revision beyond ${currentRevision}.`);
   }
 
-  // Once an assignment has reached students, this is the wrong door.
-  //
-  // MathMaster already has a path for changing delivered work: Safe Live Repair
-  // restricts edits to response-entry mechanics, preserves attempts and credit,
-  // and records liveCorrectionHistory. This path does none of that — it
-  // replaces whole questions. Letting a delivered assignment through here would
-  // be a second, weaker live-mutation path, and the first thing it would break
-  // is the scoring history of students who have already answered.
   const liveSignals = [
     Array.isArray(record?.assignedClassIds) && record.assignedClassIds.length > 0,
     Array.isArray(record?.assignedClassPeriods) && record.assignedClassPeriods.length > 0,
@@ -306,7 +351,6 @@ export const applyIncompleteDraftRepairCommit = (
       || record?.teacherReviewContext
       || emptyTeacherReviewContext(),
     ),
-    // Appended, never replaced: the point of history is that it accumulates.
     repairHistory: historyEntry
       ? [...(Array.isArray(record?.repairHistory) ? record.repairHistory : []), historyEntry]
       : (Array.isArray(record?.repairHistory) ? record.repairHistory : []),
