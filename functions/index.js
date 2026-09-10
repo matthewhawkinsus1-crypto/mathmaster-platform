@@ -10450,6 +10450,112 @@ exports.commitFullAssignmentRepair = onCall(async (request) => {
   }
 });
 
+async function requireContentUpgradeOwner(db, request, assignment) {
+  await requireTeacher(request);
+  const email = callerEmail(request);
+  if (!email) {
+    throw new HttpsError("permission-denied", "A verified teacher email is required for a live content upgrade.");
+  }
+  if (authLib.isRootAdminEmail(email) && request.auth?.token?.rootAdmin === true) {
+    return { uid: request.auth.uid, email, authorizationType: "administrator" };
+  }
+
+  const classIds = [...new Set(
+    (Array.isArray(assignment?.assignedClassIds) ? assignment.assignedClassIds : [])
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+  )];
+  if (!classIds.length) {
+    throw new HttpsError("failed-precondition", "Choose an assigned copy to upgrade.");
+  }
+  const classSnapshots = await Promise.all(classIds.map((classId) => db.collection("classes").doc(classId).get()));
+  const ownsEveryClass = classSnapshots.every((snapshot) => (
+    snapshot.exists
+    && String(snapshot.data()?.teacherOfRecord || "").trim().toLowerCase() === email
+  ));
+  if (!ownsEveryClass) {
+    throw new HttpsError(
+      "permission-denied",
+      "Only the teacher of record for every assigned class, or the root administrator, can upgrade this live assignment."
+    );
+  }
+  return { uid: request.auth.uid, email, authorizationType: "teacherOwner" };
+}
+
+async function loadSavedAssignmentTrackers(db, assignmentId) {
+  const snapshot = await db.collection("grades").select("gradesByAssignment").get();
+  return snapshot.docs
+    .filter((gradeDoc) => gradeDoc.data()?.gradesByAssignment?.[assignmentId] !== undefined)
+    .map((gradeDoc) => ({
+      studentId: gradeDoc.id,
+      ref: gradeDoc.ref,
+      tracker: gradeDoc.data().gradesByAssignment[assignmentId],
+    }));
+}
+
+function contentUpgradePreviewPayload(plan, affectedStudentCount) {
+  return {
+    fromVersion: plan.fromVersion,
+    toVersion: plan.toVersion,
+    liveAssignmentRevision: plan.liveAssignmentRevision,
+    targetAssignmentRevision: plan.targetAssignmentRevision,
+    counts: plan.counts,
+    requiresFundamentalChoice: plan.requiresFundamentalChoice,
+    planHash: plan.planHash,
+    affectedStudentCount,
+    changes: plan.changes.map((change) => ({
+      questionId: change.questionId,
+      flatIndex: change.flatIndex,
+      sectionRole: change.sectionRole,
+      classification: change.classification,
+      safe: change.safe,
+      reason: change.reason || null,
+      affectedFieldIds: change.affectedFieldIds || [],
+      gradingKeys: change.gradingKeys || [],
+      beforePrompt: String(change.beforeQuestion?.prompt || change.beforeQuestion?.scenario || "").slice(0, 500),
+      afterPrompt: String(change.afterQuestion?.prompt || change.afterQuestion?.scenario || "").slice(0, 500),
+    })),
+  };
+}
+
+exports.previewAssignmentContentUpgrade = onCall(async (request) => {
+  const db = getFirestore();
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const targetAssignmentId = String(request.data?.targetAssignmentId || "").trim();
+  if (!assignmentId || !targetAssignmentId) {
+    throw new HttpsError("invalid-argument", "Choose the assigned copy and the newer content release.");
+  }
+
+  const [liveSnapshot, targetSnapshot] = await Promise.all([
+    db.collection("assignments").doc(assignmentId).get(),
+    db.collection("assignments").doc(targetAssignmentId).get(),
+  ]);
+  if (!liveSnapshot.exists || !targetSnapshot.exists) {
+    throw new HttpsError("not-found", "The assigned copy or newer content release no longer exists.");
+  }
+  const liveAssignment = { id: liveSnapshot.id, ...liveSnapshot.data() };
+  const targetAssignment = { id: targetSnapshot.id, ...targetSnapshot.data() };
+  await requireContentUpgradeOwner(db, request, liveAssignment);
+
+  if ((targetAssignment.assignedClassIds || []).filter(Boolean).length) {
+    throw new HttpsError("failed-precondition", "The upgrade target must be an unassigned Library content release.");
+  }
+  if (targetAssignment?.contentLineage?.releaseStatus !== "current") {
+    throw new HttpsError("failed-precondition", "Choose the current content release for this assignment family.");
+  }
+
+  try {
+    const [plan, trackers] = await Promise.all([
+      assignmentContentVersion.buildContentUpgradePlan({ liveAssignment, targetAssignment }),
+      loadSavedAssignmentTrackers(db, assignmentId),
+    ]);
+    return contentUpgradePreviewPayload(plan, trackers.length);
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError("failed-precondition", error.message || "MathMaster could not preview this content upgrade.");
+  }
+});
+
 /**
  * Create the next human-facing Content V# release from one reviewed Full Assignment Audit.
  * This never edits the source question content and never assigns the successor to students.
