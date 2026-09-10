@@ -233,12 +233,16 @@ test('content upgrade tracker reads stay scoped to the assignment audience', asy
 test('repeat Content V2 commit is idempotent after an earlier successful save', async () => {
   const { readFile } = await import('node:fs/promises');
   const indexSource = await readFile('functions/index.js', 'utf8');
-  const start = indexSource.indexOf('exports.commitAssignmentContentUpgrade = onCall');
-  const end = indexSource.indexOf('/**\n * Create the next human-facing', start);
-  const commit = indexSource.slice(start, end);
-  assert.match(commit, /alreadyUpgraded/);
-  assert.match(commit, /contentLineage\?\.familyId/);
-  assert.match(commit, /contentLineage\?\.version/);
+  const helperStart = indexSource.indexOf('function contentUpgradeAlreadyCurrent');
+  const previewStart = indexSource.indexOf('exports.previewAssignmentContentUpgrade = onCall', helperStart);
+  const helper = indexSource.slice(helperStart, previewStart);
+  const commitStart = indexSource.indexOf('exports.commitAssignmentContentUpgrade = onCall');
+  const commitEnd = indexSource.indexOf('/**\n * Create the next human-facing', commitStart);
+  const commit = indexSource.slice(commitStart, commitEnd);
+  assert.match(helper, /contentLineage\?\.familyId/);
+  assert.match(helper, /contentLineage\?\.version/);
+  assert.match(commit, /contentUpgradeAlreadyCurrent\(liveAssignment, targetAssignment\)/);
+  assert.match(commit, /alreadyUpgraded: true/);
 });
 
 test('preview recognizes an already-current live assignment instead of treating it as an error', async () => {
