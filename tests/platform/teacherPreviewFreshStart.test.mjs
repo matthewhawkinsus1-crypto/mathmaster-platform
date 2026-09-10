@@ -15,7 +15,9 @@ test('teacher View as Student clears preview-only saved drafts before opening', 
   assert.match(preview, /setPreviewTracker\(createEmptyAssignmentTracker\(assignmentQuestions\)\)/);
   assert.match(preview, /setPreviewScratchpads\(\{\}\)/);
   assert.match(preview, /setPreviewSessionId\(\(current\) => current \+ 1\)/);
-  assert.match(preview, /setCurrentQuestionIndex\(getIncludedQuestionIndices\(assignmentData\)\[0\] \?\? 0\)/);
+  // Preview must start from the same current-content projection as students,
+  // not from an excluded historical storage row.
+  assert.match(preview, /setCurrentQuestionIndex\(getCurrentContentQuestionIndices\(assignmentData\)\[0\] \?\? 0\)/);
 });
 
 test('teacher can restart the open preview fresh without leaving the assignment', () => {

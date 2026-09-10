@@ -8,6 +8,7 @@ const app = fs.readFileSync('src/App.jsx', 'utf8');
 const intake = assignmentIntakeSource();
 const modal = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
 const questionEditor = assignmentQuestionEditorSource();
+const currentContentExport = fs.readFileSync('src/platform/assignments/currentContentPortableAssignment.js', 'utf8');
 
 test('new authoring enters through Assignment V5 and reviewed Preflight', () => {
   assert.match(intake, /Paste AI Assignment/);
@@ -57,9 +58,11 @@ test('stored assignment review paths reuse canonical V5 instead of recompiling r
 });
 
 test('platform self-export is canonical V5 and carries a lossless self-import marker', () => {
-  assert.match(app, /buildPortableAssignmentPackage = \(assignment\) => \(\{/);
-  assert.match(app, /storedAssignmentToV5\(assignment/);
-  assert.match(app, /mathmasterCanonicalAssignmentV5/);
+  // Bind this contract to the export call and the pure builder that now owns it,
+  // rather than requiring a particular local helper shape inside App.jsx.
+  assert.match(app, /JSON\.stringify\(buildCurrentContentPortablePackage\(exportJsonAssignment\)/);
+  assert.match(currentContentExport, /storedAssignmentToV5\(\{ \.\.\.assignment, sections \}/);
+  assert.match(currentContentExport, /mathmasterCanonicalAssignmentV5/);
   assert.doesNotMatch(app, /schemaVersion:\s*2[\s\S]{0,500}questions:\s*assignment\.questions/);
 });
 
