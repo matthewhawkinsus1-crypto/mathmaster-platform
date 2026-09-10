@@ -22,6 +22,7 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          import re
 
           app = Path('src/App.jsx')
           source = app.read_text()
@@ -31,38 +32,46 @@ jobs:
               raise SystemExit('App import anchor not found')
           source = source.replace(old_import, new_import, 1)
 
-          old_active = """  const activeAssignmentData = assignments.find(
-            (assignment) => assignment.id === activeAssignmentId,
-          );
-          const activeQuestions = getStoredAssignmentQuestions(activeAssignmentData);"""
-          new_active = """  // Keep the literal Firestore record separate from the runtime compatibility
-          // view. Student/teacher rendering and lifecycle decisions consume the prepared
-          // view; persistence and audit code can still refer to the saved object when needed.
-          const rawActiveAssignmentData = assignments.find(
-            (assignment) => assignment.id === activeAssignmentId,
-          );
-          const activeRuntimeRepair = useMemo(
-            () => prepareAssignmentForRuntime(rawActiveAssignmentData || {}, { source: 'activeAssignmentPlayer' }),
-            [rawActiveAssignmentData],
-          );
-          const activeAssignmentData = activeRuntimeRepair.assignment;
-          const activeQuestions = getStoredAssignmentQuestions(activeAssignmentData);"""
-          if old_active not in source:
+          active_pattern = re.compile(
+              r"(?P<indent>\s*)const activeAssignmentData = assignments\.find\(\s*"
+              r"\(assignment\) => assignment\.id === activeAssignmentId,\s*"
+              r"\);\s*"
+              r"const activeQuestions = getStoredAssignmentQuestions\(activeAssignmentData\);"
+          )
+          match = active_pattern.search(source)
+          if not match:
               raise SystemExit('App active assignment anchor not found')
-          app.write_text(source.replace(old_active, new_active, 1))
+          indent = match.group('indent').split('\n')[-1]
+          lines = [
+              "// Keep the literal Firestore record separate from the runtime compatibility",
+              "// view. Student/teacher rendering and lifecycle decisions consume the prepared",
+              "// view; persistence and audit code can still refer to the saved object when needed.",
+              "const rawActiveAssignmentData = assignments.find(",
+              "  (assignment) => assignment.id === activeAssignmentId,",
+              ");",
+              "const activeRuntimeRepair = useMemo(",
+              "  () => prepareAssignmentForRuntime(rawActiveAssignmentData || {}, { source: 'activeAssignmentPlayer' }),",
+              "  [rawActiveAssignmentData],",
+              ");",
+              "const activeAssignmentData = activeRuntimeRepair.assignment;",
+              "const activeQuestions = getStoredAssignmentQuestions(activeAssignmentData);",
+          ]
+          replacement = ('\n' + indent).join(lines)
+          source = source[:match.start()] + indent + replacement + source[match.end():]
+          app.write_text(source)
 
           runner = Path('src/platform/workflow/WorkflowRunner.jsx')
           source = runner.read_text()
-          old_workflow = """  const workflow = useMemo(
-            () => activeStages(authoredWorkflow, responses),
-            [authoredWorkflow, responses],
-          );
-
-          // Focus mode is decided"""
-          new_workflow = """  const workflow = useMemo(
-            () => activeStages(authoredWorkflow, responses),
-            [authoredWorkflow, responses],
-          );
+          workflow_pattern = re.compile(
+              r"(?P<block>  const workflow = useMemo\(\s*"
+              r"\(\) => activeStages\(authoredWorkflow, responses\),\s*"
+              r"\[authoredWorkflow, responses\],\s*"
+              r"\);)"
+          )
+          match = workflow_pattern.search(source)
+          if not match:
+              raise SystemExit('WorkflowRunner workflow anchor not found')
+          signature = """
           // A primitive signature lets the guidance effect notice a genuinely new
           // composed question without depending on workflow array identity. The latter
           // can be rebuilt by callers and previously caused render loops; omitting all
@@ -75,12 +84,8 @@ jobs:
               label: stage?.label || null,
               showWhen: stage?.showWhen || null,
             })),
-          ), [authoredWorkflow]);
-
-          // Focus mode is decided"""
-          if old_workflow not in source:
-              raise SystemExit('WorkflowRunner workflow anchor not found')
-          source = source.replace(old_workflow, new_workflow, 1)
+          ), [authoredWorkflow]);"""
+          source = source[:match.end()] + signature + source[match.end():]
           old_deps = "  }, [responses, activeStageIndex, focusMode]);"
           new_deps = "  }, [responses, activeStageIndex, focusMode, workflowGuidanceSignature]);"
           if old_deps not in source:
