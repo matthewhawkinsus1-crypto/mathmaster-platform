@@ -86,6 +86,7 @@ import {
   recordAssignmentActivity,
   resolveDOLQuestionIndex,
   resolveDOLQuestionIndices,
+  getCurrentContentQuestionIndices,
   getIncludedQuestionIndices,
   questionIsIncluded,
 } from './assignmentLifecycle';
@@ -146,6 +147,11 @@ import {
   contentVersionOf,
   latestCurrentLibraryRelease,
 } from './platform/assignments/assignmentContentVersion.js';
+import {
+  projectCurrentAssignmentContent,
+  resolveCurrentContentStorageIndex,
+} from './platform/assignments/currentContentProjection.js';
+import { buildCurrentContentPortablePackage } from './platform/assignments/currentContentPortableAssignment.js';
 import {
   questionFingerprint,
   repairAssignmentTrackerForCurrentGrader,
@@ -1854,7 +1860,7 @@ function App() {
       return { attempted: 0, correct: 0, total: 0 };
     }
 
-    const included = getIncludedQuestionIndices(assignmentData);
+    const included = getCurrentContentQuestionIndices(assignmentData);
     let attempted = 0;
     let correct = 0;
     included.forEach((index) => {
@@ -1972,9 +1978,11 @@ function App() {
 
   useEffect(() => {
     if (!activeQuestions.length) return;
-    const included = getIncludedQuestionIndices(activeAssignmentData);
+    const included = getCurrentContentQuestionIndices(activeAssignmentData);
     if (!included.length) return;
-    if (!included.includes(currentQuestionIndex)) setCurrentQuestionIndex(included[0]);
+    if (!included.includes(currentQuestionIndex)) {
+      setCurrentQuestionIndex(resolveCurrentContentStorageIndex(activeAssignmentData, currentQuestionIndex) ?? included[0]);
+    }
   }, [activeAssignmentData, currentQuestionIndex]);
 
   // A question change should feel like changing pages, not like loading the
@@ -2057,7 +2065,7 @@ function App() {
       liveSessionActiveSecondsRef.current = { assignmentId: activeAssignmentId, seconds: 0 };
     }
 
-    const included = getIncludedQuestionIndices(activeAssignmentData);
+    const included = getCurrentContentQuestionIndices(activeAssignmentData);
     if (liveSessionAttemptBaselineRef.current.assignmentId !== activeAssignmentId) {
       liveSessionAttemptBaselineRef.current = {
         assignmentId: activeAssignmentId,
@@ -2669,10 +2677,11 @@ function App() {
     const honors = String(user?.profile?.courseLevel || '').toLowerCase() === 'honors';
     const printableEntries = [];
 
-    for (const index of getIncludedQuestionIndices(assignmentData)) {
+    for (const entry of projectCurrentAssignmentContent(assignmentData).entries) {
+      const index = entry.storageIndex;
       const question = assignmentQuestions[index];
       if (!question || !questionIsIncluded(question)) continue;
-      const sectionRole = resolveQuestionActivityRole({ question, assignment: assignmentData });
+      const sectionRole = entry.logicalRole;
       const timedDol = sectionRole === 'dol'
         && dolState.enabled
         && (dolState.questionIndices || [dolState.questionIndex]).includes(index);
@@ -2820,15 +2829,15 @@ function App() {
       return;
     }
 
-    const includedQuestionIndices = getIncludedQuestionIndices(assignmentData);
+    const currentContent = projectCurrentAssignmentContent(assignmentData);
+    const includedQuestionIndices = currentContent.entries.map((entry) => entry.storageIndex);
     if (!includedQuestionIndices.length) {
       toastWarning('Nothing to show yet', 'This assignment does not currently contain any included questions.');
       return;
     }
     const requested = Number(requestedQuestionIndex) || 0;
-    const safeQuestionIndex = includedQuestionIndices.includes(requested)
-      ? requested
-      : includedQuestionIndices[0];
+    const safeQuestionIndex = resolveCurrentContentStorageIndex(assignmentData, requested)
+      ?? includedQuestionIndices[0];
     const requestedSectionKey = String(options?.sectionKey || '').trim().toLowerCase();
     const scopedSectionKey = ['warmup', 'classwork', 'practice', 'dol'].includes(requestedSectionKey)
       ? requestedSectionKey
@@ -2845,7 +2854,7 @@ function App() {
     liveSessionAttemptBaselineRef.current = {
       assignmentId,
       totalAttemptsByIndex: Object.fromEntries(
-        getIncludedQuestionIndices(assignmentData).map((index) => [
+        includedQuestionIndices.map((index) => [
           index,
           Number(normalizeQuestionRecord(tracker?.[assignmentId]?.[index]).totalAttempts) || 0,
         ]),
@@ -2886,7 +2895,7 @@ function App() {
     removeAssignmentDrafts({ studentId: 'teacher-preview', assignmentId });
     setPreviewSessionId((current) => current + 1);
     setActiveAssignmentId(assignmentId);
-    setCurrentQuestionIndex(getIncludedQuestionIndices(assignmentData)[0] ?? 0);
+    setCurrentQuestionIndex(getCurrentContentQuestionIndices(assignmentData)[0] ?? 0);
     setAssignmentNavigationCollapsed(false);
     setAssignmentOverviewExpanded(false);
     setPreviewTracker(createEmptyAssignmentTracker(assignmentQuestions));
@@ -6205,20 +6214,10 @@ function App() {
     }
   };
 
-  const buildPortableAssignmentPackage = (assignment) => ({
-    ...storedAssignmentToV5(assignment, {
-      resetAssignmentKey: true,
-    }),
-    portableContract: {
-      kind: 'mathmasterCanonicalAssignmentV5',
-      version: 1,
-    },
-  });
-
   const renderExportJsonDialog = () => {
     if (!exportJsonAssignment) return null;
 
-    const exportedText = JSON.stringify(buildPortableAssignmentPackage(exportJsonAssignment), null, 2);
+    const exportedText = JSON.stringify(buildCurrentContentPortablePackage(exportJsonAssignment), null, 2);
 
     return (
       <div
@@ -6253,7 +6252,7 @@ function App() {
         >
           <div style={{ padding: '24px 28px', borderBottom: '1px solid #e8eaed' }}>
             <h2 id="export-json-title" style={{ margin: 0, color: '#202124' }}>
-              Export Assignment &middot; {exportJsonAssignment.title}
+              Export Current Content V{contentVersionOf(exportJsonAssignment)} &middot; {exportJsonAssignment.title}
             </h2>
             <p style={{ margin: '8px 0 0', color: '#5f6368', fontSize: '13px' }}>
               This is a portable MathMaster assignment. You can copy it into another MathMaster authoring workflow and bring it back through Assignment Creator. Student/class dates and publication records stay out of the portable assignment.
@@ -6421,12 +6420,11 @@ function App() {
     }
 
     const questions = getStoredAssignmentQuestions(assignment);
-    const allIncludedQuestionIndices = getIncludedQuestionIndices(questions);
-    const includedQuestionIndices = activeClassroomSectionKey
-      ? allIncludedQuestionIndices.filter((index) => (
-          resolveQuestionActivityRole({ question: questions[index], assignment }) === activeClassroomSectionKey
-        ))
-      : allIncludedQuestionIndices;
+    const currentContent = projectCurrentAssignmentContent(assignment);
+    const projectedEntries = activeClassroomSectionKey
+      ? currentContent.entries.filter((entry) => entry.logicalRole === activeClassroomSectionKey)
+      : currentContent.entries;
+    const includedQuestionIndices = projectedEntries.map((entry) => entry.storageIndex);
     const lifecycle = getAssignmentLifecycle(assignment, now);
     const recordedTracker = tracker[activeAssignmentId] || {};
     const workingTracker = preview
@@ -6538,23 +6536,19 @@ function App() {
       quiz: { label: 'Quiz', background: '#fce8e6', color: '#a50e0e', border: '#d93025' },
       test: { label: 'Test', background: '#fce8e6', color: '#a50e0e', border: '#d93025' },
     };
-    const sectionOrdinals = {};
-    const visibleQuestionEntries = includedQuestionIndices.map((index, visiblePosition) => {
+    const visibleQuestionEntries = projectedEntries.map((entry, visiblePosition) => {
+      const index = entry.storageIndex;
       const question = questions[index];
       const isTimedDOLQuestion = dolState.enabled && (dolState.questionIndices || [dolState.questionIndex]).includes(index);
-      const role = resolveQuestionActivityRole({ question, assignment, isDOL: isTimedDOLQuestion });
-      const sectionPosition = sectionOrdinals[role] || 0;
-      sectionOrdinals[role] = sectionPosition + 1;
-      return { index, visiblePosition, sectionPosition, question, role, isTimedDOLQuestion };
+      return { index, visiblePosition, sectionPosition: entry.logicalPosition, question, role: entry.logicalRole, isTimedDOLQuestion };
     });
     const sectionQuestionIsComplete = (index) => ['correct', 'expired'].includes(normalizeQuestionRecord(workingTracker?.[index]).status);
     const sectionQuestionIsCorrect = (index) => normalizeQuestionRecord(workingTracker?.[index]).status === 'correct';
-    const navigationSections = visibleQuestionEntries.reduce((sections, entry) => {
-      const previous = sections[sections.length - 1];
-      if (previous?.role === entry.role) previous.entries.push(entry);
-      else sections.push({ role: entry.role, entries: [entry] });
-      return sections;
-    }, []).map((section) => ({
+    const visibleByStorageIndex = new Map(visibleQuestionEntries.map((entry) => [entry.index, entry]));
+    const navigationSections = currentContent.logicalSections.map((logicalSection) => ({
+      role: logicalSection.role,
+      entries: logicalSection.entries.map((entry) => visibleByStorageIndex.get(entry.storageIndex)).filter(Boolean),
+    })).filter((section) => section.entries.length).map((section) => ({
       ...section,
       complete: section.entries.length > 0 && section.entries.every((entry) => sectionQuestionIsComplete(entry.index)),
       allCorrect: section.entries.length > 0 && section.entries.every((entry) => sectionQuestionIsCorrect(entry.index)),
@@ -7581,7 +7575,7 @@ function App() {
                   const affectedStudents = allStudents.filter((student) => student.gradesByAssignment?.[assignment.id] !== undefined).length;
                   const isSelected = selectedAssignmentIds.has(assignment.id);
                   const canonicalQuestions = getStoredAssignmentQuestions(assignment);
-                  const includedQuestionIndices = getIncludedQuestionIndices(assignment);
+                  const includedQuestionIndices = getCurrentContentQuestionIndices(assignment);
                   const hasDOL = Boolean(assignment?.dol?.enabled || canonicalQuestions.some((question) => resolveQuestionActivityRole({ question, assignment }) === 'dol'));
                   const assignmentType = getStoredAssignmentTypeProjection(assignment);
                   const assignmentVariantMode = getStoredAssignmentVariantMode(assignment);

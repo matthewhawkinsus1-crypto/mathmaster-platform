@@ -1,5 +1,6 @@
 import { normalizeQuestionRecord, getQuestionCredit } from '../../attemptPolicy.js';
-import { getIncludedQuestionIndices } from '../../assignmentLifecycle.js';
+import { getStoredAssignmentQuestions } from '../contract/storedAssignmentV5.js';
+import { projectCurrentAssignmentContent } from '../assignments/currentContentProjection.js';
 import { weightedQuestionTotals } from '../grading/questionWeights.js';
 
 /*
@@ -97,10 +98,9 @@ const splitGradeForIndices = ({ tracker = null, questions = [], indices = [] } =
  * deliberately so. Everything else is context around it.
  */
 export const splitGrade = ({ tracker = null, assignment = null } = {}) => {
-  const included = getIncludedQuestionIndices(assignment);
-  const questions = assignment?.schemaVersion === 5
-    ? (assignment.sections || []).flatMap((section) => section?.questions || [])
-    : [];
+  const projection = projectCurrentAssignmentContent(assignment);
+  const included = projection.entries.map((entry) => entry.storageIndex);
+  const questions = getStoredAssignmentQuestions(assignment);
   return splitGradeForIndices({ tracker, questions, indices: included });
 };
 
@@ -111,29 +111,22 @@ export const splitGrade = ({ tracker = null, assignment = null } = {}) => {
  *
  * V5 flattening treats an explicit question.activityRole as authoritative over
  * its containing section role, so the role list below mirrors that same rule.
- * Teacher-excluded questions are removed by getIncludedQuestionIndices before
+ * Teacher-excluded history is removed by the current-content projection before
  * section partitioning. A missing section stays empty rather than borrowing a
  * score from another section.
  */
 export const splitGradesBySection = ({ tracker = null, assignment = null } = {}) => {
-  const included = getIncludedQuestionIndices(assignment);
-  const questions = assignment?.schemaVersion === 5
-    ? (assignment.sections || []).flatMap((section) => section?.questions || [])
-    : [];
-  const roles = assignment?.schemaVersion === 5
-    ? (assignment.sections || []).flatMap((section) => (
-      (Array.isArray(section?.questions) ? section.questions : []).map((question) => (
-        String(question?.activityRole || section?.role || '').trim().toLowerCase()
-      ))
-    ))
-    : [];
+  const projection = projectCurrentAssignmentContent(assignment);
+  const questions = getStoredAssignmentQuestions(assignment);
 
   return Object.fromEntries(SECTION_GRADE_KEYS.map((sectionKey) => [
     sectionKey,
     splitGradeForIndices({
       tracker,
       questions,
-      indices: included.filter((index) => roles[index] === sectionKey),
+      indices: projection.entries
+        .filter((entry) => entry.logicalRole === sectionKey)
+        .map((entry) => entry.storageIndex),
     }),
   ]));
 };

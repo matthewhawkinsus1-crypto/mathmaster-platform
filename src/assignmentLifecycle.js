@@ -1,10 +1,11 @@
-import { ACTIVITY_ROLES, resolveQuestionActivityRole } from './platform/policies/activityPolicies.js';
+import { ACTIVITY_ROLES } from './platform/policies/activityPolicies.js';
 import {
   getStoredAssignmentQuestions,
   getStoredAssignmentVariantMode,
   getStoredSectionVariantMode,
   getStoredSectionVariantModes,
 } from './platform/contract/storedAssignmentV5.js';
+import { projectCurrentAssignmentContent } from './platform/assignments/currentContentProjection.js';
 
 export const CLASS_PERIODS = Array.from({ length: 8 }, (_, index) => `Period ${index + 1}`);
 
@@ -20,6 +21,10 @@ export const getIncludedQuestionIndices = (assignmentOrQuestions) => {
     return indices;
   }, []);
 };
+
+export const getCurrentContentQuestionIndices = (assignment = {}) => (
+  projectCurrentAssignmentContent(assignment).entries.map((entry) => entry.storageIndex)
+);
 
 const emptyPeriods = () => Object.fromEntries(
   CLASS_PERIODS.map((period) => [period, { enabled: false, start: '', end: '' }]),
@@ -172,11 +177,9 @@ const SECTION_ACCESS_STATES = new Set(['open', 'closed']);
 // After the final grading cutoff the whole assignment becomes voluntary
 // Practice Mode. At that point teacher section locks no longer hide content —
 // students may revisit everything, but none of it writes grades/evidence.
-export const getSectionAccessState = ({ assignment, activityRole, classId = null, classPeriod, nowValue = Date.now() }) => {
+export const getSectionAccessState = ({ assignment, activityRole, classId = null, classPeriod: _classPeriod, nowValue = Date.now() }) => {
   const role = String(activityRole || '').trim().toLowerCase();
-  const questions = getStoredAssignmentQuestions(assignment);
-  const exists = questions.some((question) => questionIsIncluded(question)
-    && resolveQuestionActivityRole({ question, assignment }) === role);
+  const exists = projectCurrentAssignmentContent(assignment).entries.some((entry) => entry.logicalRole === role);
   const lifecycle = getAssignmentLifecycle(assignment, nowValue);
 
   if (!MANUALLY_CONTROLLABLE_SECTION_ROLES.includes(role) || !exists) {
@@ -378,10 +381,8 @@ export const getClassPackUpState = ({
 };
 
 export const getWarmupState = ({ assignment, schedule, classId = null, classPeriod, nowValue = Date.now() }) => {
-  const questions = getStoredAssignmentQuestions(assignment);
-  const includedQuestions = questions.filter(questionIsIncluded);
-  const enabled = assignment?.warmup?.enabled ?? includedQuestions.some((question) => (
-    resolveQuestionActivityRole({ question, assignment }) === ACTIVITY_ROLES.WARMUP
+  const enabled = assignment?.warmup?.enabled ?? projectCurrentAssignmentContent(assignment).entries.some((entry) => (
+    entry.logicalRole === ACTIVITY_ROLES.WARMUP
   ));
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
   const todayKey = localDateKey(now);
@@ -505,15 +506,15 @@ export const getWarmupState = ({ assignment, schedule, classId = null, classPeri
 
 export const resolveDOLQuestionIndices = (assignment) => {
   const questions = getStoredAssignmentQuestions(assignment);
-  const included = getIncludedQuestionIndices(questions);
+  const projection = projectCurrentAssignmentContent(assignment);
+  const included = projection.entries.map((entry) => entry.storageIndex);
   if (!included.length) return [];
 
   // A modern bundled lesson may contain several DOL questions. The timer and
   // teacher unlock apply to the entire DOL section, not just its first card.
-  const authored = included.filter((index) => (
-    questions[index]?.isDOL === true
-    || resolveQuestionActivityRole({ question: questions[index], assignment }) === ACTIVITY_ROLES.DOL
-  ));
+  const authored = projection.entries.filter((entry) => (
+    questions[entry.storageIndex]?.isDOL === true || entry.logicalRole === ACTIVITY_ROLES.DOL
+  )).map((entry) => entry.storageIndex);
   if (authored.length) return authored;
 
   // Legacy assignments can still point at one specific DOL question.
@@ -527,10 +528,8 @@ export const resolveDOLQuestionIndices = (assignment) => {
 export const resolveDOLQuestionIndex = (assignment) => resolveDOLQuestionIndices(assignment)[0] ?? -1;
 
 export const getDOLState = ({ assignment, schedule, classId = null, classPeriod, nowValue = Date.now() }) => {
-  const questions = getStoredAssignmentQuestions(assignment);
-  const includedQuestions = questions.filter(questionIsIncluded);
-  const hasAuthoredDOL = includedQuestions.some((question) => (
-    resolveQuestionActivityRole({ question, assignment }) === ACTIVITY_ROLES.DOL
+  const hasAuthoredDOL = projectCurrentAssignmentContent(assignment).entries.some((entry) => (
+    entry.logicalRole === ACTIVITY_ROLES.DOL
   ));
   // `dol.enabled` is an explicit teacher/runtime setting. When it is absent,
   // an authored V5 DOL section is enough to enable the window. Practice-only
@@ -661,11 +660,9 @@ export const recordAssignmentActivity = ({ activity, assignment, seconds = 0, no
 };
 
 export const evaluateClassworkCompletion = ({ assignment, assignmentTracker, activity }) => {
-  const questions = getStoredAssignmentQuestions(assignment);
-  const included = getIncludedQuestionIndices(questions);
-  const classworkIndices = included.filter((index) => (
-    resolveQuestionActivityRole({ question: questions[index], assignment }) === ACTIVITY_ROLES.CLASSWORK
-  ));
+  const classworkIndices = projectCurrentAssignmentContent(assignment).entries
+    .filter((entry) => entry.logicalRole === ACTIVITY_ROLES.CLASSWORK)
+    .map((entry) => entry.storageIndex);
   // Activity roles are now the source of truth. A mixed lesson bundle can carry
   // Warm-Up, Classwork, Practice and DOL together without an outer
   // assignmentType deciding which questions count as classwork completion.

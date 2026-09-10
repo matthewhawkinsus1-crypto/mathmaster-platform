@@ -9,6 +9,7 @@ import {
 
 const app = fs.readFileSync('src/App.jsx', 'utf8');
 const preflight = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
+const currentContentExport = fs.readFileSync('src/platform/assignments/currentContentPortableAssignment.js', 'utf8');
 
 const assignmentWithCoreSections = () => ({
   schemaVersion: 5,
@@ -57,10 +58,10 @@ test('existing destination variant cannot silently cross Standard or Honors rigo
 });
 
 test('Export JSON emits marked canonical V5 instead of the retired schemaVersion 2 package', () => {
-  assert.match(app, /buildPortableAssignmentPackage = \(assignment\) => \(\{/);
-  assert.match(app, /storedAssignmentToV5\(assignment/);
-  assert.match(app, /mathmasterCanonicalAssignmentV5/);
-  assert.doesNotMatch(app, /buildPortableAssignmentPackage = \(assignment\) => \(\{\s*schemaVersion:\s*2/);
+  assert.match(app, /JSON\.stringify\(buildCurrentContentPortablePackage\(exportJsonAssignment\)/);
+  assert.match(currentContentExport, /storedAssignmentToV5\(\{ \.\.\.assignment, sections \}/);
+  assert.match(currentContentExport, /mathmasterCanonicalAssignmentV5/);
+  assert.doesNotMatch(currentContentExport, /schemaVersion:\s*2/);
   assert.match(app, /portable MathMaster assignment/);
 });
 
