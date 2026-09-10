@@ -7,6 +7,7 @@ import { TOOL_CATALOG_IDS } from '../../tools/toolCatalog.js';
 export const MOBILE_TOOL_PROFILES = Object.freeze({
   dataModelingLab: { interaction: 'form', overflow: 'stack', dragWithTapFallback: false },
   inverseCompositionLab: { interaction: 'form', overflow: 'stack', dragWithTapFallback: false },
+  functionOperationsLab: { interaction: 'form', overflow: 'stack', dragWithTapFallback: false },
   systemsWorkspace: { interaction: 'tap-canvas', overflow: 'stack', dragWithTapFallback: false },
   parabolaGeometryLab: { interaction: 'tap-canvas', overflow: 'stack', dragWithTapFallback: false },
   polynomialWorkshop: { interaction: 'form', overflow: 'stack', dragWithTapFallback: false },

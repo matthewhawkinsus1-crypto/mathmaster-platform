@@ -455,6 +455,7 @@ async function callOpenAiAssignmentAuthor({
   fetchImpl = null,
   timeoutMs = DEFAULT_PROVIDER_TIMEOUT_MS,
   httpsImpl = https,
+  ccmrEnrichment = false,
 } = {}) {
   const requestBody = buildOpenAiAssignmentRequest({ prompt, model, mode, reasoningEffort, maxOutputTokens });
   const { payload, diagnostics } = await requestOpenAi({
@@ -534,7 +535,9 @@ async function callOpenAiAssignmentAuthor({
     }
   }
 
-  const banked = replaceDirectCcmrQuestionsWithAuditedBank(parsed);
+  const banked = ccmrEnrichment === true
+    ? replaceDirectCcmrQuestionsWithAuditedBank(parsed, { ensurePracticeTarget: true })
+    : { assignment: parsed, audit: null };
 
   return {
     ...common,

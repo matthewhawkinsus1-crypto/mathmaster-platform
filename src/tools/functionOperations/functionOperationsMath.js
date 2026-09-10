@@ -116,6 +116,20 @@ const linearZero = (coefficients) => {
   return -values[1] / values[0];
 };
 
+const safelyDerivedRealZeros = (coefficients) => {
+  const values = trimLeadingZeros(coefficients);
+  if (values.length === 1) return [];
+  if (values.length === 2) return [linearZero(values)];
+  if (values.length !== 3 || nearlyZero(values[0])) return null;
+
+  const [a, b, c] = values;
+  const discriminant = b * b - 4 * a * c;
+  if (discriminant < -EPSILON) return [];
+  if (nearlyZero(discriminant)) return [-b / (2 * a)];
+  const root = Math.sqrt(discriminant);
+  return [(-b - root) / (2 * a), (-b + root) / (2 * a)];
+};
+
 const formatNumber = (value) => {
   const rounded = Math.abs(value - Math.round(value)) <= EPSILON ? Math.round(value) : Number(value.toFixed(8));
   return String(Object.is(rounded, -0) ? 0 : rounded);
@@ -184,10 +198,14 @@ export const deriveFunctionOperations = ({
     out.product = { coefficients, expression: formatPolynomialExpression(coefficients) };
   }
   if (requested.has('quotient')) {
-    const denominatorZero = linearZero(gCoefficients);
+    const derivedZeros = safelyDerivedRealZeros(gCoefficients);
+    const authoredRestrictions = authoredExcludedValues(restrictions);
+    if (derivedZeros == null && authoredRestrictions.length === 0) {
+      throw new Error('A nonlinear quotient denominator with unsupported roots requires explicitly authored restrictions/excluded values.');
+    }
     const excludedValues = uniqueSortedNumbers([
-      ...(denominatorZero == null ? [] : [denominatorZero]),
-      ...authoredExcludedValues(restrictions),
+      ...(derivedZeros || []),
+      ...authoredRestrictions,
     ]);
     const division = dividePolynomials(fCoefficients, gCoefficients);
     const dividesExactly = division.remainder.every(nearlyZero);
