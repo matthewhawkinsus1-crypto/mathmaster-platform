@@ -2,7 +2,7 @@
 
 const crypto = require("crypto");
 const { getFirestore, FieldPath, FieldValue } = require("firebase-admin/firestore");
-const { onRequest, HttpsError } = require("firebase-functions/v2/https");
+const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
@@ -39,6 +39,11 @@ const {
   toDate,
 } = require("./lib/classroomGradeRuntime");
 const { assignmentFeedbackIsHeld } = require("./lib/activityFeedback");
+const {
+  CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION,
+  sectionGradeEvidenceFingerprint,
+  sectionGradeSyncIsCurrent,
+} = require("./lib/classroomSectionGradeReconciliation");
 
 const MAX_CLASSROOM_COURSES_PER_BATCH = 20;
 const PUBLISH_LEASE_MS = 5 * 60 * 1000;
@@ -314,7 +319,13 @@ async function publishOneSection({
   }
 }
 
-async function queueGradeSignalForAssignmentAudience({ db, assignmentId, assignment, reason }) {
+async function queueGradeSignalForAssignmentAudience({
+  db,
+  assignmentId,
+  assignment,
+  reason,
+  requireSavedTracker = false,
+}) {
   const classIds = assignmentClassIds(assignment);
   if (!classIds.length) return 0;
   const byPath = new Map();
@@ -323,7 +334,10 @@ async function queueGradeSignalForAssignmentAudience({ db, assignmentId, assignm
     const snapshot = await db.collection("grades").where("classId", "==", classId).get();
     snapshot.docs.forEach((doc) => byPath.set(doc.ref.path, doc));
   }
-  const gradeDocs = [...byPath.values()];
+  const gradeDocs = [...byPath.values()].filter((gradeDoc) => (
+    !requireSavedTracker
+    || gradeDoc.data()?.gradesByAssignment?.[assignmentId] != null
+  ));
   const requestedAt = new Date().toISOString();
   for (let offset = 0; offset < gradeDocs.length; offset += 400) {
     const batch = db.batch();
@@ -339,6 +353,52 @@ async function queueGradeSignalForAssignmentAudience({ db, assignmentId, assignm
   }
   return gradeDocs.length;
 }
+
+const reconcileClassroomSectionGrades = onCall(async (request) => {
+  const teacherUid = requireTeacher(request);
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  if (!assignmentId) throw new HttpsError("invalid-argument", "assignmentId is required.");
+
+  const db = getFirestore();
+  const assignmentSnapshot = await db.doc(`assignments/${assignmentId}`).get();
+  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "Assignment not found.");
+
+  const publicationSnapshot = await db
+    .collection("classroomLinks")
+    .where("assignmentId", "==", assignmentId)
+    .get();
+  const ownedSections = publicationSnapshot.docs.filter((doc) => {
+    const publication = doc.data() || {};
+    return publication.publicationKind === "section"
+      && publication.status === "published"
+      && Boolean(publication.courseworkId)
+      && publication.sectionGradePassbackEnabled !== false
+      && String(publication.teacherUid || "") === teacherUid;
+  });
+  if (!ownedSections.length) {
+    throw new HttpsError(
+      "failed-precondition",
+      "This assignment has no published section grade columns owned by this teacher."
+    );
+  }
+
+  // This deliberately writes only a release signal. The existing trigger reads
+  // canonical saved trackers and updates the preserved CourseWork IDs; it does
+  // not create posts, recreate assignments, or mutate student answers.
+  const queuedStudents = await queueGradeSignalForAssignmentAudience({
+    db,
+    assignmentId,
+    assignment: assignmentSnapshot.data() || {},
+    reason: "section-grade-reconcile",
+    requireSavedTracker: true,
+  });
+  return {
+    assignmentId,
+    queuedStudents,
+    publications: ownedSections.length,
+    reconciliationVersion: CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION,
+  };
+});
 
 async function publishAssignmentSectionsHandler(request) {
   const teacherUid = requireTeacher(request);
@@ -547,7 +607,8 @@ const syncSectionGradeToClassroom = onDocumentWritten(
       const questions = runtimeQuestionsFromAssignment(assignment);
       const tracker = afterByAssignment[assignmentId] || {};
       const releaseSignal = signaledSet.has(assignmentId) ? afterSignals[assignmentId] : null;
-      const forceRetry = releaseSignalReason(releaseSignal) === "manual-retry";
+      const signalReason = releaseSignalReason(releaseSignal);
+      const forceRetry = signalReason === "manual-retry" || signalReason === "section-grade-reconcile";
 
       // eslint-disable-next-line no-await-in-loop
       const publicationSnapshot = await db
@@ -611,14 +672,26 @@ const syncSectionGradeToClassroom = onDocumentWritten(
         const prior = priorSnapshot.exists ? priorSnapshot.data() || {} : {};
         const priorReturned = prior.returnedToStudent === true
           || String(prior.submissionState || "").toUpperCase() === "RETURNED";
+        const evidenceFingerprint = sectionGradeEvidenceFingerprint({
+          assignmentId,
+          publicationId: publicationDoc.id,
+          sectionKey: gradeResult.sectionKey,
+          questionIndices: gradeResult.questionIndices,
+          tracker,
+          grade: gradeResult.grade,
+          classroomGrade,
+          maxPoints,
+          stage,
+          studentVisible: releasePolicy.studentVisible,
+        });
         if (
           !forceRetry
-          && prior.status === "synced"
-          && String(prior.stage || "") === stage
-          && Number(prior.classroomGrade) === classroomGrade
-          && Number(prior.maxPoints || 100) === maxPoints
-          && Boolean(prior.studentVisible) === releasePolicy.studentVisible
-          && (!releasePolicy.shouldReturn || priorReturned)
+          && sectionGradeSyncIsCurrent({
+            prior,
+            evidenceFingerprint,
+            returnedToStudent: priorReturned,
+            shouldReturn: releasePolicy.shouldReturn,
+          })
         ) {
           continue;
         }
@@ -759,6 +832,8 @@ const syncSectionGradeToClassroom = onDocumentWritten(
             sectionLabel: gradeResult.sectionLabel,
             questionIndices: gradeResult.questionIndices,
             gradePassbackMode: "section",
+            reconciliationVersion: CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION,
+            evidenceFingerprint,
             syncedAt: FieldValue.serverTimestamp(),
           });
           successfulBySection.set(gradeResult.sectionKey, {
@@ -908,6 +983,7 @@ const queueClassroomSectionGradeCheckpoints = onSchedule({
 module.exports = {
   publishAssignmentSectionsHandler,
   cloudFunctions: {
+    reconcileClassroomSectionGrades,
     resolveClassroomSectionLaunchToken,
     syncSectionGradeToClassroom,
     queueClassroomSectionGradeCheckpoints,

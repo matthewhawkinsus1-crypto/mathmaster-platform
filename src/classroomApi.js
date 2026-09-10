@@ -54,4 +54,5 @@ export const removeAssignmentClassroomPackage = call("removeAssignmentClassroomP
 export const listPublishedAssignments = call("listPublishedAssignments");
 export const listClassroomGradeSyncs = call("listClassroomGradeSyncs");
 export const retryClassroomGradeSync = call("retryClassroomGradeSync");
+export const reconcileClassroomSectionGrades = call("reconcileClassroomSectionGrades");
 export const getAssignmentByLaunchId = call("getAssignmentByLaunchId");

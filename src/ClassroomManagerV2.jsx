@@ -19,6 +19,7 @@ import {
   publishClassroomMaterial,
   storeLessonNotesPdf,
   retryClassroomGradeSync,
+  reconcileClassroomSectionGrades,
   saveClassroomCourseMapping,
   updateAssignmentClassroomPublications,
 } from './classroomApi';
@@ -150,55 +151,6 @@ export default function ClassroomManagerV2({
       .filter((entry) => entry.sync.publishedCount > 0),
     [assignments, links],
   );
-  // One release signal causes the server to recalculate this student's grade
-  // from the saved MathMaster question history, then update every published
-  // Classroom destination for the assignment. Dedupe the monitor rows by
-  // student so a teacher can repair an already-closed assignment in one click
-  // instead of clicking every course/publication row separately.
-  const selectedAssignmentGradeSyncs = useMemo(() => {
-    if (!selectedAssignment?.id) return [];
-    const byStudent = new Map();
-    gradeSyncs.forEach((sync) => {
-      if (String(sync?.assignmentId || '') !== String(selectedAssignment.id)) return;
-      if (!sync?.publicationId || !sync?.studentId) return;
-      const key = String(sync.studentId);
-      if (!byStudent.has(key)) byStudent.set(key, sync);
-    });
-
-    // A student does not need a previous sync row to be regraded. For older
-    // closed work, build missing targets from the saved assignment audience
-    // and the teacher's current student records, then use one owned publication
-    // only as the authorization anchor for retryClassroomGradeSync.
-    const fallbackPublication = links.find((link) => (
-      String(link?.assignmentId || '') === String(selectedAssignment.id)
-      && link?.status === 'published'
-      && link?.courseworkId
-    ));
-    if (fallbackPublication?.id) {
-      const assignedClassIds = new Set((selectedAssignment.assignedClassIds || []).map(clean).filter(Boolean));
-      const assignedPeriods = new Set((selectedAssignment.assignedClassPeriods || []).map(clean).filter(Boolean));
-      students.forEach((student) => {
-        const studentId = clean(student?.id);
-        if (!studentId || byStudent.has(studentId)) return;
-        if (!student?.gradesByAssignment?.[selectedAssignment.id]) return;
-        const inAudience = assignedClassIds.size
-          ? assignedClassIds.has(clean(student?.classId))
-          : assignedPeriods.size
-            ? assignedPeriods.has(clean(student?.classPeriod))
-            : false;
-        if (!inAudience) return;
-        byStudent.set(studentId, {
-          publicationId: fallbackPublication.id,
-          studentId,
-          assignmentId: selectedAssignment.id,
-          status: 'not-yet-synced',
-        });
-      });
-    }
-
-    return [...byStudent.values()];
-  }, [gradeSyncs, links, selectedAssignment, students]);
-
   const refreshManagerData = async () => {
     // The Classroom manager is a dashboard, not one giant transaction. One
     // auxiliary read (for example stale course mappings) must not hide the
@@ -1073,13 +1025,13 @@ export default function ClassroomManagerV2({
             </button>
           </div>
         )}
-        {selectedAssignmentGradeSyncs.length > 0 && (
+        {selectedAssignment && (
           <div style={{ margin: '0 0 12px', padding: '10px 12px', borderRadius: 9, background: '#eef4ff', border: '1px solid #c7d7f4' }}>
             <div style={{ color: '#174ea6', fontSize: 12, fontWeight: 900 }}>
               Regrade an assignment that is already closed
             </div>
             <div style={{ marginTop: 4, color: '#5f6368', fontSize: 12, lineHeight: 1.45 }}>
-              This recalculates saved MathMaster work using the current grading rules and resends the resulting grade to Google Classroom. Students do not need to reopen or redo the assignment.
+              This independently recalculates every published section grade from canonical saved MathMaster work and repairs stale or false-zero Classroom columns. Students do not need to reopen or redo the assignment.
             </div>
             <button
               type="button"
@@ -1087,26 +1039,19 @@ export default function ClassroomManagerV2({
               disabled={busy}
               onClick={() => {
                 const confirmed = window.confirm(
-                  `Recalculate and resend grades for "${selectedAssignment?.title || 'this assignment'}" for ${selectedAssignmentGradeSyncs.length} student${selectedAssignmentGradeSyncs.length === 1 ? '' : 's'}?\n\nThis will update Google Classroom using each student's saved MathMaster work. No student work will be deleted or reopened.`
+                  `Reconcile section grades for "${selectedAssignment?.title || 'this assignment'}"?\n\nThis will independently update the existing Google Classroom section columns using each student's saved MathMaster work. It will not create posts or change student work.`
                 );
                 if (!confirmed) return;
                 run(async () => {
-                  for (const sync of selectedAssignmentGradeSyncs) {
-                    // One signal per student is enough; the server updates every
-                    // Classroom publication for this assignment.
-                    // eslint-disable-next-line no-await-in-loop
-                    await retryClassroomGradeSync({
-                      publicationId: sync.publicationId,
-                      studentId: sync.studentId,
-                      assignmentId: sync.assignmentId,
-                    });
-                  }
+                  const result = await reconcileClassroomSectionGrades({
+                    assignmentId: selectedAssignment.id,
+                  });
                   setGradeSyncs((await listClassroomGradeSyncs()).syncs || []);
-                  setStatus(`Queued recalculation and Classroom resend for ${selectedAssignmentGradeSyncs.length} student${selectedAssignmentGradeSyncs.length === 1 ? '' : 's'}. Their saved MathMaster work remains unchanged.`);
+                  setStatus(`Queued section-grade reconciliation for ${result.queuedStudents} student${result.queuedStudents === 1 ? '' : 's'} across ${result.publications} preserved Classroom publication${result.publications === 1 ? '' : 's'}. Their saved MathMaster work remains unchanged.`);
                 });
               }}
             >
-              Recalculate & resend selected assignment grades
+              Reconcile section grades
             </button>
           </div>
         )}
