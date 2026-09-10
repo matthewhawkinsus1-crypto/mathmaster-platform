@@ -67,3 +67,16 @@ test('content release preserves reusable Firestore metadata values without JSON 
   assert.equal(release.lessonResources.generatedAt, timestamp);
   assert.equal(typeof release.lessonResources.generatedAt.toDate, 'function');
 });
+
+
+test('content version callable is server-authorized and reuses Full Audit validation', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const [indexSource, authSource] = await Promise.all([
+    readFile('functions/index.js', 'utf8'),
+    readFile('src/auth/authService.js', 'utf8'),
+  ]);
+  assert.match(indexSource, /exports\.createAssignmentContentVersion\s*=\s*onCall/);
+  assert.match(indexSource, /fullAssignmentRepair\.prepareCommit/);
+  assert.match(indexSource, /assignmentVersionEvents/);
+  assert.match(authSource, /createAssignmentContentVersion/);
+});
