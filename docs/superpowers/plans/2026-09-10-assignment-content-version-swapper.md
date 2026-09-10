@@ -301,7 +301,7 @@ export function classifyContentQuestionChange(before, after) {
 
 `analyzeGradingExpansion()` must fail closed. Initially allow only:
 
-- same questionId/type/mode/prompt/math/graph/table/points/answer-field IDs;
+- same questionId/type/mode/math/graph/table/points/answer-field IDs; `prompt` and `guidedNotes` may also change when every non-wording scored/mathematical field is stable and the grading delta is independently proven monotonic;
 - same keyed answer(s);
 - acceptedAnswers changed only by adding values while retaining all old normalized values;
 - numeric `tolerance` or keys ending in `Tolerance` changed only to a finite value greater than or equal to the previous value;
