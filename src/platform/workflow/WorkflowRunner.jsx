@@ -1068,6 +1068,19 @@ export default function WorkflowRunner({
     () => activeStages(authoredWorkflow, responses),
     [authoredWorkflow, responses],
   );
+// A primitive signature lets the guidance effect notice a genuinely new
+// composed question without depending on workflow array identity. The latter
+// can be rebuilt by callers and previously caused render loops; omitting all
+// workflow content, however, let YOUR TASK stay blank/stale after navigation.
+const workflowGuidanceSignature = useMemo(() => JSON.stringify(
+  (Array.isArray(authoredWorkflow) ? authoredWorkflow : []).map((stage) => ({
+    id: stage?.id || null,
+    kind: stage?.kind || null,
+    prompt: stage?.prompt || null,
+    label: stage?.label || null,
+    showWhen: stage?.showWhen || null,
+  })),
+), [authoredWorkflow]);
 
   // Focus mode is decided from the AUTHORED workflow, not the visible one. A
   // branch that took the count under the threshold would otherwise flip the
@@ -1192,7 +1205,7 @@ export default function WorkflowRunner({
       currentStageIndex: currentStage ? currentIndex : null,
       currentStagePrompt,
     });
-  }, [responses, activeStageIndex, focusMode]);
+  }, [responses, activeStageIndex, focusMode, workflowGuidanceSignature]);
 
   useEffect(() => {
     setActiveStageIndex((current) => Math.min(current, Math.max(0, workflow.length - 1)));
