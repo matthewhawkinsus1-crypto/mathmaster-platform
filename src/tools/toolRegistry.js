@@ -1,5 +1,6 @@
 import DataModelingLab from './dataModeling/DataModelingLab';
 import InverseCompositionLab from './inverseComposition/InverseCompositionLabRouter';
+import FunctionOperationsLab from './functionOperations/FunctionOperationsLab';
 import SystemsWorkspace from './systemsWorkspace/SystemsWorkspace';
 import ParabolaGeometryLab from './parabolaGeometry/ParabolaGeometryLab';
 import PolynomialWorkshop from './polynomialWorkshop/PolynomialWorkshop';
@@ -26,6 +27,7 @@ import { getMobileToolProfile } from '../platform/mobile/mobileToolProfiles.js';
 const TOOL_COMPONENTS = {
   dataModelingLab: DataModelingLab,
   inverseCompositionLab: InverseCompositionLab,
+  functionOperationsLab: FunctionOperationsLab,
   systemsWorkspace: SystemsWorkspace,
   parabolaGeometryLab: ParabolaGeometryLab,
   polynomialWorkshop: PolynomialWorkshop,
