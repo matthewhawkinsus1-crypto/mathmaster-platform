@@ -3837,7 +3837,7 @@ function App() {
         provenance: reviewedV5.provenance || null,
         preflight: reviewedV5.preflight || { required: true },
         ...(assignmentPreflight?.sourceContentLineage ? {
-          contentLineage: assignmentPreflight.sourceContentLineage,
+          contentLineage: assignmentPreflight?.sourceContentLineage,
         } : {}),
         createdAt: new Date(),
       };
