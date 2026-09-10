@@ -17,6 +17,11 @@ import {
 } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import { auth, functions } from '../firebase';
+import {
+  CLASSROOM_STUDENT_SESSION_EXPIRES_KEY,
+  classroomSessionIsExpired,
+  nextClassroomSessionExpiry,
+} from './classroomSession.js';
 
 const REMEMBER_DEVICE_KEY = 'mathmaster.rememberDevice';
 const LAST_ROLE_KEY = 'mathmaster.lastRole';
@@ -26,8 +31,10 @@ const callable = (name) => httpsCallable(functions, name);
 
 /**
  * Shared devices are the norm in a classroom, so "remember me" is opt-in.
- * Declining it keeps the session in tab-scoped storage, which disappears when
- * the student closes the browser instead of greeting the next period as them.
+ * Declining it normally keeps the session in tab-scoped storage. A student who
+ * enters through Google Classroom gets a separate short-lived cross-tab lease
+ * after their student role has been verified; that lease is never used for an
+ * ordinary direct login.
  */
 export function readRememberDevice() {
   try {
@@ -43,6 +50,54 @@ export function writeRememberDevice(remember) {
   } catch {
     // Private browsing with storage disabled: the session simply will not persist.
   }
+}
+
+function readTemporaryClassroomSessionExpiry() {
+  try {
+    return window.localStorage.getItem(CLASSROOM_STUDENT_SESSION_EXPIRES_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function clearTemporaryClassroomStudentSessionLease() {
+  try {
+    window.localStorage.removeItem(CLASSROOM_STUDENT_SESSION_EXPIRES_KEY);
+  } catch {
+    // Storage can be unavailable in locked-down/private contexts.
+  }
+}
+
+export function hasExpiredTemporaryClassroomStudentSession(nowValue = Date.now()) {
+  return classroomSessionIsExpired(readTemporaryClassroomSessionExpiry(), nowValue);
+}
+
+/**
+ * Classroom frequently opens each coursework link in a new browser tab. Firebase
+ * session persistence is tab-scoped, so a verified student would otherwise be
+ * asked to sign in again for every section/assignment. Promote only that
+ * Classroom student session to local persistence and attach a two-hour lease.
+ * Explicit "Keep me signed in" remains the only indefinite device-persistence
+ * choice exposed by MathMaster.
+ */
+export async function promoteTemporaryClassroomStudentSession() {
+  if (readRememberDevice()) {
+    clearTemporaryClassroomStudentSessionLease();
+    return false;
+  }
+
+  await setPersistence(auth, browserLocalPersistence);
+  try {
+    window.localStorage.setItem(
+      CLASSROOM_STUDENT_SESSION_EXPIRES_KEY,
+      String(nextClassroomSessionExpiry()),
+    );
+  } catch {
+    // If the lease cannot be stored, do not leave an unbounded local session.
+    await setPersistence(auth, browserSessionPersistence);
+    return false;
+  }
+  return true;
 }
 
 /** Remembering the last role/ID skips a tap and a retype for returning users. */
@@ -71,6 +126,7 @@ export function writeLoginHints({ role, studentId }) {
 
 async function applyPersistence(remember) {
   writeRememberDevice(remember);
+  if (remember) clearTemporaryClassroomStudentSessionLease();
   await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
 }
 
@@ -218,6 +274,7 @@ export const teacherAdmin = {
 };
 
 export async function signOutSession() {
+  clearTemporaryClassroomStudentSessionLease();
   await signOut(auth);
 }
 

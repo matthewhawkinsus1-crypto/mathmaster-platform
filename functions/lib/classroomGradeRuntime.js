@@ -12,9 +12,75 @@ function toDate(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+/**
+ * Keep the Cloud Function grade runtime compatible with every question-record
+ * shape the browser still accepts. Split Classroom passback was introduced
+ * after some of these records already existed in Firestore, so treating a
+ * legacy string/status as an unknown object can silently turn earned credit
+ * into a zero.
+ */
+function normalizeStoredQuestionRecord(record) {
+  if (!record) {
+    return {
+      status: "unattempted",
+      attemptCount: 0,
+      totalAttempts: 0,
+      partialCredit: 0,
+      bestPartialCredit: 0,
+      stepGrades: [],
+      variantIndex: 0,
+    };
+  }
+
+  if (typeof record === "string") {
+    const status = String(record || "unattempted");
+    const attemptCount = status === "incorrect" || status === "attempted" ? 1 : 0;
+    return {
+      status,
+      attemptCount,
+      totalAttempts: attemptCount,
+      partialCredit: 0,
+      bestPartialCredit: 0,
+      stepGrades: [],
+      variantIndex: 0,
+    };
+  }
+
+  if (typeof record !== "object" || Array.isArray(record)) {
+    return normalizeStoredQuestionRecord(null);
+  }
+
+  const legacyStatus = String(record.status || "unattempted");
+  const status = legacyStatus === "incorrect" ? "attempted" : legacyStatus;
+  const attemptCount = Number.isFinite(Number(record.attemptCount))
+    ? Math.max(0, Number(record.attemptCount))
+    : status === "attempted" || status === "working"
+      ? 1
+      : status === "expired"
+        ? 3
+        : 0;
+  const totalAttempts = Number.isFinite(Number(record.totalAttempts))
+    ? Math.max(0, Number(record.totalAttempts))
+    : attemptCount;
+
+  return {
+    ...record,
+    status,
+    attemptCount,
+    totalAttempts,
+    partialCredit: clampPercent(record.partialCredit ?? 0),
+    bestPartialCredit: clampPercent(record.bestPartialCredit ?? record.partialCredit ?? 0),
+    stepGrades: Array.isArray(record.stepGrades) ? record.stepGrades : [],
+    variantIndex: Number.isFinite(Number(record.variantIndex))
+      ? Math.max(0, Number(record.variantIndex))
+      : 0,
+  };
+}
+
 function storedAlgebraStepPartialCredit(record) {
-  const steps = Array.isArray(record?.stepGrades) ? record.stepGrades : [];
-  const variantIndex = Number(record?.variantIndex || 0);
+  const normalized = normalizeStoredQuestionRecord(record);
+  const steps = normalized.stepGrades;
+  const variantIndex = normalized.variantIndex;
   const currentSteps = steps.filter((step) => Number(step?.variantIndex) === variantIndex);
   if (!currentSteps.length) return 0;
 
@@ -45,23 +111,23 @@ function storedAlgebraStepPartialCredit(record) {
 }
 
 function getQuestionCredit(record) {
-  if (!record) return 0;
-  if (record.status === "correct") return 1;
-  const stored = clampPercent(record.bestPartialCredit ?? record.partialCredit ?? 0);
-  const derived = storedAlgebraStepPartialCredit(record);
+  const normalized = normalizeStoredQuestionRecord(record);
+  if (normalized.status === "correct") return 1;
+  const stored = clampPercent(normalized.bestPartialCredit ?? normalized.partialCredit ?? 0);
+  const derived = storedAlgebraStepPartialCredit(normalized);
   return Math.max(stored, derived) / 100;
 }
 
 function isQuestionTerminal(record) {
-  const status = record?.status;
+  const status = normalizeStoredQuestionRecord(record).status;
   return status === "correct" || status === "expired";
 }
 
 function questionWasAttempted(record) {
-  if (!record || typeof record !== "object") return false;
-  if (Number(record.totalAttempts || record.attemptCount || 0) > 0) return true;
-  if (isQuestionTerminal(record)) return true;
-  return clampPercent(record.bestPartialCredit ?? record.partialCredit ?? 0) > 0;
+  const normalized = normalizeStoredQuestionRecord(record);
+  if (normalized.status !== "unattempted") return true;
+  if (Number(normalized.totalAttempts || normalized.attemptCount || 0) > 0) return true;
+  return clampPercent(normalized.bestPartialCredit ?? normalized.partialCredit ?? 0) > 0;
 }
 
 function assignmentGradeProgress(assignmentTracker, questionIndices, questions = []) {
@@ -159,6 +225,7 @@ function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now() 
 module.exports = {
   clampPercent,
   toDate,
+  normalizeStoredQuestionRecord,
   storedAlgebraStepPartialCredit,
   getQuestionCredit,
   isQuestionTerminal,
