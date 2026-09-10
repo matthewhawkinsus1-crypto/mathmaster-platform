@@ -5,6 +5,7 @@
 export const TOOL_CATALOG = Object.freeze({
   dataModelingLab: { label: 'Data Modeling Lab', courses: ['Algebra I', 'Algebra II'] },
   inverseCompositionLab: { label: 'Inverse & Composition Lab', courses: ['Algebra II'] },
+  functionOperationsLab: { label: 'Function Operations Workbench', courses: ['Algebra II'] },
   systemsWorkspace: { label: 'Systems Workspace', courses: ['Algebra I', 'Algebra II'] },
   parabolaGeometryLab: { label: 'Parabola Geometry Lab', courses: ['Algebra II'] },
   polynomialWorkshop: { label: 'Polynomial Workshop', courses: ['Algebra II'] },
@@ -15,7 +16,7 @@ export const TOOL_CATALOG = Object.freeze({
   transformationsLab: { label: 'Transformations Lab', courses: ['Algebra I', 'Algebra II'] },
   representationMatch: { label: 'Representation Match', courses: ['Algebra I', 'Algebra II'] },
   functionInvestigation2: { label: 'Function Investigation', courses: ['Algebra I', 'Algebra II'] },
-  graphing2: { label: 'Graphing', courses: ['Algebra I'] },
+  graphing2: { label: 'Graphing', courses: ['Algebra I', 'Algebra II'] },
   stepAlgebra2: { label: 'Solving Equations Step by Step', courses: ['Algebra I', 'Algebra II'] },
   solutionReview2: { label: 'Solution Review', courses: ['Shared'] },
   intervalNumberLine: { label: 'Number Line and Intervals', courses: ['Algebra I', 'Algebra II'] },

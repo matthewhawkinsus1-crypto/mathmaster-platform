@@ -1,7 +1,7 @@
 import { validateSortQuestion } from './openSortBoard/openSortMath.js';
 import { validateConstraintBuilderQuestion } from './constraintFunctionBuilder/constraintFunctionMath.js';
 const TOOL_IDS = new Set([
-  'dataModelingLab','inverseCompositionLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
+  'dataModelingLab','inverseCompositionLab','functionOperationsLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
   'signSolutionAnalyzer','sequenceExplorer','complexPlaneLab','exponentialLogBridge','transformationsLab',
   'representationMatch','functionInvestigation2','graphing2','stepAlgebra2','solutionReview2',
   'intervalNumberLine','relationMapping','openSortBoard','constraintFunctionBuilder',
@@ -11,6 +11,8 @@ const isPositiveInteger = (value) => Number.isInteger(Number(value)) && Number(v
 const isValidLogBase = (value) => Number.isFinite(Number(value)) && Number(value) > 0 && Math.abs(Number(value) - 1) > 1e-6;
 const isFiniteComplex = (value) => value && Number.isFinite(Number(value.re)) && Number.isFinite(Number(value.im));
 const FUNCTION_FAMILIES = ['linear','quadratic','absolute','cubic','cubeRoot','squareRoot','exponential','logarithmic','rational'];
+const FUNCTION_OPERATION_FAMILIES = ['linear','line','quadratic','cubic','polynomial'];
+const FUNCTION_OPERATION_NAMES = ['sum','difference','product','quotient','composition'];
 const isFinitePoint = (value) => {
   if (Array.isArray(value)) return value.length === 2 && value.every((entry) => Number.isFinite(Number(entry)));
   return Boolean(value && typeof value === 'object'
@@ -29,6 +31,40 @@ const validateFunctionSpec = (spec = {}, label = 'function') => {
   if (['exponential','logarithmic'].includes(spec.type) && !isValidLogBase(spec.base ?? 2)) errors.push(`${label} base must be positive and not equal to 1.`);
   return errors;
 };
+
+const validateFunctionOperationSpec = (spec, label) => {
+  const errors = [];
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return [`functionOperationsLab requires ${label}.`];
+  const type = String(spec.type || spec.family || '').trim();
+  if (!FUNCTION_OPERATION_FAMILIES.includes(type)) errors.push(`${label} type must be linear, quadratic, cubic, or polynomial.`);
+  if (type === 'polynomial') {
+    if (!Array.isArray(spec.coefficients) || spec.coefficients.length < 1 || spec.coefficients.some((value) => !Number.isFinite(Number(value)))) {
+      errors.push(`${label} polynomial requires a finite coefficients array.`);
+    }
+  } else {
+    ['a','h','k'].forEach((key) => {
+      if (spec[key] != null && !Number.isFinite(Number(spec[key]))) errors.push(`${label} ${key} must be finite.`);
+    });
+  }
+  return errors;
+};
+
+const functionOperationPolynomialDegree = (spec = {}) => {
+  const type = String(spec.type || spec.family || '').trim();
+  if (['linear', 'line'].includes(type)) return Math.abs(Number(spec.a ?? spec.m ?? 1)) <= 1e-9 ? 0 : 1;
+  if (type === 'quadratic') return Math.abs(Number(spec.a ?? 1)) <= 1e-9 ? 0 : 2;
+  if (type === 'cubic') return Math.abs(Number(spec.a ?? 1)) <= 1e-9 ? 0 : 3;
+  if (type !== 'polynomial' || !Array.isArray(spec.coefficients)) return null;
+  const firstNonzero = spec.coefficients.findIndex((value) => Math.abs(Number(value)) > 1e-9);
+  return firstNonzero < 0 ? 0 : spec.coefficients.length - firstNonzero - 1;
+};
+
+const hasAuthoredFunctionRestrictions = (restrictions) => (
+  Array.isArray(restrictions) ? restrictions.length > 0 : Boolean(
+    restrictions && typeof restrictions === 'object'
+    && ['excludedValues', 'exclude', 'values'].some((key) => Array.isArray(restrictions[key]) && restrictions[key].length > 0)
+  )
+);
 
 const validateSequenceSpec = (spec = {}, fallbackKind = 'arithmetic', label = 'sequence') => {
   const errors = [];
@@ -65,13 +101,44 @@ export const validateToolQuestion = (question = {}) => {
     if (mode === 'linearQuadratic' && Number(question.linearQuadratic?.quadratic?.a ?? 1) === 0) errors.push('linearQuadratic mode requires a nonzero quadratic coefficient.');
   }
   if (toolId === 'inverseCompositionLab') {
-    const modes = ['full','composition','inverse','restriction'];
+    const modes = ['full','composition','inverse','restriction','deriveInverse'];
+    const mode = question.mode || 'full';
     if (question.mode && !modes.includes(question.mode)) errors.push(`Unsupported inverseCompositionLab mode: ${question.mode}.`);
     const f = question.f || {};
+    if (mode === 'deriveInverse') {
+      if (f.type !== 'linear') errors.push('inverseCompositionLab deriveInverse mode currently supports linear functions only.');
+      const slope = Number(f.a ?? 1);
+      if (!Number.isFinite(slope) || Math.abs(slope) <= 1e-9) errors.push('inverseCompositionLab deriveInverse mode requires a finite nonzero linear slope.');
+      if (f.h != null && !Number.isFinite(Number(f.h))) errors.push('inverseCompositionLab deriveInverse mode requires finite h when supplied.');
+      if (f.k != null && !Number.isFinite(Number(f.k))) errors.push('inverseCompositionLab deriveInverse mode requires finite k when supplied.');
+    }
     if (f.type === 'quadratic' && !f.inverseBranch && f.domain?.min == null && f.domain?.max == null) warnings.push('Quadratic inverse family should declare inverseBranch or a one-sided domain restriction.');
     if (['exponential','logarithmic'].includes(f.type)) {
       const base = Number(f.base ?? 2);
       if (!(base > 0) || base === 1) errors.push('Inverse/composition exponential or logarithmic base must be positive and not equal to 1.');
+    }
+  }
+  if (toolId === 'functionOperationsLab') {
+    errors.push(...validateFunctionOperationSpec(question.f, 'f'));
+    errors.push(...validateFunctionOperationSpec(question.g, 'g'));
+    const operations = Array.isArray(question.operations) ? question.operations : [];
+    if (!operations.length) errors.push('functionOperationsLab requires at least one requested operation.');
+    operations.forEach((operation) => {
+      if (!FUNCTION_OPERATION_NAMES.includes(operation)) errors.push(`Unsupported functionOperationsLab operation: ${operation}.`);
+    });
+    if (question.composeOrder && !['fOfG','gOfF'].includes(question.composeOrder)) errors.push('functionOperationsLab composeOrder must be fOfG or gOfF.');
+    if (operations.includes('quotient') && question.g) {
+      const gType = String(question.g.type || question.g.family || '').trim();
+      const coefficients = Array.isArray(question.g.coefficients) ? question.g.coefficients.map(Number) : null;
+      const polynomialIsZero = gType === 'polynomial' && coefficients?.length && coefficients.every((value) => Number.isFinite(value) && Math.abs(value) <= 1e-9);
+      const linearIsZero = ['linear','line'].includes(gType)
+        && Math.abs(Number(question.g.a ?? question.g.m ?? 1)) <= 1e-9
+        && Math.abs(Number(question.g.k ?? question.g.b ?? 0)) <= 1e-9;
+      if (polynomialIsZero || linearIsZero) errors.push('functionOperationsLab quotient cannot divide by the zero function.');
+      const denominatorDegree = functionOperationPolynomialDegree(question.g);
+      if (denominatorDegree > 2 && !hasAuthoredFunctionRestrictions(question.restrictions)) {
+        errors.push('functionOperationsLab nonlinear quotient denominators above degree 2 require explicitly authored restrictions/excluded values.');
+      }
     }
   }
   if (toolId === 'parabolaGeometryLab') {
@@ -119,7 +186,7 @@ export const validateToolQuestion = (question = {}) => {
       const spec = question.sequence || {};
       errors.push(...validateSequenceSpec(spec, spec.kind || question.kind || 'arithmetic'));
       if (question.kind && !['arithmetic','geometric'].includes(question.kind)) errors.push('sequenceExplorer kind must be arithmetic or geometric.');
-      if (question.targetN != null && !isPositiveInteger(question.targetN)) errors.push('sequenceExplorer targetN must be a positive integer.');
+      if (question.targetN != null && !isPositiveInteger(Number(question.targetN))) errors.push('sequenceExplorer targetN must be a positive integer.');
       if (mode === 'missingTerm' && !isPositiveInteger(question.missingIndex)) errors.push('missingTerm mode requires missingIndex as a positive integer.');
       if (mode === 'partialSum' && !isPositiveInteger(question.sumN)) errors.push('partialSum mode requires sumN as a positive integer.');
     }
