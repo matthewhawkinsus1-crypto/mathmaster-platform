@@ -46,3 +46,23 @@ test('student gets a one-time preserved-work correction notice', async () => {
   assert.match(appSource, /This assignment was corrected by your teacher\. Your previous work was preserved\./);
   assert.match(appSource, /mathmaster:content-upgrade-notice/);
 });
+
+
+test('upgrade modal keeps success visible and shows actionable function errors at the action area', async () => {
+  const modalSource = await readFile('src/components/teacher/AssignmentContentUpgradeModal.jsx', 'utf8');
+  assert.match(modalSource, /describeAuthError/);
+  assert.match(modalSource, /const \[success, setSuccess\]/);
+  assert.match(modalSource, /Upgrade complete/);
+  assert.match(modalSource, /errorCode/);
+  assert.match(modalSource, /position: 'sticky'/);
+  assert.match(modalSource, /Done/);
+});
+
+test('post-upgrade refresh cannot turn a successful server commit into a fake failure', async () => {
+  const appSource = await readFile('src/App.jsx', 'utf8');
+  const start = appSource.indexOf('onUpgraded={async (result) => {');
+  const end = appSource.indexOf('}}', start);
+  const callback = appSource.slice(start, end + 2);
+  assert.match(callback, /Promise\.allSettled/);
+  assert.doesNotMatch(callback, /setContentUpgradeRequest\(null\)/);
+});
