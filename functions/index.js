@@ -68,6 +68,8 @@ const weeklyPathSync = require("./lib/weeklyPathSync");
 const ccmrAssignmentBank = require("./lib/ccmrAssignmentBank");
 const studentSessionSummary = require("./lib/studentSessionSummary");
 const fullAssignmentRepair = require("./lib/fullAssignmentRepair");
+const assignmentContentVersion = require("./lib/assignmentContentVersion");
+const assignmentContentTrackerMigration = require("./lib/assignmentContentTrackerMigration");
 
 // HTTPS/callable transport must be reachable by the Firebase client SDK.
 // MathMaster authorization still happens INSIDE each callable through
@@ -10446,6 +10448,525 @@ exports.commitFullAssignmentRepair = onCall(async (request) => {
   } catch (error) {
     if (error instanceof HttpsError) throw error;
     throw new HttpsError("failed-precondition", error.message || "The full assignment repair was refused.");
+  }
+});
+
+async function requireContentUpgradeOwner(db, request, assignment) {
+  await requireTeacher(request);
+  const email = callerEmail(request);
+  if (!email) {
+    throw new HttpsError("permission-denied", "A verified teacher email is required for a live content upgrade.");
+  }
+  if (authLib.isRootAdminEmail(email) && request.auth?.token?.rootAdmin === true) {
+    return { uid: request.auth.uid, email, authorizationType: "administrator" };
+  }
+
+  const classIds = [...new Set(
+    (Array.isArray(assignment?.assignedClassIds) ? assignment.assignedClassIds : [])
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+  )];
+  if (!classIds.length) {
+    throw new HttpsError("failed-precondition", "Choose an assigned copy to upgrade.");
+  }
+  const classSnapshots = await Promise.all(classIds.map((classId) => db.collection("classes").doc(classId).get()));
+  const ownsEveryClass = classSnapshots.every((snapshot) => (
+    snapshot.exists
+    && String(snapshot.data()?.teacherOfRecord || "").trim().toLowerCase() === email
+  ));
+  if (!ownsEveryClass) {
+    throw new HttpsError(
+      "permission-denied",
+      "Only the teacher of record for every assigned class, or the root administrator, can upgrade this live assignment."
+    );
+  }
+  return { uid: request.auth.uid, email, authorizationType: "teacherOwner" };
+}
+
+async function loadSavedAssignmentTrackers(db, assignmentId) {
+  const snapshot = await db.collection("grades").select("gradesByAssignment").get();
+  return snapshot.docs
+    .filter((gradeDoc) => gradeDoc.data()?.gradesByAssignment?.[assignmentId] !== undefined)
+    .map((gradeDoc) => ({
+      studentId: gradeDoc.id,
+      ref: gradeDoc.ref,
+      tracker: gradeDoc.data().gradesByAssignment[assignmentId],
+    }));
+}
+
+function contentUpgradePreviewPayload(plan, affectedStudentCount) {
+  return {
+    fromVersion: plan.fromVersion,
+    toVersion: plan.toVersion,
+    liveAssignmentRevision: plan.liveAssignmentRevision,
+    targetAssignmentRevision: plan.targetAssignmentRevision,
+    counts: plan.counts,
+    requiresFundamentalChoice: plan.requiresFundamentalChoice,
+    planHash: plan.planHash,
+    affectedStudentCount,
+    changes: plan.changes.map((change) => ({
+      questionId: change.questionId,
+      flatIndex: change.flatIndex,
+      sectionRole: change.sectionRole,
+      classification: change.classification,
+      safe: change.safe,
+      reason: change.reason || null,
+      affectedFieldIds: change.affectedFieldIds || [],
+      gradingKeys: change.gradingKeys || [],
+      beforePrompt: String(change.beforeQuestion?.prompt || change.beforeQuestion?.scenario || "").slice(0, 500),
+      afterPrompt: String(change.afterQuestion?.prompt || change.afterQuestion?.scenario || "").slice(0, 500),
+    })),
+  };
+}
+
+exports.previewAssignmentContentUpgrade = onCall(async (request) => {
+  const db = getFirestore();
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const targetAssignmentId = String(request.data?.targetAssignmentId || "").trim();
+  if (!assignmentId || !targetAssignmentId) {
+    throw new HttpsError("invalid-argument", "Choose the assigned copy and the newer content release.");
+  }
+
+  const [liveSnapshot, targetSnapshot] = await Promise.all([
+    db.collection("assignments").doc(assignmentId).get(),
+    db.collection("assignments").doc(targetAssignmentId).get(),
+  ]);
+  if (!liveSnapshot.exists || !targetSnapshot.exists) {
+    throw new HttpsError("not-found", "The assigned copy or newer content release no longer exists.");
+  }
+  const liveAssignment = { id: liveSnapshot.id, ...liveSnapshot.data() };
+  const targetAssignment = { id: targetSnapshot.id, ...targetSnapshot.data() };
+  await requireContentUpgradeOwner(db, request, liveAssignment);
+
+  if ((targetAssignment.assignedClassIds || []).filter(Boolean).length) {
+    throw new HttpsError("failed-precondition", "The upgrade target must be an unassigned Library content release.");
+  }
+  if (targetAssignment?.contentLineage?.releaseStatus !== "current") {
+    throw new HttpsError("failed-precondition", "Choose the current content release for this assignment family.");
+  }
+
+  try {
+    const [plan, trackers] = await Promise.all([
+      assignmentContentVersion.buildContentUpgradePlan({ liveAssignment, targetAssignment }),
+      loadSavedAssignmentTrackers(db, assignmentId),
+    ]);
+    return contentUpgradePreviewPayload(plan, trackers.length);
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError("failed-precondition", error.message || "MathMaster could not preview this content upgrade.");
+  }
+});
+
+exports.commitAssignmentContentUpgrade = onCall(async (request) => {
+  const db = getFirestore();
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const targetAssignmentId = String(request.data?.targetAssignmentId || "").trim();
+  const expectedPlanHash = String(request.data?.expectedPlanHash || "").trim();
+  const expectedAssignmentRevision = Number(request.data?.expectedAssignmentRevision);
+  const expectedTargetRevision = Number(request.data?.expectedTargetRevision);
+  const fundamentalChoices = request.data?.fundamentalChoices && typeof request.data.fundamentalChoices === "object"
+    ? request.data.fundamentalChoices
+    : {};
+
+  if (!assignmentId || !targetAssignmentId || !expectedPlanHash) {
+    throw new HttpsError("invalid-argument", "Preview this content upgrade before committing it.");
+  }
+
+  const initialLiveSnapshot = await db.collection("assignments").doc(assignmentId).get();
+  if (!initialLiveSnapshot.exists) throw new HttpsError("not-found", "The assigned copy no longer exists.");
+  const initialLive = { id: initialLiveSnapshot.id, ...initialLiveSnapshot.data() };
+  await requireContentUpgradeOwner(db, request, initialLive);
+
+  const actorEmail = callerEmail(request);
+  const isRoot = Boolean(authLib.isRootAdminEmail(actorEmail) && request.auth?.token?.rootAdmin === true);
+  const eventRef = db.collection("assignmentVersionEvents").doc();
+
+  try {
+    return await db.runTransaction(async (transaction) => {
+      const liveRef = db.collection("assignments").doc(assignmentId);
+      const targetRef = db.collection("assignments").doc(targetAssignmentId);
+      const liveSnapshot = await transaction.get(liveRef);
+      const targetSnapshot = await transaction.get(targetRef);
+      if (!liveSnapshot.exists || !targetSnapshot.exists) {
+        throw new HttpsError("not-found", "The assigned copy or target content release no longer exists.");
+      }
+
+      const liveAssignment = { id: liveSnapshot.id, ...liveSnapshot.data() };
+      const targetAssignment = { id: targetSnapshot.id, ...targetSnapshot.data() };
+      if (Number(liveAssignment.assignmentRevision || 1) !== expectedAssignmentRevision
+        || Number(targetAssignment.assignmentRevision || 1) !== expectedTargetRevision) {
+        throw new HttpsError(
+          "failed-precondition",
+          "This assignment or its target release changed after preview. Preview the upgrade again."
+        );
+      }
+      if (targetAssignment?.contentLineage?.releaseStatus !== "current"
+        || (targetAssignment.assignedClassIds || []).filter(Boolean).length) {
+        throw new HttpsError("failed-precondition", "The selected target is no longer the current unassigned Library release.");
+      }
+
+      const plan = await assignmentContentVersion.buildContentUpgradePlan({
+        liveAssignment,
+        targetAssignment,
+      });
+      if (plan.planHash !== expectedPlanHash) {
+        throw new HttpsError(
+          "failed-precondition",
+          "The content upgrade plan changed after preview. Nothing was changed; preview it again."
+        );
+      }
+
+      const fundamentalIds = plan.changes
+        .filter((change) => change.classification === "fundamental")
+        .map((change) => change.questionId);
+      for (const questionId of fundamentalIds) {
+        if (!["retire-only", "retire-and-replace"].includes(fundamentalChoices[questionId])) {
+          throw new HttpsError(
+            "failed-precondition",
+            `Choose Retire only or Retire + replacement for fundamental correction "${questionId}".`
+          );
+        }
+      }
+
+      const classIds = [...new Set(
+        (Array.isArray(liveAssignment.assignedClassIds) ? liveAssignment.assignedClassIds : [])
+          .map((value) => String(value || "").trim()).filter(Boolean)
+      )];
+      if (!isRoot) {
+        const classSnapshots = [];
+        for (const classId of classIds) {
+          // All reads occur before any transaction write.
+          // eslint-disable-next-line no-await-in-loop
+          classSnapshots.push(await transaction.get(db.collection("classes").doc(classId)));
+        }
+        const ownsEveryClass = classSnapshots.length > 0 && classSnapshots.every((snapshot) => (
+          snapshot.exists
+          && String(snapshot.data()?.teacherOfRecord || "").trim().toLowerCase() === actorEmail
+        ));
+        if (!ownsEveryClass) {
+          throw new HttpsError(
+            "permission-denied",
+            "Class ownership changed after preview. Only the current teacher of record may upgrade this live assignment."
+          );
+        }
+      }
+
+      const gradeSnapshot = await transaction.get(
+        db.collection("grades").select("gradesByAssignment", "classroomReleaseSignals")
+      );
+      const trackerDocs = gradeSnapshot.docs.filter((gradeDoc) => (
+        gradeDoc.data()?.gradesByAssignment?.[assignmentId] !== undefined
+      ));
+      if (trackerDocs.length > 450) {
+        throw new HttpsError(
+          "resource-exhausted",
+          "This assignment has more than 450 saved student records. Use the server migration path in smaller cohorts instead of a partial content upgrade."
+        );
+      }
+
+      const upgraded = assignmentContentVersion.buildUpgradedAssignment({
+        liveAssignment,
+        targetAssignment,
+        plan,
+        fundamentalChoices,
+      });
+      const correctedAt = new Date().toISOString();
+      let migratedStudents = 0;
+      let gradeReconciliationRequested = false;
+
+      const migratedRows = trackerDocs.map((gradeDoc) => {
+        const data = gradeDoc.data() || {};
+        const tracker = data.gradesByAssignment?.[assignmentId];
+        const migration = assignmentContentTrackerMigration.migrateTrackerForContentUpgrade({
+          tracker,
+          plan,
+          correctedAt,
+        });
+        if (migration.changed) migratedStudents += 1;
+        if (migration.gradeMayChange) gradeReconciliationRequested = true;
+        return { gradeDoc, migration };
+      });
+
+      transaction.update(liveRef, {
+        sections: upgraded.assignment.sections,
+        assignmentRevision: upgraded.assignment.assignmentRevision,
+        contentLineage: upgraded.assignment.contentLineage,
+        contentUpgrade: {
+          fromVersion: plan.fromVersion,
+          toVersion: plan.toVersion,
+          targetAssignmentId,
+          upgradedAt: correctedAt,
+          upgradedBy: request.auth.uid,
+        },
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      migratedRows.forEach(({ gradeDoc, migration }) => {
+        if (!migration.changed) return;
+        transaction.update(
+          gradeDoc.ref,
+          new FieldPath("gradesByAssignment", assignmentId),
+          migration.tracker
+        );
+        if (migration.gradeMayChange) {
+          transaction.update(
+            gradeDoc.ref,
+            new FieldPath("classroomReleaseSignals", assignmentId),
+            {
+              requestedAt: correctedAt,
+              // Reuse the section-grade reconciliation trigger delivered by
+              // PR #177.  A content upgrade may change the derived grade, but
+              // it must not invent a parallel Classroom passback protocol.
+              reason: "section-grade-reconcile",
+              source: "assignment-content-version",
+            }
+          );
+        }
+      });
+
+      transaction.set(eventRef, {
+        eventType: "liveUpgrade",
+        familyId: upgraded.assignment.contentLineage.familyId,
+        sourceAssignmentId: assignmentId,
+        targetAssignmentId,
+        sourceContentVersion: plan.fromVersion,
+        targetContentVersion: plan.toVersion,
+        actorUid: request.auth.uid,
+        actorEmail: actorEmail || null,
+        actorAuthorizationType: isRoot ? "administrator" : "teacherOwner",
+        fromAssignmentRevision: plan.liveAssignmentRevision,
+        toAssignmentRevision: upgraded.assignment.assignmentRevision,
+        changeCounts: plan.counts,
+        affectedQuestionIds: plan.changes
+          .filter((change) => change.classification !== "unchanged")
+          .map((change) => change.questionId),
+        replacementQuestionIds: upgraded.replacementQuestionIds,
+        affectedStudentCount: trackerDocs.length,
+        migratedStudentCount: migratedStudents,
+        gradeReconciliationRequested,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+
+      return {
+        assignmentId,
+        targetAssignmentId,
+        contentVersion: plan.toVersion,
+        assignmentRevision: upgraded.assignment.assignmentRevision,
+        counts: plan.counts,
+        replacementQuestionIds: upgraded.replacementQuestionIds,
+        affectedStudentCount: trackerDocs.length,
+        migratedStudentCount: migratedStudents,
+        gradeReconciliationRequested,
+      };
+    });
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError(
+      "failed-precondition",
+      error.message || "MathMaster refused the live content upgrade."
+    );
+  }
+});
+
+/**
+ * Create the next human-facing Content V# release from one reviewed Full Assignment Audit.
+ * This never edits the source question content and never assigns the successor to students.
+ */
+exports.createAssignmentContentVersion = onCall(async (request) => {
+  let authorizationType;
+  try {
+    authorizationType = fullAssignmentRepair.requireRepairAuthority(request.auth);
+  } catch (error) {
+    throw new HttpsError(error.code || "permission-denied", error.message);
+  }
+
+  const db = getFirestore();
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  if (!assignmentId) {
+    throw new HttpsError("invalid-argument", "Choose an assignment before creating a corrected content release.");
+  }
+
+  const sourceRef = db.collection("assignments").doc(assignmentId);
+  const releaseRef = db.collection("assignments").doc();
+  const auditRef = db.collection("assignmentRepairAudits").doc();
+  const eventRef = db.collection("assignmentVersionEvents").doc();
+
+  try {
+    return await db.runTransaction(async (transaction) => {
+      const sourceSnapshot = await transaction.get(sourceRef);
+      if (!sourceSnapshot.exists) {
+        throw new HttpsError("not-found", "That assignment no longer exists.");
+      }
+
+      const stored = { id: sourceSnapshot.id, ...sourceSnapshot.data() };
+      const reviewed = fullAssignmentRepair.prepareCommit({
+        assignment: stored,
+        request: request.data,
+      });
+      if (!reviewed.changedQuestionIds.length) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Select at least one approved assignment repair before creating a corrected content release."
+        );
+      }
+
+      const rawLineage = stored.contentLineage && typeof stored.contentLineage === "object"
+        ? stored.contentLineage
+        : {};
+      const existingFamilyId = String(rawLineage.familyId || "").trim();
+      const familyId = existingFamilyId || crypto.randomUUID();
+      const sourceVersion = Number.isInteger(Number(rawLineage.version)) && Number(rawLineage.version) > 0
+        ? Number(rawLineage.version)
+        : 1;
+
+      let familyDocs = [];
+      if (existingFamilyId) {
+        const familyQuery = db.collection("assignments")
+          .where("contentLineage.familyId", "==", familyId);
+        const familySnapshot = await transaction.get(familyQuery);
+        familyDocs = familySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data(), ref: doc.ref }));
+      } else {
+        familyDocs = [{ ...stored, ref: sourceRef }];
+      }
+
+      const highestVersion = familyDocs.reduce((highest, entry) => {
+        const version = Number(entry?.contentLineage?.version || (entry.id === stored.id ? sourceVersion : 1));
+        return Number.isInteger(version) && version > highest ? version : highest;
+      }, sourceVersion);
+
+      if (sourceVersion !== highestVersion || rawLineage.releaseStatus === "superseded") {
+        throw new HttpsError(
+          "failed-precondition",
+          `This assignment is Content V${sourceVersion}, but a newer family release already exists. Create the next correction from the current release instead.`
+        );
+      }
+
+      const nextVersion = highestVersion + 1;
+      const preparedRelease = assignmentContentVersion.prepareContentRelease({
+        sourceAssignment: stored,
+        reviewedAssignment: reviewed.assignment,
+        familyId,
+        nextVersion,
+        actorUid: request.auth.uid,
+        auditId: auditRef.id,
+      });
+      const release = {
+        ...preparedRelease.release,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+
+      transaction.set(releaseRef, release);
+
+      const sourceLineage = {
+        ...rawLineage,
+        familyId,
+        version: sourceVersion,
+        label: `V${sourceVersion}`,
+        releaseStatus: "superseded",
+        supersedesVersion: Number.isInteger(Number(rawLineage.supersedesVersion))
+          ? Number(rawLineage.supersedesVersion)
+          : null,
+        sourceAssignmentId: rawLineage.sourceAssignmentId || null,
+        createdFromAuditId: rawLineage.createdFromAuditId || null,
+        createdBy: rawLineage.createdBy || request.auth.uid,
+      };
+      transaction.update(sourceRef, { contentLineage: sourceLineage });
+
+      familyDocs
+        .filter((entry) => entry.id !== stored.id && entry?.contentLineage?.releaseStatus === "current")
+        .forEach((entry) => {
+          transaction.update(entry.ref, {
+            "contentLineage.releaseStatus": "superseded",
+          });
+        });
+
+      const auditResults = Array.isArray(request.data?.auditResults) ? request.data.auditResults : [];
+      const count = (classification) => auditResults.filter((item) => item?.classification === classification).length;
+      transaction.set(auditRef, {
+        assignmentId,
+        startingRevision: reviewed.fromRevision,
+        resultingRevision: reviewed.fromRevision,
+        auditScope: fullAssignmentRepair.SCOPE,
+        actorUid: request.auth.uid,
+        actorEmail: callerEmail(request) || null,
+        actorAuthorizationType: authorizationType,
+        questionIdsChanged: reviewed.changedQuestionIds,
+        numberAudited: auditResults.length,
+        numberPassed: count("passed"),
+        numberAssignmentIssues: count("assignmentIssue"),
+        numberPlatformIssues: count("platformIssue"),
+        numberUnclear: count("unclear"),
+        proposedRepairsAccepted: reviewed.changedQuestionIds.length,
+        proposedRepairsRejected: Math.max(
+          0,
+          (request.data?.replacements?.length || 0) - reviewed.changedQuestionIds.length
+        ),
+        commitOutcome: "content-version-created",
+        createdContentAssignmentId: releaseRef.id,
+        createdContentVersion: nextVersion,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+
+      const classifiedPlatformIssues = auditResults
+        .filter((item) => item?.classification === "platformIssue")
+        .map((item) => ({ ...item }));
+      const globalPlatformIssues = (Array.isArray(request.data?.globalFindings) ? request.data.globalFindings : [])
+        .filter((item) => item?.classification === "platformIssue")
+        .map((item) => ({ ...item, questionId: null }));
+      const platformIssues = [
+        ...(Array.isArray(request.data?.platformIssues) ? request.data.platformIssues : []),
+        ...classifiedPlatformIssues,
+        ...globalPlatformIssues,
+      ];
+      for (const issue of platformIssues) {
+        const issueRef = db.collection("assignmentPlatformIssues").doc();
+        transaction.set(issueRef, {
+          assignmentId,
+          auditId: auditRef.id,
+          classification: "platformIssue",
+          questionId: String(issue?.questionId || "").trim() || null,
+          reason: String(issue?.reason || "").trim().slice(0, 2000),
+          suspectedComponent: String(issue?.suspectedComponent || "MathMaster platform").trim().slice(0, 500),
+          status: "open",
+          reportedAt: FieldValue.serverTimestamp(),
+        });
+      }
+
+      transaction.set(eventRef, {
+        eventType: "releaseCreated",
+        familyId,
+        sourceAssignmentId: assignmentId,
+        targetAssignmentId: releaseRef.id,
+        sourceContentVersion: sourceVersion,
+        targetContentVersion: nextVersion,
+        actorUid: request.auth.uid,
+        actorAuthorizationType: authorizationType,
+        originatingAuditId: auditRef.id,
+        fromAssignmentRevision: reviewed.fromRevision,
+        toAssignmentRevision: 1,
+        changedQuestionIds: reviewed.changedQuestionIds,
+        changedQuestionCount: reviewed.changedQuestionIds.length,
+        affectedStudentCount: 0,
+        gradeReconciliationRequested: false,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+
+      return {
+        assignmentId: releaseRef.id,
+        sourceAssignmentId: assignmentId,
+        familyId,
+        contentVersion: nextVersion,
+        auditId: auditRef.id,
+        changedQuestionIds: reviewed.changedQuestionIds,
+      };
+    });
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError(
+      "failed-precondition",
+      error.message || "MathMaster could not create the corrected content release."
+    );
   }
 });
 

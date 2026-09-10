@@ -247,6 +247,12 @@ export const teacherAdmin = {
     callable('setAssignmentRepairerAccess')({ email, enabled }).then((result) => result.data || {}),
   commitFullAssignmentRepair: (payload) =>
     callable('commitFullAssignmentRepair')(payload).then((result) => result.data || {}),
+  createAssignmentContentVersion: (payload) =>
+    callable('createAssignmentContentVersion')(payload).then((result) => result.data || {}),
+  previewAssignmentContentUpgrade: (payload) =>
+    callable('previewAssignmentContentUpgrade')(payload).then((result) => result.data || {}),
+  commitAssignmentContentUpgrade: (payload) =>
+    callable('commitAssignmentContentUpgrade')(payload).then((result) => result.data || {}),
 
   // Classes, rosters, and the three different things "remove" can mean.
   listClasses: () => callable('listClasses')().then((result) => result.data || {}),

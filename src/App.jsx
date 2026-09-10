@@ -102,6 +102,7 @@ import TeacherSidebar from './TeacherSidebar';
 import AssignmentLibrary from './AssignmentLibrary';
 import AssignmentCardMenu from './AssignmentCardMenu';
 import TeacherAssignmentPdfDialog from './components/teacher/TeacherAssignmentPdfDialog.jsx';
+import AssignmentContentUpgradeModal from './components/teacher/AssignmentContentUpgradeModal.jsx';
 import ClassesWorkspace from './ClassesWorkspace';
 import { TEXAS_MATH_ACTIVE_COURSES, getTexasStandardsForCourse } from './texasStandards.js';
 import ClassContextBar from './components/teacher/ClassContextBar.jsx';
@@ -140,6 +141,11 @@ import {
 } from './platform/contract/storedAssignmentV5.js';
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 import { canSalvageV5IntakeResult } from './platform/preflight/assignmentAuthoringState.js';
+import {
+  contentVersionLabel,
+  contentVersionOf,
+  latestCurrentLibraryRelease,
+} from './platform/assignments/assignmentContentVersion.js';
 import {
   questionFingerprint,
   repairAssignmentTrackerForCurrentGrader,
@@ -512,6 +518,7 @@ function App() {
   const [editingAssignmentId, setEditingAssignmentId] = useState(null);
   const [editingAssignmentDates, setEditingAssignmentDates] = useState({ dueAt: '', lateDueAt: '', assignedClassPeriods: [], assignedClassIds: [] });
   const [questionEditorAssignment, setQuestionEditorAssignment] = useState(null);
+  const [contentUpgradeRequest, setContentUpgradeRequest] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [assignmentFolderPaths, setAssignmentFolderPaths] = useState([]);
   const [libraryNavigation, setLibraryNavigation] = useState(null);
@@ -1926,6 +1933,24 @@ function App() {
   );
   const activeAssignmentData = activeRuntimeRepair?.assignment || null;
   const activeQuestions = getStoredAssignmentQuestions(activeAssignmentData);
+
+  useEffect(() => {
+    if (user?.role !== 'student' || activeView !== 'assignment' || !rawActiveAssignmentData?.contentUpgrade) return;
+    const version = Number(rawActiveAssignmentData.contentUpgrade.toVersion || 0);
+    if (!activeAssignmentId || version < 2) return;
+    const key = `mathmaster:content-upgrade-notice:${activeAssignmentId}:${version}`;
+    try {
+      if (window.localStorage.getItem(key) === 'shown') return;
+      window.localStorage.setItem(key, 'shown');
+    } catch {
+      // The notice still appears when storage is unavailable; it simply cannot
+      // remember that it was shown across another tab/session.
+    }
+    toastInfo(
+      `Assignment corrected · Content V${version}`,
+      'This assignment was corrected by your teacher. Your previous work was preserved.',
+    );
+  }, [user?.role, activeView, activeAssignmentId, rawActiveAssignmentData?.contentUpgrade, toastInfo]);
   const activeLifecycle = getAssignmentLifecycle(activeAssignmentData, now);
   const isTeacherPreview = user?.role === 'teacher' && activeView === 'teacherPreview';
   const isStudentAssignment = user?.role === 'student' && activeView === 'assignment';
@@ -3557,6 +3582,7 @@ function App() {
         mode: reviewOptions.mode === 'update' ? 'update' : 'create',
         existingAssignmentId: reviewOptions.existingAssignmentId || null,
         allowQuestionRepair: reviewOptions.allowQuestionRepair !== false,
+        sourceContentLineage: reviewOptions.sourceContentLineage || null,
         // When this review started from an Incomplete draft, remember which one.
         // Publishing has to close that draft, or the same assignment sits in the
         // Library and in Incomplete Assignments at once, and the stale copy is
@@ -3810,6 +3836,9 @@ function App() {
         classroomIntegration: reviewedV5.classroomIntegration || null,
         provenance: reviewedV5.provenance || null,
         preflight: reviewedV5.preflight || { required: true },
+        ...(assignmentPreflight?.sourceContentLineage ? {
+          contentLineage: assignmentPreflight?.sourceContentLineage,
+        } : {}),
         createdAt: new Date(),
       };
 
@@ -5150,6 +5179,8 @@ function App() {
       const {
         id: _id,
         archived: _archived,
+        contentLineage: _contentLineage,
+        contentUpgrade: _contentUpgrade,
         ...rest
       } = assignment;
       await addDoc(collection(db, 'assignments'), {
@@ -5269,6 +5300,7 @@ function App() {
       },
       `Library · ${assignment.title}`,
       draftOverrides,
+      { sourceContentLineage: assignment.contentLineage || null },
     );
     if (opened !== true) throw new Error(opened?.error || 'Could not open Assignment Review for this saved assignment.');
     return prepared.assignmentV5;
@@ -7218,6 +7250,21 @@ function App() {
             allowQuestionRepair={assignmentPreflight.allowQuestionRepair !== false}
           />
         )}
+        {contentUpgradeRequest && (
+          <AssignmentContentUpgradeModal
+            assignment={contentUpgradeRequest.assignment}
+            targetAssignment={contentUpgradeRequest.targetAssignment}
+            onClose={() => setContentUpgradeRequest(null)}
+            onUpgraded={async (result) => {
+              setContentUpgradeRequest(null);
+              await Promise.all([fetchAssignments(), fetchStudents()]);
+              toastSuccess(
+                `Upgraded to Content V${result.contentVersion}`,
+                'Student work and Google Classroom links were preserved.',
+              );
+            }}
+          />
+        )}
         {questionEditorAssignment && (
           <AssignmentQuestionEditor
             assignment={questionEditorAssignment}
@@ -7536,6 +7583,13 @@ function App() {
                   const assignmentVariantMode = getStoredAssignmentVariantMode(assignment);
                   const hasSectionVersions = Object.keys(getStoredSectionVariantModes(assignment)).length > 0;
                   const libraryRepair = inspectLibraryContentRepair(assignment, assignments);
+                  const contentUpgradeTarget = isLibraryAssignment(assignment)
+                    ? null
+                    : latestCurrentLibraryRelease(assignments, assignment);
+                  const hasContentUpgrade = Boolean(
+                    contentUpgradeTarget
+                    && contentVersionOf(contentUpgradeTarget) > contentVersionOf(assignment)
+                  );
                   return (
                     <article key={assignment.id} style={{ background: '#f8f9fa', padding: '18px', marginBottom: '12px', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--mm-primary)' : lifecycle.isLate ? '#f9ab00' : lifecycle.isPracticeOnly ? '#5f6368' : '#e0e3e7'}`, boxShadow: isSelected ? '0 0 0 2px var(--mm-primary-soft)' : 'none' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -7549,6 +7603,8 @@ function App() {
                         <div style={{ flex: '1 1 440px', textAlign: 'left' }}>
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                             <strong style={{ fontSize: '18px' }}>{assignment.title}</strong>
+                            <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#e8f0fe', color: '#174ea6' }}>{contentVersionLabel(assignment)}</span>
+                            {hasContentUpgrade && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#fef7e0', color: '#7a4f00' }}>V{contentVersionOf(contentUpgradeTarget)} AVAILABLE</span>}
                             <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: lifecycle.isPracticeOnly ? '#f1f3f4' : lifecycle.isLate ? '#fff4ce' : '#e6f4ea', color: lifecycle.isPracticeOnly ? '#3c4043' : lifecycle.isLate ? '#7a4f00' : '#137333' }}>{lifecycle.isPracticeOnly ? 'PRACTICE ONLY' : lifecycle.status.toUpperCase()}</span>
                             <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#e8f0fe', color: '#174ea6' }}>{assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : assignmentType.toUpperCase()}</span>
                             {hasSectionVersions ? <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#f3e8fd', color: '#681da8' }}>SECTION VERSIONS</span> : assignmentVariantMode === 'shared' && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#e6f4ea', color: '#137333' }}>SHARED VERSION</span>}
@@ -7568,6 +7624,11 @@ function App() {
                             { key: 'export-pdf', label: 'Print / Answer Key', onClick: () => beginTeacherWorksheetExport(assignment) },
                             { key: 'export-json', label: 'Export Assignment', onClick: () => { setExportJsonAssignment(assignment); setExportJsonCopied(false); } },
                             { key: 'dates-classes', label: isLibraryAssignment(assignment) ? 'Assign to Class / Dates' : 'Dates & Classes', onClick: () => beginEditAssignmentDates(assignment) },
+                            ...(hasContentUpgrade ? [{
+                              key: 'upgrade-content-version',
+                              label: `Upgrade to Content V${contentVersionOf(contentUpgradeTarget)}`,
+                              onClick: () => setContentUpgradeRequest({ assignment, targetAssignment: contentUpgradeTarget }),
+                            }] : []),
                             ...(!isLibraryAssignment(assignment) ? [{
                               key: 'repair-classroom-post',
                               label: 'Repair / Repost Classroom',
