@@ -1,0 +1,68 @@
+name: Deploy PR 174 to Firebase Hosting
+
+on:
+  push:
+    branches:
+      - deploy/pr174-hosting
+    paths:
+      - .github/workflows/deploy-pr174-hosting.yml
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-hosting:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      FIREBASE_SERVICE_ACCOUNT_PRIMARY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MATHMASTER_ALEKS }}
+      FIREBASE_SERVICE_ACCOUNT_GENERIC: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS }}
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+    steps:
+      - name: Checkout merged production commit
+        uses: actions/checkout@v4
+        with:
+          ref: 3dd96e60053b67140da1676878a6fb7289ba763d
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Select Firebase credential
+        id: auth
+        shell: bash
+        run: |
+          set -euo pipefail
+          SERVICE_ACCOUNT="${FIREBASE_SERVICE_ACCOUNT_PRIMARY:-}"
+          if [ -z "$SERVICE_ACCOUNT" ]; then SERVICE_ACCOUNT="${FIREBASE_SERVICE_ACCOUNT_GENERIC:-}"; fi
+          if [ -z "$SERVICE_ACCOUNT" ]; then SERVICE_ACCOUNT="${GOOGLE_CREDENTIALS_JSON:-}"; fi
+          if [ -n "$SERVICE_ACCOUNT" ]; then
+            printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-service-account.json"
+            chmod 600 "$RUNNER_TEMP/firebase-service-account.json"
+            echo "mode=service-account" >> "$GITHUB_OUTPUT"
+          elif [ -n "${FIREBASE_TOKEN:-}" ]; then
+            echo "mode=token" >> "$GITHUB_OUTPUT"
+          else
+            echo 'No Firebase deployment credential is configured in this repository.' >&2
+            exit 78
+          fi
+
+      - name: Deploy Hosting only
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.auth.outputs.mode }}" = "service-account" ]; then
+            export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-service-account.json"
+            npx firebase-tools deploy --only hosting --project mathmaster-aleks --non-interactive
+          else
+            npx firebase-tools deploy --only hosting --project mathmaster-aleks --non-interactive --token "$FIREBASE_TOKEN"
+          fi
+
+      - name: Confirm production site responds
+        run: curl --fail --silent --show-error --head https://mathmaster-aleks.web.app/ >/dev/null
