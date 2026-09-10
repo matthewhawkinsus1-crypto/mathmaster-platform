@@ -55,6 +55,40 @@ prevent. The expression that satisfied the assertion had become the defect.
 Restoring it to make CI green would have shipped the bug the test was written to
 catch. This is why step 2 is read-the-behaviour, never match-the-regex.
 
+## The defective one: forbidden identifiers matched in comments
+
+There are **381 `assert.doesNotMatch` assertions across 140 files** that read a
+source file. Each means *"this code must not touch X"* — and each runs over the
+whole file, comments included.
+
+So writing a comment that explains the boundary fails the build.
+
+PR #167 hit it exactly. The persistence store's only occurrence of `evidence`
+was this line:
+
+```js
+ * stamp — and never student attempts, grades, evidence, or Classroom identity.
+```
+
+A comment stating the safety property the test enforces. The test failed, and
+the obvious way to green it was to **delete the explanation**. That is a test
+working against the codebase.
+
+**This one is the test's fault, not the code's.** Fix it:
+
+```js
+import { executableSource } from './helpers/sourceContract.mjs';
+const code = executableSource(source);   // comments stripped
+assert.doesNotMatch(code, /studentAttempts|evidence|gradesByAssignment/, '...');
+```
+
+Then confirm it still bites — add a real reference to the forbidden field in
+code and check it fails. `executableSource` removes comments only; it does not
+parse the language, which is fine for a haystack.
+
+If you are writing a new forbidden-identifier check, use `executableSource` from
+the start.
+
 ## The quieter failure: assertions that cannot fail
 
 The opposite mistake, and the one that produces false confidence. Nine of these

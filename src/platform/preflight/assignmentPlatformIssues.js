@@ -12,6 +12,12 @@ export const platformIssueKey = (issue = {}) => [
   normalizedText(issue?.reason),
 ].join('::');
 
+const runtimeVersionOrNull = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const version = Number(value);
+  return Number.isFinite(version) ? version : null;
+};
+
 const normalizeExistingIssue = (issue = {}) => ({
   questionId: clean(issue?.questionId) || null,
   classification: 'platformIssue',
@@ -21,9 +27,11 @@ const normalizeExistingIssue = (issue = {}) => ({
   status: clean(issue?.status) || 'open',
   reportedAt: clean(issue?.reportedAt) || null,
   resolvedRepairKey: clean(issue?.resolvedRepairKey) || null,
-  resolvedRuntimeVersion: Number.isFinite(Number(issue?.resolvedRuntimeVersion))
-    ? Number(issue.resolvedRuntimeVersion)
-    : null,
+  // Number(null) is 0, and 0 is finite — so coercing first turned "never
+  // resolved" into "resolved at runtime version 0" on every round trip through
+  // a merge. An issue that has not been resolved has no version, and the
+  // difference decides whether a teacher still sees the report.
+  resolvedRuntimeVersion: runtimeVersionOrNull(issue?.resolvedRuntimeVersion),
 });
 
 export const normalizeReportedPlatformIssue = (

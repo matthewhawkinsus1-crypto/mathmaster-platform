@@ -51,6 +51,16 @@ const GUIDANCE = {
       'If the record should not have changed, that is a real finding — investigate the code.',
     ],
   },
+  forbiddenInComment: {
+    label: 'FORBIDDEN IDENTIFIER MATCHED IN A COMMENT',
+    why: 'A doesNotMatch assertion means "this code must not touch X", but it runs over the whole file — so it also fires when a COMMENT explains that the code must not touch X. Deleting the explanation is not the fix.',
+    steps: [
+      'Find where the forbidden word actually occurs: grep -n <word> <file>.',
+      'If every occurrence is inside a comment, the code is correct and the assertion is over-scoped.',
+      'Scope it to code: import { executableSource } from ./helpers/sourceContract.mjs and assert against executableSource(source).',
+      'Then confirm it still bites: add a real reference to the forbidden field in code and check the test fails.',
+    ],
+  },
   behavioural: {
     label: 'BEHAVIOURAL',
     why: 'This compares computed output, not source text. It is more likely than the others to be a genuine defect — but it can still be pinned to a representation (see the canonical-value case).',
@@ -75,7 +85,13 @@ const classify = ({ operator, actual, error }) => {
   const looksLikeSource = /^\s*(import|const|function|export|\/\*|<)/m.test(String(actual || ''))
     || /\.jsx?['"]/.test(String(actual || ''));
 
-  if (operator === 'match' || operator === 'doesNotMatch') {
+  if (operator === 'doesNotMatch') {
+    // A forbidden-identifier check that fired only because of prose is the most
+    // misleading failure in this suite: the obvious way to green it is to
+    // delete the comment documenting the safety boundary being enforced.
+    return looksLikeSource ? 'forbiddenInComment' : 'behavioural';
+  }
+  if (operator === 'match') {
     return looksLikeSource ? 'sourceText' : 'behavioural';
   }
   if (operator === 'deepStrictEqual' || operator === 'notDeepStrictEqual') return 'frozenShape';
