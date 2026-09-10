@@ -8,3 +8,13 @@ test('Full Assignment Audit offers corrected content release creation', async ()
   assert.match(source, /createAssignmentContentVersion/);
   assert.match(source, /Existing assigned copies were not changed/);
 });
+
+
+test('Library shows Content version and hides superseded siblings by default', async () => {
+  const source = await readFile('src/AssignmentLibraryBase.jsx', 'utf8');
+  assert.match(source, /groupCurrentLibraryReleases/);
+  assert.match(source, /contentVersionLabel/);
+  assert.match(source, /Version History/);
+  assert.match(source, /SUPERSEDED/);
+  assert.match(source, /CURRENT/);
+});
