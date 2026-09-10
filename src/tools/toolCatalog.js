@@ -5,6 +5,7 @@
 export const TOOL_CATALOG = Object.freeze({
   dataModelingLab: { label: 'Data Modeling Lab', courses: ['Algebra I', 'Algebra II'] },
   inverseCompositionLab: { label: 'Inverse & Composition Lab', courses: ['Algebra II'] },
+  functionOperationsLab: { label: 'Function Operations Workbench', courses: ['Algebra II'] },
   systemsWorkspace: { label: 'Systems Workspace', courses: ['Algebra I', 'Algebra II'] },
   parabolaGeometryLab: { label: 'Parabola Geometry Lab', courses: ['Algebra II'] },
   polynomialWorkshop: { label: 'Polynomial Workshop', courses: ['Algebra II'] },
