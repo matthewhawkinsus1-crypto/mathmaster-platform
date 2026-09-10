@@ -10451,36 +10451,80 @@ exports.commitFullAssignmentRepair = onCall(async (request) => {
   }
 });
 
+function contentUpgradeAudience(assignment = {}) {
+  const classIds = [...new Set(
+    (Array.isArray(assignment?.assignedClassIds) ? assignment.assignedClassIds : [])
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+  )];
+  const periods = [...new Set(
+    (Array.isArray(assignment?.assignedClassPeriods) ? assignment.assignedClassPeriods : [])
+      .map((value) => String(value || "").trim())
+      .filter((value) => value && value !== "Unassigned")
+  )];
+  return { classIds, periods };
+}
+
+function assertLegacyPeriodOwnership(classes, periods, email) {
+  for (const period of periods) {
+    const matches = (Array.isArray(classes) ? classes : []).filter((record) => (
+      record?.status !== "archived"
+      && String(record?.period || "").trim() === period
+    ));
+    if (matches.length !== 1) {
+      throw new HttpsError(
+        "failed-precondition",
+        `This older assignment targets ${period} by period name instead of a class ID, and MathMaster cannot identify exactly one active class for that period. Open Dates & Classes once to bind it to a specific class, then retry the Content V2 upgrade.`
+      );
+    }
+    if (String(matches[0]?.teacherOfRecord || "").trim().toLowerCase() !== email) {
+      throw new HttpsError(
+        "permission-denied",
+        `Only the teacher of record for ${period}, or the root administrator, can upgrade this live assignment.`
+      );
+    }
+  }
+}
+
 async function requireContentUpgradeOwner(db, request, assignment) {
   await requireTeacher(request);
   const email = callerEmail(request);
   if (!email) {
     throw new HttpsError("permission-denied", "A verified teacher email is required for a live content upgrade.");
   }
-  if (authLib.isRootAdminEmail(email) && request.auth?.token?.rootAdmin === true) {
+
+  const { classIds, periods } = contentUpgradeAudience(assignment);
+  if (!classIds.length && !periods.length) {
+    throw new HttpsError("failed-precondition", "Choose an assigned copy to upgrade.");
+  }
+
+  // The verified root email is the authority used elsewhere in MathMaster.
+  // Do not additionally depend on a possibly stale custom-token rootAdmin claim.
+  if (authLib.isRootAdminEmail(email)) {
     return { uid: request.auth.uid, email, authorizationType: "administrator" };
   }
 
-  const classIds = [...new Set(
-    (Array.isArray(assignment?.assignedClassIds) ? assignment.assignedClassIds : [])
-      .map((value) => String(value || "").trim())
-      .filter(Boolean)
-  )];
-  if (!classIds.length) {
-    throw new HttpsError("failed-precondition", "Choose an assigned copy to upgrade.");
-  }
-  const classSnapshots = await Promise.all(classIds.map((classId) => db.collection("classes").doc(classId).get()));
-  const ownsEveryClass = classSnapshots.every((snapshot) => (
-    snapshot.exists
-    && String(snapshot.data()?.teacherOfRecord || "").trim().toLowerCase() === email
-  ));
-  if (!ownsEveryClass) {
-    throw new HttpsError(
-      "permission-denied",
-      "Only the teacher of record for every assigned class, or the root administrator, can upgrade this live assignment."
+  if (classIds.length) {
+    const classSnapshots = await Promise.all(
+      classIds.map((classId) => db.collection("classes").doc(classId).get())
     );
+    const ownsEveryClass = classSnapshots.every((snapshot) => (
+      snapshot.exists
+      && snapshot.data()?.status !== "archived"
+      && String(snapshot.data()?.teacherOfRecord || "").trim().toLowerCase() === email
+    ));
+    if (!ownsEveryClass) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only the teacher of record for every assigned class, or the root administrator, can upgrade this live assignment."
+      );
+    }
+    return { uid: request.auth.uid, email, authorizationType: "teacherOwner" };
   }
-  return { uid: request.auth.uid, email, authorizationType: "teacherOwner" };
+
+  const classes = await loadClasses(db);
+  assertLegacyPeriodOwnership(classes, periods, email);
+  return { uid: request.auth.uid, email, authorizationType: "teacherOwnerLegacyPeriod" };
 }
 
 async function loadSavedAssignmentTrackers(db, assignmentId) {
@@ -10520,32 +10564,40 @@ function contentUpgradePreviewPayload(plan, affectedStudentCount) {
 }
 
 exports.previewAssignmentContentUpgrade = onCall(async (request) => {
-  const db = getFirestore();
   const assignmentId = String(request.data?.assignmentId || "").trim();
   const targetAssignmentId = String(request.data?.targetAssignmentId || "").trim();
-  if (!assignmentId || !targetAssignmentId) {
-    throw new HttpsError("invalid-argument", "Choose the assigned copy and the newer content release.");
-  }
-
-  const [liveSnapshot, targetSnapshot] = await Promise.all([
-    db.collection("assignments").doc(assignmentId).get(),
-    db.collection("assignments").doc(targetAssignmentId).get(),
-  ]);
-  if (!liveSnapshot.exists || !targetSnapshot.exists) {
-    throw new HttpsError("not-found", "The assigned copy or newer content release no longer exists.");
-  }
-  const liveAssignment = { id: liveSnapshot.id, ...liveSnapshot.data() };
-  const targetAssignment = { id: targetSnapshot.id, ...targetSnapshot.data() };
-  await requireContentUpgradeOwner(db, request, liveAssignment);
-
-  if ((targetAssignment.assignedClassIds || []).filter(Boolean).length) {
-    throw new HttpsError("failed-precondition", "The upgrade target must be an unassigned Library content release.");
-  }
-  if (targetAssignment?.contentLineage?.releaseStatus !== "current") {
-    throw new HttpsError("failed-precondition", "Choose the current content release for this assignment family.");
-  }
 
   try {
+    const db = getFirestore();
+    if (!assignmentId || !targetAssignmentId) {
+      throw new HttpsError("invalid-argument", "Choose the assigned copy and the newer content release.");
+    }
+
+    const [liveSnapshot, targetSnapshot] = await Promise.all([
+      db.collection("assignments").doc(assignmentId).get(),
+      db.collection("assignments").doc(targetAssignmentId).get(),
+    ]);
+    if (!liveSnapshot.exists || !targetSnapshot.exists) {
+      throw new HttpsError("not-found", "The assigned copy or newer content release no longer exists.");
+    }
+
+    const liveAssignment = { id: liveSnapshot.id, ...liveSnapshot.data() };
+    const targetAssignment = { id: targetSnapshot.id, ...targetSnapshot.data() };
+    await requireContentUpgradeOwner(db, request, liveAssignment);
+
+    const targetClassIds = Array.isArray(targetAssignment.assignedClassIds)
+      ? targetAssignment.assignedClassIds.filter(Boolean)
+      : [];
+    const targetPeriods = Array.isArray(targetAssignment.assignedClassPeriods)
+      ? targetAssignment.assignedClassPeriods.filter((value) => String(value || "").trim() && String(value || "").trim() !== "Unassigned")
+      : [];
+    if (targetClassIds.length || targetPeriods.length) {
+      throw new HttpsError("failed-precondition", "The upgrade target must be an unassigned Library content release.");
+    }
+    if (targetAssignment?.contentLineage?.releaseStatus !== "current") {
+      throw new HttpsError("failed-precondition", "Choose the current content release for this assignment family.");
+    }
+
     const [plan, trackers] = await Promise.all([
       assignmentContentVersion.buildContentUpgradePlan({ liveAssignment, targetAssignment }),
       loadSavedAssignmentTrackers(db, assignmentId),
@@ -10553,7 +10605,19 @@ exports.previewAssignmentContentUpgrade = onCall(async (request) => {
     return contentUpgradePreviewPayload(plan, trackers.length);
   } catch (error) {
     if (error instanceof HttpsError) throw error;
-    throw new HttpsError("failed-precondition", error.message || "MathMaster could not preview this content upgrade.");
+    logger.error("Content V2 upgrade preview failed", {
+      assignmentId,
+      targetAssignmentId,
+      uid: request.auth?.uid || null,
+      code: error?.code || null,
+      message: String(error?.message || error || "Unknown error").slice(0, 1000),
+      stack: String(error?.stack || "").slice(0, 4000),
+    });
+    throw new HttpsError(
+      "unavailable",
+      "MathMaster could not preview this Content V2 upgrade. Nothing was changed. The server logged the failure; retry after the Content V2 preview function is redeployed.",
+      { reason: "content-upgrade-preview-failed" }
+    );
   }
 });
 
@@ -10578,7 +10642,7 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
   await requireContentUpgradeOwner(db, request, initialLive);
 
   const actorEmail = callerEmail(request);
-  const isRoot = Boolean(authLib.isRootAdminEmail(actorEmail) && request.auth?.token?.rootAdmin === true);
+  const isRoot = Boolean(authLib.isRootAdminEmail(actorEmail));
   const eventRef = db.collection("assignmentVersionEvents").doc();
 
   try {
@@ -10628,26 +10692,42 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
         }
       }
 
-      const classIds = [...new Set(
-        (Array.isArray(liveAssignment.assignedClassIds) ? liveAssignment.assignedClassIds : [])
-          .map((value) => String(value || "").trim()).filter(Boolean)
-      )];
+      const { classIds, periods } = contentUpgradeAudience(liveAssignment);
+      if (!classIds.length && !periods.length) {
+        throw new HttpsError("failed-precondition", "This assignment is no longer assigned to a class.");
+      }
       if (!isRoot) {
-        const classSnapshots = [];
-        for (const classId of classIds) {
-          // All reads occur before any transaction write.
-          // eslint-disable-next-line no-await-in-loop
-          classSnapshots.push(await transaction.get(db.collection("classes").doc(classId)));
-        }
-        const ownsEveryClass = classSnapshots.length > 0 && classSnapshots.every((snapshot) => (
-          snapshot.exists
-          && String(snapshot.data()?.teacherOfRecord || "").trim().toLowerCase() === actorEmail
-        ));
-        if (!ownsEveryClass) {
-          throw new HttpsError(
-            "permission-denied",
-            "Class ownership changed after preview. Only the current teacher of record may upgrade this live assignment."
-          );
+        if (classIds.length) {
+          const classSnapshots = [];
+          for (const classId of classIds) {
+            // All reads occur before any transaction write.
+            // eslint-disable-next-line no-await-in-loop
+            classSnapshots.push(await transaction.get(db.collection("classes").doc(classId)));
+          }
+          const ownsEveryClass = classSnapshots.length === classIds.length && classSnapshots.every((snapshot) => (
+            snapshot.exists
+            && snapshot.data()?.status !== "archived"
+            && String(snapshot.data()?.teacherOfRecord || "").trim().toLowerCase() === actorEmail
+          ));
+          if (!ownsEveryClass) {
+            throw new HttpsError(
+              "permission-denied",
+              "Class ownership changed after preview. Only the current teacher of record may upgrade this live assignment."
+            );
+          }
+        } else {
+          const legacyClasses = [];
+          for (const period of periods) {
+            // Legacy assignments may predate class IDs. Query by the exact stored
+            // period inside the same transaction so the ownership decision cannot
+            // drift between preview and commit.
+            // eslint-disable-next-line no-await-in-loop
+            const periodSnapshot = await transaction.get(
+              db.collection(CLASS_COLLECTION).where("period", "==", period)
+            );
+            periodSnapshot.docs.forEach((doc) => legacyClasses.push({ classId: doc.id, ...doc.data() }));
+          }
+          assertLegacyPeriodOwnership(legacyClasses, periods, actorEmail);
         }
       }
 
