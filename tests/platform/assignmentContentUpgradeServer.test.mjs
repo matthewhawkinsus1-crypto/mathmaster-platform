@@ -128,3 +128,15 @@ test('unprovable grading expansion preserves prior credit exactly', async () => 
   assert.equal(result.tracker[2].partialCredit, 40);
   assert.equal(result.tracker[2].totalAttempts, 3);
 });
+
+
+test('preview callable is server-side and client only calls it through Functions', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const [indexSource, authSource] = await Promise.all([
+    readFile('functions/index.js', 'utf8'),
+    readFile('src/auth/authService.js', 'utf8'),
+  ]);
+  assert.match(indexSource, /exports\.previewAssignmentContentUpgrade\s*=\s*onCall/);
+  assert.match(indexSource, /buildContentUpgradePlan/);
+  assert.match(authSource, /previewAssignmentContentUpgrade/);
+});
