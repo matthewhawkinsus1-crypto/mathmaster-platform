@@ -4,7 +4,10 @@ import { auth } from '../firebase';
 import {
   consumeRedirectResult,
   describeAuthError,
+  hasExpiredTemporaryClassroomStudentSession,
   linkGoogleAccount,
+  promoteTemporaryClassroomStudentSession,
+  readRememberDevice,
   resolveSignedInRole,
   signInWithGoogle,
   signInWithPassword,
@@ -12,6 +15,7 @@ import {
   signOutSession,
   writeLoginHints,
 } from './authService';
+import { shouldPromoteClassroomStudentSession } from './classroomSession.js';
 
 const AuthContext = createContext(null);
 
@@ -51,6 +55,17 @@ export function AuthProvider({ children }) {
       return;
     }
 
+    // A temporary Classroom lease uses local Firebase persistence only so a
+    // second coursework link can open in another tab without another login.
+    // Enforce the lease before trusting the persisted Firebase user. Explicit
+    // "Keep me signed in" sessions never carry this temporary expiry marker.
+    if (hasExpiredTemporaryClassroomStudentSession()) {
+      resolvingRef.current = null;
+      await signOutSession();
+      setState({ status: 'signedOut', session: null, linkRequest: null });
+      return;
+    }
+
     if (resolvingRef.current === firebaseUser.uid) return;
     resolvingRef.current = firebaseUser.uid;
 
@@ -80,6 +95,14 @@ export function AuthProvider({ children }) {
         await signOutSession();
         setError('Your account is not set up for MathMaster yet. Ask your teacher to add you.');
         return;
+      }
+
+      if (shouldPromoteClassroomStudentSession({
+        role: claims.role,
+        search: typeof window !== 'undefined' ? window.location.search : '',
+        rememberDevice: readRememberDevice(),
+      })) {
+        await promoteTemporaryClassroomStudentSession();
       }
 
       writeLoginHints({ role: claims.role });

@@ -71,7 +71,7 @@ test('browser launch parser rejects unknown section identity instead of silently
   );
 });
 
-test('section launch target uses only included questions with the effective activity role', () => {
+test('active section link starts at that section but does not section-scope the live workspace', () => {
   const target = classroomLaunchTarget({
     assignment,
     launch: parseClassroomLaunchSearch('?launch=lesson-1&classroomSection=practice'),
@@ -84,10 +84,15 @@ test('section launch target uses only included questions with the effective acti
   assert.deepEqual(target.questionIndices, [3, 4]);
   assert.equal(target.questionIndex, 3);
   assert.equal(target.sectionKey, 'practice');
+  assert.equal(target.originIsSectionLaunch, true);
+  // App.jsx historically uses target.isSectionLaunch to decide whether to
+  // section-filter the workspace. Active Classroom links are entrances into
+  // the assignment, not prisons inside one section.
+  assert.equal(target.isSectionLaunch, false);
   assert.equal(target.showFrozenReportFirst, false);
 });
 
-test('closed split-section launch shows frozen report first instead of auto-starting practice', () => {
+test('closed split-section launch shows frozen report first and keeps section-only practice intentional', () => {
   const target = classroomLaunchTarget({
     assignment,
     launch: parseClassroomLaunchSearch('?launch=lesson-1&classroomSection=dol'),
@@ -96,6 +101,8 @@ test('closed split-section launch shows frozen report first instead of auto-star
 
   assert.deepEqual(target.questionIndices, [5]);
   assert.equal(target.questionIndex, 5);
+  assert.equal(target.originIsSectionLaunch, true);
+  assert.equal(target.isSectionLaunch, true);
   assert.equal(target.showFrozenReportFirst, true);
   assert.equal(target.practiceAvailable, true);
 });
