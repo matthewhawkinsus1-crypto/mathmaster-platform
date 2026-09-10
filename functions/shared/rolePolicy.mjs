@@ -89,6 +89,7 @@ export const ADMIN_ONLY_OPERATIONS = Object.freeze([
   'permanentlyDeleteStudent',
   'assignStudentToTeacher',
   'setTeacherAccess',
+  'setAssignmentRepairerAccess',
   'saveClass',
   'setClassStatus',
   'migrateClassesFromPeriods',

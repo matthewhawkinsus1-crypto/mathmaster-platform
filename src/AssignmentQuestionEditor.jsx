@@ -22,6 +22,8 @@ import {
 import { screenshotIdsInContext } from './platform/preflight/teacherReviewScreenshot.js';
 import { loadTeacherReviewScreenshot } from './platform/preflight/teacherReviewScreenshotStore.js';
 import { teacherFlagNeedsReview } from './platform/preflight/assignmentAuthoringState.js';
+import { buildAssignmentRepairCenterModel } from './platform/preflight/assignmentRepairCenterModel.js';
+import FullAssignmentAudit from './components/teacher/FullAssignmentAudit.jsx';
 
 const buttonStyle = {
   minHeight: 40,
@@ -68,6 +70,8 @@ export default function AssignmentQuestionEditor(props) {
     assignment,
     hasLiveProtection = false,
     onSave,
+    fullAuditAuthorized = false,
+    studentActivityStatus = 'unavailable',
   } = props;
   const assignmentId = assignmentIdOf(assignment);
   const uploadInputRef = useRef(null);
@@ -478,6 +482,7 @@ export default function AssignmentQuestionEditor(props) {
       )}
 
       {message && <div role="status" style={{ marginTop: 10, padding: 9, borderRadius: 8, background: '#fff', color: '#3c4043', fontSize: 12.5, lineHeight: 1.45 }}>{message}</div>}
+      <FullAssignmentAudit assignmentV5={assignmentV5} repairCenterModel={buildAssignmentRepairCenterModel({ assignmentV5, diagnostics: [], teacherReviewContext })} assignmentId={assignmentId} baseRevision={baseRevision} authorized={fullAuditAuthorized} activityStatus={studentActivityStatus} />
     </section>
   );
 

@@ -37,6 +37,7 @@ function toSession(firebaseUser, claims) {
     classPeriod: null,
     accessLevel: claims.rootAdmin === true ? 'rootAdmin' : claims.role,
     isRootAdmin: claims.rootAdmin === true && claims.admin === true,
+    assignmentRepairer: claims.assignmentRepairer === true,
   };
 }
 

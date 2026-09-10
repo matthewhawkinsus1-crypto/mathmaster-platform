@@ -431,6 +431,10 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
                 }}
               >
                 <div style={{ minWidth: 0, wordBreak: 'break-word' }}><div><strong>{teacher.email}</strong>{teacher.accessLevel === 'rootAdmin' && <span style={{ ...pill('#202124', '#fff'), marginLeft: 9 }}>Root admin</span>}{isSelf && <span style={{ ...pill('#e8f0fe', '#174ea6'), marginLeft: '9px' }}>You</span>}{!teacher.active && <span style={{ ...pill('#f1f3f4', '#3c4043'), marginLeft: '9px' }}>Revoked</span>}</div><div style={{ marginTop: 4, color: '#5f6368', fontSize: 12 }}>{teacher.hasSignedIn ? `Last sign-in: ${teacher.lastSignInAt ? new Date(teacher.lastSignInAt).toLocaleString() : 'recorded account'}` : 'Has not signed in yet'}</div></div>
+                {teacher.accessLevel !== 'rootAdmin' && <label style={{ display: 'flex', gap: 7, alignItems: 'center', fontSize: 12, fontWeight: 800 }}>
+                  <input type="checkbox" checked={teacher.assignmentRepairer === true} disabled={busy || !teacher.active || isSelf} onChange={(event) => runAction(`teacher:${teacher.email}`, () => teacherAdmin.setAssignmentRepairerAccess(teacher.email, event.target.checked), `${teacher.email}'s Assignment Repairer capability was updated. Sign-in tokens will refresh on the next session.`)} />
+                  Assignment Repairer · Can run Full Assignment Audit
+                </label>}
                 <button
                   type="button"
                   style={{ ...quietButton, opacity: busy ? 0.6 : 1 }}
