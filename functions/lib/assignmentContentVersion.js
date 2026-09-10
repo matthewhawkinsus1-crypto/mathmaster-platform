@@ -186,6 +186,8 @@ async function buildContentUpgradePlan({ liveAssignment, targetAssignment } = {}
     targetAssignmentRevision: Number(targetAssignment.assignmentRevision || 1),
     fromVersion,
     toVersion,
+    assignedClassIds: Array.isArray(liveAssignment.assignedClassIds) ? liveAssignment.assignedClassIds : [],
+    assignedClassPeriods: Array.isArray(liveAssignment.assignedClassPeriods) ? liveAssignment.assignedClassPeriods : [],
     changes: changes.map((change) => ({
       questionId: change.questionId,
       flatIndex: change.flatIndex,
@@ -220,6 +222,7 @@ function buildUpgradedAssignment({
   const targetRows = new Map(questionRows(targetAssignment).map((row) => [row.questionId, row]));
   const changeById = new Map(plan.changes.map((change) => [change.questionId, change]));
   const replacementGroups = new Map();
+  const replacementQuestionIds = {};
 
   const sections = (Array.isArray(liveAssignment.sections) ? liveAssignment.sections : []).map((section) => ({
     ...section,
@@ -240,9 +243,11 @@ function buildUpgradedAssignment({
       if (choice === "retire-and-replace") {
         const role = change.sectionRole || "practice";
         if (!replacementGroups.has(role)) replacementGroups.set(role, []);
+        const newQuestionId = String(replacementId(questionId));
+        replacementQuestionIds[questionId] = newQuestionId;
         replacementGroups.get(role).push({
           ...target,
-          questionId: String(replacementId(questionId)),
+          questionId: newQuestionId,
           supersedesQuestionId: questionId,
           introducedInContentVersion: plan.toVersion,
           activityRole: target.activityRole || role,
@@ -262,6 +267,7 @@ function buildUpgradedAssignment({
   }
 
   return {
+    replacementQuestionIds,
     assignment: {
       ...liveAssignment,
       sections,
