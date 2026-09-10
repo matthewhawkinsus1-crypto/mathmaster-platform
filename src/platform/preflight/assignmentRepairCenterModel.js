@@ -3,6 +3,11 @@ import {
   reviewContextForQuestion,
   teacherRepairConstraintsForQuestion,
 } from './teacherReviewContext.js';
+import {
+  diagnoseRuntimeCompatibility,
+  getMathMasterBuildInfo,
+} from '../runtime/buildInfo.js';
+import { ASSIGNMENT_RUNTIME_REPAIR_VERSION } from '../assignments/assignmentRuntimeRepair.js';
 
 const clean = (value) => String(value ?? '').trim();
 const normalizedSeverity = (value) => clean(value).toLowerCase();
@@ -96,22 +101,54 @@ const statusFor = (automatedFindings, teacherFlags) => {
   return 'passed';
 };
 
-const platformIssueDiagnostics = (teacherReviewContext = {}) => list(teacherReviewContext?.platformIssues)
+const browserBuildInfo = () => {
+  const fromWindow = typeof globalThis !== 'undefined'
+    ? globalThis?.window?.__MATHMASTER_BUILD__
+    : null;
+  return fromWindow || getMathMasterBuildInfo({});
+};
+
+const runtimeDiagnosisLabel = (status) => ({
+  deploymentMismatch: 'Deployment mismatch',
+  persistencePending: 'Persistence pending',
+  remainingRegression: 'Remaining regression',
+  current: 'Runtime current',
+})[status] || 'Runtime status';
+
+const platformIssueDiagnostics = (teacherReviewContext = {}, assignmentV5 = {}) => list(teacherReviewContext?.platformIssues)
   .map((issue, index) => {
     const resolved = clean(issue?.status) === 'resolvedByPlatformUpdate';
+    const repairKey = clean(issue?.repairKey) || null;
+    const storedRepairVersion = Number(assignmentV5?.runtimeCompatibility?.repairVersion) || 0;
+    const runtimeDiagnosis = !resolved && repairKey
+      ? diagnoseRuntimeCompatibility({
+        requiredRuntimeVersion: ASSIGNMENT_RUNTIME_REPAIR_VERSION,
+        liveBuildInfo: browserBuildInfo(),
+        storedRepairVersion,
+        // If the saved compatibility stamp is already current and the report is
+        // still open, this is no longer merely a pending write-back state.
+        issueReproduces: storedRepairVersion >= ASSIGNMENT_RUNTIME_REPAIR_VERSION,
+      })
+      : null;
+    const reportedMessage = clean(issue?.reason)
+      || 'MathMaster has a reported platform defect for this question. Do not rewrite correct authored content to work around it.';
+
     return {
       source: 'runtimeCompatibility',
       code: resolved
         ? `platform.resolved.${clean(issue?.resolvedRepairKey) || index}`
-        : `platform.reported.${clean(issue?.repairKey) || index}`,
+        : `platform.reported.${repairKey || index}`,
       severity: resolved ? 'warning' : 'blocking',
       issueKind: resolved ? 'resolvedPlatformIssue' : 'platformIssue',
       questionId: clean(issue?.questionId) || null,
       componentId: clean(issue?.suspectedComponent) || null,
-      repairKey: clean(issue?.repairKey) || null,
+      repairKey,
+      runtimeDiagnosis,
       message: resolved
         ? `Resolved by platform update${issue?.resolvedRepairKey ? ` (${issue.resolvedRepairKey})` : ''}. The authored question was not rewritten.`
-        : clean(issue?.reason) || 'MathMaster has a reported platform defect for this question. Do not rewrite correct authored content to work around it.',
+        : runtimeDiagnosis
+          ? `${runtimeDiagnosisLabel(runtimeDiagnosis.status)}: ${runtimeDiagnosis.message} ${reportedMessage}`
+          : reportedMessage,
       persistedPlatformIssue: true,
     };
   });
@@ -130,7 +167,7 @@ export const buildAssignmentRepairCenterModel = ({
 } = {}) => {
   const safeDiagnostics = [
     ...(Array.isArray(diagnostics) ? diagnostics.filter(Boolean) : []),
-    ...platformIssueDiagnostics(teacherReviewContext),
+    ...platformIssueDiagnostics(teacherReviewContext, assignmentV5),
   ];
   const baseRows = questionRowsFrom(assignmentV5);
 
