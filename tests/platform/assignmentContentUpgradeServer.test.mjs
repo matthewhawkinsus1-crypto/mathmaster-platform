@@ -140,3 +140,18 @@ test('preview callable is server-side and client only calls it through Functions
   assert.match(indexSource, /buildContentUpgradePlan/);
   assert.match(authSource, /previewAssignmentContentUpgrade/);
 });
+
+
+test('commit callable revalidates the preview and writes no replacement Classroom post', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const [indexSource, authSource] = await Promise.all([
+    readFile('functions/index.js', 'utf8'),
+    readFile('src/auth/authService.js', 'utf8'),
+  ]);
+  assert.match(indexSource, /exports\.commitAssignmentContentUpgrade\s*=\s*onCall/);
+  assert.match(indexSource, /expectedPlanHash/);
+  assert.match(indexSource, /assignmentVersionEvents/);
+  assert.match(indexSource, /content-version-upgrade/);
+  assert.doesNotMatch(indexSource.match(/exports\.commitAssignmentContentUpgrade[\s\S]*?(?=\n\/\*\*|\nexports\.|$)/)?.[0] || '', /createCourseWork|publishAssignment/);
+  assert.match(authSource, /commitAssignmentContentUpgrade/);
+});
