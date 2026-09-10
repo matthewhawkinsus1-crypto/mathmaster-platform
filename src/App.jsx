@@ -1910,17 +1910,21 @@ function App() {
       console.error('Could not save assignment activity:', error);
     }
     return nextRecord;
-  };  // Keep the literal Firestore record separate from the runtime compatibility
+  };
+
+  // Keep the literal Firestore record separate from the runtime compatibility
   // view. Student/teacher rendering and lifecycle decisions consume the prepared
   // view; persistence and audit code can still refer to the saved object when needed.
   const rawActiveAssignmentData = assignments.find(
     (assignment) => assignment.id === activeAssignmentId,
   );
   const activeRuntimeRepair = useMemo(
-    () => prepareAssignmentForRuntime(rawActiveAssignmentData || {}, { source: 'activeAssignmentPlayer' }),
+    () => (rawActiveAssignmentData
+      ? prepareAssignmentForRuntime(rawActiveAssignmentData, { source: 'activeAssignmentPlayer' })
+      : null),
     [rawActiveAssignmentData],
   );
-  const activeAssignmentData = activeRuntimeRepair.assignment;
+  const activeAssignmentData = activeRuntimeRepair?.assignment || null;
   const activeQuestions = getStoredAssignmentQuestions(activeAssignmentData);
   const activeLifecycle = getAssignmentLifecycle(activeAssignmentData, now);
   const isTeacherPreview = user?.role === 'teacher' && activeView === 'teacherPreview';

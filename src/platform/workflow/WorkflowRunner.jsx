@@ -1068,19 +1068,20 @@ export default function WorkflowRunner({
     () => activeStages(authoredWorkflow, responses),
     [authoredWorkflow, responses],
   );
-// A primitive signature lets the guidance effect notice a genuinely new
-// composed question without depending on workflow array identity. The latter
-// can be rebuilt by callers and previously caused render loops; omitting all
-// workflow content, however, let YOUR TASK stay blank/stale after navigation.
-const workflowGuidanceSignature = useMemo(() => JSON.stringify(
-  (Array.isArray(authoredWorkflow) ? authoredWorkflow : []).map((stage) => ({
-    id: stage?.id || null,
-    kind: stage?.kind || null,
-    prompt: stage?.prompt || null,
-    label: stage?.label || null,
-    showWhen: stage?.showWhen || null,
-  })),
-), [authoredWorkflow]);
+  // A primitive signature lets the guidance effect notice a genuinely new
+  // composed question without depending on workflow array identity. Include the
+  // authored question key because two recipe-generated questions may have the
+  // same stage prompts; navigation between them must still republish YOUR TASK.
+  const workflowGuidanceSignature = useMemo(() => JSON.stringify({
+    questionKey: question?.questionId || question?.id || question?.prompt || null,
+    stages: (Array.isArray(authoredWorkflow) ? authoredWorkflow : []).map((stage) => ({
+      id: stage?.id || null,
+      kind: stage?.kind || null,
+      prompt: stage?.prompt || null,
+      label: stage?.label || null,
+      showWhen: stage?.showWhen || null,
+    })),
+  }), [question?.questionId, question?.id, question?.prompt, authoredWorkflow]);
 
   // Focus mode is decided from the AUTHORED workflow, not the visible one. A
   // branch that took the count under the threshold would otherwise flip the
