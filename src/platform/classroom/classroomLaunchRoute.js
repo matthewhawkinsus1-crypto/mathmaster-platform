@@ -77,7 +77,8 @@ export function classroomLaunchTarget({
   }
 
   const lifecycle = getAssignmentLifecycle(assignment, nowValue);
-  const showFrozenReportFirst = Boolean(launch.isSectionLaunch && lifecycle.isPracticeOnly);
+  const originIsSectionLaunch = sectionKey !== 'whole';
+  const showFrozenReportFirst = Boolean(originIsSectionLaunch && lifecycle.isPracticeOnly);
 
   return {
     assignmentId,
@@ -85,7 +86,14 @@ export function classroomLaunchTarget({
     publicationId: launch.publicationId || null,
     sectionKey,
     sectionLabel: SECTION_LABELS[sectionKey],
-    isSectionLaunch: sectionKey !== 'whole',
+    originIsSectionLaunch,
+    // App.jsx historically uses this flag to decide whether startAssignment()
+    // should hard-filter the workspace to one section. During normal live work
+    // a Classroom section link is only an entrance into the requested section;
+    // students must still be able to move through the rest of the assignment
+    // under the ordinary lifecycle/timer locks. Once the assignment is frozen,
+    // the report's explicit “Practice this section” action remains section-only.
+    isSectionLaunch: showFrozenReportFirst,
     questionIndices,
     questionIndex: questionIndices[0],
     lifecycleStatus: lifecycle.status,
