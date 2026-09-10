@@ -6,6 +6,7 @@ import {
 
 const clean = (value) => String(value ?? '').trim();
 const normalizedSeverity = (value) => clean(value).toLowerCase();
+const list = (value) => (Array.isArray(value) ? value : []);
 
 const sectionsFrom = (assignmentV5 = {}) => (
   Array.isArray(assignmentV5?.sections) ? assignmentV5.sections : []
@@ -95,25 +96,42 @@ const statusFor = (automatedFindings, teacherFlags) => {
   return 'passed';
 };
 
+const platformIssueDiagnostics = (teacherReviewContext = {}) => list(teacherReviewContext?.platformIssues)
+  .map((issue, index) => {
+    const resolved = clean(issue?.status) === 'resolvedByPlatformUpdate';
+    return {
+      source: 'runtimeCompatibility',
+      code: resolved
+        ? `platform.resolved.${clean(issue?.resolvedRepairKey) || index}`
+        : `platform.reported.${clean(issue?.repairKey) || index}`,
+      severity: resolved ? 'warning' : 'blocking',
+      issueKind: resolved ? 'resolvedPlatformIssue' : 'platformIssue',
+      questionId: clean(issue?.questionId) || null,
+      componentId: clean(issue?.suspectedComponent) || null,
+      repairKey: clean(issue?.repairKey) || null,
+      message: resolved
+        ? `Resolved by platform update${issue?.resolvedRepairKey ? ` (${issue.resolvedRepairKey})` : ''}. The authored question was not rewritten.`
+        : clean(issue?.reason) || 'MathMaster has a reported platform defect for this question. Do not rewrite correct authored content to work around it.',
+      persistedPlatformIssue: true,
+    };
+  });
+
 /**
  * Build the single question-level view MathMaster can use for Assignment Review.
  *
- * Automated validation and teacher review are deliberately merged here instead
- * of being rendered as two separate repair systems. Stable questionId is the
- * primary join key; the flat index remains only as a migration fallback for
- * diagnostics produced before immutable ids were available everywhere.
- *
- * Assignment- and section-level teacher notes flow into a question's repair
- * constraints, but they do not inflate the "teacherFlagged" count. That count
- * answers the teacher-facing question "how many individual questions did I
- * flag?" while inherited context remains visible on every question it governs.
+ * Automated validation, durable platform reports, and teacher review are merged
+ * here instead of becoming three competing repair systems. Stable questionId is
+ * the primary join key; the flat index remains only as a migration fallback.
  */
 export const buildAssignmentRepairCenterModel = ({
   assignmentV5 = {},
   diagnostics = [],
   teacherReviewContext = null,
 } = {}) => {
-  const safeDiagnostics = Array.isArray(diagnostics) ? diagnostics.filter(Boolean) : [];
+  const safeDiagnostics = [
+    ...(Array.isArray(diagnostics) ? diagnostics.filter(Boolean) : []),
+    ...platformIssueDiagnostics(teacherReviewContext),
+  ];
   const baseRows = questionRowsFrom(assignmentV5);
 
   const questions = baseRows.map((row) => {
