@@ -65,3 +65,20 @@ export function groupCurrentLibraryReleases(assignments = []) {
 
   return { visible, families };
 }
+
+
+export function latestCurrentLibraryRelease(assignments = [], assignment = {}) {
+  const familyId = normalizeContentLineage(assignment).familyId;
+  if (!familyId) return null;
+  return (Array.isArray(assignments) ? assignments : [])
+    .filter((candidate) => {
+      const lineage = normalizeContentLineage(candidate);
+      const assigned = Array.isArray(candidate?.assignedClassIds)
+        ? candidate.assignedClassIds.filter(Boolean).length > 0
+        : false;
+      return lineage.familyId === familyId
+        && lineage.releaseStatus === 'current'
+        && !assigned;
+    })
+    .sort((a, b) => contentVersionOf(b) - contentVersionOf(a))[0] || null;
+}
