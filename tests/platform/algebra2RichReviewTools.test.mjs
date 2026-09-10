@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { TOOL_CATALOG } from '../../src/tools/toolCatalog.js';
 import { validateToolQuestion } from '../../src/tools/toolSchemas.js';
+import {
+  AUTHORING_INTENT_V5_ACTIONS,
+  compileAuthoringIntentV5,
+} from '../../src/platform/contract/authoringIntentV5.js';
 
 const linear = { type: 'linear', a: -3, h: 0, k: 9 };
 
@@ -108,4 +112,42 @@ test('functionOperationsLab validates f, g, operation names, and Algebra II cata
   });
   assert.ok(invalid.errors.some((message) => message.includes('g')));
   assert.ok(invalid.errors.some((message) => message.includes('mystery')));
+});
+
+test('V5 function-operation aliases route to functionOperationsLab and preserve authored mathematics', () => {
+  assert.ok(AUTHORING_INTENT_V5_ACTIONS.includes('operateOnFunctions'));
+
+  const source = {
+    schemaVersion: 5,
+    assignment: {
+      title: 'Function operations routing smoke test',
+      courseId: 'algebra2',
+      instructionalPurpose: 'review',
+      gradingPurpose: 'classwork',
+    },
+    sections: [{
+      role: 'classwork',
+      title: 'Classwork',
+      questions: [{
+        standard: 'A2.7B',
+        prompt: 'Find the requested operations for f and g.',
+        studentActions: ['functionOperations'],
+        f: { type: 'polynomial', coefficients: [1, 0, -1] },
+        g: { type: 'linear', a: 1, h: 1, k: 0 },
+        operations: ['sum', 'divide', 'compose'],
+        composeOrder: 'fOfG',
+        dok: 2,
+        difficultyBand: 2,
+      }],
+    }],
+  };
+
+  const compiled = compileAuthoringIntentV5(source).package.sections[0].questions[0];
+  assert.equal(compiled.type, 'functionOperationsLab');
+  assert.deepEqual(compiled.studentActions, ['operateOnFunctions']);
+  assert.deepEqual(compiled.f, { type: 'polynomial', coefficients: [1, 0, -1] });
+  assert.deepEqual(compiled.g, { type: 'linear', a: 1, h: 1, k: 0 });
+  assert.deepEqual(compiled.operations, ['sum', 'quotient', 'composition']);
+  assert.equal(compiled.composeOrder, 'fOfG');
+  assert.deepEqual(validateToolQuestion(compiled).errors, []);
 });
