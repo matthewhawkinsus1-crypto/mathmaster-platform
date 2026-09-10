@@ -1,5 +1,5 @@
 import DataModelingLab from './dataModeling/DataModelingLab';
-import InverseCompositionLab from './inverseComposition/InverseCompositionLab';
+import InverseCompositionLab from './inverseComposition/InverseCompositionLabRouter';
 import SystemsWorkspace from './systemsWorkspace/SystemsWorkspace';
 import ParabolaGeometryLab from './parabolaGeometry/ParabolaGeometryLab';
 import PolynomialWorkshop from './polynomialWorkshop/PolynomialWorkshop';
