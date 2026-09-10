@@ -84,13 +84,13 @@ test('near-match pre-provenance workflow remains fail-closed instead of deleting
   assert.ok(result.diagnostics.some((entry) => /ambiguous|authored|provenance/i.test(String(entry?.message || ''))));
 });
 
-test('the live assignment player prepares the active V5 assignment before reading questions', () => {
+test('the live assignment player prepares the active V5 assignment before reading questions and preserves missing assignment semantics', () => {
   const source = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
   assert.match(source, /prepareAssignmentForRuntime/);
   assert.match(source, /rawActiveAssignmentData\s*=\s*assignments\.find/);
   assert.match(source, /activeRuntimeRepair\s*=\s*useMemo/);
-  assert.match(source, /prepareAssignmentForRuntime\(rawActiveAssignmentData/);
-  assert.match(source, /activeAssignmentData\s*=\s*activeRuntimeRepair\.assignment/);
+  assert.match(source, /rawActiveAssignmentData\s*\?\s*prepareAssignmentForRuntime\(rawActiveAssignmentData/);
+  assert.match(source, /activeAssignmentData\s*=\s*activeRuntimeRepair\?\.assignment\s*\|\|\s*null/);
   assert.match(source, /getStoredAssignmentQuestions\(activeAssignmentData\)/);
 });
 
@@ -119,8 +119,9 @@ test('District graph-characteristics workflow is focus-mode and each active stag
   });
 });
 
-test('WorkflowRunner republishes Your task when workflow content changes even if responses and stage index do not', () => {
+test('WorkflowRunner republishes Your task when the question changes even if workflow prompts, responses, and stage index are unchanged', () => {
   const source = readFileSync(new URL('../../src/platform/workflow/WorkflowRunner.jsx', import.meta.url), 'utf8');
   assert.match(source, /workflowGuidanceSignature/);
+  assert.match(source, /questionKey:\s*question\?\.questionId\s*\|\|\s*question\?\.id\s*\|\|\s*question\?\.prompt/);
   assert.match(source, /\[responses,\s*activeStageIndex,\s*focusMode,\s*workflowGuidanceSignature\]/);
 });
