@@ -10527,15 +10527,62 @@ async function requireContentUpgradeOwner(db, request, assignment) {
   return { uid: request.auth.uid, email, authorizationType: "teacherOwnerLegacyPeriod" };
 }
 
-async function loadSavedAssignmentTrackers(db, assignmentId) {
-  const snapshot = await db.collection("grades").select("gradesByAssignment").get();
-  return snapshot.docs
-    .filter((gradeDoc) => gradeDoc.data()?.gradesByAssignment?.[assignmentId] !== undefined)
-    .map((gradeDoc) => ({
-      studentId: gradeDoc.id,
-      ref: gradeDoc.ref,
-      tracker: gradeDoc.data().gradesByAssignment[assignmentId],
-    }));
+function contentUpgradeGradeQueries(db, assignment = {}) {
+  const { classIds, periods } = contentUpgradeAudience(assignment);
+  const queries = [];
+  classIds.forEach((classId) => {
+    queries.push(db.collection("grades").where("classId", "==", classId).select("gradesByAssignment"));
+  });
+  periods.forEach((period) => {
+    queries.push(db.collection("grades").where("classPeriod", "==", period).select("gradesByAssignment"));
+  });
+  return queries;
+}
+
+function contentUpgradeTrackerRows(snapshots, assignmentId) {
+  const seen = new Set();
+  const rows = [];
+  (Array.isArray(snapshots) ? snapshots : []).forEach((snapshot) => {
+    snapshot.docs.forEach((gradeDoc) => {
+      if (seen.has(gradeDoc.id)) return;
+      const tracker = gradeDoc.data()?.gradesByAssignment?.[assignmentId];
+      if (tracker === undefined) return;
+      seen.add(gradeDoc.id);
+      rows.push({ studentId: gradeDoc.id, ref: gradeDoc.ref, tracker });
+    });
+  });
+  return rows;
+}
+
+async function loadSavedAssignmentTrackers(db, assignmentId, assignment) {
+  const queries = contentUpgradeGradeQueries(db, assignment);
+  if (!queries.length) return [];
+  const snapshots = await Promise.all(queries.map((queryRef) => queryRef.get()));
+  return contentUpgradeTrackerRows(snapshots, assignmentId);
+}
+
+async function loadSavedAssignmentTrackersInTransaction(transaction, db, assignmentId, assignment) {
+  const snapshots = [];
+  for (const queryRef of contentUpgradeGradeQueries(db, assignment)) {
+    // Keep all transaction reads before writes and avoid reading the entire school roster.
+    // eslint-disable-next-line no-await-in-loop
+    snapshots.push(await transaction.get(queryRef));
+  }
+  return contentUpgradeTrackerRows(snapshots, assignmentId);
+}
+
+function contentUpgradeAlreadyCurrent(liveAssignment = {}, targetAssignment = {}) {
+  const liveFamily = String(liveAssignment?.contentLineage?.familyId || "").trim();
+  const targetFamily = String(targetAssignment?.contentLineage?.familyId || "").trim();
+  const liveVersion = Number(liveAssignment?.contentLineage?.version || 1);
+  const targetVersion = Number(targetAssignment?.contentLineage?.version || 1);
+  return Boolean(
+    liveFamily
+    && liveFamily === targetFamily
+    && Number.isFinite(liveVersion)
+    && Number.isFinite(targetVersion)
+    && liveVersion >= targetVersion
+  );
 }
 
 function contentUpgradePreviewPayload(plan, affectedStudentCount) {
@@ -10598,9 +10645,27 @@ exports.previewAssignmentContentUpgrade = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "Choose the current content release for this assignment family.");
     }
 
+    if (contentUpgradeAlreadyCurrent(liveAssignment, targetAssignment)) {
+      const liveVersion = Number(liveAssignment?.contentLineage?.version || 1);
+      const targetVersion = Number(targetAssignment?.contentLineage?.version || 1);
+      return {
+        alreadyCurrent: true,
+        fromVersion: liveVersion,
+        toVersion: targetVersion,
+        liveAssignmentRevision: Number(liveAssignment.assignmentRevision || 1),
+        targetAssignmentRevision: Number(targetAssignment.assignmentRevision || 1),
+        counts: { unchanged: 0, safeResponseControl: 0, gradingExpansion: 0, clarificationOnly: 0, fundamental: 0 },
+        requiresFundamentalChoice: false,
+        planHash: null,
+        affectedStudentCount: 0,
+        changes: [],
+        message: `Content V${liveVersion} is already applied to this assignment.`,
+      };
+    }
+
     const [plan, trackers] = await Promise.all([
       assignmentContentVersion.buildContentUpgradePlan({ liveAssignment, targetAssignment }),
-      loadSavedAssignmentTrackers(db, assignmentId),
+      loadSavedAssignmentTrackers(db, assignmentId, liveAssignment),
     ]);
     return contentUpgradePreviewPayload(plan, trackers.length);
   } catch (error) {
@@ -10657,6 +10722,22 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
 
       const liveAssignment = { id: liveSnapshot.id, ...liveSnapshot.data() };
       const targetAssignment = { id: targetSnapshot.id, ...targetSnapshot.data() };
+
+      if (contentUpgradeAlreadyCurrent(liveAssignment, targetAssignment)) {
+        return {
+          alreadyUpgraded: true,
+          assignmentId,
+          targetAssignmentId,
+          contentVersion: Number(liveAssignment?.contentLineage?.version || 1),
+          assignmentRevision: Number(liveAssignment.assignmentRevision || 1),
+          counts: { unchanged: 0, safeResponseControl: 0, gradingExpansion: 0, clarificationOnly: 0, fundamental: 0 },
+          replacementQuestionIds: {},
+          affectedStudentCount: 0,
+          migratedStudentCount: 0,
+          gradeReconciliationRequested: false,
+        };
+      }
+
       if (Number(liveAssignment.assignmentRevision || 1) !== expectedAssignmentRevision
         || Number(targetAssignment.assignmentRevision || 1) !== expectedTargetRevision) {
         throw new HttpsError(
@@ -10731,12 +10812,12 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
         }
       }
 
-      const gradeSnapshot = await transaction.get(
-        db.collection("grades").select("gradesByAssignment", "classroomReleaseSignals")
+      const trackerDocs = await loadSavedAssignmentTrackersInTransaction(
+        transaction,
+        db,
+        assignmentId,
+        liveAssignment
       );
-      const trackerDocs = gradeSnapshot.docs.filter((gradeDoc) => (
-        gradeDoc.data()?.gradesByAssignment?.[assignmentId] !== undefined
-      ));
       if (trackerDocs.length > 450) {
         throw new HttpsError(
           "resource-exhausted",
@@ -10754,17 +10835,15 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
       let migratedStudents = 0;
       let gradeReconciliationRequested = false;
 
-      const migratedRows = trackerDocs.map((gradeDoc) => {
-        const data = gradeDoc.data() || {};
-        const tracker = data.gradesByAssignment?.[assignmentId];
+      const migratedRows = trackerDocs.map((gradeRow) => {
         const migration = assignmentContentTrackerMigration.migrateTrackerForContentUpgrade({
-          tracker,
+          tracker: gradeRow.tracker,
           plan,
           correctedAt,
         });
         if (migration.changed) migratedStudents += 1;
         if (migration.gradeMayChange) gradeReconciliationRequested = true;
-        return { gradeDoc, migration };
+        return { gradeRow, migration };
       });
 
       transaction.update(liveRef, {
@@ -10781,16 +10860,16 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
         updatedAt: FieldValue.serverTimestamp(),
       });
 
-      migratedRows.forEach(({ gradeDoc, migration }) => {
+      migratedRows.forEach(({ gradeRow, migration }) => {
         if (!migration.changed) return;
         transaction.update(
-          gradeDoc.ref,
+          gradeRow.ref,
           new FieldPath("gradesByAssignment", assignmentId),
           migration.tracker
         );
         if (migration.gradeMayChange) {
           transaction.update(
-            gradeDoc.ref,
+            gradeRow.ref,
             new FieldPath("classroomReleaseSignals", assignmentId),
             {
               requestedAt: correctedAt,
