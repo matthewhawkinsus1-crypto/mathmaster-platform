@@ -66,3 +66,46 @@ test('graphing2 is available to both Algebra I and Algebra II', () => {
   assert.ok(TOOL_CATALOG.graphing2.courses.includes('Algebra I'));
   assert.ok(TOOL_CATALOG.graphing2.courses.includes('Algebra II'));
 });
+
+test('function operations math derives requested polynomial results, restrictions, and composition', async () => {
+  const {
+    deriveFunctionOperations,
+    formatPolynomialExpression,
+  } = await import('../../src/tools/functionOperations/functionOperationsMath.js');
+
+  const result = deriveFunctionOperations({
+    f: { type: 'polynomial', coefficients: [1, 0, -1] },
+    g: { type: 'linear', a: 1, h: 1, k: 0 },
+    operations: ['sum', 'difference', 'product', 'quotient', 'composition'],
+    composeOrder: 'fOfG',
+  });
+
+  assert.equal(formatPolynomialExpression(result.sum.coefficients), '2x^2 - x - 1');
+  assert.equal(formatPolynomialExpression(result.difference.coefficients), 'x^2 - x');
+  assert.equal(formatPolynomialExpression(result.product.coefficients), 'x^3 - x^2 - x + 1');
+  assert.equal(result.quotient.expression, 'x + 1');
+  assert.deepEqual(result.quotient.excludedValues, [1]);
+  assert.equal(formatPolynomialExpression(result.composition.coefficients), 'x^2 - 2x');
+});
+
+test('functionOperationsLab validates f, g, operation names, and Algebra II catalog availability', () => {
+  assert.deepEqual(TOOL_CATALOG.functionOperationsLab.courses, ['Algebra II']);
+
+  const valid = validateToolQuestion({
+    toolId: 'functionOperationsLab',
+    f: { type: 'linear', a: 2, h: 0, k: 1 },
+    g: { type: 'linear', a: 1, h: 3, k: 0 },
+    operations: ['sum', 'quotient', 'composition'],
+    alignments: [{ framework: 'teks', code: 'A2.7B' }],
+  });
+  assert.deepEqual(valid.errors, []);
+
+  const invalid = validateToolQuestion({
+    toolId: 'functionOperationsLab',
+    f: { type: 'linear', a: 2, h: 0, k: 1 },
+    operations: ['sum', 'mystery'],
+    alignments: [{ framework: 'teks', code: 'A2.7B' }],
+  });
+  assert.ok(invalid.errors.some((message) => message.includes('g')));
+  assert.ok(invalid.errors.some((message) => message.includes('mystery')));
+});
