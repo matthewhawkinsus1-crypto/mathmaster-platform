@@ -51,3 +51,19 @@ test('creating first successor makes Content V2 while schema remains V5', () => 
   assert.equal(prepared.release.sections[0].questions[0].prompt, 'corrected');
   assert.equal('id' in prepared.release, false);
 });
+
+
+test('content release preserves reusable Firestore metadata values without JSON flattening', () => {
+  const timestamp = { toDate: () => new Date('2026-09-10T00:00:00Z') };
+  const sourceAssignment = { id: 'v1', schemaVersion: 5, sections: [], assignmentRevision: 1 };
+  const reviewedAssignment = { ...sourceAssignment, lessonResources: { generatedAt: timestamp } };
+  const { release } = prepareContentRelease({
+    sourceAssignment,
+    reviewedAssignment,
+    familyId: 'fam',
+    nextVersion: 2,
+    actorUid: 'u',
+  });
+  assert.equal(release.lessonResources.generatedAt, timestamp);
+  assert.equal(typeof release.lessonResources.generatedAt.toDate, 'function');
+});
