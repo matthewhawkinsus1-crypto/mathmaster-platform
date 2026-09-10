@@ -3,7 +3,11 @@ const clean = (value) => String(value ?? '').trim();
 const lower = (value) => clean(value).toLowerCase();
 const asArray = (value) => Array.isArray(value) ? value : [];
 
-export const ASSIGNMENT_RUNTIME_REPAIR_VERSION = 1;
+// Version 2 adds a deterministic structural signature for the exact
+// pre-provenance functionModeling graph defect. Version 1 assignments therefore
+// must be evaluated again instead of being skipped merely because #167 stamped
+// them before this legacy shape was understood.
+export const ASSIGNMENT_RUNTIME_REPAIR_VERSION = 2;
 
 export const RUNTIME_REPAIR_KEYS = Object.freeze({
   NO_SYNTHETIC_FUNCTION_MODELING_GRAPH: 'function-modeling-exact-ask-no-synthetic-graph-v1',
@@ -64,6 +68,77 @@ const workflowGraphStages = (question = {}) => (
 
 const generatedWorkflowSource = (question = {}) => lower(question?.workflowProvenance?.source);
 
+const sameChoiceList = (actual, expected) => {
+  const values = asArray(actual).map((value) => lower(typeof value === 'string' ? value : value?.id ?? value?.label));
+  return values.length === expected.length && values.every((value, index) => value === expected[index]);
+};
+
+const exactBranchStage = (stage, { id, kind, controller, choice }) => (
+  isObject(stage)
+  && clean(stage.id) === id
+  && lower(stage.kind) === lower(kind)
+  && clean(stage?.showWhen?.stage) === controller
+  && lower(stage?.showWhen?.is) === lower(choice)
+);
+
+/**
+ * The old bug existed before workflowProvenance was stamped. Failing closed on
+ * every unstamped workflow therefore preserved the exact defect forever.
+ *
+ * Recognize only the generated shape we know the old functionModeling recipe
+ * produced for continuity + domain (optionally range): a continuity choice,
+ * the synthetic default graph step, then the generated discrete/continuous
+ * branches. Any renamed/reworded graph stage, extra step, different ordering,
+ * authored graph evidence, graph student action, or graph grading remains
+ * outside this signature and is preserved.
+ */
+const isExactKnownLegacySyntheticGraphWorkflow = (question = {}) => {
+  if (generatedWorkflowSource(question)) return false;
+  if (recipeName(question) !== 'functionmodeling') return false;
+
+  const ask = recipeAsk(question);
+  const acceptedAsk = (
+    (ask.length === 2 && ask[0] === 'continuity' && ask[1] === 'domain')
+    || (ask.length === 3 && ask[0] === 'continuity' && ask[1] === 'domain' && ask[2] === 'range')
+  );
+  if (!acceptedAsk) return false;
+
+  const workflow = asArray(question.workflow);
+  const expectedLength = ask.includes('range') ? 6 : 4;
+  if (workflow.length !== expectedLength) return false;
+
+  const [continuity, graph, domainDiscrete, domainContinuous, ...rest] = workflow;
+  if (!isObject(continuity)
+    || clean(continuity.id) !== 'continuity'
+    || lower(continuity.kind) !== 'classification'
+    || !sameChoiceList(continuity.choices, ['discrete', 'continuous'])) return false;
+
+  if (!isObject(graph)
+    || clean(graph.id) !== 'graph'
+    || lower(graph.kind) !== 'graphconstruction'
+    || lower(graph.graphMode) !== 'studentselected'
+    || clean(graph.continuityStageId) !== 'continuity'
+    || clean(graph.prompt) !== 'Build the graph of the relationship.'
+    || isObject(graph.graph)
+    || isObject(graph.source)) return false;
+
+  if (!exactBranchStage(domainDiscrete, {
+    id: 'domainDiscrete', kind: 'domainInput', controller: 'continuity', choice: 'discrete',
+  })) return false;
+  if (!exactBranchStage(domainContinuous, {
+    id: 'domainContinuous', kind: 'domainInput', controller: 'continuity', choice: 'continuous',
+  })) return false;
+
+  if (!ask.includes('range')) return rest.length === 0;
+  return rest.length === 2
+    && exactBranchStage(rest[0], {
+      id: 'rangeDiscrete', kind: 'rangeInput', controller: 'continuity', choice: 'discrete',
+    })
+    && exactBranchStage(rest[1], {
+      id: 'rangeContinuous', kind: 'rangeInput', controller: 'continuity', choice: 'continuous',
+    });
+};
+
 const diagnostic = ({ question, repairKey, code, message }) => ({
   issueKind: 'platformIssue',
   source: 'runtimeCompatibility',
@@ -110,7 +185,8 @@ const noSyntheticGraphRule = (question = {}) => {
     };
   }
 
-  if (provenance !== 'recipeexpansion') {
+  const knownLegacyShape = !provenance && isExactKnownLegacySyntheticGraphWorkflow(question);
+  if (provenance !== 'recipeexpansion' && !knownLegacyShape) {
     return {
       applies: true,
       question,
