@@ -37,12 +37,9 @@ const assignmentHasAudience = (assignment = {}) => (
 
 export const assignmentNeedsStudentForWorksheet = (assignment = {}) => {
   const runtimeAssignment = prepareAssignmentForRuntime(assignment, { source: 'teacherWorksheetAudience' }).assignment;
-  const questions = getStoredAssignmentQuestions(runtimeAssignment);
-  return projectCurrentAssignmentContent(runtimeAssignment).entries.some((entry) => {
-    const question = questions[entry.storageIndex];
-    const sectionRole = entry.logicalRole;
-    return getSectionVariantMode(runtimeAssignment, sectionRole) !== 'shared';
-  });
+  return projectCurrentAssignmentContent(runtimeAssignment).entries.some((entry) => (
+    getSectionVariantMode(runtimeAssignment, entry.logicalRole) !== 'shared'
+  ));
 };
 
 export const eligibleStudentsForTeacherWorksheet = (assignment = {}, students = []) => {
