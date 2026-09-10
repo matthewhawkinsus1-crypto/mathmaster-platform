@@ -10,6 +10,11 @@ import {
 import { SMART_VIEWS, matchesSmartView } from './assignmentSmartViews';
 import { getAssignmentLifecycle } from './assignmentLifecycle';
 import { isAssignmentEligibleForNormalLibrary } from './platform/preflight/assignmentAuthoringState.js';
+import {
+  contentVersionLabel,
+  groupCurrentLibraryReleases,
+  normalizeContentLineage,
+} from './platform/assignments/assignmentContentVersion.js';
 
 const dialogOverlayStyle = {
   position: 'fixed',
@@ -149,6 +154,7 @@ export default function AssignmentLibrary({
     try { return new Set(JSON.parse(window.localStorage.getItem('mathmaster:library:expanded-folders') || '[]')); } catch { return new Set(); }
   });
   const [sortMode, setSortMode] = useState('title');
+  const [expandedVersionFamilies, setExpandedVersionFamilies] = useState(new Set());
 
   const topLevelFolders = getFolderChildren(folderPaths, '');
 
@@ -157,10 +163,25 @@ export default function AssignmentLibrary({
   // workflow and do not leak into the normal reusable Assignment Library.
   // Legacy assignments without an authoringState remain visible until they
   // are reviewed/migrated so this rollout never makes old library work vanish.
-  const visibleForSmartView = useMemo(() => assignments.filter((assignment) => (
-    isAssignmentEligibleForNormalLibrary(assignment)
-    && matchesSmartView(assignment, smartView, { nowValue, classSchedule, classes })
-  )), [assignments, smartView, nowValue, classSchedule, classes]);
+  const versionGroups = useMemo(() => groupCurrentLibraryReleases(
+    assignments.filter((assignment) => (
+      isAssignmentEligibleForNormalLibrary(assignment)
+      && matchesSmartView(assignment, smartView, { nowValue, classSchedule, classes })
+    )),
+  ), [assignments, smartView, nowValue, classSchedule, classes]);
+
+  const visibleForSmartView = useMemo(() => {
+    const visible = [];
+    versionGroups.visible.forEach((assignment) => {
+      const lineage = normalizeContentLineage(assignment);
+      if (lineage.familyId && expandedVersionFamilies.has(lineage.familyId)) {
+        visible.push(...(versionGroups.families.get(lineage.familyId) || [assignment]));
+      } else {
+        visible.push(assignment);
+      }
+    });
+    return visible;
+  }, [versionGroups, expandedVersionFamilies]);
 
   const filteredAssignments = useMemo(() => {
     const items = visibleForSmartView.filter((assignment) => (
@@ -224,6 +245,12 @@ export default function AssignmentLibrary({
     const next = new Set(current);
     if (next.has(path)) next.delete(path); else next.add(path);
     try { window.localStorage.setItem('mathmaster:library:expanded-folders', JSON.stringify([...next])); } catch { /* best effort */ }
+    return next;
+  });
+
+  const toggleVersionFamily = (familyId) => setExpandedVersionFamilies((current) => {
+    const next = new Set(current);
+    if (next.has(familyId)) next.delete(familyId); else next.add(familyId);
     return next;
   });
 
@@ -318,6 +345,10 @@ export default function AssignmentLibrary({
           {filteredAssignments.length === 0 && <p style={{ color: '#80868b' }}>No assignments match this filter.</p>}
           {filteredAssignments.map((assignment) => {
             const lifecycle = getAssignmentLifecycle(assignment, nowValue);
+            const lineage = normalizeContentLineage(assignment);
+            const familyReleases = lineage.familyId ? (versionGroups.families.get(lineage.familyId) || []) : [];
+            const hasVersionHistory = familyReleases.length > 1;
+            const versionHistoryOpen = Boolean(lineage.familyId && expandedVersionFamilies.has(lineage.familyId));
             const isUnassigned = (!Array.isArray(assignment.assignedClassIds) || assignment.assignedClassIds.filter(Boolean).length === 0)
               && (!Array.isArray(assignment.assignedClassPeriods) || assignment.assignedClassPeriods.filter(Boolean).length === 0);
             return (
@@ -342,7 +373,23 @@ export default function AssignmentLibrary({
               >
                 <div style={{ flex: '1 1 auto', minWidth: 0 }}>
                   <div style={{ fontWeight: 'bold' }}>{assignment.title}</div>
-                  <div style={{ fontSize: '12px', color: '#5f6368' }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, padding: '2px 6px', borderRadius: 999, background: '#e8f0fe', color: '#174ea6' }}>
+                      {contentVersionLabel(assignment)}
+                    </span>
+                    {lineage.familyId && <span style={{ fontSize: 10, fontWeight: 900, padding: '2px 6px', borderRadius: 999, background: lineage.releaseStatus === 'superseded' ? '#f1f3f4' : '#e6f4ea', color: lineage.releaseStatus === 'superseded' ? '#5f6368' : '#137333' }}>
+                      {lineage.releaseStatus === 'superseded' ? 'SUPERSEDED' : 'CURRENT'}
+                    </span>}
+                    {hasVersionHistory && <button
+                      type="button"
+                      onClick={(event) => { event.stopPropagation(); toggleVersionFamily(lineage.familyId); }}
+                      onMouseDown={(event) => event.stopPropagation()}
+                      style={{ border: 0, background: 'transparent', color: '#174ea6', fontSize: 11, fontWeight: 800, cursor: 'pointer', padding: 0 }}
+                    >
+                      {versionHistoryOpen ? 'Hide Version History' : 'Version History'}
+                    </button>}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#5f6368', marginTop: 3 }}>
                     {normalizeFolderPath(assignment.folder) || 'Uncategorized'} &middot; {assignment.archived ? 'archived' : lifecycle.status}
                   </div>
                 </div>
