@@ -21,7 +21,7 @@ function prepareContentRelease({
     throw new Error("The successor content version must be at least 2.");
   }
 
-  const release = clone(reviewedAssignment);
+  const release = { ...reviewedAssignment };
   delete release.id;
   delete release.archived;
   delete release.createdAt;
