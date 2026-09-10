@@ -6,6 +6,7 @@ import {
   contentVersionOf,
   groupCurrentLibraryReleases,
   latestFamilyRelease,
+  latestCurrentLibraryRelease,
   sameContentFamily,
 } from '../../functions/shared/assignmentContentVersion.mjs';
 
@@ -50,4 +51,12 @@ test('current release is visible and superseded sibling is hidden by default', (
   const { visible, families } = groupCurrentLibraryReleases([legacy, v1, v2]);
   assert.deepEqual(visible.map((item) => item.id), ['legacy', 'v2']);
   assert.deepEqual(families.get('fam').map((item) => item.id), ['v2', 'v1']);
+});
+
+
+test('latest current Library release ignores assigned siblings', () => {
+  const liveV1 = { id:'live-v1', assignedClassIds:['c1'], contentLineage:{familyId:'fam',version:1,releaseStatus:'superseded'} };
+  const liveV3 = { id:'live-v3', assignedClassIds:['c2'], contentLineage:{familyId:'fam',version:3,releaseStatus:'current'} };
+  const libraryV2 = { id:'library-v2', assignedClassIds:[], contentLineage:{familyId:'fam',version:2,releaseStatus:'current'} };
+  assert.equal(latestCurrentLibraryRelease([liveV1, liveV3, libraryV2], liveV1)?.id, 'library-v2');
 });
