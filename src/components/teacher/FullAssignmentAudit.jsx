@@ -15,6 +15,7 @@ export default function FullAssignmentAudit({ assignmentV5, repairCenterModel, a
   const [selected, setSelected] = useState(new Set());
   const [filter, setFilter] = useState('All');
   const [message, setMessage] = useState('');
+  const [creatingVersion, setCreatingVersion] = useState(false);
   const questionIds = useMemo(() => (assignmentV5?.sections || []).flatMap((section) => section.questions || []).map((question) => clean(question.questionId)), [assignmentV5]);
   if (!authorized) return null;
 
@@ -46,6 +47,24 @@ export default function FullAssignmentAudit({ assignmentV5, repairCenterModel, a
     } catch (error) { setStep('review'); setMessage(error.message); }
   };
 
+  const createCorrectedRelease = async () => {
+    if (!response || !selected.size || creatingVersion) return;
+    setCreatingVersion(true);
+    try {
+      const result = await teacherAdmin.createAssignmentContentVersion({
+        ...response,
+        selectedQuestionIds: [...selected],
+      });
+      setMessage(
+        `Created Content V${result.contentVersion} in the Library. Existing assigned copies were not changed. Open the assigned copy to upgrade it.`,
+      );
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setCreatingVersion(false);
+    }
+  };
+
   return <section aria-label="Full Assignment Audit" style={{ marginTop: 14, padding: 14, border: '2px solid #7b1fa2', borderRadius: 12, background: '#fff' }}>
     <h3 style={{ margin: 0, color: '#6a1b9a' }}>Full Assignment Audit · elevated maintenance</h3>
     {step === 'idle' && <button type="button" onClick={() => setStep('warning1')} style={{ marginTop: 10 }}>Full Assignment Audit</button>}
@@ -61,7 +80,13 @@ export default function FullAssignmentAudit({ assignmentV5, repairCenterModel, a
         <strong>{result.questionId} · {result.classification}</strong><p>{result.reason}</p>{result.classification === 'platformIssue' && <p><strong>Platform issue — question left unchanged</strong></p>}{replacement && <details><summary>Before / proposed repair</summary><pre>{JSON.stringify({ before, after: replacement.question }, null, 2)}</pre></details>}
       </article>; })}
       {(response.globalFindings || []).length > 0 && <details><summary>Global findings</summary><pre>{JSON.stringify(response.globalFindings, null, 2)}</pre></details>}
-      <button type="button" disabled={!selected.size} onClick={() => setStep('warning2')}>Review commit warning</button>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" disabled={!selected.size} onClick={() => setStep('warning2')}>Review commit warning</button>
+        <button type="button" disabled={!selected.size || creatingVersion} onClick={createCorrectedRelease}>
+          {creatingVersion ? 'Creating corrected content…' : 'Create Corrected Content Version'}
+        </button>
+      </div>
+      <p style={{ color: '#5f6368', fontSize: 13 }}>Creating a corrected content version makes a new unassigned Library release. It does not silently rewrite copies students already received.</p>
     </section>}
     {step === 'warning2' && <div role="alertdialog" aria-label="Apply Repairs warning"><h4>Apply Repairs to Shared Library Assignment?</h4><p>You are about to change the shared MathMaster Library version of this assignment.</p><ul><li>Only assignment issues change authored questions.</li><li>Platform issues remain unchanged and are sent to Platform Issues.</li><li>Existing student work and historical grades are not rewritten.</li><li>A new assignment revision and question-level repair history will be created.</li><li>Other teachers may receive the corrected version under existing update rules.</li></ul><button type="button" onClick={commit}>Apply Selected Repairs</button> <button type="button" onClick={() => setStep('review')}>Cancel and Review</button></div>}
     {message && <p role="status">{message}</p>}
