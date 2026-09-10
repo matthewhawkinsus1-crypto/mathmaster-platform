@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import CoordinatePlane from '../../tools/shared/CoordinatePlane';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure';
+import { evaluateGraphFunction } from '../../functionGraphUtils.js';
 import { evaluateModelAt } from './modelExpression';
 import { restrictEvaluatorToDomain, workflowEndpointMarkers, workflowHorizontalAsymptotes } from './workflowGraphVisuals.js';
 
@@ -66,6 +67,20 @@ const button = {
   cursor: 'pointer',
 };
 
+const unrestrictedStructuredEvaluator = (spec) => {
+  if (!spec || typeof spec !== 'object') return null;
+  // The workflow draws the restriction separately so open endpoints can still
+  // be evaluated exactly for their marker. Keep natural family restrictions
+  // (for example square-root/log domains) inside evaluateGraphFunction.
+  const evaluationSpec = { ...spec };
+  delete evaluationSpec.domain;
+  delete evaluationSpec.restrictedDomain;
+  return (x) => {
+    const y = evaluateGraphFunction(evaluationSpec, x);
+    return Number.isFinite(y) ? y : Number.NaN;
+  };
+};
+
 export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onChange, disabled = false }) {
   const { selections, none } = readFeatureSelection(value);
   const selectionCount = Math.max(1, Number(stage?.selectionCount) || 1);
@@ -79,23 +94,54 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
     yMax: Number.isFinite(Number(graph.yMax)) ? Number(graph.yMax) : 10,
   };
 
+  // Canonical V5 graph questions normally store the drawable curve in
+  // graph.functions. Older workflow content may instead provide graph.model or
+  // one graph.functionSpec, so preserve those shapes too. The interactive
+  // marking stage must consume the same authored graph evidence as the static
+  // renderer; otherwise students get a grid with no function to inspect.
+  const model = typeof graph.model === 'string' ? graph.model.trim() : '';
+  const structuredFunctions = useMemo(
+    () => (Array.isArray(graph.functions)
+      ? graph.functions.filter((candidate) => candidate && typeof candidate === 'object')
+      : []),
+    [graph.functions],
+  );
+  const nestedFunctionSpec = graph.functionSpec && typeof graph.functionSpec === 'object'
+    ? graph.functionSpec
+    : null;
+  const functionSpecsToDraw = nestedFunctionSpec ? [nestedFunctionSpec] : structuredFunctions;
+  const functionSpec = functionSpecsToDraw[0] || null;
+  const functionDomain = functionSpec?.domain || functionSpec?.restrictedDomain || graph.domain || null;
+
   // Keep one unrestricted evaluator to compute exact boundary points, then
   // restrict only the curve that is drawn.
-  const model = typeof graph.model === 'string' ? graph.model.trim() : '';
-  const functionSpec = graph.functionSpec && typeof graph.functionSpec === 'object' ? graph.functionSpec : null;
-  const functionDomain = functionSpec?.domain || graph.domain || null;
   const baseEvaluate = useMemo(() => {
-    if (!model) return null;
-    const evaluate = (x) => {
-      const y = evaluateModelAt(model, x);
-      return Number.isFinite(y) ? y : Number.NaN;
-    };
-    return Number.isFinite(evaluate(viewWindow.xMin)) || Number.isFinite(evaluate(0)) ? evaluate : null;
-  }, [model, viewWindow.xMin]);
-  const functions = useMemo(
-    () => (baseEvaluate ? [restrictEvaluatorToDomain(baseEvaluate, functionDomain)] : []),
-    [baseEvaluate, functionDomain],
-  );
+    if (model) {
+      const evaluate = (x) => {
+        const y = evaluateModelAt(model, x);
+        return Number.isFinite(y) ? y : Number.NaN;
+      };
+      return Number.isFinite(evaluate(viewWindow.xMin)) || Number.isFinite(evaluate(0)) ? evaluate : null;
+    }
+    return unrestrictedStructuredEvaluator(functionSpec);
+  }, [model, functionSpec, viewWindow.xMin]);
+
+  const functions = useMemo(() => {
+    if (model || nestedFunctionSpec) {
+      return baseEvaluate ? [restrictEvaluatorToDomain(baseEvaluate, functionDomain)] : [];
+    }
+    return structuredFunctions
+      .map((spec) => {
+        const evaluate = unrestrictedStructuredEvaluator(spec);
+        if (!evaluate) return null;
+        return restrictEvaluatorToDomain(
+          evaluate,
+          spec?.domain || spec?.restrictedDomain || graph.domain || null,
+        );
+      })
+      .filter(Boolean);
+  }, [model, nestedFunctionSpec, baseEvaluate, functionDomain, structuredFunctions, graph.domain]);
+
   const endpointMarkers = useMemo(
     () => (baseEvaluate ? workflowEndpointMarkers({ evaluate: baseEvaluate, domain: functionDomain, viewWindow }) : []),
     [baseEvaluate, functionDomain, viewWindow.xMin, viewWindow.xMax, viewWindow.yMin, viewWindow.yMax],
@@ -170,7 +216,7 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
           ...(Array.isArray(graph.horizontalLines) ? graph.horizontalLines : []),
           ...asymptotes,
         ]}
-        {...(!model && curvePoints.length > 1 && graph.connect !== false
+        {...(functions.length === 0 && curvePoints.length > 1 && graph.connect !== false
           ? { polylines: [curvePoints] }
           : {})}
         onPlot={disabled ? null : plot}
