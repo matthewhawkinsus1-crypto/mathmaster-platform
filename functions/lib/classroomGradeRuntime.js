@@ -191,7 +191,7 @@ function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowVa
     if (dueAt && now >= dueAt.getTime()) return "due-checkpoint";
     return progressCheckpointStage(progress);
   }
-  if (reason === "manual-retry") {
+  if (reason === "manual-retry" || reason === "section-grade-reconcile") {
     return progress.attempted > 0 || (dueAt && now >= dueAt.getTime())
       ? "manual-retry"
       : null;

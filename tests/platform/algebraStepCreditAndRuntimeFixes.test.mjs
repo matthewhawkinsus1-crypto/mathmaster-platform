@@ -233,10 +233,11 @@ test('teacher gradebook section scores show no evidence rather than a zero for u
 test('already-synced Classroom grades can be recalculated and resent without reopening student work', () => {
   const manager = read('src/ClassroomManagerV2.jsx');
   assert.match(manager, /Regrade an assignment that is already closed/);
-  assert.match(manager, /Recalculate & resend selected assignment grades/);
+  assert.match(manager, /Reconcile section grades/);
   assert.match(manager, /Students do not need to reopen or redo the assignment/);
   assert.match(manager, /sync\.status === 'synced' \? 'Recalculate & resend' : 'Retry'/);
   assert.match(manager, /await retryClassroomGradeSync\(/);
+  assert.match(manager, /await reconcileClassroomSectionGrades\(/);
 });
 
 
@@ -251,12 +252,14 @@ test('both algebra workspaces surface cumulative step credit to the student', ()
 
 
 test('closed Classroom regrade includes saved assignment students even when no prior sync row exists', () => {
-  const manager = read('src/ClassroomManagerV2.jsx');
-  assert.match(manager, /const fallbackPublication = links\.find/);
-  assert.match(manager, /student\?\.gradesByAssignment\?\.\[selectedAssignment\.id\]/);
-  assert.match(manager, /status: 'not-yet-synced'/);
-  assert.match(manager, /assignedClassIds/);
-  assert.match(manager, /assignedClassPeriods/);
+  const source = read('functions/classroomSectionEntry.js');
+  const start = source.indexOf('const reconcileClassroomSectionGrades = onCall');
+  const end = source.indexOf('async function publishAssignmentSectionsHandler', start);
+  const reconcile = source.slice(start, end);
+  assert.match(reconcile, /queueGradeSignalForAssignmentAudience/);
+  assert.match(reconcile, /requireSavedTracker: true/);
+  assert.match(reconcile, /reason: "section-grade-reconcile"/);
+  assert.match(source, /gradeDoc\.data\(\)\?\.gradesByAssignment\?\.\[assignmentId\]/);
 });
 
 test('manual Classroom retry cannot use an unrelated publication as an authorization anchor', () => {

@@ -36,10 +36,11 @@ test('unlinked rows explain the roster problem and are excluded from blind bulk 
   assert.deepEqual(retryEligibleGradeSyncs(rows).map((row) => row.syncId), ['f1']);
 });
 
-test('Classroom Manager exposes retry-all and name-first monitor copy without removing deliberate resend', () => {
+test('Classroom Manager exposes retry-all, name-first monitoring, and versioned section reconciliation', () => {
   const manager = fs.readFileSync(path.join(root, 'src/ClassroomManagerV2.jsx'), 'utf8');
   assert.match(manager, /Retry all eligible failures/i);
   assert.match(manager, /Needs roster link/i);
   assert.match(manager, /gradeSyncStudentDisplay/);
-  assert.match(manager, /Recalculate & resend selected assignment grades/);
+  assert.match(manager, /Reconcile section grades/);
+  assert.match(manager, /reconcileClassroomSectionGrades\(\{\s*assignmentId: selectedAssignment\.id/);
 });
