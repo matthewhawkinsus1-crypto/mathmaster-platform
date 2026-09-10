@@ -1,0 +1,97 @@
+name: One-shot live runtime boundary patch
+
+on:
+  push:
+    branches:
+      - codex/finish-live-runtime-self-healing
+    paths:
+      - .github/workflows/one-shot-live-runtime-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/finish-live-runtime-self-healing
+          fetch-depth: 0
+      - name: Patch live player and workflow guidance
+        shell: python
+        run: |
+          from pathlib import Path
+
+          app = Path('src/App.jsx')
+          source = app.read_text()
+          old_import = "  getStoredAssignmentQuestions,\n  getStoredAssignmentTypeProjection,"
+          new_import = "  getStoredAssignmentQuestions,\n  prepareAssignmentForRuntime,\n  getStoredAssignmentTypeProjection,"
+          if old_import not in source:
+              raise SystemExit('App import anchor not found')
+          source = source.replace(old_import, new_import, 1)
+
+          old_active = """  const activeAssignmentData = assignments.find(
+            (assignment) => assignment.id === activeAssignmentId,
+          );
+          const activeQuestions = getStoredAssignmentQuestions(activeAssignmentData);"""
+          new_active = """  // Keep the literal Firestore record separate from the runtime compatibility
+          // view. Student/teacher rendering and lifecycle decisions consume the prepared
+          // view; persistence and audit code can still refer to the saved object when needed.
+          const rawActiveAssignmentData = assignments.find(
+            (assignment) => assignment.id === activeAssignmentId,
+          );
+          const activeRuntimeRepair = useMemo(
+            () => prepareAssignmentForRuntime(rawActiveAssignmentData || {}, { source: 'activeAssignmentPlayer' }),
+            [rawActiveAssignmentData],
+          );
+          const activeAssignmentData = activeRuntimeRepair.assignment;
+          const activeQuestions = getStoredAssignmentQuestions(activeAssignmentData);"""
+          if old_active not in source:
+              raise SystemExit('App active assignment anchor not found')
+          app.write_text(source.replace(old_active, new_active, 1))
+
+          runner = Path('src/platform/workflow/WorkflowRunner.jsx')
+          source = runner.read_text()
+          old_workflow = """  const workflow = useMemo(
+            () => activeStages(authoredWorkflow, responses),
+            [authoredWorkflow, responses],
+          );
+
+          // Focus mode is decided"""
+          new_workflow = """  const workflow = useMemo(
+            () => activeStages(authoredWorkflow, responses),
+            [authoredWorkflow, responses],
+          );
+          // A primitive signature lets the guidance effect notice a genuinely new
+          // composed question without depending on workflow array identity. The latter
+          // can be rebuilt by callers and previously caused render loops; omitting all
+          // workflow content, however, let YOUR TASK stay blank/stale after navigation.
+          const workflowGuidanceSignature = useMemo(() => JSON.stringify(
+            (Array.isArray(authoredWorkflow) ? authoredWorkflow : []).map((stage) => ({
+              id: stage?.id || null,
+              kind: stage?.kind || null,
+              prompt: stage?.prompt || null,
+              label: stage?.label || null,
+              showWhen: stage?.showWhen || null,
+            })),
+          ), [authoredWorkflow]);
+
+          // Focus mode is decided"""
+          if old_workflow not in source:
+              raise SystemExit('WorkflowRunner workflow anchor not found')
+          source = source.replace(old_workflow, new_workflow, 1)
+          old_deps = "  }, [responses, activeStageIndex, focusMode]);"
+          new_deps = "  }, [responses, activeStageIndex, focusMode, workflowGuidanceSignature]);"
+          if old_deps not in source:
+              raise SystemExit('WorkflowRunner guidance dependency anchor not found')
+          runner.write_text(source.replace(old_deps, new_deps, 1))
+
+          Path('.github/workflows/one-shot-live-runtime-patch.yml').unlink()
+      - name: Commit completed patch and remove one-shot workflow
+        run: |
+          git config user.name "mathmaster-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/App.jsx src/platform/workflow/WorkflowRunner.jsx .github/workflows/one-shot-live-runtime-patch.yml
+          git commit -m "fix: wire live runtime self-healing into assignment player"
+          git push origin HEAD:codex/finish-live-runtime-self-healing
