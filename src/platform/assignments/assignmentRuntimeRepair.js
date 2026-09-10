@@ -3,11 +3,10 @@ const clean = (value) => String(value ?? '').trim();
 const lower = (value) => clean(value).toLowerCase();
 const asArray = (value) => Array.isArray(value) ? value : [];
 
-// Version 3 adds a runtime-only cleanup for the historical identity-graph
-// fallback when it was attached directly to the continuity classification
-// stage. Version 2 handled the separate stale graphConstruction shape, so old
-// compatibility stamps must be evaluated again for this newly proven variant.
-export const ASSIGNMENT_RUNTIME_REPAIR_VERSION = 3;
+// Version 4 also recognizes the proven historical representation that copied
+// the same synthetic identity graph onto both the question and its continuity
+// stage. Previously the question-level copy was mistaken for authored evidence.
+export const ASSIGNMENT_RUNTIME_REPAIR_VERSION = 4;
 
 export const RUNTIME_REPAIR_KEYS = Object.freeze({
   NO_SYNTHETIC_FUNCTION_MODELING_GRAPH: 'function-modeling-exact-ask-no-synthetic-graph-v1',
@@ -132,6 +131,22 @@ const isKnownSyntheticIdentityGraph = (graph = {}) => {
   return functions.length === 1 && identityFunctionSpec(functions[0]);
 };
 
+const stableJson = (value) => {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (isObject(value)) return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(',')}}`;
+  return JSON.stringify(value);
+};
+
+const duplicatedSyntheticQuestionGraph = (question = {}) => {
+  if (!isKnownSyntheticIdentityGraph(question?.graph)) return false;
+  const matchingStage = asArray(question?.workflow).find((stage) => (
+    isContinuityClassificationStage(stage)
+    && isKnownSyntheticIdentityGraph(stage.graph)
+    && stableJson(stage.graph) === stableJson(question.graph)
+  ));
+  return Boolean(matchingStage);
+};
+
 const isContinuityClassificationStage = (stage = {}) => (
   isObject(stage)
   && clean(stage.id) === 'continuity'
@@ -155,7 +170,10 @@ const stripKnownSyntheticContinuityStageGraph = (question = {}) => {
     changed = true;
     return next;
   });
-  return changed ? { ...question, workflow } : question;
+  if (!changed) return question;
+  const repaired = { ...question, workflow };
+  if (duplicatedSyntheticQuestionGraph(question)) delete repaired.graph;
+  return repaired;
 };
 
 /**
@@ -264,7 +282,7 @@ const noSyntheticGraphRule = (question = {}) => {
     };
   }
 
-  if (hasAuthoredGraphEvidence(question)) {
+  if (hasAuthoredGraphEvidence(question) && !duplicatedSyntheticQuestionGraph(question)) {
     return {
       applies: true,
       question,

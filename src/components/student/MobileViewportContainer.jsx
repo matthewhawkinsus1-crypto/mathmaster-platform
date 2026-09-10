@@ -45,7 +45,8 @@ const setReactInputValue = (element, value) => {
 };
 
 export const MobileViewportContainer = ({
-  promptText,
+  originalTaskPrompt,
+  currentStagePrompt = '',
   taskMeta = null,
   taskContextPanel = null,
   contextPanel = null,
@@ -285,8 +286,14 @@ export const MobileViewportContainer = ({
               variant="task"
               footer={taskContextPanel ? <div className="mathmaster-question-task-context">{taskContextPanel}</div> : null}
             >
-              {promptText || 'Complete the math task.'}
+              {originalTaskPrompt || 'Complete the math task.'}
             </QuestionPrompt>
+            {currentStagePrompt && (
+              <div className="mathmaster-current-question">
+                <span>Current question</span>
+                <QuestionPrompt variant="plain">{currentStagePrompt}</QuestionPrompt>
+              </div>
+            )}
             {taskMeta && <div className="mathmaster-question-task-meta">{taskMeta}</div>}
           </>
         )}
@@ -329,7 +336,7 @@ export const MobileViewportContainer = ({
           <span>YOUR TASK</span>
           {!isLandscape && <button type="button" onClick={() => setIsPromptCollapsed((current) => !current)}>{isPromptCollapsed ? 'Show Prompt ▼' : 'Minimize ▲'}</button>}
         </div>
-        {!isPromptCollapsed && <div className="prompt-body"><QuestionPrompt variant="plain" style={{ color: '#202124', fontWeight: 800, fontSize: 18, margin: 0 }}>{promptText || 'Complete the math task.'}</QuestionPrompt>{taskMeta && <div className="mathmaster-question-task-meta">{taskMeta}</div>}{taskContextPanel && <div className="mathmaster-question-task-context">{taskContextPanel}</div>}</div>}
+        {!isPromptCollapsed && <div className="prompt-body"><QuestionPrompt variant="plain" style={{ color: '#202124', fontWeight: 800, fontSize: 18, margin: 0 }}>{originalTaskPrompt || 'Complete the math task.'}</QuestionPrompt>{currentStagePrompt && <div className="mathmaster-current-question"><span>Current question</span><QuestionPrompt variant="plain">{currentStagePrompt}</QuestionPrompt></div>}{taskMeta && <div className="mathmaster-question-task-meta">{taskMeta}</div>}{taskContextPanel && <div className="mathmaster-question-task-context">{taskContextPanel}</div>}</div>}
         {responseFields && <div className="response-inputs-section">{responseFields}</div>}
         {!workspaceActive && isLandscape && (actionButtons || workBar) && <div className="landscape-action-bar">{workBar}{actionButtons}</div>}
       </section>

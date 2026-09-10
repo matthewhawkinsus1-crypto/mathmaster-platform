@@ -84,6 +84,43 @@ test('explicitly authored identity graph is preserved even when it resembles the
   assert.deepEqual(repaired.question.workflow[0].graph, source.workflow[0].graph);
 });
 
+
+test('exact tank legacy graph is gone before the composed workflow reaches its renderer', async () => {
+  const { readComposedQuestion } = await import('../../src/platform/workflow/questionWorkflow.js');
+  const source = tankQuestionWithLegacySyntheticGraph();
+  // The older stored representation duplicated the same fallback at question
+  // level. It is not authored evidence: both copies are the platform y=x
+  // default and the recipe never asked for graph work.
+  source.graph = structuredClone(source.workflow[0].graph);
+
+  const composed = readComposedQuestion(source);
+
+  assert.equal(composed.content.graph, undefined);
+  assert.equal(composed.workflow.some((stage) => stage.graph), false,
+    'no synthetic identity graph may reach StageFigure/CoordinatePlane');
+});
+
+test('a near-match top-level graph fails closed when it cannot be proven synthetic', () => {
+  const source = tankQuestionWithLegacySyntheticGraph();
+  source.graph = { ...source.workflow[0].graph, points: [{ x: 0, y: 0 }] };
+
+  const repaired = repairQuestionForCurrentRuntime(source, { source: 'regression' });
+
+  assert.equal(repaired.changed, false);
+  assert.deepEqual(repaired.question.graph, source.graph);
+  assert.deepEqual(repaired.question.workflow[0].graph, source.workflow[0].graph);
+});
+
+test('a graph-required functionModeling workflow remains intact', () => {
+  const source = tankQuestionWithLegacySyntheticGraph();
+  source.recipe.ask = ['continuity', 'graph', 'domain', 'range'];
+
+  const repaired = repairQuestionForCurrentRuntime(source, { source: 'regression' });
+
+  assert.equal(repaired.changed, false);
+  assert.deepEqual(repaired.question.workflow[0].graph, source.workflow[0].graph);
+});
+
 test('graph feature marking renders fixed authored points before student marks and translates drag indexes', async () => {
   const source = await readFile(
     new URL('../../src/platform/workflow/GraphFeatureSelectStage.jsx', import.meta.url),
