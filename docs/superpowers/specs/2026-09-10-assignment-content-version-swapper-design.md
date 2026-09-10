@@ -11,7 +11,7 @@ This is **content versioning**, not a new assignment schema. **schemaVersion rem
 This design builds on rather than recreates merged work:
 
 - **PR #152 — Question Review & Repair Workspace:** reuse flagged-question review, immutable question IDs, revision/history checks, and its delivered-assignment safety boundary.
-- **PR #117 / #123 — Safe Live Repair:** reuse response-entry safety analysis, protected question identity/index rules, and student tracker repair behavior.
+- **PR #118 / #123 — Safe Live Repair:** reuse response-entry safety analysis, protected question identity/index rules, and student tracker repair behavior.
 - **PR #166 — Assignment runtime self-healing:** keep deterministic platform-only runtime repairs separate from authored content releases. A runtime repair version is not Content V2.
 - **PR #175 — Full Assignment Audit:** reuse admin/designated-repairer authorization, whole-assignment classifications, approved replacements, stale-revision protection, audit history, and platform-issue separation.
 - **PR #177 — Classroom section grade reconciliation:** reuse section-grade reconciliation after a content upgrade changes derived grades.
