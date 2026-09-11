@@ -2,13 +2,13 @@
 // Adding a registry entry requires an explicit decision here; exemptions need a
 // student-facing reason rather than silently falling outside Work View.
 export const WORK_VIEW_INVENTORY = Object.freeze({
-  dataModelingLab: { status: 'migrated', stage: '1-2', capabilities: ['fitView', 'panZoom', 'pointEditing', 'numericControls', 'equationInput', 'tableData', 'task', 'help', 'primaryActions'] },
-  systemsWorkspace: { status: 'migrated', stage: '3B', capabilities: ['undo', 'fitView', 'panZoom', 'pointEditing', 'numericControls', 'equationInput', 'instruction', 'task', 'help', 'primaryActions'] },
+  dataModelingLab: { status: 'migrated', stage: '1-2', capabilities: ['numericControls', 'equationInput', 'tableData', 'task', 'help', 'primaryActions'] },
+  systemsWorkspace: { status: 'migrated', stage: '3B', capabilities: ['undo', 'pointEditing', 'numericControls', 'equationInput', 'instruction', 'task', 'help', 'primaryActions'] },
   sequenceExplorer: { status: 'migrated', stage: '3B', capabilities: ['undo', 'fitView', 'panZoom', 'pointEditing', 'numericControls', 'equationInput', 'tableData', 'instruction', 'task', 'help', 'primaryActions'] },
   transformationsLab: { status: 'migrated', stage: '3A', capabilities: ['undo', 'fitView', 'panZoom', 'pointEditing', 'numericControls', 'instruction', 'task', 'help', 'primaryActions', 'secondaryActions'] },
-  functionInvestigation2: { status: 'migrated', stage: '3A', capabilities: ['undo', 'fitView', 'panZoom', 'pointEditing', 'numericControls', 'equationInput', 'instruction', 'task', 'help', 'primaryActions'] },
+  functionInvestigation2: { status: 'migrated', stage: '3A', capabilities: ['undo', 'numericControls', 'equationInput', 'instruction', 'task', 'help', 'primaryActions'] },
   graphing2: { status: 'migrated', stage: '3A', capabilities: ['undo', 'fitView', 'panZoom', 'pointEditing', 'instruction', 'task', 'help', 'primaryActions', 'secondaryActions'] },
-  constraintFunctionBuilder: { status: 'migrated', stage: '3A', capabilities: ['undo', 'fitView', 'panZoom', 'pointEditing', 'numericControls', 'instruction', 'task', 'help', 'primaryActions'] },
+  constraintFunctionBuilder: { status: 'migrated', stage: '3A', capabilities: ['undo', 'numericControls', 'equationInput', 'instruction', 'task', 'help', 'primaryActions'] },
   stepAlgebra2: { status: 'migrated', stage: '3C', capabilities: ['undo', 'numericControls', 'equationInput', 'instruction', 'task', 'help', 'primaryActions'] },
   inverseCompositionLab: { status: 'migrated', stage: '3D', capabilities: ['numericControls', 'equationInput', 'instruction', 'task', 'help'] },
   functionOperationsLab: { status: 'migrated', stage: '3D', capabilities: ['numericControls', 'equationInput', 'tableData', 'instruction', 'task', 'help'] },
