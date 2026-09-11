@@ -21,16 +21,20 @@ test('Stage 4 classifies every registered tool and certifies every migrated impl
     for (const behavior of ['opensWorkView', 'coversViewport', 'taskReachable', 'helpReachable', 'noOverflow', 'stateSurvivesPresentation']) {
       assert.ok(certification.requiredBehaviors.includes(behavior), `${toolId} lacks ${behavior}`);
     }
-    assert.equal(certification.requiredBehaviors.includes('singleOwnedUndo'), inventory.capabilities.includes('undo'));
+    assert.ok(Array.isArray(certification.sceneCapabilities) && certification.sceneCapabilities.length, `${toolId} needs scene capabilities`);
+    certification.sceneCapabilities.forEach((capability) => {
+      assert.ok(inventory.capabilities.includes(capability), `${toolId} scene cannot claim undeclared capability ${capability}`);
+    });
+    assert.equal(certification.requiredBehaviors.includes('singleOwnedUndo'), certification.sceneCapabilities.includes('undo'));
     assert.equal(
       certification.requiredBehaviors.includes('inputRemainsReachable'),
-      inventory.capabilities.some((capability) => ['numericControls', 'equationInput'].includes(capability)),
-      `${toolId} input reachability must track its declared input capabilities`,
+      certification.sceneCapabilities.some((capability) => ['numericControls', 'equationInput'].includes(capability)),
+      `${toolId} input reachability must track the rendered scene`,
     );
     assert.equal(
       certification.requiredBehaviors.includes('fitIsPresentationOnly'),
-      inventory.capabilities.includes('fitView'),
-      `${toolId} Fit View certification must track its camera capability`,
+      certification.sceneCapabilities.includes('fitView'),
+      `${toolId} Fit View certification must track the rendered scene camera`,
     );
   }
 });
