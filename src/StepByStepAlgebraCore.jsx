@@ -1707,7 +1707,7 @@ export default function StepByStepAlgebra({
           ))}
         </div>}
 
-        <div aria-label="Interactive algebra balance scale" className={`algebra-equation-stage algebra-connected-balance ${balanceStagingSide ? `is-unbalanced is-unbalanced-${balanceStagingSide}` : ''}`}>
+        <div data-math-state={equationToLatex(equation)} aria-label="Interactive algebra balance scale" className={`algebra-equation-stage algebra-connected-balance ${balanceStagingSide ? `is-unbalanced is-unbalanced-${balanceStagingSide}` : ''}`}>
           {['left', 'right'].map((side, index) => {
             const target = pendingMove?.cancellationTargets.find((item) => item.side === side);
             const pendingCancellationModel = target?.canCancel ? buildCancellationModel(
