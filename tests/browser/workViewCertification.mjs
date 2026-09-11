@@ -74,7 +74,7 @@ const mathStateSnapshot = async (toolRoot) => toolRoot.evaluate((node) => {
   const marks = [...node.querySelectorAll('svg text')]
     .filter((element) => !chrome(element) && visibleElement(element))
     .map((element) => (element.textContent || '').trim())
-    .filter((text) => /^(P|S)\\d+$/.test(text));
+    .filter((text) => /^(P|S)\d+$/.test(text));
   const placedCards = [...node.querySelectorAll('button[title*="move this card" i]')]
     .filter((element) => !chrome(element) && visibleElement(element))
     .map((element) => (element.textContent || '').trim());
