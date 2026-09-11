@@ -31,7 +31,10 @@ const CONTROL = {
   position: 'absolute',
   top: 8,
   right: 8,
-  zIndex: 2,
+  // The tool body can contain positioned split panes and headings. Keep the
+  // opener above those local stacking contexts so the visible button is also
+  // the element that receives a student's click.
+  zIndex: 50,
   // 44px, not the 34 this used to be. The button floats over the figure's
   // corner, so every pixel of it covers graph — but a control under 44px is
   // one a fingertip misses, and a student who misses the enlarge button on a
