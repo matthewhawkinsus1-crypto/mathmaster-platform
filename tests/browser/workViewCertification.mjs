@@ -13,6 +13,13 @@ const shotsRoot = process.env.WORK_VIEW_CERTIFICATION_SHOTS || path.join(repo, '
 mkdirSync(shotsRoot, { recursive: true });
 const browser = await chromium.launch();
 const findings = [];
+const requestedDevice = String(process.env.WORK_VIEW_CERTIFICATION_DEVICE || '').trim();
+const certificationDevices = requestedDevice
+  ? WORK_VIEW_CERTIFICATION_DEVICES.filter((device) => device.id === requestedDevice)
+  : WORK_VIEW_CERTIFICATION_DEVICES;
+if (requestedDevice && certificationDevices.length !== 1) {
+  throw new Error(`Unknown Stage 4 certification device: ${requestedDevice}`);
+}
 
 const visible = (locator) => locator.count().then(async (count) => count > 0 && locator.first().isVisible());
 const shortError = (error) => String(error?.message || error).split('\n')[0].slice(0, 180);
@@ -202,7 +209,7 @@ const makeStatefulEdit = async (page, shell, toolId, toolRoot) => {
   return null;
 };
 
-for (const device of WORK_VIEW_CERTIFICATION_DEVICES) {
+for (const device of certificationDevices) {
   const context = await browser.newContext({
     viewport: { width: device.viewportWidth, height: device.viewportHeight },
     isMobile: device.mobile,
@@ -414,5 +421,5 @@ for (const device of WORK_VIEW_CERTIFICATION_DEVICES) {
 
 await browser.close();
 if (findings.length) console.error(JSON.stringify(findings, null, 2));
-else console.log(`Stage 4 certified ${Object.values(WORK_VIEW_CERTIFICATION).filter((entry) => entry.status === 'certified').length} tools on ${WORK_VIEW_CERTIFICATION_DEVICES.length} devices.`);
+else console.log(`Stage 4 certified ${Object.values(WORK_VIEW_CERTIFICATION).filter((entry) => entry.status === 'certified').length} tools on ${certificationDevices.length} device${certificationDevices.length === 1 ? '' : 's'}.`);
 process.exitCode = findings.length ? 1 : 0;
