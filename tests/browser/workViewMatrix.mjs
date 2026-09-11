@@ -647,9 +647,19 @@ const pressControl = async (page, pattern) => {
 };
 
 const exerciseScratchpadUndoOwner = async (page) => {
+  // A numeric edit can legitimately leave MathMaster's keypad open. Complete
+  // that editing surface before switching to Scratchpad; otherwise the keypad's
+  // Done button is intentionally above the underlying work bar and Playwright
+  // correctly refuses to click through it.
+  const keypadDone = page.locator('.mathmaster-mobile-numeric-keypad:visible .mathmaster-keypad-done').first();
+  if (await keypadDone.count()) {
+    await keypadDone.click();
+    await page.waitForTimeout(120);
+  }
+
   const launcher = page.locator('button:visible', { hasText: 'Scratchpad' }).last();
   if (!(await launcher.count())) return 'Scratchpad launcher is not reachable';
-  await launcher.click();
+  await launcher.click({ timeout: 4000 });
   const overlay = page.locator('[role="dialog"][aria-label="Full-screen scratchpad"]');
   await overlay.waitFor({ state: 'visible' });
 
