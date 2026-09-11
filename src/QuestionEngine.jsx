@@ -56,6 +56,7 @@ import { normalizeQuestionWeight } from './platform/grading/questionWeights.js';
 import { resolveTaskContextPresentation } from './platform/workflow/taskContextPresentation.js';
 import { WorkViewCapabilityProvider } from './platform/workView/workViewCapabilities.js';
 import { WorkViewUndoProvider } from './platform/workView/useMathUndoHistory.js';
+import UniversalUndoButton from './components/common/UniversalUndoButton.jsx';
 
 const EMPTY_ANSWER_STATE = {
   isComplete: false,
@@ -220,6 +221,7 @@ export default function QuestionEngine({
   const [lastSubmittedResponseKey, setLastSubmittedResponseKey] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [requesting, setRequesting] = useState(false);
+  const [baseUndoController, setBaseUndoController] = useState(null);
   const [undoController, setUndoController] = useState(null);
   const [solverWorkspaceMode, setSolverWorkspaceMode] = useState('normal');
   const solverWorkspaceActive = solverWorkspaceMode !== 'normal';
@@ -268,6 +270,7 @@ export default function QuestionEngine({
     setLastSubmittedResponseKey(record.lastResponseKey || '');
     setSubmitting(false);
     setRequesting(false);
+    setBaseUndoController(null);
     setUndoController(null);
     setSolverWorkspaceMode('normal');
     setScratchpadOpen(false);
@@ -293,7 +296,7 @@ export default function QuestionEngine({
   }, [answerState.responseKey, feedback, lastSubmittedResponseKey]);
 
   const registerUndo = useCallback((controller) => {
-    setUndoController(controller ? { ...controller } : null);
+    setBaseUndoController(controller ? { ...controller, ownerId: 'current-tool' } : null);
   }, []);
 
   const remainingAttempts = getAttemptsRemaining(record, resolvedMaximumAttempts);
@@ -851,9 +854,7 @@ export default function QuestionEngine({
   // submit button at the bottom of the viewport instead.
   const questionWorkBar = (
     <>
-      <button type="button" onClick={() => undoController?.onUndo?.()} disabled={!undoController?.canUndo || locked} title={undoController?.label || 'Undo the most recent response change'} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: undoController?.canUndo && !locked ? 'pointer' : 'not-allowed', opacity: undoController?.canUndo && !locked ? 1 : 0.45 }}>
-        ↶ Undo
-      </button>
+      {!scratchpadOpen ? <UniversalUndoButton controller={undoController} disabled={locked} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: undoController?.canUndo && !locked ? 'pointer' : 'not-allowed', opacity: undoController?.canUndo && !locked ? 1 : 0.45 }} /> : null}
       <button type="button" onClick={openScratchpad} disabled={scratchpadLoading} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>
         {scratchpadLoading ? 'Opening…' : locked ? '✎ Scratchpad' : '✎ Scratchpad'}
       </button>
@@ -937,7 +938,7 @@ export default function QuestionEngine({
   );
 
   return (
-    <WorkViewUndoProvider register={registerUndo}>
+    <WorkViewUndoProvider register={setUndoController} baseController={baseUndoController} resetKey={processedQuestion?.questionId ?? processedQuestion?.id ?? processedQuestion?.prompt ?? null}>
     <div
       ref={questionEngineRef}
       className={`mathmaster-question-engine mathmaster-question-engine-has-anchor ${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}

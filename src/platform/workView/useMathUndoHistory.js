@@ -33,13 +33,22 @@ export const selectActiveUndoOwner = (owners) => [...(owners || [])]
 // A temporary editing surface can take ownership without destroying the
 // mathematical tool's registration. Closing it simply reveals the lower
 // priority owner again, so histories can never cross surfaces.
-export function WorkViewUndoProvider({ register, children }) {
+export function WorkViewUndoProvider({ register, baseController = null, resetKey = null, children }) {
   const ownersRef = useRef(new Map());
   const sequenceRef = useRef(0);
+  const resetKeyRef = useRef(resetKey);
+  if (resetKeyRef.current !== resetKey) {
+    // Clear before descendants render/register for the new question. A passive
+    // reset could run after a child's registration and erase the new owner.
+    resetKeyRef.current = resetKey;
+    ownersRef.current.clear();
+    sequenceRef.current = 0;
+  }
   const publish = useCallback(() => {
     const owner = selectActiveUndoOwner(ownersRef.current.values());
-    register?.(owner?.controller || null);
-  }, [register]);
+    const controller = owner?.controller || baseController || null;
+    register?.(controller);
+  }, [register, baseController]);
   const registerOwner = useCallback((controller, options = {}) => {
     const id = options.id || 'mathematical-tool';
     if (!controller || options.active === false) ownersRef.current.delete(id);
@@ -47,6 +56,7 @@ export function WorkViewUndoProvider({ register, children }) {
     publish();
     return () => { ownersRef.current.delete(id); publish(); };
   }, [publish]);
+  useEffect(() => { publish(); }, [publish, baseController]);
   useEffect(() => () => register?.(null), [register]);
   return React.createElement(WorkViewUndoContext.Provider, { value: registerOwner }, children);
 }

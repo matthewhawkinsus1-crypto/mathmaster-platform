@@ -89,6 +89,7 @@ const SCENES = [
   {
     id: 'balance-algebra',
     family: 'StepByStepAlgebra',
+    scratchpadTransition: true,
     marksPlane: false,
     question: {
       questionId: 'balance-algebra', type: 'stepAlgebra',
@@ -191,6 +192,7 @@ const SCENES = [
   {
     id: 'constraint-builder',
     family: 'ConstraintFunctionBuilder',
+    scratchpadTransition: true,
     marksPlane: false,
     question: {
       id: 'constraint-builder',
@@ -644,6 +646,51 @@ const pressControl = async (page, pattern) => {
   }
 };
 
+const exerciseScratchpadUndoOwner = async (page) => {
+  const launcher = page.locator('button:visible', { hasText: 'Scratchpad' }).last();
+  if (!(await launcher.count())) return 'Scratchpad launcher is not reachable';
+  await launcher.click();
+  const overlay = page.locator('[role="dialog"][aria-label="Full-screen scratchpad"]');
+  await overlay.waitFor({ state: 'visible' });
+
+  const visibleUndo = page.locator('.mathmaster-universal-undo:visible');
+  if (await visibleUndo.count() !== 1) return `Scratchpad exposes ${await visibleUndo.count()} visible Universal Undo controls`;
+  const undoZ = await visibleUndo.evaluate((button) => ({
+    owner: button.getAttribute('data-undo-owner'),
+    z: Number(getComputedStyle(button.closest('[role="dialog"]')).zIndex),
+  }));
+  if (undoZ.owner !== 'scratchpad' || undoZ.z < 30000) return `Scratchpad Undo is not above the overlay (${JSON.stringify(undoZ)})`;
+
+  const canvas = overlay.locator('canvas');
+  const box = await canvas.boundingBox();
+  if (!box) return 'Scratchpad canvas is not reachable';
+  for (const offset of [0.3, 0.6]) {
+    await page.mouse.move(box.x + box.width * offset, box.y + box.height * 0.35);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * offset, box.y + box.height * 0.55, { steps: 5 });
+    await page.mouse.up();
+  }
+  await page.waitForTimeout(200);
+  if (Number(await overlay.getAttribute('data-scratchpad-stroke-count')) !== 2) return 'Scratchpad did not record two strokes';
+  await visibleUndo.click();
+  await page.waitForTimeout(120);
+  if (Number(await overlay.getAttribute('data-scratchpad-stroke-count')) !== 1) return 'first Universal Undo did not remove one stroke';
+  await visibleUndo.click();
+  await page.waitForTimeout(120);
+  if (Number(await overlay.getAttribute('data-scratchpad-stroke-count')) !== 0) return 'second Universal Undo did not remove the second stroke';
+
+  await overlay.getByRole('button', { name: 'Close' }).click();
+  const discard = overlay.getByRole('button', { name: 'Discard' });
+  if (await discard.count()) await discard.click();
+  await overlay.waitFor({ state: 'detached' });
+  const restored = page.locator('.mathmaster-universal-undo:visible');
+  if (await restored.count() !== 1 || await restored.isDisabled()) return 'underlying tool Undo was not restored immediately';
+  if (await restored.getAttribute('data-undo-owner') !== 'current-tool') return 'Scratchpad remained the Undo owner after close';
+  await restored.click();
+  await page.waitForTimeout(250);
+  return null;
+};
+
 /* ------------------------------------------------------------------- run */
 
 mkdirSync(SHOTS, { recursive: true });
@@ -864,6 +911,17 @@ for (const device of DEVICES) {
     }
     await page.evaluate(CLOSE_WORK_VIEW);
     await page.waitForTimeout(250);
+
+    if (scene.scratchpadTransition && edit) {
+      const scratchpadProblem = await exerciseScratchpadUndoOwner(page);
+      if (scratchpadProblem) problems.push({ rule: 'undo', detail: scratchpadProblem });
+      else {
+        const afterUnderlyingUndo = await page.evaluate(READ_MATH_STATE);
+        if (JSON.stringify(afterUnderlyingUndo) !== JSON.stringify(beforeEdit)) {
+          problems.push({ rule: 'undo', detail: 'after Scratchpad closed, Undo did not restore the underlying mathematical edit' });
+        }
+      }
+    }
 
     if (pageErrors.length) {
       problems.push({ rule: 'controls', detail: `page error: ${pageErrors.splice(0).join(' | ')}` });

@@ -20,11 +20,20 @@ Views. Number-line and mapping workspaces register their complete answer state
 with Universal Undo and no longer render local mathematical Undo.
 
 Scratchpad registers as a temporary high-priority editing surface. While open,
-sequential shell Undo targets its stroke/clear history. Closing it unregisters
-that owner and reveals the still-live mathematical tool controller. Page
+the one shared Universal Undo button moves into the overlay above its backdrop,
+and sequential Undo targets its stroke/clear history. The covered work-bar copy
+is hidden. Closing Scratchpad unregisters that owner and reveals the still-live
+base mathematical tool controller, including legacy tools that register through
+`onUndoStateChange`. Page
 position, open/closed state, and overlay presentation never enter either
 history. Clear remains one undoable scratchpad edit; Clear All remains visible
 because its reset semantics differ from one-step Undo.
+
+Stage 3D Universal Undo is declared only by `intervalNumberLine` and
+`relationMapping`, the two migrated families that register complete snapshots
+with `useMathUndoHistory`. The other Stage 3D tools retain Work View but no
+longer advertise Undo: registry wrapping is presentation and cannot manufacture
+a mathematical history.
 
 The Stage 3D completeness contract rejects an unclassified catalog entry,
 unknown capability, nested state-copy architecture, local Undo in the migrated

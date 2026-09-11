@@ -200,7 +200,10 @@ test('every control in the work bar clears the Chromebook touch minimum', () => 
   const source = readFileSync('src/QuestionEngine.jsx', 'utf8');
   const start = source.indexOf('const questionWorkBar');
   const block = source.slice(start, source.indexOf('const questionContextPanel', start));
-  const buttons = block.match(/<button/g) || [];
+  // Universal Undo is a shared button component now, so count the control at
+  // its anchored call site rather than requiring QuestionEngine to duplicate
+  // the native <button> implementation text.
+  const buttons = block.match(/<(?:button|UniversalUndoButton)\b/g) || [];
   const heights = block.match(/minHeight: '44px'/g) || [];
   assert.equal(buttons.length, heights.length, 'each work bar button needs a 44px target');
   assert.ok(buttons.length >= 2);

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QuestionPrompt from './QuestionPrompt';
 import useUndoHistory from './useUndoHistory';
 import { useActiveUndoOwner } from './platform/workView/useMathUndoHistory.js';
+import UniversalUndoButton from './components/common/UniversalUndoButton.jsx';
 import {
   MAX_SCRATCHPAD_PAGES,
   canAddScratchpadPage,
@@ -103,6 +104,12 @@ export default function ScratchpadOverlay({
   const [confirmingClose, setConfirmingClose] = useState(false);
   const pageCount = pageImages.length;
 
+  useEffect(() => {
+    if (!open) return undefined;
+    document.documentElement.dataset.undoOverlayOwner = 'scratchpad';
+    return () => { delete document.documentElement.dataset.undoOverlayOwner; };
+  }, [open]);
+
   const compactQuestion = useMemo(
     () => String(questionDetails || 'Use this space to show your work.').slice(0, 700),
     [questionDetails],
@@ -149,7 +156,9 @@ export default function ScratchpadOverlay({
   // Draw one page's stored image behind the live strokes. Shared by opening the
   // scratchpad and by turning to another page.
   const loadPageImage = useCallback((dataUrl) => {
-    strokeHistory.reset([]);
+    // Clearing is one ordinary history entry. Undo restores it and leaves the
+    // earlier stroke entries available for subsequent Undo presses.
+    strokeHistory.setValue([]);
     clearBackupRef.current = null;
     setClearBackupAvailable(false);
     backgroundRef.current = null;
@@ -235,7 +244,8 @@ export default function ScratchpadOverlay({
       background: backgroundRef.current,
     };
     setClearBackupAvailable(true);
-    strokeHistory.reset([]);
+    // Clearing is one ordinary history entry, so subsequent Undo continues through earlier strokes.
+    strokeHistory.setValue([]);
     backgroundRef.current = null;
     const canvas = canvasRef.current;
     if (canvas) {
@@ -253,7 +263,15 @@ export default function ScratchpadOverlay({
   const undoScratchpad = () => {
     if (strokeHistory.canUndo) {
       strokeHistory.undo();
-      setMessage('Last stroke removed.');
+      if (clearBackupRef.current) {
+        backgroundRef.current = clearBackupRef.current.background;
+        clearBackupRef.current = null;
+        setClearBackupAvailable(false);
+        window.requestAnimationFrame(redraw);
+        setMessage('Cleared work restored.');
+      } else {
+        setMessage('Last stroke removed.');
+      }
       return;
     }
     if (clearBackupRef.current) {
@@ -271,6 +289,7 @@ export default function ScratchpadOverlay({
     canUndo: scratchpadCanUndo && !readOnly,
     onUndo: undoScratchpad,
     label: 'Undo the latest scratchpad edit',
+    ownerId: 'scratchpad',
   }), [scratchpadCanUndo, readOnly, strokes]);
   useActiveUndoOwner({
     id: `scratchpad:${questionKey ?? 'current'}`,
@@ -376,6 +395,7 @@ export default function ScratchpadOverlay({
       role="dialog"
       aria-modal="true"
       aria-label="Full-screen scratchpad"
+      data-scratchpad-stroke-count={strokes.length}
       style={{
         position: 'fixed',
         inset: 0,
@@ -530,6 +550,7 @@ export default function ScratchpadOverlay({
           />
         ))}
         <button type="button" onClick={() => setTool('eraser')} aria-pressed={tool === 'eraser'} style={{ padding: '9px 13px', borderRadius: '8px', border: tool === 'eraser' ? '2px solid #1a73e8' : '1px solid #c5d5ef', background: tool === 'eraser' ? '#e8f0fe' : '#fff', fontWeight: 'bold' }}>▱ Eraser</button>
+        <UniversalUndoButton controller={scratchpadUndoController} disabled={readOnly} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid #c5d5ef', background: '#fff', fontWeight: 'bold' }} />
         <button type="button" onClick={clearAll} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid #e0b4b0', background: '#fff', color: '#a50e0e', fontWeight: 'bold' }}>Clear All</button>
         <button type="button" onClick={() => save({ close: false })} disabled={saving} style={{ minHeight: 44, padding: '10px 16px', borderRadius: '8px', border: '1px solid #9bb8e8', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>{saving ? 'Saving…' : 'Save'}</button>
         <button type="button" onClick={() => save({ close: true })} disabled={saving} style={{ minHeight: 44, padding: '10px 18px', borderRadius: '8px', border: 'none', background: saving ? '#dadce0' : '#188038', color: '#fff', fontWeight: 'bold' }}>{saving ? 'Saving…' : 'Save & Close'}</button>

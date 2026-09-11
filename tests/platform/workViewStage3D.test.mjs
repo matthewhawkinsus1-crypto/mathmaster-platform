@@ -41,13 +41,46 @@ test('Scratchpad temporarily owns Undo and removes its duplicate control', () =>
   assert.match(scratchpad, /useActiveUndoOwner\(\{/);
   assert.match(scratchpad, /priority:\s*100/);
   assert.match(scratchpad, /active:\s*open/);
-  assert.doesNotMatch(scratchpad, />↶ Undo</);
+  assert.match(scratchpad, /<UniversalUndoButton controller=\{scratchpadUndoController\}/);
+  assert.match(scratchpad, /zIndex:\s*30000/);
+  assert.match(scratchpad, /dataset\.undoOverlayOwner\s*=\s*'scratchpad'/);
+  const workViewCss = source('src/components/common/WorkViewShell.css');
+  assert.match(workViewCss, /data-undo-overlay-owner="scratchpad"[\s\S]*data-work-view-action\*="Undo"/);
+  const engine = source('src/QuestionEngine.jsx');
+  assert.match(engine, /!scratchpadOpen\s*\?\s*<UniversalUndoButton/, 'covered work-bar Undo is hidden');
 
   const tool = { priority: 0, order: 1, controller: { label: 'tool' } };
   const overlay = { priority: 100, order: 2, controller: { label: 'scratchpad' } };
   assert.equal(selectActiveUndoOwner([tool]).controller.label, 'tool');
   assert.equal(selectActiveUndoOwner([tool, overlay]).controller.label, 'scratchpad');
   assert.equal(selectActiveUndoOwner([tool]).controller.label, 'tool');
+});
+
+test('Undo inventory declarations correspond to real shared histories', () => {
+  const undoSources = {
+    systemsWorkspace: 'src/tools/systemsWorkspace/SystemsWorkspace.jsx',
+    sequenceExplorer: 'src/tools/sequenceExplorer/SequenceExplorer.jsx',
+    transformationsLab: 'src/tools/transformations/TransformationsLab.jsx',
+    functionInvestigation2: 'src/tools/functionInvestigation2/FunctionInvestigation2.jsx',
+    graphing2: 'src/tools/graphing2/Graphing2.jsx',
+    constraintFunctionBuilder: 'src/tools/constraintFunctionBuilder/ConstraintFunctionBuilder.jsx',
+    stepAlgebra2: 'src/tools/stepAlgebra2/StepAlgebra2.jsx',
+    intervalNumberLine: 'src/tools/intervalNumberLine/IntervalNumberLine.jsx',
+    relationMapping: 'src/tools/relationMapping/RelationMapping.jsx',
+  };
+  const declaredUndo = Object.entries(WORK_VIEW_INVENTORY)
+    .filter(([, entry]) => entry.capabilities.includes('undo'))
+    .map(([id]) => id).sort();
+  assert.deepEqual(declaredUndo, Object.keys(undoSources).sort());
+  for (const [id, file] of Object.entries(undoSources)) {
+    assert.match(source(file), /useMathUndoHistory\(\{/, `${id} has a real shared history source`);
+  }
+  const stage3DUndo = declaredUndo.filter((id) => WORK_VIEW_INVENTORY[id].stage === '3D');
+  assert.deepEqual(stage3DUndo, ['intervalNumberLine', 'relationMapping']);
+  assert.doesNotMatch(source('src/tools/shared/RegisteredToolWorkView.jsx'), /undo:\s*true|undo:\s*descriptor/);
+  for (const id of ['parabolaGeometryLab', 'functionOperationsLab', 'openSortBoard']) {
+    assert.equal(WORK_VIEW_INVENTORY[id].capabilities.includes('undo'), false, `${id} does not advertise inert Undo`);
+  }
 });
 
 test('nested coordinate graphs automatically defer to the activity Work View', () => {
