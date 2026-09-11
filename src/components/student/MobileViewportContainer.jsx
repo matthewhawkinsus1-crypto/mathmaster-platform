@@ -253,6 +253,7 @@ export const MobileViewportContainer = ({
     const root = document.documentElement;
     if (!(isMobile && numericTarget)) {
       root.style.removeProperty('--mm-mobile-keypad');
+      root.style.removeProperty('--mm-mobile-keypad-width');
       delete root.dataset.mobileKeypadOpen;
       return undefined;
     }
@@ -261,8 +262,11 @@ export const MobileViewportContainer = ({
     // move to the other side, and CSS cannot branch on a variable's value.
     root.dataset.mobileKeypadOpen = 'true';
     const apply = () => {
-      const height = keypadRef.current?.getBoundingClientRect?.().height || 0;
+      const rect = keypadRef.current?.getBoundingClientRect?.();
+      const height = rect?.height || 0;
+      const width = rect?.width || 0;
       root.style.setProperty('--mm-mobile-keypad', `${Math.round(height)}px`);
+      root.style.setProperty('--mm-mobile-keypad-width', `${Math.round(width)}px`);
 
       // Focus was scrolled before the keypad existed. Once its measured space
       // changes the Work View geometry, move only the local vertical scroller
@@ -281,6 +285,7 @@ export const MobileViewportContainer = ({
     return () => {
       observer?.disconnect();
       root.style.removeProperty('--mm-mobile-keypad');
+      root.style.removeProperty('--mm-mobile-keypad-width');
       delete root.dataset.mobileKeypadOpen;
     };
   }, [isMobile, numericTarget]);
