@@ -71,7 +71,7 @@ const mathStateSnapshot = async (toolRoot) => toolRoot.evaluate((node) => {
   return { fields, pressed, mathState, marks, placedCards };
 });
 
-const makeStatefulEdit = async (page, shell, toolId) => {
+const makeStatefulEdit = async (page, shell, toolId, toolRoot) => {
   const baseline = await mathStateSnapshot(toolRoot);
   const changed = async (description) => {
     await page.waitForTimeout(160);
@@ -316,7 +316,7 @@ for (const device of WORK_VIEW_CERTIFICATION_DEVICES) {
         // changed the mathematics. A pristine fixture would look identical after
         // an accidental remount/reset and falsely certify the regression.
         const baselineState = await mathStateSnapshot(toolRoot);
-        let edit = await makeStatefulEdit(page, shell, toolId);
+        let edit = await makeStatefulEdit(page, shell, toolId, toolRoot);
         if (!edit) {
           problems.push('could not make a stateful student edit before resize/orientation certification');
         } else {
@@ -352,7 +352,7 @@ for (const device of WORK_VIEW_CERTIFICATION_DEVICES) {
                 if (JSON.stringify(undoneState) !== JSON.stringify(baselineState)) {
                   problems.push('Universal Undo did not restore the mathematical state before the edit');
                 }
-                edit = await makeStatefulEdit(page, shell, toolId);
+                edit = await makeStatefulEdit(page, shell, toolId, toolRoot);
                 if (!edit) problems.push('could not recreate mathematical work after Undo for resize certification');
                 else {
                   await dismissNumericKeypad(page);
