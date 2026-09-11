@@ -2,17 +2,15 @@ import { generateQuestion } from '../../problemGenerator.js';
 import { normalizeQuestionRecord } from '../../attemptPolicy.js';
 import {
   assignmentIsForStudent,
-  getIncludedQuestionIndices,
   getSectionVariantMode,
-  questionIsIncluded,
 } from '../../assignmentLifecycle.js';
 import {
   getStoredAssignmentQuestions,
   prepareAssignmentForRuntime,
 } from '../contract/storedAssignmentV5.js';
-import { resolveQuestionActivityRole } from '../policies/activityPolicies.js';
 import { resolveDeliveredQuestionMetadata } from '../assignments/assignmentAdaptation.js';
 import { normalizeContextualQuestion } from '../context/wordProblemLayer.js';
+import { projectCurrentAssignmentContent } from '../assignments/currentContentProjection.js';
 import { buildAssignmentWorksheetModel, PRINT_OUTPUT_MODES } from './assignmentWorksheetPdfModel.js';
 
 const activityTitleForRole = (role) => ({
@@ -39,13 +37,9 @@ const assignmentHasAudience = (assignment = {}) => (
 
 export const assignmentNeedsStudentForWorksheet = (assignment = {}) => {
   const runtimeAssignment = prepareAssignmentForRuntime(assignment, { source: 'teacherWorksheetAudience' }).assignment;
-  const questions = getStoredAssignmentQuestions(runtimeAssignment);
-  return getIncludedQuestionIndices(runtimeAssignment).some((index) => {
-    const question = questions[index];
-    if (!question || !questionIsIncluded(question)) return false;
-    const sectionRole = resolveQuestionActivityRole({ question, assignment: runtimeAssignment });
-    return getSectionVariantMode(runtimeAssignment, sectionRole) !== 'shared';
-  });
+  return projectCurrentAssignmentContent(runtimeAssignment).entries.some((entry) => (
+    getSectionVariantMode(runtimeAssignment, entry.logicalRole) !== 'shared'
+  ));
 };
 
 export const eligibleStudentsForTeacherWorksheet = (assignment = {}, students = []) => {
@@ -86,11 +80,12 @@ export const buildTeacherAssignmentWorksheetModel = ({
   ).toLowerCase() === 'honors';
   const assignmentTracker = student?.gradesByAssignment?.[runtimeAssignment.id] || {};
 
-  for (const index of getIncludedQuestionIndices(runtimeAssignment)) {
+  for (const entry of projectCurrentAssignmentContent(runtimeAssignment).entries) {
+    const index = entry.storageIndex;
     const question = questions[index];
-    if (!question || !questionIsIncluded(question)) continue;
+    if (!question) continue;
 
-    const sectionRole = resolveQuestionActivityRole({ question, assignment: runtimeAssignment });
+    const sectionRole = entry.logicalRole;
     const sectionVariantMode = getSectionVariantMode(runtimeAssignment, sectionRole);
     const generationStudentKey = sectionVariantMode === 'shared'
       ? `shared-version:${runtimeAssignment.id}:${sectionRole}`
