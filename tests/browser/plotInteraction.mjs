@@ -42,8 +42,24 @@ for (const [device, config] of Object.entries(DEVICES)) {
   await page.waitForTimeout(500);
 
   // 1. The enlarge control exists on an interactive plane.
-  const enlarge = await page.locator('button', { hasText: /Enlarge to plot|Enlarge graph/ }).count();
-  if (enlarge > 0) console.log('  ok   enlarge control present on an interactive plane');
+  //
+  //    "Enlarge workspace" joined the list in Stage 3A. The plane no longer
+  //    offers a shell of its own in a migrated tool: the tool wraps its WHOLE
+  //    split, so the enlarged view carries the Check button and the construction
+  //    summary with the graph instead of leaving them behind a backdrop. What
+  //    this step is about is whether an interactive plane can be enlarged at
+  //    all, and it can — by a control that does strictly more than the one it
+  //    replaced.
+  const ENLARGE_CONTROL = /Enlarge to plot|Enlarge graph|Enlarge workspace|Open Work View/;
+  const workViewOpen = () => page.locator('.mathmaster-work-view-host[data-open="true"]').count();
+  const enlarge = await page.locator('button', { hasText: ENLARGE_CONTROL }).count();
+  // A plotting tool on a Chromebook-width screen opens Work View for the
+  // student, so there is no control left to press — and there should not be.
+  // Before Stage 3A the button this looked for was the PLANE's, rendered inside
+  // the already-open workspace: a shell inside a shell, which is the nesting
+  // this stage removed. Already enlarged is the success case.
+  const alreadyEnlarged = (await workViewOpen()) > 0;
+  if (enlarge > 0 || alreadyEnlarged) console.log(`  ok   ${alreadyEnlarged ? 'the workspace opens enlarged on this screen' : 'enlarge control present on an interactive plane'}`);
   else note(device, 'no enlarge control on an interactive plane');
 
   const svg = page.locator('svg').first();
@@ -92,16 +108,20 @@ for (const [device, config] of Object.entries(DEVICES)) {
   // 4. The enlarged view has to be a bigger place to WORK, not just to look at.
   //    An enlarge that cannot be plotted in is the dead end the old exclusion
   //    was worried about, so this plots inside it and checks the point took.
-  const enlargeButton = page.locator('button', { hasText: /Enlarge to plot|Enlarge graph/ }).first();
-  if (await enlargeButton.count()) {
+  const enlargeButton = page.locator('button', { hasText: ENLARGE_CONTROL }).first();
+  if (alreadyEnlarged || await enlargeButton.count()) {
     const countBefore = (await readStudentPoints(page)).length;
-    await enlargeButton.click();
+    if (!alreadyEnlarged) await enlargeButton.click();
     await page.waitForTimeout(320);
     const bigSvg = page.locator('svg').last();
     const bigBox = await bigSvg.boundingBox();
     if (!bigBox) note(device, 'enlarged view rendered no plane');
     else {
-      if (bigBox.width > box.width) console.log(`  ok   enlarged plane is bigger (${Math.round(box.width)} -> ${Math.round(bigBox.width)}px)`);
+      // Nothing to compare against when the workspace was enlarged from the
+      // start — `box` was measured inside it. What still has to hold is that a
+      // student can plot in there, which is the next check either way.
+      if (alreadyEnlarged) console.log(`  ok   the enlarged plane is ${Math.round(bigBox.width)}px wide`);
+      else if (bigBox.width > box.width) console.log(`  ok   enlarged plane is bigger (${Math.round(box.width)} -> ${Math.round(bigBox.width)}px)`);
       else note(device, `enlarged plane is not bigger (${Math.round(box.width)} -> ${Math.round(bigBox.width)}px)`);
       const spot = { x: bigBox.x + bigBox.width * 0.6, y: bigBox.y + bigBox.height * 0.3 };
       await page.mouse.move(spot.x, spot.y);
@@ -113,8 +133,13 @@ for (const [device, config] of Object.entries(DEVICES)) {
       if (countAfter >= countBefore) console.log('  ok   a student can plot inside the enlarged view');
       else note(device, 'plotting inside the enlarged view did nothing');
     }
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(200);
+    // Leave it as it was found: a workspace that opened itself stays open, or
+    // the zoom-button checks below would run against a plane that is no longer
+    // the one a student on this screen is looking at.
+    if (!alreadyEnlarged) {
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(200);
+    }
   }
 
   // 5. PAN AND ZOOM. The buttons are checked rather than the pinch, because they

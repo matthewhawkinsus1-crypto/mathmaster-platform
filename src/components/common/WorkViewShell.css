@@ -5,7 +5,24 @@
   inset: 0;
   z-index: 1000;
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  /*
+   * THREE ROWS, EACH CLAIMED BY NAME.
+   *
+   * This was `auto auto auto minmax(0, 1fr)` on the reasoning that the shell has
+   * four children: a header, two drawers and the body. It does — but a closed
+   * drawer is `display: none`, and an element with `display: none` is not a grid
+   * item at all. So the body landed in the second, AUTO row and sized itself to
+   * its content, leaving the 1fr row empty underneath: on a 390x844 phone the
+   * workspace stopped at 647px and 197px of the screen went to nothing, with the
+   * action row floating in the middle of the panel rather than sitting at the
+   * bottom of it.
+   *
+   * Assigning rows explicitly means the layout no longer depends on how many
+   * children happen to be in flow. Only one drawer can be open at a time —
+   * `toggleWorkViewDrawer` makes them exclusive — so they share row 2, which
+   * collapses to zero when neither is open.
+   */
+  grid-template-rows: auto auto minmax(0, 1fr);
   height: var(--mm-work-view-height, 100dvh);
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   box-sizing: border-box;
@@ -17,6 +34,7 @@
 }
 
 [data-open="true"] > .mathmaster-work-view-header {
+  grid-row: 1;
   display: flex;
   min-height: 52px;
   align-items: center;
@@ -27,12 +45,14 @@
 }
 
 .mathmaster-work-view-title { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 900; }
-.mathmaster-work-view-header button, .mathmaster-work-view-actions button { min-height: 40px; border: 1px solid #c5d5ef; border-radius: 8px; background: #fff; color: #174ea6; font-weight: 800; }
+.mathmaster-work-view-header button, .mathmaster-work-view-actions button { min-height: 44px; padding: 0 12px; border: 1px solid #c5d5ef; border-radius: 8px; background: #fff; color: #174ea6; font-weight: 800; }
+.mathmaster-work-view-header button[disabled], .mathmaster-work-view-actions button[disabled] { opacity: .45; cursor: not-allowed; }
 .mathmaster-work-view-drawer { display: none; }
-.mathmaster-work-view-drawer[data-open="true"] { display: block; padding: 12px 14px; border-bottom: 1px solid #d9e2f1; background: #fff; overflow: auto; max-height: min(42dvh, 360px); }
+.mathmaster-work-view-drawer[data-open="true"] { grid-row: 2; display: block; padding: 12px 14px; border-bottom: 1px solid #d9e2f1; background: #fff; overflow: auto; max-height: min(42dvh, 360px); }
 .mathmaster-work-view-body { display: contents; }
 
 [data-open="true"] > .mathmaster-work-view-body {
+  grid-row: 3;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
   min-height: 0;
@@ -44,9 +64,191 @@
 [data-open="true"] .mathmaster-work-view-actions { display: flex; flex-direction: column; gap: 8px; padding: 12px; overflow: auto; border-left: 1px solid #d9e2f1; background: #fff; }
 .mathmaster-work-view-capability { padding: 7px 9px; border-radius: 7px; background: #f3f7ff; color: #44516a; font-size: 12px; font-weight: 750; }
 
-@media (max-width: 720px) {
-  [data-open="true"] > .mathmaster-work-view-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
-  [data-open="true"] .mathmaster-work-view-surface { margin: 6px; }
-  [data-open="true"] .mathmaster-work-view-actions { flex-direction: row; overflow-x: auto; border: 0; border-top: 1px solid #d9e2f1; padding: 6px max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); }
-  .mathmaster-work-view-capability { display: none; }
+/* The one sentence saying what this step asks for. It is not a capability chip
+   and must not be dropped with them on a narrow screen — the phone is where a
+   student is least able to scroll back and re-read the prompt. */
+.mathmaster-work-view-instruction { display: none; }
+
+[data-open="true"] .mathmaster-work-view-instruction {
+  display: block;
+  margin: 0 0 10px;
+  padding: 8px 11px;
+  border-left: 4px solid #1a73e8;
+  border-radius: 0 8px 8px 0;
+  background: #f4f8ff;
+  color: #202124;
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+/*
+ * WHERE THE ACTIONS GO IS DECIDED ONCE, IN JAVASCRIPT.
+ *
+ * `resolveWorkViewLayout` measures the visual viewport and says `bottom` or
+ * `side`, and the shell stamps it as `data-controls`. Keying the CSS off that
+ * attribute rather than off a second set of media queries means the layout the
+ * browser draws and the layout the tests assert cannot disagree — and the short
+ * landscape phone, which wants a rail at a width that would otherwise get a
+ * row, is one rule instead of a duplicated breakpoint.
+ */
+[data-open="true"][data-controls="bottom"] > .mathmaster-work-view-body {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+[data-open="true"][data-controls="bottom"] .mathmaster-work-view-actions {
+  /* A GRID ROW, NOT AN OVERLAY. The action region takes height from the
+     workspace rather than floating over it, which is the rule the brief states
+     outright: sticky controls must never cover graph content. Capped, because a
+     tool that registers six actions must not turn the bottom third of a phone
+     into buttons — past the cap the region scrolls. */
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  max-height: 25dvh;
+  /* WRAPS, IT DOES NOT SCROLL SIDEWAYS. Five registered controls do not fit
+     across 390px, and a horizontally scrolling row hides the last of them off
+     the right edge with nothing to say they are there — the browser gate reads
+     that as a clipped control, and a student reads it as a missing one. */
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 6px;
+  overflow-y: auto;
+  border: 0;
+  border-top: 1px solid #d9e2f1;
+  /*
+   * THE IN-PAGE KEYPAD IS A KEYBOARD, SO IT TAKES ROOM RATHER THAN COVERING.
+   *
+   * MathMaster's numeric keypad is `position: fixed` at the bottom of the window
+   * with a z-index above everything — right while a student is typing into the
+   * ordinary question column, and wrong here, where it landed on Undo, Fit View
+   * and Check: four registered controls, correctly sized, on screen and
+   * untappable. The keypad publishes its height while it is up and the action
+   * region reserves it, which puts the buttons directly above the keys.
+   */
+  padding: 6px max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  /* A MARGIN, NOT PADDING. Padding reserves the space BELOW the buttons and
+     leaves them where they were — which, with the region capped and scrolling,
+     put them straight back under the keys. A margin moves the whole region up
+     and gives the height back to the workspace above it. */
+  margin-bottom: var(--mm-mobile-keypad, 0px);
+}
+
+[data-open="true"][data-controls="bottom"] .mathmaster-work-view-actions button { flex: 0 0 auto; white-space: nowrap; }
+
+/* A short landscape phone keeps the rail, and every pixel of height it does not
+   spend on buttons goes to the plane. */
+[data-open="true"][data-layout="mobile"][data-controls="side"] > .mathmaster-work-view-body {
+  grid-template-columns: minmax(0, 1fr) minmax(124px, 168px);
+}
+
+[data-open="true"][data-layout="mobile"][data-controls="side"] .mathmaster-work-view-actions {
+  padding: 6px max(6px, env(safe-area-inset-right)) 6px 6px;
+}
+
+/*
+ * A LANDSCAPE KEYPAD DOCKS TO THE RIGHT, WHICH IS WHERE THE RAIL IS.
+ *
+ * On a phone held sideways the keypad is not a bottom bar — it is a right-hand
+ * panel, over exactly the column the action rail occupies, and reserving height
+ * underneath it changes nothing. The rail moves to the other side instead, so
+ * the keys and the controls are both fully reachable while a student types a
+ * parameter and watches the graph between them.
+ */
+html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][data-controls="side"] > .mathmaster-work-view-body {
+  grid-template-columns: minmax(124px, 168px) minmax(0, 1fr);
+}
+
+html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][data-controls="side"] .mathmaster-work-view-actions {
+  order: -1;
+  border-left: 0;
+  border-right: 1px solid #d9e2f1;
+}
+
+[data-open="true"][data-layout="mobile"] > .mathmaster-work-view-header { min-height: 44px; }
+[data-open="true"][data-layout="mobile"] .mathmaster-work-view-surface { margin: 6px; padding: 8px; }
+[data-open="true"][data-layout="mobile"] .mathmaster-work-view-capability { display: none; }
+
+/* Reference text a tool keeps beside its workspace — the transformation bridge,
+   a table of rules. It earns its column on a Chromebook and loses it on a
+   phone, where the same content is registered as Help and reached from the
+   header drawer. Hidden by CSS rather than by a React branch so a tool never
+   has to know whether it is enlarged, and so nothing it owns is unmounted. */
+[data-open="true"][data-layout="mobile"] .mathmaster-work-view-secondary { display: none; }
+
+/* A tool's own header is orientation, not work: on a phone it is 40-odd pixels
+   naming a tool the student is already looking at, inside a view whose whole
+   purpose is to give the mathematics the screen. */
+[data-open="true"][data-layout="mobile"] .mathmaster-tool-shell-header { display: none; }
+[data-open="true"][data-layout="mobile"] .mathmaster-tool-shell-body { padding: 8px; }
+
+/* With the keyboard up there is barely a workspace left, so the drawers give
+   back what they can rather than pushing the field being typed into off
+   screen. */
+[data-open="true"][data-keyboard="open"] .mathmaster-work-view-drawer[data-open="true"] { max-height: min(30dvh, 200px); }
+
+/*
+ * NORMAL ASSIGNMENT CHROME STANDS DOWN WHILE WORK VIEW IS OPEN.
+ *
+ * `EnlargeableFigure` stamps `data-work-view-open` on the document element, and
+ * on a phone that is the signal for the section tabs, the question-number
+ * bubbles, the TEKS/CCMR badge and the attempt strip to leave. Two reasons, and
+ * the second is what makes this a rule rather than a tidy-up:
+ *
+ *   The panel is `position: fixed`, which covers the viewport only while no
+ *   ancestor holds a transform, filter or containment. One animation with an
+ *   identity transform was enough to shrink it to 344x395 inside a 390x664
+ *   phone — and in exactly that failure the chrome is not behind an opaque
+ *   backdrop, it is around and over the tool. Hiding it does not depend on the
+ *   stacking context holding.
+ *
+ *   Even intact, this chrome stays reachable by a scroll the student did not
+ *   intend. A question bubble under a thumb mid-drag is a lost point and a
+ *   changed question.
+ *
+ * Only on narrow screens: a Chromebook has the room to keep its bearings
+ * visible beside the panel, and hiding them there would make Work View feel
+ * like leaving the assignment.
+ */
+/*
+ * THE EMBEDDED PHONE LAYOUT STANDS DOWN INSIDE WORK VIEW.
+ *
+ * MathToolMobileLayout pins a graph panel at 46dvh with its own scrollbar so a
+ * student can read the graph while scrolling to the answer below it. That is
+ * right for the embedded column and wrong here: Work View already gives the
+ * workspace the majority of the screen and scrolls as one surface, so the cap
+ * cut a 680px workspace down to 388 and clipped the zoom buttons half-way
+ * through their own row. `!important` because the rule it answers is itself
+ * `:has()`-qualified and more specific than anything reasonable here.
+ */
+[data-open="true"] .mathmaster-tool-split > .mathmaster-tool-panel {
+  position: static !important;
+  max-height: none !important;
+  overflow: visible !important;
+  box-shadow: none !important;
+}
+
+/* Anything pinned to the bottom of the window clears the action region rather
+   than landing on it — the calculator launcher sits exactly where the Clear
+   button does on a 390px phone, and on a support plan it is not a control that
+   can simply be hidden. The height comes from the shell, which measures it. */
+@media (max-width: 720px), (max-height: 460px) {
+  html[data-work-view-open="true"] .mathmaster-calculator-drawer {
+    bottom: calc(var(--mm-work-view-actions, 0px) + max(16px, env(safe-area-inset-bottom))) !important;
+  }
+}
+
+@media (max-width: 720px), (max-height: 460px) {
+  html[data-work-view-open="true"] .mathmaster-section-tabs,
+  html[data-work-view-open="true"] .mathmaster-question-number-strip,
+  html[data-work-view-open="true"] .mathmaster-assignment-unified-nav,
+  html[data-work-view-open="true"] .mathmaster-assignment-compact-nav,
+  html[data-work-view-open="true"] .mathmaster-assignment-header,
+  html[data-work-view-open="true"] .mathmaster-question-navigation,
+  html[data-work-view-open="true"] .mathmaster-question-attempt-strip,
+  html[data-work-view-open="true"] .mathmaster-question-alignment,
+  html[data-work-view-open="true"] .mathmaster-tool-task-card {
+    display: none !important;
+  }
 }

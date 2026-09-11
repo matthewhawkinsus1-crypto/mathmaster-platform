@@ -70,3 +70,70 @@ Work View is presentation state. Fit/pan/zoom remain camera state. Neither may
 enter answer payloads, grading records, mathematical Undo, or authored-bound
 semantics. Every migration must render the existing tool instance in place;
 mounting a second interactive copy is prohibited.
+
+## Stage 3A status
+
+Migrated onto the shared shell, each registering the capabilities its activity
+actually needs rather than "a graph":
+
+* `TransformationsLab` — Universal Undo across all six modes, mode-specific
+  primary action, Clear as a secondary, the transformation bridge moved to Help
+  on a phone. Its local "Undo point" is gone.
+* `Graphing2` — Universal Undo over the plotted construction, Check and Start
+  over registered, the current instruction shared with the progress pill. Its
+  local "Undo last point" is gone.
+* `FunctionInvestigation2` — wraps its whole split for the first time; the only
+  Work View here used to be the plane's own, which left every answer field
+  behind the backdrop. Universal Undo across all five modes.
+* `ConstraintFunctionBuilder` — wraps its split, registers the family and
+  parameter controls, Universal Undo over the constructed model including the
+  `hasEdited` gate.
+* `InteractiveGraphWorkspace` (`FunctionGraphBuilder`, `GraphAnalysis`) —
+  registers Fit View as camera-only, pan/zoom, point editing and the current
+  instruction; its own tick loop and the readability ceiling of 200 are gone,
+  replaced by the shared `majorTicks`.
+
+New platform pieces, all extensions of the #186 registry:
+
+* `mathUndoStack.js` / `useMathUndoHistory.js` — one mathematical undo stack,
+  camera-free by construction, reaching `QuestionEngine`'s existing controller
+  through `WorkViewUndoProvider`.
+* A capability port, so `CoordinatePlane` keeps owning Fit View and point
+  editing when a tool wraps its whole split and the plane renders no shell.
+* `tests/browser/workViewMatrix.mjs` — the rendered gate, with findings asserted
+  by the ordinary suite and screenshots uploaded by
+  `.github/workflows/work-view-browser-matrix.yml`.
+
+Three defects the rendered gate found that no source contract would have:
+
+* the shell's grid rows were positional, and a closed drawer is `display: none`
+  and therefore not a grid item — the body sat in an auto row with 197px of
+  empty panel beneath it and the action row floating mid-screen;
+* the calculator launcher and the mobile numeric keypad are fixed above
+  everything and landed on the registered controls, leaving four buttons present,
+  correctly sized, on screen and untappable;
+* the embedded phone rule that pins a graph panel at 46dvh cut a 680px Work View
+  workspace down to 388 and clipped the zoom row half-way through itself.
+
+## Remaining Stage 3 work
+
+3B sequences and systems; 3C Step Algebra, the algebra workspaces and the rest
+of the Universal Undo consolidation (`StepAlgebra2` and `MultiRelationAlgebra`
+keep their local controls until their histories are covered); 3D number
+lines, relation mapping, representation matching, the remaining geometry and
+measurement canvases, and `ScratchpadOverlay`.
+
+`DataModelingLab` was migrated in Stage 1/2 and is held to the nesting contract
+here. `GraphDisplay` still has a renderer of its own that has not been routed
+through the shared scale policy.
+
+One open interaction question, seen in the rendered matrix rather than argued
+from the code: on a portrait phone, focusing a coefficient field in
+`ConstraintFunctionBuilder` scrolls the Work View surface so the graph leaves
+the screen — and watching the graph while moving the coefficient is the whole
+activity. The embedded layout answers this with a graph panel pinned at 46dvh,
+which Work View stands down because there it clipped the workspace to 388px and
+cut the zoom row in half. A Work View equivalent — pinned, but sized from the
+usable viewport rather than a fixed fraction — belongs with the 3B/3C parameter
+tools, where the same shape recurs. Nothing covers the graph today; it is
+scrolled, and the browser gate distinguishes the two.

@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
+import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { evaluateFunctionSpec, nearlyEqual } from '../shared/toolMath';
@@ -92,6 +94,36 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
   const [behavior, setBehavior] = useState('');
   const [comparison, setComparison] = useState('');
   const { feedback, submit } = useToolSubmission(onAction);
+
+  /*
+   * UNIVERSAL UNDO, ON A TOOL THAT HAD NO UNDO AT ALL.
+   *
+   * Every mode here is answered by typing or choosing, and a student who
+   * overwrites a correct intercept list or changes the wrong dropdown had no way
+   * back — the platform Undo button sat greyed out beside the submit control
+   * because nothing had registered with it. The snapshot is the answer fields
+   * for all five modes; the graph is read-only in every one of them, so camera
+   * state never enters.
+   */
+  const mathState = useMemo(
+    () => ({ anchorX, anchorY, verticalAsymptote, horizontalAsymptote, domainCode, rangeCode, xIntercepts, yIntercept, behavior, comparison }),
+    [anchorX, anchorY, verticalAsymptote, horizontalAsymptote, domainCode, rangeCode, xIntercepts, yIntercept, behavior, comparison],
+  );
+  const restoreMathState = useCallback((previous) => {
+    if (!previous) return;
+    setAnchorX(previous.anchorX); setAnchorY(previous.anchorY);
+    setVerticalAsymptote(previous.verticalAsymptote); setHorizontalAsymptote(previous.horizontalAsymptote);
+    setDomainCode(previous.domainCode); setRangeCode(previous.rangeCode);
+    setXIntercepts(previous.xIntercepts); setYIntercept(previous.yIntercept);
+    setBehavior(previous.behavior); setComparison(previous.comparison);
+  }, []);
+  const undoHistory = useMathUndoHistory({
+    label: 'Undo the last investigation entry',
+    state: mathState,
+    onRestore: restoreMathState,
+    resetKey: questionUndoResetKey(questionData),
+  });
+
   const graphBounds = questionData.graphBounds || { xMin: -7, xMax: 9, yMin: -9, yMax: 9 };
   const fn = useMemo(() => x => evaluateFunctionSpec(spec, x), [spec.type, spec.a, spec.h, spec.k, spec.base]);
   const compareLeft = normalizeInvestigationSpec(questionData.left || { type: 'linear', a: 1, h: 0, k: 0 });
@@ -153,6 +185,43 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
     return `Use this family’s structure rather than a generic rule — a ${FUNCTION_FAMILY_LABELS[spec.type]} does not behave like a line.`;
   };
 
+  /*
+   * ENLARGING THIS TOOL USED TO MEAN ENLARGING THE GRAPH AND NOTHING ELSE.
+   *
+   * The only Work View here was the one CoordinatePlane renders for itself, so
+   * a student who pressed it got a full-window curve with the intercept fields,
+   * the dropdowns and the Check button all behind the backdrop — they had to
+   * close it again to answer the question it was helping them read. The whole
+   * split is wrapped now, and the inner plane stops offering a shell of its own.
+   */
+  const primaryAction = mode === 'features'
+    ? { id: 'check-features', label: 'Check features', onAction: checkFeatures }
+    : mode === 'domainRange'
+      ? { id: 'check-domain-range', label: 'Check domain and range', onAction: checkDomainRange }
+      : mode === 'intercepts'
+        ? { id: 'check-intercepts', label: 'Check intercepts', onAction: checkIntercepts }
+        : mode === 'behavior'
+          ? { id: 'check-behavior', label: 'Check behavior', onAction: checkBehavior }
+          : { id: 'check-comparison', label: 'Check comparison', onAction: checkComparison };
+  const workspaceCapabilities = {
+    undo: undoHistory.capability,
+    // Fit View and pan/zoom arrive from the plane's own publication.
+    numericControls: ['features', 'intercepts'].includes(mode)
+      ? { label: mode === 'features' ? 'Feature coordinates' : 'Intercept values', studentState: true }
+      : { label: 'Analysis choices', studentState: true },
+    instruction: { text: (MODE_STEPS[mode] || MODE_STEPS.features)[0] },
+    task: { text: questionData.prompt || MODE_TASKS[mode] || MODE_TASKS.features },
+    help: {
+      content: (
+        <HintPanel
+          hints={hintsForMode(mode, spec, features, domainRange, intercepts, compareX)}
+          onHintUsed={() => onAction?.('HINT_USED')}
+        />
+      ),
+    },
+    primaryActions: [primaryAction],
+  };
+
   const featurePrompt = features.anchor.isOnGraph ? 'Defining graph feature' : 'Structural center (not a point on the graph)';
   const panelTitle = mode === 'features' ? 'Feature analysis'
     : mode === 'domainRange' ? 'Domain and range'
@@ -167,6 +236,13 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
     >
       <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.features} steps={MODE_STEPS[mode] || MODE_STEPS.features} />
 
+      <EnlargeableFigure
+        label="Function investigation workspace"
+        enlargeLabel="Enlarge workspace"
+        taskText={questionData.prompt || MODE_TASKS[mode] || MODE_TASKS.features}
+        style={{ width: '100%' }}
+        capabilities={workspaceCapabilities}
+      >
       <ToolSplit>
         <Panel title="The graph">
           {mode === 'compare' ? (
@@ -175,6 +251,7 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
               functions={[x => evaluateFunctionSpec(compareLeft, x), x => evaluateFunctionSpec(compareRight, x)]}
               verticalLines={[compareX]}
               ariaLabel="Graph of two functions being compared"
+              enlargeable={false}
             />
           ) : (
             <CoordinatePlane
@@ -183,6 +260,7 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
               verticalLines={features.verticalAsymptotes}
               horizontalLines={features.horizontalAsymptotes}
               ariaLabel={`Graph of a ${FUNCTION_FAMILY_LABELS[spec.type]} function`}
+              enlargeable={false}
             />
           )}
 
@@ -267,6 +345,7 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
           />
         </Panel>
       </ToolSplit>
+      </EnlargeableFigure>
     </ToolShell>
   );
 }

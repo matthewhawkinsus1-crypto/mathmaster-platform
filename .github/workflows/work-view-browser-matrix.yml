@@ -1,0 +1,107 @@
+name: Work View Browser Matrix
+
+# RENDERED SCREENSHOTS ARE PART OF THE DECISION NOW.
+#
+# The Stage 3A families are judged on what a student actually sees: whether the
+# controls a tool registered are on screen and pressable, whether anything sits
+# on the workspace, whether the mathematics survives entering and leaving Work
+# View. None of that can be read off the source, and the local bench does not
+# always have a browser — so this job installs one, drives the real
+# QuestionEngine on a Chromebook and an iPhone in both orientations, and uploads
+# every capture for review.
+#
+# The committed findings fixture is what the ordinary suite asserts is empty
+# (tests/platform/workViewMatrixFindings.test.mjs). This job fails when the live
+# browser disagrees with it, which is the point: the fixture must never drift
+# ahead of what the browser does.
+
+on:
+  pull_request:
+    paths:
+      - "src/components/common/EnlargeableFigure.jsx"
+      - "src/components/common/WorkViewShell.css"
+      - "src/components/student/MobileViewportContainer.jsx"
+      - "src/components/student/MathToolMobileLayout.css"
+      - "src/platform/workView/**"
+      - "src/platform/graph/graphScaleService.js"
+      - "src/QuestionEngine.jsx"
+      - "src/InteractiveGraphWorkspace.jsx"
+      - "src/tools/shared/CoordinatePlane.jsx"
+      - "src/tools/transformations/**"
+      - "src/tools/graphing2/**"
+      - "src/tools/functionInvestigation2/**"
+      - "src/tools/constraintFunctionBuilder/**"
+      - "tests/browser/workViewMatrix*"
+      - "tests/platform/fixtures/workViewMatrixFindings.json"
+      - "tests/platform/workViewMatrixFindings.test.mjs"
+      - ".github/workflows/work-view-browser-matrix.yml"
+  workflow_dispatch:
+
+jobs:
+  work-view-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Install browser driver
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start the harness app
+        run: |
+          npx vite --host 127.0.0.1 --port 5199 --strictPort > /tmp/mathmaster-vite.log 2>&1 &
+          for i in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:5199/tests/browser/workViewMatrix.html >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/mathmaster-vite.log
+          exit 1
+
+      - name: Drive the Work View matrix and capture screenshots
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: http://127.0.0.1:5199
+        run: node tests/browser/workViewMatrix.mjs --write
+
+      # Uploaded whether or not the run passed: a failure is exactly when
+      # somebody wants to look at the picture.
+      - name: Publish the rendered matrix
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-view-matrix-screenshots
+          path: tests/browser/artifacts/workView
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Show findings drift
+        if: always()
+        run: git diff -- tests/platform/fixtures/workViewMatrixFindings.json || true
+
+      - name: Require the committed findings to match the real browser
+        run: |
+          node -e "
+            const audit = require('./tests/platform/fixtures/workViewMatrixFindings.json');
+            if (audit.findings.length) {
+              console.error(JSON.stringify(audit.findings, null, 2));
+              process.exit(1);
+            }
+          "
+
+      - name: Re-assert the fixture through the ordinary suite
+        run: node --test tests/platform/workViewMatrixFindings.test.mjs tests/platform/workViewStage3A.test.mjs tests/platform/workViewCapabilities.test.mjs

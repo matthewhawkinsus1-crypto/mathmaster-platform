@@ -3,6 +3,7 @@ import { clientPointToGraphCoordinate } from '../../utils/responsiveCoordinates.
 import { resolvePointFill, resolvePointRadius } from '../../graphSpecUtils';
 import { readGraphPointCoordinates } from '../../graphPointUtils';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
+import { usePublishWorkViewCapabilities } from '../../platform/workView/workViewCapabilities.js';
 import { majorTicks, niceStep } from '../../platform/graph/graphScaleService.js';
 
 // Shared by every Batch A-D tool, so an unguarded window froze three labs at
@@ -371,6 +372,33 @@ export default function CoordinatePlane({
     const top = cy - 30 < 4 ? cy + 14 : cy - 30;
     return { cx, cy, left, top, chipWidth };
   }, [preview, previewText, revealCoordinates, width, xMin, xMax, yMin, yMax]);
+
+  /*
+   * WHAT THIS PLANE CAN DO, TOLD TO WHOEVER IS HOLDING IT.
+   *
+   * A tool whose plane is interactive wraps its whole split in Work View and
+   * passes `enlargeable={false}` here, so this component renders no shell of its
+   * own to register Fit View and point editing with. Publishing them upward
+   * keeps the camera reset wired to the code that owns the camera, instead of
+   * every tool re-declaring a copy that goes stale the next time zoom changes.
+   *
+   * When this plane DOES render its own shell it publishes nothing: the nearest
+   * port above belongs to an outer figure, and reporting a Fit button there for
+   * a plane with its own would put the control two shells away from the graph
+   * it moves.
+   */
+  const publishedCapabilities = useMemo(
+    () => (enlargeable ? null : {
+      fitView: { label: 'Fit View', onAction: resetView, disabled: !view, cameraOnly: true },
+      panZoom: zoomable ? { label: 'Pan and zoom', cameraOnly: true } : null,
+      pointEditing: interactive ? { label: canMovePoints ? 'Plot and edit points' : 'Plot points', studentState: true } : null,
+    }),
+    // `resetView` closes over nothing that changes, so the identity of this
+    // object follows the facts a student can see rather than the render count.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [enlargeable, Boolean(view), zoomable, interactive, canMovePoints],
+  );
+  usePublishWorkViewCapabilities(`coordinate-plane:${ariaLabel}`, publishedCapabilities);
 
   const plane = (
     <div style={{ position: 'relative', width: '100%' }}>

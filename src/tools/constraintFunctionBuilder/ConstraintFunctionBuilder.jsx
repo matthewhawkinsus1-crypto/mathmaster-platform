@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
+import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
@@ -13,6 +15,14 @@ import {
 const inputStyle = { width: '100%', minHeight: 42, boxSizing: 'border-box', padding: 9, border: '1px solid #c9d6e8', borderRadius: 8, fontSize: 15, background: '#fff' };
 const primary = { minHeight: 46, padding: '10px 17px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' };
 const FAMILY_LABELS = { linear: 'Linear', quadratic: 'Quadratic', exponential: 'Exponential', absolute: 'Absolute value', verticalLine: 'Vertical line (not a function)' };
+
+// Named so the panel and the Work View Help drawer read from one list rather
+// than drifting into two sets of hints for the same tool.
+const DEFAULT_HINTS = [
+  'Start with the family: a straight line, a U-shaped curve, and exponential growth/decay do not share the same structure.',
+  'For a linear model, the sign of the slope controls increasing versus decreasing. For a quadratic or absolute-value model, the sign of a controls maximum versus minimum.',
+  'For an exponential model, a base between 0 and 1 gives decay when a is positive; a base greater than 1 gives growth.',
+];
 
 const numericField = (label, value, setter, step = 1) => (
   <label style={{ display: 'block', fontSize: 13, fontWeight: 800, color: '#3c4756' }}>{label}<input type="number" step={step} value={value} onChange={(event) => setter(Number(event.target.value))} style={inputStyle} /></label>
@@ -61,6 +71,30 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
   const verticalLines = model.family === 'verticalLine' ? [model.verticalX] : [];
   const liveScore = scoreConstraintModel(model, effectiveConstraints);
 
+  /*
+   * UNIVERSAL UNDO OVER THE CONSTRUCTED MODEL.
+   *
+   * Building here is a sequence of small parameter moves against a checklist,
+   * which is precisely the shape of work a student wants to step back through:
+   * nudge a, watch a constraint go green, nudge h, watch a different one go red.
+   * `hasEdited` rides along in the snapshot because it gates submission — undoing
+   * back to the untouched model must also take the submit button back to
+   * disabled, or the tool would accept a model the student never constructed.
+   */
+  const mathState = useMemo(() => ({ model, hasEdited }), [model, hasEdited]);
+  const restoreMathState = useCallback((previous) => {
+    if (!previous) return;
+    clearFeedback();
+    setModel(normalizeBuilderModel(previous.model));
+    setHasEdited(Boolean(previous.hasEdited));
+  }, [clearFeedback]);
+  const undoHistory = useMathUndoHistory({
+    label: 'Undo the last change to your model',
+    state: mathState,
+    onRestore: restoreMathState,
+    resetKey: questionUndoResetKey(questionData),
+  });
+
   const set = (patch) => {
     clearFeedback();
     setHasEdited(true);
@@ -76,6 +110,20 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
     );
   };
 
+  const workspaceCapabilities = {
+    undo: undoHistory.capability,
+    numericControls: { label: 'Family and parameters', studentState: true },
+    equationInput: { label: builderEquation(model), studentState: true },
+    instruction: { text: 'Adjust the family and its parameters until every constraint in the checklist is satisfied.' },
+    task: { text: questionData.prompt || 'Build any relation that satisfies every stated characteristic.' },
+    help: {
+      content: (
+        <HintPanel hints={questionData.hints || DEFAULT_HINTS} onHintUsed={() => onAction?.('HINT_USED')} />
+      ),
+    },
+    primaryActions: [{ id: 'submit-model', label: 'Submit this model', onAction: check, disabled: !hasEdited }],
+  };
+
   return (
     <ToolShell title="Constraint-Based Function Builder" subtitle="There is not one secret equation. Build any relation that satisfies every stated characteristic." badge="Many correct answers">
       <TaskCard
@@ -89,12 +137,23 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
         ]}
       />
 
+      {/* The graph and the parameters that move it are one activity: enlarging
+          the curve without the coefficient fields beside it would leave a
+          student watching a graph they cannot change. */}
+      <EnlargeableFigure
+        label="Function construction workspace"
+        enlargeLabel="Enlarge workspace"
+        taskText={questionData.prompt || ''}
+        style={{ width: '100%' }}
+        capabilities={workspaceCapabilities}
+      >
       <ToolSplit>
         <Panel title="Live graph">
           <CoordinatePlane
             xMin={Number(bounds.xMin ?? -8)} xMax={Number(bounds.xMax ?? 8)} yMin={Number(bounds.yMin ?? -8)} yMax={Number(bounds.yMax ?? 8)}
             functions={functions} points={discretePoints} verticalLines={verticalLines}
             ariaLabel="Graph of the relation you are constructing"
+            enlargeable={false}
           />
           <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: '#f4f8ff', color: '#174ea6', fontWeight: 900, overflowWrap: 'anywhere' }}>{builderEquation(model)}</div>
           {model.domainMode === 'discrete' && <div style={{ marginTop: 7, fontSize: 12, color: '#5f6b7a' }}>Discrete integer domain shown from {Math.min(model.domainMin, model.domainMax)} through {Math.max(model.domainMin, model.domainMax)}.</div>}
@@ -137,13 +196,10 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
             </div>
           )}
           {feedback && <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'All constraints satisfied' : 'Keep refining the model'}</ResultPill></div>}
-          <HintPanel hints={questionData.hints || [
-            'Start with the family: a straight line, a U-shaped curve, and exponential growth/decay do not share the same structure.',
-            'For a linear model, the sign of the slope controls increasing versus decreasing. For a quadratic or absolute-value model, the sign of a controls maximum versus minimum.',
-            'For an exponential model, a base between 0 and 1 gives decay when a is positive; a base greater than 1 gives growth.',
-          ]} onHintUsed={() => onAction?.('HINT_USED')} />
+          <HintPanel hints={questionData.hints || DEFAULT_HINTS} onHintUsed={() => onAction?.('HINT_USED')} />
         </Panel>
       </ToolSplit>
+      </EnlargeableFigure>
     </ToolShell>
   );
 }

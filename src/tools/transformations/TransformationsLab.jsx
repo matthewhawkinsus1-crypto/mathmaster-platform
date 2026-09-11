@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { figureDismissalKey, shouldOpenFigureEnlarged } from '../../platform/student/figurePresentation.js';
+import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
@@ -31,6 +32,33 @@ const pointCoordinates = (point) => (
   Array.isArray(point)
     ? [Number(point[0]), Number(point[1])]
     : [Number(point?.x), Number(point?.y)]
+);
+
+/*
+ * THE SAME REFERENCE, IN THE TWO PLACES A STUDENT LOOKS FOR IT.
+ *
+ * Embedded, it is the panel beside the graph. In a narrow Work View there is no
+ * room for a column of teaching text next to the workspace — the rule is that
+ * the mathematics gets the majority of the viewport — so the panel is dropped
+ * by CSS there and the same content is registered as Help instead. It is static
+ * text with no state of its own, so rendering it in both places owns nothing
+ * twice.
+ */
+const TransformationBridge = () => (
+  <>
+    <p style={{ marginTop: 0 }}><strong>Model:</strong> y = a · f(b(x − h)) + k</p>
+    <div style={{ padding: '10px 12px', borderRadius: 10, background: '#eef4ff', border: '1px solid #aecbfa', color: '#174ea6', fontWeight: 900, marginBottom: 12 }}>
+      X&apos;s lie; Y&apos;s tell the truth.
+    </div>
+    <ul style={{ lineHeight: 1.8, paddingLeft: 20 }}>
+      <li><strong>Y / outside:</strong> a acts exactly as written — negative reflects across the x-axis; |a| is the vertical scale.</li>
+      <li><strong>X / inside:</strong> b acts oppositely — negative reflects across the y-axis; the horizontal scale is 1/|b|.</li>
+      <li><strong>h</strong> shifts horizontally with the opposite-looking sign inside the function.</li>
+      <li><strong>k</strong> shifts vertically exactly as written.</li>
+      <li>A parent point (x, y) maps to <strong>(x/b + h, ay + k)</strong>.</li>
+    </ul>
+    <p style={{ color: '#5f6b7a', marginBottom: 0 }}>This same bridge works for linear, quadratic, absolute value, cubic, root, exponential, logarithmic, and reciprocal families.</p>
+  </>
 );
 
 const parameterFields = (values, setters, keys) => (
@@ -66,6 +94,60 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
   const [verticalDistance, setVerticalDistance] = useState('');
   const [plottedPoints, setPlottedPoints] = useState([]);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
+
+  /*
+   * UNIVERSAL UNDO OVER EVERY MODE THIS LAB HAS.
+   *
+   * The local control this replaces was "Undo point", and it existed in exactly
+   * one of the six modes. A student matching parameters, describing a
+   * transformation or naming an anchor had no way back at all — and the one
+   * mode that did have a button undid a different amount of work from the Undo
+   * beside the submit button, which is the confusion Universal Undo exists to
+   * end.
+   *
+   * The snapshot is every field a student can answer with, in every mode. The
+   * camera is absent by construction: zoom lives inside CoordinatePlane and
+   * never appears here, so Fit and pan cannot enter the history.
+   */
+  const mathState = useMemo(() => ({
+    a, b, h, k,
+    mappedX, mappedY,
+    anchorX, anchorY,
+    reflection, scaleKind, scaleFactor,
+    horizontalReflection, horizontalScaleKind, horizontalScaleFactor,
+    horizontalDirection, horizontalDistance,
+    verticalDirection, verticalDistance,
+    plottedPoints,
+  }), [a, b, h, k, mappedX, mappedY, anchorX, anchorY, reflection, scaleKind, scaleFactor,
+    horizontalReflection, horizontalScaleKind, horizontalScaleFactor, horizontalDirection,
+    horizontalDistance, verticalDirection, verticalDistance, plottedPoints]);
+
+  const restoreMathState = useCallback((previous) => {
+    if (!previous) return;
+    setA(previous.a); setB(previous.b); setH(previous.h); setK(previous.k);
+    setMappedX(previous.mappedX); setMappedY(previous.mappedY);
+    setAnchorX(previous.anchorX); setAnchorY(previous.anchorY);
+    setReflection(previous.reflection); setScaleKind(previous.scaleKind); setScaleFactor(previous.scaleFactor);
+    setHorizontalReflection(previous.horizontalReflection);
+    setHorizontalScaleKind(previous.horizontalScaleKind);
+    setHorizontalScaleFactor(previous.horizontalScaleFactor);
+    setHorizontalDirection(previous.horizontalDirection);
+    setHorizontalDistance(previous.horizontalDistance);
+    setVerticalDirection(previous.verticalDirection);
+    setVerticalDistance(previous.verticalDistance);
+    setPlottedPoints(Array.isArray(previous.plottedPoints) ? previous.plottedPoints : []);
+    clearFeedback();
+  }, [clearFeedback]);
+
+  const undoHistory = useMathUndoHistory({
+    label: mode === 'plotTransform'
+      ? 'Undo the last transformed point you placed'
+      : 'Undo the last transformation entry',
+    state: mathState,
+    onRestore: restoreMathState,
+    resetKey: questionUndoResetKey(questionData),
+  });
+
   const studentSpec = useMemo(() => normalizeTransformationSpec({ type: family, a, b, h, k, base: targetSpec.base }, family), [family, a, b, h, k, targetSpec.base]);
   const descriptor = transformationDescriptor(investigationSpec);
   const anchor = transformedAnchor(investigationSpec);
@@ -148,7 +230,10 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
     submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { x: parseNumericAnswer(anchorX), y: parseNumericAnswer(anchorY), feature: anchor.label }, { mode, family, checks });
   };
 
-  const graph = (functions, points = []) => <CoordinatePlane {...graphBounds} functions={functions} points={points} />;
+  // `enlargeable={false}`: this lab wraps its WHOLE split in Work View, so a
+  // second enlarge button on the plane inside it would open a shell within a
+  // shell and leave the parameter fields behind the inner backdrop.
+  const graph = (functions, points = []) => <CoordinatePlane {...graphBounds} functions={functions} points={points} enlargeable={false} />;
   const feedbackMessage = () => {
     if (feedback.isCorrect) return 'Correct — every transformation feature matches.';
     if (mode === 'pointMap') {
@@ -173,6 +258,57 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
   const feedbackBlock = feedback ? <div style={{ marginTop: 14 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{ margin: '9px 0 0', color: '#3c4756', lineHeight: 1.55 }}>{feedbackMessage()}</p></div> : null;
   const resetFeedback = () => clearFeedback();
 
+  /*
+   * ENLARGING HAS TO CARRY THE ACTIVITY, NOT JUST THE GRAPH.
+   *
+   * Each mode of this lab is answered with something different — parameter
+   * fields, a mapped coordinate, plotted points, a set of descriptions — so the
+   * capabilities it registers follow the mode rather than describing "a graph".
+   * A student who opens Work View on a match question gets the parameters and
+   * the Check button with the two curves; on a plotTransform question they get
+   * the plotting grid, Undo and Clear.
+   */
+  const plotTransformIncomplete = !expectedTransformedPoints.length
+    || plottedPoints.length !== expectedTransformedPoints.length;
+  const primaryAction = mode === 'match'
+    ? { id: 'check-transformation', label: 'Check transformation', onAction: () => checkParameters(targetSpec) }
+    : mode === 'identify'
+      ? { id: 'check-parameters', label: 'Check parameters', onAction: () => checkParameters(investigationSpec) }
+      : mode === 'pointMap'
+        ? { id: 'check-mapped-point', label: 'Check mapped point', onAction: checkPointMap }
+        : mode === 'plotTransform'
+          ? { id: 'check-graph', label: 'Check graph', onAction: checkPlotTransform, disabled: plotTransformIncomplete }
+          : mode === 'describe'
+            ? { id: 'check-description', label: 'Check description', onAction: checkDescription }
+            : { id: 'check-anchor', label: 'Check defining feature', onAction: checkAnchor };
+  const clearPlottedPoints = () => { setPlottedPoints([]); resetFeedback(); };
+  const workspaceCapabilities = {
+    undo: undoHistory.capability,
+    // Fit View, pan/zoom and point editing are published upward by the plane
+    // itself — it owns the camera and the pointer geometry, and a copy declared
+    // here would go stale the next time either changes.
+    numericControls: mode === 'describe'
+      ? { label: 'Transformation descriptions', studentState: true }
+      : { label: mode === 'plotTransform' ? 'Plotted point coordinates' : 'Transformation parameters', studentState: true },
+    equationInput: ['match', 'identify'].includes(mode)
+      ? { label: 'y = a · f(b(x − h)) + k', studentState: true }
+      : null,
+    instruction: { text: (MODE_STEPS[mode] || MODE_STEPS.match)[0] },
+    task: { text: questionData.prompt || questionData.task || MODE_TASKS[mode] || MODE_TASKS.match },
+    help: {
+      content: (
+        <>
+          <TransformationBridge />
+          <HintPanel hints={HINTS[mode] || HINTS.match} onHintUsed={() => onAction?.('HINT_USED')} />
+        </>
+      ),
+    },
+    primaryActions: [primaryAction],
+    secondaryActions: mode === 'plotTransform'
+      ? [{ id: 'clear-points', label: 'Clear', onAction: clearPlottedPoints, disabled: !plottedPoints.length }]
+      : [],
+  };
+
   return <ToolShell title="Transformations Lab" subtitle="Connect parameters, parent points, defining features, and transformed graphs across function families." badge={familyLabel}>
     <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.match} steps={MODE_STEPS[mode] || MODE_STEPS.match} />
     <EnlargeableFigure
@@ -182,6 +318,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
         style={{ width: '100%' }}
         openEnlarged={shouldOpenFigureEnlarged({ toolId: 'transformations', question: questionData || {}, viewportWidth })}
         dismissKey={figureDismissalKey(questionData || {}, 'transformations')}
+        capabilities={workspaceCapabilities}
       >
     <ToolSplit>
       <Panel title={familyLabel + ' transformation'}>
@@ -242,11 +379,17 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
             ]}
             cursorLabel="Transformed point"
             ariaLabel="Source graph and transformed-point plotting grid"
+            enlargeable={false}
           />
+          {/* "Undo point" used to live here. It is gone because Universal Undo
+              now covers this lab: the platform control beside Submit takes back
+              a placed point, and in every other mode of this tool it takes back
+              the parameter or description edit that the local button never
+              reached. Clear is not undo — it discards the whole construction in
+              one press — so it stays. */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
-            <button type="button" onClick={() => { setPlottedPoints((current) => current.slice(0, -1)); resetFeedback(); }} disabled={!plottedPoints.length} style={{ ...buttonStyle, background: '#fff', color: '#174ea6', border: '1px solid #aecbfa' }}>Undo point</button>
-            <button type="button" onClick={() => { setPlottedPoints([]); resetFeedback(); }} disabled={!plottedPoints.length} style={{ ...buttonStyle, background: '#fff', color: '#5f6368', border: '1px solid #dadce0' }}>Clear</button>
-            <button type="button" onClick={checkPlotTransform} disabled={!expectedTransformedPoints.length || plottedPoints.length !== expectedTransformedPoints.length} style={{ ...buttonStyle, opacity: !expectedTransformedPoints.length || plottedPoints.length !== expectedTransformedPoints.length ? 0.55 : 1 }}>Check graph</button>
+            <button type="button" onClick={clearPlottedPoints} disabled={!plottedPoints.length} style={{ ...buttonStyle, background: '#fff', color: '#5f6368', border: '1px solid #dadce0' }}>Clear</button>
+            <button type="button" onClick={checkPlotTransform} disabled={plotTransformIncomplete} style={{ ...buttonStyle, opacity: plotTransformIncomplete ? 0.55 : 1 }}>Check graph</button>
           </div>
           <p style={{ marginBottom: 0, color: '#5f6b7a', fontSize: 13 }}>{plottedPoints.length} of {expectedTransformedPoints.length} defining points plotted.</p>
         </> : null}
@@ -277,20 +420,11 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
         <HintPanel hints={HINTS[mode] || HINTS.match} onHintUsed={() => onAction?.('HINT_USED')} />
       </Panel>
 
-      <Panel title="Transformation bridge" collapsible>
-        <p style={{ marginTop: 0 }}><strong>Model:</strong> y = a · f(b(x − h)) + k</p>
-        <div style={{ padding: '10px 12px', borderRadius: 10, background: '#eef4ff', border: '1px solid #aecbfa', color: '#174ea6', fontWeight: 900, marginBottom: 12 }}>
-          X&apos;s lie; Y&apos;s tell the truth.
-        </div>
-        <ul style={{ lineHeight: 1.8, paddingLeft: 20 }}>
-          <li><strong>Y / outside:</strong> a acts exactly as written — negative reflects across the x-axis; |a| is the vertical scale.</li>
-          <li><strong>X / inside:</strong> b acts oppositely — negative reflects across the y-axis; the horizontal scale is 1/|b|.</li>
-          <li><strong>h</strong> shifts horizontally with the opposite-looking sign inside the function.</li>
-          <li><strong>k</strong> shifts vertically exactly as written.</li>
-          <li>A parent point (x, y) maps to <strong>(x/b + h, ay + k)</strong>.</li>
-        </ul>
-        <p style={{ color: '#5f6b7a', marginBottom: 0 }}>This same bridge works for linear, quadratic, absolute value, cubic, root, exponential, logarithmic, and reciprocal families.</p>
-      </Panel>
+      <div className="mathmaster-work-view-secondary">
+        <Panel title="Transformation bridge" collapsible>
+          <TransformationBridge />
+        </Panel>
+      </div>
     </ToolSplit>
     </EnlargeableFigure>
   </ToolShell>;
