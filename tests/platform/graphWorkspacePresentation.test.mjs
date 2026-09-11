@@ -116,7 +116,7 @@ test('opening a figure by itself never removes a way out of it', () => {
   const source = codeOf('src/components/common/EnlargeableFigure.jsx');
   assert.match(source, /event\.key === 'Escape'/);
   assert.match(source, /event\.target === event\.currentTarget/);
-  assert.match(source, /role="dialog"/);
+  assert.match(source, /role=\{enlarged \? 'dialog' : undefined\}/);
   // And the way out is named in full rather than shown as a bare glyph.
   assert.match(source, /Close full screen ✕/);
   // It used to be that only the auto-opened panel's close button was raised to

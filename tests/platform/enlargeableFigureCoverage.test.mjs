@@ -93,8 +93,8 @@ test('the enlarged view is a real dialog a keyboard can leave', () => {
   // A student who enlarges a graph and cannot get back to the question has been
   // trapped by a feature meant to help them.
   const source = codeOf('src/components/common/EnlargeableFigure.jsx');
-  assert.match(source, /role="dialog"/);
-  assert.match(source, /aria-modal="true"/);
+  assert.match(source, /role=\{enlarged \? 'dialog' : undefined\}/);
+  assert.match(source, /aria-modal=\{enlarged \? 'true' : undefined\}/);
   assert.match(source, /event\.key === 'Escape'/);
   assert.match(source, /openerRef\.current\?\.focus/);
   // Clicking the plane must not close the panel: plotting a point is a click.

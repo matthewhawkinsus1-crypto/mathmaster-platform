@@ -4,6 +4,7 @@ import { readGraphPointCoordinates } from './graphPointUtils.js';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 import MathDisplay from './MathDisplay.jsx';
 import { formatGraphEquationLatex } from './functionGraphUtils.js';
+import { majorTicks, niceStep } from './platform/graph/graphScaleService.js';
 
 const DEFAULT_WIDTH = 620;
 const DEFAULT_HEIGHT = 430;
@@ -12,45 +13,6 @@ const PADDING = 48;
 const clampRange = (value, fallback) => {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
-};
-
-const getStep = (range) => {
-  if (range <= 12) return 1;
-  if (range <= 30) return 2;
-  if (range <= 60) return 5;
-  return 10;
-};
-
-// Axis labels stop being readable long before this many, so the cap is a
-// rendering decision as much as a safety one.
-const MAX_TICKS = 200;
-
-const buildTicks = (minimum, maximum, step) => {
-  const min = Number(minimum);
-  const max = Number(maximum);
-  let increment = Number(step);
-
-  // A non-finite or non-positive step never terminates the loop below, and a
-  // huge range with a small step generated hundreds of millions of ticks --
-  // enough to freeze the browser tab a student is working in. Both are
-  // reachable from hand-edited blueprint JSON, so both are clamped here rather
-  // than trusted from the caller.
-  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return [];
-  if (!Number.isFinite(increment) || increment <= 0) increment = (max - min) / 10;
-  if (!Number.isFinite(increment) || increment <= 0) return [];
-
-  const span = max - min;
-  if (span / increment > MAX_TICKS) increment = span / MAX_TICKS;
-
-  const ticks = [];
-  const first = Math.ceil(min / increment) * increment;
-  if (!Number.isFinite(first)) return [];
-
-  for (let value = first; value <= max + increment * 0.001; value += increment) {
-    ticks.push(Number(value.toFixed(8)));
-    if (ticks.length >= MAX_TICKS) break;
-  }
-  return ticks;
 };
 
 const normalizeFunctionList = (graph) => {
@@ -203,10 +165,10 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
   const toScreenX = (x) => PADDING + ((x - xMin) / (xMax - xMin)) * innerWidth;
   const toScreenY = (y) => PADDING + ((yMax - y) / (yMax - yMin)) * innerHeight;
 
-  const xStep = clampRange(displayGraph.xStep, getStep(xMax - xMin));
-  const yStep = clampRange(displayGraph.yStep, getStep(yMax - yMin));
-  const xTicks = buildTicks(xMin, xMax, xStep > 0 ? xStep : 1);
-  const yTicks = buildTicks(yMin, yMax, yStep > 0 ? yStep : 1);
+  const xStep = clampRange(displayGraph.xStep, niceStep(xMax - xMin));
+  const yStep = clampRange(displayGraph.yStep, niceStep(yMax - yMin));
+  const xTicks = majorTicks(xMin, xMax, xStep);
+  const yTicks = majorTicks(yMin, yMax, yStep);
   const functions = normalizeFunctionList(displayGraph);
   const explicitEquation = String(displayGraph.equationLatex || '').trim();
   const equationLatex = explicitEquation

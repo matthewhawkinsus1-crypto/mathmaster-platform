@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import MathText from './MathText.jsx';
+import { toggleWorkViewDrawer, useWorkViewCapabilities, workViewCapabilitySummary } from '../../platform/workView/workViewCapabilities.js';
+import { readWorkViewViewport } from '../../platform/workView/workViewViewport.js';
+import './WorkViewShell.css';
 
 // A graph a student can actually see.
 //
@@ -36,18 +39,6 @@ const CONTROL = {
   fontWeight: 800,
   fontSize: 13,
   cursor: 'pointer',
-};
-
-const BACKDROP = {
-  position: 'fixed',
-  inset: 0,
-  zIndex: 1000,
-  background: 'rgba(15, 23, 42, 0.55)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: 'clamp(8px, 2vw, 24px)',
-  boxSizing: 'border-box',
 };
 
 // Whether the student has already said they would rather work embedded. Read
@@ -90,10 +81,14 @@ export default function EnlargeableFigure({
   // the caller because it is shown ONLY in the enlarged view - repeating it
   // inline would put the same sentence on screen twice.
   taskText = '',
+  capabilities = null,
 }) {
   const [enlarged, setEnlarged] = useState(() => openEnlarged && !readDismissed(dismissKey));
+  const [drawer, setDrawer] = useState(null);
+  const [viewport, setViewport] = useState(() => readWorkViewViewport());
   const openerRef = useRef(null);
   const closeRef = useRef(null);
+  const registeredCapabilities = useWorkViewCapabilities(capabilities);
 
   // CLOSING AN AUTO-OPENED PANEL MEANS IT.
   //
@@ -130,6 +125,18 @@ export default function EnlargeableFigure({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enlarged]);
 
+  useEffect(() => {
+    if (!enlarged || typeof document === 'undefined') return undefined;
+    const root = document.documentElement;
+    const previousOverflow = root.style.overflow;
+    root.style.overflow = 'hidden';
+    root.dataset.workViewOpen = 'true';
+    return () => {
+      root.style.overflow = previousOverflow;
+      delete root.dataset.workViewOpen;
+    };
+  }, [enlarged]);
+
   // A new question decides for itself. Without this the panel keeps whatever
   // state the previous question left it in, so a student who closed one figure
   // finds the next one embedded even where it should have opened.
@@ -137,8 +144,43 @@ export default function EnlargeableFigure({
     setEnlarged(openEnlarged && !readDismissed(dismissKey));
   }, [openEnlarged, dismissKey]);
 
+  // visualViewport follows the actually usable height when mobile browser
+  // chrome or the virtual keyboard changes. This is presentation-only state.
+  useEffect(() => {
+    if (!enlarged || typeof window === 'undefined') return undefined;
+    const update = () => setViewport(readWorkViewViewport(window));
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
+    window.visualViewport?.addEventListener?.('resize', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('orientationchange', update);
+      window.visualViewport?.removeEventListener?.('resize', update);
+    };
+  }, [enlarged]);
+
+  const task = registeredCapabilities.task?.content || registeredCapabilities.task?.text || taskText;
+  const help = registeredCapabilities.help?.content || registeredCapabilities.help?.text;
+  const instruction = registeredCapabilities.instruction?.content || registeredCapabilities.instruction?.text;
+  const capabilityNames = workViewCapabilitySummary(registeredCapabilities)
+    .filter((name) => !['task', 'help', 'instruction', 'primaryActions', 'secondaryActions'].includes(name));
+  const shellActions = [
+    registeredCapabilities.undo,
+    registeredCapabilities.redo,
+    registeredCapabilities.fitView,
+    ...(registeredCapabilities.primaryActions || []),
+    ...(registeredCapabilities.secondaryActions || []),
+  ].filter((action) => action && (action.onAction || action.onClick));
+
+  const invokeAction = (action) => (action.onAction || action.onClick)?.();
+
+  // This figure occupies the same keyed position for embedded and Work View.
+  // Only CSS presentation changes around it, so children are never cloned or
+  // remounted and their mathematical React state remains the single owner.
   const figure = (
     <figure
+      className="mathmaster-work-view-surface"
       data-enlarged={enlarged ? 'true' : 'false'}
       style={enlarged
         ? {
@@ -156,7 +198,8 @@ export default function EnlargeableFigure({
         }
         : { position: 'relative', margin: 0, boxSizing: 'border-box', ...style }}
     >
-      {enlarged && taskText ? (
+      {enlarged && instruction ? <div className="mathmaster-work-view-capability">{instruction}</div> : null}
+      {enlarged && taskText && !registeredCapabilities.task ? (
         <p
           style={{
             margin: '0 96px 12px 0',
@@ -177,29 +220,14 @@ export default function EnlargeableFigure({
           <MathText>{taskText}</MathText>
         </p>
       ) : null}
-      {enlarged ? (
-        <button
-          ref={closeRef}
-          type="button"
-          onClick={close}
-          // A student did not ask for this panel when it opens itself, so the
-          // way out is stated in full rather than as a bare glyph.
-          style={openEnlarged
-            ? { ...CONTROL, borderColor: '#1a73e8', background: '#e8f0fe', fontWeight: 900 }
-            : CONTROL}
-        >
-          {openEnlarged ? 'Close full screen ✕' : 'Close ✕'}
-        </button>
-      ) : (
+      {!enlarged ? (
         <button ref={openerRef} type="button" onClick={() => setEnlarged(true)} style={CONTROL}>
           ⤢ {enlargeLabel}
         </button>
-      )}
+      ) : null}
       {children}
     </figure>
   );
-
-  if (!enlarged) return figure;
 
   /*
    * RENDERED IN PLACE, AND THAT PLACE HAS TO STAY UNTRANSFORMED.
@@ -224,20 +252,43 @@ export default function EnlargeableFigure({
    */
   return (
     <div
-      style={BACKDROP}
+      className={`mathmaster-work-view-host${enlarged ? ' mathmaster-enlarged-figure' : ''}`}
+      data-open={enlarged ? 'true' : 'false'}
+      data-layout={viewport.mode}
+      data-orientation={viewport.orientation}
+      style={enlarged ? { '--mm-work-view-height': `${viewport.usableHeight}px` } : undefined}
       // Named so the app-wide "no graph taller than 70dvh" cap can stand down
       // here. Enlarging exists to make the figure big; applying the same cap
       // inside the modal would make the button do almost nothing.
-      className="mathmaster-enlarged-figure"
-      role="dialog"
-      aria-modal="true"
-      aria-label={`${label}, enlarged`}
+      role={enlarged ? 'dialog' : undefined}
+      aria-modal={enlarged ? 'true' : undefined}
+      aria-label={enlarged ? `${label}, Work View` : undefined}
       // Clicking the backdrop closes; clicking the figure must not. Plotting a
       // point is a click on the plane, and it would be maddening for the panel
       // to vanish underneath it.
-      onClick={(event) => { if (event.target === event.currentTarget) close(); }}
+      onClick={(event) => { if (enlarged && event.target === event.currentTarget) close(); }}
     >
-      {figure}
+      <header className="mathmaster-work-view-header">
+        <strong className="mathmaster-work-view-title">{label}</strong>
+        {task ? <button type="button" aria-expanded={drawer === 'task'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'task'))}>Task</button> : null}
+        {help ? <button type="button" aria-expanded={drawer === 'help'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'help'))}>Help</button> : null}
+        <button ref={closeRef} type="button" onClick={close}>{openEnlarged ? 'Close full screen ✕' : 'Close ✕'}</button>
+      </header>
+      <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'task' ? 'true' : 'false'} aria-label="Original task">
+        {task ? (typeof task === 'string' ? <MathText>{task}</MathText> : task) : null}
+      </section>
+      <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'help' ? 'true' : 'false'} aria-label="Help and instructions">
+        {help || null}
+      </section>
+      <div className="mathmaster-work-view-body">
+        {figure}
+        <aside className="mathmaster-work-view-actions" aria-label="Work View controls">
+          {shellActions.map((action, index) => (
+            <button key={action.id || `${action.label}-${index}`} type="button" onClick={() => invokeAction(action)} disabled={action.disabled} title={action.title}>{action.label}</button>
+          ))}
+          {capabilityNames.map((name) => <span key={name} className="mathmaster-work-view-capability">{registeredCapabilities[name]?.label || name}</span>)}
+        </aside>
+      </div>
     </div>
   );
 }
