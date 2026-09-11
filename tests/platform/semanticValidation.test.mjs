@@ -72,6 +72,23 @@ const warningsFor = (question) => validateQuestionSemantics(question).warnings;
     .some((e) => /refers to a graph in its prompt, but the question contains none/.test(e)),
     'a prompt naming a graph with no graph fails');
 
+  assert.deepEqual(
+    errorsFor({
+      type: 'dataModelingLab', mode: 'lineFit',
+      prompt: 'Use the scatterplot to estimate the least-squares regression line.',
+      points: [{ x: 1, y: 2 }, { x: 2, y: 4 }, { x: 3, y: 5 }],
+    }).filter((error) => /refers to a graph in its prompt, but the question contains none/.test(error)),
+    [],
+    'DataModelingLab point data satisfies its student-visible scatterplot promise',
+  );
+  assert.ok(
+    errorsFor({
+      type: 'dataModelingLab', mode: 'lineFit',
+      prompt: 'Use the scatterplot to estimate the least-squares regression line.',
+    }).some((error) => /refers to a graph in its prompt, but the question contains none/.test(error)),
+    'DataModelingLab without points or another graph representation still fails',
+  );
+
   assert.ok(errorsFor({ type: 'algebra', prompt: 'Complete the table shown.' })
     .some((e) => /refers to a table/.test(e)), 'a prompt naming a table with no table fails');
 

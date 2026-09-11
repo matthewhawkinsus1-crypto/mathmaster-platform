@@ -122,6 +122,39 @@ test('stored Library reuse preserves a composed workflow instead of recompiling 
   assert.equal(after.studentChoosesX, undefined);
 });
 
+test('Least Squares Regression Content V2 reuses point-backed scatterplots without rewriting live content', () => {
+  const live = buildCanonicalLibraryLesson();
+  live.id = 'least-squares-live-v2';
+  live.title = 'Least Squares Regression';
+  live.assignment = { ...live.assignment, title: 'Least Squares Regression' };
+  live.contentLineage = {
+    familyId: 'least-squares-regression', version: 2, label: 'V2', releaseStatus: 'current', supersedesVersion: 1,
+  };
+  live.assignedClassIds = ['period-3'];
+  live.assignedClassPeriods = ['3'];
+  live.sections[0].questions[0] = {
+    questionId: 'least-squares-q6', type: 'dataModelingLab', mode: 'lineFit',
+    prompt: 'Use the scatterplot to estimate the least-squares regression line.',
+    points: [{ x: 1, y: 2 }, { x: 2, y: 4 }, { x: 3, y: 5 }],
+    activityRole: 'classwork', sectionId: 'section-2', sectionTitle: 'Classwork',
+  };
+  const before = structuredClone(live);
+
+  const withNewPeriods = {
+    ...live,
+    assignedClassIds: ['period-3', 'period-5', 'period-7'],
+    assignedClassPeriods: ['3', '5', '7'],
+  };
+  const addClass = prepareStoredAssignmentForReuse(withNewPeriods, { resetAssignmentKey: false });
+  const duplicate = prepareStoredAssignmentForReuse(live, { resetAssignmentKey: true });
+
+  assert.deepEqual(live, before, 'reuse preparation never mutates the saved Content V2 assignment or its history');
+  assert.deepEqual(addClass.questions[0], before.sections[0].questions[0]);
+  assert.deepEqual(duplicate.questions[0], before.sections[0].questions[0]);
+  assert.deepEqual(live.contentLineage, before.contentLineage);
+  assert.deepEqual(withNewPeriods.sections, before.sections, 'adding Periods 5 and 7 does not rewrite Content V2 questions');
+});
+
 test('safe repair restores only the collapsed live workflow and keeps question identity/order', () => {
   const library = buildCanonicalLibraryLesson();
   const sourceQuestion = getStoredAssignmentQuestions(library)[0];
