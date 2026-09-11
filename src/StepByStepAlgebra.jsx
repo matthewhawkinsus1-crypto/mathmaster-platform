@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import MathDisplay from './MathDisplay';
 import MultiRelationAlgebra from './MultiRelationAlgebra';
 import StepByStepAlgebraCore from './StepByStepAlgebraCore';
-import SolverWorkspaceFrame from './components/common/SolverWorkspaceFrame';
+import EnlargeableFigure from './components/common/EnlargeableFigure';
 import { needsMultiRelationWorkspace } from './algebraRelationFoundation';
 import { withPromptRelationSource } from './stepAlgebraRelationRouting';
 
@@ -68,16 +68,20 @@ export default function StepByStepAlgebra(props) {
   }
 
   return (
-    <SolverWorkspaceFrame
+    <EnlargeableFigure
       label="Step-by-step algebra solver"
       taskText={question.prompt || 'Solve the equation by keeping both sides balanced.'}
-      workspaceKey={workspaceKey}
-      workspaceKind="balance"
-      focusPanel={focusPanel}
-      workspaceActions={props.workspaceActions}
-      onWorkspaceModeChange={props.onWorkspaceModeChange}
+      enlargeLabel="Enlarge algebra workspace"
+      style={{ width: '100%' }}
+      capabilities={{
+        equationInput: { label: 'Equation and rewrite controls', studentState: true },
+        numericControls: { label: 'Balanced operation controls', studentState: true },
+        instruction: { text: question.prompt || 'Keep both sides balanced and simplify each committed step.' },
+        task: { text: question.prompt || 'Solve the equation by keeping both sides balanced.' },
+        help: { content: focusPanel },
+      }}
     >
       <StepByStepAlgebraCore {...props} onStateChange={handleStateChange} />
-    </SolverWorkspaceFrame>
+    </EnlargeableFigure>
   );
 }

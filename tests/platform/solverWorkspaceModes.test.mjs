@@ -50,9 +50,9 @@ test('workspace Task access is temporary instead of occupying persistent top-bar
   assert.doesNotMatch(frame, /<span title=\{taskText\}>\{taskText\}<\/span>/);
 });
 
-test('workspace toolbar reuses assignment Undo, Scratchpad, Help, and final Submit actions', async () => {
+test('Universal Work View reuses assignment Undo, Scratchpad, Help, and final Submit actions', async () => {
   const question = await read('src/QuestionEngine.jsx');
-  const frame = await read('src/components/common/SolverWorkspaceFrame.jsx');
+  const shell = await read('src/components/common/EnlargeableFigure.jsx');
   const step = await read('src/StepByStepAlgebra.jsx');
   const relation = await read('src/MultiRelationAlgebra.jsx');
 
@@ -69,15 +69,15 @@ test('workspace toolbar reuses assignment Undo, Scratchpad, Help, and final Subm
   assert.match(question, /submit:\s*!locked && shouldShowSubmit/);
   assert.match(question, /onClick:\s*handleSubmit/);
   assert.match(question, /disabled:\s*submitDisabled/);
+  assert.match(question, /<WorkViewCapabilityProvider capabilities=\{\{/);
 
-  assert.match(step, /workspaceActions=\{props\.workspaceActions\}/);
-  assert.match(relation, /workspaceActions=\{props\.workspaceActions\}/);
-  assert.match(frame, /workspaceActions\s*=\s*null/);
-  assert.match(frame, /workspaceActions\?\.undo/);
-  assert.match(frame, /workspaceActions\?\.scratchpad/);
-  assert.match(frame, /workspaceActions\?\.help/);
-  assert.match(frame, /workspaceActions\?\.submit/);
-  assert.match(frame, /solver-workspace-help-panel/);
+  assert.match(step, /<EnlargeableFigure/);
+  assert.match(relation, /<EnlargeableFigure/);
+  assert.match(shell, /registeredCapabilities\.undo/);
+  assert.match(shell, /registeredCapabilities\.primaryActions/);
+  assert.match(shell, /registeredCapabilities\.secondaryActions/);
+  assert.doesNotMatch(step, /<SolverWorkspaceFrame/);
+  assert.doesNotMatch(relation, /<SolverWorkspaceFrame/);
 });
 
 test('MobileViewport hides task and normal action bars during enlarged or focus workspace without mutating task collapse state', async () => {
@@ -92,19 +92,23 @@ test('MobileViewport hides task and normal action bars during enlarged or focus 
   assert.doesNotMatch(source, /setIsPromptCollapsed\(true\).*workspaceMode/s);
 });
 
-test('both algebra solvers preserve their public entry points while using the shared workspace shell', async () => {
+test('both algebra solvers preserve their public entry points while using Universal Work View', async () => {
   const step = await read('src/StepByStepAlgebra.jsx');
   const relation = await read('src/MultiRelationAlgebra.jsx');
   assert.match(step, /StepByStepAlgebraCore/);
-  assert.match(step, /SolverWorkspaceFrame/);
+  assert.match(step, /EnlargeableFigure/);
   assert.match(step, /export \* from '\.\/StepByStepAlgebraCore'/);
   assert.match(relation, /MultiRelationAlgebraCore/);
-  assert.match(relation, /SolverWorkspaceFrame/);
+  assert.match(relation, /EnlargeableFigure/);
   assert.match(relation, /export \* from '\.\/MultiRelationAlgebraCore'/);
-  assert.match(step, /focusPanel=/);
-  assert.match(relation, /focusPanel=/);
-  assert.match(step, /onWorkspaceModeChange=\{props\.onWorkspaceModeChange\}/);
-  assert.match(relation, /onWorkspaceModeChange=\{props\.onWorkspaceModeChange\}/);
+  assert.match(step, /const focusPanel\s*=/);
+  assert.match(relation, /const focusPanel\s*=/);
+  assert.match(step, /equationInput:/);
+  assert.match(step, /numericControls:/);
+  assert.match(relation, /equationInput:/);
+  assert.match(relation, /numericControls:/);
+  assert.doesNotMatch(step, /<SolverWorkspaceFrame/);
+  assert.doesNotMatch(relation, /<SolverWorkspaceFrame/);
 });
 
 test('focus mode expands the work surface and keeps operation controls available', async () => {

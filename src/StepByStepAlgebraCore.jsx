@@ -526,6 +526,16 @@ export default function StepByStepAlgebra({
       setSimplificationAnswers({});
       setSelectedCancellationIndices({});
       setOperand('');
+      // A completed mathematical commit must leave no operation-staging state
+      // behind. Otherwise Universal Undo sees the stale staging as the newest
+      // undoable action and only clears the UI instead of restoring the
+      // previous committed equation.
+      setArmedTile(null);
+      setPlacedOperationSides([]);
+      setPlacedOperationPositions({});
+      setTapPlacementArmed(false);
+      setDragOverSide(null);
+      setFactorZoneHint(null);
       setCancelAnimating(false);
       setCollapsingSides([]);
       setLockedStroke(null);
@@ -1707,7 +1717,7 @@ export default function StepByStepAlgebra({
           ))}
         </div>}
 
-        <div aria-label="Interactive algebra balance scale" className={`algebra-equation-stage algebra-connected-balance ${balanceStagingSide ? `is-unbalanced is-unbalanced-${balanceStagingSide}` : ''}`}>
+        <div data-math-state={equationToLatex(equation)} aria-label="Interactive algebra balance scale" className={`algebra-equation-stage algebra-connected-balance ${balanceStagingSide ? `is-unbalanced is-unbalanced-${balanceStagingSide}` : ''}`}>
           {['left', 'right'].map((side, index) => {
             const target = pendingMove?.cancellationTargets.find((item) => item.side === side);
             const pendingCancellationModel = target?.canCancel ? buildCancellationModel(

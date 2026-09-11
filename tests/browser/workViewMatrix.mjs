@@ -77,6 +77,37 @@ const DEVICES = [
  */
 const SCENES = [
   {
+    id: 'step-algebra-operations',
+    family: 'StepAlgebra2',
+    marksPlane: false,
+    question: {
+      questionId: 'step-algebra-operations', type: 'stepAlgebra2',
+      prompt: 'Solve 3x + 6 = 21 by applying operations to both sides.',
+      equation: { a: 3, b: 6, c: 21 },
+    },
+  },
+  {
+    id: 'balance-algebra',
+    family: 'StepByStepAlgebra',
+    marksPlane: false,
+    question: {
+      questionId: 'balance-algebra', type: 'stepAlgebra',
+      prompt: 'Solve 2x + 5 = 19 and show each balanced step.',
+      equation: '2*x + 5 = 19', variable: 'x', answer: '7',
+      supportPresentation: { algebraAutoApply: true },
+    },
+  },
+  {
+    id: 'split-absolute-algebra',
+    family: 'MultiRelationAlgebra',
+    marksPlane: false,
+    question: {
+      questionId: 'split-absolute-algebra', type: 'stepAlgebra',
+      prompt: 'Solve |x - 2| = 5 and keep both branches.',
+      equation: '|x - 2| = 5', variable: 'x', acceptedAnswers: ['-3', '7'],
+    },
+  },
+  {
     id: 'sequence-full-bridge',
     family: 'SequenceExplorer',
     marksPlane: true,
@@ -422,7 +453,11 @@ const READ_MATH_STATE = new Function(`
       || /^(Not placed|None yet|Undefined)$/.test(text)
       || /defining points plotted/.test(text)
       || /^y\\s*=/.test(text));
-  return { fields, marks, placements };
+  const algebra = [...scope.querySelectorAll('[data-math-state]')]
+    .filter((el) => !chrome(el))
+    .map((el) => String(el.getAttribute('data-math-state') || '').trim())
+    .filter(Boolean);
+  return { fields, marks, placements, algebra };
 `);
 
 /*
@@ -476,7 +511,84 @@ const typeIntoFirstField = async (page, selector, value) => {
   return `typed ${value}`;
 };
 
+const typeIntoMathField = async (page, selector, value) => {
+  const field = page.locator(`.mathmaster-work-view-host[data-open="true"] ${selector}`).first();
+  if (!(await field.count())) return null;
+  await field.evaluate((mathField, nextValue) => {
+    mathField.focus?.({ preventScroll: true });
+    mathField.value = String(nextValue);
+    const event = typeof InputEvent === 'function'
+      ? new InputEvent('input', { bubbles: true, inputType: 'insertText', data: String(nextValue) })
+      : new Event('input', { bubbles: true });
+    mathField.dispatchEvent(event);
+  }, String(value));
+  await page.waitForTimeout(250);
+  return `typed ${value}`;
+};
+
 const makeEdit = async (page, sceneId) => {
+  if (sceneId === 'step-algebra-operations') {
+    const typed = await typeIntoFirstField(page, 'input[type="number"]', '6');
+    const apply = page.locator('.mathmaster-work-view-host[data-open="true"] button', { hasText: 'Apply to both sides' }).first();
+    if (await apply.count()) {
+      await apply.click();
+      await page.waitForTimeout(250);
+      return 'applied an operation to both sides';
+    }
+    return typed;
+  }
+  if (sceneId === 'balance-algebra') {
+    const chooseAdd = page.locator('.mathmaster-work-view-host[data-open="true"] button[aria-label="Choose Add operation"]').first();
+    if (!(await chooseAdd.count())) return null;
+    await chooseAdd.click();
+    const typed = await typeIntoMathField(page, '.algebra-operation-composer math-field', '1');
+    if (!typed) return null;
+
+    // Use the same select-then-place route available to mouse, touch and keyboard
+    // users. This exercises the real balanced-operation flow instead of relying
+    // on the optional accommodation shortcut.
+    const pickup = page.locator('.mathmaster-work-view-host[data-open="true"] .algebra-pickup-button').first();
+    if (!(await pickup.count()) || await pickup.isDisabled()) return null;
+    await pickup.click();
+    await page.waitForTimeout(180);
+
+    const sides = page.locator('.mathmaster-work-view-host[data-open="true"] .algebra-equation-box[role="button"]');
+    if ((await sides.count()) < 2) return null;
+    await sides.nth(0).click();
+    await page.waitForTimeout(120);
+    await sides.nth(1).click();
+    await page.waitForTimeout(300);
+
+    const keep = page.locator('.mathmaster-work-view-host[data-open="true"] .algebra-keep-written').first();
+    if (await keep.count()) {
+      await keep.click();
+      await page.waitForTimeout(350);
+    }
+    return 'committed a balanced Add 1 step';
+  }
+  if (sceneId === 'split-absolute-algebra') {
+    let reverse = page.locator('.mathmaster-work-view-host[data-open="true"] button', { hasText: 'Reverse absolute value' }).first();
+    if (!(await reverse.count())) {
+      const other = page.locator('.mathmaster-work-view-host[data-open="true"] button', { hasText: 'Other operations' }).first();
+      if (!(await other.count())) return null;
+      await other.click();
+      await page.waitForTimeout(150);
+      reverse = page.locator('.mathmaster-work-view-host[data-open="true"] button', { hasText: 'Reverse absolute value' }).first();
+    }
+    if (!(await reverse.count())) return null;
+    await reverse.click();
+    const twoBranches = page.locator('.mathmaster-work-view-host[data-open="true"] button', { hasText: 'Two branches (OR)' }).first();
+    if (!(await twoBranches.count())) return null;
+    await twoBranches.click();
+    const first = await typeIntoMathField(page, 'math-field[aria-label="Branch A right-side value"]', '5');
+    const second = await typeIntoMathField(page, 'math-field[aria-label="Branch B right-side value"]', '-5');
+    if (!first || !second) return null;
+    const check = page.locator('.mathmaster-work-view-host[data-open="true"] button', { hasText: 'Check split' }).first();
+    if (!(await check.count()) || await check.isDisabled()) return null;
+    await check.click();
+    await page.waitForTimeout(400);
+    return 'committed the student-authored absolute-value split';
+  }
   if (sceneId === 'sequence-full-bridge') {
     return await typeIntoFirstField(page, 'input[aria-label^="Sequence output"]', '3');
   }
@@ -502,7 +614,11 @@ const makeEdit = async (page, sceneId) => {
     // submit control on.
     return await typeIntoFirstField(page, 'input[type="number"]', '3');
   }
-  return await typeIntoFirstField(page, 'input:not([type="number"]):not([type="hidden"])', '2, 4');
+  return await typeIntoFirstField(
+    page,
+    'input:not([type="number"]):not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="file"]), textarea',
+    '2, 4',
+  );
 };
 
 /*
