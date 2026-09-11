@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { figureDismissalKey, shouldOpenFigureEnlarged } from '../../platform/student/figurePresentation.js';
-import useMathUndoHistory from '../../platform/workView/useMathUndoHistory.js';
+import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
@@ -163,7 +163,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
     label: 'Undo the last point you plotted',
     state: mathState,
     onRestore: restoreMathState,
-    resetKey: questionData?.id ?? questionData?.prompt ?? null,
+    resetKey: questionUndoResetKey(questionData),
   });
 
   const clear = () => { setPoints([]); clearFeedback(); };

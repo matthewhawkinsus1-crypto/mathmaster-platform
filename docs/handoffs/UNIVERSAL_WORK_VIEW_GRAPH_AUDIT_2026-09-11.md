@@ -126,3 +126,14 @@ measurement canvases, and `ScratchpadOverlay`.
 `DataModelingLab` was migrated in Stage 1/2 and is held to the nesting contract
 here. `GraphDisplay` still has a renderer of its own that has not been routed
 through the shared scale policy.
+
+One open interaction question, seen in the rendered matrix rather than argued
+from the code: on a portrait phone, focusing a coefficient field in
+`ConstraintFunctionBuilder` scrolls the Work View surface so the graph leaves
+the screen — and watching the graph while moving the coefficient is the whole
+activity. The embedded layout answers this with a graph panel pinned at 46dvh,
+which Work View stands down because there it clipped the workspace to 388px and
+cut the zoom row in half. A Work View equivalent — pinned, but sized from the
+usable viewport rather than a fixed fraction — belongs with the 3B/3C parameter
+tools, where the same shape recurs. Nothing covers the graph today; it is
+scrolled, and the browser gate distinguishes the two.

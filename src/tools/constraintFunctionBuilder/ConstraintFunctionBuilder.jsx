@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
-import useMathUndoHistory from '../../platform/workView/useMathUndoHistory.js';
+import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
@@ -92,7 +92,7 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
     label: 'Undo the last change to your model',
     state: mathState,
     onRestore: restoreMathState,
-    resetKey: questionData?.id ?? questionData?.prompt ?? null,
+    resetKey: questionUndoResetKey(questionData),
   });
 
   const set = (patch) => {

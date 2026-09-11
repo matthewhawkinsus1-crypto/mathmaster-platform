@@ -136,6 +136,23 @@ const SCENES = [
     },
   },
   {
+    id: 'constraint-builder',
+    family: 'ConstraintFunctionBuilder',
+    marksPlane: false,
+    question: {
+      id: 'constraint-builder',
+      type: 'constraintFunctionBuilder',
+      prompt: 'Build any relation that has a maximum and puts its vertex in Quadrant II.',
+      allowedFamilies: ['quadratic', 'absolute', 'linear'],
+      constraints: [
+        { id: 'family', kind: 'family', value: 'quadratic', label: 'A quadratic relation' },
+        { id: 'max', kind: 'extremum', value: 'maximum', label: 'Has a maximum' },
+        { id: 'quadrant', kind: 'vertexQuadrant', value: 'II', label: 'Vertex in Quadrant II' },
+      ],
+      graph: { xMin: -8, xMax: 8, yMin: -8, yMax: 8 },
+    },
+  },
+  {
     id: 'graph-construction',
     family: 'InteractiveGraphWorkspace',
     marksPlane: true,
@@ -267,9 +284,15 @@ const MEASURE_WORK_VIEW = new Function(`
   // Does anything sit ON the graph? Sample the middle of the plane: whatever
   // the browser says is on top there is what a student's finger reaches.
   let covering = null;
-  if (plane) {
-    const midX = Math.round(plane.box.left + plane.box.width / 2);
-    const midY = Math.round(plane.box.top + plane.box.height / 2);
+  // Sampled at the middle of the VISIBLE part of the plane, not of its full box.
+  // The workspace surface scrolls — focusing a parameter field scrolls the graph
+  // most of the way out of view — and the full box's centre then lands below the
+  // surface entirely, on whatever is painted there. That reads as an overlay and
+  // is nothing of the kind. Too little left to sample means the student has
+  // scrolled the graph away, which is their choice and not an occlusion.
+  if (plane && planeSeen && planeSeen.bottom - planeSeen.top > 24 && planeSeen.right - planeSeen.left > 24) {
+    const midX = Math.round((planeSeen.left + planeSeen.right) / 2);
+    const midY = Math.round((planeSeen.top + planeSeen.bottom) / 2);
     const top = document.elementFromPoint(midX, midY);
     if (top && !top.closest('svg') && !top.classList.contains('mathmaster-work-view-surface')) {
       covering = (top.className && String(top.className).slice(0, 48)) || top.tagName;
@@ -444,20 +467,38 @@ const makeEdit = async (page, sceneId) => {
     await page.waitForTimeout(150);
     return (await plotAt(page, 0.5, 0.45)) ? 'selected a point task and placed it' : null;
   }
-  if (sceneId === 'transformations-match') {
+  if (sceneId === 'transformations-match' || sceneId === 'constraint-builder') {
+    // Both are answered by moving a coefficient. The builder opens on a
+    // deliberately collapsed model (a = 0), so this is the first real
+    // mathematical choice the student makes — and the one that flips its
+    // submit control on.
     return await typeIntoFirstField(page, 'input[type="number"]', '3');
   }
   return await typeIntoFirstField(page, 'input:not([type="number"]):not([type="hidden"])', '2, 4');
 };
 
-const PRESS = new Function('pattern', `
-  ${VISIBILITY_HELPERS}
-  const shell = document.querySelector('.mathmaster-work-view-host[data-open="true"]') || document;
-  const button = [...shell.querySelectorAll('button')].filter(visible)
-    .find((el) => new RegExp(pattern, 'i').test(label(el)) && !el.disabled);
-  button?.click();
-  return Boolean(button);
-`);
+/*
+ * A REAL CLICK, NOT `element.click()`.
+ *
+ * Dispatching click on the node bypasses hit-testing, so a control buried under
+ * the keypad or the calculator still "works" for the test — which is precisely
+ * the regression this gate exists to catch, passing silently. Playwright's click
+ * performs the actionability checks a finger does and fails when something else
+ * would receive the press.
+ */
+const pressControl = async (page, pattern) => {
+  const control = page
+    .locator('.mathmaster-work-view-host[data-open="true"] [data-work-view-action]')
+    .filter({ hasText: pattern })
+    .first();
+  if (!(await control.count()) || await control.isDisabled()) return null;
+  try {
+    await control.click({ timeout: 4000 });
+    return 'pressed';
+  } catch (error) {
+    return `blocked: ${String(error?.message || error).split('\n')[0].slice(0, 120)}`;
+  }
+};
 
 /* ------------------------------------------------------------------- run */
 
@@ -598,6 +639,30 @@ for (const device of DEVICES) {
       problems.push({ rule: 'undo', detail: `"${edit}" changed nothing the student can see` });
     } else {
       const afterEdit = await page.evaluate(MEASURE_WORK_VIEW);
+
+      // THE LAYOUT RULES RUN AGAIN HERE, AND THIS IS THE PASS THAT MATTERS.
+      //
+      // Typing into a parameter opens the numeric keypad — a fixed panel above
+      // everything — and the calculator launcher is always there. Measuring
+      // occlusion only on the freshly-opened view checks the easy case and
+      // misses the state a student is actually in while working.
+      if (afterEdit.clipped.length) {
+        problems.push({ rule: 'clipped', detail: `after "${edit}": ${afterEdit.clipped.join(', ')}` });
+      }
+      if (afterEdit.offScreen.length) {
+        problems.push({ rule: 'controls', detail: `after "${edit}", registered but not visible: ${afterEdit.offScreen.join(', ')}` });
+      }
+      if (afterEdit.buried.length) {
+        problems.push({ rule: 'cover', detail: `after "${edit}": ${afterEdit.buried.join(', ')}` });
+      }
+      if (afterEdit.covering) {
+        problems.push({ rule: 'cover', detail: `after "${edit}", something sits over the workspace: ${afterEdit.covering}` });
+      }
+      if (device.mobile && afterEdit.workspaceShare < MIN_MOBILE_WORKSPACE_SHARE) {
+        problems.push({ rule: 'majority', detail: `after "${edit}" the workspace gets ${Math.round(afterEdit.workspaceShare * 100)}% of what is left of the screen` });
+      }
+      await shoot(page, `${tag}__5b-after-edit-controls`);
+
       if (!afterEdit.undoEnabled) {
         problems.push({ rule: 'undo', detail: `Undo is still disabled after "${edit}"` });
       } else {
@@ -606,7 +671,8 @@ for (const device of DEVICES) {
         // CAMERA IS NOT AN EDIT. Fit View before the Undo: it must change
         // neither the mathematics nor what Undo is about to give back.
         if (afterEdit.cameraOnlyControls.some((name) => /fit/i.test(name))) {
-          await page.evaluate(PRESS, 'fit');
+          const fit = await pressControl(page, /fit/i);
+          if (fit && fit !== 'pressed') problems.push({ rule: 'cover', detail: `Fit View could not be pressed — ${fit}` });
           await page.waitForTimeout(250);
           const afterFit = await page.evaluate(READ_MATH_STATE);
           if (JSON.stringify(afterFit) !== JSON.stringify(edited)) {
@@ -614,7 +680,10 @@ for (const device of DEVICES) {
           }
         }
 
-        await page.evaluate(PRESS, 'undo');
+        const pressed = await pressControl(page, /undo/i);
+        if (pressed !== 'pressed') {
+          problems.push({ rule: 'cover', detail: `Undo could not be pressed after "${edit}" — ${pressed || 'the control was absent or disabled'}` });
+        }
         await page.waitForTimeout(350);
         const undone = await page.evaluate(READ_MATH_STATE);
         if (JSON.stringify(undone) !== JSON.stringify(beforeEdit)) {

@@ -27,6 +27,7 @@ import {
   undoMathUndoEntry,
 } from '../../src/platform/workView/mathUndoStack.js';
 import { combinePublishedCapabilities, workViewCapabilitySummary } from '../../src/platform/workView/workViewCapabilities.js';
+import { questionUndoResetKey } from '../../src/platform/workView/useMathUndoHistory.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const source = (relativePath) => readFile(new URL(`../../${relativePath}`, import.meta.url), 'utf8');
@@ -128,6 +129,26 @@ test('a state object rebuilt on every render is not an edit', () => {
   assert.equal(recordMathUndoEntry(EMPTY_MATH_UNDO_STACK, first, sameFactsDifferentOrder), EMPTY_MATH_UNDO_STACK);
 });
 
+test('the undo reset key is the question\u2019s identity, never its wording', () => {
+  // The canonical V5 boundary synthesises a unique `questionId` for every
+  // question and usually leaves question-level `id` unset, so a chain that
+  // checks `id` then `prompt` falls through to the prompt on every canonical
+  // item. A drill repeats one sentence over different givens: two consecutive
+  // questions would then share a key, and Undo on the second would hand the
+  // student work recorded for the first.
+  const first = { questionId: 'q_practice_1_3', prompt: 'Graph the line through the two given points.' };
+  const second = { questionId: 'q_practice_1_4', prompt: 'Graph the line through the two given points.' };
+  assert.equal(questionUndoResetKey(first), 'q_practice_1_3');
+  assert.notEqual(questionUndoResetKey(first), questionUndoResetKey(second));
+
+  // An authored bank item with an `id` and no canonical identity still works,
+  // and a bare question falls back to its prompt rather than to nothing.
+  assert.equal(questionUndoResetKey({ id: 'authored-7', prompt: 'Same words' }), 'authored-7');
+  assert.equal(questionUndoResetKey({ prompt: 'Same words' }), 'Same words');
+  assert.equal(questionUndoResetKey({}), null);
+  assert.equal(questionUndoResetKey(undefined), null);
+});
+
 test('the undo hook clears its history before it records a question change', async () => {
   const hook = await source('src/platform/workView/useMathUndoHistory.js');
   // Order matters: the reset has to run in the same flush as — and ahead of —
@@ -227,7 +248,7 @@ for (const { file, label } of MIGRATED) {
 for (const file of UNIVERSAL_UNDO_TOOLS) {
   test(`${file.split('/').pop()} registers its real mathematical Undo and keeps no duplicate`, async () => {
     const text = await source(file);
-    assert.match(text, /import useMathUndoHistory from '[^']*useMathUndoHistory\.js'/);
+    assert.match(text, /import useMathUndoHistory(?:,\s*\{[^}]*\})?\s+from '[^']*useMathUndoHistory\.js'/);
     const hook = region(text, 'useMathUndoHistory({', '});', 'the undo registration');
     assert.match(hook, /state:\s*mathState/);
     assert.match(hook, /onRestore:\s*restoreMathState/);
@@ -235,7 +256,10 @@ for (const file of UNIVERSAL_UNDO_TOOLS) {
     // one QuestionEngine and swaps the question under it, so a registry tool is
     // not always remounted between questions — and a history that survived that
     // would answer Undo on question 4 with question 3's work.
-    assert.match(hook, /resetKey:/, 'the undo history is keyed to the question');
+    // Bound to the shared helper rather than to any spelling of the chain, so
+    // four tools cannot drift into four different ideas of question identity.
+    assert.match(hook, /resetKey:\s*questionUndoResetKey\(questionData\)/, 'the undo history is keyed to the question identity');
+    assert.match(text, /import useMathUndoHistory, \{ questionUndoResetKey \} from/);
 
     // The snapshot has to be the answer, not a fragment of it: a restore that
     // puts back fewer fields than the snapshot recorded loses student work.

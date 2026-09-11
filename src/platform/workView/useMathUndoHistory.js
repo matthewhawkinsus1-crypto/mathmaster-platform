@@ -27,6 +27,22 @@ import {
  */
 const WorkViewUndoContext = createContext(null);
 
+/**
+ * Which question a tool is currently showing.
+ *
+ * `questionId` FIRST, and that ordering is the whole point. The canonical V5
+ * boundary synthesises a `questionId` for every question and guarantees it is
+ * unique; question-level `id` is usually absent there, and `prompt` is not an
+ * identity at all — a drill repeats the same sentence over different givens, so
+ * keying on it makes several consecutive questions look like one and hands the
+ * student an Undo stack recorded for a different item. `ToolWrapper` already
+ * keys its attempt record off this same chain; named once so the two cannot
+ * drift.
+ */
+export const questionUndoResetKey = (questionData) => (
+  questionData?.questionId ?? questionData?.id ?? questionData?.prompt ?? null
+);
+
 export function WorkViewUndoProvider({ register, children }) {
   return React.createElement(WorkViewUndoContext.Provider, { value: register || null }, children);
 }
@@ -56,7 +72,7 @@ export default function useMathUndoHistory({
   // not always remounted between questions — `PathSessionPlayer` renders one
   // QuestionEngine and swaps the question under it — and a history that
   // survived that would let a student press Undo on question 4 and be handed
-  // question 3's answer. Same idiom as `CoordinatePlane`'s `viewResetKey`.
+  // question 3's answer. Build it with `questionUndoResetKey`.
   resetKey = null,
   enabled = true,
   limit = MATH_UNDO_LIMIT,

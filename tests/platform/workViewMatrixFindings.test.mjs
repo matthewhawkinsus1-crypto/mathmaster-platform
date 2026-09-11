@@ -41,10 +41,14 @@ test('every Stage 3A family keeps its controls, its state and its Undo in Work V
 test('the matrix actually measured the families this stage migrated', () => {
   // An empty findings list means nothing if the run mounted nothing. Three
   // devices times five scenes, and a screenshot for every step of each.
-  assert.equal(audit.measured, 15);
+  assert.equal(audit.measured, 18);
+  // EVERY FAMILY THIS STAGE MIGRATED, NOT MOST OF THEM. An empty findings file
+  // proves nothing about a tool the matrix never mounted, and the list is the
+  // only thing standing between "we migrated five families" and a gate that
+  // covers four.
   assert.deepEqual(
     [...new Set(audit.scenes.map((scene) => scene.family))].sort(),
-    ['FunctionInvestigation2', 'Graphing2', 'InteractiveGraphWorkspace', 'TransformationsLab'],
+    ['ConstraintFunctionBuilder', 'FunctionInvestigation2', 'Graphing2', 'InteractiveGraphWorkspace', 'TransformationsLab'],
   );
   assert.ok(audit.screenshots >= audit.measured * 5, 'each scene is captured at every step of the matrix');
 });

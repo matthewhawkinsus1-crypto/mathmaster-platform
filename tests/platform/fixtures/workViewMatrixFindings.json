@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-11T03:56:29.359Z",
+  "generatedAt": "2026-09-11T04:22:19.783Z",
   "devices": [
     {
       "id": "chromebook",
@@ -38,13 +38,17 @@
       "family": "FunctionInvestigation2"
     },
     {
+      "id": "constraint-builder",
+      "family": "ConstraintFunctionBuilder"
+    },
+    {
       "id": "graph-construction",
       "family": "InteractiveGraphWorkspace"
     }
   ],
   "maxAxisLabels": 12,
   "minMobileWorkspaceShare": 0.55,
-  "measured": 15,
-  "screenshots": 102,
+  "measured": 18,
+  "screenshots": 141,
   "findings": []
 }

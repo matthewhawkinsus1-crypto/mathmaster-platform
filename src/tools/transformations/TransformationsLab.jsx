@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { figureDismissalKey, shouldOpenFigureEnlarged } from '../../platform/student/figurePresentation.js';
-import useMathUndoHistory from '../../platform/workView/useMathUndoHistory.js';
+import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
@@ -145,7 +145,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
       : 'Undo the last transformation entry',
     state: mathState,
     onRestore: restoreMathState,
-    resetKey: questionData?.id ?? questionData?.prompt ?? null,
+    resetKey: questionUndoResetKey(questionData),
   });
 
   const studentSpec = useMemo(() => normalizeTransformationSpec({ type: family, a, b, h, k, base: targetSpec.base }, family), [family, a, b, h, k, targetSpec.base]);
