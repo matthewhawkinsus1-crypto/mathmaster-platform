@@ -82,7 +82,15 @@ const mathStateSnapshot = async (toolRoot) => toolRoot.evaluate((node) => {
     .filter((element) => !chrome(element))
     .map((element) => (element.textContent || '').trim())
     .filter(Boolean);
-  return { fields, pressed, mathState, marks, placedCards, placements };
+  // Some graph-construction tools expose their committed state as progress text
+  // even when the plotted marker's SVG label is outside the current camera.
+  // This is mathematical/student state, not presentation, and gives the browser
+  // gate a stable way to observe plotTransform edits and Undo.
+  const progress = [...node.querySelectorAll('p, [data-progress]')]
+    .filter((element) => !chrome(element) && visibleElement(element))
+    .map((element) => (element.textContent || '').trim())
+    .filter((text) => /^\d+\s+of\s+\d+\b.*\bplotted\.?$/i.test(text));
+  return { fields, pressed, mathState, marks, placedCards, placements, progress };
 });
 
 const makeStatefulEdit = async (page, shell, toolId, toolRoot) => {
