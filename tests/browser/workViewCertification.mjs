@@ -40,8 +40,150 @@ const dismissNumericKeypad = async (page) => {
   }
 };
 
-const inputSnapshot = async (root) => root.evaluate((node) => [...node.querySelectorAll('input,select,textarea,math-field')]
-  .map((element) => `${element.getAttribute('aria-label') || element.name || element.tagName}=${element.value || element.getAttribute('value') || ''}`));
+const mathStateSnapshot = async (shell) => shell.evaluate((node) => {
+  const chrome = (element) => element.closest?.('.mathmaster-work-view-header, .mathmaster-work-view-drawer, .mathmaster-work-view-actions, .mathmaster-work-view-instruction');
+  const visibleElement = (element) => {
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  };
+  const label = (element) => element.getAttribute('aria-label')
+    || element.name
+    || element.placeholder
+    || element.id
+    || element.textContent?.trim()
+    || element.tagName;
+  const fields = [...node.querySelectorAll('input,select,textarea,math-field')]
+    .filter((element) => !chrome(element) && element.type !== 'hidden')
+    .map((element) => `${label(element)}=${element.value ?? element.getAttribute('value') ?? ''}`);
+  const pressed = [...node.querySelectorAll('button[aria-pressed="true"], [aria-selected="true"], input:checked')]
+    .filter((element) => !chrome(element))
+    .map((element) => label(element));
+  const mathState = [...node.querySelectorAll('[data-math-state]')]
+    .filter((element) => !chrome(element))
+    .map((element) => element.getAttribute('data-math-state'));
+  const marks = [...node.querySelectorAll('svg text')]
+    .filter((element) => !chrome(element) && visibleElement(element))
+    .map((element) => (element.textContent || '').trim())
+    .filter((text) => /^(P|S)\\d+$/.test(text));
+  const placedCards = [...node.querySelectorAll('button[title*="move this card" i]')]
+    .filter((element) => !chrome(element) && visibleElement(element))
+    .map((element) => (element.textContent || '').trim());
+  return { fields, pressed, mathState, marks, placedCards };
+});
+
+const makeStatefulEdit = async (page, shell) => {
+  const baseline = await mathStateSnapshot(shell);
+  const changed = async (description) => {
+    await page.waitForTimeout(160);
+    const state = await mathStateSnapshot(shell);
+    return JSON.stringify(state) !== JSON.stringify(baseline) ? { description, state } : null;
+  };
+
+  const surface = shell.locator('.mathmaster-work-view-surface');
+
+  const select = surface.locator('select:visible:not([disabled])').first();
+  if (await select.count()) {
+    const options = await select.locator('option:not([disabled])').evaluateAll((nodes) => nodes.map((node) => node.value));
+    const current = await select.inputValue();
+    const next = options.find((value) => value !== current);
+    if (next !== undefined) {
+      try {
+        await select.selectOption(next);
+        const result = await changed('changed a selection');
+        if (result) return result;
+      } catch { /* try another interaction below */ }
+    }
+  }
+
+  const field = surface.locator('input:visible:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([readonly]), textarea:visible:not([readonly])').first();
+  if (await field.count()) {
+    try {
+      const type = (await field.getAttribute('type')) || 'text';
+      const current = await field.inputValue().catch(() => '');
+      let value;
+      if (type === 'number') {
+        const numeric = Number(current);
+        value = String(Number.isFinite(numeric) ? numeric + 1 : 2);
+        const max = Number(await field.getAttribute('max'));
+        const min = Number(await field.getAttribute('min'));
+        if (Number.isFinite(max) && Number(value) > max) value = String(Number.isFinite(min) ? min : max);
+        if (Number.isFinite(min) && Number(value) < min) value = String(min);
+      } else {
+        value = current ? `${current} stage4` : 'stage4';
+      }
+      await field.fill(value);
+      await field.dispatchEvent('change');
+      const result = await changed(`edited ${type} input`);
+      if (result) return result;
+    } catch { /* try another interaction below */ }
+  }
+
+  const mathField = surface.locator('math-field:visible').first();
+  if (await mathField.count()) {
+    try {
+      await mathField.evaluate((element) => {
+        const current = String(element.value || '');
+        element.focus?.({ preventScroll: true });
+        element.value = current === '3' ? '4' : '3';
+        const event = typeof InputEvent === 'function'
+          ? new InputEvent('input', { bubbles: true, inputType: 'insertText', data: element.value })
+          : new Event('input', { bubbles: true });
+        element.dispatchEvent(event);
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      const result = await changed('edited equation input');
+      if (result) return result;
+    } catch { /* try another interaction below */ }
+  }
+
+  const pressedButton = surface.locator('button[aria-pressed]:visible:not([disabled])').first();
+  if (await pressedButton.count()) {
+    try {
+      await pressedButton.click({ timeout: 2500 });
+      const result = await changed('changed a mathematical selection');
+      if (result) return result;
+    } catch { /* try graph interaction below */ }
+  }
+
+  const svgs = surface.locator('svg:visible');
+  const count = await svgs.count();
+  if (count) {
+    let target = null;
+    let area = 0;
+    for (let index = 0; index < count; index += 1) {
+      const box = await svgs.nth(index).boundingBox();
+      if (box && box.width * box.height > area) {
+        target = box;
+        area = box.width * box.height;
+      }
+    }
+    if (target && target.width > 80 && target.height > 80) {
+      try {
+        const x = target.x + target.width * 0.62;
+        const y = target.y + target.height * 0.38;
+        await page.mouse.move(x - 8, y - 8);
+        await page.mouse.down();
+        await page.mouse.move(x, y, { steps: 6 });
+        await page.mouse.up();
+        const result = await changed('edited the graphical workspace');
+        if (result) return result;
+      } catch { /* final fallback below */ }
+    }
+  }
+
+  const action = surface.locator('button:visible:not([disabled])').filter({
+    hasNotText: /Task|Help|Close|Undo|Hint|Check|Submit|Scratchpad|Add page|Save/i,
+  }).first();
+  if (await action.count()) {
+    try {
+      await action.click({ timeout: 2500 });
+      const result = await changed('used a mathematical control');
+      if (result) return result;
+    } catch { /* reported by the caller */ }
+  }
+
+  return null;
+};
 
 for (const device of WORK_VIEW_CERTIFICATION_DEVICES) {
   const context = await browser.newContext({
@@ -156,11 +298,23 @@ for (const device of WORK_VIEW_CERTIFICATION_DEVICES) {
           }
         }
 
-        const before = await inputSnapshot(toolRoot);
-        await page.setViewportSize({ width: device.viewportHeight, height: device.viewportWidth });
-        await page.waitForTimeout(150);
-        const after = await inputSnapshot(toolRoot);
-        if (JSON.stringify(before) !== JSON.stringify(after)) problems.push('resize/orientation changed mathematical fields');
+        // State preservation is meaningful only after the student has actually
+        // changed the mathematics. A pristine fixture would look identical after
+        // an accidental remount/reset and falsely certify the regression.
+        const edit = await makeStatefulEdit(page, shell);
+        if (!edit) {
+          problems.push('could not make a stateful student edit before resize/orientation certification');
+        } else {
+          await dismissNumericKeypad(page);
+          await page.screenshot({ path: path.join(familyDir, 'student-edit.png') });
+          const beforeResize = await mathStateSnapshot(shell);
+          await page.setViewportSize({ width: device.viewportHeight, height: device.viewportWidth });
+          await page.waitForTimeout(180);
+          const afterResize = await mathStateSnapshot(shell);
+          if (JSON.stringify(beforeResize) !== JSON.stringify(afterResize)) {
+            problems.push(`resize/orientation changed mathematical state after ${edit.description}`);
+          }
+        }
         await page.screenshot({ path: path.join(familyDir, 'rotated.png') });
 
         // Return to a clean presentation state before mounting the next tool.
