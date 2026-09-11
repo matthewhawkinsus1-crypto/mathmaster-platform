@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
+import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { matchesNumericAnswer, parseNumericAnswer, solveTwoLines, round } from '../shared/toolMath';
@@ -55,6 +57,9 @@ function LinearMode({ questionData, onAction }) {
   const [y, setY] = useState('');
   const [classification, setClassification] = useState('one');
   const { feedback, submit } = useToolSubmission(onAction);
+  const mathState = useMemo(() => ({ x, y, classification }), [x, y, classification]);
+  const restore = useCallback((value) => { setX(value?.x || ''); setY(value?.y || ''); setClassification(value?.classification || 'one'); }, []);
+  const undoHistory = useMathUndoHistory({ label: 'Undo the last system answer edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
 
   const check = () => {
     const classCorrect = classification === solution.type;
@@ -72,14 +77,20 @@ function LinearMode({ questionData, onAction }) {
     return 'The classification is right, but the coordinates are not. Read the crossing point off the graph, then substitute it into both equations to confirm.';
   };
 
-  return <ToolSplit>
+  return <EnlargeableFigure label="Linear system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{
+    undo: undoHistory.capability,
+    equationInput: { label: 'Both equations', studentState: true },
+    numericControls: { label: 'Solution and classification', studentState: true },
+    instruction: { text: 'Classify the system, then solve where the equations meet.' },
+    primaryActions: [{ id: 'check-system', label: 'Check system', onAction: check }],
+  }}><ToolSplit>
     <Panel title="Both equations on one grid">
       <CoordinatePlane xMin={questionData.graph?.xMin ?? -6} xMax={questionData.graph?.xMax ?? 8} yMin={questionData.graph?.yMin ?? -6} yMax={questionData.graph?.yMax ?? 12}
         lines={[{m:system.m1,b:system.b1},{m:system.m2,b:system.b2,stroke:'#d93025',dash:'10 6'}]}
         ariaLabel="Graph of both equations in the system"
         // Marking and labelling the intersection is the answer to the question
         // being asked, so only the teacher bench draws it.
-        points={revealAnswers && solution.type === 'one' ? [{x:solution.x,y:solution.y,label:'intersection'}] : []} />
+        points={revealAnswers && solution.type === 'one' ? [{x:solution.x,y:solution.y,label:'intersection'}] : []} enlargeable={false} />
       <Legend items={[
         { label:'Equation 1', color:'#1a73e8', note:formatLine({m:system.m1,b:system.b1}) },
         { label:'Equation 2', color:'#d93025', dashed:true, note:formatLine({m:system.m2,b:system.b2}) },
@@ -99,7 +110,7 @@ function LinearMode({ questionData, onAction }) {
         onHintUsed={() => onAction?.('HINT_USED')}
       />
     </Panel>
-  </ToolSplit>;
+  </ToolSplit></EnlargeableFigure>;
 }
 
 function InequalityMode({ questionData, onAction }) {
@@ -119,6 +130,12 @@ function InequalityMode({ questionData, onAction }) {
     x1:'', y1:'', x2:'', y2:'', boundaryStyle:'', shade:'',
   })));
   const { feedback, submit } = useToolSubmission(onAction);
+  const mathState = useMemo(() => ({ x, y, testChoice, construction }), [x, y, testChoice, construction]);
+  const restore = useCallback((value) => {
+    setX(value?.x || ''); setY(value?.y || ''); setTestChoice(value?.testChoice || '');
+    setConstruction(value?.construction || inequalities.map(() => ({ x1:'', y1:'', x2:'', y2:'', boundaryStyle:'', shade:'' })));
+  }, [inequalities]);
+  const undoHistory = useMathUndoHistory({ label: 'Undo the last inequality-system edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
 
   const updateConstruction = (index, key, value) => {
     setConstruction((current) => current.map((entry, entryIndex) => (
@@ -235,7 +252,14 @@ function InequalityMode({ questionData, onAction }) {
 
   const shownPolygon = requiresConstruction ? studentPolygon : correctPolygon;
 
-  return <ToolSplit>
+  return <EnlargeableFigure label="Inequality system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{
+    undo: undoHistory.capability,
+    equationInput: { label: 'Both inequalities', studentState: true },
+    numericControls: { label: requiresConstruction ? 'Boundary and shading controls' : 'Solution controls', studentState: true },
+    pointEditing: requiresConstruction ? { label: 'Boundary points', studentState: true } : null,
+    instruction: { text: requiresConstruction ? 'Construct every boundary and shade their overlap.' : 'Test points against both inequalities.' },
+    primaryActions: [{ id: 'check-inequalities', label: requiresConstruction ? 'Check inequality graph' : 'Check feasible region', onAction: check }],
+  }}><ToolSplit>
     <Panel title={requiresConstruction ? 'Your inequality graph' : 'Feasible region'}>
       <CoordinatePlane
         xMin={bounds.xMin ?? -6} xMax={bounds.xMax ?? 8}
@@ -243,6 +267,7 @@ function InequalityMode({ questionData, onAction }) {
         lines={graphLines}
         points={plottedPoints}
         ariaLabel={requiresConstruction ? 'Student-constructed graph of the inequality solution region' : 'Graph of the system of inequalities with its shaded feasible region'}
+        enlargeable={false}
       >
         {({sx,sy}) => shownPolygon.length >= 3 ? (
           <polygon
@@ -333,7 +358,7 @@ function InequalityMode({ questionData, onAction }) {
         onHintUsed={() => onAction?.('HINT_USED')}
       />
     </Panel>
-  </ToolSplit>;
+  </ToolSplit></EnlargeableFigure>;
 }
 
 function LinearQuadraticMode({ questionData, onAction }) {
@@ -343,6 +368,9 @@ function LinearQuadraticMode({ questionData, onAction }) {
   const [count, setCount] = useState('');
   const [values, setValues] = useState({ x1:'', y1:'', x2:'', y2:'' });
   const { feedback, submit } = useToolSubmission(onAction);
+  const mathState = useMemo(() => ({ count, values }), [count, values]);
+  const restore = useCallback((value) => { setCount(value?.count || ''); setValues(value?.values || { x1:'', y1:'', x2:'', y2:'' }); }, []);
+  const undoHistory = useMathUndoHistory({ label: 'Undo the last intersection edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
   const update = (key) => (event) => setValues((current)=>({...current,[key]:event.target.value}));
   const studentPoints = Number(count) === 1
     ? [{x:parseNumericAnswer(values.x1),y:parseNumericAnswer(values.y1)}]
@@ -365,13 +393,13 @@ function LinearQuadraticMode({ questionData, onAction }) {
     return 'The count is right but at least one coordinate is off. Substitute each point into both the line and the parabola: a real intersection satisfies both.';
   };
 
-  return <ToolSplit>
+  return <EnlargeableFigure label="Linear-quadratic system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: 'Line and quadratic equations' }, numericControls: { label: 'Intersection controls', studentState: true }, instruction: { text: 'Find every point satisfying both equations.' }, primaryActions: [{ id: 'check-intersections', label: 'Check intersections', onAction: check, disabled: count === '' }] }}><ToolSplit>
     <Panel title="Line and parabola">
       <CoordinatePlane xMin={questionData.graph?.xMin ?? -6} xMax={questionData.graph?.xMax ?? 6} yMin={questionData.graph?.yMin ?? -8} yMax={questionData.graph?.yMax ?? 12}
         lines={[{ ...config.line, stroke:'#d93025', dash:'10 6' }]}
         functions={[(x)=>Number(config.quadratic.a??1)*x*x+Number(config.quadratic.b??0)*x+Number(config.quadratic.c??0)]}
         ariaLabel="Graph of a line and a parabola"
-        points={revealAnswers ? intersections.map((point)=>({x:point.x,y:point.y,label:'intersection'})) : []} />
+        points={revealAnswers ? intersections.map((point)=>({x:point.x,y:point.y,label:'intersection'})) : []} enlargeable={false} />
       <Legend items={[
         { label:'Parabola', color:'#1a73e8', note:`y = ${config.quadratic.a}x² ${Number(config.quadratic.b)>=0?'+':'−'} ${Math.abs(Number(config.quadratic.b))}x ${Number(config.quadratic.c)>=0?'+':'−'} ${Math.abs(Number(config.quadratic.c))}` },
         { label:'Line', color:'#d93025', dashed:true, note:formatLine(config.line) },
@@ -392,7 +420,7 @@ function LinearQuadraticMode({ questionData, onAction }) {
         onHintUsed={() => onAction?.('HINT_USED')}
       />
     </Panel>
-  </ToolSplit>;
+  </ToolSplit></EnlargeableFigure>;
 }
 
 function MatrixMode({ questionData, onAction }) {
@@ -409,6 +437,9 @@ function MatrixMode({ questionData, onAction }) {
   const [z,setZ] = useState('');
   const [technologyUsed,setTechnologyUsed] = useState(false);
   const { feedback, submit } = useToolSubmission(onAction);
+  const mathState = useMemo(() => ({ classification, x, y, z, technologyUsed }), [classification, x, y, z, technologyUsed]);
+  const restore = useCallback((value) => { setClassification(value?.classification || 'one'); setX(value?.x || ''); setY(value?.y || ''); setZ(value?.z || ''); setTechnologyUsed(Boolean(value?.technologyUsed)); }, []);
+  const undoHistory = useMathUndoHistory({ label: 'Undo the last matrix-system edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
 
   const matrixRows = isMatrix3 ? (matrix3x4Rows(matrix) || []) : [
     [matrix.a11, matrix.a12, matrix.b1],
@@ -454,7 +485,7 @@ function MatrixMode({ questionData, onAction }) {
 
   const showRref = isMatrix3 && (technologyUsed || revealAnswers);
 
-  return <ToolSplit>
+  return <EnlargeableFigure label="Matrix system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: isMatrix3 ? 'Three equations and RREF' : 'Both equations and augmented matrix' }, numericControls: { label: 'Row reduction and solution controls', studentState: true }, instruction: { text: isMatrix3 ? 'Compute and interpret the RREF.' : 'Classify and solve the augmented system.' }, primaryActions: [{ id: 'check-matrix', label: 'Check matrix solution', onAction: check, disabled: isMatrix3 && !technologyUsed }] }}><ToolSplit>
     <Panel title={isMatrix3 ? "3×3 augmented matrix" : "Augmented matrix"}>
       <div style={{
         display:'grid',
@@ -549,7 +580,7 @@ function MatrixMode({ questionData, onAction }) {
         onHintUsed={() => onAction?.('HINT_USED')}
       />
     </Panel>
-  </ToolSplit>;
+  </ToolSplit></EnlargeableFigure>;
 }
 
 const MODE_TASKS = {

@@ -148,7 +148,7 @@ const axisTitle = (label, unit) => {
  * numeric tick labels until the student supplies them. This is especially
  * useful for graph-labeling and scale questions.
  */
-export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
+export default function GraphDisplay({ graph, title = 'Coordinate graph', enlargeable = true }) {
   if (!graph) return null;
 
   const displayGraph = fitStaticGraphViewport(graph);
@@ -204,11 +204,12 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
   const axisX = yMin <= 0 && yMax >= 0 ? toScreenY(0) : toScreenY(yMin);
   const axisY = xMin <= 0 && xMax >= 0 ? toScreenX(0) : toScreenX(xMin);
 
+  const FigureContainer = enlargeable ? EnlargeableFigure : 'div';
   return (
     // Readable at 680px, and enlargeable when it is not — reading a value off a
     // graph is exactly the task where a bigger picture is the difference
     // between an answer and a guess.
-    <EnlargeableFigure
+    <FigureContainer
       label={graph.ariaLabel || title}
       style={{
         margin: '24px auto',
@@ -462,6 +463,6 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
           </QuestionPrompt>
         </figcaption>
       )}
-    </EnlargeableFigure>
+    </FigureContainer>
   );
 }

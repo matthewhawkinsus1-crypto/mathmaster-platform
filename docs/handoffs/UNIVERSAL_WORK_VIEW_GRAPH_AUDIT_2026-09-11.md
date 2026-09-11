@@ -117,8 +117,8 @@ Three defects the rendered gate found that no source contract would have:
 
 ## Remaining Stage 3 work
 
-3B sequences and systems; 3C Step Algebra, the algebra workspaces and the rest
-of the Universal Undo consolidation (`StepAlgebra2` and `MultiRelationAlgebra`
+3C covers Step Algebra, the algebra workspaces and the rest of the Universal
+Undo consolidation (`StepAlgebra2` and `MultiRelationAlgebra`
 keep their local controls until their histories are covered); 3D number
 lines, relation mapping, representation matching, the remaining geometry and
 measurement canvases, and `ScratchpadOverlay`.
@@ -127,13 +127,33 @@ measurement canvases, and `ScratchpadOverlay`.
 here. `GraphDisplay` still has a renderer of its own that has not been routed
 through the shared scale policy.
 
-One open interaction question, seen in the rendered matrix rather than argued
-from the code: on a portrait phone, focusing a coefficient field in
-`ConstraintFunctionBuilder` scrolls the Work View surface so the graph leaves
-the screen — and watching the graph while moving the coefficient is the whole
-activity. The embedded layout answers this with a graph panel pinned at 46dvh,
-which Work View stands down because there it clipped the workspace to 388px and
-cut the zoom row in half. A Work View equivalent — pinned, but sized from the
-usable viewport rather than a fixed fraction — belongs with the 3B/3C parameter
-tools, where the same shape recurs. Nothing covers the graph today; it is
-scrolled, and the browser gate distinguishes the two.
+## Stage 3B status
+
+The complete sequence and systems inventory now uses the Universal Work View:
+
+* `SequenceExplorer` — analyze, integrated table/plot/rule (`fullBridge`), rule
+  bridge, missing term, partial sum, and two-sequence comparison modes. Every
+  mode registers its answer controls and Check action; the two plotting modes
+  also register point editing, and all modes register mathematical Undo.
+* `SystemsWorkspace` — linear, inequality/inequality-construction,
+  linear–quadratic, 2×2 matrix, and 3×3 RREF modes. Each Work View retains all
+  equations or inequalities, the graph or matrix workspace, classification and
+  solution controls, Check, and mathematical Undo.
+* `SystemGrader` — the legacy ordered-pair systems path now enlarges its two
+  equations, static graph, and ordered-pair entry as one activity. Its existing
+  `MathInput` registration remains the Universal Undo owner.
+
+Every nested `CoordinatePlane`, and the `GraphDisplay` used by `SystemGrader`,
+opts out of its own enlarge shell. The graph renderers already reach the shared
+scale policy through `CoordinatePlane`; `GraphDisplay` continues to use
+`majorTicks` and authored bounds.
+
+Mobile Work View now has a reusable keyboard-context rule: while a numeric,
+equation, or select control is focused, the first mathematical reference panel
+in a split remains sticky within a viewport-derived bounded region. This fixes
+the Stage 3A graph-scrolled-away defect without adding family-specific state or
+a second fullscreen architecture, and is available to Stage 3C parameter tools.
+
+The Stage 3A portrait-phone interaction question is resolved by the reusable
+keyboard-context rule above; Stage 3C parameter tools should use the same split
+layout rather than adding family-specific focus behavior.

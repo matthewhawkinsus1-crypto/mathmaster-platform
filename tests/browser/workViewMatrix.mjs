@@ -77,6 +77,28 @@ const DEVICES = [
  */
 const SCENES = [
   {
+    id: 'sequence-full-bridge',
+    family: 'SequenceExplorer',
+    marksPlane: true,
+    question: {
+      questionId: 'sequence-full-bridge', type: 'sequenceExplorer', mode: 'fullBridge',
+      prompt: 'Complete the table, plot the terms, and write both sequence rules.',
+      sequence: { kind: 'arithmetic', first: 3, difference: 2 }, displayCount: 5, targetN: 8,
+      studentActions: ['buildSequenceTable', 'plotSequence', 'analyzeSequence', 'writeExplicit', 'writeRecursive', 'findSequenceTerm'],
+    },
+  },
+  {
+    id: 'systems-linear',
+    family: 'SystemsWorkspace',
+    marksPlane: false,
+    question: {
+      questionId: 'systems-linear', type: 'systemsWorkspace', mode: 'linear',
+      prompt: 'Classify the system and give its solution.',
+      system: { m1: 2, b1: 1, m2: -1, b2: 7 },
+      graph: { xMin: -6, xMax: 8, yMin: -6, yMax: 12 },
+    },
+  },
+  {
     id: 'transformations-plot',
     family: 'TransformationsLab',
     marksPlane: true,
@@ -455,6 +477,12 @@ const typeIntoFirstField = async (page, selector, value) => {
 };
 
 const makeEdit = async (page, sceneId) => {
+  if (sceneId === 'sequence-full-bridge') {
+    return await typeIntoFirstField(page, 'input[aria-label^="Sequence output"]', '3');
+  }
+  if (sceneId === 'systems-linear') {
+    return await typeIntoFirstField(page, 'input[type="number"]', '2');
+  }
   if (sceneId === 'transformations-plot' || sceneId === 'graphing2-construct') {
     return (await plotAt(page, 0.62, 0.38)) ? 'plotted a point' : null;
   }
