@@ -94,6 +94,7 @@ const SCENES = [
       questionId: 'balance-algebra', type: 'stepAlgebra',
       prompt: 'Solve 2x + 5 = 19 and show each balanced step.',
       equation: '2*x + 5 = 19', variable: 'x', answer: '7',
+      supportPresentation: { algebraAutoApply: true },
     },
   },
   {
@@ -452,7 +453,11 @@ const READ_MATH_STATE = new Function(`
       || /^(Not placed|None yet|Undefined)$/.test(text)
       || /defining points plotted/.test(text)
       || /^y\\s*=/.test(text));
-  return { fields, marks, placements };
+  const algebra = [...scope.querySelectorAll('[data-math-state]')]
+    .filter((el) => !chrome(el))
+    .map((el) => String(el.getAttribute('data-math-state') || '').trim())
+    .filter(Boolean);
+  return { fields, marks, placements, algebra };
 `);
 
 /*
@@ -506,6 +511,16 @@ const typeIntoFirstField = async (page, selector, value) => {
   return `typed ${value}`;
 };
 
+const typeIntoMathField = async (page, selector, value) => {
+  const field = page.locator(`.mathmaster-work-view-host[data-open="true"] ${selector}`).first();
+  if (!(await field.count())) return null;
+  await field.click();
+  await page.keyboard.press('Control+A');
+  await page.keyboard.type(String(value));
+  await page.waitForTimeout(250);
+  return `typed ${value}`;
+};
+
 const makeEdit = async (page, sceneId) => {
   if (sceneId === 'step-algebra-operations') {
     const typed = await typeIntoFirstField(page, 'input[type="number"]', '6');
@@ -516,6 +531,39 @@ const makeEdit = async (page, sceneId) => {
       return 'applied an operation to both sides';
     }
     return typed;
+  }
+  if (sceneId === 'balance-algebra') {
+    const chooseAdd = page.locator('.mathmaster-work-view-host[data-open="true"] button[aria-label="Choose Add operation"]').first();
+    if (!(await chooseAdd.count())) return null;
+    await chooseAdd.click();
+    const typed = await typeIntoMathField(page, 'math-field[aria-label*="what to both sides"]', '1');
+    if (!typed) return null;
+    const apply = page.locator('.mathmaster-work-view-host[data-open="true"] .algebra-auto-apply-button').first();
+    if (!(await apply.count())) return null;
+    await apply.click();
+    await page.waitForTimeout(300);
+    const keep = page.locator('.mathmaster-work-view-host[data-open="true"] .algebra-keep-written').first();
+    if (await keep.count()) {
+      await keep.click();
+      await page.waitForTimeout(350);
+    }
+    return 'committed a balanced Add 1 step';
+  }
+  if (sceneId === 'split-absolute-algebra') {
+    const reverse = page.locator('.mathmaster-work-view-host[data-open="true"] button', { hasText: 'Reverse absolute value' }).first();
+    if (!(await reverse.count())) return null;
+    await reverse.click();
+    const twoBranches = page.locator('.mathmaster-work-view-host[data-open="true"] button', { hasText: 'Two branches (OR)' }).first();
+    if (!(await twoBranches.count())) return null;
+    await twoBranches.click();
+    const first = await typeIntoMathField(page, 'math-field[aria-label="Branch A right-side value"]', '5');
+    const second = await typeIntoMathField(page, 'math-field[aria-label="Branch B right-side value"]', '-5');
+    if (!first || !second) return null;
+    const check = page.locator('.mathmaster-work-view-host[data-open="true"] button', { hasText: 'Check split' }).first();
+    if (!(await check.count())) return null;
+    await check.click();
+    await page.waitForTimeout(400);
+    return 'committed the student-authored absolute-value split';
   }
   if (sceneId === 'sequence-full-bridge') {
     return await typeIntoFirstField(page, 'input[aria-label^="Sequence output"]', '3');
