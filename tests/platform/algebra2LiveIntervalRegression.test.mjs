@@ -44,3 +44,18 @@ test('interval input alone disables smartFence and transformed source points are
   const transformations = await readFile(new URL('../../src/tools/transformations/TransformationsLab.jsx', import.meta.url), 'utf8');
   assert.match(transformations, /label:\s*`S\$\{index \+ 1\}`[^\n]+movable:\s*false/);
 });
+
+
+test('production Path private grading infers interval equivalence from field metadata', async () => {
+  const { createRequire } = await import('node:module');
+  const require = createRequire(import.meta.url);
+  const { privateGradingDefinition } = require('../../functions/lib/mathPath.js');
+  const grading = privateGradingDefinition({
+    responseFields: [{
+      id: 'domain',
+      inputProfile: 'interval',
+      expected: '(-∞,-3)∪(3,∞)',
+    }],
+  });
+  assert.equal(grading.fields[0]?.equivalence, 'interval');
+});
