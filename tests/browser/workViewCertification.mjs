@@ -40,7 +40,7 @@ const dismissNumericKeypad = async (page) => {
   }
 };
 
-const mathStateSnapshot = async (shell) => shell.evaluate((node) => {
+const mathStateSnapshot = async (toolRoot) => toolRoot.evaluate((node) => {
   const chrome = (element) => element.closest?.('.mathmaster-work-view-header, .mathmaster-work-view-drawer, .mathmaster-work-view-actions, .mathmaster-work-view-instruction');
   const visibleElement = (element) => {
     const rect = element.getBoundingClientRect();
@@ -72,10 +72,10 @@ const mathStateSnapshot = async (shell) => shell.evaluate((node) => {
 });
 
 const makeStatefulEdit = async (page, shell, toolId) => {
-  const baseline = await mathStateSnapshot(shell);
+  const baseline = await mathStateSnapshot(toolRoot);
   const changed = async (description) => {
     await page.waitForTimeout(160);
-    const state = await mathStateSnapshot(shell);
+    const state = await mathStateSnapshot(toolRoot);
     return JSON.stringify(state) !== JSON.stringify(baseline) ? { description, state } : null;
   };
 
@@ -315,14 +315,14 @@ for (const device of WORK_VIEW_CERTIFICATION_DEVICES) {
         // State preservation is meaningful only after the student has actually
         // changed the mathematics. A pristine fixture would look identical after
         // an accidental remount/reset and falsely certify the regression.
-        const baselineState = await mathStateSnapshot(shell);
+        const baselineState = await mathStateSnapshot(toolRoot);
         let edit = await makeStatefulEdit(page, shell, toolId);
         if (!edit) {
           problems.push('could not make a stateful student edit before resize/orientation certification');
         } else {
           await dismissNumericKeypad(page);
           await page.screenshot({ path: path.join(familyDir, 'student-edit.png') });
-          let editedState = await mathStateSnapshot(shell);
+          let editedState = await mathStateSnapshot(toolRoot);
 
           if (certification.requiredBehaviors.includes('fitIsPresentationOnly')) {
             const fit = shell.locator('[data-work-view-action]').filter({ hasText: /fit/i }).first();
@@ -331,7 +331,7 @@ for (const device of WORK_VIEW_CERTIFICATION_DEVICES) {
               problems.push(fitProblem);
             } else {
               await page.waitForTimeout(120);
-              const afterFit = await mathStateSnapshot(shell);
+              const afterFit = await mathStateSnapshot(toolRoot);
               if (JSON.stringify(afterFit) !== JSON.stringify(editedState)) {
                 problems.push('Fit View changed mathematical state instead of camera state only');
               }
@@ -348,7 +348,7 @@ for (const device of WORK_VIEW_CERTIFICATION_DEVICES) {
                 problems.push(undoProblem);
               } else {
                 await page.waitForTimeout(160);
-                const undoneState = await mathStateSnapshot(shell);
+                const undoneState = await mathStateSnapshot(toolRoot);
                 if (JSON.stringify(undoneState) !== JSON.stringify(baselineState)) {
                   problems.push('Universal Undo did not restore the mathematical state before the edit');
                 }
@@ -356,7 +356,7 @@ for (const device of WORK_VIEW_CERTIFICATION_DEVICES) {
                 if (!edit) problems.push('could not recreate mathematical work after Undo for resize certification');
                 else {
                   await dismissNumericKeypad(page);
-                  editedState = await mathStateSnapshot(shell);
+                  editedState = await mathStateSnapshot(toolRoot);
                 }
               }
             }
@@ -366,9 +366,13 @@ for (const device of WORK_VIEW_CERTIFICATION_DEVICES) {
             const beforeResize = editedState;
             await page.setViewportSize({ width: device.viewportHeight, height: device.viewportWidth });
             await page.waitForTimeout(180);
-            const afterResize = await mathStateSnapshot(shell);
+            const afterResize = await mathStateSnapshot(toolRoot);
             if (JSON.stringify(beforeResize) !== JSON.stringify(afterResize)) {
               problems.push(`resize/orientation changed mathematical state after ${edit.description}`);
+            }
+            const resizedShell = toolRoot.locator('.mathmaster-work-view-host[data-open="true"]').first();
+            if (!(await visible(resizedShell))) {
+              problems.push('Work View closed during resize/orientation change');
             }
           }
         }
