@@ -969,7 +969,10 @@ export default function QuestionEngine({
       <WorkViewCapabilityProvider capabilities={{
         undo: { label:workspaceActions.undo.label, onAction:workspaceActions.undo.onClick, disabled:workspaceActions.undo.disabled, title:workspaceActions.undo.title },
         task: { text:processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.' },
-        help: workspaceActions.help,
+        help: workspaceActions.help || {
+          label: 'Help',
+          text: 'Use the task directions and the controls in this workspace. Your mathematical work stays in place when you open or close Work View.',
+        },
         instruction: taskContextPresentation.currentStagePrompt ? { text:taskContextPresentation.currentStagePrompt } : null,
         primaryActions: workspaceActions.submit ? [{ ...workspaceActions.submit, onAction:workspaceActions.submit.onClick }] : [],
         secondaryActions: [{ ...workspaceActions.scratchpad, onAction:workspaceActions.scratchpad.onClick }],
