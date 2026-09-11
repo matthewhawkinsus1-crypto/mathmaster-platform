@@ -6,6 +6,7 @@ import QuestionPrompt from './QuestionPrompt';
 import GraphDisplay from './GraphDisplay';
 import QuestionVisual from './QuestionVisual';
 import { compareOrderedPair, parseOrderedPair } from './answerUtils';
+import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 
 export default function SystemGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const { prompt, solution, showEquations = true, showGraph = true, graph } = question;
@@ -40,6 +41,10 @@ export default function SystemGrader({ question, onStateChange, onUndoStateChang
     <div>
       <h2 style={{ color: '#202124', marginTop: 0 }}>Systems of Equations</h2>
       <QuestionPrompt>{prompt || 'Solve the system and enter the solution as an ordered pair $(x, y)$.'}</QuestionPrompt>
+      <EnlargeableFigure label="System of equations workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{
+        equationInput: { label: 'Both equations and solution entry', studentState: true },
+        instruction: { text: prompt || 'Solve both equations as one system.' },
+      }}>
       {showEquations && equationsLatex.length > 0 && (
         <div style={{ display: 'grid', gap: '10px', margin: '24px auto', padding: '18px 24px', width: 'fit-content', maxWidth: '100%', background: '#f8f9fa', borderRadius: '10px', color: '#1a73e8', fontSize: '26px', fontWeight: 'bold' }}>
           {equationsLatex.map((equation, index) => (
@@ -51,11 +56,12 @@ export default function SystemGrader({ question, onStateChange, onUndoStateChang
         </div>
       )}
       <QuestionVisual question={question} includeGraph={false} />
-      {showGraph && graph && <GraphDisplay graph={graph} title="System of equations graph" />}
+      {showGraph && graph && <GraphDisplay graph={graph} title="System of equations graph" enlargeable={false} />}
       <div style={{ marginTop: '24px' }}>
         <MathDisplay value="(x, y) =" format="ascii-math" inline style={{ display: 'block', marginBottom: '10px', fontSize: '21px', fontWeight: 'bold' }} />
         <MathInput value={answer} onChange={setAnswer} placeholder="(x, y)" ariaLabel="Solution to the system as an ordered pair" onUndoStateChange={onUndoStateChange} inputStatus={incorrect ? 'incorrect' : 'neutral'} />
       </div>
+      </EnlargeableFigure>
     </div>
   );
 }

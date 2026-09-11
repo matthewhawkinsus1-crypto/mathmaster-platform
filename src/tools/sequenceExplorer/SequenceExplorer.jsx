@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
+import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { matchesNumericAnswer, round } from '../shared/toolMath';
@@ -137,6 +139,7 @@ function SequenceVisual({ spec, count = 7, title = 'Table + discrete graph' }) {
       yMin={bounds.yMin}
       yMax={bounds.yMax}
       points={rows.map((row) => ({ x: row.n, y: row.value, label: `a${row.n}` }))}
+      enlargeable={false}
     />
     <div style={{ overflowX: 'auto', marginTop: 12 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 280 }}>
@@ -167,12 +170,16 @@ function AnalyzeSequence({ questionData, feedback, submit, onAction }) {
   const [kindAnswer, setKindAnswer] = useState('');
   const [changeAnswer, setChangeAnswer] = useState('');
   const [termAnswer, setTermAnswer] = useState('');
+  const mathState = useMemo(() => ({ kindAnswer, changeAnswer, termAnswer }), [kindAnswer, changeAnswer, termAnswer]);
+  const restore = useCallback((value) => { setKindAnswer(value?.kindAnswer || ''); setChangeAnswer(value?.changeAnswer || ''); setTermAnswer(value?.termAnswer || ''); }, []);
+  const undoHistory = useMathUndoHistory({ label: 'Undo the last sequence answer edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
   const check = () => {
     const checks = [kindAnswer === spec.kind, matchesNumber(changeAnswer, expectedChange, 0.001), matchesNumber(termAnswer, expectedTerm, 0.01)];
     submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length }, { kindAnswer, changeAnswer, termAnswer }, { mode: 'analyze', targetN });
   };
   return <ToolShell title="Analyze the Sequence" subtitle="Connect the pattern, table, discrete graph, and term structure." badge="Pattern and terms">
     <TaskCard question={questionData} task={'Decide whether this sequence is arithmetic or geometric, then give its change and the requested term.'} steps={['Compare consecutive terms by subtracting, then by dividing.', 'Whichever stays constant tells you the type.', 'Use that constant to reach the requested term.']} />
+    <EnlargeableFigure label="Sequence analysis workspace" enlargeLabel="Enlarge sequence workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, tableData: { label: 'Sequence table' }, equationInput: { label: 'Sequence analysis', studentState: true }, instruction: { text: 'Classify the pattern and find the requested term.' }, primaryActions: [{ id: 'check-analysis', label: 'Check analysis', onAction: check }] }}>
     <ToolGrid min={340}>
       <SequenceVisual spec={spec} count={sequenceEvidenceCount(questionData.displayCount ?? 7, targetN, { revealTarget: questionData.revealTargetTerm === true })} />
       <Panel title="Analyze the pattern">
@@ -182,7 +189,7 @@ function AnalyzeSequence({ questionData, feedback, submit, onAction }) {
         <button type="button" onClick={check} style={actionStyle}>Check analysis</button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Pattern, common change, and target term all agree.' : 'Use equal differences for arithmetic sequences and equal ratios for geometric sequences.'}</ResultPill></div> : null}
       <HintPanel hints={['Look at how each term becomes the next one. Adding the same amount every time is arithmetic; multiplying by the same amount is geometric.', 'Subtract each term from the one after it. If you always get the same number, that number is the common difference.', 'If subtraction does not give a constant, try dividing instead — a constant ratio means geometric.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
-    </ToolGrid>
+    </ToolGrid></EnlargeableFigure>
   </ToolShell>;
 }
 
@@ -217,6 +224,25 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
   const [recursiveFirst, setRecursiveFirst] = useState('');
   const [recursiveRule, setRecursiveRule] = useState('');
   const [termAnswer, setTermAnswer] = useState('');
+
+  const mathState = useMemo(() => ({
+    tableValues, plottedPoints, kindAnswer, changeAnswer, explicitRule,
+    recursiveFirst, recursiveRule, termAnswer,
+  }), [tableValues, plottedPoints, kindAnswer, changeAnswer, explicitRule, recursiveFirst, recursiveRule, termAnswer]);
+  const restoreMathState = useCallback((previous) => {
+    setTableValues(previous?.tableValues || rows.map(() => ''));
+    setPlottedPoints(previous?.plottedPoints || []);
+    setKindAnswer(previous?.kindAnswer || '');
+    setChangeAnswer(previous?.changeAnswer || '');
+    setExplicitRule(previous?.explicitRule || '');
+    setRecursiveFirst(previous?.recursiveFirst || '');
+    setRecursiveRule(previous?.recursiveRule || '');
+    setTermAnswer(previous?.termAnswer || '');
+  }, [rows]);
+  const undoHistory = useMathUndoHistory({
+    label: 'Undo the last sequence edit', state: mathState,
+    onRestore: restoreMathState, resetKey: questionUndoResetKey(questionData),
+  });
 
   const handlePlot = (point) => {
     const rawN = Number(point?.[0]);
@@ -286,6 +312,21 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
       task="Build the sequence as a discrete function, then use the same connected representations to complete the requested analysis."
       steps={taskSteps}
     />
+    <EnlargeableFigure
+      label="Sequence workspace"
+      enlargeLabel="Enlarge sequence workspace"
+      taskText={questionData.prompt || 'Build the complete sequence model.'}
+      style={{ width: '100%' }}
+      capabilities={{
+        undo: undoHistory.capability,
+        tableData: { label: 'Sequence table', studentState: true },
+        pointEditing: { label: 'Plot sequence points', studentState: true },
+        equationInput: { label: 'Explicit and recursive rules', studentState: true },
+        numericControls: { label: 'Sequence analysis', studentState: true },
+        instruction: { text: taskSteps[0] || 'Complete the connected sequence representations.' },
+        primaryActions: [{ id: 'check-sequence', label: 'Check complete model', onAction: check }],
+      }}
+    >
     <ToolGrid min={360}>
       <Panel title="1. Build the table and discrete graph">
         <div style={{ overflowX: 'auto', marginBottom: 12 }}>
@@ -336,17 +377,10 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
           snapStep={plotSnapStep}
           cursorLabel="Sequence point"
           ariaLabel="Discrete sequence graph"
+          enlargeable={false}
         />
         {requirePlot && (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
-            <button
-              type="button"
-              onClick={() => setPlottedPoints((current) => current.slice(0, -1))}
-              disabled={!plottedPoints.length}
-              style={{ ...actionStyle, marginTop: 0, background: '#fff', color: '#174ea6', border: '1px solid #aecbfa' }}
-            >
-              Undo last point
-            </button>
             <button
               type="button"
               onClick={() => setPlottedPoints([])}
@@ -440,6 +474,7 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
         />
       </Panel>
     </ToolGrid>
+    </EnlargeableFigure>
   </ToolShell>;
 }
 
@@ -448,6 +483,9 @@ function RuleBridge({ questionData, feedback, submit, onAction }) {
   const [explicitRule, setExplicitRule] = useState('');
   const [recursiveFirst, setRecursiveFirst] = useState('');
   const [recursiveRule, setRecursiveRule] = useState('');
+  const mathState = useMemo(() => ({ explicitRule, recursiveFirst, recursiveRule }), [explicitRule, recursiveFirst, recursiveRule]);
+  const restore = useCallback((value) => { setExplicitRule(value?.explicitRule || ''); setRecursiveFirst(value?.recursiveFirst || ''); setRecursiveRule(value?.recursiveRule || ''); }, []);
+  const undoHistory = useMathUndoHistory({ label: 'Undo the last rule edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
   const check = () => {
     const checks = [
       matchesExplicitRule(explicitRule, spec),
@@ -470,6 +508,7 @@ function RuleBridge({ questionData, feedback, submit, onAction }) {
         'Both equations must generate the sequence shown.',
       ]}
     />
+    <EnlargeableFigure label="Sequence rule workspace" enlargeLabel="Enlarge sequence workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, tableData: { label: 'Sequence evidence' }, equationInput: { label: 'Explicit and recursive equations', studentState: true }, instruction: { text: 'Write both rules for the same sequence.' }, primaryActions: [{ id: 'check-rules', label: 'Check both equations', onAction: check }] }}>
     <ToolGrid min={330}>
       <SequenceVisual spec={spec} count={6} title="Evidence from the sequence" />
       <Panel title="Write both equations">
@@ -508,7 +547,7 @@ function RuleBridge({ questionData, feedback, submit, onAction }) {
           onHintUsed={() => onAction?.("HINT_USED")}
         />
       </Panel>
-    </ToolGrid>
+    </ToolGrid></EnlargeableFigure>
   </ToolShell>;
 }
 
@@ -520,12 +559,16 @@ function MissingTerm({ questionData, feedback, submit, onAction }) {
   const expected = sequenceTerm(spec, missingIndex);
   const [termAnswer, setTermAnswer] = useState('');
   const [kindAnswer, setKindAnswer] = useState('');
+  const mathState = useMemo(() => ({ termAnswer, kindAnswer }), [termAnswer, kindAnswer]);
+  const restore = useCallback((value) => { setTermAnswer(value?.termAnswer || ''); setKindAnswer(value?.kindAnswer || ''); }, []);
+  const undoHistory = useMathUndoHistory({ label: 'Undo the last missing-term edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
   const check = () => {
     const checks = [matchesNumber(termAnswer, expected, 0.01), kindAnswer === spec.kind];
     submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { termAnswer, kindAnswer }, { mode: 'missingTerm', missingIndex });
   };
   return <ToolShell title="Find the Missing Term" subtitle="Recover a missing term from the sequence pattern." badge="Sequence pattern">
     <TaskCard question={questionData} task={'Recover the missing term and say what kind of sequence this is.'} steps={['Look at the terms either side of the gap.', 'Work out the constant difference or ratio from terms you can see.', 'Apply it to fill the gap.']} />
+    <EnlargeableFigure label="Missing term workspace" enlargeLabel="Enlarge sequence workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, tableData: { label: 'Sequence with a gap' }, numericControls: { label: 'Missing term controls', studentState: true }, instruction: { text: 'Recover the missing term and classify the sequence.' }, primaryActions: [{ id: 'check-missing', label: 'Check missing term', onAction: check }] }}>
     <ToolGrid min={320}>
       <Panel title="Sequence with a gap">
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{rows.map((row) => <div key={row.n} style={{ minWidth: 66, padding: '10px 12px', textAlign: 'center', borderRadius: 10, border: '1px solid #d9e2f1', background: row.n === missingIndex ? '#fff7e6' : '#fff' }}><div style={{ fontSize: 11, color: '#667085' }}>a{row.n}</div><strong>{row.n === missingIndex ? '?' : numberText(row.value)}</strong></div>)}</div>
@@ -537,7 +580,7 @@ function MissingTerm({ questionData, feedback, submit, onAction }) {
         <button type="button" onClick={check} style={actionStyle}>Check missing term</button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'The missing term preserves the sequence structure.' : 'Check the common difference or ratio on both sides of the blank.'}</ResultPill></div> : null}
       <HintPanel hints={['The structure of a sequence does not change partway through, so terms you can see tell you about the ones you cannot.', 'Use two consecutive known terms to find the difference or the ratio.', 'Then step forward from the term before the gap using that same difference or ratio.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
-    </ToolGrid>
+    </ToolGrid></EnlargeableFigure>
   </ToolShell>;
 }
 
@@ -548,12 +591,16 @@ function PartialSum({ questionData, feedback, submit, onAction }) {
   const expectedSum = sequencePartialSum(spec, sumN);
   const [lastTerm, setLastTerm] = useState('');
   const [sumAnswer, setSumAnswer] = useState('');
+  const mathState = useMemo(() => ({ lastTerm, sumAnswer }), [lastTerm, sumAnswer]);
+  const restore = useCallback((value) => { setLastTerm(value?.lastTerm || ''); setSumAnswer(value?.sumAnswer || ''); }, []);
+  const undoHistory = useMathUndoHistory({ label: 'Undo the last finite-sum edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
   const check = () => {
     const checks = [matchesNumber(lastTerm, expectedLast, 0.01), matchesNumber(sumAnswer, expectedSum, 0.01)];
     submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { lastTerm, sumAnswer }, { mode: 'partialSum', sumN });
   };
   return <ToolShell title="Find the Finite Sum" subtitle="Connect a sequence of terms to the finite series formed by adding them." badge="Finite series">
     <TaskCard question={questionData} task={'Find the last term of this finite sequence and the sum of all its terms.'} steps={['Extend the sequence to the requested number of terms.', 'Identify the last term.', 'Add all the terms, or use the appropriate sum formula.']} />
+    <EnlargeableFigure label="Finite sequence workspace" enlargeLabel="Enlarge sequence workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, tableData: { label: 'Sequence evidence' }, numericControls: { label: 'Finite sum controls', studentState: true }, instruction: { text: `Find the last term and S${sumN}.` }, primaryActions: [{ id: 'check-sum', label: 'Check finite sum', onAction: check }] }}>
     <ToolGrid min={320}>
       <SequenceVisual spec={spec} count={sequenceEvidenceCount(7, sumN, { revealTarget: questionData.revealTargetTerm === true, cap: 7 })} title="Sequence evidence" />
       <Panel title={`Find S${sumN}`}>
@@ -563,7 +610,7 @@ function PartialSum({ questionData, feedback, submit, onAction }) {
         <button type="button" onClick={check} style={actionStyle}>Check finite sum</button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'The last term and finite sum are consistent.' : 'Find the correct final term first, then include every term from a₁ through it.'}</ResultPill></div> : null}
       <HintPanel hints={['A series is what you get when you add the terms of a sequence together.', 'Find the last term first — you need it before you can use most sum formulas.', 'For an arithmetic series the sum is the number of terms times the average of the first and last term.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
-    </ToolGrid>
+    </ToolGrid></EnlargeableFigure>
   </ToolShell>;
 }
 
@@ -594,6 +641,19 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
   const [plotMessage, setPlotMessage] = useState('');
   const [relation, setRelation] = useState('');
   const [difference, setDifference] = useState('');
+  const mathState = useMemo(() => ({ activeSeries, leftPlottedPoints, rightPlottedPoints, relation, difference }),
+    [activeSeries, leftPlottedPoints, rightPlottedPoints, relation, difference]);
+  const restoreMathState = useCallback((previous) => {
+    setActiveSeries(previous?.activeSeries || 'A');
+    setLeftPlottedPoints(previous?.leftPlottedPoints || []);
+    setRightPlottedPoints(previous?.rightPlottedPoints || []);
+    setRelation(previous?.relation || '');
+    setDifference(previous?.difference || '');
+  }, []);
+  const undoHistory = useMathUndoHistory({
+    label: 'Undo the last sequence comparison edit', state: mathState,
+    onRestore: restoreMathState, resetKey: questionUndoResetKey(questionData),
+  });
   const expectedRelation = result.relation === 'left' ? 'A' : result.relation === 'right' ? 'B' : 'equal';
 
   const handlePlot = (point) => {
@@ -656,6 +716,16 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
       task={requirePlot ? 'Plot both sequences as discrete functions, then compare them at the requested term number.' : 'Compare the two sequences at the given term number.'}
       steps={taskSteps}
     />
+    <EnlargeableFigure label="Sequence comparison workspace" enlargeLabel="Enlarge sequence workspace"
+      taskText={questionData.prompt || 'Compare both sequences.'} style={{ width: '100%' }}
+      capabilities={{
+        undo: undoHistory.capability,
+        pointEditing: requirePlot ? { label: 'Plot both sequences', studentState: true } : null,
+        tableData: { label: 'Sequence evidence' },
+        numericControls: { label: 'Comparison controls', studentState: true },
+        instruction: { text: taskSteps[0] },
+        primaryActions: [{ id: 'check-comparison', label: 'Check comparison', onAction: check }],
+      }}>
     <ToolGrid min={330}>
       <Panel title={requirePlot ? 'Plot the two sequences' : 'Two discrete models'}>
         {requirePlot && (
@@ -710,6 +780,7 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
           snapStep={plotSnapStep}
           cursorLabel={activeSeries === 'A' ? leftLabel + ' point' : rightLabel + ' point'}
           ariaLabel={requirePlot ? 'Interactive graph for plotting two discrete sequences' : 'Graph comparing two discrete sequences'}
+          enlargeable={false}
         />
         <p><span style={{ color: '#1a73e8', fontWeight: 900 }}>● {leftLabel}</span> &nbsp; <span style={{ color: '#d93025', fontWeight: 900 }}>● {rightLabel}</span></p>
         {requirePlot ? (
@@ -759,5 +830,6 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? (requirePlot ? 'Both discrete graphs and the comparison agree.' : 'The comparison uses the same term number for both sequences.') : (requirePlot ? 'Check every plotted point for both sequences, then compare the two requested terms.' : 'Evaluate both rules at n = ' + compareN + ', then compare their outputs.')}</ResultPill></div> : null}
       <HintPanel hints={['Do not judge by the early terms — additive and multiplicative growth trade places.', 'Compute the requested term of each sequence independently before comparing anything.', 'Geometric growth starts slower but overtakes arithmetic growth eventually, and then pulls away fast.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
     </ToolGrid>
+    </EnlargeableFigure>
   </ToolShell>;
 }

@@ -189,6 +189,30 @@ html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][da
 [data-open="true"][data-keyboard="open"] .mathmaster-work-view-drawer[data-open="true"] { max-height: min(30dvh, 200px); }
 
 /*
+ * KEEP THE MATHEMATICAL REFERENCE IN VIEW WHILE A PHONE FIELD IS EDITED.
+ *
+ * The first panel in a split is the graph/table/model and the second is the
+ * student's equation or parameter editor.  visualViewport correctly shrinks
+ * the shell for the keyboard, but ordinary scrolling could still move that
+ * entire reference above the viewport.  Make the reference a bounded sticky
+ * region only while an editor actually has focus.  This is deliberately a
+ * Work View layout rule rather than a sequence/systems special case: parameter
+ * workspaces in Stage 3C can use the same split without inventing another
+ * keyboard architecture.
+ */
+[data-open="true"][data-layout="mobile"][data-keyboard="open"]
+  .mathmaster-work-view-surface:has(input:focus, textarea:focus, select:focus)
+  .mathmaster-tool-split > .mathmaster-tool-panel:first-child {
+  position: sticky !important;
+  top: 0;
+  z-index: 2;
+  max-height: clamp(132px, 38dvh, 260px) !important;
+  overflow: auto !important;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(40, 55, 80, .14) !important;
+}
+
+/*
  * NORMAL ASSIGNMENT CHROME STANDS DOWN WHILE WORK VIEW IS OPEN.
  *
  * `EnlargeableFigure` stamps `data-work-view-open` on the document element, and
