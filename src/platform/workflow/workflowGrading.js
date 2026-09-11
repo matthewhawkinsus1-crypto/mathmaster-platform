@@ -18,6 +18,7 @@
 // Pure: no React, no Firestore, no clock.
 
 import { compareMathAnswer, looksLikeFiniteSetNotation, normalizeMathAnswer, parseOrderedPair } from '../../answerUtils.js';
+import { sameIntervalNotation } from '../../../functions/shared/answerEquivalence.mjs';
 import { isAlgebraicallyEquivalent } from '../../grading/equivalence.js';
 import { activeStageIds, hasStageResponse } from './questionWorkflow.js';
 import { matchItems, readFigureMatch } from './figureMatch.js';
@@ -99,6 +100,9 @@ const definesAFunction = (text) => {
 
 const matchesAnswer = (stage, response, expected) => {
   if (Array.isArray(expected)) return expected.some((option) => matchesAnswer(stage, response, option));
+  if (stage?.notation === 'interval' || stage?.inputProfile === 'interval' || stage?.toolProfile === 'interval' || stage?.answerFormat === 'interval' || stage?.kind === 'intervalInput') {
+    return sameIntervalNotation(response, expected);
+  }
   // Some domain/range stages intentionally present a bounded set of authored
   // choices (for example an infinite discrete domain). In that case the
   // response is a selected label, not an algebraic expression to simplify.

@@ -1,5 +1,6 @@
 // Interval arithmetic and notation for the number-line tool. Kept free of React
 // so the validator, the contract and the tests can all use it.
+import { parseCanonicalIntervalNotation } from '../../../functions/shared/answerEquivalence.mjs';
 
 const INF = Number.POSITIVE_INFINITY;
 
@@ -88,39 +89,8 @@ export const sameIntervals = (left, right) => {
 // different bracket spacing, "inf"/"infinity"/"∞", "U"/"∪" for union, and a
 // hyphen or minus sign.
 export const parseIntervalNotation = (text) => {
-  // MathLive serializes the same visible interval in several LaTeX forms.
-  // Normalize those forms before parsing so a student who uses MathMaster's
-  // own ∞/∪/bracket buttons is graded the same as a student who types Unicode.
-  const raw = String(text || '')
-    .replace(/[−–—]/g, '-')
-    .replace(/\\left|\\right/g, '')
-    .replace(/\\lbrack/g, '[')
-    .replace(/\\rbrack/g, ']')
-    .replace(/\\infty/g, '∞')
-    .replace(/\\cup/g, '∪')
-    .replace(/\\(?:,|;|!|quad|qquad)/g, '')
-    .replace(/infinity|infty|inf/gi, '∞')
-    .replace(/\bU\b/g, '∪')
-    .trim();
-  if (!raw) return null;
-  const pieces = raw.split('∪').map((piece) => piece.trim()).filter(Boolean);
-  if (!pieces.length) return null;
-
-  const parsed = [];
-  for (const piece of pieces) {
-    const match = piece.match(/^([[(])\s*(-?∞|-?[\d.]+)\s*,\s*(-?∞|-?[\d.]+)\s*([\])])$/);
-    if (!match) return null;
-    const [, openBracket, lowerText, upperText, closeBracket] = match;
-    const min = lowerText.includes('∞') ? (lowerText.startsWith('-') ? -INF : INF) : Number(lowerText);
-    const max = upperText.includes('∞') ? (upperText.startsWith('-') ? -INF : INF) : Number(upperText);
-    if (Number.isNaN(min) || Number.isNaN(max)) return null;
-    parsed.push({
-      min, max,
-      minClosed: openBracket === '[' && Number.isFinite(min),
-      maxClosed: closeBracket === ']' && Number.isFinite(max),
-    });
-  }
-  return normalizeIntervals(parsed);
+  const parsed = parseCanonicalIntervalNotation(text);
+  return parsed ? normalizeIntervals(parsed) : null;
 };
 
 export const notationMatches = (studentText, expectedIntervals) => {

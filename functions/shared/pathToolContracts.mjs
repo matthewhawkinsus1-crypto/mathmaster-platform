@@ -45,6 +45,7 @@ import {
   sameSimpleInequality,
   sameText,
   sameValue,
+  parseCanonicalIntervalNotation,
 } from './answerEquivalence.mjs';
 
 import {
@@ -191,37 +192,8 @@ const parsePathIntervalNotation = (text) => {
   // Character for character the same normalization as `parseIntervalNotation`
   // in src/tools/intervalNumberLine/intervalMath.js. A test asserts the two
   // agree on every spelling; keep them identical rather than merely equivalent.
-  const raw = String(text || '')
-    .replace(UNICODE_MINUS, '-')
-    .replace(/\\left|\\right/g, '')
-    .replace(/\\lbrack/g, '[')
-    .replace(/\\rbrack/g, ']')
-    .replace(/\\infty/g, '∞')
-    .replace(/\\cup/g, '∪')
-    .replace(/\\(?:,|;|!|quad|qquad)/g, '')
-    .replace(/infinity|infty|inf/gi, '∞')
-    .replace(/\bU\b/g, '∪')
-    .trim();
-  if (!raw) return null;
-  const pieces = raw.split('∪').map((piece) => piece.trim()).filter(Boolean);
-  if (!pieces.length) return null;
-
-  const parsed = [];
-  for (const piece of pieces) {
-    const match = piece.match(/^([[(])\s*(-?∞|-?[\d.]+)\s*,\s*(-?∞|-?[\d.]+)\s*([\])])$/);
-    if (!match) return null;
-    const [, openBracket, lowerText, upperText, closeBracket] = match;
-    const min = lowerText.includes('∞') ? (lowerText.startsWith('-') ? -PATH_INFINITY : PATH_INFINITY) : Number(lowerText);
-    const max = upperText.includes('∞') ? (upperText.startsWith('-') ? -PATH_INFINITY : PATH_INFINITY) : Number(upperText);
-    if (Number.isNaN(min) || Number.isNaN(max)) return null;
-    parsed.push({
-      min,
-      max,
-      minClosed: openBracket === '[' && Number.isFinite(min),
-      maxClosed: closeBracket === ']' && Number.isFinite(max),
-    });
-  }
-  return normalizePathIntervals(parsed);
+  const parsed = parseCanonicalIntervalNotation(text);
+  return parsed ? normalizePathIntervals(parsed) : null;
 };
 
 /**

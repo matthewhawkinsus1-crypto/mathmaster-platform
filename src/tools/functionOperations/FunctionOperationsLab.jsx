@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import ToolShell, { HintPanel, Panel, ResultPill, TaskCard, ToolGrid } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
+import MathInput from '../../MathInput.jsx';
+import MathDisplay from '../../MathDisplay.jsx';
 import {
   deriveFunctionOperations,
   functionOperationAnswerMatches,
@@ -108,8 +110,8 @@ export default function FunctionOperationsLab({ questionData = {}, onAction }) {
 
       <Panel title="Functions">
         <div style={{ display: 'grid', gap: 8, fontSize: 20, fontWeight: 800 }}>
-          <div>f(x) = {answers.f.expression}</div>
-          <div>g(x) = {answers.g.expression}</div>
+          <MathDisplay value={`f(x)=${answers.f.expression}`} />
+          <MathDisplay value={`g(x)=${answers.g.expression}`} />
         </div>
       </Panel>
 
@@ -122,10 +124,11 @@ export default function FunctionOperationsLab({ questionData = {}, onAction }) {
               <p style={{ marginTop: 0 }}>{meta.prompt}</p>
               <label style={{ display: 'block', fontWeight: 700 }}>
                 Simplified expression
-                <input
+                <MathInput
                   value={responses[operation] || ''}
-                  onChange={(event) => setResponse(operation, event.target.value)}
-                  style={{ ...inputStyle, marginTop: 6 }}
+                  onChange={(value) => setResponse(operation, value)}
+                  toolProfile="expression"
+                  maxWidth={540}
                   placeholder="Enter an expression in x"
                   aria-label={`${title} simplified expression`}
                 />
