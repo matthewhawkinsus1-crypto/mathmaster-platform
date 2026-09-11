@@ -541,12 +541,24 @@ const makeEdit = async (page, sceneId) => {
     const chooseAdd = page.locator('.mathmaster-work-view-host[data-open="true"] button[aria-label="Choose Add operation"]').first();
     if (!(await chooseAdd.count())) return null;
     await chooseAdd.click();
-    const typed = await typeIntoMathField(page, 'math-field[aria-label*="what to both sides"]', '1');
+    const typed = await typeIntoMathField(page, '.algebra-operation-composer math-field', '1');
     if (!typed) return null;
-    const apply = page.locator('.mathmaster-work-view-host[data-open="true"] .algebra-auto-apply-button').first();
-    if (!(await apply.count())) return null;
-    await apply.click();
+
+    // Use the same select-then-place route available to mouse, touch and keyboard
+    // users. This exercises the real balanced-operation flow instead of relying
+    // on the optional accommodation shortcut.
+    const pickup = page.locator('.mathmaster-work-view-host[data-open="true"] .algebra-pickup-button').first();
+    if (!(await pickup.count()) || await pickup.isDisabled()) return null;
+    await pickup.click();
+    await page.waitForTimeout(180);
+
+    const sides = page.locator('.mathmaster-work-view-host[data-open="true"] .algebra-equation-box[role="button"]');
+    if ((await sides.count()) < 2) return null;
+    await sides.nth(0).click();
+    await page.waitForTimeout(120);
+    await sides.nth(1).click();
     await page.waitForTimeout(300);
+
     const keep = page.locator('.mathmaster-work-view-host[data-open="true"] .algebra-keep-written').first();
     if (await keep.count()) {
       await keep.click();
@@ -555,7 +567,14 @@ const makeEdit = async (page, sceneId) => {
     return 'committed a balanced Add 1 step';
   }
   if (sceneId === 'split-absolute-algebra') {
-    const reverse = page.locator('.mathmaster-work-view-host[data-open="true"] button', { hasText: 'Reverse absolute value' }).first();
+    let reverse = page.locator('.mathmaster-work-view-host[data-open="true"] button', { hasText: 'Reverse absolute value' }).first();
+    if (!(await reverse.count())) {
+      const other = page.locator('.mathmaster-work-view-host[data-open="true"] button', { hasText: 'Other operations' }).first();
+      if (!(await other.count())) return null;
+      await other.click();
+      await page.waitForTimeout(150);
+      reverse = page.locator('.mathmaster-work-view-host[data-open="true"] button', { hasText: 'Reverse absolute value' }).first();
+    }
     if (!(await reverse.count())) return null;
     await reverse.click();
     const twoBranches = page.locator('.mathmaster-work-view-host[data-open="true"] button', { hasText: 'Two branches (OR)' }).first();
