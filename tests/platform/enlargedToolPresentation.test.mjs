@@ -93,7 +93,10 @@ test('the task comes with the figure', () => {
   // opens a plane to plot on loses sight of what they were asked to plot.
   const figure = codeOf('src/components/common/EnlargeableFigure.jsx');
   assert.match(figure, /taskText = ''/);
-  assert.match(figure, /\{enlarged && taskText \?/);
+  const taskDrawer = figure.slice(figure.indexOf('aria-label="Original task"'), figure.indexOf('aria-label="Help and instructions"'));
+  assert.match(figure, /const task = [^;]*taskText/);
+  assert.match(taskDrawer, /\{task \?/);
+  assert.match(taskDrawer, /<MathText>\{task\}<\/MathText>/);
 
   for (const toolId of AIMING) {
     const source = codeOf(globSync(`src/tools/${toolId}/*.jsx`)[0]);
@@ -106,9 +109,11 @@ test('the task is shown only when enlarged, never twice', () => {
   // inline as well would add bulk to fix a problem that only exists in the
   // panel.
   const source = codeOf('src/components/common/EnlargeableFigure.jsx');
-  const block = source.slice(source.indexOf('{enlarged && taskText ?'));
-  assert.match(block.slice(0, 120), /enlarged && taskText/);
-  assert.doesNotMatch(source, /\{taskText\}\s*<\/p>\s*\)\s*:\s*null\}\s*\{!enlarged/);
+  const drawer = source.slice(source.indexOf('className="mathmaster-work-view-drawer"'), source.indexOf('aria-label="Help and instructions"'));
+  assert.match(drawer, /data-open=\{enlarged && drawer === 'task'/);
+  const figureStart = source.indexOf('const figure =');
+  const embeddedFigure = source.slice(figureStart, source.indexOf('</figure>\n  );', figureStart));
+  assert.doesNotMatch(embeddedFigure, /\{task\}/);
 });
 
 test('the width behind the decision is re-measured, not read once', () => {

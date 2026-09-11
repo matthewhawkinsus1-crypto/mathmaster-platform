@@ -1,0 +1,52 @@
+.mathmaster-work-view-host { display: contents; }
+
+.mathmaster-work-view-host[data-open="true"] {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  height: var(--mm-work-view-height, 100dvh);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  box-sizing: border-box;
+  background: #f4f7fb;
+}
+
+.mathmaster-work-view-header {
+  display: none;
+}
+
+[data-open="true"] > .mathmaster-work-view-header {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid #d9e2f1;
+  background: #fff;
+}
+
+.mathmaster-work-view-title { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 900; }
+.mathmaster-work-view-header button, .mathmaster-work-view-actions button { min-height: 40px; border: 1px solid #c5d5ef; border-radius: 8px; background: #fff; color: #174ea6; font-weight: 800; }
+.mathmaster-work-view-drawer { display: none; }
+.mathmaster-work-view-drawer[data-open="true"] { display: block; padding: 12px 14px; border-bottom: 1px solid #d9e2f1; background: #fff; overflow: auto; max-height: min(42dvh, 360px); }
+.mathmaster-work-view-body { display: contents; }
+
+[data-open="true"] > .mathmaster-work-view-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+[data-open="true"] .mathmaster-work-view-surface { overflow: auto; min-width: 0; min-height: 0; margin: 12px; }
+.mathmaster-work-view-actions { display: none; }
+[data-open="true"] .mathmaster-work-view-actions { display: flex; flex-direction: column; gap: 8px; padding: 12px; overflow: auto; border-left: 1px solid #d9e2f1; background: #fff; }
+.mathmaster-work-view-capability { padding: 7px 9px; border-radius: 7px; background: #f3f7ff; color: #44516a; font-size: 12px; font-weight: 750; }
+
+@media (max-width: 720px) {
+  [data-open="true"] > .mathmaster-work-view-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  [data-open="true"] .mathmaster-work-view-surface { margin: 6px; }
+  [data-open="true"] .mathmaster-work-view-actions { flex-direction: row; overflow-x: auto; border: 0; border-top: 1px solid #d9e2f1; padding: 6px max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); }
+  .mathmaster-work-view-capability { display: none; }
+}

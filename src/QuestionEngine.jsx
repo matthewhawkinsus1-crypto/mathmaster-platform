@@ -54,6 +54,7 @@ import { stableStringify } from './utils/idUtils';
 import { ENTER_TO_CONTINUE_HINT, focusFirstAnswerControl, shouldAdvanceOnEnter, shouldFocusAnswerOnOpen, shouldSubmitAnswerOnEnter } from './platform/interaction/answerEntryUx.js';
 import { normalizeQuestionWeight } from './platform/grading/questionWeights.js';
 import { resolveTaskContextPresentation } from './platform/workflow/taskContextPresentation.js';
+import { WorkViewCapabilityProvider } from './platform/workView/workViewCapabilities.js';
 
 const EMPTY_ANSWER_STATE = {
   isComplete: false,
@@ -955,6 +956,14 @@ export default function QuestionEngine({
         workspaceMode={solverWorkspaceMode}
         workBar={questionWorkBar}
         toolWorkspace={(
+      <WorkViewCapabilityProvider capabilities={{
+        undo: { label:workspaceActions.undo.label, onAction:workspaceActions.undo.onClick, disabled:workspaceActions.undo.disabled, title:workspaceActions.undo.title },
+        task: { text:processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.' },
+        help: workspaceActions.help,
+        instruction: taskContextPresentation.currentStagePrompt ? { text:taskContextPresentation.currentStagePrompt } : null,
+        primaryActions: workspaceActions.submit ? [{ ...workspaceActions.submit, onAction:workspaceActions.submit.onClick }] : [],
+        secondaryActions: [{ ...workspaceActions.scratchpad, onAction:workspaceActions.scratchpad.onClick }],
+      }}>
       <div className="mathmaster-question-tool-workspace" style={{ position: 'relative' }}>
         {!solverWorkspaceActive && guidedCoach}
         <fieldset disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
@@ -1015,6 +1024,7 @@ export default function QuestionEngine({
           </div>
         )}
       </div>
+      </WorkViewCapabilityProvider>
         )}
         actionButtons={!locked && shouldShowSubmit ? (
         <button onClick={handleSubmit} disabled={submitDisabled} style={{ minHeight: '44px', padding: '12px 24px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: submitDisabled ? '#dadce0' : '#1a73e8', color: 'white', cursor: submitDisabled ? 'not-allowed' : 'pointer', boxShadow: submitDisabled ? 'none' : '0 4px 6px rgba(26, 115, 232, 0.2)' }}>

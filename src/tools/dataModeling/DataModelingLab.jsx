@@ -93,7 +93,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const [causation, setCausation] = useState('association');
   const [modelChoice, setModelChoice] = useState('linear');
   // Keep the default prediction target tied to the observed data, not to display/camera bounds.
-  // Stage 1 changes graph fitting, but presentation changes must not change submitted math state.
+  // Work View and graph fitting are presentation concerns and must not change submitted math state.
   const defaultPredictionX = Math.ceil(Math.max(...xs, 1) + 1);
   const [predictionX, setPredictionX] = useState(questionData.predictionX ?? defaultPredictionX);
   const [predictionY, setPredictionY] = useState('');
@@ -244,7 +244,19 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
       <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.full} steps={MODE_STEPS[mode] || MODE_STEPS.full} />
       <ToolGrid min={350}>
         <Panel title="1 · Scatter plot and your model">
-          <EnlargeableFigure label="Regression model work view" enlargeLabel="Open Work View" style={{ width:'100%' }}>
+          <EnlargeableFigure
+            label="Regression model work view"
+            enlargeLabel="Open Work View"
+            style={{ width:'100%' }}
+            capabilities={{
+              numericControls: { label:'Model controls', studentState:true },
+              equationInput: { label:'Model equation', studentState:true },
+              tableData: { label:'Source data' },
+              instruction: { text:(MODE_STEPS[mode] || MODE_STEPS.full)[0] },
+              task: { text:MODE_TASKS[mode] || MODE_TASKS.full },
+              help: { content:<HintPanel hints={HINTS[mode] || HINTS.full} onHintUsed={() => onAction?.('HINT_USED')} /> },
+            }}
+          >
           <CoordinatePlane
             xMin={xMin} xMax={xMax} yMin={yMin} yMax={yMax}
             points={points.map(([x,y]) => ({ x, y }))}
@@ -341,7 +353,16 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
 
         {showResidualPanel ? <Panel title="3 · Residual evidence">
           {studentModelReady ? (
-            <EnlargeableFigure label="Residual evidence work view" enlargeLabel="Open Work View" style={{ width:'100%' }}>
+            <EnlargeableFigure
+              label="Residual evidence work view"
+              enlargeLabel="Open Work View"
+              style={{ width:'100%' }}
+              capabilities={{
+                tableData: { label:'Residual table' },
+                instruction: { text:'Use the zero line and residual table to check for an evenly scattered pattern.' },
+                task: { text:MODE_TASKS[mode] || MODE_TASKS.full },
+              }}
+            >
               <ResidualPlot rows={studentResiduals} xMin={xMin} xMax={xMax} />
               <div style={{ maxHeight:185, overflow:'auto', border:'1px solid #e5e7eb', borderRadius:8, marginTop:10 }}>
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>

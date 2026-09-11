@@ -50,6 +50,20 @@ not propose an assignment-specific modal or a second copy of student state.
    population-scale regression screenshot artifact and fail on excessive major
    ticks, clipped controls, overflow, or missing registered capabilities.
 
+## Stage 2 registry status
+
+`QuestionEngine` now supplies Universal Undo, task, current instruction, Help,
+submit, and scratchpad capabilities to every nested Work View. `CoordinatePlane`
+registers Fit View, pan/zoom, and point editing. `DataModelingLab` additionally
+registers model controls, equation entry, source/residual data, task, and help.
+
+Stage 3 still needs family migrations for `TransformationsLab`, `Graphing2`,
+graph construction/function builders, graph analysis/comparison/story tools,
+relation mapping and representation matching, geometry/measurement canvases,
+number-line tools, algebra workspaces, and `ScratchpadOverlay`. Local Undo stays
+in transformations, Step Algebra 2, and Scratchpad until each family has a
+passing Universal Undo regression contract.
+
 ## State boundary
 
 Work View is presentation state. Fit/pan/zoom remain camera state. Neither may

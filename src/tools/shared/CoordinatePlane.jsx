@@ -620,6 +620,11 @@ export default function CoordinatePlane({
       label={ariaLabel}
       enlargeLabel={interactive ? 'Enlarge to plot' : 'Enlarge graph'}
       style={{ width: '100%' }}
+      capabilities={{
+        fitView: { label:'Fit View', onAction:resetView, disabled:!view, cameraOnly:true },
+        panZoom: zoomable ? { label:'Pan and zoom', cameraOnly:true } : null,
+        pointEditing: interactive ? { label:canMovePoints ? 'Plot and edit points' : 'Plot points', studentState:true } : null,
+      }}
     >
       {plane}
     </EnlargeableFigure>
