@@ -92,7 +92,10 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const [strength, setStrength] = useState('moderate');
   const [causation, setCausation] = useState('association');
   const [modelChoice, setModelChoice] = useState('linear');
-  const [predictionX, setPredictionX] = useState(questionData.predictionX ?? xMax - 1);
+  // Keep the default prediction target tied to the observed data, not to display/camera bounds.
+  // Stage 1 changes graph fitting, but presentation changes must not change submitted math state.
+  const defaultPredictionX = Math.ceil(Math.max(...xs, 1) + 1);
+  const [predictionX, setPredictionX] = useState(questionData.predictionX ?? defaultPredictionX);
   const [predictionY, setPredictionY] = useState('');
   const [predictionType, setPredictionType] = useState(FIT_PREDICTION_MODELS[mode] ? '' : 'interpolation');
   const [correlationEntry, setCorrelationEntry] = useState('');
