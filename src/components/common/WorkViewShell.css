@@ -141,14 +141,14 @@
    the Work View instead of merely moving the action buttons while leaving the
    editable surface underneath the keys. Portrait/bottom layouts give up height;
    short-landscape/side layouts give up the keypad's right-hand width. */
-html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][data-controls="bottom"] > .mathmaster-work-view-body {
+.mathmaster-mobile-interaction-root[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][data-controls="bottom"] > .mathmaster-work-view-body {
   box-sizing: border-box;
   padding-bottom: calc(var(--mm-mobile-keypad, 0px) + max(8px, env(safe-area-inset-bottom)));
 }
-html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][data-controls="bottom"] .mathmaster-work-view-actions {
+.mathmaster-mobile-interaction-root[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][data-controls="bottom"] .mathmaster-work-view-actions {
   margin-bottom: 0;
 }
-html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][data-controls="side"] > .mathmaster-work-view-body {
+.mathmaster-mobile-interaction-root[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][data-controls="side"] > .mathmaster-work-view-body {
   box-sizing: border-box;
   padding-right: calc(var(--mm-mobile-keypad-width, 0px) + max(8px, env(safe-area-inset-right)));
 }
@@ -172,11 +172,11 @@ html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][da
  * the keys and the controls are both fully reachable while a student types a
  * parameter and watches the graph between them.
  */
-html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][data-controls="side"] > .mathmaster-work-view-body {
+.mathmaster-mobile-interaction-root[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][data-controls="side"] > .mathmaster-work-view-body {
   grid-template-columns: minmax(124px, 168px) minmax(0, 1fr);
 }
 
-html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][data-controls="side"] .mathmaster-work-view-actions {
+.mathmaster-mobile-interaction-root[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][data-controls="side"] .mathmaster-work-view-actions {
   order: -1;
   border-left: 0;
   border-right: 1px solid #d9e2f1;
