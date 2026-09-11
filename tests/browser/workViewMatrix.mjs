@@ -542,7 +542,11 @@ const makeEdit = async (page, sceneId) => {
     // submit control on.
     return await typeIntoFirstField(page, 'input[type="number"]', '3');
   }
-  return await typeIntoFirstField(page, 'input:not([type="number"]):not([type="hidden"])', '2, 4');
+  return await typeIntoFirstField(
+    page,
+    'input:not([type="number"]):not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="file"]), textarea',
+    '2, 4',
+  );
 };
 
 /*
