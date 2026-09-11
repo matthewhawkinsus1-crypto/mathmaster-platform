@@ -332,22 +332,24 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
                     <div style={{ marginTop: 4, fontSize: 12, color: '#5f6368' }}>
                       {dol.status === 'active'
                         ? `${dol.earlyUnlocked ? 'Unlocked early · ' : ''}${formatRemainingTime(dol.millisecondsRemaining)} left`
-                        : needsOpenToday
-                          ? dol.status === 'notToday'
-                            ? `Saved for ${dol.instructionDateKey || 'another day'} · teacher can open it for this class today`
-                            : 'No DOL instructional date saved · teacher can open it for this class today'
-                          : dol.status === 'waiting'
-                            ? `Locked · opens in ${formatRemainingTime(dol.millisecondsRemaining)}`
-                            : dol.status === 'beforeClass' ? 'Locked until class begins / normal DOL window' : 'Ended'}
+                        : dol.canRestart
+                          ? 'Early DOL timer ended · restart is available before the normal DOL cutoff'
+                          : needsOpenToday
+                            ? dol.status === 'notToday'
+                              ? `Saved for ${dol.instructionDateKey || 'another day'} · teacher can open it for this class today`
+                              : 'No DOL instructional date saved · teacher can open it for this class today'
+                            : dol.status === 'waiting'
+                              ? `Locked · opens in ${formatRemainingTime(dol.millisecondsRemaining)}`
+                              : dol.status === 'beforeClass' ? 'Locked until class begins / normal DOL window' : 'Ended'}
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '12px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: dol.status === 'active' ? '#e6f4ea' : '#f1f3f4', color: dol.status === 'active' ? '#137333' : '#5f6368' }}>
-                      {dol.status === 'active' ? 'OPEN NOW' : dol.status === 'ended' ? 'ENDED' : needsOpenToday ? 'NOT OPEN TODAY' : 'LOCKED'}
+                      {dol.status === 'active' ? 'OPEN NOW' : dol.canRestart ? 'RESTART AVAILABLE' : dol.status === 'ended' ? 'ENDED' : needsOpenToday ? 'NOT OPEN TODAY' : 'LOCKED'}
                     </span>
-                    {['waiting', 'beforeClass', 'notToday', 'unscheduled'].includes(dol.status) && (
+                    {(['waiting', 'beforeClass', 'notToday', 'unscheduled'].includes(dol.status) || dol.canRestart) && (
                       <button type="button" disabled={dolUnlockBusyKey === busyKey} onClick={() => onUnlockDOL?.(assignment, { classId: selectedClass.classId || null, classPeriod: selectedPeriod })} style={{ padding: '8px 12px', border: 0, borderRadius: 7, background: '#681da8', color: '#fff', fontWeight: 900, cursor: dolUnlockBusyKey === busyKey ? 'wait' : 'pointer' }}>
-                        {dolUnlockBusyKey === busyKey ? 'Unlocking…' : needsOpenToday ? 'Open DOL Today' : 'Unlock DOL Early'}
+                        {dolUnlockBusyKey === busyKey ? (dol.canRestart ? 'Restarting…' : 'Unlocking…') : dol.canRestart ? 'Restart DOL' : needsOpenToday ? 'Open DOL Today' : 'Unlock DOL Early'}
                       </button>
                     )}
                   </div>
