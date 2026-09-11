@@ -71,7 +71,7 @@ const mathStateSnapshot = async (shell) => shell.evaluate((node) => {
   return { fields, pressed, mathState, marks, placedCards };
 });
 
-const makeStatefulEdit = async (page, shell) => {
+const makeStatefulEdit = async (page, shell, toolId) => {
   const baseline = await mathStateSnapshot(shell);
   const changed = async (description) => {
     await page.waitForTimeout(160);
@@ -80,6 +80,20 @@ const makeStatefulEdit = async (page, shell) => {
   };
 
   const surface = shell.locator('.mathmaster-work-view-surface');
+
+  if (toolId === 'stepAlgebra2') {
+    const operand = surface.locator('input[type="number"]:visible').first();
+    const apply = surface.getByRole('button', { name: 'Apply to both sides', exact: true }).first();
+    if (await operand.count() && await apply.count()) {
+      try {
+        await operand.fill('6');
+        await operand.dispatchEvent('change');
+        await apply.click({ timeout: 2500 });
+        const result = await changed('committed a balanced equation step');
+        if (result) return result;
+      } catch { /* continue through the generic strategies */ }
+    }
+  }
 
   const select = surface.locator('select:visible:not([disabled])').first();
   if (await select.count()) {
@@ -302,7 +316,7 @@ for (const device of WORK_VIEW_CERTIFICATION_DEVICES) {
         // changed the mathematics. A pristine fixture would look identical after
         // an accidental remount/reset and falsely certify the regression.
         const baselineState = await mathStateSnapshot(shell);
-        let edit = await makeStatefulEdit(page, shell);
+        let edit = await makeStatefulEdit(page, shell, toolId);
         if (!edit) {
           problems.push('could not make a stateful student edit before resize/orientation certification');
         } else {
@@ -338,7 +352,7 @@ for (const device of WORK_VIEW_CERTIFICATION_DEVICES) {
                 if (JSON.stringify(undoneState) !== JSON.stringify(baselineState)) {
                   problems.push('Universal Undo did not restore the mathematical state before the edit');
                 }
-                edit = await makeStatefulEdit(page, shell);
+                edit = await makeStatefulEdit(page, shell, toolId);
                 if (!edit) problems.push('could not recreate mathematical work after Undo for resize certification');
                 else {
                   await dismissNumericKeypad(page);
