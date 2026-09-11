@@ -526,6 +526,16 @@ export default function StepByStepAlgebra({
       setSimplificationAnswers({});
       setSelectedCancellationIndices({});
       setOperand('');
+      // A completed mathematical commit must leave no operation-staging state
+      // behind. Otherwise Universal Undo sees the stale staging as the newest
+      // undoable action and only clears the UI instead of restoring the
+      // previous committed equation.
+      setArmedTile(null);
+      setPlacedOperationSides([]);
+      setPlacedOperationPositions({});
+      setTapPlacementArmed(false);
+      setDragOverSide(null);
+      setFactorZoneHint(null);
       setCancelAnimating(false);
       setCollapsingSides([]);
       setLockedStroke(null);
