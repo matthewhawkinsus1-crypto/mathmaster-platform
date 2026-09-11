@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-11T04:22:19.783Z",
+  "generatedAt": "2026-09-11T10:59:47.917Z",
   "devices": [
     {
       "id": "chromebook",
@@ -21,6 +21,14 @@
     }
   ],
   "scenes": [
+    {
+      "id": "sequence-full-bridge",
+      "family": "SequenceExplorer"
+    },
+    {
+      "id": "systems-linear",
+      "family": "SystemsWorkspace"
+    },
     {
       "id": "transformations-plot",
       "family": "TransformationsLab"
@@ -48,7 +56,7 @@
   ],
   "maxAxisLabels": 12,
   "minMobileWorkspaceShare": 0.55,
-  "measured": 18,
-  "screenshots": 141,
+  "measured": 24,
+  "screenshots": 183,
   "findings": []
 }
