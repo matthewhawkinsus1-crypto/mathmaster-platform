@@ -5,7 +5,7 @@
 //   node tests/browser/workViewMatrix.mjs --write    # refresh the fixture
 //   WORK_VIEW_SHOTS=/tmp/shots node tests/browser/workViewMatrix.mjs
 //
-// Stage 3A moved four tool families onto the shared Work View shell. Enlarging
+// Stage 3A moved five tool families onto the shared Work View shell. Enlarging
 // used to mean a bigger graph with the controls left behind the backdrop, so
 // the rules below are about the ACTIVITY reaching the enlarged view, not about
 // the picture:
