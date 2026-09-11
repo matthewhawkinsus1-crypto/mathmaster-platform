@@ -19,8 +19,11 @@ const shortError = (error) => String(error?.message || error).split('\n')[0].sli
 
 const clickIfReachable = async (locator, label) => {
   if (!(await visible(locator))) return `${label} is not reachable`;
+  const target = locator.first();
+  if (await target.isDisabled().catch(() => false)) return `${label} is disabled`;
   try {
-    await locator.first().click({ timeout: 4000 });
+    await target.scrollIntoViewIfNeeded({ timeout: 2000 }).catch(() => {});
+    await target.click({ timeout: 4000 });
     return null;
   } catch (error) {
     return `${label} is blocked: ${shortError(error)}`;
@@ -230,8 +233,13 @@ for (const device of WORK_VIEW_CERTIFICATION_DEVICES) {
     // whether the separate Work View control is reachable.
     await dismissNumericKeypad(page);
 
-    const preferredOpener = toolRoot.getByRole('button', { name: 'Open Work View', exact: true }).first();
-    const fallbackOpener = toolRoot.getByRole('button', { name: /enlarge|work view/i }).first();
+    // Prefer the activity-level shell. A graph nested inside an already
+    // enlargeable activity can contain its own historical "Enlarge" text; using
+    // the first regex match can certify/click the wrong shell.
+    const directOpeners = toolRoot.locator('.mathmaster-work-view-host[data-open="false"] > .mathmaster-work-view-surface > button')
+      .filter({ hasText: /enlarge|work view/i });
+    const preferredOpener = directOpeners.filter({ hasText: /open work view/i }).first();
+    const fallbackOpener = directOpeners.first();
     const opener = await visible(preferredOpener) ? preferredOpener : fallbackOpener;
     const openerProblem = await clickIfReachable(opener, 'Work View opener');
 
@@ -256,7 +264,14 @@ for (const device of WORK_VIEW_CERTIFICATION_DEVICES) {
             overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
             clipped: controls.filter((element) => {
               const r = element.getBoundingClientRect();
-              return r.left < -1 || r.right > innerWidth + 1 || r.top < -1 || r.bottom > innerHeight + 1;
+              const fixedChrome = Boolean(element.closest('.mathmaster-work-view-header, .mathmaster-work-view-actions'));
+              // Work View surfaces intentionally scroll vertically for long
+              // activities. A response field below the fold is not clipped; it
+              // is clipped only if horizontal layout loses it, or if shell
+              // chrome that must remain reachable leaves the viewport.
+              return r.left < -1
+                || r.right > innerWidth + 1
+                || (fixedChrome && (r.top < -1 || r.bottom > innerHeight + 1));
             }).length,
             undoCount: [...node.querySelectorAll('.mathmaster-universal-undo')]
               .filter((element) => element.getBoundingClientRect().width > 0 && element.getBoundingClientRect().height > 0).length,
@@ -285,11 +300,12 @@ for (const device of WORK_VIEW_CERTIFICATION_DEVICES) {
         }
 
         if (certification.requiredBehaviors.includes('inputRemainsReachable')) {
-          const field = shell.locator('input:visible, textarea:visible, math-field:visible').first();
+          const field = shell.locator('input:visible:not([type="hidden"]), textarea:visible, select:visible, math-field:visible, [contenteditable="true"]:visible').first();
           if (!(await visible(field))) {
             problems.push('declared numeric/equation input has no reachable input in Work View');
           } else {
             try {
+              await field.scrollIntoViewIfNeeded({ timeout: 2000 }).catch(() => {});
               await field.click({ timeout: 3000 });
               await page.waitForTimeout(150);
               const inputGeometry = await field.evaluate((element) => {
