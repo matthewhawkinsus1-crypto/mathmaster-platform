@@ -263,6 +263,17 @@ export const MobileViewportContainer = ({
     const apply = () => {
       const height = keypadRef.current?.getBoundingClientRect?.().height || 0;
       root.style.setProperty('--mm-mobile-keypad', `${Math.round(height)}px`);
+
+      // Focus was scrolled before the keypad existed. Once its measured space
+      // changes the Work View geometry, move only the local vertical scroller
+      // again so the active answer control is not left behind the keys.
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          if (numericTarget?.isConnected) {
+            scrollFocusedControlVertically(numericTarget, { root: rootRef.current });
+          }
+        });
+      });
     };
     apply();
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(apply) : null;
