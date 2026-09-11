@@ -514,9 +514,14 @@ const typeIntoFirstField = async (page, selector, value) => {
 const typeIntoMathField = async (page, selector, value) => {
   const field = page.locator(`.mathmaster-work-view-host[data-open="true"] ${selector}`).first();
   if (!(await field.count())) return null;
-  await field.click();
-  await page.keyboard.press('Control+A');
-  await page.keyboard.type(String(value));
+  await field.evaluate((mathField, nextValue) => {
+    mathField.focus?.({ preventScroll: true });
+    mathField.value = String(nextValue);
+    const event = typeof InputEvent === 'function'
+      ? new InputEvent('input', { bubbles: true, inputType: 'insertText', data: String(nextValue) })
+      : new Event('input', { bubbles: true });
+    mathField.dispatchEvent(event);
+  }, String(value));
   await page.waitForTimeout(250);
   return `typed ${value}`;
 };
@@ -560,7 +565,7 @@ const makeEdit = async (page, sceneId) => {
     const second = await typeIntoMathField(page, 'math-field[aria-label="Branch B right-side value"]', '-5');
     if (!first || !second) return null;
     const check = page.locator('.mathmaster-work-view-host[data-open="true"] button', { hasText: 'Check split' }).first();
-    if (!(await check.count())) return null;
+    if (!(await check.count()) || await check.isDisabled()) return null;
     await check.click();
     await page.waitForTimeout(400);
     return 'committed the student-authored absolute-value split';
