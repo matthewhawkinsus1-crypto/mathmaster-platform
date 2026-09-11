@@ -55,6 +55,7 @@ import { ENTER_TO_CONTINUE_HINT, focusFirstAnswerControl, shouldAdvanceOnEnter, 
 import { normalizeQuestionWeight } from './platform/grading/questionWeights.js';
 import { resolveTaskContextPresentation } from './platform/workflow/taskContextPresentation.js';
 import { WorkViewCapabilityProvider } from './platform/workView/workViewCapabilities.js';
+import { WorkViewUndoProvider } from './platform/workView/useMathUndoHistory.js';
 
 const EMPTY_ANSWER_STATE = {
   isComplete: false,
@@ -639,7 +640,16 @@ export default function QuestionEngine({
         // answer key in its payload, so its own check would report "not yet"
         // for correct work. The server's result is shown below instead.
         <ToolRuntimeProvider showImmediateFeedback={showOutcomeFeedback && !serverGrading}>
-          <Tool questionData={presentationQuestion} onAction={handleMissingToolAction} />
+          {/* THE REGISTRY TOOLS REACH THE PLATFORM UNDO BUTTON THROUGH HERE.
+              Every other module is handed `onUndoStateChange` as a prop, but a
+              registry tool is mounted with `questionData` and `onAction` and
+              nothing else — which is why each of them grew a local Undo button
+              beside its own controls, and no two of them took back the same
+              amount of work. The channel is opened once, at the call site, and
+              a tool joins it with `useMathUndoHistory`. */}
+          <WorkViewUndoProvider register={registerUndo}>
+            <Tool questionData={presentationQuestion} onAction={handleMissingToolAction} />
+          </WorkViewUndoProvider>
         </ToolRuntimeProvider>
       );
     }

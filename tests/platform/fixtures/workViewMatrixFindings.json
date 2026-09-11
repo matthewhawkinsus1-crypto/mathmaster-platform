@@ -1,0 +1,50 @@
+{
+  "generatedAt": "2026-09-11T03:56:29.359Z",
+  "devices": [
+    {
+      "id": "chromebook",
+      "width": 1366,
+      "height": 768,
+      "mobile": false
+    },
+    {
+      "id": "iphone-portrait",
+      "width": 390,
+      "height": 844,
+      "mobile": true
+    },
+    {
+      "id": "iphone-landscape",
+      "width": 844,
+      "height": 390,
+      "mobile": true
+    }
+  ],
+  "scenes": [
+    {
+      "id": "transformations-plot",
+      "family": "TransformationsLab"
+    },
+    {
+      "id": "transformations-match",
+      "family": "TransformationsLab"
+    },
+    {
+      "id": "graphing2-construct",
+      "family": "Graphing2"
+    },
+    {
+      "id": "function-investigation",
+      "family": "FunctionInvestigation2"
+    },
+    {
+      "id": "graph-construction",
+      "family": "InteractiveGraphWorkspace"
+    }
+  ],
+  "maxAxisLabels": 12,
+  "minMobileWorkspaceShare": 0.55,
+  "measured": 15,
+  "screenshots": 102,
+  "findings": []
+}

@@ -24,3 +24,9 @@ ui-debug.log
 
 # One-off analysis scripts belong in a scratch directory, not at the repo root.
 check_module1.mjs
+
+# Rendered screenshots from the browser gates. 18MB per Work View matrix run,
+# regenerated from scratch every time: they belong in a CI artifact, where they
+# can be looked at, and not in every clone forever. The findings JSON beside
+# them IS committed — that is the part the ordinary suite asserts.
+tests/browser/artifacts/

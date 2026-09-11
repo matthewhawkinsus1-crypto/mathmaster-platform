@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { zoomedWindow } from './graphWorkspaceViewport.js';
+import { majorTicks } from './platform/graph/graphScaleService.js';
 import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
 import MathText from './components/common/MathText.jsx';
@@ -67,31 +68,21 @@ const PADDING = 56;
 const POINT_GUIDE_COLOR = '#00a6a6';
 const MARKER_SNAP_PIXELS = 82;
 
-// Matches GraphDisplay's cap. Guarding the step alone is not enough: a valid
-// step of 1 across a blueprint window of -1e9..1e9 is two billion iterations,
-// which hard-freezes the tab the student is working in.
-const MAX_TICKS = 200;
-
-const buildTicks = (minimum, maximum, step) => {
-  const min = Number(minimum);
-  const max = Number(maximum);
-  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return [];
-
-  let safeStep = Number(step) > 0 ? Number(step) : 1;
-  const span = max - min;
-  if (span / safeStep > MAX_TICKS) safeStep = span / MAX_TICKS;
-  if (!Number.isFinite(safeStep) || safeStep <= 0) return [];
-
-  const ticks = [];
-  const first = Math.ceil(min / safeStep) * safeStep;
-  if (!Number.isFinite(first)) return [];
-
-  for (let value = first; value <= max + safeStep * 0.001; value += safeStep) {
-    ticks.push(Number(value.toFixed(6)));
-    if (ticks.length >= MAX_TICKS) break;
-  }
-  return ticks;
-};
+/*
+ * TICKS COME FROM THE SHARED SCALE SERVICE NOW.
+ *
+ * This file used to run its own loop with a readability ceiling of 200 — the
+ * same loop GraphDisplay and CoordinatePlane each kept a copy of, and the same
+ * ceiling, which is not a readability limit at all: 200 numbers along one axis
+ * of a 760px plane is a grey band. The shared service caps major labels at 12
+ * and rounds the step to a countable 1/2/5, so a blueprint window of
+ * -1e9..1e9 produces a readable axis instead of a frozen tab, and all three
+ * renderers now answer the same question the same way.
+ *
+ * The authored step is still offered and still honoured when it is legible;
+ * `majorTicks` only overrides it when keeping it would exceed the cap.
+ */
+const buildTicks = (minimum, maximum, step) => majorTicks(minimum, maximum, step);
 
 const pointLabel = ([x, y]) => `(${x}, ${y})`;
 const taskPlacementLabel = (placement) => placement === 'undefined' ? 'Undefined' : Array.isArray(placement) ? pointLabel(placement) : 'Not placed';
@@ -1025,6 +1016,44 @@ export default function InteractiveGraphWorkspace({
   // button that does nothing but say what screen you are already on.
   const stageCount = (constructionEnabled ? 1 : 0) + (analysisEnabled ? 1 : 0);
 
+  /*
+   * WHAT THIS WORKSPACE REGISTERS WITH WORK VIEW.
+   *
+   * This workspace was already the one that enlarged its sidebar along with its
+   * plane, so Work View is not moving its controls — it is naming them, so the
+   * shell can place Fit View, Task, Help and Undo consistently with every other
+   * migrated tool instead of each tool drawing its own row.
+   *
+   * Fit View is `resetZoom` and is marked camera-only: this workspace's zoom
+   * lives in `zoomView`, entirely separate from `construction` and `analysis`,
+   * which is what keeps a Fit press out of the mathematical Undo those two
+   * histories feed.
+   *
+   * Undo itself is NOT declared here. It is registered with QuestionEngine
+   * through `onUndoStateChange` above — the same controller the platform work
+   * bar reads — and reaches this shell as a platform capability. Declaring a
+   * second copy would let the two disagree about how deep the history is.
+   */
+  const currentInstruction = stage === 'analysis'
+    ? (activePointPart?.label ? `Analysis: ${activePointPart.label}` : 'Answer each analysis part about this graph.')
+    : construction.snapped
+      ? 'Place one boundary or continuation marker at each graph end.'
+      : construction.pointsValidated
+        ? 'Draw through all validated points.'
+        : pointOnly
+          ? 'Plot every point from your table.'
+          : 'Plot each required point, then draw the function through them.';
+  const workspaceCapabilities = {
+    fitView: { label: 'Fit View', onAction: resetZoom, disabled: !zoomed, cameraOnly: true },
+    panZoom: { label: 'Pan and zoom', cameraOnly: true },
+    pointEditing: constructionEnabled || analysisEnabled
+      ? { label: 'Place and move points', studentState: true }
+      : null,
+    tableData: studentChoosesX && constructionEnabled ? { label: 'Chosen x-values' } : null,
+    instruction: { text: currentInstruction },
+    task: { text: String(question.prompt || '').trim() || (pointOnly ? 'Plot every point from your table.' : 'Construct the function and complete every requested analysis part.') },
+  };
+
   return (
     <div style={{ textAlign: 'left' }}>
       {/* The workspace name repeats what "Your task" said one panel above:
@@ -1092,6 +1121,7 @@ export default function InteractiveGraphWorkspace({
         enlargeLabel="Enlarge graph"
         openEnlarged={openEnlarged}
         dismissKey={figureDismissalKey(question)}
+        capabilities={workspaceCapabilities}
       >
       {graphEquationLatex && (
         <div

@@ -1,6 +1,12 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MathText from './MathText.jsx';
-import { toggleWorkViewDrawer, useWorkViewCapabilities, workViewCapabilitySummary } from '../../platform/workView/workViewCapabilities.js';
+import {
+  WorkViewCapabilityPortProvider,
+  combinePublishedCapabilities,
+  toggleWorkViewDrawer,
+  useWorkViewCapabilities,
+  workViewCapabilitySummary,
+} from '../../platform/workView/workViewCapabilities.js';
 import { readWorkViewViewport } from '../../platform/workView/workViewViewport.js';
 import './WorkViewShell.css';
 
@@ -88,7 +94,27 @@ export default function EnlargeableFigure({
   const [viewport, setViewport] = useState(() => readWorkViewViewport());
   const openerRef = useRef(null);
   const closeRef = useRef(null);
-  const registeredCapabilities = useWorkViewCapabilities(capabilities);
+  const actionsRef = useRef(null);
+  // What descendants have told this shell they can do. Held per publisher id so
+  // a plane that unmounts withdraws only its own controls.
+  const [publishedByChild, setPublishedByChild] = useState({});
+  const publish = useCallback((id, childCapabilities) => {
+    setPublishedByChild((current) => {
+      if (!childCapabilities) {
+        if (!(id in current)) return current;
+        const next = { ...current };
+        delete next[id];
+        return next;
+      }
+      if (current[id] === childCapabilities) return current;
+      return { ...current, [id]: childCapabilities };
+    });
+  }, []);
+  const publishedCapabilities = useMemo(
+    () => combinePublishedCapabilities(publishedByChild),
+    [publishedByChild],
+  );
+  const registeredCapabilities = useWorkViewCapabilities(capabilities, publishedCapabilities);
 
   // CLOSING AN AUTO-OPENED PANEL MEANS IT.
   //
@@ -153,18 +179,67 @@ export default function EnlargeableFigure({
     window.addEventListener('resize', update);
     window.addEventListener('orientationchange', update);
     window.visualViewport?.addEventListener?.('resize', update);
+    // iOS opens the software keyboard by SCROLLING the visual viewport rather
+    // than resizing the layout one, so a panel pinned to `inset: 0` slides off
+    // the top of the screen and only a scroll event says so. Without this, a
+    // student typing a coordinate in Work View loses the header and the close
+    // control above the fold.
+    window.visualViewport?.addEventListener?.('scroll', update);
     return () => {
       window.removeEventListener('resize', update);
       window.removeEventListener('orientationchange', update);
       window.visualViewport?.removeEventListener?.('resize', update);
+      window.visualViewport?.removeEventListener?.('scroll', update);
     };
   }, [enlarged]);
+
+  /*
+   * HOW TALL THE BOTTOM ACTION REGION IS, PUBLISHED TO THE REST OF THE PAGE.
+   *
+   * The calculator launcher is `position: fixed` at the bottom-right corner with
+   * a z-index far above this panel — it is a platform affordance, and on an
+   * accommodation plan it is the student's by right — so on a phone it landed
+   * squarely on top of the Clear button. Hiding it would take a support tool
+   * away; leaving it covers a registered control.
+   *
+   * So the shell says how much room its controls need and anything pinned to the
+   * bottom of the window clears them. Measured rather than assumed, because the
+   * row wraps to two lines when a tool registers more actions than fit across a
+   * 390px phone. Zero while the controls are a side rail, where nothing at the
+   * bottom of the window is in their way.
+   */
+  useEffect(() => {
+    if (!enlarged || typeof document === 'undefined') return undefined;
+    const root = document.documentElement;
+    const apply = () => {
+      const height = viewport.controlsPlacement === 'bottom'
+        ? (actionsRef.current?.getBoundingClientRect?.().height || 0)
+        : 0;
+      root.style.setProperty('--mm-work-view-actions', `${Math.round(height)}px`);
+    };
+    apply();
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(apply) : null;
+    if (observer && actionsRef.current) observer.observe(actionsRef.current);
+    return () => {
+      observer?.disconnect();
+      root.style.removeProperty('--mm-work-view-actions');
+    };
+  }, [enlarged, viewport.controlsPlacement]);
 
   const task = registeredCapabilities.task?.content || registeredCapabilities.task?.text || taskText;
   const help = registeredCapabilities.help?.content || registeredCapabilities.help?.text;
   const instruction = registeredCapabilities.instruction?.content || registeredCapabilities.instruction?.text;
+  // Task, Help and the current instruction have their own places in the shell,
+  // and anything with an `onAction` becomes a button below. What is left is the
+  // set of things this workspace can do that have no control of their own —
+  // pan/zoom, point editing, numeric fields, a data table — and those read as
+  // labels so a student can tell at a glance what the enlarged view carries.
+  const shellActionNames = ['undo', 'redo', 'fitView'].filter(
+    (name) => registeredCapabilities[name]?.onAction || registeredCapabilities[name]?.onClick,
+  );
   const capabilityNames = workViewCapabilitySummary(registeredCapabilities)
-    .filter((name) => !['task', 'help', 'instruction', 'primaryActions', 'secondaryActions'].includes(name));
+    .filter((name) => !['task', 'help', 'instruction', 'primaryActions', 'secondaryActions'].includes(name))
+    .filter((name) => !shellActionNames.includes(name));
   const shellActions = [
     registeredCapabilities.undo,
     registeredCapabilities.redo,
@@ -198,7 +273,16 @@ export default function EnlargeableFigure({
         }
         : { position: 'relative', margin: 0, boxSizing: 'border-box', ...style }}
     >
-      {enlarged && instruction ? <div className="mathmaster-work-view-capability">{instruction}</div> : null}
+      {/* The current instruction is the one sentence telling the student what
+          this step asks for, so it keeps a class of its own. It used to share
+          the chip class with the capability labels, and the mobile rule that
+          drops those chips to save room was taking the instruction with them —
+          on the narrow screen that needs it most. */}
+      {enlarged && instruction ? (
+        <div className="mathmaster-work-view-instruction">
+          {typeof instruction === 'string' ? <MathText>{instruction}</MathText> : instruction}
+        </div>
+      ) : null}
       {enlarged && taskText && !registeredCapabilities.task ? (
         <p
           style={{
@@ -225,7 +309,7 @@ export default function EnlargeableFigure({
           ⤢ {enlargeLabel}
         </button>
       ) : null}
-      {children}
+      <WorkViewCapabilityPortProvider publish={publish}>{children}</WorkViewCapabilityPortProvider>
     </figure>
   );
 
@@ -256,7 +340,15 @@ export default function EnlargeableFigure({
       data-open={enlarged ? 'true' : 'false'}
       data-layout={viewport.mode}
       data-orientation={viewport.orientation}
-      style={enlarged ? { '--mm-work-view-height': `${viewport.usableHeight}px` } : undefined}
+      data-controls={viewport.controlsPlacement}
+      data-keyboard={viewport.keyboardOpen ? 'open' : undefined}
+      style={enlarged ? {
+        '--mm-work-view-height': `${viewport.usableHeight}px`,
+        // Follows the visual viewport rather than the layout one, so the panel
+        // stays on the part of the screen the student can actually see when the
+        // keyboard or a collapsing browser bar moves it.
+        top: viewport.offsetTop ? `${viewport.offsetTop}px` : undefined,
+      } : undefined}
       // Named so the app-wide "no graph taller than 70dvh" cap can stand down
       // here. Enlarging exists to make the figure big; applying the same cap
       // inside the modal would make the button do almost nothing.
@@ -282,11 +374,27 @@ export default function EnlargeableFigure({
       </section>
       <div className="mathmaster-work-view-body">
         {figure}
-        <aside className="mathmaster-work-view-actions" aria-label="Work View controls">
+        <aside ref={actionsRef} className="mathmaster-work-view-actions" aria-label="Work View controls">
           {shellActions.map((action, index) => (
-            <button key={action.id || `${action.label}-${index}`} type="button" onClick={() => invokeAction(action)} disabled={action.disabled} title={action.title}>{action.label}</button>
+            <button
+              key={action.id || `${action.label}-${index}`}
+              type="button"
+              // Named so the browser gate can find the registered controls and
+              // measure them. A capability that registered but rendered off the
+              // bottom of a phone is not a control the student has.
+              data-work-view-action={action.id || action.label}
+              // Fit, pan and zoom move the camera and nothing else. Marked in
+              // the DOM so the state-integrity gate can press them and assert
+              // that the mathematics and the Undo depth are unchanged.
+              data-camera-only={action.cameraOnly ? 'true' : undefined}
+              onClick={() => invokeAction(action)}
+              disabled={action.disabled}
+              title={action.title}
+            >
+              {action.label}
+            </button>
           ))}
-          {capabilityNames.map((name) => <span key={name} className="mathmaster-work-view-capability">{registeredCapabilities[name]?.label || name}</span>)}
+          {capabilityNames.map((name) => <span key={name} className="mathmaster-work-view-capability" data-work-view-capability={name}>{registeredCapabilities[name]?.label || name}</span>)}
         </aside>
       </div>
     </div>

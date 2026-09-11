@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { figureDismissalKey, shouldOpenFigureEnlarged } from '../../platform/student/figurePresentation.js';
+import useMathUndoHistory from '../../platform/workView/useMathUndoHistory.js';
 import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
@@ -19,6 +20,17 @@ const MODE_LABELS = {
 };
 
 const formatPoint = (point) => `(${point[0]}, ${point[1]})`;
+
+// What to do next, in one sentence. Used by the progress pill inside the tool
+// and registered as the Work View current instruction, so the enlarged view
+// says the same thing the embedded one does instead of inventing its own.
+const nextInstruction = (plottedCount) => (
+  plottedCount === 0
+    ? 'Click the grid to plot your first point.'
+    : plottedCount === 1
+      ? 'Now plot a second point on the same line.'
+      : 'Both points plotted — check your construction.'
+);
 
 const targetPrompt = (questionData, target) => {
   const mode = questionData.mode || 'slopeIntercept';
@@ -128,7 +140,32 @@ export default function Graphing2({ questionData = {}, onAction }) {
     setPoints((current) => current.map((existing, i) => (i === studentIndex ? point : existing)));
   };
 
-  const undoLastPoint = () => { clearFeedback(); setPoints((current) => current.slice(0, -1)); };
+  /*
+   * UNIVERSAL UNDO OVER THE CONSTRUCTION.
+   *
+   * The plotted points ARE the answer here — `constructionEvidence` grades them
+   * directly — so the undo stack is exactly the list of points. Two of them are
+   * kept at a time, and a student who misplaces the second one now takes it back
+   * with the same control they use on every other question, rather than with a
+   * button that exists only on this tool.
+   *
+   * Zoom is not in the snapshot and cannot be: it lives inside CoordinatePlane,
+   * and a student who zoomed in to place a point accurately must not lose the
+   * point to a press that was meant to undo the zoom, or the zoom to a press
+   * that was meant to undo the point.
+   */
+  const mathState = useMemo(() => ({ points }), [points]);
+  const restoreMathState = useCallback((previous) => {
+    clearFeedback();
+    setPoints(Array.isArray(previous?.points) ? previous.points : []);
+  }, [clearFeedback]);
+  const undoHistory = useMathUndoHistory({
+    label: 'Undo the last point you plotted',
+    state: mathState,
+    onRestore: restoreMathState,
+    resetKey: questionData?.id ?? questionData?.prompt ?? null,
+  });
+
   const clear = () => { setPoints([]); clearFeedback(); };
 
   const plottedPoints = [
@@ -153,11 +190,28 @@ export default function Graphing2({ questionData = {}, onAction }) {
     return 'Both points are close, but the line through them does not match the target. Re-read each coordinate carefully.';
   };
 
-  const nextActionLabel = points.length === 0
-    ? 'Plot your first point'
-    : points.length === 1
-      ? 'Now plot a second point'
-      : 'Both points plotted — check your construction';
+  /*
+   * WHAT ENLARGING THIS TOOL HAS TO CARRY.
+   *
+   * The activity is "plot two points that determine the target line", so the
+   * enlarged view needs the plane, the running description of the construction,
+   * Check, Start over and Undo. A Work View holding only a bigger grid would
+   * still send the student back out to press Check.
+   *
+   * Fit View, pan/zoom and point editing are not declared here: CoordinatePlane
+   * publishes them from inside, because it is the component that owns the camera
+   * and converts every click.
+   */
+  const constructionIncomplete = points.length < 2 || !studentLine;
+  const workspaceCapabilities = {
+    undo: undoHistory.capability,
+    equationInput: { label: studentLine ? `Your line: ${formatLine(studentLine)}` : 'Your line', studentState: true },
+    instruction: { text: nextInstruction(points.length) },
+    task: { text: targetPrompt(normalizedQuestion, target) },
+    help: { content: <HintPanel hints={hints} onHintUsed={() => onAction?.('HINT_USED')} /> },
+    primaryActions: [{ id: 'check-construction', label: 'Check construction', onAction: check, disabled: constructionIncomplete }],
+    secondaryActions: [{ id: 'start-over', label: 'Start over', onAction: clear, disabled: !points.length }],
+  };
 
   return (
     <ToolShell
@@ -185,6 +239,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
         style={{ width: '100%' }}
         openEnlarged={shouldOpenFigureEnlarged({ toolId: 'graphing2', question: questionData || {}, viewportWidth })}
         dismissKey={figureDismissalKey(questionData || {}, 'graphing2')}
+        capabilities={workspaceCapabilities}
       >
       <ToolSplit>
         <Panel title="Construct the line">
@@ -194,7 +249,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
             color: points.length >= 2 ? '#137333' : '#174ea6', fontWeight: 800, fontSize: 13,
           }}>
             <span>{points.length >= 2 ? '✓' : `${points.length}/2`}</span>
-            <span>{nextActionLabel}</span>
+            <span>{nextInstruction(points.length)}</span>
           </div>
           <CoordinatePlane
             {...bounds}
@@ -206,6 +261,11 @@ export default function Graphing2({ questionData = {}, onAction }) {
             lines={studentLines}
             cursorLabel="Plot"
             ariaLabel="Coordinate plane for constructing your line"
+            // This tool wraps its whole split in Work View, so a second enlarge
+            // button here would open a shell inside a shell and leave Check
+            // behind the inner backdrop. The plane publishes Fit View, pan/zoom
+            // and point editing to the shell around it instead.
+            enlargeable={false}
           >
             {verticalStudentLine}
           </CoordinatePlane>
@@ -229,9 +289,11 @@ export default function Graphing2({ questionData = {}, onAction }) {
             <button type="button" onClick={check} disabled={points.length < 2 || !studentLine} style={{ ...primaryButton, opacity: points.length < 2 || !studentLine ? 0.5 : 1, cursor: points.length < 2 || !studentLine ? 'not-allowed' : 'pointer' }}>
               Check construction
             </button>
-            <button type="button" onClick={undoLastPoint} disabled={!points.length} style={{ ...secondaryButton, opacity: points.length ? 1 : 0.5 }}>
-              Undo last point
-            </button>
+            {/* "Undo last point" used to sit here. Universal Undo covers it
+                now: the platform control beside Submit takes the last plotted
+                point back, and unlike the local button it keeps working after a
+                point has been dragged. Start over is not undo — it discards
+                both points at once — so it stays. */}
             <button type="button" onClick={clear} disabled={!points.length} style={{ ...secondaryButton, opacity: points.length ? 1 : 0.5 }}>
               Start over
             </button>

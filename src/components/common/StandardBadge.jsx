@@ -204,7 +204,11 @@ export default function StandardBadge({ code, framework = null, domainId = null,
 
   return (
     <>
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, ...style }}>
+      {/* Named so the Work View mobile rule can stand this row down. A TEKS
+          chip beside a full-window workspace on a 390px phone is assignment
+          chrome over the tool, and it opens a modal of its own if a thumb
+          finds it mid-drag. */}
+      <div className="mathmaster-question-alignment" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, ...style }}>
         <button ref={triggerRef} type="button" onClick={() => openDetails('skill')} aria-label={`Open learning target for TEKS ${info.displayCode}`} style={buttonReset(STANDARD_CHIP)}>TEKS {info.displayCode} <span aria-hidden="true">›</span></button>
         {showName && info.studentLabel && <span style={{ fontSize: 12, color: '#5f6368', lineHeight: 1.5 }}>{info.studentLabel}</span>}
         {info.activeFramework && (

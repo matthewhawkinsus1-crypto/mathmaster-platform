@@ -57,6 +57,7 @@ export const MobileViewportContainer = ({
   workspaceMode = 'normal',
 }) => {
   const rootRef = useRef(null);
+  const keypadRef = useRef(null);
   const focusedScrollerLockRef = useRef({ element: null, left: 0 });
   const [isPromptCollapsed, setIsPromptCollapsed] = useState(false);
   const workspaceActive = workspaceMode !== 'normal';
@@ -230,6 +231,49 @@ export const MobileViewportContainer = ({
     scheduleHorizontalViewportStabilization({ root: rootRef.current });
   };
 
+  /*
+   * THIS KEYPAD IS A SOFTWARE KEYBOARD, AND IT HAS TO BEHAVE LIKE ONE.
+   *
+   * It is `position: fixed` at the bottom of the window with a z-index above
+   * everything, which is correct while a student is typing into the ordinary
+   * question column — it floats over content they are not using.
+   *
+   * Inside Work View it landed on the action region and buried Undo, Fit View
+   * and Check: four registered controls present, correctly sized, on screen and
+   * untappable. A real keyboard does not cover the controls, it takes room from
+   * the window; so the keypad publishes its height and the Work View shell
+   * shortens by it, which puts the action row directly above the keys.
+   *
+   * Published on the document element rather than passed down because the shell
+   * is not an ancestor of this component — the keypad is a sibling of the whole
+   * question.
+   */
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const root = document.documentElement;
+    if (!(isMobile && numericTarget)) {
+      root.style.removeProperty('--mm-mobile-keypad');
+      delete root.dataset.mobileKeypadOpen;
+      return undefined;
+    }
+    // A flag as well as a height, because a landscape keypad docks to the RIGHT
+    // and reserving height under it helps nobody — the Work View rail has to
+    // move to the other side, and CSS cannot branch on a variable's value.
+    root.dataset.mobileKeypadOpen = 'true';
+    const apply = () => {
+      const height = keypadRef.current?.getBoundingClientRect?.().height || 0;
+      root.style.setProperty('--mm-mobile-keypad', `${Math.round(height)}px`);
+    };
+    apply();
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(apply) : null;
+    if (observer && keypadRef.current) observer.observe(keypadRef.current);
+    return () => {
+      observer?.disconnect();
+      root.style.removeProperty('--mm-mobile-keypad');
+      delete root.dataset.mobileKeypadOpen;
+    };
+  }, [isMobile, numericTarget]);
+
   const applyKey = (key) => {
     if (!numericTarget?.isConnected) {
       setNumericTarget(null);
@@ -247,7 +291,7 @@ export const MobileViewportContainer = ({
   };
 
   const numericKeypad = isMobile && numericTarget ? (
-    <div className="mathmaster-mobile-numeric-keypad" role="group" aria-label="Number keypad">
+    <div ref={keypadRef} className="mathmaster-mobile-numeric-keypad" role="group" aria-label="Number keypad">
       <div className="mathmaster-mobile-keypad-grid">
         {KEYS.map((key) => <button key={key} type="button" onPointerDown={(event) => event.preventDefault()} onClick={() => applyKey(key)}>{key}</button>)}
       </div>
