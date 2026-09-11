@@ -247,7 +247,9 @@ for (const device of certificationDevices) {
     // Prefer the activity-level shell. A graph nested inside an already
     // enlargeable activity can contain its own historical "Enlarge" text; using
     // the first regex match can certify/click the wrong shell.
-    const directOpeners = toolRoot.locator('.mathmaster-work-view-host[data-open="false"] > .mathmaster-work-view-surface > button')
+    const activityHost = toolRoot.locator('.mathmaster-work-view-host[data-open="false"]').first();
+    const directOpeners = activityHost
+      .locator(':scope > .mathmaster-work-view-body > .mathmaster-work-view-surface > button')
       .filter({ hasText: /enlarge|work view/i });
     const preferredOpener = directOpeners.filter({ hasText: /open work view/i }).first();
     const fallbackOpener = directOpeners.first();
