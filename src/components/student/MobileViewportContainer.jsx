@@ -303,62 +303,19 @@ export const MobileViewportContainer = ({
     </div>
   ) : null;
 
-  if (!isMobile) {
-    return <div
-      ref={rootRef}
-      className={`mathmaster-desktop-question-content mathmaster-mobile-interaction-root ${workspaceActive ? 'solver-workspace-active' : ''}`}
-      onFocusCapture={handleFocusCapture}
-      onInputCapture={handleInputCapture}
-      onKeyDownCapture={handleKeyDownCapture}
-      onBlurCapture={handleBlurCapture}
-    >
-      {!workspaceActive && (
-      <div className={`mathmaster-desktop-question-anchor${isPromptCollapsed ? ' is-collapsed' : ''}`}>
-        <div className="mathmaster-desktop-task-toggle-row">
-          {!isPromptCollapsed && <span>Your task</span>}
-          <button
-            type="button"
-            onClick={() => setIsPromptCollapsed((current) => !current)}
-            aria-expanded={!isPromptCollapsed}
-          >
-            {isPromptCollapsed ? 'Show task' : 'Hide task'}
-          </button>
-        </div>
-        {!isPromptCollapsed && (
-          <>
-            <QuestionPrompt
-              variant="task"
-              footer={taskContextPanel ? <div className="mathmaster-question-task-context">{taskContextPanel}</div> : null}
-            >
-              {originalTaskPrompt || 'Complete the math task.'}
-            </QuestionPrompt>
-            {currentStagePrompt && (
-              <div className="mathmaster-current-question">
-                <span>Current question</span>
-                <QuestionPrompt variant="plain">{currentStagePrompt}</QuestionPrompt>
-              </div>
-            )}
-            {taskMeta && <div className="mathmaster-question-task-meta">{taskMeta}</div>}
-          </>
-        )}
-      </div>
-      )}
-      {!workspaceActive && contextPanel}{responseFields}{toolWorkspace}
-      {/* WHY THIS IS STICKY. The desktop branch used to append the Check button
-          after the tool, so on a tall question — a graph plus five response
-          fields — a student finished typing and then had to scroll to find the
-          button that submits it. The tools a student uses WHILE working (undo,
-          scratchpad) belong in the same place for the same reason: next to the
-          hands, not at the top of a page they have already scrolled past. */}
-      {!workspaceActive && (workBar || actionButtons) && (
-        <div className="mathmaster-desktop-action-bar">
-          {workBar && <div className="mathmaster-desktop-action-bar-tools">{workBar}</div>}
-          {actionButtons && <div className="mathmaster-desktop-action-bar-primary">{actionButtons}</div>}
-        </div>
-      )}
-    </div>;
-  }
-
+  /*
+   * ONE STABLE OWNER FOR THE MATHEMATICAL WORKSPACE.
+   *
+   * Desktop and phone used to be two different return trees. Crossing the
+   * 768px breakpoint (for example rotating a tablet) therefore unmounted
+   * `toolWorkspace`, recreated the tool, closed Work View and reset any
+   * student state held inside it. The surrounding prompt/action chrome may
+   * change with the viewport; the mathematical child must not.
+   *
+   * Keep one root and one keyed Fragment for `toolWorkspace` on every layout.
+   * React can replace the responsive chrome around that keyed child without
+   * replacing the child itself.
+   */
   return (
     <div
       ref={rootRef}
@@ -366,30 +323,104 @@ export const MobileViewportContainer = ({
       onInputCapture={handleInputCapture}
       onKeyDownCapture={handleKeyDownCapture}
       onBlurCapture={handleBlurCapture}
-      className={`mathmaster-question-container mathmaster-mobile-interaction-root ${isLandscape ? 'mode-landscape' : 'mode-portrait'} ${numericTarget ? 'numeric-keypad-open' : ''} ${workspaceActive ? 'solver-workspace-active' : ''}`}
-      style={{
+      className={isMobile
+        ? `mathmaster-question-container mathmaster-mobile-interaction-root ${isLandscape ? 'mode-landscape' : 'mode-portrait'} ${numericTarget ? 'numeric-keypad-open' : ''} ${workspaceActive ? 'solver-workspace-active' : ''}`
+        : `mathmaster-desktop-question-content mathmaster-mobile-interaction-root ${workspaceActive ? 'solver-workspace-active' : ''}`}
+      style={isMobile ? {
         '--mm-visual-viewport-width': `${visualViewport.width}px`,
         '--mm-visual-viewport-height': `${visualViewport.height}px`,
         '--mm-visual-viewport-offset-top': `${visualViewport.offsetTop}px`,
         '--mm-visual-viewport-offset-left': `${visualViewport.offsetLeft}px`,
-      }}
+      } : undefined}
     >
-      {!workspaceActive && (
-      <section className="question-prompt-panel" aria-label="Question prompt and response controls">
-        <div className="question-prompt-heading">
-          <span>YOUR TASK</span>
-          {!isLandscape && <button type="button" onClick={() => setIsPromptCollapsed((current) => !current)}>{isPromptCollapsed ? 'Show Prompt ▼' : 'Minimize ▲'}</button>}
-        </div>
-        {!isPromptCollapsed && <div className="prompt-body"><QuestionPrompt variant="plain" style={{ color: '#202124', fontWeight: 800, fontSize: 18, margin: 0 }}>{originalTaskPrompt || 'Complete the math task.'}</QuestionPrompt>{currentStagePrompt && <div className="mathmaster-current-question"><span>Current question</span><QuestionPrompt variant="plain">{currentStagePrompt}</QuestionPrompt></div>}{taskMeta && <div className="mathmaster-question-task-meta">{taskMeta}</div>}{taskContextPanel && <div className="mathmaster-question-task-context">{taskContextPanel}</div>}</div>}
-        {responseFields && <div className="response-inputs-section">{responseFields}</div>}
-        {!workspaceActive && isLandscape && (actionButtons || workBar) && <div className="landscape-action-bar">{workBar}{actionButtons}</div>}
-      </section>
+      {isMobile ? (
+        <>
+          {!workspaceActive && (
+            <section className="question-prompt-panel" aria-label="Question prompt and response controls">
+              <div className="question-prompt-heading">
+                <span>YOUR TASK</span>
+                {!isLandscape && (
+                  <button type="button" onClick={() => setIsPromptCollapsed((current) => !current)}>
+                    {isPromptCollapsed ? 'Show Prompt ▼' : 'Minimize ▲'}
+                  </button>
+                )}
+              </div>
+              {!isPromptCollapsed && (
+                <div className="prompt-body">
+                  <QuestionPrompt variant="plain" style={{ color: '#202124', fontWeight: 800, fontSize: 18, margin: 0 }}>
+                    {originalTaskPrompt || 'Complete the math task.'}
+                  </QuestionPrompt>
+                  {currentStagePrompt && (
+                    <div className="mathmaster-current-question">
+                      <span>Current question</span>
+                      <QuestionPrompt variant="plain">{currentStagePrompt}</QuestionPrompt>
+                    </div>
+                  )}
+                  {taskMeta && <div className="mathmaster-question-task-meta">{taskMeta}</div>}
+                  {taskContextPanel && <div className="mathmaster-question-task-context">{taskContextPanel}</div>}
+                </div>
+              )}
+              {responseFields && <div className="response-inputs-section">{responseFields}</div>}
+              {isLandscape && (actionButtons || workBar) && (
+                <div className="landscape-action-bar">{workBar}{actionButtons}</div>
+              )}
+            </section>
+          )}
+          {!workspaceActive && contextPanel}
+        </>
+      ) : (
+        <>
+          {!workspaceActive && (
+            <div className={`mathmaster-desktop-question-anchor${isPromptCollapsed ? ' is-collapsed' : ''}`}>
+              <div className="mathmaster-desktop-task-toggle-row">
+                {!isPromptCollapsed && <span>Your task</span>}
+                <button
+                  type="button"
+                  onClick={() => setIsPromptCollapsed((current) => !current)}
+                  aria-expanded={!isPromptCollapsed}
+                >
+                  {isPromptCollapsed ? 'Show task' : 'Hide task'}
+                </button>
+              </div>
+              {!isPromptCollapsed && (
+                <>
+                  <QuestionPrompt
+                    variant="task"
+                    footer={taskContextPanel ? <div className="mathmaster-question-task-context">{taskContextPanel}</div> : null}
+                  >
+                    {originalTaskPrompt || 'Complete the math task.'}
+                  </QuestionPrompt>
+                  {currentStagePrompt && (
+                    <div className="mathmaster-current-question">
+                      <span>Current question</span>
+                      <QuestionPrompt variant="plain">{currentStagePrompt}</QuestionPrompt>
+                    </div>
+                  )}
+                  {taskMeta && <div className="mathmaster-question-task-meta">{taskMeta}</div>}
+                </>
+              )}
+            </div>
+          )}
+          {!workspaceActive && contextPanel}
+          {responseFields}
+        </>
       )}
 
-      {!workspaceActive && contextPanel}
-      <main className="math-tool-workspace">{toolWorkspace}</main>
+      <React.Fragment key="math-tool-workspace">
+        {toolWorkspace}
+      </React.Fragment>
 
-      {!workspaceActive && !isLandscape && (actionButtons || workBar) && <div className="portrait-action-bar">{workBar}{actionButtons}</div>}
+      {!workspaceActive && !isMobile && (workBar || actionButtons) && (
+        <div className="mathmaster-desktop-action-bar">
+          {workBar && <div className="mathmaster-desktop-action-bar-tools">{workBar}</div>}
+          {actionButtons && <div className="mathmaster-desktop-action-bar-primary">{actionButtons}</div>}
+        </div>
+      )}
+
+      {!workspaceActive && isMobile && !isLandscape && (actionButtons || workBar) && (
+        <div className="portrait-action-bar">{workBar}{actionButtons}</div>
+      )}
+
       {numericKeypad}
     </div>
   );
