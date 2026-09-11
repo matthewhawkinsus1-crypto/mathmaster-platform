@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QuestionPrompt from './QuestionPrompt';
 import useUndoHistory from './useUndoHistory';
+import { useActiveUndoOwner } from './platform/workView/useMathUndoHistory.js';
 import {
   MAX_SCRATCHPAD_PAGES,
   canAddScratchpadPage,
@@ -73,6 +74,7 @@ const buildCompressedDataUrl = (sourceCanvas) => {
 
 export default function ScratchpadOverlay({
   open,
+  questionKey = null,
   questionDetails,
   initialDataUrl = '',
   initialPages = null,
@@ -263,6 +265,19 @@ export default function ScratchpadOverlay({
       setMessage('Cleared work restored.');
     }
   };
+
+  const scratchpadCanUndo = strokeHistory.canUndo || clearBackupAvailable;
+  const scratchpadUndoController = useMemo(() => ({
+    canUndo: scratchpadCanUndo && !readOnly,
+    onUndo: undoScratchpad,
+    label: 'Undo the latest scratchpad edit',
+  }), [scratchpadCanUndo, readOnly, strokes]);
+  useActiveUndoOwner({
+    id: `scratchpad:${questionKey ?? 'current'}`,
+    active: open,
+    priority: 100,
+    controller: scratchpadUndoController,
+  });
 
   // Flatten what is on screen back into the page list. Every page turn, page
   // add and save goes through here, so live strokes can never be left behind on
@@ -515,7 +530,6 @@ export default function ScratchpadOverlay({
           />
         ))}
         <button type="button" onClick={() => setTool('eraser')} aria-pressed={tool === 'eraser'} style={{ padding: '9px 13px', borderRadius: '8px', border: tool === 'eraser' ? '2px solid #1a73e8' : '1px solid #c5d5ef', background: tool === 'eraser' ? '#e8f0fe' : '#fff', fontWeight: 'bold' }}>▱ Eraser</button>
-        <button type="button" onClick={undoScratchpad} disabled={!strokeHistory.canUndo && !clearBackupAvailable} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid #c5d5ef', background: '#fff', fontWeight: 'bold', opacity: strokeHistory.canUndo || clearBackupAvailable ? 1 : 0.45 }}>↶ Undo</button>
         <button type="button" onClick={clearAll} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid #e0b4b0', background: '#fff', color: '#a50e0e', fontWeight: 'bold' }}>Clear All</button>
         <button type="button" onClick={() => save({ close: false })} disabled={saving} style={{ minHeight: 44, padding: '10px 16px', borderRadius: '8px', border: '1px solid #9bb8e8', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>{saving ? 'Saving…' : 'Save'}</button>
         <button type="button" onClick={() => save({ close: true })} disabled={saving} style={{ minHeight: 44, padding: '10px 18px', borderRadius: '8px', border: 'none', background: saving ? '#dadce0' : '#188038', color: '#fff', fontWeight: 'bold' }}>{saving ? 'Saving…' : 'Save & Close'}</button>

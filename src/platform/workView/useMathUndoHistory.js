@@ -27,6 +27,30 @@ import {
  */
 const WorkViewUndoContext = createContext(null);
 
+export const selectActiveUndoOwner = (owners) => [...(owners || [])]
+  .sort((a, b) => (b.priority || 0) - (a.priority || 0) || (b.order || 0) - (a.order || 0))[0] || null;
+
+// A temporary editing surface can take ownership without destroying the
+// mathematical tool's registration. Closing it simply reveals the lower
+// priority owner again, so histories can never cross surfaces.
+export function WorkViewUndoProvider({ register, children }) {
+  const ownersRef = useRef(new Map());
+  const sequenceRef = useRef(0);
+  const publish = useCallback(() => {
+    const owner = selectActiveUndoOwner(ownersRef.current.values());
+    register?.(owner?.controller || null);
+  }, [register]);
+  const registerOwner = useCallback((controller, options = {}) => {
+    const id = options.id || 'mathematical-tool';
+    if (!controller || options.active === false) ownersRef.current.delete(id);
+    else ownersRef.current.set(id, { controller, priority: options.priority || 0, order: sequenceRef.current += 1 });
+    publish();
+    return () => { ownersRef.current.delete(id); publish(); };
+  }, [publish]);
+  useEffect(() => () => register?.(null), [register]);
+  return React.createElement(WorkViewUndoContext.Provider, { value: registerOwner }, children);
+}
+
 /**
  * Which question a tool is currently showing.
  *
@@ -43,11 +67,15 @@ export const questionUndoResetKey = (questionData) => (
   questionData?.questionId ?? questionData?.id ?? questionData?.prompt ?? null
 );
 
-export function WorkViewUndoProvider({ register, children }) {
-  return React.createElement(WorkViewUndoContext.Provider, { value: register || null }, children);
-}
-
 export const useWorkViewUndoRegistration = () => useContext(WorkViewUndoContext);
+
+export function useActiveUndoOwner({ id, active = true, priority = 0, controller }) {
+  const register = useWorkViewUndoRegistration();
+  useEffect(() => {
+    if (!register || !active) return undefined;
+    return register(controller, { id, priority });
+  }, [register, id, active, priority, controller]);
+}
 
 /**
  * Universal Undo over state a tool already owns.
@@ -138,8 +166,7 @@ export default function useMathUndoHistory({
 
   useEffect(() => {
     if (!register) return undefined;
-    register({ canUndo, onUndo: undo, label, depth });
-    return () => register(null);
+    return register({ canUndo, onUndo: undo, label, depth }, { id: 'mathematical-tool', priority: 0 });
   }, [register, canUndo, undo, label, depth]);
 
   // The shell renders whichever Undo descriptor reaches it. Handing back a ready

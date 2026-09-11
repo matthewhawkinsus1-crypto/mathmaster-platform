@@ -64,6 +64,8 @@ export function WorkViewCapabilityPortProvider({ publish, children }) {
   return React.createElement(WorkViewCapabilityPortContext.Provider, { value: publish || null }, children);
 }
 
+export const useHasParentWorkView = () => Boolean(useContext(WorkViewCapabilityPortContext));
+
 /**
  * Publish this component's capabilities to the nearest enclosing Work View.
  *

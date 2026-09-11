@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { evaluate } from 'mathjs';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { figureDismissalKey, shouldOpenFigureEnlarged } from '../../platform/student/figurePresentation.js';
@@ -6,6 +6,7 @@ import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
 import MathInput from '../../MathInput';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
+import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import {
   INTERVAL_ASK_STAGES,
   intervalsToInequality,
@@ -354,6 +355,16 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
   const [exactEndpoint, setExactEndpoint] = useState('');
   const [endpointError, setEndpointError] = useState('');
   const [dragging, setDragging] = useState(null);
+  const restoreMath = useCallback((state) => {
+    setPending(state.pending); setBuilt(state.built); setClosedEnd(state.closedEnd);
+    setNotation(state.notation); setInequality(state.inequality); setExactEndpoint(state.exactEndpoint);
+  }, []);
+  const undoHistory = useMathUndoHistory({
+    label: 'Undo the latest number-line edit',
+    state: { pending, built, closedEnd, notation, inequality, exactEndpoint },
+    onRestore: restoreMath,
+    resetKey: questionUndoResetKey(questionData),
+  });
   const dragMovedRef = useRef(false);
   const suppressEndpointClickRef = useRef(false);
 
@@ -536,16 +547,6 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
     action();
   };
 
-  const undo = () => {
-    clearFeedback();
-    setEndpointError('');
-    if (pending != null) {
-      setPending(null);
-      return;
-    }
-    setBuilt((current) => current.slice(0, -1));
-  };
-
   const reset = () => {
     clearFeedback();
     setPending(null);
@@ -630,6 +631,16 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
         style={{ width: '100%' }}
         openEnlarged={shouldOpenFigureEnlarged({ toolId: 'intervalNumberLine', question: questionData || {}, viewportWidth })}
         dismissKey={figureDismissalKey(questionData || {}, 'intervalNumberLine')}
+        capabilities={{
+          undo: undoHistory.capability,
+          pointEditing: { label: 'Edit endpoints', studentState: true },
+          numericControls: { label: 'Endpoint controls', studentState: true },
+          equationInput: asksNotation || asksInequality ? { label: 'Interval response', studentState: true } : false,
+          instruction: { text: questionData.prompt || '' },
+          task: { text: questionData.prompt || questionData.task || '' },
+          primaryActions: [{ id: 'check-number-line', label: 'Check', onAction: check }],
+          secondaryActions: [{ id: 'reset-number-line', label: 'Start over', onAction: reset }],
+        }}
       >
       <ToolSplit>
         <Panel title="Build the graph">
@@ -939,15 +950,6 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               style={{ ...secondaryButton, opacity: pending == null ? 0.5 : 1 }}
             >
               Shade right →
-            </button>
-
-            <button
-              type="button"
-              onClick={undo}
-              disabled={!built.length && pending == null}
-              style={{ ...secondaryButton, opacity: !built.length && pending == null ? 0.5 : 1 }}
-            >
-              Undo
             </button>
 
             <button

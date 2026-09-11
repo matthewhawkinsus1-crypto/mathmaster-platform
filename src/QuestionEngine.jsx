@@ -647,9 +647,7 @@ export default function QuestionEngine({
               beside its own controls, and no two of them took back the same
               amount of work. The channel is opened once, at the call site, and
               a tool joins it with `useMathUndoHistory`. */}
-          <WorkViewUndoProvider register={registerUndo}>
-            <Tool questionData={presentationQuestion} onAction={handleMissingToolAction} />
-          </WorkViewUndoProvider>
+          <Tool questionData={presentationQuestion} onAction={handleMissingToolAction} />
         </ToolRuntimeProvider>
       );
     }
@@ -939,6 +937,7 @@ export default function QuestionEngine({
   );
 
   return (
+    <WorkViewUndoProvider register={registerUndo}>
     <div
       ref={questionEngineRef}
       className={`mathmaster-question-engine mathmaster-question-engine-has-anchor ${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
@@ -1173,7 +1172,8 @@ export default function QuestionEngine({
         </div>
       )}
 
-      <ScratchpadOverlay open={scratchpadOpen} questionDetails={scratchpadQuestionDetails} initialDataUrl={scratchpadDataUrl} initialPages={scratchpadPages} onSave={saveScratchpad} onClose={() => setScratchpadOpen(false)} readOnly={locked} />
+      <ScratchpadOverlay open={scratchpadOpen} questionKey={processedQuestion?.questionId ?? processedQuestion?.id ?? null} questionDetails={scratchpadQuestionDetails} initialDataUrl={scratchpadDataUrl} initialPages={scratchpadPages} onSave={saveScratchpad} onClose={() => setScratchpadOpen(false)} readOnly={locked} />
     </div>
+    </WorkViewUndoProvider>
   );
 }
