@@ -10,6 +10,8 @@ import {
   predictionKind,
 } from './dataModelingMath';
 import useToolSubmission from '../shared/useToolSubmission';
+import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
+import { fitDataBounds, interactionIncrements, residualScale } from '../../platform/graph/graphScaleService.js';
 
 const DEFAULT_POINTS = [[1,2],[2,3],[3,5],[4,5],[5,7],[6,8],[7,10]];
 
@@ -54,11 +56,11 @@ const fitCoefficientTolerance = (expected, authored, floor, relative = 0.05) => 
 };
 
 function ResidualPlot({ rows, xMin, xMax }) {
-  const absMax = Math.max(2, ...rows.map((row) => Math.abs(row.residual || 0)));
+  const scale = residualScale(rows.map((row) => row.residual));
   return (
-    <CoordinatePlane xMin={xMin} xMax={xMax} yMin={-Math.ceil(absMax)} yMax={Math.ceil(absMax)} height={250}
+    <CoordinatePlane xMin={xMin} xMax={xMax} yMin={scale.min} yMax={scale.max} height={250}
       points={rows.map((row) => ({ x:row.x, y:row.residual, label:'' }))}
-      horizontalLines={[0]} />
+      horizontalLines={[0]} enlargeable={false} />
   );
 }
 
@@ -74,16 +76,18 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const descriptor = useMemo(() => correlationDescriptor(r), [r]);
   const xs = points.map(([x]) => Number(x));
   const ys = points.map(([, y]) => Number(y));
-  const xMin = Math.floor(Math.min(...xs, 0) - 1);
-  const xMax = Math.ceil(Math.max(...xs, 1) + 2);
-  const yMin = Math.floor(Math.min(...ys, 0) - 2);
-  const yMax = Math.ceil(Math.max(...ys, 1) + 3);
+  const xScale = fitDataBounds(xs, { include:[0] });
+  const yScale = fitDataBounds(ys, { include:[0] });
+  const { min:xMin, max:xMax } = xScale;
+  const { min:yMin, max:yMax } = yScale;
 
   const forcedModelId = FORCED_FIT_MODELS[mode] || null;
   const startingModel = questionData.startingModel || {};
 
   const [m, setM] = useState(questionData.startingModel?.m ?? (forcedModelId === 'linear' ? 1 : round(regression.m * 0.75, 2)));
   const [b, setB] = useState(questionData.startingModel?.b ?? (forcedModelId === 'linear' ? 0 : round(regression.b + 1, 2)));
+  const slopeIncrements = interactionIncrements(regression.m);
+  const interceptIncrements = interactionIncrements(Math.max(Math.abs(regression.b), yMax - yMin));
   const [direction, setDirection] = useState('positive');
   const [strength, setStrength] = useState('moderate');
   const [causation, setCausation] = useState('association');
@@ -237,11 +241,13 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
       <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.full} steps={MODE_STEPS[mode] || MODE_STEPS.full} />
       <ToolGrid min={350}>
         <Panel title="1 · Scatter plot and your model">
+          <EnlargeableFigure label="Regression model work view" enlargeLabel="Open Work View" style={{ width:'100%' }}>
           <CoordinatePlane
             xMin={xMin} xMax={xMax} yMin={yMin} yMax={yMax}
             points={points.map(([x,y]) => ({ x, y }))}
             lines={showModelEntry && !['quadraticFit', 'quadraticFitPrediction', 'exponentialFit', 'exponentialFitPrediction', 'squareRootFitPrediction'].includes(mode) && linearModelReady ? [{ m:Number(m), b:Number(b) }] : []}
             functions={['quadraticFit', 'quadraticFitPrediction', 'exponentialFit', 'exponentialFitPrediction', 'squareRootFitPrediction'].includes(mode) && nonlinearModelReady ? [studentPredict] : []}
+            enlargeable={false}
           />
           {showModelEntry ? (
             <>
@@ -264,8 +270,8 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                 </div>
               ) : (
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:12 }}>
-                  <Field label="Slope m"><input type="number" step="0.1" value={m} onChange={(e)=>{setM(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
-                  <Field label="Intercept b"><input type="number" step="0.1" value={b} onChange={(e)=>{setB(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
+                  <Field label="Slope m"><input type="number" step={slopeIncrements.normal} data-fine-step={slopeIncrements.fine} data-coarse-step={slopeIncrements.coarse} value={m} onChange={(e)=>{setM(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
+                  <Field label="Intercept b"><input type="number" step={interceptIncrements.normal} data-fine-step={interceptIncrements.fine} data-coarse-step={interceptIncrements.coarse} value={b} onChange={(e)=>{setB(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
                 </div>
               )}
               {studentModelReady ? (
@@ -287,6 +293,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
           ) : (
             <p style={{margin:'12px 0 0',fontSize:13,color:'#5f6b7a'}}>Use the scatter plot and data values for the task. No fitted model is preloaded.</p>
           )}
+          </EnlargeableFigure>
         </Panel>
 
         {showAssociationPanel ? <Panel title={mode === 'correlation' ? '2 · Correlation interpretation' : '2 · Association and causation'}>
@@ -331,7 +338,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
 
         {showResidualPanel ? <Panel title="3 · Residual evidence">
           {studentModelReady ? (
-            <>
+            <EnlargeableFigure label="Residual evidence work view" enlargeLabel="Open Work View" style={{ width:'100%' }}>
               <ResidualPlot rows={studentResiduals} xMin={xMin} xMax={xMax} />
               <div style={{ maxHeight:185, overflow:'auto', border:'1px solid #e5e7eb', borderRadius:8, marginTop:10 }}>
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
@@ -340,7 +347,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                 </table>
               </div>
               <p style={{ color:'#5f6b7a', fontSize:13, marginBottom:0 }}>A good residual plot should look randomly scattered around 0 rather than forming a clear curve or pattern.</p>
-            </>
+            </EnlargeableFigure>
           ) : (
             <p style={{margin:0,color:'#5f6b7a'}}>Enter the complete fitted function first. Residual evidence will appear after your model can be evaluated.</p>
           )}
