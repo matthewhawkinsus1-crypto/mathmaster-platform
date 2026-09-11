@@ -59,7 +59,7 @@ export const TOOL_REGISTRY = Object.fromEntries(
         ? function Stage3DRegisteredTool(props) {
           return React.createElement(
             RegisteredToolWorkView,
-            { toolId },
+            { toolId, questionData: props.questionData },
             React.createElement(component, props),
           );
         }
