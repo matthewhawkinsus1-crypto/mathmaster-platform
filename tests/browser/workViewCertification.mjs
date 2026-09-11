@@ -102,6 +102,11 @@ const makeStatefulEdit = async (page, shell, toolId, toolRoot) => {
     const plane = surface.locator('svg[role="application"]:visible').first();
     if (await plane.count()) {
       try {
+        await plane.focus();
+        await plane.press('Enter');
+        const keyboardResult = await changed('plotted a graphing point with the keyboard');
+        if (keyboardResult) return keyboardResult;
+
         const box = await plane.boundingBox();
         if (box && box.width > 80 && box.height > 80) {
           await page.mouse.click(box.x + box.width * 0.62, box.y + box.height * 0.38);
@@ -188,6 +193,16 @@ const makeStatefulEdit = async (page, shell, toolId, toolRoot) => {
       const result = await changed('changed a mathematical selection');
       if (result) return result;
     } catch { /* try graph interaction below */ }
+  }
+
+  const interactivePlane = surface.locator('svg[role="application"]:visible').first();
+  if (await interactivePlane.count()) {
+    try {
+      await interactivePlane.focus();
+      await interactivePlane.press('Enter');
+      const result = await changed('edited the interactive graph with the keyboard');
+      if (result) return result;
+    } catch { /* fall through to pointer probing */ }
   }
 
   const svgs = surface.locator('svg:visible');
@@ -346,13 +361,24 @@ for (const device of certificationDevices) {
                 const x = Math.max(0, Math.min(innerWidth - 1, r.left + r.width / 2));
                 const y = Math.max(0, Math.min(innerHeight - 1, r.top + r.height / 2));
                 const top = document.elementFromPoint(x, y);
+                const blocker = top && !(top === element || element.contains(top) || top?.contains?.(element))
+                  ? {
+                    tag: top.tagName,
+                    className: typeof top.className === 'string' ? top.className : '',
+                    ariaLabel: top.getAttribute?.('aria-label') || '',
+                  }
+                  : null;
                 return {
                   onScreen: r.left >= -1 && r.right <= innerWidth + 1 && r.top >= -1 && r.bottom <= innerHeight + 1,
-                  hit: top === element || element.contains(top) || top?.contains?.(element),
+                  hit: blocker == null,
+                  blocker,
                 };
               });
               if (!inputGeometry.onScreen) problems.push('active input left the visible Work View');
-              if (!inputGeometry.hit) problems.push('active input is covered by another surface');
+              if (!inputGeometry.hit) {
+                const blocker = inputGeometry.blocker || {};
+                problems.push(`active input is covered by ${blocker.tag || 'another surface'}${blocker.className ? `.${String(blocker.className).trim().replace(/\s+/g, '.')}` : ''}${blocker.ariaLabel ? ` [${blocker.ariaLabel}]` : ''}`);
+              }
               await page.screenshot({ path: path.join(familyDir, 'active-input.png') });
               await dismissNumericKeypad(page);
             } catch (error) {
