@@ -693,9 +693,20 @@ const exerciseScratchpadUndoOwner = async (page) => {
   const discard = overlay.getByRole('button', { name: 'Discard' });
   if (await discard.count()) await discard.click();
   await overlay.waitFor({ state: 'detached' });
+  // The overlay disappears in the render that flips scratchpadOpen. The owner
+  // arbitration unregisters the temporary owner in the following React effect,
+  // so wait for that deliberate handoff rather than sampling the one transient
+  // frame between DOM removal and effect cleanup.
   const restored = page.locator('.mathmaster-universal-undo:visible');
-  if (await restored.count() !== 1 || await restored.isDisabled()) return 'underlying tool Undo was not restored immediately';
-  if (await restored.getAttribute('data-undo-owner') !== 'current-tool') return 'Scratchpad remained the Undo owner after close';
+  try {
+    await page.waitForFunction(() => {
+      const button = document.querySelector('.mathmaster-universal-undo:not([hidden])');
+      return button?.getAttribute('data-undo-owner') === 'current-tool' && !button.disabled;
+    }, null, { timeout: 1500 });
+  } catch {
+    if (await restored.count() !== 1 || await restored.isDisabled()) return 'underlying tool Undo was not restored after Scratchpad closed';
+    if (await restored.getAttribute('data-undo-owner') !== 'current-tool') return 'Scratchpad remained the Undo owner after close';
+  }
   await restored.click();
   await page.waitForTimeout(250);
   return null;
