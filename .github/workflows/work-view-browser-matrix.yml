@@ -31,6 +31,9 @@ on:
       - "src/tools/graphing2/**"
       - "src/tools/functionInvestigation2/**"
       - "src/tools/constraintFunctionBuilder/**"
+      - "src/tools/sequenceExplorer/**"
+      - "src/tools/systemsWorkspace/**"
+      - "src/SystemGrader.jsx"
       - "tests/browser/workViewMatrix*"
       - "tests/platform/fixtures/workViewMatrixFindings.json"
       - "tests/platform/workViewMatrixFindings.test.mjs"
@@ -104,4 +107,4 @@ jobs:
           "
 
       - name: Re-assert the fixture through the ordinary suite
-        run: node --test tests/platform/workViewMatrixFindings.test.mjs tests/platform/workViewStage3A.test.mjs tests/platform/workViewCapabilities.test.mjs
+        run: node --test tests/platform/workViewMatrixFindings.test.mjs tests/platform/workViewStage3A.test.mjs tests/platform/workViewStage3B.test.mjs tests/platform/workViewCapabilities.test.mjs
