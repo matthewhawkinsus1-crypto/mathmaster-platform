@@ -22,6 +22,16 @@ test('Stage 4 classifies every registered tool and certifies every migrated impl
       assert.ok(certification.requiredBehaviors.includes(behavior), `${toolId} lacks ${behavior}`);
     }
     assert.equal(certification.requiredBehaviors.includes('singleOwnedUndo'), inventory.capabilities.includes('undo'));
+    assert.equal(
+      certification.requiredBehaviors.includes('inputRemainsReachable'),
+      inventory.capabilities.some((capability) => ['numericControls', 'equationInput'].includes(capability)),
+      `${toolId} input reachability must track its declared input capabilities`,
+    );
+    assert.equal(
+      certification.requiredBehaviors.includes('fitIsPresentationOnly'),
+      inventory.capabilities.includes('fitView'),
+      `${toolId} Fit View certification must track its camera capability`,
+    );
   }
 });
 
