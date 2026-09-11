@@ -765,8 +765,14 @@ export default function MultiRelationAlgebra({
 
         setHistory((current) => {
           if (!current.length) return current;
-          setRelationState(current[current.length - 1]);
-          setActiveBranch(0);
+          const previous = current[current.length - 1];
+          // A split relation is one mathematical state with two branches. Keep
+          // the branch the student was editing with the snapshot so Undo takes
+          // back that branch's last commit without jumping to, or rewriting,
+          // its sibling. Plain relation entries remain readable for drafts
+          // created before Stage 3C.
+          setRelationState(previous.relationState || previous);
+          setActiveBranch(previous.relationState ? previous.activeBranch : 0);
           setRepresentationCorrect(null);
           setCandidateChecks({});
           setCancellationSelection({});
@@ -836,7 +842,7 @@ export default function MultiRelationAlgebra({
       return false;
     }
 
-    setHistory((current) => [...current.slice(-59), before]);
+    setHistory((current) => [...current.slice(-59), { relationState: before, activeBranch }]);
     setRelationState(next);
     setRepresentationCorrect(null);
     setCandidateChecks({});
@@ -1252,7 +1258,10 @@ export default function MultiRelationAlgebra({
         setMessage({ tone: 'error', text: validation.reason });
         return;
       }
-      setHistory((current) => [...current, cloneRelationState(pending.before)]);
+      setHistory((current) => [...current, {
+        relationState: cloneRelationState(pending.before),
+        activeBranch,
+      }]);
       setPendingRelationFlip(null);
       await persistStep(pending.before, next, pending.label, 'student-relation-direction');
       setMessage({ tone: 'success', text: 'Relation symbols accepted. Continue solving.' });

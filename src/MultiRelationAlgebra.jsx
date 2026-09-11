@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import MultiRelationAlgebraCore from './MultiRelationAlgebraCore';
-import SolverWorkspaceFrame from './components/common/SolverWorkspaceFrame';
+import EnlargeableFigure from './components/common/EnlargeableFigure';
 import { withPromptRelationSource } from './stepAlgebraRelationRouting.js';
 
 export * from './MultiRelationAlgebraCore';
@@ -53,14 +53,18 @@ export default function MultiRelationAlgebra(props) {
   );
 
   return (
-    <SolverWorkspaceFrame
+    <EnlargeableFigure
       label="Equation and inequality solver"
       taskText={relationQuestion.prompt || 'Solve the equation or inequality.'}
-      workspaceKey={workspaceKey}
-      workspaceKind="relation"
-      focusPanel={focusPanel}
-      workspaceActions={props.workspaceActions}
-      onWorkspaceModeChange={props.onWorkspaceModeChange}
+      enlargeLabel="Enlarge relation workspace"
+      style={{ width: '100%' }}
+      capabilities={{
+        equationInput: { label: 'Equation, branch, and rewrite controls', studentState: true },
+        numericControls: { label: 'Relation operation controls', studentState: true },
+        instruction: { text: relationQuestion.prompt || 'Transform the relation while preserving its solution set.' },
+        task: { text: relationQuestion.prompt || 'Solve the equation or inequality.' },
+        help: { content: focusPanel },
+      }}
     >
       <MultiRelationAlgebraCore
         {...props}
@@ -68,6 +72,6 @@ export default function MultiRelationAlgebra(props) {
         denseWorkspace={denseWorkspace}
         onStateChange={handleStateChange}
       />
-    </SolverWorkspaceFrame>
+    </EnlargeableFigure>
   );
 }

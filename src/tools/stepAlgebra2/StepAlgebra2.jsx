@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import EnlargeableFigure from '../../components/common/EnlargeableFigure';
+import useMathUndoHistory from '../../platform/workView/useMathUndoHistory';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import { nearlyEqual, round } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
@@ -47,6 +49,23 @@ export default function StepAlgebra2({ questionData = {}, onAction }) {
   const [inputError, setInputError] = useState('');
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
+  const restoreMathematicalWork = useCallback((snapshot) => {
+    setState(snapshot.state);
+    setHistory(snapshot.history);
+    setOperand('');
+    setInputError('');
+    clearFeedback();
+  }, [clearFeedback]);
+  const undoHistory = useMathUndoHistory({
+    label: 'Undo the last completed equation step',
+    state: { state, history },
+    onRestore: restoreMathematicalWork,
+    // Registry questions arrive with a canonical runtime identity. Prompt text
+    // is deliberately not a fallback: two generated questions may use the
+    // same wording while their Undo histories must remain isolated.
+    resetKey: questionData.questionId ?? questionData.id ?? null,
+  });
+
   const solution = useMemo(() => {
     const a = Number(original.a);
     if (!Number.isFinite(a) || nearlyEqual(a, 0, 1e-12)) return null;
@@ -87,13 +106,6 @@ export default function StepAlgebra2({ questionData = {}, onAction }) {
     setOperand('');
   };
 
-  const undo = () => {
-    if (!history.length) return;
-    clearFeedback();
-    setState(history[history.length - 1].before);
-    setHistory(history.slice(0, -1));
-  };
-
   const startOver = () => { clearFeedback(); setState({ ...original }); setHistory([]); setOperand(''); setInputError(''); };
 
   const check = () => {
@@ -117,7 +129,7 @@ export default function StepAlgebra2({ questionData = {}, onAction }) {
     </span>
   );
 
-  return (
+  const activity = (
     <ToolShell
       title="Solving Equations Step by Step"
       subtitle="Do the same thing to both sides, one move at a time, and watch the equation simplify."
@@ -176,7 +188,6 @@ export default function StepAlgebra2({ questionData = {}, onAction }) {
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
             <button type="button" onClick={apply} disabled={!operandIsUsable} style={{ ...primaryButton, opacity: operandIsUsable ? 1 : 0.5, cursor: operandIsUsable ? 'pointer' : 'not-allowed' }}>Apply to both sides</button>
-            <button type="button" onClick={undo} disabled={!history.length} style={{ ...secondaryButton, opacity: history.length ? 1 : 0.5 }}>Undo step</button>
             <button type="button" onClick={startOver} disabled={!history.length} style={{ ...secondaryButton, opacity: history.length ? 1 : 0.5 }}>Start over</button>
           </div>
 
@@ -219,5 +230,26 @@ export default function StepAlgebra2({ questionData = {}, onAction }) {
         </Panel>
       </ToolGrid>
     </ToolShell>
+  );
+
+  return (
+    <EnlargeableFigure
+      label="Step Algebra working activity"
+      enlargeLabel="Enlarge algebra workspace"
+      style={{ width: '100%' }}
+      taskText={`Solve ${formatEquation(original)} for x.`}
+      capabilities={{
+        undo: undoHistory.capability,
+        equationInput: { label: 'Both sides of the equation', studentState: true },
+        numericControls: { label: 'Operation controls', studentState: true },
+        instruction: { text: 'Choose an operation, apply it to both sides, and simplify until x is isolated.' },
+        task: { text: `Solve ${formatEquation(original)} for x.` },
+        help: { content: 'Use inverse operations in reverse order. Every committed operation changes both sides equally.' },
+        primaryActions: [{ id: 'check-step-algebra', label: 'Check solution', onAction: check }],
+        secondaryActions: [{ id: 'start-over-step-algebra', label: 'Start over', onAction: startOver, disabled: !history.length }],
+      }}
+    >
+      {activity}
+    </EnlargeableFigure>
   );
 }

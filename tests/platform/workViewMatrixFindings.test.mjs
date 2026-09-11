@@ -49,7 +49,7 @@ test('the matrix actually measured the families this stage migrated', () => {
   // covers four.
   assert.deepEqual(
     [...new Set(audit.scenes.map((scene) => scene.family))].sort(),
-    ['ConstraintFunctionBuilder', 'FunctionInvestigation2', 'Graphing2', 'InteractiveGraphWorkspace', 'SequenceExplorer', 'SystemsWorkspace', 'TransformationsLab'],
+    ['ConstraintFunctionBuilder', 'FunctionInvestigation2', 'Graphing2', 'InteractiveGraphWorkspace', 'MultiRelationAlgebra', 'SequenceExplorer', 'StepAlgebra2', 'StepByStepAlgebra', 'SystemsWorkspace', 'TransformationsLab'],
   );
   assert.ok(audit.screenshots >= audit.measured * 5, 'each scene is captured at every step of the matrix');
 });

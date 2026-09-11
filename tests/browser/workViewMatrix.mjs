@@ -77,6 +77,36 @@ const DEVICES = [
  */
 const SCENES = [
   {
+    id: 'step-algebra-operations',
+    family: 'StepAlgebra2',
+    marksPlane: false,
+    question: {
+      questionId: 'step-algebra-operations', type: 'stepAlgebra2',
+      prompt: 'Solve 3x + 6 = 21 by applying operations to both sides.',
+      equation: { a: 3, b: 6, c: 21 },
+    },
+  },
+  {
+    id: 'balance-algebra',
+    family: 'StepByStepAlgebra',
+    marksPlane: false,
+    question: {
+      questionId: 'balance-algebra', type: 'stepAlgebra',
+      prompt: 'Solve 2x + 5 = 19 and show each balanced step.',
+      equation: '2*x + 5 = 19', variable: 'x', answer: '7',
+    },
+  },
+  {
+    id: 'split-absolute-algebra',
+    family: 'MultiRelationAlgebra',
+    marksPlane: false,
+    question: {
+      questionId: 'split-absolute-algebra', type: 'stepAlgebra',
+      prompt: 'Solve |x - 2| = 5 and keep both branches.',
+      equation: '|x - 2| = 5', variable: 'x', acceptedAnswers: ['-3', '7'],
+    },
+  },
+  {
     id: 'sequence-full-bridge',
     family: 'SequenceExplorer',
     marksPlane: true,
@@ -477,6 +507,16 @@ const typeIntoFirstField = async (page, selector, value) => {
 };
 
 const makeEdit = async (page, sceneId) => {
+  if (sceneId === 'step-algebra-operations') {
+    const typed = await typeIntoFirstField(page, 'input[type="number"]', '6');
+    const apply = page.locator('.mathmaster-work-view-host[data-open="true"] button', { hasText: 'Apply to both sides' }).first();
+    if (await apply.count()) {
+      await apply.click();
+      await page.waitForTimeout(250);
+      return 'applied an operation to both sides';
+    }
+    return typed;
+  }
   if (sceneId === 'sequence-full-bridge') {
     return await typeIntoFirstField(page, 'input[aria-label^="Sequence output"]', '3');
   }
