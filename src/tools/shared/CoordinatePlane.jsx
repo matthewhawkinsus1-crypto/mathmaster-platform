@@ -3,15 +3,24 @@ import { clientPointToGraphCoordinate } from '../../utils/responsiveCoordinates.
 import { resolvePointFill, resolvePointRadius } from '../../graphSpecUtils';
 import { readGraphPointCoordinates } from '../../graphPointUtils';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
+import { majorTicks, niceStep } from '../../platform/graph/graphScaleService.js';
 
 // Shared by every Batch A-D tool, so an unguarded window froze three labs at
 // once. A step of 0/NaN never terminates, and a legitimate step across a huge
 // window runs for billions of iterations; both are reachable from authored
 // question JSON. 200 ticks is past the point axis labels stay readable.
-const MAX_TICKS = 200;
 // Minor gridlines are a readability aid, not data. Past this count they stop
 // being countable squares and just grey the plot out, so we drop them.
 const MAX_MINOR_LINES = 90;
+
+const buildMinorTicks = (min, max, step) => {
+  const first = Math.ceil(min / step) * step;
+  const ticks = [];
+  for (let value = first; value <= max + step * 0.001 && ticks.length < MAX_MINOR_LINES; value += step) {
+    ticks.push(tidy(value));
+  }
+  return ticks;
+};
 
 // Square, and at the touch minimum. Zoom is intentionally button-driven. Mouse
 // wheel and browser pinch belong to page navigation/magnification and must never
@@ -26,27 +35,6 @@ const ZOOM_BUTTON = {
   fontWeight: 800,
   fontSize: 16,
   cursor: 'pointer',
-};
-
-const buildTicks = (min, max, step) => {
-  const low = Number(min);
-  const high = Number(max);
-  if (!Number.isFinite(low) || !Number.isFinite(high) || high <= low) return [];
-
-  let increment = Number(step);
-  if (!Number.isFinite(increment) || increment <= 0) increment = (high - low) / 10;
-  const span = high - low;
-  if (span / increment > MAX_TICKS) increment = span / MAX_TICKS;
-  if (!Number.isFinite(increment) || increment <= 0) return [];
-
-  const ticks = [];
-  const first = Math.ceil(low / increment) * increment;
-  if (!Number.isFinite(first)) return [];
-  for (let value = first; value <= high + 1e-9; value += increment) {
-    ticks.push(value);
-    if (ticks.length >= MAX_TICKS) break;
-  }
-  return ticks;
 };
 
 const tidy = (value) => Number(Number(value).toFixed(6));
@@ -167,10 +155,10 @@ export default function CoordinatePlane({
 
   const sx = (x) => pad + ((Number(x) - xMin) / (xMax - xMin)) * innerW;
   const sy = (y) => height - pad - ((Number(y) - yMin) / (yMax - yMin)) * innerH;
-  const xStep = xMax - xMin > 20 ? 5 : xMax - xMin > 10 ? 2 : 1;
-  const yStep = yMax - yMin > 20 ? 5 : yMax - yMin > 10 ? 2 : 1;
-  const xTicks = buildTicks(xMin, xMax, xStep);
-  const yTicks = buildTicks(yMin, yMax, yStep);
+  const xStep = niceStep(xMax - xMin);
+  const yStep = niceStep(yMax - yMin);
+  const xTicks = majorTicks(xMin, xMax, xStep);
+  const yTicks = majorTicks(yMin, yMax, yStep);
 
   // Minor lines sit at the resolution the student can actually click, so the
   // grid tells the truth about where a point can land.
@@ -179,8 +167,8 @@ export default function CoordinatePlane({
     && (xMax - xMin) / minorStep <= MAX_MINOR_LINES
     && (yMax - yMin) / minorStep <= MAX_MINOR_LINES
     && minorStep < xStep;
-  const xMinor = showMinorGrid ? buildTicks(xMin, xMax, minorStep) : [];
-  const yMinor = showMinorGrid ? buildTicks(yMin, yMax, minorStep) : [];
+  const xMinor = showMinorGrid ? buildMinorTicks(xMin, xMax, minorStep) : [];
+  const yMinor = showMinorGrid ? buildMinorTicks(yMin, yMax, minorStep) : [];
 
   // Keep the tick labels visible when the origin is scrolled out of the window
   // instead of letting them render off the edge of the plot.
