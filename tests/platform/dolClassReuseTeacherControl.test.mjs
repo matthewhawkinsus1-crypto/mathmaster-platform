@@ -55,6 +55,7 @@ test('expired early DOL can restart only before the regular DOL cutoff', () => {
   assert.match(handlerBlock, /Restart DOL/);
   assert.match(handlerBlock, /final technology-return window/);
   assert.match(handlerBlock, /if \(\(state\.status === 'ended' && !canRestart\)/);
+  assert.match(handlerBlock, /Date\.now\(\) >= state\.regularEndsAt\.getTime\(\)/);
 });
 
 test('teacher DOL surfaces keep restartable ended timers actionable', () => {
