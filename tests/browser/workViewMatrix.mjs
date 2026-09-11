@@ -679,7 +679,7 @@ const exerciseScratchpadUndoOwner = async (page) => {
   await page.waitForTimeout(120);
   if (Number(await overlay.getAttribute('data-scratchpad-stroke-count')) !== 0) return 'second Universal Undo did not remove the second stroke';
 
-  await overlay.getByRole('button', { name: 'Close' }).click();
+  await overlay.getByRole('button', { name: 'Close', exact: true }).click();
   const discard = overlay.getByRole('button', { name: 'Discard' });
   if (await discard.count()) await discard.click();
   await overlay.waitFor({ state: 'detached' });
