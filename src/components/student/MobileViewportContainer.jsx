@@ -406,9 +406,11 @@ export const MobileViewportContainer = ({
         </>
       )}
 
-      <React.Fragment key="math-tool-workspace">
-        {toolWorkspace}
-      </React.Fragment>
+      <main className="math-tool-workspace">
+        <React.Fragment key="math-tool-workspace">
+          {toolWorkspace}
+        </React.Fragment>
+      </main>
 
       {!workspaceActive && !isMobile && (workBar || actionButtons) && (
         <div className="mathmaster-desktop-action-bar">
