@@ -141,15 +141,16 @@
    the Work View instead of merely moving the action buttons while leaving the
    editable surface underneath the keys. Portrait/bottom layouts give up height;
    short-landscape/side layouts give up the keypad's right-hand width. */
-html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][data-controls="bottom"] {
-  height: calc(var(--mm-work-view-height, 100dvh) - var(--mm-mobile-keypad, 0px) - max(8px, env(safe-area-inset-bottom)));
+html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][data-controls="bottom"] > .mathmaster-work-view-body {
+  box-sizing: border-box;
+  padding-bottom: calc(var(--mm-mobile-keypad, 0px) + max(8px, env(safe-area-inset-bottom)));
 }
 html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][data-controls="bottom"] .mathmaster-work-view-actions {
   margin-bottom: 0;
 }
-html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][data-controls="side"] {
-  right: calc(var(--mm-mobile-keypad-width, 0px) + max(8px, env(safe-area-inset-right)));
-  width: auto;
+html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][data-controls="side"] > .mathmaster-work-view-body {
+  box-sizing: border-box;
+  padding-right: calc(var(--mm-mobile-keypad-width, 0px) + max(8px, env(safe-area-inset-right)));
 }
 
 /* A short landscape phone keeps the rail, and every pixel of height it does not
