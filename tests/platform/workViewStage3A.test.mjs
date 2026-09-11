@@ -223,11 +223,15 @@ test('QuestionEngine opens the Undo channel the registry tools reach it through'
   // and throws at runtime. Assert the import beside the call site.
   assert.match(engine, /import\s*\{\s*WorkViewUndoProvider\s*\}\s*from\s*'\.\/platform\/workView\/useMathUndoHistory\.js'/);
   const toolCall = region(engine, 'const Tool = missingToolDefinition.component', '</ToolRuntimeProvider>', 'the registry tool call site');
-  assert.match(toolCall, /<WorkViewUndoProvider register=\{registerUndo\}>/);
   assert.match(toolCall, /<Tool\b/);
+  const renderedEngine = region(engine, '<WorkViewUndoProvider register={setUndoController}', '</WorkViewUndoProvider>', 'the enclosing Undo provider');
+  assert.match(renderedEngine, /\{renderModule\(\)\}/, 'the provider encloses registry and legacy module rendering');
+  assert.match(renderedEngine, /<ScratchpadOverlay\b/, 'the same provider encloses temporary editing surfaces');
+  assert.match(engine, /onUndoStateChange:\s*registerUndo/, 'legacy modules register the persistent base owner');
+  assert.match(engine, /baseController=\{baseUndoController\}/, 'temporary ownership cannot discard that base owner');
   // The same controller the platform work bar reads, so the bar and the Work
   // View rail cannot disagree about whether there is anything to undo.
-  assert.match(engine, /undoController\?\.\onUndo\?\.\(\)/);
+  assert.match(engine, /controller=\{undoController\}/);
 });
 
 for (const { file, label } of MIGRATED) {

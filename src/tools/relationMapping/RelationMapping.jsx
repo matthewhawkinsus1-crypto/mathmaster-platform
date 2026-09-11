@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import MathDisplay from '../../MathDisplay';
 import { matchesFieldAnswer } from '../../answerUtils';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../../platform/interaction/choiceOptions.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
+import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const secondaryButton = { ...primaryButton, background: '#fff', color: '#174ea6', border: '1px solid #9bb8e8' };
@@ -149,6 +150,17 @@ export default function RelationMapping({ questionData = {}, onAction }) {
   const [plottedPoints, setPlottedPoints] = useState([]);
   const [plotX, setPlotX] = useState('');
   const [plotY, setPlotY] = useState('');
+  const restoreMath = useCallback((state) => {
+    setArrows(state.arrows); setDomainAnswer(state.domainAnswer); setRangeAnswer(state.rangeAnswer);
+    setFunctionAnswer(state.functionAnswer); setFieldAnswers(state.fieldAnswers);
+    setPlottedPoints(state.plottedPoints); setPlotX(state.plotX); setPlotY(state.plotY);
+  }, []);
+  const undoHistory = useMathUndoHistory({
+    label: 'Undo the latest mapping edit',
+    state: { arrows, domainAnswer, rangeAnswer, functionAnswer, fieldAnswers, plottedPoints, plotX, plotY },
+    onRestore: restoreMath,
+    resetKey: questionUndoResetKey(questionData),
+  });
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
   const plotBounds = useMemo(() => {
@@ -339,7 +351,15 @@ export default function RelationMapping({ questionData = {}, onAction }) {
         </Panel>
       ) : null}
 
-      <EnlargeableFigure label="Mapping workspace" enlargeLabel="Enlarge workspace" style={{ width: '100%' }}>
+      <EnlargeableFigure label="Mapping workspace" enlargeLabel="Enlarge workspace" style={{ width: '100%' }} capabilities={{
+        undo: undoHistory.capability,
+        pointEditing: { label: 'Edit mappings and plotted points', studentState: true },
+        numericControls: { label: 'Relation controls', studentState: true },
+        tableData: { label: 'Domain and range data' },
+        instruction: { text: questionData.prompt || '' },
+        task: { text: questionData.prompt || questionData.task || '' },
+        primaryActions: [{ id: 'check-mapping', label: 'Check', onAction: check }],
+      }}>
       <ToolSplit>
         <Panel title="Mapping diagram">
           <svg viewBox={`0 0 ${WIDTH} ${height}`} role="application" aria-label="Mapping diagram" style={{ width: '100%', height: 'auto', border: '1px solid #d9e2f1', borderRadius: 12, background: '#fff' }}>

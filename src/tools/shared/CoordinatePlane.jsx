@@ -3,7 +3,7 @@ import { clientPointToGraphCoordinate } from '../../utils/responsiveCoordinates.
 import { resolvePointFill, resolvePointRadius } from '../../graphSpecUtils';
 import { readGraphPointCoordinates } from '../../graphPointUtils';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
-import { usePublishWorkViewCapabilities } from '../../platform/workView/workViewCapabilities.js';
+import { useHasParentWorkView, usePublishWorkViewCapabilities } from '../../platform/workView/workViewCapabilities.js';
 import { majorTicks, niceStep } from '../../platform/graph/graphScaleService.js';
 
 // Shared by every Batch A-D tool, so an unguarded window froze three labs at
@@ -125,6 +125,11 @@ export default function CoordinatePlane({
   viewResetKey = null,
   children,
 }) {
+  const insideParentWorkView = useHasParentWorkView();
+  // An enclosing activity owns enlargement. This automatic guard makes it
+  // impossible for a newly wrapped tool to open a graph-only Work View inside
+  // the activity Work View, even if an older call site omitted the opt-out.
+  enlargeable = enlargeable && !insideParentWorkView;
   const pad = 42;
   const innerW = width - pad * 2;
   const innerH = height - pad * 2;

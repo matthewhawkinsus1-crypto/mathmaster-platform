@@ -1,3 +1,4 @@
+import React from 'react';
 import DataModelingLab from './dataModeling/DataModelingLab';
 import InverseCompositionLab from './inverseComposition/InverseCompositionLabRouter';
 import FunctionOperationsLab from './functionOperations/FunctionOperationsLab';
@@ -21,6 +22,8 @@ import ConstraintFunctionBuilder from './constraintFunctionBuilder/ConstraintFun
 import { getToolCapabilities } from './toolCapabilities';
 import { TOOL_CATALOG } from './toolCatalog';
 import { getMobileToolProfile } from '../platform/mobile/mobileToolProfiles.js';
+import RegisteredToolWorkView from './shared/RegisteredToolWorkView.jsx';
+import { STAGE_3D_WORK_VIEW_IDS } from './workViewInventory.js';
 
 // Labels and course lists live in the React-free toolCatalog so Node-side
 // consumers can read them; this map only attaches the components.
@@ -50,7 +53,18 @@ const TOOL_COMPONENTS = {
 export const TOOL_REGISTRY = Object.fromEntries(
   Object.entries(TOOL_COMPONENTS).map(([toolId, component]) => [
     toolId,
-    { ...TOOL_CATALOG[toolId], component },
+    {
+      ...TOOL_CATALOG[toolId],
+      component: STAGE_3D_WORK_VIEW_IDS.includes(toolId) && !['intervalNumberLine', 'relationMapping'].includes(toolId)
+        ? function Stage3DRegisteredTool(props) {
+          return React.createElement(
+            RegisteredToolWorkView,
+            { toolId },
+            React.createElement(component, props),
+          );
+        }
+        : component,
+    },
   ]),
 );
 
@@ -59,5 +73,7 @@ export const getToolDefinition = (toolId) => {
   if (!definition) return null;
   return { toolId, ...definition, capabilities: getToolCapabilities(toolId), mobileInteraction: getMobileToolProfile(toolId) };
 };
+
+export const toolUsesRegistryWorkView = (toolId) => STAGE_3D_WORK_VIEW_IDS.includes(toolId);
 
 export const listTools = () => Object.keys(TOOL_REGISTRY).map(getToolDefinition);

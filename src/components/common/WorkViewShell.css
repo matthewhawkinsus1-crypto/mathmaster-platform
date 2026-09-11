@@ -253,6 +253,14 @@ html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][da
   box-shadow: none !important;
 }
 
+/* A temporary editing surface renders the one reachable Universal Undo above
+   its backdrop. Hide covered copies rather than leaving two student-facing
+   controls that appear to have different histories. */
+html[data-undo-overlay-owner="scratchpad"] .mathmaster-universal-undo:not([data-undo-owner="scratchpad"]),
+html[data-undo-overlay-owner="scratchpad"] .mathmaster-work-view-actions [data-work-view-action*="Undo"] {
+  visibility: hidden !important;
+}
+
 /* Anything pinned to the bottom of the window clears the action region rather
    than landing on it — the calculator launcher sits exactly where the Clear
    button does on a 390px phone, and on a support plan it is not a control that
