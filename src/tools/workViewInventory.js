@@ -14,7 +14,7 @@ export const WORK_VIEW_INVENTORY = Object.freeze({
   functionOperationsLab: { status: 'migrated', stage: '3D', capabilities: ['numericControls', 'equationInput', 'tableData', 'instruction', 'task', 'help'] },
   parabolaGeometryLab: { status: 'migrated', stage: '3D', capabilities: ['numericControls', 'equationInput', 'instruction', 'task', 'help'] },
   polynomialWorkshop: { status: 'migrated', stage: '3D', capabilities: ['numericControls', 'equationInput', 'instruction', 'task', 'help'] },
-  signSolutionAnalyzer: { status: 'migrated', stage: '3D', capabilities: ['numericControls', 'equationInput', 'tableData', 'instruction', 'task', 'help'] },
+  signSolutionAnalyzer: { status: 'migrated', stage: '3D', capabilities: ['pointEditing', 'instruction', 'task', 'help'] },
   complexPlaneLab: { status: 'migrated', stage: '3D', capabilities: ['numericControls', 'equationInput', 'instruction', 'task', 'help'] },
   exponentialLogBridge: { status: 'migrated', stage: '3D', capabilities: ['numericControls', 'equationInput', 'tableData', 'instruction', 'task', 'help'] },
   representationMatch: { status: 'migrated', stage: '3D', capabilities: ['numericControls', 'tableData', 'instruction', 'task', 'help'] },
