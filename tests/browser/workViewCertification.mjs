@@ -301,18 +301,61 @@ for (const device of WORK_VIEW_CERTIFICATION_DEVICES) {
         // State preservation is meaningful only after the student has actually
         // changed the mathematics. A pristine fixture would look identical after
         // an accidental remount/reset and falsely certify the regression.
-        const edit = await makeStatefulEdit(page, shell);
+        const baselineState = await mathStateSnapshot(shell);
+        let edit = await makeStatefulEdit(page, shell);
         if (!edit) {
           problems.push('could not make a stateful student edit before resize/orientation certification');
         } else {
           await dismissNumericKeypad(page);
           await page.screenshot({ path: path.join(familyDir, 'student-edit.png') });
-          const beforeResize = await mathStateSnapshot(shell);
-          await page.setViewportSize({ width: device.viewportHeight, height: device.viewportWidth });
-          await page.waitForTimeout(180);
-          const afterResize = await mathStateSnapshot(shell);
-          if (JSON.stringify(beforeResize) !== JSON.stringify(afterResize)) {
-            problems.push(`resize/orientation changed mathematical state after ${edit.description}`);
+          let editedState = await mathStateSnapshot(shell);
+
+          if (certification.requiredBehaviors.includes('fitIsPresentationOnly')) {
+            const fit = shell.locator('[data-work-view-action]').filter({ hasText: /fit/i }).first();
+            const fitProblem = await clickIfReachable(fit, 'Fit View');
+            if (fitProblem) {
+              problems.push(fitProblem);
+            } else {
+              await page.waitForTimeout(120);
+              const afterFit = await mathStateSnapshot(shell);
+              if (JSON.stringify(afterFit) !== JSON.stringify(editedState)) {
+                problems.push('Fit View changed mathematical state instead of camera state only');
+              }
+            }
+          }
+
+          if (certification.requiredBehaviors.includes('singleOwnedUndo')) {
+            const undo = shell.locator('.mathmaster-universal-undo:visible').first();
+            if (!(await visible(undo)) || await undo.isDisabled()) {
+              problems.push('Universal Undo is not enabled after a real mathematical edit');
+            } else {
+              const undoProblem = await clickIfReachable(undo, 'Universal Undo');
+              if (undoProblem) {
+                problems.push(undoProblem);
+              } else {
+                await page.waitForTimeout(160);
+                const undoneState = await mathStateSnapshot(shell);
+                if (JSON.stringify(undoneState) !== JSON.stringify(baselineState)) {
+                  problems.push('Universal Undo did not restore the mathematical state before the edit');
+                }
+                edit = await makeStatefulEdit(page, shell);
+                if (!edit) problems.push('could not recreate mathematical work after Undo for resize certification');
+                else {
+                  await dismissNumericKeypad(page);
+                  editedState = await mathStateSnapshot(shell);
+                }
+              }
+            }
+          }
+
+          if (edit) {
+            const beforeResize = editedState;
+            await page.setViewportSize({ width: device.viewportHeight, height: device.viewportWidth });
+            await page.waitForTimeout(180);
+            const afterResize = await mathStateSnapshot(shell);
+            if (JSON.stringify(beforeResize) !== JSON.stringify(afterResize)) {
+              problems.push(`resize/orientation changed mathematical state after ${edit.description}`);
+            }
           }
         }
         await page.screenshot({ path: path.join(familyDir, 'rotated.png') });
