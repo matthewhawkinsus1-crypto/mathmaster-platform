@@ -76,6 +76,11 @@ const transformationsLabHasGraph = (question = {}) => {
   return false;
 };
 
+const dataModelingLabHasGraph = (question = {}) => (
+  String(question.toolId || question.type) === 'dataModelingLab'
+  && nonEmptyArray(question.points)
+);
+
 const composedStages = (composed) => (composed?.composed && Array.isArray(composed.workflow) ? composed.workflow : []);
 
 const composedDrawsFigureGraphs = (composed) => composedStages(composed).some((stage) => (
@@ -91,7 +96,7 @@ const composedPreviewsChoicesOnGraph = (composed) => composedStages(composed).so
 const VISUAL_PROMISES = [
   {
     id: 'graph',
-    pattern: /\b(the|this|each|following)\s+graph\b|\bgraph\s+(below|above|shown)\b|\bshown\s+(below|above)\b|\bpictured\b|\bthe\s+coordinate\s+plane\b/i,
+    pattern: /\b(the|this|each|following)\s+graph\b|\bgraph\s+(below|above|shown)\b|\bscatter\s*plot\b|\bshown\s+(below|above)\b|\bpictured\b|\bthe\s+coordinate\s+plane\b/i,
     label: 'a graph',
     satisfied: (question, composed) => isObject(question.graph) || isObject(question.visual)
       || has(get(question, 'functionSpec.type')) || nonEmptyArray(question.graphs)
@@ -101,6 +106,9 @@ const VISUAL_PROMISES = [
       // so prompts such as "use the graph" do not trip a false missing-visual
       // compiler defect.
       || (String(question.type) === 'functionInvestigation2' && has(get(question, 'function.type')))
+      // DataModelingLab renders its point data as the student-visible
+      // scatterplot; it does not need a redundant graph or functionSpec.
+      || dataModelingLabHasGraph(question)
       || transformationsLabHasGraph(question)
       || composedHasStage(composed, ['functionGraph', 'coordinatePlot', 'graphFeatureSelect'])
       // A matching step draws one plane per figure, and a choice step with
