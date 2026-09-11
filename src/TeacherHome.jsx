@@ -91,7 +91,10 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
     .filter(({ state }) => (
       state.enabled
       && state.window
-      && ['beforeClass', 'waiting', 'active', 'notToday', 'unscheduled'].includes(state.status)
+      && (
+        ['beforeClass', 'waiting', 'active', 'notToday', 'unscheduled'].includes(state.status)
+        || state.canRestart === true
+      )
     ));
 
   const liveWarmupControls = periodInSession === 'all' ? [] : assignments
@@ -277,18 +280,20 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
                     <div style={{ marginTop: 3, fontSize: 12 }}>
                       {state.status === 'active'
                         ? `${state.earlyUnlocked ? 'Unlocked early · ' : ''}${Math.max(0, Math.ceil(state.millisecondsRemaining / 60000))} min left`
-                        : needsOpenToday
-                          ? state.status === 'notToday'
-                            ? `Saved for ${state.instructionDateKey || 'another day'} · open it for this class today`
-                            : 'No DOL instructional date saved · open it for this class today'
-                          : state.status === 'beforeClass'
-                            ? 'Locked until class begins / normal DOL window'
-                            : `Locked · opens in ${Math.max(0, Math.ceil(state.millisecondsRemaining / 60000))} min`}
+                        : state.canRestart
+                          ? 'Early DOL timer ended · restart is available before the normal DOL cutoff'
+                          : needsOpenToday
+                            ? state.status === 'notToday'
+                              ? `Saved for ${state.instructionDateKey || 'another day'} · open it for this class today`
+                              : 'No DOL instructional date saved · open it for this class today'
+                            : state.status === 'beforeClass'
+                              ? 'Locked until class begins / normal DOL window'
+                              : `Locked · opens in ${Math.max(0, Math.ceil(state.millisecondsRemaining / 60000))} min`}
                     </div>
                   </div>
                   {state.status !== 'active' ? (
                     <button type="button" disabled={dolUnlockBusyKey === busyKey} onClick={() => onUnlockDOL?.(assignment, classContextInSession)} style={{ minHeight: 40, padding: '8px 13px', border: 0, borderRadius: 8, background: '#681da8', color: '#fff', fontWeight: 900, cursor: dolUnlockBusyKey === busyKey ? 'wait' : 'pointer' }}>
-                      {dolUnlockBusyKey === busyKey ? 'Unlocking…' : needsOpenToday ? 'Open DOL Today' : 'Unlock DOL Early'}
+                      {dolUnlockBusyKey === busyKey ? (state.canRestart ? 'Restarting…' : 'Unlocking…') : state.canRestart ? 'Restart DOL' : needsOpenToday ? 'Open DOL Today' : 'Unlock DOL Early'}
                     </button>
                   ) : (
                     <span style={{ padding: '5px 9px', borderRadius: 999, background: '#e6f4ea', color: '#137333', fontSize: 11, fontWeight: 900 }}>OPEN NOW</span>
