@@ -19,6 +19,11 @@ export const SAMPLE_SPECS = {
   functionInvestigation2: { mode:'domainRange',function:{type:'squareRoot',a:-2,h:3,k:1} },
   graphing2: { mode:'standardForm',standard:{A:2,B:1,C:4} },
   stepAlgebra2: { equation:{a:3,b:6,c:21} },
+  functionOperationsLab: { mode:'operations', f:{type:'linear',a:2,b:1}, g:{type:'linear',a:-1,b:4}, x:2 },
+  intervalNumberLine: { min:-8,max:8,step:1,variable:'x',ask:['graph','interval'],intervals:[{min:-3,max:5,minClosed:true,maxClosed:false}] },
+  relationMapping: { pairs:[{x:-2,y:3},{x:1,y:2},{x:3,y:-1}],ask:['mapping','domain','range','isFunction'] },
+  openSortBoard: { items:[{id:'a',label:'y = 2x + 1'},{id:'b',label:'y = x²'}],categories:[{id:'linear',label:'Linear'},{id:'quadratic',label:'Quadratic'}] },
+  constraintFunctionBuilder: { allowedFamilies:['quadratic','absolute','linear'],constraints:[{id:'family',kind:'family',value:'quadratic',label:'A quadratic relation'}],graph:{xMin:-8,xMax:8,yMin:-8,yMax:8} },
   solutionReview2: { solutionSteps:['Identify the target.','Use a mathematically valid strategy.','Verify in the original problem.'] },
 };
 
