@@ -137,13 +137,16 @@ test('a dismissal that cannot be read leaves the default in place', () => {
   assert.match(reader.slice(0, 320), /catch \{[\s\S]*?return false;/);
 });
 
-test('a new question decides its own presentation', () => {
-  // Without this the panel keeps whatever state the previous question left it
-  // in, so a student who closed one figure finds the next one embedded even
-  // where it should have opened.
+test('a new question decides its own presentation without a resize closing current work', () => {
+  // Question identity, not viewport policy, is the reset boundary. A responsive
+  // change can flip openEnlarged from true to false mid-question; that must not
+  // close Work View underneath student work. A genuinely new question still
+  // re-evaluates the authored/default presentation.
   const source = codeOf('src/components/common/EnlargeableFigure.jsx');
-  assert.match(source, /setEnlarged\(openEnlarged && !readDismissed\(dismissKey\)\);/);
-  assert.match(source, /\}, \[openEnlarged, dismissKey\]\);/);
+  assert.match(source, /presentationKeyRef\.current !== presentationKey/);
+  assert.match(source, /if \(questionChanged\) \{[\s\S]*setEnlarged\(allowedToAutoOpen\)/);
+  assert.match(source, /if \(allowedToAutoOpen\) setEnlarged/);
+  assert.match(source, /\[openEnlarged, dismissKey, presentationKey\]/);
 });
 
 test('the workspace re-measures rather than reading the width once', () => {
