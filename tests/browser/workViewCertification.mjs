@@ -78,7 +78,11 @@ const mathStateSnapshot = async (toolRoot) => toolRoot.evaluate((node) => {
   const placedCards = [...node.querySelectorAll('button[title*="move this card" i]')]
     .filter((element) => !chrome(element) && visibleElement(element))
     .map((element) => (element.textContent || '').trim());
-  return { fields, pressed, mathState, marks, placedCards };
+  const placements = [...node.querySelectorAll('dd')]
+    .filter((element) => !chrome(element))
+    .map((element) => (element.textContent || '').trim())
+    .filter(Boolean);
+  return { fields, pressed, mathState, marks, placedCards, placements };
 });
 
 const makeStatefulEdit = async (page, shell, toolId, toolRoot) => {
