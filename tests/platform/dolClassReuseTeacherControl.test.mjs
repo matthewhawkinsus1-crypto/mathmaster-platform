@@ -37,4 +37,33 @@ test('teacher screens keep stale reused DOL controls reachable', () => {
   assert.match(classesWorkspace, /'waiting', 'beforeClass', 'notToday', 'unscheduled'/);
 });
 
+
+test('expired early DOL can restart only before the regular DOL cutoff', () => {
+  const lifecycleStart = lifecycle.indexOf('export const getDOLState');
+  const lifecycleEnd = lifecycle.indexOf('export const normalizeAssignmentActivity', lifecycleStart);
+  const lifecycleBlock = lifecycle.slice(lifecycleStart, lifecycleEnd);
+  assert.match(lifecycleBlock, /regularEndsAt/);
+  assert.match(lifecycleBlock, /const canRestart = status === 'ended' && now < regularEndsAt/);
+  assert.match(lifecycleBlock, /regularOpensAt,/);
+  assert.match(lifecycleBlock, /regularEndsAt,/);
+  assert.match(lifecycleBlock, /canRestart,/);
+
+  const handlerStart = app.indexOf('const handleUnlockDOLForClass');
+  const handlerEnd = app.indexOf('const handleToggleWarmupForClass', handlerStart);
+  const handlerBlock = app.slice(handlerStart, handlerEnd);
+  assert.match(handlerBlock, /const canRestart = state\.status === 'ended' && state\.canRestart === true/);
+  assert.match(handlerBlock, /Restart DOL/);
+  assert.match(handlerBlock, /final technology-return window/);
+  assert.match(handlerBlock, /if \(\(state\.status === 'ended' && !canRestart\)/);
+  assert.match(handlerBlock, /Date\.now\(\) >= state\.regularEndsAt\.getTime\(\)/);
+});
+
+test('teacher DOL surfaces keep restartable ended timers actionable', () => {
+  assert.match(teacherHome, /state\.canRestart === true/);
+  assert.match(teacherHome, /Restart DOL/);
+  assert.match(classesWorkspace, /dol\.canRestart/);
+  assert.match(classesWorkspace, /RESTART AVAILABLE/);
+  assert.match(classesWorkspace, /Restart DOL/);
+});
+
 console.log('dolClassReuseTeacherControl.test.mjs: all assertions passed');

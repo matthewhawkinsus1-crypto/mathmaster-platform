@@ -1637,6 +1637,28 @@ function App() {
     }
   };
 
+  const liveScheduleSessionUid = auth.session?.uid || null;
+  useEffect(() => {
+    if (auth.status !== 'ready' || !liveScheduleSessionUid) return undefined;
+
+    // The bell schedule is live operational state, not login-time metadata.
+    // Friday A/B overrides can be changed after students are already signed in;
+    // every open client must immediately recompute Warm-Up, DOL and the final
+    // five-minute pack-up window from the same schedule.
+    const unsubscribe = onSnapshot(
+      doc(db, 'settings', 'classSchedule'),
+      (snapshot) => {
+        const value = normalizeSchedule(snapshot.exists() ? snapshot.data() : DEFAULT_CLASS_SCHEDULE);
+        setClassSchedule(value);
+        setNow(Date.now());
+      },
+      (error) => {
+        console.error('Could not watch class schedule:', error);
+      },
+    );
+    return unsubscribe;
+  }, [auth.status, liveScheduleSessionUid]);
+
   const fetchCourseProfiles = async () => {
     try {
       const snapshot = await getDoc(doc(db, 'settings', 'courseProfiles'));
@@ -4771,7 +4793,8 @@ function App() {
       return;
     }
     const actionNowMs = Date.now();
-    if (state.status === 'ended' || actionNowMs > state.window.end.getTime()) {
+    const canRestart = state.status === 'ended' && state.canRestart === true;
+    if ((state.status === 'ended' && !canRestart) || actionNowMs > state.window.end.getTime()) {
       toastWarning('DOL window ended', `The DOL window for ${classLabel} has already ended.`);
       return;
     }
@@ -4783,19 +4806,30 @@ function App() {
     const durationMinutes = Math.max(1, Number(assignment?.dol?.minutesBeforeEnd || 10));
     const beforeClass = state.status === 'beforeClass' || actionNowMs < state.window.start.getTime();
     const proceed = await confirmAction({
-      title: needsOpenToday
-        ? `Open the DOL today for ${classLabel}?`
-        : `Unlock the DOL early for ${classLabel}?`,
-      message: needsOpenToday
-        ? beforeClass
-          ? `This lesson was saved for another instructional day. MathMaster will set today as the DOL date for ${classLabel} only, then open it when class begins with its ${durationMinutes}-minute timer.`
-          : `This lesson was saved for another instructional day. MathMaster will set today as the DOL date for ${classLabel} only and open it now with its ${durationMinutes}-minute timer. Other classes stay unchanged.`
-        : beforeClass
-          ? `The DOL will open when ${classLabel} begins and its ${durationMinutes}-minute timer will start then.`
-          : `The DOL will open immediately for ${classLabel} and its ${durationMinutes}-minute timer will start now. Other classes stay locked.`,
-      confirmLabel: needsOpenToday ? 'Open DOL Today' : 'Unlock DOL',
+      title: canRestart
+        ? `Restart the DOL for ${classLabel}?`
+        : needsOpenToday
+          ? `Open the DOL today for ${classLabel}?`
+          : `Unlock the DOL early for ${classLabel}?`,
+      message: canRestart
+        ? `The earlier DOL timer ended, but instructional DOL time remains. Restart it now for ${classLabel} only. The timer will still stop before the final technology-return window.`
+        : needsOpenToday
+          ? beforeClass
+            ? `This lesson was saved for another instructional day. MathMaster will set today as the DOL date for ${classLabel} only, then open it when class begins with its ${durationMinutes}-minute timer.`
+            : `This lesson was saved for another instructional day. MathMaster will set today as the DOL date for ${classLabel} only and open it now with its ${durationMinutes}-minute timer. Other classes stay unchanged.`
+          : beforeClass
+            ? `The DOL will open when ${classLabel} begins and its ${durationMinutes}-minute timer will start then.`
+            : `The DOL will open immediately for ${classLabel} and its ${durationMinutes}-minute timer will start now. Other classes stay locked.`,
+      confirmLabel: canRestart ? 'Restart DOL' : needsOpenToday ? 'Open DOL Today' : 'Unlock DOL',
     });
     if (!proceed) return;
+    // A confirmation dialog can stay open across the cutoff. Re-check at the
+    // moment of the write so a restart can never leak into the final pack-up
+    // window just because the teacher clicked the button a few seconds earlier.
+    if (canRestart && state.regularEndsAt && Date.now() >= state.regularEndsAt.getTime()) {
+      toastWarning('DOL window ended', `The DOL window for ${classLabel} has already ended.`);
+      return;
+    }
 
     const busyKey = `${assignment.id}:${classKey}`;
     setDolUnlockBusyKey(busyKey);
@@ -4817,7 +4851,11 @@ function App() {
       };
       dol.earlyUnlocksByClassId = { ...(assignment.dol?.earlyUnlocksByClassId || {}), [classId]: entry };
       await updateDoc(doc(db, 'assignments', assignment.id), { dol, updatedAt: unlockedAt });
-      toastSuccess('DOL unlocked', `${assignment.title} is released early for ${classLabel} only. Its timer starts when the unlock takes effect.`);
+      if (canRestart) {
+        toastSuccess('DOL restarted', `${assignment.title} is open again for ${classLabel} only and will still stop before the final pack-up window.`);
+      } else {
+        toastSuccess('DOL unlocked', `${assignment.title} is released early for ${classLabel} only. Its timer starts when the unlock takes effect.`);
+      }
     } catch (error) {
       console.error(error);
       toastError('Could not unlock DOL', error.message);
