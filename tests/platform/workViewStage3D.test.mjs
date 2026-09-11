@@ -22,7 +22,7 @@ test('Stage 3D registry migration wraps one existing state owner', () => {
   const registry = source('src/tools/toolRegistry.js');
   const wrapper = source('src/tools/shared/RegisteredToolWorkView.jsx');
   assert.match(registry, /STAGE_3D_WORK_VIEW_IDS\.includes\(toolId\)/);
-  assert.match(wrapper, /<EnlargeableFigure[\s\S]*\{children\}<\/EnlargeableFigure>/);
+  assert.match(wrapper, /<EnlargeableFigure[\s\S]*?>[\s\S]*\{children\}[\s\S]*<\/EnlargeableFigure>/);
   assert.doesNotMatch(wrapper, /cloneElement|createPortal/);
   assert.ok(STAGE_3D_WORK_VIEW_IDS.includes('representationMatch'));
 });
