@@ -4823,6 +4823,13 @@ function App() {
       confirmLabel: canRestart ? 'Restart DOL' : needsOpenToday ? 'Open DOL Today' : 'Unlock DOL',
     });
     if (!proceed) return;
+    // A confirmation dialog can stay open across the cutoff. Re-check at the
+    // moment of the write so a restart can never leak into the final pack-up
+    // window just because the teacher clicked the button a few seconds earlier.
+    if (canRestart && state.regularEndsAt && Date.now() >= state.regularEndsAt.getTime()) {
+      toastWarning('DOL window ended', `The DOL window for ${classLabel} has already ended.`);
+      return;
+    }
 
     const busyKey = `${assignment.id}:${classKey}`;
     setDolUnlockBusyKey(busyKey);
