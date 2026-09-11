@@ -239,6 +239,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
         style={{ width: '100%' }}
         openEnlarged={shouldOpenFigureEnlarged({ toolId: 'graphing2', question: questionData || {}, viewportWidth })}
         dismissKey={figureDismissalKey(questionData || {}, 'graphing2')}
+        presentationKey={questionData?.questionId ?? questionData?.id ?? questionData?.prompt ?? null}
         capabilities={workspaceCapabilities}
       >
       <ToolSplit>
