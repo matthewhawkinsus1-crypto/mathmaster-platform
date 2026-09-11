@@ -1659,7 +1659,7 @@ export default function MultiRelationAlgebra({
     : null;
 
   return (
-    <section style={{ maxWidth: 1120, margin: '0 auto', padding: '10px 10px 24px' }}>
+    <section data-math-state={relationStateToText(relationState)} style={{ maxWidth: 1120, margin: '0 auto', padding: '10px 10px 24px' }}>
       <QuestionPrompt>{question.prompt || 'Solve the equation or inequality.'}</QuestionPrompt>
 
       <div
