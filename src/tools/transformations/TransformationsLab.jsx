@@ -318,6 +318,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
         style={{ width: '100%' }}
         openEnlarged={shouldOpenFigureEnlarged({ toolId: 'transformations', question: questionData || {}, viewportWidth })}
         dismissKey={figureDismissalKey(questionData || {}, 'transformations')}
+        presentationKey={questionData?.questionId ?? questionData?.id ?? questionData?.prompt ?? null}
         capabilities={workspaceCapabilities}
       >
     <ToolSplit>
