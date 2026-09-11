@@ -15,7 +15,7 @@ export const SAMPLE_SPECS = {
   complexPlaneLab: { mode:'rotation',z:{re:3,im:1},quarterTurns:1 },
   exponentialLogBridge: { mode:'inverse',function:{a:2,base:2,h:1,k:-3},x:3 },
   transformationsLab: { mode:'pointMap',family:'exponential',function:{type:'exponential',a:2,h:1,k:-3,base:2},parentPoint:[1,2] },
-  representationMatch: { mode:'findMismatch',targetId:'linear',mixedSet:{equationId:'linear',tableId:'quadratic',contextId:'linear'} },
+  representationMatch: { mode:'completeSet',targetId:'linear' },
   functionInvestigation2: { mode:'domainRange',function:{type:'squareRoot',a:-2,h:3,k:1} },
   graphing2: { mode:'standardForm',standard:{A:2,B:1,C:4} },
   stepAlgebra2: { equation:{a:3,b:6,c:21} },
