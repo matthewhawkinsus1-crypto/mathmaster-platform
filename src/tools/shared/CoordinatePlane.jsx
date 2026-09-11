@@ -394,7 +394,10 @@ export default function CoordinatePlane({
    */
   const publishedCapabilities = useMemo(
     () => (enlargeable ? null : {
-      fitView: { label: 'Fit View', onAction: resetView, disabled: !view, cameraOnly: true },
+      // A read-only plane has no camera controls and can never leave its authored
+      // frame, so advertising a permanently-disabled Fit button is a false
+      // capability. Fit exists only when this plane actually owns a camera.
+      fitView: zoomable ? { label: 'Fit View', onAction: resetView, disabled: !view, cameraOnly: true } : null,
       panZoom: zoomable ? { label: 'Pan and zoom', cameraOnly: true } : null,
       pointEditing: interactive ? { label: canMovePoints ? 'Plot and edit points' : 'Plot points', studentState: true } : null,
     }),
@@ -654,7 +657,7 @@ export default function CoordinatePlane({
       enlargeLabel={interactive ? 'Enlarge to plot' : 'Enlarge graph'}
       style={{ width: '100%' }}
       capabilities={{
-        fitView: { label:'Fit View', onAction:resetView, disabled:!view, cameraOnly:true },
+        fitView: zoomable ? { label:'Fit View', onAction:resetView, disabled:!view, cameraOnly:true } : null,
         panZoom: zoomable ? { label:'Pan and zoom', cameraOnly:true } : null,
         pointEditing: interactive ? { label:canMovePoints ? 'Plot and edit points' : 'Plot points', studentState:true } : null,
       }}

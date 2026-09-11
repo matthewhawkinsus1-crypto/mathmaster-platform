@@ -21,6 +21,7 @@ const LOCKED_CONTAINER_SELECTOR = [
 
 const VERTICAL_SCROLL_SELECTOR = [
   '.question-prompt-panel',
+  '.mathmaster-work-view-surface',
   '.math-tool-workspace',
   '.mathmaster-mobile-local-scroll',
 ].join(',');
@@ -134,9 +135,24 @@ export const scrollFocusedControlVertically = (
   const scrollerRect = scroller.getBoundingClientRect();
   const safeMargin = Math.max(0, numberOrZero(margin));
 
+  // While editing in mobile Work View the first split panel can be a sticky
+  // graph/reference. Do not scroll the active field underneath that reference:
+  // reserve the visible sticky panel's bottom edge as the top of the safe area.
+  const workViewSurface = target.closest?.('.mathmaster-work-view-surface');
+  const stickyReference = workViewSurface?.querySelector?.('.mathmaster-tool-split > .mathmaster-tool-panel:first-child');
+  const stickyStyle = stickyReference && windowObject?.getComputedStyle?.(stickyReference);
+  const stickyRect = stickyReference?.getBoundingClientRect?.();
+  const stickyBottom = stickyReference
+    && !stickyReference.contains(target)
+    && stickyStyle?.position === 'sticky'
+    && stickyRect?.height > 0
+    ? Math.min(scrollerRect.bottom, stickyRect.bottom)
+    : scrollerRect.top;
+  const safeTop = Math.max(scrollerRect.top, stickyBottom) + safeMargin;
+
   let deltaY = 0;
-  if (targetRect.top < scrollerRect.top + safeMargin) {
-    deltaY = targetRect.top - (scrollerRect.top + safeMargin);
+  if (targetRect.top < safeTop) {
+    deltaY = targetRect.top - safeTop;
   } else if (targetRect.bottom > scrollerRect.bottom - safeMargin) {
     deltaY = targetRect.bottom - (scrollerRect.bottom - safeMargin);
   }

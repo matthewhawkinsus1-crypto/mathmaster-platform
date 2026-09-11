@@ -631,6 +631,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
         style={{ width: '100%' }}
         openEnlarged={shouldOpenFigureEnlarged({ toolId: 'intervalNumberLine', question: questionData || {}, viewportWidth })}
         dismissKey={figureDismissalKey(questionData || {}, 'intervalNumberLine')}
+        presentationKey={questionData?.questionId ?? questionData?.id ?? questionData?.prompt ?? null}
         capabilities={{
           undo: undoHistory.capability,
           pointEditing: { label: 'Edit endpoints', studentState: true },

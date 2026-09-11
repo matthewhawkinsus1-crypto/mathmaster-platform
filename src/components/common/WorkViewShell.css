@@ -137,6 +137,29 @@
 
 [data-open="true"][data-controls="bottom"] .mathmaster-work-view-actions button { flex: 0 0 auto; white-space: nowrap; }
 
+/* The in-page numeric keypad is fixed above the app. Reserve its actual box in
+   Work View regardless of whether a touch device happens to cross the 720px
+   Work View breakpoint. A 768px tablet is "desktop" to the Work View layout
+   resolver but still uses MathMaster's touch keypad, so a mobile-only selector
+   leaves its answer fields underneath the keys. */
+html[data-mobile-keypad-open="true"] [data-open="true"] > .mathmaster-work-view-body {
+  box-sizing: border-box;
+  padding-bottom: calc(var(--mm-mobile-keypad, 0px) + max(8px, env(safe-area-inset-bottom)));
+}
+html[data-mobile-keypad-open="true"] [data-open="true"][data-controls="bottom"] .mathmaster-work-view-actions {
+  margin-bottom: 0;
+}
+
+/* Only the short-phone landscape keypad docks to the RIGHT (see
+   MathToolMobileLayout.css). Match that exact physical layout here: give back
+   the bottom reserve and reserve the measured right-hand width instead. */
+@media (orientation: landscape) and (max-height: 500px) {
+  html[data-mobile-keypad-open="true"] [data-open="true"] > .mathmaster-work-view-body {
+    padding-bottom: 0;
+    padding-right: calc(var(--mm-mobile-keypad-width, 0px) + max(8px, env(safe-area-inset-right)));
+  }
+}
+
 /* A short landscape phone keeps the rail, and every pixel of height it does not
    spend on buttons goes to the plane. */
 [data-open="true"][data-layout="mobile"][data-controls="side"] > .mathmaster-work-view-body {

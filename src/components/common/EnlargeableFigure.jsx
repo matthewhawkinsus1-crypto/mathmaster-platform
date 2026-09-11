@@ -31,7 +31,10 @@ const CONTROL = {
   position: 'absolute',
   top: 8,
   right: 8,
-  zIndex: 2,
+  // The tool body can contain positioned split panes and headings. Keep the
+  // opener above those local stacking contexts so the visible button is also
+  // the element that receives a student's click.
+  zIndex: 50,
   // 44px, not the 34 this used to be. The button floats over the figure's
   // corner, so every pixel of it covers graph — but a control under 44px is
   // one a fingertip misses, and a student who misses the enlarge button on a
@@ -76,6 +79,7 @@ export default function EnlargeableFigure({
   enlargeLabel = 'Enlarge',
   openEnlarged = false,
   dismissKey = null,
+  presentationKey = null,
   // THE ENLARGED PANEL COVERS THE QUESTION THAT SENT THE STUDENT TO IT.
   //
   // It is a full-window modal over the page holding the task, so a student who
@@ -94,6 +98,7 @@ export default function EnlargeableFigure({
   const [viewport, setViewport] = useState(() => readWorkViewViewport());
   const openerRef = useRef(null);
   const closeRef = useRef(null);
+  const presentationKeyRef = useRef(presentationKey);
   const actionsRef = useRef(null);
   // What descendants have told this shell they can do. Held per publisher id so
   // a plane that unmounts withdraws only its own controls.
@@ -163,12 +168,22 @@ export default function EnlargeableFigure({
     };
   }, [enlarged]);
 
-  // A new question decides for itself. Without this the panel keeps whatever
-  // state the previous question left it in, so a student who closed one figure
-  // finds the next one embedded even where it should have opened.
+  // A new question decides its initial presentation, but a responsive resize
+  // must not override the student's current Work View state. In particular, an
+  // aiming tool can move from a wide viewport (auto-open policy true) to a
+  // narrow one (policy false) during orientation; that is presentation only and
+  // must not close the workspace underneath the student's work.
   useEffect(() => {
-    setEnlarged(openEnlarged && !readDismissed(dismissKey));
-  }, [openEnlarged, dismissKey]);
+    const questionChanged = presentationKeyRef.current !== presentationKey;
+    presentationKeyRef.current = presentationKey;
+    const allowedToAutoOpen = openEnlarged && !readDismissed(dismissKey);
+
+    if (questionChanged) {
+      setEnlarged(allowedToAutoOpen);
+      return;
+    }
+    if (allowedToAutoOpen) setEnlarged((current) => current || true);
+  }, [openEnlarged, dismissKey, presentationKey]);
 
   // visualViewport follows the actually usable height when mobile browser
   // chrome or the virtual keyboard changes. This is presentation-only state.
@@ -383,6 +398,8 @@ export default function EnlargeableFigure({
               // measure them. A capability that registered but rendered off the
               // bottom of a phone is not a control the student has.
               data-work-view-action={action.id || action.label}
+              className={/undo/i.test(String(action.id || action.label || '')) ? 'mathmaster-universal-undo' : undefined}
+              data-undo-owner={/undo/i.test(String(action.id || action.label || '')) ? 'current-tool' : undefined}
               // Fit, pan and zoom move the camera and nothing else. Marked in
               // the DOM so the state-integrity gate can press them and assert
               // that the mathematics and the Undo depth are unchanged.

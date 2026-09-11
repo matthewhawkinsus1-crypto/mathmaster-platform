@@ -1,0 +1,70 @@
+name: Universal Work View Stage 4 Certification
+on:
+  pull_request:
+    paths:
+      - "src/tools/**"
+      - "src/QuestionEngine.jsx"
+      - "src/dev/MathToolsLab.jsx"
+      - "src/App.css"
+      - "src/index.css"
+      - "src/components/common/**"
+      - "src/components/student/**"
+      - "src/platform/workView/**"
+      - "src/platform/mobile/**"
+      - "src/ScratchpadOverlay.jsx"
+      - "tests/browser/workViewCertification*"
+      - "tests/platform/workViewStage4Certification.test.mjs"
+      - ".github/workflows/work-view-stage-4-certification.yml"
+  workflow_dispatch:
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: node --test tests/platform/workViewStage4Certification.test.mjs
+
+  certify:
+    strategy:
+      fail-fast: false
+      matrix:
+        device:
+          - chromebook
+          - laptop
+          - tablet-portrait
+          - tablet-landscape
+          - iphone-portrait
+          - iphone-landscape
+          - android-narrow
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false playwright@1.55.0
+      - run: npx playwright install --with-deps chromium
+      - name: Start production-style harness
+        run: |
+          npx vite --host 127.0.0.1 --port 5199 --strictPort >/tmp/stage4-vite.log 2>&1 &
+          for i in {1..60}; do curl -fsS http://127.0.0.1:5199/tests/browser/workViewCertification.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/stage4-vite.log; exit 1
+      - name: Run Stage 4 certification
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          WORK_VIEW_CERTIFICATION_DEVICE: ${{ matrix.device }}
+        run: node tests/browser/workViewCertification.mjs
+      - name: Upload device/family/state screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: universal-work-view-stage-4-${{ matrix.device }}
+          path: tests/browser/artifacts/workViewStage4/${{ matrix.device }}
+          if-no-files-found: error
+          retention-days: 14
