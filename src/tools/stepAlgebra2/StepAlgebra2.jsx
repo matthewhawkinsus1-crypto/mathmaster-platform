@@ -153,7 +153,7 @@ export default function StepAlgebra2({ questionData = {}, onAction }) {
             {goalChip(coefficientCleared, 'x has a coefficient of 1')}
           </div>
 
-          <div style={{ fontSize: 30, fontWeight: 800, textAlign: 'center', padding: '20px 12px', background: '#fff', border: `2px solid ${solved ? '#a8dab5' : '#d9e2f1'}`, borderRadius: 12, color: '#172033' }}>
+          <div data-math-state={formatEquation(state)} style={{ fontSize: 30, fontWeight: 800, textAlign: 'center', padding: '20px 12px', background: '#fff', border: `2px solid ${solved ? '#a8dab5' : '#d9e2f1'}`, borderRadius: 12, color: '#172033' }}>
             {formatEquation(state)}
           </div>
 
