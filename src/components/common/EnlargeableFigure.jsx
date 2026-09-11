@@ -79,6 +79,7 @@ export default function EnlargeableFigure({
   enlargeLabel = 'Enlarge',
   openEnlarged = false,
   dismissKey = null,
+  presentationKey = null,
   // THE ENLARGED PANEL COVERS THE QUESTION THAT SENT THE STUDENT TO IT.
   //
   // It is a full-window modal over the page holding the task, so a student who
@@ -97,6 +98,7 @@ export default function EnlargeableFigure({
   const [viewport, setViewport] = useState(() => readWorkViewViewport());
   const openerRef = useRef(null);
   const closeRef = useRef(null);
+  const presentationKeyRef = useRef(presentationKey);
   const actionsRef = useRef(null);
   // What descendants have told this shell they can do. Held per publisher id so
   // a plane that unmounts withdraws only its own controls.
@@ -166,12 +168,22 @@ export default function EnlargeableFigure({
     };
   }, [enlarged]);
 
-  // A new question decides for itself. Without this the panel keeps whatever
-  // state the previous question left it in, so a student who closed one figure
-  // finds the next one embedded even where it should have opened.
+  // A new question decides its initial presentation, but a responsive resize
+  // must not override the student's current Work View state. In particular, an
+  // aiming tool can move from a wide viewport (auto-open policy true) to a
+  // narrow one (policy false) during orientation; that is presentation only and
+  // must not close the workspace underneath the student's work.
   useEffect(() => {
-    setEnlarged(openEnlarged && !readDismissed(dismissKey));
-  }, [openEnlarged, dismissKey]);
+    const questionChanged = presentationKeyRef.current !== presentationKey;
+    presentationKeyRef.current = presentationKey;
+    const allowedToAutoOpen = openEnlarged && !readDismissed(dismissKey);
+
+    if (questionChanged) {
+      setEnlarged(allowedToAutoOpen);
+      return;
+    }
+    if (allowedToAutoOpen) setEnlarged((current) => current || true);
+  }, [openEnlarged, dismissKey, presentationKey]);
 
   // visualViewport follows the actually usable height when mobile browser
   // chrome or the virtual keyboard changes. This is presentation-only state.
