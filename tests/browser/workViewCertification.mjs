@@ -241,7 +241,10 @@ for (const device of WORK_VIEW_CERTIFICATION_DEVICES) {
     const preferredOpener = directOpeners.filter({ hasText: /open work view/i }).first();
     const fallbackOpener = directOpeners.first();
     const opener = await visible(preferredOpener) ? preferredOpener : fallbackOpener;
-    const openerProblem = await clickIfReachable(opener, 'Work View opener');
+    const alreadyOpen = toolRoot.locator('.mathmaster-work-view-host[data-open="true"]').first();
+    const openerProblem = await visible(alreadyOpen)
+      ? null
+      : await clickIfReachable(opener, 'Work View opener');
 
     if (openerProblem) {
       problems.push(openerProblem);
