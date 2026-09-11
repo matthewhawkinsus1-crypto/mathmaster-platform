@@ -496,7 +496,7 @@
   .mathmaster-mobile-numeric-keypad {
     left: auto;
     right: max(8px, env(safe-area-inset-right));
-    width: min(58vw, 460px);
+    width: min(44vw, 360px);
     max-height: 94dvh;
     overflow-y: auto;
   }
