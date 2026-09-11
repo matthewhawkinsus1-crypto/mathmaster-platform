@@ -49,7 +49,10 @@ export const buildFieldGradingDefinition = (question = {}) => {
     ],
     numericTolerance: Number(field?.numericTolerance ?? explicit.numericTolerance ?? 1e-6),
     caseSensitive: Boolean(field?.caseSensitive ?? explicit.caseSensitive),
-    equivalence: field?.equivalence ? String(field.equivalence) : null,
+    equivalence: field?.equivalence
+      ? String(field.equivalence)
+      : [field?.inputProfile, field?.toolProfile, field?.answerFormat, field?.notation]
+        .some((value) => String(value || '').toLowerCase() === 'interval') ? 'interval' : null,
   }));
   return { ...explicit, fields };
 };

@@ -160,6 +160,9 @@ const fieldValuesEquivalent = (actual, field) => {
       return actualText === expectedText;
     }
     const tolerance = Math.max(0, Number(field.numericTolerance) || 0);
+    if (field.equivalence === 'interval') {
+      return answerEquivalence.sameIntervalNotation(actual, expected, tolerance);
+    }
     if (field.equivalence === 'polynomialRelation') {
       return answerEquivalence.samePolynomialEquationRelation(actual, expected, tolerance);
     }

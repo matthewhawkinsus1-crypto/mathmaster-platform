@@ -22,10 +22,20 @@ export { sameRationalExpression } from './rationalExpressionEquivalence.mjs';
 
 const UNICODE_MINUS = /[−–—]/g;
 
-const normalizeStructuralMathLive = (value) => expandLatexShorthand(value)
+export const normalizeStructuralMathLive = (value) => expandLatexShorthand(value)
   .trim()
+  // Directional marks and zero-width format characters are not visible math.
+  // MathLive/IME combinations may insert them between otherwise identical
+  // tokens, so discard them at the shared browser/server boundary.
+  .replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '')
   .replace(UNICODE_MINUS, '-')
-  .replace(/\\left|\\right/g, '')
+  .replace(/\\(?:left|right|bigl|bigr|Bigl|Bigr|biggl|biggr|Biggl|Biggr)\b/g, '')
+  // These commands classify a delimiter; they do not change the delimiter's
+  // mathematical endpoint semantics.  Remove only the command (and an
+  // optional empty group), never its following delimiter.
+  .replace(/\\(?:mathopen|mathclose)\s*(?:\{\s*\})?/g, '')
+  .replace(/\\lparen/g, '(')
+  .replace(/\\rparen/g, ')')
   .replace(/\\dfrac/g, '\\frac')
   .replace(/\\(?:text|mathrm|mathbf|operatorname)\{([^{}]*)\}/g, '$1')
   // MathLive commonly serializes visible set braces as \{...\}, \lbrace...
@@ -97,6 +107,43 @@ export const sameNumber = (left, right, tolerance = 1e-6) => {
 };
 
 export const sameText = (left, right) => normalizeAnswer(left) === normalizeAnswer(right);
+
+/** Parse interval notation only when a caller has declared interval semantics. */
+export const parseCanonicalIntervalNotation = (value) => {
+  const raw = normalizeStructuralMathLive(value)
+    .replace(/\\infty|∞/g, '∞')
+    .replace(/\\cup|∪/g, '∪')
+    .replace(/\{\s*,\s*\}/g, ',')
+    .replace(/\\(?:,|;|!|quad|qquad)\b/g, '')
+    .replace(/infinity|infty|inf/gi, '∞')
+    .replace(/\bU\b/g, '∪')
+    .trim();
+  if (!raw) return null;
+  const pieces = raw.split('∪').map((piece) => piece.trim()).filter(Boolean);
+  if (!pieces.length) return null;
+  const parsed = [];
+  for (const piece of pieces) {
+    const match = piece.match(/^([[(])\s*(-?∞|-?\d+(?:\.\d+)?)\s*,\s*(-?∞|-?\d+(?:\.\d+)?)\s*([\])])$/);
+    if (!match) return null;
+    const endpoint = (token) => token.includes('∞') ? (token.startsWith('-') ? -Infinity : Infinity) : Number(token);
+    const min = endpoint(match[2]);
+    const max = endpoint(match[3]);
+    if (Number.isNaN(min) || Number.isNaN(max) || min > max) return null;
+    parsed.push({ min, max, minClosed: match[1] === '[' && Number.isFinite(min), maxClosed: match[4] === ']' && Number.isFinite(max) });
+  }
+  return parsed.sort((a, b) => a.min - b.min || a.max - b.max);
+};
+
+export const sameIntervalNotation = (left, right, tolerance = 1e-6) => {
+  const a = parseCanonicalIntervalNotation(left);
+  const b = parseCanonicalIntervalNotation(right);
+  if (!a || !b || a.length !== b.length) return false;
+  const endpointEqual = (x, y) => x === y || (Number.isFinite(x) && Number.isFinite(y) && Math.abs(x - y) <= tolerance);
+  return a.every((interval, index) => endpointEqual(interval.min, b[index].min)
+    && endpointEqual(interval.max, b[index].max)
+    && interval.minClosed === b[index].minClosed
+    && interval.maxClosed === b[index].maxClosed);
+};
 
 const splitTopLevelCommaList = (value) => {
   const parts = [];

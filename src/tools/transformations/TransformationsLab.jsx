@@ -374,7 +374,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
             points={[
               ...sourcePoints.map((point, index) => {
                 const [x, y] = pointCoordinates(point);
-                return { x, y, label: `S${index + 1}`, fill: '#5f6b7a' };
+                return { x, y, label: `S${index + 1}`, fill: '#5f6b7a', movable: false };
               }),
               ...plottedPoints.map((point, index) => ({ x: point[0], y: point[1], label: `P${index + 1}` })),
             ]}

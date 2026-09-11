@@ -296,7 +296,11 @@ export default function MathInput({
     if (shouldSuppressNativeKeyboard) mathField.setAttribute('inputmode', 'none');
     else mathField.removeAttribute('inputmode');
     mathField.menuItems = [];
-    mathField.smartFence = true;
+    // Interval delimiters carry endpoint inclusion semantics. MathLive's smart
+    // fences can rewrite a physically typed delimiter differently from the
+    // identical MathMaster keypad button, so keep them literal for this one
+    // profile while retaining smart fences for equations and expressions.
+    mathField.smartFence = toolProfile !== 'interval';
     mathField.smartSuperscript = true;
     mathField.placeholder = placeholder ? `\\text{${placeholder}}` : '';
     window.mathVirtualKeyboard?.hide?.();

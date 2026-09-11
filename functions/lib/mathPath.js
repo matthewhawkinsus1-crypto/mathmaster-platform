@@ -606,6 +606,9 @@ async function valuesEquivalent(actual, field) {
       return left === right;
     }
     const tolerance = Math.max(0, Number(field.numericTolerance) || 0);
+    if (field.equivalence === 'interval') {
+      return equivalence.sameIntervalNotation(actual, expected, tolerance);
+    }
     if (field.equivalence === 'polynomialRelation') {
       return equivalence.samePolynomialEquationRelation(actual, expected, tolerance);
     }

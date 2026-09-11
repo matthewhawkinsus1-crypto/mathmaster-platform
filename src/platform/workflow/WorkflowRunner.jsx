@@ -782,7 +782,7 @@ const DELEGATES = {
           // A restricted relationship needs explicit visual boundaries. The
           // domain stage still asks the student to STATE the domain, but the
           // graph itself is incomplete until its open/closed endpoints are shown.
-          requireEndpointMarkers: pointOnly ? false : (stage.requireEndpointMarkers ?? Boolean(stage.domainRestriction)),
+          requireEndpointMarkers: pointOnly ? false : (stage.requireEndpointMarkers ?? true),
         }}
         mode="construct"
         onStateChange={onChange}
