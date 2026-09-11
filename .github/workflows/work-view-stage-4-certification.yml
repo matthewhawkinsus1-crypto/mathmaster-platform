@@ -4,6 +4,9 @@ on:
     paths:
       - "src/tools/**"
       - "src/QuestionEngine.jsx"
+      - "src/dev/MathToolsLab.jsx"
+      - "src/App.css"
+      - "src/index.css"
       - "src/components/common/**"
       - "src/platform/workView/**"
       - "tests/browser/workViewCertification*"
