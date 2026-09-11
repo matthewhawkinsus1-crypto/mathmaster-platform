@@ -358,13 +358,28 @@ for (const device of certificationDevices) {
 
           if (certification.requiredBehaviors.includes('fitIsPresentationOnly')) {
             const fit = shell.locator('[data-work-view-action]').filter({ hasText: /fit/i }).first();
+
+            // Fit is correctly disabled while the camera already matches the
+            // authored/default frame. First create a camera-only deviation using
+            // the tool's visible zoom control, then require Fit to become
+            // actionable and prove it leaves mathematical state untouched.
+            if (await fit.count() && await fit.isDisabled().catch(() => false)) {
+              const zoomIn = shell.getByRole('button', { name: /zoom in/i }).first();
+              if (await visible(zoomIn)) {
+                const zoomProblem = await clickIfReachable(zoomIn, 'Zoom in');
+                if (zoomProblem) problems.push(zoomProblem);
+                else await page.waitForTimeout(140);
+              }
+            }
+
+            const beforeFit = await mathStateSnapshot(toolRoot);
             const fitProblem = await clickIfReachable(fit, 'Fit View');
             if (fitProblem) {
               problems.push(fitProblem);
             } else {
               await page.waitForTimeout(120);
               const afterFit = await mathStateSnapshot(toolRoot);
-              if (JSON.stringify(afterFit) !== JSON.stringify(editedState)) {
+              if (JSON.stringify(afterFit) !== JSON.stringify(beforeFit)) {
                 problems.push('Fit View changed mathematical state instead of camera state only');
               }
             }
