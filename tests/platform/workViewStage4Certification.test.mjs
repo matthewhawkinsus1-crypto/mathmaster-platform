@@ -26,7 +26,7 @@ test('Stage 4 classifies every registered tool and certifies every migrated impl
 });
 
 test('Stage 4 device dimensions remain the production viewport contract', () => {
-  assert.deepEqual(WORK_VIEW_CERTIFICATION_DEVICES.map(({ width, height }) => [width, height]), [
+  assert.deepEqual(WORK_VIEW_CERTIFICATION_DEVICES.map(({ viewportWidth, viewportHeight }) => [viewportWidth, viewportHeight]), [
     [1366, 768], [1440, 900], [768, 1024], [1024, 768], [390, 844], [844, 390], [360, 800],
   ]);
 });
