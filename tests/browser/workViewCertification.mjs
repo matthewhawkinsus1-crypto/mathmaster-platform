@@ -95,6 +95,23 @@ const makeStatefulEdit = async (page, shell, toolId, toolRoot) => {
 
   const surface = shell.locator('.mathmaster-work-view-surface');
 
+  if (toolId === 'graphing2') {
+    // Graphing2 has no text field to mutate: the answer is the plotted line.
+    // Use the actual interactive SVG so both the first edit and the post-Undo
+    // recreation are deterministic in short landscape viewports.
+    const plane = surface.locator('svg[role="application"]:visible').first();
+    if (await plane.count()) {
+      try {
+        const box = await plane.boundingBox();
+        if (box && box.width > 80 && box.height > 80) {
+          await page.mouse.click(box.x + box.width * 0.62, box.y + box.height * 0.38);
+          const result = await changed('plotted a graphing point');
+          if (result) return result;
+        }
+      } catch { /* continue through generic strategies */ }
+    }
+  }
+
   if (toolId === 'stepAlgebra2') {
     const operand = surface.locator('input[type="number"]:visible').first();
     const apply = surface.getByRole('button', { name: 'Apply to both sides', exact: true }).first();
