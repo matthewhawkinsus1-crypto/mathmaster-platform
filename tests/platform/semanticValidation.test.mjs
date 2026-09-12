@@ -89,6 +89,28 @@ const warningsFor = (question) => validateQuestionSemantics(question).warnings;
     'DataModelingLab without points or another graph representation still fails',
   );
 
+  assert.deepEqual(
+    errorsFor({
+      type: 'relationMapping',
+      prompt: 'Build the scatterplot on the coordinate plane.',
+      pairs: [{ x: 1, y: 3 }, { x: 2, y: 5 }, { x: 3, y: 6 }],
+      ask: ['plot'],
+      plotSnapStep: 1,
+    }).filter((error) => /refers to a graph in its prompt, but the question contains none/.test(error)),
+    [],
+    'relationMapping plot mode satisfies the graph promise because the student constructs the points on its coordinate plane',
+  );
+
+  assert.ok(
+    errorsFor({
+      type: 'relationMapping',
+      prompt: 'Use the scatterplot to describe the relationship.',
+      pairs: [{ x: 1, y: 3 }, { x: 2, y: 5 }, { x: 3, y: 6 }],
+      ask: ['mapping'],
+    }).some((error) => /refers to a graph in its prompt, but the question contains none/.test(error)),
+    'relationMapping pairs do not count as a graph unless the renderer is actually asked to show the plot stage',
+  );
+
   assert.ok(errorsFor({ type: 'algebra', prompt: 'Complete the table shown.' })
     .some((e) => /refers to a table/.test(e)), 'a prompt naming a table with no table fails');
 
