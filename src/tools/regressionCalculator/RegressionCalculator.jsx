@@ -74,21 +74,19 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
 
   const updateExpression = (id, value) => {
     const before = rows.find((row) => row.id === id)?.value;
-    let emergingRowId = null;
+    const editedIndex = rows.findIndex((row) => row.id === id);
+    const shouldEmerge = editedIndex === rows.length - 1
+      && rows[editedIndex]?.type === 'expression'
+      && Boolean(String(value).trim());
     setRows((current) => {
       const next = current.map((row) => row.id === id ? { ...row, value } : row);
-      const editedIndex = next.findIndex((row) => row.id === id);
-      const edited = next[editedIndex];
-      const isLast = editedIndex === next.length - 1;
-      if (isLast && edited?.type === 'expression' && String(value).trim()) {
-        const emerging = EMPTY_EXPRESSION();
-        emergingRowId = emerging.id;
-        next.push(emerging);
+      if (shouldEmerge && !next.some((row, index) => index > editedIndex && row.type === 'expression' && !String(row.value).trim())) {
+        next.push(EMPTY_EXPRESSION());
       }
       return next;
     });
-    if (!orderedPair(before) && orderedPair(value)) record('orderedPairEntered', { row: rows.findIndex((row) => row.id === id) + 1 });
-    if (emergingRowId) record('expressionRowEmerged');
+    if (!orderedPair(before) && orderedPair(value)) record('orderedPairEntered', { row: editedIndex + 1 });
+    if (shouldEmerge) record('expressionRowEmerged', { afterRow: editedIndex + 1 });
     setRun(null);
     clearFeedback();
   };
@@ -126,11 +124,14 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
       rows: Array.from({ length: Math.max(4, source.length || 0) }, () => ['', '']),
     };
     const selectedIndex = rows.findIndex((row) => row.id === selectedId);
-    const selectedBlank = selectedIndex >= 0
+    const fallbackBlankIndex = rows.findIndex((row) => row.type === 'expression' && !String(row.value).trim());
+    const replaceIndex = selectedIndex >= 0
       && rows[selectedIndex]?.type === 'expression'
-      && !String(rows[selectedIndex]?.value).trim();
-    const next = selectedBlank
-      ? rows.map((row, index) => index === selectedIndex ? table : row)
+      && !String(rows[selectedIndex]?.value).trim()
+      ? selectedIndex
+      : fallbackBlankIndex;
+    const next = replaceIndex >= 0
+      ? rows.map((row, index) => index === replaceIndex ? table : row)
       : [...rows, table];
     if (!next.some((row) => row.type === 'expression' && !String(row.value).trim())) {
       next.push(EMPTY_EXPRESSION());
