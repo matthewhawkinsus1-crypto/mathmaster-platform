@@ -100,4 +100,17 @@ assert.ok(
   'Test Cycle must be rejected before publish when Retest is missing',
 );
 
+const excludedOnlyTestCycle = validateAssignmentV5({
+  ...testCycle,
+  sections: testCycle.sections.map((section) => (
+    section.role === 'retest'
+      ? { ...section, questions: section.questions.map((question) => ({ ...question, teacherExcluded: true })) }
+      : section
+  )),
+});
+assert.ok(
+  excludedOnlyTestCycle.errors.some((error) => /retest section must contain at least one included question/i.test(error)),
+  'Test Cycle must be rejected when a required stage has only excluded questions',
+);
+
 console.log('assignmentSchemaV5.test.mjs: all assertions passed');
