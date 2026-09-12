@@ -19,7 +19,7 @@ if (await page.locator('.source-data').count()) throw new Error('Scatterplot sou
 await page.getByLabel('Expression 1').fill('(9,9)');
 await page.getByRole('button', { name: 'Start over' }).click();
 if (await page.getByLabel('Expression 1').inputValue() !== '') throw new Error('Start over did not clear the calculator');
-await page.getByRole('button', { name: 'Undo', exact: true }).click();
+await page.getByLabel('Undo').click();
 if (await page.getByLabel('Expression 1').inputValue() !== '(9,9)') throw new Error('Routed Undo did not restore cleared calculator work');
 await page.getByRole('button', { name: 'Start over' }).click();
 
