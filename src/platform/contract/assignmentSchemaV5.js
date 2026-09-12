@@ -5,9 +5,11 @@ export const V5_SECTION_ROLES = Object.freeze([
   'warmup',
   'classwork',
   'practice',
+  'review',
   'dol',
   'quiz',
   'test',
+  'retest',
 ]);
 
 export const V5_VARIANT_MODES = Object.freeze([
@@ -44,9 +46,11 @@ const normalizeSection = (section, index) => {
       warmup: 'Warm-Up',
       classwork: 'Classwork',
       practice: 'Practice',
+      review: 'Review',
       dol: 'DOL',
       quiz: 'Quiz',
       test: 'Test',
+      retest: 'Retest',
     }[role] || 'Activity'),
     questions: Array.isArray(source.questions) ? source.questions : [],
   };
@@ -133,6 +137,29 @@ const normalizeVariantPolicy = (raw = {}) => {
   };
 };
 
+const normalizeAssessmentPolicy = (raw = null) => {
+  if (!isObject(raw) || clean(raw.mode) !== 'testCycle') return null;
+  const passingScore = Number(raw.passingScore);
+  return {
+    ...raw,
+    mode: 'testCycle',
+    passingScore: Number.isFinite(passingScore) ? Math.max(0, Math.min(100, passingScore)) : 70,
+    review: {
+      required: raw?.review?.required !== false,
+      ...(isObject(raw.review) ? raw.review : {}),
+    },
+    test: {
+      ...(isObject(raw.test) ? raw.test : {}),
+      feedback: 'teacherRelease',
+    },
+    retest: {
+      strategy: clean(raw?.retest?.strategy) || 'shortForm',
+      scorePolicy: clean(raw?.retest?.scorePolicy) || 'replaceIfHigher',
+      ...(isObject(raw.retest) ? raw.retest : {}),
+    },
+  };
+};
+
 export const normalizeAssignmentV5 = (input = {}) => {
   if (!isObject(input)) throw new Error('MathMaster Assignment V5 must be a JSON object.');
   const assignmentSource = isObject(input.assignment) ? input.assignment : {};
@@ -152,6 +179,7 @@ export const normalizeAssignmentV5 = (input = {}) => {
       gradingPurpose: clean(assignmentSource.gradingPurpose) || null,
     },
     sections: normalizeQuestionIds(normalizedSections),
+    assessmentPolicy: normalizeAssessmentPolicy(input.assessmentPolicy),
     variantPolicy: normalizeVariantPolicy(input.variantPolicy),
     differentiationPolicy: {
       mode: 'bounded',
@@ -262,6 +290,14 @@ export const validateAssignmentV5 = (input = {}, { requireQuestions = true } = {
       }
     });
     if (requireQuestions && questionCount === 0) errors.push('V5 contains no questions.');
+
+  if (clean(input?.assessmentPolicy?.mode) === 'testCycle') {
+    const roles = new Set((Array.isArray(input.sections) ? input.sections : [])
+      .map((section) => clean(section?.role).toLowerCase()));
+    if (!roles.has('review')) errors.push('Test Cycle assignments require a review section.');
+    if (!roles.has('test')) errors.push('Test Cycle assignments require a test section.');
+    if (!roles.has('retest')) errors.push('Test Cycle assignments require a retest section.');
+  }
   }
 
   const variantMode = clean(input.variantPolicy?.mode).toLowerCase();
