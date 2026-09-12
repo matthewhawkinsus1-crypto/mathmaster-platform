@@ -610,13 +610,30 @@ export const parseAssignmentBlueprintText = (rawValue) => {
       throw new Error(`Assignment V5 is the only supported assignment format. Received schemaVersion ${sourceSchemaVersion ?? 'missing'}; V4 and earlier test assignments may be discarded.`);
     }
 
-    const isCanonicalPortableExport = source?.portableContract?.kind === 'mathmasterCanonicalAssignmentV5'
+    const claimsCanonicalPortableExport = source?.portableContract?.kind === 'mathmasterCanonicalAssignmentV5'
       && Number(source?.portableContract?.version) === 1;
+    const sourceQuestions = flattenV5Sections(normalizeAssignmentV5(source));
+    const hasCanonicalQuestionContracts = sourceQuestions.length > 0
+      && sourceQuestions.every((question) => Boolean(question?.toolId || question?.type));
+    const isCanonicalPortableExport = claimsCanonicalPortableExport && hasCanonicalQuestionContracts;
 
     // MathMaster self-exports contain the already-compiled renderer contract.
     // They must never be fed back through the authoring-intent compiler: doing
     // that once collapsed composed workflow questions into legacy defaults.
-    const compiledV5 = isCanonicalPortableExport ? null : compileAuthoringIntentV5(source);
+    //
+    // The marker is not enough by itself. External authoring JSON can
+    // accidentally copy portableContract while still containing semantic
+    // studentActions with no renderer type. Trusting that marker skipped the
+    // compiler, let Preflight review non-canonical questions, and then failed
+    // only when Create ran the runtime type check. Treat a false marker as
+    // ordinary authoring intent and compile it safely.
+    let compileSource = source;
+    if (claimsCanonicalPortableExport && !hasCanonicalQuestionContracts) {
+      compileSource = { ...source };
+      delete compileSource.portableContract;
+      repairs.push('ignored an invalid canonical portableContract marker because one or more questions still require authoring-intent compilation');
+    }
+    const compiledV5 = isCanonicalPortableExport ? null : compileAuthoringIntentV5(compileSource);
     const parsed = isCanonicalPortableExport
       ? normalizeAssignmentV5(source)
       : compiledV5.package;
