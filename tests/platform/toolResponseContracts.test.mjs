@@ -98,7 +98,18 @@ test('no capture is rejected as malformed — the server understands the wire fo
 test('regression calculator capture preserves the teacher-review process trail', () => {
   assert.deepEqual(
     [...new Set(CAPTURED.regressionCalculator.rawWork.processEvidence.map((event) => event.type))],
-    ['tableEdited', 'regressionSelected', 'regressionExecuted', 'correlationProduced'],
+    [
+      'orderedPairEntered',
+      'editModeOpened',
+      'tableConversionOffered',
+      'tableCreated',
+      'tableEdited',
+      'expressionAdded',
+      'regressionExpressionEntered',
+      'regressionExecuted',
+      'correlationProduced',
+      'interpretationSelected',
+    ],
   );
 });
 

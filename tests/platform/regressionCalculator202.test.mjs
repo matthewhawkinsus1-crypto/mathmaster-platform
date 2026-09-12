@@ -157,7 +157,7 @@ test('public contract exposes only the source presentation needed by the tool an
   assert.equal(isPathEligible({ type: 'regressionCalculator', sourceData: points }), true);
 });
 
-test('calculator stays inside Work View and publishes touch-safe phone controls', async () => {
+test('calculator 2.0 stays inside Work View and publishes the discovery workflow', async () => {
   const [registry, inventory, component, css] = await Promise.all([
     readFile(new URL('../../src/tools/toolRegistry.js', import.meta.url), 'utf8'),
     readFile(new URL('../../src/tools/workViewInventory.js', import.meta.url), 'utf8'),
@@ -167,13 +167,30 @@ test('calculator stays inside Work View and publishes touch-safe phone controls'
   assert.match(registry, /regressionCalculator: RegressionCalculator/);
   assert.match(registry, /'regressionCalculator'\]\)/);
   assert.match(inventory, /regressionCalculator: \{ status: 'migrated'/);
-  assert.match(component, /x₁ \/ y₁ table[\s\S]*Run regression[\s\S]*Interpretation/);
+  assert.match(component, /const conversionAvailable = selected\?\.type === 'expression' && Boolean\(orderedPair\(selected\.value\)\)/);
+  assert.match(component, /conversionAvailable[\s\S]*aria-label="Convert ordered pair to table"/);
+  assert.match(component, /type:\s*'table'[\s\S]*rows:\s*\[pair\.map\(String\)/);
+  assert.match(component, /isRegression[\s\S]*tableRow[\s\S]*aria-label="Evaluate regression expression"/);
+  assert.doesNotMatch(component, /Run regression|Linear regression \(LinReg\)|<option value="linearRegression"/);
+  assert.match(component, /R² = \{run\.r2\.toFixed\(4\)\}/);
   assert.match(component, /data-regression-source-graph[\s\S]*revealCoordinates=\{false\}[\s\S]*pointHoverEnabled=\{false\}/);
   assert.match(component, /CoordinatePlane[\s\S]*lines=\{run/);
-  ['tableEdited', 'regressionSelected', 'regressionExecuted', 'correlationProduced']
+  ['expressionAdded', 'orderedPairEntered', 'editModeOpened', 'tableConversionOffered', 'tableCreated', 'tableEdited', 'regressionExpressionEntered', 'regressionExecuted', 'correlationProduced', 'interpretationSelected']
     .forEach((event) => assert.match(component, new RegExp(`record\\('${event}'`)));
   assert.match(css, /min-height:44px/);
-  assert.match(css, /max-width:390px[\s\S]*overflow-x:hidden/);
+  assert.match(css, /grid-template-columns:minmax\(300px, \.85fr\) minmax\(380px, 1\.4fr\)/);
+  assert.match(css, /max-width: 700px[\s\S]*flex-direction:column/);
+});
+
+test('stage-aware feedback replaces the generic workflow message', async () => {
+  const component = await readFile(new URL('../../src/tools/regressionCalculator/RegressionCalculator.jsx', import.meta.url), 'utf8');
+  for (const message of [
+    'Data entry/table does not match the provided data.',
+    'Regression setup is incomplete or invalid.',
+    'A correlation value has not been produced.',
+    'Check the direction/strength interpretation.',
+  ]) assert.match(component, new RegExp(message.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.doesNotMatch(component, /Check each workflow stage/);
 });
 
 
