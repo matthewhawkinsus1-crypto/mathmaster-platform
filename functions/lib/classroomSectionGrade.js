@@ -7,6 +7,10 @@ const {
   publicationSectionKey,
   publicationSectionLabel,
 } = require("./publication");
+const {
+  isTestCycleAssignment,
+  testCycleGradeProgress,
+} = require("./testCycleGrade");
 
 function classroomPublicationGrade({
   assignment = {},
@@ -25,6 +29,21 @@ function classroomPublicationGrade({
     throw new TypeError(
       `${publicationSectionLabel(sectionKey)} has no included questions and cannot receive a Classroom grade.`
     );
+  }
+
+  if (sectionKey === "whole" && isTestCycleAssignment(assignment)) {
+    const progress = testCycleGradeProgress({
+      assignment,
+      tracker,
+      questions,
+      gradeProgress,
+    });
+    return {
+      sectionKey,
+      sectionLabel: "Assessment",
+      ...progress,
+      questionIndices: progress.questionIndices,
+    };
   }
 
   return {
