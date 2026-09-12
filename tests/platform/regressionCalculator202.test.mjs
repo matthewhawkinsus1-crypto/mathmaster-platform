@@ -180,16 +180,19 @@ test('calculator 2.0 stays inside Work View and publishes the discovery workflow
   assert.match(component, /type:\s*'table'[\s\S]*rows:\s*\[pair\.map\(String\)/);
   assert.match(component, /isRegression[\s\S]*tableRow[\s\S]*aria-label="Evaluate regression expression"/);
   assert.match(component, /tablePoints\.length >= 2[\s\S]*aria-label="Add Regression"/);
+  assert.match(component, /aria-label="Add Item"[\s\S]*role="menuitem"[\s\S]*>table</);
+  assert.match(component, /shouldEmerge[\s\S]*next\.push\(EMPTY_EXPRESSION\(\)\)/);
   assert.match(component, /value: 'y₁ ~ mx₁ \+ b'/);
   assert.match(component, /record\('addRegressionClicked'/);
   assert.doesNotMatch(component, /Run regression|Linear regression \(LinReg\)|<option value="linearRegression"/);
   assert.match(component, /R² = \{run\.r2\.toFixed\(4\)\}/);
   assert.match(component, /data-regression-source-graph[\s\S]*revealCoordinates=\{false\}[\s\S]*pointHoverEnabled=\{false\}/);
   assert.match(component, /CoordinatePlane[\s\S]*lines=\{run/);
-  ['expressionAdded', 'orderedPairEntered', 'editModeOpened', 'tableConversionOffered', 'tableCreated', 'tableEdited', 'addRegressionClicked', 'regressionExpressionEntered', 'regressionExecuted', 'correlationProduced', 'interpretationSelected']
+  ['expressionAdded', 'orderedPairEntered', 'expressionRowEmerged', 'editModeOpened', 'tableConversionOffered', 'tableCreated', 'tableEdited', 'addRegressionClicked', 'regressionExpressionEntered', 'regressionExecuted', 'correlationProduced', 'interpretationSelected']
     .forEach((event) => assert.match(component, new RegExp(`record\\('${event}'`)));
   assert.match(css, /min-height:44px/);
   assert.match(css, /\.regression-add-regression[\s\S]*content:attr\(data-tooltip\)/);
+  assert.match(css, /\.regression-add-menu[\s\S]*position:absolute/);
   assert.match(css, /grid-template-columns:minmax\(300px, \.85fr\) minmax\(380px, 1\.4fr\)/);
   assert.match(css, /max-width: 700px[\s\S]*flex-direction:column/);
 });
