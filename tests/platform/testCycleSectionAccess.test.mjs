@@ -71,7 +71,8 @@ test('an authored stage opensAt opts into automatic opening after the pathway ti
   };
   const access = getSectionAccessState({ assignment, activityRole: 'test', classId: 'class-a', nowValue: now });
   assert.equal(access.defaultState, 'open');
-  assert.equal(access.isOpen, true, 'section control is open; assessmentPathway owns the opensAt clock gate');
+  assert.equal(access.isOpen, false);
+  assert.equal(access.status, 'stageScheduled');
 });
 
 test('Test Cycle does not turn a closed Test into post-deadline Practice Mode', () => {
