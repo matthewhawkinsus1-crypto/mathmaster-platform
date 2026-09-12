@@ -103,3 +103,13 @@ test('pinch zoom never triggers viewport snap-back or Work View reflow', () => {
   assert.match(workView, /readStableViewportBox/,
     'Work View geometry must use the stable layout viewport while page zoom is active');
 });
+
+
+test('mobile layout does not override CoordinatePlane scroll and pinch gestures', () => {
+  const css = read('src/components/student/MathToolMobileLayout.css');
+  assert.doesNotMatch(
+    css,
+    /svg\[role="application"\][\s\S]{0,180}touch-action:\s*none\s*!important/,
+    'CoordinatePlane owns its pan-y/pinch-zoom contract; mobile layout must not freeze gestures over the graph',
+  );
+});
