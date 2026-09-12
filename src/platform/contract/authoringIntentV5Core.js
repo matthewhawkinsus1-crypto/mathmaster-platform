@@ -1494,9 +1494,16 @@ const compileOne = (q, index, repairs) => {
     }
     case 'regressionCalculator': {
       const data = q.data || {};
+      const requestedSourceMode = clean(q.sourceMode || q.sourcePresentation).toLowerCase();
+      const sourceMode = requestedSourceMode === 'scatterplot'
+        || (!requestedSourceMode && actions.includes('readGraph'))
+        ? 'scatterplot'
+        : 'data';
       out = copyCommon(q, {
         type,
         sourceData: normalizePointListForStorage(q.sourceData || q.points || data.points),
+        sourceMode,
+        sourceGraphBounds: q.sourceGraphBounds || (sourceMode === 'scatterplot' ? q.graphBounds : undefined),
         requireInterpretation: q.requireInterpretation !== false,
       });
       break;
