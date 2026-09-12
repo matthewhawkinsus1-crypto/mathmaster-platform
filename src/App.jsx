@@ -517,6 +517,10 @@ function App() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [assignmentNavigationCollapsed, setAssignmentNavigationCollapsed] = useState(false);
   const [assignmentOverviewExpanded, setAssignmentOverviewExpanded] = useState(false);
+  // Test/Retest never opens directly onto a question the first time. Students
+  // must acknowledge the secure stage so Review -> Test cannot feel like the
+  // platform silently changed the rules underneath them.
+  const [assessmentStageEntryAccepted, setAssessmentStageEntryAccepted] = useState(null);
   const assignmentQuestionStageRef = useRef(null);
   const [resumeAction, setResumeAction] = useState(null);
   const [now, setNow] = useState(Date.now());
@@ -2923,6 +2927,7 @@ function App() {
     setCurrentQuestionIndex(safeQuestionIndex);
     setAssignmentNavigationCollapsed(false);
     setAssignmentOverviewExpanded(false);
+    setAssessmentStageEntryAccepted(null);
     lastActivityRef.current = Date.now();
     pendingAssignmentSecondsRef.current = 0;
     liveSessionActiveSecondsRef.current = { assignmentId, seconds: 0 };
@@ -6880,6 +6885,78 @@ function App() {
               </button>
             </div>
           </section>
+        </div>
+      );
+    }
+
+    const assessmentEntryRole = assessmentState?.stage === 'test'
+      ? 'test'
+      : assessmentState?.stage === 'retest' ? 'retest' : null;
+    const assessmentEntryProgress = assessmentEntryRole ? assessmentState?.[assessmentEntryRole] : null;
+    const assessmentEntryKey = assessmentEntryRole ? `${assignment.id}:${assessmentEntryRole}` : null;
+    const assessmentEntryNeedsConfirmation = Boolean(
+      !preview
+      && assessmentEntryRole
+      && Number(assessmentEntryProgress?.attempted || 0) === 0
+      && assessmentStageEntryAccepted !== assessmentEntryKey
+    );
+
+    if (assessmentEntryNeedsConfirmation) {
+      const isRetestEntry = assessmentEntryRole === 'retest';
+      const stageTitle = isRetestEntry ? 'Retest' : 'Test';
+      return (
+        <div
+          className={`mathmaster-assignment-screen ${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
+          style={{
+            minHeight: '100vh',
+            background: supportPresentation.highContrast ? '#fff' : '#f0f2f5',
+            padding: '28px 20px',
+            fontFamily: '"Segoe UI", sans-serif',
+            fontSize: supportPresentation.largeText ? '120%' : undefined,
+          }}
+        >
+          <main style={{ maxWidth: 760, margin: '0 auto' }}>
+            <button
+              type="button"
+              onClick={leaveAssignment}
+              style={{ border: 0, background: 'transparent', color: '#174ea6', fontWeight: 900, cursor: 'pointer', padding: '8px 0 18px' }}
+            >
+              ← Back to Dashboard
+            </button>
+            <section style={{ background: '#fff', borderRadius: 16, padding: '28px', border: `3px solid ${isRetestEntry ? '#9334e6' : '#d93025'}`, boxShadow: '0 6px 20px rgba(60,64,67,0.12)', textAlign: 'left' }}>
+              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: '.08em', textTransform: 'uppercase', color: isRetestEntry ? '#681da8' : '#a50e0e' }}>
+                {isRetestEntry ? 'Retest available' : 'Review complete · Test ready'}
+              </div>
+              <h1 style={{ margin: '8px 0 4px', fontSize: 30, color: '#202124' }}>{assignment.title}</h1>
+              <h2 style={{ margin: '0 0 18px', fontSize: 23, color: isRetestEntry ? '#681da8' : '#a50e0e' }}>
+                You are about to begin the {stageTitle}.
+              </h2>
+              <p style={{ fontSize: 17, lineHeight: 1.6, color: '#3c4043' }}>
+                {isRetestEntry
+                  ? `This is a shorter fresh assessment. Your original Test score was ${assessmentState?.test?.score ?? 0}% and the passing score is ${assessmentState?.passingScore ?? 70}%.`
+                  : 'The Review is finished. The questions you see next are the graded Test, not additional review practice.'}
+              </p>
+              <div style={{ margin: '20px 0', padding: '16px 18px', borderRadius: 12, background: isRetestEntry ? '#f8f0fc' : '#fce8e6', color: '#3c4043' }}>
+                <strong style={{ display: 'block', marginBottom: 8, color: isRetestEntry ? '#681da8' : '#a50e0e' }}>{stageTitle} rules</strong>
+                <ul style={{ margin: 0, paddingLeft: 22, lineHeight: 1.75 }}>
+                  <li>One submission attempt per question.</li>
+                  <li>No hints, guided coaching, formula anchors, self-checks, or replacement questions.</li>
+                  <li>Scratchpad and permitted calculator tools remain available for your own work.</li>
+                  <li>Correctness and solutions stay hidden until your teacher releases this stage&apos;s results.</li>
+                </ul>
+              </div>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setAssessmentStageEntryAccepted(assessmentEntryKey)}
+                  style={{ padding: '13px 22px', border: 0, borderRadius: 10, background: isRetestEntry ? '#681da8' : '#a50e0e', color: '#fff', fontWeight: 1000, fontSize: 16, cursor: 'pointer' }}
+                >
+                  Begin {stageTitle}
+                </button>
+                <span style={{ color: '#5f6368', fontSize: 13 }}>Your work is saved after each submission.</span>
+              </div>
+            </section>
+          </main>
         </div>
       );
     }
