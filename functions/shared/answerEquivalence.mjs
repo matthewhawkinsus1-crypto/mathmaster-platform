@@ -116,7 +116,12 @@ export const parseCanonicalIntervalNotation = (value) => {
     .replace(/\{\s*,\s*\}/g, ',')
     .replace(/\\(?:,|;|!|quad|qquad)\b/g, '')
     .replace(/infinity|infty|inf/gi, '∞')
-    .replace(/\bU\b/g, '∪')
+    // Legacy/authored interval keys commonly use ASCII u for union:
+    //   (-inf,-7)u(-7,inf)
+    // This parser only runs for fields explicitly declared as interval
+    // notation, so treating standalone u/U between interval pieces as union is
+    // unambiguous and keeps authored keys, MathLive \cup, and Unicode ∪ equal.
+    .replace(/\b[uU]\b/g, '∪')
     .trim();
   if (!raw) return null;
   const pieces = raw.split('∪').map((piece) => piece.trim()).filter(Boolean);
