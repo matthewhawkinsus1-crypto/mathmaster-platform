@@ -2,6 +2,7 @@ import { normalizeQuestionRecord, getQuestionCredit } from '../../attemptPolicy.
 import { getStoredAssignmentQuestions } from '../contract/storedAssignmentV5.js';
 import { projectCurrentAssignmentContent } from '../assignments/currentContentProjection.js';
 import { weightedQuestionTotals } from '../grading/questionWeights.js';
+import { getAssessmentGradeSplit, isAssessmentPathwayAssignment } from '../assessment/assessmentPathway.js';
 
 /*
  * TWO NUMBERS BEHIND EVERY GRADE, AND A THIRD ABOUT THE QUESTION ITSELF.
@@ -48,7 +49,11 @@ export const SECTION_GRADE_KEYS = Object.freeze([
   'warmup',
   'classwork',
   'practice',
+  'review',
   'dol',
+  'quiz',
+  'test',
+  'retest',
 ]);
 
 const emptyGradeSplit = () => ({
@@ -98,6 +103,9 @@ const splitGradeForIndices = ({ tracker = null, questions = [], indices = [] } =
  * deliberately so. Everything else is context around it.
  */
 export const splitGrade = ({ tracker = null, assignment = null } = {}) => {
+  if (isAssessmentPathwayAssignment(assignment)) {
+    return getAssessmentGradeSplit({ tracker, assignment });
+  }
   const projection = projectCurrentAssignmentContent(assignment);
   const included = projection.entries.map((entry) => entry.storageIndex);
   const questions = getStoredAssignmentQuestions(assignment);
