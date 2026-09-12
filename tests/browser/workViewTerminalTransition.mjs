@@ -68,13 +68,21 @@ for (const viewport of [{ name: 'chromebook', width: 1366, height: 768 }, { name
   await assertCleanClose(page);
   await page.getByText(/response is closed after/i).waitFor();
 
+  // Start the assignment-lock scenario from a fresh QuestionEngine. The
+  // expired scenario intentionally leaves terminal feedback mounted; reusing
+  // that harness instance would test React transition timing between synthetic
+  // scenes rather than the production terminal-close lifecycle.
+  await page.reload({ waitUntil: 'networkidle' });
   await page.evaluate(() => window.__mmTerminalLifecycle((current) => ({ ...current, index: 3, status: 'unattempted', assignmentLocked: false })));
+  await page.locator('[data-terminal-question="3"]').waitFor();
   await openWorkView(page);
   await page.evaluate(() => window.__mmTerminalLifecycle((current) => ({ ...current, assignmentLocked: true })));
   await assertCleanClose(page);
   await page.getByText('This assignment is closed.').waitFor();
 
+  await page.reload({ waitUntil: 'networkidle' });
   await page.evaluate(() => window.__mmTerminalLifecycle((current) => ({ ...current, index: 4, status: 'unattempted', assignmentLocked: false, sectionComplete: false })));
+  await page.locator('[data-terminal-question="4"]').waitFor();
   await openWorkView(page);
   await page.evaluate(() => window.__mmTerminalLifecycle((current) => ({ ...current, status: 'correct', sectionComplete: true })));
   await assertCleanClose(page);
