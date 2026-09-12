@@ -5802,12 +5802,24 @@ exports.syncGradeToClassroom = onDocumentWritten(
         const priorAudit = priorAuditSnap.exists ? priorAuditSnap.data() || {} : {};
         const priorReturnConfirmed = priorAudit.returnedToStudent === true
           || String(priorAudit.submissionState || "").toUpperCase() === "RETURNED";
+        // Ordinary assignments intentionally dedupe by checkpoint stage so a
+        // second answer inside the same 25% band does not spam Classroom.
+        // Test Cycle is different: both the released Test and the later
+        // released Retest are terminal "final-complete" stages. If the Retest
+        // changes the official score, the same-stage audit must not suppress
+        // that new grade.
+        const sameOfficialAssessmentGrade = !isTestCycleAssignment(assignment)
+          || (
+            Number(priorAudit.grade) === Number(grade)
+            && Number(priorAudit.classroomGrade) === Number(classroomGrade)
+          );
         if (
           !forceRetry
           && priorAudit.status === "synced"
           && String(priorAudit.stage || "") === stage
           && Number(priorAudit.maxPoints || 100) === maxPoints
           && Boolean(priorAudit.studentVisible) === releasePolicy.studentVisible
+          && sameOfficialAssessmentGrade
           && (!releasePolicy.shouldReturn || priorReturnConfirmed)
         ) {
           continue;
