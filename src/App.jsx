@@ -5125,6 +5125,13 @@ function App() {
       toastWarning('Assignment has not opened yet', 'Section controls become active when the assignment is released.');
       return;
     }
+    if (state.status === 'stageScheduled') {
+      toastInfo(
+        `${activityRole === 'retest' ? 'Retest' : 'Test'} is scheduled`,
+        `This stage opens automatically at ${formatDateTime(state.opensAt)}. The per-class switch becomes active after that time.`,
+      );
+      return;
+    }
     if (!state.lifecycle?.isOpen) {
       toastWarning('Assignment is not open', 'This section cannot be changed while the graded assignment is closed.');
       return;
