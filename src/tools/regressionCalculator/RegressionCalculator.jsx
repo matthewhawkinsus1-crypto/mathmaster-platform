@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import ToolShell, { TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import CoordinatePlane from '../shared/CoordinatePlane';
+import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import { cleanRegressionPoints, regressionCalculatorStats } from './regressionCalculatorMath.js';
 import './RegressionCalculator.css';
 
@@ -40,23 +41,20 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   const [rows, setRows] = useState(() => [EMPTY_EXPRESSION()]);
   const [selectedId, setSelectedId] = useState(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [run, setRun] = useState(null);
   const [direction, setDirection] = useState('');
   const [strength, setStrength] = useState('');
   const [notice, setNotice] = useState('');
   const [processEvidence, setProcessEvidence] = useState([]);
-  const [history, setHistory] = useState([]);
-  const [future, setFuture] = useState([]);
+  const [redoDepth, setRedoDepth] = useState(0);
+  const redoStackRef = useRef([]);
   const inputRefs = useRef([]);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
   const record = (type, detail = {}) => setProcessEvidence((events) => [...events, { type, ...detail }]);
-  const commitRows = (next) => {
-    setHistory((items) => [...items, rows]);
-    setFuture([]);
-    setRows(next);
-  };
+  const commitRows = (next) => setRows(next);
 
   const tableRow = rows.find((row) => row.type === 'table');
   const tablePoints = useMemo(() => validRows(tableRow?.rows), [tableRow]);
@@ -65,27 +63,154 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
     [rows],
   );
   const plotted = tableRow ? tablePoints : expressionPoints;
+  const hasRegressionExpression = rows.some((row) => row.type === 'expression' && isRegressionExpression(row.value));
   const graphBounds = useMemo(() => boundsFor(plotted.length ? plotted : source), [plotted, source]);
   const selected = rows.find((row) => row.id === selectedId);
   const conversionAvailable = selected?.type === 'expression' && Boolean(orderedPair(selected.value));
   const sourceGraphBounds = questionData.sourceGraphBounds || boundsFor(source);
+  const mathematicalState = useMemo(
+    () => ({ rows, run, direction, strength }),
+    [rows, run, direction, strength],
+  );
+  const mathematicalStateRef = useRef(mathematicalState);
+  mathematicalStateRef.current = mathematicalState;
+
+  const clearRedo = () => {
+    if (!redoStackRef.current.length) return;
+    redoStackRef.current = [];
+    setRedoDepth(0);
+  };
+
+  const undoHistory = useMathUndoHistory({
+    label: 'Undo the last Regression Calculator change',
+    state: mathematicalState,
+    resetKey: questionUndoResetKey(questionData),
+    onRestore: (restored) => {
+      if (!restored) return;
+      redoStackRef.current = [...redoStackRef.current, mathematicalStateRef.current].slice(-60);
+      setRedoDepth(redoStackRef.current.length);
+      setRows(restored.rows || [EMPTY_EXPRESSION()]);
+      setRun(restored.run || null);
+      setDirection(restored.direction || '');
+      setStrength(restored.strength || '');
+      setNotice('');
+      clearFeedback();
+    },
+  });
+
+  const undo = () => {
+    if (!undoHistory.undo()) return;
+    setNotice('');
+    record('undoUsed');
+  };
+
+  const redo = () => {
+    const restored = redoStackRef.current.at(-1);
+    if (!restored) return;
+    redoStackRef.current = redoStackRef.current.slice(0, -1);
+    setRedoDepth(redoStackRef.current.length);
+    setRows(restored.rows || [EMPTY_EXPRESSION()]);
+    setRun(restored.run || null);
+    setDirection(restored.direction || '');
+    setStrength(restored.strength || '');
+    setNotice('');
+    clearFeedback();
+    record('redoUsed');
+  };
+
+  const startOver = () => {
+    const hasWork = rows.some((row) => (
+      row.type === 'table'
+        ? validRows(row.rows).length > 0
+        : Boolean(String(row.value || '').trim())
+    )) || Boolean(run || direction || strength);
+    if (!hasWork) return;
+    clearRedo();
+    setRows([EMPTY_EXPRESSION()]);
+    setSelectedId(null);
+    setEditOpen(false);
+    setAddMenuOpen(false);
+    setRun(null);
+    setDirection('');
+    setStrength('');
+    setNotice('Workspace cleared.');
+    clearFeedback();
+    record('startOver');
+  };
 
   const updateExpression = (id, value) => {
+    clearRedo();
     const before = rows.find((row) => row.id === id)?.value;
-    setRows((current) => current.map((row) => row.id === id ? { ...row, value } : row));
-    if (!orderedPair(before) && orderedPair(value)) record('orderedPairEntered', { row: rows.findIndex((row) => row.id === id) + 1 });
+    const editedIndex = rows.findIndex((row) => row.id === id);
+    const shouldEmerge = editedIndex === rows.length - 1
+      && rows[editedIndex]?.type === 'expression'
+      && Boolean(String(value).trim());
+    setRows((current) => {
+      const next = current.map((row) => row.id === id ? { ...row, value } : row);
+      if (shouldEmerge && !next.some((row, index) => index > editedIndex && row.type === 'expression' && !String(row.value).trim())) {
+        next.push(EMPTY_EXPRESSION());
+      }
+      return next;
+    });
+    if (!orderedPair(before) && orderedPair(value)) record('orderedPairEntered', { row: editedIndex + 1 });
+    if (shouldEmerge) record('expressionRowEmerged', { afterRow: editedIndex + 1 });
     setRun(null);
     clearFeedback();
   };
 
+  const focusExpression = (row) => requestAnimationFrame(() => document.getElementById(`regression-${row.id}`)?.focus());
+
   const addExpression = () => {
+    clearRedo();
+    const existingBlank = rows.find((row) => row.type === 'expression' && !String(row.value).trim());
+    if (existingBlank) {
+      setSelectedId(existingBlank.id);
+      setEditOpen(false);
+      setAddMenuOpen(false);
+      setNotice('');
+      focusExpression(existingBlank);
+      return;
+    }
     const row = EMPTY_EXPRESSION();
     commitRows([...rows, row]);
     setSelectedId(row.id);
     setEditOpen(false);
+    setAddMenuOpen(false);
     record('expressionAdded');
     setNotice('');
-    requestAnimationFrame(() => document.getElementById(`regression-${row.id}`)?.focus());
+    focusExpression(row);
+  };
+
+  const addBlankTable = () => {
+    clearRedo();
+    if (tableRow) {
+      setAddMenuOpen(false);
+      return;
+    }
+    const table = {
+      id: crypto.randomUUID(),
+      type: 'table',
+      rows: Array.from({ length: Math.max(4, source.length || 0) }, () => ['', '']),
+    };
+    const selectedIndex = rows.findIndex((row) => row.id === selectedId);
+    const fallbackBlankIndex = rows.findIndex((row) => row.type === 'expression' && !String(row.value).trim());
+    const replaceIndex = selectedIndex >= 0
+      && rows[selectedIndex]?.type === 'expression'
+      && !String(rows[selectedIndex]?.value).trim()
+      ? selectedIndex
+      : fallbackBlankIndex;
+    const next = replaceIndex >= 0
+      ? rows.map((row, index) => index === replaceIndex ? table : row)
+      : [...rows, table];
+    if (!next.some((row) => row.type === 'expression' && !String(row.value).trim())) {
+      next.push(EMPTY_EXPRESSION());
+    }
+    commitRows(next);
+    setSelectedId(table.id);
+    setEditOpen(false);
+    setAddMenuOpen(false);
+    setNotice('Table created.');
+    record('tableCreated', { fromAddMenu: true });
   };
 
   const openEdit = () => {
@@ -96,6 +221,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   };
 
   const convertToTable = () => {
+    clearRedo();
     const pair = orderedPair(selected?.value);
     if (!pair) return;
     const table = {
@@ -105,16 +231,22 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
     };
     commitRows(rows.map((row) => row.id === selected.id ? table : row));
     setEditOpen(false);
+    setAddMenuOpen(false);
     setNotice('Table created.');
     record('tableCreated', { fromOrderedPair: true });
   };
 
   const updateTable = (rowIndex, column, value) => {
-    setRows((current) => current.map((row) => row.type !== 'table' ? row : {
-      ...row,
-      rows: row.rows.map((pair, index) => index === rowIndex
+    clearRedo();
+    setRows((current) => current.map((row) => {
+      if (row.type !== 'table') return row;
+      const nextRows = row.rows.map((pair, index) => index === rowIndex
         ? pair.map((cell, c) => c === column ? value : cell)
-        : pair),
+        : pair);
+      if (rowIndex === nextRows.length - 1 && nextRows[rowIndex].some((cell) => String(cell).trim())) {
+        nextRows.push(['', '']);
+      }
+      return { ...row, rows: nextRows };
     }));
     record('tableEdited', { row: rowIndex + 1, column: column ? 'y1' : 'x1' });
     setNotice('');
@@ -123,6 +255,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   };
 
   const removeRow = (id) => {
+    clearRedo();
     const next = rows.filter((row) => row.id !== id);
     commitRows(next.length ? next : [EMPTY_EXPRESSION()]);
     if (selectedId === id) setSelectedId(null);
@@ -130,33 +263,11 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
     setNotice('');
   };
 
-  const deleteAll = () => {
-    commitRows([EMPTY_EXPRESSION()]);
-    setSelectedId(null);
-    setEditOpen(false);
-    setRun(null);
-    setNotice('');
-  };
-
-  const undo = () => {
-    if (!history.length) return;
-    setFuture((items) => [rows, ...items]);
-    setRows(history.at(-1));
-    setHistory((items) => items.slice(0, -1));
-    setRun(null);
-    setNotice('');
-  };
-
-  const redo = () => {
-    if (!future.length) return;
-    setHistory((items) => [...items, rows]);
-    setRows(future[0]);
-    setFuture((items) => items.slice(1));
-    setRun(null);
-  };
+  const deleteAll = startOver;
 
   const execute = (row) => {
-    if (!tableRow || tablePoints.length < 3 || !isRegressionExpression(row.value)) return;
+    clearRedo();
+    if (!tableRow || tablePoints.length < 2 || !isRegressionExpression(row.value)) return;
     const stats = regressionCalculatorStats(tablePoints);
     if (!stats) return;
     const regressionRun = {
@@ -169,6 +280,32 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
     record('regressionExpressionEntered');
     record('regressionExecuted', { operation: 'linearRegression' });
     record('correlationProduced', { value: stats.r });
+  };
+
+  const addRegressionFromTable = () => {
+    clearRedo();
+    if (!tableRow || tablePoints.length < 2) return;
+    const existing = rows.find((row) => row.type === 'expression' && isRegressionExpression(row.value));
+    if (existing) {
+      setSelectedId(existing.id);
+      execute(existing);
+      requestAnimationFrame(() => document.getElementById(`regression-${existing.id}`)?.focus());
+      return;
+    }
+
+    const regression = {
+      ...EMPTY_EXPRESSION(),
+      value: 'y₁ ~ mx₁ + b',
+    };
+    commitRows([...rows, regression]);
+    setSelectedId(regression.id);
+    setEditOpen(false);
+    setAddMenuOpen(false);
+    setNotice('');
+    record('expressionAdded', { source: 'addRegression' });
+    record('addRegressionClicked', { pointCount: tablePoints.length });
+    execute(regression);
+    requestAnimationFrame(() => document.getElementById(`regression-${regression.id}`)?.focus());
   };
 
   const check = () => {
@@ -277,18 +414,49 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
                 Delete All
               </button>
               <span className="regression-toolbar-spacer" />
-              <button type="button" onClick={undo} disabled={!history.length} aria-label="Undo">↶</button>
-              <button type="button" onClick={redo} disabled={!future.length} aria-label="Redo">↷</button>
+              <button type="button" onClick={undo} disabled={!undoHistory.canUndo} aria-label="Undo">↶</button>
+              <button type="button" onClick={redo} disabled={!redoDepth} aria-label="Redo">↷</button>
               <span className="regression-toolbar-spacer" />
               <button className="regression-done" type="button" onClick={openEdit} aria-label="Done editing">Done</button>
             </>
           ) : (
             <>
-              <button className="regression-tool-icon regression-add" type="button" onClick={addExpression} aria-label="Add expression" title="Add expression">＋</button>
+              <div className="regression-add-wrap">
+                <button
+                  className="regression-tool-icon regression-add"
+                  type="button"
+                  onClick={() => setAddMenuOpen((open) => !open)}
+                  aria-label="Add Item"
+                  aria-expanded={addMenuOpen}
+                  aria-haspopup="menu"
+                  data-tooltip="Add Item"
+                >
+                  ＋
+                </button>
+                {addMenuOpen ? (
+                  <div className="regression-add-menu" role="menu" aria-label="Add Item">
+                    <button type="button" role="menuitem" onClick={addExpression}>
+                      <span className="regression-add-menu-expression" aria-hidden="true">ƒ(x)</span>
+                      <span>expression</span>
+                    </button>
+                    <button type="button" role="menuitem" onClick={addBlankTable} disabled={Boolean(tableRow)}>
+                      <span className="regression-add-menu-table" aria-hidden="true">
+                        <i /><i /><i /><i />
+                      </span>
+                      <span>table</span>
+                    </button>
+                    <button type="button" role="menuitem" disabled aria-disabled="true" title="Inference is not used in this activity">
+                      <span className="regression-add-menu-inference" aria-hidden="true">⌒</span>
+                      <span>inference</span>
+                    </button>
+                  </div>
+                ) : null}
+              </div>
               <span className="regression-toolbar-spacer" />
-              <button className="regression-tool-icon" type="button" onClick={undo} disabled={!history.length} aria-label="Undo" title="Undo">↶</button>
-              <button className="regression-tool-icon" type="button" onClick={redo} disabled={!future.length} aria-label="Redo" title="Redo">↷</button>
+              <button className="regression-tool-icon" type="button" onClick={undo} disabled={!undoHistory.canUndo} aria-label="Undo" title="Undo">↶</button>
+              <button className="regression-tool-icon" type="button" onClick={redo} disabled={!redoDepth} aria-label="Redo" title="Redo">↷</button>
               <span className="regression-toolbar-spacer" />
+              <button className="regression-tool-icon regression-reset" type="button" onClick={startOver} aria-label="Start over" title="Clear this calculator and start over">↺</button>
               <button className="regression-tool-icon regression-settings" type="button" onClick={openEdit} aria-label="Settings and edit" title="Edit">⚙</button>
               <button
                 className="regression-tool-icon regression-collapse"
@@ -322,7 +490,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
           {notice ? (
             <div className="regression-notice" role="status">
               <span>{notice}</span>
-              <button type="button" onClick={undo}>Undo</button>
+              <button type="button" onClick={undo}>{notice === 'Workspace cleared.' ? 'Restore' : 'Undo'}</button>
             </div>
           ) : null}
 
@@ -339,6 +507,25 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
                   <span className="regression-row-gutter">
                     <span className="regression-row-number">{rowIndex + 1}</span>
                     {pair ? <span className="regression-point-dot" aria-hidden="true" /> : null}
+                    {row.type === 'table' && tablePoints.length >= 2 && !hasRegressionExpression ? (
+                      <button
+                        className="regression-add-regression"
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          addRegressionFromTable();
+                        }}
+                        aria-label="Add Regression"
+                        data-tooltip="Add Regression"
+                      >
+                        <svg viewBox="0 0 28 28" aria-hidden="true" focusable="false">
+                          <path d="M4 22 C8 15, 13 12, 24 5" />
+                          <circle cx="6" cy="18.5" r="2.1" />
+                          <circle cx="13.5" cy="12" r="2.1" />
+                          <circle cx="21.5" cy="7" r="2.1" />
+                        </svg>
+                      </button>
+                    ) : null}
                   </span>
 
                   {row.type === 'expression' ? (
@@ -472,6 +659,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
                 <select
                   value={direction}
                   onChange={(event) => {
+                    clearRedo();
                     setDirection(event.target.value);
                     record('interpretationSelected', { kind: 'direction' });
                   }}
@@ -487,6 +675,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
                 <select
                   value={strength}
                   onChange={(event) => {
+                    clearRedo();
                     setStrength(event.target.value);
                     record('interpretationSelected', { kind: 'strength' });
                   }}
