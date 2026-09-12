@@ -10,7 +10,7 @@ const buttonSpec = (raw) => {
   const value = String(raw ?? '');
   if (value === 'C') return { label: 'C', action: 'clear' };
   if (value === '=') return { label: '=', action: 'equals' };
-  if (value === '÷') return { label: '÷', command: '\\div' };
+  if (value === '÷') return { label: '÷', action: 'fractionize' };
   if (value === '×') return { label: '×', command: '\\times' };
   if (value === '^') return { label: 'xʸ', command: '#@^{#?}' };
   if (value === 'sin(') return { label: 'sin', command: '\\sin\\left(#0\\right)' };
@@ -47,8 +47,18 @@ export const CalculatorPanel = ({
   onCalculatorOpened,
   estimationRequired = false,
   onEstimationComplete,
+  open: controlledOpen = null,
+  onOpenChange = null,
+  showLauncher = true,
+  launcherStyle = null,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = controlledOpen == null ? internalOpen : Boolean(controlledOpen);
+  const setOpen = useCallback((nextValue) => {
+    const next = typeof nextValue === 'function' ? Boolean(nextValue(isOpen)) : Boolean(nextValue);
+    if (controlledOpen == null) setInternalOpen(next);
+    onOpenChange?.(next);
+  }, [controlledOpen, isOpen, onOpenChange]);
   const [estimate, setEstimate] = useState('');
   const [estimateUnlocked, setEstimateUnlocked] = useState(!estimationRequired);
   const [display, setDisplay] = useState('0');
@@ -134,7 +144,7 @@ export const CalculatorPanel = ({
 
   const toggleDrawer = () => {
     if (!isOpen) onCalculatorOpened?.();
-    setIsOpen((current) => !current);
+    setOpen((current) => !current);
   };
 
   const handleEstimateSubmit = (event) => {
@@ -166,6 +176,34 @@ export const CalculatorPanel = ({
     setDisplay(mathField.value || '0');
   }, [display]);
 
+
+  const insertStackedDivision = useCallback(() => {
+    const mathField = mathFieldRef.current;
+    if (!mathField) return;
+    mathField.focus();
+
+    const hasNumerator = display !== '0' && display !== 'Error' && String(mathField.value || '').trim();
+    if (!hasNumerator) {
+      mathField.value = '';
+      setDisplay('');
+    } else {
+      // Division in MathMaster is spatial: what the student has already written
+      // becomes the numerator, and the cursor moves to the denominator.
+      // MathLive's #0 placeholder consumes the current selection.
+      try {
+        mathField.executeCommand?.('selectAll');
+      } catch {
+        mathField.select?.();
+      }
+    }
+
+    mathField.insert('\\frac{#0}{#?}', {
+      insertionMode: 'replaceSelection',
+      selectionMode: 'placeholder',
+    });
+    setDisplay(mathField.value || '0');
+  }, [display]);
+
   const handleCalculatorButton = useCallback((button) => {
     if (button.action === 'clear') {
       setCalculatorValue('0');
@@ -180,8 +218,12 @@ export const CalculatorPanel = ({
       }
       return;
     }
+    if (button.action === 'fractionize') {
+      insertStackedDivision();
+      return;
+    }
     insertCalculatorCommand(button.command);
-  }, [display, insertCalculatorCommand, policy.mode, setCalculatorValue]);
+  }, [display, insertCalculatorCommand, insertStackedDivision, policy.mode, setCalculatorValue]);
 
   const startDrag = (event) => {
     if (event.target?.closest?.('button')) return;
@@ -227,10 +269,29 @@ export const CalculatorPanel = ({
     : { right: 8, bottom: 70 };
 
   return (
-    <div className={`mathmaster-calculator-drawer ${isOpen ? 'is-open' : ''}`} style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 9000 }}>
-      <button className="mathmaster-calculator-toggle" type="button" onClick={toggleDrawer} style={{ padding: '10px 16px', borderRadius: '24px', background: '#1a73e8', color: '#fff', border: 'none', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-        🧮 {policy.source === 'accommodation' ? 'Calculator (Support Plan)' : 'Calculator'}
-      </button>
+    <div className={`mathmaster-calculator-drawer ${isOpen ? 'is-open' : ''}`} style={{ position: showLauncher ? 'relative' : 'static', zIndex: isOpen ? 9000 : 'auto' }}>
+      {showLauncher ? (
+        <button
+          className="mathmaster-calculator-toggle"
+          type="button"
+          onClick={toggleDrawer}
+          aria-expanded={isOpen}
+          style={{
+            minHeight:44,
+            padding:'9px 14px',
+            borderRadius:999,
+            border:'1px solid #c5d5ef',
+            background:'#fff',
+            color:'#174ea6',
+            fontWeight:800,
+            cursor:'pointer',
+            boxShadow:'none',
+            ...launcherStyle,
+          }}
+        >
+          🧮 {policy.source === 'accommodation' ? 'Calculator (Support Plan)' : 'Calculator'}
+        </button>
+      ) : null}
       {isOpen && (
         <div
           ref={panelRef}
@@ -259,7 +320,7 @@ export const CalculatorPanel = ({
             title="Drag calculator"
           >
             <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#3c4043' }}>↕ {getCalculatorModeLabel(policy.mode)} CALCULATOR</span>
-            <button type="button" aria-label="Close calculator" onClick={() => setIsOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', minWidth: 34, minHeight: 34 }}>✕</button>
+            <button type="button" aria-label="Close calculator" onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', minWidth: 34, minHeight: 34 }}>✕</button>
           </div>
           {!estimateUnlocked ? (
             <form onSubmit={handleEstimateSubmit} style={{ textAlign: 'left', fontSize: '13px' }}>
