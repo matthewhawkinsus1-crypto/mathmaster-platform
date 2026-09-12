@@ -169,7 +169,10 @@ export const buildStudentDashboardModel = ({
       || record.status !== 'unattempted';
   }).length;
   const resumeRecordedGrade = resumeAssignment ? calculateGrade(resumeTracker, resumeAssignment) : 0;
-  const resumeFeedbackHeld = resumeAssignment ? assignmentHasHeldTeacherFeedback(resumeAssignment) : false;
+  const resumeAssessmentStage = resumeAssignment ? assessmentStateFor(resumeAssignment, resumeTracker) : null;
+  const resumeFeedbackHeld = resumeAssessmentStage
+    ? ['test', 'awaitingFeedback', 'retest'].includes(resumeAssessmentStage.stage)
+    : (resumeAssignment ? assignmentHasHeldTeacherFeedback(resumeAssignment) : false);
   const requestedResumeIndex = Number(resumeAction?.questionIndex) || 0;
   const resumeQuestionIndex = savedResume
     ? (savedResumeIncluded.includes(requestedResumeIndex) ? requestedResumeIndex : (savedResumeIncluded[0] ?? 0))
