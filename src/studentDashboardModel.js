@@ -171,7 +171,7 @@ export const buildStudentDashboardModel = ({
   const resumeRecordedGrade = resumeAssignment ? calculateGrade(resumeTracker, resumeAssignment) : 0;
   const resumeAssessmentStage = resumeAssignment ? assessmentStateFor(resumeAssignment, resumeTracker) : null;
   const resumeFeedbackHeld = resumeAssessmentStage
-    ? ['test', 'awaitingFeedback', 'retest'].includes(resumeAssessmentStage.stage)
+    ? (resumeAssessmentStage.feedbackHeld === true || ['test', 'awaitingFeedback', 'retest'].includes(resumeAssessmentStage.stage))
     : (resumeAssignment ? assignmentHasHeldTeacherFeedback(resumeAssignment) : false);
   const requestedResumeIndex = Number(resumeAction?.questionIndex) || 0;
   const resumeQuestionIndex = savedResume
@@ -252,10 +252,10 @@ export const buildStudentDashboardModel = ({
       const dol = getDOLState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue });
       const assessmentStage = assessmentStateFor(assignment, assignmentTracker || {});
       const disabled = (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') || !access.open
-        || Boolean(assessmentStage && !assessmentStage.canEnter);
+        || Boolean(assessmentStage && (lifecycle.isClosed || !assessmentStage.canEnter));
       const done = isDone(assignment, assignmentTracker, lifecycle);
       const feedbackHeld = assessmentStage
-        ? ['test', 'awaitingFeedback', 'retest'].includes(assessmentStage.stage)
+        ? (assessmentStage.feedbackHeld === true || ['test', 'awaitingFeedback', 'retest'].includes(assessmentStage.stage))
         : assignmentHasHeldTeacherFeedback(assignment);
       const dueSoon = matchesSmartView(assignment, 'today', { nowValue });
 
@@ -282,7 +282,7 @@ export const buildStudentDashboardModel = ({
       // "past due" making a student anxious about a grade they cannot change.
       const bucket = done
         ? BUCKET.COMPLETED
-        : lifecycle.isPracticeOnly
+        : lifecycle.isPracticeOnly && !assessmentStage
           ? BUCKET.PRACTICE
           : disabled
             ? BUCKET.COMING_UP
