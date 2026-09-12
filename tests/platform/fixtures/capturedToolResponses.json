@@ -239,6 +239,10 @@
           "row": 1
         },
         {
+          "type": "expressionRowEmerged",
+          "afterRow": 1
+        },
+        {
           "type": "editModeOpened",
           "row": 1
         },
@@ -281,7 +285,12 @@
           "column": "y1"
         },
         {
-          "type": "expressionAdded"
+          "type": "expressionAdded",
+          "source": "addRegression"
+        },
+        {
+          "type": "addRegressionClicked",
+          "pointCount": 4
         },
         {
           "type": "regressionExpressionEntered"
