@@ -107,13 +107,18 @@ test('hand-fit regression is button-driven and phone controls stack vertically',
 });
 
 
-test('calculator launcher lives in the shared work bar and Work View actions', () => {
+test('calculator launcher has one global owner even while Work View is open', () => {
   const engine = read('src/QuestionEngine.jsx');
   assert.match(engine, /🧮 Calculator/);
-  assert.match(engine, /workspaceActions\.calculator/);
   assert.match(engine, /showLauncher=\{false\}/);
   const contextStart = engine.indexOf('const questionContextPanel');
   const contextEnd = engine.indexOf('return (', contextStart);
   assert.doesNotMatch(engine.slice(contextStart, contextEnd), /<CalculatorPanel/,
     'the calculator launcher must not float inside the question context anymore');
+
+  const providerStart = engine.indexOf('<WorkViewCapabilityProvider capabilities={{');
+  const providerEnd = engine.indexOf('}}>', providerStart);
+  const provider = engine.slice(providerStart, providerEnd);
+  assert.doesNotMatch(provider, /secondaryActions|primaryActions|workspaceActions\.calculator|workspaceActions\.scratchpad|workspaceActions\.undo/,
+    'global Undo/Scratchpad/Calculator/Submit belong to the shared sticky work bar, not a duplicate Work View toolbar');
 });
