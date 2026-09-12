@@ -490,7 +490,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
           {notice ? (
             <div className="regression-notice" role="status">
               <span>{notice}</span>
-              <button type="button" onClick={undo}>Undo</button>
+              <button type="button" onClick={undo}>{notice === 'Workspace cleared.' ? 'Restore' : 'Undo'}</button>
             </div>
           ) : null}
 
