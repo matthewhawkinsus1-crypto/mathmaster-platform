@@ -81,6 +81,12 @@ const dataModelingLabHasGraph = (question = {}) => (
   && nonEmptyArray(question.points)
 );
 
+const regressionCalculatorHasGraph = (question = {}) => (
+  String(question.toolId || question.type) === 'regressionCalculator'
+  && String(question.sourceMode || '') === 'scatterplot'
+  && nonEmptyArray(question.sourceData)
+);
+
 // relationMapping owns an interactive coordinate plane when its authored ask
 // includes "plot". In that mode the supplied pairs are the target points the
 // student must construct, so a prompt that says "scatterplot" or "coordinate
@@ -134,6 +140,7 @@ const VISUAL_PROMISES = [
       // DataModelingLab renders its point data as the student-visible
       // scatterplot; it does not need a redundant graph or functionSpec.
       || dataModelingLabHasGraph(question)
+      || regressionCalculatorHasGraph(question)
       || relationMappingHasGraph(question)
       || candidateGraphsHaveGraph(question)
       || openSortBoardHasGraph(question)
