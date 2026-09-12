@@ -41,17 +41,17 @@ export const normalizeAssessmentPolicy = (value = null) => {
     mode: ASSESSMENT_PATHWAY_MODE,
     passingScore: clampScore(value.passingScore, 70),
     review: {
-      required: value?.review?.required !== false,
       ...(value.review || {}),
+      required: value?.review?.required !== false,
     },
     test: {
       ...(value.test || {}),
       feedback: 'teacherRelease',
     },
     retest: {
+      ...(value.retest || {}),
       strategy: clean(value?.retest?.strategy) || 'shortForm',
       scorePolicy: clean(value?.retest?.scorePolicy) || 'replaceIfHigher',
-      ...(value.retest || {}),
     },
   };
 };
