@@ -105,6 +105,10 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const descriptor = useMemo(() => correlationDescriptor(r), [r]);
   const xs = points.map(([x]) => Number(x));
   const ys = points.map(([, y]) => Number(y));
+  const dataXMin = Math.min(...xs);
+  const dataXMax = Math.max(...xs);
+  const dataYMin = Math.min(...ys);
+  const dataYMax = Math.max(...ys);
   const xScale = fitDataBounds(xs, { include:[0] });
   const yScale = fitDataBounds(ys, { include:[0] });
   const { min:xMin, max:xMax } = xScale;
@@ -116,16 +120,16 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const fitControls = useMemo(() => fitAdjustmentPlan({
     targetSlope: regression.m,
     targetIntercept: regression.b,
-    xMin: Math.min(...xs),
-    xMax: Math.max(...xs),
-    yMin: Math.min(...ys),
-    yMax: Math.max(...ys),
+    xMin: dataXMin,
+    xMax: dataXMax,
+    yMin: dataYMin,
+    yMax: dataYMax,
     slopeTolerance: exploratoryLineFit ? questionData.slopeTolerance : undefined,
     interceptTolerance: exploratoryLineFit ? questionData.interceptTolerance : undefined,
     slopeStep: questionData.slopeStep,
     interceptStep: questionData.interceptStep,
     challengeClicks: questionData.fitChallengeClicks,
-  }), [regression.m, regression.b, xs.join('|'), ys.join('|'), exploratoryLineFit, questionData.slopeTolerance, questionData.interceptTolerance, questionData.slopeStep, questionData.interceptStep, questionData.fitChallengeClicks]);
+  }), [regression.m, regression.b, dataXMin, dataXMax, dataYMin, dataYMax, exploratoryLineFit, questionData.slopeTolerance, questionData.interceptTolerance, questionData.slopeStep, questionData.interceptStep, questionData.fitChallengeClicks]);
 
   const [m, setM] = useState(startingModel.m ?? (exploratoryLineFit ? fitControls.slope.start : (forcedModelId === 'linear' ? 1 : round(regression.m * 0.75, 2))));
   const [b, setB] = useState(startingModel.b ?? (exploratoryLineFit ? fitControls.intercept.start : (forcedModelId === 'linear' ? 0 : round(regression.b + 1, 2))));
