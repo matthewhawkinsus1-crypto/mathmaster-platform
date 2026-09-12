@@ -60,6 +60,17 @@ const emptyGradeSplit = () => ({
   shape: GRADE_SHAPE.NOT_STARTED,
 });
 
+// The one place question credit and question weight are combined. Both
+// splitGrade() and gradeWeightTotals() go through it, so a grade and the raw
+// points behind that grade can never disagree.
+const gradeWeightsForIndices = ({ tracker = null, questions = [], indices = [] } = {}) => weightedQuestionTotals({
+  tracker,
+  questions,
+  indices,
+  creditForRecord: (record) => getQuestionCredit(normalizeQuestionRecord(record)),
+  attemptedForRecord: (record) => normalizeQuestionRecord(record).status !== 'unattempted',
+});
+
 const splitGradeForIndices = ({ tracker = null, questions = [], indices = [] } = {}) => {
   const included = Array.isArray(indices) ? indices : [];
   if (!included.length) return emptyGradeSplit();
@@ -70,13 +81,7 @@ const splitGradeForIndices = ({ tracker = null, questions = [], indices = [] } =
     if (record.status !== 'unattempted') attempted += 1;
   });
 
-  const weighted = weightedQuestionTotals({
-    tracker,
-    questions,
-    indices: included,
-    creditForRecord: (record) => getQuestionCredit(normalizeQuestionRecord(record)),
-    attemptedForRecord: (record) => normalizeQuestionRecord(record).status !== 'unattempted',
-  });
+  const weighted = gradeWeightsForIndices({ tracker, questions, indices: included });
 
   const unanswered = included.length - attempted;
   return {
@@ -102,6 +107,36 @@ export const splitGrade = ({ tracker = null, assignment = null } = {}) => {
   const included = projection.entries.map((entry) => entry.storageIndex);
   const questions = getStoredAssignmentQuestions(assignment);
   return splitGradeForIndices({ tracker, questions, indices: included });
+};
+
+/**
+ * The POINTS behind splitGrade(), for the one caller that has to add grades
+ * from several assignments together.
+ *
+ * A percentage cannot be averaged with another percentage without silently
+ * inventing a weighting policy: a one-question warm-up and a twelve-question
+ * investigation would count the same. The student Grade Center needs a period
+ * total, so it needs earned and possible weight rather than the rounded
+ * percent — and it must get them from THIS module, computed by the same
+ * projection and the same question weights as the grade itself.
+ *
+ * Deliberately a separate export rather than extra fields on the split: the
+ * split is what the teacher gradebook renders, and nothing about one
+ * assignment's own grade needs raw weights.
+ */
+export const gradeWeightTotals = ({ tracker = null, assignment = null } = {}) => {
+  const projection = projectCurrentAssignmentContent(assignment);
+  const indices = projection.entries.map((entry) => entry.storageIndex);
+  const weighted = gradeWeightsForIndices({
+    tracker,
+    questions: getStoredAssignmentQuestions(assignment),
+    indices,
+  });
+  return {
+    possibleWeight: weighted.possibleWeight,
+    earnedWeight: weighted.earnedWeight,
+    score: weighted.score,
+  };
 };
 
 /**

@@ -194,6 +194,18 @@ import { buildStudentLearningProfile } from './platform/profile/studentLearningP
 import { resolveDeliveredQuestionMetadata } from './platform/assignments/assignmentAdaptation.js';
 import { adaptLegacyMasteryToPhase5 } from './platform/profile/legacyMasteryAdapter.js';
 import StudentDashboardView from './components/student/StudentDashboardView.jsx';
+import StudentGradeCenter from './components/student/StudentGradeCenter.jsx';
+import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
+import MarkingPeriodSettings from './components/teacher/MarkingPeriodSettings.jsx';
+import {
+  buildStudentGradeCenter,
+  findGradeCenterEntry,
+} from './platform/student/studentGradeCenterModel.js';
+import {
+  GRADING_PERIOD_SETTINGS_DOC,
+  gradingPeriodAssignmentPatch,
+  normalizeGradingPeriodSettings,
+} from './platform/student/gradingPeriods.js';
 import {
   ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings, fetchTeacherWeeklyPathCompletions, fetchStudentWeeklyPathGoalSnapshot,
   interventionAsOverride, logRouteEvent, overridesForClassContext, saveClassPacing, saveSkillOverrides, saveWeeklyGoalSettings,
@@ -401,7 +413,11 @@ function App() {
   // links still parse as sectionKey="whole" and follow the original behavior.
   const [launchAssignment, setLaunchAssignment] = useState(null);
   const [pendingClassroomLaunch, setPendingClassroomLaunch] = useState(null);
-  const [classroomSectionReport, setClassroomSectionReport] = useState(null);
+  // The student Assignment Result route: which assignment is on screen and,
+  // when the student arrived through a split Google Classroom post, which
+  // section that post covered. Launch context only — the grade itself always
+  // comes from the Grade Center model, never from here.
+  const [assignmentResultRoute, setAssignmentResultRoute] = useState(null);
   const [activeClassroomSectionKey, setActiveClassroomSectionKey] = useState(null);
 
   useEffect(() => {
@@ -535,6 +551,11 @@ function App() {
   const [warmupControlBusyKey, setWarmupControlBusyKey] = useState(null);
   const [sectionAccessBusyKey, setSectionAccessBusyKey] = useState(null);
   const [studentDashboardMode, setStudentDashboardMode] = useState('assignments');
+  // Marking-period metadata, shared by the student Grade Center and the teacher
+  // control surface. Student-safe by construction: ids, labels, order, and
+  // whether a period is closed. No teacher notes or policy live in it.
+  const [gradingPeriodSettings, setGradingPeriodSettings] = useState(() => normalizeGradingPeriodSettings({}));
+  const [gradingPeriodBusy, setGradingPeriodBusy] = useState(false);
   const [liveChallengeInvite, setLiveChallengeInvite] = useState(null);
   // Rooms this student has finished or stepped out of. Leaving the inline
   // Warm-Up game has to be recorded, or the route would still say PLAY and drop
@@ -558,11 +579,20 @@ function App() {
         questionIndex: currentQuestionIndex,
       };
     }
+    // Assignment Result is its own entry so the required Back chain —
+    // Practice -> Result -> Grades -> Home — has a browser entry per screen.
+    if (activeView === 'assignmentResult') {
+      return {
+        surface: 'assignmentResult',
+        assignmentId: assignmentResultRoute?.assignmentId || activeAssignmentId || '',
+        sectionKey: assignmentResultRoute?.sectionKey || '',
+      };
+    }
     return {
       surface: 'dashboard',
       dashboardMode: studentDashboardMode || 'assignments',
     };
-  }, [user?.role, activeView, activeAssignmentId, currentQuestionIndex, studentDashboardMode]);
+  }, [user?.role, activeView, activeAssignmentId, currentQuestionIndex, studentDashboardMode, assignmentResultRoute]);
 
   useEffect(() => {
     if (!studentBrowserRoute) {
@@ -608,7 +638,24 @@ function App() {
         return;
       }
 
+      // Back onto a result entry restores the same assignment — and the same
+      // Classroom section, when the student arrived through a split link.
+      if (route.surface === 'assignmentResult') {
+        setPathLaunchTeks(null);
+        setActiveAssignmentId(route.assignmentId || null);
+        setActiveClassroomSectionKey(route.sectionKey || null);
+        setAssignmentResultRoute((current) => (
+          current && current.assignmentId === route.assignmentId
+            ? current
+            : { assignmentId: route.assignmentId || '', sectionKey: route.sectionKey || 'whole', sectionLabel: null, questionIndex: 0 }
+        ));
+        setActiveView('assignmentResult');
+        return;
+      }
+
       setActiveView('dashboard');
+      setAssignmentResultRoute(null);
+      setActiveClassroomSectionKey(null);
       setActiveAssignmentId(null);
       setStudentDashboardMode(route.dashboardMode || 'assignments');
       if (route.dashboardMode !== 'mathPath') setPathLaunchTeks(null);
@@ -650,6 +697,32 @@ function App() {
       assignments,
     });
   }, [user, tracker, supportUsageByAssignment, assignments]);
+
+  /*
+   * THE STUDENT GRADE CENTER, BUILT FROM THE CANONICAL TRACKER.
+   *
+   * `tracker` is grades/{studentId}.gradesByAssignment — the same evidence the
+   * teacher gradebook and Google Classroom passback read. `practiceTracker` is
+   * deliberately NOT passed: post-close practice runs against it, and the model
+   * has no parameter that could receive it, so practising a closed assignment
+   * cannot move a recorded grade.
+   */
+  const studentGradeCenter = useMemo(() => {
+    if (user?.role !== 'student') return null;
+    return buildStudentGradeCenter({
+      assignments,
+      classId: user.classId || null,
+      classPeriod: user.classPeriod,
+      studentId: user.id,
+      courseLabel: user.className || user.classPeriod || '',
+      nowValue: now,
+      tracker,
+      classworkGradesByAssignment,
+      gradingPeriodSettings,
+      classroomSyncStatusByAssignment,
+      providers: { assignmentHasHeldTeacherFeedback, prerequisiteAccess },
+    });
+  }, [user, assignments, now, tracker, classworkGradesByAssignment, gradingPeriodSettings, classroomSyncStatusByAssignment]);
 
   // The signed-in student's own Student Learning Profile, built from the same
   // evidence their teacher's roster reads. Assignment adaptation needs the DOK
@@ -882,15 +955,19 @@ function App() {
         nowValue: Date.now(),
       });
 
-      // A permanently closed split post is an official grade/report link first.
-      // Starting voluntary practice is a separate action so opening Classroom
-      // can never silently replace the frozen record with an ungraded tracker.
+      // A permanently closed post is an official grade/result link first —
+      // whole assignment or split section alike. Starting voluntary practice is
+      // a separate, explicit action so opening Classroom can never silently
+      // replace the frozen record with an ungraded tracker, and the student
+      // lands on a screen with their grade on it rather than a disabled
+      // workspace they cannot navigate out of.
       if (target.showFrozenReportFirst) {
-        setClassroomSectionReport(target);
+        setAssignmentResultRoute(target);
         setActiveClassroomSectionKey(target.sectionKey);
         setActiveAssignmentId(target.assignmentId);
         setCurrentQuestionIndex(target.questionIndex);
-        setActiveView('classroomSectionReport');
+        setStudentDashboardMode('assignments');
+        setActiveView('assignmentResult');
       } else {
         startAssignment(target.assignmentId, target.questionIndex, {
           sectionKey: target.isSectionLaunch ? target.sectionKey : null,
@@ -1673,6 +1750,23 @@ function App() {
     }
   };
 
+  const fetchGradingPeriodSettings = async () => {
+    try {
+      const snapshot = await getDoc(doc(db, 'settings', GRADING_PERIOD_SETTINGS_DOC));
+      const value = normalizeGradingPeriodSettings(snapshot.exists() ? snapshot.data() : {});
+      setGradingPeriodSettings(value);
+      return value;
+    } catch (error) {
+      // A failed read must not empty the Grade Center. Normalizing {} yields the
+      // default current-period bucket, which is exactly what a school that has
+      // never opened the marking-period screen already sees.
+      console.error('Could not load marking periods:', error);
+      const fallback = normalizeGradingPeriodSettings({});
+      setGradingPeriodSettings(fallback);
+      return fallback;
+    }
+  };
+
   const fetchAssignmentFolders = async () => {
     try {
       const snapshot = await getDoc(doc(db, 'settings', 'assignmentFolders'));
@@ -1695,7 +1789,7 @@ function App() {
   const leaveUnavailableAssignment = () => {
     setActiveAssignmentId(null);
     setActiveClassroomSectionKey(null);
-    setClassroomSectionReport(null);
+    setAssignmentResultRoute(null);
     setActiveView('dashboard');
     setPracticeTracker({});
     setPracticeScratchpads({});
@@ -1724,7 +1818,7 @@ function App() {
           viewerRef.current = { email: session.email || null, isRootAdmin: session.isRootAdmin === true };
           classesRef.current = await fetchClasses();
           if (cancelled) return;
-          const [loadedStudents] = await Promise.all([fetchStudents(), fetchClassSchedule(), fetchCourseProfiles(), fetchAssignmentFolders(), fetchPathSettings()]);
+          const [loadedStudents] = await Promise.all([fetchStudents(), fetchClassSchedule(), fetchCourseProfiles(), fetchAssignmentFolders(), fetchGradingPeriodSettings(), fetchPathSettings()]);
           if (cancelled) return;
           await persistCurrentGraderCreditRepairs(loadedStudents, fetchedAssignments);
           if (cancelled) return;
@@ -1753,6 +1847,7 @@ function App() {
         const studentProfile = normalizeStudentProfile(studentData.profile || studentData);
         const loadedCourseProfiles = await fetchCourseProfiles();
         await fetchClassSchedule();
+        await fetchGradingPeriodSettings();
         // The student's class is what decides their course and rigor. The
         // period-keyed profile is only a fallback for a student nobody has
         // placed in a class yet — it cannot answer the question once two
@@ -1835,7 +1930,7 @@ function App() {
     setTeacherWorkspaceMode('teacher');
     setActiveAssignmentId(null);
     setActiveClassroomSectionKey(null);
-    setClassroomSectionReport(null);
+    setAssignmentResultRoute(null);
     setPendingClassroomLaunch(null);
     setPracticeTracker({});
     setPracticeScratchpads({});
@@ -2865,7 +2960,7 @@ function App() {
       ? requestedSectionKey
       : null;
     setActiveClassroomSectionKey(scopedSectionKey);
-    setClassroomSectionReport(null);
+    setAssignmentResultRoute(null);
     setActiveAssignmentId(assignmentId);
     setCurrentQuestionIndex(safeQuestionIndex);
     setAssignmentNavigationCollapsed(false);
@@ -2902,6 +2997,38 @@ function App() {
     }
 
     setActiveView('assignment');
+  };
+
+  /*
+   * STUDENT GRADE NAVIGATION.
+   *
+   * Three destinations, each one browser entry, so Back walks
+   * Practice -> Result -> Grades -> Home instead of leaving MathMaster.
+   * `studentBrowserRoute` turns these state changes into history entries; these
+   * helpers only have to leave the state unambiguous.
+   */
+  const openStudentGradeCenter = () => {
+    setAssignmentResultRoute(null);
+    setActiveClassroomSectionKey(null);
+    setActiveAssignmentId(null);
+    setPathLaunchTeks(null);
+    setStudentDashboardMode('grades');
+    setActiveView('dashboard');
+  };
+
+  const openStudentAssignmentResult = (assignmentId, options = {}) => {
+    const id = String(assignmentId || '').trim();
+    if (!id) return;
+    const sectionKey = String(options.sectionKey || '').trim().toLowerCase() || 'whole';
+    setAssignmentResultRoute({
+      assignmentId: id,
+      sectionKey,
+      sectionLabel: options.sectionLabel || null,
+      questionIndex: Number(options.questionIndex) || 0,
+    });
+    setActiveClassroomSectionKey(sectionKey === 'whole' ? null : sectionKey);
+    setActiveAssignmentId(id);
+    setActiveView('assignmentResult');
   };
 
   const startTeacherPreview = (assignmentId) => {
@@ -5339,6 +5466,74 @@ function App() {
       selectedAssignmentIds,
       { folder: folder || null },
       (count) => `Moved ${count} assignment${count === 1 ? '' : 's'} to ${folder || 'Uncategorized'}`,
+    );
+  };
+
+  /*
+   * MARKING PERIODS — TEACHER WRITES.
+   *
+   * Two documents, and they never touch each other's business:
+   *   settings/gradingPeriods  the period list and which one is current
+   *   assignments/{id}         a {id,label,order} stamp, written only here
+   *
+   * Nothing in this group reads or writes `assignment.archived`. Closing a
+   * marking period is a reporting-window decision; archiving an assignment is
+   * a filing decision, and conflating them would let one quietly do the other.
+   */
+  const persistGradingPeriodSettings = async (next, successMessage) => {
+    const normalized = normalizeGradingPeriodSettings(next);
+    setGradingPeriodBusy(true);
+    try {
+      await setDoc(doc(db, 'settings', GRADING_PERIOD_SETTINGS_DOC), {
+        periods: normalized.periods,
+        currentPeriodId: normalized.currentPeriodId,
+        updatedAt: new Date().toISOString(),
+      });
+      setGradingPeriodSettings(normalized);
+      if (successMessage) toastSuccess(successMessage);
+      return normalized;
+    } catch (error) {
+      console.error(error);
+      toastError('Could not save marking periods', error.message);
+      return gradingPeriodSettings;
+    } finally {
+      setGradingPeriodBusy(false);
+    }
+  };
+
+  const handleCreateGradingPeriod = (period) => persistGradingPeriodSettings(
+    {
+      periods: [...gradingPeriodSettings.periods, period],
+      // The first period a school creates becomes current, so creating one
+      // never leaves students looking at a Grade Center with no current group.
+      currentPeriodId: gradingPeriodSettings.currentPeriodId || period.id,
+    },
+    `Added ${period.label}`,
+  );
+
+  const handleSetCurrentGradingPeriod = (periodId) => persistGradingPeriodSettings(
+    { ...gradingPeriodSettings, currentPeriodId: periodId },
+    'Current marking period updated',
+  );
+
+  const handleSetGradingPeriodArchived = (periodId, archived) => persistGradingPeriodSettings(
+    {
+      ...gradingPeriodSettings,
+      periods: gradingPeriodSettings.periods.map((period) => (
+        period.id === periodId ? { ...period, archived } : period
+      )),
+    },
+    archived
+      ? 'Marking period closed. Students keep every grade in it; it simply collapses by default.'
+      : 'Marking period reopened',
+  );
+
+  const handleMoveSelectedAssignmentsToGradingPeriod = async (period) => {
+    const label = period?.label || 'the default current period';
+    await applyBulkAssignmentPatch(
+      selectedAssignmentIds,
+      gradingPeriodAssignmentPatch(period),
+      (count) => `Moved ${count} assignment${count === 1 ? '' : 's'} to ${label}`,
     );
   };
 
@@ -7846,6 +8041,17 @@ function App() {
               <div>
                 <h2 style={{ marginTop: 0 }}>Gradebook and Evidence</h2>
 
+                <MarkingPeriodSettings
+                  settings={gradingPeriodSettings}
+                  assignments={assignments}
+                  selectedAssignmentIds={selectedAssignmentIds}
+                  busy={gradingPeriodBusy || bulkBusy}
+                  onCreatePeriod={handleCreateGradingPeriod}
+                  onSetCurrentPeriod={handleSetCurrentGradingPeriod}
+                  onSetPeriodArchived={handleSetGradingPeriodArchived}
+                  onMoveSelectedAssignments={handleMoveSelectedAssignmentsToGradingPeriod}
+                />
+
                 {/*
                   The weekly Path grade lives in the gradebook because it IS a
                   grade — but it is a grade about a different thing from the
@@ -8057,6 +8263,21 @@ function App() {
         </>
       );
     }
+    if (studentDashboardMode === 'grades') {
+      return (
+        <>
+          {renderStudentPackUpBanner()}
+          {renderStudentWarmupBanner()}
+          <StudentGradeCenter
+            gradeCenter={studentGradeCenter}
+            supportPresentation={getStudentSupportPresentation(user.profile)}
+            onBackToHome={() => setStudentDashboardMode('assignments')}
+            onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId)}
+            onPractice={(assignmentId) => startAssignment(assignmentId)}
+          />
+        </>
+      );
+    }
     if (studentDashboardMode === 'secureExams') {
       return (
         <>
@@ -8117,6 +8338,7 @@ function App() {
         onExportAssignmentPdf={exportAssignmentWorksheetPdf}
         onOpenMathPath={() => setStudentDashboardMode('mathPath')}
         onOpenSecureExams={() => setStudentDashboardMode('secureExams')}
+        onOpenGrades={openStudentGradeCenter}
         // The one thing this student should do next, decided by the model
         // rather than left for them to work out from six equal panels.
         nextAction={studentNextAction}
@@ -8136,34 +8358,38 @@ function App() {
     );
   }
 
-  if (user.role === 'student' && activeView === 'classroomSectionReport' && classroomSectionReport) {
-    const reportAssignment = assignments.find((assignment) => assignment.id === classroomSectionReport.assignmentId) || null;
-    const reportSections = splitGradesBySection({
-      tracker: tracker[classroomSectionReport.assignmentId] || {},
-      assignment: reportAssignment,
-    });
-    const reportGrade = reportSections[classroomSectionReport.sectionKey] || null;
+  /*
+   * ASSIGNMENT RESULT.
+   *
+   * Reached three ways, and all three land on the same screen reading the same
+   * entry: a Grade Center row, a closed Google Classroom deep link, and browser
+   * Back from practice. `assignmentResultRoute` holds the launch context
+   * (which section the Classroom post covered) and nothing about the grade —
+   * the grade comes from the Grade Center model, so this screen and the list
+   * that linked to it cannot show different numbers.
+   */
+  if (user.role === 'student' && activeView === 'assignmentResult' && assignmentResultRoute) {
+    const resultEntry = findGradeCenterEntry(studentGradeCenter, assignmentResultRoute.assignmentId);
+    const resultSectionLabel = assignmentResultRoute.sectionKey && assignmentResultRoute.sectionKey !== 'whole'
+      ? assignmentResultRoute.sectionLabel || assignmentResultRoute.sectionKey
+      : null;
     return (
       <>
         {renderStudentPackUpBanner()}
         {renderStudentWarmupBanner()}
-        <main style={{ minHeight: '100vh', background: '#f5f7fb', padding: '28px 18px', fontFamily: '"Segoe UI", sans-serif' }}>
-          <section style={{ maxWidth: 760, margin: '0 auto', padding: 24, borderRadius: 14, background: '#fff', border: '1px solid #d8dde6', boxShadow: '0 6px 20px rgba(0,0,0,.06)' }}>
-            <div style={{ fontSize: 12, fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>Google Classroom · official frozen report</div>
-            <h1 style={{ margin: '8px 0 4px', fontSize: 24, color: '#202124' }}>{reportAssignment?.title || 'MathMaster Assignment'}</h1>
-            <h2 style={{ margin: '0 0 18px', fontSize: 18, color: '#174ea6' }}>{classroomSectionReport.sectionLabel} section</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 18 }}>
-              <div style={{ padding: 14, borderRadius: 10, background: '#e8f0fe' }}><div style={{ fontSize: 11, fontWeight: 900, color: '#5f6368' }}>SECTION GRADE</div><strong style={{ display: 'block', marginTop: 4, fontSize: 28, color: '#174ea6' }}>{reportGrade?.score ?? 0}%</strong></div>
-              <div style={{ padding: 14, borderRadius: 10, background: '#f8f9fa' }}><div style={{ fontSize: 11, fontWeight: 900, color: '#5f6368' }}>ANSWERED</div><strong style={{ display: 'block', marginTop: 4, fontSize: 22, color: '#202124' }}>{reportGrade?.attempted ?? 0} / {reportGrade?.total ?? classroomSectionReport.questionIndices?.length ?? 0}</strong></div>
-              <div style={{ padding: 14, borderRadius: 10, background: '#e6f4ea' }}><div style={{ fontSize: 11, fontWeight: 900, color: '#5f6368' }}>STATUS</div><strong style={{ display: 'block', marginTop: 4, fontSize: 16, color: '#137333' }}>Official grade frozen</strong></div>
-            </div>
-            <p style={{ color: '#5f6368', lineHeight: 1.55 }}>This is the recorded {classroomSectionReport.sectionLabel} grade tied to this Google Classroom post. Practice after the final late deadline is separate and cannot change this frozen grade, evidence, mastery, or Classroom score.</p>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }}>
-              <button type="button" onClick={() => startAssignment(classroomSectionReport.assignmentId, classroomSectionReport.questionIndex, { sectionKey: classroomSectionReport.sectionKey })} style={{ padding: '10px 15px', border: 0, borderRadius: 8, background: '#174ea6', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Practice this section</button>
-              <button type="button" onClick={() => { setClassroomSectionReport(null); setActiveClassroomSectionKey(null); setActiveAssignmentId(null); setActiveView('dashboard'); }} style={{ padding: '10px 15px', border: '1px solid #c9ced6', borderRadius: 8, background: '#fff', color: '#3c4043', fontWeight: 800, cursor: 'pointer' }}>Return to dashboard</button>
-            </div>
-          </section>
-        </main>
+        <StudentAssignmentResult
+          entry={resultEntry}
+          sectionLabel={resultSectionLabel}
+          supportPresentation={getStudentSupportPresentation(user.profile)}
+          onReviewWork={(assignmentId) => startAssignment(assignmentId, assignmentResultRoute.questionIndex)}
+          onPractice={(assignmentId) => startAssignment(assignmentId, assignmentResultRoute.questionIndex, {
+            // A split Classroom post practises its own section; a whole-assignment
+            // post practises the whole assignment.
+            sectionKey: resultSectionLabel ? assignmentResultRoute.sectionKey : null,
+          })}
+          onViewAllGrades={openStudentGradeCenter}
+          onBackToHome={() => { setAssignmentResultRoute(null); setActiveClassroomSectionKey(null); setActiveAssignmentId(null); setStudentDashboardMode('assignments'); setActiveView('dashboard'); }}
+        />
       </>
     );
   }
