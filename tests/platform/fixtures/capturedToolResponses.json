@@ -226,7 +226,8 @@
         ],
         "m": 1.9,
         "b": 0,
-        "r": 0.9811557810392123
+        "r": 0.9811557810392123,
+        "r2": 0.9626666666666667
       },
       "interpretation": {
         "direction": "positive",
@@ -234,14 +235,20 @@
       },
       "processEvidence": [
         {
-          "type": "tableEdited",
-          "row": 1,
-          "column": "x1"
+          "type": "orderedPairEntered",
+          "row": 1
         },
         {
-          "type": "tableEdited",
-          "row": 1,
-          "column": "y1"
+          "type": "editModeOpened",
+          "row": 1
+        },
+        {
+          "type": "tableConversionOffered",
+          "row": 1
+        },
+        {
+          "type": "tableCreated",
+          "fromOrderedPair": true
         },
         {
           "type": "tableEdited",
@@ -274,8 +281,10 @@
           "column": "y1"
         },
         {
-          "type": "regressionSelected",
-          "operation": "linearRegression"
+          "type": "expressionAdded"
+        },
+        {
+          "type": "regressionExpressionEntered"
         },
         {
           "type": "regressionExecuted",
@@ -284,6 +293,14 @@
         {
           "type": "correlationProduced",
           "value": 0.9811557810392123
+        },
+        {
+          "type": "interpretationSelected",
+          "kind": "direction"
+        },
+        {
+          "type": "interpretationSelected",
+          "kind": "strength"
         }
       ]
     }
