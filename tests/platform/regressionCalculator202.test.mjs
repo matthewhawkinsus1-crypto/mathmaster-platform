@@ -182,7 +182,7 @@ test('calculator 2.0 stays inside Work View and publishes the discovery workflow
   assert.match(component, /tablePoints\.length >= 2[\s\S]*aria-label="Add Regression"/);
   assert.match(component, /aria-label="Add Item"[\s\S]*role="menuitem"[\s\S]*>table</);
   assert.match(component, /useMathUndoHistory[\s\S]*questionUndoResetKey\(questionData\)/);
-  assert.match(component, /aria-label="Start over"[\s\S]*onClick=\{startOver\}/);
+  assert.match(component, /onClick=\{startOver\}[\s\S]*aria-label="Start over"/);
   assert.match(component, /setNotice\('Workspace cleared\.'\)/);
   assert.match(component, /shouldEmerge[\s\S]*next\.push\(EMPTY_EXPRESSION\(\)\)/);
   assert.match(component, /value: 'y₁ ~ mx₁ \+ b'/);
