@@ -308,7 +308,7 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
                 <div key={`${assignment.id}:${role}`} style={{ padding: '12px 14px', borderRadius: '9px', border: '1px solid #c5d5ef', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   <div>
                     <strong>{assignment.title}</strong>
-                    <div style={{ marginTop: 4, fontSize: 12, color: '#5f6368' }}><strong>{label}:</strong> {state.isOpen ? 'open for new responses' : state.override?.state === 'closed' ? 'closed by teacher · review only' : 'starts locked · waiting for teacher'}</div>
+                    <div style={{ marginTop: 4, fontSize: 12, color: '#5f6368' }}><strong>{label}:</strong> {state.isOpen ? 'open for new responses' : state.status === 'stageScheduled' ? `scheduled to open ${new Date(state.opensAt).toLocaleString()}` : state.override?.state === 'closed' ? 'closed by teacher · review only' : 'starts locked · waiting for teacher'}</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 12, fontWeight: 900, padding: '4px 8px', borderRadius: 999, background: state.isOpen ? '#e6f4ea' : '#f1f3f4', color: state.isOpen ? '#137333' : '#5f6368' }}>{state.isOpen ? 'OPEN' : 'CLOSED'}</span>
