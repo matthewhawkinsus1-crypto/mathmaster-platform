@@ -49,6 +49,10 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(db, 'grades/S1042/scratchpads/a__question_delete'), { dataUrl: 'delete-me', authorizedTeacherEmails: [TEACHER_EMAIL] });
   await setDoc(doc(db, 'assignments/A1'), { title: 'Unit 1' });
   await setDoc(doc(db, 'settings/classSchedule'), { periods: {} });
+  await setDoc(doc(db, 'settings/gradingPeriods'), {
+    periods: [{ id: '2026-mp1', label: 'Marking Period 1', order: 1, archived: false }],
+    currentPeriodId: '2026-mp1',
+  });
   await setDoc(doc(db, 'studentCredentials/S1042'), { hash: 'secret' });
   await setDoc(doc(db, 'classJoinCodes/K7M4QP'), { classPeriod: 'Period 1' });
   await setDoc(doc(db, 'teacherDirectory/t@school.org'), { active: true });
@@ -148,6 +152,11 @@ await check('student lists assignments', assertSucceeds(getDocs(collection(stude
 await check('student CANNOT write assignments', assertFails(setDoc(doc(student, 'assignments/A1'), { title: 'hax' }, { merge: true })));
 await check('student reads class schedule', assertSucceeds(getDoc(doc(student, 'settings/classSchedule'))));
 await check('student CANNOT write settings', assertFails(setDoc(doc(student, 'settings/classSchedule'), { periods: {} }, { merge: true })));
+// Marking-period metadata is student-safe by construction — ids, labels, order
+// and whether a period is closed — and the Grade Center cannot group grades
+// without reading it. Writing it is a teacher decision.
+await check('student reads marking periods', assertSucceeds(getDoc(doc(student, 'settings/gradingPeriods'))));
+await check('student CANNOT write marking periods', assertFails(setDoc(doc(student, 'settings/gradingPeriods'), { currentPeriodId: 'hax' }, { merge: true })));
 
 await check('student CANNOT read assignment version events', assertFails(getDoc(doc(student, 'assignmentVersionEvents/version-event-1'))));
 await check('teacher CANNOT read assignment version events directly', assertFails(getDoc(doc(teacher, 'assignmentVersionEvents/version-event-1'))));
@@ -169,6 +178,20 @@ await check('root admin CANNOT bypass audited callable with direct student delet
 await check('teacher reads authorized scratchpad', assertSucceeds(getDoc(doc(teacher, 'grades/S1042/scratchpads/a__question_0'))));
 await check('teacher writes assignments', assertSucceeds(setDoc(doc(teacher, 'assignments/A2'), { title: 'Unit 2' })));
 await check('teacher writes settings', assertSucceeds(setDoc(doc(teacher, 'settings/assignmentFolders'), { paths: [] })));
+await check('teacher writes marking periods', assertSucceeds(setDoc(doc(teacher, 'settings/gradingPeriods'), {
+  periods: [{ id: '2026-mp2', label: 'Marking Period 2', order: 2, archived: false }],
+  currentPeriodId: '2026-mp2',
+})));
+await check('teacher stamps an assignment with its marking period', assertSucceeds(setDoc(
+  doc(teacher, 'assignments/A1'),
+  { gradingPeriod: { id: '2026-mp2', label: 'Marking Period 2', order: 2 } },
+  { merge: true },
+)));
+await check('student CANNOT move an assignment between marking periods', assertFails(setDoc(
+  doc(student, 'assignments/A1'),
+  { gradingPeriod: { id: '2026-mp1', label: 'Marking Period 1', order: 1 } },
+  { merge: true },
+)));
 await check('teacher deletes assignments', assertSucceeds(deleteDoc(doc(teacher, 'assignments/A2'))));
 await check('teacher reads live presence only for own roster', assertSucceeds(getDoc(doc(teacher, 'presence/S1042'))));
 await check('teacher CANNOT read another teacher live presence', assertFails(getDoc(doc(teacher, 'presence/S2000'))));

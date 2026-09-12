@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { assertCapability, region } from './helpers/sourceContract.mjs';
 
 const source = fs.readFileSync(
   new URL('../../src/App.jsx', import.meta.url),
@@ -29,7 +30,42 @@ test('student workspace shows the active section score instead of only the whole
 
 test('Classroom split launch preserves exact section and closed links stop on frozen report first', () => {
   assert.match(source, /pendingClassroomLaunch/);
-  assert.match(source, /showFrozenReportFirst/);
-  assert.match(source, /Practice this section/);
-  assert.match(source, /classroomSectionReport/);
+  assert.match(source, /assignmentResultRoute/);
+
+  // The behaviour: a closed Classroom link must stop on the recorded result
+  // instead of opening the work screen, and it must carry the exact section it
+  // posted with it. The frozen report itself moved out of App.jsx into
+  // StudentAssignmentResult.jsx, so the words on its practice button are that
+  // component's business now — what App.jsx still owns is the routing decision.
+  const launchEffect = region(
+    source,
+    'const target = classroomLaunchTarget({',
+    'setPendingClassroomLaunch(null)',
+    'Classroom launch effect',
+  );
+  assert.match(launchEffect, /showFrozenReportFirst/);
+  assert.match(launchEffect, /setActiveView\('assignmentResult'\)/);
+  assert.match(launchEffect, /setActiveClassroomSectionKey\(target\.sectionKey\)/);
+  assert.match(launchEffect, /setAssignmentResultRoute\(target\)/);
+  // The open-assignment path is unchanged: still straight into the workspace.
+  assert.match(launchEffect, /startAssignment\(target\.assignmentId/);
+
+  // Section-only practice survived the move: the result screen offers practice
+  // scoped to the section the Classroom post covered.
+  const result = fs.readFileSync(
+    new URL('../../src/components/student/StudentAssignmentResult.jsx', import.meta.url),
+    'utf8',
+  );
+  assertCapability(
+    result,
+    [/Practice \{sectionLabel\}/, /Practice this section/, /`Practice \$\{sectionLabel\}`/],
+    'The Assignment Result screen must offer practice scoped to the Classroom section it was opened from.',
+  );
+  const appResult = region(
+    source,
+    '<StudentAssignmentResult',
+    '/>',
+    'Assignment Result render',
+  );
+  assert.match(appResult, /sectionKey: resultSectionLabel \? assignmentResultRoute\.sectionKey : null/);
 });

@@ -78,7 +78,20 @@ export function classroomLaunchTarget({
 
   const lifecycle = getAssignmentLifecycle(assignment, nowValue);
   const originIsSectionLaunch = sectionKey !== 'whole';
-  const showFrozenReportFirst = Boolean(originIsSectionLaunch && lifecycle.isPracticeOnly);
+
+  /*
+   * A CLOSED CLASSROOM LINK IS A RESULT LINK, WHATEVER IT POSTED.
+   *
+   * Google Classroom posts outlive the deadline. A student who taps one in
+   * November for work that closed in September used to land on the work screen
+   * with every control disabled — a dead end with their grade nowhere on it,
+   * and no way back into MathMaster except the browser's Back button.
+   *
+   * The decision is the deadline, not the shape of the post. Split section
+   * links already behaved this way; whole-assignment links were the gap, and a
+   * whole-assignment link is the ordinary case.
+   */
+  const showFrozenReportFirst = lifecycle.isPracticeOnly;
 
   return {
     assignmentId,
@@ -93,7 +106,9 @@ export function classroomLaunchTarget({
     // students must still be able to move through the rest of the assignment
     // under the ordinary lifecycle/timer locks. Once the assignment is frozen,
     // the report's explicit “Practice this section” action remains section-only.
-    isSectionLaunch: showFrozenReportFirst,
+    // A frozen WHOLE-assignment link stays whole: there is no section to
+    // confine practice to, so it must not inherit a section filter.
+    isSectionLaunch: Boolean(showFrozenReportFirst && originIsSectionLaunch),
     questionIndices,
     questionIndex: questionIndices[0],
     lifecycleStatus: lifecycle.status,

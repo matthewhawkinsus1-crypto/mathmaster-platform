@@ -6,6 +6,7 @@ import WhatShouldIDoNow from './WhatShouldIDoNow.jsx';
 import { BUCKET_LABEL, BUCKET_OPEN_BY_DEFAULT, BUCKET_ORDER } from '../../studentDashboardModel.js';
 import DOLCountdown from './DOLCountdown.jsx';
 import { formatDateTime, formatRemainingTime } from '../../assignmentLifecycle';
+import { describeClassroomReceipt } from '../../platform/classroom/classroomReceiptPresentation.js';
 
 // The student's assignment dashboard, as a component.
 //
@@ -46,6 +47,7 @@ export default function StudentDashboardView({
   onExportAssignmentPdf = null,
   onOpenMathPath = null,
   onOpenSecureExams = null,
+  onOpenGrades = null,
   // The single answer to "what should I do now?", already decided by
   // resolveNextAction. Null in contexts that render the list alone.
   nextAction = null,
@@ -82,20 +84,14 @@ export default function StudentDashboardView({
 
   const renderAssignmentCard = ({ assignment, lifecycle, access, recordedGrade, activity, classwork, dol, disabled, feedbackHeld, questionsTotal, questionsDone, questionsAttempted = 0 }) => {
     const classroomReceipt = classroomSyncStatusByAssignment?.[assignment.id] || null;
-    const receiptStage = String(classroomReceipt?.stage || '');
-    const receiptFinal = classroomReceipt?.isFinal === true || receiptStage.startsWith('final-');
-    const receiptStudentVisible = classroomReceipt?.studentVisible === true;
-    const receiptLabel = receiptFinal
-      ? 'FINAL'
-      : receiptStage === 'due-checkpoint'
-        ? 'DUE-DATE CHECKPOINT'
-        : receiptStage === 'assessment-release'
-          ? 'RELEASED'
-          : receiptStudentVisible
-            ? 'RELEASED UPDATE'
-            : 'TEACHER DRAFT';
-    const classroomGrade = Number.isFinite(Number(classroomReceipt?.grade)) ? Number(classroomReceipt.grade) : null;
-    const classroomIsCurrent = classroomGrade != null && Number(recordedGrade) === classroomGrade;
+    // Which checkpoint this receipt is, decided by the shared reader so the
+    // Assignment Result screen cannot label the same receipt differently.
+    const receipt = describeClassroomReceipt({ receipt: classroomReceipt, mathMasterGrade: recordedGrade });
+    const receiptFinal = receipt.isFinal;
+    const receiptStudentVisible = receipt.studentVisible;
+    const receiptLabel = receipt.label;
+    const classroomGrade = receipt.grade;
+    const classroomIsCurrent = receipt.matchesMathMaster;
     const statusStyle = lifecycle.isPracticeOnly ? { border: '#5f6368', bg: '#f1f3f4', color: '#3c4043', label: 'Practice only' } : lifecycle.isLate ? { border: '#f9ab00', bg: '#fff4ce', color: '#7a4f00', label: 'Late' } : lifecycle.isScheduled ? { border: '#9aa0a6', bg: '#f1f3f4', color: '#3c4043', label: 'Scheduled' } : { border: '#d8dde6', bg: '#e6f4ea', color: '#137333', label: 'On time' };
     return (
       <article key={assignment.id} style={{ background: '#fff', padding: '21px 26px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap', border: `2px solid ${statusStyle.border}` }}>
@@ -159,6 +155,10 @@ export default function StudentDashboardView({
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '20px 30px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: '24px', gap: '20px', flexWrap: 'wrap' }}>
           <div style={{ textAlign: 'left' }}><h1 style={{ margin: 0, color: '#1a73e8', fontSize: '25px' }}>Welcome, {student.displayName || student.id}</h1><p style={{ margin: '4px 0 0', color: '#5f6368' }}>{student.classPeriod}{student.inclusionStatus ? ' · Inclusion supports active' : ''}</p></div>
           <div style={{ display: 'flex', gap: '9px', flexWrap: 'wrap' }}>
+            {/* Grades comes first in the header: it is the question a student
+                opens MathMaster with most often outside class, and it was the
+                one thing Home had no route to. */}
+            <button type="button" onClick={() => onOpenGrades?.()} style={{ minHeight: 44, padding: '9px 15px', background: '#12633a', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 900 }}>Grades</button>
             <button type="button" onClick={() => onOpenMathPath?.()} style={{ padding: '9px 15px', background: '#174ea6', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 900 }}>My Math Path</button>
             <button type="button" onClick={() => onOpenSecureExams?.()} style={{ padding: '9px 15px', background: '#3c4043', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 900 }}>Secure Exams</button>
             <button type="button" onClick={onLogout} style={{ padding: '8px 16px', background: '#f1f3f4', color: '#5f6368', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Log Out</button>
