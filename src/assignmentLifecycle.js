@@ -165,18 +165,18 @@ export const hasMixedSectionVariantModes = (assignment) => {
 };
 
 
-export const MANUALLY_CONTROLLABLE_SECTION_ROLES = Object.freeze(['classwork', 'practice']);
+export const MANUALLY_CONTROLLABLE_SECTION_ROLES = Object.freeze(['classwork', 'practice', 'test', 'retest']);
 
 const SECTION_ACCESS_STATES = new Set(['open', 'closed']);
 
 // Classwork and Practice are ordinarily available whenever the assignment is
-// open. A teacher may instead author either section to START LOCKED, then open
-// or close it for one class period from the live hub. The override belongs to
-// assignment + class period, so Period 3 never changes Period 5.
+// open. Test Cycle Test/Retest sections use the same per-class control, but
+// default CLOSED when no stage opensAt is authored. That lets Period 2 start a
+// Test without exposing it to Period 6. A scheduled opensAt keeps the default
+// open but the assessment pathway itself blocks entry until that time.
 //
-// After the final grading cutoff the whole assignment becomes voluntary
-// Practice Mode. At that point teacher section locks no longer hide content —
-// students may revisit everything, but none of it writes grades/evidence.
+// After the final grading cutoff ordinary lesson sections become voluntary
+// Practice Mode. Test Cycle Test/Retest sections never inherit that bypass.
 export const getSectionAccessState = ({ assignment, activityRole, classId = null, classPeriod: _classPeriod, nowValue = Date.now() }) => {
   const role = String(activityRole || '').trim().toLowerCase();
   const exists = projectCurrentAssignmentContent(assignment).entries.some((entry) => entry.logicalRole === role);
@@ -185,7 +185,9 @@ export const getSectionAccessState = ({ assignment, activityRole, classId = null
   if (!MANUALLY_CONTROLLABLE_SECTION_ROLES.includes(role) || !exists) {
     return { role, enabled: false, status: 'unavailable', isOpen: true, defaultState: 'open', override: null, lifecycle };
   }
-  if (lifecycle.isPracticeOnly) {
+  const isTestCycle = String(assignment?.assessmentPolicy?.mode || '') === 'testCycle';
+  const protectedAssessmentRole = isTestCycle && ['test', 'retest'].includes(role);
+  if (lifecycle.isPracticeOnly && !protectedAssessmentRole) {
     return { role, enabled: true, status: 'open', isOpen: true, defaultState: 'open', override: null, lifecycle, practiceOnly: true };
   }
   if (lifecycle.isScheduled) {
@@ -196,8 +198,10 @@ export const getSectionAccessState = ({ assignment, activityRole, classId = null
   }
 
   const config = assignment?.sectionAccess?.[role] || {};
-  const configuredDefault = String(config.defaultState || assignment?.sectionAccessDefaults?.[role] || 'open').toLowerCase();
-  const defaultState = SECTION_ACCESS_STATES.has(configuredDefault) ? configuredDefault : 'open';
+  const stageHasScheduledOpen = Boolean(protectedAssessmentRole && assignment?.assessmentPolicy?.[role]?.opensAt);
+  const inferredDefault = protectedAssessmentRole && !stageHasScheduledOpen ? 'closed' : 'open';
+  const configuredDefault = String(config.defaultState || assignment?.sectionAccessDefaults?.[role] || inferredDefault).toLowerCase();
+  const defaultState = SECTION_ACCESS_STATES.has(configuredDefault) ? configuredDefault : inferredDefault;
   const override = scopedOverride({ byClassId: config?.overridesByClassId, classId });
   const overrideState = String(override?.state || '').toLowerCase();
   const status = SECTION_ACCESS_STATES.has(overrideState) ? overrideState : defaultState;
