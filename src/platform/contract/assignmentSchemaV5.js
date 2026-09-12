@@ -319,19 +319,20 @@ export const validateAssignmentV5 = (input = {}, { requireQuestions = true } = {
     const requiredQuestionRoles = input?.assessmentPolicy?.review?.required === false
       ? ['test', 'retest']
       : ['review', 'test', 'retest'];
+    const includedQuestionCount = (section) => (
+      Array.isArray(section?.questions)
+        ? section.questions.filter((question) => question?.teacherExcluded !== true).length
+        : 0
+    );
     requiredQuestionRoles.forEach((role) => {
       const section = sectionsByRole.get(role);
-      if (section && (!Array.isArray(section.questions) || section.questions.length === 0)) {
-        errors.push(`Test Cycle ${role} section must contain at least one question.`);
+      if (section && includedQuestionCount(section) === 0) {
+        errors.push(`Test Cycle ${role} section must contain at least one included question.`);
       }
     });
 
-    const testCount = Array.isArray(sectionsByRole.get('test')?.questions)
-      ? sectionsByRole.get('test').questions.length
-      : 0;
-    const retestCount = Array.isArray(sectionsByRole.get('retest')?.questions)
-      ? sectionsByRole.get('retest').questions.length
-      : 0;
+    const testCount = includedQuestionCount(sectionsByRole.get('test'));
+    const retestCount = includedQuestionCount(sectionsByRole.get('retest'));
     const retestStrategy = clean(input?.assessmentPolicy?.retest?.strategy) || 'shortForm';
     if (retestStrategy === 'shortForm' && testCount > 1 && retestCount >= testCount) {
       warnings.push(`Test Cycle Retest is configured as shortForm but contains ${retestCount} questions versus ${testCount} on the Test. Use a smaller fresh Retest set or choose a different Retest strategy.`);
