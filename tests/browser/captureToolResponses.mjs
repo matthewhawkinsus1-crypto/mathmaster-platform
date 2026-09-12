@@ -129,11 +129,24 @@ const SCRIPTS = {
   },
 
   regressionCalculator: async (page) => {
-    const values = ['1', '2', '2', '4', '3', '5', '4', '8'];
+    // Regression Calculator 2.0 intentionally opens blank. A student must
+    // enter an ordered pair, discover the context-sensitive table conversion,
+    // finish the x₁/y₁ table, then evaluate a regression expression.
+    await page.getByLabel('Expression 1').fill('(1,2)');
+    await page.getByRole('button', { name: 'Settings and edit' }).click();
+    await page.getByRole('menuitem', { name: 'Convert ordered pair to table' }).click();
+
     const cells = page.locator('.regression-table input');
-    for (let index = 0; index < values.length; index += 1) await cells.nth(index).fill(values[index]);
-    await page.locator('label', { hasText: 'Calculation' }).locator('select').selectOption('linearRegression');
-    await btn(page, 'Run regression').click();
+    const remaining = ['2', '4', '3', '5', '4', '8'];
+    for (let index = 0; index < remaining.length; index += 1) {
+      await cells.nth(index + 2).fill(remaining[index]);
+    }
+
+    await page.getByRole('button', { name: 'Add expression' }).click();
+    await page.locator('.regression-expression-row input').last().fill('y1 ~ mx1 + b');
+    await page.getByRole('button', { name: 'Evaluate regression expression' }).click();
+    await page.getByText(/r = 0\\.9812/).waitFor();
+
     await page.locator('label', { hasText: 'Direction' }).locator('select').selectOption('positive');
     await page.locator('label', { hasText: 'Strength' }).locator('select').selectOption('strong');
     await btn(page, 'Submit workflow').click();
