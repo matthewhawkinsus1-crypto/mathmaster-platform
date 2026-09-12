@@ -3767,12 +3767,23 @@ function App() {
       if (!teacherReview || typeof teacherReview !== 'object') {
         throw new Error('Publishing requires the completed Assignment Review settings.');
       }
-      const reviewedV5 = reviewedAssignmentV5 && Number(reviewedAssignmentV5.schemaVersion) === 5
+      const reviewedCandidate = reviewedAssignmentV5 && Number(reviewedAssignmentV5.schemaVersion) === 5
         ? reviewedAssignmentV5
         : null;
-      if (!reviewedV5) {
+      if (!reviewedCandidate) {
         throw new Error('Publishing requires the MathMaster assignment that was reviewed before creation.');
       }
+
+      // Creation must never be the first place a teacher learns that the
+      // reviewed assignment is invalid. Re-run the same native V5 Preflight
+      // model used by Assignment Review and publish only its validated,
+      // persistence-safe object. This is a final race/defense check, not a
+      // separate validation system.
+      const finalPreflight = buildAssignmentV5PreflightModel(reviewedCandidate);
+      if (!finalPreflight.isValid) {
+        throw new Error(`This assignment is no longer ready to create:\n${finalPreflight.errors.join('\n')}`);
+      }
+      const reviewedV5 = finalPreflight.assignmentV5;
 
       // Final publishing consumes the exact reviewed canonical object. The
       // original pasted/uploaded JSON is intentionally not reparsed here.
