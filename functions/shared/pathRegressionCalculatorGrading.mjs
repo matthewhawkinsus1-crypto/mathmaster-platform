@@ -19,6 +19,8 @@ export const regressionCalculatorStats = (points = []) => {
   return { m, b: my - m * mx, r: sxy / Math.sqrt(sxx * syy) };
 };
 
+const normalizeSourceMode = (value) => value === 'scatterplot' ? 'scatterplot' : 'data';
+
 const descriptor = (r) => ({
   direction: Math.abs(r) < 0.1 ? 'none' : r > 0 ? 'positive' : 'negative',
   strength: Math.abs(r) >= 0.8 ? 'strong' : Math.abs(r) >= 0.5 ? 'moderate' : Math.abs(r) >= 0.1 ? 'weak' : 'none',
@@ -35,15 +37,29 @@ const sameTable = (actual, expected, tolerance = 1e-9) => {
   ));
 };
 
-export const sanitizeRegressionCalculatorPublicQuestion = (question = {}) => ({
-  prompt: String(question.prompt || ''),
-  sourceData: cleanRegressionPoints(question.sourceData || question.points),
-  requireInterpretation: question.requireInterpretation !== false,
-});
+export const sanitizeRegressionCalculatorPublicQuestion = (question = {}) => {
+  const sourceGraphBounds = question.sourceGraphBounds && typeof question.sourceGraphBounds === 'object'
+    ? Object.fromEntries(['xMin','xMax','yMin','yMax']
+      .filter((key) => Number.isFinite(Number(question.sourceGraphBounds[key])))
+      .map((key) => [key, Number(question.sourceGraphBounds[key])]))
+    : undefined;
+  return {
+    prompt: String(question.prompt || ''),
+    sourceData: cleanRegressionPoints(question.sourceData || question.points),
+    sourceMode: normalizeSourceMode(question.sourceMode),
+    ...(sourceGraphBounds && Object.keys(sourceGraphBounds).length === 4 ? { sourceGraphBounds } : {}),
+    requireInterpretation: question.requireInterpretation !== false,
+  };
+};
 
 export const buildRegressionCalculatorPrivateDefinition = (question = {}) => {
   const sourceData = cleanRegressionPoints(question.sourceData || question.points);
-  return { sourceData, stats: regressionCalculatorStats(sourceData), requireInterpretation: question.requireInterpretation !== false };
+  return {
+    sourceData,
+    sourceMode: normalizeSourceMode(question.sourceMode),
+    stats: regressionCalculatorStats(sourceData),
+    requireInterpretation: question.requireInterpretation !== false,
+  };
 };
 
 export const regressionCalculatorDefinitionIsGradable = (definition) => Boolean(definition?.stats && definition.sourceData.length >= 3);
@@ -73,7 +89,7 @@ export const gradeRegressionCalculatorResponse = (definition, raw = {}) => {
     && raw.interpretation?.strength === expected.strength
   );
   const parts = [
-    { id: 'data-entry', isCorrect: table },
+    { id: definition.sourceMode === 'scatterplot' ? 'graph-to-table' : 'data-entry', isCorrect: table },
     { id: 'linear-regression', isCorrect: regression },
     { id: 'correlation-produced', isCorrect: producedR },
     ...(definition.requireInterpretation ? [{ id: 'interpretation', isCorrect: interpretation }] : []),
