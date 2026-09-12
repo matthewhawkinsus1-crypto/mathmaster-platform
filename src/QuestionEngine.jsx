@@ -874,7 +874,7 @@ export default function QuestionEngine({
           type="button"
           onClick={() => { setCalculatorUsed(true); setCalculatorOpen((current) => !current); }}
           aria-expanded={calculatorOpen}
-          style={{ minHeight:'44px', padding:'9px 14px', borderRadius:'999px', border:'1px solid #c5d5ef', background:calculatorOpen?'#eef4ff':'#fff', color:'#174ea6', fontWeight:'bold', cursor:'pointer' }}
+          style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: calculatorOpen ? '#eef4ff' : '#fff', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}
         >
           🧮 Calculator
         </button>
