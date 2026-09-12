@@ -189,7 +189,19 @@ export default function EnlargeableFigure({
   // chrome or the virtual keyboard changes. This is presentation-only state.
   useEffect(() => {
     if (!enlarged || typeof window === 'undefined') return undefined;
-    const update = () => setViewport(readWorkViewViewport(window));
+    const update = () => {
+      const next = readWorkViewViewport(window);
+      setViewport((current) => (
+        current.mode === next.mode
+        && current.orientation === next.orientation
+        && current.usableHeight === next.usableHeight
+        && current.offsetTop === next.offsetTop
+        && current.keyboardOpen === next.keyboardOpen
+        && current.controlsPlacement === next.controlsPlacement
+          ? current
+          : next
+      ));
+    };
     update();
     window.addEventListener('resize', update);
     window.addEventListener('orientationchange', update);
