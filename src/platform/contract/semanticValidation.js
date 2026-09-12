@@ -81,6 +81,17 @@ const dataModelingLabHasGraph = (question = {}) => (
   && nonEmptyArray(question.points)
 );
 
+// relationMapping owns an interactive coordinate plane when its authored ask
+// includes "plot". In that mode the supplied pairs are the target points the
+// student must construct, so a prompt that says "scatterplot" or "coordinate
+// plane" is truthful even though there is intentionally no pre-drawn graph.
+const relationMappingHasGraph = (question = {}) => (
+  String(question.toolId || question.type) === 'relationMapping'
+  && nonEmptyArray(question.pairs)
+  && Array.isArray(question.ask)
+  && question.ask.includes('plot')
+);
+
 const composedStages = (composed) => (composed?.composed && Array.isArray(composed.workflow) ? composed.workflow : []);
 
 const composedDrawsFigureGraphs = (composed) => composedStages(composed).some((stage) => (
@@ -109,6 +120,7 @@ const VISUAL_PROMISES = [
       // DataModelingLab renders its point data as the student-visible
       // scatterplot; it does not need a redundant graph or functionSpec.
       || dataModelingLabHasGraph(question)
+      || relationMappingHasGraph(question)
       || transformationsLabHasGraph(question)
       || composedHasStage(composed, ['functionGraph', 'coordinatePlot', 'graphFeatureSelect'])
       // A matching step draws one plane per figure, and a choice step with
