@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Test Cycle Pilot — Linear Equations",
+    "courseId": "algebra1",
+    "folder": "Platform Pilots",
+    "instructionalPurpose": "assessment",
+    "gradingPurpose": "test"
+  },
+  "assessmentPolicy": {
+    "mode": "testCycle",
+    "passingScore": 70,
+    "review": {
+      "required": true
+    },
+    "test": {
+      "feedback": "teacherRelease"
+    },
+    "retest": {
+      "strategy": "shortForm",
+      "scorePolicy": "replaceIfHigher"
+    }
+  },
+  "variantPolicy": {
+    "mode": "shared",
+    "sectionModes": {
+      "review": "shared",
+      "test": "shared",
+      "retest": "shared"
+    },
+    "avoidRecentTemplates": true,
+    "avoidDuplicateParameters": true
+  },
+  "sections": [
+    {
+      "id": "review",
+      "role": "review",
+      "title": "Review — Linear Equations",
+      "questions": [
+        {
+          "standard": "A.5A",
+          "prompt": "Solve 2x + 7 = 19. Show the algebra steps that keep the equation balanced.",
+          "studentActions": ["solveStepByStep"],
+          "equation": "2x + 7 = 19",
+          "solveFor": "x",
+          "dok": 1,
+          "difficultyBand": 1,
+          "purpose": "review"
+        },
+        {
+          "standard": "A.5A",
+          "prompt": "Solve 3(x - 2) = 15. Show the algebra steps that keep the equation balanced.",
+          "studentActions": ["solveStepByStep"],
+          "equation": "3(x - 2) = 15",
+          "solveFor": "x",
+          "dok": 1,
+          "difficultyBand": 2,
+          "purpose": "review"
+        },
+        {
+          "standard": "A.5A",
+          "prompt": "Solve 5x + 4 = 2x + 19. Show the algebra steps that keep the equation balanced.",
+          "studentActions": ["solveStepByStep"],
+          "equation": "5x + 4 = 2x + 19",
+          "solveFor": "x",
+          "dok": 2,
+          "difficultyBand": 2,
+          "purpose": "review"
+        }
+      ]
+    },
+    {
+      "id": "test",
+      "role": "test",
+      "title": "Test — Linear Equations",
+      "questions": [
+        {
+          "standard": "A.5A",
+          "prompt": "Solve 4x - 9 = 23.",
+          "studentActions": ["solveStepByStep"],
+          "equation": "4x - 9 = 23",
+          "solveFor": "x",
+          "dok": 1,
+          "difficultyBand": 1,
+          "purpose": "summative"
+        },
+        {
+          "standard": "A.5A",
+          "prompt": "Solve 2(x + 5) = 24.",
+          "studentActions": ["solveStepByStep"],
+          "equation": "2(x + 5) = 24",
+          "solveFor": "x",
+          "dok": 1,
+          "difficultyBand": 2,
+          "purpose": "summative"
+        },
+        {
+          "standard": "A.5A",
+          "prompt": "Solve 7x + 3 = 4x + 18.",
+          "studentActions": ["solveStepByStep"],
+          "equation": "7x + 3 = 4x + 18",
+          "solveFor": "x",
+          "dok": 2,
+          "difficultyBand": 2,
+          "purpose": "summative"
+        },
+        {
+          "standard": "A.5A",
+          "prompt": "Solve 6 - 3(x - 2) = 21.",
+          "studentActions": ["solveStepByStep"],
+          "equation": "6 - 3(x - 2) = 21",
+          "solveFor": "x",
+          "dok": 2,
+          "difficultyBand": 3,
+          "purpose": "summative"
+        },
+        {
+          "standard": "A.5A",
+          "prompt": "Solve x/3 + 5 = 11.",
+          "studentActions": ["solveStepByStep"],
+          "equation": "x/3 + 5 = 11",
+          "solveFor": "x",
+          "dok": 2,
+          "difficultyBand": 2,
+          "purpose": "summative"
+        }
+      ]
+    },
+    {
+      "id": "retest",
+      "role": "retest",
+      "title": "Retest — Linear Equations",
+      "questions": [
+        {
+          "standard": "A.5A",
+          "prompt": "Solve 5x - 8 = 27.",
+          "studentActions": ["solveStepByStep"],
+          "equation": "5x - 8 = 27",
+          "solveFor": "x",
+          "dok": 1,
+          "difficultyBand": 1,
+          "purpose": "summative"
+        },
+        {
+          "standard": "A.5A",
+          "prompt": "Solve 4(x + 1) = 28.",
+          "studentActions": ["solveStepByStep"],
+          "equation": "4(x + 1) = 28",
+          "solveFor": "x",
+          "dok": 1,
+          "difficultyBand": 2,
+          "purpose": "summative"
+        },
+        {
+          "standard": "A.5A",
+          "prompt": "Solve 9x - 5 = 5x + 19.",
+          "studentActions": ["solveStepByStep"],
+          "equation": "9x - 5 = 5x + 19",
+          "solveFor": "x",
+          "dok": 2,
+          "difficultyBand": 2,
+          "purpose": "summative"
+        },
+        {
+          "standard": "A.5A",
+          "prompt": "Solve 10 - 2(x + 3) = 20.",
+          "studentActions": ["solveStepByStep"],
+          "equation": "10 - 2(x + 3) = 20",
+          "solveFor": "x",
+          "dok": 2,
+          "difficultyBand": 3,
+          "purpose": "summative"
+        }
+      ]
+    }
+  ],
+  "outputProfiles": {
+    "digital": { "enabled": true },
+    "studentWorksheetPdf": { "enabled": false, "includeAnswers": false, "includeWorkspace": true },
+    "teacherWorksheetPdf": { "enabled": false, "includeAnswers": true, "includeSolutions": true, "includeWorkspace": true },
+    "answerKeyPdf": { "enabled": false, "includeAnswers": true, "includeSolutions": false, "includeWorkspace": false },
+    "lessonNotesPdf": { "enabled": false, "targetPages": 2 }
+  },
+  "preflight": {
+    "required": true
+  }
+}
