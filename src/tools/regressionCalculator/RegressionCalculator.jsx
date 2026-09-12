@@ -73,7 +73,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   const updateExpression = (id, value) => {
     const before = rows.find((row) => row.id === id)?.value;
     setRows((current) => current.map((row) => row.id === id ? { ...row, value } : row));
-    if (!orderedPair(before) && orderedPair(value)) record('orderedPairEntered', { expressionId: id });
+    if (!orderedPair(before) && orderedPair(value)) record('orderedPairEntered', { row: rows.findIndex((row) => row.id === id) + 1 });
     setRun(null);
     clearFeedback();
   };
@@ -90,8 +90,9 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
 
   const openEdit = () => {
     setEditOpen((open) => !open);
-    record('editModeOpened', { expressionId: selectedId });
-    if (conversionAvailable) record('tableConversionOffered', { expressionId: selectedId });
+    const row = rows.findIndex((item) => item.id === selectedId) + 1;
+    record('editModeOpened', { row });
+    if (conversionAvailable) record('tableConversionOffered', { row });
   };
 
   const convertToTable = () => {
