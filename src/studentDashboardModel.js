@@ -3,6 +3,11 @@ import {
   getStoredAssignmentTypeProjection,
 } from './platform/contract/storedAssignmentV5.js';
 import { resolveQuestionActivityRole } from './platform/policies/activityPolicies.js';
+import {
+  getAssessmentPathwayState,
+  getAssessmentVisibleIndices,
+  isAssessmentPathwayAssignment,
+} from './platform/assessment/assessmentPathway.js';
 
 // What a student's assignment dashboard actually contains, computed once.
 //
@@ -119,10 +124,22 @@ export const buildStudentDashboardModel = ({
 
   const visible = list(assignments).filter((assignment) => assignmentIsForStudent(assignment, { classId, classPeriod }));
 
+  const assessmentStateFor = (assignment, assignmentTracker = tracker?.[assignment?.id] || {}) => (
+    isAssessmentPathwayAssignment(assignment)
+      ? getAssessmentPathwayState({ assignment, tracker: assignmentTracker, nowValue })
+      : null
+  );
+  const visibleIndicesFor = (assignment, assignmentTracker = tracker?.[assignment?.id] || {}) => (
+    getAssessmentVisibleIndices({ assignment, tracker: assignmentTracker, nowValue })
+    || getIncludedQuestionIndices(assignment)
+  );
+
   const canResume = (assignment) => {
     const lifecycle = getAssignmentLifecycle(assignment, nowValue);
     if (lifecycle.isPracticeOnly) return false;
     const access = prerequisiteAccess({ assignment, classworkGradesByAssignment, nowValue });
+    const assessmentState = assessmentStateFor(assignment);
+    if (assessmentState && !assessmentState.canEnter) return false;
     return access.open && (!lifecycle.isScheduled || access.reason === 'prerequisiteMet');
   };
 
@@ -131,16 +148,20 @@ export const buildStudentDashboardModel = ({
     if (!canResume(assignment)) return false;
     const assignmentTracker = tracker[assignment.id];
     if (!assignmentTracker) return false;
-    return getStoredAssignmentQuestions(assignment).some((question, index) => questionIsIncluded(question)
-      && !['correct', 'expired'].includes(normalizeQuestionRecord(assignmentTracker[index]).status));
+    const visibleIndices = visibleIndicesFor(assignment, assignmentTracker);
+    return visibleIndices.some((index) => (
+      questionIsIncluded(getStoredAssignmentQuestions(assignment)[index])
+      && !['correct', 'expired'].includes(normalizeQuestionRecord(assignmentTracker[index]).status)
+    ));
   });
   const resumeAssignment = savedResume || fallbackResume || null;
 
-  const fallbackQuestionIndex = getStoredAssignmentQuestions(resumeAssignment)
-    .findIndex((question, index) => questionIsIncluded(question)
-      && !['correct', 'expired'].includes(normalizeQuestionRecord(tracker[resumeAssignment?.id]?.[index]).status));
-  const savedResumeIncluded = savedResume ? getIncludedQuestionIndices(savedResume) : [];
-  const resumeIncluded = resumeAssignment ? getIncludedQuestionIndices(resumeAssignment) : [];
+  const fallbackQuestionIndex = resumeAssignment
+    ? (visibleIndicesFor(resumeAssignment, tracker?.[resumeAssignment.id] || {})
+      .find((index) => !['correct', 'expired'].includes(normalizeQuestionRecord(tracker[resumeAssignment?.id]?.[index]).status)) ?? -1)
+    : -1;
+  const savedResumeIncluded = savedResume ? visibleIndicesFor(savedResume, tracker?.[savedResume.id] || {}) : [];
+  const resumeIncluded = resumeAssignment ? visibleIndicesFor(resumeAssignment, tracker?.[resumeAssignment.id] || {}) : [];
   const resumeTracker = resumeAssignment ? tracker?.[resumeAssignment.id] || {} : {};
   const resumeQuestionsAttempted = resumeIncluded.filter((index) => {
     const record = normalizeQuestionRecord(resumeTracker?.[index]);
@@ -200,6 +221,8 @@ export const buildStudentDashboardModel = ({
   const activeWarmupIds = new Set(activeWarmups.map(({ assignment }) => assignment.id));
 
   const isDone = (assignment, assignmentTracker, lifecycle) => {
+    const assessmentState = assessmentStateFor(assignment, assignmentTracker || {});
+    if (assessmentState) return assessmentState.complete === true;
     if (getStoredAssignmentTypeProjection(assignment) === 'notesClasswork') {
       return classworkGradesByAssignment[assignment.id]?.score === 100 || lifecycle.isClosed;
     }
@@ -224,15 +247,19 @@ export const buildStudentDashboardModel = ({
       const activity = assignmentActivity[assignment.id] || {};
       const classwork = classworkGradesByAssignment[assignment.id];
       const dol = getDOLState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue });
-      const disabled = (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') || !access.open;
+      const assessmentStage = assessmentStateFor(assignment, assignmentTracker || {});
+      const disabled = (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') || !access.open
+        || Boolean(assessmentStage && !assessmentStage.canEnter);
       const done = isDone(assignment, assignmentTracker, lifecycle);
-      const feedbackHeld = assignmentHasHeldTeacherFeedback(assignment);
+      const feedbackHeld = assessmentStage
+        ? ['test', 'awaitingFeedback', 'retest'].includes(assessmentStage.stage)
+        : assignmentHasHeldTeacherFeedback(assignment);
       const dueSoon = matchesSmartView(assignment, 'today', { nowValue });
 
       // "How much is left" was invisible until a student opened the
       // assignment, so a 1-question and a 12-question assignment looked
       // identical on the dashboard.
-      const includedIndices = getIncludedQuestionIndices(assignment);
+      const includedIndices = visibleIndicesFor(assignment, assignmentTracker || {});
       const questionsTotal = includedIndices.length;
       const questionsDone = assignmentTracker
         ? includedIndices.filter((index) => ['correct', 'expired'].includes(normalizeQuestionRecord(assignmentTracker[index]).status)).length
@@ -267,7 +294,7 @@ export const buildStudentDashboardModel = ({
       return {
         started,
         assignment, assignmentTracker, isAttempted, lifecycle, access, recordedGrade,
-        activity, classwork, dol, disabled, feedbackHeld, bucket, questionsTotal, questionsDone, questionsAttempted,
+        activity, classwork, dol, disabled, feedbackHeld, assessmentStage, bucket, questionsTotal, questionsDone, questionsAttempted,
       };
     });
 
