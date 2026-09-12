@@ -2879,6 +2879,20 @@ function App() {
       toastInfo('Assessment closed', 'The assessment window has ended. Your saved responses remain recorded, but new test or retest submissions are locked.');
       return;
     }
+    if (assessmentState && ['test', 'retest'].includes(assessmentState.stage)) {
+      const stageAccess = getSectionAccessState({
+        assignment: assignmentData,
+        activityRole: assessmentState.visibleRole,
+        classId: user?.classId || null,
+        classPeriod: user?.classPeriod,
+        nowValue: Date.now(),
+      });
+      if (stageAccess.enabled && !stageAccess.isOpen) {
+        const label = assessmentState.visibleRole === 'retest' ? 'Retest' : 'Test';
+        toastInfo(`${label} is waiting`, `${label} is ready, but your teacher has not opened it for this class yet.`);
+        return;
+      }
+    }
     if (assessmentState && !assessmentState.canEnter) {
       toastInfo(assessmentState.statusLabel || 'Assessment update', assessmentState.detail || 'This assessment stage is not available yet.');
       return;
@@ -6552,6 +6566,15 @@ function App() {
       ? (getAssessmentVisibleIndices({ assignment, tracker: recordedTracker, nowValue: now }) || [])
       : null;
     const assessmentVisibleSet = assessmentVisibleIndices ? new Set(assessmentVisibleIndices) : null;
+    const assessmentSectionAccess = assessmentState && ['test', 'retest'].includes(assessmentState.stage)
+      ? getSectionAccessState({
+          assignment,
+          activityRole: assessmentState.visibleRole,
+          classId: user?.classId || null,
+          classPeriod: user?.classPeriod,
+          nowValue: now,
+        })
+      : null;
     const projectedEntries = activeClassroomSectionKey
       ? currentContent.entries.filter((entry) => entry.logicalRole === activeClassroomSectionKey)
       : assessmentVisibleSet
@@ -6793,13 +6816,20 @@ function App() {
     const assessmentStageBlocked = Boolean(
       !preview
       && assessmentState
-      && (lifecycle.isClosed || !assessmentState.canEnter)
+      && (
+        lifecycle.isClosed
+        || !assessmentState.canEnter
+        || Boolean(assessmentSectionAccess?.enabled && !assessmentSectionAccess.isOpen)
+      )
     );
     const assessmentFirstVisibleIndex = assessmentVisibleIndices?.[0] ?? null;
     if (assessmentState && (assessmentStageMismatch || assessmentStageBlocked)) {
+      const stageWaitingForTeacher = Boolean(assessmentSectionAccess?.enabled && !assessmentSectionAccess.isOpen);
       const stageTitle = lifecycle.isClosed
         ? 'Assessment window closed'
-        : assessmentState.stage === 'test'
+        : stageWaitingForTeacher
+          ? `${assessmentState.visibleRole === 'retest' ? 'Retest' : 'Test'} waiting for teacher`
+          : assessmentState.stage === 'test'
           ? 'Review complete — Test ready'
           : assessmentState.stage === 'retest'
             ? 'Retest ready'
@@ -6809,7 +6839,10 @@ function App() {
         : assessmentState.stage === 'retest'
           ? '#681da8'
           : '#174ea6';
-      const canContinue = !lifecycle.isClosed && assessmentState.canEnter && Number.isInteger(assessmentFirstVisibleIndex);
+      const canContinue = !lifecycle.isClosed
+        && assessmentState.canEnter
+        && !stageWaitingForTeacher
+        && Number.isInteger(assessmentFirstVisibleIndex);
       return (
         <div className="mathmaster-assignment-screen" style={{ minHeight: '100vh', background: '#f0f2f5', padding: 20, fontFamily: '"Segoe UI", sans-serif', display: 'grid', placeItems: 'center' }}>
           <section style={{ width: 'min(680px, 100%)', background: '#fff', borderRadius: 16, border: `3px solid ${stageColor}`, padding: '30px 32px', boxShadow: '0 10px 30px rgba(0,0,0,0.10)', textAlign: 'left' }}>
@@ -6817,7 +6850,7 @@ function App() {
               {assessmentState.stage === 'test' ? 'TEST MODE' : assessmentState.stage === 'retest' ? 'RETEST MODE' : 'ASSESSMENT'}
             </div>
             <h1 style={{ margin: '0 0 12px', color: '#202124', fontSize: 28 }}>{stageTitle}</h1>
-            <p style={{ margin: 0, color: '#5f6368', fontSize: 17, lineHeight: 1.6 }}>{lifecycle.isClosed ? 'Your saved responses remain recorded. New assessment submissions are no longer accepted.' : assessmentState.detail}</p>
+            <p style={{ margin: 0, color: '#5f6368', fontSize: 17, lineHeight: 1.6 }}>{lifecycle.isClosed ? 'Your saved responses remain recorded. New assessment submissions are no longer accepted.' : stageWaitingForTeacher ? `${assessmentState.visibleRole === 'retest' ? 'Retest' : 'Test'} is ready, but your teacher has not opened it for this class yet.` : assessmentState.detail}</p>
             {assessmentState.stage === 'test' && canContinue && (
               <div style={{ marginTop: 18, padding: '14px 16px', borderRadius: 10, background: '#fce8e6', color: '#7a1a12', lineHeight: 1.5, fontWeight: 800 }}>
                 Once you enter the Test, each question has one attempt. Hints, replacement questions, guided help, and remediation are disabled. Your results stay hidden until your teacher releases them.
@@ -8294,6 +8327,7 @@ function App() {
         getDOLState,
   getWarmupState,
         getIncludedQuestionIndices,
+        getSectionAccessState,
         normalizeQuestionRecord,
         questionIsIncluded,
         assignmentHasHeldTeacherFeedback,
