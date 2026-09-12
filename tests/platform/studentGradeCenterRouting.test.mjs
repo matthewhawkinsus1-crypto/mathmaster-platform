@@ -156,6 +156,19 @@ test('App pushes and restores the assignment-result entry on Back and Forward', 
   assert.match(restore, /setActiveClassroomSectionKey\(route\.sectionKey/);
 });
 
+test('the visible in-app Back control returns result-launched practice to Assignment Result', () => {
+  const start = region(app, 'const startAssignment = ', 'const openStudentGradeCenter', 'startAssignment');
+  assert.match(start, /if \(!options\?\.returnToResult\) setAssignmentResultRoute\(null\)/);
+
+  const leave = region(app, 'const returnsToAssignmentResult = ', '// While the Warm-Up challenge is live', 'assignment leave routing');
+  assert.match(leave, /assignmentResultRoute\?\.assignmentId === activeAssignmentId/);
+  assert.match(leave, /setActiveView\('assignmentResult'\)/);
+  assert.match(leave, /Back to Results/);
+
+  const resultRender = region(app, '<StudentAssignmentResult', '/>', 'Assignment Result render');
+  assert.match(resultRender, /returnToResult: true/);
+});
+
 test('Grades is reachable from Home, and Home is reachable from Grades', () => {
   assertCapability(
     dashboard,
