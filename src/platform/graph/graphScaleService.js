@@ -85,6 +85,97 @@ export function interactionIncrements(valueOrScale) {
   return { fine: tidy(normal / 10), normal, coarse: tidy(normal * 10) };
 }
 
+
+const niceStepAtOrBelow = (value) => {
+  const safe = Math.abs(Number(value));
+  if (!Number.isFinite(safe) || safe <= Number.EPSILON) return 0.01;
+  const exponent = Math.floor(Math.log10(safe));
+  const power = 10 ** exponent;
+  const fraction = safe / power;
+  const niceFraction = fraction >= 5 ? 5 : fraction >= 2 ? 2 : 1;
+  return tidy(niceFraction * power);
+};
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+export function fitAdjustmentPlan({
+  targetSlope,
+  targetIntercept,
+  xMin,
+  xMax,
+  yMin,
+  yMax,
+  slopeTolerance,
+  interceptTolerance,
+  slopeStep,
+  interceptStep,
+  challengeClicks = 8,
+} = {}) {
+  const m = Number(targetSlope);
+  const b = Number(targetIntercept);
+  const safeSlope = Number.isFinite(m) ? m : 0;
+  const safeIntercept = Number.isFinite(b) ? b : 0;
+  const xSpan = Math.max(Math.abs(Number(xMax) - Number(xMin)), Number.EPSILON);
+  const ySpan = Math.max(Math.abs(Number(yMax) - Number(yMin)), Number.EPSILON);
+  const naturalSlope = ySpan / xSpan;
+
+  const defaultSlopeTolerance = Math.max(0.01, naturalSlope * 0.08, Math.abs(safeSlope) * 0.06);
+  const defaultInterceptTolerance = Math.max(0.1, ySpan * 0.06);
+  const safeSlopeTolerance = Number.isFinite(Number(slopeTolerance)) && Number(slopeTolerance) > 0
+    ? Math.abs(Number(slopeTolerance))
+    : tidy(defaultSlopeTolerance);
+  const safeInterceptTolerance = Number.isFinite(Number(interceptTolerance)) && Number(interceptTolerance) > 0
+    ? Math.abs(Number(interceptTolerance))
+    : tidy(defaultInterceptTolerance);
+
+  const resolvedSlopeStep = Number.isFinite(Number(slopeStep)) && Number(slopeStep) > 0
+    ? Math.abs(Number(slopeStep))
+    : niceStepAtOrBelow(safeSlopeTolerance / 2.5);
+  const resolvedInterceptStep = Number.isFinite(Number(interceptStep)) && Number(interceptStep) > 0
+    ? Math.abs(Number(interceptStep))
+    : niceStepAtOrBelow(safeInterceptTolerance / 2.5);
+
+  const clicks = clamp(Math.round(Number(challengeClicks) || 8), 6, 12);
+  const slopeDelta = (safeSlope >= 0 ? -1 : 1) * resolvedSlopeStep * clicks;
+  const centerX = (Number(xMin) + Number(xMax)) / 2;
+  const lineShiftAtCenter = slopeDelta * (Number.isFinite(centerX) ? centerX : 1);
+  const interceptDirection = Math.sign(lineShiftAtCenter || slopeDelta || 1);
+  const interceptDelta = interceptDirection * resolvedInterceptStep * Math.max(6, clicks - 1);
+
+  const slopeRadius = resolvedSlopeStep * (clicks + 12);
+  const interceptRadius = resolvedInterceptStep * (clicks + 12);
+
+  return {
+    slope: {
+      target: tidy(safeSlope),
+      tolerance: tidy(safeSlopeTolerance),
+      step: tidy(resolvedSlopeStep),
+      start: tidy(safeSlope + slopeDelta),
+      min: tidy(safeSlope - slopeRadius),
+      max: tidy(safeSlope + slopeRadius),
+    },
+    intercept: {
+      target: tidy(safeIntercept),
+      tolerance: tidy(safeInterceptTolerance),
+      step: tidy(resolvedInterceptStep),
+      start: tidy(safeIntercept + interceptDelta),
+      min: tidy(safeIntercept - interceptRadius),
+      max: tidy(safeIntercept + interceptRadius),
+    },
+    challengeClicks: clicks,
+  };
+}
+
+export function stepFitControl(value, delta, control = {}) {
+  const step = Math.abs(Number(control.step));
+  const current = Number(value);
+  if (!Number.isFinite(step) || step <= 0 || !Number.isFinite(current)) return current;
+  const next = tidy(current + Number(delta) * step);
+  const min = Number.isFinite(Number(control.min)) ? Number(control.min) : -Infinity;
+  const max = Number.isFinite(Number(control.max)) ? Number(control.max) : Infinity;
+  return tidy(clamp(next, min, max));
+}
+
 export function graphHealth({ xMin, xMax, yMin, yMax, xTicks = [], yTicks = [], points = [], residual = false }) {
   const issues = [];
   if (![xMin, xMax, yMin, yMax].every(finite) || !(xMax > xMin) || !(yMax > yMin)) issues.push('invalid-bounds');
