@@ -88,7 +88,12 @@ export const validateToolQuestion = (question = {}) => {
 
   if (toolId === 'dataModelingLab') {
     if (question.points && (!Array.isArray(question.points) || question.points.length < 3)) errors.push('dataModelingLab requires at least 3 data points.');
-    const modes = ['full','lineFit','association','prediction','modelCompare'];
+    const modes = [
+      'full','lineFit',
+      'linearFit','quadraticFit','exponentialFit',
+      'linearFitPrediction','quadraticFitPrediction','exponentialFitPrediction','squareRootFitPrediction',
+      'association','correlation','prediction','modelCompare',
+    ];
     if (question.mode && !modes.includes(question.mode)) errors.push(`Unsupported dataModelingLab mode: ${question.mode}.`);
     if (question.predictionTolerance != null && Number(question.predictionTolerance) <= 0) errors.push('predictionTolerance must be positive.');
   }

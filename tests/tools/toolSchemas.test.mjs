@@ -18,6 +18,32 @@ test('guard impossible tool configs',()=>{
   assert.equal(validateToolQuestion({toolId:'stepAlgebra2',equation:{a:0}}).isValid,false);
 });
 
+test('dataModelingLab validator accepts every renderer-supported mode',()=>{
+  const modes = [
+    'full','lineFit',
+    'linearFit','quadraticFit','exponentialFit',
+    'linearFitPrediction','quadraticFitPrediction','exponentialFitPrediction','squareRootFitPrediction',
+    'association','correlation','prediction','modelCompare',
+  ];
+  for (const mode of modes) {
+    const result = validateToolQuestion({
+      toolId:'dataModelingLab',
+      mode,
+      points:[[1,2],[2,3],[3,5]],
+      masteryEvidenceKeys:['texas:A.4A'],
+    });
+    assert.equal(result.isValid,true,mode + ': ' + result.errors.join('; '));
+  }
+  const unsupported = validateToolQuestion({
+    toolId:'dataModelingLab',
+    mode:'notARealMode',
+    points:[[1,2],[2,3],[3,5]],
+    masteryEvidenceKeys:['texas:A.4A'],
+  });
+  assert.equal(unsupported.isValid,false);
+  assert.ok(unsupported.errors.some((error)=>/Unsupported dataModelingLab mode/.test(error)));
+});
+
 test('sequenceExplorer accepts the integrated table-plot-rule bridge',()=>{
   const result=validateToolQuestion({
     toolId:'sequenceExplorer',
