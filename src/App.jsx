@@ -372,8 +372,10 @@ const activityTitleForRole = (role) => ({
   classwork: 'Classwork',
   dol: 'DOL',
   practice: 'Practice',
+  review: 'Review',
   quiz: 'Quiz',
   test: 'Unit Test',
+  retest: 'Retest',
 }[role] || 'Activity');
 
 const calculateDOLSectionScore = (assignmentTracker = {}, questionIndices = [], assignment = null) => {
