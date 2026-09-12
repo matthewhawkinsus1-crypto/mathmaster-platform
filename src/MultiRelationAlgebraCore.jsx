@@ -1422,7 +1422,7 @@ export default function MultiRelationAlgebra({
       setAbsoluteSplitRelations(['', '']);
       setMessage({
         tone: 'growth',
-        text: 'Choose the equivalent structure yourself. For an equation, you will also enter both split values.',
+        text: 'Choose the equivalent structure yourself. Then enter the split bounds and relation symbols MathMaster should check.',
       });
       return;
     }
