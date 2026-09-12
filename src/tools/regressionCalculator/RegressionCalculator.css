@@ -594,3 +594,13 @@
     overflow:hidden;
   }
 }
+
+
+/* Regression Calculator owns the Desmos-style undo/redo controls inside its
+   calculator toolbar. Hide QuestionEngine's universal Work View Undo for this
+   one workspace so students never see two competing Undo controls. */
+.mathmaster-work-view-host:has(.regression-calculator)
+.mathmaster-work-view-actions
+.mathmaster-universal-undo {
+  display:none;
+}
