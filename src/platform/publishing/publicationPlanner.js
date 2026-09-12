@@ -105,6 +105,34 @@ export const planClassroomPublication = ({
   const activities = Array.isArray(publicationSource.activities) ? publicationSource.activities : [];
   const title = lessonTitle(publicationSource);
   const posts = [];
+  const isTestCycle = String(assignmentV5?.assessmentPolicy?.mode || '') === 'testCycle';
+
+  // Test Cycle is deliberately one Classroom surface. Review, Test, and Retest
+  // are progression states inside MathMaster, not three Classroom assignments.
+  // Keeping all stage ids inside one composite post also prevents a direct
+  // section link from advertising or bypassing a hidden future stage.
+  if (isTestCycle) {
+    const testCycleActivities = activities.filter((activity) => ['review', 'test', 'retest'].includes(activity.role));
+    const assessmentPost = postForActivities({
+      lessonBundle: publicationSource,
+      kind: 'test-cycle',
+      activities: testCycleActivities,
+      dueDate: mainDueDate,
+      title,
+      description: 'Open MathMaster to complete the assessment stage currently available to you.',
+    });
+    const plannedPosts = assessmentPost ? [assessmentPost] : [];
+    return {
+      sourceKind: 'assignmentV5',
+      strategy: 'testCycle',
+      plannedPosts,
+      omittedWarmupCount: 0,
+      summary: plannedPosts.length
+        ? '1 Google Classroom assessment post planned. Review/Test/Retest progression stays inside MathMaster.'
+        : 'No Google Classroom assessment post could be planned.',
+    };
+  }
+
   const warmups = activities.filter((activity) => activity.role === ACTIVITY_ROLES.WARMUP);
   const practices = activities.filter((activity) => activity.role === ACTIVITY_ROLES.PRACTICE);
   const sameDayPractices = practices.filter(() => !homeworkDueDate || datesRepresentSameMoment(homeworkDueDate, mainDueDate));
