@@ -14,6 +14,15 @@ await sourceGraph.locator('circle').first().hover({ force: true });
 if (await sourceGraph.getByText('(1, 2)', { exact: true }).count()) throw new Error('Source point coordinates were revealed on hover');
 if (await page.locator('.source-data').count()) throw new Error('Scatterplot source mode leaked the numeric source-data list');
 
+// Start over is deliberately quick, but it is safe: the same routed Undo used
+// by Work View restores the calculator state that was cleared.
+await page.getByLabel('Expression 1').fill('(9,9)');
+await page.getByRole('button', { name: 'Start over' }).click();
+if (await page.getByLabel('Expression 1').inputValue() !== '') throw new Error('Start over did not clear the calculator');
+await page.getByRole('button', { name: 'Undo', exact: true }).click();
+if (await page.getByLabel('Expression 1').inputValue() !== '(9,9)') throw new Error('Routed Undo did not restore cleared calculator work');
+await page.getByRole('button', { name: 'Start over' }).click();
+
 // The + control must expose the same Add Item choices students see in the
 // assessment calculator, including Table. Blank settings still must not offer
 // context conversion until an ordered pair exists.
