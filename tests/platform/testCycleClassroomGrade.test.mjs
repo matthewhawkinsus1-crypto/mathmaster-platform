@@ -150,7 +150,7 @@ test('Test Cycle Classroom auto-publishing stays one whole-assignment post', () 
 });
 
 
-test('released Retest score is not suppressed by the earlier final Test sync', () => {
+test('released Retest score is not suppressed by the earlier final Test sync', async () => {
   const source = await import('node:fs').then(({ readFileSync }) => readFileSync('functions/index.js', 'utf8'));
   const start = source.indexOf('const sameOfficialAssessmentGrade = !isTestCycleAssignment(assignment)');
   assert.ok(start >= 0, 'whole-assignment passback must distinguish a changed Test Cycle official grade');
