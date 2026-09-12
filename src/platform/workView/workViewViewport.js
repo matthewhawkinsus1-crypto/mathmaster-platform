@@ -1,3 +1,5 @@
+import { readStableViewportBox } from '../mobile/mobileInteractionFoundation.js';
+
 export const WORK_VIEW_MOBILE_MAX = 720;
 
 // Below this the phone is in landscape with browser chrome in it and there is
@@ -49,10 +51,14 @@ export function resolveWorkViewLayout({ width, height, visualHeight = height, of
 
 export function readWorkViewViewport(windowObject = typeof window !== 'undefined' ? window : null) {
   if (!windowObject) return resolveWorkViewLayout({ width: 1024, height: 768 });
+  const viewport = readStableViewportBox(windowObject);
   return resolveWorkViewLayout({
-    width: windowObject.visualViewport?.width || windowObject.innerWidth,
+    width: viewport.width || windowObject.innerWidth,
     height: windowObject.innerHeight,
-    visualHeight: windowObject.visualViewport?.height || windowObject.innerHeight,
-    offsetTop: windowObject.visualViewport?.offsetTop || 0,
+    // At scale > 1, readStableViewportBox deliberately returns layout height:
+    // Work View stays the same sheet while the browser magnifies it instead of
+    // repeatedly shrinking/repositioning fixed boundaries into the zoomed area.
+    visualHeight: viewport.height || windowObject.innerHeight,
+    offsetTop: viewport.offsetTop || 0,
   });
 }
