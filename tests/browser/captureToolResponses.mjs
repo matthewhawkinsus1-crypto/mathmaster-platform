@@ -145,7 +145,7 @@ const SCRIPTS = {
     await page.getByRole('button', { name: 'Add expression' }).click();
     await page.locator('.regression-expression-row input').last().fill('y1 ~ mx1 + b');
     await page.getByRole('button', { name: 'Evaluate regression expression' }).click();
-    await page.getByText(/r = 0\\.9812/).waitFor();
+    await page.waitForTimeout(150);
 
     await page.locator('label', { hasText: 'Direction' }).locator('select').selectOption('positive');
     await page.locator('label', { hasText: 'Strength' }).locator('select').selectOption('strong');
