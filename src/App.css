@@ -1956,30 +1956,28 @@
   margin-left: 0 !important;
 }
 
+/* TOOL DIRECTIONS ARE ORDINARY CONTENT, NOT A SECOND STICKY TASK.
+   The student-facing "Your task" panel is the one persistent source of truth.
+   Tool help such as "How to do this" must be allowed to leave the viewport as
+   the student scrolls into the mathematics. Pinning both created two competing
+   task regions and permanently spent scarce phone height on operating
+   instructions rather than the problem itself. */
 .mathmaster-tool-task-card {
-  position: sticky;
-  top: 0;
-  z-index: 5;
+  position: static;
+  top: auto;
+  z-index: auto;
 }
 
-/* A SHORT SCREEN NEEDS THE TASK CONDENSED, NOT UNPINNED.
-   This block used to unpin the card, on the reasoning that 120px — 31% of a
-   390px landscape phone — costs more than it returns. Running the per-tool
-   audit sideways settled it: 10 of the 14 tools then lost the task entirely,
-   the prompt sitting as far as 522px above the answer boxes the student was
-   typing into. Losing the question beats any amount of space it takes.
-
-   So it stays pinned and gets smaller instead. The eyebrow ("YOUR TASK") is
-   what goes: a card parked at the top of the screen does not need a label
-   saying it is the task. Padding tightens, and a long task scrolls inside the
-   card rather than growing it. The folded steps keep their full 44px, because
-   that is a finger target, not decoration. */
+/* On short screens keep the support card compact, but let the whole card move
+   with the workspace. If the student expands How to do this, the normal
+   workspace scroll handles it; the card never becomes its own pinned/internal
+   scroll region. */
 @media (max-height: 560px) {
   .mathmaster-tool-task-card {
     padding: 8px 12px;
     margin-bottom: 8px;
-    max-height: 38vh;
-    overflow-y: auto;
+    max-height: none;
+    overflow: visible;
   }
 
   .mathmaster-tool-task-card .mathmaster-tool-task-eyebrow { display: none; }
