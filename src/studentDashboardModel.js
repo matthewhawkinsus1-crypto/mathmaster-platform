@@ -116,6 +116,7 @@ export const buildStudentDashboardModel = ({
     getDOLState,
     getWarmupState,
     getIncludedQuestionIndices,
+    getSectionAccessState,
     normalizeQuestionRecord,
     questionIsIncluded,
     assignmentHasHeldTeacherFeedback,
@@ -124,11 +125,28 @@ export const buildStudentDashboardModel = ({
 
   const visible = list(assignments).filter((assignment) => assignmentIsForStudent(assignment, { classId, classPeriod }));
 
-  const assessmentStateFor = (assignment, assignmentTracker = tracker?.[assignment?.id] || {}) => (
-    isAssessmentPathwayAssignment(assignment)
-      ? getAssessmentPathwayState({ assignment, tracker: assignmentTracker, nowValue })
-      : null
-  );
+  const assessmentStateFor = (assignment, assignmentTracker = tracker?.[assignment?.id] || {}) => {
+    if (!isAssessmentPathwayAssignment(assignment)) return null;
+    const state = getAssessmentPathwayState({ assignment, tracker: assignmentTracker, nowValue });
+    if (!state || !['test', 'retest'].includes(state.stage) || typeof getSectionAccessState !== 'function') return state;
+    const stageAccess = getSectionAccessState({
+      assignment,
+      activityRole: state.visibleRole,
+      classId,
+      classPeriod,
+      nowValue,
+    });
+    if (!stageAccess.enabled || stageAccess.isOpen) return { ...state, sectionAccess: stageAccess };
+    const label = state.visibleRole === 'retest' ? 'Retest' : 'Test';
+    return {
+      ...state,
+      canEnter: false,
+      sectionAccess: stageAccess,
+      statusLabel: `${label} waiting`,
+      actionLabel: `Waiting for teacher`,
+      detail: `${label} is ready, but your teacher has not opened it for this class yet.`,
+    };
+  };
   const visibleIndicesFor = (assignment, assignmentTracker = tracker?.[assignment?.id] || {}) => (
     getAssessmentVisibleIndices({ assignment, tracker: assignmentTracker, nowValue })
     || getIncludedQuestionIndices(assignment)
