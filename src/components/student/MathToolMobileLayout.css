@@ -160,6 +160,10 @@
   gap: 10px !important;
 }
 
+.mathmaster-question-container .mathmaster-line-fit-steppers {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
 .mathmaster-question-container .mathmaster-tool-panel {
   padding: 11px !important;
 }
