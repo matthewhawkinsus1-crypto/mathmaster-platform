@@ -20,6 +20,7 @@ import {
   applyBalancedOperationToRelation,
   buildAbsoluteValueSplit,
   buildStudentAuthoredAbsoluteValueEqualitySplit,
+  buildStudentAuthoredAbsoluteValueSplit,
   cancelRelationExpressionPair,
   cloneRelationState,
   obviousSpecialClaim,
@@ -63,6 +64,23 @@ const buttonStyle = (active = false) => ({
 const branchLabel = (index) => String.fromCharCode(65 + index);
 const expressionKey = (branchIndex, expressionIndex) => `${branchIndex}:${expressionIndex}`;
 const draftKeyFor = (draftKey) => (draftKey ? `${draftKey}:multi-relation` : null);
+
+const pendingFlipResultsFor = (pending) => {
+  if (Array.isArray(pending?.branchResults) && pending.branchResults.length) {
+    return pending.branchResults;
+  }
+  if (Number.isInteger(pending?.branchIndex) && Array.isArray(pending?.expectedRelations)) {
+    return [{
+      branchIndex: pending.branchIndex,
+      expectedRelations: pending.expectedRelations,
+    }];
+  }
+  return [];
+};
+
+const pendingFlipForBranch = (pending, branchIndex) => (
+  pendingFlipResultsFor(pending).find((item) => item.branchIndex === branchIndex) || null
+);
 
 const initialStateFor = (question, draftKey) => {
   const saved = readQuestionDraft(draftKeyFor(draftKey), null);
@@ -575,6 +593,7 @@ export default function MultiRelationAlgebra({
   const [absoluteSplitOpen, setAbsoluteSplitOpen] = useState(false);
   const [absoluteSplitStructure, setAbsoluteSplitStructure] = useState(null);
   const [absoluteSplitValues, setAbsoluteSplitValues] = useState(['', '']);
+  const [absoluteSplitRelations, setAbsoluteSplitRelations] = useState(['', '']);
   const [absoluteSplitFocusSignal, setAbsoluteSplitFocusSignal] = useState(0);
 
   const [message, setMessage] = useState(null);
@@ -602,6 +621,7 @@ export default function MultiRelationAlgebra({
     setAbsoluteSplitOpen(false);
     setAbsoluteSplitStructure(null);
     setAbsoluteSplitValues(['', '']);
+    setAbsoluteSplitRelations(['', '']);
     setMessage(null);
     setRepresentationCorrect(null);
     setCandidateChecks(initialCandidateChecksFor(draftKey));
@@ -621,6 +641,17 @@ export default function MultiRelationAlgebra({
     () => absoluteValueSplitInputModel(relationState, activeBranch),
     [relationState, activeBranch],
   );
+  const absoluteSplitReadyToCheck = useMemo(() => {
+    if (!absoluteSplitStructure) return false;
+    if (absoluteSplitValues.some((value) => !String(value || '').trim())) return false;
+    if (absoluteSplitModel.relation === '=' && absoluteSplitStructure === 'or') return true;
+    return absoluteSplitRelations.every((relation) => ['<', '<=', '>', '>='].includes(relation));
+  }, [
+    absoluteSplitModel.relation,
+    absoluteSplitRelations,
+    absoluteSplitStructure,
+    absoluteSplitValues,
+  ]);
   const candidateVerification = useMemo(() => {
     if (summary.kind !== 'values' || !relationStateContainsAbsoluteValue(pristine)) return [];
     return verifyRelationCandidates(pristine, summary.values, pristine.variable).map((candidate, index) => ({
@@ -732,6 +763,7 @@ export default function MultiRelationAlgebra({
     || absoluteSplitOpen
     || absoluteSplitStructure
     || absoluteSplitValues.some((value) => String(value || '').trim())
+    || absoluteSplitRelations.some((value) => String(value || '').trim())
   );
 
   useEffect(() => {
@@ -759,6 +791,8 @@ export default function MultiRelationAlgebra({
           setAbsoluteSplitOpen(false);
           setAbsoluteSplitStructure(null);
           setAbsoluteSplitValues(['', '']);
+          setAbsoluteSplitRelations(['', '']);
+    setAbsoluteSplitRelations(['', '']);
           setMessage({ tone: 'growth', text: 'Pending relation action undone.' });
           return;
         }
@@ -782,6 +816,8 @@ export default function MultiRelationAlgebra({
           setAbsoluteSplitOpen(false);
           setAbsoluteSplitStructure(null);
           setAbsoluteSplitValues(['', '']);
+          setAbsoluteSplitRelations(['', '']);
+    setAbsoluteSplitRelations(['', '']);
           setMessage({ tone: 'growth', text: 'Last relation step undone.' });
           return current.slice(0, -1);
         });
@@ -792,6 +828,7 @@ export default function MultiRelationAlgebra({
     absoluteSplitOpen,
     absoluteSplitStructure,
     absoluteSplitValues,
+    absoluteSplitRelations,
     cancellationSelection,
     completeSquareOpen,
     completeSquareValue,
@@ -951,46 +988,38 @@ export default function MultiRelationAlgebra({
       const operationLabel = `${BASIC_OPERATIONS.find((item) => item.id === operation)?.label || operation} ${latexToExpression(operand)}`;
       const flipResults = result.branchResults.filter((item) => item.requiresInequalityFlip);
 
-      if (flipResults.length > 1) {
-        setMessage({
-          tone: 'growth',
-          text: 'A negative multiply/divide would change inequality directions on more than one branch. Commit those branches one at a time so you can choose each new relation symbol yourself.',
-        });
-        return;
-      }
-
-      if (flipResults.length === 1) {
-        if (stagedBranchIndices.length > 1) {
-          setMessage({
-            tone: 'growth',
-            text: 'This operation changes an inequality direction on one selected branch. Commit that branch by itself so you can choose the new relation symbol.',
-          });
-          return;
-        }
-
-        const flip = flipResults[0];
+      if (flipResults.length) {
         const before = cloneRelationState(relationState);
         setRelationState(result.state);
         setRepresentationCorrect(null);
         setCancellationSelection({});
         setPlacementByKey({});
         setPendingRelationFlip({
-          branchIndex: flip.branchIndex,
-          expectedRelations: flip.expectedRelations,
+          // Keep the legacy single-branch fields so any in-progress draft from
+          // the previous implementation can still hydrate safely.
+          branchIndex: flipResults[0].branchIndex,
+          expectedRelations: flipResults[0].expectedRelations,
+          branchResults: flipResults.map((flip) => ({
+            branchIndex: flip.branchIndex,
+            expectedRelations: flip.expectedRelations,
+          })),
           before,
           label: operationLabel,
           validationContext: {
             kind: 'balancedOperation',
             operation,
             operandExpression: operand,
-            branchIndices: [flip.branchIndex],
+            branchIndices: stagedBranchIndices,
           },
         });
         setMessage({
           tone: 'growth',
-          text: 'Operation written. Update the relation symbol(s) yourself before continuing.',
+          text: flipResults.length > 1
+            ? 'Operation written across the selected branches. Update every highlighted inequality symbol yourself before continuing.'
+            : 'Operation written. Update the relation symbol(s) yourself before continuing.',
         });
       } else {
+        const branchCount = stagedBranchIndices.length;      } else {
         const branchCount = stagedBranchIndices.length;
         const committed = await commitState(
           result.state,
@@ -1229,8 +1258,9 @@ export default function MultiRelationAlgebra({
 
   const chooseRelationSymbol = async (branchIndex, relationIndex, choice) => {
     const pending = pendingRelationFlip;
-    if (!pending || pending.branchIndex !== branchIndex) return;
-    const expected = pending.expectedRelations?.[relationIndex];
+    const branchFlip = pendingFlipForBranch(pending, branchIndex);
+    if (!pending || !branchFlip) return;
+    const expected = branchFlip.expectedRelations?.[relationIndex];
     if (choice !== expected) {
       setMessage({ tone: 'growth', text: 'That relation symbol does not keep the relation equivalent after your operation.' });
       return;
@@ -1241,8 +1271,11 @@ export default function MultiRelationAlgebra({
     setRelationState(next);
     setRelationPicker(null);
 
-    const complete = next.branches[branchIndex].relations.every((relation, index) => (
-      relation === pending.expectedRelations[index]
+    const flipResults = pendingFlipResultsFor(pending);
+    const complete = flipResults.every((flip) => (
+      next.branches[flip.branchIndex]?.relations?.every((relation, index) => (
+        relation === flip.expectedRelations?.[index]
+      ))
     ));
 
     if (complete) {
@@ -1264,58 +1297,73 @@ export default function MultiRelationAlgebra({
       }]);
       setPendingRelationFlip(null);
       await persistStep(pending.before, next, pending.label, 'student-relation-direction');
-      setMessage({ tone: 'success', text: 'Relation symbols accepted. Continue solving.' });
+      setMessage({
+        tone: 'success',
+        text: flipResults.length > 1
+          ? 'All relation symbols accepted across the selected branches. Continue solving.'
+          : 'Relation symbols accepted. Continue solving.',
+      });
     } else {
-      setMessage({ tone: 'growth', text: 'That symbol is equivalent. Finish the remaining relation symbol(s).' });
+      setMessage({ tone: 'growth', text: 'That symbol is equivalent. Finish the remaining highlighted relation symbol(s).' });
     }
   };
 
   const applyAbsoluteSplitChoice = async (structure) => {
-    if (absoluteSplitModel.ready && absoluteSplitModel.studentAuthorsBranchValues) {
-      if (structure !== 'or') {
-        const rejected = buildStudentAuthoredAbsoluteValueEqualitySplit(
-          relationState,
-          activeBranch,
-          structure,
-          absoluteSplitValues,
-        );
-        setMessage({ tone: 'growth', text: rejected.reason });
-        return;
-      }
-      setAbsoluteSplitStructure('or');
-      setAbsoluteSplitValues(['', '']);
-      setAbsoluteSplitFocusSignal((value) => value + 1);
+    if (!absoluteSplitModel.ready) {
+      setMessage({ tone: 'growth', text: absoluteSplitModel.reason });
+      return;
+    }
+
+    if (structure !== absoluteSplitModel.expectedStructure) {
       setMessage({
         tone: 'growth',
-        text: 'Enter both right-side values yourself. MathMaster will check the split without creating the negative branch for you.',
+        text: 'That OR/AND structure is not equivalent to the current absolute-value relation.',
       });
       return;
     }
 
-    const result = buildAbsoluteValueSplit(relationState, activeBranch, structure);
-    if (!result.ready) {
-      setMessage({ tone: 'growth', text: result.reason });
-      return;
-    }
-    const committed = await commitState(
-      result.state,
-      `Reverse absolute value as ${structure === 'or' ? 'OR branches' : 'an AND compound relation'}`,
-      'absolute-value-split',
-      { kind: 'absoluteSplit', branchIndex: activeBranch, structure },
-    );
-    if (!committed) return;
-    setAbsoluteSplitOpen(false);
-    setAbsoluteSplitStructure(null);
+    setAbsoluteSplitStructure(structure);
     setAbsoluteSplitValues(['', '']);
-    setMessage({ tone: 'success', text: 'Absolute-value structure accepted. Continue solving the relation you created.' });
+    setAbsoluteSplitRelations(
+      absoluteSplitModel.relation === '=' && structure === 'or'
+        ? ['=', '=']
+        : ['', ''],
+    );
+    setAbsoluteSplitFocusSignal((value) => value + 1);
+    setMessage({
+      tone: 'growth',
+      text: structure === 'or'
+        ? absoluteSplitModel.relation === '='
+          ? 'Enter both right-side values yourself. MathMaster will check the split without creating the negative branch for you.'
+          : 'Build both inequality branches yourself: choose each relation symbol and enter each bound.'
+        : 'Build the three-part inequality yourself: enter both bounds and choose both relation symbols.',
+    });
   };
 
   const commitStudentAbsoluteSplit = async () => {
-    const result = buildStudentAuthoredAbsoluteValueEqualitySplit(
+    const authored = absoluteSplitStructure === 'or'
+      ? {
+          branches: absoluteSplitValues.map((value, index) => ({
+            value,
+            relation: absoluteSplitModel.relation === '='
+              ? '='
+              : absoluteSplitRelations[index],
+          })),
+        }
+      : {
+          compound: {
+            leftValue: absoluteSplitValues[0],
+            leftRelation: absoluteSplitRelations[0],
+            rightRelation: absoluteSplitRelations[1],
+            rightValue: absoluteSplitValues[1],
+          },
+        };
+
+    const result = buildStudentAuthoredAbsoluteValueSplit(
       relationState,
       activeBranch,
       absoluteSplitStructure,
-      absoluteSplitValues,
+      authored,
     );
     if (!result.ready) {
       setMessage({ tone: 'growth', text: result.reason });
@@ -1324,7 +1372,9 @@ export default function MultiRelationAlgebra({
 
     const committed = await commitState(
       result.state,
-      'Reverse absolute value using student-authored OR branch values',
+      absoluteSplitStructure === 'or'
+        ? 'Reverse absolute value using student-authored split branches'
+        : 'Reverse absolute value using a student-authored compound inequality',
       'absolute-value-split',
       {
         kind: 'absoluteSplit',
@@ -1336,13 +1386,14 @@ export default function MultiRelationAlgebra({
     setAbsoluteSplitOpen(false);
     setAbsoluteSplitStructure(null);
     setAbsoluteSplitValues(['', '']);
+    setAbsoluteSplitRelations(['', '']);
     setMessage({
       tone: 'success',
-      text: 'Your split is equivalent to the original equation. Continue solving each branch.',
+      text: 'Your split is equivalent to the original relation. Continue solving the relation you created.',
     });
   };
 
-  const chooseOtherOperation = async (id) => {
+  const chooseOtherOperation = async (id) => {  const chooseOtherOperation = async (id) => {
     setOtherOpen(false);
     setRewriteOpen(false);
     setRewriteValue('');
@@ -1373,6 +1424,7 @@ export default function MultiRelationAlgebra({
       setAbsoluteSplitOpen(true);
       setAbsoluteSplitStructure(null);
       setAbsoluteSplitValues(['', '']);
+    setAbsoluteSplitRelations(['', '']);
       setMessage({
         tone: 'growth',
         text: 'Choose the equivalent structure yourself. For an equation, you will also enter both split values.',
@@ -1485,6 +1537,7 @@ export default function MultiRelationAlgebra({
     setAbsoluteSplitOpen(false);
     setAbsoluteSplitStructure(null);
     setAbsoluteSplitValues(['', '']);
+    setAbsoluteSplitRelations(['', '']);
     setMessage(null);
     setRepresentationCorrect(null);
     setCandidateChecks({});
@@ -1908,15 +1961,15 @@ export default function MultiRelationAlgebra({
               setAbsoluteSplitOpen(false);
               setAbsoluteSplitStructure(null);
               setAbsoluteSplitValues(['', '']);
+          setAbsoluteSplitRelations(['', '']);
+    setAbsoluteSplitRelations(['', '']);
             }}
             style={buttonStyle(false)}
           >
             ×
           </button>
 
-          {absoluteSplitModel.ready
-            && absoluteSplitModel.studentAuthorsBranchValues
-            && absoluteSplitStructure === 'or' && (
+          {absoluteSplitModel.ready && absoluteSplitStructure && (
             <div
               className={`multi-relation-absolute-split-fields${denseWorkspace ? ' multi-relation-absolute-split-fields--dense' : ''}`}
               style={{
@@ -1929,62 +1982,147 @@ export default function MultiRelationAlgebra({
               }}
             >
               <div className="multi-relation-absolute-split-instructions" style={{ color: '#5f6368', fontSize: 11.5, lineHeight: 1.4 }}>
-                Type the right side of both equations. The platform will not create the positive/negative pair for you.
+                {absoluteSplitStructure === 'or'
+                  ? absoluteSplitModel.relation === '='
+                    ? 'Type the right side of both equations. The platform will not create the positive/negative pair for you.'
+                    : 'Create both outside inequality branches yourself. Choose the inequality sign and type the bound for each branch.'
+                  : 'Create the full between inequality yourself. Enter the left and right bounds and choose both inequality signs.'}
               </div>
 
-              {absoluteSplitValues.map((value, index) => (
+              {absoluteSplitStructure === 'or' ? (
+                absoluteSplitValues.map((value, index) => (
+                  <div
+                    key={index}
+                    className="multi-relation-absolute-split-branch"
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: denseWorkspace
+                        ? 'minmax(88px, auto) auto minmax(0, 1fr)'
+                        : 'minmax(120px, auto) auto minmax(160px, 1fr)',
+                      gap: 10,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <div
+                      style={{
+                        minHeight: 42,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'flex-end',
+                        fontSize: 22,
+                        color: '#202124',
+                      }}
+                    >
+                      <MathDisplay
+                        value={relationExpressionToLatex(absoluteSplitModel.inner)}
+                        format="latex"
+                        inline
+                      />
+                    </div>
+
+                    {absoluteSplitModel.relation === '=' ? (
+                      <span style={{ color: '#174ea6', fontWeight: 900, fontSize: 22 }}>=</span>
+                    ) : (
+                      <select
+                        value={absoluteSplitRelations[index] || ''}
+                        onChange={(event) => {
+                          const nextRelation = event.target.value;
+                          setAbsoluteSplitRelations((current) => current.map((item, relationIndex) => (
+                            relationIndex === index ? nextRelation : item
+                          )));
+                        }}
+                        aria-label={`Branch ${branchLabel(index)} inequality symbol`}
+                        style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid #9bb8e8', background: '#fff', color: '#174ea6', fontSize: 18, fontWeight: 900 }}
+                      >
+                        <option value="">?</option>
+                        {['<', '<=', '>', '>='].map((choice) => (
+                          <option key={choice} value={choice}>{RELATION_GLYPH[choice]}</option>
+                        ))}
+                      </select>
+                    )}
+
+                    <MathInput
+                      value={value}
+                      onChange={(nextValue) => {
+                        setAbsoluteSplitValues((current) => current.map((item, valueIndex) => (
+                          valueIndex === index ? nextValue : item
+                        )));
+                      }}
+                      placeholder={index === 0 ? 'Branch A bound' : 'Branch B bound'}
+                      ariaLabel={index === 0 ? 'Branch A bound' : 'Branch B bound'}
+                      toolProfile="algebra-operation"
+                      compact
+                      focusSignal={index === 0 ? absoluteSplitFocusSignal : 0}
+                    />
+                  </div>
+                ))
+              ) : (
                 <div
-                  key={index}
-                  className="multi-relation-absolute-split-branch"
+                  className="multi-relation-absolute-split-compound"
                   style={{
                     display: 'grid',
                     gridTemplateColumns: denseWorkspace
-                      ? 'minmax(88px, auto) minmax(0, 1fr)'
-                      : 'minmax(120px, auto) minmax(160px, 1fr)',
-                    gap: 10,
+                      ? 'minmax(0, 1fr) auto minmax(100px, auto) auto minmax(0, 1fr)'
+                      : 'minmax(150px, 1fr) auto minmax(140px, auto) auto minmax(150px, 1fr)',
+                    gap: 8,
                     alignItems: 'center',
                   }}
                 >
-                  <div
-                    style={{
-                      minHeight: 42,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'flex-end',
-                      gap: 8,
-                      fontSize: 22,
-                      color: '#202124',
-                    }}
-                  >
-                    <MathDisplay
-                      value={relationExpressionToLatex(absoluteSplitModel.inner)}
-                      format="latex"
-                      inline
-                    />
-                    <span style={{ color: '#174ea6', fontWeight: 900 }}>=</span>
-                  </div>
-
                   <MathInput
-                    value={value}
-                    onChange={(nextValue) => {
-                      setAbsoluteSplitValues((current) => current.map((item, valueIndex) => (
-                        valueIndex === index ? nextValue : item
-                      )));
-                    }}
-                    placeholder={index === 0 ? 'Branch A right side' : 'Branch B right side'}
-                    ariaLabel={index === 0 ? 'Branch A right-side value' : 'Branch B right-side value'}
+                    value={absoluteSplitValues[0]}
+                    onChange={(value) => setAbsoluteSplitValues((current) => [value, current[1]])}
+                    placeholder="Left bound"
+                    ariaLabel="Left bound of compound inequality"
                     toolProfile="algebra-operation"
                     compact
-                    focusSignal={index === 0 ? absoluteSplitFocusSignal : 0}
+                    focusSignal={absoluteSplitFocusSignal}
+                  />
+                  <select
+                    value={absoluteSplitRelations[0] || ''}
+                    onChange={(event) => setAbsoluteSplitRelations((current) => [event.target.value, current[1]])}
+                    aria-label="Left inequality symbol"
+                    style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid #9bb8e8', background: '#fff', color: '#174ea6', fontSize: 18, fontWeight: 900 }}
+                  >
+                    <option value="">?</option>
+                    {['<', '<=', '>', '>='].map((choice) => (
+                      <option key={choice} value={choice}>{RELATION_GLYPH[choice]}</option>
+                    ))}
+                  </select>
+                  <div style={{ textAlign: 'center', fontSize: 22, color: '#202124' }}>
+                    <MathDisplay value={relationExpressionToLatex(absoluteSplitModel.inner)} format="latex" inline />
+                  </div>
+                  <select
+                    value={absoluteSplitRelations[1] || ''}
+                    onChange={(event) => setAbsoluteSplitRelations((current) => [current[0], event.target.value])}
+                    aria-label="Right inequality symbol"
+                    style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid #9bb8e8', background: '#fff', color: '#174ea6', fontSize: 18, fontWeight: 900 }}
+                  >
+                    <option value="">?</option>
+                    {['<', '<=', '>', '>='].map((choice) => (
+                      <option key={choice} value={choice}>{RELATION_GLYPH[choice]}</option>
+                    ))}
+                  </select>
+                  <MathInput
+                    value={absoluteSplitValues[1]}
+                    onChange={(value) => setAbsoluteSplitValues((current) => [current[0], value])}
+                    placeholder="Right bound"
+                    ariaLabel="Right bound of compound inequality"
+                    toolProfile="algebra-operation"
+                    compact
                   />
                 </div>
-              ))}
+              )}
 
               <div className="multi-relation-absolute-split-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={() => {
                     setAbsoluteSplitValues(['', '']);
+                    setAbsoluteSplitRelations(
+                      absoluteSplitModel.relation === '=' && absoluteSplitStructure === 'or'
+                        ? ['=', '=']
+                        : ['', ''],
+                    );
                     setAbsoluteSplitFocusSignal((value) => value + 1);
                   }}
                   style={buttonStyle(false)}
@@ -1994,12 +2132,10 @@ export default function MultiRelationAlgebra({
                 <button
                   type="button"
                   onClick={commitStudentAbsoluteSplit}
-                  disabled={absoluteSplitValues.some((value) => !String(value || '').trim())}
+                  disabled={!absoluteSplitReadyToCheck}
                   style={{
                     ...buttonStyle(true),
-                    background: absoluteSplitValues.some((value) => !String(value || '').trim())
-                      ? '#9fb7df'
-                      : '#174ea6',
+                    background: !absoluteSplitReadyToCheck ? '#9fb7df' : '#174ea6',
                     color: '#fff',
                   }}
                 >
@@ -2008,6 +2144,7 @@ export default function MultiRelationAlgebra({
               </div>
             </div>
           )}
+
         </div>
       )}
 
@@ -2204,8 +2341,11 @@ export default function MultiRelationAlgebra({
 
                       {expressionIndex < branch.relations.length && (() => {
                         const relation = branch.relations[expressionIndex];
-                        const needsChoice = pendingRelationFlip?.branchIndex === branchIndex
-                          && pendingRelationFlip?.expectedRelations?.[expressionIndex] !== relation;
+                        const pendingBranchFlip = pendingFlipForBranch(pendingRelationFlip, branchIndex);
+                        const needsChoice = Boolean(
+                          pendingBranchFlip
+                          && pendingBranchFlip.expectedRelations?.[expressionIndex] !== relation
+                        );
                         const pickerOpen = relationPicker?.branchIndex === branchIndex
                           && relationPicker?.relationIndex === expressionIndex;
 
