@@ -80,6 +80,7 @@ export default function EnlargeableFigure({
   openEnlarged = false,
   dismissKey = null,
   presentationKey = null,
+  forceClosed = false,
   // THE ENLARGED PANEL COVERS THE QUESTION THAT SENT THE STUDENT TO IT.
   //
   // It is a full-window modal over the page holding the task, so a student who
@@ -93,7 +94,7 @@ export default function EnlargeableFigure({
   taskText = '',
   capabilities = null,
 }) {
-  const [enlarged, setEnlarged] = useState(() => openEnlarged && !readDismissed(dismissKey));
+  const [enlarged, setEnlarged] = useState(() => !forceClosed && openEnlarged && !readDismissed(dismissKey));
   const [drawer, setDrawer] = useState(null);
   const [viewport, setViewport] = useState(() => readWorkViewViewport());
   const openerRef = useRef(null);
@@ -135,6 +136,17 @@ export default function EnlargeableFigure({
     });
   }, [openEnlarged, dismissKey]);
 
+  // A grading transition owns this close. It is deliberately separate from
+  // `close`: completing a question is not the student's choice to dismiss the
+  // compact-phone default for future questions. Blurring also dismisses the
+  // MathMaster/mobile keyboard before the continuation controls appear.
+  useEffect(() => {
+    if (!forceClosed) return;
+    if (typeof document !== 'undefined') document.activeElement?.blur?.();
+    setDrawer(null);
+    setEnlarged(false);
+  }, [forceClosed]);
+
   useEffect(() => {
     if (!enlarged) return undefined;
     const onKeyDown = (event) => {
@@ -151,10 +163,10 @@ export default function EnlargeableFigure({
   // Focus goes back where it came from, so a keyboard user is not dropped at
   // the top of the page after closing.
   useEffect(() => {
-    if (!enlarged) openerRef.current?.focus?.({ preventScroll: true });
+    if (!enlarged && !forceClosed) openerRef.current?.focus?.({ preventScroll: true });
     // Only on the transition back, never on first mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enlarged]);
+  }, [enlarged, forceClosed]);
 
   useEffect(() => {
     if (!enlarged || typeof document === 'undefined') return undefined;
@@ -176,14 +188,14 @@ export default function EnlargeableFigure({
   useEffect(() => {
     const questionChanged = presentationKeyRef.current !== presentationKey;
     presentationKeyRef.current = presentationKey;
-    const allowedToAutoOpen = openEnlarged && !readDismissed(dismissKey);
+    const allowedToAutoOpen = !forceClosed && openEnlarged && !readDismissed(dismissKey);
 
     if (questionChanged) {
       setEnlarged(allowedToAutoOpen);
       return;
     }
     if (allowedToAutoOpen) setEnlarged((current) => current || true);
-  }, [openEnlarged, dismissKey, presentationKey]);
+  }, [openEnlarged, dismissKey, presentationKey, forceClosed]);
 
   // visualViewport follows the actually usable height when mobile browser
   // chrome or the virtual keyboard changes. This is presentation-only state.
@@ -332,7 +344,7 @@ export default function EnlargeableFigure({
         </p>
       ) : null}
       {!enlarged ? (
-        <button ref={openerRef} type="button" onClick={() => setEnlarged(true)} style={CONTROL}>
+        <button ref={openerRef} type="button" onClick={() => { if (!forceClosed) setEnlarged(true); }} disabled={forceClosed} style={CONTROL}>
           ⤢ {enlargeLabel}
         </button>
       ) : null}

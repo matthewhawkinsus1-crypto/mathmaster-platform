@@ -60,6 +60,12 @@ jobs:
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
           WORK_VIEW_CERTIFICATION_DEVICE: ${{ matrix.device }}
         run: node tests/browser/workViewCertification.mjs
+      - name: Run terminal-state lifecycle regression
+        if: matrix.device == 'chromebook'
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/workViewTerminalTransition.mjs
       - name: Upload device/family/state screenshots
         if: always()
         uses: actions/upload-artifact@v4
