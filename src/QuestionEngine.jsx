@@ -310,8 +310,14 @@ export default function QuestionEngine({
     Boolean(answerState.responseKey) &&
     answerState.responseKey === (record.lastResponseKey || lastSubmittedResponseKey);
   const isMultipart = MULTIPART_TYPES.has(processedQuestion?.type) || (answerState.parts || []).length > 1;
-  const scaffoldRequired = Boolean(resolvedActivityPolicy?.remediationAllowed !== false && supportPresentation.inclusion && record.status === 'attempted' && record.attemptCount >= 2 && !locked && !scaffoldComplete);
-  const contextScaffoldEnabled = Boolean(processedQuestion?.context?.scenario && processedQuestion?.context?.scaffold?.enabled !== false);
+  const instructionalHelpAllowed = resolvedActivityPolicy?.hintsAllowed !== false
+    && resolvedActivityPolicy?.remediationAllowed !== false;
+  const scaffoldRequired = Boolean(instructionalHelpAllowed && supportPresentation.inclusion && record.status === 'attempted' && record.attemptCount >= 2 && !locked && !scaffoldComplete);
+  const contextScaffoldEnabled = Boolean(
+    instructionalHelpAllowed
+    && processedQuestion?.context?.scenario
+    && processedQuestion?.context?.scaffold?.enabled !== false
+  );
   const contextScaffoldRequired = contextScaffoldEnabled && !contextScaffoldComplete && !locked;
   const terminalFeedbackHidden = !showOutcomeFeedback && (isCorrect || isExpired);
 
@@ -803,7 +809,7 @@ export default function QuestionEngine({
     ? <ReferenceInfoCard referenceInfo={referenceInfo} />
     : null;
 
-  const guidedCoachEnabled = resolvedActivityPolicy?.hintsAllowed !== false
+  const guidedCoachEnabled = instructionalHelpAllowed
     && guidedNotesMode !== 'off'
     && (guidedMode || supportPresentation.visualChunking);
   const guidedCoach = (
@@ -927,7 +933,7 @@ export default function QuestionEngine({
         </div>
       )}
 
-      {formulaAnchor && supportPresentation.inclusion && (
+      {instructionalHelpAllowed && formulaAnchor && supportPresentation.inclusion && (
         <aside style={{ position: 'sticky', top: '8px', zIndex: 4, margin: '0 0 12px auto', width: 'fit-content', maxWidth: '100%', padding: '10px 14px', borderRadius: '10px', background: '#fff4ce', border: '1px solid #f9ab00', color: '#5f4400', boxShadow: '0 4px 12px rgba(95,68,0,0.12)' }}>
           <strong style={{ display: 'block', fontSize: '12px', marginBottom: '4px' }}>Formula anchor</strong>
           <MathDisplay value={formulaAnchor} format="latex" />
@@ -984,10 +990,12 @@ export default function QuestionEngine({
       <WorkViewCapabilityProvider capabilities={{
         undo: { label:workspaceActions.undo.label, onAction:workspaceActions.undo.onClick, disabled:workspaceActions.undo.disabled, title:workspaceActions.undo.title },
         task: { text:processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.' },
-        help: workspaceActions.help || {
-          label: 'Help',
-          text: 'Use the task directions and the controls in this workspace. Your mathematical work stays in place when you open or close Work View.',
-        },
+        help: instructionalHelpAllowed
+          ? (workspaceActions.help || {
+              label: 'Help',
+              text: 'Use the task directions and the controls in this workspace. Your mathematical work stays in place when you open or close Work View.',
+            })
+          : null,
         instruction: taskContextPresentation.currentStagePrompt ? { text:taskContextPresentation.currentStagePrompt } : null,
         primaryActions: workspaceActions.submit ? [{ ...workspaceActions.submit, onAction:workspaceActions.submit.onClick }] : [],
         secondaryActions: [
