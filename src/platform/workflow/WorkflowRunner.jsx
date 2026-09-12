@@ -23,7 +23,7 @@ import { buildStudentTableMagneticTargets } from '../../graphInteractionPrecisio
 import { buildWorkflowSummaryItems, shouldUseWorkflowFocusMode, summarizeStageResponse } from './workflowFocusMode';
 import { stageFamily, stageFamilyLabel } from './stageFamilies';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
-import { workflowEndpointMarkers } from './workflowGraphVisuals.js';
+import { workflowEndpointMarkers, workflowRequiresEndpointMarkers } from './workflowGraphVisuals.js';
 import { resolveWorkflowTaskPrompt, selectPersistentWorkflowGraph } from './workflowPresentation.js';
 import './WorkflowFocusMode.css';
 
@@ -782,7 +782,11 @@ const DELEGATES = {
           // A restricted relationship needs explicit visual boundaries. The
           // domain stage still asks the student to STATE the domain, but the
           // graph itself is incomplete until its open/closed endpoints are shown.
-          requireEndpointMarkers: pointOnly ? false : (stage.requireEndpointMarkers ?? true),
+          requireEndpointMarkers: workflowRequiresEndpointMarkers({
+            pointOnly,
+            authored: stage.requireEndpointMarkers,
+            domain: stage.domainRestriction,
+          }),
         }}
         mode="construct"
         onStateChange={onChange}

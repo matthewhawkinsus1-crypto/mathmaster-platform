@@ -4,12 +4,28 @@ import { createRequire } from 'node:module';
 
 import {
   sameExpandedPolynomialEquation,
+  sameIntervalNotation,
   sameValue,
 } from '../../functions/shared/answerEquivalence.mjs';
 import { gradeResponseField } from '../../src/grading/fieldGrader.js';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../../functions/lib/mathPath.js');
+
+test('A2.7I reciprocal exclusions accept authored ASCII-u interval unions and MathLive variants', () => {
+  const key = '(-inf,-7)u(-7,inf)';
+  for (const response of [
+    '(-inf,-7)u(-7,inf)',
+    '(-inf,-7)U(-7,inf)',
+    '(-∞,-7)∪(-7,∞)',
+    '(−inf,−7)u(−7,inf)',
+    '\\left(-inf,-7\\right)\\cup\\left(-7,inf\\right)',
+  ]) {
+    assert.equal(sameIntervalNotation(response, key), true, `${response} should match ${key}`);
+  }
+  assert.equal(sameIntervalNotation('(-inf,-7]u(-7,inf)', key), false, 'endpoint inclusion still matters');
+  assert.equal(sameIntervalNotation('(-inf,-6)u(-6,inf)', key), false, 'a different excluded value still fails');
+});
 
 test('A2.4A screenshot: normal student quadratic equals generated machine key', () => {
   const student = 'y=x^{2}-6x+1';
