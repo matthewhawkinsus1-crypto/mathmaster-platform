@@ -293,12 +293,17 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
 
       {sectionAccessControls.length > 0 && (
         <>
-          <h3 style={{ margin: '0 0 10px' }}>Classwork &amp; Practice Access</h3>
-          <div style={{ padding: '10px 12px', borderRadius: 9, background: '#eef4ff', color: '#3c4043', fontSize: 12, marginBottom: 10 }}>Open or close either section for {selectedClass.name || selectedPeriod} only. Closing a section preserves saved work and prevents new graded submissions until you reopen it.</div>
+          <h3 style={{ margin: '0 0 10px' }}>Section Access</h3>
+          <div style={{ padding: '10px 12px', borderRadius: 9, background: '#eef4ff', color: '#3c4043', fontSize: 12, marginBottom: 10 }}>Open or close an available section for {selectedClass.name || selectedPeriod} only. Test and Retest controls are class-specific, so opening one class never exposes the assessment to another class.</div>
           <div style={{ display: 'grid', gap: '10px', marginBottom: '22px' }}>
             {sectionAccessControls.map(({ assignment, role, state }) => {
               const busyKey = `${assignment.id}:${selectedClass.classId || selectedPeriod}:${role}`;
-              const label = role === 'practice' ? 'Practice' : 'Classwork';
+              const label = ({
+                classwork: 'Classwork',
+                practice: 'Practice',
+                test: 'Test',
+                retest: 'Retest',
+              })[role] || 'Section';
               return (
                 <div key={`${assignment.id}:${role}`} style={{ padding: '12px 14px', borderRadius: '9px', border: '1px solid #c5d5ef', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   <div>
