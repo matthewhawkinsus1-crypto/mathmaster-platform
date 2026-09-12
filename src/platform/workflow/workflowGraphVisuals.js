@@ -60,6 +60,13 @@ const sampledVisiblePoints = (evaluate, view, domain) => {
   return rows;
 };
 
+export const workflowRequiresEndpointMarkers = ({ pointOnly = false, authored, domain = null } = {}) => {
+  if (pointOnly) return false;
+  if (typeof authored === 'boolean') return authored;
+  const bounds = normalizeWorkflowDomain(domain);
+  return bounds.min !== null || bounds.max !== null;
+};
+
 export const workflowEndpointMarkers = ({ evaluate, domain = null, viewWindow = {} } = {}) => {
   if (typeof evaluate !== 'function') return [];
   const view = {
