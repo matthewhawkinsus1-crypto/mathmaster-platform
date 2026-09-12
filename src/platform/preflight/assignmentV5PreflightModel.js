@@ -19,9 +19,11 @@ const titleForRole = (role) => ({
   warmup: 'Warm-Up',
   classwork: 'Classwork',
   practice: 'Practice',
+  review: 'Review',
   dol: 'DOL',
   quiz: 'Quiz',
   test: 'Test',
+  retest: 'Retest',
 }[role] || 'Section');
 
 const asMessages = (value) => (Array.isArray(value) ? value.filter(Boolean).map(String) : []);
