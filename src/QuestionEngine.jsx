@@ -247,6 +247,7 @@ export default function QuestionEngine({
   const [contextScaffoldComplete, setContextScaffoldComplete] = useState(false);
   const [contextScaffoldUsed, setContextScaffoldUsed] = useState(false);
   const [calculatorUsed, setCalculatorUsed] = useState(false);
+  const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [hintUsed, setHintUsed] = useState(false);
   const [workflowGuidanceState, setWorkflowGuidanceState] = useState(null);
   const taskContextPresentation = resolveTaskContextPresentation({
@@ -282,6 +283,7 @@ export default function QuestionEngine({
     setContextScaffoldComplete(false);
     setContextScaffoldUsed(false);
     setCalculatorUsed(false);
+    setCalculatorOpen(false);
     setHintUsed(false);
     setWorkflowGuidanceState(null);
   }, [processedQuestion]);
@@ -835,6 +837,15 @@ export default function QuestionEngine({
       disabled: scratchpadLoading,
       title: 'Open the scratchpad without covering the solver controls',
     },
+    calculator: calculatorPolicy?.available ? {
+      label: '🧮 Calculator',
+      onClick: () => {
+        setCalculatorUsed(true);
+        setCalculatorOpen((current) => !current);
+      },
+      disabled: false,
+      title: 'Open the calculator',
+    } : null,
     help: guidedCoachEnabled ? {
       label: 'Help',
       content: guidedCoach,
@@ -858,6 +869,16 @@ export default function QuestionEngine({
       <button type="button" onClick={openScratchpad} disabled={scratchpadLoading} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>
         {scratchpadLoading ? 'Opening…' : locked ? '✎ Scratchpad' : '✎ Scratchpad'}
       </button>
+      {calculatorPolicy?.available && (
+        <button
+          type="button"
+          onClick={() => { setCalculatorUsed(true); setCalculatorOpen((current) => !current); }}
+          aria-expanded={calculatorOpen}
+          style={{ minHeight:'44px', padding:'9px 14px', borderRadius:'999px', border:'1px solid #c5d5ef', background:calculatorOpen?'#eef4ff':'#fff', color:'#174ea6', fontWeight:'bold', cursor:'pointer' }}
+        >
+          🧮 Calculator
+        </button>
+      )}
       {supportPresentation.textToSpeech && (
         <button type="button" onClick={() => speakText(referenceSpeechText)} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>🔊 Read</button>
       )}
@@ -905,12 +926,6 @@ export default function QuestionEngine({
           Grade weight ×{questionGradeWeight} · this question contributes {questionGradeWeight} times a standard-weight question to the assignment grade.
         </div>
       )}
-
-      <CalculatorPanel
-        policy={calculatorPolicy}
-        estimationRequired={processedQuestion?.estimationRequired === true}
-        onCalculatorOpened={() => setCalculatorUsed(true)}
-      />
 
       {formulaAnchor && supportPresentation.inclusion && (
         <aside style={{ position: 'sticky', top: '8px', zIndex: 4, margin: '0 0 12px auto', width: 'fit-content', maxWidth: '100%', padding: '10px 14px', borderRadius: '10px', background: '#fff4ce', border: '1px solid #f9ab00', color: '#5f4400', boxShadow: '0 4px 12px rgba(95,68,0,0.12)' }}>
@@ -975,7 +990,10 @@ export default function QuestionEngine({
         },
         instruction: taskContextPresentation.currentStagePrompt ? { text:taskContextPresentation.currentStagePrompt } : null,
         primaryActions: workspaceActions.submit ? [{ ...workspaceActions.submit, onAction:workspaceActions.submit.onClick }] : [],
-        secondaryActions: [{ ...workspaceActions.scratchpad, onAction:workspaceActions.scratchpad.onClick }],
+        secondaryActions: [
+          { ...workspaceActions.scratchpad, onAction:workspaceActions.scratchpad.onClick },
+          ...(workspaceActions.calculator ? [{ ...workspaceActions.calculator, onAction:workspaceActions.calculator.onClick }] : []),
+        ],
       }}>
       <div className="mathmaster-question-tool-workspace" style={{ position: 'relative' }}>
         {!solverWorkspaceActive && guidedCoach}
@@ -1044,6 +1062,15 @@ export default function QuestionEngine({
           {submitLabel}
         </button>
         ) : null}
+      />
+
+      <CalculatorPanel
+        policy={calculatorPolicy}
+        estimationRequired={processedQuestion?.estimationRequired === true}
+        onCalculatorOpened={() => setCalculatorUsed(true)}
+        open={calculatorOpen}
+        onOpenChange={setCalculatorOpen}
+        showLauncher={false}
       />
 
       {sameIncorrectResponse && !isMultipart && !locked && (
