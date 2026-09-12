@@ -12,7 +12,10 @@ const currentContentExport = fs.readFileSync('src/platform/assignments/currentCo
 
 test('new authoring enters through Assignment V5 and reviewed Preflight', () => {
   assert.match(intake, /Paste AI Assignment/);
-  assert.match(app, /const reviewedV5 = reviewedAssignmentV5/);
+  assert.match(app, /const reviewedCandidate = reviewedAssignmentV5/);
+  assert.match(app, /const finalPreflight = buildAssignmentV5PreflightModel\(reviewedCandidate\)/);
+  assert.match(app, /if \(!finalPreflight\.isValid\)/);
+  assert.match(app, /const reviewedV5 = finalPreflight\.assignmentV5/);
   assert.match(app, /flattenV5Sections\(reviewedV5\)/);
   assert.match(modal, /buildPreflightReviewedAssignmentV5/);
   assert.match(modal, /buildAssignmentV5PreflightModel\(reviewedAssignmentV5\)/);
