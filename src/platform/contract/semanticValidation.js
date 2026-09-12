@@ -92,6 +92,20 @@ const relationMappingHasGraph = (question = {}) => (
   && question.ask.includes('plot')
 );
 
+// Some renderers own graphs inside nested cards rather than on question.graph.
+// Count only structures the runtime actually draws so Preflight does not force
+// redundant top-level graphs into otherwise valid interactive questions.
+const candidateGraphsHaveGraph = (question = {}) => (
+  Array.isArray(question.candidateGraphs)
+  && question.candidateGraphs.some((candidate) => isObject(candidate?.graph))
+);
+
+const openSortBoardHasGraph = (question = {}) => (
+  String(question.toolId || question.type) === 'openSortBoard'
+  && Array.isArray(question.items)
+  && question.items.some((item) => isObject(item?.graphSpec) || nonEmptyArray(item?.points))
+);
+
 const composedStages = (composed) => (composed?.composed && Array.isArray(composed.workflow) ? composed.workflow : []);
 
 const composedDrawsFigureGraphs = (composed) => composedStages(composed).some((stage) => (
@@ -121,6 +135,8 @@ const VISUAL_PROMISES = [
       // scatterplot; it does not need a redundant graph or functionSpec.
       || dataModelingLabHasGraph(question)
       || relationMappingHasGraph(question)
+      || candidateGraphsHaveGraph(question)
+      || openSortBoardHasGraph(question)
       || transformationsLabHasGraph(question)
       || composedHasStage(composed, ['functionGraph', 'coordinatePlot', 'graphFeatureSelect'])
       // A matching step draws one plane per figure, and a choice step with
