@@ -96,9 +96,9 @@ export const getStoredAssignmentTypeProjection = (assignment = {}) => {
     return 'practice';
   }
 
-  // Quiz/Test are designed as separate assignments. Preserve their identity if
-  // they are the dominant summative role, but a lesson bundle with classwork or
-  // warm-up remains a notes/classwork assignment.
+  // A Test Cycle can carry review + test + retest in one assignment. Preserve
+  // its summative identity while lesson bundles with classwork or warm-up remain
+  // notes/classwork assignments.
   if (unique.has('classwork') || unique.has('warmup')) return 'notesClasswork';
   if (unique.has('test')) return 'test';
   if (unique.has('quiz')) return 'quiz';
@@ -238,6 +238,7 @@ export const storedAssignmentToV5 = (assignment = {}, {
       gradingPurpose: assignment.gradingPurpose ?? assignment.assignment?.gradingPurpose ?? null,
     },
     sections: rebuildV5SectionsFromQuestions(assignment, sourceQuestions),
+    assessmentPolicy: assignment.assessmentPolicy || null,
     variantPolicy: {
       ...sourceVariantPolicy,
       mode: getStoredAssignmentVariantMode(assignment),
@@ -273,6 +274,7 @@ export const canonicalV5PersistencePatch = (assignmentV5 = {}) => {
     instructionalPurpose: safeAssignmentV5.assignment?.instructionalPurpose || 'lesson',
     gradingPurpose: safeAssignmentV5.assignment?.gradingPurpose ?? null,
     sections: safeAssignmentV5.sections || [],
+    assessmentPolicy: safeAssignmentV5.assessmentPolicy || null,
     variantPolicy: safeAssignmentV5.variantPolicy || {},
     differentiationPolicy: safeAssignmentV5.differentiationPolicy || null,
     supportPolicy: safeAssignmentV5.supportPolicy || null,
