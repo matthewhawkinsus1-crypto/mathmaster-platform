@@ -5,6 +5,7 @@ const FIRESTORE_COORDINATE_LIST_KEYS = new Set([
   'orderedPairs',
   'relation',
   'sourcePoints',
+  'sourceData',
   'givenPoints',
   'dataPoints',
   'intercepts',
