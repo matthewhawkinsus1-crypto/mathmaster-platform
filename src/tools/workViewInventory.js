@@ -3,6 +3,7 @@
 // student-facing reason rather than silently falling outside Work View.
 export const WORK_VIEW_INVENTORY = Object.freeze({
   dataModelingLab: { status: 'migrated', stage: '1-2', capabilities: ['numericControls', 'equationInput', 'tableData', 'task', 'help', 'primaryActions'] },
+  regressionCalculator: { status: 'migrated', stage: '202', capabilities: ['numericControls', 'tableData', 'instruction', 'task', 'help', 'primaryActions'] },
   systemsWorkspace: { status: 'migrated', stage: '3B', capabilities: ['undo', 'pointEditing', 'numericControls', 'equationInput', 'instruction', 'task', 'help', 'primaryActions'] },
   sequenceExplorer: { status: 'migrated', stage: '3B', capabilities: ['undo', 'fitView', 'panZoom', 'pointEditing', 'numericControls', 'equationInput', 'tableData', 'instruction', 'task', 'help', 'primaryActions'] },
   transformationsLab: { status: 'migrated', stage: '3A', capabilities: ['undo', 'fitView', 'panZoom', 'pointEditing', 'numericControls', 'instruction', 'task', 'help', 'primaryActions', 'secondaryActions'] },

@@ -1,5 +1,6 @@
 import React from 'react';
 import DataModelingLab from './dataModeling/DataModelingLab';
+import RegressionCalculator from './regressionCalculator/RegressionCalculator';
 import InverseCompositionLab from './inverseComposition/InverseCompositionLabRouter';
 import FunctionOperationsLab from './functionOperations/FunctionOperationsLab';
 import SystemsWorkspace from './systemsWorkspace/SystemsWorkspace';
@@ -25,12 +26,13 @@ import { getMobileToolProfile } from '../platform/mobile/mobileToolProfiles.js';
 import RegisteredToolWorkView from './shared/RegisteredToolWorkView.jsx';
 import { STAGE_3D_WORK_VIEW_IDS } from './workViewInventory.js';
 
-const REGISTRY_WORK_VIEW_IDS = new Set([...STAGE_3D_WORK_VIEW_IDS, 'dataModelingLab']);
+const REGISTRY_WORK_VIEW_IDS = new Set([...STAGE_3D_WORK_VIEW_IDS, 'dataModelingLab', 'regressionCalculator']);
 
 // Labels and course lists live in the React-free toolCatalog so Node-side
 // consumers can read them; this map only attaches the components.
 const TOOL_COMPONENTS = {
   dataModelingLab: DataModelingLab,
+  regressionCalculator: RegressionCalculator,
   inverseCompositionLab: InverseCompositionLab,
   functionOperationsLab: FunctionOperationsLab,
   systemsWorkspace: SystemsWorkspace,

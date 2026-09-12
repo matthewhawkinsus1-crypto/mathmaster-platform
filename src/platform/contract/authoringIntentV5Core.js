@@ -69,6 +69,7 @@ const ACTION_ALIASES = Object.freeze({
   connectrepresentations: 'connectRepresentations', matchrepresentation: 'connectRepresentations', findmismatch: 'findRepresentationMismatch',
   sortintocategories: 'sortIntoCategories', controlledsort: 'sortIntoCategories', classifyintocategories: 'sortIntoCategories',
   fitline: 'fitDataModel', fitmodel: 'fitDataModel', analyzedata: 'analyzeData', predictfrommodel: 'predictFromModel',
+  calculatecorrelation: 'calculateCorrelation', correlationcalculator: 'calculateCorrelation', runlinearregression: 'calculateCorrelation',
   inverse: 'findInverse', findinverse: 'findInverse', composition: 'composeFunctions', composefunctions: 'composeFunctions',
   parabolageometry: 'analyzeParabolaGeometry', focusdirectrix: 'analyzeParabolaGeometry',
   factorpolynomial: 'factorPolynomial', dividepolynomial: 'dividePolynomial', multiplypolynomials: 'multiplyPolynomials',
@@ -869,6 +870,7 @@ const resolveIntentType = (q, actions) => {
   const hint = clean(q.toolHint || q.destination || q.intentType || q.questionType);
   if (hint) return hint;
   if (q.labDefinition || actions.includes('modelingLab')) return 'modelingLab';
+  if (actions.includes('calculateCorrelation')) return 'regressionCalculator';
   if (q.data || q.points && actions.some((a) => ['analyzeData','fitDataModel','predictFromModel'].includes(a))) return 'dataModelingLab';
   if (q.inverse || q.composition || actions.some((a) => ['findInverse','composeFunctions'].includes(a))) return 'inverseCompositionLab';
   if (q.parabola || actions.includes('analyzeParabolaGeometry')) return 'parabolaGeometryLab';
@@ -1490,6 +1492,15 @@ const compileOne = (q, index, repairs) => {
       out = copyCommon(q, { type, mode: q.mode || (actions.includes('fitDataModel') ? 'lineFit' : actions.includes('predictFromModel') ? 'prediction' : 'full'), points: q.points || data.points, predictionX: q.predictionX ?? data.predictionX, predictionTolerance: q.predictionTolerance ?? data.predictionTolerance });
       break;
     }
+    case 'regressionCalculator': {
+      const data = q.data || {};
+      out = copyCommon(q, {
+        type,
+        sourceData: normalizePointListForStorage(q.sourceData || q.points || data.points),
+        requireInterpretation: q.requireInterpretation !== false,
+      });
+      break;
+    }
     case 'inverseCompositionLab':
       out = copyCommon(q, { type, mode: q.mode || (actions.includes('composeFunctions') ? 'composition' : 'inverse'), f: toolFunctionSpec(q.f || q.function || q.inverse?.function), g: q.g ? toolFunctionSpec(q.g) : undefined, x: q.x, inverseBranch: q.inverseBranch });
       break;
@@ -1721,7 +1732,7 @@ export const AUTHORING_INTENT_V5_ACTIONS = Object.freeze([
   'findVertex','findXIntercepts','findYIntercept','findMaximum','findMinimum','solveLiteral','solveSystem','graphSystem','solveInequalitySystem','rowReduce',
   'completeTable','stateOrderedPair','multipleResponses','identifyQuantities','configureAxes','writeEquation','classifyContinuity','matchGraphsToStories','compareGraphs',
   'writeGraphStory','interpretPointInContext','buildMapping','plotRelation','classifyFunction','analyzeSequence','findSequenceTerm','findMissingTerm',
-  'writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence','connectRepresentations','findRepresentationMismatch','sortIntoOwnGroups','sortIntoCategories','buildFunctionFromConstraints','analyzeData','fitDataModel','predictFromModel',
+  'writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence','connectRepresentations','findRepresentationMismatch','sortIntoOwnGroups','sortIntoCategories','buildFunctionFromConstraints','analyzeData','fitDataModel','predictFromModel','calculateCorrelation',
   'findInverse','composeFunctions','analyzeParabolaGeometry','factorPolynomial','dividePolynomial','multiplyPolynomials','solveInequality','complexOperations','analyzeComplex',
   'exponentialLogBridge','solveExponential','solveLogarithmic','analyzeTransformations','constructLine','modelingLab',
 ]);

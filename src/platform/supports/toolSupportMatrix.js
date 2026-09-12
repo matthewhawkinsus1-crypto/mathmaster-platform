@@ -58,6 +58,7 @@ export const KEYBOARD_OPERABLE = Object.freeze([
   'intervalNumberLine', 'relationMapping', 'openSortBoard', 'graphing2',
   'systemsWorkspace', 'sequenceExplorer', 'representationMatch',
   'dataModelingLab', 'inverseCompositionLab', 'parabolaGeometryLab',
+  'regressionCalculator',
   'polynomialWorkshop', 'signSolutionAnalyzer', 'complexPlaneLab',
   'exponentialLogBridge', 'transformationsLab', 'functionInvestigation2',
   'stepAlgebra2', 'constraintFunctionBuilder',

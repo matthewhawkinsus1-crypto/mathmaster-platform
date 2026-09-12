@@ -1,7 +1,7 @@
 import { validateSortQuestion } from './openSortBoard/openSortMath.js';
 import { validateConstraintBuilderQuestion } from './constraintFunctionBuilder/constraintFunctionMath.js';
 const TOOL_IDS = new Set([
-  'dataModelingLab','inverseCompositionLab','functionOperationsLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
+  'dataModelingLab','regressionCalculator','inverseCompositionLab','functionOperationsLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
   'signSolutionAnalyzer','sequenceExplorer','complexPlaneLab','exponentialLogBridge','transformationsLab',
   'representationMatch','functionInvestigation2','graphing2','stepAlgebra2','solutionReview2',
   'intervalNumberLine','relationMapping','openSortBoard','constraintFunctionBuilder',
@@ -96,6 +96,10 @@ export const validateToolQuestion = (question = {}) => {
     ];
     if (question.mode && !modes.includes(question.mode)) errors.push(`Unsupported dataModelingLab mode: ${question.mode}.`);
     if (question.predictionTolerance != null && Number(question.predictionTolerance) <= 0) errors.push('predictionTolerance must be positive.');
+  }
+  if (toolId === 'regressionCalculator') {
+    const points = question.sourceData || question.points;
+    if (!Array.isArray(points) || points.length < 3 || points.some((point) => !isFinitePoint(point))) errors.push('regressionCalculator requires at least 3 finite source-data pairs.');
   }
   if (toolId === 'systemsWorkspace') {
     const modes = ['linear','inequalities','linearQuadratic','matrix'];

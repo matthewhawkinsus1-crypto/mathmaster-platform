@@ -72,6 +72,12 @@ const QUESTIONS = {
     correlationTolerance: 0.02,
     answer: 'must-not-leak',
   },
+  regressionCalculator: {
+    type: 'regressionCalculator',
+    prompt: 'Enter the data, run linear regression, and interpret r.',
+    sourceData: [[1, 2], [2, 4], [3, 5], [4, 8]],
+    answer: 'must-not-leak',
+  },
   stepAlgebra: {
     type: 'stepAlgebra',
     prompt: 'Solve on the balance workspace.',
@@ -104,6 +110,7 @@ const SECRETS = {
   systemsWorkspace: [],
   graphing2: [],
   dataModelingLab: ['must-not-leak', 'correlationTolerance'],
+  regressionCalculator: ['must-not-leak'],
   stepAlgebra: ['"5"'],
   // The y-values of the plotted points, and the end-behaviour symbol.
   functionInvestigation: ['[0,1]', '[2,5]', 'arrow', '(-∞, ∞)'],

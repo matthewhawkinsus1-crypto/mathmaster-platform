@@ -6,6 +6,7 @@ import { ToolRuntimeProvider } from '../tools/shared/ToolRuntimeContext';
 // realistic spec a teacher sees on the preview bench.
 export const SAMPLE_SPECS = {
   dataModelingLab: { mode:'full', points:[[1,2],[2,3],[3,5],[4,5],[5,7],[6,8],[7,10]], causationSupported:false, expectedModel:'linear', predictionX:8 },
+  regressionCalculator: { prompt:'Use the source data to calculate and interpret r.', sourceData:[[1,3],[2,5],[3,6],[4,9],[5,10]], requireInterpretation:true },
   inverseCompositionLab: { mode:'restriction', f:{type:'quadratic',a:1,h:2,k:-1,inverseBranch:'right',domain:{min:2}}, g:{type:'linear',a:-1,h:0,k:4}, x:5 },
   systemsWorkspace: { mode:'linearQuadratic', linearQuadratic:{line:{m:1,b:2},quadratic:{a:1,b:0,c:-4}} },
   parabolaGeometryLab: { mode:'features', h:1,k:-1,p:2,orientation:'vertical' },
