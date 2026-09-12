@@ -6496,17 +6496,27 @@ function App() {
 
     const questions = getStoredAssignmentQuestions(assignment);
     const currentContent = projectCurrentAssignmentContent(assignment);
-    const projectedEntries = activeClassroomSectionKey
-      ? currentContent.entries.filter((entry) => entry.logicalRole === activeClassroomSectionKey)
-      : currentContent.entries;
-    const includedQuestionIndices = projectedEntries.map((entry) => entry.storageIndex);
     const lifecycle = getAssignmentLifecycle(assignment, now);
+    const practiceOnly = lifecycle.isPracticeOnly && !isAssessmentPathwayAssignment(assignment);
     const recordedTracker = tracker[activeAssignmentId] || {};
     const workingTracker = preview
       ? previewTracker
-      : lifecycle.isPracticeOnly
+      : practiceOnly
         ? practiceTracker[activeAssignmentId] || createPracticeAssignmentTracker(questions, recordedTracker)
         : recordedTracker;
+    const assessmentState = !preview
+      ? getAssessmentPathwayState({ assignment, tracker: recordedTracker, nowValue: now })
+      : null;
+    const assessmentVisibleIndices = assessmentState
+      ? (getAssessmentVisibleIndices({ assignment, tracker: recordedTracker, nowValue: now }) || [])
+      : null;
+    const assessmentVisibleSet = assessmentVisibleIndices ? new Set(assessmentVisibleIndices) : null;
+    const projectedEntries = activeClassroomSectionKey
+      ? currentContent.entries.filter((entry) => entry.logicalRole === activeClassroomSectionKey)
+      : assessmentVisibleSet
+        ? currentContent.entries.filter((entry) => assessmentVisibleSet.has(entry.storageIndex))
+        : currentContent.entries;
+    const includedQuestionIndices = projectedEntries.map((entry) => entry.storageIndex);
     const recordedGrade = calculateGrade(recordedTracker, assignment);
     const gradeSplit = splitGrade({ tracker: recordedTracker, assignment });
     const classroomReceipt = !preview ? classroomSyncStatusByAssignment?.[assignment.id] || null : null;
@@ -6529,8 +6539,8 @@ function App() {
       playedRoomIds: warmupChallengePlayedRoomIds,
     });
     const currentRecord = normalizeQuestionRecord(workingTracker?.[currentQuestionIndex]);
-    const currentIsDOL = !lifecycle.isPracticeOnly && activeQuestionRole === 'dol' && dolState.enabled && (dolState.questionIndices || [dolState.questionIndex]).includes(currentQuestionIndex);
-    const currentIsWarmup = !lifecycle.isPracticeOnly && activeQuestionRole === 'warmup' && warmupState.enabled;
+    const currentIsDOL = !practiceOnly && activeQuestionRole === 'dol' && dolState.enabled && (dolState.questionIndices || [dolState.questionIndex]).includes(currentQuestionIndex);
+    const currentIsWarmup = !practiceOnly && activeQuestionRole === 'warmup' && warmupState.enabled;
     const currentManualSectionState = getSectionAccessState({
       assignment,
       activityRole: activeQuestionRole,
@@ -6539,13 +6549,31 @@ function App() {
       nowValue: now,
     });
     const currentSectionManuallyLocked = !preview
-      && !lifecycle.isPracticeOnly
+      && !practiceOnly
       && currentManualSectionState.enabled
       && !currentManualSectionState.isOpen;
-    const assignmentFeedbackHeld = !preview && !lifecycle.isPracticeOnly && assignmentHasHeldTeacherFeedback(assignment);
-    const currentFeedbackReleased = lifecycle.isPracticeOnly || assignmentFeedbackWasReleased(assignment)
-      || (activeActivityPolicy.feedback === 'afterAssignmentSubmit' && ['correct', 'expired'].includes(currentRecord.status));
-    const runtimeActivityRole = !preview && lifecycle.isPracticeOnly ? 'practice' : activeQuestionRole;
+    const assessmentFeedbackHeld = assessmentState
+      ? (
+          assessmentState.feedbackHeld === true
+          || assessmentState.stage === 'test'
+          || assessmentState.stage === 'awaitingFeedback'
+          || assessmentState.stage === 'retest'
+        )
+      : false;
+    const assignmentFeedbackHeld = !preview
+      && !practiceOnly
+      && (assessmentState ? assessmentFeedbackHeld : assignmentHasHeldTeacherFeedback(assignment));
+    const currentFeedbackReleased = assessmentState
+      ? (
+          activeQuestionRole === 'review'
+            ? true
+            : activeQuestionRole === 'retest'
+              ? Boolean(assignment?.assessmentRetestFeedbackReleased || assignment?.assessmentRetestFeedbackReleasedAt)
+              : assignmentFeedbackWasReleased(assignment)
+        )
+      : practiceOnly || assignmentFeedbackWasReleased(assignment)
+        || (activeActivityPolicy.feedback === 'afterAssignmentSubmit' && ['correct', 'expired'].includes(currentRecord.status));
+    const runtimeActivityRole = !preview && practiceOnly ? 'practice' : activeQuestionRole;
     const runtimeActivityPolicy = getEffectiveActivityPolicy(runtimeActivityRole);
     const currentQuestionBlueprint = questions[currentQuestionIndex];
     const currentReplacementAllowed = resolveQuestionReplacementAllowed({
@@ -6574,7 +6602,7 @@ function App() {
       variationMode: currentSectionVariantMode,
       honors: String(user?.profile?.courseLevel || '').toLowerCase() === 'honors',
     });
-    const draftSessionMode = preview ? 'preview' : lifecycle.isPracticeOnly ? 'post-deadline-practice' : lifecycle.isLate ? 'late' : 'graded';
+    const draftSessionMode = preview ? 'preview' : practiceOnly ? 'post-deadline-practice' : lifecycle.isLate ? 'late' : 'graded';
     const supportPresentation = preview ? getStudentSupportPresentation({}) : activeSupportPresentation;
     const replacementWarning = currentIsDOL && dolState.status === 'active'
       ? `Requesting another DOL question will erase this DOL attempt. You will have only ${formatRemainingTime(dolState.millisecondsRemaining)} remaining to submit the replacement.`
@@ -6590,8 +6618,10 @@ function App() {
       );
     }
 
-    const lifecycleBadge = lifecycle.isPracticeOnly
-      ? { label: 'Practice only', background: '#f1f3f4', color: '#3c4043' }
+    const lifecycleBadge = assessmentState && lifecycle.isClosed
+      ? { label: 'Assessment closed', background: '#f1f3f4', color: '#3c4043' }
+      : practiceOnly
+        ? { label: 'Practice only', background: '#f1f3f4', color: '#3c4043' }
       : lifecycle.isLate
         ? { label: 'Late — still open', background: '#fff4ce', color: '#7a4f00' }
         : lifecycle.isScheduled
@@ -6606,10 +6636,12 @@ function App() {
       warmup: { label: 'Warm-Up', background: '#fff4ce', color: '#7a4f00', border: '#f9ab00' },
       classwork: { label: 'Classwork', background: '#e8f0fe', color: '#174ea6', border: '#1a73e8' },
       practice: { label: 'Practice', background: '#e6f4ea', color: '#137333', border: '#34a853' },
+      review: { label: 'Review', background: '#e8f0fe', color: '#174ea6', border: '#1a73e8' },
       dol: { label: 'DOL / Exit Ticket', background: '#f3e8fd', color: '#681da8', border: '#9334e6' },
       checkpoint: { label: 'Checkpoint', background: '#fce8e6', color: '#a50e0e', border: '#d93025' },
       quiz: { label: 'Quiz', background: '#fce8e6', color: '#a50e0e', border: '#d93025' },
       test: { label: 'Test', background: '#fce8e6', color: '#a50e0e', border: '#d93025' },
+      retest: { label: 'Retest', background: '#f3e8fd', color: '#681da8', border: '#9334e6' },
     };
     const visibleQuestionEntries = projectedEntries.map((entry, visiblePosition) => {
       const index = entry.storageIndex;
@@ -6649,7 +6681,8 @@ function App() {
     const currentSectionOfficialGrade = currentSectionOfficialGrades[activeQuestionRole] || null;
     const warmupCanBeViewed = ['active', 'closed', 'ended'].includes(warmupState.status);
     const entryIsAvailable = (entry) => {
-      if (preview || lifecycle.isPracticeOnly) return true;
+      if (preview || practiceOnly) return true;
+      if (assessmentState && lifecycle.isClosed) return false;
       if (entry?.role === 'warmup' && warmupState.enabled && !warmupCanBeViewed) return false;
       if (entry?.isTimedDOLQuestion && !lifecycle.isClosed && !['active', 'ended'].includes(dolState.status)) return false;
       const manualState = getSectionAccessState({
@@ -6706,6 +6739,73 @@ function App() {
       setActiveView('dashboard');
       setActiveAssignmentId(null);
     };
+
+    const assessmentStageMismatch = Boolean(
+      !preview
+      && assessmentState?.canEnter
+      && assessmentState?.visibleRole
+      && activeQuestionRole !== assessmentState.visibleRole
+    );
+    const assessmentStageBlocked = Boolean(
+      !preview
+      && assessmentState
+      && (lifecycle.isClosed || !assessmentState.canEnter)
+    );
+    const assessmentFirstVisibleIndex = assessmentVisibleIndices?.[0] ?? null;
+    if (assessmentState && (assessmentStageMismatch || assessmentStageBlocked)) {
+      const stageTitle = lifecycle.isClosed
+        ? 'Assessment window closed'
+        : assessmentState.stage === 'test'
+          ? 'Review complete — Test ready'
+          : assessmentState.stage === 'retest'
+            ? 'Retest ready'
+            : assessmentState.statusLabel || 'Assessment update';
+      const stageColor = assessmentState.stage === 'test'
+        ? '#a50e0e'
+        : assessmentState.stage === 'retest'
+          ? '#681da8'
+          : '#174ea6';
+      const canContinue = !lifecycle.isClosed && assessmentState.canEnter && Number.isInteger(assessmentFirstVisibleIndex);
+      return (
+        <div className="mathmaster-assignment-screen" style={{ minHeight: '100vh', background: '#f0f2f5', padding: 20, fontFamily: '"Segoe UI", sans-serif', display: 'grid', placeItems: 'center' }}>
+          <section style={{ width: 'min(680px, 100%)', background: '#fff', borderRadius: 16, border: `3px solid ${stageColor}`, padding: '30px 32px', boxShadow: '0 10px 30px rgba(0,0,0,0.10)', textAlign: 'left' }}>
+            <div style={{ fontSize: 12, fontWeight: 950, textTransform: 'uppercase', letterSpacing: '0.08em', color: stageColor, marginBottom: 8 }}>
+              {assessmentState.stage === 'test' ? 'TEST MODE' : assessmentState.stage === 'retest' ? 'RETEST MODE' : 'ASSESSMENT'}
+            </div>
+            <h1 style={{ margin: '0 0 12px', color: '#202124', fontSize: 28 }}>{stageTitle}</h1>
+            <p style={{ margin: 0, color: '#5f6368', fontSize: 17, lineHeight: 1.6 }}>{lifecycle.isClosed ? 'Your saved responses remain recorded. New assessment submissions are no longer accepted.' : assessmentState.detail}</p>
+            {assessmentState.stage === 'test' && canContinue && (
+              <div style={{ marginTop: 18, padding: '14px 16px', borderRadius: 10, background: '#fce8e6', color: '#7a1a12', lineHeight: 1.5, fontWeight: 800 }}>
+                Once you enter the Test, each question has one attempt. Hints, replacement questions, guided help, and remediation are disabled. Your results stay hidden until your teacher releases them.
+              </div>
+            )}
+            {assessmentState.stage === 'retest' && canContinue && (
+              <div style={{ marginTop: 18, padding: '14px 16px', borderRadius: 10, background: '#f3e8fd', color: '#4a126b', lineHeight: 1.5, fontWeight: 800 }}>
+                This is a shorter fresh assessment, not a copy of your original Test. Your original Test score is preserved unless the Retest improves it.
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 24 }}>
+              {canContinue && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentQuestionIndex(assessmentFirstVisibleIndex);
+                    setAssignmentNavigationCollapsed(false);
+                    setAssignmentOverviewExpanded(false);
+                  }}
+                  style={{ padding: '12px 20px', border: 0, borderRadius: 9, background: stageColor, color: '#fff', fontWeight: 950, cursor: 'pointer', fontSize: 16 }}
+                >
+                  {assessmentState.stage === 'test' ? 'Start Test' : assessmentState.stage === 'retest' ? 'Start Retest' : 'Continue'}
+                </button>
+              )}
+              <button type="button" onClick={leaveAssignment} style={{ padding: '12px 18px', border: '1px solid #dadce0', borderRadius: 9, background: '#fff', color: '#3c4043', fontWeight: 900, cursor: 'pointer' }}>
+                Back to Dashboard
+              </button>
+            </div>
+          </section>
+        </div>
+      );
+    }
 
     // While the Warm-Up challenge is live it IS the screen. Rendering the
     // assignment underneath would leave a student scrolling between a timed
@@ -6771,6 +6871,13 @@ function App() {
               <button type="button" onClick={() => { leaveAssignment(); setStudentDashboardMode('liveChallenge'); }} style={{ padding: '11px 17px', border: 0, borderRadius: '9px', background: '#174ea6', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Join Live Challenge</button>
             </section>
           )}
+          {assessmentState && !preview && (
+            <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: assessmentState.stage === 'review' ? '#e8f0fe' : assessmentState.stage === 'test' ? '#fce8e6' : '#f3e8fd', border: `2px solid ${assessmentState.stage === 'review' ? '#1a73e8' : assessmentState.stage === 'test' ? '#d93025' : '#9334e6'}`, color: assessmentState.stage === 'review' ? '#174ea6' : assessmentState.stage === 'test' ? '#7a1a12' : '#4a126b', textAlign: 'left' }}>
+              <strong style={{ display: 'block', fontSize: '21px' }}>{assessmentState.stage === 'review' ? 'Review Mode' : assessmentState.stage === 'test' ? 'TEST MODE' : assessmentState.stage === 'retest' ? 'RETEST MODE' : assessmentState.statusLabel}</strong>
+              <span>{assessmentState.detail}</span>
+            </section>
+          )}
+
           {lifecycle.isLate && !preview && (
             <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: '#fff4ce', border: '2px solid #f9ab00', color: '#5f4400', textAlign: 'left' }}>
               <strong style={{ display: 'block', fontSize: '20px' }}>Late submission window</strong>
@@ -6778,7 +6885,7 @@ function App() {
             </section>
           )}
 
-          {lifecycle.isPracticeOnly && !preview && (
+          {practiceOnly && !preview && (
             <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: '#f1f3f4', border: '2px solid #5f6368', color: '#3c4043', textAlign: 'left' }}>
               <strong style={{ display: 'block', fontSize: '20px' }}>Practice Mode — grading window ended</strong>
               <span>Your recorded grade is frozen. You may keep practicing with feedback, but these attempts earn no credit and are not written to the teacher gradebook, mastery evidence, Math Path recommendations, or activity analytics. Practice state stays only in memory for this signed-in browser session and is never saved.</span>
@@ -6831,7 +6938,7 @@ function App() {
                 <div style={{ fontSize: '12px', color: '#5f6368', textTransform: 'uppercase', fontWeight: 900 }}>
                   {preview
                     ? 'Preview progress'
-                    : lifecycle.isPracticeOnly
+                    : practiceOnly
                       ? 'Frozen recorded grade'
                       : lifecycle.isLate
                         ? 'Current late grade · if stopped now'
@@ -6953,7 +7060,7 @@ function App() {
                       ? `${currentSectionMeta.label} section score ${currentSectionGrade?.score ?? 0}% · ${currentSectionGrade?.attempted ?? 0}/${currentSectionGrade?.total ?? 0} answered`
                       : assignmentFeedbackHeld
                         ? `${currentSectionMeta.label} section score available after teacher release`
-                        : lifecycle.isPracticeOnly
+                        : practiceOnly
                           ? `${currentSectionMeta.label} section score ${currentSectionOfficialGrade?.score ?? 0}% · official grade frozen · practice score ${currentSectionGrade?.score ?? 0}%`
                           : `${currentSectionMeta.label} section score ${currentSectionGrade?.score ?? 0}% · ${currentSectionGrade?.attempted ?? 0}/${currentSectionGrade?.total ?? 0} answered`}
                   </small>
@@ -6962,7 +7069,7 @@ function App() {
                       ? `Preview progress · ${progress.correct}/${progress.total} correct`
                       : assignmentFeedbackHeld
                         ? 'Score available after teacher release'
-                        : lifecycle.isPracticeOnly
+                        : practiceOnly
                           ? `Recorded grade ${recordedGrade}% · frozen`
                           : `Current grade ${recordedGrade}% if submitted now`}
                     {!preview && !assignmentFeedbackHeld && gradeSplit.attempted > 0
@@ -7040,15 +7147,15 @@ function App() {
                         ? `${FRAMEWORK_LABELS[cardAssessment.framework] || cardAssessment.framework} practice`
                         : '';
                       const cardPolicy = getEffectiveActivityPolicy(cardRole);
-                      const cardFeedbackHeld = !preview && !lifecycle.isPracticeOnly && cardPolicy.feedback === 'teacherRelease' && !assignmentFeedbackWasReleased(assignment);
+                      const cardFeedbackHeld = !preview && !practiceOnly && cardPolicy.feedback === 'teacherRelease' && !assignmentFeedbackWasReleased(assignment);
                       const storedCardState = getQuestionCardState(workingTracker?.[index]);
                       const cardState = cardFeedbackHeld && ['correct', 'expired'].includes(record.status)
                         ? { background: '#eef4ff', color: '#174ea6', label: 'Submitted · feedback held' }
                         : storedCardState;
                       const dolUnavailable = isTimedDOLQuestion && !preview && !lifecycle.isClosed && !['active', 'ended'].includes(dolState.status);
-                      const warmupUnavailable = cardRole === 'warmup' && warmupState.enabled && !preview && !lifecycle.isPracticeOnly && !warmupCanBeViewed;
+                      const warmupUnavailable = cardRole === 'warmup' && warmupState.enabled && !preview && !practiceOnly && !warmupCanBeViewed;
                       const manualSectionState = getSectionAccessState({ assignment, activityRole: cardRole, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
-                      const manualSectionUnavailable = !preview && !lifecycle.isPracticeOnly && manualSectionState.enabled && !manualSectionState.isOpen;
+                      const manualSectionUnavailable = !preview && !practiceOnly && manualSectionState.enabled && !manualSectionState.isOpen;
                       const sectionUnavailable = dolUnavailable || warmupUnavailable || manualSectionUnavailable;
                       const lockedLabel = warmupUnavailable
                         ? (warmupState.status === 'waiting' ? `Opens ${warmupState.minutesBeforeStart} min before class` : 'Warm-Up is not open today')
@@ -7104,7 +7211,7 @@ function App() {
               studentProfile={preview ? null : adaptiveStudentProfile || user?.profile}
               guidedMode={['classwork', 'practice'].includes(runtimeActivityRole) && currentGuidedNotesMode !== 'off'}
               guidedNotesMode={currentGuidedNotesMode}
-              assignmentLocked={!preview && ((currentIsDOL && dolState.status === 'ended') || (currentIsWarmup && warmupState.status !== 'active') || currentSectionManuallyLocked)}
+              assignmentLocked={!preview && ((currentIsDOL && dolState.status === 'ended') || (currentIsWarmup && warmupState.status !== 'active') || currentSectionManuallyLocked || Boolean(assessmentState && lifecycle.isClosed))}
               assignmentLockedMessage={!preview && currentIsDOL && dolState.status === 'ended'
                 ? 'The DOL timer has ended. Your saved response is available for review, but no new submission is allowed.'
                 : !preview && currentIsWarmup && warmupState.status === 'closed'
@@ -7117,7 +7224,9 @@ function App() {
                         ? 'The Warm-Up is only available on its instructional day during your class window.'
                         : currentSectionManuallyLocked
                           ? `Your teacher has closed the ${currentManualSectionState.role === 'practice' ? 'Practice' : 'Classwork'} section for this class. Saved work remains visible, but new submissions are locked until the section is reopened.`
-                          : ''}
+                          : assessmentState && lifecycle.isClosed
+                            ? 'The assessment window has ended. Your saved responses remain recorded, but new submissions are locked.'
+                            : ''}
               dolMode={!preview && currentIsDOL && dolState.status === 'active'}
               maximumAttempts={resolveQuestionMaximumAttempts({
                 question: questions[currentQuestionIndex],
@@ -7128,9 +7237,9 @@ function App() {
               activityPolicy={runtimeQuestionActivityPolicy}
               feedbackReleased={currentFeedbackReleased}
               replacementWarning={replacementWarning}
-              draftKey={lifecycle.isPracticeOnly && !preview ? null : buildQuestionDraftKey({ studentId: preview ? 'teacher-preview' : user?.id || 'anonymous', assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex, variantIndex: currentRecord.variantIndex, sessionMode: draftSessionMode })}
+              draftKey={practiceOnly && !preview ? null : buildQuestionDraftKey({ studentId: preview ? 'teacher-preview' : user?.id || 'anonymous', assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex, variantIndex: currentRecord.variantIndex, sessionMode: draftSessionMode })}
               assignmentId={activeAssignmentId}
-              executionScope={preview ? 'teacherPreview' : lifecycle.isPracticeOnly ? 'postDuePractice' : 'student'}
+              executionScope={preview ? 'teacherPreview' : practiceOnly ? 'postDuePractice' : 'student'}
               onNextQuestion={nextQuestionEntry ? () => changeQuestion(nextQuestionEntry.index) : null}
               nextQuestionLabel={nextQuestionDestinationLabel}
               nextQuestionSectionLabel={nextQuestionSectionMeta?.label || ''}
