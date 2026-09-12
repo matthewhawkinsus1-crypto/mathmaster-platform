@@ -111,6 +111,35 @@ const warningsFor = (question) => validateQuestionSemantics(question).warnings;
     'relationMapping pairs do not count as a graph unless the renderer is actually asked to show the plot stage',
   );
 
+  assert.deepEqual(
+    errorsFor({
+      type: 'multiAnswer',
+      prompt: 'Estimate r for each scatterplot shown.',
+      candidateGraphs: [
+        { id: 'a', graph: { points: [{ x: 1, y: 2 }, { x: 2, y: 4 }, { x: 3, y: 5 }] } },
+        { id: 'b', graph: { points: [{ x: 1, y: 5 }, { x: 2, y: 3 }, { x: 3, y: 2 }] } },
+      ],
+      answerFields: [{ id: 'a', label: 'Graph A r', answer: '0.98' }],
+    }).filter((error) => /refers to a graph in its prompt, but the question contains none/.test(error)),
+    [],
+    'multiAnswer candidateGraphs satisfy the graph promise because MultiAnswerGrader renders them',
+  );
+
+  assert.deepEqual(
+    errorsFor({
+      type: 'openSortBoard',
+      prompt: 'Sort the scatterplots by direction.',
+      items: [
+        { id: 'a', points: [[1, 2], [2, 4], [3, 5]] },
+        { id: 'b', graphSpec: { type: 'linear', a: -1, h: 0, k: 4 } },
+        { id: 'c', text: 'No graph on this card' },
+      ],
+      validSchemes: [{ id: 's', groups: [{ itemIds: ['a', 'c'] }, { itemIds: ['b'] }] }],
+    }).filter((error) => /refers to a graph in its prompt, but the question contains none/.test(error)),
+    [],
+    'Open Sort Board item points and graphSpec satisfy the graph promise because its cards render coordinate planes',
+  );
+
   assert.ok(errorsFor({ type: 'algebra', prompt: 'Complete the table shown.' })
     .some((e) => /refers to a table/.test(e)), 'a prompt naming a table with no table fails');
 
