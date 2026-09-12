@@ -24,10 +24,14 @@ const descriptor = (r) => ({
   strength: Math.abs(r) >= 0.8 ? 'strong' : Math.abs(r) >= 0.5 ? 'moderate' : Math.abs(r) >= 0.1 ? 'weak' : 'none',
 });
 
+const canonicalTable = (points) => cleanRegressionPoints(points)
+  .sort(([ax, ay], [bx, by]) => ax - bx || ay - by);
+
 const sameTable = (actual, expected, tolerance = 1e-9) => {
-  const rows = cleanRegressionPoints(actual);
-  return rows.length === expected.length && rows.every((row, index) => (
-    row.every((value, coordinate) => Math.abs(value - expected[index][coordinate]) <= tolerance)
+  const rows = canonicalTable(actual);
+  const wanted = canonicalTable(expected);
+  return rows.length === wanted.length && rows.every((row, index) => (
+    row.every((value, coordinate) => Math.abs(value - wanted[index][coordinate]) <= tolerance)
   ));
 };
 
@@ -56,8 +60,13 @@ export const gradeRegressionCalculatorResponse = (definition, raw = {}) => {
   const run = raw.regressionRun;
   const regression = table && run?.operation === 'linearRegression'
     && sameTable(run.table, definition.sourceData);
-  const producedR = regression && finite(run.r)
-    && Math.abs(Number(run.r) - definition.stats.r) <= 0.0005;
+  const submittedStats = regression ? regressionCalculatorStats(run.table) : null;
+  const producedR = Boolean(submittedStats)
+    && finite(run.r) && finite(run.m) && finite(run.b)
+    && Math.abs(Number(run.r) - submittedStats.r) <= 0.0005
+    && Math.abs(Number(run.m) - submittedStats.m) <= 0.0005
+    && Math.abs(Number(run.b) - submittedStats.b) <= 0.0005
+    && Math.abs(submittedStats.r - definition.stats.r) <= 0.0005;
   const expected = descriptor(definition.stats.r);
   const interpretation = !definition.requireInterpretation || (
     raw.interpretation?.direction === expected.direction

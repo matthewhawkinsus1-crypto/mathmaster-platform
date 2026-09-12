@@ -36,7 +36,7 @@ test('server requires table and executed LinReg evidence before r can earn full 
 
   const full = gradeRegressionCalculatorResponse(definition, {
     table: points,
-    regressionRun: { operation: 'linearRegression', table: points, r: stats.r },
+    regressionRun: { operation: 'linearRegression', table: points, ...stats },
     interpretation: { direction: 'positive', strength: 'strong' },
     isCorrect: false,
   });
@@ -44,12 +44,30 @@ test('server requires table and executed LinReg evidence before r can earn full 
   assert.deepEqual(full.parts.map((part) => part.id), ['data-entry', 'linear-regression', 'correlation-produced', 'interpretation']);
 });
 
+test('row order is irrelevant and the server validates submitted run statistics by recomputation', () => {
+  const definition = buildRegressionCalculatorPrivateDefinition({ sourceData: points });
+  const reordered = [...points].reverse();
+  const stats = regressionCalculatorStats(reordered);
+  const valid = gradeRegressionCalculatorResponse(definition, {
+    table: reordered,
+    regressionRun: { operation: 'linearRegression', table: reordered, ...stats },
+    interpretation: { direction: 'positive', strength: 'strong' },
+  });
+  assert.equal(valid.isCorrect, true);
+  const forged = gradeRegressionCalculatorResponse(definition, {
+    table: reordered,
+    regressionRun: { operation: 'linearRegression', table: reordered, ...stats, r: stats.r - 0.2 },
+    interpretation: { direction: 'positive', strength: 'strong' },
+  });
+  assert.equal(forged.parts.find((part) => part.id === 'correlation-produced').isCorrect, false);
+});
+
 test('changed table snapshot cannot reuse an earlier correct regression run', () => {
   const definition = buildRegressionCalculatorPrivateDefinition({ sourceData: points });
   const stats = regressionCalculatorStats(points);
   const result = gradeRegressionCalculatorResponse(definition, {
     table: points,
-    regressionRun: { operation: 'linearRegression', table: [[1, 99], ...points.slice(1)], r: stats.r },
+    regressionRun: { operation: 'linearRegression', table: [[1, 99], ...points.slice(1)], ...stats },
     interpretation: { direction: 'positive', strength: 'strong' },
   });
   assert.equal(result.parts.find((part) => part.id === 'linear-regression').isCorrect, false);
@@ -74,6 +92,9 @@ test('calculator stays inside Work View and publishes touch-safe phone controls'
   assert.match(registry, /'regressionCalculator'\]\)/);
   assert.match(inventory, /regressionCalculator: \{ status: 'migrated'/);
   assert.match(component, /x₁ \/ y₁ table[\s\S]*Run regression[\s\S]*Interpretation/);
+  assert.match(component, /CoordinatePlane[\s\S]*lines=\{run/);
+  ['tableEdited', 'regressionSelected', 'regressionExecuted', 'correlationProduced']
+    .forEach((event) => assert.match(component, new RegExp(`record\\('${event}'`)));
   assert.match(css, /min-height:44px/);
   assert.match(css, /max-width:390px[\s\S]*overflow-x:hidden/);
 });

@@ -85,6 +85,13 @@ export const PATH_TOOL_QUESTIONS = {
     correlationTolerance: 0.01,
   },
 
+  regressionCalculator: {
+    type: 'regressionCalculator',
+    prompt: 'Enter the source data, run linear regression, and interpret the produced correlation.',
+    sourceData: [[1, 2], [2, 4], [3, 5], [4, 8]],
+    requireInterpretation: true,
+  },
+
   systemsWorkspace: {
     type: 'systemsWorkspace',
     prompt: 'Solve and classify the system.',

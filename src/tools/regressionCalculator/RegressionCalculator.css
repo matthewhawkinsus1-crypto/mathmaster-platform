@@ -6,5 +6,7 @@
 .regression-table input { width:100%; min-width:0; padding:8px; }
 .regression-workspace label, .regression-workspace output { display:grid; gap:6px; margin-bottom:10px; }
 .regression-workspace output { margin-top:12px; padding:10px; border-radius:8px; background:#e6f4ea; }
+.regression-expression { margin-bottom:10px; padding:10px; border:1px solid #c5d5ef; border-radius:8px; font-size:1.15rem; font-weight:800; }
+.regression-workspace svg { display:block; width:100%; height:auto; max-width:100%; touch-action:pan-y pinch-zoom; }
 .regression-submit { width:100%; margin-top:14px; }
 @media (max-width:390px) { .regression-workspace { display:block; width:100%; overflow-x:hidden; } .regression-workspace > * { margin-bottom:10px; } }
