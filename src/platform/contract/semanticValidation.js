@@ -81,11 +81,19 @@ const dataModelingLabHasGraph = (question = {}) => (
   && nonEmptyArray(question.points)
 );
 
-const regressionCalculatorHasGraph = (question = {}) => (
-  String(question.toolId || question.type) === 'regressionCalculator'
-  && String(question.sourceMode || '') === 'scatterplot'
-  && nonEmptyArray(question.sourceData)
-);
+const normalizedActionToken = (value) => String(value ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+const regressionCalculatorHasGraph = (question = {}) => {
+  const type = String(question.toolId || question.type);
+  const actions = Array.isArray(question.studentActions)
+    ? question.studentActions.map(normalizedActionToken)
+    : [];
+  const hasRegressionIntent = type === 'regressionCalculator'
+    || actions.some((action) => ['calculatecorrelation', 'correlationcalculator', 'runlinearregression'].includes(action));
+  return hasRegressionIntent
+    && String(question.sourceMode || '').toLowerCase() === 'scatterplot'
+    && nonEmptyArray(question.sourceData);
+};
 
 // relationMapping owns an interactive coordinate plane when its authored ask
 // includes "plot". In that mode the supplied pairs are the target points the
@@ -127,7 +135,11 @@ const composedPreviewsChoicesOnGraph = (composed) => composedStages(composed).so
 const VISUAL_PROMISES = [
   {
     id: 'graph',
-    pattern: /\b(the|this|each|following)\s+graph\b|\bgraph\s+(below|above|shown)\b|\bscatter\s*plot\b|\bshown\s+(below|above)\b|\bpictured\b|\bthe\s+coordinate\s+plane\b/i,
+    // This guard is about a prompt promising an EXISTING visual, not merely
+    // mentioning graphing as the student's task. "Create a scatterplot" and
+    // "graph the data" are valid construction prompts with no pre-drawn graph.
+    // Require demonstrative/display language before blocking on a missing graph.
+    pattern: /\b(the|this|each|following)\s+(?:scatter\s*plot|graph)\b|\b(?:scatter\s*plot|graph)\s+(below|above|shown)\b|\bshown\s+(below|above)\b|\bpictured\b|\bthe\s+coordinate\s+plane\b/i,
     label: 'a graph',
     satisfied: (question, composed) => isObject(question.graph) || isObject(question.visual)
       || has(get(question, 'functionSpec.type')) || nonEmptyArray(question.graphs)
