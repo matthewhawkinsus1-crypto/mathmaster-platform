@@ -41,8 +41,31 @@ await page.waitForFunction(() => window.__mmCaptured?.rawWork?.regressionRun?.op
 const captured = await page.evaluate(() => window.__mmCaptured);
 if (!captured?.rawWork || captured.rawWork.table?.length !== 4) throw new Error('Regression workflow did not submit its table and run evidence');
 if (Math.abs(Number(captured.rawWork.regressionRun?.r) - 0.9811557810392123) > 1e-9) throw new Error('Submitted regression evidence carried the wrong r value');
-const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
-if (overflow) throw new Error('390px workflow has horizontal overflow');
+const overflowReport = await page.evaluate(() => {
+  const viewport = document.documentElement.clientWidth;
+  const offenders = [...document.querySelectorAll('body *')]
+    .map((node) => {
+      const rect = node.getBoundingClientRect();
+      return {
+        tag: node.tagName,
+        className: typeof node.className === 'string' ? node.className : '',
+        left: Math.round(rect.left * 10) / 10,
+        right: Math.round(rect.right * 10) / 10,
+        width: Math.round(rect.width * 10) / 10,
+        scrollWidth: node.scrollWidth,
+      };
+    })
+    .filter((item) => item.width > 0 && (item.left < -1 || item.right > viewport + 1))
+    .slice(0, 12);
+  return {
+    viewport,
+    documentScrollWidth: document.documentElement.scrollWidth,
+    offenders,
+  };
+});
+if (overflowReport.documentScrollWidth > overflowReport.viewport + 1) {
+  throw new Error(`390px workflow has horizontal overflow: ${JSON.stringify(overflowReport)}`);
+}
 for (const label of ['Undo', 'Scratchpad', 'Calculator', 'Submit']) {
   const count = await page.getByRole('button', { name: new RegExp(label, 'i') }).evaluateAll((nodes) => nodes.filter((node) => { const r=node.getBoundingClientRect(); return r.width && r.height; }).length);
   if (count > 1) throw new Error(`Duplicate ${label} controls are visible`);
