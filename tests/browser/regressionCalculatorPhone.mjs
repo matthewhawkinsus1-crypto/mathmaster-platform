@@ -33,7 +33,14 @@ if (await page.locator('[data-regression-graph] line[stroke="#1a73e8"]').count()
 await page.getByLabel('Direction').selectOption('positive');
 await page.getByLabel('Strength').selectOption('strong');
 await page.getByRole('button', { name: 'Submit workflow' }).click();
-await page.getByText('Workflow complete.').waitFor();
+// This harness intentionally runs QuestionEngine in server-grading mode.
+// Local tool feedback is suppressed there, so a correct submission is proven
+// by the real wire payload reaching the server-grading adapter rather than by
+// waiting for the tool's standalone "Workflow complete." message.
+await page.waitForFunction(() => window.__mmCaptured?.rawWork?.regressionRun?.operation === 'linearRegression');
+const captured = await page.evaluate(() => window.__mmCaptured);
+if (!captured?.rawWork || captured.rawWork.table?.length !== 4) throw new Error('Regression workflow did not submit its table and run evidence');
+if (Math.abs(Number(captured.rawWork.regressionRun?.r) - 0.9811557810392123) > 1e-9) throw new Error('Submitted regression evidence carried the wrong r value');
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
 if (overflow) throw new Error('390px workflow has horizontal overflow');
 for (const label of ['Undo', 'Scratchpad', 'Calculator', 'Submit']) {
