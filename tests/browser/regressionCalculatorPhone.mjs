@@ -14,15 +14,26 @@ await sourceGraph.locator('circle').first().hover({ force: true });
 if (await sourceGraph.getByText('(1, 2)', { exact: true }).count()) throw new Error('Source point coordinates were revealed on hover');
 if (await page.locator('.source-data').count()) throw new Error('Scatterplot source mode leaked the numeric source-data list');
 
-// Blank settings must not reveal conversion. An ordered pair unlocks it, but
-// entering every point as a separate expression still never runs regression.
+// The + control must expose the same Add Item choices students see in the
+// assessment calculator, including Table. Blank settings still must not offer
+// context conversion until an ordered pair exists.
+await page.getByRole('button', { name: 'Add Item' }).click();
+await page.getByRole('menuitem', { name: 'expression' }).waitFor();
+await page.getByRole('menuitem', { name: 'table' }).waitFor();
+await page.getByRole('button', { name: 'Add Item' }).click();
+
 await page.getByRole('button', { name: 'Settings and edit' }).click();
 if (await page.getByRole('menuitem', { name: /Convert ordered pair/ }).count()) throw new Error('Blank expression offered table conversion');
 await page.getByRole('button', { name: 'Done editing' }).click();
+
+// Typing into the current last row must make the next blank expression row
+// emerge automatically; students should be able to continue by clicking it.
 await page.getByLabel('Expression 1').fill('(1,2)');
-for (const value of ['(2,4)', '(3,5)', '(4,8)']) {
-  await page.getByRole('button', { name: 'Add expression' }).click();
-  await page.locator('.regression-expression-row input').last().fill(value);
+for (const [index, value] of ['(2,4)', '(3,5)', '(4,8)'].entries()) {
+  const label = `Expression ${index + 2}`;
+  await page.getByLabel(label).waitFor();
+  await page.getByLabel(label).click();
+  await page.getByLabel(label).fill(value);
 }
 if (await page.locator('[data-regression-graph] circle').count() !== 4) throw new Error('Ordered-pair expressions did not plot');
 if (await page.getByRole('button', { name: 'Evaluate regression expression' }).count()) throw new Error('Plotted expressions incorrectly unlocked regression');
@@ -98,11 +109,13 @@ const desktop = await browser.newPage({ viewport: { width: 1280, height: 800 } }
 await desktop.goto('http://localhost:5199/tests/browser/captureToolResponses.html?tool=regressionCalculator', { waitUntil: 'networkidle' });
 const layout = await desktop.locator('.regression-calculator').evaluate((node) => ({ display:getComputedStyle(node).display, columns:getComputedStyle(node).gridTemplateColumns }));
 if (layout.display !== 'grid' || layout.columns.split(' ').length < 2) throw new Error(`Desktop calculator is not split-pane: ${JSON.stringify(layout)}`);
-await desktop.getByLabel('Expression 1').fill('(1,2)');
-await desktop.getByRole('button', { name: 'Settings and edit' }).click();
-await desktop.getByRole('menuitem', { name: 'Convert ordered pair to table' }).click();
+
+// The same Table item is reachable directly from + on Chromebook/desktop.
+await desktop.getByRole('button', { name: 'Add Item' }).click();
+await desktop.getByRole('menuitem', { name: 'table' }).click();
 const desktopCells = desktop.locator('.regression-table input');
-for (let index = 0; index < values.length; index += 1) await desktopCells.nth(index + 2).fill(values[index]);
+const desktopValues = ['1', '2', '2', '4', '3', '5', '4', '8'];
+for (let index = 0; index < desktopValues.length; index += 1) await desktopCells.nth(index).fill(desktopValues[index]);
 await desktop.getByRole('button', { name: 'Add Regression' }).click();
 await desktop.getByText(/R² = 0\.9627/).waitFor();
 await browser.close();
