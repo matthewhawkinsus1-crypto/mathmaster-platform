@@ -12,6 +12,13 @@ const describe = (r) => ({
 const samePairs = (left, right) => JSON.stringify([...left].sort(([ax, ay], [bx, by]) => ax - bx || ay - by))
   === JSON.stringify([...right].sort(([ax, ay], [bx, by]) => ax - bx || ay - by));
 
+const boundsFor = (points) => {
+  const xs = points.map(([x]) => x); const ys = points.map(([, y]) => y);
+  const padded = (values) => { const min = Math.min(...values, 0); const max = Math.max(...values, 1); const pad = Math.max(1, (max - min) * 0.15); return [min - pad, max + pad]; };
+  const [xMin, xMax] = padded(xs); const [yMin, yMax] = padded(ys);
+  return { xMin, xMax, yMin, yMax };
+};
+
 export default function RegressionCalculator({ questionData = {}, onAction }) {
   const source = cleanRegressionPoints(questionData.sourceData || questionData.points);
   const sourceMode = questionData.sourceMode === 'scatterplot' ? 'scatterplot' : 'data';
