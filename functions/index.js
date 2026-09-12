@@ -25,6 +25,10 @@ function driveResources() {
 
 const { runtimeIncludedQuestionIndices, runtimeQuestionsFromAssignment } = require("./lib/assignmentRuntime");
 const { weightedQuestionTotals } = require("./lib/questionWeights");
+const {
+  isTestCycleAssignment,
+  testCycleGradeProgress,
+} = require("./lib/testCycleGrade");
 const challengeSampling = require("./lib/challengeSampling");
 const { encryptLaunchPayload, decryptLaunchToken } = require("./lib/linkToken");
 const {
@@ -5739,7 +5743,14 @@ exports.syncGradeToClassroom = onDocumentWritten(
 
       const assignmentTracker = afterByAssignment[assignmentId] || {};
       const questions = runtimeQuestionsFromAssignment(assignment);
-      const progress = assignmentGradeProgress(assignmentTracker, questionIndices, questions);
+      const progress = isTestCycleAssignment(assignment)
+        ? testCycleGradeProgress({
+            assignment,
+            tracker: assignmentTracker,
+            questions,
+            gradeProgress: assignmentGradeProgress,
+          })
+        : assignmentGradeProgress(assignmentTracker, questionIndices, questions);
       const releaseSignal = releaseSignalSet.has(assignmentId)
         ? afterReleaseSignals[assignmentId]
         : null;
@@ -6015,7 +6026,18 @@ exports.queueReleasedAssessmentGrades = onDocumentWritten(
     const assignment = after.data() || {};
     const before = event.data?.before?.exists ? event.data.before.data() : {};
     if (!assignmentUsesTeacherReleasePolicy(assignment)) return;
-    if (!assignmentFeedbackWasReleased(assignment) || assignmentFeedbackWasReleased(before)) return;
+    const testReleasedNow = assignmentFeedbackWasReleased(assignment)
+      && !assignmentFeedbackWasReleased(before);
+    const retestReleasedNow = isTestCycleAssignment(assignment)
+      && (
+        assignment?.assessmentRetestFeedbackReleased === true
+        || Boolean(assignment?.assessmentRetestFeedbackReleasedAt)
+      )
+      && !(
+        before?.assessmentRetestFeedbackReleased === true
+        || Boolean(before?.assessmentRetestFeedbackReleasedAt)
+      );
+    if (!testReleasedNow && !retestReleasedNow) return;
 
     const assignmentId = event.params.assignmentId;
     const db = getFirestore();
@@ -6038,7 +6060,9 @@ exports.queueReleasedAssessmentGrades = onDocumentWritten(
       });
       await batch.commit();
     }
-    logger.info(`Queued released assessment grade passback for ${targets.length} student record(s) on assignment ${assignmentId}.`);
+    logger.info(
+      `Queued released ${retestReleasedNow ? "Retest" : "Test"} grade passback for ${targets.length} student record(s) on assignment ${assignmentId}.`
+    );
   }
 );
 
