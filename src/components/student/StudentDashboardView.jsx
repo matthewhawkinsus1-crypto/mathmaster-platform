@@ -80,7 +80,7 @@ export default function StudentDashboardView({
     practice: 'Past its due date, so it no longer changes your grade — but the practice still counts toward what you know.',
   };
 
-  const renderAssignmentCard = ({ assignment, lifecycle, access, recordedGrade, activity, classwork, dol, disabled, feedbackHeld, questionsTotal, questionsDone, questionsAttempted = 0 }) => {
+  const renderAssignmentCard = ({ assignment, lifecycle, access, recordedGrade, activity, classwork, dol, disabled, feedbackHeld, assessmentStage = null, questionsTotal, questionsDone, questionsAttempted = 0 }) => {
     const classroomReceipt = classroomSyncStatusByAssignment?.[assignment.id] || null;
     const receiptStage = String(classroomReceipt?.stage || '');
     const receiptFinal = classroomReceipt?.isFinal === true || receiptStage.startsWith('final-');
@@ -100,20 +100,20 @@ export default function StudentDashboardView({
     return (
       <article key={assignment.id} style={{ background: '#fff', padding: '21px 26px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap', border: `2px solid ${statusStyle.border}` }}>
         <div style={{ textAlign: 'left', flex: '1 1 470px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}><h3 style={{ margin: 0, color: '#202124' }}>{assignment.title}</h3><span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', padding: '4px 8px', borderRadius: '999px', background: statusStyle.bg, color: statusStyle.color }}>{statusStyle.label}</span><span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6' }}>{assignment.assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : 'PRACTICE'}</span>{Object.keys(assignment.sectionVariantModes || {}).length > 0 ? <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#f3e8fd', color: '#681da8' }}>SECTION-SPECIFIC VERSIONS</span> : assignment.variantMode === 'shared' && <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#e6f4ea', color: '#137333' }}>SAME CLASS VERSION</span>}</div>
-          <div style={{ color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>Regular due: {formatDueDate(assignment)} · Final late due: {formatLateDueDate(assignment)}{lifecycle.isLate && <><br /><strong style={{ color: '#7a4f00' }}>Late work remains open for {formatRemainingTime(lifecycle.millisecondsRemaining)}.</strong></>}{!access.open && <><br /><strong style={{ color: '#a50e0e' }}>Complete the prerequisite notes/classwork first. It opens automatically at {formatDateTime(assignment.releaseAt)} if not completed.</strong></>}{assignment.assignmentType === 'notesClasswork' && <><br />Engaged: {formatTime(activity.totalTimeSeconds || 0)} · Daily grade: {classwork?.score === 100 ? '100 — prerequisite met' : 'In progress'}</>}{dol.enabled && dol.status === 'waiting' && <><br />DOL opens during the final {assignment.dol?.minutesBeforeEnd || 10} minutes of class.</>}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}><h3 style={{ margin: 0, color: '#202124' }}>{assignment.title}</h3><span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', padding: '4px 8px', borderRadius: '999px', background: statusStyle.bg, color: statusStyle.color }}>{statusStyle.label}</span>{assessmentStage ? <span style={{ fontSize: '11px', fontWeight: 950, padding: '4px 8px', borderRadius: '999px', background: assessmentStage.stage === 'review' ? '#e8f0fe' : assessmentStage.stage === 'test' || assessmentStage.stage === 'awaitingFeedback' ? '#fce8e6' : '#f3e8fd', color: assessmentStage.stage === 'review' ? '#174ea6' : assessmentStage.stage === 'test' || assessmentStage.stage === 'awaitingFeedback' ? '#a50e0e' : '#681da8' }}>{assessmentStage.statusLabel.toUpperCase()}</span> : <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6' }}>{assignment.assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : 'PRACTICE'}</span>}{Object.keys(assignment.sectionVariantModes || {}).length > 0 ? <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#f3e8fd', color: '#681da8' }}>SECTION-SPECIFIC VERSIONS</span> : assignment.variantMode === 'shared' && <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#e6f4ea', color: '#137333' }}>SAME CLASS VERSION</span>}</div>
+          <div style={{ color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>Regular due: {formatDueDate(assignment)} · Final late due: {formatLateDueDate(assignment)}{assessmentStage && <><br /><strong style={{ color: assessmentStage.stage === 'review' ? '#174ea6' : assessmentStage.stage === 'test' || assessmentStage.stage === 'awaitingFeedback' ? '#a50e0e' : '#681da8' }}>{assessmentStage.detail}</strong></>}{lifecycle.isLate && <><br /><strong style={{ color: '#7a4f00' }}>Late work remains open for {formatRemainingTime(lifecycle.millisecondsRemaining)}.</strong></>}{!access.open && <><br /><strong style={{ color: '#a50e0e' }}>Complete the prerequisite notes/classwork first. It opens automatically at {formatDateTime(assignment.releaseAt)} if not completed.</strong></>}{assignment.assignmentType === 'notesClasswork' && <><br />Engaged: {formatTime(activity.totalTimeSeconds || 0)} · Daily grade: {classwork?.score === 100 ? '100 — prerequisite met' : 'In progress'}</>}{dol.enabled && dol.status === 'waiting' && <><br />DOL opens during the final {assignment.dol?.minutesBeforeEnd || 10} minutes of class.</>}</div>
           {questionsTotal > 0 && assignment.assignmentType !== 'notesClasswork' && (
             <div style={{ marginTop: '12px', maxWidth: '340px' }}>
               <ProgressBar
                 value={questionsDone}
                 max={questionsTotal}
-                label={`${questionsDone} of ${questionsTotal} question${questionsTotal === 1 ? '' : 's'} finished`}
+                label={`${assessmentStage?.statusLabel || 'Assignment'}: ${questionsDone} of ${questionsTotal} question${questionsTotal === 1 ? '' : 's'} finished`}
               />
             </div>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          {questionsAttempted > 0 && (
+          {questionsAttempted > 0 && assessmentStage?.stage !== 'review' && (
             <div style={{ textAlign: 'right', marginRight: '6px', minWidth: 175 }}>
               <div style={{ fontSize: '11px', color: '#5f6368', textTransform: 'uppercase', fontWeight: 'bold' }}>
                 {feedbackHeld && !lifecycle.isPracticeOnly
@@ -141,13 +141,14 @@ export default function StudentDashboardView({
           )}
           <button
             type="button"
-            disabled={disabled || !onExportAssignmentPdf || exportingAssignmentId === assignment.id}
+            disabled={disabled || Boolean(assessmentStage) || !onExportAssignmentPdf || exportingAssignmentId === assignment.id}
             onClick={() => exportPdf(assignment.id)}
-            style={{ padding: '10px 16px', background: '#fff', color: disabled ? '#9aa0a6' : '#174ea6', border: `2px solid ${disabled ? '#dadce0' : '#aecbfa'}`, borderRadius: '8px', cursor: disabled ? 'not-allowed' : 'pointer', fontWeight: 900 }}
+            title={assessmentStage ? 'Assessment questions are not exportable from the student test cycle.' : undefined}
+            style={{ padding: '10px 16px', background: '#fff', color: disabled || assessmentStage ? '#9aa0a6' : '#174ea6', border: `2px solid ${disabled || assessmentStage ? '#dadce0' : '#aecbfa'}`, borderRadius: '8px', cursor: disabled || assessmentStage ? 'not-allowed' : 'pointer', fontWeight: 900 }}
           >
-            {exportingAssignmentId === assignment.id ? 'Preparing PDF…' : 'Export PDF'}
+            {assessmentStage ? 'PDF disabled for test' : exportingAssignmentId === assignment.id ? 'Preparing PDF…' : 'Export PDF'}
           </button>
-          <button disabled={disabled} onClick={() => onStartAssignment(assignment.id)} style={{ padding: '10px 20px', background: disabled ? '#dadce0' : lifecycle.isPracticeOnly ? '#5f6368' : lifecycle.isLate ? '#8a5a00' : '#1a73e8', color: '#fff', border: 'none', borderRadius: '8px', cursor: disabled ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>{lifecycle.isPracticeOnly ? 'Practice — No Credit' : lifecycle.isLate ? 'Continue Late Work' : disabled ? 'Locked' : questionsAttempted > 0 ? 'Continue' : 'Start'}</button>
+          <button disabled={disabled} onClick={() => onStartAssignment(assignment.id)} style={{ padding: '10px 20px', background: disabled ? '#dadce0' : lifecycle.isPracticeOnly ? '#5f6368' : lifecycle.isLate ? '#8a5a00' : assessmentStage?.stage === 'test' ? '#a50e0e' : assessmentStage?.stage === 'retest' ? '#681da8' : '#1a73e8', color: '#fff', border: 'none', borderRadius: '8px', cursor: disabled ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>{assessmentStage ? assessmentStage.actionLabel : lifecycle.isPracticeOnly ? 'Practice — No Credit' : lifecycle.isLate ? 'Continue Late Work' : disabled ? 'Locked' : questionsAttempted > 0 ? 'Continue' : 'Start'}</button>
         </div>
       </article>
     );
