@@ -198,7 +198,22 @@ export const getSectionAccessState = ({ assignment, activityRole, classId = null
   }
 
   const config = assignment?.sectionAccess?.[role] || {};
-  const stageHasScheduledOpen = Boolean(protectedAssessmentRole && assignment?.assessmentPolicy?.[role]?.opensAt);
+  const stageOpensAt = protectedAssessmentRole
+    ? parseLocalDateTime(assignment?.assessmentPolicy?.[role]?.opensAt)
+    : null;
+  const stageHasScheduledOpen = Boolean(stageOpensAt);
+  if (stageOpensAt && new Date(nowValue) < stageOpensAt) {
+    return {
+      role,
+      enabled: true,
+      status: 'stageScheduled',
+      isOpen: false,
+      defaultState: 'open',
+      override: null,
+      lifecycle,
+      opensAt: stageOpensAt,
+    };
+  }
   const inferredDefault = protectedAssessmentRole && !stageHasScheduledOpen ? 'closed' : 'open';
   const configuredDefault = String(config.defaultState || assignment?.sectionAccessDefaults?.[role] || inferredDefault).toLowerCase();
   const defaultState = SECTION_ACCESS_STATES.has(configuredDefault) ? configuredDefault : inferredDefault;
