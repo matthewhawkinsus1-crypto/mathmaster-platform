@@ -4,11 +4,16 @@ import assert from 'node:assert/strict';
 import {
   absoluteValueSplitInputModel,
   applyBalancedOperationToBranches,
+  applyBalancedOperationToRelation,
   buildStudentAuthoredAbsoluteValueSplit,
+  cancelRelationExpressionPair,
   cloneRelationState,
   parseRelationSource,
+  relationCancellationCandidates,
+  relationExpressionsEquivalent,
   validateRelationTransition,
 } from '../../src/algebraRelationFoundation.js';
+import { expressionsEquivalent, splitAdditiveTerms } from '../../src/algebraAstEngine.js';
 import { multiRelationSource } from './helpers/solverSource.mjs';
 
 const wholeBranchPlacement = () => ({
@@ -157,6 +162,51 @@ test('negative division can be staged across two inequality branches and validat
     },
   );
   assert.equal(validation.valid, true);
+});
+
+test('unsimplified balanced work preserves a leading negative through a later cancellation', () => {
+  const before = parseRelationSource('-2*x + 3 < 7', 'x');
+  const moved = applyBalancedOperationToRelation(before, 'subtract', '3');
+
+  const unsimplifiedLeft = moved.state.branches[0].expressions[0];
+  assert.match(unsimplifiedLeft, /-2/);
+  assert.equal(relationExpressionsEquivalent(unsimplifiedLeft, '-2*x', 'x'), true);
+
+  const cancellation = relationCancellationCandidates(unsimplifiedLeft, 'x');
+  assert.equal(cancellation?.kind, 'additive');
+  assert.ok(cancellation.pairs.length > 0);
+
+  const pair = cancellation.pairs[0];
+  const cancelled = cancelRelationExpressionPair(
+    unsimplifiedLeft,
+    pair.firstIndex,
+    pair.secondIndex,
+    'x',
+  );
+
+  assert.equal(cancelled.accepted, true);
+  assert.equal(relationExpressionsEquivalent(cancelled.resultExpression, '-2*x', 'x'), true);
+  assert.match(cancelled.resultExpression.replace(/\s+/g, ''), /^-2\*?x$/);
+});
+
+test('signed additive-term stress matrix reconstructs the original mathematics', () => {
+  const cases = [
+    '-2*x + 3',
+    '3 - 2*x',
+    '3 + (-2*x)',
+    '-(2*x) + 3',
+    '(-2)*x + 3',
+    '-x - 4',
+    '5 - (-2*x)',
+    '-3*x + 8 - 8',
+  ];
+
+  cases.forEach((expression) => {
+    const terms = splitAdditiveTerms(expression);
+    assert.ok(Array.isArray(terms) && terms.length > 0, expression);
+    const rebuilt = terms.map((term) => term.text).join(' ');
+    assert.equal(expressionsEquivalent(rebuilt, expression, 'x'), true, expression);
+  });
 });
 
 test('dropping a leading negative is never accepted as an equivalent rewrite', () => {
