@@ -71,6 +71,20 @@ assert.equal(parsed.questions[0].alignments[0].code, 'A.3C');
 validateAssignmentQuestions(parsed.questions);
 assert.ok(parsed.repairs.some((r) => r.includes('canonical V5')));
 
+const falselyMarkedAuthoringIntent = {
+  ...structuredClone(v5),
+  portableContract: { kind: 'mathmasterCanonicalAssignmentV5', version: 1 },
+};
+const recoveredFalseMarker = parseAssignmentBlueprintText(JSON.stringify(falselyMarkedAuthoringIntent));
+assert.ok(
+  recoveredFalseMarker.questions.every((question) => question.type || question.toolId),
+  'a copied canonical marker must not bypass authoring-intent compilation',
+);
+assert.ok(
+  recoveredFalseMarker.repairs.some((entry) => /ignored an invalid canonical portableContract marker/i.test(entry)),
+  'the intake reports that it repaired the false canonical marker',
+);
+
 const advancedSolverIntent = compileAuthoringIntentV5({
   schemaVersion: 5,
   assignment: { title: 'Advanced solver routing', courseId: 'algebra2' },
