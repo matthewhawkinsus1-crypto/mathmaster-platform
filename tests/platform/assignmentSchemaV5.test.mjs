@@ -68,4 +68,36 @@ assert.deepEqual(
   'normalizing a canonical assignment again must not move immutable question ids',
 );
 
+
+const testCycle = normalizeAssignmentV5({
+  schemaVersion: 5,
+  assignment: { title: 'Functions Unit Test', courseId: 'algebra1', gradingPurpose: 'test' },
+  assessmentPolicy: {
+    mode: 'testCycle',
+    passingScore: 70,
+    review: { required: true },
+    test: {},
+    retest: { strategy: 'shortForm', scorePolicy: 'replaceIfHigher' },
+  },
+  sections: [
+    { id: 'review', role: 'review', questions: [{ prompt: 'Review', type: 'algebra' }] },
+    { id: 'test', role: 'test', questions: [{ prompt: 'Test', type: 'algebra' }] },
+    { id: 'retest', role: 'retest', questions: [{ prompt: 'Retest', type: 'algebra' }] },
+  ],
+});
+assert.deepEqual(validateAssignmentV5(testCycle).errors, []);
+assert.equal(testCycle.assessmentPolicy.mode, 'testCycle');
+assert.equal(testCycle.assessmentPolicy.passingScore, 70);
+assert.equal(testCycle.sections[0].role, 'review');
+assert.equal(testCycle.sections[2].role, 'retest');
+
+const incompleteTestCycle = validateAssignmentV5({
+  ...testCycle,
+  sections: testCycle.sections.filter((section) => section.role !== 'retest'),
+});
+assert.ok(
+  incompleteTestCycle.errors.some((error) => /require a retest section/i.test(error)),
+  'Test Cycle must be rejected before publish when Retest is missing',
+);
+
 console.log('assignmentSchemaV5.test.mjs: all assertions passed');
