@@ -5319,6 +5319,8 @@ function App() {
         honorsContractScope: null,
         feedbackReleased: false,
         feedbackReleasedAt: null,
+        assessmentRetestFeedbackReleased: false,
+        assessmentRetestFeedbackReleasedAt: null,
         createdAt: new Date(),
       });
       await fetchAssignments();
