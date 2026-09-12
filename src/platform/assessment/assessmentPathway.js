@@ -93,6 +93,11 @@ const feedbackReleased = (assignment = {}) => (
   assignment?.feedbackReleased === true || Boolean(assignment?.feedbackReleasedAt)
 );
 
+export const assessmentRetestFeedbackWasReleased = (assignment = {}) => (
+  assignment?.assessmentRetestFeedbackReleased === true
+  || Boolean(assignment?.assessmentRetestFeedbackReleasedAt)
+);
+
 const stageWindowOpen = (value, now) => {
   const opensAt = parseDate(value);
   return !opensAt || now >= opensAt;
@@ -234,13 +239,20 @@ export const getAssessmentPathwayState = ({
   const finalScore = policy?.retest?.scorePolicy === 'replace'
     ? (retest.score ?? test.score ?? 0)
     : Math.max(test.score ?? 0, retest.score ?? 0);
+  const retestFeedbackReleased = assessmentRetestFeedbackWasReleased(assignment);
   return {
     stage: ASSESSMENT_STAGE.COMPLETE,
     visibleRole: retest.total > 0 ? 'retest' : 'test',
-    canEnter: true,
-    actionLabel: retest.total > 0 ? 'Review Retest' : 'Review Test',
-    statusLabel: finalScore >= passingScore ? 'Retest passed' : 'Retest complete',
-    detail: `Assessment complete · recorded score ${finalScore}%`,
+    canEnter: retest.total > 0 ? retestFeedbackReleased : true,
+    actionLabel: retest.total > 0
+      ? (retestFeedbackReleased ? 'Review Retest' : 'Submitted')
+      : 'Review Test',
+    statusLabel: retest.total > 0 && !retestFeedbackReleased
+      ? 'Retest submitted'
+      : finalScore >= passingScore ? 'Retest passed' : 'Retest complete',
+    detail: retest.total > 0 && !retestFeedbackReleased
+      ? 'Your retest is submitted. Your final result will appear after your teacher releases retest feedback.'
+      : `Assessment complete · recorded score ${finalScore}%`,
     passingScore,
     review,
     test,
@@ -248,6 +260,7 @@ export const getAssessmentPathwayState = ({
     score: finalScore,
     complete: true,
     passed: finalScore >= passingScore,
+    feedbackHeld: retest.total > 0 && !retestFeedbackReleased,
   };
 };
 
