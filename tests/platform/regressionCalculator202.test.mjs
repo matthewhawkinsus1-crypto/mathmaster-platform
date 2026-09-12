@@ -100,6 +100,14 @@ test('V5 can infer scatterplot source mode from readGraph plus correlation techn
   assert.deepEqual(question.sourceGraphBounds, { xMin: 0, xMax: 5, yMin: 0, yMax: 9 });
 });
 
+test('regression statistics become available with two non-degenerate points, matching calculator training', () => {
+  const stats = regressionCalculatorStats([[1, 2], [2, 5]]);
+  assert.ok(stats);
+  assert.equal(stats.m, 3);
+  assert.equal(stats.b, -1);
+  assert.equal(Math.abs(stats.r), 1);
+});
+
 test('server requires table and executed LinReg evidence before r can earn full credit', () => {
   const definition = buildRegressionCalculatorPrivateDefinition({ sourceData: points });
   const stats = regressionCalculatorStats(points);
@@ -171,13 +179,17 @@ test('calculator 2.0 stays inside Work View and publishes the discovery workflow
   assert.match(component, /conversionAvailable[\s\S]*aria-label="Convert ordered pair to table"/);
   assert.match(component, /type:\s*'table'[\s\S]*rows:\s*\[pair\.map\(String\)/);
   assert.match(component, /isRegression[\s\S]*tableRow[\s\S]*aria-label="Evaluate regression expression"/);
+  assert.match(component, /tablePoints\.length >= 2[\s\S]*aria-label="Add Regression"/);
+  assert.match(component, /value: 'y₁ ~ mx₁ \+ b'/);
+  assert.match(component, /record\('addRegressionClicked'/);
   assert.doesNotMatch(component, /Run regression|Linear regression \(LinReg\)|<option value="linearRegression"/);
   assert.match(component, /R² = \{run\.r2\.toFixed\(4\)\}/);
   assert.match(component, /data-regression-source-graph[\s\S]*revealCoordinates=\{false\}[\s\S]*pointHoverEnabled=\{false\}/);
   assert.match(component, /CoordinatePlane[\s\S]*lines=\{run/);
-  ['expressionAdded', 'orderedPairEntered', 'editModeOpened', 'tableConversionOffered', 'tableCreated', 'tableEdited', 'regressionExpressionEntered', 'regressionExecuted', 'correlationProduced', 'interpretationSelected']
+  ['expressionAdded', 'orderedPairEntered', 'editModeOpened', 'tableConversionOffered', 'tableCreated', 'tableEdited', 'addRegressionClicked', 'regressionExpressionEntered', 'regressionExecuted', 'correlationProduced', 'interpretationSelected']
     .forEach((event) => assert.match(component, new RegExp(`record\\('${event}'`)));
   assert.match(css, /min-height:44px/);
+  assert.match(css, /\.regression-add-regression[\s\S]*content:attr\(data-tooltip\)/);
   assert.match(css, /grid-template-columns:minmax\(300px, \.85fr\) minmax\(380px, 1\.4fr\)/);
   assert.match(css, /max-width: 700px[\s\S]*flex-direction:column/);
 });
