@@ -89,6 +89,11 @@ export default function CoordinatePlane({
   // reads position off the axes; a screen-reader student reads it off the live
   // region. Both are reading the plane.
   revealCoordinates = true,
+  // Static source graphs can deliberately assess reading coordinates. In that
+  // mode the points must not react to hover/touch at all: no growth, no chip,
+  // and no accidental coordinate reveal. Default remains true for every
+  // existing plane.
+  pointHoverEnabled = true,
   ariaLabel = 'Coordinate plane',
   // EVERY PLANE CAN BE OPENED FULL WINDOW.
   //
@@ -545,7 +550,7 @@ export default function CoordinatePlane({
         ) : null}
 
         {points.map((point, index) => {
-          const hovered = hoveredPointIndex === index;
+          const hovered = pointHoverEnabled && hoveredPointIndex === index;
           const pointFill = resolvePointFill(point, '#1a73e8');
           const pointRadius = resolvePointRadius(point, 6);
           let [pointX, pointY] = pointXY(point);
@@ -593,7 +598,12 @@ export default function CoordinatePlane({
 
           const held = dragIndex === index;
           return (
-            <g key={`p${index}`} onPointerEnter={() => setHoveredPointIndex(index)} onPointerLeave={() => setHoveredPointIndex(null)}>
+            <g
+              key={`p${index}`}
+              onPointerEnter={pointHoverEnabled ? () => setHoveredPointIndex(index) : undefined}
+              onPointerLeave={pointHoverEnabled ? () => setHoveredPointIndex(null) : undefined}
+              pointerEvents={pointHoverEnabled ? undefined : 'none'}
+            >
               {hovered || held ? <circle cx={sx(pointX)} cy={sy(pointY)} r={pointRadius + (held ? 10 : 6)} fill={pointFill} opacity={held ? 0.26 : 0.18} /> : null}
               <circle cx={sx(pointX)} cy={sy(pointY)} r={hovered || held ? pointRadius + 2 : pointRadius} fill={pointFill} stroke="#fff" strokeWidth="2" />
               {point?.label ? <text x={sx(pointX) + 10} y={sy(pointY) - 9} fontSize="11" fontWeight="700" fill="#24324a">{point.label}</text> : null}
