@@ -116,16 +116,16 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const fitControls = useMemo(() => fitAdjustmentPlan({
     targetSlope: regression.m,
     targetIntercept: regression.b,
-    xMin,
-    xMax,
-    yMin,
-    yMax,
+    xMin: Math.min(...xs),
+    xMax: Math.max(...xs),
+    yMin: Math.min(...ys),
+    yMax: Math.max(...ys),
     slopeTolerance: exploratoryLineFit ? questionData.slopeTolerance : undefined,
     interceptTolerance: exploratoryLineFit ? questionData.interceptTolerance : undefined,
     slopeStep: questionData.slopeStep,
     interceptStep: questionData.interceptStep,
     challengeClicks: questionData.fitChallengeClicks,
-  }), [regression.m, regression.b, xMin, xMax, yMin, yMax, exploratoryLineFit, questionData.slopeTolerance, questionData.interceptTolerance, questionData.slopeStep, questionData.interceptStep, questionData.fitChallengeClicks]);
+  }), [regression.m, regression.b, xs.join('|'), ys.join('|'), exploratoryLineFit, questionData.slopeTolerance, questionData.interceptTolerance, questionData.slopeStep, questionData.interceptStep, questionData.fitChallengeClicks]);
 
   const [m, setM] = useState(startingModel.m ?? (exploratoryLineFit ? fitControls.slope.start : (forcedModelId === 'linear' ? 1 : round(regression.m * 0.75, 2))));
   const [b, setB] = useState(startingModel.b ?? (exploratoryLineFit ? fitControls.intercept.start : (forcedModelId === 'linear' ? 0 : round(regression.b + 1, 2))));
