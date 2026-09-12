@@ -1,4 +1,5 @@
 import { normalizeAssignmentV5, validateAssignmentV5, flattenV5Sections } from '../contract/assignmentSchemaV5.js';
+import { validateAssignmentQuestions } from '../../assignmentBlueprint.js';
 import { validateQuestionsSemantics } from '../contract/semanticValidation.js';
 import { validateAlignments, auditAlignmentSpecificity } from '../contract/alignments.js';
 import { prepareAssignmentForRuntime } from '../contract/storedAssignmentV5.js';
@@ -99,6 +100,14 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   const persistenceSections = (source.sections || []).map(withRuntimeSectionMetadata);
 
   const questions = flattenV5Sections({ ...runtimeSource, sections });
+  const runtimeContractErrors = [];
+  try {
+    validateAssignmentQuestions(questions, {
+      variantMode: runtimeSource?.variantPolicy?.mode,
+    });
+  } catch (error) {
+    runtimeContractErrors.push(String(error?.message || error));
+  }
   const semantic = validateQuestionsSemantics(questions);
   const interaction = validateAssignmentInteractionContracts(questions);
   const worksheetPrint = auditAssignmentWorksheetPrintability({ ...runtimeSource, sections }, questions);
@@ -131,6 +140,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   const diagnosticGroups = [
     { source: 'persistence', severity: 'blocking', messages: persistenceErrors },
     { source: 'structural', severity: 'blocking', messages: asMessages(structural.errors) },
+    { source: 'runtimeContract', severity: 'blocking', messages: runtimeContractErrors },
     { source: 'semantic', severity: 'blocking', messages: asMessages(semantic.errors) },
     { source: 'interaction', severity: 'blocking', messages: asMessages(interaction.errors) },
     { source: 'worksheetPrint', severity: 'blocking', messages: asMessages(worksheetPrint.errors) },
