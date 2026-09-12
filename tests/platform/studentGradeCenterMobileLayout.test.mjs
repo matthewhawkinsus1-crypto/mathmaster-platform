@@ -11,6 +11,8 @@ const findings = JSON.parse(read('./fixtures/gradeCenterMobileFindings.json'));
 const gradeCenter = read('../../src/components/student/StudentGradeCenter.jsx');
 const result = read('../../src/components/student/StudentAssignmentResult.jsx');
 const breakdown = read('../../src/components/student/GradeSectionBreakdown.jsx');
+const assignmentsCenter = read('../../src/components/student/StudentAssignmentsCenter.jsx');
+const globalNav = read('../../src/components/student/StudentGlobalNav.jsx');
 
 /*
  * A GRADE SCREEN IS A PHONE SCREEN.
@@ -22,7 +24,7 @@ const breakdown = read('../../src/components/student/GradeSectionBreakdown.jsx')
  * contract that fails when the layout rules are removed from the source.
  */
 
-test('the Grade Center and Assignment Result measured clean on a 390px phone', () => {
+test('the Grade Center, Assignments Center and Assignment Result measured clean on a 390px phone', () => {
   // Recorded by tests/browser/gradeCenterMobile.mjs: no sideways page scroll,
   // no element past the screen edge, no tap target under 44px, and the exits
   // (Home, View All Grades, Practice) present and on screen.
@@ -39,7 +41,12 @@ test('every grade control is sized from the shared minimum tap target', () => {
   // Binding to the constant rather than to the number means a change to the
   // platform's touch-target policy reaches these screens automatically, and a
   // hand-typed 32 here would not silently pass.
-  for (const [name, source] of [['StudentGradeCenter', gradeCenter], ['StudentAssignmentResult', result]]) {
+  for (const [name, source] of [
+    ['StudentGradeCenter', gradeCenter],
+    ['StudentAssignmentResult', result],
+    ['StudentAssignmentsCenter', assignmentsCenter],
+    ['StudentGlobalNav', globalNav],
+  ]) {
     assert.match(source, /MIN_TOUCH_TARGET_PX/, `${name} must size its controls from MIN_TOUCH_TARGET_PX`);
     assert.match(
       source,
@@ -57,9 +64,19 @@ test('nothing on a grade screen can force the page wider than the phone', () => 
     ['StudentGradeCenter', gradeCenter],
     ['StudentAssignmentResult', result],
     ['GradeSectionBreakdown', breakdown],
+    ['StudentAssignmentsCenter', assignmentsCenter],
+    ['StudentGlobalNav', globalNav],
   ]) {
     assert.match(source, /overflowWrap: 'anywhere'/, `${name} must let long titles/scores wrap`);
   }
+
+  // Six destinations do not fit across 390px. The nav wraps onto a second line
+  // rather than scrolling sideways: a horizontally scrolling nav hides
+  // destinations behind a gesture nobody is told about.
+  assert.match(globalNav, /flexWrap: 'wrap'/);
+  assert.doesNotMatch(globalNav, /overflowX/);
+  // The tab row, search box and period filter all have to wrap too.
+  assert.match(assignmentsCenter, /flexWrap: 'wrap'/);
   assert.match(
     breakdown,
     /repeat\(auto-fit, minmax\(min\(100%, \d+px\), 1fr\)\)/,
@@ -67,7 +84,7 @@ test('nothing on a grade screen can force the page wider than the phone', () => 
   );
   // A fixed pixel width wider than a phone is the other way this breaks. Only
   // max-width and min-width:0 are legitimate here.
-  const layoutSource = executableSource(`${gradeCenter}\n${result}\n${breakdown}`);
+  const layoutSource = executableSource(`${gradeCenter}\n${result}\n${breakdown}\n${assignmentsCenter}\n${globalNav}`);
   const fixedWidths = [...layoutSource.matchAll(/(?<!max|min)[wW]idth: (\d+)(?![%\w])/g)]
     .map((match) => Number(match[1]))
     .filter((value) => value > 390);

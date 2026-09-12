@@ -5,6 +5,7 @@ import CCMRHub from './CCMRHub.jsx';
 import MyMathPathProductionContainer from './MyMathPathProductionContainer.jsx';
 import StudentPracticeHistory from './StudentPracticeHistory.jsx';
 import WeeklyPathGoalPanel from './WeeklyPathGoalPanel.jsx';
+import StudentGlobalNav, { STUDENT_DESTINATION } from './StudentGlobalNav.jsx';
 import { fetchStudentMasteryState } from '../../services/masteryStateService.js';
 import { fetchMyMathPathSkillProgress } from '../../services/pathSessionService.js';
 import { fetchStudentEvidenceEvents } from '../../platform/history/evidencePersistence.js';
@@ -125,6 +126,11 @@ export const MyMathPathExperience = ({
   historyError = null,
   onReload = null,
   onExit = null,
+  // The shared student destinations. Before this existed, the top-right control
+  // was labelled "Assignments" and called onExit — which returned the student to
+  // HOME, not to their assignments. A button that names one place and goes to
+  // another is worse than no button: the student learns not to trust the nav.
+  onNavigate = null,
 }) => {
   // The live student opens on Path. A teacher inspecting an actual student can
   // choose Mastery Overview first, but the same component stays the source of truth.
@@ -469,10 +475,31 @@ export const MyMathPathExperience = ({
       {activeTab !== 'session' && (
         <header style={{ minHeight: '60px', padding: '0 20px', borderBottom: '1px solid #dadce0', background: '#fff', display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}><span aria-hidden="true">📐</span><strong>{readOnly ? `${studentName || studentId || 'Student'} · My Math Path` : 'My Math Path'}</strong>{readOnly && <span style={{ padding: '3px 7px', borderRadius: 999, background: '#fef7e0', color: '#7a4f00', fontSize: 10, fontWeight: 900 }}>TEACHER · READ ONLY</span>}</div>
-          <nav aria-label="My Math Path navigation" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            {visibleTabs.map(([tab, label]) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} style={{ padding: '19px 8px 16px', border: 0, borderBottom: `3px solid ${activeTab === tab ? '#1a73e8' : 'transparent'}`, background: 'transparent', color: activeTab === tab ? '#174ea6' : '#5f6368', fontWeight: 900, cursor: 'pointer' }}>{label}</button>)}
-            {onExit && <button type="button" onClick={onExit} style={{ marginLeft: '6px', padding: '8px 11px', border: '1px solid #bdc1c6', borderRadius: '7px', background: '#fff', color: '#3c4043', fontWeight: 800, cursor: 'pointer' }}>{readOnly ? 'Back to student' : 'Assignments'}</button>}
-          </nav>
+          {/*
+            TWO LEVELS, AND THEY ARE DIFFERENT KINDS OF THING.
+            The global row moves between MathMaster's five destinations; the tab
+            row below it moves between views INSIDE My Math Path. Mixing them
+            into one row is what allowed an "Assignments" control to sit beside
+            "Practice History" and quietly mean "leave".
+            A teacher inspecting a student read-only gets neither: they are
+            inside the teacher shell and have their own way back.
+          */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, minWidth: 0 }}>
+            {!readOnly && onNavigate && (
+              <StudentGlobalNav
+                current={STUDENT_DESTINATION.MATH_PATH}
+                onNavigate={onNavigate}
+                showLogout={false}
+                dense
+                label="MathMaster navigation"
+                style={{ justifyContent: 'flex-end', padding: '8px 0 0' }}
+              />
+            )}
+            <nav aria-label="My Math Path navigation" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              {visibleTabs.map(([tab, label]) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} style={{ minHeight: 44, padding: '12px 8px 10px', border: 0, borderBottom: `3px solid ${activeTab === tab ? '#1a73e8' : 'transparent'}`, background: 'transparent', color: activeTab === tab ? '#174ea6' : '#5f6368', fontWeight: 900, cursor: 'pointer' }}>{label}</button>)}
+              {onExit && <button type="button" onClick={onExit} style={{ marginLeft: '6px', minHeight: 44, padding: '8px 11px', border: '1px solid #bdc1c6', borderRadius: '7px', background: '#fff', color: '#3c4043', fontWeight: 800, cursor: 'pointer' }}>{readOnly ? 'Back to student' : 'Home'}</button>}
+            </nav>
+          </div>
         </header>
       )}
 

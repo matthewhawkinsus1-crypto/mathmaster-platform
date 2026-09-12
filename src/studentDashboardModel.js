@@ -209,12 +209,20 @@ export const buildStudentDashboardModel = ({
     return fullyTerminal || lifecycle.isClosed;
   };
 
-  const entries = visible
-    .filter((assignment) => (
-      assignment.id !== resumeAssignment?.id
-      && !activeDolIds.has(assignment.id)
-      && !activeWarmupIds.has(assignment.id)
-    ))
+  /*
+   * EVERY assignment, computed once, then filtered for Home.
+   *
+   * Home deliberately hides three of them: the one already offered as Resume,
+   * and any with a live DOL or Warm-Up, because each already has its own card
+   * above the list and showing it twice reads as two pieces of work.
+   *
+   * That omission is correct for Home and wrong for an archive. The Assignments
+   * Center has to show a student ALL of their work, so the exclusion moved from
+   * the input of this computation to its output: `allEntries` is the complete
+   * list, `entries` is Home's view of it, and both come from the same pass —
+   * there is no second bucketing rule to drift.
+   */
+  const allEntries = visible
     .map((assignment) => {
       const assignmentTracker = tracker[assignment.id];
       const isAttempted = Boolean(assignmentTracker);
@@ -271,8 +279,17 @@ export const buildStudentDashboardModel = ({
       };
     });
 
+  const entries = allEntries.filter(({ assignment }) => (
+    assignment.id !== resumeAssignment?.id
+    && !activeDolIds.has(assignment.id)
+    && !activeWarmupIds.has(assignment.id)
+  ));
+
   return {
     visibleAssignments: visible,
+    // The complete list, for surfaces whose job is finding work rather than
+    // choosing what to do next. Home must keep reading `entries`.
+    allEntries,
     resumeAssignment,
     resumeQuestionIndex,
     resumeLifecycle: getAssignmentLifecycle(resumeAssignment, nowValue),

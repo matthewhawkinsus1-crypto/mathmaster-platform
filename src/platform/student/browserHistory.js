@@ -55,6 +55,19 @@ export const normalizeStudentRoute = (route = {}) => {
       // The Classroom section a closed link arrived through, so Back onto this
       // entry restores the same section report rather than a generic one.
       sectionKey: cleanString(route.sectionKey),
+      /*
+       * WHERE THE STUDENT CAME FROM, CARRIED WITH THE SCREEN.
+       *
+       * One result screen is reachable from Assignments, from Grades, and from
+       * a Google Classroom link. Browser Back gets this right for free — it
+       * pops to whatever entry preceded this one — but the VISIBLE Back control
+       * has to be told, or it picks one destination and is wrong half the time
+       * for a student who reached the result the other way.
+       *
+       * Storing it in the history entry is what keeps the two agreeing after a
+       * Back out of practice: the restored entry still knows its origin.
+       */
+      origin: cleanString(route.origin, 'assignments'),
     };
   }
 
@@ -77,7 +90,10 @@ export const studentRouteKey = (route = {}) => {
     return `assignment:${normalized.assignmentId}:${normalized.questionIndex}`;
   }
   if (normalized.surface === 'assignmentResult') {
-    return `assignmentResult:${normalized.assignmentId}:${normalized.sectionKey}`;
+    // The origin is part of the identity: the same assignment opened from
+    // Grades and from Assignments are two different places to press Back from,
+    // and collapsing them into one entry would lose that.
+    return `assignmentResult:${normalized.assignmentId}:${normalized.sectionKey}:${normalized.origin}`;
   }
   return `dashboard:${normalized.dashboardMode}`;
 };

@@ -29,6 +29,13 @@ export const LEVEL = Object.freeze({
   ASSIGNMENTS: 'assignments',
   ASSIGNMENT: 'assignment',
   ASSIGNMENT_QUESTION: 'assignmentQuestion',
+  // One assignment's recorded result. Reachable from the Assignments Center and
+  // from the Grade Center, which is why its Back is the one place in this model
+  // that cannot be answered by the tree alone — see resolveBack.
+  ASSIGNMENT_RESULT: 'assignmentResult',
+
+  // Grades branch
+  GRADES: 'grades',
 
   // My Math Path branch
   MATH_PATH: 'mathPath',
@@ -57,6 +64,10 @@ const PARENT = Object.freeze({
   [LEVEL.ASSIGNMENTS]: LEVEL.HOME,
   [LEVEL.ASSIGNMENT]: LEVEL.ASSIGNMENTS,
   [LEVEL.ASSIGNMENT_QUESTION]: LEVEL.ASSIGNMENT,
+  // Assignments is the DEFAULT parent of a result, not the only one. A student
+  // who reached it from Grades gets Grades back — see resolveBack's origin.
+  [LEVEL.ASSIGNMENT_RESULT]: LEVEL.ASSIGNMENTS,
+  [LEVEL.GRADES]: LEVEL.HOME,
 
   [LEVEL.MATH_PATH]: LEVEL.HOME,
   [LEVEL.PATH_SKILL]: LEVEL.MATH_PATH,
@@ -83,6 +94,8 @@ const PARENT = Object.freeze({
 export const LEVEL_LABEL = Object.freeze({
   [LEVEL.HOME]: 'Home',
   [LEVEL.ASSIGNMENTS]: 'My assignments',
+  [LEVEL.GRADES]: 'My grades',
+  [LEVEL.ASSIGNMENT_RESULT]: 'this result',
   [LEVEL.ASSIGNMENT]: 'this assignment',
   [LEVEL.ASSIGNMENT_QUESTION]: 'this question',
   [LEVEL.MATH_PATH]: 'My Math Path',
@@ -95,6 +108,47 @@ export const LEVEL_LABEL = Object.freeze({
   [LEVEL.SECURE_EXAMS]: 'Exams',
   [LEVEL.LIVE_CHALLENGE]: 'Live Challenge',
   [LEVEL.PRACTICE_HISTORY]: 'My practice history',
+});
+
+/*
+ * THE FIVE PLACES THE GLOBAL NAVIGATION GOES.
+ *
+ * A subset of LEVEL, not a parallel vocabulary: the destinations a student can
+ * reach from anywhere ARE navigation levels, and giving them their own string
+ * constants is how the nav in one screen ended up meaning something different
+ * from the nav in another.
+ */
+export const STUDENT_DESTINATION = Object.freeze({
+  HOME: LEVEL.HOME,
+  ASSIGNMENTS: LEVEL.ASSIGNMENTS,
+  GRADES: LEVEL.GRADES,
+  MATH_PATH: LEVEL.MATH_PATH,
+  SECURE_EXAMS: LEVEL.SECURE_EXAMS,
+});
+
+export const STUDENT_DESTINATION_ORDER = Object.freeze([
+  STUDENT_DESTINATION.HOME,
+  STUDENT_DESTINATION.ASSIGNMENTS,
+  STUDENT_DESTINATION.GRADES,
+  STUDENT_DESTINATION.MATH_PATH,
+  STUDENT_DESTINATION.SECURE_EXAMS,
+]);
+
+/*
+ * Nav labels are not LEVEL_LABEL, and the difference is not cosmetic.
+ *
+ * LEVEL_LABEL exists to be read inside a sentence — "Back to my grades" — so it
+ * is possessive and lower case. A navigation control is a place name on a
+ * signpost: "Grades". Using the sentence form on a button gives you "My grades"
+ * sitting beside "Secure Exams", and using the button form in a sentence gives
+ * you "Back to Grades".
+ */
+export const STUDENT_DESTINATION_LABEL = Object.freeze({
+  [STUDENT_DESTINATION.HOME]: 'Home',
+  [STUDENT_DESTINATION.ASSIGNMENTS]: 'Assignments',
+  [STUDENT_DESTINATION.GRADES]: 'Grades',
+  [STUDENT_DESTINATION.MATH_PATH]: 'My Math Path',
+  [STUDENT_DESTINATION.SECURE_EXAMS]: 'Secure Exams',
 });
 
 export const parentOf = (level) => PARENT[level] ?? null;
@@ -123,9 +177,21 @@ export const breadcrumb = (level) => {
  *
  * Returns null at Home — there is nowhere up from the top, and a Back button
  * that goes nowhere is worse than no Back button.
+ *
+ * `origin` is the one escape from the static tree, and it exists because one
+ * screen genuinely has two parents: an assignment result opened from Grades
+ * belongs under Grades, and the same result opened from Assignments belongs
+ * under Assignments. Hard-coding either one means the Back control lies to half
+ * the students who reach it. An origin that is not a real parent candidate is
+ * ignored rather than trusted, so a stale history entry cannot invent a level.
  */
-export const resolveBack = (level) => {
-  const parent = parentOf(level);
+const ORIGIN_CANDIDATES = Object.freeze({
+  [LEVEL.ASSIGNMENT_RESULT]: [LEVEL.ASSIGNMENTS, LEVEL.GRADES],
+});
+
+export const resolveBack = (level, { origin = null } = {}) => {
+  const allowed = ORIGIN_CANDIDATES[level] || [];
+  const parent = allowed.includes(origin) ? origin : parentOf(level);
   if (!parent) return null;
   return {
     level: parent,

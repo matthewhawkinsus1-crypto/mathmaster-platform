@@ -116,7 +116,7 @@ test('App routes by the launch decision rather than re-deciding it at the call s
 test('every student grade surface is its own browser history entry', () => {
   const home = { surface: 'dashboard', dashboardMode: 'assignments' };
   const grades = { surface: 'dashboard', dashboardMode: 'grades' };
-  const result = { surface: 'assignmentResult', assignmentId: 'lesson-1', sectionKey: 'dol' };
+  const result = { surface: 'assignmentResult', assignmentId: 'lesson-1', sectionKey: 'dol', origin: 'grades' };
   const practice = { surface: 'assignment', assignmentId: 'lesson-1', questionIndex: 2 };
 
   const keys = [home, grades, result, practice].map(studentRouteKey);
@@ -124,21 +124,24 @@ test('every student grade surface is its own browser history entry', () => {
   assert.deepEqual(keys, [
     'dashboard:assignments',
     'dashboard:grades',
-    'assignmentResult:lesson-1:dol',
+    'assignmentResult:lesson-1:dol:grades',
     'assignment:lesson-1:2',
   ]);
 });
 
 test('an assignment-result history entry round-trips its assignment and Classroom section', () => {
+  // The entry gained `origin` when the Assignments Center landed: the same
+  // result is reachable from two lists and the entry has to remember which.
   assert.deepEqual(
-    normalizeStudentRoute({ surface: 'assignmentResult', assignmentId: ' lesson-1 ', sectionKey: 'DOL' }),
-    { surface: 'assignmentResult', assignmentId: 'lesson-1', sectionKey: 'DOL' },
+    normalizeStudentRoute({ surface: 'assignmentResult', assignmentId: ' lesson-1 ', sectionKey: 'DOL', origin: 'grades' }),
+    { surface: 'assignmentResult', assignmentId: 'lesson-1', sectionKey: 'DOL', origin: 'grades' },
   );
+  // An entry written before origins existed still restores, as Assignments.
   assert.deepEqual(
     readStudentRouteState({
       [STUDENT_ROUTE_STATE_KEY]: { surface: 'assignmentResult', assignmentId: 'lesson-1', sectionKey: '' },
     }),
-    { surface: 'assignmentResult', assignmentId: 'lesson-1', sectionKey: '' },
+    { surface: 'assignmentResult', assignmentId: 'lesson-1', sectionKey: '', origin: 'assignments' },
   );
   // An unknown surface must degrade to the dashboard rather than throwing a
   // student out of the app on a stale history entry.
@@ -170,15 +173,21 @@ test('the visible in-app Back control returns result-launched practice to Assign
 });
 
 test('Grades is reachable from Home, and Home is reachable from Grades', () => {
+  // Home's per-destination buttons became one shared StudentGlobalNav, so the
+  // capability is now "Home renders the nav, and the nav offers Grades" rather
+  // than a hand-written onOpenGrades handler on the dashboard.
   assertCapability(
     dashboard,
-    [/onOpenGrades\?\.\(\)/],
-    'The student header must offer a route into the Grade Center.',
+    [/<StudentGlobalNav/],
+    'Home must render the shared student navigation.',
   );
-  assert.match(app, /onOpenGrades=\{openStudentGradeCenter\}/);
+  assert.match(app, /onNavigate=\{navigateStudent\}/);
 
-  const openGradeCenter = region(app, 'const openStudentGradeCenter = ', 'const openStudentAssignmentResult', 'openStudentGradeCenter');
-  assert.match(openGradeCenter, /setStudentDashboardMode\('grades'\)/);
+  const navigate = region(app, 'const navigateStudent = ', 'const openStudentAssignmentResult', 'navigateStudent');
+  assert.match(navigate, /STUDENT_DESTINATION\.GRADES.*openStudentGradeCenter/s);
+
+  const openGradeCenter = region(app, 'const openStudentDashboardMode = ', 'const navigateStudent', 'openStudentDashboardMode');
+  assert.match(openGradeCenter, /setStudentDashboardMode\(mode\)/);
   assert.match(openGradeCenter, /setActiveView\('dashboard'\)/);
 
   assertCapability(

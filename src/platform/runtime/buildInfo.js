@@ -16,6 +16,39 @@ export const getMathMasterBuildInfo = (env = import.meta.env || {}) => ({
 });
 
 /**
+ * The build identifier, short enough to read off a student's phone.
+ *
+ * "Is this browser actually running the latest Firebase build?" was being
+ * answered by guessing — a teacher would report a missing button, and there was
+ * no way to tell a stale cached bundle from a real defect without a deploy and
+ * a second look. The sha and timestamp were already injected at build time and
+ * already published on window.__MATHMASTER_BUILD__; what was missing was
+ * somewhere a human could SEE them.
+ *
+ * Deliberately not a secret and deliberately not clickable: a short commit id
+ * and the time it was built. Nothing about the environment, no tokens, no
+ * internal hostnames.
+ *
+ * A build made outside the Firebase script has no sha injected. That reports as
+ * "dev" rather than a fabricated id — "I do not know which build this is" is
+ * the honest answer and is itself diagnostic.
+ */
+export const formatBuildStamp = (info = getMathMasterBuildInfo()) => {
+  const sha = clean(info?.gitSha);
+  const shortSha = !sha || sha === 'unknown' ? 'dev' : sha.slice(0, 7);
+  const builtAt = clean(info?.builtAt);
+  const when = !builtAt || builtAt === 'unknown' ? null : builtAt;
+  return {
+    shortSha,
+    builtAt: when,
+    label: `Build ${shortSha}`,
+    // The long form for a teacher diagnostic line, where the date is the part
+    // that settles an argument about whether a deploy reached a device.
+    detail: when ? `Build ${shortSha} · ${when}` : `Build ${shortSha}`,
+  };
+};
+
+/**
  * Explain whether an observed assignment problem is deployment drift, a saved
  * record that has not yet received a certified persistence repair, or a real
  * remaining regression in the current runtime.

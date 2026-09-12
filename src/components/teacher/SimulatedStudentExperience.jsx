@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import StudentDashboardView from '../student/StudentDashboardView.jsx';
 import { MyMathPathExperience } from '../student/MyMathPathApp.jsx';
+import { STUDENT_DESTINATION } from '../../platform/student/navigationModel.js';
 import { buildStudentDashboardModel } from '../../studentDashboardModel.js';
 import { buildStudentPathOptions } from '../../platform/path/studentPathOptions.js';
 import { buildStudentMasteryProfile, collectStudentEvidence } from '../../masteryEngine.js';
@@ -266,7 +267,11 @@ export default function SimulatedStudentExperience({
           supportPresentation={{}}
           onStartAssignment={(assignmentId, questionIndex) => onStartAssignment?.(assignmentId, questionIndex)}
           onOpenMathPath={() => setView('path')}
-          onOpenSecureExams={null}
+          // The simulator has its own view switcher above this dashboard and is
+          // showing a synthetic learner. Wiring the student's global nav here
+          // would send a teacher into a REAL student surface from inside a
+          // simulation, so Path is the only destination it answers.
+          onNavigate={(destination) => { if (destination === STUDENT_DESTINATION.MATH_PATH) setView('path'); }}
           onLogout={null}
           recommended={{
             student: learner,

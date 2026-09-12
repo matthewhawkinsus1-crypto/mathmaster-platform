@@ -3,6 +3,7 @@ import GradeSectionBreakdown from './GradeSectionBreakdown.jsx';
 import { GRADE_STATUS } from '../../platform/student/studentGradeCenterModel.js';
 import { describeClassroomReceipt } from '../../platform/classroom/classroomReceiptPresentation.js';
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
+import { LEVEL, resolveBack } from '../../platform/student/navigationModel.js';
 import { formatDateTime } from '../../assignmentLifecycle';
 
 /*
@@ -53,8 +54,24 @@ export default function StudentAssignmentResult({
   onReviewWork = null,
   onPractice = null,
   onViewAllGrades = null,
+  onViewAllAssignments = null,
   onBackToHome = null,
+  /*
+   * WHICH LIST SENT THE STUDENT HERE.
+   *
+   * The same result is reachable from Assignments, from Grades, and from a
+   * Google Classroom link. Browser Back pops to whichever of those preceded it
+   * for free; the visible Back control has to be told, or it picks one and is
+   * wrong for half of the students who arrive.
+   */
+  origin = LEVEL.ASSIGNMENTS,
 }) {
+  const cameFromGrades = origin === LEVEL.GRADES;
+  // The label comes from the navigation model, which owns the rule that a Back
+  // control names its destination rather than its direction.
+  const back = resolveBack(LEVEL.ASSIGNMENT_RESULT, { origin });
+  const backLabel = `← ${back?.label || 'Back'}`;
+  const onBackToOrigin = cameFromGrades ? onViewAllGrades : onViewAllAssignments;
   if (!entry) {
     return (
       <main style={{ minHeight: '100vh', background: '#f0f2f5', padding: '28px 16px', fontFamily: '"Segoe UI", sans-serif' }}>
@@ -64,7 +81,8 @@ export default function StudentAssignmentResult({
             This assignment is not assigned to your MathMaster class, or it has been removed. Your other grades are still here.
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
-            <button type="button" style={actionStyle(true)} onClick={() => onViewAllGrades?.()}>View All Grades</button>
+            <button type="button" style={actionStyle(true)} onClick={() => onViewAllAssignments?.()}>View All Assignments</button>
+            <button type="button" style={actionStyle(false)} onClick={() => onViewAllGrades?.()}>View All Grades</button>
             <button type="button" style={actionStyle(false)} onClick={() => onBackToHome?.()}>Back to Home</button>
           </div>
         </section>
@@ -105,6 +123,24 @@ export default function StudentAssignmentResult({
           background: '#fff', border: '1px solid #d8dde6', textAlign: 'left', minWidth: 0,
         }}
       >
+        {/*
+          The visible Back goes wherever browser Back goes. A student who opened
+          this from Grades and is returned to Assignments has been told their
+          own navigation lied to them, which is how a student stops using it.
+        */}
+        <button
+          type="button"
+          onClick={() => onBackToOrigin?.()}
+          style={{
+            appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
+            minHeight: MIN_TOUCH_TARGET_PX, padding: '10px 14px', marginBottom: 12,
+            borderRadius: 10, border: '2px solid #c9ced6', background: '#fff',
+            color: '#3c4043', fontWeight: 900, fontSize: 14, cursor: 'pointer',
+          }}
+        >
+          {backLabel}
+        </button>
+
         <div style={{ fontSize: 12, fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>
           {entry.frozen ? 'Recorded MathMaster result' : 'MathMaster result so far'}
           {sectionLabel ? ` · ${sectionLabel}` : ''}
@@ -163,6 +199,12 @@ export default function StudentAssignmentResult({
               {sectionLabel ? `Practice ${sectionLabel}` : 'Practice This Skill'}
             </button>
           )}
+          {/* Both lists, always. A Google Classroom deep link arrives with no
+              origin a student chose, and either answer may be the one they
+              want next. */}
+          <button type="button" style={actionStyle(false)} onClick={() => onViewAllAssignments?.()}>
+            All Assignments
+          </button>
           <button type="button" style={actionStyle(false)} onClick={() => onViewAllGrades?.()}>
             View All Grades
           </button>

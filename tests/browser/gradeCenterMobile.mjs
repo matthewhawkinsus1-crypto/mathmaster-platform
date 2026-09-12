@@ -37,9 +37,24 @@ const VIEWPORT = { width: 390, height: 740 };
 const MIN_TAP = 44;
 
 const SCENES = [
-  { name: 'gradeCenter', mustContain: ['My Grades', 'Current MathMaster grade', 'View Results'], mustReach: ['← Home'] },
+  // The Assignments Center is the densest of these screens — tabs, a search
+  // box, a period select and a card list — so it is the most likely to push
+  // the page sideways at 390px.
+  { name: 'assignmentsCenter', mustContain: ['My Assignments', 'Active · ', 'Upcoming · ', 'Completed · 2', 'Practice · 1'], mustReach: ['Assignments', 'Grades', 'My Math Path', 'Secure Exams', 'Home'] },
+  // Everything has closed, so the default Active tab is empty. An empty tab on
+  // a screen whose job is finding things has to say where the work went.
+  { name: 'assignmentsCenterClosed', mustContain: ['My Assignments', 'All marking periods'], mustReach: ['Grades'] },
+  // The list a student actually came for: press Practice and measure it.
+  {
+    name: 'assignmentsCenterClosed',
+    as: 'assignmentsCenterPracticeTab',
+    clickText: 'Practice ·',
+    mustContain: ['Practice', 'View Results'],
+    mustReach: ['Practice'],
+  },
+  { name: 'gradeCenter', mustContain: ['My Grades', 'Current MathMaster grade', 'View Results'], mustReach: ['← Home', 'Assignments'] },
   { name: 'gradeCenterClosed', mustContain: ['Past Marking Periods', 'Practice'], mustReach: ['← Home'] },
-  { name: 'assignmentResult', mustContain: ['Your grade', 'Warm-Up', 'DOL'], mustReach: ['View All Grades', 'Practice DOL'] },
+  { name: 'assignmentResult', mustContain: ['Your grade', 'Warm-Up', 'DOL'], mustReach: ['View All Grades', 'Practice DOL', 'All Assignments', 'Back to'] },
   { name: 'assignmentResultOpen', mustContain: ['Your grade'], mustReach: ['View All Grades'] },
 ];
 
@@ -74,6 +89,22 @@ for (const scene of SCENES) {
   await page.evaluate((name) => window.__mmGradeScene(name), scene.name);
   // eslint-disable-next-line no-await-in-loop
   await page.waitForTimeout(350);
+
+  // Some scenes are a screen AFTER a student presses something — a tab, a
+  // filter. Measuring only the first paint would miss the list they came for.
+  if (scene.clickText) {
+    // eslint-disable-next-line no-await-in-loop
+    const clicked = await page.evaluate((needle) => {
+      const target = [...document.querySelectorAll('button')]
+        .find((element) => (element.innerText || '').includes(needle));
+      if (!target) return false;
+      target.click();
+      return true;
+    }, scene.clickText);
+    if (!clicked) findings.push({ scene: scene.as || scene.name, problems: [`could not find a control matching "${scene.clickText}"`] });
+    // eslint-disable-next-line no-await-in-loop
+    await page.waitForTimeout(250);
+  }
 
   // eslint-disable-next-line no-await-in-loop
   const seen = await page.evaluate((minTap) => {
@@ -149,13 +180,13 @@ for (const scene of SCENES) {
   }
 
   report.push({
-    scene: scene.name,
+    scene: scene.as || scene.name,
     elements: seen.elements,
     documentScrollWidth: seen.documentScrollWidth,
     controls: seen.controls.length,
     problems,
   });
-  if (problems.length) findings.push({ scene: scene.name, problems });
+  if (problems.length) findings.push({ scene: scene.as || scene.name, problems });
 }
 
 await browser.close();
