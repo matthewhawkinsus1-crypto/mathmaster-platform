@@ -111,10 +111,19 @@
   max-height: 100%;
 }
 
-.mathmaster-question-container .math-tool-workspace svg[role="application"],
 .mathmaster-question-container .math-tool-workspace canvas,
 .mathmaster-question-container .mathmaster-touch-surface {
   touch-action: none !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* CoordinatePlane decides its own touch contract. Read/adjust graph surfaces
+   deliberately allow pan-y and pinch-zoom so a student can scroll past a graph
+   or magnify it. A blanket !important rule here used to override that inline
+   contract and made Data Modeling Lab feel like the page had frozen whenever a
+   thumb started on the scatterplot. */
+.mathmaster-question-container .math-tool-workspace svg[role="application"] {
   user-select: none;
   -webkit-user-select: none;
 }
