@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { correlation, linearRegression } from '../../src/tools/shared/toolMath.js';
+import { fitAdjustmentPlan } from '../../src/platform/graph/graphScaleService.js';
 import {
   buildCandidateModels as clientBuildModels,
   chooseBestModel as clientChooseBest,
@@ -523,4 +524,37 @@ test('A2.8B fit-only modes grade regression coefficients without requiring predi
   assert.equal(quadraticPublic.mode, 'quadraticFit');
   assert.equal('expectedModel' in quadraticPublic, false);
   assert.equal('predictionX' in quadraticPublic, false);
+});
+
+
+test('lineFit server grading uses the same data-scale tolerance as the button-only client controls', () => {
+  const points = [
+    [1400, 450], [1550, 505], [2000, 545],
+    [2600, 715], [3000, 930], [3400, 1000],
+  ];
+  const regression = linearRegression(points);
+  const plan = fitAdjustmentPlan({
+    targetSlope: regression.m,
+    targetIntercept: regression.b,
+    xMin: 1400,
+    xMax: 3400,
+    yMin: 450,
+    yMax: 1000,
+  });
+  const definition = buildDataModelingPrivateDefinition({ points, mode: 'lineFit' });
+
+  nearly(definition.slopeTolerance, plan.slope.tolerance);
+  nearly(definition.interceptTolerance, plan.intercept.tolerance);
+
+  const reachable = gradeDataModelingResponse(definition, {
+    m: plan.slope.target,
+    b: plan.intercept.target,
+  });
+  assert.equal(reachable.isCorrect, true);
+
+  const untouchedStart = gradeDataModelingResponse(definition, {
+    m: plan.slope.start,
+    b: plan.intercept.start,
+  });
+  assert.equal(untouchedStart.isCorrect, false, 'the deliberately displaced starting line must require student work');
 });
