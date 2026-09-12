@@ -5092,7 +5092,7 @@ function App() {
 
   const handleToggleSectionAccessForClass = async (assignment, classContext, activityRole) => {
     const { classId, classPeriod, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
-    if (!assignment?.id || !classId || !classPeriod || !classKey || !['classwork', 'practice'].includes(activityRole)) return;
+    if (!assignment?.id || !classId || !classPeriod || !classKey || !['classwork', 'practice', 'test', 'retest'].includes(activityRole)) return;
     const state = getSectionAccessState({ assignment, activityRole, classId, classPeriod, nowValue: Date.now() });
     if (!state.enabled) {
       toastWarning('Section not found', `This assignment does not have an authored ${activityRole} section.`);
@@ -5112,7 +5112,12 @@ function App() {
     }
 
     const nextState = state.isOpen ? 'closed' : 'open';
-    const label = activityRole === 'classwork' ? 'Classwork' : 'Practice';
+    const label = ({
+      classwork: 'Classwork',
+      practice: 'Practice',
+      test: 'Test',
+      retest: 'Retest',
+    })[activityRole] || 'Section';
     const proceed = await confirmAction({
       title: `${nextState === 'open' ? 'Open' : 'Close'} ${label} for ${classLabel}?`,
       message: nextState === 'open'
@@ -5130,7 +5135,7 @@ function App() {
       const config = { ...(sectionAccess[activityRole] || {}) };
       const entry = { state: nextState, changedAt, changedBy: user?.email || user?.id || 'teacher' };
       config.overridesByClassId = { ...(config.overridesByClassId || {}), [classId]: entry };
-      sectionAccess[activityRole] = { ...config, defaultState: config.defaultState === 'closed' ? 'closed' : 'open' };
+      sectionAccess[activityRole] = { ...config, defaultState: config.defaultState || state.defaultState || 'open' };
       await updateDoc(doc(db, 'assignments', assignment.id), { sectionAccess, updatedAt: changedAt });
       toastSuccess(`${label} ${nextState}`, `${assignment.title} · ${classLabel}`);
     } catch (error) {
