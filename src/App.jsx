@@ -2013,12 +2013,19 @@ function App() {
 
   useEffect(() => {
     if (!activeQuestions.length) return;
-    const included = getCurrentContentQuestionIndices(activeAssignmentData);
+    const assessmentIncluded = isStudentAssignment && isAssessmentPathwayAssignment(activeAssignmentData)
+      ? (getAssessmentVisibleIndices({
+          assignment: activeAssignmentData,
+          tracker: tracker?.[activeAssignmentId] || {},
+          nowValue: now,
+        }) || [])
+      : null;
+    const included = assessmentIncluded || getCurrentContentQuestionIndices(activeAssignmentData);
     if (!included.length) return;
     if (!included.includes(currentQuestionIndex)) {
-      setCurrentQuestionIndex(resolveCurrentContentStorageIndex(activeAssignmentData, currentQuestionIndex) ?? included[0]);
+      setCurrentQuestionIndex(included[0]);
     }
-  }, [activeAssignmentData, currentQuestionIndex]);
+  }, [activeAssignmentData, activeAssignmentId, activeQuestions.length, currentQuestionIndex, isStudentAssignment, now, tracker]);
 
   // A question change should feel like changing pages, not like loading the
   // next page at the old scroll position. This matters most on phones where
@@ -6903,6 +6910,59 @@ function App() {
               </button>
             </div>
           </section>
+        </div>
+      );
+    }
+
+    const assessmentStageBlocksQuestions = Boolean(
+      !preview
+      && assessmentState
+      && !assessmentState.canEnter
+      && ['awaitingFeedback', 'retestLocked', 'complete'].includes(assessmentState.stage)
+    );
+    if (assessmentStageBlocksQuestions) {
+      const isWaitingForTeacher = assessmentState.stage === 'awaitingFeedback'
+        || (assessmentState.stage === 'complete' && assessmentState.feedbackHeld);
+      const accent = assessmentState.stage === 'retestLocked' ? '#681da8' : '#174ea6';
+      return (
+        <div
+          className={`mathmaster-assignment-screen ${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
+          style={{
+            minHeight: '100vh',
+            background: supportPresentation.highContrast ? '#fff' : '#f0f2f5',
+            padding: '28px 20px',
+            fontFamily: '"Segoe UI", sans-serif',
+            fontSize: supportPresentation.largeText ? '120%' : undefined,
+          }}
+        >
+          <main style={{ maxWidth: 760, margin: '0 auto' }}>
+            <button
+              type="button"
+              onClick={leaveAssignment}
+              style={{ border: 0, background: 'transparent', color: '#174ea6', fontWeight: 900, cursor: 'pointer', padding: '8px 0 18px' }}
+            >
+              ← Back to Dashboard
+            </button>
+            <section style={{ background: '#fff', borderRadius: 16, padding: '30px', border: `3px solid ${accent}`, boxShadow: '0 6px 20px rgba(60,64,67,0.12)', textAlign: 'left' }}>
+              <div style={{ fontSize: 12, fontWeight: 1000, letterSpacing: '.08em', textTransform: 'uppercase', color: accent }}>
+                {assessmentState.statusLabel}
+              </div>
+              <h1 style={{ margin: '8px 0 14px', fontSize: 29, color: '#202124' }}>{assignment.title}</h1>
+              <p style={{ fontSize: 18, lineHeight: 1.65, color: '#3c4043', marginBottom: 22 }}>{assessmentState.detail}</p>
+              {isWaitingForTeacher && (
+                <div style={{ padding: '14px 16px', borderRadius: 11, background: '#eef4ff', color: '#174ea6', fontWeight: 850, marginBottom: 20 }}>
+                  Your answers are saved. You do not need to keep this page open while waiting for results.
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={leaveAssignment}
+                style={{ padding: '12px 20px', border: 0, borderRadius: 9, background: accent, color: '#fff', fontWeight: 1000, cursor: 'pointer' }}
+              >
+                Return to Dashboard
+              </button>
+            </section>
+          </main>
         </div>
       );
     }
