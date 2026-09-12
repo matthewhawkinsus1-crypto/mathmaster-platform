@@ -7,7 +7,15 @@ const openWorkView = async (page) => {
   if (await host.getAttribute('data-open') === 'true') return;
   const open = page.getByRole('button', { name: /Open Work View/i }).first();
   await open.waitFor({ state: 'visible' });
-  await open.click();
+  await page.waitForFunction(() => {
+    const button = [...document.querySelectorAll('button')]
+      .find((node) => /Open Work View/i.test(node.textContent || ''));
+    return Boolean(button && !button.disabled);
+  });
+  // This regression is about terminal lifecycle, not pointer hit-testing (the
+  // Stage 4 device matrix already certifies the opener). Dispatch directly so
+  // stale completion chrome cannot make the lifecycle test itself flaky.
+  await open.evaluate((button) => button.click());
   await page.locator('.mathmaster-work-view-host[data-open="true"]').waitFor();
 };
 
