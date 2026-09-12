@@ -15,6 +15,7 @@ test('assignment creation persists canonical V5 sections and policy metadata', (
   assert.match(source, /differentiationPolicy:/);
   assert.match(source, /supportPolicy:/);
   assert.match(source, /outputProfiles:/);
+  assert.match(source, /assessmentPolicy:/);
   const payloadBlock = source.match(/const assignmentPayloadBase = \{([\s\S]*?)\n      \};/)?.[1] || '';
   assert.doesNotMatch(payloadBlock, /^\s*assignmentType,\s*$/m);
   assert.doesNotMatch(payloadBlock, /^\s*variantMode,\s*$/m);
