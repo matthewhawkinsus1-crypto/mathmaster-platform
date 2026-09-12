@@ -116,3 +116,11 @@ test('tool directions themselves are folded with the repeated steps', () => {
   assert.ok(direction > 0 && direction < close, 'tool directions belong inside the folded support block');
   assert.match(disclosure.slice(0, 600), /defaultOpen=\{false\}/);
 });
+
+
+test('tool help cards scroll with the workspace; only the student task anchor stays persistent', () => {
+  const css = codeOf('src/App.css');
+  assert.match(css, /\.mathmaster-tool-task-card\s*\{[\s\S]*?position:\s*static;/);
+  assert.doesNotMatch(css, /\.mathmaster-tool-task-card\s*\{[\s\S]{0,180}?position:\s*sticky;/);
+  assert.match(css, /\.mathmaster-desktop-question-content\s+\.mathmaster-desktop-question-anchor\s*\{[\s\S]*?position:\s*sticky;/);
+});
