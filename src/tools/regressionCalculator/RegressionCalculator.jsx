@@ -84,6 +84,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
     setSelectedId(row.id);
     setEditOpen(false);
     record('expressionAdded');
+    setNotice('');
     requestAnimationFrame(() => document.getElementById(`regression-${row.id}`)?.focus());
   };
 
@@ -115,6 +116,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
         : pair),
     }));
     record('tableEdited', { row: rowIndex + 1, column: column ? 'y1' : 'x1' });
+    setNotice('');
     setRun(null);
     clearFeedback();
   };
