@@ -51,7 +51,7 @@ const openWorkView = async (page) => {
 };
 
 const assertCleanClose = async (page) => {
-  await page.locator('.mathmaster-work-view-host[data-open="false"]').first().waitFor();
+  await page.waitForFunction(() => document.querySelectorAll('.mathmaster-work-view-host[data-open="true"]').length === 0);
   const state = await page.evaluate(() => ({
     flag: document.documentElement.dataset.workViewOpen,
     overflow: document.documentElement.style.overflow,
@@ -61,6 +61,14 @@ const assertCleanClose = async (page) => {
   if (state.flag || state.overflow === 'hidden' || state.actions || state.activeInWorkView) throw new Error(`terminal cleanup failed: ${JSON.stringify(state)}`);
 };
 
+const assertTappableContinuation = async (page, viewportName) => {
+  const continuation = page.getByRole('button', { name: /Next Question|Continue/i }).first();
+  await continuation.waitFor({ state: 'visible' });
+  const box = await continuation.boundingBox();
+  if (!box || box.width < 44 || box.height < 44) throw new Error(`${viewportName}: continuation is not tappable`);
+  return continuation;
+};
+
 for (const viewport of [{ name: 'chromebook', width: 1366, height: 768 }, { name: 'phone', width: 390, height: 844 }]) {
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
@@ -68,46 +76,52 @@ for (const viewport of [{ name: 'chromebook', width: 1366, height: 768 }, { name
     isMobile: viewport.name === 'phone',
   });
   const page = await context.newPage();
-  await page.goto(`${origin}/tests/browser/workViewTerminalTransition.html`, { waitUntil: 'networkidle' });
+  for (const route of ['simpleRegistry', 'relationAlgebra', 'nestedRegistry']) {
+    await page.goto(`${origin}/tests/browser/workViewTerminalTransition.html`, { waitUntil: 'networkidle' });
+    await page.evaluate((nextRoute) => window.__mmTerminalLifecycle((current) => ({ ...current, route: nextRoute })), route);
+    await page.locator(`[data-terminal-route="${route}"]`).waitFor();
 
-  await openWorkView(page);
-  const input = page.locator('.mathmaster-work-view-host[data-open="true"] input:visible').first();
-  if (await input.count()) await input.focus();
-  await page.evaluate(() => window.__mmTerminalLifecycle((current) => ({ ...current, status: 'correct' })));
-  await assertCleanClose(page);
-  const next = page.getByRole('button', { name: /Next Question/i });
-  const box = await next.boundingBox();
-  if (!box || box.width < 44 || box.height < 44) throw new Error(`${viewport.name}: Next Question is not tappable`);
-  await next.click();
-  await page.locator('[data-terminal-question="2"]').waitFor();
+    await openWorkView(page);
+    const input = page.locator('.mathmaster-work-view-host[data-open="true"] input:visible').first();
+    if (await input.count()) await input.focus();
+    await page.evaluate(() => window.__mmTerminalLifecycle((current) => ({ ...current, status: 'correct' })));
+    await assertCleanClose(page);
+    const next = await assertTappableContinuation(page, `${viewport.name}/${route}/correct`);
+    await next.click();
+    await page.locator('[data-terminal-question="2"]').waitFor();
 
-  await openWorkView(page);
-  await page.evaluate(() => window.__mmTerminalLifecycle((current) => ({ ...current, status: 'attempted' })));
-  await page.locator('.mathmaster-work-view-host[data-open="true"]').waitFor();
+    await openWorkView(page);
+    await page.evaluate(() => window.__mmTerminalLifecycle((current) => ({ ...current, status: 'attempted' })));
+    await page.locator('.mathmaster-work-view-host[data-open="true"]').waitFor();
 
-  await page.evaluate(() => window.__mmTerminalLifecycle((current) => ({ ...current, status: 'expired' })));
-  await assertCleanClose(page);
-  await page.getByText(/response is closed after/i).waitFor();
+    await page.evaluate(() => window.__mmTerminalLifecycle((current) => ({ ...current, status: 'expired' })));
+    await assertCleanClose(page);
+    await page.getByText(/response is closed after/i).waitFor();
+    await assertTappableContinuation(page, `${viewport.name}/${route}/expired`);
 
   // Start the assignment-lock scenario from a fresh QuestionEngine. The
   // expired scenario intentionally leaves terminal feedback mounted; reusing
   // that harness instance would test React transition timing between synthetic
   // scenes rather than the production terminal-close lifecycle.
-  await page.reload({ waitUntil: 'networkidle' });
-  await page.evaluate(() => window.__mmTerminalLifecycle((current) => ({ ...current, index: 3, status: 'unattempted', assignmentLocked: false })));
-  await page.locator('[data-terminal-question="3"]').waitFor();
-  await openWorkView(page);
-  await page.evaluate(() => window.__mmTerminalLifecycle((current) => ({ ...current, assignmentLocked: true })));
-  await assertCleanClose(page);
-  await page.getByText('This assignment is closed.').waitFor();
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.evaluate((nextRoute) => window.__mmTerminalLifecycle((current) => ({ ...current, route: nextRoute, index: 3, status: 'unattempted', assignmentLocked: false })), route);
+    await page.locator('[data-terminal-question="3"]').waitFor();
+    await openWorkView(page);
+    await page.evaluate(() => window.__mmTerminalLifecycle((current) => ({ ...current, assignmentLocked: true })));
+    await assertCleanClose(page);
+    await page.getByText('This assignment is closed.').waitFor();
+    await assertTappableContinuation(page, `${viewport.name}/${route}/locked`);
+  }
 
+  // Section continuation is certified once per device in addition to the
+  // three route families above.
   await page.reload({ waitUntil: 'networkidle' });
   await page.evaluate(() => window.__mmTerminalLifecycle((current) => ({ ...current, index: 4, status: 'unattempted', assignmentLocked: false, sectionComplete: false })));
   await page.locator('[data-terminal-question="4"]').waitFor();
   await openWorkView(page);
   await page.evaluate(() => window.__mmTerminalLifecycle((current) => ({ ...current, status: 'correct', sectionComplete: true })));
   await assertCleanClose(page);
-  const continuation = page.getByRole('button', { name: /Continue to Review/i });
+  const continuation = await assertTappableContinuation(page, `${viewport.name}/section-complete`);
   await continuation.click();
   await page.locator('[data-terminal-question="5"]').waitFor();
   await context.close();

@@ -8,16 +8,32 @@ import '../../src/App.css';
 let control = null;
 window.__mmTerminalLifecycle = (next) => control?.(next);
 
+const QUESTIONS = {
+  simpleRegistry: {
+    ...SAMPLE_SPECS.openSortBoard,
+    type: 'openSortBoard',
+    prompt: 'Sort the functions into their matching families.',
+    requireGroupNames: true,
+  },
+  relationAlgebra: {
+    type: 'stepAlgebra',
+    prompt: 'Solve the compound inequality −7 < 2x + 1 ≤ 9.',
+    equation: '-7 < 2*x + 1 <= 9',
+  },
+  nestedRegistry: {
+    ...SAMPLE_SPECS.constraintFunctionBuilder,
+    type: 'constraintFunctionBuilder',
+    prompt: 'Build a function satisfying every constraint.',
+  },
+};
+
 function Harness() {
-  const [scene, setScene] = useState({ index: 1, status: 'unattempted', sectionComplete: false, assignmentLocked: false });
+  const [scene, setScene] = useState({ route: 'simpleRegistry', index: 1, status: 'unattempted', sectionComplete: false, assignmentLocked: false });
   useEffect(() => { control = setScene; return () => { control = null; }; }, []);
   const question = {
-    ...SAMPLE_SPECS.openSortBoard,
+    ...QUESTIONS[scene.route],
     id: `terminal-question-${scene.index}`,
     questionId: `terminal-question-${scene.index}`,
-    type: 'openSortBoard',
-    prompt: `Sort the functions for question ${scene.index}.`,
-    requireGroupNames: true,
   };
   const record = {
     status: scene.status,
@@ -25,7 +41,7 @@ function Harness() {
     variantIndex: 0,
   };
   const advance = () => setScene((current) => ({ ...current, index: current.index + 1, status: 'unattempted', sectionComplete: false, assignmentLocked: false }));
-  return <main className="app-container" data-terminal-question={scene.index}>
+  return <main className="app-container" data-terminal-question={scene.index} data-terminal-route={scene.route}>
     <QuestionEngine
       question={question}
       generationKey={`terminal-${scene.index}`}
