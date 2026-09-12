@@ -292,11 +292,33 @@ export const validateAssignmentV5 = (input = {}, { requireQuestions = true } = {
     if (requireQuestions && questionCount === 0) errors.push('V5 contains no questions.');
 
   if (clean(input?.assessmentPolicy?.mode) === 'testCycle') {
-    const roles = new Set((Array.isArray(input.sections) ? input.sections : [])
-      .map((section) => clean(section?.role).toLowerCase()));
+    const sourceSections = Array.isArray(input.sections) ? input.sections : [];
+    const sectionsByRole = new Map(sourceSections.map((section) => [clean(section?.role).toLowerCase(), section]));
+    const roles = new Set(sectionsByRole.keys());
     if (!roles.has('review')) errors.push('Test Cycle assignments require a review section.');
     if (!roles.has('test')) errors.push('Test Cycle assignments require a test section.');
     if (!roles.has('retest')) errors.push('Test Cycle assignments require a retest section.');
+
+    const requiredQuestionRoles = input?.assessmentPolicy?.review?.required === false
+      ? ['test', 'retest']
+      : ['review', 'test', 'retest'];
+    requiredQuestionRoles.forEach((role) => {
+      const section = sectionsByRole.get(role);
+      if (section && (!Array.isArray(section.questions) || section.questions.length === 0)) {
+        errors.push(`Test Cycle ${role} section must contain at least one question.`);
+      }
+    });
+
+    const testCount = Array.isArray(sectionsByRole.get('test')?.questions)
+      ? sectionsByRole.get('test').questions.length
+      : 0;
+    const retestCount = Array.isArray(sectionsByRole.get('retest')?.questions)
+      ? sectionsByRole.get('retest').questions.length
+      : 0;
+    const retestStrategy = clean(input?.assessmentPolicy?.retest?.strategy) || 'shortForm';
+    if (retestStrategy === 'shortForm' && testCount > 1 && retestCount >= testCount) {
+      warnings.push(`Test Cycle Retest is configured as shortForm but contains ${retestCount} questions versus ${testCount} on the Test. Use a smaller fresh Retest set or choose a different Retest strategy.`);
+    }
   }
   }
 
