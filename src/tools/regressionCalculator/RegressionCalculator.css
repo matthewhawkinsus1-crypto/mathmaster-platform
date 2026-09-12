@@ -10,3 +10,6 @@
 .regression-workspace svg { display:block; width:100%; height:auto; max-width:100%; touch-action:pan-y pinch-zoom; }
 .regression-submit { width:100%; margin-top:14px; }
 @media (max-width:390px) { .regression-workspace { display:block; width:100%; overflow-x:hidden; } .regression-workspace > * { margin-bottom:10px; } }
+
+.regression-source-graph { min-width:0; }
+.regression-source-note { margin:8px 0 0; font-size:0.85rem; color:#5f6b7a; line-height:1.4; }
