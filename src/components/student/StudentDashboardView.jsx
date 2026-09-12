@@ -96,7 +96,9 @@ export default function StudentDashboardView({
             : 'TEACHER DRAFT';
     const classroomGrade = Number.isFinite(Number(classroomReceipt?.grade)) ? Number(classroomReceipt.grade) : null;
     const classroomIsCurrent = classroomGrade != null && Number(recordedGrade) === classroomGrade;
-    const statusStyle = lifecycle.isPracticeOnly ? { border: '#5f6368', bg: '#f1f3f4', color: '#3c4043', label: 'Practice only' } : lifecycle.isLate ? { border: '#f9ab00', bg: '#fff4ce', color: '#7a4f00', label: 'Late' } : lifecycle.isScheduled ? { border: '#9aa0a6', bg: '#f1f3f4', color: '#3c4043', label: 'Scheduled' } : { border: '#d8dde6', bg: '#e6f4ea', color: '#137333', label: 'On time' };
+    const statusStyle = assessmentStage && lifecycle.isClosed
+      ? { border: '#5f6368', bg: '#f1f3f4', color: '#3c4043', label: 'Assessment closed' }
+      : lifecycle.isPracticeOnly ? { border: '#5f6368', bg: '#f1f3f4', color: '#3c4043', label: 'Practice only' } : lifecycle.isLate ? { border: '#f9ab00', bg: '#fff4ce', color: '#7a4f00', label: 'Late' } : lifecycle.isScheduled ? { border: '#9aa0a6', bg: '#f1f3f4', color: '#3c4043', label: 'Scheduled' } : { border: '#d8dde6', bg: '#e6f4ea', color: '#137333', label: 'On time' };
     return (
       <article key={assignment.id} style={{ background: '#fff', padding: '21px 26px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap', border: `2px solid ${statusStyle.border}` }}>
         <div style={{ textAlign: 'left', flex: '1 1 470px' }}>
