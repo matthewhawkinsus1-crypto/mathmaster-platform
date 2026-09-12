@@ -18,7 +18,7 @@ if (await page.locator('.source-data').count()) throw new Error('Scatterplot sou
 // entering every point as a separate expression still never runs regression.
 await page.getByRole('button', { name: 'Settings and edit' }).click();
 if (await page.getByRole('menuitem', { name: /Convert ordered pair/ }).count()) throw new Error('Blank expression offered table conversion');
-await page.getByRole('button', { name: 'Settings and edit' }).click();
+await page.getByRole('button', { name: 'Done editing' }).click();
 await page.getByLabel('Expression 1').fill('(1,2)');
 for (const value of ['(2,4)', '(3,5)', '(4,8)']) {
   await page.getByRole('button', { name: 'Add expression' }).click();
