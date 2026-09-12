@@ -307,3 +307,21 @@ html[data-undo-overlay-owner="scratchpad"] .mathmaster-work-view-actions [data-w
     display: none !important;
   }
 }
+
+
+/*
+ * ONE GLOBAL WORK BAR AT A TIME.
+ *
+ * QuestionEngine keeps its normal sticky action bar mounted so the student's
+ * controls do not lose state when Work View opens or closes. Work View also
+ * renders those same registered global actions inside its own bottom/side
+ * action region. While the full-screen shell is open, hide the underlying page
+ * bar instead of removing the capabilities from Work View. This preserves the
+ * Work View browser contract (Undo/Submit remain real registered controls) and
+ * eliminates the duplicate Undo / Scratchpad / Calculator row seen on phones.
+ */
+html[data-work-view-open="true"] .mathmaster-question-container .portrait-action-bar,
+html[data-work-view-open="true"] .mathmaster-question-container .landscape-action-bar,
+html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desktop-action-bar {
+  display: none !important;
+}
