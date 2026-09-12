@@ -5,8 +5,10 @@ export const ACTIVITY_ROLES = Object.freeze({
   CLASSWORK: 'classwork',
   DOL: 'dol',
   PRACTICE: 'practice',
+  REVIEW: 'review',
   QUIZ: 'quiz',
   TEST: 'test',
+  RETEST: 'retest',
 });
 
 const makePolicy = (policy) => Object.freeze({
@@ -68,6 +70,19 @@ export const ACTIVITY_POLICIES = Object.freeze({
     mastery: { evidenceWeight: 1, evidenceType: 'independent' },
     calculatorDefault: 'questionSpecific',
   }),
+  [ACTIVITY_ROLES.REVIEW]: makePolicy({
+    role: ACTIVITY_ROLES.REVIEW,
+    name: 'Test Review',
+    attempts: 3,
+    allowReplacement: true,
+    feedback: 'immediate',
+    hintsAllowed: true,
+    remediationAllowed: true,
+    adaptiveDuringAttempt: true,
+    grading: { mode: 'practiceOnly', pointsPossible: 0, syncDefault: 'none', compositeWeight: 0 },
+    mastery: { evidenceWeight: 0.9, evidenceType: 'instructional' },
+    calculatorDefault: 'questionSpecific',
+  }),
   [ACTIVITY_ROLES.QUIZ]: makePolicy({
     role: ACTIVITY_ROLES.QUIZ,
     name: 'Quiz',
@@ -84,6 +99,19 @@ export const ACTIVITY_POLICIES = Object.freeze({
   [ACTIVITY_ROLES.TEST]: makePolicy({
     role: ACTIVITY_ROLES.TEST,
     name: 'Unit Test',
+    attempts: 1,
+    allowReplacement: false,
+    feedback: 'teacherRelease',
+    hintsAllowed: false,
+    remediationAllowed: false,
+    adaptiveDuringAttempt: false,
+    grading: { mode: 'accuracy', pointsPossible: 100, syncDefault: 'separateColumn', compositeWeight: 0 },
+    mastery: { evidenceWeight: 1.4, evidenceType: 'summative' },
+    calculatorDefault: 'questionSpecific',
+  }),
+  [ACTIVITY_ROLES.RETEST]: makePolicy({
+    role: ACTIVITY_ROLES.RETEST,
+    name: 'Retest',
     attempts: 1,
     allowReplacement: false,
     feedback: 'teacherRelease',
