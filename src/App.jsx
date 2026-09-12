@@ -182,6 +182,11 @@ import { COMPARABILITY, describeDeliveredRigor, explainGrade, rigorComparability
 import { classroomLaunchTarget, parseClassroomLaunchSearch } from './platform/classroom/classroomLaunchRoute.js';
 import { buildStudentDashboardModel, resolveNextAction } from './studentDashboardModel.js';
 import {
+  getAssessmentPathwayState,
+  getAssessmentVisibleIndices,
+  isAssessmentPathwayAssignment,
+} from './platform/assessment/assessmentPathway.js';
+import {
   readStudentRouteState,
   studentRouteKey,
   writeStudentRouteState,
@@ -1982,7 +1987,9 @@ function App() {
   const activeLifecycle = getAssignmentLifecycle(activeAssignmentData, now);
   const isTeacherPreview = user?.role === 'teacher' && activeView === 'teacherPreview';
   const isStudentAssignment = user?.role === 'student' && activeView === 'assignment';
-  const isPracticeMode = isStudentAssignment && activeLifecycle.isPracticeOnly;
+  const isPracticeMode = isStudentAssignment
+    && activeLifecycle.isPracticeOnly
+    && !isAssessmentPathwayAssignment(activeAssignmentData);
   const activeSupportPresentation = getStudentSupportPresentation(user?.profile);
   const activeDOLState = getDOLState({ assignment: activeAssignmentData, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
   const activeQuestionRole = resolveQuestionActivityRole({
@@ -2675,6 +2682,13 @@ function App() {
 
   const exportAssignmentWorksheetPdf = async (assignmentId) => {
     const assignmentData = assignments.find((assignment) => assignment.id === assignmentId);
+    if (isAssessmentPathwayAssignment(assignmentData)) {
+      toastInfo(
+        'PDF unavailable for tests',
+        'Review, Test, and Retest stay inside the assessment experience so a locked test stage cannot be previewed or exported.',
+      );
+      return;
+    }
     const assignmentQuestions = getStoredAssignmentQuestions(assignmentData);
     if (user?.role !== 'student' || !assignmentQuestions.length) return;
     if (!assignmentIsForStudent(assignmentData, { classId: user.classId || null, classPeriod: user.classPeriod })) {
@@ -2852,14 +2866,37 @@ function App() {
     }
 
     const currentContent = projectCurrentAssignmentContent(assignmentData);
-    const includedQuestionIndices = currentContent.entries.map((entry) => entry.storageIndex);
+    const assessmentState = user?.role === 'student'
+      ? getAssessmentPathwayState({
+          assignment: assignmentData,
+          tracker: tracker?.[assignmentId] || {},
+          nowValue: Date.now(),
+        })
+      : null;
+    if (assessmentState && lifecycle.isClosed) {
+      toastInfo('Assessment closed', 'The assessment window has ended. Your saved responses remain recorded, but new test or retest submissions are locked.');
+      return;
+    }
+    if (assessmentState && !assessmentState.canEnter) {
+      toastInfo(assessmentState.statusLabel || 'Assessment update', assessmentState.detail || 'This assessment stage is not available yet.');
+      return;
+    }
+    const includedQuestionIndices = assessmentState
+      ? (getAssessmentVisibleIndices({
+          assignment: assignmentData,
+          tracker: tracker?.[assignmentId] || {},
+          nowValue: Date.now(),
+        }) || [])
+      : currentContent.entries.map((entry) => entry.storageIndex);
     if (!includedQuestionIndices.length) {
-      toastWarning('Nothing to show yet', 'This assignment does not currently contain any included questions.');
+      toastWarning('Nothing to show yet', 'This assignment does not currently contain any questions available for this stage.');
       return;
     }
     const requested = Number(requestedQuestionIndex) || 0;
-    const safeQuestionIndex = resolveCurrentContentStorageIndex(assignmentData, requested)
-      ?? includedQuestionIndices[0];
+    const resolvedRequested = resolveCurrentContentStorageIndex(assignmentData, requested);
+    const safeQuestionIndex = includedQuestionIndices.includes(resolvedRequested)
+      ? resolvedRequested
+      : includedQuestionIndices[0];
     const requestedSectionKey = String(options?.sectionKey || '').trim().toLowerCase();
     const scopedSectionKey = ['warmup', 'classwork', 'practice', 'dol'].includes(requestedSectionKey)
       ? requestedSectionKey
