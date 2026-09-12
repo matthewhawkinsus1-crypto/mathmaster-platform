@@ -6,6 +6,14 @@ else if (!process.env.PLAYWRIGHT_MODULE) launchOptions.executablePath = '/opt/pw
 const browser = await chromium.launch(launchOptions);
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 await page.goto('http://localhost:5199/tests/browser/captureToolResponses.html?tool=regressionCalculator', { waitUntil: 'networkidle' });
+
+const sourceGraph = page.locator('[data-regression-source-graph]');
+if (await sourceGraph.count() !== 1) throw new Error('Scatterplot source mode did not render its source graph');
+if (await sourceGraph.locator('circle').count() !== 4) throw new Error('Source scatterplot did not render all canonical points');
+await sourceGraph.locator('circle').first().hover({ force: true });
+if (await sourceGraph.getByText('(1, 2)', { exact: true }).count()) throw new Error('Source point coordinates were revealed on hover');
+if (await page.locator('.source-data').count()) throw new Error('Scatterplot source mode leaked the numeric source-data list');
+
 const cells = page.locator('.regression-table input');
 const values = ['1', '2', '2', '4', '3', '5', '4', '8'];
 for (let index = 0; index < values.length; index += 1) {
