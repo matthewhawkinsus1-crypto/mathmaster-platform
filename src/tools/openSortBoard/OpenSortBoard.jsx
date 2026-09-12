@@ -3,7 +3,7 @@ import ToolShell, { Panel, ResultPill, TaskCard, HintPanel } from '../shared/Too
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { evaluateFunctionSpec } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
-import { scoreOpenSort } from './openSortMath';
+import { scoreControlledSort, scoreOpenSort } from './openSortMath';
 import { readGraphPointCoordinates } from '../../graphPointUtils.js';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid #c9d6e8', background: '#fff', fontWeight: 800, cursor: 'pointer' };
@@ -74,12 +74,20 @@ const emptyGroups = (count) => Array.from({ length: count }, (_, index) => ({ id
 
 export default function OpenSortBoard({ questionData = {}, onAction }) {
   const items = Array.isArray(questionData.items) ? questionData.items : [];
-  const minGroups = Math.max(2, Number(questionData.minGroups || 2));
-  const maxGroups = Math.max(minGroups, Number(questionData.maxGroups || 5));
+  const controlled = questionData.mode === 'controlled';
+  const categories = controlled && Array.isArray(questionData.categories)
+    ? questionData.categories.filter((category) => category?.id && category?.label)
+    : [];
+  const minGroups = controlled ? categories.length : Math.max(2, Number(questionData.minGroups || 2));
+  const maxGroups = controlled ? categories.length : Math.max(minGroups, Number(questionData.maxGroups || 5));
   const rationaleMinLength = Math.max(0, Number(questionData.rationaleMinLength ?? 12));
-  const requireRationale = questionData.requireRationale !== false;
-  const requireGroupNames = questionData.requireGroupNames !== false;
-  const [groups, setGroups] = useState(() => emptyGroups(minGroups));
+  const requireRationale = controlled ? false : questionData.requireRationale !== false;
+  const requireGroupNames = controlled ? false : questionData.requireGroupNames !== false;
+  const [groups, setGroups] = useState(() => (
+    controlled
+      ? categories.map((category) => ({ id: String(category.id), name: String(category.label), rationale: '', itemIds: [] }))
+      : emptyGroups(minGroups)
+  ));
   const [selectedId, setSelectedId] = useState(null);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
   const assignedIds = useMemo(() => new Set(groups.flatMap((group) => group.itemIds)), [groups]);
@@ -98,6 +106,19 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
       itemIds: group.id === groupId
         ? [...group.itemIds.filter((id) => id !== selectedId), selectedId]
         : group.itemIds.filter((id) => id !== selectedId),
+    })));
+    setSelectedId(null);
+  };
+
+  const placeItem = (itemId, groupId) => {
+    if (!itemId || !groupId) return;
+    clearFeedback();
+    const id = String(itemId);
+    setGroups((current) => current.map((group) => ({
+      ...group,
+      itemIds: group.id === String(groupId)
+        ? [...group.itemIds.filter((entry) => entry !== id), id]
+        : group.itemIds.filter((entry) => entry !== id),
     })));
     setSelectedId(null);
   };
@@ -123,10 +144,14 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
   const usedGroups = groups.filter((group) => group.itemIds.length);
   const rationaleComplete = !requireRationale || usedGroups.every((group) => group.rationale.trim().length >= rationaleMinLength);
   const namesComplete = !requireGroupNames || usedGroups.every((group) => group.name.trim().length >= 2);
-  const ready = unassigned.length === 0 && usedGroups.length >= minGroups && namesComplete && rationaleComplete;
+  const ready = controlled
+    ? unassigned.length === 0
+    : unassigned.length === 0 && usedGroups.length >= minGroups && namesComplete && rationaleComplete;
 
   const check = () => {
-    const result = scoreOpenSort({ items, responseGroups: groups, validSchemes: questionData.validSchemes || [] });
+    const result = controlled
+      ? scoreControlledSort({ items, responseGroups: groups, validSchemes: questionData.validSchemes || [] })
+      : scoreOpenSort({ items, responseGroups: groups, validSchemes: questionData.validSchemes || [] });
     const parts = [
       { id: 'partition', label: 'Mathematical grouping', isComplete: unassigned.length === 0, isCorrect: result.isCorrect },
       { id: 'names', label: 'Group names', isComplete: namesComplete, isCorrect: namesComplete, graded: false },
@@ -142,19 +167,83 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
   const itemById = (id) => items.find((item) => String(item.id) === String(id));
 
   return (
-    <ToolShell title="Open Sort Board" subtitle="There can be more than one mathematically valid way to organize the same graphs. Build a defensible partition, then explain your thinking." badge="Multiple valid sorts">
+    <ToolShell
+      title={controlled ? 'Controlled Sort' : 'Open Sort Board'}
+      subtitle={controlled
+        ? 'Every card belongs in one teacher-defined category. Place each card, then check the complete sort.'
+        : 'There can be more than one mathematically valid way to organize the same graphs. Build a defensible partition, then explain your thinking.'}
+      badge={controlled ? 'Fixed categories' : 'Multiple valid sorts'}
+    >
       <TaskCard
         question={questionData}
-        task="Sort every card into at least two groups. Name your groups and explain the mathematical feature that makes each group belong together."
-        steps={[
+        task={controlled
+          ? 'Place every card into one of the provided categories. Each card has one correct destination.'
+          : 'Sort every card into at least two groups. Name your groups and explain the mathematical feature that makes each group belong together.'}
+        steps={controlled ? [
+          'Read or inspect one card.',
+          'Tap the category that best describes it.',
+          'Tap a placed card to move it back if you want to change your choice.',
+          'Check the sort after every card has been placed.',
+        ] : [
           'Tap a card to select it, then tap a group to place it there.',
           'Create another group if your sorting idea needs one.',
           'Name each group and explain the mathematical characteristic you used.',
           'Check your sort. MathMaster accepts any partition that matches one of the mathematically valid sorting schemes authored for this task.',
         ]}
-        note="Your explanations are saved for your teacher. The automatic grade checks the mathematics of the grouping; it does not pretend to judge the quality of your prose."
+        note={controlled ? 'The categories are fixed, so the automatic grade checks the exact mathematical classification.' : 'Your explanations are saved for your teacher. The automatic grade checks the mathematics of the grouping; it does not pretend to judge the quality of your prose.'}
       />
 
+      {controlled ? (
+        <>
+          <Panel title={`Cards to classify (${unassigned.length} remaining)`}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 12 }}>
+              {unassigned.map((item) => (
+                <div key={item.id} style={{ border: '1px solid #c9d6e8', borderRadius: 12, padding: 10, background: '#fff' }}>
+                  <strong style={{ display: 'block', marginBottom: 6 }}>{item.label || item.id}</strong>
+                  <SortItemPreview item={item} />
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(118px, 1fr))', gap: 8, marginTop: 10 }}>
+                    {categories.map((category) => (
+                      <button
+                        key={category.id}
+                        type="button"
+                        onClick={() => placeItem(item.id, category.id)}
+                        style={{ ...button, minHeight: 48, background: '#eef4ff', color: '#174ea6' }}
+                      >
+                        {category.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {!unassigned.length && <p style={{ color: '#137333', fontWeight: 800 }}>✓ Every card has been classified.</p>}
+            </div>
+          </Panel>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12, marginTop: 12 }}>
+            {groups.map((group) => (
+              <Panel key={group.id} title={group.name}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minHeight: 52 }}>
+                  {group.itemIds.map((id) => {
+                    const item = itemById(id);
+                    return (
+                      <button
+                        type="button"
+                        key={id}
+                        onClick={() => returnItem(id)}
+                        title="Tap to move this card again"
+                        style={{ ...button, minHeight: 40, background: '#eef4ff', color: '#174ea6' }}
+                      >
+                        {item?.label || id} ↩
+                      </button>
+                    );
+                  })}
+                  {!group.itemIds.length && <span style={{ color: '#80868b', alignSelf: 'center' }}>No cards here yet.</span>}
+                </div>
+              </Panel>
+            ))}
+          </div>
+        </>
+      ) : (
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(240px, 0.85fr) minmax(0, 1.65fr)', gap: 18 }} className="mathmaster-open-sort-layout">
         <Panel title={`Cards to sort (${unassigned.length} remaining)`}>
           <div style={{ display: 'grid', gap: 10 }}>
@@ -195,18 +284,23 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
           {groups.length < maxGroups && <button type="button" onClick={addGroup} style={{ ...button, justifySelf: 'start' }}>+ Add another group</button>}
         </div>
       </div>
+      )}
 
       <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <button type="button" onClick={check} disabled={!ready} style={{ ...button, background: ready ? '#1a73e8' : '#dadce0', color: ready ? '#fff' : '#5f6368', border: 0, minHeight: 46 }}>Check my sort</button>
         {!ready && <span style={{ color: '#5f6b7a', fontSize: 13 }}>{unassigned.length ? `Place ${unassigned.length} remaining card${unassigned.length === 1 ? '' : 's'}.` : usedGroups.length < minGroups ? `Use at least ${minGroups} groups.` : !namesComplete ? 'Give each used group a short mathematical name.' : !rationaleComplete ? 'Finish the explanation for each used group.' : 'Finish the sort.'}</span>}
-        {feedback && <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Valid mathematical sort' : 'Revise the grouping'}</ResultPill>}
+        {feedback && <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? (controlled ? 'Correct classification' : 'Valid mathematical sort') : (controlled ? 'Some cards need to move' : 'Revise the grouping')}</ResultPill>}
       </div>
-      {feedback && !feedback.isCorrect && <p style={{ color: '#5f6b7a', lineHeight: 1.55 }}>Your cards do not yet form one of the valid mathematical partitions for this set. Look for a characteristic that is true for every card inside a group and meaningfully separates it from the other groups.</p>}
-      <HintPanel hints={questionData.hints || [
+      {feedback && !feedback.isCorrect && <p style={{ color: '#5f6b7a', lineHeight: 1.55 }}>{controlled ? 'At least one card is in the wrong category. Recheck the defining feature of each fixed category, move any card you want to change, and try again.' : 'Your cards do not yet form one of the valid mathematical partitions for this set. Look for a characteristic that is true for every card inside a group and meaningfully separates it from the other groups.'}</p>}
+      <HintPanel hints={questionData.hints || (controlled ? [
+        'Use the category definitions as tests. A card should satisfy exactly one of them.',
+        'If a graph rises from left to right, that is positive association; if it falls, that is negative association.',
+        'If the points do not show a consistent upward or downward linear pattern, use the no-correlation category.',
+      ] : [
         'Pick one feature you can see on every graph — for example straight versus curved, continuous versus discrete, or always increasing versus changing direction.',
         'A good category rule must work for every card you put in that category, not just most of them.',
         'Try comparing pairs of graphs first. If two share an important feature, see which other graphs share it too.',
-      ]} onHintUsed={() => onAction?.('HINT_USED')} />
+      ])} onHintUsed={() => onAction?.('HINT_USED')} />
     </ToolShell>
   );
 }
