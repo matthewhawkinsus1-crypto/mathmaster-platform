@@ -3,6 +3,8 @@ import { EmptyState, ProgressBar } from '../../ui/primitives';
 import RecommendedSkills from './RecommendedSkills.jsx';
 import AssignmentGroup from './AssignmentGroup.jsx';
 import WhatShouldIDoNow from './WhatShouldIDoNow.jsx';
+import StudentGlobalNav, { STUDENT_DESTINATION } from './StudentGlobalNav.jsx';
+import BuildStamp from './BuildStamp.jsx';
 import { BUCKET_LABEL, BUCKET_OPEN_BY_DEFAULT, BUCKET_ORDER } from '../../studentDashboardModel.js';
 import DOLCountdown from './DOLCountdown.jsx';
 import { formatDateTime, formatRemainingTime } from '../../assignmentLifecycle';
@@ -45,9 +47,13 @@ export default function StudentDashboardView({
   supportPresentation = {},
   onStartAssignment,
   onExportAssignmentPdf = null,
+  // Still its own prop because "What should I do now?" can recommend Path work
+  // directly, which is a recommendation rather than a navigation choice.
   onOpenMathPath = null,
-  onOpenSecureExams = null,
-  onOpenGrades = null,
+  // The shared student destinations, so Home teaches the same navigation
+  // pattern every other student screen uses. Grades and Secure Exams no longer
+  // need their own props: they are destinations like any other.
+  onNavigate = null,
   // The single answer to "what should I do now?", already decided by
   // resolveNextAction. Null in contexts that render the list alone.
   nextAction = null,
@@ -154,15 +160,17 @@ export default function StudentDashboardView({
       <div style={{ maxWidth: '920px', margin: '0 auto' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '20px 30px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: '24px', gap: '20px', flexWrap: 'wrap' }}>
           <div style={{ textAlign: 'left' }}><h1 style={{ margin: 0, color: '#1a73e8', fontSize: '25px' }}>Welcome, {student.displayName || student.id}</h1><p style={{ margin: '4px 0 0', color: '#5f6368' }}>{student.classPeriod}{student.inclusionStatus ? ' · Inclusion supports active' : ''}</p></div>
-          <div style={{ display: 'flex', gap: '9px', flexWrap: 'wrap' }}>
-            {/* Grades comes first in the header: it is the question a student
-                opens MathMaster with most often outside class, and it was the
-                one thing Home had no route to. */}
-            <button type="button" onClick={() => onOpenGrades?.()} style={{ minHeight: 44, padding: '9px 15px', background: '#12633a', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 900 }}>Grades</button>
-            <button type="button" onClick={() => onOpenMathPath?.()} style={{ padding: '9px 15px', background: '#174ea6', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 900 }}>My Math Path</button>
-            <button type="button" onClick={() => onOpenSecureExams?.()} style={{ padding: '9px 15px', background: '#3c4043', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 900 }}>Secure Exams</button>
-            <button type="button" onClick={onLogout} style={{ padding: '8px 16px', background: '#f1f3f4', color: '#5f6368', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Log Out</button>
-          </div>
+          {/*
+            One navigation, shared with Assignments, Grades and My Math Path.
+            These were four independently written buttons, which is how My Math
+            Path ended up with an "Assignments" control that went to Home.
+          */}
+          <StudentGlobalNav
+            current={STUDENT_DESTINATION.HOME}
+            onNavigate={onNavigate}
+            onLogout={onLogout}
+            dense
+          />
         </header>
 
         {liveChallengeInvite && ['invited', 'joined', 'running'].includes(liveChallengeInvite.status) && (
@@ -285,6 +293,8 @@ export default function StudentDashboardView({
           pathOptions={recommended.pathOptions}
           onChooseSkill={recommended.onChooseSkill}
         />
+
+        <BuildStamp />
       </div>
     </div>
   );

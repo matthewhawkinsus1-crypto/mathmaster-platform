@@ -1,4 +1,4 @@
-// The Grade Center and the Assignment Result, on a phone, in a real browser.
+// The student grade and assignment surfaces, on a phone, in a real browser.
 //
 // The headless suite proves the grade rules. It cannot see whether the screen
 // those rules feed shoves sideways at 390px, or puts a 28px button under a
@@ -14,10 +14,18 @@ import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import StudentGradeCenter from '../../src/components/student/StudentGradeCenter.jsx';
 import StudentAssignmentResult from '../../src/components/student/StudentAssignmentResult.jsx';
+import StudentAssignmentsCenter from '../../src/components/student/StudentAssignmentsCenter.jsx';
 import {
   buildStudentGradeCenter,
   findGradeCenterEntry,
 } from '../../src/platform/student/studentGradeCenterModel.js';
+import { buildStudentDashboardModel } from '../../src/studentDashboardModel.js';
+import {
+  assignmentIsForStudent, getAssignmentLifecycle, getDOLState, getWarmupState,
+  getIncludedQuestionIndices, prerequisiteAccess, questionIsIncluded,
+} from '../../src/assignmentLifecycle.js';
+import { normalizeQuestionRecord } from '../../src/attemptPolicy.js';
+import { matchesSmartView } from '../../src/assignmentSmartViews.js';
 
 const CLASS_ID = 'class-alg1-a';
 
@@ -52,6 +60,32 @@ const assignments = [
     sections: [section('classwork', 'classwork', [{ id: 'c1' }, { id: 'c2' }])],
   },
   {
+    // A pure practice-type assignment, fully answered: the Completed tab must
+    // have something in it. (An assignment containing a classwork section
+    // projects to notesClasswork, whose completion is the daily classwork
+    // grade rather than the question tracker — a real rule, and one that would
+    // otherwise leave this screen's Completed tab empty in the harness.)
+    id: 'lesson-3',
+    title: 'Exponent Rules',
+    schemaVersion: 5,
+    assignedClassIds: [CLASS_ID],
+    dueAt: '2026-09-07',
+    lateDueAt: '2026-09-12',
+    gradingPeriod: { id: '2026-mp1', label: 'Marking Period 1', order: 2 },
+    sections: [section('practice', 'practice', [{ id: 'q1', activityRole: 'practice' }, { id: 'q2', activityRole: 'practice' }])],
+  },
+  {
+    // Closed, so it is what the Practice tab is for.
+    id: 'lesson-4',
+    title: 'Inequalities Review',
+    schemaVersion: 5,
+    assignedClassIds: [CLASS_ID],
+    dueAt: '2026-08-28',
+    lateDueAt: '2026-09-01',
+    gradingPeriod: { id: '2026-mp1', label: 'Marking Period 1', order: 2 },
+    sections: [section('practice', 'practice', [{ id: 'q1', activityRole: 'practice' }, { id: 'q2', activityRole: 'practice' }])],
+  },
+  {
     id: 'lesson-0',
     title: 'Linear Relationships',
     schemaVersion: 5,
@@ -69,6 +103,8 @@ const partial = { status: 'expired', attemptCount: 3, totalAttempts: 3, bestPart
 const tracker = {
   'lesson-1': { 0: correct, 1: correct, 2: partial, 3: correct, 4: correct },
   'lesson-2': { 0: correct, 1: partial },
+  'lesson-3': { 0: correct, 1: partial },
+  'lesson-4': { 0: correct, 1: correct },
   'lesson-0': { 0: correct },
 };
 
@@ -97,9 +133,44 @@ const buildFor = (nowValue) => buildStudentGradeCenter({
 const LIVE = Date.parse('2026-09-09T12:00:00.000Z');
 const CLOSED = Date.parse('2026-09-20T12:00:00.000Z');
 
+// The Assignments Center needs the dashboard model too, built by the same
+// function Home uses so this harness measures the real screen.
+const dashboardFor = (nowValue) => buildStudentDashboardModel({
+  assignments,
+  classId: CLASS_ID,
+  classPeriod: 'Period 3',
+  nowValue,
+  tracker,
+  providers: {
+    assignmentIsForStudent,
+    getAssignmentLifecycle,
+    prerequisiteAccess,
+    calculateGrade: () => 0,
+    getDOLState,
+    getWarmupState,
+    getIncludedQuestionIndices,
+    normalizeQuestionRecord,
+    questionIsIncluded,
+    assignmentHasHeldTeacherFeedback: () => false,
+    matchesSmartView,
+  },
+});
+
+const assignmentsCenter = (nowValue) => (
+  <StudentAssignmentsCenter
+    dashboard={dashboardFor(nowValue)}
+    gradeCenter={buildFor(nowValue)}
+    gradingPeriodSettings={gradingPeriodSettings}
+    onNavigate={() => {}}
+    onLogout={() => {}}
+  />
+);
+
 const SCENES = {
-  gradeCenter: () => <StudentGradeCenter gradeCenter={buildFor(LIVE)} />,
-  gradeCenterClosed: () => <StudentGradeCenter gradeCenter={buildFor(CLOSED)} />,
+  assignmentsCenter: () => assignmentsCenter(LIVE),
+  assignmentsCenterClosed: () => assignmentsCenter(CLOSED),
+  gradeCenter: () => <StudentGradeCenter gradeCenter={buildFor(LIVE)} onNavigate={() => {}} onLogout={() => {}} />,
+  gradeCenterClosed: () => <StudentGradeCenter gradeCenter={buildFor(CLOSED)} onNavigate={() => {}} onLogout={() => {}} />,
   assignmentResult: () => (
     <StudentAssignmentResult entry={findGradeCenterEntry(buildFor(CLOSED), 'lesson-1')} sectionLabel="DOL" />
   ),
@@ -109,7 +180,7 @@ const SCENES = {
 };
 
 const listeners = new Set();
-let current = 'gradeCenter';
+let current = 'assignmentsCenter';
 window.__mmGradeScene = (name) => { current = name; listeners.forEach((notify) => notify(name)); };
 window.__mmGradeScenes = Object.keys(SCENES);
 

@@ -195,6 +195,8 @@ import { resolveDeliveredQuestionMetadata } from './platform/assignments/assignm
 import { adaptLegacyMasteryToPhase5 } from './platform/profile/legacyMasteryAdapter.js';
 import StudentDashboardView from './components/student/StudentDashboardView.jsx';
 import StudentGradeCenter from './components/student/StudentGradeCenter.jsx';
+import StudentAssignmentsCenter from './components/student/StudentAssignmentsCenter.jsx';
+import { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
 import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
 import MarkingPeriodSettings from './components/teacher/MarkingPeriodSettings.jsx';
 import {
@@ -586,6 +588,7 @@ function App() {
         surface: 'assignmentResult',
         assignmentId: assignmentResultRoute?.assignmentId || activeAssignmentId || '',
         sectionKey: assignmentResultRoute?.sectionKey || '',
+        origin: assignmentResultRoute?.origin || 'assignments',
       };
     }
     return {
@@ -645,9 +648,15 @@ function App() {
         setActiveAssignmentId(route.assignmentId || null);
         setActiveClassroomSectionKey(route.sectionKey || null);
         setAssignmentResultRoute((current) => (
-          current && current.assignmentId === route.assignmentId
+          current && current.assignmentId === route.assignmentId && current.origin === route.origin
             ? current
-            : { assignmentId: route.assignmentId || '', sectionKey: route.sectionKey || 'whole', sectionLabel: null, questionIndex: 0 }
+            : {
+              assignmentId: route.assignmentId || '',
+              sectionKey: route.sectionKey || 'whole',
+              sectionLabel: null,
+              questionIndex: 0,
+              origin: route.origin || 'assignments',
+            }
         ));
         setActiveView('assignmentResult');
         return;
@@ -3004,20 +3013,41 @@ function App() {
   };
 
   /*
-   * STUDENT GRADE NAVIGATION.
+   * STUDENT NAVIGATION.
    *
-   * Three destinations, each one browser entry, so Back walks
-   * Practice -> Result -> Grades -> Home instead of leaving MathMaster.
-   * `studentBrowserRoute` turns these state changes into history entries; these
-   * helpers only have to leave the state unambiguous.
+   * Five destinations plus the assignment result, each one browser entry, so
+   * Back walks Practice -> Result -> Assignments (or Grades) -> Home instead of
+   * leaving MathMaster. `studentBrowserRoute` turns these state changes into
+   * history entries; these helpers only have to leave the state unambiguous.
    */
-  const openStudentGradeCenter = () => {
+  // Every student destination leaves the app in the same shape: no result
+  // route, no active assignment, no Path launch left over from somewhere else.
+  // Written once so a new destination cannot forget one of them.
+  const openStudentDashboardMode = (mode) => {
     setAssignmentResultRoute(null);
     setActiveClassroomSectionKey(null);
     setActiveAssignmentId(null);
-    setPathLaunchTeks(null);
-    setStudentDashboardMode('grades');
+    if (mode !== 'mathPath') setPathLaunchTeks(null);
+    setStudentDashboardMode(mode);
     setActiveView('dashboard');
+  };
+
+  const openStudentGradeCenter = () => openStudentDashboardMode('grades');
+  const openStudentAssignmentsCenter = () => openStudentDashboardMode('assignmentsCenter');
+
+  /**
+   * The one place a student destination turns into app state.
+   *
+   * StudentGlobalNav hands back a destination name; everything else about
+   * getting there is here, so Home, Assignments, Grades and My Math Path cannot
+   * disagree about what "Grades" means.
+   */
+  const navigateStudent = (destination) => {
+    if (destination === STUDENT_DESTINATION.ASSIGNMENTS) return openStudentAssignmentsCenter();
+    if (destination === STUDENT_DESTINATION.GRADES) return openStudentGradeCenter();
+    if (destination === STUDENT_DESTINATION.MATH_PATH) return openStudentDashboardMode('mathPath');
+    if (destination === STUDENT_DESTINATION.SECURE_EXAMS) return openStudentDashboardMode('secureExams');
+    return openStudentDashboardMode('assignments');
   };
 
   const openStudentAssignmentResult = (assignmentId, options = {}) => {
@@ -3029,6 +3059,10 @@ function App() {
       sectionKey,
       sectionLabel: options.sectionLabel || null,
       questionIndex: Number(options.questionIndex) || 0,
+      // Which list sent the student here, so the visible Back control returns
+      // to that list rather than guessing. Browser Back already does the right
+      // thing; this is what keeps the on-screen control agreeing with it.
+      origin: options.origin === 'grades' ? 'grades' : 'assignments',
     });
     setActiveClassroomSectionKey(sectionKey === 'whole' ? null : sectionKey);
     setActiveAssignmentId(id);
@@ -6875,7 +6909,15 @@ function App() {
       : null;
     const returnsToAssignmentResult = !preview
       && assignmentResultRoute?.assignmentId === activeAssignmentId;
-    const studentAssignmentBackLabel = returnsToAssignmentResult ? 'Back to Results' : 'Back to Dashboard';
+    // Name the destination, not the direction. A student who opened this from
+    // the Assignments Center should be told they are going back to it.
+    const studentAssignmentBackLabel = returnsToAssignmentResult
+      ? 'Back to Results'
+      : studentDashboardMode === 'assignmentsCenter'
+        ? 'Back to Assignments'
+        : studentDashboardMode === 'grades'
+          ? 'Back to Grades'
+          : 'Back to Dashboard';
     const leaveAssignment = () => {
       if (preview) {
         setTeacherTab('assignments');
@@ -8244,6 +8286,45 @@ function App() {
     );
   }
 
+  /*
+   * ONE DASHBOARD MODEL, TWO SURFACES.
+   *
+   * Home reads `entries` (its own view, with the Resume/DOL/Warm-Up assignments
+   * removed because each already has a card above the list) and the Assignments
+   * Center reads `allEntries` (everything). Building it once here rather than
+   * inside each branch is what guarantees the two screens agree about an
+   * assignment's lifecycle, bucket and progress.
+   *
+   * Built in render flow rather than a useMemo because several of its providers
+   * are component-scope helpers declared further down this file.
+   */
+  const studentDashboard = user.role === 'student' && activeView === 'dashboard'
+    ? buildStudentDashboardModel({
+      assignments,
+      classId: user.classId || null,
+      classPeriod: user.classPeriod,
+      nowValue: now,
+      tracker,
+      assignmentActivity,
+      classworkGradesByAssignment,
+      classSchedule,
+      resumeAction,
+      providers: {
+        assignmentIsForStudent,
+        getAssignmentLifecycle,
+        prerequisiteAccess,
+        calculateGrade,
+        getDOLState,
+        getWarmupState,
+        getIncludedQuestionIndices,
+        normalizeQuestionRecord,
+        questionIsIncluded,
+        assignmentHasHeldTeacherFeedback,
+        matchesSmartView,
+      },
+    })
+    : null;
+
   if (user.role === 'student' && activeView === 'dashboard') {
     if (studentDashboardMode === 'liveChallenge') {
       return (
@@ -8275,7 +8356,27 @@ function App() {
           weeklyGoalConfig={studentWeeklyGoalConfig}
           courseId={studentCourseId}
           studentRecord={studentRecord}
+          onNavigate={navigateStudent}
           onExit={() => { setPathLaunchTeks(null); setStudentDashboardMode('assignments'); }}
+          />
+        </>
+      );
+    }
+    if (studentDashboardMode === 'assignmentsCenter') {
+      return (
+        <>
+          {renderStudentPackUpBanner()}
+          {renderStudentWarmupBanner()}
+          <StudentAssignmentsCenter
+            dashboard={studentDashboard}
+            gradeCenter={studentGradeCenter}
+            gradingPeriodSettings={gradingPeriodSettings}
+            supportPresentation={getStudentSupportPresentation(user.profile)}
+            onNavigate={navigateStudent}
+            onLogout={handleLogout}
+            onContinue={(assignmentId) => startAssignment(assignmentId)}
+            onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'assignments' })}
+            onPractice={(assignmentId) => startAssignment(assignmentId)}
           />
         </>
       );
@@ -8288,8 +8389,10 @@ function App() {
           <StudentGradeCenter
             gradeCenter={studentGradeCenter}
             supportPresentation={getStudentSupportPresentation(user.profile)}
-            onBackToHome={() => setStudentDashboardMode('assignments')}
-            onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId)}
+            onBackToHome={() => openStudentDashboardMode('assignments')}
+            onNavigate={navigateStudent}
+            onLogout={handleLogout}
+            onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'grades' })}
             onPractice={(assignmentId) => startAssignment(assignmentId)}
           />
         </>
@@ -8311,31 +8414,9 @@ function App() {
     const supportPresentation = getStudentSupportPresentation(user.profile);
     // Computed by a module rather than inline, so the Teacher Path Simulator
     // can build the same dashboard from a synthetic learner without a second
-    // copy of this logic drifting away from it.
-    const dashboard = buildStudentDashboardModel({
-      assignments,
-      classId: user.classId || null,
-      classPeriod: user.classPeriod,
-      nowValue: now,
-      tracker,
-      assignmentActivity,
-      classworkGradesByAssignment,
-      classSchedule,
-      resumeAction,
-      providers: {
-        assignmentIsForStudent,
-        getAssignmentLifecycle,
-        prerequisiteAccess,
-        calculateGrade,
-        getDOLState,
-  getWarmupState,
-        getIncludedQuestionIndices,
-        normalizeQuestionRecord,
-        questionIsIncluded,
-        assignmentHasHeldTeacherFeedback,
-        matchesSmartView,
-      },
-    });
+    // copy of this logic drifting away from it. Shared with the Assignments
+    // Center above rather than rebuilt here.
+    const dashboard = studentDashboard;
     // "Caught up" is only valid after class assignments and the frozen
     // Weekly Path commitment have both been checked.
     const studentNextAction = resolveNextAction({
@@ -8354,8 +8435,7 @@ function App() {
         onStartAssignment={startAssignment}
         onExportAssignmentPdf={exportAssignmentWorksheetPdf}
         onOpenMathPath={() => setStudentDashboardMode('mathPath')}
-        onOpenSecureExams={() => setStudentDashboardMode('secureExams')}
-        onOpenGrades={openStudentGradeCenter}
+        onNavigate={navigateStudent}
         // The one thing this student should do next, decided by the model
         // rather than left for them to work out from six equal panels.
         nextAction={studentNextAction}
@@ -8407,7 +8487,9 @@ function App() {
             returnToResult: true,
           })}
           onViewAllGrades={openStudentGradeCenter}
-          onBackToHome={() => { setAssignmentResultRoute(null); setActiveClassroomSectionKey(null); setActiveAssignmentId(null); setStudentDashboardMode('assignments'); setActiveView('dashboard'); }}
+          onViewAllAssignments={openStudentAssignmentsCenter}
+          origin={assignmentResultRoute.origin || 'assignments'}
+          onBackToHome={() => openStudentDashboardMode('assignments')}
         />
       </>
     );

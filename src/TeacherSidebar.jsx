@@ -1,3 +1,5 @@
+import { formatBuildStamp } from './platform/runtime/buildInfo.js';
+
 /*
  * Grouped navigation rail.
  *
@@ -96,6 +98,7 @@ const TAB_GROUPS = [
 // which tab was clicked.
 export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onToggleCollapsed, isRootAdmin = false }) {
   const labelFor = (tab) => (tab === 'access' && isRootAdmin ? 'Administration' : TAB_LABELS[tab]);
+  const buildStamp = formatBuildStamp();
 
   return (
     <nav
@@ -208,6 +211,24 @@ export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onTo
           })}
         </div>
       ))}
+
+      {/*
+        WHICH BUILD IS THIS BROWSER RUNNING?
+        A teacher reporting "the new button isn't there" is describing either a
+        defect or a cached bundle from before the fix shipped, and those need
+        opposite responses. The short commit id settles it from a screenshot.
+        Nothing here is a secret: a commit id and the time it was built.
+      */}
+      <div
+        data-mathmaster-build={buildStamp.shortSha}
+        title={buildStamp.detail}
+        style={{
+          marginTop: 'auto', paddingTop: 12, fontSize: 10, color: '#9aa0a6',
+          textAlign: collapsed ? 'center' : 'left', overflowWrap: 'anywhere',
+        }}
+      >
+        {collapsed ? buildStamp.shortSha : buildStamp.label}
+      </div>
     </nav>
   );
 }

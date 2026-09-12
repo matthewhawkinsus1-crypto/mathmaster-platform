@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { EmptyState } from '../../ui/primitives';
 import GradeSectionBreakdown from './GradeSectionBreakdown.jsx';
+import StudentGlobalNav, { STUDENT_DESTINATION } from './StudentGlobalNav.jsx';
+import BuildStamp from './BuildStamp.jsx';
 import { GRADE_STATUS } from '../../platform/student/studentGradeCenterModel.js';
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
 import { formatDateTime } from '../../assignmentLifecycle';
@@ -213,6 +215,11 @@ export default function StudentGradeCenter({
   onBackToHome = null,
   onOpenResult = null,
   onPractice = null,
+  // The shared student destinations. Grades used to offer one "← Home"
+  // control, which made it a cul-de-sac: a student checking a grade and then
+  // wanting the assignment behind it had to go up to Home and back down.
+  onNavigate = null,
+  onLogout = null,
 }) {
   const [hidden, setHidden] = useState(false);
   const { periodGroups = [], currentPeriod, currentSummary, pastPeriodGroups = [], courseLabel } = gradeCenter || {};
@@ -229,6 +236,13 @@ export default function StudentGradeCenter({
       }}
     >
       <div style={{ maxWidth: 920, margin: '0 auto' }}>
+        <StudentGlobalNav
+          current={STUDENT_DESTINATION.GRADES}
+          onNavigate={onNavigate}
+          onLogout={onLogout}
+          style={{ marginBottom: 16 }}
+        />
+
         <header style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
           <button
             type="button"
@@ -279,6 +293,8 @@ export default function StudentGradeCenter({
             message="Nothing has been assigned to your class yet. Anything your teacher publishes shows up here with its grade as soon as you start it."
           />
         )}
+
+        <BuildStamp />
       </div>
     </div>
   );
