@@ -78,3 +78,47 @@ test('retest can raise but never lower the recorded score by default', () => {
   assert.equal(originalGrade.score, 50);
   assert.equal(originalGrade.sourceRole, 'test');
 });
+
+
+test('completed retest stays submitted until retest feedback is separately released', () => {
+  const tracker = {
+    0: correct, 1: correct,
+    2: correct, 3: wrong, 4: wrong, 5: wrong,
+    6: correct, 7: correct,
+  };
+  const testReleased = { ...assignment, feedbackReleased: true };
+  const held = getAssessmentPathwayState({ assignment: testReleased, tracker });
+  assert.equal(held.stage, ASSESSMENT_STAGE.COMPLETE);
+  assert.equal(held.canEnter, false);
+  assert.equal(held.feedbackHeld, true);
+  assert.equal(held.actionLabel, 'Submitted');
+
+  const retestReleased = {
+    ...testReleased,
+    assessmentRetestFeedbackReleased: true,
+  };
+  const visible = getAssessmentPathwayState({ assignment: retestReleased, tracker });
+  assert.equal(visible.stage, ASSESSMENT_STAGE.COMPLETE);
+  assert.equal(visible.canEnter, true);
+  assert.equal(visible.feedbackHeld, false);
+  assert.equal(visible.score, 100);
+});
+
+test('stage visibility never exposes Review Test and Retest at the same time', () => {
+  const reviewIndices = getAssessmentVisibleIndices({ assignment, tracker: {} });
+  assert.deepEqual(reviewIndices, [0, 1]);
+
+  const testTracker = { 0: correct, 1: correct };
+  const testIndices = getAssessmentVisibleIndices({ assignment, tracker: testTracker });
+  assert.deepEqual(testIndices, [2, 3, 4, 5]);
+
+  const failedReleasedTracker = {
+    ...testTracker,
+    2: correct, 3: wrong, 4: wrong, 5: wrong,
+  };
+  const retestIndices = getAssessmentVisibleIndices({
+    assignment: { ...assignment, feedbackReleased: true },
+    tracker: failedReleasedTracker,
+  });
+  assert.deepEqual(retestIndices, [6, 7]);
+});
