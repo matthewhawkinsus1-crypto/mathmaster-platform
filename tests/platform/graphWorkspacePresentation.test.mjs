@@ -146,7 +146,9 @@ test('a new question decides its own presentation without a resize closing curre
   assert.match(source, /presentationKeyRef\.current !== presentationKey/);
   assert.match(source, /if \(questionChanged\) \{[\s\S]*setEnlarged\(allowedToAutoOpen\)/);
   assert.match(source, /if \(allowedToAutoOpen\) setEnlarged/);
-  assert.match(source, /\[openEnlarged, dismissKey, presentationKey\]/);
+  // Terminal state is also presentation policy: it may close the current
+  // question, but must not make an ordinary responsive resize do so.
+  assert.match(source, /\[openEnlarged, dismissKey, presentationKey, forceClosed\]/);
 });
 
 test('the workspace re-measures rather than reading the width once', () => {

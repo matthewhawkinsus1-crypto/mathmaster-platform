@@ -2,6 +2,7 @@ import React, { createContext, useContext } from 'react';
 
 const DEFAULT_RUNTIME = {
   showImmediateFeedback: true,
+  questionTerminal: false,
   // Several labs were built as a developer bench and draw the expected result
   // next to the input that asks for it — the intersection point of a system,
   // the composed value of f(g(x)), the product on the complex plane. That is
@@ -12,10 +13,11 @@ const DEFAULT_RUNTIME = {
 
 const ToolRuntimeContext = createContext(DEFAULT_RUNTIME);
 
-export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, children }) => (
+export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, children }) => (
   <ToolRuntimeContext.Provider value={{
     showImmediateFeedback: Boolean(showImmediateFeedback),
     revealAnswers: Boolean(revealAnswers),
+    questionTerminal: Boolean(questionTerminal),
   }}>
     {children}
   </ToolRuntimeContext.Provider>

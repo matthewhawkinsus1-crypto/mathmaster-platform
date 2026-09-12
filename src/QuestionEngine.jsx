@@ -644,7 +644,10 @@ export default function QuestionEngine({
         // Under server grading the tool must not render a verdict: it has no
         // answer key in its payload, so its own check would report "not yet"
         // for correct work. The server's result is shown below instead.
-        <ToolRuntimeProvider showImmediateFeedback={showOutcomeFeedback && !serverGrading}>
+        <ToolRuntimeProvider
+          showImmediateFeedback={showOutcomeFeedback && !serverGrading}
+          questionTerminal={locked}
+        >
           {/* THE REGISTRY TOOLS REACH THE PLATFORM UNDO BUTTON THROUGH HERE.
               Every other module is handed `onUndoStateChange` as a prop, but a
               registry tool is mounted with `questionData` and `onAction` and

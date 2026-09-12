@@ -2,6 +2,7 @@ import React from 'react';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { WORK_VIEW_INVENTORY } from '../workViewInventory.js';
 import useMobileInteractionMode from '../../platform/mobile/useMobileInteractionMode.js';
+import { useToolRuntimeContext } from './ToolRuntimeContext.jsx';
 
 const descriptor = (key) => ({
   label: key === 'pointEditing' ? 'Edit mathematical objects' : key.replace(/([A-Z])/g, ' $1'),
@@ -21,6 +22,7 @@ const capabilityDescriptor = (key, { taskText, helpText }) => {
 export default function RegisteredToolWorkView({ toolId, questionData = {}, children }) {
   const inventory = WORK_VIEW_INVENTORY[toolId];
   const mobile = useMobileInteractionMode();
+  const { questionTerminal } = useToolRuntimeContext();
   if (!inventory || inventory.status !== 'migrated') return children;
 
   const taskText = String(
@@ -50,6 +52,7 @@ export default function RegisteredToolWorkView({ toolId, questionData = {}, chil
       openEnlarged={Boolean(mobile?.isCompactPhone)}
       dismissKey={`mm.workview.phone.dismissed.${toolId}`}
       presentationKey={questionData?.questionId || questionData?.id || questionData?.prompt || toolId}
+      forceClosed={questionTerminal}
     >
       {children}
     </EnlargeableFigure>
