@@ -88,8 +88,12 @@ A single assessment may use:
   "mode": "testCycle",
   "passingScore": 70,
   "review": { "required": true },
-  "test": {},
-  "retest": { "strategy": "shortForm", "scorePolicy": "replaceIfHigher" }
+  "test": { "opensAt": "optional ISO date/time for Test access" },
+  "retest": {
+    "strategy": "shortForm",
+    "scorePolicy": "replaceIfHigher",
+    "opensAt": "optional ISO date/time for Retest access"
+  }
 }
 with three sections in order: review, test, retest. Review is instructional practice; Test and Retest are summative stages controlled by MathMaster.
 
