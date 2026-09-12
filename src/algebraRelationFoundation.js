@@ -365,6 +365,33 @@ const validateExpectedStructuralState = (expectedState, nextState) => {
   ));
 };
 
+const reverseStructuralBranch = (branch) => ({
+  expressions: [...(branch?.expressions || [])].reverse(),
+  relations: [...(branch?.relations || [])].reverse().map(reverseRelation),
+});
+
+const validateAbsoluteSplitStructuralState = (expectedState, nextState) => {
+  if (validateExpectedStructuralState(expectedState, nextState)) return true;
+
+  // A between-style absolute-value inequality may be written in either
+  // mathematically equivalent direction:
+  //   -B < expression < B
+  // or
+  //    B > expression > -B
+  // Preserve the student's visible orientation instead of forcing a rewrite.
+  if (
+    expectedState?.special
+    || expectedState?.connective != null
+    || expectedState?.branches?.length !== 1
+    || expectedState.branches[0]?.expressions?.length !== 3
+    || expectedState.branches[0]?.relations?.length !== 2
+  ) return false;
+
+  const reversedExpected = cloneRelationState(expectedState);
+  reversedExpected.branches[0] = reverseStructuralBranch(expectedState.branches[0]);
+  return validateExpectedStructuralState(reversedExpected, nextState);
+};
+
 export const validateRelationTransition = (
   previousState,
   nextState,
@@ -388,7 +415,7 @@ export const validateRelationTransition = (
         Number(context.branchIndex) || 0,
         context.structure,
       );
-      valid = Boolean(expected?.ready && validateExpectedStructuralState(expected.state, nextState));
+      valid = Boolean(expected?.ready && validateAbsoluteSplitStructuralState(expected.state, nextState));
     } else if (kind === 'squareRoot') {
       const expected = takeSquareRootOfRelation(previousState, Number(context.branchIndex) || 0);
       valid = Boolean(expected?.ready && validateExpectedStructuralState(expected.state, nextState));
@@ -809,6 +836,10 @@ export const absoluteValueSplitInputModel = (state, branchIndex = 0) => {
     bound,
     relation,
     expectedStructure: relation === '=' || relation === '>' || relation === '>=' ? 'or' : 'and',
+    // Every absolute-value relation should require the student to author the
+    // split. Equality keeps the legacy branch-value flag for compatibility,
+    // while inequalities now also require student-entered bounds and symbols.
+    studentAuthorsSplit: true,
     studentAuthorsBranchValues: relation === '=',
   };
 };
@@ -1008,6 +1039,115 @@ export const buildAbsoluteValueSplit = (state, branchIndex = 0, requestedStructu
   }
 
   return { ready: false, reason: 'That relation cannot be reversed from absolute value yet.' };
+};
+
+
+const VALID_STUDENT_RELATIONS = new Set(['=', '<', '<=', '>', '>=']);
+
+export const buildStudentAuthoredAbsoluteValueSplit = (
+  state,
+  branchIndex = 0,
+  requestedStructure = null,
+  authored = {},
+) => {
+  const model = absoluteValueSplitInputModel(state, branchIndex);
+  if (!model.ready) return model;
+
+  if (requestedStructure !== model.expectedStructure) {
+    return {
+      ready: false,
+      needsStructureChoice: true,
+      reason: 'That OR/AND structure is not equivalent to the current absolute-value relation.',
+    };
+  }
+
+  const expected = buildAbsoluteValueSplit(state, branchIndex, requestedStructure);
+  // When the true result is a special set (for example all reals or no
+  // solution), do not reveal it simply because the student attempted a split.
+  if (!expected?.ready || expected.state?.special) {
+    return {
+      ready: false,
+      rejectedStudentSplit: true,
+      reason: 'That split is not equivalent to the original absolute-value relation. Reconsider the bound and relation symbols before choosing your next step.',
+    };
+  }
+
+  const next = cloneRelationState(state);
+  next.special = null;
+
+  try {
+    if (requestedStructure === 'or') {
+      const branches = Array.isArray(authored?.branches) ? authored.branches : [];
+      if (
+        branches.length !== 2
+        || branches.some((branch) => !String(branch?.value ?? '').trim())
+        || branches.some((branch) => !VALID_STUDENT_RELATIONS.has(String(branch?.relation || '').trim()))
+      ) {
+        return {
+          ready: false,
+          needsStudentValues: true,
+          reason: 'Complete both split branches, including each relation symbol and bound, before checking the split.',
+        };
+      }
+
+      next.branches = branches.map((branch) => ({
+        expressions: [
+          model.inner,
+          normalizeRelationExpressionInput(branch.value),
+        ],
+        relations: [String(branch.relation).trim()],
+      }));
+      next.connective = 'OR';
+    } else {
+      const compound = authored?.compound || {};
+      const leftValue = String(compound.leftValue ?? '').trim();
+      const rightValue = String(compound.rightValue ?? '').trim();
+      const leftRelation = String(compound.leftRelation || '').trim();
+      const rightRelation = String(compound.rightRelation || '').trim();
+
+      if (
+        !leftValue
+        || !rightValue
+        || !VALID_STUDENT_RELATIONS.has(leftRelation)
+        || !VALID_STUDENT_RELATIONS.has(rightRelation)
+      ) {
+        return {
+          ready: false,
+          needsStudentValues: true,
+          reason: 'Complete both bounds and both relation symbols before checking the compound split.',
+        };
+      }
+
+      next.branches = [{
+        expressions: [
+          normalizeRelationExpressionInput(leftValue),
+          model.inner,
+          normalizeRelationExpressionInput(rightValue),
+        ],
+        relations: [leftRelation, rightRelation],
+      }];
+      next.connective = null;
+    }
+  } catch (error) {
+    return {
+      ready: false,
+      rejectedStudentSplit: true,
+      reason: error?.message || 'One of the split expressions could not be read.',
+    };
+  }
+
+  if (!validateAbsoluteSplitStructuralState(expected.state, next)) {
+    return {
+      ready: false,
+      rejectedStudentSplit: true,
+      reason: 'One or more split bounds or relation symbols are not equivalent to the original absolute-value relation.',
+    };
+  }
+
+  return {
+    ready: true,
+    state: next,
+  };
 };
 
 const squareBase = (expression) => {

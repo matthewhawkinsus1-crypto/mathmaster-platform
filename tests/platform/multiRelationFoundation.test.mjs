@@ -129,7 +129,7 @@ test('advanced UI requires typed split values and keeps no-solution as a student
   assert.match(src, /Branch A right side/);
   assert.match(src, /Branch B right side/);
   assert.match(src, /Check split/);
-  assert.match(src, /buildStudentAuthoredAbsoluteValueEqualitySplit/);
+  assert.match(src, /buildStudentAuthoredAbsoluteValueSplit/);
   assert.doesNotMatch(src, /setRelationState\([^\n]*special:\s*['"]noSolution/);
 });
 
