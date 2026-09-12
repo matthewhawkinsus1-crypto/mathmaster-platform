@@ -132,7 +132,7 @@
   gap:2px;
   min-width:0;
   padding:5px 7px;
-  overflow:hidden;
+  overflow:visible;
   border-bottom:1px solid #cfcfcf;
   background:linear-gradient(#fafafa,#efefef);
 }
@@ -172,6 +172,113 @@
 .regression-add {
   font-size:1.9rem;
   font-weight:400;
+}
+.regression-add-wrap {
+  position:relative;
+  flex:0 0 auto;
+}
+.regression-add[data-tooltip]::after {
+  content:attr(data-tooltip);
+  position:absolute;
+  left:0;
+  top:calc(100% + 5px);
+  z-index:31;
+  padding:6px 8px;
+  border-radius:3px;
+  background:#151515;
+  color:#fff;
+  font-size:.76rem;
+  font-weight:600;
+  line-height:1;
+  white-space:nowrap;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .12s ease;
+}
+.regression-add[data-tooltip]:hover::after,
+.regression-add[data-tooltip]:focus-visible::after {
+  opacity:1;
+}
+.regression-add-menu {
+  position:absolute;
+  top:calc(100% + 7px);
+  left:-2px;
+  z-index:30;
+  width:160px;
+  padding:5px 0;
+  border:1px solid #cfcfcf;
+  border-radius:5px;
+  background:#fff;
+  box-shadow:0 3px 12px rgba(0,0,0,.22);
+}
+.regression-add-menu::before {
+  content:'';
+  position:absolute;
+  top:-7px;
+  left:20px;
+  width:12px;
+  height:12px;
+  transform:rotate(45deg);
+  border-left:1px solid #cfcfcf;
+  border-top:1px solid #cfcfcf;
+  background:#fff;
+}
+.regression-add-menu button {
+  position:relative;
+  z-index:1;
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr);
+  align-items:center;
+  width:100%;
+  min-height:48px;
+  padding:0 12px;
+  border:0;
+  border-radius:0;
+  background:#fff;
+  color:#666;
+  text-align:left;
+  font-weight:500;
+}
+.regression-add-menu button:hover:not(:disabled),
+.regression-add-menu button:focus-visible:not(:disabled) {
+  background:#f1f1f1;
+  color:#222;
+}
+.regression-add-menu button:disabled {
+  opacity:.42;
+  cursor:not-allowed;
+}
+.regression-add-menu-expression {
+  color:#777;
+  font-family:Georgia,'Times New Roman',serif;
+  font-size:1.22rem;
+  font-style:italic;
+  font-weight:700;
+}
+.regression-add-menu-table {
+  display:grid;
+  grid-template-columns:repeat(2,13px);
+  grid-template-rows:repeat(2,10px);
+  width:27px;
+  height:21px;
+  border:1px solid #777;
+}
+.regression-add-menu-table i {
+  display:block;
+  border-right:1px solid #999;
+  border-bottom:1px solid #999;
+}
+.regression-add-menu-table i:nth-child(2n) { border-right:0; }
+.regression-add-menu-table i:nth-child(n+3) { border-bottom:0; }
+.regression-add-menu-inference {
+  color:#777;
+  font-family:Georgia,'Times New Roman',serif;
+  font-size:2rem;
+  line-height:.6;
+  transform:translateY(-3px);
+}
+.regression-reset {
+  font-size:1.45rem;
 }
 .regression-settings {
   font-size:1.35rem;
@@ -251,6 +358,95 @@
   border-radius:50%;
   background:#c74943;
   box-shadow:inset 0 0 0 7px rgba(255,255,255,.12);
+}
+
+.regression-add-regression {
+  position:absolute;
+  top:31px;
+  left:50%;
+  z-index:4;
+  display:grid;
+  place-items:center;
+  width:40px;
+  min-width:40px;
+  height:40px;
+  min-height:40px;
+  padding:0;
+  transform:translateX(-50%);
+  border:0;
+  border-radius:4px;
+  background:#3d78d8;
+  color:#fff;
+  cursor:pointer;
+}
+.regression-add-regression:hover,
+.regression-add-regression:focus-visible {
+  background:#2f68c8;
+}
+.regression-add-regression:focus-visible {
+  outline:2px solid #fff;
+  outline-offset:-3px;
+  box-shadow:0 0 0 2px #174ea6;
+}
+.regression-add-regression svg {
+  width:28px;
+  height:28px;
+  overflow:visible;
+}
+.regression-add-regression path {
+  fill:none;
+  stroke:currentColor;
+  stroke-width:2.2;
+  stroke-linecap:round;
+}
+.regression-add-regression circle {
+  fill:currentColor;
+}
+.regression-add-regression::after {
+  content:attr(data-tooltip);
+  position:absolute;
+  left:calc(100% + 8px);
+  top:50%;
+  z-index:20;
+  padding:6px 9px;
+  transform:translateY(-50%) scale(.96);
+  transform-origin:left center;
+  border-radius:3px;
+  background:#171717;
+  color:#fff;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  font-size:.78rem;
+  font-weight:600;
+  line-height:1;
+  white-space:nowrap;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .12s ease, transform .12s ease;
+}
+.regression-add-regression::before {
+  content:'';
+  position:absolute;
+  left:calc(100% + 3px);
+  top:50%;
+  z-index:21;
+  width:0;
+  height:0;
+  transform:translateY(-50%);
+  border-top:5px solid transparent;
+  border-bottom:5px solid transparent;
+  border-right:5px solid #171717;
+  opacity:0;
+  pointer-events:none;
+}
+.regression-add-regression:hover::after,
+.regression-add-regression:hover::before,
+.regression-add-regression:focus-visible::after,
+.regression-add-regression:focus-visible::before {
+  opacity:1;
+}
+.regression-add-regression:hover::after,
+.regression-add-regression:focus-visible::after {
+  transform:translateY(-50%) scale(1);
 }
 
 .regression-expression-block {
@@ -530,7 +726,7 @@
     order:2;
     width:100%;
     min-height:58px;
-    overflow:hidden;
+    overflow:visible;
     border-bottom:1px solid #cfcfcf;
   }
   .regression-editor {
@@ -596,11 +792,21 @@
 }
 
 
-/* Regression Calculator owns the Desmos-style undo/redo controls inside its
-   calculator toolbar. Hide QuestionEngine's universal Work View Undo for this
-   one workspace so students never see two competing Undo controls. */
+/* Regression Calculator owns the calculator-style Undo button, but that
+   button is registered through WorkViewUndoProvider and therefore uses the
+   SAME mathematical history as the platform Universal Undo. Hide duplicate
+   platform chrome anywhere this tool is already presenting its routed Undo. */
 .mathmaster-work-view-host:has(.regression-calculator)
 .mathmaster-work-view-actions
+.mathmaster-universal-undo,
+.mathmaster-desktop-question-content:has(.regression-calculator)
+.mathmaster-desktop-action-bar
+.mathmaster-universal-undo,
+.mathmaster-question-container:has(.regression-calculator)
+.portrait-action-bar
+.mathmaster-universal-undo,
+.mathmaster-question-container:has(.regression-calculator)
+.landscape-action-bar
 .mathmaster-universal-undo {
   display:none;
 }

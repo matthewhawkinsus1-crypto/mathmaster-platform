@@ -142,9 +142,7 @@ const SCRIPTS = {
       await cells.nth(index + 2).fill(remaining[index]);
     }
 
-    await page.getByRole('button', { name: 'Add expression' }).click();
-    await page.locator('.regression-expression-row input').last().fill('y1 ~ mx1 + b');
-    await page.getByRole('button', { name: 'Evaluate regression expression' }).click();
+    await page.getByRole('button', { name: 'Add Regression' }).click();
     await page.waitForTimeout(150);
 
     await page.locator('label', { hasText: 'Direction' }).locator('select').selectOption('positive');

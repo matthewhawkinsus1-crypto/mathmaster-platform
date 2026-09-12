@@ -7,7 +7,7 @@ export const cleanRegressionPoints = (points = []) => (Array.isArray(points) ? p
 
 export const regressionCalculatorStats = (points = []) => {
   const clean = cleanRegressionPoints(points);
-  if (clean.length < 3) return null;
+  if (clean.length < 2) return null;
   const mean = (values) => values.reduce((sum, value) => sum + value, 0) / values.length;
   const mx = mean(clean.map(([x]) => x));
   const my = mean(clean.map(([, y]) => y));
