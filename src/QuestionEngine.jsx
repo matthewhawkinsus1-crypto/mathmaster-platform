@@ -982,18 +982,18 @@ export default function QuestionEngine({
         workBar={questionWorkBar}
         toolWorkspace={(
       <WorkViewCapabilityProvider capabilities={{
-        undo: { label:workspaceActions.undo.label, onAction:workspaceActions.undo.onClick, disabled:workspaceActions.undo.disabled, title:workspaceActions.undo.title },
         task: { text:processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.' },
         help: workspaceActions.help || {
           label: 'Help',
           text: 'Use the task directions and the controls in this workspace. Your mathematical work stays in place when you open or close Work View.',
         },
         instruction: taskContextPresentation.currentStagePrompt ? { text:taskContextPresentation.currentStagePrompt } : null,
-        primaryActions: workspaceActions.submit ? [{ ...workspaceActions.submit, onAction:workspaceActions.submit.onClick }] : [],
-        secondaryActions: [
-          { ...workspaceActions.scratchpad, onAction:workspaceActions.scratchpad.onClick },
-          ...(workspaceActions.calculator ? [{ ...workspaceActions.calculator, onAction:workspaceActions.calculator.onClick }] : []),
-        ],
+        // Undo, Scratchpad, Calculator, and Submit already live in the shared
+        // sticky student work bar rendered by MobileViewportContainer. Publishing
+        // them again into Work View creates a second toolbar inside the full-
+        // screen workspace. Global student actions have exactly one owner; tools
+        // can still publish tool-specific Work View actions through the capability
+        // port when they genuinely belong inside the enlarged workspace.
       }}>
       <div className="mathmaster-question-tool-workspace" style={{ position: 'relative' }}>
         {!solverWorkspaceActive && guidedCoach}
