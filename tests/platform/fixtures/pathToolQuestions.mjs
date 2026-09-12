@@ -87,8 +87,10 @@ export const PATH_TOOL_QUESTIONS = {
 
   regressionCalculator: {
     type: 'regressionCalculator',
-    prompt: 'Enter the source data, run linear regression, and interpret the produced correlation.',
+    prompt: 'Read the scatterplot, enter the ordered pairs, run linear regression, and interpret the produced correlation.',
     sourceData: [[1, 2], [2, 4], [3, 5], [4, 8]],
+    sourceMode: 'scatterplot',
+    sourceGraphBounds: { xMin: 0, xMax: 5, yMin: 0, yMax: 9 },
     requireInterpretation: true,
   },
 
