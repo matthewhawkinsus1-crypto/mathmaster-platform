@@ -117,8 +117,13 @@ export const inferRequiredAnswerSymbols = (values = []) => {
   if (/:/.test(text)) add(':');
 
   const variableText = normalizedMathText(text);
+  const categoricalSet = /(?:\\lbrace|\\\{|\{)\s*[A-Za-z](?:\s*,\s*[A-Za-z])+\s*(?:\\rbrace|\\\}|\})/.test(text);
   const letters = variableText.match(/[A-Za-z]/g) || [];
-  letters.forEach(add);
+  // Do not turn an answer key such as {A, D} into visible keypad buttons A and
+  // D. Set punctuation is structural and safe to infer; categorical members are
+  // the student's mathematical decision. Algebraic variables outside such a
+  // roster still get their normal convenience keys.
+  if (!categoricalSet) letters.forEach(add);
   const greekLetters = variableText.match(/[\u0370-\u03FF]/g) || [];
   greekLetters.forEach(add);
   return required;
