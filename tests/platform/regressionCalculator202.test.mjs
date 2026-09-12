@@ -168,9 +168,9 @@ test('calculator 2.0 stays inside Work View and publishes the discovery workflow
   assert.match(registry, /'regressionCalculator'\]\)/);
   assert.match(inventory, /regressionCalculator: \{ status: 'migrated'/);
   assert.match(component, /const conversionAvailable = selected\?\.type === 'expression' && Boolean\(orderedPair\(selected\.value\)\)/);
-  assert.match(component, /conversionAvailable[\\s\\S]*aria-label="Convert ordered pair to table"/);
-  assert.match(component, /type:\\s*'table'[\\s\\S]*rows:\\s*\\[pair\\.map\\(String\\)/);
-  assert.match(component, /isRegression[\\s\\S]*tableRow[\\s\\S]*aria-label="Evaluate regression expression"/);
+  assert.match(component, /conversionAvailable[\s\S]*aria-label="Convert ordered pair to table"/);
+  assert.match(component, /type:\s*'table'[\s\S]*rows:\s*\[pair\.map\(String\)/);
+  assert.match(component, /isRegression[\s\S]*tableRow[\s\S]*aria-label="Evaluate regression expression"/);
   assert.doesNotMatch(component, /Run regression|Linear regression \(LinReg\)|<option value="linearRegression"/);
   assert.match(component, /R² = \{run\.r2\.toFixed\(4\)\}/);
   assert.match(component, /data-regression-source-graph[\s\S]*revealCoordinates=\{false\}[\s\S]*pointHoverEnabled=\{false\}/);
