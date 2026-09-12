@@ -266,7 +266,7 @@ export const CalculatorPanel = ({
   const buttons = calculatorButtonsForPolicy(policy.mode);
   const panelStyle = panelPosition
     ? { left: panelPosition.x, top: panelPosition.y }
-    : { right: 8, bottom: 70 };
+    : { right: 8, bottom: 'calc(var(--mm-work-view-actions, 0px) + 72px)' };
 
   return (
     <div className={`mathmaster-calculator-drawer ${isOpen ? 'is-open' : ''}`} style={{ position: showLauncher ? 'relative' : 'static', zIndex: isOpen ? 9000 : 'auto' }}>
