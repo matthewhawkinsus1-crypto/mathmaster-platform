@@ -18,8 +18,6 @@ import {
   absoluteValueSplitInputModel,
   applyBalancedOperationToBranches,
   applyBalancedOperationToRelation,
-  buildAbsoluteValueSplit,
-  buildStudentAuthoredAbsoluteValueEqualitySplit,
   buildStudentAuthoredAbsoluteValueSplit,
   cancelRelationExpressionPair,
   cloneRelationState,
@@ -792,7 +790,6 @@ export default function MultiRelationAlgebra({
           setAbsoluteSplitStructure(null);
           setAbsoluteSplitValues(['', '']);
           setAbsoluteSplitRelations(['', '']);
-    setAbsoluteSplitRelations(['', '']);
           setMessage({ tone: 'growth', text: 'Pending relation action undone.' });
           return;
         }
@@ -817,7 +814,6 @@ export default function MultiRelationAlgebra({
           setAbsoluteSplitStructure(null);
           setAbsoluteSplitValues(['', '']);
           setAbsoluteSplitRelations(['', '']);
-    setAbsoluteSplitRelations(['', '']);
           setMessage({ tone: 'growth', text: 'Last relation step undone.' });
           return current.slice(0, -1);
         });
@@ -1019,7 +1015,6 @@ export default function MultiRelationAlgebra({
             : 'Operation written. Update the relation symbol(s) yourself before continuing.',
         });
       } else {
-        const branchCount = stagedBranchIndices.length;      } else {
         const branchCount = stagedBranchIndices.length;
         const committed = await commitState(
           result.state,
@@ -1393,7 +1388,7 @@ export default function MultiRelationAlgebra({
     });
   };
 
-  const chooseOtherOperation = async (id) => {  const chooseOtherOperation = async (id) => {
+  const chooseOtherOperation = async (id) => {
     setOtherOpen(false);
     setRewriteOpen(false);
     setRewriteValue('');
@@ -1424,7 +1419,7 @@ export default function MultiRelationAlgebra({
       setAbsoluteSplitOpen(true);
       setAbsoluteSplitStructure(null);
       setAbsoluteSplitValues(['', '']);
-    setAbsoluteSplitRelations(['', '']);
+      setAbsoluteSplitRelations(['', '']);
       setMessage({
         tone: 'growth',
         text: 'Choose the equivalent structure yourself. For an equation, you will also enter both split values.',
@@ -1961,8 +1956,7 @@ export default function MultiRelationAlgebra({
               setAbsoluteSplitOpen(false);
               setAbsoluteSplitStructure(null);
               setAbsoluteSplitValues(['', '']);
-          setAbsoluteSplitRelations(['', '']);
-    setAbsoluteSplitRelations(['', '']);
+              setAbsoluteSplitRelations(['', '']);
             }}
             style={buttonStyle(false)}
           >
@@ -2048,8 +2042,12 @@ export default function MultiRelationAlgebra({
                           valueIndex === index ? nextValue : item
                         )));
                       }}
-                      placeholder={index === 0 ? 'Branch A bound' : 'Branch B bound'}
-                      ariaLabel={index === 0 ? 'Branch A bound' : 'Branch B bound'}
+                      placeholder={absoluteSplitModel.relation === '='
+                        ? (index === 0 ? 'Branch A right side' : 'Branch B right side')
+                        : (index === 0 ? 'Branch A bound' : 'Branch B bound')}
+                      ariaLabel={absoluteSplitModel.relation === '='
+                        ? (index === 0 ? 'Branch A right-side value' : 'Branch B right-side value')
+                        : (index === 0 ? 'Branch A bound' : 'Branch B bound')}
                       toolProfile="algebra-operation"
                       compact
                       focusSignal={index === 0 ? absoluteSplitFocusSignal : 0}
