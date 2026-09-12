@@ -145,17 +145,17 @@ const normalizeAssessmentPolicy = (raw = null) => {
     mode: 'testCycle',
     passingScore: Number.isFinite(passingScore) ? Math.max(0, Math.min(100, passingScore)) : 70,
     review: {
-      required: raw?.review?.required !== false,
       ...(isObject(raw.review) ? raw.review : {}),
+      required: raw?.review?.required !== false,
     },
     test: {
       ...(isObject(raw.test) ? raw.test : {}),
       feedback: 'teacherRelease',
     },
     retest: {
+      ...(isObject(raw.retest) ? raw.retest : {}),
       strategy: clean(raw?.retest?.strategy) || 'shortForm',
       scorePolicy: clean(raw?.retest?.scorePolicy) || 'replaceIfHigher',
-      ...(isObject(raw.retest) ? raw.retest : {}),
     },
   };
 };
