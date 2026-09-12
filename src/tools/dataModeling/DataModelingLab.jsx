@@ -10,7 +10,6 @@ import {
   predictionKind,
 } from './dataModelingMath';
 import useToolSubmission from '../shared/useToolSubmission';
-import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { fitAdjustmentPlan, fitDataBounds, interactionIncrements, residualScale, stepFitControl } from '../../platform/graph/graphScaleService.js';
 
 const DEFAULT_POINTS = [[1,2],[2,3],[3,5],[4,5],[5,7],[6,8],[7,10]];
@@ -291,19 +290,6 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
       <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.full} steps={MODE_STEPS[mode] || MODE_STEPS.full} />
       <ToolGrid min={350}>
         <Panel title="1 · Scatter plot and your model">
-          <EnlargeableFigure
-            label="Regression model work view"
-            enlargeLabel="Open Work View"
-            style={{ width:'100%' }}
-            capabilities={{
-              numericControls: { label:'Model controls', studentState:true },
-              equationInput: { label:'Model equation', studentState:true },
-              tableData: { label:'Source data' },
-              instruction: { text:(MODE_STEPS[mode] || MODE_STEPS.full)[0] },
-              task: { text:MODE_TASKS[mode] || MODE_TASKS.full },
-              help: { content:<HintPanel hints={HINTS[mode] || HINTS.full} onHintUsed={() => onAction?.('HINT_USED')} /> },
-            }}
-          >
           <CoordinatePlane
             xMin={xMin} xMax={xMax} yMin={yMin} yMax={yMax}
             points={points.map(([x,y]) => ({ x, y }))}
@@ -360,7 +346,6 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
           ) : (
             <p style={{margin:'12px 0 0',fontSize:13,color:'#5f6b7a'}}>Use the scatter plot and data values for the task. No fitted model is preloaded.</p>
           )}
-          </EnlargeableFigure>
         </Panel>
 
         {showAssociationPanel ? <Panel title={mode === 'correlation' ? '2 · Correlation interpretation' : '2 · Association and causation'}>
@@ -405,16 +390,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
 
         {showResidualPanel ? <Panel title="3 · Residual evidence">
           {studentModelReady ? (
-            <EnlargeableFigure
-              label="Residual evidence work view"
-              enlargeLabel="Open Work View"
-              style={{ width:'100%' }}
-              capabilities={{
-                tableData: { label:'Residual table' },
-                instruction: { text:'Use the zero line and residual table to check for an evenly scattered pattern.' },
-                task: { text:MODE_TASKS[mode] || MODE_TASKS.full },
-              }}
-            >
+            <div>
               <ResidualPlot rows={studentResiduals} xMin={xMin} xMax={xMax} />
               <div style={{ maxHeight:185, overflow:'auto', border:'1px solid #e5e7eb', borderRadius:8, marginTop:10 }}>
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
@@ -423,7 +399,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                 </table>
               </div>
               <p style={{ color:'#5f6b7a', fontSize:13, marginBottom:0 }}>A good residual plot should look randomly scattered around 0 rather than forming a clear curve or pattern.</p>
-            </EnlargeableFigure>
+            </div>
           ) : (
             <p style={{margin:0,color:'#5f6b7a'}}>Enter the complete fitted function first. Residual evidence will appear after your model can be evaluated.</p>
           )}
