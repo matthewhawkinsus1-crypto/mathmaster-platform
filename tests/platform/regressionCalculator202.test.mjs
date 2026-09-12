@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5Core.js';
+import { validateQuestionSemantics } from '../../src/platform/contract/semanticValidation.js';
+import {
+  findFirestoreUnsafeNestedArrays,
+  repairKnownFirestoreNestedArrays,
+} from '../../src/platform/persistence/firestoreAssignmentSafety.js';
 import {
   buildRegressionCalculatorPrivateDefinition,
   gradeRegressionCalculatorResponse,
@@ -11,6 +16,58 @@ import {
 import { getPathToolContract, isPathEligible } from '../../functions/shared/pathToolContracts.mjs';
 
 const points = [[1, 2], [2, 4], [3, 5], [4, 8]];
+
+test('Preflight treats regression sourceData as a recognized Firestore coordinate list', () => {
+  const authored = {
+    schemaVersion: 5,
+    sections: [{
+      role: 'practice',
+      questions: [{
+        prompt: 'Use the source data to calculate r.',
+        studentActions: ['calculateCorrelation'],
+        sourceData: points,
+      }],
+    }],
+  };
+  const repaired = repairKnownFirestoreNestedArrays(authored);
+  assert.equal(repaired.repairCount, points.length);
+  assert.deepEqual(
+    repaired.value.sections[0].questions[0].sourceData,
+    points.map(([x, y]) => ({ x, y })),
+  );
+  assert.deepEqual(findFirestoreUnsafeNestedArrays(repaired.value), []);
+});
+
+test('Preflight recognizes regression scatterplot source mode as a real rendered graph', () => {
+  const question = {
+    type: 'regressionCalculator',
+    prompt: 'Read the scatterplot, enter the ordered pairs, run linear regression, and interpret r.',
+    sourceMode: 'scatterplot',
+    sourceData: points.map(([x, y]) => ({ x, y })),
+    sourceGraphBounds: { xMin: 0, xMax: 5, yMin: 0, yMax: 9 },
+    requireInterpretation: true,
+  };
+  const { errors } = validateQuestionSemantics(question, { label: 'Regression scatterplot' });
+  assert.deepEqual(
+    errors.filter((error) => /refers to a graph in its prompt, but the question contains none/.test(error)),
+    [],
+  );
+});
+
+test('Regression data mode does not falsely satisfy a prompt that promises a pre-drawn scatterplot', () => {
+  const question = {
+    type: 'regressionCalculator',
+    prompt: 'Read the scatterplot shown and calculate r.',
+    sourceMode: 'data',
+    sourceData: points.map(([x, y]) => ({ x, y })),
+    requireInterpretation: true,
+  };
+  const { errors } = validateQuestionSemantics(question, { label: 'Regression data source' });
+  assert.ok(
+    errors.some((error) => /refers to a graph in its prompt, but the question contains none/.test(error)),
+    'data source mode should not masquerade as a pre-drawn scatterplot',
+  );
+});
 
 test('V5 semantic correlation action compiles to the first-class regression calculator', () => {
   const compiled = compileAuthoringIntentV5({
