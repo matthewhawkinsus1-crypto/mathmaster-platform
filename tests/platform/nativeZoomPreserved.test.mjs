@@ -89,3 +89,27 @@ test('a plane either leaves the gesture alone or gives a zoom back in its place'
   assert.match(plane, /aria-label="Zoom in"/,
     'the zoom buttons are the primary path for a trackpad, a switch, or one hand on a bus — they are required whichever way the gesture goes');
 });
+
+
+test('pinch zoom never triggers viewport snap-back or Work View reflow', () => {
+  const focus = read('src/platform/mobile/mobileFocusViewport.js');
+  const mobile = read('src/components/student/MobileViewportContainer.jsx');
+  const workView = read('src/platform/workView/workViewViewport.js');
+
+  assert.match(focus, /if \(pinchZoomed\(windowObject\)\) return false/,
+    'horizontal caret stabilization must stand down while the student pans a magnified page');
+  assert.match(mobile, /if \(isBrowserPinchZoomed\(window\)\) return/,
+    'visualViewport scroll must not be snapped back during pinch zoom');
+  assert.match(workView, /readStableViewportBox/,
+    'Work View geometry must use the stable layout viewport while page zoom is active');
+});
+
+
+test('mobile layout does not override CoordinatePlane scroll and pinch gestures', () => {
+  const css = read('src/components/student/MathToolMobileLayout.css');
+  assert.doesNotMatch(
+    css,
+    /svg\[role="application"\][\s\S]{0,180}touch-action:\s*none\s*!important/,
+    'CoordinatePlane owns its pan-y/pinch-zoom contract; mobile layout must not freeze gestures over the graph',
+  );
+});

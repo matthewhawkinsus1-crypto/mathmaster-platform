@@ -2,6 +2,31 @@ export const MOBILE_INTERACTION_BREAKPOINT = 768;
 export const COMPACT_PHONE_BREAKPOINT = 620;
 export const MIN_TOUCH_TARGET_PX = 44;
 export const MOBILE_VIEWPORT_MARGIN_PX = 8;
+export const PINCH_ZOOM_THRESHOLD = 1.02;
+
+export const isBrowserPinchZoomed = (windowObject = typeof window !== 'undefined' ? window : null) => (
+  Number(windowObject?.visualViewport?.scale || 1) > PINCH_ZOOM_THRESHOLD
+);
+
+// Layout should react to keyboard/browser-chrome changes, but NOT to page pinch
+// zoom. When the student zooms the page, the page must behave like paper under
+// a magnifying glass: fixed/sticky regions keep their original layout geometry
+// and may simply move off the visible magnified area rather than reflowing back
+// into it.
+export const readStableViewportBox = (windowObject = typeof window !== 'undefined' ? window : null) => {
+  if (!windowObject) return { width:1024, height:768, offsetTop:0, offsetLeft:0, scale:1, pinchZoomed:false };
+  const visual = windowObject.visualViewport;
+  const scale = Number(visual?.scale || 1);
+  const pinchZoomed = scale > PINCH_ZOOM_THRESHOLD;
+  return {
+    width: pinchZoomed ? Number(windowObject.innerWidth || 0) : Number(visual?.width || windowObject.innerWidth || 0),
+    height: pinchZoomed ? Number(windowObject.innerHeight || 0) : Number(visual?.height || windowObject.innerHeight || 0),
+    offsetTop: pinchZoomed ? 0 : Number(visual?.offsetTop || 0),
+    offsetLeft: pinchZoomed ? 0 : Number(visual?.offsetLeft || 0),
+    scale,
+    pinchZoomed,
+  };
+};
 
 export const isMobileInteractionViewport = ({ width, pointerCoarse = false } = {}) => (
   Boolean(pointerCoarse) || (Number.isFinite(Number(width)) && Number(width) <= MOBILE_INTERACTION_BREAKPOINT)
@@ -14,15 +39,16 @@ export const isCompactPhoneViewport = ({ width, pointerCoarse = false } = {}) =>
 );
 
 export const readRuntimeMobileInteraction = () => {
-  if (typeof window === 'undefined') return { isMobile: false, isCompactPhone: false, pointerCoarse: false, width: 1024, height: 768 };
-  const visual = window.visualViewport;
-  const width = Number(visual?.width || window.innerWidth || 1024);
-  const height = Number(visual?.height || window.innerHeight || 768);
+  if (typeof window === 'undefined') return { isMobile: false, isCompactPhone: false, pointerCoarse: false, width: 1024, height: 768, pinchZoomed:false };
+  const viewport = readStableViewportBox(window);
+  const width = Number(viewport.width || 1024);
+  const height = Number(viewport.height || 768);
   const pointerCoarse = window.matchMedia?.('(pointer: coarse)')?.matches === true;
   return {
     width,
     height,
     pointerCoarse,
+    pinchZoomed: viewport.pinchZoomed,
     isMobile: isMobileInteractionViewport({ width, pointerCoarse }),
     isCompactPhone: isCompactPhoneViewport({ width, pointerCoarse }),
   };

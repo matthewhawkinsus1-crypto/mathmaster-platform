@@ -10,8 +10,7 @@ import {
   predictionKind,
 } from './dataModelingMath';
 import useToolSubmission from '../shared/useToolSubmission';
-import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
-import { fitDataBounds, interactionIncrements, residualScale } from '../../platform/graph/graphScaleService.js';
+import { fitAdjustmentPlan, fitDataBounds, interactionIncrements, residualScale, stepFitControl } from '../../platform/graph/graphScaleService.js';
 
 const DEFAULT_POINTS = [[1,2],[2,3],[3,5],[4,5],[5,7],[6,8],[7,10]];
 
@@ -23,6 +22,35 @@ const Field = ({ label, children }) => (
 );
 
 const inputStyle = { width:'100%', boxSizing:'border-box', padding:'9px 10px', border:'1px solid #cfd8e6', borderRadius:8, background:'#fff' };
+
+const decimalsForStep = (step) => {
+  const value = Math.abs(Number(step));
+  if (!Number.isFinite(value) || value <= 0) return 2;
+  return Math.max(0, Math.min(6, Math.ceil(-Math.log10(value)) + (value < 1 ? 0 : 0)));
+};
+
+const FitStepper = ({ label, value, control, onChange }) => {
+  const decimals = decimalsForStep(control?.step);
+  const display = Number(value).toFixed(decimals);
+  const lowerDisabled = Number(value) <= Number(control?.min) + Number(control?.step) * 0.25;
+  const upperDisabled = Number(value) >= Number(control?.max) - Number(control?.step) * 0.25;
+  const change = (direction) => onChange(stepFitControl(value, direction, control));
+  return (
+    <div role="group" aria-label={label} style={{ border:'1px solid #cfd8e6', borderRadius:10, padding:10, background:'#fff' }}>
+      <div style={{ fontSize:13, color:'#465267', fontWeight:800, marginBottom:7 }}>{label}</div>
+      <div style={{ display:'grid', gridTemplateColumns:'52px minmax(86px,1fr) 52px', gap:8, alignItems:'center' }}>
+        <button type="button" aria-label={`Decrease ${label}`} disabled={lowerDisabled} onClick={() => change(-1)}
+          style={{ minHeight:48, border:'1px solid #b9c8dc', borderRadius:9, background:'#eef4ff', color:'#174ea6', fontSize:24, fontWeight:900 }}>−</button>
+        <output aria-live="polite" style={{ minHeight:48, display:'grid', placeItems:'center', borderRadius:9, background:'#f8fafc', color:'#172033', fontWeight:900, fontVariantNumeric:'tabular-nums', fontSize:18 }}>
+          {display}
+        </output>
+        <button type="button" aria-label={`Increase ${label}`} disabled={upperDisabled} onClick={() => change(1)}
+          style={{ minHeight:48, border:'1px solid #b9c8dc', borderRadius:9, background:'#eef4ff', color:'#174ea6', fontSize:24, fontWeight:900 }}>+</button>
+      </div>
+      <div style={{ marginTop:6, color:'#6b7280', fontSize:12 }}>Each tap changes the value by {Number(control?.step).toFixed(decimals)}.</div>
+    </div>
+  );
+};
 
 const modelFunction = (entry) => entry?.predict || (() => Number.NaN);
 
@@ -76,6 +104,10 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const descriptor = useMemo(() => correlationDescriptor(r), [r]);
   const xs = points.map(([x]) => Number(x));
   const ys = points.map(([, y]) => Number(y));
+  const dataXMin = Math.min(...xs);
+  const dataXMax = Math.max(...xs);
+  const dataYMin = Math.min(...ys);
+  const dataYMax = Math.max(...ys);
   const xScale = fitDataBounds(xs, { include:[0] });
   const yScale = fitDataBounds(ys, { include:[0] });
   const { min:xMin, max:xMax } = xScale;
@@ -83,9 +115,23 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
 
   const forcedModelId = FORCED_FIT_MODELS[mode] || null;
   const startingModel = questionData.startingModel || {};
+  const exploratoryLineFit = mode === 'lineFit' || mode === 'full';
+  const fitControls = useMemo(() => fitAdjustmentPlan({
+    targetSlope: regression.m,
+    targetIntercept: regression.b,
+    xMin: dataXMin,
+    xMax: dataXMax,
+    yMin: dataYMin,
+    yMax: dataYMax,
+    slopeTolerance: exploratoryLineFit ? questionData.slopeTolerance : undefined,
+    interceptTolerance: exploratoryLineFit ? questionData.interceptTolerance : undefined,
+    slopeStep: questionData.slopeStep,
+    interceptStep: questionData.interceptStep,
+    challengeClicks: questionData.fitChallengeClicks,
+  }), [regression.m, regression.b, dataXMin, dataXMax, dataYMin, dataYMax, exploratoryLineFit, questionData.slopeTolerance, questionData.interceptTolerance, questionData.slopeStep, questionData.interceptStep, questionData.fitChallengeClicks]);
 
-  const [m, setM] = useState(questionData.startingModel?.m ?? (forcedModelId === 'linear' ? 1 : round(regression.m * 0.75, 2)));
-  const [b, setB] = useState(questionData.startingModel?.b ?? (forcedModelId === 'linear' ? 0 : round(regression.b + 1, 2)));
+  const [m, setM] = useState(startingModel.m ?? (exploratoryLineFit ? fitControls.slope.start : (forcedModelId === 'linear' ? 1 : round(regression.m * 0.75, 2))));
+  const [b, setB] = useState(startingModel.b ?? (exploratoryLineFit ? fitControls.intercept.start : (forcedModelId === 'linear' ? 0 : round(regression.b + 1, 2))));
   const slopeIncrements = interactionIncrements(regression.m);
   const interceptIncrements = interactionIncrements(Math.max(Math.abs(regression.b), yMax - yMin));
   const [direction, setDirection] = useState('positive');
@@ -173,8 +219,8 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
 
   const check = () => {
     const results = {};
-    const slopeTolerance = Number(questionData.slopeTolerance ?? Math.max(0.2, Math.abs(regression.m) * 0.12));
-    const interceptTolerance = Number(questionData.interceptTolerance ?? 0.8);
+    const slopeTolerance = Number(questionData.slopeTolerance ?? (exploratoryLineFit ? fitControls.slope.tolerance : Math.max(0.2, Math.abs(regression.m) * 0.12)));
+    const interceptTolerance = Number(questionData.interceptTolerance ?? (exploratoryLineFit ? fitControls.intercept.tolerance : 0.8));
     const fitSlope = parseNumericAnswer(m);
     const fitIntercept = parseNumericAnswer(b);
     if ((mode === 'quadraticFitPrediction' || mode === 'quadraticFit')) {
@@ -244,19 +290,6 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
       <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.full} steps={MODE_STEPS[mode] || MODE_STEPS.full} />
       <ToolGrid min={350}>
         <Panel title="1 · Scatter plot and your model">
-          <EnlargeableFigure
-            label="Regression model work view"
-            enlargeLabel="Open Work View"
-            style={{ width:'100%' }}
-            capabilities={{
-              numericControls: { label:'Model controls', studentState:true },
-              equationInput: { label:'Model equation', studentState:true },
-              tableData: { label:'Source data' },
-              instruction: { text:(MODE_STEPS[mode] || MODE_STEPS.full)[0] },
-              task: { text:MODE_TASKS[mode] || MODE_TASKS.full },
-              help: { content:<HintPanel hints={HINTS[mode] || HINTS.full} onHintUsed={() => onAction?.('HINT_USED')} /> },
-            }}
-          >
           <CoordinatePlane
             xMin={xMin} xMax={xMax} yMin={yMin} yMax={yMax}
             points={points.map(([x,y]) => ({ x, y }))}
@@ -283,6 +316,11 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                   <Field label="h (endpoint x)"><input type="number" step="0.01" value={squareRootH} onChange={(e)=>{setSquareRootH(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
                   <Field label="k (endpoint y)"><input type="number" step="0.01" value={squareRootK} onChange={(e)=>{setSquareRootK(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
                 </div>
+              ) : exploratoryLineFit ? (
+                <div className="mathmaster-line-fit-steppers" style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0, 1fr))', gap:10, marginTop:12 }}>
+                  <FitStepper label="Slope m" value={m} control={fitControls.slope} onChange={(value)=>{setM(value);clearFeedback();}} />
+                  <FitStepper label="Intercept b" value={b} control={fitControls.intercept} onChange={(value)=>{setB(value);clearFeedback();}} />
+                </div>
               ) : (
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:12 }}>
                   <Field label="Slope m"><input type="number" step={slopeIncrements.normal} data-fine-step={slopeIncrements.fine} data-coarse-step={slopeIncrements.coarse} value={m} onChange={(e)=>{setM(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
@@ -308,7 +346,6 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
           ) : (
             <p style={{margin:'12px 0 0',fontSize:13,color:'#5f6b7a'}}>Use the scatter plot and data values for the task. No fitted model is preloaded.</p>
           )}
-          </EnlargeableFigure>
         </Panel>
 
         {showAssociationPanel ? <Panel title={mode === 'correlation' ? '2 · Correlation interpretation' : '2 · Association and causation'}>
@@ -353,16 +390,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
 
         {showResidualPanel ? <Panel title="3 · Residual evidence">
           {studentModelReady ? (
-            <EnlargeableFigure
-              label="Residual evidence work view"
-              enlargeLabel="Open Work View"
-              style={{ width:'100%' }}
-              capabilities={{
-                tableData: { label:'Residual table' },
-                instruction: { text:'Use the zero line and residual table to check for an evenly scattered pattern.' },
-                task: { text:MODE_TASKS[mode] || MODE_TASKS.full },
-              }}
-            >
+            <div>
               <ResidualPlot rows={studentResiduals} xMin={xMin} xMax={xMax} />
               <div style={{ maxHeight:185, overflow:'auto', border:'1px solid #e5e7eb', borderRadius:8, marginTop:10 }}>
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
@@ -371,7 +399,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                 </table>
               </div>
               <p style={{ color:'#5f6b7a', fontSize:13, marginBottom:0 }}>A good residual plot should look randomly scattered around 0 rather than forming a clear curve or pattern.</p>
-            </EnlargeableFigure>
+            </div>
           ) : (
             <p style={{margin:0,color:'#5f6b7a'}}>Enter the complete fitted function first. Residual evidence will appear after your model can be evaluated.</p>
           )}

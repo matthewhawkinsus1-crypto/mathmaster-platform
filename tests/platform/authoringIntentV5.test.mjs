@@ -123,4 +123,42 @@ assert.deepEqual(compoundInequalityGraphQuestion.intervalNumberLine, {
 });
 assert.equal(needsMultiRelationWorkspace(compoundInequalityGraphQuestion), true);
 
+
+const controlledSortIntent = compileAuthoringIntentV5({
+  schemaVersion: 5,
+  assignment: { title: 'Controlled correlation sort', courseId: 'algebra1' },
+  sections: [{
+    role: 'warmup',
+    questions: [{
+      standard: 'A.4A',
+      prompt: 'Sort the scatterplots by correlation direction.',
+      studentActions: ['sortIntoCategories'],
+      categories: [
+        { id: 'positive', label: 'Positive correlation' },
+        { id: 'negative', label: 'Negative correlation' },
+        { id: 'none', label: 'No correlation' },
+      ],
+      items: [
+        { id: 'A', points: [[1,1],[2,2],[3,3]] },
+        { id: 'B', points: [[1,3],[2,2],[3,1]] },
+        { id: 'C', points: [[1,2],[2,1],[3,2]] },
+      ],
+      validSchemes: [{
+        id: 'direction',
+        groups: [
+          { id: 'positive', itemIds: ['A'] },
+          { id: 'negative', itemIds: ['B'] },
+          { id: 'none', itemIds: ['C'] },
+        ],
+      }],
+    }],
+  }],
+});
+const controlledSortQuestion = controlledSortIntent.package.sections[0].questions[0];
+assert.equal(controlledSortQuestion.type, 'openSortBoard');
+assert.equal(controlledSortQuestion.mode, 'controlled');
+assert.deepEqual(controlledSortQuestion.categories.map((category) => category.id), ['positive','negative','none']);
+assert.equal(controlledSortQuestion.requireGroupNames, false);
+assert.equal(controlledSortQuestion.requireRationale, false);
+
 console.log('authoringIntentV5.test.mjs: all assertions passed');

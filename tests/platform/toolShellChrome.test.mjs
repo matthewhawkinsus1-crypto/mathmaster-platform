@@ -56,8 +56,9 @@ test('the steps fold and start folded, so the tool is what opens', () => {
   //
   // Folded is not hidden: the summary names the block and its step count, the
   // control is a 44px target, and the student's choice to open is remembered.
-  // What never folds is the problem itself and the one-line task — those are
-  // asserted separately, because losing THOSE would be the worse trade.
+  // The authored problem remains outside the disclosure. Tool-specific
+  // directions and repeated steps fold together so a phone does not spend most
+  // of its viewport on a second copy of how to operate the tool.
   const source = codeOf('src/tools/shared/ToolShell.jsx');
   const steps = source.slice(source.indexOf('How to do this'));
   assert.match(steps.slice(0, 500), /defaultOpen=\{false\}/);
@@ -70,7 +71,7 @@ test('a fold is remembered per block of text, not per tool', () => {
   // is what should happen when they are no longer the steps the student read.
   const source = codeOf('src/tools/shared/ToolShell.jsx');
   assert.match(source, /const contentKey = \(value\)/);
-  assert.match(source, /contentKey\(steps\.join\('\|'\)\)/);
+  assert.match(source, /contentKey\(\[taskText, \.\.\.steps, note \|\| ''\]/);
   assert.match(source, /contentKey\(`\$\{title\}\|\$\{subtitle\}`\)/);
 });
 
@@ -104,4 +105,22 @@ test('changing surface picks up that surface own fold state', () => {
   const source = codeOf('src/components/common/QuietDisclosure.jsx');
   const effect = source.slice(source.indexOf('useEffect(() => {'));
   assert.match(effect.slice(0, 300), /\[storageKey, defaultOpen\]/);
+});
+
+
+test('tool directions themselves are folded with the repeated steps', () => {
+  const source = codeOf('src/tools/shared/ToolShell.jsx');
+  const disclosure = source.slice(source.indexOf('summary={steps.length'));
+  const direction = disclosure.indexOf('mathmaster-tool-task-directions');
+  const close = disclosure.indexOf('</QuietDisclosure>');
+  assert.ok(direction > 0 && direction < close, 'tool directions belong inside the folded support block');
+  assert.match(disclosure.slice(0, 600), /defaultOpen=\{false\}/);
+});
+
+
+test('tool help cards scroll with the workspace; only the student task anchor stays persistent', () => {
+  const css = codeOf('src/App.css');
+  assert.match(css, /\.mathmaster-tool-task-card\s*\{[\s\S]*?position:\s*static;/);
+  assert.doesNotMatch(css, /\.mathmaster-tool-task-card\s*\{[\s\S]{0,180}?position:\s*sticky;/);
+  assert.match(css, /\.mathmaster-desktop-question-content\s+\.mathmaster-desktop-question-anchor\s*\{[\s\S]*?position:\s*sticky;/);
 });

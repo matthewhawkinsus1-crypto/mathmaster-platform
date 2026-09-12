@@ -74,3 +74,46 @@ test('mobile viewport shell uses the visual viewport and clips accidental page-l
   assert.match(css, /min-height: 44px/);
   assert.match(css, /100vw - 16px/);
 });
+
+
+test('compact phones open migrated rich tools directly in Work View', () => {
+  const src = read('src/tools/shared/RegisteredToolWorkView.jsx');
+  assert.match(src, /useMobileInteractionMode/);
+  assert.match(src, /openEnlarged=\{Boolean\(mobile\?\.isCompactPhone\)\}/);
+  assert.match(src, /mm\.workview\.phone\.dismissed/);
+});
+
+test('controlled sort uses fixed category buttons instead of answer-entry keyboards', () => {
+  const src = read('src/tools/openSortBoard/OpenSortBoard.jsx');
+  assert.match(src, /title=\{controlled \? 'Controlled Sort'/);
+  assert.match(src, /Place every card into one of the provided categories/);
+  assert.match(src, /placeItem\(item\.id, category\.id\)/);
+});
+
+
+test('hand-fit regression is button-driven and phone controls stack vertically', () => {
+  const lab = read('src/tools/dataModeling/DataModelingLab.jsx');
+  const css = read('src/components/student/MathToolMobileLayout.css');
+  assert.match(lab, /const FitStepper =/);
+  assert.match(lab, /exploratoryLineFit \? \(/);
+  assert.match(lab, /Decrease \$\{label\}/);
+  assert.match(lab, /Increase \$\{label\}/);
+  const exploratoryStart = lab.indexOf(") : exploratoryLineFit ? (");
+  const typedLinearStart = lab.indexOf(") : (", exploratoryStart + 10);
+  const exploratoryBlock = lab.slice(exploratoryStart, typedLinearStart);
+  assert.doesNotMatch(exploratoryBlock, /<input type="number"/,
+    'lineFit/full exploration must not be bypassable by typing coefficients');
+  assert.match(css, /\.mathmaster-line-fit-steppers\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+});
+
+
+test('calculator launcher lives in the shared work bar and Work View actions', () => {
+  const engine = read('src/QuestionEngine.jsx');
+  assert.match(engine, /🧮 Calculator/);
+  assert.match(engine, /workspaceActions\.calculator/);
+  assert.match(engine, /showLauncher=\{false\}/);
+  const contextStart = engine.indexOf('const questionContextPanel');
+  const contextEnd = engine.indexOf('return (', contextStart);
+  assert.doesNotMatch(engine.slice(contextStart, contextEnd), /<CalculatorPanel/,
+    'the calculator launcher must not float inside the question context anymore');
+});

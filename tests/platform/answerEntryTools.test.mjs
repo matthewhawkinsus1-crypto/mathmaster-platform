@@ -51,6 +51,15 @@ test('interval and set answers infer structural notation without author keyboard
   assert.ok(setSymbols.includes(','));
 });
 
+test('categorical set answer keys do not leak the correct labels into the keypad', () => {
+  const symbols = inferRequiredAnswerSymbols(['{A, D}']);
+  assert.ok(symbols.includes('{'));
+  assert.ok(symbols.includes(','));
+  assert.ok(symbols.includes('}'));
+  assert.equal(symbols.includes('A'), false);
+  assert.equal(symbols.includes('D'), false);
+});
+
 test('LaTeX grouping braces are not mistaken for set notation', () => {
   const symbols = inferRequiredAnswerSymbols(['\\frac{x+1}{2}']);
   assert.ok(symbols.includes('a⁄b'));

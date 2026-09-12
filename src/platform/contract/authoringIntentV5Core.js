@@ -67,6 +67,7 @@ const ACTION_ALIASES = Object.freeze({
   buildsequencetable: 'buildSequenceTable', completesequencetable: 'buildSequenceTable',
   plotsequence: 'plotSequence', graphsequence: 'plotSequence',
   connectrepresentations: 'connectRepresentations', matchrepresentation: 'connectRepresentations', findmismatch: 'findRepresentationMismatch',
+  sortintocategories: 'sortIntoCategories', controlledsort: 'sortIntoCategories', classifyintocategories: 'sortIntoCategories',
   fitline: 'fitDataModel', fitmodel: 'fitDataModel', analyzedata: 'analyzeData', predictfrommodel: 'predictFromModel',
   inverse: 'findInverse', findinverse: 'findInverse', composition: 'composeFunctions', composefunctions: 'composeFunctions',
   parabolageometry: 'analyzeParabolaGeometry', focusdirectrix: 'analyzeParabolaGeometry',
@@ -934,7 +935,7 @@ const resolveIntentType = (q, actions) => {
   ) return 'functionCharacteristics';
 
   if (q.relation || q.pairs || actions.some((a) => ['buildMapping','plotRelation','classifyFunction'].includes(a))) return 'relationMapping';
-  if (actions.includes('sortIntoOwnGroups') || q.sortBoard || q.validSchemes) return 'openSortBoard';
+  if (actions.includes('sortIntoOwnGroups') || actions.includes('sortIntoCategories') || q.sortBoard || q.validSchemes) return 'openSortBoard';
   if (actions.includes('buildFunctionFromConstraints') || q.constraints && q.allowedFamilies) return 'constraintFunctionBuilder';
   /*
    * A CHOICE THE STUDENT CAN SEE ON THE GRAPH.
@@ -1580,14 +1581,17 @@ const compileOne = (q, index, repairs) => {
     }
     case 'openSortBoard': {
       const board = q.sortBoard || {};
+      const controlled = actions.includes('sortIntoCategories') || q.mode === 'controlled' || board.mode === 'controlled';
       out = copyCommon(q, {
         type,
+        mode: controlled ? 'controlled' : (q.mode || board.mode),
         items: q.items || board.items,
+        categories: q.categories || board.categories,
         validSchemes: q.validSchemes || board.validSchemes,
         minGroups: q.minGroups ?? board.minGroups,
         maxGroups: q.maxGroups ?? board.maxGroups,
-        requireRationale: q.requireRationale ?? board.requireRationale,
-        requireGroupNames: q.requireGroupNames ?? board.requireGroupNames,
+        requireRationale: controlled ? false : (q.requireRationale ?? board.requireRationale),
+        requireGroupNames: controlled ? false : (q.requireGroupNames ?? board.requireGroupNames),
         rationaleMinLength: q.rationaleMinLength ?? board.rationaleMinLength,
         hints: q.hints || board.hints,
       });
@@ -1717,7 +1721,7 @@ export const AUTHORING_INTENT_V5_ACTIONS = Object.freeze([
   'findVertex','findXIntercepts','findYIntercept','findMaximum','findMinimum','solveLiteral','solveSystem','graphSystem','solveInequalitySystem','rowReduce',
   'completeTable','stateOrderedPair','multipleResponses','identifyQuantities','configureAxes','writeEquation','classifyContinuity','matchGraphsToStories','compareGraphs',
   'writeGraphStory','interpretPointInContext','buildMapping','plotRelation','classifyFunction','analyzeSequence','findSequenceTerm','findMissingTerm',
-  'writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence','connectRepresentations','findRepresentationMismatch','sortIntoOwnGroups','buildFunctionFromConstraints','analyzeData','fitDataModel','predictFromModel',
+  'writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence','connectRepresentations','findRepresentationMismatch','sortIntoOwnGroups','sortIntoCategories','buildFunctionFromConstraints','analyzeData','fitDataModel','predictFromModel',
   'findInverse','composeFunctions','analyzeParabolaGeometry','factorPolynomial','dividePolynomial','multiplyPolynomials','solveInequality','complexOperations','analyzeComplex',
   'exponentialLogBridge','solveExponential','solveLogarithmic','analyzeTransformations','constructLine','modelingLab',
 ]);

@@ -21,7 +21,7 @@ test('every registered student tool has a complete Work View classification', ()
 test('Stage 3D registry migration wraps one existing state owner', () => {
   const registry = source('src/tools/toolRegistry.js');
   const wrapper = source('src/tools/shared/RegisteredToolWorkView.jsx');
-  assert.match(registry, /STAGE_3D_WORK_VIEW_IDS\.includes\(toolId\)/);
+  assert.match(registry, /REGISTRY_WORK_VIEW_IDS\.has\(toolId\)/);
   assert.match(wrapper, /<EnlargeableFigure[\s\S]*?>[\s\S]*\{children\}[\s\S]*<\/EnlargeableFigure>/);
   assert.doesNotMatch(wrapper, /cloneElement|createPortal/);
   assert.ok(STAGE_3D_WORK_VIEW_IDS.includes('representationMatch'));
@@ -95,4 +95,16 @@ test('migrated tools cannot introduce independent fullscreen or local mathematic
     const text = source(file);
     assert.doesNotMatch(text, /requestFullscreen|webkitRequestFullscreen|<SolverWorkspaceFrame/);
   }
+});
+
+
+test('Data Modeling Lab enlarges the whole tool instead of a graph-only nested shell', () => {
+  const registry = source('src/tools/toolRegistry.js');
+  const lab = source('src/tools/dataModeling/DataModelingLab.jsx');
+  assert.match(registry, /REGISTRY_WORK_VIEW_IDS = new Set\(\[\.\.\.STAGE_3D_WORK_VIEW_IDS, 'dataModelingLab'\]\)/);
+  assert.doesNotMatch(lab, /<EnlargeableFigure/,
+    'a nested graph-only Work View would hide correlation/model answer controls outside the enlarged surface');
+  assert.match(lab, /Correlation coefficient r/);
+  assert.match(lab, /Direction/);
+  assert.match(lab, /Strength/);
 });

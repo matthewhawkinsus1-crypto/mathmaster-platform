@@ -31,6 +31,8 @@ const numberOrZero = (value) => {
   return Number.isFinite(number) ? number : 0;
 };
 
+const pinchZoomed = (windowObject) => Number(windowObject?.visualViewport?.scale || 1) > 1.02;
+
 const setScrollLeftZero = (element) => {
   if (!element) return;
   try {
@@ -59,6 +61,10 @@ export const stabilizeHorizontalViewport = ({
   documentObject = typeof document !== 'undefined' ? document : null,
 } = {}) => {
   if (!windowObject || !documentObject) return false;
+  // During pinch zoom, horizontal visual-viewport movement is the student's
+  // magnifying-glass pan. Never interpret it as an accidental caret jump and
+  // snap it back to x=0.
+  if (pinchZoomed(windowObject)) return false;
 
   const page = documentObject.scrollingElement || documentObject.documentElement || documentObject.body;
   setScrollLeftZero(page);

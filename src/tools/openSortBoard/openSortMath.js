@@ -69,6 +69,55 @@ export const scoreOpenSort = ({ items = [], responseGroups = [], validSchemes = 
   };
 };
 
+
+const categoryMap = (groups = []) => new Map(
+  groups.map((group, index) => [
+    String(group?.id || group?.categoryId || `group-${index + 1}`),
+    canonicalSet(group?.itemIds || group?.items || []),
+  ]),
+);
+
+export const scoreControlledSort = ({ items = [], responseGroups = [], validSchemes = [] }) => {
+  const itemIds = canonicalSet(items.map((item) => String(item?.id || '')).filter(Boolean));
+  if (!itemIds.length || !validSchemes.length) {
+    return { isCorrect: false, score: 0, matchedSchemeId: null, best: null };
+  }
+  const response = categoryMap(responseGroups);
+  const assigned = canonicalSet(responseGroups.flatMap((group) => group?.itemIds || group?.items || []));
+  const completion = itemIds.length ? assigned.length / itemIds.length : 0;
+
+  const candidates = validSchemes.map((scheme) => {
+    const expected = categoryMap(scheme?.groups || []);
+    const categoryIds = [...expected.keys()];
+    const comparable = categoryIds.length > 0 && categoryIds.every((id) => response.has(id));
+    let correctItems = 0;
+    let expectedItems = 0;
+    categoryIds.forEach((id) => {
+      const wanted = expected.get(id) || [];
+      const actual = response.get(id) || [];
+      expectedItems += wanted.length;
+      wanted.forEach((itemId) => { if (actual.includes(itemId)) correctItems += 1; });
+    });
+    const score = expectedItems ? (correctItems / expectedItems) * completion : 0;
+    const exact = comparable
+      && assigned.length === itemIds.length
+      && categoryIds.every((id) => {
+        const wanted = expected.get(id) || [];
+        const actual = response.get(id) || [];
+        return wanted.length === actual.length && wanted.every((itemId, index) => itemId === actual[index]);
+      });
+    return { scheme, exact, score: exact ? 1 : Math.max(0, Math.min(1, score)) };
+  }).sort((a, b) => Number(b.exact) - Number(a.exact) || b.score - a.score);
+
+  const best = candidates[0];
+  return {
+    isCorrect: Boolean(best?.exact),
+    score: best?.exact ? 1 : Number(best?.score || 0),
+    matchedSchemeId: best?.exact ? best.scheme?.id || null : null,
+    best,
+  };
+};
+
 export const validateSortQuestion = (question = {}) => {
   const errors = [];
   const items = Array.isArray(question.items) ? question.items : [];
@@ -84,5 +133,24 @@ export const validateSortQuestion = (question = {}) => {
     if (canonicalSet(assigned).join('|') !== canonicalSet(ids).join('|')) errors.push(`validSchemes[${schemeIndex}] must place every item exactly once.`);
     if (assigned.length !== new Set(assigned).size) errors.push(`validSchemes[${schemeIndex}] places at least one item in more than one group.`);
   });
+
+  if (question.mode === 'controlled') {
+    const categories = Array.isArray(question.categories) ? question.categories : [];
+    if (categories.length < 2) errors.push('controlled sort requires at least two authored categories.');
+    const categoryIds = categories.map((category) => String(category?.id || ''));
+    if (categoryIds.some((id) => !id) || new Set(categoryIds).size !== categoryIds.length) {
+      errors.push('Every controlled sort category needs a unique id.');
+    }
+    if (categories.some((category) => !String(category?.label || '').trim())) {
+      errors.push('Every controlled sort category needs a student-visible label.');
+    }
+    schemes.forEach((scheme, schemeIndex) => {
+      const groups = Array.isArray(scheme?.groups) ? scheme.groups : [];
+      const groupIds = groups.map((group) => String(group?.id || group?.categoryId || ''));
+      if (canonicalSet(groupIds).join('|') !== canonicalSet(categoryIds).join('|')) {
+        errors.push(`validSchemes[${schemeIndex}] must use the same category ids as controlled sort categories.`);
+      }
+    });
+  }
   return errors;
 };

@@ -1,6 +1,7 @@
 import React from 'react';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { WORK_VIEW_INVENTORY } from '../workViewInventory.js';
+import useMobileInteractionMode from '../../platform/mobile/useMobileInteractionMode.js';
 
 const descriptor = (key) => ({
   label: key === 'pointEditing' ? 'Edit mathematical objects' : key.replace(/([A-Z])/g, ' $1'),
@@ -19,6 +20,7 @@ const capabilityDescriptor = (key, { taskText, helpText }) => {
 // this wrapper never constructs a second copy or owns response state.
 export default function RegisteredToolWorkView({ toolId, questionData = {}, children }) {
   const inventory = WORK_VIEW_INVENTORY[toolId];
+  const mobile = useMobileInteractionMode();
   if (!inventory || inventory.status !== 'migrated') return children;
 
   const taskText = String(
@@ -45,6 +47,9 @@ export default function RegisteredToolWorkView({ toolId, questionData = {}, chil
       enlargeLabel="Open Work View"
       taskText={taskText}
       capabilities={capabilities}
+      openEnlarged={Boolean(mobile?.isCompactPhone)}
+      dismissKey={`mm.workview.phone.dismissed.${toolId}`}
+      presentationKey={questionData?.questionId || questionData?.id || questionData?.prompt || toolId}
     >
       {children}
     </EnlargeableFigure>

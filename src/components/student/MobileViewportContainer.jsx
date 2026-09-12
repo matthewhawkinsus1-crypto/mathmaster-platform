@@ -7,13 +7,14 @@ import {
   scrollFocusedControlVertically,
   stabilizeHorizontalViewport,
 } from '../../platform/mobile/mobileFocusViewport.js';
+import { isBrowserPinchZoomed, readStableViewportBox } from '../../platform/mobile/mobileInteractionFoundation.js';
 
 const NUMERIC_SELECTOR = 'input[type="number"], input[inputmode="numeric"], input[inputmode="decimal"], input[data-mathmaster-mobile-keypad="true"]';
 const KEYS = ['7', '8', '9', '4', '5', '6', '1', '2', '3', '±', '0', '.'];
-const viewportSize = () => ({
-  width: typeof window !== 'undefined' ? Number(window.visualViewport?.width || window.innerWidth || 0) : 0,
-  height: typeof window !== 'undefined' ? Number(window.visualViewport?.height || window.innerHeight || 0) : 0,
-});
+const viewportSize = () => {
+  const viewport = readStableViewportBox(typeof window !== 'undefined' ? window : null);
+  return { width: viewport.width, height: viewport.height };
+};
 
 // Layout mode is based on available screen space, not whether the Chromebook
 // happens to have a touchscreen. Using pointer:coarse here made two students on
@@ -64,24 +65,23 @@ export const MobileViewportContainer = ({
   const [isMobile, setIsMobile] = useState(detectMobile);
   const [isLandscape, setIsLandscape] = useState(detectLandscape);
   const [numericTarget, setNumericTarget] = useState(null);
-  const [visualViewport, setVisualViewport] = useState(() => ({
-    width: typeof window !== 'undefined' ? Number(window.visualViewport?.width || window.innerWidth || 0) : 0,
-    height: typeof window !== 'undefined' ? Number(window.visualViewport?.height || window.innerHeight || 0) : 0,
-    offsetTop: typeof window !== 'undefined' ? Number(window.visualViewport?.offsetTop || 0) : 0,
-    offsetLeft: typeof window !== 'undefined' ? Number(window.visualViewport?.offsetLeft || 0) : 0,
-  }));
+  const [visualViewport, setVisualViewport] = useState(() => readStableViewportBox(typeof window !== 'undefined' ? window : null));
 
   useEffect(() => {
     const updateViewportMode = () => {
       const mobile = detectMobile();
       setIsMobile(mobile);
       setIsLandscape(detectLandscape());
-      setVisualViewport({
-        width: Number(window.visualViewport?.width || window.innerWidth || 0),
-        height: Number(window.visualViewport?.height || window.innerHeight || 0),
-        offsetTop: Number(window.visualViewport?.offsetTop || 0),
-        offsetLeft: Number(window.visualViewport?.offsetLeft || 0),
-      });
+      const nextViewport = readStableViewportBox(window);
+      setVisualViewport((current) => (
+        current.width === nextViewport.width
+        && current.height === nextViewport.height
+        && current.offsetTop === nextViewport.offsetTop
+        && current.offsetLeft === nextViewport.offsetLeft
+        && current.pinchZoomed === nextViewport.pinchZoomed
+          ? current
+          : nextViewport
+      ));
     };
     updateViewportMode();
     window.addEventListener('resize', updateViewportMode);
@@ -95,6 +95,14 @@ export const MobileViewportContainer = ({
       window.visualViewport?.removeEventListener('scroll', updateViewportMode);
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const html = document.documentElement;
+    if (visualViewport.pinchZoomed) html.dataset.mmPinchZoomed = 'true';
+    else delete html.dataset.mmPinchZoomed;
+    return () => { delete html.dataset.mmPinchZoomed; };
+  }, [visualViewport.pinchZoomed]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -129,6 +137,10 @@ export const MobileViewportContainer = ({
       }
     };
     const onWindowScroll = () => {
+      // A non-zero visualViewport.offsetLeft while zoomed is intentional: the
+      // student is panning the magnified page. The horizontal stability guard
+      // exists for caret bugs at scale 1, not to drag a zoomed student back.
+      if (isBrowserPinchZoomed(window)) return;
       if (Math.abs(Number(window.scrollX || 0)) > 0.5 || Math.abs(Number(window.visualViewport?.offsetLeft || 0)) > 0.5) {
         forceZero();
       }

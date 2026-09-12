@@ -18,3 +18,20 @@ test('calculator panel is draggable with pointer events instead of being permane
   assert.match(source, /touchAction:\s*['"]none['"]/);
   assert.match(source, /clampCalculatorPosition/);
 });
+
+
+test('division key builds a stacked fraction instead of inserting a division glyph', () => {
+  assert.match(source, /value === '÷'.*action: 'fractionize'/);
+  assert.match(source, /const insertStackedDivision/);
+  assert.match(source, /executeCommand\?\.\('selectAll'\)/);
+  assert.match(source, /mathField\.insert\('\\\\frac\{#0\}\{#\?\}'/);
+  assert.doesNotMatch(source, /value === '÷'.*command: '\\\\div'/);
+});
+
+test('calculator supports a shared external launcher rather than floating its own blue pill', () => {
+  assert.match(source, /showLauncher = true/);
+  assert.match(source, /open: controlledOpen = null/);
+  assert.match(source, /onOpenChange/);
+  assert.match(source, /borderRadius:999/);
+  assert.doesNotMatch(source, /background: '#1a73e8'.*Calculator/);
+});

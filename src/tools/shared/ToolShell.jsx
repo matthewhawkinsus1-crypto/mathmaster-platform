@@ -186,13 +186,13 @@ export const TaskCard = ({ task, steps = [], note = null, question = null, steps
   const authoredPrompt = String(question?.prompt || '').trim();
   const taskText = String(task || '').trim();
   const promptDiffers = Boolean(authoredPrompt && authoredPrompt !== taskText);
-
-
+  const supportKey = stepsKey || contentKey([taskText, ...steps, note || ''].filter(Boolean).join('|'));
+  const hasSupport = Boolean((taskText && (!authoredPrompt || promptDiffers)) || steps.length || note);
 
   return (
     <div className="mathmaster-tool-task-card" style={{
       border: '1px solid #9bb8e8', borderLeft: '6px solid #1a73e8', borderRadius: 12,
-      background: '#f4f8ff', padding: '12px 16px', marginBottom: 12,
+      background: '#f4f8ff', padding: '10px 12px', marginBottom: 12,
     }}>
       {authoredPrompt ? (
         <div className="mathmaster-tool-task-prompt">
@@ -200,35 +200,25 @@ export const TaskCard = ({ task, steps = [], note = null, question = null, steps
           <MathText as="p" style={{ margin: '6px 0 0', fontSize: 17, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{authoredPrompt}</MathText>
         </div>
       ) : null}
-      {taskText && (!authoredPrompt || promptDiffers) ? (
-        <div className="mathmaster-tool-task-directions">
-          <div className="mathmaster-tool-task-eyebrow" style={{ marginTop: authoredPrompt ? 12 : 0, fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#174ea6' }}>{authoredPrompt ? 'What to do' : 'Your task'}</div>
-          <MathText as="p" style={{ margin: '6px 0 0', fontSize: 16, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{taskText}</MathText>
-        </div>
-      ) : null}
-      {/* THE STEPS START FOLDED. They are the same for every question in a
-          section, so by the fourth one a student has read them three times and
-          is scrolling past them to reach the graph. Opening folded puts the tool
-          on screen and ready for input instead; the summary line still names
-          what is inside and how many steps there are, and a student's choice to
-          open them is remembered for that block of text.
-
-          What does NOT fold is the problem itself and the one-line task — those
-          are the question, not the directions about it. */}
-      {steps.length ? (
+      {hasSupport ? (
         <QuietDisclosure
-          summary={`How to do this (${steps.length} step${steps.length === 1 ? '' : 's'})`}
-          storageKey={`mm.tool.steps.${stepsKey || contentKey(steps.join('|'))}`}
+          summary={steps.length ? `How to do this (${steps.length} step${steps.length === 1 ? '' : 's'})` : 'How to do this'}
+          storageKey={`mm.tool.steps.${supportKey}`}
           defaultOpen={false}
-          style={{ margin: '10px 0 0' }}
+          style={{ margin: authoredPrompt ? '8px 0 0' : 0 }}
         >
-          <ol style={{ margin: 0, paddingLeft: 20, color: '#3c4756', lineHeight: 1.6 }}>
-            {steps.map((step, index) => <li key={index}><MathText>{step}</MathText></li>)}
-          </ol>
+          {taskText && (!authoredPrompt || promptDiffers) ? (
+            <div className="mathmaster-tool-task-directions">
+              <MathText as="p" style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#172033', lineHeight: 1.45 }}>{taskText}</MathText>
+            </div>
+          ) : null}
+          {steps.length ? (
+            <ol style={{ margin: taskText && (!authoredPrompt || promptDiffers) ? '10px 0 0' : 0, paddingLeft: 20, color: '#3c4756', lineHeight: 1.6 }}>
+              {steps.map((step, index) => <li key={index}><MathText>{step}</MathText></li>)}
+            </ol>
+          ) : null}
           {note ? <MathText as="p" style={{ margin: '10px 0 0', fontSize: 13, color: '#5f6b7a' }}>{note}</MathText> : null}
         </QuietDisclosure>
-      ) : note ? (
-        <MathText as="p" style={{ margin: '10px 0 0', fontSize: 13, color: '#5f6b7a' }}>{note}</MathText>
       ) : null}
     </div>
   );
