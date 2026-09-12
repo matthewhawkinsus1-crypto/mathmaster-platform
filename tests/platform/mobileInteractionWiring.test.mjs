@@ -89,3 +89,19 @@ test('controlled sort uses fixed category buttons instead of answer-entry keyboa
   assert.match(src, /Place every card into one of the provided categories/);
   assert.match(src, /placeItem\(item\.id, category\.id\)/);
 });
+
+
+test('hand-fit regression is button-driven and phone controls stack vertically', () => {
+  const lab = read('src/tools/dataModeling/DataModelingLab.jsx');
+  const css = read('src/components/student/MathToolMobileLayout.css');
+  assert.match(lab, /const FitStepper =/);
+  assert.match(lab, /exploratoryLineFit \? \(/);
+  assert.match(lab, /Decrease \$\{label\}/);
+  assert.match(lab, /Increase \$\{label\}/);
+  const exploratoryStart = lab.indexOf(") : exploratoryLineFit ? (");
+  const typedLinearStart = lab.indexOf(") : (", exploratoryStart + 10);
+  const exploratoryBlock = lab.slice(exploratoryStart, typedLinearStart);
+  assert.doesNotMatch(exploratoryBlock, /<input type="number"/,
+    'lineFit/full exploration must not be bypassable by typing coefficients');
+  assert.match(css, /\.mathmaster-line-fit-steppers\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+});
