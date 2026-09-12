@@ -293,8 +293,25 @@ export const validateAssignmentV5 = (input = {}, { requireQuestions = true } = {
 
   if (clean(input?.assessmentPolicy?.mode) === 'testCycle') {
     const sourceSections = Array.isArray(input.sections) ? input.sections : [];
+    const roleList = sourceSections.map((section) => clean(section?.role).toLowerCase());
     const sectionsByRole = new Map(sourceSections.map((section) => [clean(section?.role).toLowerCase(), section]));
     const roles = new Set(sectionsByRole.keys());
+    const expectedRoleOrder = ['review', 'test', 'retest'];
+    const unexpectedRoles = roleList.filter((role) => !expectedRoleOrder.includes(role));
+    if (unexpectedRoles.length) {
+      errors.push(`Test Cycle supports only review, test, and retest sections. Remove: ${[...new Set(unexpectedRoles)].join(', ')}.`);
+    }
+    expectedRoleOrder.forEach((role) => {
+      if (roleList.filter((candidate) => candidate === role).length > 1) {
+        errors.push(`Test Cycle may contain only one ${role} section.`);
+      }
+    });
+    if (
+      sourceSections.length === expectedRoleOrder.length
+      && expectedRoleOrder.some((role, index) => roleList[index] !== role)
+    ) {
+      errors.push('Test Cycle sections must be ordered review, test, retest.');
+    }
     if (!roles.has('review')) errors.push('Test Cycle assignments require a review section.');
     if (!roles.has('test')) errors.push('Test Cycle assignments require a test section.');
     if (!roles.has('retest')) errors.push('Test Cycle assignments require a retest section.');
