@@ -6,6 +6,7 @@ import '../../src/index.css';
 import '../../src/App.css';
 
 let control = null;
+window.__mmTerminalLifecycleReady = false;
 window.__mmTerminalLifecycle = (next) => control?.(next);
 
 const QUESTIONS = {
@@ -29,7 +30,14 @@ const QUESTIONS = {
 
 function Harness() {
   const [scene, setScene] = useState({ route: 'simpleRegistry', index: 1, status: 'unattempted', sectionComplete: false, assignmentLocked: false });
-  useEffect(() => { control = setScene; return () => { control = null; }; }, []);
+  useEffect(() => {
+    control = setScene;
+    window.__mmTerminalLifecycleReady = true;
+    return () => {
+      control = null;
+      window.__mmTerminalLifecycleReady = false;
+    };
+  }, []);
   const question = {
     ...QUESTIONS[scene.route],
     id: `terminal-question-${scene.index}`,
