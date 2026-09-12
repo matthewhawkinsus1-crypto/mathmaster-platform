@@ -74,3 +74,18 @@ test('mobile viewport shell uses the visual viewport and clips accidental page-l
   assert.match(css, /min-height: 44px/);
   assert.match(css, /100vw - 16px/);
 });
+
+
+test('compact phones open migrated rich tools directly in Work View', () => {
+  const src = read('src/tools/shared/RegisteredToolWorkView.jsx');
+  assert.match(src, /useMobileInteractionMode/);
+  assert.match(src, /openEnlarged=\{Boolean\(mobile\?\.isCompactPhone\)\}/);
+  assert.match(src, /mm\.workview\.phone\.dismissed/);
+});
+
+test('controlled sort uses fixed category buttons instead of answer-entry keyboards', () => {
+  const src = read('src/tools/openSortBoard/OpenSortBoard.jsx');
+  assert.match(src, /title=\{controlled \? 'Controlled Sort'/);
+  assert.match(src, /Place every card into one of the provided categories/);
+  assert.match(src, /placeItem\(item\.id, category\.id\)/);
+});
