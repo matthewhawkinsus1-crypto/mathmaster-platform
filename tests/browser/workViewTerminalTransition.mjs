@@ -5,17 +5,27 @@ const browser = await chromium.launch();
 const openWorkView = async (page) => {
   const host = page.locator('.mathmaster-work-view-host').first();
   if (await host.getAttribute('data-open') === 'true') return;
-  const open = page.getByRole('button', { name: /Open Work View/i }).first();
-  await open.waitFor({ state: 'visible' });
-  await page.waitForFunction(() => {
-    const button = [...document.querySelectorAll('button')]
-      .find((node) => /Open Work View/i.test(node.textContent || ''));
-    return Boolean(button && !button.disabled);
-  });
+  await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => {
+    if (!/Open Work View/i.test(button.textContent || '') || button.disabled) return false;
+    const rect = button.getBoundingClientRect();
+    const style = getComputedStyle(button);
+    return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+  }));
   // This regression is about terminal lifecycle, not pointer hit-testing (the
-  // Stage 4 device matrix already certifies the opener). Dispatch directly so
-  // stale completion chrome cannot make the lifecycle test itself flaky.
-  await open.evaluate((button) => button.click());
+  // Stage 4 device matrix already certifies the opener). Dispatch to the
+  // currently visible/enabled opener so a stale hidden question instance can
+  // never be selected by locator ordering during the React transition.
+  const opened = await page.evaluate(() => {
+    const button = [...document.querySelectorAll('button')].find((candidate) => {
+      if (!/Open Work View/i.test(candidate.textContent || '') || candidate.disabled) return false;
+      const rect = candidate.getBoundingClientRect();
+      const style = getComputedStyle(candidate);
+      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+    });
+    button?.click();
+    return Boolean(button);
+  });
+  if (!opened) throw new Error('No enabled Work View opener was available after the question transition');
   await page.locator('.mathmaster-work-view-host[data-open="true"]').waitFor();
 };
 
