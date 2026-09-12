@@ -2960,7 +2960,11 @@ function App() {
       ? requestedSectionKey
       : null;
     setActiveClassroomSectionKey(scopedSectionKey);
-    setAssignmentResultRoute(null);
+    // When Practice/Review was launched from Assignment Result, preserve that
+    // route so the visible in-app Back control returns to the result instead of
+    // skipping straight to the dashboard. Grade Center launches do not set this
+    // flag and keep their existing Grades -> Practice -> Grades behavior.
+    if (!options?.returnToResult) setAssignmentResultRoute(null);
     setActiveAssignmentId(assignmentId);
     setCurrentQuestionIndex(safeQuestionIndex);
     setAssignmentNavigationCollapsed(false);
@@ -6869,9 +6873,22 @@ function App() {
     const nextAvailableSectionMeta = nextAvailableSection
       ? (activitySectionMeta[nextAvailableSection.role] || { label: nextAvailableSection.role })
       : null;
+    const returnsToAssignmentResult = !preview
+      && assignmentResultRoute?.assignmentId === activeAssignmentId;
+    const studentAssignmentBackLabel = returnsToAssignmentResult ? 'Back to Results' : 'Back to Dashboard';
     const leaveAssignment = () => {
-      if (preview) setTeacherTab('assignments');
-      else flushAssignmentActivity(activeAssignmentId).catch(() => {});
+      if (preview) {
+        setTeacherTab('assignments');
+      } else {
+        flushAssignmentActivity(activeAssignmentId).catch(() => {});
+        if (returnsToAssignmentResult) {
+          setActiveClassroomSectionKey(
+            assignmentResultRoute.sectionKey === 'whole' ? null : assignmentResultRoute.sectionKey,
+          );
+          setActiveView('assignmentResult');
+          return;
+        }
+      }
       setActiveView('dashboard');
       setActiveAssignmentId(null);
     };
@@ -6972,7 +6989,7 @@ function App() {
                   onClick={leaveAssignment}
                   style={{ background: 'none', border: 'none', color: '#1a73e8', cursor: 'pointer', fontWeight: 'bold', padding: 0 }}
                 >
-                  &larr; {preview ? 'Back to Instructor Dashboard' : 'Back to Dashboard'}
+                  &larr; {preview ? 'Back to Instructor Dashboard' : studentAssignmentBackLabel}
                 </button>
                 {preview && (
                   <button
@@ -7028,7 +7045,7 @@ function App() {
 
           <nav className={`mathmaster-assignment-unified-nav${assignmentNavigationCollapsed ? ' is-collapsed' : ''}`} aria-label="Assignment navigation">
             <div className="mathmaster-assignment-unified-top">
-              <button type="button" className="mathmaster-unified-nav-back" onClick={leaveAssignment} aria-label={preview ? 'Back to instructor dashboard' : 'Back to dashboard'}>←</button>
+              <button type="button" className="mathmaster-unified-nav-back" onClick={leaveAssignment} aria-label={preview ? 'Back to instructor dashboard' : returnsToAssignmentResult ? 'Back to results' : 'Back to dashboard'}>←</button>
               {!assignmentNavigationCollapsed ? (
                 <div className="mathmaster-section-tabs" role="list" aria-label="Assignment sections">
                   {navigationSections.map((section) => {
@@ -8381,11 +8398,13 @@ function App() {
           entry={resultEntry}
           sectionLabel={resultSectionLabel}
           supportPresentation={getStudentSupportPresentation(user.profile)}
-          onReviewWork={(assignmentId) => startAssignment(assignmentId, assignmentResultRoute.questionIndex)}
+          onReviewWork={(assignmentId) => startAssignment(assignmentId, assignmentResultRoute.questionIndex, { returnToResult: true })}
           onPractice={(assignmentId) => startAssignment(assignmentId, assignmentResultRoute.questionIndex, {
             // A split Classroom post practises its own section; a whole-assignment
-            // post practises the whole assignment.
+            // post practises the whole assignment. Keep the result route so the
+            // visible Back control returns here after practice.
             sectionKey: resultSectionLabel ? assignmentResultRoute.sectionKey : null,
+            returnToResult: true,
           })}
           onViewAllGrades={openStudentGradeCenter}
           onBackToHome={() => { setAssignmentResultRoute(null); setActiveClassroomSectionKey(null); setActiveAssignmentId(null); setStudentDashboardMode('assignments'); setActiveView('dashboard'); }}
