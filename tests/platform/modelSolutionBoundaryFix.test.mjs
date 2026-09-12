@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { gradeStage } from '../../src/platform/workflow/workflowGrading.js';
 import { canonicalizeFunctionExpression, parseIntervalDomainRestriction } from '../../src/platform/workflow/modelExpression.js';
+import { workflowRequiresEndpointMarkers } from '../../src/platform/workflow/workflowGraphVisuals.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (path) => fs.readFileSync(resolve(here, '../..', path), 'utf8');
@@ -30,11 +31,31 @@ test('finite domain notation becomes explicit open/closed graph boundaries', () 
   assert.equal(parseIntervalDomainRestriction('(-∞,12]'), null, 'unbounded continuation must not be misread as a finite boundary');
 });
 
-test('workflow graph uses the authored finite domain to require boundary markers', () => {
+test('workflow graph uses finite-domain semantics to require boundary markers', () => {
+  assert.equal(
+    workflowRequiresEndpointMarkers({ domain: { min: 0, max: 12, minInclusive: true, maxInclusive: true } }),
+    true,
+    'a finite authored domain needs visible endpoint markers',
+  );
+  assert.equal(
+    workflowRequiresEndpointMarkers({ domain: null }),
+    false,
+    'an unrestricted graph must not invent endpoint-marker work',
+  );
+  assert.equal(
+    workflowRequiresEndpointMarkers({ domain: { min: 0, max: 12 }, authored: false }),
+    false,
+    'an explicit authored opt-out wins',
+  );
+  assert.equal(
+    workflowRequiresEndpointMarkers({ pointOnly: true, domain: { min: 0, max: 12 } }),
+    false,
+    'point-only graph tasks do not ask for relationship endpoints',
+  );
+
   const source = read('src/platform/workflow/WorkflowRunner.jsx');
   assert.match(source, /parseIntervalDomainRestriction\(grading\?\.domain\)/);
-  assert.match(source, /domain: stage\.domainRestriction \|\| null/);
-  assert.match(source, /requireEndpointMarkers: pointOnly \? false : \(stage\.requireEndpointMarkers \?\? Boolean\(stage\.domainRestriction\)\)/);
+  assert.match(source, /workflowRequiresEndpointMarkers\(/);
 });
 
 test('closed multi-stage questions receive a complete workflow solution review', () => {
