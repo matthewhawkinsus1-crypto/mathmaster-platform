@@ -6,7 +6,9 @@ import {
   MIN_TOUCH_TARGET_PX,
   extractEquationSymbols,
   getViewportSafePopoverLayout,
+  isBrowserPinchZoomed,
   isMobileInteractionViewport,
+  readStableViewportBox,
   placementInstructionForOperation,
   semanticPlacementFromTap,
 } from '../../src/platform/mobile/mobileInteractionFoundation.js';
@@ -63,4 +65,37 @@ test('narrow menus become viewport-safe bottom sheets and desktop popovers are c
   assert.equal(desktop.mode, 'popover');
   assert.ok(desktop.left >= 8 && desktop.left + desktop.width <= 992);
   assert.ok(desktop.top >= 8 && desktop.top + desktop.maxHeight <= 692);
+});
+
+
+test('pinch zoom keeps layout geometry fixed while the browser magnifies the page', () => {
+  const zoomedWindow = {
+    innerWidth: 390,
+    innerHeight: 664,
+    visualViewport: { width: 195, height: 332, offsetTop: 81, offsetLeft: 57, scale: 2 },
+  };
+  assert.equal(isBrowserPinchZoomed(zoomedWindow), true);
+  assert.deepEqual(readStableViewportBox(zoomedWindow), {
+    width: 390,
+    height: 664,
+    offsetTop: 0,
+    offsetLeft: 0,
+    scale: 2,
+    pinchZoomed: true,
+  });
+
+  const normalWindow = {
+    innerWidth: 390,
+    innerHeight: 664,
+    visualViewport: { width: 390, height: 600, offsetTop: 22, offsetLeft: 0, scale: 1 },
+  };
+  assert.equal(isBrowserPinchZoomed(normalWindow), false);
+  assert.deepEqual(readStableViewportBox(normalWindow), {
+    width: 390,
+    height: 600,
+    offsetTop: 22,
+    offsetLeft: 0,
+    scale: 1,
+    pinchZoomed: false,
+  });
 });
