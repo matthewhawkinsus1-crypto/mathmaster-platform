@@ -80,7 +80,18 @@ TOP LEVEL
 }
 
 VALID SECTION ROLES
-warmup, classwork, practice, dol, quiz, test
+warmup, classwork, practice, review, dol, quiz, test, retest
+
+TEST CYCLE
+A single assessment may use:
+"assessmentPolicy": {
+  "mode": "testCycle",
+  "passingScore": 70,
+  "review": { "required": true },
+  "test": {},
+  "retest": { "strategy": "shortForm", "scorePolicy": "replaceIfHigher" }
+}
+with three sections in order: review, test, retest. Review is instructional practice; Test and Retest are summative stages controlled by MathMaster.
 
 AUTHORING RULE
 Questions describe mathematical intent and studentActions. Do not author React component names, toolId, renderer type, viewport bounds, Firestore fields, attempt counters, or other platform-owned runtime state. MathMaster chooses the internal renderer.
