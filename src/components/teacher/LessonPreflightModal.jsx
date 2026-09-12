@@ -137,8 +137,10 @@ const humanRole = (role) => ({
   classwork: 'Classwork',
   dol: 'DOL',
   practice: 'Practice',
+  review: 'Review',
   quiz: 'Quiz',
   test: 'Test',
+  retest: 'Retest',
 }[role] || role);
 
 // A blocker list scoped to one step, shown at the top of that step so the
@@ -212,6 +214,10 @@ export const LessonPreflightModal = ({
   const activityRoles = useMemo(() => [...new Set(activities.map((section) => section?.role).filter(Boolean))], [activities]);
   const hasAuthoredWarmup = activityRoles.includes('warmup');
   const hasAuthoredDOL = activityRoles.includes('dol');
+  const isTestCycle = String(effectiveAssignmentV5?.assessmentPolicy?.mode || '') === 'testCycle';
+  const testCyclePassingScore = Number.isFinite(Number(effectiveAssignmentV5?.assessmentPolicy?.passingScore))
+    ? Number(effectiveAssignmentV5.assessmentPolicy.passingScore)
+    : 70;
   const previewQuestions = preflightModel.questions;
   const publishingValidation = useMemo(
     () => validateLessonPublishingIntent(publishingIntent),
@@ -1022,8 +1028,16 @@ export const LessonPreflightModal = ({
       <div style={{ padding: '13px 15px', marginBottom: 14, border: '1px solid #c5d5ef', borderRadius: 10, background: '#f8fbff' }}>
         <strong style={{ color: '#174ea6' }}>Activity sections control student behavior</strong>
         <p style={{ margin: '6px 0 8px', color: '#3c4043', lineHeight: 1.5 }}>
-          Warm-Up, Classwork, Practice, DOL, Quiz, and Test behavior comes from the sections already built into the assignment. You no longer need to choose a second Classwork/Practice designation here.
+          {isTestCycle
+            ? 'This is one staged Test Cycle assignment. Review is instructional practice; Test is the first secure score; Retest stays hidden unless a released Test score is below the passing score.'
+            : 'Warm-Up, Classwork, Practice, DOL, Quiz, and Test behavior comes from the sections already built into the assignment. You no longer need to choose a second Classwork/Practice designation here.'}
         </p>
+        {isTestCycle && (
+          <div style={{ margin: '0 0 10px', padding: '10px 12px', borderRadius: 8, background: '#fff', border: '1px solid #f1b7b3', color: '#5f2120', fontSize: 12.5, lineHeight: 1.5 }}>
+            <strong>Test Cycle · Passing score {testCyclePassingScore}%</strong><br />
+            Students see only one eligible stage at a time. Test and Retest use one attempt per question with instructional help removed. Both secure stages start teacher-controlled unless an automatic opening time is authored. Test results and Retest results are released separately.
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
           {activityRoles.map((role) => <span key={role} style={{ padding: '5px 9px', borderRadius: 999, background: '#e8f0fe', color: '#174ea6', fontSize: 11, fontWeight: 900 }}>{humanRole(role)}</span>)}
         </div>
@@ -1044,7 +1058,7 @@ export const LessonPreflightModal = ({
             // Levelling a DOL or a quiz per student makes its grades
             // incomparable, and a dropdown that quietly allows it is how that
             // happens by accident rather than by decision.
-            const isAssessment = ['dol', 'quiz', 'test', 'assessment', 'formative'].includes(String(role).toLowerCase());
+            const isAssessment = ['dol', 'quiz', 'test', 'retest', 'assessment', 'formative'].includes(String(role).toLowerCase());
             return (
               <label key={role} style={labelStyle}>
                 {humanRole(role)}
@@ -1223,9 +1237,11 @@ export const LessonPreflightModal = ({
       <fieldset style={fieldsetStyle}>
         <legend style={legendStyle}>Google Classroom posts</legend>
         <p style={{ margin: '0 0 12px', color: '#3c4043', fontSize: 13, lineHeight: 1.5 }}>
-          Each assignment section gets its own Google Classroom post and grade column. Titles start with the section name, followed by the assignment name, so student gradebooks stay easy to scan.
+          {isTestCycle
+            ? 'Test Cycle publishes one Google Classroom assignment. Review, Test, and Retest remain stages inside that one MathMaster link, so students never receive three separate assessment cards.'
+            : 'Each assignment section gets its own Google Classroom post and grade column. Titles start with the section name, followed by the assignment name, so student gradebooks stay easy to scan.'}
         </p>
-        <label style={labelStyle}>Separate Practice due date (optional)<input type="datetime-local" value={draft.homeworkDueAt || ''} onChange={(event) => setField('homeworkDueAt', event.target.value)} style={inputStyle} /></label>
+        {!isTestCycle && <label style={labelStyle}>Separate Practice due date (optional)<input type="datetime-local" value={draft.homeworkDueAt || ''} onChange={(event) => setField('homeworkDueAt', event.target.value)} style={inputStyle} /></label>}
         <div style={{ marginTop: 8, color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>{publicationPlan.summary}</div>
       </fieldset>
 
