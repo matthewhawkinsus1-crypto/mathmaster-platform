@@ -5,12 +5,34 @@ const browser = await chromium.launch();
 const openWorkView = async (page) => {
   const host = page.locator('.mathmaster-work-view-host').first();
   if (await host.getAttribute('data-open') === 'true') return;
-  await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => {
-    if (!/Open Work View/i.test(button.textContent || '') || button.disabled) return false;
-    const rect = button.getBoundingClientRect();
-    const style = getComputedStyle(button);
-    return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
-  }));
+  try {
+    await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => {
+      if (!/Open Work View/i.test(button.textContent || '') || button.disabled) return false;
+      const rect = button.getBoundingClientRect();
+      const style = getComputedStyle(button);
+      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+    }), null, { timeout: 6000 });
+  } catch (error) {
+    const diagnostics = await page.evaluate(() => ({
+      question: document.querySelector('[data-terminal-question]')?.getAttribute('data-terminal-question'),
+      hosts: [...document.querySelectorAll('.mathmaster-work-view-host')].map((host) => ({
+        open: host.getAttribute('data-open'),
+        text: host.textContent?.slice(0, 160),
+      })),
+      buttons: [...document.querySelectorAll('button')].map((button) => {
+        const rect = button.getBoundingClientRect();
+        return {
+          text: button.textContent?.trim(),
+          disabled: button.disabled,
+          width: rect.width,
+          height: rect.height,
+          display: getComputedStyle(button).display,
+          visibility: getComputedStyle(button).visibility,
+        };
+      }).filter((button) => /Work View|Next Question|Continue/i.test(button.text || '')),
+    }));
+    throw new Error(`No enabled Work View opener was available: ${JSON.stringify(diagnostics)}; ${error.message}`);
+  }
   // This regression is about terminal lifecycle, not pointer hit-testing (the
   // Stage 4 device matrix already certifies the opener). Dispatch to the
   // currently visible/enabled opener so a stale hidden question instance can
