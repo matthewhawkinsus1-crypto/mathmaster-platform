@@ -3,8 +3,7 @@ const origin = process.env.AUDIT_ORIGIN || 'http://localhost:5199';
 const browser = await chromium.launch();
 
 const openWorkView = async (page) => {
-  const host = page.locator('.mathmaster-work-view-host').first();
-  if (await host.getAttribute('data-open') === 'true') return;
+  if (await page.locator('.mathmaster-work-view-host[data-open="true"]').count()) return;
   try {
     await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => {
       if (!/Open Work View/i.test(button.textContent || '') || button.disabled) return false;
