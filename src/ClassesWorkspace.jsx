@@ -92,7 +92,7 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
     .map((assignment) => ({ assignment, warmup: getWarmupState({ assignment, schedule: classSchedule, classId: selectedClass.classId || null, classPeriod: selectedPeriod, nowValue }) }))
     .filter(({ warmup }) => warmup.window !== null);
   const sectionAccessControls = currentAssignments
-    .flatMap((assignment) => ['classwork', 'practice'].map((role) => ({
+    .flatMap((assignment) => ['classwork', 'practice', 'test', 'retest'].map((role) => ({
       assignment,
       role,
       state: getSectionAccessState({ assignment, activityRole: role, classId: selectedClass.classId || null, classPeriod: selectedPeriod, nowValue }),
