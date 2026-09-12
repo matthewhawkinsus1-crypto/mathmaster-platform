@@ -78,6 +78,7 @@ for (const viewport of [{ name: 'chromebook', width: 1366, height: 768 }, { name
   const page = await context.newPage();
   for (const route of ['simpleRegistry', 'relationAlgebra', 'nestedRegistry']) {
     await page.goto(`${origin}/tests/browser/workViewTerminalTransition.html`, { waitUntil: 'networkidle' });
+    await page.waitForFunction(() => window.__mmTerminalLifecycleReady === true);
     await page.evaluate((nextRoute) => window.__mmTerminalLifecycle((current) => ({ ...current, route: nextRoute })), route);
     await page.locator(`[data-terminal-route="${route}"]`).waitFor();
 
@@ -104,6 +105,7 @@ for (const viewport of [{ name: 'chromebook', width: 1366, height: 768 }, { name
   // that harness instance would test React transition timing between synthetic
   // scenes rather than the production terminal-close lifecycle.
     await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForFunction(() => window.__mmTerminalLifecycleReady === true);
     await page.evaluate((nextRoute) => window.__mmTerminalLifecycle((current) => ({ ...current, route: nextRoute, index: 3, status: 'unattempted', assignmentLocked: false })), route);
     await page.locator('[data-terminal-question="3"]').waitFor();
     await openWorkView(page);
@@ -116,6 +118,7 @@ for (const viewport of [{ name: 'chromebook', width: 1366, height: 768 }, { name
   // Section continuation is certified once per device in addition to the
   // three route families above.
   await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForFunction(() => window.__mmTerminalLifecycleReady === true);
   await page.evaluate(() => window.__mmTerminalLifecycle((current) => ({ ...current, index: 4, status: 'unattempted', assignmentLocked: false, sectionComplete: false })));
   await page.locator('[data-terminal-question="4"]').waitFor();
   await openWorkView(page);
