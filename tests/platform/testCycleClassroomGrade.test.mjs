@@ -148,3 +148,14 @@ test('whole-assignment Classroom publication uses the Test Cycle official score'
 test('Test Cycle Classroom auto-publishing stays one whole-assignment post', () => {
   assert.deepEqual(automaticClassroomSectionKeys(assignment), ['whole']);
 });
+
+
+test('released Retest score is not suppressed by the earlier final Test sync', () => {
+  const source = await import('node:fs').then(({ readFileSync }) => readFileSync('functions/index.js', 'utf8'));
+  const start = source.indexOf('const sameOfficialAssessmentGrade = !isTestCycleAssignment(assignment)');
+  assert.ok(start >= 0, 'whole-assignment passback must distinguish a changed Test Cycle official grade');
+  const dedupe = source.slice(start, source.indexOf('const publicationTeacherUid', start));
+  assert.match(dedupe, /Number\(priorAudit\.grade\) === Number\(grade\)/);
+  assert.match(dedupe, /Number\(priorAudit\.classroomGrade\) === Number\(classroomGrade\)/);
+  assert.match(dedupe, /&& sameOfficialAssessmentGrade/);
+});
