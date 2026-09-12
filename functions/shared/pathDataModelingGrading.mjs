@@ -249,6 +249,24 @@ const coefficientTolerance = (expected, authored, floor, relative = 0.05) => {
   return Number.isFinite(value) ? Math.max(floor, Math.abs(value) * relative) : floor;
 };
 
+
+const handFitTolerances = (points = [], regression = {}, question = {}) => {
+  const clean = cleanPathDataPoints(points);
+  const xs = clean.map(([x]) => Number(x));
+  const ys = clean.map(([, y]) => Number(y));
+  const xSpan = Math.max((Math.max(...xs) - Math.min(...xs)), Number.EPSILON);
+  const ySpan = Math.max((Math.max(...ys) - Math.min(...ys)), Number.EPSILON);
+  const naturalSlope = ySpan / xSpan;
+  return {
+    slope: finite(question.slopeTolerance)
+      ? Math.abs(Number(question.slopeTolerance))
+      : Math.max(0.01, naturalSlope * 0.08, Math.abs(Number(regression.m) || 0) * 0.06),
+    intercept: finite(question.interceptTolerance)
+      ? Math.abs(Number(question.interceptTolerance))
+      : Math.max(0.1, ySpan * 0.06),
+  };
+};
+
 export const buildDataModelingPrivateDefinition = (question = {}) => {
   const points = cleanPathDataPoints(question.points);
   const regression = pathLinearRegression(points);
@@ -271,6 +289,9 @@ export const buildDataModelingPrivateDefinition = (question = {}) => {
   const descriptor = pathCorrelationDescriptor(r);
   const predictionX = finite(question.predictionX) ? Number(question.predictionX) : null;
   const model = expectedModel?.model || {};
+  const exploratoryFitTolerance = (mode === 'lineFit' || mode === 'full')
+    ? handFitTolerances(points, regression, question)
+    : null;
   return {
     mode,
     points,
@@ -282,8 +303,8 @@ export const buildDataModelingPrivateDefinition = (question = {}) => {
     expectedModel: expectedModel ? { id: expectedModel.id, model: expectedModel.model } : null,
     requiredParts: requiredPartsForMode(mode),
     predictionX,
-    slopeTolerance: coefficientTolerance(regression.m, question.slopeTolerance, 0.2, 0.12),
-    interceptTolerance: coefficientTolerance(regression.b, question.interceptTolerance, 0.8, 0.08),
+    slopeTolerance: exploratoryFitTolerance?.slope ?? coefficientTolerance(regression.m, question.slopeTolerance, 0.2, 0.12),
+    interceptTolerance: exploratoryFitTolerance?.intercept ?? coefficientTolerance(regression.b, question.interceptTolerance, 0.8, 0.08),
     quadraticTolerance: {
       a: coefficientTolerance(model.a, question.quadraticATolerance, 0.03),
       b: coefficientTolerance(model.b, question.quadraticBTolerance, 0.08),
