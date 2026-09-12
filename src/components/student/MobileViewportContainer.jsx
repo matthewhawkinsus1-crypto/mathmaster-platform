@@ -72,7 +72,16 @@ export const MobileViewportContainer = ({
       const mobile = detectMobile();
       setIsMobile(mobile);
       setIsLandscape(detectLandscape());
-      setVisualViewport(readStableViewportBox(window));
+      const nextViewport = readStableViewportBox(window);
+      setVisualViewport((current) => (
+        current.width === nextViewport.width
+        && current.height === nextViewport.height
+        && current.offsetTop === nextViewport.offsetTop
+        && current.offsetLeft === nextViewport.offsetLeft
+        && current.pinchZoomed === nextViewport.pinchZoomed
+          ? current
+          : nextViewport
+      ));
     };
     updateViewportMode();
     window.addEventListener('resize', updateViewportMode);
