@@ -14,18 +14,36 @@ await sourceGraph.locator('circle').first().hover({ force: true });
 if (await sourceGraph.getByText('(1, 2)', { exact: true }).count()) throw new Error('Source point coordinates were revealed on hover');
 if (await page.locator('.source-data').count()) throw new Error('Scatterplot source mode leaked the numeric source-data list');
 
+// Blank settings must not reveal conversion. An ordered pair unlocks it, but
+// entering every point as a separate expression still never runs regression.
+await page.getByRole('button', { name: 'Settings and edit' }).click();
+if (await page.getByRole('menuitem', { name: /Convert ordered pair/ }).count()) throw new Error('Blank expression offered table conversion');
+await page.getByRole('button', { name: 'Settings and edit' }).click();
+await page.getByLabel('Expression 1').fill('(1,2)');
+for (const value of ['(2,4)', '(3,5)', '(4,8)']) {
+  await page.getByRole('button', { name: 'Add expression' }).click();
+  await page.locator('.regression-expression-row input').last().fill(value);
+}
+if (await page.locator('[data-regression-graph] circle').count() !== 4) throw new Error('Ordered-pair expressions did not plot');
+if (await page.getByRole('button', { name: 'Evaluate regression expression' }).count()) throw new Error('Plotted expressions incorrectly unlocked regression');
+await page.getByLabel('Expression 1').click();
+await page.getByRole('button', { name: 'Settings and edit' }).click();
+await page.getByRole('menuitem', { name: 'Convert ordered pair to table' }).click();
 const cells = page.locator('.regression-table input');
-const values = ['1', '2', '2', '4', '3', '5', '4', '8'];
+if (await cells.nth(0).inputValue() !== '1' || await cells.nth(1).inputValue() !== '2') throw new Error('Conversion did not preserve row 1');
+const values = ['2', '4', '3', '5', '4', '8'];
 for (let index = 0; index < values.length; index += 1) {
-  await cells.nth(index).fill(values[index]);
+  const cellIndex = index + 2;
+  await cells.nth(cellIndex).fill(values[index]);
   if (index < values.length - 1) {
-    await cells.nth(index).press('Enter');
-    if (!(await cells.nth(index + 1).evaluate((node) => node === document.activeElement))) throw new Error(`Enter did not navigate from cell ${index + 1}`);
+    await cells.nth(cellIndex).press('Enter');
+    if (!(await cells.nth(cellIndex + 1).evaluate((node) => node === document.activeElement))) throw new Error(`Enter did not navigate from cell ${cellIndex + 1}`);
   }
 }
 if (await page.locator('[data-regression-graph] circle').count() !== 4) throw new Error('Live scatterplot did not draw all entered pairs');
-await page.getByLabel('Calculation').selectOption('linearRegression');
-await page.getByRole('button', { name: 'Run regression' }).click();
+await page.getByRole('button', { name: 'Add expression' }).click();
+await page.locator('.regression-expression-row input').last().fill('y1 ~ mx1 + b');
+await page.getByRole('button', { name: 'Evaluate regression expression' }).click();
 await page.getByText(/m = 1\.9000/).waitFor();
 await page.getByText(/b = 0\.0000/).waitFor();
 await page.getByText(/r = 0\.9812/).waitFor();
@@ -71,5 +89,21 @@ for (const label of ['Undo', 'Scratchpad', 'Calculator', 'Submit']) {
   if (count > 1) throw new Error(`Duplicate ${label} controls are visible`);
 }
 await page.screenshot({ path: 'tests/browser/artifacts/regression-calculator-390.png', fullPage: true });
+
+// Chromebook acceptance: the same workflow is presented as an editor/graph
+// split rather than the phone's vertical calculator.
+const desktop = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+await desktop.goto('http://localhost:5199/tests/browser/captureToolResponses.html?tool=regressionCalculator', { waitUntil: 'networkidle' });
+const layout = await desktop.locator('.regression-calculator').evaluate((node) => ({ display:getComputedStyle(node).display, columns:getComputedStyle(node).gridTemplateColumns }));
+if (layout.display !== 'grid' || layout.columns.split(' ').length < 2) throw new Error(`Desktop calculator is not split-pane: ${JSON.stringify(layout)}`);
+await desktop.getByLabel('Expression 1').fill('(1,2)');
+await desktop.getByRole('button', { name: 'Settings and edit' }).click();
+await desktop.getByRole('menuitem', { name: 'Convert ordered pair to table' }).click();
+const desktopCells = desktop.locator('.regression-table input');
+for (let index = 0; index < values.length; index += 1) await desktopCells.nth(index + 2).fill(values[index]);
+await desktop.getByRole('button', { name: 'Add expression' }).click();
+await desktop.locator('.regression-expression-row input').last().fill('y₁ ~ mx₁ + b');
+await desktop.getByRole('button', { name: 'Evaluate regression expression' }).click();
+await desktop.getByText(/R² = 0\.9627/).waitFor();
 await browser.close();
-console.log('regressionCalculatorPhone: 390px workflow passed');
+console.log('regressionCalculatorPhone: 390px and Chromebook workflows passed');
