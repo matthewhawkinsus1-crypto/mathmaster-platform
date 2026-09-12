@@ -1,6 +1,9 @@
 // Real 390px acceptance flow for Issue #202. Run with Vite on port 5199.
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
+const launchOptions = { args: ['--no-sandbox'] };
+if (process.env.CHROMIUM_PATH) launchOptions.executablePath = process.env.CHROMIUM_PATH;
+else if (!process.env.PLAYWRIGHT_MODULE) launchOptions.executablePath = '/opt/pw-browsers/chromium';
+const browser = await chromium.launch(launchOptions);
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 await page.goto('http://localhost:5199/tests/browser/captureToolResponses.html?tool=regressionCalculator', { waitUntil: 'networkidle' });
 const cells = page.locator('.regression-table input');
