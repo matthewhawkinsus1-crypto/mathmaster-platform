@@ -65,6 +65,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
     [rows],
   );
   const plotted = tableRow ? tablePoints : expressionPoints;
+  const hasRegressionExpression = rows.some((row) => row.type === 'expression' && isRegressionExpression(row.value));
   const graphBounds = useMemo(() => boundsFor(plotted.length ? plotted : source), [plotted, source]);
   const selected = rows.find((row) => row.id === selectedId);
   const conversionAvailable = selected?.type === 'expression' && Boolean(orderedPair(selected.value));
@@ -156,7 +157,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   };
 
   const execute = (row) => {
-    if (!tableRow || tablePoints.length < 3 || !isRegressionExpression(row.value)) return;
+    if (!tableRow || tablePoints.length < 2 || !isRegressionExpression(row.value)) return;
     const stats = regressionCalculatorStats(tablePoints);
     if (!stats) return;
     const regressionRun = {
@@ -169,6 +170,30 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
     record('regressionExpressionEntered');
     record('regressionExecuted', { operation: 'linearRegression' });
     record('correlationProduced', { value: stats.r });
+  };
+
+  const addRegressionFromTable = () => {
+    if (!tableRow || tablePoints.length < 2) return;
+    const existing = rows.find((row) => row.type === 'expression' && isRegressionExpression(row.value));
+    if (existing) {
+      setSelectedId(existing.id);
+      execute(existing);
+      requestAnimationFrame(() => document.getElementById(`regression-${existing.id}`)?.focus());
+      return;
+    }
+
+    const regression = {
+      ...EMPTY_EXPRESSION(),
+      value: 'y₁ ~ mx₁ + b',
+    };
+    commitRows([...rows, regression]);
+    setSelectedId(regression.id);
+    setEditOpen(false);
+    setNotice('');
+    record('expressionAdded', { source: 'addRegression' });
+    record('addRegressionClicked', { pointCount: tablePoints.length });
+    execute(regression);
+    requestAnimationFrame(() => document.getElementById(`regression-${regression.id}`)?.focus());
   };
 
   const check = () => {
@@ -339,6 +364,25 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
                   <span className="regression-row-gutter">
                     <span className="regression-row-number">{rowIndex + 1}</span>
                     {pair ? <span className="regression-point-dot" aria-hidden="true" /> : null}
+                    {row.type === 'table' && tablePoints.length >= 2 && !hasRegressionExpression ? (
+                      <button
+                        className="regression-add-regression"
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          addRegressionFromTable();
+                        }}
+                        aria-label="Add Regression"
+                        data-tooltip="Add Regression"
+                      >
+                        <svg viewBox="0 0 28 28" aria-hidden="true" focusable="false">
+                          <path d="M4 22 C8 15, 13 12, 24 5" />
+                          <circle cx="6" cy="18.5" r="2.1" />
+                          <circle cx="13.5" cy="12" r="2.1" />
+                          <circle cx="21.5" cy="7" r="2.1" />
+                        </svg>
+                      </button>
+                    ) : null}
                   </span>
 
                   {row.type === 'expression' ? (
