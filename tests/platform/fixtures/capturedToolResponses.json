@@ -182,5 +182,110 @@
         "b": 1
       }
     }
+  },
+  "regressionCalculator": {
+    "pathToolId": "regressionCalculator",
+    "rawWork": {
+      "table": [
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          4
+        ],
+        [
+          3,
+          5
+        ],
+        [
+          4,
+          8
+        ]
+      ],
+      "regressionRun": {
+        "operation": "linearRegression",
+        "table": [
+          [
+            1,
+            2
+          ],
+          [
+            2,
+            4
+          ],
+          [
+            3,
+            5
+          ],
+          [
+            4,
+            8
+          ]
+        ],
+        "m": 1.9,
+        "b": 0,
+        "r": 0.9811557810392123
+      },
+      "interpretation": {
+        "direction": "positive",
+        "strength": "strong"
+      },
+      "processEvidence": [
+        {
+          "type": "tableEdited",
+          "row": 1,
+          "column": "x1"
+        },
+        {
+          "type": "tableEdited",
+          "row": 1,
+          "column": "y1"
+        },
+        {
+          "type": "tableEdited",
+          "row": 2,
+          "column": "x1"
+        },
+        {
+          "type": "tableEdited",
+          "row": 2,
+          "column": "y1"
+        },
+        {
+          "type": "tableEdited",
+          "row": 3,
+          "column": "x1"
+        },
+        {
+          "type": "tableEdited",
+          "row": 3,
+          "column": "y1"
+        },
+        {
+          "type": "tableEdited",
+          "row": 4,
+          "column": "x1"
+        },
+        {
+          "type": "tableEdited",
+          "row": 4,
+          "column": "y1"
+        },
+        {
+          "type": "regressionSelected",
+          "operation": "linearRegression"
+        },
+        {
+          "type": "regressionExecuted",
+          "operation": "linearRegression"
+        },
+        {
+          "type": "correlationProduced",
+          "value": 0.9811557810392123
+        }
+      ]
+    }
   }
 }

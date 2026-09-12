@@ -72,6 +72,50 @@ const CASES = {
       ['empty work', {}, false],
     ],
   },
+  regressionCalculator: {
+    question: {
+      type: 'regressionCalculator',
+      prompt: 'Enter the data, run linear regression, and interpret r.',
+      sourceData: [[1, 2], [2, 4], [3, 5], [4, 8]],
+      requireInterpretation: true,
+    },
+    correct: {
+      table: [[1, 2], [2, 4], [3, 5], [4, 8]],
+      regressionRun: {
+        operation: 'linearRegression',
+        table: [[1, 2], [2, 4], [3, 5], [4, 8]],
+        m: 1.9,
+        b: 0,
+        r: 0.9811557810392123,
+      },
+      interpretation: { direction: 'positive', strength: 'strong' },
+    },
+    variants: [
+      ['same pairs in another row order', {
+        table: [[4, 8], [2, 4], [1, 2], [3, 5]],
+        regressionRun: {
+          operation: 'linearRegression',
+          table: [[3, 5], [1, 2], [4, 8], [2, 4]],
+          m: 1.9,
+          b: 0,
+          r: 0.9811557810392123,
+        },
+        interpretation: { direction: 'positive', strength: 'strong' },
+      }, true],
+      ['typed r without process', { r: 0.9811557810392123, interpretation: { direction: 'positive', strength: 'strong' } }, false],
+      ['forged run statistic', {
+        table: [[1, 2], [2, 4], [3, 5], [4, 8]],
+        regressionRun: { operation: 'linearRegression', table: [[1, 2], [2, 4], [3, 5], [4, 8]], m: 1.9, b: 0, r: 0.5 },
+        interpretation: { direction: 'positive', strength: 'strong' },
+      }, false],
+      ['wrong interpretation', {
+        table: [[1, 2], [2, 4], [3, 5], [4, 8]],
+        regressionRun: { operation: 'linearRegression', table: [[1, 2], [2, 4], [3, 5], [4, 8]], m: 1.9, b: 0, r: 0.9811557810392123 },
+        interpretation: { direction: 'negative', strength: 'weak' },
+      }, false],
+      ['malformed primitive', 'r = 0.981', 'reject'],
+    ],
+  },
   graphing2: {
     question: {
       type: 'graphing2',

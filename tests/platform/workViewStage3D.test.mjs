@@ -5,6 +5,7 @@ import { TOOL_CATALOG_IDS } from '../../src/tools/toolCatalog.js';
 import { WORK_VIEW_INVENTORY, STAGE_3D_WORK_VIEW_IDS } from '../../src/tools/workViewInventory.js';
 import { WORK_VIEW_CAPABILITIES } from '../../src/platform/workView/workViewCapabilities.js';
 import { selectActiveUndoOwner } from '../../src/platform/workView/useMathUndoHistory.js';
+import { region } from './helpers/sourceContract.mjs';
 
 const source = (path) => readFileSync(path, 'utf8');
 
@@ -101,7 +102,8 @@ test('migrated tools cannot introduce independent fullscreen or local mathematic
 test('Data Modeling Lab enlarges the whole tool instead of a graph-only nested shell', () => {
   const registry = source('src/tools/toolRegistry.js');
   const lab = source('src/tools/dataModeling/DataModelingLab.jsx');
-  assert.match(registry, /REGISTRY_WORK_VIEW_IDS = new Set\(\[\.\.\.STAGE_3D_WORK_VIEW_IDS, 'dataModelingLab'\]\)/);
+  const workViewOwners = region(registry, 'const REGISTRY_WORK_VIEW_IDS', '// Labels and course lists');
+  assert.match(workViewOwners, /'dataModelingLab'/);
   assert.doesNotMatch(lab, /<EnlargeableFigure/,
     'a nested graph-only Work View would hide correlation/model answer controls outside the enlarged surface');
   assert.match(lab, /Correlation coefficient r/);

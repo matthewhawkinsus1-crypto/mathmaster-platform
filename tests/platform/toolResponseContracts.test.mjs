@@ -95,6 +95,13 @@ test('no capture is rejected as malformed — the server understands the wire fo
   });
 });
 
+test('regression calculator capture preserves the teacher-review process trail', () => {
+  assert.deepEqual(
+    [...new Set(CAPTURED.regressionCalculator.rawWork.processEvidence.map((event) => event.type))],
+    ['tableEdited', 'regressionSelected', 'regressionExecuted', 'correlationProduced'],
+  );
+});
+
 // --- The specific bug, on the specific shape that caused it ------------------
 
 test('the number line sends min/max, and the server reads min/max', () => {
@@ -298,6 +305,10 @@ const SPOILED = {
   dataModelingLab: (work) => ({ ...work, r: 0 }),
   systemsWorkspace: (work) => ({ ...work, classification: 'none' }),
   dataModelingLab: (work) => ({ ...work, r: 0.25 }),
+  regressionCalculator: (work) => ({
+    ...work,
+    regressionRun: { ...work.regressionRun, r: 0.25 },
+  }),
   graphing2: (work) => ({
     ...work,
     points: [[0, 1], [2, 6]],

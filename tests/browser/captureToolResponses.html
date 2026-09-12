@@ -1,6 +1,14 @@
 <!doctype html>
 <html>
-  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Path tool response capture</title></head>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Path tool response capture</title>
+    <!-- Match the production document baseline. The app sets body margin to 0;
+         leaving the browser's default 8px margin here made the fixed Work View
+         measure 398px in a 390px viewport and created a harness-only overflow. -->
+    <style>html, body, #root { margin: 0; width: 100%; max-width: 100%; overflow-x: clip; }</style>
+  </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/tests/browser/captureToolResponsesMain.jsx"></script>

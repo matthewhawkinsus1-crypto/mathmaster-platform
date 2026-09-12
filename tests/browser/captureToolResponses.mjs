@@ -128,6 +128,17 @@ const SCRIPTS = {
     await btn(page, 'Check data model').click();
   },
 
+  regressionCalculator: async (page) => {
+    const values = ['1', '2', '2', '4', '3', '5', '4', '8'];
+    const cells = page.locator('.regression-table input');
+    for (let index = 0; index < values.length; index += 1) await cells.nth(index).fill(values[index]);
+    await page.locator('label', { hasText: 'Calculation' }).locator('select').selectOption('linearRegression');
+    await btn(page, 'Run regression').click();
+    await page.locator('label', { hasText: 'Direction' }).locator('select').selectOption('positive');
+    await page.locator('label', { hasText: 'Strength' }).locator('select').selectOption('strong');
+    await btn(page, 'Submit workflow').click();
+  },
+
   systemsWorkspace: async (page) => {
     await page.locator('select').selectOption({ index: 0 });
     const inputs = page.locator('input');

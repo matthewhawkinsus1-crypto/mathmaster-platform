@@ -62,6 +62,13 @@ import {
   sanitizeDataModelingPublicQuestion,
 } from './pathDataModelingGrading.mjs';
 import {
+  buildRegressionCalculatorPrivateDefinition,
+  gradeRegressionCalculatorResponse,
+  regressionCalculatorDefinitionIsGradable,
+  sanitizeRegressionCalculatorPublicQuestion,
+  validateRegressionCalculatorResponse,
+} from './pathRegressionCalculatorGrading.mjs';
+import {
   buildGraphingPrivateDefinition,
   gradeGraphingResponse,
   graphingDefinitionIsGradable,
@@ -663,6 +670,18 @@ const CONTRACTS = {
     gradeStudentResponse: (definition, raw) => gradeDataModelingResponse(definition, raw),
   },
 
+  // Assessment-style statistics requires verifiable process, not a typed r.
+  // The server compares both the editable table and the table snapshot attached
+  // to the executed LinReg operation before awarding the produced-r stage.
+  regressionCalculator: {
+    serverGradingVersion: 1,
+    responseShape: 'regressionWorkflow',
+    sanitizePublicQuestion: sanitizeRegressionCalculatorPublicQuestion,
+    buildPrivateGradingDefinition: buildRegressionCalculatorPrivateDefinition,
+    validateStudentResponse: validateRegressionCalculatorResponse,
+    gradeStudentResponse: gradeRegressionCalculatorResponse,
+  },
+
   // Graphing2 constructs a line from conditions such as standard form,
   // point-slope form, two given points, or a vertical/horizontal equation.
   // Those conditions are the public question; the server independently rebuilds
@@ -1235,6 +1254,8 @@ export const hasGradableDefinition = (toolId, definition) => {
       return definition.mode === 'inequalities' && systemsInequalityDefinitionIsGradable(definition);
     case 'dataModelingLab':
       return dataModelingDefinitionIsGradable(definition);
+    case 'regressionCalculator':
+      return regressionCalculatorDefinitionIsGradable(definition);
     case 'graphing2':
       return graphingDefinitionIsGradable(definition);
     case 'relationMapping':

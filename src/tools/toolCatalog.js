@@ -4,6 +4,7 @@
 // the component tree. `toolRegistry.js` attaches the components to these.
 export const TOOL_CATALOG = Object.freeze({
   dataModelingLab: { label: 'Data Modeling Lab', courses: ['Algebra I', 'Algebra II'] },
+  regressionCalculator: { label: 'Regression Calculator', courses: ['Algebra I', 'Algebra II'] },
   inverseCompositionLab: { label: 'Inverse & Composition Lab', courses: ['Algebra II'] },
   functionOperationsLab: { label: 'Function Operations Workbench', courses: ['Algebra II'] },
   systemsWorkspace: { label: 'Systems Workspace', courses: ['Algebra I', 'Algebra II'] },

@@ -5,20 +5,23 @@ on:
     paths:
       - "functions/shared/pathToolContracts.mjs"
       - "functions/shared/pathDataModelingGrading.mjs"
+      - "functions/shared/pathRegressionCalculatorGrading.mjs"
       - "src/QuestionEngine.jsx"
       - "src/platform/path/pathToolResponses.js"
       - "src/tools/dataModeling/**"
+      - "src/tools/regressionCalculator/**"
       - "src/tools/workViewCertificationManifest.js"
       - "tests/browser/workViewCertification*"
       - "tests/platform/workViewStage4Certification.test.mjs"
       - "tests/browser/captureToolResponses*"
+      - "tests/browser/regressionCalculatorPhone.mjs"
       - "tests/platform/fixtures/pathToolQuestions.mjs"
       - "tests/platform/fixtures/capturedToolResponses.json"
       - "tests/platform/toolResponseContracts.test.mjs"
       - ".github/workflows/path-tool-browser-contract.yml"
 
 jobs:
-  data-modeling-browser-contract:
+  secured-tool-browser-contract:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -57,6 +60,16 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/captureToolResponses.mjs dataModelingLab --debug
 
+      - name: Capture real Regression Calculator response
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/captureToolResponses.mjs regressionCalculator --debug
+
+      - name: Run Regression Calculator 390px workflow
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/regressionCalculatorPhone.mjs
+
       - name: Show browser-contract drift
         if: always()
         run: |
@@ -67,3 +80,11 @@ jobs:
 
       - name: Re-grade the captured wire format on the server contract
         run: node --test tests/platform/toolResponseContracts.test.mjs tests/platform/pathDataModelingGrading.test.mjs
+
+      - name: Upload Regression Calculator phone screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-calculator-390
+          path: tests/browser/artifacts/regression-calculator-390.png
+          if-no-files-found: warn

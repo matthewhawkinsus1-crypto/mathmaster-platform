@@ -1,7 +1,7 @@
 import { validateSortQuestion } from './openSortBoard/openSortMath.js';
 import { validateConstraintBuilderQuestion } from './constraintFunctionBuilder/constraintFunctionMath.js';
 const TOOL_IDS = new Set([
-  'dataModelingLab','inverseCompositionLab','functionOperationsLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
+  'dataModelingLab','regressionCalculator','inverseCompositionLab','functionOperationsLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
   'signSolutionAnalyzer','sequenceExplorer','complexPlaneLab','exponentialLogBridge','transformationsLab',
   'representationMatch','functionInvestigation2','graphing2','stepAlgebra2','solutionReview2',
   'intervalNumberLine','relationMapping','openSortBoard','constraintFunctionBuilder',
@@ -96,6 +96,21 @@ export const validateToolQuestion = (question = {}) => {
     ];
     if (question.mode && !modes.includes(question.mode)) errors.push(`Unsupported dataModelingLab mode: ${question.mode}.`);
     if (question.predictionTolerance != null && Number(question.predictionTolerance) <= 0) errors.push('predictionTolerance must be positive.');
+  }
+  if (toolId === 'regressionCalculator') {
+    const points = question.sourceData || question.points;
+    if (!Array.isArray(points) || points.length < 3 || points.some((point) => !isFinitePoint(point))) errors.push('regressionCalculator requires at least 3 finite source-data pairs.');
+    if (question.sourceMode != null && !['data','scatterplot'].includes(String(question.sourceMode))) {
+      errors.push('regressionCalculator sourceMode must be data or scatterplot.');
+    }
+    if (question.sourceGraphBounds != null) {
+      const bounds = question.sourceGraphBounds;
+      if (!bounds || typeof bounds !== 'object' || ['xMin','xMax','yMin','yMax'].some((key) => !Number.isFinite(Number(bounds[key])))) {
+        errors.push('regressionCalculator sourceGraphBounds requires finite xMin, xMax, yMin, and yMax.');
+      } else if (!(Number(bounds.xMin) < Number(bounds.xMax) && Number(bounds.yMin) < Number(bounds.yMax))) {
+        errors.push('regressionCalculator sourceGraphBounds minimums must be less than maximums.');
+      }
+    }
   }
   if (toolId === 'systemsWorkspace') {
     const modes = ['linear','inequalities','linearQuadratic','matrix'];
