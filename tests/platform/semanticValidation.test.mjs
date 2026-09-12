@@ -81,6 +81,37 @@ const warningsFor = (question) => validateQuestionSemantics(question).warnings;
     [],
     'DataModelingLab point data satisfies its student-visible scatterplot promise',
   );
+
+  assert.deepEqual(
+    errorsFor({
+      type: 'dataModelingLab',
+      prompt: 'Create a scatterplot from the data, then describe the association.',
+      points: [{ x: 1, y: 2 }, { x: 2, y: 4 }, { x: 3, y: 5 }],
+    }).filter((error) => /refers to a graph in its prompt, but the question contains none/.test(error)),
+    [],
+    'a construction prompt may mention scatterplot without promising that one is already shown',
+  );
+
+  assert.deepEqual(
+    errorsFor({
+      prompt: 'Read the scatterplot below, enter the ordered pairs, and calculate r.',
+      studentActions: ['readGraph', 'calculateCorrelation'],
+      sourceMode: 'scatterplot',
+      sourceData: [{ x: 1, y: 2 }, { x: 2, y: 4 }, { x: 3, y: 5 }],
+    }).filter((error) => /refers to a graph in its prompt, but the question contains none/.test(error)),
+    [],
+    'raw V5 correlation intent satisfies the graph promise before renderer compilation',
+  );
+
+  assert.ok(
+    errorsFor({
+      prompt: 'Use the scatterplot below to calculate r.',
+      studentActions: ['calculateCorrelation'],
+      sourceMode: 'data',
+      sourceData: [{ x: 1, y: 2 }, { x: 2, y: 4 }, { x: 3, y: 5 }],
+    }).some((error) => /refers to a graph in its prompt, but the question contains none/.test(error)),
+    'data-source regression intent still fails when the prompt falsely promises a pre-drawn scatterplot',
+  );
   assert.ok(
     errorsFor({
       type: 'dataModelingLab', mode: 'lineFit',

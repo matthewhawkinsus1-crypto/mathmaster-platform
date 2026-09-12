@@ -78,6 +78,33 @@ test('Preflight auto-repairs known coordinate-pair nested arrays before Firestor
   assert.equal(model.errors.some((error) => /Firestore.*array directly inside another array/i.test(error)), false);
 });
 
+test('Preflight accepts raw V5 scatterplot-correlation intent before renderer compilation', () => {
+  const candidate = structuredClone(assignmentV5);
+  candidate.sections[0].questions = [{
+    prompt: 'Read the scatterplot below, enter the ordered pairs in the x₁/y₁ table, run linear regression, and interpret r.',
+    standard: 'A.4A',
+    alignments: [{ framework: 'teks', code: 'A.4A', role: 'primary', evidenceLevel: 'assessed' }],
+    studentActions: ['readGraph', 'calculateCorrelation'],
+    sourceMode: 'scatterplot',
+    sourceData: [[1, 2], [2, 4], [3, 5], [4, 8]],
+    sourceGraphBounds: { xMin: 0, xMax: 5, yMin: 0, yMax: 9 },
+    requireInterpretation: true,
+  }];
+
+  const model = buildAssignmentV5PreflightModel(candidate);
+  assert.equal(
+    model.errors.some((error) => /refers to a graph in its prompt, but the question contains none/.test(error)),
+    false,
+    model.errors.join('\n'),
+  );
+  assert.deepEqual(model.assignmentV5.sections[0].questions[0].sourceData, [
+    { x: 1, y: 2 },
+    { x: 2, y: 4 },
+    { x: 3, y: 5 },
+    { x: 4, y: 8 },
+  ]);
+});
+
 test('Preflight blocks unknown nested arrays and reports the path before Save to Library', () => {
   const candidate = structuredClone(assignmentV5);
   candidate.sections[0].questions[0].xIntercepts = [[3, 0, 99]];
