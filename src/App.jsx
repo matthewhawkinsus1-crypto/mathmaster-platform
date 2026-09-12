@@ -4805,6 +4805,38 @@ function App() {
     }
   };
 
+  const handleReleaseRetestFeedback = async (assignment) => {
+    const alreadyReleased = assignment?.assessmentRetestFeedbackReleased === true
+      || Boolean(assignment?.assessmentRetestFeedbackReleasedAt);
+    if (
+      !assignment?.id
+      || !isAssessmentPathwayAssignment(assignment)
+      || !assignmentFeedbackWasReleased(assignment)
+      || alreadyReleased
+    ) return;
+    const proceedWithRelease = await confirmAction({
+      title: `Release Retest feedback for “${assignment.title}”?`,
+      message: 'Students who have completed the Retest will see their Retest correctness and final recorded score. Students still taking the Retest remain protected until they finish. Only release this when you are ready for Retest results to be visible.',
+      confirmLabel: 'Release Retest Feedback',
+    });
+    if (!proceedWithRelease) return;
+    setFeedbackReleaseBusyId(assignment.id);
+    try {
+      const releasedAt = new Date().toISOString();
+      await updateDoc(doc(db, 'assignments', assignment.id), {
+        assessmentRetestFeedbackReleased: true,
+        assessmentRetestFeedbackReleasedAt: releasedAt,
+        updatedAt: releasedAt,
+      });
+      toastSuccess('Retest feedback released', `Students who completed the Retest in ${assignment.title} can now see their final results.`);
+    } catch (error) {
+      console.error(error);
+      toastError('Could not release Retest feedback', error.message);
+    } finally {
+      setFeedbackReleaseBusyId(null);
+    }
+  };
+
   const resolveTeacherClassContext = (value) => {
     const supplied = value && typeof value === 'object' ? value : {};
     const classId = String(supplied?.classId || '').trim() || null;
@@ -6570,8 +6602,11 @@ function App() {
           activeQuestionRole === 'review'
             ? true
             : activeQuestionRole === 'retest'
-              ? Boolean(assignment?.assessmentRetestFeedbackReleased || assignment?.assessmentRetestFeedbackReleasedAt)
-              : assignmentFeedbackWasReleased(assignment)
+              ? Boolean(
+                  assessmentState?.retest?.terminal
+                  && (assignment?.assessmentRetestFeedbackReleased || assignment?.assessmentRetestFeedbackReleasedAt)
+                )
+              : Boolean(assessmentState?.test?.terminal && assignmentFeedbackWasReleased(assignment))
         )
       : practiceOnly || assignmentFeedbackWasReleased(assignment)
         || (activeActivityPolicy.feedback === 'afterAssignmentSubmit' && ['correct', 'expired'].includes(currentRecord.status));
@@ -8031,14 +8066,37 @@ function App() {
                 {selectedAssignment && assignmentUsesTeacherReleasePolicy(selectedAssignment) && (
                   <section style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '20px', padding: '15px 17px', borderRadius: '9px', background: assignmentFeedbackWasReleased(selectedAssignment) ? '#e6f4ea' : '#eef4ff', border: `1px solid ${assignmentFeedbackWasReleased(selectedAssignment) ? '#9bd2aa' : '#aecbfa'}`, textAlign: 'left' }}>
                     <div>
-                      <strong style={{ color: assignmentFeedbackWasReleased(selectedAssignment) ? '#137333' : '#174ea6' }}>{assignmentFeedbackWasReleased(selectedAssignment) ? 'Assessment feedback released' : 'Assessment feedback is held'}</strong>
-                      <div style={{ marginTop: '4px', color: '#5f6368', fontSize: '13px' }}>{assignmentFeedbackWasReleased(selectedAssignment) ? `Students can now see correctness and grades.${selectedAssignment.feedbackReleasedAt ? ` Released ${formatTimeStamp(selectedAssignment.feedbackReleasedAt)}.` : ''}` : 'You can review scores here; students see only a neutral submitted state until you release feedback.'}</div>
+                      <strong style={{ color: assignmentFeedbackWasReleased(selectedAssignment) ? '#137333' : '#174ea6' }}>
+                        {isAssessmentPathwayAssignment(selectedAssignment)
+                          ? !assignmentFeedbackWasReleased(selectedAssignment)
+                            ? 'Test feedback is held'
+                            : selectedAssignment?.assessmentRetestFeedbackReleased === true || Boolean(selectedAssignment?.assessmentRetestFeedbackReleasedAt)
+                              ? 'Test and Retest feedback released'
+                              : 'Test feedback released · Retest feedback held'
+                          : assignmentFeedbackWasReleased(selectedAssignment) ? 'Assessment feedback released' : 'Assessment feedback is held'}
+                      </strong>
+                      <div style={{ marginTop: '4px', color: '#5f6368', fontSize: '13px' }}>
+                        {isAssessmentPathwayAssignment(selectedAssignment)
+                          ? !assignmentFeedbackWasReleased(selectedAssignment)
+                            ? 'Students who finish the Test see only a submitted state. Release Test results when you are ready; failed students will then become eligible for the Retest.'
+                            : selectedAssignment?.assessmentRetestFeedbackReleased === true || Boolean(selectedAssignment?.assessmentRetestFeedbackReleasedAt)
+                              ? 'Completed Test and Retest results are visible. An early release never reveals correctness to a student who is still taking that stage.'
+                              : 'Original Test results are visible to students who finished the Test. Retest correctness and final Retest results remain held until you release them separately.'
+                          : assignmentFeedbackWasReleased(selectedAssignment)
+                            ? `Students can now see correctness and grades.${selectedAssignment.feedbackReleasedAt ? ` Released ${formatTimeStamp(selectedAssignment.feedbackReleasedAt)}.` : ''}`
+                            : 'You can review scores here; students see only a neutral submitted state until you release feedback.'}
+                      </div>
                     </div>
-                    {!assignmentFeedbackWasReleased(selectedAssignment) && (
+                    {!assignmentFeedbackWasReleased(selectedAssignment) ? (
                       <button type="button" disabled={feedbackReleaseBusyId === selectedAssignment.id} onClick={() => handleReleaseAssignmentFeedback(selectedAssignment)} style={{ padding: '9px 14px', border: 0, borderRadius: '7px', background: feedbackReleaseBusyId === selectedAssignment.id ? '#dadce0' : '#174ea6', color: '#fff', fontWeight: 900, cursor: feedbackReleaseBusyId === selectedAssignment.id ? 'wait' : 'pointer' }}>
-                        {feedbackReleaseBusyId === selectedAssignment.id ? 'Releasing…' : 'Release Feedback to Students'}
+                        {feedbackReleaseBusyId === selectedAssignment.id ? 'Releasing…' : isAssessmentPathwayAssignment(selectedAssignment) ? 'Release Test Results' : 'Release Feedback to Students'}
                       </button>
-                    )}
+                    ) : isAssessmentPathwayAssignment(selectedAssignment)
+                      && !(selectedAssignment?.assessmentRetestFeedbackReleased === true || Boolean(selectedAssignment?.assessmentRetestFeedbackReleasedAt)) ? (
+                      <button type="button" disabled={feedbackReleaseBusyId === selectedAssignment.id} onClick={() => handleReleaseRetestFeedback(selectedAssignment)} style={{ padding: '9px 14px', border: 0, borderRadius: '7px', background: feedbackReleaseBusyId === selectedAssignment.id ? '#dadce0' : '#681da8', color: '#fff', fontWeight: 900, cursor: feedbackReleaseBusyId === selectedAssignment.id ? 'wait' : 'pointer' }}>
+                        {feedbackReleaseBusyId === selectedAssignment.id ? 'Releasing…' : 'Release Retest Results'}
+                      </button>
+                    ) : null}
                   </section>
                 )}
 
