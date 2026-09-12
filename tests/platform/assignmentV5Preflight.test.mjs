@@ -105,6 +105,27 @@ test('Preflight accepts raw V5 scatterplot-correlation intent before renderer co
   ]);
 });
 
+test('Preflight blocks missing renderer contracts before the teacher presses Save', () => {
+  const candidate = structuredClone(assignmentV5);
+  candidate.sections[0].questions[0] = {
+    prompt: 'Sort the scatterplots by direction.',
+    studentActions: ['sortIntoCategories'],
+    activityRole: 'classwork',
+    alignments: [{ framework: 'teks', code: 'A.4A', role: 'primary', evidenceLevel: 'assessed' }],
+  };
+
+  const model = buildAssignmentV5PreflightModel(candidate);
+  assert.equal(model.isValid, false);
+  assert.ok(
+    model.errors.some((error) => /Question 1 is missing a type\/toolId/.test(error)),
+    model.errors.join('\n'),
+  );
+  assert.ok(
+    model.diagnostics.some((entry) => entry.source === 'runtimeContract' && /missing a type\/toolId/.test(entry.message)),
+    'the Check step should own the same runtime-contract blocker as creation',
+  );
+});
+
 test('Preflight blocks unknown nested arrays and reports the path before Save to Library', () => {
   const candidate = structuredClone(assignmentV5);
   candidate.sections[0].questions[0].xIntercepts = [[3, 0, 99]];
