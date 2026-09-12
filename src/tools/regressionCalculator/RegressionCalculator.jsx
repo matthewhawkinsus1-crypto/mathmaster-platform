@@ -40,6 +40,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   const [rows, setRows] = useState(() => [EMPTY_EXPRESSION()]);
   const [selectedId, setSelectedId] = useState(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [run, setRun] = useState(null);
   const [direction, setDirection] = useState('');
@@ -73,20 +74,73 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
 
   const updateExpression = (id, value) => {
     const before = rows.find((row) => row.id === id)?.value;
-    setRows((current) => current.map((row) => row.id === id ? { ...row, value } : row));
+    let emergingRowId = null;
+    setRows((current) => {
+      const next = current.map((row) => row.id === id ? { ...row, value } : row);
+      const editedIndex = next.findIndex((row) => row.id === id);
+      const edited = next[editedIndex];
+      const isLast = editedIndex === next.length - 1;
+      if (isLast && edited?.type === 'expression' && String(value).trim()) {
+        const emerging = EMPTY_EXPRESSION();
+        emergingRowId = emerging.id;
+        next.push(emerging);
+      }
+      return next;
+    });
     if (!orderedPair(before) && orderedPair(value)) record('orderedPairEntered', { row: rows.findIndex((row) => row.id === id) + 1 });
+    if (emergingRowId) record('expressionRowEmerged');
     setRun(null);
     clearFeedback();
   };
 
+  const focusExpression = (row) => requestAnimationFrame(() => document.getElementById(`regression-${row.id}`)?.focus());
+
   const addExpression = () => {
+    const existingBlank = rows.find((row) => row.type === 'expression' && !String(row.value).trim());
+    if (existingBlank) {
+      setSelectedId(existingBlank.id);
+      setEditOpen(false);
+      setAddMenuOpen(false);
+      setNotice('');
+      focusExpression(existingBlank);
+      return;
+    }
     const row = EMPTY_EXPRESSION();
     commitRows([...rows, row]);
     setSelectedId(row.id);
     setEditOpen(false);
+    setAddMenuOpen(false);
     record('expressionAdded');
     setNotice('');
-    requestAnimationFrame(() => document.getElementById(`regression-${row.id}`)?.focus());
+    focusExpression(row);
+  };
+
+  const addBlankTable = () => {
+    if (tableRow) {
+      setAddMenuOpen(false);
+      return;
+    }
+    const table = {
+      id: crypto.randomUUID(),
+      type: 'table',
+      rows: Array.from({ length: Math.max(4, source.length || 0) }, () => ['', '']),
+    };
+    const selectedIndex = rows.findIndex((row) => row.id === selectedId);
+    const selectedBlank = selectedIndex >= 0
+      && rows[selectedIndex]?.type === 'expression'
+      && !String(rows[selectedIndex]?.value).trim();
+    const next = selectedBlank
+      ? rows.map((row, index) => index === selectedIndex ? table : row)
+      : [...rows, table];
+    if (!next.some((row) => row.type === 'expression' && !String(row.value).trim())) {
+      next.push(EMPTY_EXPRESSION());
+    }
+    commitRows(next);
+    setSelectedId(table.id);
+    setEditOpen(false);
+    setAddMenuOpen(false);
+    setNotice('Table created.');
+    record('tableCreated', { fromAddMenu: true });
   };
 
   const openEdit = () => {
@@ -106,16 +160,21 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
     };
     commitRows(rows.map((row) => row.id === selected.id ? table : row));
     setEditOpen(false);
+    setAddMenuOpen(false);
     setNotice('Table created.');
     record('tableCreated', { fromOrderedPair: true });
   };
 
   const updateTable = (rowIndex, column, value) => {
-    setRows((current) => current.map((row) => row.type !== 'table' ? row : {
-      ...row,
-      rows: row.rows.map((pair, index) => index === rowIndex
+    setRows((current) => current.map((row) => {
+      if (row.type !== 'table') return row;
+      const nextRows = row.rows.map((pair, index) => index === rowIndex
         ? pair.map((cell, c) => c === column ? value : cell)
-        : pair),
+        : pair);
+      if (rowIndex === nextRows.length - 1 && nextRows[rowIndex].some((cell) => String(cell).trim())) {
+        nextRows.push(['', '']);
+      }
+      return { ...row, rows: nextRows };
     }));
     record('tableEdited', { row: rowIndex + 1, column: column ? 'y1' : 'x1' });
     setNotice('');
@@ -135,6 +194,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
     commitRows([EMPTY_EXPRESSION()]);
     setSelectedId(null);
     setEditOpen(false);
+    setAddMenuOpen(false);
     setRun(null);
     setNotice('');
   };
@@ -189,6 +249,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
     commitRows([...rows, regression]);
     setSelectedId(regression.id);
     setEditOpen(false);
+    setAddMenuOpen(false);
     setNotice('');
     record('expressionAdded', { source: 'addRegression' });
     record('addRegressionClicked', { pointCount: tablePoints.length });
@@ -309,7 +370,37 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
             </>
           ) : (
             <>
-              <button className="regression-tool-icon regression-add" type="button" onClick={addExpression} aria-label="Add expression" title="Add expression">＋</button>
+              <div className="regression-add-wrap">
+                <button
+                  className="regression-tool-icon regression-add"
+                  type="button"
+                  onClick={() => setAddMenuOpen((open) => !open)}
+                  aria-label="Add Item"
+                  aria-expanded={addMenuOpen}
+                  aria-haspopup="menu"
+                  data-tooltip="Add Item"
+                >
+                  ＋
+                </button>
+                {addMenuOpen ? (
+                  <div className="regression-add-menu" role="menu" aria-label="Add Item">
+                    <button type="button" role="menuitem" onClick={addExpression}>
+                      <span className="regression-add-menu-expression" aria-hidden="true">ƒ(x)</span>
+                      <span>expression</span>
+                    </button>
+                    <button type="button" role="menuitem" onClick={addBlankTable} disabled={Boolean(tableRow)}>
+                      <span className="regression-add-menu-table" aria-hidden="true">
+                        <i /><i /><i /><i />
+                      </span>
+                      <span>table</span>
+                    </button>
+                    <button type="button" role="menuitem" disabled aria-disabled="true" title="Inference is not used in this activity">
+                      <span className="regression-add-menu-inference" aria-hidden="true">⌒</span>
+                      <span>inference</span>
+                    </button>
+                  </div>
+                ) : null}
+              </div>
               <span className="regression-toolbar-spacer" />
               <button className="regression-tool-icon" type="button" onClick={undo} disabled={!history.length} aria-label="Undo" title="Undo">↶</button>
               <button className="regression-tool-icon" type="button" onClick={redo} disabled={!future.length} aria-label="Redo" title="Redo">↷</button>
