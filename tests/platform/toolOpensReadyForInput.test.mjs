@@ -49,12 +49,13 @@ test('every tool renders through the shared shell, so none of this is optional',
 
 /* ---------- 2. directions and hints start collapsed ---------- */
 
-test('the numbered steps start folded', () => {
-  assert.match(shell, /summary=\{`How to do this \(\$\{steps\.length\} step/);
-  assert.match(shell, /storageKey=\{`mm\.tool\.steps\.[\s\S]{0,80}defaultOpen=\{false\}/);
+test('the tool support directions start folded', () => {
+  const taskCard = shell.slice(shell.indexOf('export const TaskCard'), shell.indexOf('export const HintPanel'));
+  assert.match(taskCard, /summary=\{steps\.length \? `How to do this \(\$\{steps\.length\} step/);
+  assert.match(taskCard, /storageKey=\{`mm\.tool\.steps\.\$\{supportKey\}`\}[\s\S]{0,160}defaultOpen=\{false\}/);
   // `defaultOpen` with no value is `true` in JSX and is exactly the regression
   // this guards against.
-  assert.doesNotMatch(shell, /storageKey=\{`mm\.tool\.steps\.[\s\S]{0,80}defaultOpen\s*\n/);
+  assert.doesNotMatch(taskCard, /storageKey=\{`mm\.tool\.steps\.[\s\S]{0,160}defaultOpen\s*(?:\n|>)/);
 });
 
 test('the "about this tool" blurb starts folded', () => {
