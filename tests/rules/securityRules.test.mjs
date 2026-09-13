@@ -572,6 +572,34 @@ test('no client can write the recorded Test Cycle grade, not even the student wh
   }));
 });
 
+test('no client can CREATE a grades row with a Test Cycle grade already in it', async () => {
+  /*
+   * The update rule pins the map against the prior document. A create has no
+   * prior document, so that invariant cannot speak there — and before the row
+   * exists, its owner's `setDoc` would otherwise be a blank cheque for exactly
+   * the field the update rule protects. The forged entry would then be a change
+   * as far as the passback trigger is concerned, and the Grade Center reads the
+   * projection whether Classroom is linked or not.
+   */
+  const forged = { 'assignment-1': { recordedGrade: 100, originalTestGrade: 100 } };
+  const roster = {
+    displayName: 'Student New', classId: 'class-a', classPeriod: 'Period 1',
+    assignedTeacherEmail: TEACHER_A, status: 'active', gradesByAssignment: {},
+  };
+  // The owner of the row that does not exist yet — `ownsStudent` is token-bound,
+  // so any other student would be refused for the wrong reason and prove nothing.
+  const studentNew = () => env.authenticatedContext('uid-new', { role: 'student', studentId: 'STUDENT_NEW' }).firestore();
+
+  await assertFails(setDoc(doc(studentNew(), 'grades/STUDENT_NEW'), { ...roster, testCycleGrades: forged }));
+  await assertFails(setDoc(doc(teacherA(), 'grades/STUDENT_NEW'), { ...roster, testCycleGrades: forged }));
+  await assertFails(setDoc(doc(admin(), 'grades/STUDENT_NEW'), { ...roster, testCycleGrades: forged }));
+
+  // An ordinary roster row still creates, which is what the create rule is for,
+  // and so does one that names the field empty.
+  await assertSucceeds(setDoc(doc(studentNew(), 'grades/STUDENT_NEW'), roster));
+  await assertSucceeds(setDoc(doc(teacherA(), 'grades/STUDENT_NEW2'), { ...roster, testCycleGrades: {} }));
+});
+
 test('a student cannot read the path question bank, which holds answer keys', async () => {
   await assertFails(getDoc(doc(studentA(), 'pathQuestionBank/q-1')));
   await assertFails(getDoc(doc(studentA(), 'examQuestionBank/q-1')));

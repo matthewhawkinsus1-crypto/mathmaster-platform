@@ -837,6 +837,23 @@ test('H40b: Reset Test replaces only the Test', async () => {
   // A reset that cleared a released score is in the audit trail.
   assert.equal(after.history.at(-1).reason, 'teacherOverride');
   assert.match(after.history.at(-1).detail, /reset the secure test session/i);
+
+  /*
+   * AND THE RESET DOES NOT UN-PROVE THE REVIEW THE STUDENT ALREADY PASSED.
+   *
+   * The replacement Test is `assigned`, which is the same shape a student who
+   * has never opened the Review is in. The teacher gradebook resolves stages
+   * with no tracker in hand, so without a durable fact it reports "Review" for
+   * a student who is actually sitting a replacement Test — and the student's
+   * own card, which HAS a tracker, would disagree with it.
+   */
+  const gradebook = await fns.listTeacherTestCycleRecords.run(
+    teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID }),
+  );
+  const resetRow = gradebook.rows.find((row) => row.studentId === STUDENT_C);
+  assert.notEqual(resetRow.stage, 'review', 'a reset must not send the gradebook back to Review');
+  assert.equal(resetRow.stage, 'test', 'the student is sitting the replacement Test');
+  assert.equal(after.review.complete, true, 'the passed-review fact is persisted, not re-derived');
 });
 
 test('H39: Disable Retest blocks entry even though a session already exists', async () => {

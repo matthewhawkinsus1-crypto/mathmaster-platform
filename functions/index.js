@@ -10879,6 +10879,23 @@ exports.teacherTestCycleAction = onCall(async (request) => {
   if (action === "resetSecureSession") {
     const stage = String(request.data?.stage || "test").trim() === "retest" ? "retest" : "test";
     const current = stage === "retest" ? record.retest : record.test;
+
+    /*
+     * A reset must not un-prove the Review the student already passed.
+     *
+     * The replacement Test goes back to `assigned`, which is the same shape a
+     * student who has never passed Review is in. Records written since the
+     * entry path started stamping `review.complete` carry the answer already;
+     * one written before it does not, and would silently revert to "Review" in
+     * the gradebook. The outgoing session's own state is the proof, so it is
+     * carried across here rather than lost with the session it belonged to.
+     */
+    if (record.review.complete !== true
+      && current.state !== shared.record.SESSION_STATE.NONE
+      && current.state !== shared.record.SESSION_STATE.ASSIGNED) {
+      next = { ...next, review: { ...next.review, complete: true, completedAt: next.review.completedAt || Date.now() } };
+    }
+
     if (current.examSessionId) {
       // The old session is closed, not deleted: the evidence a student produced
       // stays readable, and the new attempt draws a genuinely different plan
@@ -11174,8 +11191,30 @@ async function syncTestCycleSessionState(db, session) {
     answeredQuestions: Object.keys(session.responses || {}).length,
     submittedAt: secureExam.TERMINAL_STATES.has(session.status) ? Number(session.submittedAt) || Date.now() : current.submittedAt,
   };
+
+  /*
+   * PASSING THE REVIEW GATE IS RECORDED WHEN IT HAPPENS, NOT INFERRED FOREVER.
+   *
+   * Review completion lives in the assignment tracker, which only the student's
+   * own card carries. The stage resolver can infer "past Review" from a Test
+   * that has moved off `assigned` — but a teacher reset puts the Test BACK to
+   * `assigned`, and then the inference goes false and the gradebook says
+   * "Review" again for a student who has finished the cycle.
+   *
+   * So the fact is persisted at the only moment it is proven: the student has
+   * just come through `assertCourseTestEntryAllowed`, which enforces the gate,
+   * and their session is advancing off `assigned`. A reset replaces sessions,
+   * never this flag, so the answer survives it. Either stage proves it — the
+   * Retest sits behind the Test, which sits behind Review.
+   */
+  const passedReviewGate = state !== shared.record.SESSION_STATE.ASSIGNED;
+  const review = passedReviewGate && record.review.complete !== true
+    ? { ...record.review, complete: true, completedAt: record.review.completedAt || Date.now() }
+    : record.review;
+
   await persistTestCycleRecord(db, {
     ...record,
+    review,
     ...(isRetest ? { retest: stageRecord } : { test: stageRecord }),
   }, { shared, policy });
 }
