@@ -4,11 +4,15 @@
 
 Each public room now carries a server-authored `currentRound`, monotonically
 increasing `roundVersion`, unguessable `roundToken`, `startsAt`, `endsAt`, and
-explicit `phase`. A client accepts a snapshot only when its round/version/phase
+explicit phase. The runtime deliberately uses only the phases it can establish
+authoritatively: lobby, answering, deadline-locked, and finished. Locked is
+derived from the server deadline rather than waiting for another snapshot. A
+client accepts a snapshot only when its round/version/phase
 is not older than what it has already rendered. Reconnection therefore catches
 up to the existing deadline instead of manufacturing a new timer.
 
-Students take five NTP-style callable samples on join and every 30 seconds. The
+Student and teacher/projector clients take five NTP-style callable samples on
+join and every 30 seconds. The
 median midpoint offset and median RTT make a single spike irrelevant; median
 absolute RTT deviation identifies unstable links. The calibrated server epoch
 anchors a `performance.now()` origin once per round. All subsequent human
@@ -25,12 +29,16 @@ The callable validates membership, active round, version, token, deadline, and
 the one-answer rule. Receipts are stored atomically with score on the private
 player document. The same id returns the prior receipt; another id cannot earn a
 second score. The existing secure Path grader remains the only correctness
-authority. The server bounds capture elapsed against its round start, arrival,
-deadline, and a 1.5-second classroom transport window, then passes the accepted
-elapsed into the existing `scoreChallengeRound` function.
+authority. Scoring uses server-observed request arrival rather than the claimed
+elapsed value. A fixed 750 ms delivery grace accepts captures that arrive just
+after the deadline under realistic classroom latency; arrivals outside that
+bound are rejected, and grace arrivals can receive only the final speed band.
 
 Speed is quantized into five elapsed-percentage bands (100%, 80%, 60%, 40%,
-20%; expired 0%) rather than raw arrival milliseconds. Existing room speed
+20%; expired 0%) rather than raw arrival milliseconds. Server-observed band
+boundaries carry the same 750 ms classroom tolerance as delivery, preventing a
+small arrival difference from deciding a boundary tie without trusting a client
+claim. Existing room speed
 influence adjustment remains downstream of this scorer. Accuracy's 1,000-point
 foundation, streak/comeback behavior, and second-chance no-speed rule are
 unchanged.
@@ -49,11 +57,16 @@ genuinely faster response crosses a higher band; fast partial work remains
 below full correctness. Thirty independently delayed clients converge on the
 same room token and a duplicate retry leaves exactly thirty receipts.
 
-No Firestore throughput limitation was measured by the deterministic model:
-submissions retain the existing one-private-player/one-public-player write
-distribution and do not create a room-document hot spot. Emulator execution in
-the authoring environment was unavailable because Firebase's emulator JAR
-download returned HTTP 403; CI remains the authoritative emulator measurement.
+The real emulator integration uses 24 concurrent authenticated callable
+requests and verifies receipts, duplicate ids, same-student retry, token/version
+advance, bounded late arrival, genuinely late rejection, and public/private
+separation. This establishes transactional behavior in the emulator, not
+production throughput: the emulator does not reproduce every production quota.
+The 30-client deterministic model remains supplemental protocol stress coverage.
+
+The browser harness additionally delays acknowledgement, interrupts transport,
+reloads with a stored pending envelope, verifies automatic same-id recovery and
+one score, advances the round, and verifies that expired state does not reopen.
 
 ## Deployment boundary
 
@@ -61,4 +74,3 @@ This change requires **Hosting, Firestore rules, and Functions**. It does not
 add a WebSocket service, collection readable by students, answer-bearing public
 state, or deployment action. Production deployment is intentionally deferred
 until after review.
-

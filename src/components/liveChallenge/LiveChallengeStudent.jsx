@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import QuestionEngine from '../../QuestionEngine.jsx';
 import { publicLeaderboard, LIVE_PROVISIONAL_MAX_POINTS } from '../../../functions/shared/liveChallenge.mjs';
-import { acceptChallengeSnapshot, calibrateChallengeClock } from '../../../functions/shared/liveChallengeParity.mjs';
+import { acceptChallengeSnapshot, calibrateChallengeClock, challengePhaseAt } from '../../../functions/shared/liveChallengeParity.mjs';
 import { calculateStepPartialCredit, emptyQuestionRecord, recordQuestionStep } from '../../attemptPolicy.js';
 import { questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
 import LiveChallengeFieldQuestion from './LiveChallengeFieldQuestion.jsx';
@@ -133,6 +133,8 @@ export function ChallengeRound({
   const [pending, setPending] = useState(() => {
     try { return JSON.parse(window.localStorage.getItem(pendingKey) || 'null'); } catch { return null; }
   });
+  const recoveredPendingRef = useRef(Boolean(pending));
+  const submissionInFlightRef = useRef(false);
   const [submitError, setSubmitError] = useState('');
   const [stepRecord, setStepRecord] = useState(() => emptyQuestionRecord());
   const stepRecordRef = useRef(stepRecord);
@@ -187,6 +189,7 @@ export function ChallengeRound({
     // retained so a transient failure retries rather than creating an attempt.
     setPending(capture);
     window.localStorage.setItem(pendingKey, JSON.stringify(capture));
+    submissionInFlightRef.current = true;
     try {
       const grading = await submitResponse(capture);
       setResult(grading);
@@ -206,11 +209,12 @@ export function ChallengeRound({
     } catch (error) {
       setSubmitError(error?.message || 'Your answer could not be submitted.');
       return null;
-    }
+    } finally { submissionInFlightRef.current = false; }
   };
 
   const retryPending = async () => {
-    if (!pending || result) return;
+    if (!pending || result || submissionInFlightRef.current) return;
+    submissionInFlightRef.current = true;
     setSubmitError('');
     try {
       const grading = await submitResponse(pending);
@@ -218,8 +222,31 @@ export function ChallengeRound({
       setPending(null);
       window.localStorage.removeItem(pendingKey);
       onResult?.(grading);
-    } catch (error) { setSubmitError(error?.message || 'Still reconnecting. Your locked answer is safe.'); }
+    } catch (error) {
+      const code = String(error?.code || '');
+      if (/failed-precondition|deadline-exceeded|not-found/.test(code)) {
+        setPending(null);
+        window.localStorage.removeItem(pendingKey);
+        setSubmitError('That round has closed. Your screen has caught up safely.');
+      } else setSubmitError(error?.message || 'Still reconnecting. Your locked answer is safe.');
+    } finally { submissionInFlightRef.current = false; }
   };
+
+  useEffect(() => {
+    if (!pending || result) return undefined;
+    const recover = () => retryPending();
+    const timer = recoveredPendingRef.current ? window.setTimeout(() => {
+      recoveredPendingRef.current = false;
+      recover();
+    }, 0) : null;
+    window.addEventListener('online', recover);
+    return () => {
+      if (timer != null) window.clearTimeout(timer);
+      window.removeEventListener('online', recover);
+    };
+    // Retry identity is the persisted envelope; never manufacture a new one.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending?.submissionId, result]);
 
   const currentSelf = leaderboard.find((entry) => entry.playerKey === playerKey);
 
@@ -321,7 +348,7 @@ export function ChallengeRound({
       {pending && !result && <div aria-live="assertive" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>Answer locked · waiting for secure server confirmation…</div>}
 
       {submitError && <div role="alert" style={{ padding: 11, borderRadius: 9, background: '#4a3708', color: '#ffe9a8', border: '1px solid #f9ab00' }}>{submitError}</div>}
-      {submitError && pending && <button type="button" onClick={retryPending}>Retry locked answer</button>}
+      {pending && !result && <button type="button" onClick={retryPending}>Retry locked answer</button>}
       {expired && !result && <div aria-live="polite" style={{ padding: 15, borderRadius: 11, background: 'rgba(255,255,255,.08)', color: '#eef1f6', border: '1px solid rgba(255,255,255,.16)', fontWeight: 900 }}>Time is up. Wait for your teacher to start the next round.</div>}
       {result && (
         <section aria-live="polite" style={{ padding: 16, borderRadius: 12, background: result.isCorrect ? '#e6f4ea' : '#fff4ce', color: result.isCorrect ? '#137333' : '#7a4f00', textAlign: 'left' }}>
@@ -361,8 +388,14 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
 
   useEffect(() => {
     if (!roomId) { setRoom(null); return undefined; }
-    return watchLiveChallengeRoom(roomId, (next) => setRoom((current) => acceptChallengeSnapshot(current, next)), (watchError) => setError(watchError?.message || 'Could not load the Live Challenge.'));
-  }, [roomId]);
+    return watchLiveChallengeRoom(roomId, (next) => {
+      const phase = challengePhaseAt({
+        ...next,
+        roundEndsAtMs: timestampMillis(next?.endsAt || next?.roundEndsAt),
+      }, Date.now() + clock.offsetMs);
+      setRoom((current) => acceptChallengeSnapshot(current, { ...next, phase }));
+    }, (watchError) => setError(watchError?.message || 'Could not load the Live Challenge.'));
+  }, [roomId, clock.offsetMs]);
 
   useEffect(() => {
     if (!roomId) return undefined;
@@ -391,6 +424,17 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
 
   const activeRound = room?.status === 'running' ? Number(room.currentRound) : null;
   const leaderboard = useMemo(() => publicLeaderboard(players, { activeRound }), [players, activeRound]);
+
+  useEffect(() => {
+    if (!roomId || activeRound == null) return;
+    const currentPrefix = `live-challenge-pending-${roomId}-${activeRound}-${room?.roundVersion || 0}`;
+    for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
+      const key = window.localStorage.key(index);
+      if (key?.startsWith(`live-challenge-pending-${roomId}-`) && key !== currentPrefix) {
+        window.localStorage.removeItem(key);
+      }
+    }
+  }, [roomId, activeRound, room?.roundVersion]);
 
   useEffect(() => {
     if (!roomId || joining || !room || !['lobby', 'running'].includes(room.status)) return;

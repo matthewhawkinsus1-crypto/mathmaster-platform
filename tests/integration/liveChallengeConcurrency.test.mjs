@@ -101,6 +101,9 @@ await db.collection('pathQuestionBank').doc(authored.id).set(authored);
 await roomRef.set({
   schemaVersion: 2, title: 'Whole class', teacherEmail: TEACHER, status: 'running',
   roundCount: 1, roundSeconds: 120, currentRound: 0,
+  roundVersion: 1, roundToken: 'round-token-0', phase: 'answering',
+  startsAt: admin.firestore.Timestamp.fromMillis(Date.now()),
+  endsAt: admin.firestore.Timestamp.fromMillis(Date.now() + 900000),
   roundStartedAt: admin.firestore.Timestamp.fromMillis(Date.now()),
   roundEndsAt: admin.firestore.Timestamp.fromMillis(Date.now() + 900000),
   currentQuestion: { questionInstanceId: `challenge_${ROOM}_r1` },
@@ -133,6 +136,9 @@ const settled = await Promise.allSettled(students.map((studentId, index) => (
   functionsIndex.submitLiveChallengeResponse.run(studentRequest({
     roomId: ROOM,
     roundIndex: 0,
+    roundVersion: 1,
+    roundToken: 'round-token-0',
+    submissionId: `round-0-${studentId}`,
     responsePayload: { responses: { answer: index < WRONG_ANSWERERS ? 'not-the-answer' : correctAnswer } },
   }, studentId))
 )));
@@ -196,6 +202,20 @@ test('each player is scored once, and only their own answer', () => {
   assert.equal(correct, CLASS_SIZE - WRONG_ANSWERERS);
 });
 
+test('same submission id retries to the authoritative receipt without another score', async () => {
+  const before = (await privateRef.collection('players').doc(students[8]).get()).data();
+  const duplicate = await functionsIndex.submitLiveChallengeResponse.run(studentRequest({
+    roomId: ROOM, roundIndex: 0, roundVersion: 1, roundToken: 'round-token-0',
+    submissionId: `round-0-${students[8]}`,
+    responsePayload: { responses: { answer: correctAnswer } },
+  }, students[8]));
+  const after = (await privateRef.collection('players').doc(students[8]).get()).data();
+  assert.equal(duplicate.duplicate, true);
+  assert.equal(after.score, before.score);
+  assert.equal(after.roundsAnswered, 1);
+  assert.equal(after.submissionReceipts[`round-0-${students[8]}`].serverConfirmed, true);
+});
+
 test('the public leaderboard has one row per student and leaks no identity', () => {
   assert.equal(publicDocs.size, CLASS_SIZE);
   publicDocs.forEach((docSnapshot) => {
@@ -208,6 +228,10 @@ test('the public leaderboard has one row per student and leaks no identity', () 
 test('one student double-tapping cannot score twice, even simultaneously', async () => {
   await roomRef.set({
     currentRound: 1,
+    roundVersion: 2,
+    roundToken: 'round-token-1',
+    startsAt: admin.firestore.Timestamp.fromMillis(Date.now()),
+    endsAt: admin.firestore.Timestamp.fromMillis(Date.now() + 900000),
     roundEndsAt: admin.firestore.Timestamp.fromMillis(Date.now() + 900000),
   }, { merge: true });
   await privateRef.set({ questionIds: [authored.id, authored.id] }, { merge: true });
@@ -216,9 +240,11 @@ test('one student double-tapping cannot score twice, even simultaneously', async
   const plan = await mathPath.buildIssuePlan(instantiated.question);
   const answer = plan.privateGrading.fields[0].expected;
 
-  const doubleTap = await Promise.allSettled([0, 1].map(() => (
+  const doubleTap = await Promise.allSettled([0, 1].map((attempt) => (
     functionsIndex.submitLiveChallengeResponse.run(studentRequest({
-      roomId: ROOM, roundIndex: 1, responsePayload: { responses: { answer } },
+      roomId: ROOM, roundIndex: 1, roundVersion: 2, roundToken: 'round-token-1',
+      submissionId: `double-tap-${students[0]}-${attempt}`,
+      responsePayload: { responses: { answer } },
     }, students[0]))
   )));
   const accepted = doubleTap.filter((entry) => entry.status === 'fulfilled');
@@ -227,6 +253,59 @@ test('one student double-tapping cannot score twice, even simultaneously', async
   const record = (await privateRef.collection('players').doc(students[0]).get()).data();
   assert.equal(record.roundsAnswered, 2, 'one answer for round 0 and one for round 1, not three');
   assert.deepEqual(record.answeredRounds.map(Number).sort((a, b) => a - b), [0, 1]);
+});
+
+test('stale round token cannot mutate the advanced round', async () => {
+  const before = (await privateRef.collection('players').doc(students[3]).get()).data();
+  const error = await functionsIndex.submitLiveChallengeResponse.run(studentRequest({
+    roomId: ROOM, roundIndex: 1, roundVersion: 1, roundToken: 'round-token-0',
+    submissionId: 'stale-round-traffic', responsePayload: { responses: { answer: correctAnswer } },
+  }, students[3])).then(() => null, (reason) => reason);
+  const after = (await privateRef.collection('players').doc(students[3]).get()).data();
+  assert.equal(error?.code, 'failed-precondition');
+  assert.equal(after.score, before.score);
+  assert.equal(after.roundsAnswered, before.roundsAnswered);
+});
+
+test('bounded late arrival is accepted but genuinely late traffic is rejected', async () => {
+  const now = Date.now();
+  await privateRef.set({ questionIds: [authored.id, authored.id, authored.id] }, { merge: true });
+  await roomRef.set({
+    currentRound: 2, roundVersion: 3, roundToken: 'round-token-2',
+    startsAt: admin.firestore.Timestamp.fromMillis(now - 120000),
+    endsAt: admin.firestore.Timestamp.fromMillis(now - 300),
+    roundStartedAt: admin.firestore.Timestamp.fromMillis(now - 120000),
+    roundEndsAt: admin.firestore.Timestamp.fromMillis(now - 300),
+  }, { merge: true });
+  const instantiated = await mathPath.instantiateQuestion(authored, `challenge|${ROOM}|2|${authored.id}`);
+  const plan = await mathPath.buildIssuePlan(instantiated.question);
+  const accepted = await functionsIndex.submitLiveChallengeResponse.run(studentRequest({
+    roomId: ROOM, roundIndex: 2, roundVersion: 3, roundToken: 'round-token-2', submissionId: 'bounded-late',
+    responsePayload: { responses: { answer: plan.privateGrading.fields[0].expected } },
+  }, students[4]));
+  assert.equal(accepted.serverConfirmed, true);
+  assert.equal(accepted.speedTier, 'deadline');
+
+  await roomRef.set({
+    currentRound: 3, roundVersion: 4, roundToken: 'round-token-3',
+    startsAt: admin.firestore.Timestamp.fromMillis(now - 120000),
+    endsAt: admin.firestore.Timestamp.fromMillis(Date.now() - 800),
+  }, { merge: true });
+  await privateRef.set({ questionIds: [authored.id, authored.id, authored.id, authored.id] }, { merge: true });
+  const rejectedLate = await functionsIndex.submitLiveChallengeResponse.run(studentRequest({
+    roomId: ROOM, roundIndex: 3, roundVersion: 4, roundToken: 'round-token-3', submissionId: 'too-late',
+    responsePayload: { responses: { answer: correctAnswer } },
+  }, students[5])).then(() => null, (reason) => reason);
+  assert.equal(rejectedLate?.code, 'deadline-exceeded');
+});
+
+test('receipts and audit evidence remain private', async () => {
+  const privatePlayer = (await privateRef.collection('players').doc(students[8]).get()).data();
+  const publicPlayer = (await roomRef.collection('players').doc('pk-8').get()).data();
+  assert.ok(privatePlayer.submissionReceipts);
+  assert.ok(privatePlayer.lastSubmissionAudit);
+  assert.equal(publicPlayer.submissionReceipts, undefined);
+  assert.equal(publicPlayer.lastSubmissionAudit, undefined);
 });
 
 test('the whole class completing is reported, not silently slow', () => {

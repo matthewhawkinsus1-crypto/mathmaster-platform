@@ -6955,10 +6955,12 @@ async function openLiveChallengeRound({ db, roomRef, privateRef, room, privateSt
 // A deliberately tiny calibration endpoint. Calling it several times lets the
 // browser estimate offset/RTT without granting it any scoring authority.
 exports.calibrateLiveChallengeClock = onCall(async (request) => {
-  const { studentId } = requireStudent(request);
+  const isTeacher = request.auth?.token?.role === "teacher";
+  const studentId = isTeacher ? null : requireStudent(request).studentId;
+  if (isTeacher) await requireTeacher(request);
   const serverAt = Date.now();
   const roomId = String(request.data?.roomId || "").trim();
-  if (roomId && request.data?.quality) {
+  if (studentId && roomId && request.data?.quality) {
     const db = getFirestore();
     const privatePlayer = await db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId).collection("players").doc(studentId).get();
     if (privatePlayer.exists && privatePlayer.data()?.playerKey) {
@@ -7299,9 +7301,11 @@ exports.reportLiveChallengeProgress = onCall(async (request) => {
 });
 
 exports.submitLiveChallengeResponse = onCall(async (request) => {
+  const requestArrivedAt = Date.now();
   const { studentId } = requireStudent(request);
   const db = getFirestore();
   const challenge = await liveChallengeRules();
+  const parity = await import("./shared/liveChallengeParity.mjs");
   const roomId = String(request.data?.roomId || "").trim();
   const submittedRound = Number(request.data?.roundIndex);
   // Omission remains accepted during the rolling Hosting/Functions deploy;
@@ -7335,8 +7339,10 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   if (Number(room.roundVersion) !== submittedVersion || String(room.roundToken || "") !== submittedToken) {
     throw new HttpsError("failed-precondition", "That submission belongs to a stale round version.");
   }
-  const endsAtMs = toDate(room.roundEndsAt)?.getTime() || 0;
-  if (endsAtMs && Date.now() > endsAtMs) throw new HttpsError("deadline-exceeded", "Time is up for this round.");
+  const endsAtMs = toDate(room.endsAt || room.roundEndsAt)?.getTime() || 0;
+  const startsAtMs = toDate(room.startsAt || room.roundStartedAt)?.getTime() || 0;
+  const initialArrival = parity.submissionArrivalDecision({ arrivedAtMs: requestArrivedAt, startsAtMs, endsAtMs });
+  if (!initialArrival.accepted) throw new HttpsError("deadline-exceeded", "The bounded delivery window for this round has ended.");
   if (!currentPlayer.joined) throw new HttpsError("failed-precondition", "Join the Live Challenge before answering.");
   if (Number(currentPlayer.answeredRound) === submittedRound) throw new HttpsError("already-exists", "You already answered this round.");
 
@@ -7372,9 +7378,11 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     if (Number(latestRoom.roundVersion) !== submittedVersion || String(latestRoom.roundToken || "") !== submittedToken) {
       throw new HttpsError("failed-precondition", "That submission belongs to a stale round version.");
     }
-    const latestEndsAtMs = toDate(latestRoom.roundEndsAt)?.getTime() || 0;
+    const latestEndsAtMs = toDate(latestRoom.endsAt || latestRoom.roundEndsAt)?.getTime() || 0;
+    const latestStartsAtMs = toDate(latestRoom.startsAt || latestRoom.roundStartedAt)?.getTime() || 0;
     const nowMs = Date.now();
-    if (latestEndsAtMs && nowMs > latestEndsAtMs) throw new HttpsError("deadline-exceeded", "Time is up for this round.");
+    const arrival = parity.submissionArrivalDecision({ arrivedAtMs: requestArrivedAt, startsAtMs: latestStartsAtMs, endsAtMs: latestEndsAtMs });
+    if (!arrival.accepted) throw new HttpsError("deadline-exceeded", "The bounded delivery window for this round has ended.");
     if (!player.joined) throw new HttpsError("failed-precondition", "Join the Live Challenge before answering.");
     if (Number(player.answeredRound) === submittedRound) throw new HttpsError("already-exists", "You already answered this round.");
     if (!player.playerKey) throw new HttpsError("failed-precondition", "Your Live Challenge player record is incomplete.");
@@ -7392,12 +7400,7 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
       isCorrect: grading?.isCorrect === true,
       remainingMs: Math.max(0, latestEndsAtMs - nowMs),
       totalMs: challenge.normalizeRoundSeconds(latestRoom.roundSeconds) * 1000,
-      elapsedMs: (await import("./shared/liveChallengeParity.mjs")).authoritativeElapsed({
-        humanElapsedMs: request.data?.humanElapsedMs,
-        arrivedAtMs: nowMs,
-        startsAtMs: toDate(latestRoom.startsAt || latestRoom.roundStartedAt)?.getTime() || nowMs,
-        totalMs: challenge.normalizeRoundSeconds(latestRoom.roundSeconds) * 1000,
-      }),
+      elapsedMs: arrival.elapsedMs,
       previousStreak: player.streak || 0,
       // Tracked explicitly rather than inferred from a zero streak, which is
       // also a player's very first round.
@@ -7459,6 +7462,7 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
       lastSubmissionAudit: {
         roomId, roundIndex: submittedRound, roundVersion: submittedVersion, submissionId,
         capturedElapsedMs: Math.max(0, Number(request.data?.humanElapsedMs) || 0),
+        serverArrivalInGrace: arrival.inGrace,
         connectionQuality: String(request.data?.connectionQuality || "unknown").slice(0, 24),
         speedTier: finalScore.speedTier, pointsAwarded: finalScore.pointsAwarded,
         serverConfirmed: true, duplicate: false,

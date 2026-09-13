@@ -47,35 +47,41 @@ export const submitLiveChallengeResponse = async (payload) => {
   const ref = doc(db, 'liveChallengeRooms', roomId, 'players', playerKey);
   const existing = await getDoc(ref);
   const previous = existing.exists() ? existing.data() : {};
+  if (window.__mmGameSubmitDelayMs) await new Promise((resolve) => { setTimeout(resolve, window.__mmGameSubmitDelayMs); });
+  if (window.__mmGameFailNextSubmit) {
+    window.__mmGameFailNextSubmit = false;
+    const error = new Error('Simulated temporary Wi-Fi interruption.');
+    error.code = 'unavailable';
+    throw error;
+  }
+  if (previous.lastSubmissionId === payload.submissionId && previous.lastSubmissionReceipt) {
+    return { ...previous.lastSubmissionReceipt, duplicate: true };
+  }
   // The grade the real grader would return for this harness's seeded question.
   const isCorrect = window.__mmGameNextAnswerCorrect !== false;
+  const totalScore = Math.max(0, Number(previous.score) || 0) + (isCorrect ? 1000 : 0);
+  const receipt = {
+    isCorrect, scorePercent: isCorrect ? 100 : 0, pointsAwarded: isCorrect ? 1000 : 0,
+    basePoints: isCorrect ? 1000 : 0, speedBonus: 0, speedTier: 'none', streakBonus: 0,
+    comebackBonus: 0, recoveryPoints: 0, secondChance: false, totalScore,
+    streak: isCorrect ? 1 : 0, rank: null, submissionId: payload.submissionId,
+    serverConfirmed: true, duplicate: false,
+  };
   await setDoc(ref, {
     ...previous,
     score: Math.max(0, Number(previous.score) || 0) + (isCorrect ? 1000 : 0),
     correctCount: Math.max(0, Number(previous.correctCount) || 0) + (isCorrect ? 1 : 0),
     roundsAnswered: Math.max(0, Number(previous.roundsAnswered) || 0) + 1,
     answeredRound: roundIndex,
+    lastSubmissionId: payload.submissionId,
+    lastSubmissionReceipt: receipt,
     updatedAt: serverTimestamp(),
   }, { merge: true });
   // The exact shape submitLiveChallengeResponse returns. An approximation here
   // is worse than useless: the first version of this stub omitted totalScore,
   // the round threw on it, and the harness reported a crash the server could
   // never actually cause.
-  const totalScore = Math.max(0, Number(previous.score) || 0) + (isCorrect ? 1000 : 0);
-  return {
-    isCorrect,
-    scorePercent: isCorrect ? 100 : 0,
-    pointsAwarded: isCorrect ? 1000 : 0,
-    basePoints: isCorrect ? 1000 : 0,
-    speedBonus: 0,
-    streakBonus: 0,
-    comebackBonus: 0,
-    recoveryPoints: 0,
-    secondChance: false,
-    totalScore,
-    streak: isCorrect ? 1 : 0,
-    rank: null,
-  };
+  return receipt;
 };
 
 /*
