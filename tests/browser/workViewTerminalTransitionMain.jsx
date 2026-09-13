@@ -18,8 +18,11 @@ const QUESTIONS = {
   },
   relationAlgebra: {
     type: 'stepAlgebra',
-    prompt: 'Solve the compound inequality −7 < 2x + 1 ≤ 9.',
-    equation: '-7 < 2*x + 1 <= 9',
+    prompt: 'Solve |2x - 3| < 7 step by step. Give the complete solution set.',
+    equation: '|2*x - 3| < 7',
+    solveFor: 'x',
+    relationWorkspace: true,
+    expectedStepPoints: 4,
   },
   nestedRegistry: {
     ...SAMPLE_SPECS.constraintFunctionBuilder,
