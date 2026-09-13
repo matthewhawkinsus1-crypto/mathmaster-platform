@@ -76,6 +76,12 @@ for (const viewport of [{ name: 'chromebook', width: 1366, height: 768 }, { name
     isMobile: viewport.name === 'phone',
   });
   const page = await context.newPage();
+  const pageErrors = [];
+  const consoleErrors = [];
+  page.on('pageerror', (error) => pageErrors.push(String(error?.stack || error?.message || error)));
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text());
+  });
   for (const route of ['simpleRegistry', 'relationAlgebra', 'nestedRegistry']) {
     await page.goto(`${origin}/tests/browser/workViewTerminalTransition.html`, { waitUntil: 'networkidle' });
     await page.waitForFunction(() => window.__mmTerminalLifecycleReady === true);
@@ -92,7 +98,7 @@ for (const viewport of [{ name: 'chromebook', width: 1366, height: 768 }, { name
         question: document.querySelector('[data-terminal-question]')?.getAttribute('data-terminal-question') || null,
         text: document.body?.innerText?.slice(0, 1200) || '',
       }));
-      throw new Error(`terminal route did not render: ${JSON.stringify(diagnostics)}; ${error.message}`);
+      throw new Error(`terminal route did not render: ${JSON.stringify({ ...diagnostics, pageErrors: pageErrors.slice(-5), consoleErrors: consoleErrors.slice(-5) })}; ${error.message}`);
     }
 
     await openWorkView(page);
