@@ -148,6 +148,7 @@ export const defaultTestCyclePolicy = () => normalizeTestCyclePolicy({ mode: TES
 export const normalizeTeacherControls = (controls) => {
   const source = isObject(controls) ? controls : {};
   return Object.freeze({
+    reviewWaived: source.reviewWaived === true,
     requireCorrections: source.requireCorrections !== false,
     correctionsWaived: source.correctionsWaived === true,
     retestUnlocked: source.retestUnlocked === true,
@@ -158,6 +159,8 @@ export const normalizeTeacherControls = (controls) => {
 };
 
 export const TEACHER_CONTROL_ACTIONS = Object.freeze([
+  'waiveReview',
+  'requireReview',
   'requireCorrections',
   'waiveCorrections',
   'unlockRetest',
@@ -171,6 +174,12 @@ export const applyTeacherControlAction = (controls, action) => {
   const name = clean(action);
   if (!TEACHER_CONTROL_ACTIONS.includes(name)) {
     throw new Error(`Unsupported Test Cycle teacher action: ${action}`);
+  }
+  if (name === 'waiveReview') {
+    return normalizeTeacherControls({ ...current, reviewWaived: true });
+  }
+  if (name === 'requireReview') {
+    return normalizeTeacherControls({ ...current, reviewWaived: false });
   }
   if (name === 'requireCorrections') {
     return normalizeTeacherControls({ ...current, requireCorrections: true, correctionsWaived: false });
