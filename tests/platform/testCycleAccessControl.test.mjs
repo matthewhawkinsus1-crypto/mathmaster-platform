@@ -70,7 +70,11 @@ test('a secure session replaced by a teacher reset is not enterable', () => {
     'async function teacherOwnedClassIds(',
     'entry guard',
   );
-  assert.match(guard, /currentSessionId && currentSessionId !== session\.examSessionId/);
+  // Bound to the behaviour, not to the comparison's spelling. The #224
+  // certification found that `currentSessionId && ...` let an EMPTIED stage
+  // readmit the session a reset had just discarded, so the comparison is now an
+  // exact match — a strengthening, which must not read here as a removal.
+  assert.match(guard, /currentSessionId[^\n]*!==[^\n]*session\.examSessionId/);
   assert.match(guard, /replaced by your teacher/);
 });
 

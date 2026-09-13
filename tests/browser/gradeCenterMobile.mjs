@@ -109,7 +109,19 @@ for (const scene of SCENES) {
   // eslint-disable-next-line no-await-in-loop
   const seen = await page.evaluate((minTap) => {
     const root = document.querySelector('[data-mm-scene]');
-    const viewportWidth = window.innerWidth;
+    /*
+     * THE LAYOUT VIEWPORT IS clientWidth, NOT window.innerWidth.
+     *
+     * This harness runs with isMobile: true, and under Chromium's mobile
+     * emulation `window.innerWidth` expands to the width of overflowing
+     * content. A 390px phone rendering a 950px page reports innerWidth 950, so
+     * `documentScrollWidth > viewportWidth` compared a number with itself and
+     * the sideways-scroll check — the headline check of this file — could never
+     * fire. The `overflowing` scan below was blinded the same way.
+     *
+     * `document.documentElement.clientWidth` stays the layout viewport.
+     */
+    const viewportWidth = document.documentElement.clientWidth;
     const controls = [...document.querySelectorAll('button, a[href], input, select')];
     const smallTargets = controls
       .map((element) => ({ element, box: element.getBoundingClientRect() }))

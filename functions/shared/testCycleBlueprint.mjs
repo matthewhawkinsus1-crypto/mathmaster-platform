@@ -174,8 +174,21 @@ export const describeFamily = (question) => {
     source.teks,
   ]);
   return {
-    familyId: clean(source.familyId) || clean(source.id) || clean(source.questionId) || null,
+    /*
+     * THE FAMILY KEY IS THE BANK DOCUMENT ID, NOT THE `familyId` FIELD.
+     *
+     * A blueprint names its families by the id you can fetch, and the issuing
+     * server re-resolves `entry.familyId` as a `pathQuestionBank` document id
+     * when it comes to instantiate the item. Real bank questions carry BOTH a
+     * document id and a descriptive `familyId` that is usually different
+     * (`mm_A_2A_v2_bounded-range` vs `mathmaster:A.2A:v2-bounded-range`), so
+     * preferring the descriptive one indexed every family under a key nothing
+     * downstream could look up.
+     */
+    familyId: clean(source.id) || clean(source.questionId) || clean(source.familyId) || null,
     bankQuestionId: clean(source.id) || clean(source.questionId) || null,
+    // Kept for teacher-facing provenance. It is deliberately not the key.
+    authoredFamilyId: clean(source.familyId) || null,
     alignmentKeys: alignments,
     dok: clampInt(source.dok, 1, 4, 2),
     difficultyBand: clampInt(source.difficultyBand, 1, 5, 3),
@@ -195,13 +208,25 @@ export const describeFamily = (question) => {
   };
 };
 
-/** Index approved families by id, keeping only validated, active ones. */
+/**
+ * Index approved families by the id a blueprint addresses them with.
+ *
+ * INPUT IS ALWAYS A BANK QUESTION. There used to be a shortcut here that
+ * treated any object carrying `familyId` and `alignmentKeys` as an
+ * already-built descriptor and passed it through undescribed. Every real Path
+ * bank question carries both, so the shortcut fired on exactly the input it was
+ * meant to skip: `validated`, `active` and `generative` were then never
+ * computed, `validated` came back undefined, and every real family was dropped
+ * from the index. A blueprint built on the real bank failed preflight with
+ * "names no approved, validated generator family" and could not be assigned at
+ * all.
+ *
+ * So there is no shortcut. `describeFamily` is the only way in.
+ */
 export const indexApprovedFamilies = (families) => {
   const index = new Map();
   list(families).forEach((entry) => {
-    const described = isObject(entry) && entry.familyId && entry.alignmentKeys
-      ? entry
-      : describeFamily(entry);
+    const described = describeFamily(entry);
     if (!described.familyId || !described.validated || !described.active) return;
     if (!index.has(described.familyId)) index.set(described.familyId, described);
   });

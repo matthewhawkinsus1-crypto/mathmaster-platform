@@ -91,7 +91,26 @@ export const resolveTestCycleStage = ({
   };
 
   const reviewRequired = resolved.review.required && normalized.review.required !== false;
+  /*
+   * A STUDENT WHO HAS STARTED THE SECURE TEST IS PAST REVIEW BY CONSTRUCTION.
+   *
+   * Review completion lives in the ordinary assignment tracker, which only the
+   * student's own card passes in. Every other reader — the teacher gradebook
+   * most of all — resolves a stage without it, and used to get "Review" back
+   * for a student who had finished the whole cycle, because an absent
+   * `reviewProgress` read as an unfinished Review.
+   *
+   * The record itself already answers the question. The secure Test cannot be
+   * entered until the Review gate opens (the server enforces that at entry), so
+   * a Test that has been started, submitted or released is proof the gate was
+   * passed. Reading it from the record makes the stage correct for every caller
+   * instead of only the one holding a tracker.
+   */
+  const testMovedPastReview = [
+    SESSION_STATE.IN_PROGRESS, SESSION_STATE.SUBMITTED, SESSION_STATE.RELEASED,
+  ].includes(normalized.test.state);
   const reviewComplete = normalized.review.complete === true
+    || testMovedPastReview
     || (reviewProgress ? reviewProgress.complete === true : false)
     // A Test Cycle with no Review content cannot be gated on Review.
     || (reviewProgress ? Number(reviewProgress.total || 0) === 0 : false);

@@ -5,7 +5,7 @@ import {
   assertFails, assertSucceeds, initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
-  collection, doc, getDoc, getDocs, query, setDoc, where,
+  collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where,
 } from 'firebase/firestore';
 
 // Authenticated requests, through the real Security Rules, in the Firestore
@@ -540,6 +540,36 @@ test('a student cannot read their own Test Cycle record, plans, or write a recor
   await assertFails(getDoc(doc(studentA(), 'testCycleCorrectionPlans/assignment-1__STUDENT_A')));
   await assertFails(getDoc(doc(studentA(), 'testCycleRetestPlans/assignment-1__STUDENT_A')));
   await assertFails(setDoc(doc(studentA(), 'testCycleRecords/assignment-1__STUDENT_A'), { recordedGrade: 100 }));
+});
+
+test('no client can write the recorded Test Cycle grade, not even the student who owns the row', async () => {
+  /*
+   * `grades/{studentId}` is deliberately student-writable — that is how
+   * ordinary assignment work is saved. The Test Cycle projection on it is not
+   * ordinary work: it is the single source the Grade Center, the teacher
+   * gradebook and Google Classroom passback read, and writing it is what wakes
+   * the passback trigger. A student who could set it could post themselves a
+   * grade in Google Classroom.
+   */
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'grades/STUDENT_A'), {
+      displayName: 'Student A', classId: 'class-a', classPeriod: 'Period 1',
+      assignedTeacherEmail: TEACHER_A, status: 'active', gradesByAssignment: {},
+      testCycleGrades: { 'assignment-1': { recordedGrade: 52, originalTestGrade: 52 } },
+    });
+  });
+
+  const forged = { 'assignment-1': { recordedGrade: 100, originalTestGrade: 100 } };
+  await assertFails(updateDoc(doc(studentA(), 'grades/STUDENT_A'), { testCycleGrades: forged }));
+  await assertFails(updateDoc(doc(teacherA(), 'grades/STUDENT_A'), { testCycleGrades: forged }));
+  await assertFails(updateDoc(doc(admin(), 'grades/STUDENT_A'), { testCycleGrades: forged }));
+  // Removing it is no more allowed than rewriting it.
+  await assertFails(updateDoc(doc(studentA(), 'grades/STUDENT_A'), { testCycleGrades: {} }));
+
+  // And ordinary work still saves, which is what the document is for.
+  await assertSucceeds(updateDoc(doc(studentA(), 'grades/STUDENT_A'), {
+    gradesByAssignment: { 'assignment-1': { 0: { status: 'correct' } } },
+  }));
 });
 
 test('a student cannot read the path question bank, which holds answer keys', async () => {

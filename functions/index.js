@@ -10262,12 +10262,6 @@ async function createCourseTestSession(db, {
 async function assertCourseTestEntryAllowed(db, session, studentId) {
   const courseTest = session?.courseTest;
   if (!courseTest?.assignmentId) return;
-  // A finished session cannot be sat again by anyone, so the stage question
-  // does not arise. Returning early keeps the existing behaviour of
-  // `startSecureExamSession` on a terminal session — it hands back the session
-  // and the container shows "Exam recorded" — rather than turning it into an
-  // error the student cannot act on.
-  if (secureExam.TERMINAL_STATES.has(session.status)) return;
   const shared = await testCycleLib.shared();
   const assignmentSnapshot = await db.collection("assignments").doc(String(courseTest.assignmentId)).get();
   if (!assignmentSnapshot.exists) throw new HttpsError("failed-precondition", "This assessment is no longer available.");
@@ -10280,10 +10274,28 @@ async function assertCourseTestEntryAllowed(db, session, studentId) {
     db.collection("grades").doc(studentId).get(),
     readTestCycleRecord(db, courseTest.assignmentId, studentId, shared),
   ]);
+
+  /*
+   * SUPERSESSION IS CHECKED BEFORE ANYTHING ELSE, TERMINAL STATE INCLUDED.
+   *
+   * A reset force-submits the session it replaces, so a superseded session is
+   * always terminal. Checking "is it finished?" first therefore let the
+   * discarded session through and showed the student "Exam recorded" — which
+   * is a lie about work the reset threw away.
+   *
+   * Exact match, for the same reason the release guard demands one: a reset
+   * empties the stage, and an empty stage must not readmit what it discarded.
+   */
   const currentSessionId = isRetest ? record.retest.examSessionId : record.test.examSessionId;
-  if (currentSessionId && currentSessionId !== session.examSessionId) {
+  if (String(currentSessionId || "") !== String(session.examSessionId || "")) {
     throw new HttpsError("failed-precondition", "This secure session was replaced by your teacher. Reopen the assessment from Assignments.");
   }
+
+  // A session that is still the current one and has simply been finished keeps
+  // the existing behaviour: `startSecureExamSession` hands it back and the
+  // container shows "Exam recorded", rather than an error the student cannot
+  // act on.
+  if (secureExam.TERMINAL_STATES.has(session.status)) return;
 
   const tracker = gradeSnapshot.data()?.gradesByAssignment?.[courseTest.assignmentId] || {};
   const state = shared.stages.resolveTestCycleStage({
@@ -10336,7 +10348,18 @@ async function assertMayProctorCourseTest(db, request, session) {
   }
 }
 
-/** Is this course-test session still the record's current session for its stage? */
+/**
+ * Is this course-test session still the record's current session for its stage?
+ *
+ * AN EMPTY STAGE IS NOT A WILDCARD. This used to read "no current session id"
+ * as "anything is current", which is exactly backwards after a teacher reset:
+ * resetting a stage CLEARS its session id, so the one session that would then
+ * pass the check was the superseded one the reset had just thrown away. It
+ * stayed releasable, and its stale score could land on the replacement attempt.
+ *
+ * So the match is exact. A session whose stage points somewhere else — or
+ * nowhere — is not the session to act on.
+ */
 async function courseTestSessionIsCurrent(db, session) {
   const courseTest = session?.courseTest;
   if (!courseTest?.assignmentId) return true;
@@ -10344,7 +10367,7 @@ async function courseTestSessionIsCurrent(db, session) {
   const record = await readTestCycleRecord(db, courseTest.assignmentId, String(session.studentId || ""), shared);
   const isRetest = String(courseTest.cycleStage) === shared.issuance.CYCLE_STAGE.RETEST;
   const currentSessionId = isRetest ? record.retest.examSessionId : record.test.examSessionId;
-  return !currentSessionId || currentSessionId === session.examSessionId;
+  return String(currentSessionId || "") === String(session.examSessionId || "");
 }
 
 /** Teacher action: open secure Test sessions for a whole class at once. */
@@ -10354,13 +10377,6 @@ exports.assignTestCycleSessions = onCall(async (request) => {
   if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
   const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
   const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
-
-  const { families, result: preflight } = await runTestCyclePreflight(db, { assignment, policy, blueprint, shared });
-  if (preflight.blocked) {
-    // Refused before a single session exists. A Test Cycle that cannot issue
-    // equivalent secure coverage for every student must not reach a classroom.
-    throw new HttpsError("failed-precondition", `This Test Cycle cannot be assigned securely: ${preflight.errors[0]}`, { preflight });
-  }
 
   /*
    * THE AUDIENCE IS THE ASSIGNMENT'S, NOT THE CALLER'S.
@@ -10382,6 +10398,15 @@ exports.assignTestCycleSessions = onCall(async (request) => {
   const classIds = requestedStudentIds.length
     ? []
     : (requestedClassId ? [requestedClassId] : audienceClassIds);
+
+  // Only once the caller is pointing at the right class is it worth generating
+  // and grading sample instances for every declared family.
+  const { families, result: preflight } = await runTestCyclePreflight(db, { assignment, policy, blueprint, shared });
+  if (preflight.blocked) {
+    // Refused before a single session exists. A Test Cycle that cannot issue
+    // equivalent secure coverage for every student must not reach a classroom.
+    throw new HttpsError("failed-precondition", `This Test Cycle cannot be assigned securely: ${preflight.errors[0]}`, { preflight });
+  }
 
   const studentDocs = new Map();
   if (requestedStudentIds.length) {
@@ -10906,10 +10931,19 @@ exports.teacherTestCycleAction = onCall(async (request) => {
 
   const persisted = await persistTestCycleRecord(db, next, { shared, policy });
 
-  // Waiving corrections or unlocking a retest opens the retest immediately —
-  // that is what those controls are FOR.
+  /*
+   * These controls all have to leave the student somewhere they can go.
+   *
+   * Waiving corrections or unlocking a retest opens one because that is what
+   * those controls are FOR. Resetting the RETEST has to open one too: the reset
+   * clears the stage's session, and without a replacement the student sat at
+   * "retest pending" with nothing behind it — the same trap waiving used to be.
+   * Resetting the TEST already mints its replacement inline above.
+   */
+  const resetRetest = action === "resetSecureSession"
+    && String(request.data?.stage || "test").trim() === "retest";
   let retest = null;
-  if (["waiveCorrections", "unlockRetest"].includes(action)) {
+  if (["waiveCorrections", "unlockRetest"].includes(action) || resetRetest) {
     retest = await ensureRetestSession(db, { assignmentId, assignment, policy, blueprint, shared, studentId, teacherUid });
   }
 
