@@ -6,7 +6,7 @@ const openWorkView = async (page) => {
   if (await page.locator('.mathmaster-work-view-host[data-open="true"]').count()) return;
   try {
     await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => {
-      if (!/Open Work View/i.test(button.textContent || '') || button.disabled) return false;
+      if (!/(?:Open Work View|Enlarge(?:\s+[^\n]*)?)/i.test(button.textContent || '') || button.disabled) return false;
       const rect = button.getBoundingClientRect();
       const style = getComputedStyle(button);
       return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
@@ -28,7 +28,7 @@ const openWorkView = async (page) => {
           display: getComputedStyle(button).display,
           visibility: getComputedStyle(button).visibility,
         };
-      }).filter((button) => /Work View|Next Question|Continue/i.test(button.text || '')),
+      }).filter((button) => /Work View|Enlarge|Next Question|Continue/i.test(button.text || '')),
     }));
     throw new Error(`No enabled Work View opener was available: ${JSON.stringify(diagnostics)}; ${error.message}`);
   }
@@ -38,7 +38,7 @@ const openWorkView = async (page) => {
   // never be selected by locator ordering during the React transition.
   const opened = await page.evaluate(() => {
     const button = [...document.querySelectorAll('button')].find((candidate) => {
-      if (!/Open Work View/i.test(candidate.textContent || '') || candidate.disabled) return false;
+      if (!/(?:Open Work View|Enlarge(?:\s+[^\n]*)?)/i.test(candidate.textContent || '') || candidate.disabled) return false;
       const rect = candidate.getBoundingClientRect();
       const style = getComputedStyle(candidate);
       return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
