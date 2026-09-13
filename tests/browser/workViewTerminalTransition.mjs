@@ -80,7 +80,20 @@ for (const viewport of [{ name: 'chromebook', width: 1366, height: 768 }, { name
     await page.goto(`${origin}/tests/browser/workViewTerminalTransition.html`, { waitUntil: 'networkidle' });
     await page.waitForFunction(() => window.__mmTerminalLifecycleReady === true);
     await page.evaluate((nextRoute) => window.__mmTerminalLifecycle((current) => ({ ...current, route: nextRoute })), route);
-    await page.locator(`[data-terminal-route="${route}"]`).waitFor();
+    try {
+      await page.waitForFunction(
+        (expectedRoute) => document.querySelector('[data-terminal-route]')?.getAttribute('data-terminal-route') === expectedRoute,
+        route,
+        { timeout: 8000 },
+      );
+    } catch (error) {
+      const diagnostics = await page.evaluate(() => ({
+        route: document.querySelector('[data-terminal-route]')?.getAttribute('data-terminal-route') || null,
+        question: document.querySelector('[data-terminal-question]')?.getAttribute('data-terminal-question') || null,
+        text: document.body?.innerText?.slice(0, 1200) || '',
+      }));
+      throw new Error(`terminal route did not render: ${JSON.stringify(diagnostics)}; ${error.message}`);
+    }
 
     await openWorkView(page);
     const input = page.locator('.mathmaster-work-view-host[data-open="true"] input:visible').first();
