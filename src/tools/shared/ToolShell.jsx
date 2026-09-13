@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import MathText from '../../components/common/MathText.jsx';
 import { focusFirstAnswerControl, isSingleLineAnswerTarget } from '../../platform/interaction/answerEntryUx.js';
 import QuietDisclosure from '../../components/common/QuietDisclosure.jsx';
+import { useRenderPerformance } from '../../platform/performance/useRenderPerformance.js';
 
 // A stable key for "this exact block of text", so a student's decision to fold
 // the steps away is remembered per tool without every one of the eighteen tools
@@ -21,6 +22,7 @@ const contentKey = (value) => {
 };
 
 export default function ToolShell({ title, subtitle, badge, children, footer, shellKey = null }) {
+  useRenderPerformance('ToolShell');
   const shellRef = useRef(null);
 
   useEffect(() => {

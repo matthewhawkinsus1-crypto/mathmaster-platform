@@ -1,25 +1,4 @@
-import React from 'react';
-import DataModelingLab from './dataModeling/DataModelingLab';
-import RegressionCalculator from './regressionCalculator/RegressionCalculator';
-import InverseCompositionLab from './inverseComposition/InverseCompositionLabRouter';
-import FunctionOperationsLab from './functionOperations/FunctionOperationsLab';
-import SystemsWorkspace from './systemsWorkspace/SystemsWorkspace';
-import ParabolaGeometryLab from './parabolaGeometry/ParabolaGeometryLab';
-import PolynomialWorkshop from './polynomialWorkshop/PolynomialWorkshop';
-import SignSolutionAnalyzer from './signSolutionAnalyzer/SignSolutionAnalyzer';
-import SequenceExplorer from './sequenceExplorer/SequenceExplorer';
-import ComplexPlaneLab from './complexPlane/ComplexPlaneLab';
-import ExponentialLogBridge from './exponentialLog/ExponentialLogBridge';
-import TransformationsLab from './transformations/TransformationsLab';
-import RepresentationMatch from './representationMatch/RepresentationMatch';
-import FunctionInvestigation2 from './functionInvestigation2/FunctionInvestigation2';
-import Graphing2 from './graphing2/Graphing2';
-import StepAlgebra2 from './stepAlgebra2/StepAlgebra2';
-import SolutionReview2 from './solutionReview2/SolutionReview2';
-import IntervalNumberLine from './intervalNumberLine/IntervalNumberLine';
-import RelationMapping from './relationMapping/RelationMapping';
-import OpenSortBoard from './openSortBoard/OpenSortBoard';
-import ConstraintFunctionBuilder from './constraintFunctionBuilder/ConstraintFunctionBuilder';
+import React, { lazy } from 'react';
 import { getToolCapabilities } from './toolCapabilities';
 import { TOOL_CATALOG } from './toolCatalog';
 import { getMobileToolProfile } from '../platform/mobile/mobileToolProfiles.js';
@@ -30,29 +9,35 @@ const REGISTRY_WORK_VIEW_IDS = new Set([...STAGE_3D_WORK_VIEW_IDS, 'dataModeling
 
 // Labels and course lists live in the React-free toolCatalog so Node-side
 // consumers can read them; this map only attaches the components.
-const TOOL_COMPONENTS = {
-  dataModelingLab: DataModelingLab,
-  regressionCalculator: RegressionCalculator,
-  inverseCompositionLab: InverseCompositionLab,
-  functionOperationsLab: FunctionOperationsLab,
-  systemsWorkspace: SystemsWorkspace,
-  parabolaGeometryLab: ParabolaGeometryLab,
-  polynomialWorkshop: PolynomialWorkshop,
-  signSolutionAnalyzer: SignSolutionAnalyzer,
-  sequenceExplorer: SequenceExplorer,
-  complexPlaneLab: ComplexPlaneLab,
-  exponentialLogBridge: ExponentialLogBridge,
-  transformationsLab: TransformationsLab,
-  representationMatch: RepresentationMatch,
-  functionInvestigation2: FunctionInvestigation2,
-  graphing2: Graphing2,
-  stepAlgebra2: StepAlgebra2,
-  solutionReview2: SolutionReview2,
-  intervalNumberLine: IntervalNumberLine,
-  relationMapping: RelationMapping,
-  openSortBoard: OpenSortBoard,
-  constraintFunctionBuilder: ConstraintFunctionBuilder,
+const TOOL_LOADERS = {
+  dataModelingLab: () => import('./dataModeling/DataModelingLab.jsx'),
+  regressionCalculator: () => import('./regressionCalculator/RegressionCalculator.jsx'),
+  inverseCompositionLab: () => import('./inverseComposition/InverseCompositionLabRouter.jsx'),
+  functionOperationsLab: () => import('./functionOperations/FunctionOperationsLab.jsx'),
+  systemsWorkspace: () => import('./systemsWorkspace/SystemsWorkspace.jsx'),
+  parabolaGeometryLab: () => import('./parabolaGeometry/ParabolaGeometryLab.jsx'),
+  polynomialWorkshop: () => import('./polynomialWorkshop/PolynomialWorkshop.jsx'),
+  signSolutionAnalyzer: () => import('./signSolutionAnalyzer/SignSolutionAnalyzer.jsx'),
+  sequenceExplorer: () => import('./sequenceExplorer/SequenceExplorer.jsx'),
+  complexPlaneLab: () => import('./complexPlane/ComplexPlaneLab.jsx'),
+  exponentialLogBridge: () => import('./exponentialLog/ExponentialLogBridge.jsx'),
+  transformationsLab: () => import('./transformations/TransformationsLab.jsx'),
+  representationMatch: () => import('./representationMatch/RepresentationMatch.jsx'),
+  functionInvestigation2: () => import('./functionInvestigation2/FunctionInvestigation2.jsx'),
+  graphing2: () => import('./graphing2/Graphing2.jsx'),
+  stepAlgebra2: () => import('./stepAlgebra2/StepAlgebra2.jsx'),
+  solutionReview2: () => import('./solutionReview2/SolutionReview2.jsx'),
+  intervalNumberLine: () => import('./intervalNumberLine/IntervalNumberLine.jsx'),
+  relationMapping: () => import('./relationMapping/RelationMapping.jsx'),
+  openSortBoard: () => import('./openSortBoard/OpenSortBoard.jsx'),
+  constraintFunctionBuilder: () => import('./constraintFunctionBuilder/ConstraintFunctionBuilder.jsx'),
 };
+
+const TOOL_COMPONENTS = Object.fromEntries(
+  Object.entries(TOOL_LOADERS).map(([toolId, loader]) => [toolId, lazy(loader)]),
+);
+
+export const prefetchTool = (toolId) => TOOL_LOADERS[toolId]?.() || Promise.resolve(null);
 
 export const TOOL_REGISTRY = Object.fromEntries(
   Object.entries(TOOL_COMPONENTS).map(([toolId, component]) => [

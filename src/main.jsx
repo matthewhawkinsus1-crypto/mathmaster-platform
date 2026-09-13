@@ -1,10 +1,11 @@
-import { Component, StrictMode } from 'react';
+import { Component, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.jsx';
 import { AuthProvider } from './auth/AuthProvider.jsx';
 import { ToastProvider } from './ui/Toast.jsx';
 import { getMathMasterBuildInfo } from './platform/runtime/buildInfo.js';
+import { installPerformanceDiagnostics, startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
 
 class AppErrorBoundary extends Component {
   constructor(props) {
@@ -92,7 +93,10 @@ if (!rootElement) {
 // inspect bundles or guess which deployment they received.
 if (typeof window !== 'undefined') {
   window.__MATHMASTER_BUILD__ = getMathMasterBuildInfo();
+  installPerformanceDiagnostics(window);
 }
+
+const startupSpan = startPerformanceSpan('initial_app_usable_ms', { flow: 'startup' });
 
 createRoot(rootElement).render(
   <StrictMode>
@@ -100,9 +104,13 @@ createRoot(rootElement).render(
       {/* Outside AuthProvider so sign-in problems can surface as toasts too. */}
       <ToastProvider>
         <AuthProvider>
-          <App />
+          <Suspense fallback={<main style={{ padding: 24 }}>Opening MathMaster…</main>}>
+            <App />
+          </Suspense>
         </AuthProvider>
       </ToastProvider>
     </AppErrorBoundary>
   </StrictMode>,
 );
+
+requestAnimationFrame(() => requestAnimationFrame(() => startupSpan.finish({ status: 'usable' })));

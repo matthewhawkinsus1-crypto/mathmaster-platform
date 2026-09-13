@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import GraphLine from './GraphLine';
 import NumberLine from './NumberLine';
 import FractionGrader from './FractionGrader';
@@ -58,6 +58,15 @@ import { WorkViewCapabilityProvider } from './platform/workView/workViewCapabili
 import { WorkViewUndoProvider } from './platform/workView/useMathUndoHistory.js';
 import { QuestionLifecycleProvider } from './platform/question/QuestionLifecycleContext.jsx';
 import UniversalUndoButton from './components/common/UniversalUndoButton.jsx';
+import { startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
+import { useRenderPerformance } from './platform/performance/useRenderPerformance.js';
+
+const WorkViewReadySignal = ({ span }) => {
+  useEffect(() => {
+    span?.finish({ status: 'interactive' });
+  }, [span]);
+  return null;
+};
 
 const EMPTY_ANSWER_STATE = {
   isComplete: false,
@@ -151,6 +160,7 @@ export default function QuestionEngine({
   //   { pathToolId, submit(rawWork, supportUsage, meta) -> feedback }
   serverGrading = null,
 }) {
+  useRenderPerformance('QuestionEngine', String(question?.toolId || question?.type || 'question'));
   const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
   const showOutcomeFeedback = resolvedActivityPolicy?.feedback === 'immediate' || feedbackReleased === true;
   const stableQuestion = useDeepStableValue(question);
@@ -216,11 +226,16 @@ export default function QuestionEngine({
       : getToolDefinition(processedQuestion?.toolId) || getToolDefinition(processedQuestion?.type)),
     [processedQuestion, isComposed],
   );
+  const workViewSpan = useMemo(
+    () => (missingToolDefinition ? startPerformanceSpan('workview_ready_ms', { toolId: missingToolDefinition.toolId }) : null),
+    [missingToolDefinition],
+  );
   const record = normalizeQuestionRecord(questionRecord);
   const [answerState, setAnswerState] = useState(EMPTY_ANSWER_STATE);
   const [feedback, setFeedback] = useState(null);
   const [lastSubmittedResponseKey, setLastSubmittedResponseKey] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const submissionInFlightRef = useRef(false);
   const [requesting, setRequesting] = useState(false);
   const [baseUndoController, setBaseUndoController] = useState(null);
   const [undoController, setUndoController] = useState(null);
@@ -271,6 +286,7 @@ export default function QuestionEngine({
     setFeedback(null);
     setLastSubmittedResponseKey(record.lastResponseKey || '');
     setSubmitting(false);
+    submissionInFlightRef.current = false;
     setRequesting(false);
     setBaseUndoController(null);
     setUndoController(null);
@@ -392,9 +408,14 @@ export default function QuestionEngine({
   };
 
   const performSubmit = async () => {
-    if (!answerState.isComplete || submitting || locked) return;
+    if (!answerState.isComplete || submitting || submissionInFlightRef.current || locked) return;
+    submissionInFlightRef.current = true;
+    const localAckSpan = startPerformanceSpan('submit_local_ack_ms', {
+      flow: serverGrading ? 'secure' : 'ordinary_assignment',
+    });
     if (serverGrading) {
       setSubmitting(true);
+      queueMicrotask(() => localAckSpan.finish({ status: 'acknowledged' }));
       setUnchangedConfirmOpen(false);
       setLastSubmittedResponseKey(answerState.responseKey ?? '');
       try {
@@ -403,11 +424,13 @@ export default function QuestionEngine({
           { responseKey: answerState.responseKey ?? '', questionDetails: answerState.questionDetails },
         ));
       } finally {
+        submissionInFlightRef.current = false;
         setSubmitting(false);
       }
       return;
     }
     setSubmitting(true);
+    queueMicrotask(() => localAckSpan.finish({ status: 'acknowledged' }));
     setUnchangedConfirmOpen(false);
     setLastSubmittedResponseKey(answerState.responseKey ?? '');
     try {
@@ -439,6 +462,7 @@ export default function QuestionEngine({
         },
       );
     } finally {
+      submissionInFlightRef.current = false;
       setSubmitting(false);
     }
   };
@@ -656,7 +680,10 @@ export default function QuestionEngine({
               beside its own controls, and no two of them took back the same
               amount of work. The channel is opened once, at the call site, and
               a tool joins it with `useMathUndoHistory`. */}
-          <Tool questionData={presentationQuestion} onAction={handleMissingToolAction} />
+          <Suspense fallback={<p role="status">Opening Work View…</p>}>
+            <WorkViewReadySignal span={workViewSpan} />
+            <Tool questionData={presentationQuestion} onAction={handleMissingToolAction} />
+          </Suspense>
         </ToolRuntimeProvider>
       );
     }

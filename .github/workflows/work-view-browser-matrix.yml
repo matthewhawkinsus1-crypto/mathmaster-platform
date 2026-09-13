@@ -25,6 +25,11 @@ on:
       - "src/platform/workView/**"
       - "src/platform/graph/graphScaleService.js"
       - "src/QuestionEngine.jsx"
+      - "src/platform/performance/**"
+      - "scripts/certify-performance*.mjs"
+      - "tests/platform/durableActionOutbox.test.mjs"
+      - "tests/browser/testCycleDevice.mjs"
+      - "tests/browser/durableOutbox*"
       - "src/InteractiveGraphWorkspace.jsx"
       - "src/tools/shared/CoordinatePlane.jsx"
       - "src/tools/transformations/**"
@@ -84,6 +89,14 @@ jobs:
           npm install --no-save --package-lock=false playwright@1.55.0
           npx playwright install --with-deps chromium
 
+      - name: Certify Test Cycle Chromebook and phone
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: npm run test:test-cycle-device
+
+      - name: Certify durable 30-student action load
+        run: npm run certify:performance:load
+
       - name: Start the harness app
         run: |
           npx vite --host 127.0.0.1 --port 5199 --strictPort > /tmp/mathmaster-vite.log 2>&1 &
@@ -95,6 +108,12 @@ jobs:
           done
           cat /tmp/mathmaster-vite.log
           exit 1
+
+      - name: Certify IndexedDB reload recovery
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: http://127.0.0.1:5199
+        run: node tests/browser/durableOutboxRecovery.mjs
 
       - name: Drive the Work View matrix and capture screenshots
         env:
