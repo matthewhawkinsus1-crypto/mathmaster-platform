@@ -306,6 +306,195 @@
             "title": "Bounded decreasing linear function",
             "note": "Use the endpoint outputs to justify the compound range inequality."
           }
+        },
+        {
+          "coverageKey": "test-cycle-d3b4-context-quantities-coordinates-domain-range",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "application",
+          "representation": "multiple",
+          "prompt": "A storage tank starts with {{start}} gallons of water and fills at {{rate}} gallons per minute for {{maxT}} minutes. Let t be time in minutes and V be the amount of water in gallons. Analyze the entire situation: identify the independent and dependent quantities, label the axes, write the equation, give three coordinates for the graph, state the reasonable domain and range, classify the situation as discrete or continuous, and describe whether V increases or decreases.",
+          "responseFields": [
+            {
+              "id": "independent",
+              "label": "Independent quantity",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "time",
+                  "label": "Time t (minutes)"
+                },
+                {
+                  "id": "volume",
+                  "label": "Water amount V (gallons)"
+                }
+              ],
+              "expected": "time"
+            },
+            {
+              "id": "dependent",
+              "label": "Dependent quantity",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "time",
+                  "label": "Time t (minutes)"
+                },
+                {
+                  "id": "volume",
+                  "label": "Water amount V (gallons)"
+                }
+              ],
+              "expected": "volume"
+            },
+            {
+              "id": "x-axis",
+              "label": "x-axis label",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "time",
+                  "label": "Time t (minutes)"
+                },
+                {
+                  "id": "volume",
+                  "label": "Water amount V (gallons)"
+                }
+              ],
+              "expected": "time"
+            },
+            {
+              "id": "y-axis",
+              "label": "y-axis label",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "time",
+                  "label": "Time t (minutes)"
+                },
+                {
+                  "id": "volume",
+                  "label": "Water amount V (gallons)"
+                }
+              ],
+              "expected": "volume"
+            },
+            {
+              "id": "equation",
+              "label": "Equation relating V and t",
+              "inputProfile": "equation",
+              "expected": "V={{rate}}t+{{start}}"
+            },
+            {
+              "id": "coordinate-start",
+              "label": "Coordinate at the start",
+              "inputProfile": "orderedPair",
+              "expected": "(0,{{start}})"
+            },
+            {
+              "id": "coordinate-middle",
+              "label": "Coordinate halfway through the interval",
+              "inputProfile": "orderedPair",
+              "expected": "({{midT}},{{midV}})"
+            },
+            {
+              "id": "coordinate-end",
+              "label": "Coordinate at the end of the interval",
+              "inputProfile": "orderedPair",
+              "expected": "({{maxT}},{{maxV}})"
+            },
+            {
+              "id": "domain",
+              "label": "Reasonable domain",
+              "inputProfile": "inequality",
+              "expected": "0<=t and t<={{maxT}}"
+            },
+            {
+              "id": "range",
+              "label": "Reasonable range",
+              "inputProfile": "inequality",
+              "expected": "{{start}}<=V and V<={{maxV}}"
+            },
+            {
+              "id": "continuity",
+              "label": "Discrete or continuous?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "continuous",
+                  "label": "Continuous"
+                },
+                {
+                  "id": "discrete",
+                  "label": "Discrete"
+                }
+              ],
+              "expected": "continuous"
+            },
+            {
+              "id": "behavior",
+              "label": "How does V change as t increases?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "increasing",
+                  "label": "Increasing"
+                },
+                {
+                  "id": "decreasing",
+                  "label": "Decreasing"
+                },
+                {
+                  "id": "constant",
+                  "label": "Constant"
+                }
+              ],
+              "expected": "increasing"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "start": {
+                "type": "int",
+                "min": 8,
+                "max": 20
+              },
+              "rate": {
+                "type": "int",
+                "min": 3,
+                "max": 9
+              },
+              "maxT": {
+                "type": "choice",
+                "values": [
+                  4,
+                  6,
+                  8
+                ]
+              }
+            },
+            "derived": {
+              "midT": "maxT/2",
+              "midV": "start+rate*midT",
+              "maxV": "start+rate*maxT"
+            }
+          },
+          "solutionReview": {
+            "headline": "The context determines both the model and the meaningful graph window.",
+            "reasoning": [
+              "Time is the input, so t belongs on the x-axis. The amount of water depends on time, so V belongs on the y-axis.",
+              "The tank begins at {{start}} gallons and gains {{rate}} gallons each minute, giving $V={{rate}}t+{{start}}$.",
+              "The meaningful interval is $0\\le t\\le {{maxT}}$, which produces ${{start}}\\le V\\le {{maxV}}$.",
+              "Water can change throughout the time interval, so the model is continuous and increasing."
+            ],
+            "answerSummary": "Independent: t; dependent: V; $V={{rate}}t+{{start}}$; domain $0\\le t\\le {{maxT}}$; range ${{start}}\\le V\\le {{maxV}}$; continuous and increasing."
+          },
+          "attemptFeedback": [
+            "Use the context to decide what can be chosen first (time) and what changes because of it (water amount). Then use the start value and rate to build every coordinate."
+          ],
+          "supportHints": [
+            "At t=0 the tank has {{start}} gallons. Each minute adds {{rate}} gallons."
+          ]
         }
       ]
     },

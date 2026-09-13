@@ -120,6 +120,25 @@ test('completing Corrections is the gate that opens the Retest', () => {
   assert.equal(afterCorrections.hintsAllowed, false);
 });
 
+test('teacher may waive Review without changing the Test score contract', () => {
+  const blocked = stageFor(
+    { ...base, test: { examSessionId: 'e1', state: 'assigned' } },
+    { total: 4, attempted: 1, complete: false },
+  );
+  assert.equal(blocked.stage, TEST_CYCLE_STAGE.REVIEW);
+
+  const waivedControls = applyTeacherControlAction({}, 'waiveReview');
+  const opened = stageFor(
+    { ...base, teacherControls: waivedControls, test: { examSessionId: 'e1', state: 'assigned' } },
+    { total: 4, attempted: 1, complete: false },
+  );
+  assert.equal(opened.stage, TEST_CYCLE_STAGE.TEST);
+  assert.equal(opened.secure, true);
+
+  const requiredAgain = applyTeacherControlAction(waivedControls, 'requireReview');
+  assert.equal(requiredAgain.reviewWaived, false);
+});
+
 test('teacher overrides: waive corrections, unlock, disable, require', () => {
   const failed = {
     ...base,

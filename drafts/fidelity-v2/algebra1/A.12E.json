@@ -165,6 +165,75 @@
             "{{b}}+{{a}}C"
           ]
         }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "test-cycle-d2b4-three-step-literal",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "symbolic",
+          "prompt": "Solve $P=({{a}}m-{{b}})/{{c}}$ for $m$. Complete all three inverse-operation checkpoints so your work shows how the division, subtraction, and multiplication are undone.",
+          "responseFields": [
+            {
+              "id": "after-multiply",
+              "label": "1. After multiplying both sides by {{c}}",
+              "inputProfile": "equation",
+              "expected": "{{c}}P={{a}}m-{{b}}"
+            },
+            {
+              "id": "after-add",
+              "label": "2. After adding {{b}} to both sides",
+              "inputProfile": "equation",
+              "expected": "{{c}}P+{{b}}={{a}}m"
+            },
+            {
+              "id": "answer",
+              "label": "3. Final equation solved for m",
+              "inputProfile": "equation",
+              "expected": "m=({{c}}P+{{b}})/{{a}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              },
+              "b": {
+                "type": "int",
+                "min": 3,
+                "max": 24
+              },
+              "c": {
+                "type": "int",
+                "min": 2,
+                "max": 8
+              }
+            }
+          },
+          "solutionReview": {
+            "headline": "Undo the outside operations in reverse order.",
+            "reasoning": [
+              "Multiply both sides by {{c}}: ${{c}}P={{a}}m-{{b}}$.",
+              "Add {{b}} to both sides: ${{c}}P+{{b}}={{a}}m$.",
+              "Divide by {{a}}: $m=({{c}}P+{{b}})/{{a}}$."
+            ],
+            "answerSummary": "$m=({{c}}P+{{b}})/{{a}}$"
+          },
+          "attemptFeedback": [
+            "Work from the outside inward: undo division first, then the subtraction, then the multiplication on m."
+          ],
+          "supportHints": [
+            "The denominator {{c}} affects the entire numerator, so multiply both sides by {{c}} before moving the constant."
+          ]
+        }
       ]
     },
     {

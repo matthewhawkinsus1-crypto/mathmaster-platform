@@ -179,7 +179,23 @@ function roleQuestionIndices(assignment = {}, role = "") {
   }, []);
 }
 
-/** Review progress, in the shape the stage machine expects. */
+/**
+ * Review progress, in the shape the stage machine expects.
+ *
+ * TEST READINESS IS PARTICIPATION, NOT A PERFECT SCORE.
+ *
+ * Ordinary assignment completion is intentionally stricter: every question
+ * must reach a terminal state (correct or expired). That is appropriate for a
+ * classwork/practice grade, but it is the wrong gate for a Test Cycle Review.
+ * A student who answered every Review item and missed one should not be barred
+ * from the secure Test merely because the Review was not 100%.
+ *
+ * There is also no assignment-level Submit button in MathMaster. The natural
+ * completion event is therefore the student's first submitted response to the
+ * last remaining Review question. They may keep retrying Review questions
+ * before starting the Test, but score and correctness never decide whether the
+ * Test is unlocked.
+ */
 function reviewProgress(assignment = {}, tracker = {}) {
   const indices = roleQuestionIndices(assignment, "review");
   const questions = runtimeQuestionsFromAssignment(assignment);
@@ -187,7 +203,7 @@ function reviewProgress(assignment = {}, tracker = {}) {
   return {
     total: progress.total,
     attempted: progress.attempted,
-    complete: progress.complete,
+    complete: progress.total > 0 && progress.attempted === progress.total,
   };
 }
 
