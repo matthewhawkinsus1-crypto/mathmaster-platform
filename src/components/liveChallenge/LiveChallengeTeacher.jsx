@@ -19,6 +19,7 @@ import {
   startLiveChallenge,
   timestampMillis,
   watchLiveChallengePlayers,
+  watchLiveChallengeDiagnostics,
   watchLiveChallengeRoom,
   watchTeacherActiveChallenge,
 } from '../../platform/liveChallenge/liveChallengeService.js';
@@ -220,6 +221,7 @@ export default function LiveChallengeTeacher({
   const [roomId, setRoomId] = useState(null);
   const [room, setRoom] = useState(null);
   const [players, setPlayers] = useState([]);
+  const [diagnostics, setDiagnostics] = useState([]);
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
   const [projector, setProjector] = useState(false);
@@ -260,6 +262,10 @@ export default function LiveChallengeTeacher({
     return watchLiveChallengeRoom(roomId, setRoom, (error) => setMessage(error?.message || 'Could not load the Live Challenge.'));
   }, [roomId]);
   useEffect(() => {
+    if (!roomId) { setDiagnostics([]); return undefined; }
+    return watchLiveChallengeDiagnostics(roomId, setDiagnostics, () => setDiagnostics([]));
+  }, [roomId]);
+  useEffect(() => {
     if (!roomId) { setPlayers([]); return undefined; }
     return watchLiveChallengePlayers(roomId, setPlayers, (error) => setMessage(error?.message || 'Could not load Live Challenge players.'));
   }, [roomId]);
@@ -272,6 +278,10 @@ export default function LiveChallengeTeacher({
   const roundEndsAtMs = timestampMillis(room?.roundEndsAt);
   const remainingMs = Math.max(0, roundEndsAtMs - now);
   const canAdvance = challengeCanAdvance({ joinedCount, answeredCount, roundEndsAtMs, nowMs: now });
+  const connectionSummary = ['synchronized', 'delayed', 'reconnecting'].map((status) => ({
+    status,
+    count: diagnostics.filter((entry) => entry.connectionStatus === status).length,
+  }));
 
   useEffect(() => {
     if (!room) return;
@@ -529,6 +539,10 @@ export default function LiveChallengeTeacher({
 
       {room.status === 'running' && (
         <>
+          <section aria-label="Connection status" style={{ ...panel, padding: 12 }}>
+            <strong>Class connection: </strong>
+            {connectionSummary.map(({ status, count }) => <span key={status} style={{ marginRight: 14 }}>{count} {status === 'delayed' ? 'connection delay / unstable' : status}</span>)}
+          </section>
           <ChallengeLiveStatus room={room} remainingMs={remainingMs} answeredCount={answeredCount} joinedCount={joinedCount} />
           <section style={panel}><h3 style={{ marginTop: 0 }}>Leaderboard</h3><Leaderboard rows={leaderboard} /></section>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>

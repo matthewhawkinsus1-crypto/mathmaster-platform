@@ -1,3 +1,5 @@
+import { challengeSpeedTier } from './liveChallengeParity.mjs';
+
 // Pure Live Challenge rules shared by Cloud Functions and tests.
 //
 // The game is deliberately accuracy-first. A correct answer is worth 1000
@@ -109,10 +111,15 @@ export const scoreChallengeRound = ({
   previousRoundMissed = false,
   secondChance = false,
   missedOriginally = false,
+  elapsedMs = null,
 } = {}) => {
   const ratio = clamp(Number(gradeScore) || 0, 0, 1);
   const safeTotal = Math.max(1, Number(totalMs) || 1);
-  const remainingRatio = clamp((Number(remainingMs) || 0) / safeTotal, 0, 1);
+  const speedTier = challengeSpeedTier(
+    elapsedMs == null ? safeTotal - Math.max(0, Number(remainingMs) || 0) : elapsedMs,
+    safeTotal,
+  );
+  const remainingRatio = speedTier.multiplier;
   const carriedStreak = Math.max(0, Math.floor(Number(previousStreak) || 0));
 
   if (secondChance) {
@@ -127,6 +134,7 @@ export const scoreChallengeRound = ({
       pointsAwarded: recoveryPoints,
       newStreak: carriedStreak,
       secondChance: true,
+      speedTier: 'none',
     };
   }
 
@@ -144,6 +152,7 @@ export const scoreChallengeRound = ({
     pointsAwarded: basePoints + speedBonus + streakBonus + comebackBonus,
     newStreak,
     secondChance: false,
+    speedTier: speedTier.tier,
   };
 };
 

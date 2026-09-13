@@ -20,10 +20,16 @@ export {
   watchLiveChallengeInvite,
   watchLiveChallengeRoom,
   watchLiveChallengePlayers,
+  watchLiveChallengeDiagnostics,
   watchTeacherActiveChallenge,
   readChallengeReport,
   timestampMillis,
 } from '../../../src/platform/liveChallenge/liveChallengeService.js';
+
+export const calibrateLiveChallengeClock = async (payload) => {
+  record('calibrateLiveChallengeClock', payload);
+  return { serverAt: Date.now() };
+};
 
 // Recorded so the driver can assert the component called what it should have.
 window.__mmGameCalls = [];
