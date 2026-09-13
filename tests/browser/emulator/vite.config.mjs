@@ -33,6 +33,14 @@ export default defineConfig({
       path.join(repo, 'src/platform/liveChallenge/liveChallengeService.js'),
       path.join(here, 'liveChallengeServiceStub.js'),
     ),
+    swapFile(
+      path.join(repo, 'src/services/testCycleService.js'),
+      path.join(here, 'testCycleServiceStub.js'),
+    ),
+    swapFile(
+      path.join(repo, 'src/services/secureExamService.js'),
+      path.join(here, 'secureExamServiceStub.js'),
+    ),
     react(),
   ],
 });
