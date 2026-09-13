@@ -1,4 +1,5 @@
 import { BUCKET } from '../../studentDashboardModel.js';
+import { isTestCycleAssignment } from '../assessment/testCycle.js';
 import { findGradeCenterEntry } from './studentGradeCenterModel.js';
 import { normalizeGradingPeriodSettings } from './gradingPeriods.js';
 
@@ -148,8 +149,20 @@ const resolveActions = ({ entry, gradeEntry }) => {
 export const buildAssignmentRow = ({ entry, gradeEntry }) => {
   const assignment = entry.assignment || {};
   const actions = resolveActions({ entry, gradeEntry });
+  /*
+   * A Test Cycle is ONE row here, never four.
+   *
+   * Review, Test, Corrections and Retest are stages of this one assignment, so
+   * the Assignments Center shows one card and the card asks the server which
+   * stage the student may enter. Reading the flag off the stored assessment
+   * policy — rather than inferring it from section roles — is what stops a
+   * plain assignment that happens to contain a review section from being
+   * treated as an assessment package.
+   */
+  const testCycle = isTestCycleAssignment(assignment);
   return {
     assignmentId: assignment.id,
+    isTestCycle: testCycle,
     title: assignment.title || 'MathMaster assignment',
     dueAt: assignment.dueAt || assignment.dueDate || null,
     lateDueAt: assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate || null,
@@ -170,6 +183,10 @@ export const buildAssignmentRow = ({ entry, gradeEntry }) => {
     frozen: gradeEntry?.frozen === true,
     gradingPeriod: gradeEntry?.gradingPeriod || null,
     ...actions,
+    // The stage machine owns what a Test Cycle offers, so the ordinary
+    // Continue/Practice affordances are suppressed rather than competing
+    // with it. Results stay reachable: a recorded grade is a recorded grade.
+    ...(testCycle ? { canContinue: actions.canContinue, canPractice: false, continueLabel: 'Open assessment' } : {}),
     entry,
     gradeEntry: gradeEntry || null,
   };

@@ -10,6 +10,33 @@ const EXAM_POLICIES = Object.freeze({
 const TERMINAL_STATES = new Set(['submitted', 'time_expired', 'force_submitted']);
 const LOCKED_STATES = new Set(['locked_integrity', 'locked_proctor']);
 
+/*
+ * COURSE TESTS SHARE THIS RUNTIME. THEY DO NOT FORK IT.
+ *
+ * A teacher-authored Test Cycle runs on the same sessions, the same integrity
+ * logger, the same server-held grading, the same autosave, the same timers,
+ * the same proctor actions and the same teacher-release feedback as the SAT,
+ * ACT, TSIA2 and ASVAB simulations. The only difference is where the item
+ * stream comes from: a simulation draws from its framework's exam-style bank,
+ * and a course test issues an approved blueprint plan stored on the session.
+ *
+ * So `courseTest` is deliberately NOT in EXAM_POLICIES. Those four entries are
+ * fixed published exam specifications — question count, timing and domain
+ * weights set by the testing organisation — and nothing about a course test is
+ * fixed that way. `policyFor` keeps returning null for it, which is what keeps
+ * `createSecureExamSession` (the simulation-creating callable) from accepting a
+ * course test through a path that would give it SAT timings.
+ */
+const COURSE_TEST_EXAM_TYPE = 'courseTest';
+
+function isCourseTestSession(session) {
+  return String(session?.examType || '') === COURSE_TEST_EXAM_TYPE;
+}
+
+function supportsExamType(examType) {
+  return String(examType || '') === COURSE_TEST_EXAM_TYPE || Boolean(EXAM_POLICIES[String(examType || '')]);
+}
+
 function policyFor(examType) {
   return EXAM_POLICIES[String(examType || '')] || null;
 }
@@ -46,7 +73,13 @@ function isExpired(session, now = Date.now()) {
 }
 
 function publicSession(session = {}, { teacher = false } = {}) {
-  const { currentQuestion, responses, usedQuestionIds: _usedQuestionIds, summary, createdBy: _createdBy, lastProctorActionBy: _lastProctorActionBy, feedbackReleasedBy: _feedbackReleasedBy, ...safe } = session;
+  // `issuancePlan` names the approved family and the generator seed behind
+  // every question the student has not reached yet. Handing it to a browser
+  // would let a student reproduce their own exam before sitting it, so it is
+  // stripped from BOTH the student and the teacher payload — a proctor reads
+  // the plan through the separate teacher-only Test Cycle callable, which is
+  // authenticated for that purpose.
+  const { currentQuestion, responses, usedQuestionIds: _usedQuestionIds, issuancePlan: _issuancePlan, summary, createdBy: _createdBy, lastProctorActionBy: _lastProctorActionBy, feedbackReleasedBy: _feedbackReleasedBy, ...safe } = session;
   const responseValues = responses && typeof responses === 'object' ? Object.values(responses) : [];
   return {
     ...safe,
@@ -125,4 +158,4 @@ function publicReview(session = {}) {
   };
 }
 
-module.exports = { EXAM_POLICIES, LOCKED_STATES, TERMINAL_STATES, deadlineFor, isExpired, nextDomainId, policyFor, publicQuestion, publicReview, publicSession };
+module.exports = { COURSE_TEST_EXAM_TYPE, EXAM_POLICIES, LOCKED_STATES, TERMINAL_STATES, deadlineFor, isCourseTestSession, isExpired, nextDomainId, policyFor, publicQuestion, publicReview, publicSession, supportsExamType };

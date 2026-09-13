@@ -1,3 +1,11 @@
+import { normalizeTestBlueprint } from '../../../functions/shared/testCycleBlueprint.mjs';
+import {
+  TEST_CYCLE_MODE,
+  isTestCyclePolicy,
+  normalizeTestCyclePolicy,
+} from '../../../functions/shared/testCyclePolicy.mjs';
+import { TEST_CYCLE_FORBIDDEN_ROLES } from '../../../functions/shared/testCyclePreflight.mjs';
+
 export const ASSIGNMENT_SCHEMA_VERSION = 5;
 export const ASSIGNMENT_SCHEMA_NAME = 'MathMaster Assignment V5';
 
@@ -8,6 +16,16 @@ export const V5_SECTION_ROLES = Object.freeze([
   'dol',
   'quiz',
   'test',
+  // The two INSTRUCTIONAL stages of a Test Cycle. Review and Corrections are
+  // ordinary MathMaster content — hints, tools, multiple attempts — and are
+  // authored here like any other section.
+  //
+  // The Test and Retest stages deliberately have NO section role: they run in
+  // the secure exam runtime from an approved blueprint, and authoring them as
+  // V5 questions would serialize their answer keys into the assignment
+  // document the student's browser downloads. Preflight blocks that.
+  'review',
+  'corrections',
 ]);
 
 export const V5_VARIANT_MODES = Object.freeze([
@@ -15,6 +33,17 @@ export const V5_VARIANT_MODES = Object.freeze([
   'personalized',
   'adaptive',
 ]);
+
+export const V5_SECTION_TITLES = Object.freeze({
+  warmup: 'Warm-Up',
+  classwork: 'Classwork',
+  practice: 'Practice',
+  dol: 'DOL',
+  quiz: 'Quiz',
+  test: 'Test',
+  review: 'Review',
+  corrections: 'Corrections',
+});
 
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
 const clean = (value) => String(value ?? '').trim();
@@ -40,14 +69,7 @@ const normalizeSection = (section, index) => {
     ...source,
     id: clean(source.id) || `section-${index + 1}`,
     role,
-    title: clean(source.title) || ({
-      warmup: 'Warm-Up',
-      classwork: 'Classwork',
-      practice: 'Practice',
-      dol: 'DOL',
-      quiz: 'Quiz',
-      test: 'Test',
-    }[role] || 'Activity'),
+    title: clean(source.title) || (V5_SECTION_TITLES[role] || 'Activity'),
     questions: Array.isArray(source.questions) ? source.questions : [],
   };
 };
@@ -133,6 +155,26 @@ const normalizeVariantPolicy = (raw = {}) => {
   };
 };
 
+/*
+ * A TEST CYCLE IS AN ASSESSMENT POLICY PLUS AN APPROVED BLUEPRINT.
+ *
+ * Both are optional on an ordinary assignment and neither is invented here: an
+ * assignment that carries no `assessmentPolicy` comes back without one, so the
+ * normalized shape of every existing assignment is unchanged.
+ *
+ * The Test and Retest stages are NOT sections. They are issued by the secure
+ * exam runtime from `testBlueprint`, which names approved generator families
+ * and never carries an answer key — see testCyclePreflight.
+ */
+const normalizeAssessmentFields = (input) => {
+  if (!isObject(input.assessmentPolicy)) return {};
+  if (!isTestCyclePolicy(input.assessmentPolicy)) return { assessmentPolicy: input.assessmentPolicy };
+  return {
+    assessmentPolicy: normalizeTestCyclePolicy(input.assessmentPolicy),
+    testBlueprint: normalizeTestBlueprint(input.testBlueprint),
+  };
+};
+
 export const normalizeAssignmentV5 = (input = {}) => {
   if (!isObject(input)) throw new Error('MathMaster Assignment V5 must be a JSON object.');
   const assignmentSource = isObject(input.assignment) ? input.assignment : {};
@@ -152,6 +194,7 @@ export const normalizeAssignmentV5 = (input = {}) => {
       gradingPurpose: clean(assignmentSource.gradingPurpose) || null,
     },
     sections: normalizeQuestionIds(normalizedSections),
+    ...normalizeAssessmentFields(input),
     variantPolicy: normalizeVariantPolicy(input.variantPolicy),
     differentiationPolicy: {
       mode: 'bounded',
@@ -269,6 +312,35 @@ export const validateAssignmentV5 = (input = {}, { requireQuestions = true } = {
     errors.push(`variantPolicy.mode must be one of: ${V5_VARIANT_MODES.join(', ')}.`);
   }
 
+  if (isTestCyclePolicy(input.assessmentPolicy)) {
+    const policy = normalizeTestCyclePolicy(input.assessmentPolicy);
+    const blueprint = normalizeTestBlueprint(input.testBlueprint);
+    if (!blueprint.targets.length) {
+      errors.push(`assessmentPolicy.mode "${TEST_CYCLE_MODE}" requires a testBlueprint with at least one target.`);
+    }
+    blueprint.targets.forEach((target) => {
+      if (!target.alignmentKey) {
+        errors.push(`Test blueprint target "${target.targetId}" is missing an alignmentKey.`);
+      }
+      if (!target.familyIds.length) {
+        errors.push(`Test blueprint target "${target.targetId}" names no approved generator family.`);
+      }
+    });
+    const roles = (Array.isArray(input.sections) ? input.sections : [])
+      .map((section) => clean(section?.role).toLowerCase());
+    // Authoring a Test or Retest as ordinary questions would ship its answer
+    // key to the student's browser. The secure runtime is the only path.
+    roles.filter((role) => TEST_CYCLE_FORBIDDEN_ROLES.includes(role)).forEach((role) => {
+      errors.push(`A Test Cycle cannot contain a "${role}" section. Test and Retest are issued by the secure exam runtime.`);
+    });
+    if (policy.review.required && !roles.includes('review')) {
+      errors.push('assessmentPolicy.review.required is true but no review section exists.');
+    }
+    if (policy.corrections.requiredForRetest && !roles.includes('corrections')) {
+      warnings.push('Corrections gate the retest but no corrections section was authored; corrections will be generated entirely from the student\'s failed evidence.');
+    }
+  }
+
   if (input.supportPolicy?.modificationsAllowed === true) {
     warnings.push('supportPolicy.modificationsAllowed is true. Preflight should make the instructional-target change explicit to the teacher.');
   }
@@ -316,14 +388,7 @@ export const rebuildV5SectionsFromQuestions = (source = {}, questions = []) => {
       : 'practice';
     let section = sections.find((entry) => entry.role === role);
     if (!section) {
-      section = normalizeSection({ role, title: {
-        warmup: 'Warm-Up',
-        classwork: 'Classwork',
-        practice: 'Practice',
-        dol: 'DOL',
-        quiz: 'Quiz',
-        test: 'Test',
-      }[role], questions: [] }, sections.length);
+      section = normalizeSection({ role, title: V5_SECTION_TITLES[role], questions: [] }, sections.length);
       sections.push(section);
     }
     section.questions.push(question);

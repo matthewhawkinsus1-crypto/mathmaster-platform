@@ -515,6 +515,12 @@ test('the collections that hold answers and credentials are unreachable from any
     'studentCredentials/cred-1',
     'adminAuditLog/entry-1',
     'examSessions/exam-1',
+    // The Test Cycle record is the single source of a recorded grade, and the
+    // two plan documents hold approved families, generator seeds and private
+    // grading for questions a student has not reached yet.
+    'testCycleRecords/assignment-1__STUDENT_A',
+    'testCycleCorrectionPlans/assignment-1__STUDENT_A',
+    'testCycleRetestPlans/assignment-1__STUDENT_A',
     'classJoinCodes/code-1',
   ];
   for (const path of serverOnly) {
@@ -523,6 +529,17 @@ test('the collections that hold answers and credentials are unreachable from any
     await assertFails(getDoc(doc(teacherA(), path)));
     await assertFails(getDoc(doc(studentA(), path)));
   }
+});
+
+test('a student cannot read their own Test Cycle record, plans, or write a recorded grade', async () => {
+  // The record holds the recorded grade and the teacher override flags; the
+  // plans hold the families and seeds behind questions the student has not
+  // reached. "It is my own data" is not a reason to make any of it readable
+  // from the device sitting the exam.
+  await assertFails(getDoc(doc(studentA(), 'testCycleRecords/assignment-1__STUDENT_A')));
+  await assertFails(getDoc(doc(studentA(), 'testCycleCorrectionPlans/assignment-1__STUDENT_A')));
+  await assertFails(getDoc(doc(studentA(), 'testCycleRetestPlans/assignment-1__STUDENT_A')));
+  await assertFails(setDoc(doc(studentA(), 'testCycleRecords/assignment-1__STUDENT_A'), { recordedGrade: 100 }));
 });
 
 test('a student cannot read the path question bank, which holds answer keys', async () => {

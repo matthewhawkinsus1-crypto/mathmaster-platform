@@ -7,6 +7,11 @@ export const ACTIVITY_ROLES = Object.freeze({
   PRACTICE: 'practice',
   QUIZ: 'quiz',
   TEST: 'test',
+  // The two instructional stages of a Test Cycle. Neither contributes points
+  // to the recorded assessment grade — the secure Test and Retest do that, and
+  // the canonical rule in testCycleGrade.mjs has no input from either.
+  REVIEW: 'review',
+  CORRECTIONS: 'corrections',
 });
 
 const makePolicy = (policy) => Object.freeze({
@@ -79,6 +84,36 @@ export const ACTIVITY_POLICIES = Object.freeze({
     adaptiveDuringAttempt: false,
     grading: { mode: 'accuracy', pointsPossible: 100, syncDefault: 'separateColumn', compositeWeight: 0 },
     mastery: { evidenceWeight: 1.35, evidenceType: 'summative' },
+    calculatorDefault: 'questionSpecific',
+  }),
+  [ACTIVITY_ROLES.REVIEW]: makePolicy({
+    role: ACTIVITY_ROLES.REVIEW,
+    name: 'Test Review',
+    attempts: 3,
+    allowReplacement: true,
+    feedback: 'immediate',
+    hintsAllowed: true,
+    remediationAllowed: true,
+    adaptiveDuringAttempt: true,
+    // Review prepares a student for the secure Test. It is modelled on the
+    // blueprint and it earns no assessment points: a review that counted would
+    // let a student raise a test grade without ever taking the test.
+    grading: { mode: 'engagement', pointsPossible: 0, syncDefault: 'none', compositeWeight: 0 },
+    mastery: { evidenceWeight: 0.9, evidenceType: 'instructional' },
+    calculatorDefault: 'questionSpecific',
+  }),
+  [ACTIVITY_ROLES.CORRECTIONS]: makePolicy({
+    role: ACTIVITY_ROLES.CORRECTIONS,
+    name: 'Test Corrections',
+    attempts: 3,
+    allowReplacement: true,
+    feedback: 'immediate',
+    hintsAllowed: true,
+    remediationAllowed: true,
+    adaptiveDuringAttempt: true,
+    // Corrections unlock a retest; they never move a recorded grade themselves.
+    grading: { mode: 'completion', pointsPossible: 0, syncDefault: 'none', compositeWeight: 0 },
+    mastery: { evidenceWeight: 0.9, evidenceType: 'instructional' },
     calculatorDefault: 'questionSpecific',
   }),
   [ACTIVITY_ROLES.TEST]: makePolicy({

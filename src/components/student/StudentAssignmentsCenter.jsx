@@ -62,6 +62,14 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice }) {
       <div style={{ display: 'flex', gap: 12, justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
           <h3 style={{ margin: 0, fontSize: 16, color: '#202124', overflowWrap: 'anywhere' }}>{row.title}</h3>
+          {/* Named as one thing, because it is one thing. A student who sees
+              four stages listed as four assignments starts asking which of
+              them counts. */}
+          {row.isTestCycle && (
+            <div style={{ marginTop: 4, fontSize: 11, fontWeight: 900, letterSpacing: .3, textTransform: 'uppercase', color: '#5b21b6' }}>
+              Test Cycle · Review → Test → Corrections → Retest
+            </div>
+          )}
           <div style={{ marginTop: 4, fontSize: 12, color: '#5f6368', overflowWrap: 'anywhere' }}>
             Due {formatDateTime(row.dueAt)}
             {row.frozen

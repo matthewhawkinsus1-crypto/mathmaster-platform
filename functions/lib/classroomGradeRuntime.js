@@ -210,6 +210,11 @@ function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now() 
     "final-complete",
     "final-deadline",
     "assessment-release",
+    // A Test Cycle grade only exists once a teacher has released the secure
+    // result, so by the time either of these stages is reached the teacher has
+    // already made the release decision this policy exists to wait for.
+    "testcycle-test",
+    "testcycle-retest",
   ].includes(stage);
   const studentVisible = explicitlyStudentVisible
     || String(stage || "").startsWith("late-progress")
