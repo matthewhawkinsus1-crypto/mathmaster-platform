@@ -154,6 +154,8 @@ export const TestCycleControls = ({ assignment, classId = null }) => {
                       button should decide on a teacher's behalf.
                     */}
                     {[
+                      ['waiveReview', 'Waive Review', 'test'],
+                      ['requireReview', 'Require Review', 'test'],
                       ['waiveCorrections', 'Waive corrections', 'test'],
                       ['unlockRetest', 'Unlock retest', 'test'],
                       ['disableRetest', 'Close retest', 'test'],
