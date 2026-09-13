@@ -7,10 +7,12 @@ import { summarizeCoverage } from '../../../functions/shared/pathCoverage.mjs';
 import { challengeCanAdvance, publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
 import { buildChallengeExport, challengeExportFileName } from '../../../functions/shared/liveChallengeExport.mjs';
 import { buildChallengeScoringPreview } from '../../../functions/shared/liveChallengeExperience.mjs';
+import { acceptChallengeSnapshot, calibrateChallengeClock } from '../../../functions/shared/liveChallengeParity.mjs';
 import { LiveChallengeAudioDirector } from '../../platform/liveChallenge/liveChallengeAudio.js';
 import {
   advanceLiveChallenge,
   cancelLiveChallenge,
+  calibrateLiveChallengeClock,
   configureLiveChallengeExperience,
   createLiveChallenge,
   finishLiveChallenge,
@@ -19,6 +21,7 @@ import {
   startLiveChallenge,
   timestampMillis,
   watchLiveChallengePlayers,
+  watchLiveChallengeDiagnostics,
   watchLiveChallengeRoom,
   watchTeacherActiveChallenge,
 } from '../../platform/liveChallenge/liveChallengeService.js';
@@ -220,6 +223,8 @@ export default function LiveChallengeTeacher({
   const [roomId, setRoomId] = useState(null);
   const [room, setRoom] = useState(null);
   const [players, setPlayers] = useState([]);
+  const [diagnostics, setDiagnostics] = useState([]);
+  const [clockOffsetMs, setClockOffsetMs] = useState(0);
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
   const [projector, setProjector] = useState(false);
@@ -257,7 +262,28 @@ export default function LiveChallengeTeacher({
   }), [signedInEmail, roomId]);
   useEffect(() => {
     if (!roomId) { setRoom(null); return undefined; }
-    return watchLiveChallengeRoom(roomId, setRoom, (error) => setMessage(error?.message || 'Could not load the Live Challenge.'));
+    return watchLiveChallengeRoom(roomId, (next) => setRoom((current) => acceptChallengeSnapshot(current, next)), (error) => setMessage(error?.message || 'Could not load the Live Challenge.'));
+  }, [roomId]);
+  useEffect(() => {
+    if (!roomId) return undefined;
+    let stopped = false;
+    const sample = async () => {
+      const samples = [];
+      for (let index = 0; index < 5; index += 1) {
+        const clientSentAt = Date.now();
+        // eslint-disable-next-line no-await-in-loop
+        const reply = await calibrateLiveChallengeClock({ roomId });
+        samples.push({ clientSentAt, clientReceivedAt: Date.now(), serverAt: reply.serverAt });
+      }
+      if (!stopped) setClockOffsetMs(calibrateChallengeClock(samples).offsetMs);
+    };
+    sample().catch(() => {});
+    const timer = window.setInterval(sample, 30000);
+    return () => { stopped = true; window.clearInterval(timer); };
+  }, [roomId]);
+  useEffect(() => {
+    if (!roomId) { setDiagnostics([]); return undefined; }
+    return watchLiveChallengeDiagnostics(roomId, setDiagnostics, () => setDiagnostics([]));
   }, [roomId]);
   useEffect(() => {
     if (!roomId) { setPlayers([]); return undefined; }
@@ -270,13 +296,18 @@ export default function LiveChallengeTeacher({
   const joinedCount = leaderboard.length;
   const answeredCount = leaderboard.filter((player) => Number(player.answeredRound) === Number(room?.currentRound)).length;
   const roundEndsAtMs = timestampMillis(room?.roundEndsAt);
-  const remainingMs = Math.max(0, roundEndsAtMs - now);
-  const canAdvance = challengeCanAdvance({ joinedCount, answeredCount, roundEndsAtMs, nowMs: now });
+  const serverNow = now + clockOffsetMs;
+  const remainingMs = Math.max(0, roundEndsAtMs - serverNow);
+  const canAdvance = challengeCanAdvance({ joinedCount, answeredCount, roundEndsAtMs, nowMs: serverNow });
+  const connectionSummary = ['synchronized', 'delayed', 'reconnecting'].map((status) => ({
+    status,
+    count: diagnostics.filter((entry) => entry.connectionStatus === status).length,
+  }));
 
   useEffect(() => {
     if (!room) return;
-    audioDirectorRef.current?.sync({ room, leaderboard, remainingMs, nowMs: now });
-  }, [room, leaderboard, remainingMs, now]);
+    audioDirectorRef.current?.sync({ room, leaderboard, remainingMs, nowMs: serverNow });
+  }, [room, leaderboard, remainingMs, serverNow]);
 
   const [report, setReport] = useState(null);
   useEffect(() => {
@@ -529,6 +560,10 @@ export default function LiveChallengeTeacher({
 
       {room.status === 'running' && (
         <>
+          <section aria-label="Connection status" style={{ ...panel, padding: 12 }}>
+            <strong>Class connection: </strong>
+            {connectionSummary.map(({ status, count }) => <span key={status} style={{ marginRight: 14 }}>{count} {status === 'delayed' ? 'connection delay / unstable' : status}</span>)}
+          </section>
           <ChallengeLiveStatus room={room} remainingMs={remainingMs} answeredCount={answeredCount} joinedCount={joinedCount} />
           <section style={panel}><h3 style={{ marginTop: 0 }}>Leaderboard</h3><Leaderboard rows={leaderboard} /></section>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>

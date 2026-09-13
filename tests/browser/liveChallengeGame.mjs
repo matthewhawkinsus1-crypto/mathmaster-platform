@@ -251,6 +251,8 @@ await step('lobby', {
 // Round 1 opens.
 await setRoom({
   status: 'running', currentRound: 0, currentQuestion: question,
+  roundVersion: 1, roundToken: 'browser-round-1', phase: 'answering',
+  startsAt: Date.now(), endsAt: Date.now() + 30000,
   roundStartedAt: Date.now(), roundEndsAt: Date.now() + 30000,
 });
 await step('round-1-open', {
@@ -290,19 +292,56 @@ const locked = await page.evaluate(() => {
   const scope = document.querySelector('[data-mm-game]');
   const lock = [...(scope?.querySelectorAll('button') || [])].find((b) => /lock in/i.test(b.innerText));
   if (!lock || lock.disabled) return false;
+  window.__mmGameSubmitDelayMs = 250;
+  window.__mmGameFailNextSubmit = true;
   lock.click();
   return true;
 });
-await step('round-1-answered', { mustNotContain: NO_MARKUP });
+await wait(40);
+const immediatePending = await readScreen();
+if (!immediatePending.text.includes('Answer locked')) findings.push({ step: 'round-1-immediate-lock', problems: ['pending acknowledgement did not precede delayed confirmation'] });
+await step('round-1-pending-after-disconnect', {
+  mustContain: ['Answer locked', 'Retry locked answer'], mustNotContain: NO_MARKUP,
+});
 if (!locked) findings.push({ step: 'round-1-answered', problems: ['could not lock in an answer, so the submit path was never exercised'] });
+
+const pendingBeforeReload = await page.evaluate(() => {
+  const key = Object.keys(localStorage).find((entry) => entry.startsWith('live-challenge-pending-'));
+  return key ? JSON.parse(localStorage.getItem(key)) : null;
+});
+if (!pendingBeforeReload?.submissionId) findings.push({ step: 'round-1-pending-after-disconnect', problems: ['pending envelope was not persisted'] });
+
+// Reload after transport failure. The restored envelope retries automatically
+// with the same id and reconciles the server receipt exactly once.
+await page.reload({ waitUntil: 'domcontentloaded' });
+await page.waitForFunction(() => typeof window.__mmGameMount === 'function', { timeout: 30000 });
+await page.evaluate((invite) => window.__mmGameMount(invite), {
+  roomId: ROOM_ID, title: 'Period 3 Warm-Up Challenge', alias: 'Swift Otter',
+  playerKey: PLAYER_KEY, status: 'running', assignmentId: 'assignment-a',
+});
+await wait(1200);
+await step('round-1-recovered-after-reload', { mustContain: ['Correct!'], mustNotContain: NO_MARKUP });
+const recoveredCalls = await page.evaluate(() => window.__mmGameCalls || []);
+const recoveredSubmit = recoveredCalls.find((entry) => entry.name === 'submitLiveChallengeResponse');
+if (recoveredSubmit?.payload?.submissionId !== pendingBeforeReload?.submissionId) {
+  findings.push({ step: 'round-1-recovered-after-reload', problems: ['reload retry did not preserve submissionId'] });
+}
+const recoveredPlayer = (await roomRef.collection('players').doc(PLAYER_KEY).get()).data();
+if (Number(recoveredPlayer?.roundsAnswered) !== 1) findings.push({ step: 'round-1-recovered-after-reload', problems: ['recovery scored more than once'] });
 
 // Round 2, then the finish.
 await setRoom({
   currentRound: 1,
+  roundVersion: 2, roundToken: 'browser-round-2', phase: 'answering',
   currentQuestion: { ...question, questionInstanceId: `challenge_${ROOM_ID}_r2`, challengeRound: 1 },
+  startsAt: Date.now(), endsAt: Date.now() + 30000,
   roundStartedAt: Date.now(), roundEndsAt: Date.now() + 30000,
 });
-await step('round-2-open', { mustContain: ['Round 2 of 2'], mustNotContain: NO_MARKUP, mustRenderMath: true });
+await step('round-2-open', { mustContain: ['Round 2 of 2'], mustNotContain: [...NO_MARKUP, 'Answer locked'], mustRenderMath: true });
+
+await setRoom({ endsAt: Date.now() - 1000, roundEndsAt: Date.now() - 1000 });
+await wait(400);
+await step('round-2-expired', { mustContain: ['Time is up'], mustNotContain: ['Retry locked answer'] });
 
 await setRoom({ status: 'finished', currentQuestion: null, roundEndsAt: null });
 await step('finished', {
