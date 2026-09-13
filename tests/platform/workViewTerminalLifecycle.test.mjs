@@ -7,6 +7,7 @@ const runtime = componentSource('src/tools/shared/ToolRuntimeContext.jsx');
 const wrapper = componentSource('src/tools/shared/RegisteredToolWorkView.jsx');
 const figure = componentSource('src/components/common/EnlargeableFigure.jsx');
 const lifecycle = componentSource('src/platform/question/QuestionLifecycleContext.jsx');
+const mobileViewport = componentSource('src/components/student/MobileViewportContainer.jsx');
 
 test('QuestionEngine publishes its authoritative terminal state above every tool route', () => {
   const questionTree = region(engine, '<QuestionLifecycleProvider', '</QuestionLifecycleProvider>', 'complete question lifecycle tree');
@@ -36,4 +37,19 @@ test('every terminal outcome leaves an actionable continuation outside Work View
   assert.match(continuation, /typeof onNextQuestion === 'function'/);
   assert.match(continuation, /onClick=\{onNextQuestion\}/);
   assert.match(continuation, />Next Question</);
+});
+
+
+test('terminal question state dismisses the MathMaster mobile keypad before continuation', () => {
+  assert.match(mobileViewport, /useQuestionLifecycle\(\)/);
+  const keypadClose = region(
+    mobileViewport,
+    '// Terminal question state owns every input surface',
+    '}, [questionTerminal]);',
+    'terminal mobile keypad cleanup',
+  );
+  assert.match(keypadClose, /if \(!questionTerminal\) return/);
+  assert.match(keypadClose, /setNumericTarget/);
+  assert.match(keypadClose, /current\?\.blur/);
+  assert.match(keypadClose, /mathVirtualKeyboard\?\.hide/);
 });
