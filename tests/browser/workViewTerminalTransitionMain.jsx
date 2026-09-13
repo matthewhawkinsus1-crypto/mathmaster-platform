@@ -54,6 +54,7 @@ function Harness() {
   const advance = () => setScene((current) => ({ ...current, index: current.index + 1, status: 'unattempted', sectionComplete: false, assignmentLocked: false }));
   return <main className="app-container" data-terminal-question={scene.index} data-terminal-route={scene.route}>
     <QuestionEngine
+      key={`${scene.route}-${scene.index}`}
       question={question}
       generationKey={`terminal-${scene.index}`}
       questionRecord={record}
