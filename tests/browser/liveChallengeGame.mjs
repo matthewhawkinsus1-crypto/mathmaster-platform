@@ -248,19 +248,37 @@ await step('lobby', {
   mustHaveButton: 'Back to Warm-Up',
 });
 
-// Round 1 opens.
+// Round 1 is published 600ms into its 1.5s sync lead. The question must render,
+// but the authoritative future start—not render time—keeps answer controls shut.
+const publishedAt = Date.now() - 600;
+const authoritativeStartsAt = publishedAt + 1500;
 await setRoom({
   status: 'running', currentRound: 0, currentQuestion: question,
-  roundVersion: 1, roundToken: 'browser-round-1', phase: 'answering',
-  startsAt: Date.now(), endsAt: Date.now() + 30000,
-  roundStartedAt: Date.now(), roundEndsAt: Date.now() + 30000,
+  roundVersion: 1, roundToken: 'browser-round-1', phase: 'countdown',
+  startsAt: authoritativeStartsAt, endsAt: authoritativeStartsAt + 30000,
+  roundStartedAt: authoritativeStartsAt, roundEndsAt: authoritativeStartsAt + 30000,
 });
-await step('round-1-open', {
-  mustContain: ['Round 1 of 2'],
-  mustNotContain: NO_MARKUP,
-  mustHaveButton: 'Back to Warm-Up',
-  mustRenderMath: true,
+await wait(150);
+const futureScreen = await readScreen();
+const futureProblems = [];
+if (!futureScreen.text.includes('Round 1 of 2') || !futureScreen.text.includes('Starts in')) futureProblems.push('question/countdown was not rendered before startsAt');
+if (!futureScreen.mathNodes) futureProblems.push('question mathematics was not rendered during sync lead');
+report.push({ step: 'round-1-future-start', text: futureScreen.text.slice(0, 150), buttons: futureScreen.buttons, mathNodes: futureScreen.mathNodes, problems: futureProblems });
+if (futureProblems.length) findings.push({ step: 'round-1-future-start', problems: futureProblems });
+const preStart = await page.evaluate(() => {
+  const scope = document.querySelector('[data-mm-game]');
+  const answerControl = scope?.querySelector('input[type="radio"], input[type="text"], input[type="number"]');
+  answerControl?.click();
+  return {
+    locked: !answerControl || answerControl.disabled || answerControl.getAttribute('aria-disabled') === 'true',
+    submitCalls: (window.__mmGameCalls || []).filter((call) => call.name === 'submitLiveChallengeResponse').length,
+  };
 });
+if (!preStart.locked || preStart.submitCalls !== 0) {
+  findings.push({ step: 'round-1-future-start', problems: ['answer controls were usable before authoritative startsAt'] });
+}
+await wait(Math.max(0, authoritativeStartsAt - Date.now()) + 300);
+await step('round-1-authoritative-start', { mustContain: ['Round 1 of 2'], mustNotContain: ['Starts in', ...NO_MARKUP], mustRenderMath: true });
 
 // The student answers.
 // Answering for real: pick a choice, then lock it in. The submit stub writes
@@ -310,6 +328,9 @@ const pendingBeforeReload = await page.evaluate(() => {
   return key ? JSON.parse(localStorage.getItem(key)) : null;
 });
 if (!pendingBeforeReload?.submissionId) findings.push({ step: 'round-1-pending-after-disconnect', problems: ['pending envelope was not persisted'] });
+if (!(pendingBeforeReload?.humanElapsedMs >= 0 && pendingBeforeReload.humanElapsedMs < 1500)) {
+  findings.push({ step: 'round-1-authoritative-start', problems: [`sync lead leaked into humanElapsedMs: ${pendingBeforeReload?.humanElapsedMs}`] });
+}
 
 // Reload after transport failure. The restored envelope retries automatically
 // with the same id and reconciles the server receipt exactly once.
@@ -349,7 +370,7 @@ await page.evaluate((invite) => window.__mmGameMount(invite), {
   roomId: ROOM_ID, title: 'Period 3 Warm-Up Challenge', alias: 'Swift Otter',
   playerKey: PLAYER_KEY, status: 'running', assignmentId: 'assignment-a',
 });
-await wait(4500);
+await wait(350);
 await step('calibration-failure-degraded-mode', {
   mustContain: ['Clock sync is unavailable', 'Time is up'],
   mustNotContain: ['Synchronizing round clock'],

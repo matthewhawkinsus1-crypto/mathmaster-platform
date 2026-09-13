@@ -9,9 +9,20 @@ import {
   challengePhaseAt,
   challengeSpeedTier,
   MAX_CAPTURE_TRANSPORT_MS,
+  monotonicRoundOrigin,
   ROUND_SYNC_LEAD_MS,
   submissionArrivalDecision,
 } from '../../functions/shared/liveChallengeParity.mjs';
+
+test('future authoritative start maps ahead of the monotonic clock without counting sync lead', () => {
+  const origin = monotonicRoundOrigin({ monotonicNow: 8_000, serverNowMs: 100_600, startsAtMs: 101_500 });
+  assert.equal(origin, 8_900, '600ms delivery still leaves 900ms before authoritative start');
+  assert.equal(Math.max(0, 8_000 - origin), 0, 'question render time is not human elapsed time');
+  assert.equal(9_125 - origin, 225, 'elapsed begins at the authoritative start');
+
+  const reconnected = monotonicRoundOrigin({ monotonicNow: 50_000, serverNowMs: 110_000, startsAtMs: 101_500 });
+  assert.equal(reconnected, 41_500, 'the same equation catches up after start');
+});
 
 test('multi-sample clock calibration resists a spike and classifies unstable links', () => {
   const sample = (sent, rtt, offset = 240) => ({ clientSentAt: sent, clientReceivedAt: sent + rtt, serverAt: sent + (rtt / 2) + offset });
@@ -152,7 +163,7 @@ test('server and student contracts include idempotency, immediate lock, trust bo
   assert.match(student, /const recover = \(\) => retryPending\(\)/);
   assert.match(student, /submitResponse\(pending\)/);
   assert.match(student, /quality: 'reconnecting', sampleCount: 0/);
-  assert.match(student, /failures >= 3 \? 'degraded' : 'reconnecting'/);
+  assert.match(student, /catch \{[\s\S]{0,220}quality: 'degraded'/);
   assert.match(student, /clock\.quality === 'degraded'[\s\S]*Clock sync is unavailable/);
   assert.match(rules, /match \/diagnostics\/\{playerKey\}[\s\S]*teacher\(\)/);
   assert.doesNotMatch(rules.match(/match \/diagnostics\/\{playerKey\}[\s\S]*?\n      \}/)?.[0] || '', /role == 'student'/);

@@ -19,7 +19,9 @@ median midpoint offset and median RTT make a single spike irrelevant; median
 absolute RTT deviation identifies unstable links. The calibrated server epoch
 anchors a `performance.now()` origin once per round. All subsequent human
 elapsed capture and countdown rendering is monotonic, so changing the device
-wall clock cannot affect them.
+wall clock cannot affect them. The origin uses `performance.now() + (startsAt -
+calibratedServerNow)`, so a future start remains future on the monotonic clock
+and the sync lead is never counted as human response time.
 
 Submit immediately captures the response, monotonic elapsed time, round token,
 version, connection category, and a random `submissionId`. It writes that exact
@@ -72,6 +74,8 @@ The browser harness additionally delays acknowledgement, interrupts transport,
 reloads with a stored pending envelope, verifies automatic same-id recovery and
 one score, advances the round, verifies that expired state does not reopen, and
 forces repeated calibration failure into a visible conservative degraded mode.
+The first calibration failure enters that usable mode immediately while the
+client continues two-second background retries and upgrades normally on success.
 
 ## Deployment boundary
 

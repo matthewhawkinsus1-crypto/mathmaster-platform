@@ -70,6 +70,13 @@ export const SUBMISSION_ARRIVAL_GRACE_MS = 750;
 export const ROUND_SYNC_LEAD_MS = 1500;
 export const MAX_CAPTURE_TRANSPORT_MS = 750;
 
+/** Anchor an authoritative server epoch on the browser monotonic clock. The
+ * same equation places a future start ahead of performance.now() and an
+ * already-started round behind it. Capture this once per round identity. */
+export function monotonicRoundOrigin({ monotonicNow, serverNowMs, startsAtMs }) {
+  return Number(monotonicNow) + (Number(startsAtMs) - Number(serverNowMs));
+}
+
 export function challengePhaseAt(snapshot = {}, serverNowMs = Date.now()) {
   if (snapshot.status === 'finished' || snapshot.status === 'cancelled') return ROUND_PHASE.FINISHED;
   if (snapshot.status === 'lobby') return ROUND_PHASE.LOBBY;

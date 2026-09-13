@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import QuestionEngine from '../../QuestionEngine.jsx';
 import { publicLeaderboard, LIVE_PROVISIONAL_MAX_POINTS } from '../../../functions/shared/liveChallenge.mjs';
-import { acceptChallengeSnapshot, calibrateChallengeClock, challengePhaseAt } from '../../../functions/shared/liveChallengeParity.mjs';
+import { acceptChallengeSnapshot, calibrateChallengeClock, challengePhaseAt, monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
 import { calculateStepPartialCredit, emptyQuestionRecord, recordQuestionStep } from '../../attemptPolicy.js';
 import { questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
 import LiveChallengeFieldQuestion from './LiveChallengeFieldQuestion.jsx';
@@ -124,7 +124,11 @@ export function ChallengeRound({
   const monotonicNow = useMonotonicNow(true);
   const endsAtMs = timestampMillis(room.roundEndsAt);
   const startsAtMs = timestampMillis(room.startsAt || room.roundStartedAt);
-  const roundOriginMonoRef = useRef(performance.now() - Math.max(0, (Number(room.serverNowAtRender) || Date.now()) - startsAtMs));
+  const roundOriginMonoRef = useRef(monotonicRoundOrigin({
+    monotonicNow: performance.now(),
+    serverNowMs: Number(room.serverNowAtRender) || Date.now(),
+    startsAtMs,
+  }));
   const startsInMs = Math.max(0, roundOriginMonoRef.current - monotonicNow);
   const roundStarted = startsInMs <= 0;
   const elapsedMs = Math.max(0, monotonicNow - roundOriginMonoRef.current);
@@ -155,7 +159,11 @@ export function ChallengeRound({
     setResult(null);
     setSubmitError('');
     const fresh = emptyQuestionRecord();
-    roundOriginMonoRef.current = performance.now() - Math.max(0, (Number(room.serverNowAtRender) || Date.now()) - startsAtMs);
+    roundOriginMonoRef.current = monotonicRoundOrigin({
+      monotonicNow: performance.now(),
+      serverNowMs: Number(room.serverNowAtRender) || Date.now(),
+      startsAtMs,
+    });
     stepRecordRef.current = fresh;
     setStepRecord(fresh);
     // The origin is intentionally not recalculated when wall-clock calibration
@@ -425,7 +433,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
         if (!stopped) setClock((value) => ({
           ...value,
           sampleCount: Number(value.sampleCount) || 0,
-          quality: failures >= 3 ? 'degraded' : 'reconnecting',
+          quality: 'degraded',
         }));
         // Quickly retry join calibration; after repeated failure the usable
         // degraded renderer scores from server arrival and gains no advantage.
