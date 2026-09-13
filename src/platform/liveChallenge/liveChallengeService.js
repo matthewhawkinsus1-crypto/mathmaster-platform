@@ -14,6 +14,7 @@ export const advanceLiveChallenge = call('advanceLiveChallenge');
 export const finishLiveChallenge = call('finishLiveChallenge');
 export const cancelLiveChallenge = call('cancelLiveChallenge');
 export const submitLiveChallengeResponse = call('submitLiveChallengeResponse');
+export const calibrateLiveChallengeClock = call('calibrateLiveChallengeClock');
 export const reportLiveChallengeProgress = call('reportLiveChallengeProgress');
 
 // Option B room experience. These remain server-authoritative: the browser
@@ -77,6 +78,13 @@ export const watchLiveChallengePlayers = (roomId, onValue, onError = console.err
   }
   return onSnapshot(collection(db, 'liveChallengeRooms', String(roomId), 'players'), (snapshot) => {
     onValue?.(snapshot.docs.map((playerDoc) => ({ playerKey: playerDoc.id, ...playerDoc.data() })));
+  }, onError);
+};
+
+export const watchLiveChallengeDiagnostics = (roomId, onValue, onError = console.error) => {
+  if (!roomId) { onValue?.([]); return () => {}; }
+  return onSnapshot(collection(db, 'liveChallengeRooms', String(roomId), 'diagnostics'), (snapshot) => {
+    onValue?.(snapshot.docs.map((entry) => ({ playerKey: entry.id, ...entry.data() })));
   }, onError);
 };
 

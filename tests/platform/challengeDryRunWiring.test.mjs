@@ -97,7 +97,7 @@ test('the student round still submits to the real game by default', () => {
   // The injection point exists for the rehearsal. If the default ever changed,
   // every real student answer would be graded by the dry-run callable.
   assert.match(student, /submitResponse = submitLiveChallengeResponse/);
-  assert.match(student, /await submitResponse\(\{ roomId: room\.roomId, roundIndex, responsePayload \}\)/);
+  assert.match(student, /const capture = \{[\s\S]*?roomId: room\.roomId,[\s\S]*?roundIndex,[\s\S]*?responsePayload,[\s\S]*?\};[\s\S]*?await submitResponse\(capture\)/);
 });
 
 test('the rehearsal is graded by the dry-run callable and never by the room one', () => {

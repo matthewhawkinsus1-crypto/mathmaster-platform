@@ -91,6 +91,13 @@ const SCHEDULED = 2;
 const privateRef = db.collection('liveChallengePrivate').doc(ROOM);
 const roomRef = db.collection('liveChallengeRooms').doc(ROOM);
 
+const waitForAuthoritativeRoundStart = async () => {
+  const room = (await roomRef.get()).data() || {};
+  const startsAtMs = room.startsAt?.toMillis?.() || room.roundStartedAt?.toMillis?.() || 0;
+  const delayMs = Math.max(0, startsAtMs - Date.now() + 25);
+  if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
+};
+
 const addPlayer = async (studentId, playerKey, alias) => {
   await privateRef.collection('players').doc(studentId).set({
     studentId, playerKey, alias, joined: true, joinedAtRound: 0,
@@ -137,7 +144,10 @@ const acedOriginal = await functionsIndex.submitLiveChallengeResponse.run(studen
 }, ACER));
 
 // Round 1: both correct, so only round 0 is a replay candidate.
+// Advance publishes the question before its authoritative start so all devices
+// can synchronize. The integration client must honor that same countdown.
 await functionsIndex.advanceLiveChallenge.run(teacherRequest({ roomId: ROOM }));
+await waitForAuthoritativeRoundStart();
 for (const studentId of [MISSER, ACER]) {
   await functionsIndex.submitLiveChallengeResponse.run(studentRequest({
     roomId: ROOM, roundIndex: 1, responsePayload: { responses: { answer: await correctAnswerFor(1) } },
@@ -146,6 +156,7 @@ for (const studentId of [MISSER, ACER]) {
 
 // Past the end of the scheduled rounds: this is where a replay is scheduled.
 const afterScheduled = await functionsIndex.advanceLiveChallenge.run(teacherRequest({ roomId: ROOM }));
+await waitForAuthoritativeRoundStart();
 const stateAfterPlan = (await privateRef.get()).data();
 const roomAfterPlan = (await roomRef.get()).data();
 
