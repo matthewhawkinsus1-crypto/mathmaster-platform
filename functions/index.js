@@ -7337,7 +7337,7 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   if (room.status !== challenge.LIVE_CHALLENGE_STATUS.RUNNING || Number(room.currentRound) !== submittedRound) {
     throw new HttpsError("failed-precondition", "That Live Challenge round is no longer active.");
   }
-  if (Number(room.roundVersion) !== submittedVersion || String(room.roundToken || "") !== submittedToken) {
+  if (Number(room.roundVersion || 0) !== submittedVersion || String(room.roundToken || "") !== submittedToken) {
     throw new HttpsError("failed-precondition", "That submission belongs to a stale round version.");
   }
   const endsAtMs = toDate(room.endsAt || room.roundEndsAt)?.getTime() || 0;
@@ -7376,7 +7376,7 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     if (latestRoom.status !== challenge.LIVE_CHALLENGE_STATUS.RUNNING || Number(latestRoom.currentRound) !== submittedRound) {
       throw new HttpsError("failed-precondition", "That Live Challenge round is no longer active.");
     }
-    if (Number(latestRoom.roundVersion) !== submittedVersion || String(latestRoom.roundToken || "") !== submittedToken) {
+    if (Number(latestRoom.roundVersion || 0) !== submittedVersion || String(latestRoom.roundToken || "") !== submittedToken) {
       throw new HttpsError("failed-precondition", "That submission belongs to a stale round version.");
     }
     const latestEndsAtMs = toDate(latestRoom.endsAt || latestRoom.roundEndsAt)?.getTime() || 0;
