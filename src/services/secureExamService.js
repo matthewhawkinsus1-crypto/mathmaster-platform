@@ -3,8 +3,13 @@ import { functions } from '../firebase.js';
 import { EXECUTION_MODES, getExecutionMode } from '../config/executionMode.js';
 import { generateRuntimeUUID } from '../utils/idUtils.js';
 import { getExamPolicy } from '../platform/policies/examPolicyResolver.js';
+import { measurePerformanceOperation } from '../platform/performance/performanceTelemetry.js';
 
-const call = (name, data) => httpsCallable(functions, name)(data).then((response) => response.data);
+const call = (name, data) => measurePerformanceOperation(
+  'callable_request_ms',
+  () => httpsCallable(functions, name)(data).then((response) => response.data),
+  { flow: name },
+);
 const mockSessions = new Map();
 const mockAnswers = new Map();
 

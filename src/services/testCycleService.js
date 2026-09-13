@@ -1,5 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase.js';
+import { measurePerformanceOperation } from '../platform/performance/performanceTelemetry.js';
 import { EXECUTION_MODES, getExecutionMode } from '../config/executionMode.js';
 
 /*
@@ -16,7 +17,11 @@ import { EXECUTION_MODES, getExecutionMode } from '../config/executionMode.js';
  * card rather than a plausible score.
  */
 
-const call = (name, data) => httpsCallable(functions, name)(data).then((response) => response.data);
+const call = (name, data) => measurePerformanceOperation(
+  'callable_request_ms',
+  () => httpsCallable(functions, name)(data).then((response) => response.data),
+  { flow: name },
+);
 const isSandbox = () => getExecutionMode() === EXECUTION_MODES.MOCK_LOCAL;
 
 const sandboxCard = (assignmentId) => ({

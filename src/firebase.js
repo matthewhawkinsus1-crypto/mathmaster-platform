@@ -1,7 +1,7 @@
 // src/firebase.js
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
 
 const firebaseConfig = {
@@ -19,7 +19,12 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 // Analytics is intentionally not initialized during application startup.
 // It is optional, and unsupported preview/browser environments should never
 // be allowed to prevent MathMaster from rendering.
-export const db = getFirestore(app);
+// IndexedDB-backed cache makes already-opened assignments and queued writes
+// available through short school-Wi-Fi interruptions. Multi-tab coordination
+// prevents each MathMaster tab from maintaining a competing persistence owner.
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+});
 export const auth = getAuth(app);
 export const functions = getFunctions(app);
 export { app };

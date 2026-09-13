@@ -117,6 +117,8 @@ import DOLCountdown from './components/student/DOLCountdown.jsx';
 import TexasStandardsDashboard from './TexasStandardsDashboard';
 import MathToolsLab from './dev/MathToolsLab';
 import { useToast } from './ui/Toast';
+import { prefetchQuestionResources } from './platform/performance/questionPrefetch.js';
+import { measurePerformanceOperation, startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
 import { EmptyState, ProgressBar, SearchField, StatCard } from './ui/primitives';
 import { buildStudentMasteryProfile, collectStudentEvidence } from './masteryEngine.js';
 import {
@@ -1804,7 +1806,11 @@ function App() {
   };
 
   const getLiveAssignment = async (assignmentId) => {
-    const assignmentSnapshot = await getDoc(doc(db, 'assignments', assignmentId));
+    const assignmentSnapshot = await measurePerformanceOperation(
+      'firestore_request_ms',
+      () => getDoc(doc(db, 'assignments', assignmentId)),
+      { flow: 'assignment_revalidation' },
+    );
     if (!assignmentSnapshot.exists()) return null;
     return { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
   };
@@ -2110,6 +2116,27 @@ function App() {
     isDOL: activeDOLState.enabled && currentQuestionIndex === activeDOLState.questionIndex,
   });
   const activeActivityPolicy = getEffectiveActivityPolicy(isPracticeMode ? 'practice' : activeQuestionRole);
+  const assignmentOpenSpanRef = useRef(null);
+
+  useEffect(() => {
+    const span = startPerformanceSpan('route_transition_ms', { flow: activeView || 'unknown' });
+    const frame = window.requestAnimationFrame(() => span.finish({ status: 'usable' }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeView]);
+
+  useEffect(() => {
+    if (!isStudentAssignment || !activeQuestions.length) return;
+    prefetchQuestionResources(activeQuestions, currentQuestionIndex, { secure: isTestCycleAssignment(activeAssignmentData) });
+  }, [isStudentAssignment, activeQuestions, currentQuestionIndex, activeAssignmentData]);
+
+  useEffect(() => {
+    if (!isStudentAssignment) return undefined;
+    const span = startPerformanceSpan('question_ready_ms', { flow: 'assignment' });
+    const frame = window.requestAnimationFrame(() => span.finish({ status: 'usable' }));
+    assignmentOpenSpanRef.current?.finish({ status: 'ready' });
+    assignmentOpenSpanRef.current = null;
+    return () => window.cancelAnimationFrame(frame);
+  }, [isStudentAssignment, activeAssignmentId, currentQuestionIndex]);
 
   const activeWorkingTracker = isTeacherPreview
     ? previewTracker
@@ -2759,18 +2786,7 @@ function App() {
       return;
     }
 
-    try {
-      assignment = await getLiveAssignment(activeAssignmentId);
-    } catch (error) {
-      console.error('Could not verify assignment before saving progress:', error);
-      return;
-    }
-    if (!assignment) {
-      leaveUnavailableAssignment();
-      return;
-    }
-
-    const flushedActivity = await flushAssignmentActivity(activeAssignmentId);
+    const transitionSpan = startPerformanceSpan('next_question_ready_ms', { cached: true });
     const currentAssignmentGrades = tracker[activeAssignmentId] || {};
     const updatedTracker = {
       ...tracker,
@@ -2785,15 +2801,27 @@ function App() {
 
     setTracker(updatedTracker);
     setCurrentQuestionIndex(newIndex);
+    window.requestAnimationFrame(() => transitionSpan.finish({ status: 'interactive' }));
 
-    try {
-      await updateDoc(doc(db, 'grades', user.id), {
-        gradesByAssignment: updatedTracker,
-        assignmentActivity: flushedActivity ? { ...assignmentActivity, [activeAssignmentId]: flushedActivity } : assignmentActivity,
-      });
-    } catch (error) {
-      console.error(error);
-    }
+    // Navigation is a local operation. Authorization was checked against the
+    // subscribed assignment above; revalidation and progress durability can
+    // continue without holding the Next button hostage to a network roundtrip.
+    void (async () => {
+      try {
+        assignment = await getLiveAssignment(activeAssignmentId);
+        if (!assignment) {
+          leaveUnavailableAssignment();
+          return;
+        }
+        const flushedActivity = await flushAssignmentActivity(activeAssignmentId);
+        await updateDoc(doc(db, 'grades', user.id), {
+          [`gradesByAssignment.${activeAssignmentId}.${currentQuestionIndex}`]: updatedTracker[activeAssignmentId][currentQuestionIndex],
+          ...(flushedActivity ? { [`assignmentActivity.${activeAssignmentId}`]: flushedActivity } : {}),
+        });
+      } catch (error) {
+        console.error('Could not reconcile question navigation:', error);
+      }
+    })();
   };
 
   const exportAssignmentWorksheetPdf = async (assignmentId) => {
@@ -2953,6 +2981,8 @@ function App() {
   };
 
   const startAssignment = (assignmentId, requestedQuestionIndex = 0, options = {}) => {
+    assignmentOpenSpanRef.current?.finish({ status: 'superseded' });
+    assignmentOpenSpanRef.current = startPerformanceSpan('assignment_open_ms', { flow: 'student_assignment' });
     const assignmentData = assignments.find(
       (assignment) => assignment.id === assignmentId,
     );
@@ -3369,22 +3399,15 @@ function App() {
       return outcome.result;
     }
 
-    let assignment;
-    try {
-      assignment = await getLiveAssignment(activeAssignmentId);
-    } catch (error) {
-      console.error('Could not verify assignment before saving an answer:', error);
-      return null;
-    }
-
-    if (!assignment) {
-      leaveUnavailableAssignment();
-      return null;
-    }
-
-    const activityRecord = await flushAssignmentActivity(activeAssignmentId);
+    // The subscribed assignment is the authorization snapshot for the local
+    // interaction. Revalidate it before persistence below, but do not make a
+    // student's click wait for an otherwise redundant getDoc roundtrip.
+    const assignment = localAssignment;
+    const activityRecord = assignmentActivity[activeAssignmentId] || null;
+    const gradingSpan = startPerformanceSpan('grading_ms', { flow: 'ordinary_assignment' });
     const currentAssignmentGrades = tracker[activeAssignmentId] || {};
     const outcome = applyAttempt(currentAssignmentGrades[currentQuestionIndex]);
+    gradingSpan.finish({ status: 'graded' });
     const updatedTracker = {
       ...tracker,
       [activeAssignmentId]: {
@@ -3446,22 +3469,35 @@ function App() {
     setClassworkGradesByAssignment(updatedClassworkGrades);
     setDolGradesByAssignment(updatedDOLGrades);
 
-    try {
-      await updateDoc(doc(db, 'grades', user.id), {
-        gradesByAssignment: updatedTracker,
-        supportUsageByAssignment: updatedSupportUsage,
-        classworkGradesByAssignment: updatedClassworkGrades,
-        dolGradesByAssignment: updatedDOLGrades,
-        assignmentActivity: activityRecord ? { ...assignmentActivity, [activeAssignmentId]: activityRecord } : assignmentActivity,
-      });
+    const serverAckSpan = startPerformanceSpan('submit_server_ack_ms', { flow: 'ordinary_assignment' });
+    // The canonical grade write remains durable and authoritative. It is
+    // intentionally detached only after local state contains the attempt, so
+    // evidence and activity aggregation cannot extend perceived submit time.
+    void (async () => {
+      try {
+        const liveAssignment = await getLiveAssignment(activeAssignmentId);
+        if (!liveAssignment) {
+          leaveUnavailableAssignment();
+          serverAckSpan.finish({ status: 'assignment_unavailable' });
+          return;
+        }
+        const flushedActivity = await flushAssignmentActivity(activeAssignmentId);
+        await updateDoc(doc(db, 'grades', user.id), {
+          [`gradesByAssignment.${activeAssignmentId}.${currentQuestionIndex}`]: outcome.record,
+          [`supportUsageByAssignment.${activeAssignmentId}`]: updatedSupportUsage[activeAssignmentId],
+          [`classworkGradesByAssignment.${activeAssignmentId}`]: updatedClassworkGrades[activeAssignmentId] || deleteField(),
+          [`dolGradesByAssignment.${activeAssignmentId}`]: updatedDOLGrades[activeAssignmentId] || deleteField(),
+          ...(flushedActivity ? { [`assignmentActivity.${activeAssignmentId}`]: flushedActivity } : {}),
+        });
+        serverAckSpan.finish({ status: 'durable' });
 
       // Phase 5C is a non-blocking dual write. Assignment grading remains
       // authoritative for this UI even when the audit timeline is unavailable.
-      const assignmentQuestions = getStoredAssignmentQuestions(assignment);
+      const assignmentQuestions = getStoredAssignmentQuestions(liveAssignment);
       if (assignmentQuestions[currentQuestionIndex]?.type !== 'modelingLab') {
         const evidenceEvent = buildAttemptEvidenceEvent({
           studentId: user.id,
-          assignment,
+          assignment: liveAssignment,
           question: assignmentQuestions[currentQuestionIndex],
           questionIndex: currentQuestionIndex,
           activityRole: activeQuestionRole,
@@ -3483,9 +3519,11 @@ function App() {
         writeImmutableEvidenceEvent(user.id, evidenceEvent)
           .catch((evidenceError) => console.error('Could not append Phase 5C evidence history:', evidenceError));
       }
-    } catch (error) {
-      console.error(error);
-    }
+      } catch (error) {
+        serverAckSpan.finish({ status: 'failed' });
+        console.error(error);
+      }
+    })();
 
     return outcome.result;
   };

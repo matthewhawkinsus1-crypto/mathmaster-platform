@@ -172,7 +172,10 @@ test('calculator 2.0 stays inside Work View and publishes the discovery workflow
     readFile(new URL('../../src/tools/regressionCalculator/RegressionCalculator.jsx', import.meta.url), 'utf8'),
     readFile(new URL('../../src/tools/regressionCalculator/RegressionCalculator.css', import.meta.url), 'utf8'),
   ]);
-  assert.match(registry, /regressionCalculator: RegressionCalculator/);
+  // Calculator 2.0 must remain registry-routable without forcing its sizeable
+  // Work View implementation into every basic-question startup bundle.
+  assert.match(registry, /regressionCalculator:\s*\(\) => import\('\.\/regressionCalculator\/RegressionCalculator\.jsx'\)/);
+  assert.match(registry, /Object\.entries\(TOOL_LOADERS\)[\s\S]*lazy\(loader\)/);
   assert.match(registry, /'regressionCalculator'\]\)/);
   assert.match(inventory, /regressionCalculator: \{ status: 'migrated'/);
   assert.match(component, /const conversionAvailable = selected\?\.type === 'expression' && Boolean\(orderedPair\(selected\.value\)\)/);
