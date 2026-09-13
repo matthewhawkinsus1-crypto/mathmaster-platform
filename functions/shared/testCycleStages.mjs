@@ -110,6 +110,7 @@ export const resolveTestCycleStage = ({
     SESSION_STATE.IN_PROGRESS, SESSION_STATE.SUBMITTED, SESSION_STATE.RELEASED,
   ].includes(normalized.test.state);
   const reviewComplete = normalized.review.complete === true
+    || controls.reviewWaived
     || testMovedPastReview
     || (reviewProgress ? reviewProgress.complete === true : false)
     // A Test Cycle with no Review content cannot be gated on Review.
