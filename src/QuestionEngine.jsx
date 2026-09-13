@@ -56,6 +56,7 @@ import { normalizeQuestionWeight } from './platform/grading/questionWeights.js';
 import { resolveTaskContextPresentation } from './platform/workflow/taskContextPresentation.js';
 import { WorkViewCapabilityProvider } from './platform/workView/workViewCapabilities.js';
 import { WorkViewUndoProvider } from './platform/workView/useMathUndoHistory.js';
+import { QuestionLifecycleProvider } from './platform/question/QuestionLifecycleContext.jsx';
 import UniversalUndoButton from './components/common/UniversalUndoButton.jsx';
 
 const EMPTY_ANSWER_STATE = {
@@ -956,6 +957,7 @@ export default function QuestionEngine({
   );
 
   return (
+    <QuestionLifecycleProvider terminal={locked}>
     <WorkViewUndoProvider register={setUndoController} baseController={baseUndoController} resetKey={processedQuestion?.questionId ?? processedQuestion?.id ?? processedQuestion?.prompt ?? null}>
     <div
       ref={questionEngineRef}
@@ -1127,7 +1129,7 @@ export default function QuestionEngine({
         </section>
       )}
 
-      {isCorrect && showOutcomeFeedback && !sectionComplete && typeof onNextQuestion === 'function' && (
+      {locked && !sectionComplete && typeof onNextQuestion === 'function' && (
         <div role="navigation" aria-label="Continue to the next question" style={{ margin: '16px auto 6px', maxWidth: '700px', position: 'relative', zIndex: 50 }}>
           <button
             type="button"
@@ -1152,7 +1154,7 @@ export default function QuestionEngine({
             }}
           >
             <span>
-              <span style={{ display: 'block', fontSize: '11px', fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.88 }}>You got it — keep going</span>
+              <span style={{ display: 'block', fontSize: '11px', fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.88 }}>{isCorrect ? 'You got it — keep going' : 'This question is closed — keep going'}</span>
               <span style={{ display: 'block', marginTop: '3px', fontSize: '21px', fontWeight: 950 }}>Next Question</span>
               {(nextQuestionLabel || nextQuestionSectionLabel) && (
                 <span style={{ display: 'block', marginTop: '2px', fontSize: '13px', fontWeight: 750, opacity: 0.92 }}>
@@ -1209,5 +1211,6 @@ export default function QuestionEngine({
       <ScratchpadOverlay open={scratchpadOpen} questionKey={processedQuestion?.questionId ?? processedQuestion?.id ?? null} questionDetails={scratchpadQuestionDetails} initialDataUrl={scratchpadDataUrl} initialPages={scratchpadPages} onSave={saveScratchpad} onClose={() => setScratchpadOpen(false)} readOnly={locked} />
     </div>
     </WorkViewUndoProvider>
+    </QuestionLifecycleProvider>
   );
 }

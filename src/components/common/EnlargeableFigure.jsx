@@ -8,6 +8,7 @@ import {
   workViewCapabilitySummary,
 } from '../../platform/workView/workViewCapabilities.js';
 import { readWorkViewViewport } from '../../platform/workView/workViewViewport.js';
+import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import './WorkViewShell.css';
 
 // A graph a student can actually see.
@@ -94,7 +95,12 @@ export default function EnlargeableFigure({
   taskText = '',
   capabilities = null,
 }) {
-  const [enlarged, setEnlarged] = useState(() => !forceClosed && openEnlarged && !readDismissed(dismissKey));
+  const { terminal: questionTerminal } = useQuestionLifecycle();
+  // `forceClosed` remains a supported escape hatch for non-QuestionEngine
+  // hosts, while the shared lifecycle closes every direct or nested figure in
+  // the current question without relying on a tool to forward that prop.
+  const shouldForceClose = forceClosed || questionTerminal;
+  const [enlarged, setEnlarged] = useState(() => !shouldForceClose && openEnlarged && !readDismissed(dismissKey));
   const [drawer, setDrawer] = useState(null);
   const [viewport, setViewport] = useState(() => readWorkViewViewport());
   const openerRef = useRef(null);
@@ -141,11 +147,11 @@ export default function EnlargeableFigure({
   // compact-phone default for future questions. Blurring also dismisses the
   // MathMaster/mobile keyboard before the continuation controls appear.
   useEffect(() => {
-    if (!forceClosed) return;
+    if (!shouldForceClose) return;
     if (typeof document !== 'undefined') document.activeElement?.blur?.();
     setDrawer(null);
     setEnlarged(false);
-  }, [forceClosed]);
+  }, [shouldForceClose]);
 
   useEffect(() => {
     if (!enlarged) return undefined;
@@ -163,10 +169,10 @@ export default function EnlargeableFigure({
   // Focus goes back where it came from, so a keyboard user is not dropped at
   // the top of the page after closing.
   useEffect(() => {
-    if (!enlarged && !forceClosed) openerRef.current?.focus?.({ preventScroll: true });
+    if (!enlarged && !shouldForceClose) openerRef.current?.focus?.({ preventScroll: true });
     // Only on the transition back, never on first mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enlarged, forceClosed]);
+  }, [enlarged, shouldForceClose]);
 
   useEffect(() => {
     if (!enlarged || typeof document === 'undefined') return undefined;
@@ -188,14 +194,14 @@ export default function EnlargeableFigure({
   useEffect(() => {
     const questionChanged = presentationKeyRef.current !== presentationKey;
     presentationKeyRef.current = presentationKey;
-    const allowedToAutoOpen = !forceClosed && openEnlarged && !readDismissed(dismissKey);
+    const allowedToAutoOpen = !shouldForceClose && openEnlarged && !readDismissed(dismissKey);
 
     if (questionChanged) {
       setEnlarged(allowedToAutoOpen);
       return;
     }
     if (allowedToAutoOpen) setEnlarged((current) => current || true);
-  }, [openEnlarged, dismissKey, presentationKey, forceClosed]);
+  }, [openEnlarged, dismissKey, presentationKey, shouldForceClose]);
 
   // visualViewport follows the actually usable height when mobile browser
   // chrome or the virtual keyboard changes. This is presentation-only state.
@@ -344,7 +350,7 @@ export default function EnlargeableFigure({
         </p>
       ) : null}
       {!enlarged ? (
-        <button ref={openerRef} type="button" onClick={() => { if (!forceClosed) setEnlarged(true); }} disabled={forceClosed} style={CONTROL}>
+        <button ref={openerRef} type="button" onClick={() => { if (!shouldForceClose) setEnlarged(true); }} disabled={shouldForceClose} style={CONTROL}>
           ⤢ {enlargeLabel}
         </button>
       ) : null}

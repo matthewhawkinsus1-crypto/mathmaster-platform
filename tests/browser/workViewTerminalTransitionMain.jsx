@@ -6,18 +6,45 @@ import '../../src/index.css';
 import '../../src/App.css';
 
 let control = null;
+window.__mmTerminalLifecycleReady = false;
 window.__mmTerminalLifecycle = (next) => control?.(next);
 
-function Harness() {
-  const [scene, setScene] = useState({ index: 1, status: 'unattempted', sectionComplete: false, assignmentLocked: false });
-  useEffect(() => { control = setScene; return () => { control = null; }; }, []);
-  const question = {
+const QUESTIONS = {
+  simpleRegistry: {
     ...SAMPLE_SPECS.openSortBoard,
+    type: 'openSortBoard',
+    prompt: 'Sort the functions into their matching families.',
+    requireGroupNames: true,
+  },
+  relationAlgebra: {
+    type: 'stepAlgebra',
+    prompt: 'Solve |2x - 3| < 7 step by step. Give the complete solution set.',
+    equation: '|2*x - 3| < 7',
+    solveFor: 'x',
+    relationWorkspace: true,
+    expectedStepPoints: 4,
+  },
+  nestedRegistry: {
+    ...SAMPLE_SPECS.constraintFunctionBuilder,
+    type: 'constraintFunctionBuilder',
+    prompt: 'Build a function satisfying every constraint.',
+  },
+};
+
+function Harness() {
+  const [scene, setScene] = useState({ route: 'simpleRegistry', index: 1, status: 'unattempted', sectionComplete: false, assignmentLocked: false });
+  useEffect(() => {
+    control = setScene;
+    window.__mmTerminalLifecycleReady = true;
+    return () => {
+      control = null;
+      window.__mmTerminalLifecycleReady = false;
+    };
+  }, []);
+  const question = {
+    ...QUESTIONS[scene.route],
     id: `terminal-question-${scene.index}`,
     questionId: `terminal-question-${scene.index}`,
-    type: 'openSortBoard',
-    prompt: `Sort the functions for question ${scene.index}.`,
-    requireGroupNames: true,
   };
   const record = {
     status: scene.status,
@@ -25,8 +52,9 @@ function Harness() {
     variantIndex: 0,
   };
   const advance = () => setScene((current) => ({ ...current, index: current.index + 1, status: 'unattempted', sectionComplete: false, assignmentLocked: false }));
-  return <main className="app-container" data-terminal-question={scene.index}>
+  return <main className="app-container" data-terminal-question={scene.index} data-terminal-route={scene.route}>
     <QuestionEngine
+      key={`${scene.route}-${scene.index}`}
       question={question}
       generationKey={`terminal-${scene.index}`}
       questionRecord={record}
