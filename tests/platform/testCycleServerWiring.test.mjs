@@ -177,7 +177,11 @@ test('the card shows one stage, and the server decides which', () => {
   assert.doesNotMatch(executable, /recordedTestCycleGrade|buildTestCycleGradeState/);
   // One action button, driven by the server's actionLabel.
   assert.match(card, /\{card\.actionLabel\}/);
-  assert.match(card, /disabled=\{!card\.canEnter\}/);
+  // The server's canEnter is what disables the action. Bound to that rather
+  // than to the whole expression: extra conditions may be ANDed in (a review
+  // action with no released session to open is one), and adding one must not
+  // read as removing the gate.
+  assert.match(card, /disabled=\{!card\.canEnter/);
 });
 
 test('every route into a Test Cycle goes through the card', () => {

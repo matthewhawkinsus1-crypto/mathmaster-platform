@@ -22,7 +22,7 @@ const terminalStatuses = new Set(['submitted', 'force_submitted', 'time_expired'
 const COURSE_TEST_EXAM_TYPE = 'courseTest';
 const isCourseTest = (session) => String(session?.examType || '') === COURSE_TEST_EXAM_TYPE;
 
-export const StudentSecureExamDashboard = ({ studentProfile, onExit }) => {
+export const StudentSecureExamDashboard = ({ studentProfile, onExit, onOpenCourseTest = null }) => {
   const [sessions, setSessions] = useState([]);
   const [active, setActive] = useState(null);
   const [reviewing, setReviewing] = useState(null);
@@ -83,14 +83,36 @@ export const StudentSecureExamDashboard = ({ studentProfile, onExit }) => {
                     <div style={{ marginTop: 5, color: '#5f6368', fontSize: 13 }}>{session.requiredQuestions} questions · {session.timeLimitSeconds == null ? 'Untimed' : `${Math.round(session.timeLimitSeconds / 60)} minutes`} · Status: {session.status}</div>
                     {done && !session.feedbackReleased && <div style={{ marginTop: 5, color: '#7a4f00', fontSize: 12 }}>Your teacher has not released correctness feedback yet.</div>}
                   </div>
-                  <button
-                    type="button"
-                    disabled={done && !canReview}
-                    onClick={() => canReview ? setReviewing(session) : setActive(session)}
-                    style={{ padding: '9px 15px', border: 0, borderRadius: 8, background: done && !canReview ? '#dadce0' : canReview ? '#5b21b6' : '#1a73e8', color: '#fff', fontWeight: 900, cursor: done && !canReview ? 'not-allowed' : 'pointer' }}
-                  >
-                    {canReview ? 'Review released feedback' : done ? 'Completed · feedback held' : session.status === 'not_started' ? 'Start' : 'Resume'}
-                  </button>
+                  {/*
+                    A COURSE TEST IS NEVER STARTED FROM THIS LIST.
+
+                    Its sessions are created for a whole class at once, well
+                    before anyone finishes Review, so a Start button here would
+                    be a way into a Test the student has not unlocked — or back
+                    into a Retest a teacher has closed. Only the assignment card
+                    knows which stage is open, so this hands off to it. The
+                    server refuses the same thing independently; this is the
+                    half that stops a student meeting a refusal at all.
+                  */}
+                  {isCourseTest(session) && !canReview ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenCourseTest?.(session.courseTest?.assignmentId)}
+                      disabled={!onOpenCourseTest || !session.courseTest?.assignmentId}
+                      style={{ padding: '9px 15px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}
+                    >
+                      Open in Assignments
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={done && !canReview}
+                      onClick={() => canReview ? setReviewing(session) : setActive(session)}
+                      style={{ padding: '9px 15px', border: 0, borderRadius: 8, background: done && !canReview ? '#dadce0' : canReview ? '#5b21b6' : '#1a73e8', color: '#fff', fontWeight: 900, cursor: done && !canReview ? 'not-allowed' : 'pointer' }}
+                    >
+                      {canReview ? 'Review released feedback' : done ? 'Completed · feedback held' : session.status === 'not_started' ? 'Start' : 'Resume'}
+                    </button>
+                  )}
                 </article>
               );
                 })}

@@ -8473,6 +8473,9 @@ function App() {
           <StudentSecureExamDashboard
           studentProfile={user.profile}
           onExit={() => setStudentDashboardMode('assignments')}
+          // A course Test/Retest is entered through its assignment card, which
+          // is the only thing that knows which stage is open.
+          onOpenCourseTest={(assignmentId) => startAssignment(assignmentId)}
           />
         </>
       );

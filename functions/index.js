@@ -9592,6 +9592,11 @@ exports.startSecureExamSession = onCall(async (request) => {
   const examSessionId = secureExamSessionId(request);
   const db = getFirestore();
   const ref = db.collection("examSessions").doc(examSessionId);
+  // Before anything is started or resumed: a course test is only enterable at
+  // the stage the Test Cycle says the student is on. A simulation has no
+  // `courseTest` block and this is a no-op for it.
+  const entrySnapshot = await ref.get();
+  await assertCourseTestEntryAllowed(db, assertStudentExamSession(entrySnapshot, studentId), studentId);
   const session = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const current = assertStudentExamSession(snapshot, studentId);
@@ -9920,7 +9925,16 @@ exports.listProctorExamSessions = onCall(async (request) => {
   let query = db.collection("examSessions");
   if (examType && secureExam.supportsExamType(examType)) query = query.where("examType", "==", examType);
   const snapshot = await query.limit(200).get();
-  return { sessions: snapshot.docs.map((docSnapshot) => secureExam.publicSession(docSnapshot.data(), { teacher: true })) };
+  // Course-test sessions are scoped to the teacher of record for the student's
+  // class. Simulation scope is unchanged: widening or narrowing it is existing
+  // behaviour this change has no business touching.
+  const ownedClassIds = await teacherOwnedClassIds(db, request);
+  const sessions = snapshot.docs
+    .map((docSnapshot) => docSnapshot.data())
+    .filter((session) => !secureExam.isCourseTestSession(session)
+      || ownedClassIds === null
+      || ownedClassIds.has(String(session.classId || "")));
+  return { sessions: sessions.map((session) => secureExam.publicSession(session, { teacher: true })) };
 });
 
 function releasedExamEvidence(session, response) {
@@ -9948,6 +9962,25 @@ exports.proctorExamAction = onCall(async (request) => {
   if (!["unlock", "lock", "extendTime", "forceSubmit", "releaseFeedback"].includes(action)) throw new HttpsError("invalid-argument", "Choose a supported proctor action.");
   const db = getFirestore();
   const ref = db.collection("examSessions").doc(examSessionId);
+  // Releasing a COURSE test writes a recorded assessment grade and pushes it
+  // to Google Classroom, so it needs more than "some teacher is signed in".
+  const proctorSnapshot = await ref.get();
+  if (!proctorSnapshot.exists) throw new HttpsError("not-found", "Exam session not found.");
+  const proctorSession = proctorSnapshot.data() || {};
+  await assertMayProctorCourseTest(db, request, proctorSession);
+  if (
+    action === "releaseFeedback"
+    && secureExam.isCourseTestSession(proctorSession)
+    && !(await courseTestSessionIsCurrent(db, proctorSession))
+  ) {
+    // A session a teacher reset is still sitting in the proctor monitor with a
+    // Release button. Releasing it would write its old score over the
+    // replacement attempt and rebuild corrections from stale evidence.
+    throw new HttpsError(
+      "failed-precondition",
+      "This secure session was replaced by a reset. Release the student's current session instead.",
+    );
+  }
   const next = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists) throw new HttpsError("not-found", "Exam session not found.");
@@ -10208,6 +10241,112 @@ async function createCourseTestSession(db, {
   return session;
 }
 
+/**
+ * Is this student allowed into THIS secure course-test session right now?
+ *
+ * THE HOLE THIS CLOSES. Course-test sessions are created for a whole class at
+ * once, well before any student finishes Review — so a session exists, and
+ * `startSecureExamSession` on its own only asks "is it yours, and is it
+ * startable?". Any surface that lists exam sessions could therefore hand a
+ * student a Start button for a Test they have not unlocked, or let them resume
+ * a Retest a teacher has closed. The Tests & Exams dashboard is exactly such a
+ * surface.
+ *
+ * The stage machine is the authority, so the gate is enforced HERE, on the
+ * server, in the one call every entry path must make. A screen that forgets to
+ * check now fails closed instead of leaking an exam.
+ *
+ * It also pins the session to the record's CURRENT session for that stage: a
+ * session superseded by a teacher reset is not enterable, whatever its status.
+ */
+async function assertCourseTestEntryAllowed(db, session, studentId) {
+  const courseTest = session?.courseTest;
+  if (!courseTest?.assignmentId) return;
+  // A finished session cannot be sat again by anyone, so the stage question
+  // does not arise. Returning early keeps the existing behaviour of
+  // `startSecureExamSession` on a terminal session — it hands back the session
+  // and the container shows "Exam recorded" — rather than turning it into an
+  // error the student cannot act on.
+  if (secureExam.TERMINAL_STATES.has(session.status)) return;
+  const shared = await testCycleLib.shared();
+  const assignmentSnapshot = await db.collection("assignments").doc(String(courseTest.assignmentId)).get();
+  if (!assignmentSnapshot.exists) throw new HttpsError("failed-precondition", "This assessment is no longer available.");
+  const assignment = assignmentSnapshot.data() || {};
+  const policy = shared.policy.normalizeTestCyclePolicy(assignment.assessmentPolicy);
+  if (!policy) throw new HttpsError("failed-precondition", "This assessment is no longer a Test Cycle.");
+
+  const isRetest = String(courseTest.cycleStage) === shared.issuance.CYCLE_STAGE.RETEST;
+  const [gradeSnapshot, record] = await Promise.all([
+    db.collection("grades").doc(studentId).get(),
+    readTestCycleRecord(db, courseTest.assignmentId, studentId, shared),
+  ]);
+  const currentSessionId = isRetest ? record.retest.examSessionId : record.test.examSessionId;
+  if (currentSessionId && currentSessionId !== session.examSessionId) {
+    throw new HttpsError("failed-precondition", "This secure session was replaced by your teacher. Reopen the assessment from Assignments.");
+  }
+
+  const tracker = gradeSnapshot.data()?.gradesByAssignment?.[courseTest.assignmentId] || {};
+  const state = shared.stages.resolveTestCycleStage({
+    policy,
+    record,
+    reviewProgress: testCycleLib.reviewProgress(assignment, tracker),
+  });
+  const expectedStage = isRetest
+    ? shared.stages.TEST_CYCLE_STAGE.RETEST
+    : shared.stages.TEST_CYCLE_STAGE.TEST;
+  if (state?.stage !== expectedStage || state.canEnter !== true) {
+    throw new HttpsError("failed-precondition", state?.detail || "This part of the assessment is not open to you yet.");
+  }
+}
+
+/**
+ * The classes this caller is teacher of record for, or null for "all of them".
+ *
+ * Null means the root administrator, who is deliberately not filtered. Every
+ * other teacher gets a set, and a course-test session outside it is not theirs
+ * to see or to act on.
+ */
+async function teacherOwnedClassIds(db, request) {
+  const email = callerEmail(request);
+  if (!email) throw new HttpsError("permission-denied", "A verified teacher email is required.");
+  if (authLib.isRootAdminEmail(email)) return null;
+  const snapshot = await db.collection("classes").where("teacherOfRecord", "==", email).get();
+  return new Set(snapshot.docs.map((docSnapshot) => docSnapshot.id));
+}
+
+/**
+ * May this teacher proctor this course-test session?
+ *
+ * `proctorExamAction` has always accepted any authenticated teacher, which was
+ * a defensible scope while the only thing it could do was unlock a simulation.
+ * Releasing a COURSE test now writes a student's recorded assessment grade and
+ * pushes it to Google Classroom, so the same call in the same shape is a much
+ * larger action and needs the teacher of record for that student's class.
+ *
+ * Scoped to course tests on purpose: the simulation proctor scope is existing
+ * behaviour this change has no business widening.
+ */
+async function assertMayProctorCourseTest(db, request, session) {
+  if (!secureExam.isCourseTestSession(session)) return;
+  const ownedClassIds = await teacherOwnedClassIds(db, request);
+  if (ownedClassIds === null) return;
+  const classId = String(session.classId || "");
+  if (!classId || !ownedClassIds.has(classId)) {
+    throw new HttpsError("permission-denied", "Only the teacher of record for this student's class can proctor their course test.");
+  }
+}
+
+/** Is this course-test session still the record's current session for its stage? */
+async function courseTestSessionIsCurrent(db, session) {
+  const courseTest = session?.courseTest;
+  if (!courseTest?.assignmentId) return true;
+  const shared = await testCycleLib.shared();
+  const record = await readTestCycleRecord(db, courseTest.assignmentId, String(session.studentId || ""), shared);
+  const isRetest = String(courseTest.cycleStage) === shared.issuance.CYCLE_STAGE.RETEST;
+  const currentSessionId = isRetest ? record.retest.examSessionId : record.test.examSessionId;
+  return !currentSessionId || currentSessionId === session.examSessionId;
+}
+
 /** Teacher action: open secure Test sessions for a whole class at once. */
 exports.assignTestCycleSessions = onCall(async (request) => {
   const db = getFirestore();
@@ -10223,13 +10362,26 @@ exports.assignTestCycleSessions = onCall(async (request) => {
     throw new HttpsError("failed-precondition", `This Test Cycle cannot be assigned securely: ${preflight.errors[0]}`, { preflight });
   }
 
+  /*
+   * THE AUDIENCE IS THE ASSIGNMENT'S, NOT THE CALLER'S.
+   *
+   * The teacher screen passes whichever class is active in the class bar to
+   * every Test Cycle it lists, so opening a cycle assigned to first period
+   * while third period is selected would otherwise create secure sessions and
+   * canonical records for third period — and the record is itself what grants a
+   * student access. A requested classId therefore has to BE one of the
+   * assignment's assigned classes, and named students have to be in one.
+   */
+  const audienceClassIds = assignmentAudience(assignment).classIds;
+  const requestedClassId = String(request.data?.classId || "").trim();
+  if (requestedClassId && !audienceClassIds.includes(requestedClassId)) {
+    throw new HttpsError("invalid-argument", "That class is not assigned this Test Cycle.");
+  }
   const requestedStudentIds = [...new Set((Array.isArray(request.data?.studentIds) ? request.data.studentIds : [])
     .map((value) => String(value || "").trim()).filter(Boolean))];
   const classIds = requestedStudentIds.length
     ? []
-    : (String(request.data?.classId || "").trim()
-      ? [String(request.data.classId).trim()]
-      : assignmentAudience(assignment).classIds);
+    : (requestedClassId ? [requestedClassId] : audienceClassIds);
 
   const studentDocs = new Map();
   if (requestedStudentIds.length) {
@@ -10249,7 +10401,11 @@ exports.assignTestCycleSessions = onCall(async (request) => {
     }
   }
   const eligible = [...studentDocs.entries()]
-    .filter(([studentId, data]) => studentId !== "test_connection" && data?.status !== "inactive")
+    .filter(([studentId, data]) => studentId !== "test_connection"
+      && data?.status !== "inactive"
+      // Named students are checked here rather than trusted: a grade document
+      // id is not proof that this assignment was ever assigned to them.
+      && studentMatchesAssignmentAudience({ assignment, classId: data?.classId || null }))
     .slice(0, TEST_CYCLE_MAX_BATCH_STUDENTS);
   if (!eligible.length) {
     throw new HttpsError("failed-precondition", "No eligible students were found for this Test Cycle.");
@@ -10382,6 +10538,13 @@ exports.getStudentTestCycle = onCall(async (request) => {
     examSessionId: shared.stages.stageIsSecure(state.stage)
       ? (state.stage === shared.stages.TEST_CYCLE_STAGE.RETEST ? record.retest.examSessionId : record.test.examSessionId)
       : null,
+    // Which released secure session a "Review Test" / "Review Retest" action
+    // opens. The retest when there is one, otherwise the original Test.
+    reviewExamSessionId: record.retest.state === shared.record.SESSION_STATE.RELEASED
+      ? record.retest.examSessionId
+      : record.test.state === shared.record.SESSION_STATE.RELEASED
+        ? record.test.examSessionId
+        : null,
     grade: shared.record.testCycleGradeBreakdown(record, policy),
     corrections,
   };
@@ -10727,6 +10890,18 @@ exports.teacherTestCycleAction = onCall(async (request) => {
     } else {
       next = { ...next, retest: { ...next.retest, examSessionId: null, planId: null, attempt, state: shared.record.SESSION_STATE.NONE, rawScore: null, releasedAt: null } };
     }
+    // A reset can clear an already-released score, so it belongs in the audit
+    // trail beside the releases. Classroom is unaffected: a null recorded grade
+    // is skipped by the passback trigger, so the posted grade simply stands.
+    next = {
+      ...next,
+      history: shared.grade.appendTestCycleGradeHistory(next.history, {
+        at: Date.now(),
+        reason: shared.grade.GRADE_HISTORY_REASON.TEACHER_OVERRIDE,
+        recordedGrade: shared.record.recordGradeState(next, policy).recordedGrade,
+        detail: `Teacher reset the secure ${stage} session (attempt ${attempt}).`,
+      }),
+    };
   }
 
   const persisted = await persistTestCycleRecord(db, next, { shared, policy });
@@ -10835,6 +11010,11 @@ async function applyTestCycleFeedbackRelease(db, session) {
   const rawScore = testCycleLib.weightedSessionScorePercent(session);
   const record = await readTestCycleRecord(db, courseTest.assignmentId, studentId, shared);
   const isRetest = String(courseTest.cycleStage) === shared.issuance.CYCLE_STAGE.RETEST;
+  // Superseded by a teacher reset. The caller already refuses this, and so does
+  // this helper: a stale score reaching the record is not recoverable by the
+  // student, so it is worth refusing twice.
+  const currentSessionId = isRetest ? record.retest.examSessionId : record.test.examSessionId;
+  if (currentSessionId && currentSessionId !== session.examSessionId) return null;
 
   const updated = isRetest
     ? shared.record.applyRetestReleased(record, {
@@ -10944,6 +11124,7 @@ async function syncTestCycleSessionState(db, session) {
   const record = await readTestCycleRecord(db, courseTest.assignmentId, studentId, shared);
   const isRetest = String(courseTest.cycleStage) === shared.issuance.CYCLE_STAGE.RETEST;
   const current = isRetest ? record.retest : record.test;
+  if (current.examSessionId && current.examSessionId !== session.examSessionId) return;
   if (current.state === shared.record.SESSION_STATE.RELEASED) return;
 
   const state = secureExam.TERMINAL_STATES.has(session.status)

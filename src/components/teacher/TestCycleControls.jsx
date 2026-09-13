@@ -145,20 +145,29 @@ export const TestCycleControls = ({ assignment, classId = null }) => {
                 <td style={{ ...cell, fontWeight: 900 }}>{percent(row.recordedGrade)}</td>
                 <td style={cell}>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {/*
+                      Reset names its stage. One "Reset session" button had to
+                      pick a default, and the default was the Test — so a
+                      teacher resetting a student's Retest would instead have
+                      force-submitted the Test and cleared its released score.
+                      Which session is being thrown away is not something a
+                      button should decide on a teacher's behalf.
+                    */}
                     {[
-                      ['waiveCorrections', 'Waive corrections'],
-                      ['unlockRetest', 'Unlock retest'],
-                      ['disableRetest', 'Close retest'],
-                      ['requireCorrections', 'Require corrections'],
-                      ['resetSecureSession', 'Reset session'],
-                    ].map(([action, label]) => (
+                      ['waiveCorrections', 'Waive corrections', 'test'],
+                      ['unlockRetest', 'Unlock retest', 'test'],
+                      ['disableRetest', 'Close retest', 'test'],
+                      ['requireCorrections', 'Require corrections', 'test'],
+                      ['resetSecureSession', 'Reset Test session', 'test'],
+                      ['resetSecureSession', 'Reset Retest session', 'retest'],
+                    ].map(([action, label, stage]) => (
                       <button
-                        key={action}
+                        key={label}
                         type="button"
                         disabled={busy}
                         style={button()}
                         onClick={() => run(
-                          () => teacherTestCycleAction({ assignmentId, studentId: row.studentId, action }),
+                          () => teacherTestCycleAction({ assignmentId, studentId: row.studentId, action, stage }),
                           `${label} applied for ${row.studentId}.`,
                         )}
                       >

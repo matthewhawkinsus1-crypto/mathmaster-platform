@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import SecureExamContainer from '../assessment/SecureExamContainer.jsx';
+import SecureExamReview from '../assessment/SecureExamReview.jsx';
 import TestCycleCorrections from './TestCycleCorrections.jsx';
 import { getStudentTestCycle } from '../../services/testCycleService.js';
 import { TEST_CYCLE_STAGE, stageIsSecure } from '../../platform/assessment/testCycle.js';
@@ -92,6 +93,18 @@ export const TestCycleCard = ({ assignmentId, studentProfile = null, onOpenRevie
     );
   }
 
+  // A completed cycle's action is "Review Test" / "Review Retest", and it has
+  // to actually open the released review. Falling through to onExit would have
+  // made the advertised action a way of leaving the screen.
+  if (mode === 'review' && card.reviewExamSessionId) {
+    return (
+      <SecureExamReview
+        examSessionId={card.reviewExamSessionId}
+        onBack={() => { setMode('card'); load(); }}
+      />
+    );
+  }
+
   if (mode === 'corrections' && card.corrections) {
     return (
       <TestCycleCorrections
@@ -105,10 +118,13 @@ export const TestCycleCard = ({ assignmentId, studentProfile = null, onOpenRevie
   }
 
   const tone = STAGE_TONE[card.stage] || { background: '#f1f3f4', color: '#3c4043' };
+  // The two stages whose action is "open the released secure review".
+  const isReviewAction = [TEST_CYCLE_STAGE.PASSED, TEST_CYCLE_STAGE.COMPLETE].includes(card.stage);
   const enter = () => {
     if (card.stage === TEST_CYCLE_STAGE.REVIEW) return onOpenReview?.(assignmentId);
     if (stageIsSecure(card.stage)) return setMode('secure');
     if (card.stage === TEST_CYCLE_STAGE.CORRECTIONS) return setMode('corrections');
+    if (card.reviewExamSessionId) return setMode('review');
     return onExit?.();
   };
 
@@ -138,7 +154,7 @@ export const TestCycleCard = ({ assignmentId, studentProfile = null, onOpenRevie
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <button
           type="button"
-          disabled={!card.canEnter}
+          disabled={!card.canEnter || (isReviewAction && !card.reviewExamSessionId)}
           onClick={enter}
           style={{ minHeight: 48, padding: '10px 20px', border: 0, borderRadius: 9, background: card.canEnter ? (card.secure ? '#b3261e' : '#1a73e8') : '#dadce0', color: '#fff', fontWeight: 900, cursor: card.canEnter ? 'pointer' : 'not-allowed' }}
         >
