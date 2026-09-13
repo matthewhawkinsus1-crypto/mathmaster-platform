@@ -8,6 +8,7 @@ import {
   stabilizeHorizontalViewport,
 } from '../../platform/mobile/mobileFocusViewport.js';
 import { isBrowserPinchZoomed, readStableViewportBox } from '../../platform/mobile/mobileInteractionFoundation.js';
+import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 
 const NUMERIC_SELECTOR = 'input[type="number"], input[inputmode="numeric"], input[inputmode="decimal"], input[data-mathmaster-mobile-keypad="true"]';
 const KEYS = ['7', '8', '9', '4', '5', '6', '1', '2', '3', '±', '0', '.'];
@@ -65,7 +66,22 @@ export const MobileViewportContainer = ({
   const [isMobile, setIsMobile] = useState(detectMobile);
   const [isLandscape, setIsLandscape] = useState(detectLandscape);
   const [numericTarget, setNumericTarget] = useState(null);
+  const { terminal: questionTerminal } = useQuestionLifecycle();
   const [visualViewport, setVisualViewport] = useState(() => readStableViewportBox(typeof window !== 'undefined' ? window : null));
+
+  // Terminal question state owns every input surface, not only Work View.
+  // Blurring the active field closes native/MathLive keyboards, while clearing
+  // numericTarget removes MathMaster's fixed numeric keypad so it cannot cover
+  // the Next Question / Continue control after grading locks the question.
+  useEffect(() => {
+    if (!questionTerminal) return;
+    setNumericTarget((current) => {
+      current?.blur?.();
+      return null;
+    });
+    window.mathVirtualKeyboard?.hide?.();
+    focusedScrollerLockRef.current = { element: null, left: 0 };
+  }, [questionTerminal]);
 
   useEffect(() => {
     const updateViewportMode = () => {
