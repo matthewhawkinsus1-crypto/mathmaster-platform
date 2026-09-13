@@ -125,7 +125,11 @@ test('the round bar shows standing, not just instructions', () => {
 });
 
 test('the countdown is announced to a screen reader, not only coloured', () => {
-  assert.match(student, /aria-label=\{`\$\{Math\.ceil\(remainingMs \/ 1000\)\} seconds left`\}/);
+  assert.match(
+    student,
+    /aria-label=\{roundStarted \? `\$\{Math\.ceil\(remainingMs \/ 1000\)\} seconds left` : `Round starts in \$\{Math\.ceil\(startsInMs \/ 1000\)\} seconds`\}/,
+    'the live region must announce both the authoritative pre-round countdown and active time remaining',
+  );
   assert.match(student, /aria-live="polite"/);
   // Round pips are decoration over information already stated in words.
   assert.match(student, /aria-hidden="true"/);

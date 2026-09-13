@@ -281,6 +281,7 @@ test('bounded late arrival is accepted but genuinely late traffic is rejected', 
   const plan = await mathPath.buildIssuePlan(instantiated.question);
   const accepted = await functionsIndex.submitLiveChallengeResponse.run(studentRequest({
     roomId: ROOM, roundIndex: 2, roundVersion: 3, roundToken: 'round-token-2', submissionId: 'bounded-late',
+    humanElapsedMs: 119699,
     responsePayload: { responses: { answer: plan.privateGrading.fields[0].expected } },
   }, students[4]));
   assert.equal(accepted.serverConfirmed, true);

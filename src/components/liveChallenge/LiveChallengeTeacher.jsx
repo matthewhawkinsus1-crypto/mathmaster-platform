@@ -299,7 +299,7 @@ export default function LiveChallengeTeacher({
   const serverNow = now + clockOffsetMs;
   const remainingMs = Math.max(0, roundEndsAtMs - serverNow);
   const canAdvance = challengeCanAdvance({ joinedCount, answeredCount, roundEndsAtMs, nowMs: serverNow });
-  const connectionSummary = ['synchronized', 'delayed', 'reconnecting'].map((status) => ({
+  const connectionSummary = ['synchronized', 'delayed', 'reconnecting', 'degraded'].map((status) => ({
     status,
     count: diagnostics.filter((entry) => entry.connectionStatus === status).length,
   }));

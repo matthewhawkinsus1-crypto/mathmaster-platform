@@ -28,6 +28,7 @@ export {
 
 export const calibrateLiveChallengeClock = async (payload) => {
   record('calibrateLiveChallengeClock', payload);
+  if (window.__mmGameCalibrationFails || new URLSearchParams(window.location.search).has('calibrationFails')) throw new Error('Simulated calibration outage.');
   return { serverAt: Date.now() };
 };
 

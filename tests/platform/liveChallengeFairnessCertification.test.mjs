@@ -4,9 +4,12 @@ import { readFileSync } from 'node:fs';
 import { scoreChallengeRound } from '../../functions/shared/liveChallenge.mjs';
 import {
   acceptChallengeSnapshot,
+  authoritativeElapsed,
   calibrateChallengeClock,
   challengePhaseAt,
   challengeSpeedTier,
+  MAX_CAPTURE_TRANSPORT_MS,
+  ROUND_SYNC_LEAD_MS,
   submissionArrivalDecision,
 } from '../../functions/shared/liveChallengeParity.mjs';
 
@@ -24,11 +27,10 @@ test('speed tier boundaries are broad, deterministic bands', () => {
   const total = 10_000;
   assert.equal(challengeSpeedTier(0, total).multiplier, 1);
   assert.equal(challengeSpeedTier(2_000, total).tier, 'instant');
-  assert.equal(challengeSpeedTier(2_700, total).multiplier, 1);
-  assert.equal(challengeSpeedTier(2_751, total).multiplier, .8);
-  assert.equal(challengeSpeedTier(4_751, total).multiplier, .6);
-  assert.equal(challengeSpeedTier(6_751, total).multiplier, .4);
-  assert.equal(challengeSpeedTier(8_751, total).multiplier, .2);
+  assert.equal(challengeSpeedTier(2_001, total).multiplier, .8);
+  assert.equal(challengeSpeedTier(4_001, total).multiplier, .6);
+  assert.equal(challengeSpeedTier(6_001, total).multiplier, .4);
+  assert.equal(challengeSpeedTier(8_001, total).multiplier, .2);
   assert.equal(challengeSpeedTier(9_999, total).multiplier, .2);
   assert.equal(challengeSpeedTier(10_000, total).tier, 'expired');
   assert.equal(challengeSpeedTier(10_001, total).tier, 'expired');
@@ -58,16 +60,35 @@ test('certification: transport arrival alone cannot change equal human placement
     > scoreChallengeRound({ gradeScore: .8, isCorrect: false, elapsedMs: 1, totalMs: 45_000, previousStreak: 5 }).pointsAwarded);
 });
 
+test('inbound delivery plus outbound latency preserve equal human tiers at every boundary', () => {
+  const totalMs = 45_000;
+  const startsAtMs = 1_000_000 + ROUND_SYNC_LEAD_MS;
+  const latencies = [20, 75, 150, 300, 600];
+  const humanTimes = [8_999, 9_000, 9_001, 17_999, 18_000, 18_001, 26_999, 27_000, 27_001, 35_999, 36_000, 36_001];
+  for (const humanElapsedMs of humanTimes) {
+    const tiers = latencies.map((latency) => {
+      const deliveredAtMs = 1_000_000 + latency;
+      assert.ok(deliveredAtMs < startsAtMs, 'sync lead delivers the question before the official start');
+      const arrivedAtMs = startsAtMs + humanElapsedMs + latency;
+      const official = authoritativeElapsed({ humanElapsedMs, arrivedAtMs, startsAtMs, totalMs });
+      return challengeSpeedTier(official, totalMs).tier;
+    });
+    assert.equal(new Set(tiers).size, 1, `${humanElapsedMs}ms => ${tiers.join(',')}`);
+  }
+});
+
 test('claimed elapsed and wall clock cannot improve the server-observed tier', () => {
   const timing = { arrivedAtMs: 118_000, startsAtMs: 100_000, endsAtMs: 145_000 };
-  const honest = submissionArrivalDecision({ ...timing, humanElapsedMs: 18_000, clientWallAt: 118_000 });
-  const manipulated = submissionArrivalDecision({ ...timing, humanElapsedMs: 1, clientWallAt: -9_999_999 });
-  assert.deepEqual(manipulated, honest);
-  assert.equal(challengeSpeedTier(manipulated.elapsedMs, 45_000).tier, 'fast');
+  const honest = authoritativeElapsed({ ...timing, humanElapsedMs: 18_000, totalMs: 45_000 });
+  const manipulated = authoritativeElapsed({ ...timing, humanElapsedMs: 1, clientWallAt: -9_999_999, totalMs: 45_000 });
+  assert.equal(honest, 18_000);
+  assert.equal(manipulated, 18_000 - MAX_CAPTURE_TRANSPORT_MS);
+  assert.ok(honest - manipulated <= MAX_CAPTURE_TRANSPORT_MS);
 });
 
 test('authoritative lifecycle has only real phases and permits forward transitions', () => {
   assert.equal(challengePhaseAt({ status: 'lobby' }, 100), 'lobby');
+  assert.equal(challengePhaseAt({ status: 'running', startsAtMs: 150, roundEndsAtMs: 200 }, 100), 'countdown');
   assert.equal(challengePhaseAt({ status: 'running', roundEndsAtMs: 200 }, 100), 'answering');
   assert.equal(challengePhaseAt({ status: 'running', roundEndsAtMs: 200 }, 200), 'locked');
   assert.equal(challengePhaseAt({ status: 'finished' }, 100), 'finished');
@@ -120,6 +141,8 @@ test('server and student contracts include idempotency, immediate lock, trust bo
   assert.match(server, /submissionReceipts\?\.\[submissionId\]/);
   assert.match(server, /roundVersion/);
   assert.match(server, /roundToken/);
+  assert.match(server, /new Date\(nowMs \+ parity\.ROUND_SYNC_LEAD_MS\)/);
+  assert.match(server, /humanElapsedMs: request\.data\?\.timingDegraded \? null : request\.data\?\.humanElapsedMs/);
   assert.match(server, /gradePathToolResponse/);
   assert.match(student, /setPending\(capture\)[\s\S]{0,180}await submitResponse\(capture\)/);
   assert.match(student, /performance\.now\(\) - roundOriginMonoRef\.current/);
@@ -128,6 +151,9 @@ test('server and student contracts include idempotency, immediate lock, trust bo
   assert.match(student, /JSON\.parse\(window\.localStorage\.getItem\(pendingKey\)/);
   assert.match(student, /const recover = \(\) => retryPending\(\)/);
   assert.match(student, /submitResponse\(pending\)/);
+  assert.match(student, /quality: 'reconnecting', sampleCount: 0/);
+  assert.match(student, /failures >= 3 \? 'degraded' : 'reconnecting'/);
+  assert.match(student, /clock\.quality === 'degraded'[\s\S]*Clock sync is unavailable/);
   assert.match(rules, /match \/diagnostics\/\{playerKey\}[\s\S]*teacher\(\)/);
   assert.doesNotMatch(rules.match(/match \/diagnostics\/\{playerKey\}[\s\S]*?\n      \}/)?.[0] || '', /role == 'student'/);
 });

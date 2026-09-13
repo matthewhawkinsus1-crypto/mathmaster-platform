@@ -92,6 +92,9 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   });
   await setDoc(doc(db, 'presence/S1042'), { studentId: 'S1042', classId: 'class-1', assignmentId: 'A1' });
   await setDoc(doc(db, 'presence/S2000'), { studentId: 'S2000', classId: 'class-2', assignmentId: 'A2' });
+  await setDoc(doc(db, 'liveChallengeRooms/room-diagnostics'), { teacherEmail: TEACHER_EMAIL, status: 'running' });
+  await setDoc(doc(db, 'liveChallengeRooms/room-diagnostics/diagnostics/player-1'), { connectionStatus: 'synchronized' });
+  await setDoc(doc(db, 'liveChallengeInvites/S1042'), { roomId: 'room-diagnostics', playerKey: 'player-1' });
   await setDoc(doc(db, 'assignmentAuthoringDrafts/draft-mine'), {
     title: 'Unit 3 draft',
     authoringReview: { ownerUid: 'teacher-uid', state: 'incomplete', blockingCount: 2 },
@@ -127,6 +130,17 @@ const student = testEnv.authenticatedContext('student:S1042', { role: 'student',
 // Someone who signed in with Google but has no role claim yet.
 const roleless = testEnv.authenticatedContext('random-uid', {}).firestore();
 const anon = testEnv.unauthenticatedContext().firestore();
+
+// --- Live Challenge diagnostics are teacher-only server state --------------
+const diagnosticPath = 'liveChallengeRooms/room-diagnostics/diagnostics/player-1';
+await check('owning teacher reads Live Challenge diagnostics', assertSucceeds(getDoc(doc(teacher, diagnosticPath))));
+await check('root admin reads Live Challenge diagnostics', assertSucceeds(getDoc(doc(rootAdmin, diagnosticPath))));
+await check('student CANNOT read own Live Challenge diagnostics', assertFails(getDoc(doc(student, diagnosticPath))));
+await check('unrelated teacher CANNOT read Live Challenge diagnostics', assertFails(getDoc(doc(otherTeacher, diagnosticPath))));
+await check('teacher client CANNOT create Live Challenge diagnostics', assertFails(setDoc(doc(teacher, 'liveChallengeRooms/room-diagnostics/diagnostics/new-player'), { connectionStatus: 'delayed' })));
+await check('teacher client CANNOT update Live Challenge diagnostics', assertFails(setDoc(doc(teacher, diagnosticPath), { connectionStatus: 'degraded' }, { merge: true })));
+await check('teacher client CANNOT delete Live Challenge diagnostics', assertFails(deleteDoc(doc(teacher, diagnosticPath))));
+await check('student client CANNOT write Live Challenge diagnostics', assertFails(setDoc(doc(student, diagnosticPath), { connectionStatus: 'synchronized' }, { merge: true })));
 
 // --- Student owns exactly their own record --------------------------------
 await check('student reads own grades', assertSucceeds(getDoc(doc(student, 'grades/S1042'))));

@@ -3,7 +3,7 @@
 // Functions, clients, and the parity certification harness.
 
 export const ROUND_PHASE = Object.freeze({
-  LOBBY: 'lobby', ANSWERING: 'answering', LOCKED: 'locked', FINISHED: 'finished',
+  LOBBY: 'lobby', COUNTDOWN: 'countdown', ANSWERING: 'answering', LOCKED: 'locked', FINISHED: 'finished',
 });
 
 const PHASE_ORDER = Object.freeze(Object.fromEntries(Object.values(ROUND_PHASE).map((phase, index) => [phase, index])));
@@ -39,21 +39,12 @@ export const SPEED_TIERS = Object.freeze([
   { maximumElapsedRatio: .8, multiplier: .4, tier: 'careful' },
   { maximumElapsedRatio: 1, multiplier: .2, tier: 'deadline' },
 ]);
-export const SPEED_TIER_BOUNDARY_TOLERANCE_MS = 750;
-
 export function challengeSpeedTier(elapsedMs, totalMs) {
   const elapsed = Math.max(0, Number(elapsedMs) || 0);
   const total = Math.max(1, Number(totalMs) || 1);
   if (elapsed >= total) return Object.freeze({ tier: 'expired', multiplier: 0, elapsedRatio: elapsed / total });
   const elapsedRatio = elapsed / total;
-  // Server-observed arrival is deliberately fuzzy at a band boundary. A
-  // classroom-scale transport difference must not turn a near tie into a new
-  // placement, and no client claim participates in this tolerance.
-  const band = SPEED_TIERS.find((candidate, index) => (
-    index === SPEED_TIERS.length - 1
-      ? elapsedRatio < 1
-      : elapsed <= (candidate.maximumElapsedRatio * total) + SPEED_TIER_BOUNDARY_TOLERANCE_MS
-  )) || SPEED_TIERS.at(-1);
+  const band = SPEED_TIERS.find((candidate) => elapsedRatio <= candidate.maximumElapsedRatio) || SPEED_TIERS.at(-1);
   return Object.freeze({ ...band, elapsedRatio });
 }
 
@@ -76,11 +67,15 @@ export function acceptChallengeSnapshot(current, incoming) {
 // without creating a second answering period after the round. A response in
 // this transport-only grace receives only the final speed band.
 export const SUBMISSION_ARRIVAL_GRACE_MS = 750;
+export const ROUND_SYNC_LEAD_MS = 1500;
+export const MAX_CAPTURE_TRANSPORT_MS = 750;
 
 export function challengePhaseAt(snapshot = {}, serverNowMs = Date.now()) {
   if (snapshot.status === 'finished' || snapshot.status === 'cancelled') return ROUND_PHASE.FINISHED;
   if (snapshot.status === 'lobby') return ROUND_PHASE.LOBBY;
+  const startsAtMs = Number(snapshot.startsAtMs || snapshot.roundStartedAtMs || 0);
   const endsAtMs = Number(snapshot.endsAtMs || snapshot.roundEndsAtMs || 0);
+  if (startsAtMs > 0 && Number(serverNowMs) < startsAtMs) return ROUND_PHASE.COUNTDOWN;
   return endsAtMs > 0 && Number(serverNowMs) >= endsAtMs ? ROUND_PHASE.LOCKED : ROUND_PHASE.ANSWERING;
 }
 
@@ -92,6 +87,7 @@ export function submissionArrivalDecision({ arrivedAtMs, startsAtMs, endsAtMs, g
   if (![arrived, starts, ends].every(Number.isFinite) || ends <= starts) {
     return Object.freeze({ accepted: false, reason: 'invalid_timeline', elapsedMs: 0, inGrace: false });
   }
+  if (arrived < starts) return Object.freeze({ accepted: false, reason: 'round_not_started', elapsedMs: 0, inGrace: false });
   if (arrived > ends + grace) {
     return Object.freeze({ accepted: false, reason: 'arrival_window_expired', elapsedMs: ends - starts, inGrace: false });
   }
@@ -105,7 +101,14 @@ export function submissionArrivalDecision({ arrivedAtMs, startsAtMs, endsAtMs, g
   });
 }
 
-export function authoritativeElapsed({ arrivedAtMs, startsAtMs, totalMs }) {
+export function authoritativeElapsed({ humanElapsedMs, arrivedAtMs, startsAtMs, totalMs }) {
   const arrivalElapsed = Math.max(0, Number(arrivedAtMs) - Number(startsAtMs));
-  return Math.min(Number(totalMs), arrivalElapsed);
+  const claimed = Number(humanElapsedMs);
+  // A calibrated monotonic capture removes inbound and outbound transport from
+  // human work. The server still caps its possible advantage: a claim may be
+  // at most MAX_CAPTURE_TRANSPORT_MS ahead of observable arrival. Missing or
+  // invalid calibration degrades to arrival timing and grants no advantage.
+  if (!Number.isFinite(claimed)) return Math.min(Number(totalMs), arrivalElapsed);
+  const minimum = Math.max(0, arrivalElapsed - MAX_CAPTURE_TRANSPORT_MS);
+  return Math.min(Number(totalMs), arrivalElapsed, Math.max(minimum, claimed));
 }

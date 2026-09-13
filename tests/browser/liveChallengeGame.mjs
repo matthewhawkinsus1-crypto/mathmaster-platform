@@ -343,6 +343,18 @@ await setRoom({ endsAt: Date.now() - 1000, roundEndsAt: Date.now() - 1000 });
 await wait(400);
 await step('round-2-expired', { mustContain: ['Time is up'], mustNotContain: ['Retry locked answer'] });
 
+await page.goto(`${ORIGIN}/tests/browser/liveChallengeGame.html?emulator=${EMULATOR}&calibrationFails=1`, { waitUntil: 'domcontentloaded' });
+await page.waitForFunction(() => typeof window.__mmGameMount === 'function', { timeout: 30000 });
+await page.evaluate((invite) => window.__mmGameMount(invite), {
+  roomId: ROOM_ID, title: 'Period 3 Warm-Up Challenge', alias: 'Swift Otter',
+  playerKey: PLAYER_KEY, status: 'running', assignmentId: 'assignment-a',
+});
+await wait(4500);
+await step('calibration-failure-degraded-mode', {
+  mustContain: ['Clock sync is unavailable', 'Time is up'],
+  mustNotContain: ['Synchronizing round clock'],
+});
+
 await setRoom({ status: 'finished', currentQuestion: null, roundEndsAt: null });
 await step('finished', {
   mustContain: ['Final Standings', 'Swift Otter'],

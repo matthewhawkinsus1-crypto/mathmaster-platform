@@ -6916,6 +6916,7 @@ exports.joinLiveChallenge = onCall(async (request) => {
 
 async function openLiveChallengeRound({ db, roomRef, privateRef, room, privateState, roundIndex }) {
   const challenge = await liveChallengeRules();
+  const parity = await import("./shared/liveChallengeParity.mjs");
   const questionId = privateState.questionIds?.[roundIndex];
   if (!questionId) throw new HttpsError("failed-precondition", "That Live Challenge round has no question.");
   const currentQuestion = await buildLiveChallengePublicQuestion(db, { roomId: roomRef.id, roundIndex, questionId });
@@ -6923,8 +6924,8 @@ async function openLiveChallengeRound({ db, roomRef, privateRef, room, privateSt
   const roundSeconds = challenge.normalizeRoundSeconds(room.roundSeconds);
   const roundVersion = Math.max(Number(room.roundVersion) || 0, roundIndex) + 1;
   const roundToken = crypto.randomUUID();
-  const startsAt = new Date(nowMs);
-  const endsAt = new Date(nowMs + roundSeconds * 1000);
+  const startsAt = new Date(nowMs + parity.ROUND_SYNC_LEAD_MS);
+  const endsAt = new Date(startsAt.getTime() + roundSeconds * 1000);
 
   await Promise.all([
     privateRef.set({
@@ -6939,7 +6940,7 @@ async function openLiveChallengeRound({ db, roomRef, privateRef, room, privateSt
       currentRound: roundIndex,
       roundVersion,
       roundToken,
-      phase: "answering",
+      phase: "countdown",
       currentQuestion,
       startsAt,
       endsAt,
@@ -6949,7 +6950,7 @@ async function openLiveChallengeRound({ db, roomRef, privateRef, room, privateSt
     }, { merge: true }),
   ]);
 
-  return { currentQuestion, roundIndex, roundVersion, roundToken, phase: "answering", startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() };
+  return { currentQuestion, roundIndex, roundVersion, roundToken, phase: "countdown", startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() };
 }
 
 // A deliberately tiny calibration endpoint. Calling it several times lets the
@@ -6964,7 +6965,7 @@ exports.calibrateLiveChallengeClock = onCall(async (request) => {
     const db = getFirestore();
     const privatePlayer = await db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId).collection("players").doc(studentId).get();
     if (privatePlayer.exists && privatePlayer.data()?.playerKey) {
-      const quality = ["synchronized", "delayed", "reconnecting"].includes(request.data.quality) ? request.data.quality : "delayed";
+      const quality = ["synchronized", "delayed", "reconnecting", "degraded"].includes(request.data.quality) ? request.data.quality : "delayed";
       await db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId).collection("diagnostics").doc(privatePlayer.data().playerKey).set({
         connectionStatus: quality,
         connectionRttCategory: quality === "synchronized" ? "normal" : "elevated",
@@ -7395,12 +7396,18 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     const missedRounds = Array.isArray(player.missedRounds) ? player.missedRounds.map(Number) : [];
     const missedOriginally = isSecondChance && missedRounds.includes(Number(secondChanceOf));
 
+    const officialElapsedMs = parity.authoritativeElapsed({
+      humanElapsedMs: request.data?.timingDegraded ? null : request.data?.humanElapsedMs,
+      arrivedAtMs: requestArrivedAt,
+      startsAtMs: latestStartsAtMs,
+      totalMs: challenge.normalizeRoundSeconds(latestRoom.roundSeconds) * 1000,
+    });
     finalScore = challenge.scoreChallengeRound({
       gradeScore: grading?.score ?? (grading?.isCorrect ? 1 : 0),
       isCorrect: grading?.isCorrect === true,
       remainingMs: Math.max(0, latestEndsAtMs - nowMs),
       totalMs: challenge.normalizeRoundSeconds(latestRoom.roundSeconds) * 1000,
-      elapsedMs: arrival.elapsedMs,
+      elapsedMs: officialElapsedMs,
       previousStreak: player.streak || 0,
       // Tracked explicitly rather than inferred from a zero streak, which is
       // also a player's very first round.
@@ -7462,6 +7469,8 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
       lastSubmissionAudit: {
         roomId, roundIndex: submittedRound, roundVersion: submittedVersion, submissionId,
         capturedElapsedMs: Math.max(0, Number(request.data?.humanElapsedMs) || 0),
+        officialElapsedMs,
+        timingDegraded: request.data?.timingDegraded === true,
         serverArrivalInGrace: arrival.inGrace,
         connectionQuality: String(request.data?.connectionQuality || "unknown").slice(0, 24),
         speedTier: finalScore.speedTier, pointsAwarded: finalScore.pointsAwarded,

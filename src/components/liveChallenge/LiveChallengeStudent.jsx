@@ -125,7 +125,10 @@ export function ChallengeRound({
   const endsAtMs = timestampMillis(room.roundEndsAt);
   const startsAtMs = timestampMillis(room.startsAt || room.roundStartedAt);
   const roundOriginMonoRef = useRef(performance.now() - Math.max(0, (Number(room.serverNowAtRender) || Date.now()) - startsAtMs));
-  const remainingMs = Math.max(0, (endsAtMs - startsAtMs) - (monotonicNow - roundOriginMonoRef.current));
+  const startsInMs = Math.max(0, roundOriginMonoRef.current - monotonicNow);
+  const roundStarted = startsInMs <= 0;
+  const elapsedMs = Math.max(0, monotonicNow - roundOriginMonoRef.current);
+  const remainingMs = Math.max(0, (endsAtMs - startsAtMs) - elapsedMs);
   const expired = endsAtMs > 0 && remainingMs <= 0;
   const urgent = !expired && remainingMs <= 10000;
   const [result, setResult] = useState(null);
@@ -172,7 +175,7 @@ export function ChallengeRound({
   }, [workingPoints, result, expired, room?.roomId, roundIndex, reportProgress]);
 
   const submit = async (responsePayload) => {
-    if (result || pending || expired) return null;
+    if (result || pending || expired || !roundStarted) return null;
     setSubmitError('');
     const submissionId = globalThis.crypto?.randomUUID?.() || `submission-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const capture = {
@@ -184,6 +187,7 @@ export function ChallengeRound({
       responsePayload,
       humanElapsedMs: Math.max(0, performance.now() - roundOriginMonoRef.current),
       connectionQuality: room.connectionQuality || 'unknown',
+      timingDegraded: room.connectionQuality === 'degraded',
     };
     // Lock and acknowledge before awaiting transport. The exact payload/id is
     // retained so a transient failure retries rather than creating an attempt.
@@ -272,7 +276,7 @@ export function ChallengeRound({
             <span style={{ opacity: .82, fontSize: 13 }}>{question?.teksCode || 'Mixed review'}</span>
           </div>
           <div
-            aria-label={`${Math.ceil(remainingMs / 1000)} seconds left`}
+            aria-label={roundStarted ? `${Math.ceil(remainingMs / 1000)} seconds left` : `Round starts in ${Math.ceil(startsInMs / 1000)} seconds`}
             style={{
               fontSize: 40,
               fontWeight: 1000,
@@ -281,7 +285,7 @@ export function ChallengeRound({
               animation: urgent ? 'challengePulse .9s ease-in-out infinite' : 'none',
             }}
           >
-            {formatClock(remainingMs)}
+            {roundStarted ? formatClock(remainingMs) : `Starts in ${Math.ceil(startsInMs / 1000)}`}
           </div>
         </div>
 
@@ -318,8 +322,8 @@ export function ChallengeRound({
             studentProfile={studentProfile}
             maximumAttempts={1}
             activityRole="practice"
-            assignmentLocked={Boolean(result) || Boolean(pending) || expired}
-            assignmentLockedMessage={expired && !result ? 'Time is up for this Live Challenge round.' : 'Your answer is locked in for this round.'}
+            assignmentLocked={Boolean(result) || Boolean(pending) || expired || !roundStarted}
+            assignmentLockedMessage={!roundStarted ? 'The synchronized round is about to start.' : expired && !result ? 'Time is up for this Live Challenge round.' : 'Your answer is locked in for this round.'}
             draftKey={`live-challenge-${room.roomId}-${roundIndex}`}
             serverGrading={{
               pathToolId: question.pathToolId,
@@ -342,7 +346,7 @@ export function ChallengeRound({
           />
         </section>
       ) : (
-        <LiveChallengeFieldQuestion question={question} disabled={Boolean(result) || Boolean(pending) || expired} onSubmit={submit} />
+        <LiveChallengeFieldQuestion question={question} disabled={Boolean(result) || Boolean(pending) || expired || !roundStarted} onSubmit={submit} />
       )}
 
       {pending && !result && <div aria-live="assertive" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>Answer locked · waiting for secure server confirmation…</div>}
@@ -384,7 +388,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
   const roomId = invite?.roomId || null;
-  const [clock, setClock] = useState({ offsetMs: 0, rttMs: 0, jitterMs: 0, quality: 'reconnecting' });
+  const [clock, setClock] = useState({ offsetMs: 0, rttMs: 0, jitterMs: 0, quality: 'reconnecting', sampleCount: 0 });
 
   useEffect(() => {
     if (!roomId) { setRoom(null); return undefined; }
@@ -400,21 +404,36 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   useEffect(() => {
     if (!roomId) return undefined;
     let stopped = false;
+    let timer = 0;
+    let failures = 0;
     const sample = async () => {
-      const samples = [];
-      for (let index = 0; index < 5; index += 1) {
-        const clientSentAt = Date.now();
-        // eslint-disable-next-line no-await-in-loop
-        const reply = await calibrateLiveChallengeClock({ roomId });
-        samples.push({ clientSentAt, clientReceivedAt: Date.now(), serverAt: reply.serverAt });
+      try {
+        const samples = [];
+        for (let index = 0; index < 5; index += 1) {
+          const clientSentAt = Date.now();
+          // eslint-disable-next-line no-await-in-loop
+          const reply = await calibrateLiveChallengeClock({ roomId });
+          samples.push({ clientSentAt, clientReceivedAt: Date.now(), serverAt: reply.serverAt });
+        }
+        const estimate = calibrateChallengeClock(samples);
+        failures = 0;
+        if (!stopped) setClock(estimate);
+        await calibrateLiveChallengeClock({ roomId, quality: estimate.quality }).catch(() => {});
+        if (!stopped) timer = window.setTimeout(sample, 30000);
+      } catch {
+        failures += 1;
+        if (!stopped) setClock((value) => ({
+          ...value,
+          sampleCount: Number(value.sampleCount) || 0,
+          quality: failures >= 3 ? 'degraded' : 'reconnecting',
+        }));
+        // Quickly retry join calibration; after repeated failure the usable
+        // degraded renderer scores from server arrival and gains no advantage.
+        if (!stopped) timer = window.setTimeout(sample, 2000);
       }
-      const estimate = calibrateChallengeClock(samples);
-      if (!stopped) setClock(estimate);
-      await calibrateLiveChallengeClock({ roomId, quality: estimate.quality }).catch(() => {});
     };
-    sample().catch(() => { if (!stopped) setClock((value) => ({ ...value, quality: 'reconnecting' })); });
-    const timer = window.setInterval(sample, 30000);
-    return () => { stopped = true; window.clearInterval(timer); };
+    sample();
+    return () => { stopped = true; window.clearTimeout(timer); };
   }, [roomId]);
 
   useEffect(() => {
@@ -501,15 +520,23 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
           </section>
         )}
 
-        {room.status === 'running' && room.currentQuestion && clock.sampleCount === 0 && (
+        {room.status === 'running' && room.currentQuestion && clock.sampleCount === 0 && clock.quality !== 'degraded' && (
           <section aria-live="polite" style={{ padding: 26, borderRadius: 16, background: '#17365f', textAlign: 'center' }}>
             <h2>Synchronizing round clock…</h2>
             <p>Your round uses the teacher's server-authored deadline and will catch up automatically.</p>
           </section>
         )}
 
-        {room.status === 'running' && room.currentQuestion && clock.sampleCount > 0 && (
-          <ChallengeRound key={`${room.roomId}-${room.currentRound}-${room.roundVersion}`} room={{ ...room, connectionQuality: clock.quality, serverNowAtRender: Date.now() + clock.offsetMs }} alias={invite.alias} playerKey={invite.playerKey} leaderboard={leaderboard} studentProfile={studentProfile} />
+        {room.status === 'running' && room.currentQuestion && (clock.sampleCount > 0 || clock.quality === 'degraded') && (
+          <ChallengeRound
+            key={`${room.roomId}-${room.currentRound}-${room.roundVersion}`}
+            room={{ ...room, connectionQuality: clock.quality, serverNowAtRender: Date.now() + clock.offsetMs }}
+            alias={invite.alias}
+            playerKey={invite.playerKey}
+            leaderboard={leaderboard}
+            studentProfile={studentProfile}
+            beforeQuestion={clock.quality === 'degraded' ? <div role="status">Clock sync is unavailable. You can still answer; speed will use conservative server timing.</div> : null}
+          />
         )}
 
         {room.status === 'finished' && (

@@ -4,8 +4,10 @@
 
 Each public room now carries a server-authored `currentRound`, monotonically
 increasing `roundVersion`, unguessable `roundToken`, `startsAt`, `endsAt`, and
-explicit phase. The runtime deliberately uses only the phases it can establish
-authoritatively: lobby, answering, deadline-locked, and finished. Locked is
+explicit phase. Each question is published with a 1.5-second future sync lead,
+so normal classroom clients receive it before the official start. The runtime
+uses only phases it can establish authoritatively: lobby, countdown, answering,
+deadline-locked, and finished. Locked is
 derived from the server deadline rather than waiting for another snapshot. A
 client accepts a snapshot only when its round/version/phase
 is not older than what it has already rendered. Reconnection therefore catches
@@ -29,16 +31,17 @@ The callable validates membership, active round, version, token, deadline, and
 the one-answer rule. Receipts are stored atomically with score on the private
 player document. The same id returns the prior receipt; another id cannot earn a
 second score. The existing secure Path grader remains the only correctness
-authority. Scoring uses server-observed request arrival rather than the claimed
-elapsed value. A fixed 750 ms delivery grace accepts captures that arrive just
+authority. Scoring accepts calibrated monotonic human elapsed, but clamps it to
+within 750 ms of server-observed arrival. Thus inbound delivery happens before
+the future start, outbound delay is removed, and a manipulated claim can gain
+at most 750 ms—far less than the smallest three-second speed band. Missing
+calibration degrades to server-arrival scoring and grants no advantage. A fixed
+750 ms delivery grace accepts captures that arrive just
 after the deadline under realistic classroom latency; arrivals outside that
 bound are rejected, and grace arrivals can receive only the final speed band.
 
 Speed is quantized into five elapsed-percentage bands (100%, 80%, 60%, 40%,
-20%; expired 0%) rather than raw arrival milliseconds. Server-observed band
-boundaries carry the same 750 ms classroom tolerance as delivery, preventing a
-small arrival difference from deciding a boundary tie without trusting a client
-claim. Existing room speed
+20%; expired 0%) rather than raw arrival milliseconds. Existing room speed
 influence adjustment remains downstream of this scorer. Accuracy's 1,000-point
 foundation, streak/comeback behavior, and second-chance no-speed rule are
 unchanged.
@@ -49,8 +52,9 @@ Private receipts retain dispute evidence without recording keystrokes.
 
 ## Deterministic certification result
 
-The platform harness certifies 20, 75, 150, 300, and 600 ms one-way arrival
-delays, a spike-resistant calibration sample, reconnect retry, simultaneous
+The platform harness certifies 20, 75, 150, 300, and 600 ms inbound delivery and
+outbound submission delays at every speed-band boundary, a spike-resistant
+calibration sample, reconnect retry, simultaneous
 submission, and 30 concurrent clients. Equal correct responses captured at the
 same human elapsed time receive the same tier and points at every latency. A
 genuinely faster response crosses a higher band; fast partial work remains
@@ -66,7 +70,8 @@ The 30-client deterministic model remains supplemental protocol stress coverage.
 
 The browser harness additionally delays acknowledgement, interrupts transport,
 reloads with a stored pending envelope, verifies automatic same-id recovery and
-one score, advances the round, and verifies that expired state does not reopen.
+one score, advances the round, verifies that expired state does not reopen, and
+forces repeated calibration failure into a visible conservative degraded mode.
 
 ## Deployment boundary
 
