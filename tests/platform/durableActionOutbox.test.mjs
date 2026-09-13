@@ -17,6 +17,10 @@ const progress = ({ actionId, questionIndex, timeSpent }) => createDurableAction
   kind: 'questionProgress', studentId: 'student', assignmentId: 'assignment.with punctuation`', questionIndex, actionId,
   payload: { timeSpent },
 });
+const step = ({ actionId, previous = 0, attempts = previous + 1 } = {}) => createDurableAction({
+  kind: 'stepSubmission', studentId: 'student', assignmentId: 'assignment.with punctuation`', questionIndex: 0, actionId,
+  payload: { previousTotalAttempts: previous, record: { totalAttempts: attempts, status: 'attempted', stepState: { completed: attempts } } },
+});
 
 const authorityHarness = ({ online = true, authorized = true } = {}) => {
   const records = new Map();
@@ -104,6 +108,43 @@ test('two fast questions reconcile independently without overwriting either reco
   assert.deepEqual([...authority.records.values()].map((record) => record.lastSubmissionId), ['q1', 'q2']);
 });
 
+test('two algebra steps followed by Next survive offline and reconcile exactly once in order', async () => {
+  const storage = createMemoryOutboxStorage();
+  const authority = authorityHarness({ online: false });
+  await enqueueDurableAction(step({ actionId: 'step-1' }), { storage });
+  await enqueueDurableAction(step({ actionId: 'step-2', previous: 1, attempts: 2 }), { storage });
+  await enqueueDurableAction(progress({ actionId: 'next-after-steps', questionIndex: 0, timeSpent: 90 }), { storage });
+  await drainDurableActions({ storage, studentId: 'student', reconcile: authority.reconcile });
+  assert.deepEqual((await listDurableActions({ storage })).map((action) => action.actionId), ['step-1', 'step-2', 'next-after-steps']);
+  authority.setOnline(true);
+  await drainDurableActions({ storage, studentId: 'student', reconcile: authority.reconcile });
+  assert.deepEqual(authority.calls.slice(-3), ['step-1', 'step-2', 'next-after-steps']);
+  assert.equal(authority.records.values().next().value.totalAttempts, 2);
+  assert.equal(authority.records.values().next().value.timeSpent, 90);
+  assert.equal((await listDurableActions({ storage })).length, 0);
+});
+
+test('reloaded algebra step retry is idempotent and revoked authority wins', async () => {
+  const storage = createMemoryOutboxStorage();
+  const authority = authorityHarness({ online: false });
+  const action = step({ actionId: 'reload-step' });
+  await enqueueDurableAction(action, { storage });
+  assert.equal((await listDurableActions({ storage }))[0].kind, 'stepSubmission');
+  authority.setOnline(true);
+  await drainDurableActions({ storage, studentId: 'student', reconcile: authority.reconcile });
+  await enqueueDurableAction(action, { storage });
+  await drainDurableActions({ storage, studentId: 'student', reconcile: authority.reconcile });
+  assert.equal(authority.records.values().next().value.totalAttempts, 1);
+
+  const rejectedStorage = createMemoryOutboxStorage();
+  const revoked = authorityHarness({ online: false });
+  await enqueueDurableAction(step({ actionId: 'closed-step' }), { storage: rejectedStorage });
+  revoked.setOnline(true);
+  revoked.revoke();
+  await drainDurableActions({ storage: rejectedStorage, studentId: 'student', reconcile: revoked.reconcile });
+  assert.equal(revoked.records.size, 0);
+});
+
 test('a later legitimate attempt is distinct while an out-of-order stale retry is rejected', async () => {
   const storage = createMemoryOutboxStorage();
   const authority = authorityHarness();
@@ -141,6 +182,12 @@ test('production integration uses FieldPath segments and secure Test Cycle never
   assert.match(reconciliation, /if \(action\.payload\.hasDolGrade\)/);
   assert.doesNotMatch(reconciliation, /deleteField\(/);
   assert.match(app, /await enqueueDurableAction\(createDurableAction\(\{[\s\S]*kind: 'ordinarySubmission'/);
+  const stepRegion = app.slice(app.indexOf('const handleStepGrade'), app.indexOf('const handleRequestNewQuestion'));
+  assert.doesNotMatch(stepRegion, /getLiveAssignment|gradesByAssignment:\s*updatedTracker|await updateDoc/);
+  assert.ok(stepRegion.indexOf("kind: 'stepSubmission'") < stepRegion.indexOf('setTracker(updatedTracker)'), 'step must cross the outbox boundary before React advances');
+  const replacementRegion = app.slice(app.indexOf('const handleRequestNewQuestion'), app.indexOf('const V5_COMPILER_PLUMBING_ERROR'));
+  assert.doesNotMatch(replacementRegion, /getLiveAssignment|await updateDoc/);
+  assert.ok(replacementRegion.indexOf("kind: 'questionReplacement'") < replacementRegion.indexOf('setTracker(updatedTracker)'), 'replacement must be queued before React advances');
   assert.doesNotMatch(secureService, /enqueueDurableAction|ordinarySubmission/);
   assert.throws(() => createDurableAction({ kind: 'ordinarySubmission', studentId: 'student', assignmentId: 'assignment', questionIndex: 0, payload: { secure: true } }), /Protected assessment data/);
   assert.throws(() => createDurableAction({ kind: 'ordinarySubmission', studentId: 'student', assignmentId: 'assignment', questionIndex: 0, payload: { answerKey: 'never' } }), /Protected assessment data/);

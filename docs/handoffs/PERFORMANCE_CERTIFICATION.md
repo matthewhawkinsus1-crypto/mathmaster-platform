@@ -65,7 +65,8 @@ No rules or Functions contract changed. Deploy with
 
 ## Durable outbox and recovery
 
-Ordinary Submit and Next now cross an IndexedDB durability boundary before React
+Ordinary Submit, Step Algebra step submission, Next, and eligible personalized
+question replacement now cross an IndexedDB durability boundary before React
 moves forward. Each immutable envelope has a UUID action id, student/assignment/
 question identity, a creation time, and only the student's ordinary response or
 progress payload. Secure Test Cycle responses never enter this outbox.
@@ -78,6 +79,14 @@ old action overwriting a legitimate later attempt. Recovery can therefore repeat
 the grade transaction and deterministic evidence `setDoc` without adding an
 attempt or evidence event. Progress envelopes merge only maximum elapsed time
 into the newest canonical record and cannot replace an answer.
+
+Step submissions retain the complete result produced by the existing
+`recordQuestionStep` grading engine, so partial credit, attempt policy, equation
+splits, inequalities, sign changes, extraneous-solution state, Undo state, and
+support usage are unchanged. Rapid steps and a following Next share the same
+ordered queue. Question replacement keeps the existing choice-only prohibition,
+practice behavior, DOL-history clearing, and server lifecycle revalidation, but
+no longer performs a redundant pre-interaction assignment read.
 
 All dynamic paths use explicit Firestore `FieldPath` segments, so assignment ids
 containing periods or backticks cannot be parsed as nested paths. Classwork and
@@ -130,12 +139,12 @@ proof for typing/plotting/remount behavior.
 | --- | ---: | ---: | ---: | ---: |
 | Original base `3888d86` | 5 | 5,568,905 B | 2,178,610 B | Live Challenge 3,313,163 B |
 | PR first pass | 45 | 5,653,608 B | 2,179,766 B | Live Challenge 1,452,440 B |
-| Final follow-up | 133 | 5,691,116 B | 926,404 B | MathLive 800,602 B |
+| Final follow-up | 133 | 5,691,897 B | 926,995 B | MathLive 800,602 B |
 
 The follow-up moves QuestionEngine (423,207 B), teacher
 creation/repair, Path simulator, analytics, Classroom manager, secure exam, and
 admin surfaces behind coarse feature boundaries. The core entry is 57.5% below
-the original. The complete initial module graph is 3,861,897 bytes across 64
+the original. The complete initial module graph is 3,862,678 bytes across 64
 requests versus the original 5,568,905-byte graph (30.7% less); question and
 tool code arrives when an assignment needs it. MathLive remains in that graph
 through shared dashboard math rendering and is an explicit follow-up target.
@@ -175,8 +184,8 @@ double submit, offline retention, reload/recovery, reconnect, retry idempotency,
 Submit+Next ordering, two rapid questions, legitimate later attempts, stale
 retries, authority revocation, punctuation-safe FieldPaths, and secure-path
 separation. `npm run certify:performance:load` runs 30 isolated students at once;
-the final local architecture run saved 30/30 with zero duplicates (p50 46.90 ms,
-p95 47.62 ms while the full platform suite was running). This is not mislabeled as Firestore capacity evidence; emulator load
+the final local architecture run saved 30/30 with zero duplicates (p50 7.79 ms,
+p95 8.06 ms). This is not mislabeled as Firestore capacity evidence; emulator load
 still belongs in CI.
 
 The Work View browser workflow installs its pinned Chromium/Playwright driver,

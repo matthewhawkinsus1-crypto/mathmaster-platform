@@ -1891,7 +1891,7 @@ function App() {
       const currentRecord = normalizeQuestionRecord(
         saved.gradesByAssignment?.[action.assignmentId]?.[action.questionIndex],
       );
-      if (action.kind === 'ordinarySubmission') {
+      if (['ordinarySubmission', 'stepSubmission', 'questionReplacement'].includes(action.kind)) {
         if (currentRecord.lastSubmissionId === action.actionId) {
           duplicate = true;
           return;
@@ -1929,7 +1929,7 @@ function App() {
     // The event key is deterministic for this exact attempt. If the tab closes
     // after the grade transaction but before this write, recovery repeats the
     // same setDoc rather than appending a second evidence record.
-    if (action.kind === 'ordinarySubmission' && action.payload.evidenceEvent) {
+    if (['ordinarySubmission', 'stepSubmission'].includes(action.kind) && action.payload.evidenceEvent) {
       await writeImmutableEvidenceEvent(action.studentId, action.payload.evidenceEvent);
     }
     return { status: 'durable', duplicate };
@@ -3738,37 +3738,19 @@ function App() {
       }));
       return outcome.result;
     }
-    let assignment;
-    try {
-      assignment = await getLiveAssignment(activeAssignmentId);
-    } catch (error) {
-      console.error('Could not verify assignment before saving an algebra step:', error);
-      return null;
-    }
-    if (!assignment) {
-      leaveUnavailableAssignment();
-      return null;
-    }
-    const activityRecord = await flushAssignmentActivity(activeAssignmentId);
+    const assignment = localAssignment;
     const currentAssignmentGrades = tracker[activeAssignmentId] || {};
-    const outcome = applyStep(currentAssignmentGrades[currentQuestionIndex]);
-    const updatedTracker = {
-      ...tracker,
-      [activeAssignmentId]: {
-        ...currentAssignmentGrades,
-        [currentQuestionIndex]: outcome.record,
-      },
-    };
+    const priorRecord = normalizeQuestionRecord(currentAssignmentGrades[currentQuestionIndex]);
+    const outcome = applyStep(priorRecord);
+    const updatedTracker = { ...tracker, [activeAssignmentId]: { ...currentAssignmentGrades, [currentQuestionIndex]: outcome.record } };
     const previousSupport = supportUsageByAssignment[activeAssignmentId] || { modified: false, accommodations: [], modifications: [] };
-    const updatedSupportUsage = {
-      ...supportUsageByAssignment,
-      [activeAssignmentId]: {
-        modified: Boolean(previousSupport.modified || supportUsage.modified),
-        accommodations: [...new Set([...(previousSupport.accommodations || []), ...(supportUsage.accommodations || [])])],
-        modifications: [...new Set([...(previousSupport.modifications || []), ...(supportUsage.modifications || [])])],
-      },
+    const assignmentSupportUsage = {
+      modified: Boolean(previousSupport.modified || supportUsage.modified),
+      accommodations: [...new Set([...(previousSupport.accommodations || []), ...(supportUsage.accommodations || [])])],
+      modifications: [...new Set([...(previousSupport.modifications || []), ...(supportUsage.modifications || [])])],
     };
-    const completion = evaluateClassworkCompletion({ assignment, assignmentTracker: updatedTracker[activeAssignmentId], activity: activityRecord || assignmentActivity[activeAssignmentId] });
+    const updatedSupportUsage = { ...supportUsageByAssignment, [activeAssignmentId]: assignmentSupportUsage };
+    const completion = evaluateClassworkCompletion({ assignment, assignmentTracker: updatedTracker[activeAssignmentId], activity: assignmentActivity[activeAssignmentId] });
     const updatedClassworkGrades = completion.met ? {
       ...classworkGradesByAssignment,
       [activeAssignmentId]: {
@@ -3779,19 +3761,39 @@ function App() {
       },
     } : classworkGradesByAssignment;
 
+    try {
+      setStudentPersistenceStatus('capturing');
+      await enqueueDurableAction(createDurableAction({
+        kind: 'stepSubmission', studentId: user.id, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex,
+        payload: {
+          previousTotalAttempts: Number(priorRecord.totalAttempts) || 0,
+          activityRole: activeQuestionRole,
+          record: outcome.record,
+          supportUsage: assignmentSupportUsage,
+          hasClassworkGrade: Object.hasOwn(updatedClassworkGrades, activeAssignmentId),
+          classworkGrade: updatedClassworkGrades[activeAssignmentId] ?? null,
+          hasDolGrade: false,
+        },
+      }));
+      setStudentOutboxDepth((depth) => depth + 1);
+      setStudentPersistenceStatus('queued');
+    } catch (error) {
+      console.error('Could not durably queue this algebra step:', error);
+      setStudentPersistenceStatus('volatile');
+      toastWarning('Step not queued', 'Your step is still in Work View. Keep this tab open and submit it again.');
+      return null;
+    }
     setTracker(updatedTracker);
     setSupportUsageByAssignment(updatedSupportUsage);
     setClassworkGradesByAssignment(updatedClassworkGrades);
-    try {
-      await updateDoc(doc(db, 'grades', user.id), {
-        gradesByAssignment: updatedTracker,
-        supportUsageByAssignment: updatedSupportUsage,
-        classworkGradesByAssignment: updatedClassworkGrades,
-        assignmentActivity: activityRecord ? { ...assignmentActivity, [activeAssignmentId]: activityRecord } : assignmentActivity,
-      });
-    } catch (error) {
-      console.error(error);
-    }
+    void (async () => {
+      try {
+        await drainStudentOutbox();
+        await flushAssignmentActivity(activeAssignmentId, updatedTracker);
+      } catch (error) {
+        console.error('Algebra step remains queued for retry:', error);
+      }
+    })();
     return outcome.result;
   };
 
@@ -3830,17 +3832,6 @@ function App() {
       }));
       return;
     }
-    let assignment;
-    try {
-      assignment = await getLiveAssignment(activeAssignmentId);
-    } catch (error) {
-      console.error('Could not verify assignment before replacing a question:', error);
-      return;
-    }
-    if (!assignment) {
-      leaveUnavailableAssignment();
-      return;
-    }
     const currentAssignmentGrades = tracker[activeAssignmentId] || {};
     const replacement = requestReplacementQuestion(
       currentAssignmentGrades[currentQuestionIndex],
@@ -3861,18 +3852,33 @@ function App() {
       const assignmentDol = { ...(dolGradesByAssignment?.[activeAssignmentId] || {}) };
       delete assignmentDol[dateKey];
       updatedDOLGrades = { ...dolGradesByAssignment, [activeAssignmentId]: assignmentDol };
-      setDolGradesByAssignment(updatedDOLGrades);
     }
 
-    setTracker(updatedTracker);
     try {
-      await updateDoc(doc(db, 'grades', user.id), {
-        gradesByAssignment: updatedTracker,
-        dolGradesByAssignment: updatedDOLGrades,
-      });
+      setStudentPersistenceStatus('capturing');
+      await enqueueDurableAction(createDurableAction({
+        kind: 'questionReplacement', studentId: user.id, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex,
+        payload: {
+          previousTotalAttempts: Number(normalizeQuestionRecord(currentAssignmentGrades[currentQuestionIndex]).totalAttempts) || 0,
+          activityRole: activeQuestionRole,
+          record: replacement,
+          supportUsage: supportUsageByAssignment[activeAssignmentId] || { modified: false, accommodations: [], modifications: [] },
+          hasClassworkGrade: false,
+          hasDolGrade: Boolean(options.clearHistory),
+          dolGrade: updatedDOLGrades[activeAssignmentId] ?? {},
+        },
+      }));
+      setStudentOutboxDepth((depth) => depth + 1);
+      setStudentPersistenceStatus('queued');
     } catch (error) {
-      console.error(error);
+      console.error('Could not durably queue a replacement question:', error);
+      setStudentPersistenceStatus('volatile');
+      toastWarning('Replacement not queued', 'Keep this tab open and request the new question again.');
+      return;
     }
+    setTracker(updatedTracker);
+    if (options.clearHistory) setDolGradesByAssignment(updatedDOLGrades);
+    void drainStudentOutbox().catch((error) => console.error('Question replacement remains queued for retry:', error));
   };
 
   const V5_COMPILER_PLUMBING_ERROR = /missing a type\/toolId|refers to a table in its prompt, but the question contains none|refers to a graph in its prompt, but the question contains none|needs `functionSpec\.type`|needs `analysisRequests`|needs a `graph` object with functions, points or segments|cannot yet build that interactive graph from an upstream response/i;

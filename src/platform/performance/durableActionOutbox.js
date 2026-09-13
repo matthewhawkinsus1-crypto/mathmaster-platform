@@ -58,7 +58,7 @@ export const indexedDbOutboxStorage = Object.freeze({
 });
 
 export const createDurableAction = ({ kind, studentId, assignmentId, questionIndex, payload, actionId = null, createdAt = Date.now() }) => {
-  if (!['ordinarySubmission', 'questionProgress'].includes(kind)) throw new Error('Unsupported durable student action.');
+  if (!['ordinarySubmission', 'stepSubmission', 'questionProgress', 'questionReplacement'].includes(kind)) throw new Error('Unsupported durable student action.');
   if (payload?.secure === true || payload?.answerKey != null || payload?.seed != null) throw new Error('Protected assessment data cannot enter the ordinary student outbox.');
   if (!studentId || !assignmentId || !Number.isInteger(Number(questionIndex))) throw new Error('Durable student actions require student, assignment, and question identity.');
   return Object.freeze({
