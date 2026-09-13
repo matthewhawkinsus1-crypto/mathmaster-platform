@@ -6,6 +6,7 @@ import {
   deleteDoc,
   deleteField,
   doc,
+  FieldPath,
   getDoc,
   getDocs,
   onSnapshot,
@@ -33,9 +34,9 @@ import {
   storeLessonNotesPdf,
   updateAssignmentClassroomPublications,
 } from './classroomApi';
-import ClassroomManagerV2 from './ClassroomManagerV2';
-import AssignmentQuestionEditor from './AssignmentQuestionEditor';
-import QuestionEngine from './QuestionEngine';
+
+
+
 import { generateQuestion, isPersonalizedBlueprint } from './problemGenerator';
 import {
   emptyQuestionRecord,
@@ -54,8 +55,8 @@ import {
   validateAssignmentQuestions,
   assertFirestoreSafeAssignmentPayload,
 } from './assignmentBlueprint';
-import AssignmentIntake from './AssignmentIntake';
-import TeacherQuestionReviewPanel from './components/teacher/TeacherQuestionReviewPanel.jsx';
+
+
 import { markIncompleteAssignmentDraftPublished } from './platform/preflight/incompleteAssignmentDraftStore.js';
 import { hydrateAssignmentCcmr } from './services/assignmentCcmrService.js';
 import { auditAlignmentSpecificity, validateAlignments } from './platform/contract/alignments';
@@ -99,12 +100,12 @@ import {
   getStudentSupportPresentation,
   normalizeStudentProfile,
 } from './studentSupport';
-import TeacherSidebar from './TeacherSidebar';
-import AssignmentLibrary from './AssignmentLibrary';
+
+
 import AssignmentCardMenu from './AssignmentCardMenu';
-import TeacherAssignmentPdfDialog from './components/teacher/TeacherAssignmentPdfDialog.jsx';
-import AssignmentContentUpgradeModal from './components/teacher/AssignmentContentUpgradeModal.jsx';
-import ClassesWorkspace from './ClassesWorkspace';
+
+
+
 import { TEXAS_MATH_ACTIVE_COURSES, getTexasStandardsForCourse } from './texasStandards.js';
 import ClassContextBar from './components/teacher/ClassContextBar.jsx';
 import WeeklyPathGradePanel from './components/teacher/WeeklyPathGradePanel.jsx';
@@ -112,13 +113,19 @@ import ClassroomSyncReview from './components/teacher/ClassroomSyncReview.jsx';
 import TeacherQuickSearch from './components/teacher/TeacherQuickSearch.jsx';
 import StudentProfileDrawer from './components/teacher/StudentProfileDrawer.jsx';
 import StudentNameLink from './components/common/StudentNameLink.jsx';
-import TeacherHome from './TeacherHome';
+
 import DOLCountdown from './components/student/DOLCountdown.jsx';
-import TexasStandardsDashboard from './TexasStandardsDashboard';
-import MathToolsLab from './dev/MathToolsLab';
+
+
 import { useToast } from './ui/Toast';
 import { prefetchQuestionResources } from './platform/performance/questionPrefetch.js';
 import { measurePerformanceOperation, startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
+import {
+  createDurableAction,
+  drainDurableActions,
+  enqueueDurableAction,
+  listDurableActions,
+} from './platform/performance/durableActionOutbox.js';
 import { EmptyState, ProgressBar, SearchField, StatCard } from './ui/primitives';
 import { buildStudentMasteryProfile, collectStudentEvidence } from './masteryEngine.js';
 import {
@@ -131,7 +138,7 @@ import {
   assertPublishable, buildDestinationGroups, destinationAssignmentKey,
   isLibraryAssignment, resolveAssignmentDates, resolveCreationMode,
 } from './assignmentDestinations';
-import LessonPreflightModal from './components/teacher/LessonPreflightModal';
+
 import { flattenV5Sections, rebuildV5SectionsFromQuestions } from './platform/contract/assignmentSchemaV5.js';
 import {
   canonicalV5PersistencePatch,
@@ -166,16 +173,16 @@ import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
 import { buildAttemptEvidenceEvent } from './platform/history/evidenceEvent.js';
 import { writeImmutableEvidenceEvent } from './platform/history/evidencePersistence.js';
-import MyMathPathApp from './components/student/MyMathPathApp.jsx';
-import StudentSecureExamDashboard from './components/assessment/StudentSecureExamDashboard.jsx';
-import TeacherSecureExamDashboard from './components/assessment/TeacherSecureExamDashboard.jsx';
-import TeacherAnalyticsDashboard from './components/analytics/TeacherAnalyticsDashboard.jsx';
-import DemoExperience from './components/demo/DemoExperience.jsx';
-import StudentsRoster from './components/teacher/StudentsRoster.jsx';
-import ClassCourseSettings from './components/teacher/ClassCourseSettings.jsx';
-import ClassScheduleSettings from './components/teacher/ClassScheduleSettings.jsx';
-import PathSimulator from './components/teacher/PathSimulator.jsx';
-import PacingControls from './components/teacher/PacingControls.jsx';
+
+
+
+
+
+
+
+
+
+
 import RecommendedSkills from './components/student/RecommendedSkills.jsx';
 import { teksCodeFromSkillId } from './platform/path/skillGraph.js';
 import { buildStudentPathOptions } from './platform/path/studentPathOptions.js';
@@ -202,7 +209,7 @@ import TestCycleCard from './components/student/TestCycleCard.jsx';
 import { isTestCycleAssignment } from './platform/assessment/testCycle.js';
 import { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
 import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
-import MarkingPeriodSettings from './components/teacher/MarkingPeriodSettings.jsx';
+
 import {
   buildStudentGradeCenter,
   findGradeCenterEntry,
@@ -272,7 +279,7 @@ import {
 import LoginScreen from './LoginScreen.jsx';
 import { useAuth } from './auth/AuthProvider.jsx';
 import { watchLiveChallengeInvite } from './platform/liveChallenge/liveChallengeService.js';
-import WarmupChallengeGate from './components/liveChallenge/WarmupChallengeGate.jsx';
+
 import {
   WARMUP_CHALLENGE_ROUTE,
   resolveWarmupChallenge,
@@ -283,6 +290,32 @@ import {
 // so the browser can never believe in a different administrator than the server.
 import { isRootAdminEmail } from '../functions/shared/rolePolicy.mjs';
 
+const ClassroomManagerV2 = lazy(() => import('./ClassroomManagerV2.jsx'));
+const AssignmentQuestionEditor = lazy(() => import('./AssignmentQuestionEditor.jsx'));
+const QuestionEngine = lazy(() => import('./QuestionEngine.jsx'));
+const AssignmentIntake = lazy(() => import('./AssignmentIntake.jsx'));
+const TeacherQuestionReviewPanel = lazy(() => import('./components/teacher/TeacherQuestionReviewPanel.jsx'));
+const TeacherSidebar = lazy(() => import('./TeacherSidebar.jsx'));
+const AssignmentLibrary = lazy(() => import('./AssignmentLibrary.jsx'));
+const TeacherAssignmentPdfDialog = lazy(() => import('./components/teacher/TeacherAssignmentPdfDialog.jsx'));
+const AssignmentContentUpgradeModal = lazy(() => import('./components/teacher/AssignmentContentUpgradeModal.jsx'));
+const ClassesWorkspace = lazy(() => import('./ClassesWorkspace.jsx'));
+const TeacherHome = lazy(() => import('./TeacherHome.jsx'));
+const TexasStandardsDashboard = lazy(() => import('./TexasStandardsDashboard.jsx'));
+const MathToolsLab = lazy(() => import('./dev/MathToolsLab.jsx'));
+const LessonPreflightModal = lazy(() => import('./components/teacher/LessonPreflightModal.jsx'));
+const MyMathPathApp = lazy(() => import('./components/student/MyMathPathApp.jsx'));
+const StudentSecureExamDashboard = lazy(() => import('./components/assessment/StudentSecureExamDashboard.jsx'));
+const TeacherSecureExamDashboard = lazy(() => import('./components/assessment/TeacherSecureExamDashboard.jsx'));
+const TeacherAnalyticsDashboard = lazy(() => import('./components/analytics/TeacherAnalyticsDashboard.jsx'));
+const DemoExperience = lazy(() => import('./components/demo/DemoExperience.jsx'));
+const StudentsRoster = lazy(() => import('./components/teacher/StudentsRoster.jsx'));
+const ClassCourseSettings = lazy(() => import('./components/teacher/ClassCourseSettings.jsx'));
+const ClassScheduleSettings = lazy(() => import('./components/teacher/ClassScheduleSettings.jsx'));
+const PathSimulator = lazy(() => import('./components/teacher/PathSimulator.jsx'));
+const PacingControls = lazy(() => import('./components/teacher/PacingControls.jsx'));
+const MarkingPeriodSettings = lazy(() => import('./components/teacher/MarkingPeriodSettings.jsx'));
+const WarmupChallengeGate = lazy(() => import('./components/liveChallenge/WarmupChallengeGate.jsx'));
 const LiveChallengeTeacher = lazy(() => import('./components/liveChallenge/LiveChallengeTeacher.jsx'));
 const LiveChallengeStudent = lazy(() => import('./components/liveChallenge/LiveChallengeStudent.jsx'));
 
@@ -520,6 +553,8 @@ function App() {
   const [pathLaunchTeks, setPathLaunchTeks] = useState(null);
   const [activeAssignmentId, setActiveAssignmentId] = useState(null);
   const [tracker, setTracker] = useState({});
+  const [studentOutboxDepth, setStudentOutboxDepth] = useState(0);
+  const [studentPersistenceStatus, setStudentPersistenceStatus] = useState('idle');
   const [practiceTracker, setPracticeTracker] = useState({});
   const [practiceScratchpads, setPracticeScratchpads] = useState({});
   const [previewTracker, setPreviewTracker] = useState({});
@@ -1815,6 +1850,98 @@ function App() {
     return { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
   };
 
+  const reconcileDurableStudentAction = async (action) => {
+    if (!action || action.studentId !== user?.id) return { status: 'rejected' };
+    const assignmentRef = doc(db, 'assignments', action.assignmentId);
+    const gradesRef = doc(db, 'grades', action.studentId);
+    let duplicate = false;
+    let rejected = false;
+
+    await runTransaction(db, async (transaction) => {
+      const [assignmentSnapshot, gradesSnapshot] = await Promise.all([
+        transaction.get(assignmentRef),
+        transaction.get(gradesRef),
+      ]);
+      if (!assignmentSnapshot.exists() || !gradesSnapshot.exists()) {
+        rejected = true;
+        return;
+      }
+      const assignment = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
+      const authorized = assignmentIsForStudent(assignment, {
+        classId: user.classId || null,
+        classPeriod: user.classPeriod,
+      });
+      if (!authorized || getAssignmentLifecycle(assignment, Date.now()).isClosed) {
+        rejected = true;
+        return;
+      }
+      const sectionAccess = getSectionAccessState({
+        assignment,
+        activityRole: action.payload.activityRole,
+        classId: user.classId || null,
+        classPeriod: user.classPeriod,
+        nowValue: Date.now(),
+      });
+      if (sectionAccess.enabled && !sectionAccess.isOpen) {
+        rejected = true;
+        return;
+      }
+
+      const saved = gradesSnapshot.data() || {};
+      const currentRecord = normalizeQuestionRecord(
+        saved.gradesByAssignment?.[action.assignmentId]?.[action.questionIndex],
+      );
+      if (action.kind === 'ordinarySubmission') {
+        if (currentRecord.lastSubmissionId === action.actionId) {
+          duplicate = true;
+          return;
+        }
+        if (Number(currentRecord.totalAttempts || 0) !== Number(action.payload.previousTotalAttempts || 0)) {
+          rejected = true;
+          return;
+        }
+        const record = { ...action.payload.record, lastSubmissionId: action.actionId };
+        const updates = [
+          new FieldPath('gradesByAssignment', action.assignmentId, String(action.questionIndex)), record,
+          new FieldPath('supportUsageByAssignment', action.assignmentId), action.payload.supportUsage,
+        ];
+        if (action.payload.hasClassworkGrade) updates.push(
+          new FieldPath('classworkGradesByAssignment', action.assignmentId), action.payload.classworkGrade,
+        );
+        if (action.payload.hasDolGrade) updates.push(
+          new FieldPath('dolGradesByAssignment', action.assignmentId), action.payload.dolGrade,
+        );
+        transaction.update(gradesRef, ...updates);
+        return;
+      }
+
+      // Progress actions never replace an answer. They merge only elapsed time
+      // into the latest canonical record, so a pending Next cannot undo a
+      // concurrently reconciled submission.
+      transaction.update(
+        gradesRef,
+        new FieldPath('gradesByAssignment', action.assignmentId, String(action.questionIndex)),
+        { ...currentRecord, timeSpent: Math.max(Number(currentRecord.timeSpent) || 0, Number(action.payload.timeSpent) || 0) },
+      );
+    });
+
+    if (rejected) return { status: 'rejected' };
+    // The event key is deterministic for this exact attempt. If the tab closes
+    // after the grade transaction but before this write, recovery repeats the
+    // same setDoc rather than appending a second evidence record.
+    if (action.kind === 'ordinarySubmission' && action.payload.evidenceEvent) {
+      await writeImmutableEvidenceEvent(action.studentId, action.payload.evidenceEvent);
+    }
+    return { status: 'durable', duplicate };
+  };
+
+  const drainStudentOutbox = async () => {
+    if (user?.role !== 'student' || !user.id) return;
+    const result = await drainDurableActions({ studentId: user.id, reconcile: reconcileDurableStudentAction });
+    setStudentOutboxDepth(result.remaining);
+    setStudentPersistenceStatus(result.remaining ? 'queued' : result.rejected ? 'rejected' : 'durable');
+  };
+
   const leaveUnavailableAssignment = () => {
     setActiveAssignmentId(null);
     setActiveClassroomSectionKey(null);
@@ -2019,7 +2146,7 @@ function App() {
     return { attempted, correct, total: included.length };
   };
 
-  const flushAssignmentActivity = async (assignmentId = activeAssignmentId) => {
+  const flushAssignmentActivity = async (assignmentId = activeAssignmentId, trackerOverride = null) => {
     if (user?.role !== 'student' || !assignmentId) return null;
     const assignment = assignments.find((item) => item.id === assignmentId);
     if (!assignment) return null;
@@ -2043,7 +2170,7 @@ function App() {
 
     const completion = evaluateClassworkCompletion({
       assignment,
-      assignmentTracker: tracker[assignmentId] || {},
+      assignmentTracker: trackerOverride?.[assignmentId] || tracker[assignmentId] || {},
       activity: nextRecord,
     });
     let updatedClassworkGrades = classworkGradesByAssignment;
@@ -2061,10 +2188,12 @@ function App() {
     }
 
     try {
-      await updateDoc(doc(db, 'grades', user.id), {
-        assignmentActivity: updatedActivity,
-        classworkGradesByAssignment: updatedClassworkGrades,
-      });
+      const updates = [new FieldPath('assignmentActivity', assignmentId), nextRecord];
+      if (completion.met) updates.push(
+        new FieldPath('classworkGradesByAssignment', assignmentId),
+        updatedClassworkGrades[assignmentId],
+      );
+      await updateDoc(doc(db, 'grades', user.id), ...updates);
     } catch (error) {
       pendingAssignmentSecondsRef.current += pendingSeconds;
       console.error('Could not save assignment activity:', error);
@@ -2117,6 +2246,28 @@ function App() {
   });
   const activeActivityPolicy = getEffectiveActivityPolicy(isPracticeMode ? 'practice' : activeQuestionRole);
   const assignmentOpenSpanRef = useRef(null);
+
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.id) {
+      setStudentOutboxDepth(0);
+      return undefined;
+    }
+    let cancelled = false;
+    listDurableActions({ studentId: user.id })
+      .then((actions) => {
+        if (!cancelled) setStudentOutboxDepth(actions.length);
+        if (!cancelled && actions.length) setStudentPersistenceStatus('queued');
+        return drainStudentOutbox();
+      })
+      .catch((error) => console.error('Could not recover queued student work:', error));
+    const reconcileOnline = () => drainStudentOutbox()
+      .catch((error) => console.error('Could not reconcile queued student work:', error));
+    window.addEventListener('online', reconcileOnline);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('online', reconcileOnline);
+    };
+  }, [user?.id, user?.role]);
 
   useEffect(() => {
     const span = startPerformanceSpan('route_transition_ms', { flow: activeView || 'unknown' });
@@ -2799,25 +2950,35 @@ function App() {
       },
     };
 
+    try {
+      setStudentPersistenceStatus('capturing');
+      await enqueueDurableAction(createDurableAction({
+        kind: 'questionProgress',
+        studentId: user.id,
+        assignmentId: activeAssignmentId,
+        questionIndex: currentQuestionIndex,
+        payload: { timeSpent: activeTimeRef.current, activityRole: activeQuestionRole },
+      }));
+      setStudentOutboxDepth((depth) => depth + 1);
+      setStudentPersistenceStatus('queued');
+    } catch (error) {
+      console.error('Could not queue question progress:', error);
+      setStudentPersistenceStatus('volatile');
+      toastWarning('Progress not queued', 'Keep this tab open and try Next again. Your current work is still on screen.');
+      return;
+    }
+
     setTracker(updatedTracker);
     setCurrentQuestionIndex(newIndex);
     window.requestAnimationFrame(() => transitionSpan.finish({ status: 'interactive' }));
 
-    // Navigation is a local operation. Authorization was checked against the
-    // subscribed assignment above; revalidation and progress durability can
-    // continue without holding the Next button hostage to a network roundtrip.
+    // Navigation is a local operation after the progress envelope has crossed
+    // the IndexedDB durability boundary. Server reconciliation does not hold
+    // the Next button hostage to a network roundtrip.
     void (async () => {
       try {
-        assignment = await getLiveAssignment(activeAssignmentId);
-        if (!assignment) {
-          leaveUnavailableAssignment();
-          return;
-        }
-        const flushedActivity = await flushAssignmentActivity(activeAssignmentId);
-        await updateDoc(doc(db, 'grades', user.id), {
-          [`gradesByAssignment.${activeAssignmentId}.${currentQuestionIndex}`]: updatedTracker[activeAssignmentId][currentQuestionIndex],
-          ...(flushedActivity ? { [`assignmentActivity.${activeAssignmentId}`]: flushedActivity } : {}),
-        });
+        await drainStudentOutbox();
+        await flushAssignmentActivity(activeAssignmentId, updatedTracker);
       } catch (error) {
         console.error('Could not reconcile question navigation:', error);
       }
@@ -3464,64 +3625,72 @@ function App() {
       };
     }
 
+    const assignmentQuestions = getStoredAssignmentQuestions(assignment);
+    const evidenceEvent = assignmentQuestions[currentQuestionIndex]?.type === 'modelingLab'
+      ? null
+      : buildAttemptEvidenceEvent({
+        studentId: user.id,
+        assignment,
+        question: assignmentQuestions[currentQuestionIndex],
+        questionIndex: currentQuestionIndex,
+        activityRole: activeQuestionRole,
+        attemptRecord: outcome.record,
+        attemptResult: outcome.result,
+        supportUsage: outcome.record.supportUsage || supportUsage || {},
+        delivered: resolveDeliveredQuestionMetadata({
+          question: assignmentQuestions[currentQuestionIndex],
+          learningProfile: studentLearningProfile,
+          activityRole: activeQuestionRole,
+          variationMode: getSectionVariantMode(assignment, activeQuestionRole),
+          honors: String(user?.profile?.courseLevel || '').toLowerCase() === 'honors',
+        }),
+      });
+    let queuedAction;
+    try {
+      setStudentPersistenceStatus('capturing');
+      queuedAction = await enqueueDurableAction(createDurableAction({
+        kind: 'ordinarySubmission',
+        studentId: user.id,
+        assignmentId: activeAssignmentId,
+        questionIndex: currentQuestionIndex,
+        payload: {
+          previousTotalAttempts: Number(normalizeQuestionRecord(currentAssignmentGrades[currentQuestionIndex]).totalAttempts) || 0,
+          activityRole: activeQuestionRole,
+          record: outcome.record,
+          supportUsage: updatedSupportUsage[activeAssignmentId],
+          hasClassworkGrade: Object.hasOwn(updatedClassworkGrades, activeAssignmentId),
+          classworkGrade: updatedClassworkGrades[activeAssignmentId] ?? null,
+          hasDolGrade: Object.hasOwn(updatedDOLGrades, activeAssignmentId),
+          dolGrade: updatedDOLGrades[activeAssignmentId] ?? null,
+          evidenceEvent,
+        },
+      }));
+      setStudentOutboxDepth((depth) => depth + 1);
+      setStudentPersistenceStatus('queued');
+    } catch (error) {
+      console.error('Could not durably queue this response:', error);
+      setStudentPersistenceStatus('volatile');
+      toastWarning('Response not queued', 'Your answer is still on screen. Keep this tab open and press Submit again.');
+      return null;
+    }
+
     setTracker(updatedTracker);
     setSupportUsageByAssignment(updatedSupportUsage);
     setClassworkGradesByAssignment(updatedClassworkGrades);
     setDolGradesByAssignment(updatedDOLGrades);
 
     const serverAckSpan = startPerformanceSpan('submit_server_ack_ms', { flow: 'ordinary_assignment' });
-    // The canonical grade write remains durable and authoritative. It is
-    // intentionally detached only after local state contains the attempt, so
-    // evidence and activity aggregation cannot extend perceived submit time.
+    // The immutable envelope is already durable in IndexedDB. Canonical grade
+    // and idempotent evidence reconciliation can now happen without extending
+    // the student's critical interaction path.
     void (async () => {
       try {
-        const liveAssignment = await getLiveAssignment(activeAssignmentId);
-        if (!liveAssignment) {
-          leaveUnavailableAssignment();
-          serverAckSpan.finish({ status: 'assignment_unavailable' });
-          return;
-        }
-        const flushedActivity = await flushAssignmentActivity(activeAssignmentId);
-        await updateDoc(doc(db, 'grades', user.id), {
-          [`gradesByAssignment.${activeAssignmentId}.${currentQuestionIndex}`]: outcome.record,
-          [`supportUsageByAssignment.${activeAssignmentId}`]: updatedSupportUsage[activeAssignmentId],
-          [`classworkGradesByAssignment.${activeAssignmentId}`]: updatedClassworkGrades[activeAssignmentId] || deleteField(),
-          [`dolGradesByAssignment.${activeAssignmentId}`]: updatedDOLGrades[activeAssignmentId] || deleteField(),
-          ...(flushedActivity ? { [`assignmentActivity.${activeAssignmentId}`]: flushedActivity } : {}),
-        });
+        await drainStudentOutbox();
+        await flushAssignmentActivity(activeAssignmentId, updatedTracker);
         serverAckSpan.finish({ status: 'durable' });
-
-      // Phase 5C is a non-blocking dual write. Assignment grading remains
-      // authoritative for this UI even when the audit timeline is unavailable.
-      const assignmentQuestions = getStoredAssignmentQuestions(liveAssignment);
-      if (assignmentQuestions[currentQuestionIndex]?.type !== 'modelingLab') {
-        const evidenceEvent = buildAttemptEvidenceEvent({
-          studentId: user.id,
-          assignment: liveAssignment,
-          question: assignmentQuestions[currentQuestionIndex],
-          questionIndex: currentQuestionIndex,
-          activityRole: activeQuestionRole,
-          attemptRecord: outcome.record,
-          attemptResult: outcome.result,
-          supportUsage: outcome.record.supportUsage || supportUsage || {},
-          // What was actually delivered, recomputed from the same deterministic
-          // inputs the generator used. Recording the template's DOK and
-          // difficulty here meant every mastery conclusion downstream was drawn
-          // from what the question claimed rather than what the student answered.
-          delivered: resolveDeliveredQuestionMetadata({
-            question: assignmentQuestions[currentQuestionIndex],
-            learningProfile: studentLearningProfile,
-            activityRole: activeQuestionRole,
-            variationMode: getSectionVariantMode(assignment, activeQuestionRole),
-            honors: String(user?.profile?.courseLevel || '').toLowerCase() === 'honors',
-          }),
-        });
-        writeImmutableEvidenceEvent(user.id, evidenceEvent)
-          .catch((evidenceError) => console.error('Could not append Phase 5C evidence history:', evidenceError));
-      }
       } catch (error) {
         serverAckSpan.finish({ status: 'failed' });
-        console.error(error);
+        console.error('Response remains queued for retry:', queuedAction.actionId, error);
       }
     })();
 
@@ -7449,6 +7618,19 @@ function App() {
               onContinueSection={nextAvailableSectionTarget ? () => changeQuestion(nextAvailableSectionTarget.index) : null}
               continueSectionLabel={nextAvailableSectionMeta?.label || ''}
             />
+            {!preview && studentPersistenceStatus !== 'idle' && (
+              <p role="status" aria-live="polite" style={{ margin: '8px 4px 0', color: '#5f6368', fontSize: 12 }}>
+                {studentPersistenceStatus === 'capturing'
+                  ? 'Capturing this change on this device…'
+                  : studentPersistenceStatus === 'queued'
+                    ? `Saving ${studentOutboxDepth} queued change${studentOutboxDepth === 1 ? '' : 's'}… You may keep working.`
+                    : studentPersistenceStatus === 'durable'
+                      ? 'Saved on the server.'
+                      : studentPersistenceStatus === 'rejected'
+                        ? 'This change was not accepted because the assignment is no longer available.'
+                        : 'This change is still only on screen. Please try again.'}
+              </p>
+            )}
           </main>
         </div>
       </div>

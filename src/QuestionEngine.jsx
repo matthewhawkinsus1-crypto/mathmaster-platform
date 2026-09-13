@@ -59,6 +59,7 @@ import { WorkViewUndoProvider } from './platform/workView/useMathUndoHistory.js'
 import { QuestionLifecycleProvider } from './platform/question/QuestionLifecycleContext.jsx';
 import UniversalUndoButton from './components/common/UniversalUndoButton.jsx';
 import { startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
+import { useRenderPerformance } from './platform/performance/useRenderPerformance.js';
 
 const WorkViewReadySignal = ({ span }) => {
   useEffect(() => {
@@ -159,6 +160,7 @@ export default function QuestionEngine({
   //   { pathToolId, submit(rawWork, supportUsage, meta) -> feedback }
   serverGrading = null,
 }) {
+  useRenderPerformance('QuestionEngine', String(question?.toolId || question?.type || 'question'));
   const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
   const showOutcomeFeedback = resolvedActivityPolicy?.feedback === 'immediate' || feedbackReleased === true;
   const stableQuestion = useDeepStableValue(question);

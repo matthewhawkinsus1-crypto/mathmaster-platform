@@ -24,7 +24,8 @@
     "test:platform": "node scripts/explain-test-failures.mjs \"tests/platform/*.test.mjs\"",
     "certify:performance": "node scripts/certify-performance.mjs",
     "test:test-cycle-certification": "firebase emulators:exec --only firestore --project mathmaster-cert-harness --config tests/browser/emulator/firebase.json \"node --test tests/integration/testCycleCertification.test.mjs\"",
-    "test:test-cycle-device": "node scripts/run-test-cycle-device-certification.mjs"
+    "test:test-cycle-device": "node scripts/run-test-cycle-device-certification.mjs",
+    "certify:performance:load": "node scripts/certify-performance-load.mjs"
   },
   "dependencies": {
     "firebase": "^12.17.1",

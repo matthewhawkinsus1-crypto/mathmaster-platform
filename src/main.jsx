@@ -1,4 +1,4 @@
-import { Component, StrictMode } from 'react';
+import { Component, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.jsx';
@@ -104,7 +104,9 @@ createRoot(rootElement).render(
       {/* Outside AuthProvider so sign-in problems can surface as toasts too. */}
       <ToastProvider>
         <AuthProvider>
-          <App />
+          <Suspense fallback={<main style={{ padding: 24 }}>Opening MathMaster…</main>}>
+            <App />
+          </Suspense>
         </AuthProvider>
       </ToastProvider>
     </AppErrorBoundary>

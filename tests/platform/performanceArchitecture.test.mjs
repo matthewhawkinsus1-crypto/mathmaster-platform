@@ -46,8 +46,12 @@ test('student performance architecture keeps tools lazy, secure prefetch guarded
   assert.match(app, /secure: isTestCycleAssignment\(activeAssignmentData\)/);
   const submitRegion = app.slice(app.indexOf('const handleGradeSubmit'), app.indexOf('const handleStepGrade'));
   const durableSubmitRegion = submitRegion.slice(submitRegion.indexOf('const assignment = localAssignment'));
-  assert.ok(durableSubmitRegion.indexOf('setTracker(updatedTracker)') >= 0);
-  assert.ok(durableSubmitRegion.indexOf('setTracker(updatedTracker)') < durableSubmitRegion.indexOf('getLiveAssignment(activeAssignmentId)'));
+  assert.ok(durableSubmitRegion.indexOf('await enqueueDurableAction') >= 0);
+  assert.ok(durableSubmitRegion.indexOf('await enqueueDurableAction') < durableSubmitRegion.indexOf('setTracker(updatedTracker)'));
   assert.ok(engine.indexOf("startPerformanceSpan('submit_local_ack_ms'") < engine.indexOf('await onGrade('));
   assert.match(firebase, /persistentLocalCache\(\{ tabManager: persistentMultipleTabManager\(\) \}\)/);
+  assert.match(app, /const QuestionEngine = lazy\(\(\) => import\('\.\/QuestionEngine\.jsx'\)\)/);
+  const questionMount = app.match(/<QuestionEngine[\s\S]*?\/>/)?.[0] || '';
+  assert.match(questionMount, /key=\{`\$\{activeAssignmentId\}-\$\{currentQuestionIndex\}-\$\{currentRecord\.variantIndex\}/);
+  assert.doesNotMatch(questionMount.split('question=')[0], /lastResponseKey|attemptCount|teacherLearningProfiles/);
 });

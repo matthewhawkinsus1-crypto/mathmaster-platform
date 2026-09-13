@@ -14,7 +14,7 @@ const sanitizeDimensions = (dimensions = {}) => Object.fromEntries(
 );
 
 export const recordPerformanceSample = (name, durationMs, dimensions = {}) => {
-  if (!/^[a-z][a-z0-9_]*_ms$/.test(String(name)) || !Number.isFinite(durationMs) || durationMs < 0) return null;
+  if (!/^[a-z][a-z0-9_]*(?:_ms|_depth|_count)$/.test(String(name)) || !Number.isFinite(durationMs) || durationMs < 0) return null;
   const sample = Object.freeze({
     name,
     durationMs: Math.round(durationMs * 10) / 10,

@@ -228,7 +228,10 @@ test('App imports every student grade module it calls', () => {
     ['StudentAssignmentResult', 'components/student/StudentAssignmentResult.jsx'],
     ['MarkingPeriodSettings', 'components/teacher/MarkingPeriodSettings.jsx'],
   ]) {
-    assert.match(app, new RegExp(`${identifier}[\\s\\S]{0,400}?from '\\./${from.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}'`), `${identifier} must be imported from ${from}`);
+    const escapedFrom = from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const staticImport = new RegExp(`${identifier}[\\s\\S]{0,400}?from '\\.\\/${escapedFrom}'`);
+    const lazyImport = new RegExp(`const ${identifier} = lazy\\(\\(\\) => import\\('\\.\\/${escapedFrom}'\\)\\)`);
+    assert.ok(staticImport.test(app) || lazyImport.test(app), `${identifier} must be statically or lazily imported from ${from}`);
     assert.match(app, new RegExp(`<${identifier}[\\s>]|${identifier}\\(|${identifier}\\)`), `${identifier} must actually be used`);
   }
 });

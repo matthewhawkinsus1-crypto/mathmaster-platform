@@ -2,6 +2,7 @@ import React from 'react';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { WORK_VIEW_INVENTORY } from '../workViewInventory.js';
 import useMobileInteractionMode from '../../platform/mobile/useMobileInteractionMode.js';
+import { useRenderPerformance } from '../../platform/performance/useRenderPerformance.js';
 
 const descriptor = (key) => ({
   label: key === 'pointEditing' ? 'Edit mathematical objects' : key.replace(/([A-Z])/g, ' $1'),
@@ -19,6 +20,7 @@ const capabilityDescriptor = (key, { taskText, helpText }) => {
 // place. Tool-owned actions and published graph controls merge into this shell;
 // this wrapper never constructs a second copy or owns response state.
 export default function RegisteredToolWorkView({ toolId, questionData = {}, children }) {
+  useRenderPerformance('UniversalWorkView', toolId);
   const inventory = WORK_VIEW_INVENTORY[toolId];
   const mobile = useMobileInteractionMode();
   if (!inventory || inventory.status !== 'migrated') return children;

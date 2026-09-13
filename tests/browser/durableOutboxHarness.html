@@ -1,0 +1,10 @@
+<!doctype html>
+<html><body><p id="ready">Loading durable outbox…</p><script type="module">
+import { createDurableAction, drainDurableActions, enqueueDurableAction, listDurableActions } from '/src/platform/performance/durableActionOutbox.js';
+window.outboxHarness = {
+  enqueue: (actionId) => enqueueDurableAction(createDurableAction({ kind: 'ordinarySubmission', studentId: 'browser-cert-student', assignmentId: 'assignment.with`punctuation', questionIndex: 0, actionId, payload: { previousTotalAttempts: 0, record: { totalAttempts: 1 } } })),
+  list: () => listDurableActions({ studentId: 'browser-cert-student' }),
+  drain: () => drainDurableActions({ studentId: 'browser-cert-student', reconcile: async () => ({ status: 'durable' }) }),
+};
+document.querySelector('#ready').textContent = 'Durable outbox ready';
+</script></body></html>
