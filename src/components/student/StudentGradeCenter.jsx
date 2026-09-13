@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { EmptyState } from '../../ui/primitives';
 import GradeSectionBreakdown from './GradeSectionBreakdown.jsx';
+import TestCycleGradeBreakdown from './TestCycleGradeBreakdown.jsx';
 import StudentGlobalNav, { STUDENT_DESTINATION } from './StudentGlobalNav.jsx';
 import BuildStamp from './BuildStamp.jsx';
 import { GRADE_STATUS } from '../../platform/student/studentGradeCenterModel.js';
@@ -139,6 +140,7 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice }) {
       )}
 
       <GradeSectionBreakdown sections={entry.sections} hidden={hidden} compact />
+      <TestCycleGradeBreakdown entry={entry} hidden={hidden} compact />
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
         <button type="button" style={actionButton(true)} onClick={() => onOpenResult?.(entry.assignmentId)}>

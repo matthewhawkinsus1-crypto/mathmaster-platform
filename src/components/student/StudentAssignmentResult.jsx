@@ -1,5 +1,6 @@
 import React from 'react';
 import GradeSectionBreakdown from './GradeSectionBreakdown.jsx';
+import TestCycleGradeBreakdown from './TestCycleGradeBreakdown.jsx';
 import { GRADE_STATUS } from '../../platform/student/studentGradeCenterModel.js';
 import { describeClassroomReceipt } from '../../platform/classroom/classroomReceiptPresentation.js';
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
@@ -164,6 +165,7 @@ export default function StudentAssignmentResult({
         </div>
 
         <GradeSectionBreakdown sections={entry.sections} />
+        <TestCycleGradeBreakdown entry={entry} />
 
         {/* Feedback/release state, said plainly, because "no number yet" and
             "you scored nothing" are opposite messages. */}

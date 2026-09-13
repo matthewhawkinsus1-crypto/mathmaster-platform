@@ -24,7 +24,7 @@ const resultScreen = read('../../src/components/student/StudentAssignmentResult.
 
 /* 1. ONE NAVIGATION, FIVE DESTINATIONS, REACHABLE FROM HOME. */
 
-test('the shared student navigation offers Home, Assignments, Grades, My Math Path and Secure Exams', () => {
+test('the shared student navigation offers Home, Assignments, Grades, My Math Path and Tests & Exams', () => {
   assert.deepEqual(STUDENT_DESTINATION_ORDER, [
     STUDENT_DESTINATION.HOME,
     STUDENT_DESTINATION.ASSIGNMENTS,
@@ -34,7 +34,10 @@ test('the shared student navigation offers Home, Assignments, Grades, My Math Pa
   ]);
   assert.deepEqual(
     STUDENT_DESTINATION_ORDER.map((destination) => STUDENT_DESTINATION_LABEL[destination]),
-    ['Home', 'Assignments', 'Grades', 'My Math Path', 'Secure Exams'],
+    // The fifth destination holds BOTH the student's own secure course Tests
+    // and the college/career simulations, so it is named for what is behind it
+    // rather than for how it is delivered.
+    ['Home', 'Assignments', 'Grades', 'My Math Path', 'Tests & Exams'],
   );
   // Where am I? has to be answerable without pressing anything.
   assert.match(nav, /aria-current=\{active \? 'page' : undefined\}/);

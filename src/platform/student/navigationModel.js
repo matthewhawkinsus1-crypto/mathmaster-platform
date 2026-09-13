@@ -105,7 +105,7 @@ export const LEVEL_LABEL = Object.freeze({
   [LEVEL.CCMR]: 'College &amp; Career',
   [LEVEL.CCMR_PATHWAY]: 'this pathway',
   [LEVEL.CCMR_SESSION]: 'this practice',
-  [LEVEL.SECURE_EXAMS]: 'Exams',
+  [LEVEL.SECURE_EXAMS]: 'Tests & Exams',
   [LEVEL.LIVE_CHALLENGE]: 'Live Challenge',
   [LEVEL.PRACTICE_HISTORY]: 'My practice history',
 });
@@ -148,7 +148,17 @@ export const STUDENT_DESTINATION_LABEL = Object.freeze({
   [STUDENT_DESTINATION.ASSIGNMENTS]: 'Assignments',
   [STUDENT_DESTINATION.GRADES]: 'Grades',
   [STUDENT_DESTINATION.MATH_PATH]: 'My Math Path',
-  [STUDENT_DESTINATION.SECURE_EXAMS]: 'Secure Exams',
+  /*
+   * "Tests & Exams", not "Secure Exams".
+   *
+   * The destination now holds two different things a student recognises: the
+   * secure Tests and Retests their own teacher assigned, and the SAT/ACT/
+   * TSIA2/ASVAB simulations. "Secure Exams" named the delivery mechanism,
+   * which is a thing a student has no reason to care about and which stopped
+   * describing half of what is behind the button. The level id is unchanged,
+   * so every route, history entry and Back target keeps working.
+   */
+  [STUDENT_DESTINATION.SECURE_EXAMS]: 'Tests & Exams',
 });
 
 export const parentOf = (level) => PARENT[level] ?? null;

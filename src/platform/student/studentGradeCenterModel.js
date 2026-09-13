@@ -8,6 +8,10 @@ import {
   splitGradesBySection,
 } from '../teacher/gradeEvidence.js';
 import {
+  buildTestCycleGradeState,
+  isTestCycleAssignment,
+} from '../assessment/testCycle.js';
+import {
   groupAssignmentsByGradingPeriod,
   normalizeGradingPeriodSettings,
   resolveAssignmentGradingPeriod,
@@ -273,6 +277,17 @@ export const buildStudentGradeCenter = ({
   courseLabel = '',
   nowValue = Date.now(),
   tracker = {},
+  /*
+   * THE CANONICAL TEST CYCLE GRADE, READ AND NEVER RECOMPUTED.
+   *
+   * `grades/{studentId}.testCycleGrades` is written by the secure release path
+   * from the one rule in testCycleGrade.mjs. The tracker cannot produce this
+   * number — a Test Cycle's tracker holds Review and Corrections work, which
+   * carry no assessment points — so a Test Cycle row reads the record instead.
+   * Passing it in keeps this module's "computes nothing about a grade" promise
+   * intact: it is still reading somebody else's answer.
+   */
+  testCycleGrades = {},
   classworkGradesByAssignment = {},
   gradingPeriodSettings = null,
   classroomSyncStatusByAssignment = {},
@@ -303,8 +318,67 @@ export const buildStudentGradeCenter = ({
       : { open: true, reason: null };
     const locked = lifecycle.isScheduled || access?.open === false;
 
-    const status = resolveGradeStatus({ overall, lifecycle, feedbackHeld, excused, reopened, locked });
-    const { counts, reason } = gradeCountsTowardPeriod({ status, overall, weights });
+    /*
+     * A Test Cycle row shows the recorded assessment grade, not the tracker.
+     *
+     * Everything the row needs is derived from the canonical projection so the
+     * Grade Center, the Assignment Result screen, the teacher gradebook and
+     * Google Classroom all show the same number. A cycle with no released Test
+     * has no number at all — Pending Grade, never 0%.
+     */
+    const testCycle = isTestCycleAssignment(assignment)
+      ? buildTestCycleGradeState({
+        originalTestGrade: testCycleGrades?.[assignment.id]?.originalTestGrade ?? null,
+        rawRetestGrade: testCycleGrades?.[assignment.id]?.rawRetestGrade ?? null,
+        policy: assignment.assessmentPolicy,
+      })
+      : null;
+    const cycleRecorded = testCycle?.recordedGrade ?? null;
+    /*
+     * A SUBMITTED SECURE TEST IS EVIDENCE, EVEN BEFORE IT IS RELEASED.
+     *
+     * The recorded grade does not exist until a teacher releases the result, so
+     * reading "attempted" off the grade alone would call a student who sat the
+     * whole test "Not Started" — and, past the final deadline, "Practice Only",
+     * which tells them no credit is recoverable while their teacher is still
+     * holding the score. The stage on the projection is what knows better.
+     */
+    const cycleStage = clean(testCycleGrades?.[assignment.id]?.stage);
+    const cycleEvidenceStages = [
+      'awaitingRelease', 'passed', 'corrections', 'retestReady',
+      'retest', 'retestSubmitted', 'complete', 'retestClosed',
+    ];
+    const cycleAttempted = cycleRecorded !== null || cycleEvidenceStages.includes(cycleStage);
+    const effectiveOverall = testCycle
+      ? {
+        score: cycleRecorded,
+        attempted: cycleAttempted ? 1 : 0,
+        total: 1,
+        unanswered: cycleRecorded === null ? 1 : 0,
+        creditOnAttempted: cycleRecorded === null ? null : cycleRecorded,
+        shape: cycleRecorded === null ? (cycleAttempted ? 'incomplete' : 'notStarted') : 'complete',
+      }
+      : overall;
+    // One assessment's worth of weight, so a Test Cycle carries the same
+    // influence on a period average as any other single assessment grade.
+    const effectiveWeights = testCycle
+      ? {
+        possibleWeight: cycleRecorded === null ? 0 : 100,
+        earnedWeight: cycleRecorded === null ? 0 : cycleRecorded,
+        score: cycleRecorded,
+      }
+      : weights;
+    const cycleFeedbackHeld = Boolean(testCycle) && cycleRecorded === null;
+
+    const status = resolveGradeStatus({
+      overall: effectiveOverall,
+      lifecycle,
+      feedbackHeld: feedbackHeld || cycleFeedbackHeld,
+      excused,
+      reopened,
+      locked,
+    });
+    const { counts, reason } = gradeCountsTowardPeriod({ status, overall: effectiveOverall, weights: effectiveWeights });
 
     return {
       assignment,
@@ -313,15 +387,20 @@ export const buildStudentGradeCenter = ({
       dueAt: assignment.dueAt || assignment.dueDate || null,
       lateDueAt: assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate || null,
       lifecycle,
-      overall,
+      overall: effectiveOverall,
       sections,
-      weights,
+      weights: effectiveWeights,
+      // The Test Cycle breakdown a student and a teacher both read: original
+      // Test, corrections state, raw retest, the cap, and the recorded grade.
+      // Null on every ordinary assignment, so nothing else changes shape.
+      testCycle,
+      isTestCycle: Boolean(testCycle),
       status,
       statusLabel: GRADE_STATUS_LABEL[status],
       countsTowardPeriodGrade: counts,
       exclusionReason: reason,
       exclusionText: reason ? EXCLUSION_REASON_TEXT[reason] : null,
-      feedbackHeld,
+      feedbackHeld: feedbackHeld || cycleFeedbackHeld,
       excused,
       reopened,
       locked,
@@ -332,13 +411,13 @@ export const buildStudentGradeCenter = ({
       practiceOnly: lifecycle.isPracticeOnly,
       // A number only when there is a released grade to show. Anything else is
       // a status word, never a percentage.
-      displayGrade: counts || (lifecycle.isPracticeOnly && Number(overall.attempted) > 0)
-        ? overall.score
+      displayGrade: counts || (lifecycle.isPracticeOnly && Number(effectiveOverall.attempted) > 0)
+        ? effectiveOverall.score
         : null,
       // Practice is available once the final deadline has passed, and it is the
       // only remaining action on a closed assignment.
       practiceAvailable: lifecycle.isPracticeOnly,
-      reviewAvailable: Number(overall.attempted) > 0,
+      reviewAvailable: Number(effectiveOverall.attempted) > 0,
       classroomReceipt: classroomSyncStatusByAssignment?.[assignment.id] || null,
       gradingPeriod: resolveAssignmentGradingPeriod(assignment, settings),
     };

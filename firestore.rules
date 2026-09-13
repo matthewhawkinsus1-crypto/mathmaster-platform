@@ -409,6 +409,15 @@ service cloud.firestore {
     match /masteryEvidenceApplications/{docId} { allow read, write: if false; }
     match /modelingLabSubmissions/{docId} { allow read, write: if false; }
     match /examSessions/{docId} { allow read, write: if false; }
+    // The Test Cycle's canonical record, its generated correction plans and its
+    // generated retest plans. All three are Admin-SDK territory: the record is
+    // the single source of a recorded grade, and the two plan documents hold
+    // the approved families, generator seeds and private grading for questions
+    // a student has not reached yet. A teacher reads them through the
+    // authenticated Test Cycle callables, never from a client.
+    match /testCycleRecords/{docId} { allow read, write: if false; }
+    match /testCycleCorrectionPlans/{docId} { allow read, write: if false; }
+    match /testCycleRetestPlans/{docId} { allow read, write: if false; }
     match /examSubmissions/{docId} { allow read, write: if false; }
     match /examIntegrityEvents/{docId} { allow read, write: if false; }
 

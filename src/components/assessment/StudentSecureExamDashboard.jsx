@@ -5,6 +5,23 @@ import { listStudentSecureExamSessions } from '../../services/secureExamService.
 
 const terminalStatuses = new Set(['submitted', 'force_submitted', 'time_expired']);
 
+/*
+ * TWO THINGS LIVE BEHIND "TESTS & EXAMS", AND A STUDENT TELLS THEM APART.
+ *
+ * A secure course Test is their own teacher's unit test: it has a due date, it
+ * is the grade in the gradebook, and failing it has a consequence they care
+ * about. A College & Career simulation is practice for the SAT, ACT, TSIA2 or
+ * ASVAB. They run on the same secure runtime and they mean completely
+ * different things, so the screen groups them rather than sorting one long
+ * list by date and leaving the student to work out which is which.
+ *
+ * The split is read off the session's own examType — the same field the server
+ * uses to decide which item stream a session draws from — so a session cannot
+ * appear under the wrong heading.
+ */
+const COURSE_TEST_EXAM_TYPE = 'courseTest';
+const isCourseTest = (session) => String(session?.examType || '') === COURSE_TEST_EXAM_TYPE;
+
 export const StudentSecureExamDashboard = ({ studentProfile, onExit }) => {
   const [sessions, setSessions] = useState([]);
   const [active, setActive] = useState(null);
@@ -40,14 +57,24 @@ export const StudentSecureExamDashboard = ({ studentProfile, onExit }) => {
     <div style={{ minHeight: '100vh', background: '#f0f2f5', padding: '32px 18px', boxSizing: 'border-box' }}>
       <main style={{ maxWidth: 820, margin: '0 auto' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div><h1 style={{ marginBottom: 4 }}>Secure exams</h1><p style={{ color: '#5f6368', marginTop: 0 }}>Teacher-assigned high-stakes simulations</p></div>
+          <div><h1 style={{ marginBottom: 4 }}>Tests &amp; Exams</h1><p style={{ color: '#5f6368', marginTop: 0 }}>Your secure course tests and your college &amp; career simulations</p></div>
           <button type="button" onClick={onExit}>Back to dashboard</button>
         </header>
         {error && <p role="alert" style={{ color: '#b3261e' }}>{error}</p>}
         {loading ? <p>Loading…</p> : (
-          <div style={{ display: 'grid', gap: 12 }}>
-            {sessions.map((session) => {
-              const done = terminalStatuses.has(session.status);
+          <div style={{ display: 'grid', gap: 26 }}>
+            {[
+              { id: 'courseTests', title: 'My Course Tests', hint: 'Secure Tests and Retests your teacher assigned. These count toward your grade.', rows: sessions.filter(isCourseTest) },
+              { id: 'simulations', title: 'College & Career Simulations', hint: 'SAT, ACT, TSIA2 and ASVAB practice under exam conditions.', rows: sessions.filter((session) => !isCourseTest(session)) },
+            ].map((group) => (
+              <section key={group.id} aria-labelledby={`exam-group-${group.id}`} style={{ display: 'grid', gap: 12 }}>
+                <div>
+                  <h2 id={`exam-group-${group.id}`} style={{ margin: 0, fontSize: 18 }}>{group.title}</h2>
+                  <p style={{ margin: '3px 0 0', color: '#5f6368', fontSize: 13 }}>{group.hint}</p>
+                </div>
+                {!group.rows.length && <div style={{ padding: 18, background: '#fff', borderRadius: 12, color: '#5f6368' }}>Nothing here yet.</div>}
+                {group.rows.map((session) => {
+                  const done = terminalStatuses.has(session.status);
               const canReview = done && session.feedbackReleased === true;
               return (
                 <article key={session.examSessionId} style={{ background: '#fff', border: '1px solid #dadce0', borderRadius: 12, padding: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 15, flexWrap: 'wrap' }}>
@@ -66,8 +93,9 @@ export const StudentSecureExamDashboard = ({ studentProfile, onExit }) => {
                   </button>
                 </article>
               );
-            })}
-            {!sessions.length && <div style={{ padding: 28, background: '#fff', borderRadius: 12, color: '#5f6368', textAlign: 'center' }}>No secure exam sessions have been assigned.</div>}
+                })}
+              </section>
+            ))}
           </div>
         )}
       </main>

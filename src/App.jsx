@@ -196,6 +196,8 @@ import { adaptLegacyMasteryToPhase5 } from './platform/profile/legacyMasteryAdap
 import StudentDashboardView from './components/student/StudentDashboardView.jsx';
 import StudentGradeCenter from './components/student/StudentGradeCenter.jsx';
 import StudentAssignmentsCenter from './components/student/StudentAssignmentsCenter.jsx';
+import TestCycleCard from './components/student/TestCycleCard.jsx';
+import { isTestCycleAssignment } from './platform/assessment/testCycle.js';
 import { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
 import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
 import MarkingPeriodSettings from './components/teacher/MarkingPeriodSettings.jsx';
@@ -539,6 +541,14 @@ function App() {
   const [classworkGradesByAssignment, setClassworkGradesByAssignment] = useState({});
   const [supportUsageByAssignment, setSupportUsageByAssignment] = useState({});
   const [classroomSyncStatusByAssignment, setClassroomSyncStatusByAssignment] = useState({});
+  /*
+   * The canonical recorded Test Cycle grades, read from grades/{studentId}.
+   *
+   * Written ONLY by the secure release path in Cloud Functions. The browser
+   * never computes or writes this: a device that could write its own recorded
+   * grade is a device that can pass a test it did not take.
+   */
+  const [testCycleGrades, setTestCycleGrades] = useState({});
   const [editingAssignmentId, setEditingAssignmentId] = useState(null);
   const [editingAssignmentDates, setEditingAssignmentDates] = useState({ dueAt: '', lateDueAt: '', assignedClassPeriods: [], assignedClassIds: [] });
   const [questionEditorAssignment, setQuestionEditorAssignment] = useState(null);
@@ -553,6 +563,9 @@ function App() {
   const [warmupControlBusyKey, setWarmupControlBusyKey] = useState(null);
   const [sectionAccessBusyKey, setSectionAccessBusyKey] = useState(null);
   const [studentDashboardMode, setStudentDashboardMode] = useState('assignments');
+  // Which Test Cycle the student has open. One id, because a student is in one
+  // assessment at a time and the card asks the server for everything else.
+  const [activeTestCycleAssignmentId, setActiveTestCycleAssignmentId] = useState(null);
   // Marking-period metadata, shared by the student Grade Center and the teacher
   // control surface. Student-safe by construction: ids, labels, order, and
   // whether a period is closed. No teacher notes or policy live in it.
@@ -726,12 +739,13 @@ function App() {
       courseLabel: user.className || user.classPeriod || '',
       nowValue: now,
       tracker,
+      testCycleGrades,
       classworkGradesByAssignment,
       gradingPeriodSettings,
       classroomSyncStatusByAssignment,
       providers: { assignmentHasHeldTeacherFeedback, prerequisiteAccess },
     });
-  }, [user, assignments, now, tracker, classworkGradesByAssignment, gradingPeriodSettings, classroomSyncStatusByAssignment]);
+  }, [user, assignments, now, tracker, testCycleGrades, classworkGradesByAssignment, gradingPeriodSettings, classroomSyncStatusByAssignment]);
 
   // The signed-in student's own Student Learning Profile, built from the same
   // evidence their teacher's roster reads. Assignment adaptation needs the DOK
@@ -1905,6 +1919,7 @@ function App() {
         setDolGradesByAssignment(studentData.dolGradesByAssignment || {});
         setClassworkGradesByAssignment(studentData.classworkGradesByAssignment || {});
         setSupportUsageByAssignment(studentData.supportUsageByAssignment || {});
+        setTestCycleGrades(studentData.testCycleGrades || {});
         const initialClassroomSync = studentData.classroomSyncStatusByAssignment || {};
         setClassroomSyncStatusByAssignment(initialClassroomSync);
         classroomSyncNoticeRef.current = Object.fromEntries(
@@ -2446,6 +2461,7 @@ function App() {
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) {
       setClassroomSyncStatusByAssignment({});
+      setTestCycleGrades({});
       classroomSyncNoticeRef.current = {};
       return undefined;
     }
@@ -2456,6 +2472,9 @@ function App() {
         if (!snapshot.exists()) return;
         const next = snapshot.data()?.classroomSyncStatusByAssignment || {};
         setClassroomSyncStatusByAssignment(next);
+        // A teacher releasing a secure Test or Retest changes this map, and the
+        // student's card and Grade Center have to follow without a reload.
+        setTestCycleGrades(snapshot.data()?.testCycleGrades || {});
 
         Object.entries(next).forEach(([assignmentId, receipt]) => {
           const notificationId = receipt?.notificationId;
@@ -2937,6 +2956,24 @@ function App() {
     const assignmentData = assignments.find(
       (assignment) => assignment.id === assignmentId,
     );
+    /*
+     * A TEST CYCLE IS NEVER ENTERED DIRECTLY.
+     *
+     * Every path into an assignment comes through here — Home, the Assignments
+     * Center, the Grade Center's practice button, a Classroom launch. If any
+     * one of them could open the raw runtime on a Test Cycle, a student could
+     * reach Corrections content for a test they passed, or Review content
+     * during the secure Test. So the card is the only door, and the card asks
+     * the SERVER which stage is open.
+     *
+     * `cycleStage` is the card calling back in to open the instructional stage
+     * it was told to open, which is the one case that is not a redirect.
+     */
+    const cycleStage = String(options.cycleStage || '').trim();
+    if (isTestCycleAssignment(assignmentData) && !cycleStage) {
+      setActiveTestCycleAssignmentId(assignmentId);
+      return openStudentDashboardMode('testCycle');
+    }
     const assignmentQuestions = getStoredAssignmentQuestions(assignmentData);
     if (!assignmentQuestions.length) return;
     if (user?.role === 'student' && !assignmentIsForStudent(assignmentData, { classId: user.classId || null, classPeriod: user.classPeriod })) {
@@ -2956,7 +2993,12 @@ function App() {
     }
 
     const currentContent = projectCurrentAssignmentContent(assignmentData);
-    const includedQuestionIndices = currentContent.entries.map((entry) => entry.storageIndex);
+    // A Test Cycle stage sees only its own questions. Nothing filters this for
+    // an ordinary assignment, which keeps every existing assignment identical.
+    const stageEntries = cycleStage
+      ? currentContent.entries.filter((entry) => entry.logicalRole === cycleStage)
+      : currentContent.entries;
+    const includedQuestionIndices = stageEntries.map((entry) => entry.storageIndex);
     if (!includedQuestionIndices.length) {
       toastWarning('Nothing to show yet', 'This assignment does not currently contain any included questions.');
       return;
@@ -3028,6 +3070,7 @@ function App() {
     setActiveClassroomSectionKey(null);
     setActiveAssignmentId(null);
     if (mode !== 'mathPath') setPathLaunchTeks(null);
+    if (mode !== 'testCycle') setActiveTestCycleAssignmentId(null);
     setStudentDashboardMode(mode);
     setActiveView('dashboard');
   };
@@ -8254,7 +8297,13 @@ function App() {
             )}
 
             {teacherTab === 'exams' && (
-              <TeacherSecureExamDashboard students={allStudents} />
+              <TeacherSecureExamDashboard
+                students={allStudents}
+                classId={activeClass.classId || null}
+                // The teacher's own Test Cycles, administered beside the
+                // simulations they already run on this same secure runtime.
+                testCycleAssignments={assignments.filter(isTestCycleAssignment)}
+              />
             )}
 
             {teacherTab === 'mathTools' && (
@@ -8395,6 +8444,24 @@ function App() {
             onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'grades' })}
             onPractice={(assignmentId) => startAssignment(assignmentId)}
           />
+        </>
+      );
+    }
+    if (studentDashboardMode === 'testCycle' && activeTestCycleAssignmentId) {
+      return (
+        <>
+          {renderStudentPackUpBanner()}
+          {renderStudentWarmupBanner()}
+          <main style={{ padding: '24px 16px', maxWidth: 880, margin: '0 auto', boxSizing: 'border-box' }}>
+            <TestCycleCard
+              assignmentId={activeTestCycleAssignmentId}
+              studentProfile={user.profile}
+              // Review is ordinary MathMaster instruction, so it opens the
+              // ordinary runtime — restricted to the review questions.
+              onOpenReview={(assignmentId) => startAssignment(assignmentId, 0, { cycleStage: 'review' })}
+              onExit={openStudentAssignmentsCenter}
+            />
+          </main>
         </>
       );
     }

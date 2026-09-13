@@ -40,7 +40,7 @@ const SCENES = [
   // The Assignments Center is the densest of these screens — tabs, a search
   // box, a period select and a card list — so it is the most likely to push
   // the page sideways at 390px.
-  { name: 'assignmentsCenter', mustContain: ['My Assignments', 'Active · ', 'Upcoming · ', 'Completed · 2', 'Practice · 1'], mustReach: ['Assignments', 'Grades', 'My Math Path', 'Secure Exams', 'Home'] },
+  { name: 'assignmentsCenter', mustContain: ['My Assignments', 'Active · ', 'Upcoming · ', 'Completed · 2', 'Practice · 1'], mustReach: ['Assignments', 'Grades', 'My Math Path', 'Tests & Exams', 'Home'] },
   // Everything has closed, so the default Active tab is empty. An empty tab on
   // a screen whose job is finding things has to say where the work went.
   { name: 'assignmentsCenterClosed', mustContain: ['My Assignments', 'All marking periods'], mustReach: ['Grades'] },
