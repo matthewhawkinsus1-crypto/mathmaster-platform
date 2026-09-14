@@ -11,6 +11,7 @@ import {
 import LiveClassMonitor from './components/teacher/LiveClassMonitor';
 import NeedsAttentionQueue from './components/teacher/NeedsAttentionQueue';
 import StudentSupportDashboard from './components/teacher/StudentSupportDashboard';
+import StudentPersistenceRecoveryPanel from './components/teacher/StudentPersistenceRecoveryPanel.jsx';
 import DOLCountdown from './components/student/DOLCountdown.jsx';
 import { studentsInClass } from '../functions/shared/classModel.mjs';
 
@@ -29,6 +30,7 @@ const greetingFor = (date) => {
 export default function TeacherHome({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], studentSupportEvents = [], studentSessionSummaries = [], onRecordStudentSupportEvent = null, onRecommendPersonalPath = null, pathInterventionBusyStudentId = null }) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
   const [warmupTimerMinutesByKey, setWarmupTimerMinutesByKey] = useState({});
+  const [recoveryAssignmentId, setRecoveryAssignmentId] = useState('');
 
   const classOptions = classes.length
     ? classes.filter((entry) => entry?.status !== 'archived')
@@ -325,6 +327,38 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
         pathInterventionBusyStudentId={pathInterventionBusyStudentId}
         onOpenWeeklyPath={onOpenWeeklyPath}
       />
+
+      {/* SUBMISSION RECOVERY, WHERE THE TEACHER ALREADY IS.
+          The question this answers — "they were working, why is the gradebook
+          empty?" — is asked about the class in session, so it lives next to
+          that class rather than behind a separate admin screen. */}
+      {currentClass && (
+        <section style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 900, color: '#5f6368', marginBottom: 6 }}>
+            Check submission records for
+            <select
+              value={recoveryAssignmentId}
+              onChange={(event) => setRecoveryAssignmentId(event.target.value)}
+              style={{ marginLeft: 8, minHeight: 36, padding: '6px 8px', borderRadius: 8, border: '1px solid #dadce0', fontWeight: 700 }}
+            >
+              <option value="">Select an assignment…</option>
+              {assignments
+                .filter((assignment) => assignmentIsForStudent(assignment, classContextInSession))
+                .map((assignment) => (
+                  <option key={assignment.id} value={assignment.id}>{assignment.title || assignment.id}</option>
+                ))}
+            </select>
+          </label>
+          {recoveryAssignmentId && (
+            <StudentPersistenceRecoveryPanel
+              assignmentId={recoveryAssignmentId}
+              classId={classIdInSession}
+              assignmentTitle={assignments.find((assignment) => assignment.id === recoveryAssignmentId)?.title || ''}
+              className={currentClass?.name || periodInSession}
+            />
+          )}
+        </section>
+      )}
 
       {currentClass && (
         <StudentSupportDashboard

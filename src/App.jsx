@@ -141,9 +141,8 @@ import {
   enqueueDurableAction,
   listDurableActions,
   overlayDurableActionsOnGrades,
-  summarizeDurableOutbox,
 } from './platform/performance/durableActionOutbox.js';
-import { ingestOneSubmission } from './services/submissionIngestionService.js';
+import { ingestOneSubmission, reportDeviceQueueState } from './services/submissionIngestionService.js';
 import {
   INGESTIBLE_KINDS,
   buildSubmissionEnvelope,
@@ -2691,6 +2690,14 @@ function App() {
         });
       }
       await drainStudentOutbox();
+      // TELL THE SERVER WHAT THIS CHROMEBOOK IS STILL HOLDING.
+      //
+      // An IndexedDB queue is the one part of the incident no server query can
+      // see. Once the drain has done what it can, this device reports its own
+      // remaining depth and the reasons, so the teacher recovery report can
+      // show work that exists but has not arrived. Counts only — never a
+      // response, never a record.
+      await reportDeviceQueueState({ studentId: user.id }).catch(() => null);
     };
 
     const reconcileQueuedStudentWork = () => recoverAndReconcileQueuedStudentWork()

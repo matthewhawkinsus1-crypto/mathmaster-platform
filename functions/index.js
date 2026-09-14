@@ -186,6 +186,9 @@ async function responseCheckpointFinalizer() {
 }
 
 const CHECKPOINT_COLLECTION = "studentResponseCheckpoints";
+// The one status in the finalizer's working set. Named here so the recovery
+// sweep and the scheduler cannot drift apart on what "outstanding" means.
+const CHECKPOINT_STATUS_ACTIVE = "active";
 const CHECKPOINT_BATCH_LIMIT = 200;
 // How long a checkpoint with no provable close waits before being re-examined.
 const CHECKPOINT_HOLD_BACKOFF_MS = 60 * 60 * 1000;
@@ -391,19 +394,37 @@ exports.finalizeStudentResponseCheckpoints = onSchedule(
     const db = getFirestore();
     const now = Date.now();
     const due = await db.collection(CHECKPOINT_COLLECTION)
-      .where("status", "==", "active")
+      .where("status", "==", CHECKPOINT_STATUS_ACTIVE)
       .where("candidateFinalizeAt", "<=", new Date(now))
       .orderBy("candidateFinalizeAt")
       .limit(CHECKPOINT_BATCH_LIMIT)
       .get();
-    if (due.empty) return;
+
+    /*
+     * A NULL QUERY HINT IS NOT A CHECKPOINT THAT NEVER MATTERS.
+     *
+     * The rules deliberately allow `candidateFinalizeAt: null` so a deadline a
+     * teacher has not set yet keeps the student's work instead of failing their
+     * write. But a null never satisfies `<= now`, so those checkpoints left the
+     * scheduler's sight entirely: a complete, gradeable, pre-cutoff response
+     * that should have produced a canonical attempt silently never did. They
+     * are examined here under exactly the same decision — if no close can be
+     * proven the finalizer holds them, which also stamps a real hint and moves
+     * them into the query above.
+     */
+    const unhinted = await db.collection(CHECKPOINT_COLLECTION)
+      .where("status", "==", CHECKPOINT_STATUS_ACTIVE)
+      .where("candidateFinalizeAt", "==", null)
+      .limit(CHECKPOINT_BATCH_LIMIT)
+      .get();
+    if (due.empty && unhinted.empty) return;
 
     const scheduleSnapshot = await db.collection("settings").doc("classSchedule").get();
     const schedule = scheduleSnapshot.exists ? scheduleSnapshot.data() : null;
     const classPeriodCache = new Map();
     const outcomes = {};
 
-    for (const snapshot of due.docs) {
+    for (const snapshot of [...due.docs, ...unhinted.docs]) {
       try {
         const outcome = await finalizeOneResponseCheckpoint({
           db, ref: snapshot.ref, schedule, classPeriodCache, now,
@@ -416,7 +437,7 @@ exports.finalizeStudentResponseCheckpoints = onSchedule(
         logger.error("Could not finalize a response checkpoint", { checkpointId: snapshot.id, message: error.message });
       }
     }
-    logger.info("Deadline response checkpoint batch complete", { examined: due.size, ...outcomes });
+    logger.info("Deadline response checkpoint batch complete", { examined: due.size + unhinted.size, unhinted: unhinted.size, ...outcomes });
   },
 );
 
@@ -471,7 +492,7 @@ exports.expediteCheckpointsOnSectionClose = onDocumentWritten(
     const dueAt = new Date();
     for (const entry of newlyClosed) {
       const outstanding = await db.collection(CHECKPOINT_COLLECTION)
-        .where("status", "==", "active")
+        .where("status", "==", CHECKPOINT_STATUS_ACTIVE)
         .where("assignmentId", "==", assignmentId)
         .where("classId", "==", entry.classId)
         .where("activityRole", "==", entry.activityRole)
@@ -13484,4 +13505,530 @@ exports.assignmentAiSelfTest = onCall({
       message: String(error?.message || error).slice(0, 500),
     };
   }
+});
+
+/* =========================================================================
+ * INCIDENT RECOVERY AND THE TEACHER'S VIEW OF IT.
+ *
+ * On September 14 students worked through Warm-Up and Classwork, saw local
+ * feedback, moved between questions — and their teacher's gradebook showed the
+ * questions unattempted. The delivery defects that caused it are fixed
+ * elsewhere in this change. What is left is the work already captured before
+ * the fix shipped, sitting in four places that no single query can see:
+ *
+ *   A. the durable outbox in each Chromebook's IndexedDB — recoverable only by
+ *      that device, which now drains grade-bearing work first and reports what
+ *      it is still holding;
+ *   B. `studentResponseCheckpoints` — server-held drafts the deadline finalizer
+ *      can still turn into canonical attempts under the SAME authority it
+ *      always used;
+ *   C. `studentWorkspaceDrafts` — workspaces, not grades, recoverable only
+ *      where five separate proofs hold, and reviewable by a teacher otherwise;
+ *   D. presence session summaries — never evidence of correctness, but real
+ *      evidence that a student was working, which is what makes a missing
+ *      canonical record visible as a discrepancy rather than as an absence.
+ *
+ * Nothing here deletes, clears or invalidates any of it.
+ * ========================================================================= */
+
+const DEVICE_QUEUE_REPORT_COLLECTION = "studentDevicePersistenceReports";
+
+let workspaceDraftRecoveryModule = null;
+async function workspaceDraftRecovery() {
+  if (!workspaceDraftRecoveryModule) {
+    workspaceDraftRecoveryModule = await import("./shared/workspaceDraftRecovery.mjs");
+  }
+  return workspaceDraftRecoveryModule;
+}
+
+/**
+ * A. WHAT THIS CHROMEBOOK IS STILL HOLDING.
+ *
+ * An IndexedDB queue is the one part of the incident no server query can see,
+ * so the device says so itself after it reconnects. Counts and reasons only —
+ * no responses, no records, nothing that could become a grade. The report is
+ * keyed by device so one student's two Chromebooks are two rows.
+ */
+exports.reportStudentDeviceQueue = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const deviceId = String(request.data?.deviceId || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 64);
+  if (!deviceId) throw new HttpsError("invalid-argument", "A device id is required.");
+  const summary = request.data?.summary && typeof request.data.summary === "object" ? request.data.summary : {};
+  const number = (value) => Math.max(0, Math.min(100_000, Number(value) || 0));
+  const countMap = (value) => Object.fromEntries(
+    Object.entries(value && typeof value === "object" ? value : {})
+      .slice(0, 40)
+      .map(([key, count]) => [String(key).slice(0, 80), number(count)]),
+  );
+
+  const db = getFirestore();
+  await db.collection(DEVICE_QUEUE_REPORT_COLLECTION).doc(`${encodeURIComponent(studentId)}__${deviceId}`).set({
+    studentId,
+    deviceId,
+    classId: String((await db.collection("grades").doc(studentId).get()).data()?.classId || "") || null,
+    queued: number(summary.queued),
+    queuedGradeBearing: number(summary.queuedGradeBearing),
+    queuedByKind: countMap(summary.queuedByKind),
+    blockedReasons: countMap(summary.blockedReasons),
+    needsReview: number(summary.needsReview),
+    retired: number(summary.retired),
+    retiredByDisposition: countMap(summary.retiredByDisposition),
+    oldestCapturedAt: Number(summary.oldestCapturedAt) || null,
+    latestCapturedAt: Number(summary.latestCapturedAt) || null,
+    ingestionFallbacks: number(summary.ingestionFallbacks),
+    reportedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return { success: true };
+});
+
+/** The teacher of record for a class, or the root administrator. Nobody else. */
+async function requireClassTeacher(request, classId) {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const classSnapshot = await db.collection(CLASS_COLLECTION).doc(classId).get();
+  if (!classSnapshot.exists) throw new HttpsError("not-found", "That class no longer exists.");
+  const email = callerEmail(request);
+  const teacherOfRecord = String(classSnapshot.data()?.teacherOfRecord || "").trim().toLowerCase();
+  if (email !== authLib.ROOT_ADMIN_EMAIL && (!email || teacherOfRecord !== email)) {
+    throw new HttpsError("permission-denied", "Only the teacher of record for this class can review its persistence records.");
+  }
+  return { classSnapshot, email };
+}
+
+/**
+ * B. FINALIZE OUTSTANDING CHECKPOINTS FOR ONE ASSIGNMENT AND CLASS, NOW.
+ *
+ * The scheduled finalizer only ever sees checkpoints whose `candidateFinalizeAt`
+ * is in the past. A checkpoint written with a NULL hint — which the rules
+ * deliberately allow, for a deadline a teacher had not set yet — therefore
+ * never entered the due query at all, and a valid response that should have
+ * produced a canonical attempt silently never did. That is the path this
+ * repairs: the query here is bounded by assignment, class and role rather than
+ * by the hint, so a null-hinted checkpoint is examined like any other.
+ *
+ * The DECISION is unchanged. Every checkpoint still goes through
+ * `finalizeOneResponseCheckpoint`, which re-derives the real close, refuses
+ * anything acknowledged after it, and skips a question a newer attempt already
+ * settled. This makes the finalizer LOOK; it does not make it lenient.
+ */
+exports.sweepStudentResponseCheckpoints = onCall({ timeoutSeconds: 540 }, async (request) => {
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const classId = String(request.data?.classId || "").trim();
+  if (!assignmentId || !classId) throw new HttpsError("invalid-argument", "assignmentId and classId are required.");
+  await requireClassTeacher(request, classId);
+
+  const db = getFirestore();
+  const now = Date.now();
+  const scheduleSnapshot = await db.collection("settings").doc("classSchedule").get();
+  const schedule = scheduleSnapshot.exists ? scheduleSnapshot.data() : null;
+  const classPeriodCache = new Map();
+
+  const outstanding = await db.collection(CHECKPOINT_COLLECTION)
+    .where("assignmentId", "==", assignmentId)
+    .where("classId", "==", classId)
+    .where("status", "==", CHECKPOINT_STATUS_ACTIVE)
+    .limit(CHECKPOINT_BATCH_LIMIT)
+    .get();
+
+  const outcomes = {};
+  for (const snapshot of outstanding.docs) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const outcome = await finalizeOneResponseCheckpoint({ db, ref: snapshot.ref, schedule, classPeriodCache, now });
+      outcomes[outcome] = (outcomes[outcome] || 0) + 1;
+    } catch (error) {
+      // One unfinalizable checkpoint must not stop the sweep. It stays active
+      // and is retried, exactly as it would be by the scheduler.
+      outcomes.failed = (outcomes.failed || 0) + 1;
+      logger.error("Could not finalize a checkpoint during a recovery sweep", {
+        assignmentId, classId, checkpointId: snapshot.id, message: error.message,
+      });
+    }
+  }
+  logger.info("Checkpoint recovery sweep complete", { assignmentId, classId, examined: outstanding.size, ...outcomes });
+  return { assignmentId, classId, examined: outstanding.size, outcomes };
+});
+
+const RECOVERY_REPORT_STUDENT_LIMIT = 60;
+
+const millisOf = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value?.toMillis === "function") return value.toMillis();
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.getTime();
+  const parsed = typeof value === "number" ? value : Date.parse(String(value));
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+/**
+ * C + D. ONE STUDENT'S PERSISTENCE PICTURE, FROM SERVER-AUTHORITATIVE DATA.
+ *
+ * The discrepancy is the point: `presenceAnswered` is how many questions the
+ * student's own live session said they answered, and `canonicalAttempted` is
+ * how many the gradebook can prove. When the first exceeds the second, work was
+ * done and not recorded, and the rest of the row says where that work still is
+ * and what is blocking its recovery.
+ *
+ * Presence NEVER supplies correctness. It supplies the fact that somebody was
+ * working, which is exactly what an incident report needs and exactly what a
+ * grade may not be manufactured from.
+ */
+async function buildStudentRecoveryRow({
+  db, studentId, gradeData, assignment, assignmentId, classId, schedule, classPeriod, drafts,
+}) {
+  const recovery = await workspaceDraftRecovery();
+  const { resolveAuthoritativeClose } = await import("./shared/sectionDeadline.mjs");
+  const { normalizeQuestionRecord } = await import("./shared/attemptPolicy.mjs");
+
+  const questions = runtimeQuestionsFromAssignment(assignment) || [];
+  const tracker = gradeData?.gradesByAssignment?.[assignmentId] || {};
+  const attemptedByRole = {};
+  let canonicalAttempted = 0;
+  let latestCanonicalAttemptAt = null;
+  runtimeIncludedQuestionIndices(assignment).forEach((index) => {
+    const record = normalizeQuestionRecord(tracker?.[String(index)] ?? tracker?.[index]);
+    if (!(Number(record.totalAttempts) > 0)) return;
+    canonicalAttempted += 1;
+    const role = String(questions[index]?.activityRole || "unknown").toLowerCase();
+    attemptedByRole[role] = (attemptedByRole[role] || 0) + 1;
+    const at = millisOf(record.lastAttemptAt);
+    if (at && (!latestCanonicalAttemptAt || at > latestCanonicalAttemptAt)) latestCanonicalAttemptAt = at;
+  });
+
+  const [checkpointSnapshot, receiptSnapshot, deviceSnapshot, sessionSnapshot] = await Promise.all([
+    db.collection(CHECKPOINT_COLLECTION)
+      .where("studentId", "==", studentId).where("assignmentId", "==", assignmentId)
+      .limit(CHECKPOINT_BATCH_LIMIT).get(),
+    db.collection(SUBMISSION_RECEIPT_COLLECTION)
+      .where("studentId", "==", studentId).where("assignmentId", "==", assignmentId)
+      .limit(500).get(),
+    db.collection(DEVICE_QUEUE_REPORT_COLLECTION).where("studentId", "==", studentId).limit(10).get(),
+    db.collection(STUDENT_SESSION_SUMMARY_COLLECTION)
+      .where("studentId", "==", studentId).where("assignmentId", "==", assignmentId)
+      .limit(50).get(),
+  ]);
+
+  const checkpointsByStatus = {};
+  let latestCheckpointAcknowledgedAt = null;
+  checkpointSnapshot.docs.forEach((snapshot) => {
+    const data = snapshot.data() || {};
+    const status = String(data.status || "unknown");
+    checkpointsByStatus[status] = (checkpointsByStatus[status] || 0) + 1;
+    const at = millisOf(data.serverAcknowledgedAt);
+    if (at && (!latestCheckpointAcknowledgedAt || at > latestCheckpointAcknowledgedAt)) latestCheckpointAcknowledgedAt = at;
+  });
+
+  const receiptsByDisposition = {};
+  receiptSnapshot.docs.forEach((snapshot) => {
+    const disposition = String(snapshot.data()?.disposition || "unknown");
+    receiptsByDisposition[disposition] = (receiptsByDisposition[disposition] || 0) + 1;
+  });
+
+  const draftDocument = drafts.get(studentId) || null;
+  const draftAssessment = draftDocument
+    ? recovery.assessWorkspaceDraftDocument({
+      document: draftDocument.data,
+      documentSavedAtMs: draftDocument.updatedAtMs,
+      resolveQuestion: (entry) => questions[Number(entry.questionIndex)] || null,
+      resolveCanonicalRecord: (entry) => tracker?.[String(entry.questionIndex)] ?? tracker?.[entry.questionIndex] ?? null,
+      resolveCloseAt: (entry) => resolveAuthoritativeClose({
+        assignment,
+        activityRole: questions[Number(entry.questionIndex)]?.activityRole || "classwork",
+        schedule,
+        classId,
+        classPeriod,
+        // The close is resolved against the day the draft was SAVED, not today,
+        // or a Monday draft would be measured against this week's bell.
+        nowValue: draftDocument.updatedAtMs || Date.now(),
+      }).closesAtMs,
+    })
+    : null;
+
+  const presenceAnswered = sessionSnapshot.docs.reduce(
+    (total, snapshot) => Math.max(total, Number(snapshot.data()?.answered) || 0), 0,
+  );
+  const presenceActiveSeconds = sessionSnapshot.docs.reduce(
+    (total, snapshot) => total + (Number(snapshot.data()?.activeSeconds) || 0), 0,
+  );
+
+  /*
+   * WHY A RECOVERY IS BLOCKED, IN ONE LIST.
+   *
+   * Every entry names a real artifact that still exists and the reason it has
+   * not become a grade. None of them is a deletion, and none of them is a
+   * grade: they are the queue for a human decision.
+   */
+  const needsReview = [
+    ...Object.entries(checkpointsByStatus)
+      .filter(([status]) => ["invalid-context", "unsupported-question", "recovered-after-close", "incomplete-at-close"].includes(status))
+      .map(([status, count]) => ({ source: "checkpoint", reason: status, count })),
+    ...Object.entries((draftAssessment?.counts) || {})
+      .filter(([status]) => status !== "recoverable")
+      .map(([status, count]) => ({ source: "workspaceDraft", reason: status, count })),
+    ...deviceSnapshot.docs.flatMap((snapshot) => Object.entries(snapshot.data()?.blockedReasons || {})
+      .map(([reason, count]) => ({ source: "deviceQueue", reason, count, deviceId: snapshot.data()?.deviceId || null }))),
+  ];
+
+  return {
+    studentId,
+    studentName: String(gradeData?.displayName || studentId).slice(0, 180),
+    canonicalAttempted,
+    canonicalAttemptedByRole: attemptedByRole,
+    expectedQuestionCount: runtimeIncludedQuestionIndices(assignment).length,
+    latestCanonicalAttemptAt,
+    checkpoints: {
+      total: checkpointSnapshot.size,
+      byStatus: checkpointsByStatus,
+      latestAcknowledgedAt: latestCheckpointAcknowledgedAt,
+    },
+    workspaceDraft: draftAssessment
+      ? {
+        present: true,
+        entryCount: draftAssessment.entryCount,
+        savedAt: draftAssessment.documentSavedAtMs,
+        latestEntrySavedAt: draftAssessment.latestSavedAt,
+        counts: draftAssessment.counts,
+        // Counts and reasons only. A teacher who wants to see the responses
+        // runs the dry run below, which says exactly what it would write.
+        recoverableCount: draftAssessment.recoverable.length,
+      }
+      : { present: false, entryCount: 0, savedAt: null, latestEntrySavedAt: null, counts: {}, recoverableCount: 0 },
+    // Only this student's own devices can report these, and only after they
+    // reconnect. An empty list means "nothing has reported", never "nothing is
+    // queued" — it is the one number this report cannot prove.
+    deviceQueues: deviceSnapshot.docs.map((snapshot) => {
+      const data = snapshot.data() || {};
+      return {
+        deviceId: data.deviceId || null,
+        reportedAt: millisOf(data.reportedAt),
+        queued: Number(data.queued) || 0,
+        queuedGradeBearing: Number(data.queuedGradeBearing) || 0,
+        needsReview: Number(data.needsReview) || 0,
+        retired: Number(data.retired) || 0,
+        oldestCapturedAt: Number(data.oldestCapturedAt) || null,
+      };
+    }),
+    recoveredAttempts: Number(receiptsByDisposition.accepted || 0),
+    receiptsByDisposition,
+    presence: { answered: presenceAnswered, activeSeconds: presenceActiveSeconds, sessions: sessionSnapshot.size },
+    // The headline. Work the student's own session says they did, that the
+    // gradebook cannot account for.
+    unaccountedForQuestions: Math.max(0, presenceAnswered - canonicalAttempted),
+    needsReview,
+  };
+}
+
+/**
+ * The narrowly scoped teacher/admin recovery report for one assignment and one
+ * class. Built entirely from server-authoritative data, and carrying no
+ * student's raw responses.
+ */
+exports.getStudentPersistenceRecoveryReport = onCall({ timeoutSeconds: 300 }, async (request) => {
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const classId = String(request.data?.classId || "").trim();
+  if (!assignmentId || !classId) throw new HttpsError("invalid-argument", "assignmentId and classId are required.");
+  const { classSnapshot } = await requireClassTeacher(request, classId);
+
+  const db = getFirestore();
+  const [assignmentSnapshot, scheduleSnapshot, roster] = await Promise.all([
+    db.collection("assignments").doc(assignmentId).get(),
+    db.collection("settings").doc("classSchedule").get(),
+    db.collection("grades").where("classId", "==", classId).limit(RECOVERY_REPORT_STUDENT_LIMIT).get(),
+  ]);
+  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment no longer exists.");
+  const assignment = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
+  if (!studentMatchesAssignmentAudience({ assignment, classId })) {
+    throw new HttpsError("failed-precondition", "That assignment is not assigned to this class.");
+  }
+  const schedule = scheduleSnapshot.exists ? scheduleSnapshot.data() : null;
+  const classPeriod = String(classSnapshot.data()?.period || "") || null;
+
+  // One query for the whole class's drafts rather than one per student.
+  const draftSnapshot = await db.collection("studentWorkspaceDrafts")
+    .where("assignmentId", "==", assignmentId)
+    .where("classId", "==", classId)
+    .limit(RECOVERY_REPORT_STUDENT_LIMIT)
+    .get();
+  const drafts = new Map(draftSnapshot.docs.map((snapshot) => {
+    const data = snapshot.data() || {};
+    return [String(data.studentId || ""), { data, updatedAtMs: millisOf(data.updatedAt) }];
+  }));
+
+  const students = roster.docs.filter((snapshot) => snapshot.data()?.status !== "disabled");
+  const rows = [];
+  for (const snapshot of students) {
+    // eslint-disable-next-line no-await-in-loop
+    rows.push(await buildStudentRecoveryRow({
+      db,
+      studentId: snapshot.id,
+      gradeData: snapshot.data() || {},
+      assignment,
+      assignmentId,
+      classId,
+      schedule,
+      classPeriod,
+      drafts,
+    }));
+  }
+
+  return {
+    assignmentId,
+    assignmentTitle: String(assignment.title || "").slice(0, 200),
+    classId,
+    generatedAt: Date.now(),
+    studentCount: rows.length,
+    totals: {
+      canonicalAttempted: rows.reduce((total, row) => total + row.canonicalAttempted, 0),
+      unaccountedForQuestions: rows.reduce((total, row) => total + row.unaccountedForQuestions, 0),
+      recoverableDrafts: rows.reduce((total, row) => total + row.workspaceDraft.recoverableCount, 0),
+      queuedOnDevices: rows.reduce((total, row) => total + row.deviceQueues.reduce((sum, queue) => sum + queue.queuedGradeBearing, 0), 0),
+    },
+    students: rows.sort((left, right) => right.unaccountedForQuestions - left.unaccountedForQuestions),
+  };
+});
+
+/**
+ * Apply workspace-draft recovery for one assignment and class.
+ *
+ * DRY RUN BY DEFAULT. A draft is a workspace, not an attempt, so turning one
+ * into a grade is a teacher's decision made with the list in front of them —
+ * `commit: true` is the only way anything is written.
+ *
+ * What it writes goes through exactly the path an ordinary submission takes:
+ * the same server grader, the same attempt policy, the same projections, the
+ * same evidence builder, and the same idempotency key discipline. The draft's
+ * proven response becomes an ingestion envelope carrying NO record and NO
+ * verdict, so correctness is derived here and cannot come from the draft.
+ *
+ * Only entries the five proofs hold for are eligible; everything else stays
+ * exactly where it is and keeps showing up in the report.
+ */
+exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (request) => {
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const classId = String(request.data?.classId || "").trim();
+  const commit = request.data?.commit === true;
+  if (!assignmentId || !classId) throw new HttpsError("invalid-argument", "assignmentId and classId are required.");
+  const { classSnapshot, email } = await requireClassTeacher(request, classId);
+
+  const db = getFirestore();
+  const recovery = await workspaceDraftRecovery();
+  const ingestion = await submissionIngestion();
+  const { resolveAuthoritativeClose } = await import("./shared/sectionDeadline.mjs");
+
+  const [assignmentSnapshot, scheduleSnapshot] = await Promise.all([
+    db.collection("assignments").doc(assignmentId).get(),
+    db.collection("settings").doc("classSchedule").get(),
+  ]);
+  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment no longer exists.");
+  const assignment = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
+  if (secureAssignmentMode(assignment) || assignment.secure === true) {
+    throw new HttpsError("failed-precondition", "Secure Test Cycle work is recovered through its own server-authoritative path.");
+  }
+  if (!studentMatchesAssignmentAudience({ assignment, classId })) {
+    throw new HttpsError("failed-precondition", "That assignment is not assigned to this class.");
+  }
+  const schedule = scheduleSnapshot.exists ? scheduleSnapshot.data() : null;
+  const classPeriod = String(classSnapshot.data()?.period || "") || null;
+  const questions = runtimeQuestionsFromAssignment(assignment) || [];
+
+  const draftSnapshot = await db.collection("studentWorkspaceDrafts")
+    .where("assignmentId", "==", assignmentId)
+    .where("classId", "==", classId)
+    .limit(RECOVERY_REPORT_STUDENT_LIMIT)
+    .get();
+
+  const proposals = [];
+  for (const snapshot of draftSnapshot.docs) {
+    const draft = snapshot.data() || {};
+    const studentId = String(draft.studentId || "");
+    if (!studentId) continue;
+    // eslint-disable-next-line no-await-in-loop
+    const gradeSnapshot = await db.collection("grades").doc(studentId).get();
+    if (!gradeSnapshot.exists) continue;
+    const gradeData = gradeSnapshot.data() || {};
+    if (String(gradeData.classId || "") !== classId) continue;
+    const tracker = gradeData?.gradesByAssignment?.[assignmentId] || {};
+    const savedAtMs = millisOf(draft.updatedAt);
+
+    const assessment = recovery.assessWorkspaceDraftDocument({
+      document: draft,
+      documentSavedAtMs: savedAtMs,
+      resolveQuestion: (entry) => questions[Number(entry.questionIndex)] || null,
+      resolveCanonicalRecord: (entry) => tracker?.[String(entry.questionIndex)] ?? tracker?.[entry.questionIndex] ?? null,
+      resolveCloseAt: (entry) => resolveAuthoritativeClose({
+        assignment,
+        activityRole: questions[Number(entry.questionIndex)]?.activityRole || "classwork",
+        schedule,
+        classId,
+        classPeriod,
+        nowValue: savedAtMs || Date.now(),
+      }).closesAtMs,
+    });
+
+    assessment.recoverable.forEach((entry) => {
+      const question = questions[Number(entry.questionIndex)] || null;
+      proposals.push({
+        studentId,
+        questionIndex: Number(entry.questionIndex),
+        draftKey: entry.key,
+        savedAt: entry.documentSavedAtMs,
+        closesAt: entry.closesAtMs,
+        // The ONE thing that makes this idempotent across re-runs: the same
+        // draft entry always proposes the same submission id, so a second
+        // commit finds it already canonical and writes nothing.
+        actionId: `draft-recovery:${snapshot.id}:${entry.key}`.slice(0, 200),
+        envelope: ingestion.buildSubmissionEnvelope({
+          actionId: `draft-recovery:${snapshot.id}:${entry.key}`.slice(0, 200),
+          kind: "ordinarySubmission",
+          studentId,
+          assignmentId,
+          questionIndex: Number(entry.questionIndex),
+          questionId: question?.questionId || question?.id || null,
+          variantIndex: Number(entry.variantIndex) || 0,
+          activityRole: question?.activityRole || "classwork",
+          capturedAt: entry.documentSavedAtMs,
+          previousTotalAttempts: 0,
+          // No record and no verdict. The server grades the raw response.
+          record: null,
+          response: entry.response,
+        }),
+      });
+    });
+  }
+
+  if (!commit) {
+    return {
+      assignmentId,
+      classId,
+      committed: false,
+      proposalCount: proposals.length,
+      proposals: proposals.map(({ envelope: _envelope, ...rest }) => rest),
+    };
+  }
+
+  const applied = [];
+  for (const proposal of proposals) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const receipt = await ingestOneSubmission({
+        db,
+        studentId: proposal.studentId,
+        envelope: { ...proposal.envelope, studentId: proposal.studentId },
+        now: Date.now(),
+      });
+      applied.push({ ...receipt, studentId: proposal.studentId, draftKey: proposal.draftKey });
+    } catch (error) {
+      logger.error("Could not apply a workspace draft recovery", {
+        assignmentId, classId, studentId: proposal.studentId, draftKey: proposal.draftKey, message: error.message,
+      });
+      applied.push({
+        actionId: proposal.actionId,
+        studentId: proposal.studentId,
+        draftKey: proposal.draftKey,
+        disposition: "retryable",
+        reason: `recovery-error:${String(error.message || "unknown").slice(0, 120)}`,
+      });
+    }
+  }
+  logger.info("Workspace draft recovery committed", { assignmentId, classId, by: email, applied: applied.length });
+  return { assignmentId, classId, committed: true, proposalCount: proposals.length, applied };
 });

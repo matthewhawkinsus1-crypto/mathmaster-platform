@@ -16,6 +16,7 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase.js';
 import { measurePerformanceOperation } from '../platform/performance/performanceTelemetry.js';
+import { summarizeDurableOutbox } from '../platform/performance/durableActionOutbox.js';
 import {
   MAX_ENVELOPES_PER_CALL,
   SUBMISSION_DISPOSITION,
@@ -77,3 +78,42 @@ export const ingestOneSubmission = async (envelope, options) => {
 };
 
 export { SUBMISSION_DISPOSITION };
+
+/*
+ * THIS DEVICE'S OWN INCIDENT REPORT.
+ *
+ * A queue in IndexedDB is invisible to every server query, so after a drain has
+ * done what it can, the device says what it is still holding and why. That is
+ * what makes "work exists but has not arrived" visible to a teacher instead of
+ * looking identical to "the student did nothing".
+ *
+ * Counts and blocked-reason labels only. No responses, no attempt records,
+ * nothing that could become a grade — the report is diagnostics, and a
+ * diagnostic that carried academic data would be a second grading store.
+ */
+const DEVICE_ID_STORAGE_KEY = 'mathmaster:device-id';
+
+/** A per-browser id so one student's two Chromebooks are two rows, not one. */
+export const resolveDeviceId = () => {
+  try {
+    const stored = window.localStorage.getItem(DEVICE_ID_STORAGE_KEY);
+    if (stored) return stored;
+    const created = `dev_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+    window.localStorage.setItem(DEVICE_ID_STORAGE_KEY, created);
+    return created;
+  } catch {
+    // Storage can be blocked. A per-session id still separates devices well
+    // enough for a report, and reporting nothing would be worse.
+    return `dev_session_${Math.random().toString(36).slice(2)}`;
+  }
+};
+
+export const reportDeviceQueueState = async ({ studentId, summary = null, ingestionFallbacks = 0 } = {}) => {
+  if (!studentId) return null;
+  const payload = summary || await summarizeDurableOutbox({ studentId });
+  const response = await httpsCallable(functions, 'reportStudentDeviceQueue')({
+    deviceId: resolveDeviceId(),
+    summary: { ...payload, ingestionFallbacks },
+  });
+  return response?.data || null;
+};

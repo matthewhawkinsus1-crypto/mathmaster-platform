@@ -422,6 +422,45 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    /*
+     * THE RECEIPT FOR ONE CANONICAL SUBMISSION.
+     *
+     * Written ONLY by the server ingestion callable, through the Admin SDK,
+     * which bypasses these rules. It is the durable answer a student's device
+     * retires its queue row against, so the student may read their own — and
+     * nobody may write one, because a forged receipt would tell a Chromebook to
+     * throw away work that never reached the gradebook.
+     *
+     * It carries no response and no grade: an action id, a disposition, a
+     * reason and the attempt count the server itself wrote.
+     */
+    match /studentSubmissionReceipts/{receiptId} {
+      // No authorizedTeacher() clause: a receipt carries no
+      // `authorizedTeacherEmails` list, so that helper would deny rather than
+      // grant. Teachers reach receipts only through the audited recovery report
+      // callable, which runs on the Admin SDK and scopes them to their class.
+      allow read: if rootAdmin() || ownsStudent(resource.data.studentId);
+      allow create, update, delete: if false;
+    }
+
+    /*
+     * WHAT ONE CHROMEBOOK IS STILL HOLDING.
+     *
+     * An IndexedDB queue is invisible to every server query, so the device
+     * reports its own depth after it reconnects. Written only through the
+     * audited student callable (Admin SDK), never directly: a client-writable
+     * document here would let one student fabricate another's incident record.
+     *
+     * Counts and blocked-reason labels only. No responses, no records, nothing
+     * that could become a grade.
+     */
+    match /studentDevicePersistenceReports/{reportId} {
+      // Same reason as receipts above: the teacher's path is the recovery
+      // report callable, not a direct read.
+      allow read: if rootAdmin() || ownsStudent(resource.data.studentId);
+      allow create, update, delete: if false;
+    }
+
     // Broken or unfinished authoring drafts never enter the shared assignments
     // collection. They are visible only to the teacher who owns the draft (or
     // the root administrator). Ownership is immutable from the client so one
