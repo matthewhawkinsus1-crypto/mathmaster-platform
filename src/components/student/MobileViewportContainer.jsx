@@ -211,12 +211,22 @@ export const MobileViewportContainer = ({
     if (isMobile) {
       if (target?.matches?.(NUMERIC_SELECTOR)) {
         setNumericTarget(target);
-      } else if (!target?.closest?.('.mathmaster-mobile-numeric-keypad')) {
+      } else if (
+        !target?.closest?.('.mathmaster-mobile-numeric-keypad')
+        && !target?.closest?.('button')
+      ) {
         // The MathMaster keypad belongs only to the numeric field that owns
-        // focus. Moving to a select, graph control, Submit, or any other normal
-        // control must dismiss it just like a native software keyboard would.
-        // Keeping the stale target alive leaves the fixed keypad intercepting
-        // later controls even though the student is no longer typing a number.
+        // focus. Moving into another editable control (for example a select)
+        // dismisses it just like a native software keyboard would.
+        //
+        // Do NOT clear it merely because an action button receives focus.
+        // Step Algebra commits a balanced operation by moving directly from its
+        // numeric operand to "Apply to both sides". Clearing the keypad during
+        // that focus transition re-renders the editor before the click commits,
+        // leaving an edited operand but no Undo history. Work View already
+        // reserves keypad space around action buttons; standalone flows such as
+        // Regression Calculator dismiss the keypad when the following select
+        // receives focus.
         setNumericTarget(null);
       }
     }
