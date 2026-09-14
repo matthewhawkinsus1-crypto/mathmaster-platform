@@ -197,6 +197,12 @@ render never waits: a restore that brings something new remounts the workspace.
 | Secure Test Cycle | **Excluded by design** |
 | My Math Path | **Excluded by design** |
 
+Each draft value is stored as serialized text. A tool's workspace is its own
+shape — plotted strokes are arrays of arrays of points, which Firestore refuses
+to store directly — so serializing it sidesteps every shape rule, makes the size
+cap exact, and states the true thing about the field: the server keeps it and
+never interprets it.
+
 ### What a draft may never contain
 
 Answer keys, accepted answers, expected values, grading definitions, solutions,

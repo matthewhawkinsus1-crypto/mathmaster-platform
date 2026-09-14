@@ -27,7 +27,7 @@ import {
 } from './platform/performance/responseCheckpoint.js';
 import { createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
-import { selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
+import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
 import { resolveAuthoritativeClose } from '../functions/shared/sectionDeadline.mjs';
 import { teacherAdmin } from './auth/authService';
 import {
@@ -2480,7 +2480,7 @@ function App() {
         if (cancelled || !stored) return;
         const assignmentGrades = trackerRef.current?.[activeAssignmentId] || {};
         const restorable = selectRestorableDraftEntries({
-          entries: stored.entries,
+          entries: readWorkspaceDraftEntries(stored),
           localSavedAt: (key) => questionDraftSavedAt(key),
           canonicalSavedAt: (entry) => {
             const record = normalizeQuestionRecord(assignmentGrades[entry?.questionIndex]);

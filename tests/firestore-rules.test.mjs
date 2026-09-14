@@ -403,7 +403,7 @@ const workspaceDoc = (db, id) => doc(db, `studentWorkspaceDrafts/${id}`);
 const ownWorkspace = {
   documentId: 'S1042__A1', schemaVersion: 1, studentId: 'S1042', assignmentId: 'A1',
   classId: 'class-a', revision: 1, secure: false, updatedAt: serverTimestamp(),
-  entries: [{ key: 'mathmaster:draft:v2::S1042:A1:0:0:student:literal', value: 'x = 3y', savedAt: 1_700_000_000_000 }],
+  entries: [{ key: 'mathmaster:draft:v2::S1042:A1:0:0:student:literal', valueJson: '"x = 3y"', savedAt: 1_700_000_000_000, questionIndex: 0, variantIndex: 0 }],
   resume: { questionIndex: 2, activityRole: 'classwork', variantIndex: 0, updatedAt: 1_700_000_000_000 },
   practice: null,
 };

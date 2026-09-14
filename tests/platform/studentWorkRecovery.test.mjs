@@ -22,6 +22,7 @@ import { readFileSync } from 'node:fs';
 import {
   buildWorkspaceDraftDocument,
   isSyncableDraftKey,
+  readWorkspaceDraftEntries,
   sanitizeWorkspaceDraftValue,
   selectRestorableDraftEntries,
   workspaceDraftDocumentId,
@@ -187,7 +188,22 @@ test('a partially completed Work View is captured for every draft-backed tool', 
   assert.equal(writes.length, 1, 'four edits, one write');
   assert.equal(writes[0].entries.length, 4);
   assert.deepEqual(writes[0].entries.map((entry) => entry.questionIndex), [0, 1, 2, 3]);
-  assert.deepEqual(writes[0].entries[1].value, { 'x=1': '5', 'x=2': '9' });
+  const restored = readWorkspaceDraftEntries(writes[0]);
+  assert.deepEqual(restored[1].value, { 'x=1': '5', 'x=2': '9' });
+  assert.deepEqual(restored[2].value, { slope: '3', intercept: '-2' });
+  assert.deepEqual(restored[3].value, { stage: 2, responses: { a: 'yes' } });
+});
+
+test('a workspace whose shape Firestore would reject still round-trips', () => {
+  // Plotted strokes are arrays of arrays of points, which Firestore refuses to
+  // store directly. The draft is serialized, so the tool gets its own shape
+  // back exactly.
+  const value = { strokes: [[{ x: 1, y: 2 }, { x: 3, y: 4 }], []], chosenXValues: { t1: '5' } };
+  const { sync, scheduler, writes } = trackingSync();
+  sync.record({ key: draftKey(0, 'graph-story'), value, savedAt: 1 });
+  scheduler.runAll();
+  assert.equal(typeof writes[0].entries[0].valueJson, 'string');
+  assert.deepEqual(readWorkspaceDraftEntries(writes[0])[0].value, value);
 });
 
 test('a server-backed draft restores on a different device', () => {
@@ -198,7 +214,7 @@ test('a server-backed draft restores on a different device', () => {
   });
   // The second Chromebook has never seen this assignment.
   const restorable = selectRestorableDraftEntries({
-    entries: stored.entries,
+    entries: readWorkspaceDraftEntries(stored),
     localSavedAt: () => 0,
     canonicalSavedAt: () => 0,
   });
@@ -233,7 +249,7 @@ test('the latest incomplete draft restores without becoming an attempt', () => {
   for (const forbidden of ['gradesByAssignment', 'isCorrect', 'score', 'record', 'attemptCount', 'totalAttempts', 'evidenceEvent']) {
     assert.ok(!Object.hasOwn(document, forbidden), `a workspace draft must not carry ${forbidden}`);
   }
-  assert.equal(document.entries[0].value, 'A/');
+  assert.equal(readWorkspaceDraftEntries(document)[0].value, 'A/');
 });
 
 test('restoring drafts is the last step, after canonical grades and the outbox', () => {
@@ -328,7 +344,7 @@ test('high-frequency answer changes are coalesced instead of written per keystro
   scheduler.runAll();
   assert.equal(writes.length, 1);
   assert.equal(writes[0].entries.length, 1);
-  assert.equal(writes[0].entries[0].value, 'A/b', 'the newest value wins');
+  assert.equal(readWorkspaceDraftEntries(writes[0])[0].value, 'A/b', 'the newest value wins');
 });
 
 test('the local draft write is synchronous and only then offers a background save', () => {
@@ -365,7 +381,7 @@ test('temporary network loss leaves the work locally durable and retries later',
   scheduler.runAll();
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(writes.length, 1);
-  assert.equal(writes[0].entries[0].value, 'A/b');
+  assert.equal(readWorkspaceDraftEntries(writes[0])[0].value, 'A/b');
 });
 
 test('the submission path still captures durably first and reconciles in the background', () => {
@@ -428,7 +444,7 @@ test('an answer key can never be stored in a workspace draft', () => {
   sync.record({ key: draftKey(0, 'literal'), value: 'A/b', savedAt: 2 });
   scheduler.runAll();
   assert.equal(writes[0].entries.length, 1);
-  assert.equal(writes[0].entries[0].value, 'A/b');
+  assert.equal(readWorkspaceDraftEntries(writes[0])[0].value, 'A/b');
 });
 
 test('another student or another assignment can never be written through this sync', () => {

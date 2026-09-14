@@ -50,14 +50,6 @@ export const FORBIDDEN_DRAFT_KEYS = Object.freeze([
   'partGrades',
 ]);
 
-const byteLength = (value) => {
-  try {
-    return JSON.stringify(value ?? null).length;
-  } catch {
-    return Number.POSITIVE_INFINITY;
-  }
-};
-
 const containsForbiddenKey = (value, depth = 0) => {
   if (depth > 8 || !value || typeof value !== 'object') return false;
   if (Array.isArray(value)) return value.some((entry) => containsForbiddenKey(entry, depth + 1));
@@ -75,11 +67,33 @@ const containsForbiddenKey = (value, depth = 0) => {
 export const sanitizeWorkspaceDraftValue = (value) => {
   if (value === undefined) return { ok: false, reason: 'undefined-value' };
   if (containsForbiddenKey(value)) return { ok: false, reason: 'forbidden-key' };
-  const size = byteLength(value);
-  if (!Number.isFinite(size)) return { ok: false, reason: 'not-serializable' };
-  if (size > MAX_WORKSPACE_DRAFT_VALUE_BYTES) return { ok: false, reason: 'too-large' };
-  return { ok: true, reason: null, value, bytes: size };
+  let json;
+  try {
+    json = JSON.stringify(value ?? null);
+  } catch {
+    return { ok: false, reason: 'not-serializable' };
+  }
+  if (typeof json !== 'string') return { ok: false, reason: 'not-serializable' };
+  if (json.length > MAX_WORKSPACE_DRAFT_VALUE_BYTES) return { ok: false, reason: 'too-large' };
+  return { ok: true, reason: null, value, json, bytes: json.length };
 };
+
+/** Decode what was stored, dropping anything that no longer parses. */
+export const readWorkspaceDraftEntries = (document) => (
+  (Array.isArray(document?.entries) ? document.entries : []).flatMap((entry) => {
+    try {
+      return [{
+        key: String(entry?.key || ''),
+        value: JSON.parse(String(entry?.valueJson ?? 'null')),
+        savedAt: Number(entry?.savedAt) || 0,
+        questionIndex: Number.isInteger(Number(entry?.questionIndex)) ? Number(entry.questionIndex) : null,
+        variantIndex: Number.isInteger(Number(entry?.variantIndex)) ? Number(entry.variantIndex) : null,
+      }];
+    } catch {
+      return [];
+    }
+  })
+);
 
 /** Preview, secure Test Cycle and private Path work never reach this collection. */
 export const isSyncableDraftKey = (key) => {
@@ -118,7 +132,14 @@ export const buildWorkspaceDraftDocument = ({
     total += check.bytes;
     accepted.push({
       key,
-      value: check.value,
+      // STORED AS TEXT ON PURPOSE.
+      //
+      // A tool's workspace is its own shape — plotted strokes are arrays of
+      // arrays of points, and Firestore refuses an array directly inside an
+      // array. Serializing sidesteps every one of those shape rules, makes the
+      // size cap exact, and says the true thing about this field: the server
+      // stores it and never interprets it.
+      valueJson: check.json,
       savedAt: Math.max(0, Number(entry?.savedAt) || 0),
       questionIndex: Number.isInteger(Number(entry?.questionIndex)) ? Number(entry.questionIndex) : null,
       variantIndex: Number.isInteger(Number(entry?.variantIndex)) ? Number(entry.variantIndex) : null,
