@@ -27,7 +27,7 @@ const BANK_COLLECTION = "pathQuestionBank";
 const BUILT_IN_PATH_SEED_MARKER = "mathmaster-built-in-path-bank";
 const LEGACY_BUILT_IN_PATH_SEED_SOURCE = "MathMaster curated starter coverage";
 
-/** How long an in-flight attempt holds the job before another may take over. */
+/** How long an in-flight attempt holds the release before another may take over. */
 const JOB_LEASE_MS = 3 * 60 * 1000;
 
 const plan = () => importRuntime("shared/pathReleasePlan.mjs");
@@ -46,6 +46,110 @@ async function readReleaseState(db) {
 async function writeReleaseState(db, data) {
   await (await stateRef(db)).set(data, { merge: true });
   return data;
+}
+
+// ---------------------------------------------------------------------------
+// The global release lease
+// ---------------------------------------------------------------------------
+//
+// Mutual exclusion has to live on the thing that is SHARED, and what two
+// releases share is production: the `pathQuestionBank` collection and the single
+// `pathReleaseState/course` pointer. A lease held per job cannot see a different
+// release at all — release A and release B write different job documents — so
+// A's supersede list, computed before B activated, could delete documents B had
+// just written and leave the pointer naming a bank that was never fully staged.
+//
+// So the lease lives on the course release state, and it is taken in a
+// transaction: a read-then-write check can be passed by two callers at once,
+// which is the same race one document lower down.
+
+/** Whether a stored lease is still live and belongs to somebody else. */
+function leaseHeldByAnother(state, { operationId, now, leaseMs = JOB_LEASE_MS }) {
+  const holder = state?.leaseOperationId || null;
+  if (!holder || holder === operationId) return false;
+  const heartbeat = Number(state?.leaseHeartbeatAt || 0);
+  return Number.isFinite(heartbeat) && now - heartbeat < leaseMs;
+}
+
+/**
+ * Take the release lease, or report who is holding it.
+ *
+ * A stale lease is not a conflict: it is the interrupted release this design
+ * exists to resume, and taking it over is how the resume happens.
+ */
+async function acquireCourseReleaseLease(db, {
+  operationId,
+  releaseId,
+  actorUid = null,
+  now = Date.now(),
+  leaseMs = JOB_LEASE_MS,
+} = {}) {
+  const ref = await stateRef(db);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const state = snapshot.exists ? snapshot.data() : null;
+    if (leaseHeldByAnother(state, { operationId, now, leaseMs })) {
+      return {
+        acquired: false,
+        heldByReleaseId: state?.leaseReleaseId || null,
+        heldSince: Number(state?.leaseHeartbeatAt || 0) || null,
+      };
+    }
+    transaction.set(ref, {
+      leaseOperationId: operationId,
+      leaseReleaseId: releaseId,
+      leaseActorUid: actorUid,
+      leaseHeartbeatAt: now,
+    }, { merge: true });
+    return { acquired: true, heldByReleaseId: null, heldSince: null };
+  });
+}
+
+/**
+ * Keep the lease alive while a long phase runs.
+ *
+ * Refreshes the heartbeat ONLY while the lease is still ours. Writing the holder
+ * unconditionally would let a release whose lease had already expired and been
+ * taken over quietly take it back mid-staging, which is the exact overlap the
+ * lease exists to prevent. Returns whether we still hold it.
+ */
+async function refreshCourseReleaseLease(db, { operationId, now = Date.now() } = {}) {
+  const ref = await stateRef(db);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) return false;
+    if ((snapshot.data()?.leaseOperationId || null) !== operationId) return false;
+    transaction.set(ref, { leaseHeartbeatAt: now }, { merge: true });
+    return true;
+  });
+}
+
+/**
+ * Still ours?
+ *
+ * Checked again immediately before the two steps that cannot be undone — moving
+ * the pointer and deleting superseded content — because a lease can expire under
+ * a slow phase and someone else can legitimately have taken over by then.
+ */
+async function holdsCourseReleaseLease(db, { operationId } = {}) {
+  const state = await readReleaseState(db);
+  return (state?.leaseOperationId || null) === operationId;
+}
+
+/** Give the lease back, if it is ours to give. */
+async function releaseCourseReleaseLease(db, { operationId } = {}) {
+  const ref = await stateRef(db);
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) return;
+    if ((snapshot.data()?.leaseOperationId || null) !== operationId) return;
+    transaction.set(ref, {
+      leaseOperationId: null,
+      leaseReleaseId: null,
+      leaseActorUid: null,
+      leaseHeartbeatAt: null,
+    }, { merge: true });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -222,6 +326,26 @@ async function writeChunkPlan(db, jobId, chunks) {
   return chunks.length;
 }
 
+/**
+ * Throw away a job's recorded plan.
+ *
+ * Chunk indexes only mean something relative to ONE plan. A completed job that is
+ * being run again — a rollback to a release production is no longer serving — is
+ * a new execution against a different production state, and its old chunks would
+ * mark the new plan's chunks complete and stage nothing at all.
+ */
+async function clearChunkPlan(db, jobId) {
+  const collection = await chunkCollection(db, jobId);
+  const snapshot = await collection.get();
+  for (let index = 0; index < snapshot.docs.length; index += 200) {
+    const batch = db.batch();
+    snapshot.docs.slice(index, index + 200).forEach((doc) => batch.delete(doc.ref));
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+  return snapshot.size;
+}
+
 async function markChunkComplete(db, jobId, { index, ids, writtenAt = Date.now() }) {
   await (await chunkCollection(db, jobId)).doc(`chunk-${String(index).padStart(5, "0")}`).set({
     index,
@@ -250,6 +374,11 @@ module.exports = {
   JOB_LEASE_MS,
   readReleaseState,
   writeReleaseState,
+  leaseHeldByAnother,
+  acquireCourseReleaseLease,
+  refreshCourseReleaseLease,
+  holdsCourseReleaseLease,
+  releaseCourseReleaseLease,
   readActiveReleaseIndex,
   scanActiveCourseBank,
   writeActiveReleaseIndex,
@@ -258,6 +387,7 @@ module.exports = {
   readLatestJob,
   readChunkStates,
   writeChunkPlan,
+  clearChunkPlan,
   markChunkComplete,
   jobIsLeased,
 };

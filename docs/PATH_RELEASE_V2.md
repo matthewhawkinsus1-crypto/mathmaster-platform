@@ -86,7 +86,7 @@ document, no property and no course.
    src/platform/path/pathReleaseManifest.generated.js
      release id + hash + counts only                              (browser bundle)
            │
-           │  firebase deploy --only functions:path-admin
+           │  npm run deploy:path-admin
            ▼
    ┌──────────────────────────────────────────────────────────────────────┐
    │ path-admin CODEBASE            functions-path-admin/                 │
@@ -120,7 +120,7 @@ document, no property and no course.
 | Path | What it holds |
 | --- | --- |
 | `pathQuestionBank/{id}` | unchanged. The student runtime reads exactly what it read before. Release documents gain `pathReleaseId`, `pathContentHash`, `pathReleaseSchemaVersion` |
-| `pathReleaseState/course` | which release production is serving, and whether it is `active` or `updating` |
+| `pathReleaseState/course` | which release production is serving, whether it is `active` or `updating`, and the lease that keeps two releases from overlapping |
 | `pathReleaseState/course/documentIndex/{shard}` | the active release's id → content-hash map, in shards of 400 |
 | `pathReleaseJobs/{jobId}` | one resumable job per release: phase, actor, counts, chunk progress, last error |
 | `pathReleaseJobs/{jobId}/chunks/{index}` | the durable write plan, one document per chunk |
@@ -128,6 +128,17 @@ document, no property and no course.
 **The job id is the release id.** That single decision is the whole idempotency
 story: publishing the same release twice finds the same job, so it never creates
 a second one, never rewrites a committed chunk, and never activates twice.
+
+**One release runs at a time, across releases.** `pathReleaseState/course` also
+carries a lease, taken in a Firestore transaction before anything is read or
+written and given back when the release finishes, fails or runs out of its time
+budget. The lease has to live there rather than on the job, because two different
+releases write two different job documents and would not see each other at all —
+and release A's supersede list, computed before release B activated, would then
+delete documents B had just written. The lease is re-checked immediately before
+the two steps that cannot be undone: moving the pointer, and deleting superseded
+content. A lease whose holder has stopped heart-beating for three minutes is not
+a conflict — taking it over is exactly how an interrupted release resumes.
 
 ---
 
@@ -215,12 +226,20 @@ which is exactly:
 ```bash
 npm run release:path:build     # compile + certify + write the artifact
 npm run release:path:sync      # carry the shared Path runtime into the bundle
-firebase deploy --only functions:path-admin
+firebase deploy --only functions:path-admin,hosting,firestore:rules
 ```
 
-This deploys **four functions**. It does not touch the default codebase, so it
-cannot trigger the per-project mutation rate limit, and it does not need
-`FUNCTIONS_DISCOVERY_TIMEOUT`.
+This deploys **four functions**, the web bundle and the security rules. It does
+not touch the default Functions codebase, so it cannot trigger the per-project
+mutation rate limit, and it does not need `FUNCTIONS_DISCOVERY_TIMEOUT`.
+
+**Why Hosting goes with it.** The build regenerates
+`src/platform/path/pathReleaseManifest.generated.js`, the release identity the
+browser carries. Shipping Functions without Hosting leaves the admin page holding
+an older identity, which the page correctly reports as a *deployment mismatch*
+and refuses to publish against. Rules go with it so the first rollout is one
+documented command rather than a documented one plus an undocumented one;
+re-deploying unchanged rules is a no-op.
 
 Other useful commands:
 
@@ -230,7 +249,6 @@ Other useful commands:
 | `npm run release:path:verify` | CI gate: fail if the committed manifest and the seeds disagree |
 | `npm run test:path-release` | the Path Release V2 unit and contract suite |
 | `npm run test:path-release:emulator` | interrupted multi-chunk release against real Firestore |
-| `firebase deploy --only firestore:rules` | required once, for the new collections |
 
 ### Why there is a `vendor/` directory
 
@@ -257,6 +275,16 @@ repository, so rollback is a normal publish of an older release:
    exactly, because the id is derived from the content.
 3. `npm run deploy:path-admin`
 4. Publish it from the admin page.
+
+A rollback is a release like any other, with one thing the control plane has to
+get right: the old release's job document is still there, marked *complete*, with
+its original chunk plan. That plan was written against a different production
+state, and following it would stage nothing while still moving the pointer —
+production would name the old release while the bank still held the new one's
+content. So a completed job whose release production is no longer serving is
+treated as a **new execution**: its chunk plan is discarded and the comparison is
+re-derived. `tests/platform/pathReleaseV2Job.test.mjs` certifies that the content
+actually moves back, and that documents the newer release added are superseded.
 
 The comparison runs in reverse: documents that the newer release changed are
 changed back, documents it added are superseded, and everything else is left

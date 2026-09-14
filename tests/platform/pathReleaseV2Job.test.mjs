@@ -319,7 +319,13 @@ test('a package whose document does not match its certified hash writes nothing'
   assert.equal(result.diagnostic.code, PATH_RELEASE_ERROR.DOCUMENT_HASH_MISMATCH);
   assert.equal(result.diagnostic.questionId, 'q2');
   assert.equal(bankCount(db), 0, 'not one live document was mutated');
-  assert.equal(db.snapshotFor('pathReleaseState/course').exists, false);
+  // The release state document may exist because taking the release lease writes
+  // to it. What must NOT have happened is an activation: no release is named, and
+  // production is not told anything changed.
+  const state = db.snapshotFor('pathReleaseState/course').data() || {};
+  assert.equal(state.releaseId ?? null, null, 'no release was activated');
+  assert.equal(state.status ?? null, null);
+  assert.equal(state.pendingReleaseId ?? null, null, 'production was never told an update had begun');
   assert.equal(db.snapshotFor(`pathReleaseJobs/${manifest.releaseId}`).data().phase, PATH_RELEASE_PHASE.FAILED);
 });
 
@@ -471,4 +477,184 @@ test('coverage is rebuilt only for the affected course and reuses certified verd
   assert.ok(result.coverage.skipped.includes('grade6'));
   assert.equal(result.coverage.issuerRuns, 0, 'certified verdicts are reused rather than re-derived');
   assert.equal(result.coverage.reusedCertifiedPlans, 2);
+});
+
+// --- one release at a time, across releases ---------------------------------
+//
+// Mutual exclusion has to live on what is SHARED. A lease held per job cannot
+// see a different release at all, because two releases write two different job
+// documents — and then release A's supersede list, computed before B activated,
+// can delete documents B has just written.
+
+test('a release in progress blocks a different release from starting', async () => {
+  const db = createFakeFirestore();
+  const releaseB = syntheticRelease([family('q1'), family('q2')]);
+
+  // Release A is mid-flight: it holds the lease on the shared course state.
+  db.seed('pathReleaseState/course', {
+    status: 'updating',
+    pendingReleaseId: 'course-path-v2-aaaaaaaaaaaaaaaa',
+    leaseOperationId: 'op-release-a',
+    leaseReleaseId: 'course-path-v2-aaaaaaaaaaaaaaaa',
+    leaseHeartbeatAt: Date.now(),
+  });
+  db.resetCounters();
+
+  const result = await run(db, releaseB.artifact, { operationId: 'op-release-b' });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.diagnostic.code, PATH_RELEASE_ERROR.ACTIVATION_CONFLICT);
+  assert.match(result.diagnostic.message, /course-path-v2-aaaaaaaaaaaaaaaa/);
+  assert.equal(result.diagnostic.details.heldByReleaseId, 'course-path-v2-aaaaaaaaaaaaaaaa');
+  assert.equal(bankCount(db), 0, 'the blocked release writes nothing');
+  assert.equal(db.snapshotFor('pathReleaseState/course').data().pendingReleaseId, 'course-path-v2-aaaaaaaaaaaaaaaa');
+});
+
+test('a second attempt at the same release is refused while the first holds the lease', async () => {
+  const db = createFakeFirestore();
+  const { manifest, artifact } = syntheticRelease([family('q1'), family('q2')]);
+  db.seed('pathReleaseState/course', {
+    leaseOperationId: 'op-first',
+    leaseReleaseId: manifest.releaseId,
+    leaseHeartbeatAt: Date.now(),
+  });
+
+  const second = await run(db, artifact, { operationId: 'op-second' });
+
+  assert.equal(second.ok, false);
+  assert.equal(second.diagnostic.code, PATH_RELEASE_ERROR.ACTIVATION_CONFLICT);
+  assert.equal(bankCount(db), 0);
+});
+
+test('a stale lease is taken over, because that is what resuming is', async () => {
+  const db = createFakeFirestore();
+  const { manifest, artifact } = syntheticRelease([family('q1'), family('q2')]);
+  db.seed('pathReleaseState/course', {
+    leaseOperationId: 'op-abandoned',
+    leaseReleaseId: manifest.releaseId,
+    leaseHeartbeatAt: Date.now() - (10 * 60 * 1000),
+  });
+
+  const result = await run(db, artifact, { operationId: 'op-resuming' });
+
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostic || {}));
+  assert.equal(result.phase, PATH_RELEASE_PHASE.COMPLETE);
+  assert.equal(bankCount(db), 2);
+});
+
+test('the lease is given back when a release finishes or fails', async () => {
+  const db = createFakeFirestore();
+  const { artifact } = syntheticRelease([family('q1')]);
+
+  await run(db, artifact, { operationId: 'op-complete' });
+  assert.equal(db.snapshotFor('pathReleaseState/course').data().leaseOperationId, null, 'a completed release holds nothing');
+
+  // A DIFFERENT release, so this is a real attempt rather than the already-active
+  // answer, and one whose package is missing so it fails during validation.
+  const other = syntheticRelease([family('q9')]);
+  const broken = { ...other.artifact, loadReleaseDocuments: () => null };
+  const failed = await run(db, broken, { operationId: 'op-failed' });
+  assert.equal(failed.ok, false);
+  assert.equal(db.snapshotFor('pathReleaseState/course').data().leaseOperationId, null, 'a failed release holds nothing either');
+});
+
+test('a release that lost its lease refuses to activate or delete anything', async () => {
+  const db = createFakeFirestore();
+  await run(db, syntheticRelease([family('q1'), family('retired')]).artifact);
+
+  const next = syntheticRelease([family('q1'), family('q2')]);
+  // Somebody else takes the lease while this release is staging.
+  const stealAfterStaging = {
+    ...next.artifact,
+    verifyDocumentsForStaging: async (...args) => {
+      const diagnostics = await next.artifact.verifyDocumentsForStaging(...args);
+      db.seed('pathReleaseState/course', {
+        ...db.snapshotFor('pathReleaseState/course').data(),
+        leaseOperationId: 'op-somebody-else',
+        leaseHeartbeatAt: Date.now(),
+      });
+      return diagnostics;
+    },
+  };
+
+  const result = await run(db, stealAfterStaging, { operationId: 'op-overtaken' });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.diagnostic.code, PATH_RELEASE_ERROR.ACTIVATION_CONFLICT);
+  assert.equal(result.diagnostic.phase, PATH_RELEASE_PHASE.ACTIVATING);
+  assert.equal(db.snapshotFor(`${BANK}/retired`).exists, true, 'nothing was superseded');
+  assert.notEqual(db.snapshotFor('pathReleaseState/course').data().releaseId, next.manifest.releaseId);
+});
+
+// --- rolling back -----------------------------------------------------------
+//
+// A completed job whose release production is NO LONGER serving is a rollback,
+// not a resume. Its recorded chunks were written against a different production
+// state; following them stages nothing and still moves the pointer.
+
+test('rolling back to an earlier release actually moves the content back', async () => {
+  const db = createFakeFirestore();
+  const releaseA = syntheticRelease([family('q1'), family('q2')]);
+  const releaseB = syntheticRelease([
+    family('q1', { prompt: 'Version B.' }),
+    family('q2', { prompt: 'Version B.' }),
+  ]);
+
+  await run(db, releaseA.artifact);
+  await run(db, releaseB.artifact);
+  assert.equal(db.snapshotFor(`${BANK}/q1`).data().prompt, 'Version B.');
+
+  const rollback = await run(db, releaseA.artifact);
+
+  assert.equal(rollback.ok, true, JSON.stringify(rollback.diagnostic || {}));
+  assert.equal(rollback.counts.changed, 2, 'both documents are written back');
+  assert.equal(db.snapshotFor(`${BANK}/q1`).data().prompt, 'Solve for x.');
+  assert.equal(db.snapshotFor(`${BANK}/q2`).data().prompt, 'Solve for x.');
+
+  const state = db.snapshotFor('pathReleaseState/course').data();
+  assert.equal(state.releaseId, releaseA.manifest.releaseId);
+  assert.equal(state.previousReleaseId, releaseB.manifest.releaseId);
+
+  const expected = new Map(releaseA.manifest.documents.map((entry) => [entry.id, entry.contentHash]));
+  ['q1', 'q2'].forEach((id) => {
+    assert.equal(db.snapshotFor(`${BANK}/${id}`).data().pathContentHash, expected.get(id));
+  });
+});
+
+test('a rollback re-supersedes content the newer release added', async () => {
+  const db = createFakeFirestore();
+  const releaseA = syntheticRelease([family('q1')]);
+  const releaseB = syntheticRelease([family('q1'), family('added-by-b')]);
+
+  await run(db, releaseA.artifact);
+  await run(db, releaseB.artifact);
+  assert.equal(db.snapshotFor(`${BANK}/added-by-b`).exists, true);
+
+  const rollback = await run(db, releaseA.artifact);
+
+  assert.equal(rollback.ok, true, JSON.stringify(rollback.diagnostic || {}));
+  assert.equal(rollback.counts.removed, 1);
+  assert.equal(db.snapshotFor(`${BANK}/added-by-b`).exists, false);
+  assert.equal(bankCount(db), 1);
+});
+
+test('the rollback replans rather than replaying the completed run', async () => {
+  const db = createFakeFirestore();
+  const releaseA = syntheticRelease([family('q1'), family('q2')]);
+  const releaseB = syntheticRelease([family('q1', { prompt: 'Version B.' }), family('q2', { prompt: 'Version B.' })]);
+
+  await run(db, releaseA.artifact);
+  await run(db, releaseB.artifact);
+  db.resetCounters();
+
+  await run(db, releaseA.artifact);
+
+  // The chunk plan on disk describes the ROLLBACK, not the original run.
+  const chunks = db.documentsIn(`pathReleaseJobs/${releaseA.manifest.releaseId}/chunks`);
+  const planned = chunks.flatMap((chunk) => chunk.data().ids);
+  assert.deepEqual(planned.sort(), ['q1', 'q2']);
+  chunks.forEach((chunk) => assert.equal(chunk.data().status, 'complete'));
+
+  const written = db.commitLog.flat().filter((operation) => operation.startsWith(`set:${BANK}/`));
+  assert.deepEqual(written.sort(), [`set:${BANK}/q1`, `set:${BANK}/q2`]);
 });

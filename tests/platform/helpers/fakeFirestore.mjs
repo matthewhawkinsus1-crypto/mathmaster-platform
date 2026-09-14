@@ -150,6 +150,43 @@ export class FakeFirestore {
     return new FakeWriteBatch(this);
   }
 
+  /**
+   * Transactions, modelled as what they guarantee here: the read and the write
+   * happen with nothing in between. That is the property the release lease
+   * depends on, and the property a plain read-then-write does not have — a test
+   * can therefore prove the lease excludes a second caller by seeding a live
+   * lease before the transaction runs.
+   */
+  async runTransaction(handler) {
+    const db = this;
+    const pending = [];
+    const transaction = {
+      async get(ref) {
+        db.counters.reads += 1;
+        return db.snapshotFor(ref.path);
+      },
+      set(ref, data, options = {}) {
+        pending.push({ path: ref.path, data, options });
+        return transaction;
+      },
+      delete(ref) {
+        pending.push({ path: ref.path, delete: true });
+        return transaction;
+      },
+    };
+    const result = await handler(transaction);
+    pending.forEach((operation) => {
+      if (operation.delete) {
+        db.counters.deletes += 1;
+        db.documents.delete(operation.path);
+        return;
+      }
+      db.counters.writes += 1;
+      db.applySet(operation.path, operation.data, operation.options);
+    });
+    return result;
+  }
+
   async getAll(...refs) {
     this.counters.reads += refs.length;
     return refs.map((ref) => this.snapshotFor(ref.path));

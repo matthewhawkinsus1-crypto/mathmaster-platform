@@ -175,19 +175,42 @@ async function runCoursePathRelease({
     };
   }
 
-  if (store.jobIsLeased(job, { now: now(), operationId })) {
+  // ONE release at a time, across releases. The lease lives on the shared course
+  // release state rather than on this release's own job, because two DIFFERENT
+  // releases write two different job documents and would not see each other at
+  // all — and it is taken in a transaction, because a read-then-write check can
+  // be passed by two callers at once.
+  const lease = await store.acquireCourseReleaseLease(database, {
+    operationId,
+    releaseId,
+    actorUid: actor?.uid || null,
+    now: now(),
+  });
+  if (!lease.acquired) {
     return {
       ok: false,
-      phase: job.phase,
+      phase: job?.phase || PATH_RELEASE_PHASE.VALIDATING,
       diagnostic: pathReleaseDiagnostic({
-        phase: job.phase,
+        phase: job?.phase || PATH_RELEASE_PHASE.VALIDATING,
         code: PATH_RELEASE_ERROR.ACTIVATION_CONFLICT,
-        message: "Another administrator's release attempt is currently running for this release.",
+        message: lease.heldByReleaseId && lease.heldByReleaseId !== releaseId
+          ? `Release ${lease.heldByReleaseId} is being published right now. Wait for it to finish, then publish this one.`
+          : "Another release attempt for this release is currently running.",
         releaseId,
         jobId,
+        details: { heldByReleaseId: lease.heldByReleaseId || null },
       }),
     };
   }
+
+  try {
+    return await stageAndActivate();
+  } finally {
+    await store.releaseCourseReleaseLease(database, { operationId });
+  }
+
+  // eslint-disable-next-line no-unreachable
+  async function stageAndActivate() {
 
   const documents = releaseArtifact.loadReleaseDocuments();
   if (!documents) {
@@ -237,8 +260,22 @@ async function runCoursePathRelease({
   // The plan a running job is already following wins over a freshly derived one.
   // Documents an interrupted attempt wrote are seen as unchanged the next time
   // round, so re-deriving would renumber the chunks and skip the wrong ones.
-  const storedChunkStates = await store.readChunkStates(database, jobId);
-  const hasStoredPlan = job?.releaseId === releaseId && storedChunkStates.size > 0;
+  // A COMPLETED job whose release production is no longer serving is a ROLLBACK,
+  // not a resume. Its recorded chunks were written against a different production
+  // state and are all marked complete, so following them would stage nothing and
+  // still flip the pointer — production would name this release while the bank
+  // still held the newer one's content. Replan from a fresh comparison instead.
+  const rollingBackCompletedJob = job?.phase === PATH_RELEASE_PHASE.COMPLETE
+    && job?.releaseId === releaseId
+    && activeState?.releaseId !== releaseId;
+  if (rollingBackCompletedJob) await store.clearChunkPlan(database, jobId);
+
+  const storedChunkStates = rollingBackCompletedJob
+    ? new Map()
+    : await store.readChunkStates(database, jobId);
+  const hasStoredPlan = job?.releaseId === releaseId
+    && storedChunkStates.size > 0
+    && !rollingBackCompletedJob;
   const chunks = hasStoredPlan
     ? [...storedChunkStates.entries()]
       .sort(([left], [right]) => left - right)
@@ -295,6 +332,17 @@ async function runCoursePathRelease({
       phase: PATH_RELEASE_PHASE.VALIDATING,
       createdAt: now(),
       startedAt: now(),
+      completedChunks: 0,
+      completedChunkIndexes: [],
+      lastError: null,
+    });
+    job = await store.readJob(database, jobId);
+  } else if (rollingBackCompletedJob) {
+    await store.writeJob(database, jobId, {
+      ...baseJob,
+      phase: PATH_RELEASE_PHASE.VALIDATING,
+      startedAt: now(),
+      completedAt: null,
       completedChunks: 0,
       completedChunkIndexes: [],
       lastError: null,
@@ -402,6 +450,8 @@ async function runCoursePathRelease({
         completedChunkIndexes: [...completedIndexes].sort((a, b) => a - b),
         heartbeatAt: now(),
       });
+      // eslint-disable-next-line no-await-in-loop
+      await store.refreshCourseReleaseLease(database, { operationId, now: now() });
     } catch (error) {
       return failJob(database, jobId, pathReleaseDiagnostic({
         phase: PATH_RELEASE_PHASE.STAGING,
@@ -422,6 +472,20 @@ async function runCoursePathRelease({
     completedChunkIndexes: [...completedIndexes].sort((a, b) => a - b),
     heartbeatAt: now(),
   });
+
+  // The two steps that cannot be undone. A lease can expire under a slow staging
+  // phase and somebody else can legitimately have taken over by now; moving the
+  // pointer or deleting content after that would be this release overwriting a
+  // newer one.
+  if (!(await store.holdsCourseReleaseLease(database, { operationId }))) {
+    return failJob(database, jobId, pathReleaseDiagnostic({
+      phase: PATH_RELEASE_PHASE.ACTIVATING,
+      code: PATH_RELEASE_ERROR.ACTIVATION_CONFLICT,
+      message: "This release lost its lease to another release before activation. Nothing was activated or deleted.",
+      releaseId,
+      jobId,
+    }), PATH_RELEASE_PHASE.ACTIVATING);
+  }
 
   await store.writeActiveReleaseIndex(database, {
     releaseId,
@@ -542,6 +606,7 @@ async function runCoursePathRelease({
     continue: false,
     elapsedMs: now() - startedAt,
   };
+  }
 }
 
 /**

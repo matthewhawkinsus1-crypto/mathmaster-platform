@@ -97,6 +97,9 @@ const interruptible = (database) => {
     state,
     collection: (name) => database.collection(name),
     getAll: (...refs) => database.getAll(...refs),
+    // The release lease is transactional, and it must stay transactional here:
+    // pass it straight through to real Firestore rather than modelling it.
+    runTransaction: (handler) => database.runTransaction(handler),
     batch: () => {
       const batch = database.batch();
       return {
