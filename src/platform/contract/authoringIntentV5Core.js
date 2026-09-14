@@ -108,6 +108,29 @@ const copyCommon = (source, target = {}) => {
 const answerOf = (q) => q.answer ?? q.expectedAnswer ?? q.response?.answer ?? q.answerModel?.answer;
 const acceptedOf = (q) => q.acceptedAnswers ?? q.response?.acceptedAnswers ?? q.answerModel?.acceptedAnswers;
 
+const FUNCTION_SPEC_INTENT_KEYS = new Set([
+  'family', 'type', 'm', 'slope', 'a', 'b', 'intercept', 'h', 'k',
+  'base', 'p', 'orientation', 'domain',
+]);
+
+// An empty object is NOT a function.
+//
+// The historical compiler treated {} as an omitted linear function and filled
+// the missing slope/intercept with 1 and 0. That silently manufactured y = x
+// whenever a graph-capable question had no authored function yet. A missing
+// model must stay missing; explicit { family: 'linear', m: 1, b: 0 } remains a
+// perfectly valid authored identity function.
+const hasFunctionIntent = (raw) => (
+  isObject(raw)
+  && Object.keys(raw).some((key) => FUNCTION_SPEC_INTENT_KEYS.has(key) && raw[key] != null && raw[key] !== '')
+);
+
+const authoredFunctionIntent = (q = {}) => {
+  if (hasFunctionIntent(q.function)) return q.function;
+  if (hasFunctionIntent(q.functionSpec)) return q.functionSpec;
+  return null;
+};
+
 const coreFunctionSpec = (raw = {}) => {
   const f = isObject(raw) ? raw : {};
   const family = clean(f.family || f.type || 'linear');
@@ -124,7 +147,9 @@ const coreFunctionSpec = (raw = {}) => {
 };
 
 const functionSpecFromIntentQuestion = (q = {}) => {
-  const core = coreFunctionSpec(q.function || q.functionSpec || {});
+  const raw = authoredFunctionIntent(q);
+  if (!raw) return null;
+  const core = coreFunctionSpec(raw);
   // V5 authors describe mathematics, not renderer storage. If they place a
   // structured domain beside the function rather than nesting it inside the
   // function, that is still enough mathematical intent for MathMaster to
@@ -137,12 +162,14 @@ const functionSpecFromIntentQuestion = (q = {}) => {
 };
 
 const toolFunctionSpec = (raw = {}) => {
+  if (!hasFunctionIntent(raw)) return null;
   const core = coreFunctionSpec(raw);
   if (core.type !== 'linear') return core;
   return { type: 'linear', a: core.m, h: 0, k: core.b, ...(core.domain ? { domain: core.domain } : {}) };
 };
 
 const staticFunctionSpec = (raw = {}) => {
+  if (!hasFunctionIntent(raw)) return null;
   const core = coreFunctionSpec(raw);
   if (core.type === 'linear') return { type: 'line', m: core.m, b: core.b, ...(core.domain ? { domain: core.domain } : {}) };
   return core;
@@ -151,8 +178,10 @@ const staticFunctionSpec = (raw = {}) => {
 const graphFromIntent = (q = {}) => {
   if (isObject(q.graph)) return normalizeStaticGraphPoints(q.graph);
   if (isObject(q.visual?.graph)) return normalizeStaticGraphPoints(q.visual.graph);
-  if (isObject(q.function) || isObject(q.functionSpec)) {
-    return { functions: [staticFunctionSpec(q.function || q.functionSpec)] };
+  const raw = authoredFunctionIntent(q);
+  if (raw) {
+    const spec = staticFunctionSpec(raw);
+    return spec ? { functions: [spec] } : undefined;
   }
   return undefined;
 };
@@ -316,7 +345,7 @@ const derivedSetAnswers = (q = {}, kind = 'domain') => {
   // bare function here answered "all real numbers" for a graph the author had
   // explicitly bounded to -2 <= x < 5.
   const spec = functionSpecFromIntentQuestion(q);
-  if (!clean(spec.type)) return undefined;
+  if (!spec || !clean(spec.type)) return undefined;
   const notation = clean(q.notation) || 'inequality';
   try {
     const accepted = getDomainRangeAcceptedAnswers(spec, kind, notation);
@@ -519,7 +548,7 @@ const functionWorkflowActions = new Set([
 ]);
 
 const shouldCompileFunctionWorkflow = (q = {}, actions = []) => {
-  if (!(isObject(q.function) || isObject(q.functionSpec) || isObject(q.table) || q.answerModel?.equation)) return false;
+  if (!(authoredFunctionIntent(q) || isObject(q.table) || q.answerModel?.equation)) return false;
   const present = actions.filter((action) => functionWorkflowActions.has(action));
   if (present.length < 2) return false;
   if (actions.includes('readGraph') && !actions.includes('constructGraph') && !actions.includes('completeTable') && !actions.includes('writeEquation')) return false;
@@ -536,9 +565,7 @@ const latestStageSource = (workflow = [], preferredKinds = []) => {
 };
 
 const compileFunctionWorkflow = (q, actions) => {
-  const publicFunctionSpec = isObject(q.function) || isObject(q.functionSpec)
-    ? functionSpecFromIntentQuestion(q)
-    : null;
+  const publicFunctionSpec = functionSpecFromIntentQuestion(q);
   const tableInfo = normalizeIntentTable(q.table);
   const axis = isObject(q.axisRequirements) ? q.axisRequirements : {};
   const continuity = expectedContinuity(q);
@@ -1147,9 +1174,22 @@ const compileOne = (q, index, repairs) => {
     case 'functionWorkflow':
       out = compileFunctionWorkflow(q, actions);
       break;
-    case 'functionGraph':
-      out = copyCommon(q, { type, functionSpec: coreFunctionSpec(q.function || q.functionSpec), graph: normalizeStaticGraphPoints(q.graph), studentChoosesX: q.studentChoosesX ?? true, showCoordinates: q.showCoordinates });
+    case 'functionGraph': {
+      const rawFunction = authoredFunctionIntent(q);
+      if (!rawFunction && !isObject(q.graph) && !isObject(q.visual?.graph)) {
+        throw new Error(
+          `V5 question ${index + 1} asks students to construct a graph but supplies no function, graph, table, or equation model. MathMaster will not invent y = x as a fallback.`,
+        );
+      }
+      out = copyCommon(q, {
+        type,
+        ...(rawFunction ? { functionSpec: coreFunctionSpec(rawFunction) } : {}),
+        graph: normalizeStaticGraphPoints(q.graph),
+        studentChoosesX: q.studentChoosesX ?? true,
+        showCoordinates: q.showCoordinates,
+      });
       break;
+    }
     case 'functionInvestigation2': {
       const requests = analysisRequestsFromActions(actions, q);
       const kinds = requests.filter((r) => r.kind !== 'point').map((r) => r.kind);
