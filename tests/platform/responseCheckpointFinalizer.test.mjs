@@ -734,6 +734,22 @@ test('the finalizer grades with the shared contract and never with the checkpoin
   assert.doesNotMatch(block, /checkpoint\.isCorrect/);
 });
 
+test('a checkpoint with no provable close holds, and leaves the due query while it does', () => {
+  // Holding is right — a hold is never read as "closed" — but a held
+  // checkpoint whose query time is already past must not be re-examined every
+  // minute forever.
+  const assignment = buildAssignment({ dueAt: null, lateDueAt: null, warmup: { enabled: true, instructionDate: '2026-09-13' } });
+  const checkpoint = buildCheckpoint({ answerState: completeLiteral('A/b') });
+  const result = decide({ checkpoint, assignment, now: AFTER_WARMUP });
+  assert.equal(result.action, 'hold');
+  assert.equal(result.reason, 'no-authoritative-close');
+
+  const start = functionsSource.indexOf('if (decision.action === "hold")');
+  const block = functionsSource.slice(start, start + 500);
+  assert.match(block, /candidateFinalizeAt: new Date\(now \+ CHECKPOINT_HOLD_BACKOFF_MS\)/);
+  assert.match(functionsSource, /const CHECKPOINT_HOLD_BACKOFF_MS = 60 \* 60 \* 1000;/);
+});
+
 test('a manual section close expedites only that assignment, class and section', () => {
   const start = functionsSource.indexOf('exports.expediteCheckpointsOnSectionClose');
   const block = functionsSource.slice(start, functionsSource.indexOf('const studentMatchesAssignmentAudience', start));

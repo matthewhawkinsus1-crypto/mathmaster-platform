@@ -460,3 +460,24 @@ test('the sync layer is injected with its writer, so nothing in it reaches Fires
   assert.doesNotMatch(syncSource, /from '\.\.\/\.\.\/firebase'/);
   assert.match(syncSource, /flush\(\{ document \}\)/);
 });
+
+test('every new module App.jsx calls is actually imported there', () => {
+  /*
+   * The one failure the whole gate misses. App.jsx is .jsx, so no test imports
+   * it, the build does not resolve free identifiers, and lint has no no-undef
+   * here: wiring a module in without importing it is a runtime ReferenceError
+   * that passes every check. See AGENTS.md.
+   */
+  const symbols = [
+    'checkpointDocumentId', 'checkpointEligibility', 'enqueueResponseCheckpoint', 'responseFingerprint',
+    'resolveAuthoritativeClose', 'createWorkspaceDraftSync', 'readWorkspaceDraft', 'writeWorkspaceDraft',
+    'readLatestWorkspaceResume', 'selectRestorableDraftEntries', 'readWorkspaceDraftEntries',
+    'subscribeToQuestionDrafts', 'questionDraftSavedAt', 'restoreQuestionDrafts',
+  ];
+  const importBlock = appSource.slice(0, appSource.indexOf('\nfunction App()'));
+  const imports = importBlock.match(/import\s[\s\S]*?from\s+'[^']+';/g)?.join('\n') || '';
+  for (const symbol of symbols) {
+    assert.match(appSource, new RegExp(`[^\\w]${symbol}\\(`), `${symbol} is not called in App.jsx — update this list`);
+    assert.match(imports, new RegExp(`\\b${symbol}\\b`), `App.jsx calls ${symbol} without importing it`);
+  }
+});

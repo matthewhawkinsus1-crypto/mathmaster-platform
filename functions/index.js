@@ -187,6 +187,8 @@ async function responseCheckpointFinalizer() {
 
 const CHECKPOINT_COLLECTION = "studentResponseCheckpoints";
 const CHECKPOINT_BATCH_LIMIT = 200;
+// How long a checkpoint with no provable close waits before being re-examined.
+const CHECKPOINT_HOLD_BACKOFF_MS = 60 * 60 * 1000;
 
 const secureAssignmentMode = (assignment = {}) => (
   String(assignment?.assessmentPolicy?.mode || "") === "testCycle"
@@ -281,7 +283,18 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
     });
 
     if (decision.action === "skip") return "skipped";
-    if (decision.action === "hold") return "held";
+    if (decision.action === "hold") {
+      // MathMaster cannot currently prove a close — a teacher cleared the due
+      // date, say. Holding is right, but a held checkpoint whose query time is
+      // already past would be re-examined every minute forever, so it is
+      // pushed out of the due window and looked at again later.
+      transaction.update(ref, {
+        candidateFinalizeAt: new Date(now + CHECKPOINT_HOLD_BACKOFF_MS),
+        heldReason: decision.reason || null,
+        heldAt: FieldValue.serverTimestamp(),
+      });
+      return "held";
+    }
     if (decision.action === "reschedule") {
       // A teacher extension or reopen moved the real close later. The client's
       // hint is replaced by the server-derived time; it never shortens it.
