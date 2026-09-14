@@ -316,7 +316,7 @@ const MEASURE_WORK_VIEW = new Function(`
   const viewportBox = { width: window.innerWidth, height: window.innerHeight };
 
   const planes = [...shell.querySelectorAll('svg')].filter(visible)
-    .map((svg) => ({ box: svg.getBoundingClientRect(), labels: svg.querySelectorAll('text').length }))
+    .map((svg) => ({ element: svg, box: svg.getBoundingClientRect(), labels: svg.querySelectorAll('text').length }))
     .sort((a, b) => (b.box.width * b.box.height) - (a.box.width * a.box.height));
   const plane = planes[0] || null;
 
@@ -332,13 +332,40 @@ const MEASURE_WORK_VIEW = new Function(`
   const availableBottom = keypadBox ? Math.min(shellBox.bottom, keypadBox.top) : shellBox.bottom;
   const availableHeight = Math.max(1, availableBottom - shellBox.top);
   const surfaceBox = surface ? surface.getBoundingClientRect() : null;
-  // The part of the plane the surface is not clipping — what the student sees.
-  const planeSeen = plane && surfaceBox ? {
-    left: Math.max(plane.box.left, surfaceBox.left),
-    right: Math.min(plane.box.right, surfaceBox.right),
-    top: Math.max(plane.box.top, surfaceBox.top),
-    bottom: Math.min(plane.box.bottom, surfaceBox.bottom),
-  } : (plane ? plane.box : null);
+  // The part of the plane the student can ACTUALLY see.
+  //
+  // Staged workflows add nested scroll/clipping containers between the SVG and
+  // the outer Work View surface. Looking only at the outer surface made this
+  // probe sample an off-screen part of the SVG underneath the workflow footer
+  // and falsely report Previous/Next Step as covering the graph. Intersect the
+  // SVG through every clipping ancestor up to the Work View surface so this
+  // measurement matches what the browser actually paints.
+  const clippedVisibleRect = (element, outer) => {
+    if (!element) return null;
+    const start = element.getBoundingClientRect();
+    const rect = { left: start.left, right: start.right, top: start.top, bottom: start.bottom };
+    let node = element.parentElement;
+    while (node) {
+      const style = getComputedStyle(node);
+      const clipsX = /^(hidden|clip|auto|scroll)$/.test(style.overflowX);
+      const clipsY = /^(hidden|clip|auto|scroll)$/.test(style.overflowY);
+      if (clipsX || clipsY) {
+        const box = node.getBoundingClientRect();
+        if (clipsX) {
+          rect.left = Math.max(rect.left, box.left);
+          rect.right = Math.min(rect.right, box.right);
+        }
+        if (clipsY) {
+          rect.top = Math.max(rect.top, box.top);
+          rect.bottom = Math.min(rect.bottom, box.bottom);
+        }
+      }
+      if (node === outer) break;
+      node = node.parentElement;
+    }
+    return rect;
+  };
+  const planeSeen = plane ? clippedVisibleRect(plane.element, surface) : null;
 
   // A control is clipped when any edge of it falls outside the viewport, or
   // outside the scroll container it lives in. Both are ways for a registered
