@@ -325,19 +325,169 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
   display: none !important;
 }
 
-/* A graph-analysis workflow is not a static figure. On a wide Work View the
-   persistent graph receives roughly seventy percent and the one active stage
-   receives the remainder; the existing narrow layout stacks them. DOM order
-   is unchanged, so moving between stages replaces only the response panel and
-   never remounts the graph. */
-[data-open="true"] .workflow-focus__workspace-body--with-graph {
-  grid-template-columns: minmax(0, 3fr) minmax(260px, 1.25fr);
+/*
+ * QUESTION WORK VIEW IS A WORKFLOW, NOT A TALL DOCUMENT.
+ *
+ * The first QuestionEngine-wide Work View still let WorkflowFocus size itself
+ * by content. A plotting stage could therefore consume several screens before
+ * the workflow footer appeared; Previous/Next Step and, on phones, the first
+ * response control existed in the DOM but were below the usable viewport.
+ *
+ * In Work View the shell already provides Task/Help and the current instruction,
+ * so the progress rail, step-chip navigator and "model so far" strip are
+ * redundant chrome. Give that height back to the active mathematics, keep the
+ * active workspace in one bounded scroll region, and keep stage navigation
+ * permanently reachable at the bottom. This is presentation only: no stage,
+ * graph, response or undo state is remounted.
+ */
+[data-open="true"] .mathmaster-question-tool-workspace,
+[data-open="true"] .workflow-focus {
+  height: 100%;
+  min-height: 0;
 }
 
-[data-open="true"] .workflow-focus__graph-reference { order: -1; }
+[data-open="true"] .workflow-focus {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
 
+[data-open="true"] .workflow-focus__rail,
+[data-open="true"] .workflow-focus__navigator,
+[data-open="true"] .workflow-focus__summary {
+  display: none;
+}
+
+[data-open="true"] .workflow-focus__workspace {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 12px;
+}
+
+[data-open="true"] .workflow-focus__workspace-heading {
+  flex: 0 0 auto;
+}
+
+[data-open="true"] .workflow-focus__workspace-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+[data-open="true"] .workflow-focus__active-stage {
+  min-height: 0;
+}
+
+[data-open="true"] .workflow-focus__footer {
+  position: relative;
+  z-index: 3;
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 4px 2px 0;
+  background: #fff;
+}
+
+/* A graph-analysis workflow is not a static figure. On a wide Work View the
+   persistent graph receives roughly seventy percent and the one active stage
+   receives the remainder. Each side owns its own overflow so the fixed footer
+   never gets pushed out by a tall graph or a long response panel. */
+[data-open="true"] .workflow-focus__workspace-body--with-graph {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(260px, 1.25fr);
+  gap: 12px;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+[data-open="true"] .workflow-focus__workspace-body--with-graph .workflow-focus__active-stage,
+[data-open="true"] .workflow-focus__graph-reference {
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+}
+
+[data-open="true"] .workflow-focus__graph-reference {
+  order: -1;
+  position: static;
+}
+
+/* Plot/build stages use InteractiveGraphWorkspace rather than the persistent
+   graph-reference pair. Keep its sidebar and plane side by side in Work View
+   whenever there is enough width so the first actionable point/control is on
+   screen immediately instead of several graph-heights below it. */
+[data-open="true"] .workflow-focus__active-stage .mathmaster-function-workspace-grid {
+  grid-template-columns: minmax(180px, 230px) minmax(0, 1fr) !important;
+  align-items: start !important;
+}
+
+/* Phones still need both the reference and the current response visible at
+   once. Split the bounded workspace vertically rather than returning to an
+   unbounded stacked document; each half can scroll internally when a stage is
+   unusually verbose. */
 @media (max-width: 700px) {
+  [data-open="true"] .workflow-focus__workspace {
+    padding: 8px;
+  }
+
   [data-open="true"] .workflow-focus__workspace-body--with-graph {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(120px, 52%) minmax(0, 48%);
+  }
+
+  [data-open="true"] .workflow-focus__workspace-body--with-graph .workflow-focus__active-stage,
+  [data-open="true"] .workflow-focus__graph-reference {
+    overflow: auto;
+  }
+
+  [data-open="true"] .workflow-focus__active-stage .mathmaster-function-workspace-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /* In portrait the plane is the visual reference and the sidebar is the work.
+     Keep the sidebar first so at least one actionable control is immediately
+     reachable; the plane remains directly below in the same bounded scroller. */
+  [data-open="true"][data-layout="mobile"] .workflow-focus__active-stage
+    .mathmaster-function-workspace-sidebar {
+    order: -1;
+  }
+
+  [data-open="true"][data-layout="mobile"] .workflow-focus__active-stage
+    .mathmaster-function-workspace-graph svg {
+    max-height: min(42dvh, 320px);
+  }
+
+  [data-open="true"] .workflow-focus__progress-text {
+    display: none;
+  }
+
+  [data-open="true"] .workflow-focus__footer-group {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  [data-open="true"] .workflow-focus__nav-button {
+    flex: 1 1 0;
+    min-height: 44px;
+  }
+}
+
+/* Short landscape phones have width but almost no height. Preserve the
+   two-column plotting workspace there even though their CSS width is "mobile";
+   otherwise the graph and controls become mutually exclusive vertical pages. */
+@media (orientation: landscape) and (max-height: 500px) {
+  [data-open="true"][data-layout="mobile"] .workflow-focus__active-stage
+    .mathmaster-function-workspace-grid {
+    grid-template-columns: minmax(150px, 34%) minmax(0, 66%) !important;
+    gap: 8px !important;
+  }
+
+  [data-open="true"][data-layout="mobile"] .workflow-focus__active-stage
+    .mathmaster-function-workspace-graph svg {
+    max-height: 56dvh;
   }
 }
