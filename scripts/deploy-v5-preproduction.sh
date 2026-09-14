@@ -69,8 +69,12 @@ fi
 FIREBASE_PROJECT="$PROJECT" bash scripts/deploy-functions-in-groups.sh
 
 echo
-echo "Deploying Firestore rules and Hosting from the same main commit..."
-firebase deploy --only firestore:rules,hosting --project "$PROJECT"
+echo "Deploying Firestore rules from the same main commit..."
+firebase deploy --only firestore:rules --project "$PROJECT"
+
+echo
+echo "Deploying Hosting with bounded upload concurrency and automatic network retries..."
+FIREBASE_PROJECT="$PROJECT" bash scripts/deploy-hosting-resilient.sh
 
 echo
 echo "7/7 Verifying deployment..."
