@@ -62,32 +62,48 @@ const transactionRequest = async (mode, operation) => {
  *
  * The read and the delete happen inside ONE readwrite transaction, so nothing
  * can be written between them.
+ *
+ * This owns its whole transaction rather than going through
+ * `transactionRequest`, which assigns its own `onsuccess` to whatever request
+ * it is handed — that would silently replace the handler below and the delete
+ * would never be issued. It is the kind of mistake unit tests against the
+ * in-memory adapter cannot see, so tests/browser/durableOutboxRecovery.mjs
+ * exercises this against real IndexedDB.
  */
-const removeIfCurrentRequest = (store, actionId, expectedCreatedOrder, resolveWith) => {
-  const read = store.get(actionId);
-  read.onsuccess = () => {
-    const current = read.result;
-    // Already gone: nothing to do, and nothing was lost.
-    if (!current) { resolveWith(true); return; }
-    const storedOrder = Number(current.createdOrder ?? current.createdAt ?? 0);
-    if (storedOrder > Number(expectedCreatedOrder ?? 0)) { resolveWith(false); return; }
-    store.delete(actionId);
-    resolveWith(true);
-  };
-  return read;
+const removeIfCurrentTransaction = async (actionId, expectedCreatedOrder) => {
+  const database = await openDatabase();
+  try {
+    return await new Promise((resolve, reject) => {
+      const transaction = database.transaction(STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      // Assume removal unless the read proves this row has moved on.
+      let removed = true;
+      const read = store.get(actionId);
+      read.onerror = () => reject(read.error || new Error('Student action outbox request failed.'));
+      read.onsuccess = () => {
+        const current = read.result;
+        // Already gone: nothing to do, and nothing was lost.
+        if (!current) return;
+        if (Number(current.createdOrder ?? current.createdAt ?? 0) > Number(expectedCreatedOrder ?? 0)) {
+          removed = false;
+          return;
+        }
+        store.delete(actionId);
+      };
+      transaction.oncomplete = () => resolve(removed);
+      transaction.onabort = () => reject(transaction.error || new Error('Student action outbox transaction aborted.'));
+      transaction.onerror = () => reject(transaction.error || new Error('Student action outbox transaction failed.'));
+    });
+  } finally {
+    database.close();
+  }
 };
 
 export const indexedDbOutboxStorage = Object.freeze({
   put: (action) => transactionRequest('readwrite', (store) => store.put(clone(action))),
   remove: (actionId) => transactionRequest('readwrite', (store) => store.delete(actionId)),
   /** Delete only while the stored row is still the revision that was reconciled. */
-  removeIfCurrent: async (actionId, expectedCreatedOrder) => {
-    let removed = true;
-    await transactionRequest('readwrite', (store) => (
-      removeIfCurrentRequest(store, actionId, expectedCreatedOrder, (value) => { removed = value; })
-    ));
-    return removed;
-  },
+  removeIfCurrent: (actionId, expectedCreatedOrder) => removeIfCurrentTransaction(actionId, expectedCreatedOrder),
   list: () => transactionRequest('readonly', (store) => store.getAll()),
 });
 

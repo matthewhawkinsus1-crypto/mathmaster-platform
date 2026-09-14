@@ -668,19 +668,39 @@ test('a deferred reconcile of revision 1 leaves revision 2 queued, and a second 
   assert.equal((await listDurableActions({ storage, studentId: STUDENT })).length, 0);
 });
 
-test('the removal guard is atomic inside one readwrite transaction', () => {
+test('the removal guard owns its transaction, so its handler cannot be clobbered', () => {
+  /*
+   * This guard exists because the first version of the fix routed through
+   * `transactionRequest`, which assigns its OWN `onsuccess` to whatever request
+   * it is handed. That silently replaced the read handler and the delete was
+   * never issued — every row stayed queued forever. The in-memory adapter has
+   * its own correct implementation, so no unit test could see it; only
+   * tests/browser/durableOutboxRecovery.mjs, against real IndexedDB, caught it.
+   */
   const source = readFileSync(new URL('../../src/platform/performance/durableActionOutbox.js', import.meta.url), 'utf8');
-  // A list-then-delete would still race; the read and the delete must share a
-  // transaction so nothing can be written between them.
-  assert.match(source, /removeIfCurrent: async \(actionId, expectedCreatedOrder\)/);
-  const start = source.indexOf('const removeIfCurrentRequest');
+  const start = source.indexOf('const removeIfCurrentTransaction');
+  assert.ok(start > 0, 'removeIfCurrent must own its own transaction');
   const block = source.slice(start, source.indexOf('export const indexedDbOutboxStorage'));
+  // The read and the delete share one readwrite transaction.
+  assert.match(block, /database\.transaction\(STORE_NAME, 'readwrite'\)/);
   assert.match(block, /const read = store\.get\(actionId\);/);
-  assert.match(block, /read\.onsuccess = \(\) => \{/);
   assert.match(block, /store\.delete\(actionId\);/);
-  assert.match(source, /transactionRequest\('readwrite', \(store\) => \(\s*\n\s*removeIfCurrentRequest\(/);
-  // The memory adapter mirrors it, so tests exercise the real semantics.
+  // It resolves on transaction completion, not on the request's own success.
+  assert.match(block, /transaction\.oncomplete = \(\) => resolve\(removed\)/);
+  // And it must NOT go back through the shared helper that overwrites onsuccess.
+  assert.doesNotMatch(block, /transactionRequest\(/);
+  // The memory adapter mirrors the semantics so unit tests stay meaningful.
   assert.match(source, /async removeIfCurrent\(actionId, expectedCreatedOrder\) \{/);
+});
+
+test('transactionRequest assigns its own onsuccess, which is why removeIfCurrent avoids it', () => {
+  // Pins the reason the guard above exists: if this helper ever stopped
+  // overwriting the handler, the constraint could be relaxed deliberately
+  // rather than by accident.
+  const source = readFileSync(new URL('../../src/platform/performance/durableActionOutbox.js', import.meta.url), 'utf8');
+  const start = source.indexOf('const transactionRequest');
+  const block = source.slice(start, source.indexOf('const removeIfCurrentTransaction'));
+  assert.match(block, /request\.onsuccess = \(\) => \{ result = request\.result; \};/);
 });
 
 test('a unique-id submission is still removed normally', async () => {
