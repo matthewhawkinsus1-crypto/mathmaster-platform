@@ -19,6 +19,7 @@ export {
   DEFAULT_ANCHOR_SHARE,
   TEACHER_CONTROL_ACTIONS,
   applyTeacherControlAction,
+  declaresTestCycle,
   defaultTestCyclePolicy,
   isTestCycleAssignment,
   isTestCyclePolicy,
@@ -50,6 +51,7 @@ export {
   SECURE_STAGES,
   INSTRUCTIONAL_STAGES,
   TEST_CYCLE_STAGE,
+  buildTestCyclePhaseStatus,
   resolveTestCycleStage,
   stageIsSecure,
   stageLaunchesSecureRuntime,
@@ -93,8 +95,10 @@ export {
 
 export {
   SECURE_ANSWER_KEYS,
+  TEST_CYCLE_DIAGNOSTIC,
   TEST_CYCLE_FORBIDDEN_ROLES,
   TEST_CYCLE_INSTRUCTIONAL_ROLES,
   findSecureAnswerKeyLeaks,
+  inspectTestCycleContract,
   preflightTestCycle,
 } from '../../../functions/shared/testCyclePreflight.mjs';

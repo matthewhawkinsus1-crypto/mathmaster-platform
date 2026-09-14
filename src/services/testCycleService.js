@@ -38,6 +38,12 @@ const sandboxCard = (assignmentId) => ({
   examSessionId: null,
   grade: { rows: [], simple: true, recordedGrade: null },
   corrections: null,
+  phases: [
+    { id: 'review', label: 'Review', status: 'available' },
+    { id: 'test', label: 'Test', status: 'locked', secure: true, reason: 'Complete Review to unlock Test.' },
+    { id: 'corrections', label: 'Corrections', status: 'pending' },
+    { id: 'retest', label: 'Retest', status: 'pending', secure: true },
+  ],
 });
 
 /** The student's one card for this assessment. */

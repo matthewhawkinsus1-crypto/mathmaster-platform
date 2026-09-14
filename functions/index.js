@@ -10518,17 +10518,60 @@ function testCycleRecordKey(assignmentId, studentId) {
   return `${String(assignmentId || "").trim()}__${String(studentId || "").trim()}`;
 }
 
-async function loadTestCycleAssignment(db, assignmentId) {
+async function loadTestCycleAssignment(db, assignmentId, { allowInvalid = false } = {}) {
   const id = String(assignmentId || "").trim();
   if (!id || id.length > 180) throw new HttpsError("invalid-argument", "A valid assignmentId is required.");
   const snapshot = await db.collection("assignments").doc(id).get();
   if (!snapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
   const assignment = snapshot.data() || {};
   const shared = await testCycleLib.shared();
+  if (!shared.policy.declaresTestCycle(assignment)) {
+    throw new HttpsError("failed-precondition", "That assignment is not a MathMaster Test Cycle.");
+  }
   const policy = shared.policy.normalizeTestCyclePolicy(assignment.assessmentPolicy);
-  if (!policy) throw new HttpsError("failed-precondition", "That assignment is not a MathMaster Test Cycle.");
-  const blueprint = shared.blueprint.normalizeTestBlueprint(assignment.testBlueprint);
-  return { assignmentId: id, snapshot, assignment, policy, blueprint, shared };
+  if (!policy) {
+    console.error("test_cycle_contract_invalid", { assignmentId: id, reason: "TEST_CYCLE_POLICY_MISSING" });
+    if (!allowInvalid) throw new HttpsError("failed-precondition", "This assessment is not available yet. Your teacher has been notified.", {
+      diagnosticCode: "TEST_CYCLE_POLICY_MISSING",
+    });
+  }
+
+  // A secure reference contains only an opaque manifest id in the assignment
+  // students can read. The actual blueprint remains in a server-only
+  // collection and is resolved here, never serialized by this callable.
+  let blueprintSource = assignment.testBlueprint;
+  const secureManifestId = String(
+    assignment.secureTestReference?.manifestId
+      || assignment.secureTestReference?.blueprintId
+      || assignment.secureTestReference?.id
+      || "",
+  ).trim();
+  if (!shared.blueprint.normalizeTestBlueprint(blueprintSource).targets.length && secureManifestId) {
+    const manifestSnapshot = await db.collection("secureTestManifests").doc(secureManifestId).get();
+    if (manifestSnapshot.exists) blueprintSource = manifestSnapshot.data()?.testBlueprint || manifestSnapshot.data()?.blueprint;
+  }
+  const blueprint = shared.blueprint.normalizeTestBlueprint(blueprintSource);
+  if (!blueprint.targets.length) {
+    console.error("test_cycle_contract_invalid", {
+      assignmentId: id,
+      reason: "TEST_CYCLE_TEST_PHASE_MISSING",
+      secureManifestId: secureManifestId || null,
+    });
+    if (!allowInvalid) throw new HttpsError("failed-precondition", "This assessment is not available yet. Your teacher has been notified.", {
+      diagnosticCode: "TEST_CYCLE_TEST_PHASE_MISSING",
+    });
+  }
+  const resolvedAssignment = blueprintSource === assignment.testBlueprint
+    ? assignment
+    : { ...assignment, testBlueprint: blueprintSource };
+  return {
+    assignmentId: id,
+    snapshot,
+    assignment: resolvedAssignment,
+    policy: policy || shared.policy.defaultTestCyclePolicy(),
+    blueprint,
+    shared,
+  };
 }
 
 /**
@@ -10846,7 +10889,7 @@ exports.assignTestCycleSessions = onCall(async (request) => {
   const assignmentSnapshot = await db.collection("assignments").doc(String(request.data?.assignmentId || "").trim()).get();
   if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
   const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
-  const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
+  const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
 
   /*
    * THE AUDIENCE IS THE ASSIGNMENT'S, NOT THE CALLER'S.
@@ -10974,7 +11017,7 @@ exports.assignTestCycleSessions = onCall(async (request) => {
 exports.preflightTestCycleAssignment = onCall(async (request) => {
   const db = getFirestore();
   await requireTeacher(request);
-  const { assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
+  const { assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
   const { result } = await runTestCyclePreflight(db, { assignment, policy, blueprint, shared });
   return { success: true, preflight: result };
 });
@@ -11030,6 +11073,7 @@ exports.getStudentTestCycle = onCall(async (request) => {
     actionLabel: state.actionLabel,
     statusLabel: state.statusLabel,
     detail: state.detail,
+    phases: shared.stages.buildTestCyclePhaseStatus({ state, record }),
     examSessionId: shared.stages.stageIsSecure(state.stage)
       ? (state.stage === shared.stages.TEST_CYCLE_STAGE.RETEST ? record.retest.examSessionId : record.test.examSessionId)
       : null,

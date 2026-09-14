@@ -4,8 +4,11 @@ import { readFileSync } from 'node:fs';
 
 import {
   findSecureAnswerKeyLeaks,
+  inspectTestCycleContract,
   preflightTestCycle,
 } from '../../functions/shared/testCyclePreflight.mjs';
+import { declaresTestCycle } from '../../functions/shared/testCyclePolicy.mjs';
+import { buildTestCyclePhaseStatus, resolveTestCycleStage } from '../../functions/shared/testCycleStages.mjs';
 import {
   normalizeAssignmentV5,
   validateAssignmentV5,
@@ -124,6 +127,58 @@ test('preflight refuses to run on an assignment that is not a Test Cycle', () =>
   const result = preflightTestCycle({ assignment: { sections: [] }, policy: { mode: 'lesson' } });
   assert.equal(result.mode, null);
   assert.ok(result.errors.some((error) => /not a Test Cycle/.test(error)));
+});
+
+test('legacy V5 Test Cycle declaration is structural, never inferred from prose', () => {
+  const reviewOnly = {
+    schemaVersion: 5,
+    assignment: { title: 'Unit Review', gradingPurpose: 'test' },
+    deliveryPolicy: { sectionGating: 'rolePolicy' },
+    sections: [{ role: 'review', questions: [{ questionId: 'r1' }] }],
+  };
+  assert.equal(declaresTestCycle(reviewOnly), true);
+  assert.equal(declaresTestCycle({ title: 'TEST CYCLE: secure Test after Review', instructions: 'Complete Review first.' }), false);
+  assert.equal(inspectTestCycleContract(reviewOnly).testResolvable, false);
+
+  const result = preflightTestCycle({ assignment: reviewOnly });
+  assert.equal(result.blocked, true);
+  assert.ok(result.errors.some((error) => error.startsWith('TEST_CYCLE_TEST_PHASE_MISSING:')));
+});
+
+test('ordinary review and non-Test V5 assignments are unaffected', () => {
+  for (const assignment of [
+    { assignment: { gradingPurpose: 'practice' }, deliveryPolicy: { sectionGating: 'rolePolicy' }, sections: [{ role: 'review' }] },
+    { assignment: { gradingPurpose: 'test' }, sections: [{ role: 'test' }] },
+  ]) assert.equal(declaresTestCycle(assignment), false);
+});
+
+test('a secure Test reference is safe phase metadata, not secure content', () => {
+  const contract = inspectTestCycleContract({
+    assessmentPolicy: { mode: 'testCycle' },
+    secureTestReference: { manifestId: 'manifest-unit-3' },
+    sections: [{ role: 'review' }],
+  });
+  assert.equal(contract.testResolvable, true);
+  assert.equal(contract.resolution, 'secureTestReference');
+  assert.deepEqual(Object.keys(contract.phases.test).sort(), ['configured', 'secure']);
+  assert.equal(JSON.stringify(contract).includes('question'), false);
+  assert.equal(JSON.stringify(contract).includes('answer'), false);
+});
+
+test('the complete phase strip remains visible while the server-authorized action changes', () => {
+  const policy = { mode: 'testCycle' };
+  const record = { review: { required: true }, test: { examSessionId: 'exam-1', state: 'assigned' } };
+  const lockedState = resolveTestCycleStage({ policy, record, reviewProgress: { total: 4, attempted: 2, complete: false } });
+  const locked = buildTestCyclePhaseStatus({ state: lockedState, record });
+  assert.deepEqual(locked.map((phase) => phase.id), ['review', 'test', 'corrections', 'retest']);
+  assert.equal(locked.find((phase) => phase.id === 'test').status, 'locked');
+  assert.match(locked.find((phase) => phase.id === 'test').reason, /Complete Review/);
+
+  const readyState = resolveTestCycleStage({ policy, record, reviewProgress: { total: 4, attempted: 4, complete: true } });
+  const ready = buildTestCyclePhaseStatus({ state: readyState, record });
+  assert.equal(ready.find((phase) => phase.id === 'review').status, 'completed');
+  assert.equal(ready.find((phase) => phase.id === 'test').status, 'ready');
+  assert.equal(readyState.actionLabel, 'Start Test');
 });
 
 /* --- the V5 authoring contract -------------------------------------------- */

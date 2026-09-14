@@ -283,3 +283,37 @@ export const visibleStageIds = (state) => (state?.stage ? [state.stage] : []);
 export const stageLaunchesSecureRuntime = (state) => Boolean(
   state && stageIsSecure(state.stage) && state.canEnter === true,
 );
+
+/**
+ * Question-free phase strip shared by student and teacher views.  It describes
+ * the whole cycle while `resolveTestCycleStage` remains the sole authority for
+ * the one action a student may take.  Consequently a locked client cannot turn
+ * a phase to ready by editing this display model.
+ */
+export const buildTestCyclePhaseStatus = ({ state = null, record = null } = {}) => {
+  const normalized = normalizeTestCycleRecord(record);
+  const current = state?.stage || null;
+  const reviewComplete = normalized.review.complete === true || current !== TEST_CYCLE_STAGE.REVIEW;
+  const testComplete = [SESSION_STATE.SUBMITTED, SESSION_STATE.RELEASED].includes(normalized.test.state);
+  const correctionsKnown = normalized.test.state === SESSION_STATE.RELEASED;
+  const correctionsRequired = normalized.corrections.required === true;
+  const correctionsComplete = normalized.corrections.complete === true || normalized.corrections.waived === true;
+  const retestStarted = normalized.retest.state !== SESSION_STATE.NONE;
+  const retestComplete = normalized.retest.state === SESSION_STATE.RELEASED;
+  return [
+    { id: 'review', label: 'Review', status: reviewComplete ? 'completed' : (current === TEST_CYCLE_STAGE.REVIEW ? 'available' : 'locked') },
+    {
+      id: 'test', label: 'Test', secure: true,
+      status: testComplete ? 'completed' : current === TEST_CYCLE_STAGE.TEST ? (state?.canEnter ? 'ready' : 'locked') : 'locked',
+      reason: !reviewComplete ? 'Complete Review to unlock Test.' : (!state?.canEnter && !testComplete ? 'Your teacher is preparing the secure Test.' : null),
+    },
+    {
+      id: 'corrections', label: 'Corrections',
+      status: !correctionsKnown ? 'pending' : !correctionsRequired ? 'notRequired' : correctionsComplete ? 'completed' : 'required',
+    },
+    {
+      id: 'retest', label: 'Retest', secure: true,
+      status: retestComplete ? 'completed' : current === TEST_CYCLE_STAGE.RETEST && state?.canEnter ? 'ready' : retestStarted ? 'locked' : (correctionsKnown && !correctionsRequired ? 'notRequired' : 'pending'),
+    },
+  ];
+};

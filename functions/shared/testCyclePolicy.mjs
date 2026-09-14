@@ -58,8 +58,31 @@ export const isTestCyclePolicy = (policy) => (
   isObject(policy) && clean(policy.mode) === TEST_CYCLE_MODE
 );
 
+/**
+ * Explicit Test Cycle declarations understood by every platform surface.
+ *
+ * The assessment policy is the current contract.  The second form recognizes
+ * V5 packages produced by the Test Cycle template before that policy was
+ * added: gradingPurpose=test + rolePolicy + a Review role.  Deliberately do
+ * not inspect titles or instructions; prose can describe a test but cannot
+ * provision one.  This compatibility recognition is fail-closed: it routes
+ * the package to Test Cycle validation/runtime, where a missing secure
+ * manifest is rejected instead of quietly running Review as a lesson.
+ */
+export const declaresTestCycle = (assignment) => {
+  if (!isObject(assignment)) return false;
+  if (isTestCyclePolicy(assignment.assessmentPolicy)) return true;
+  const v5 = isObject(assignment.assignment) ? assignment.assignment : assignment;
+  const roles = Array.isArray(assignment.sections)
+    ? assignment.sections.map((section) => clean(section?.role).toLowerCase())
+    : [];
+  return clean(v5.gradingPurpose).toLowerCase() === 'test'
+    && clean(assignment.deliveryPolicy?.sectionGating) === 'rolePolicy'
+    && roles.includes('review');
+};
+
 export const isTestCycleAssignment = (assignment) => (
-  isTestCyclePolicy(isObject(assignment) ? assignment.assessmentPolicy : null)
+  declaresTestCycle(assignment)
 );
 
 /**
