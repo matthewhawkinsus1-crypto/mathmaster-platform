@@ -45,6 +45,21 @@ jobs:
       - name: Run Firestore security-rule suites
         run: npm run test:rules
 
+      # The Path release gate. `--verify` recompiles every built-in course family
+      # from the seeds, certifies its Firestore storage shape, proves it issuable
+      # through the production issuer, and fails if the committed manifest and the
+      # content disagree. A malformed record stops here rather than in a Firestore
+      # batch that names no document.
+      - name: Certify the course Path release artifact
+        run: npm run release:path:verify
+
+      # Stages the real certified release into Firestore, kills it part way
+      # through, resumes it, and reads back what landed. Source assertions cannot
+      # tell a resumable release from one that silently skipped a chunk.
+      - name: Certify an interrupted Path release against Firestore
+        timeout-minutes: 10
+        run: npm run test:path-release:emulator
+
       # Runs the real finishLiveChallenge against the emulator and reads back
       # the report, the Warm-Up credit and the mastery evidence. Source
       # assertions cannot tell a correct write from a wrong field path.
