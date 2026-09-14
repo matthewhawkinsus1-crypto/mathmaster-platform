@@ -302,32 +302,101 @@ service cloud.firestore {
       allow create, update, delete: if teacher();
     }
 
-    // Ordinary response checkpoints are drafts, never grades. The server
-    // acknowledgement uses request.time so a browser cannot backdate offline
-    // work across a cutoff. Secure/Test Cycle responses are rejected here and
-    // remain in their dedicated server-owned state machines.
+    /*
+     * A RESPONSE CHECKPOINT IS A DRAFT A STUDENT WRITES AND A FUNCTION READS.
+     *
+     * That combination is what makes these rules load-bearing: an Admin SDK
+     * function later acts on this document, so the shape a student can write
+     * must not be sufficient to forge a grade. The finalizer re-validates all
+     * of it — these rules exist to reject the obviously malformed early, and
+     * to pin the identity a later write must keep.
+     *
+     * The acknowledgement time is request.time, so an offline browser cannot
+     * backdate work across a cutoff no matter what its own clock says. Secure
+     * and Test Cycle responses are rejected outright and stay in their
+     * dedicated server-owned state machines.
+     */
+    function checkpointCarriesNoGrade(data) {
+      return !data.keys().hasAny([
+        'isCorrect', 'score', 'grade', 'record', 'submissionEnvelope',
+        'evidenceEvent', 'evidence', 'mastery', 'masteryResult',
+        'partialCredit', 'partialCreditPercent', 'partGrades',
+        'totalAttempts', 'attemptCount', 'answerKey', 'acceptedAnswers',
+        'solution', 'seed',
+      ]);
+    }
+
+    function checkpointIdentityUnchanged(incoming, existing, checkpointId) {
+      return incoming.studentId == existing.studentId
+        && incoming.assignmentId == existing.assignmentId
+        && incoming.questionIndex == existing.questionIndex
+        && incoming.questionId == existing.questionId
+        && incoming.variantIndex == existing.variantIndex
+        && incoming.generationKey == existing.generationKey
+        && incoming.activityRole == existing.activityRole
+        && incoming.documentId == checkpointId;
+    }
+
     match /studentResponseCheckpoints/{checkpointId} {
       allow read: if rootAdmin() || ownsStudent(resource.data.studentId);
       allow create: if ownsStudent(request.resource.data.studentId)
         && request.resource.data.documentId == checkpointId
         && request.resource.data.secure == false
-        && request.resource.data.schemaVersion == 1
-        && request.resource.data.capturedAt == request.time
+        && request.resource.data.schemaVersion == 2
         && request.resource.data.serverAcknowledgedAt == request.time
-        && request.resource.data.status == 'active';
+        && request.resource.data.status == 'active'
+        // A null query time is a checkpoint that is simply never due. It is
+        // allowed so an edge case (a deadline a teacher has not set yet) keeps
+        // recoverable work instead of failing the student's write.
+        && (request.resource.data.candidateFinalizeAt is timestamp || request.resource.data.candidateFinalizeAt == null)
+        && request.resource.data.isComplete is bool
+        && request.resource.data.revision is number
+        && request.resource.data.previousTotalAttempts is number
+        && checkpointCarriesNoGrade(request.resource.data);
+      // A new revision keeps the identity and moves forward. A student may
+      // also retire their own checkpoint when they submit explicitly, which
+      // takes it out of the scheduler's active query.
+      allow update: if ownsStudent(resource.data.studentId)
+        && checkpointIdentityUnchanged(request.resource.data, resource.data, checkpointId)
+        && request.resource.data.secure == false
+        && request.resource.data.revision >= resource.data.revision
+        && checkpointCarriesNoGrade(request.resource.data)
+        && (
+          (request.resource.data.status == 'active'
+            && request.resource.data.serverAcknowledgedAt == request.time
+            && (request.resource.data.candidateFinalizeAt is timestamp || request.resource.data.candidateFinalizeAt == null))
+          || (request.resource.data.status == 'explicitly-submitted'
+            && request.resource.data.candidateFinalizeAt == null)
+        );
+      // History is never deleted by the student it belongs to.
+      allow delete: if false;
+    }
+
+    /*
+     * UNFINISHED WORK, SO A CHROMEBOOK RESTART DOES NOT COST IT.
+     *
+     * This is a workspace, not a result: no attempt, no grade, no evidence, no
+     * mastery, and nothing Google Classroom ever hears about — which is also
+     * why it is deliberately NOT stored on the grades document, whose writes
+     * wake Classroom passback.
+     *
+     * Owner-only in both directions. A student may not read another student's
+     * unfinished work, which would otherwise be a way to read their answers.
+     */
+    match /studentWorkspaceDrafts/{draftId} {
+      allow read: if rootAdmin() || ownsStudent(resource.data.studentId);
+      allow create: if ownsStudent(request.resource.data.studentId)
+        && request.resource.data.documentId == draftId
+        && request.resource.data.secure == false
+        && request.resource.data.schemaVersion == 1
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.revision is number;
       allow update: if ownsStudent(resource.data.studentId)
         && request.resource.data.studentId == resource.data.studentId
         && request.resource.data.assignmentId == resource.data.assignmentId
-        && request.resource.data.questionIndex == resource.data.questionIndex
-        && request.resource.data.questionId == resource.data.questionId
-        && request.resource.data.variantIndex == resource.data.variantIndex
-        && request.resource.data.generationKey == resource.data.generationKey
-        && request.resource.data.documentId == checkpointId
+        && request.resource.data.documentId == draftId
         && request.resource.data.secure == false
-        && request.resource.data.revision >= resource.data.revision
-        && request.resource.data.capturedAt == request.time
-        && request.resource.data.serverAcknowledgedAt == request.time
-        && request.resource.data.status == 'active';
+        && request.resource.data.updatedAt == request.time;
       allow delete: if false;
     }
 

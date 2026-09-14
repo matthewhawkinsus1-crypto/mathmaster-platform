@@ -25,6 +25,9 @@ import {
   enqueueResponseCheckpoint,
   responseFingerprint,
 } from './platform/performance/responseCheckpoint.js';
+import { createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
+import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
+import { selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
 import { resolveAuthoritativeClose } from '../functions/shared/sectionDeadline.mjs';
 import { teacherAdmin } from './auth/authService';
 import {
@@ -72,9 +75,12 @@ import { validateQuestionsSemantics } from './platform/contract/semanticValidati
 import {
   buildQuestionDraftKey,
   clearResumeAction,
+  questionDraftSavedAt,
   readResumeAction,
   removeAssignmentDrafts,
+  restoreQuestionDrafts,
   saveResumeAction,
+  subscribeToQuestionDrafts,
 } from './questionDraftStorage';
 import {
   CLASS_PERIODS,
@@ -604,6 +610,12 @@ function App() {
   // ended finds out here what happened, and never reads "submitted" for a
   // response that was not complete.
   const [checkpointOutcomes, setCheckpointOutcomes] = useState({});
+  // Bumped when a server-held draft that this device did not have is restored.
+  // It is part of the QuestionEngine key, so the workspace remounts and the
+  // tools read the recovered work — without the first render having waited.
+  const [workspaceDraftGeneration, setWorkspaceDraftGeneration] = useState(0);
+  const workspaceDraftSyncRef = useRef(null);
+  const trackerRef = useRef({});
   const [practiceTracker, setPracticeTracker] = useState({});
   const [practiceScratchpads, setPracticeScratchpads] = useState({});
   const [previewTracker, setPreviewTracker] = useState({});
@@ -2191,8 +2203,37 @@ function App() {
             status?.notificationId || null,
           ]),
         );
+        // WHERE THE STUDENT LEFT OFF, EVEN ON A DIFFERENT CHROMEBOOK.
+        //
+        // The browser copy is instant, so it is preferred when it exists. A
+        // fresh device has none, and then the server's own record of the last
+        // assignment worked on stands in. Neither is authority over grading:
+        // the canonical tracker above already decided what is answered.
         const savedResume = readResumeAction(studentId);
-        setResumeAction(savedResume && fetchedAssignments.some((assignment) => assignment.id === savedResume.assignmentId) ? savedResume : null);
+        const localResumeUsable = Boolean(savedResume)
+          && fetchedAssignments.some((assignment) => assignment.id === savedResume.assignmentId);
+        if (localResumeUsable) {
+          setResumeAction(savedResume);
+        } else {
+          readLatestWorkspaceResume(studentId)
+            .then((serverResume) => {
+              if (cancelled || !serverResume) return;
+              const assignment = fetchedAssignments.find((entry) => entry.id === serverResume.assignmentId);
+              if (!assignment) return;
+              setResumeAction({
+                assignmentId: assignment.id,
+                assignmentTitle: assignment.title,
+                questionIndex: Number(serverResume.questionIndex) || 0,
+                questionNumber: (Number(serverResume.questionIndex) || 0) + 1,
+                dueDate: assignment.dueAt || assignment.dueDate || '',
+                lateDueDate: assignment.lateDueAt || assignment.lateDueDate || '',
+                lifecycleStatus: getAssignmentLifecycle(assignment, Date.now()).status,
+                restoredFrom: 'server',
+              });
+            })
+            .catch((error) => console.warn('Could not restore the saved resume position:', error));
+          setResumeAction(null);
+        }
       } catch (error) {
         if (!cancelled) {
           setUser(null);
@@ -2397,6 +2438,98 @@ function App() {
     });
     return () => { cancelled = true; };
   }, [user?.role, user?.id, activeAssignmentId]);
+
+  /*
+   * SERVER-BACKED WORKING DRAFTS.
+   *
+   * Local-first, always. A keystroke updates the workspace and the local
+   * draft and returns; this effect notices the draft changed and coalesces a
+   * single background write per debounce window. No interaction waits on it.
+   *
+   * RECOVERY ORDER on open, which is also the order that makes an old draft
+   * unable to beat newer work:
+   *   1. canonical grades — already hydrated at sign-in;
+   *   2. the durable outbox — already reconciled/overlaid above;
+   *   3. this server draft, applied only where it is newer than BOTH this
+   *      device's copy and the question's last canonical attempt;
+   *   4. Practice Mode state, kept in its own structure so it can never reach
+   *      a grade;
+   *   5. the resume position.
+   */
+  useEffect(() => { trackerRef.current = tracker; }, [tracker]);
+
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.id || !activeAssignmentId || isTeacherPreview) return undefined;
+    const assignment = assignments.find((item) => item.id === activeAssignmentId);
+    // Secure Test Cycle material has its own server-owned state machine and
+    // never uses ordinary draft persistence.
+    if (!assignment || isTestCycleAssignment(assignment)) return undefined;
+
+    let cancelled = false;
+    const sync = createWorkspaceDraftSync({
+      studentId: user.id,
+      assignmentId: activeAssignmentId,
+      classId: user.classId || null,
+      flush: ({ document }) => writeWorkspaceDraft(document),
+    });
+    workspaceDraftSyncRef.current = sync;
+    const unsubscribe = subscribeToQuestionDrafts((event) => sync.record(event));
+
+    readWorkspaceDraft({ studentId: user.id, assignmentId: activeAssignmentId })
+      .then((stored) => {
+        if (cancelled || !stored) return;
+        const assignmentGrades = trackerRef.current?.[activeAssignmentId] || {};
+        const restorable = selectRestorableDraftEntries({
+          entries: stored.entries,
+          localSavedAt: (key) => questionDraftSavedAt(key),
+          canonicalSavedAt: (entry) => {
+            const record = normalizeQuestionRecord(assignmentGrades[entry?.questionIndex]);
+            return Date.parse(record.lastAttemptAt || '') || 0;
+          },
+        });
+        if (restoreQuestionDrafts(restorable)) setWorkspaceDraftGeneration((value) => value + 1);
+        if (stored.practice && typeof stored.practice === 'object') {
+          setPracticeTracker((current) => ({
+            ...current,
+            [activeAssignmentId]: { ...(stored.practice || {}), ...(current[activeAssignmentId] || {}) },
+          }));
+        }
+      })
+      .catch((error) => {
+        // The device's own drafts are still there. Recovery is best-effort.
+        console.warn('Could not restore saved workspace drafts:', error);
+      });
+
+    // Leaving the page is the moment a pending draft most needs to be written.
+    const flush = () => { void sync.flushNow(); };
+    const flushWhenHidden = () => { if (document.hidden) flush(); };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', flushWhenHidden);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', flushWhenHidden);
+      void sync.flushNow();
+      sync.stop();
+      if (workspaceDraftSyncRef.current === sync) workspaceDraftSyncRef.current = null;
+    };
+  }, [user?.role, user?.id, user?.classId, activeAssignmentId, isTeacherPreview, assignments]);
+
+  /*
+   * POST-DEADLINE PRACTICE MODE IS NOT A GRADE, AND MUST STILL SURVIVE.
+   *
+   * It used to live only in React state, so logging out or turning the
+   * Chromebook off started the student from zero. It is persisted in the
+   * workspace-draft document — never in `grades` — so it cannot reach the
+   * canonical grade, the original attempt history, deadline evidence or
+   * Google Classroom, and a student can carry on tomorrow where they stopped.
+   */
+  useEffect(() => {
+    const sync = workspaceDraftSyncRef.current;
+    if (!sync || !activeAssignmentId) return;
+    sync.setPractice(practiceTracker[activeAssignmentId] || null);
+  }, [practiceTracker, activeAssignmentId]);
 
   const assignmentOpenSpanRef = useRef(null);
 
@@ -3043,8 +3176,16 @@ function App() {
       lifecycleStatus: getAssignmentLifecycle(assignment, Date.now()).status,
     };
     saveResumeAction(user.id, action);
+    // Server-backed too: the browser copy cannot follow a student to a
+    // different Chromebook. It is a position, never authority over grading.
+    workspaceDraftSyncRef.current?.setResume({
+      questionIndex: currentQuestionIndex,
+      activityRole: activeQuestionRole,
+      variantIndex: normalizeQuestionRecord(tracker?.[activeAssignmentId]?.[currentQuestionIndex]).variantIndex,
+      updatedAt: Date.now(),
+    });
     setResumeAction(action);
-  }, [user, activeView, activeAssignmentId, currentQuestionIndex, assignments]);
+  }, [user, activeView, activeAssignmentId, currentQuestionIndex, assignments, activeQuestionRole, tracker]);
 
   useEffect(() => {
     activeTimeRef.current = getModuleTime(activeWorkingTracker, currentQuestionIndex);
@@ -7892,7 +8033,7 @@ function App() {
           )}
           <main ref={assignmentQuestionStageRef} className="mathmaster-question-stage" style={{ background: '#fff', borderRadius: '12px', padding: '10px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
             <QuestionEngine
-              key={`${activeAssignmentId}-${currentQuestionIndex}-${currentRecord.variantIndex}-${preview ? `preview-${previewSessionId}` : lifecycle.status}`}
+              key={`${activeAssignmentId}-${currentQuestionIndex}-${currentRecord.variantIndex}-${preview ? `preview-${previewSessionId}` : lifecycle.status}-draft${workspaceDraftGeneration}`}
               question={questions[currentQuestionIndex]}
               questionRecord={workingTracker?.[currentQuestionIndex]}
               generationKey={`${activeAssignmentId}|${generationStudentKey}|${currentQuestionIndex}|variant:${currentRecord.variantIndex}`}
@@ -7930,7 +8071,7 @@ function App() {
               activityPolicy={runtimeQuestionActivityPolicy}
               feedbackReleased={currentFeedbackReleased}
               replacementWarning={replacementWarning}
-              draftKey={lifecycle.isPracticeOnly && !preview ? null : buildQuestionDraftKey({ studentId: preview ? 'teacher-preview' : user?.id || 'anonymous', assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex, variantIndex: currentRecord.variantIndex, sessionMode: draftSessionMode })}
+              draftKey={buildQuestionDraftKey({ studentId: preview ? 'teacher-preview' : user?.id || 'anonymous', assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex, variantIndex: currentRecord.variantIndex, sessionMode: draftSessionMode })}
               assignmentId={activeAssignmentId}
               executionScope={preview ? 'teacherPreview' : lifecycle.isPracticeOnly ? 'postDuePractice' : 'student'}
               onNextQuestion={nextQuestionEntry ? () => changeQuestion(nextQuestionEntry.index) : null}

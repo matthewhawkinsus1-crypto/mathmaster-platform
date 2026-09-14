@@ -69,6 +69,9 @@ export const buildResponseCheckpointAction = ({
 } = {}) => {
   const eligibility = checkpointEligibility({ question, activityRole });
   if (!eligibility.eligible) return null;
+  // No provable close means no deadline to auto-submit at. The local draft
+  // still holds the work; there is just nothing for the scheduler to do.
+  if (!finalizeAt) return null;
   const response = normalizeCheckpointResponse(question, answerState);
   const isComplete = answerState?.isComplete === true && !responseIsBlank(response);
   return createDurableAction({

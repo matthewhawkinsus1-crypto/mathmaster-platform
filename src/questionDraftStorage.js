@@ -21,6 +21,57 @@ const storageAvailable = () => {
 
 const normalizeKeyPart = (value) => encodeURIComponent(String(value ?? ''));
 
+/*
+ * THE SEAM SERVER-BACKED DRAFTS HANG OFF.
+ *
+ * Every tool's workspace state already flows through writeQuestionDraft, so
+ * one subscriber here reaches all of them — the expression box, the table
+ * cells, the plotted points, the workflow stage — without touching a single
+ * tool component.
+ *
+ * Subscribers are notified SYNCHRONOUSLY and must not do work: the student is
+ * mid-keystroke. The sync layer's job here is to note the key and return.
+ */
+const draftSubscribers = new Set();
+
+export const subscribeToQuestionDrafts = (listener) => {
+  if (typeof listener !== 'function') return () => {};
+  draftSubscribers.add(listener);
+  return () => draftSubscribers.delete(listener);
+};
+
+const notifyDraftWritten = (key, value, savedAt) => {
+  draftSubscribers.forEach((listener) => {
+    try {
+      listener({ key, value, savedAt });
+    } catch (error) {
+      // A failing sync listener must never cost the student their keystroke.
+      console.warn('MathMaster could not queue a draft for background save:', error);
+    }
+  });
+};
+
+/**
+ * The student, assignment, question and variant a draft key belongs to.
+ *
+ * `buildQuestionDraftKey` joins with ':' onto a prefix that already ends in
+ * ':', so the empty segment at index 3 is expected.
+ */
+export const parseQuestionDraftKey = (key) => {
+  const parts = String(key || '').split(':');
+  if (parts.length < 9 || `${parts[0]}:${parts[1]}:${parts[2]}:` !== DRAFT_PREFIX) return null;
+  const questionIndex = Number(parts[6]);
+  const variantIndex = Number(parts[7]);
+  return {
+    studentId: decodeURIComponent(parts[4] || ''),
+    assignmentId: decodeURIComponent(parts[5] || ''),
+    questionIndex: Number.isFinite(questionIndex) ? questionIndex : null,
+    variantIndex: Number.isFinite(variantIndex) ? variantIndex : null,
+    sessionBucket: decodeURIComponent(parts[8] || ''),
+    toolSuffix: parts.slice(9).join(':'),
+  };
+};
+
 export const buildQuestionDraftKey = ({
   studentId,
   assignmentId,
@@ -28,7 +79,12 @@ export const buildQuestionDraftKey = ({
   variantIndex = 0,
   sessionMode = 'graded',
 }) => {
-  const sessionBucket = sessionMode === 'preview' ? 'preview' : 'student';
+  // Post-deadline Practice Mode gets its OWN bucket. Practising after the
+  // deadline must never overwrite the graded workspace the student left behind,
+  // and the two are restored independently.
+  const sessionBucket = sessionMode === 'preview'
+    ? 'preview'
+    : sessionMode === 'post-deadline-practice' ? 'practice' : 'student';
   return [
     DRAFT_PREFIX,
     normalizeKeyPart(studentId || 'anonymous'),
@@ -52,21 +108,51 @@ export const readQuestionDraft = (key, fallback = null) => {
 };
 
 export const writeQuestionDraft = (key, value) => {
-  if (!key || !storageAvailable()) return false;
+  if (!key) return false;
+  const savedAt = Date.now();
+  // The background save is offered even when local storage is unavailable —
+  // a district policy that blocks site data is exactly the case where the
+  // server copy is the only copy the student will get back.
+  notifyDraftWritten(key, value, savedAt);
+  if (!storageAvailable()) return false;
   try {
-    window.localStorage.setItem(
-      key,
-      JSON.stringify({
-        version: 2,
-        savedAt: Date.now(),
-        value,
-      }),
-    );
+    window.localStorage.setItem(key, JSON.stringify({ version: 2, savedAt, value }));
     return true;
   } catch (error) {
     console.warn('MathMaster could not save local question work:', error);
     return false;
   }
+};
+
+/** When this device last saved that draft, or 0 if it never did. */
+export const questionDraftSavedAt = (key) => {
+  if (!key || !storageAvailable()) return 0;
+  const parsed = safeParse(window.localStorage.getItem(key));
+  return Number(parsed?.savedAt) || 0;
+};
+
+/**
+ * Write server-held drafts back into this device, newest wins.
+ *
+ * Called before the assignment renders, so useLocalDraftState and
+ * useUndoHistory pick the restored value up on their first read exactly as if
+ * the student had never left.
+ */
+export const restoreQuestionDrafts = (entries = []) => {
+  if (!storageAvailable()) return 0;
+  let restored = 0;
+  (Array.isArray(entries) ? entries : []).forEach((entry) => {
+    const key = String(entry?.key || '');
+    const savedAt = Number(entry?.savedAt) || 0;
+    if (!key || !savedAt || savedAt <= questionDraftSavedAt(key)) return;
+    try {
+      window.localStorage.setItem(key, JSON.stringify({ version: 2, savedAt, value: entry.value }));
+      restored += 1;
+    } catch {
+      // Out of quota: the student keeps whatever this device already had.
+    }
+  });
+  return restored;
 };
 
 export const removeQuestionDraft = (key) => {
