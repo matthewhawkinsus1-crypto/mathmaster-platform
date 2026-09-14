@@ -1193,7 +1193,7 @@ const compileOne = (q, index, repairs) => {
       // with neither mathematics nor an existing graph workflow is still
       // rejected.
       const hasExistingGraphWorkflow = authoredWorkflow.some((stage) => (
-        ['functiongraph', 'coordinateplot', 'graphconstruction'].includes(lower(stage?.kind))
+        ['functiongraph', 'coordinateplot', 'graphconstruction'].includes(clean(stage?.kind).toLowerCase())
       ));
       if (!rawFunction && !isObject(q.graph) && !isObject(q.visual?.graph) && !hasExistingGraphWorkflow) {
         throw new Error(
