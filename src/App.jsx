@@ -19,7 +19,13 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { enqueueResponseCheckpoint } from './platform/performance/responseCheckpoint.js';
+import {
+  checkpointDocumentId,
+  checkpointEligibility,
+  enqueueResponseCheckpoint,
+  responseFingerprint,
+} from './platform/performance/responseCheckpoint.js';
+import { resolveAuthoritativeClose } from '../functions/shared/sectionDeadline.mjs';
 import { teacherAdmin } from './auth/authService';
 import {
   buildScratchpadWrites,
@@ -470,6 +476,10 @@ const calculateDOLSectionScore = (assignmentTracker = {}, questionIndices = [], 
   return possibleWeight > 0 ? Math.round((earnedWeight / possibleWeight) * 100) : 0;
 };
 
+// Statuses that mean something to a student who has come back after the close.
+// Every other lifecycle status is internal bookkeeping.
+const DISPLAYED_CHECKPOINT_OUTCOMES = ['auto-submitted', 'incomplete-at-close', 'explicitly-submitted'];
+
 function App() {
   const auth = useAuth();
   // Identity is owned entirely by <AuthProvider>. `user` below is the
@@ -589,6 +599,11 @@ function App() {
   const [tracker, setTracker] = useState({});
   const [studentOutboxDepth, setStudentOutboxDepth] = useState(0);
   const [studentPersistenceStatus, setStudentPersistenceStatus] = useState('idle');
+  // What the deadline finalizer did with each checkpointed question, read back
+  // from the server's own receipt. A student who was not in the tab when time
+  // ended finds out here what happened, and never reads "submitted" for a
+  // response that was not complete.
+  const [checkpointOutcomes, setCheckpointOutcomes] = useState({});
   const [practiceTracker, setPracticeTracker] = useState({});
   const [practiceScratchpads, setPracticeScratchpads] = useState({});
   const [previewTracker, setPreviewTracker] = useState({});
@@ -1905,10 +1920,18 @@ function App() {
     let duplicate = false;
     let rejected = false;
 
+    // Every read happens before any write: a Firestore transaction requires it,
+    // and the checkpoint release below is part of the same atomic step as the
+    // submission that supersedes it.
+    const checkpointRef = action.payload?.checkpointDocumentId
+      ? doc(db, 'studentResponseCheckpoints', String(action.payload.checkpointDocumentId))
+      : null;
+
     await runTransaction(db, async (transaction) => {
-      const [assignmentSnapshot, gradesSnapshot] = await Promise.all([
+      const [assignmentSnapshot, gradesSnapshot, checkpointSnapshot] = await Promise.all([
         transaction.get(assignmentRef),
         transaction.get(gradesRef),
+        checkpointRef ? transaction.get(checkpointRef) : Promise.resolve(null),
       ]);
       if (!assignmentSnapshot.exists() || !gradesSnapshot.exists()) {
         rejected = true;
@@ -1938,13 +1961,17 @@ function App() {
         return;
       }
       if (action.kind === 'responseCheckpoint') {
-        const checkpointRef = doc(db, 'studentResponseCheckpoints', action.payload.documentId);
-        transaction.set(checkpointRef, {
+        // A checkpoint is stored whatever the section's CURRENT state is: it is
+        // a draft, and whether the work counts is the finalizer's decision,
+        // made from the server acknowledgement time against the real close. A
+        // response that only reaches MathMaster after the deadline therefore
+        // stays recoverable history and changes no grade.
+        transaction.set(doc(db, 'studentResponseCheckpoints', action.payload.documentId), {
           ...action.payload,
           studentId: action.studentId,
           assignmentId: action.assignmentId,
           questionIndex: action.questionIndex,
-          capturedAt: serverTimestamp(),
+          classId: user.classId || null,
           serverAcknowledgedAt: serverTimestamp(),
           candidateFinalizeAt: action.payload.candidateFinalizeAt ? new Date(action.payload.candidateFinalizeAt) : null,
           status: 'active',
@@ -1988,6 +2015,21 @@ function App() {
           rejected = true;
           return;
         }
+        // THE EXPLICIT SUBMISSION IS NEWER AUTHORITY THAN ITS OWN CHECKPOINT.
+        //
+        // Retiring the checkpoint in the same transaction as the attempt is
+        // what makes "Submit, then close the tab, then the deadline arrives"
+        // produce exactly one attempt. The finalizer's attempt-count
+        // precondition would also catch it; this makes the race impossible
+        // rather than merely survivable.
+        if (checkpointRef && checkpointSnapshot?.exists()) {
+          transaction.update(checkpointRef, {
+            status: 'explicitly-submitted',
+            candidateFinalizeAt: null,
+            supersededAt: serverTimestamp(),
+            supersededBySubmissionId: action.actionId,
+          });
+        }
         const record = { ...action.payload.record, lastSubmissionId: action.actionId };
         const updates = [
           new FieldPath('gradesByAssignment', action.assignmentId, String(action.questionIndex)), record,
@@ -2023,11 +2065,11 @@ function App() {
     return { status: 'durable', duplicate };
   };
 
-  const drainStudentOutbox = async () => {
+  const drainStudentOutbox = async ({ successStatus = 'durable' } = {}) => {
     if (user?.role !== 'student' || !user.id) return;
     const result = await drainDurableActions({ studentId: user.id, reconcile: reconcileDurableStudentAction });
     setStudentOutboxDepth(result.remaining);
-    setStudentPersistenceStatus(result.remaining ? 'queued' : result.rejected ? 'rejected' : 'durable');
+    setStudentPersistenceStatus(result.remaining ? 'queued' : result.rejected ? 'rejected' : successStatus);
   };
 
   const leaveUnavailableAssignment = () => {
@@ -2333,6 +2375,29 @@ function App() {
     isDOL: activeDOLState.enabled && currentQuestionIndex === activeDOLState.questionIndex,
   });
   const activeActivityPolicy = getEffectiveActivityPolicy(isPracticeMode ? 'practice' : activeQuestionRole);
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.id || !activeAssignmentId) {
+      setCheckpointOutcomes({});
+      return undefined;
+    }
+    let cancelled = false;
+    getDocs(query(
+      collection(db, 'studentResponseCheckpoints'),
+      where('studentId', '==', user.id),
+      where('assignmentId', '==', activeAssignmentId),
+    )).then((snapshot) => {
+      if (cancelled) return;
+      setCheckpointOutcomes(Object.fromEntries(snapshot.docs
+        .map((entry) => entry.data())
+        .filter((entry) => DISPLAYED_CHECKPOINT_OUTCOMES.includes(String(entry?.status || '')))
+        .map((entry) => [Number(entry.questionIndex), String(entry.status)])));
+    }).catch((error) => {
+      // A missing receipt is not worth interrupting the student for.
+      console.warn('Could not read response checkpoint receipts:', error);
+    });
+    return () => { cancelled = true; };
+  }, [user?.role, user?.id, activeAssignmentId]);
+
   const assignmentOpenSpanRef = useRef(null);
 
   useEffect(() => {
@@ -3648,65 +3713,84 @@ function App() {
     }
   };
 
+  /*
+   * A RESPONSE CHECKPOINT IS A DRAFT, NOT A GRADE.
+   *
+   * It carries the student's raw response and the identity needed to find the
+   * authoritative question — and deliberately nothing else. Correctness, score,
+   * partial credit, the canonical record and the evidence event are all
+   * derived by the SERVER at finalization from the stored assignment, because
+   * this document is student-writable and an Admin SDK function reads it.
+   * responseCheckpointSchema.mjs throws if any of that tries to cross.
+   *
+   * `finalizeAt` is a query hint so the scheduler knows roughly when to look.
+   * The server re-derives the real close; a wrong hint here costs nothing.
+   */
+  const checkpointFingerprintRef = useRef(new Map());
+
   const handleResponseCheckpoint = useCallback(async (answerState) => {
-    if (!activeAssignmentId || user?.role !== 'student' || !answerState?.isComplete || isTeacherPreview) return;
+    if (!activeAssignmentId || user?.role !== 'student' || isTeacherPreview || !answerState) return;
     const assignment = assignments.find((item) => item.id === activeAssignmentId);
     if (!assignment || isTestCycleAssignment(assignment)) return;
-    const question = activeQuestions[currentQuestionIndex];
+    // Eligibility is judged against the STORED question, because that is the
+    // question the server will grade against.
+    const storedQuestion = getStoredAssignmentQuestions(assignment)[currentQuestionIndex];
+    if (!checkpointEligibility({ question: storedQuestion, activityRole: activeQuestionRole }).eligible) return;
+
     const currentRecord = normalizeQuestionRecord(tracker?.[activeAssignmentId]?.[currentQuestionIndex]);
-    const outcome = recordQuestionAttempt({
-      record: currentRecord,
-      isCorrect: answerState.isCorrect,
-      questionDetails: answerState.questionDetails,
-      timeSpent: activeTimeRef.current,
-      parts: answerState.parts || [],
-      supportUsage: buildSupportUsage(user?.profile, question),
-      responseKey: answerState.responseKey,
-      partialCreditPercent: answerState.partialCreditPercent,
-      maximumAttempts: resolveQuestionMaximumAttempts({ question, maximumAttempts: activeActivityPolicy.attempts, activityPolicy: activeActivityPolicy }),
-    });
+    const identity = {
+      studentId: user.id,
+      assignmentId: activeAssignmentId,
+      questionIndex: currentQuestionIndex,
+      questionId: storedQuestion?.questionId || storedQuestion?.id || '',
+      variantIndex: currentRecord.variantIndex,
+      generationKey: `${activeAssignmentId}|${user.id}|${currentQuestionIndex}|variant:${currentRecord.variantIndex}`,
+    };
+    const documentId = checkpointDocumentId(identity);
+    // Coalesce: a student re-reading their own answer should not queue a write
+    // for a response that has not changed.
+    const fingerprint = responseFingerprint(storedQuestion, answerState);
+    if (checkpointFingerprintRef.current.get(documentId) === fingerprint) return;
+
     const now = Date.now();
-    const warmup = getWarmupState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now });
-    const dol = getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now });
-    const finalDeadline = assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate || null;
-    const close = activeQuestionRole === 'warmup' ? warmup.endsAt : activeQuestionRole === 'dol' ? dol.endsAt : finalDeadline;
-    const reason = activeQuestionRole === 'warmup' ? 'warmup-close' : activeQuestionRole === 'dol' ? 'dol-close' : 'assignment-final-deadline';
-    const evidenceEvent = question?.type === 'modelingLab' ? null : buildAttemptEvidenceEvent({
-      studentId: user.id, assignment, question, questionIndex: currentQuestionIndex,
-      activityRole: activeQuestionRole, attemptRecord: outcome.record, attemptResult: outcome.result,
-      supportUsage: outcome.record.supportUsage || {},
-      delivered: resolveDeliveredQuestionMetadata({ question, learningProfile: studentLearningProfile, activityRole: activeQuestionRole }),
+    const close = resolveAuthoritativeClose({
+      assignment,
+      activityRole: activeQuestionRole,
+      schedule: classSchedule,
+      classId: user.classId || null,
+      classPeriod: user.classPeriod || null,
+      nowValue: now,
+      // The student's Chromebook is in the school's timezone; the server
+      // re-resolves this with the school zone regardless.
+      timeZone: null,
     });
     try {
       setStudentPersistenceStatus('capturing');
       const queued = await enqueueResponseCheckpoint({
-        identity: {
-          studentId: user.id, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex,
-          questionId: question?.questionId || question?.id || '', variantIndex: currentRecord.variantIndex,
-          generationKey: `${activeAssignmentId}|${user.id}|${currentQuestionIndex}|variant:${currentRecord.variantIndex}`,
-        },
+        identity,
+        question: storedQuestion,
         activityRole: activeQuestionRole,
         answerState,
         revision: now,
-        finalizeAt: close ? new Date(close).toISOString() : null,
-        finalizationReason: reason,
+        finalizeAt: close.closesAtMs ? new Date(close.closesAtMs).toISOString() : null,
+        finalizationReason: close.reason,
         finalizationContext: { classId: user.classId || null, classPeriod: user.classPeriod || null },
-        submissionEnvelope: {
-          previousTotalAttempts: currentRecord.totalAttempts,
-          record: { ...outcome.record, submissionOrigin: 'deadline-auto-submit', finalizationReason: reason },
-          evidenceEvent,
-        },
+        previousTotalAttempts: currentRecord.totalAttempts,
+        supportUsage: buildSupportUsage(user?.profile, storedQuestion),
+        timeSpentSeconds: activeTimeRef.current,
         capturedAt: now,
       });
       if (!queued) return;
+      checkpointFingerprintRef.current.set(documentId, fingerprint);
       setStudentOutboxDepth((depth) => depth + 1);
       setStudentPersistenceStatus('queued');
+      // Reconciliation happens in the background. The student keeps working.
       void drainStudentOutbox();
     } catch (error) {
       console.error('Response checkpoint remains local:', error);
       setStudentPersistenceStatus('volatile');
     }
-  }, [activeAssignmentId, user, isTeacherPreview, assignments, activeQuestions, currentQuestionIndex, tracker, activeActivityPolicy, classSchedule, activeQuestionRole, studentLearningProfile]);
+  }, [activeAssignmentId, user, isTeacherPreview, assignments, currentQuestionIndex, tracker, classSchedule, activeQuestionRole]);
 
   const handleGradeSubmit = async (isCorrect, specificQuestionData, parts = [], supportUsage = null, responseKey = '', attemptMetadata = {}) => {
     if (!activeAssignmentId) return null;
@@ -3864,6 +3948,16 @@ function App() {
           previousTotalAttempts: Number(normalizeQuestionRecord(currentAssignmentGrades[currentQuestionIndex]).totalAttempts) || 0,
           activityRole: activeQuestionRole,
           timedSectionAccess,
+          // Retiring this question's checkpoint rides the same transaction as
+          // the attempt, so a deadline can never turn one response into two.
+          checkpointDocumentId: checkpointDocumentId({
+            studentId: user.id,
+            assignmentId: activeAssignmentId,
+            questionIndex: currentQuestionIndex,
+            questionId: assignmentQuestions[currentQuestionIndex]?.questionId || assignmentQuestions[currentQuestionIndex]?.id || '',
+            variantIndex: normalizeQuestionRecord(currentAssignmentGrades[currentQuestionIndex]).variantIndex,
+            generationKey: `${activeAssignmentId}|${user.id}|${currentQuestionIndex}|variant:${normalizeQuestionRecord(currentAssignmentGrades[currentQuestionIndex]).variantIndex}`,
+          }),
           record: outcome.record,
           supportUsage: updatedSupportUsage[activeAssignmentId],
           hasClassworkGrade: Object.hasOwn(updatedClassworkGrades, activeAssignmentId),
@@ -3893,7 +3987,7 @@ function App() {
     // the student's critical interaction path.
     void (async () => {
       try {
-        await drainStudentOutbox();
+        await drainStudentOutbox({ successStatus: 'submitted' });
         await flushAssignmentActivity(activeAssignmentId, updatedTracker);
         serverAckSpan.finish({ status: 'durable' });
       } catch (error) {
@@ -7232,6 +7326,7 @@ function App() {
       || (activeActivityPolicy.feedback === 'afterAssignmentSubmit' && ['correct', 'expired'].includes(currentRecord.status));
     const runtimeActivityRole = !preview && lifecycle.isPracticeOnly ? 'practice' : activeQuestionRole;
     const runtimeActivityPolicy = getEffectiveActivityPolicy(runtimeActivityRole);
+    const currentCheckpointOutcome = preview ? null : checkpointOutcomes[currentQuestionIndex] || null;
     const currentQuestionBlueprint = questions[currentQuestionIndex];
     const currentReplacementAllowed = resolveQuestionReplacementAllowed({
       question: currentQuestionBlueprint,
@@ -7847,21 +7942,39 @@ function App() {
               onContinueSection={nextAvailableSectionTarget ? () => changeQuestion(nextAvailableSectionTarget.index) : null}
               continueSectionLabel={nextAvailableSectionMeta?.label || ''}
             />
+            {/* SAVE HEALTH, IN THE STUDENT'S WORDS.
+                Four states they can act on: still saving, safe on this device
+                even if the network is gone, safe on MathMaster and therefore
+                safe on any device, and submitted. */}
             {!preview && studentPersistenceStatus !== 'idle' && (
               <p role="status" aria-live="polite" style={{ margin: '8px 4px 0', color: '#5f6368', fontSize: 12 }}>
                 {studentPersistenceStatus === 'capturing'
-                  ? 'Saved on this device…'
+                  ? 'Saving…'
                   : studentPersistenceStatus === 'queued'
-                    ? `Saving ${studentOutboxDepth} queued change${studentOutboxDepth === 1 ? '' : 's'}… You may keep working.`
-                    : studentPersistenceStatus === 'durable'
-                      ? 'Saved to MathMaster.'
-                      : studentPersistenceStatus === 'rejected'
-                        ? 'This change was not accepted because the assignment is no longer available.'
-                        : 'This change is still only on screen. Please try again.'}
+                    ? `Saved on this device. Saving ${studentOutboxDepth} change${studentOutboxDepth === 1 ? '' : 's'} to MathMaster… You may keep working.`
+                    : studentPersistenceStatus === 'submitted'
+                      ? 'Submitted.'
+                      : studentPersistenceStatus === 'durable'
+                        ? 'Saved to MathMaster.'
+                        : studentPersistenceStatus === 'rejected'
+                          ? 'This change was not accepted because the assignment is no longer available.'
+                          : 'Saved on this device only. MathMaster will finish saving when you are back online.'}
               </p>
             )}
-            {!preview && ['warmup', 'dol'].includes(runtimeActivityRole) && (
-              <p style={{ margin: '8px 4px 0', color: '#5f6368', fontSize: 12 }}>Your latest completed response will be submitted automatically when time expires.</p>
+            {!preview && ['warmup', 'dol'].includes(runtimeActivityRole) && !currentCheckpointOutcome && (
+              <p style={{ margin: '8px 4px 0', color: '#5f6368', fontSize: 12 }}>Your latest completed response will be submitted automatically when time ends.</p>
+            )}
+            {/* AFTER THE CLOSE, SAY WHAT ACTUALLY HAPPENED.
+                Never "submitted" for a response that was not complete — the
+                status comes from the server's own finalization receipt. */}
+            {!preview && currentCheckpointOutcome && (
+              <p role="status" aria-live="polite" style={{ margin: '8px 4px 0', color: '#5f6368', fontSize: 12 }}>
+                {currentCheckpointOutcome === 'auto-submitted'
+                  ? 'Time ended. Your latest completed response was submitted automatically.'
+                  : currentCheckpointOutcome === 'explicitly-submitted'
+                    ? 'Time ended. Your submitted work has been saved.'
+                    : 'Time ended. No completed response was available to submit.'}
+              </p>
             )}
           </main>
         </div>

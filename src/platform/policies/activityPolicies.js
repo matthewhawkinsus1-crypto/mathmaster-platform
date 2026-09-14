@@ -1,160 +1,21 @@
 import { getStoredAssignmentTypeProjection } from '../contract/storedAssignmentV5.js';
+// Roles, policies and the attempt counts they carry live in shared code so the
+// Cloud Functions deadline finalizer enforces the same attempt policy.
+import {
+  ACTIVITY_ROLES,
+  isActivityRole,
+  normalizeActivityRole,
+  getEffectiveActivityPolicy,
+} from '../../../functions/shared/activityPolicies.mjs';
 
-export const ACTIVITY_ROLES = Object.freeze({
-  WARMUP: 'warmup',
-  CLASSWORK: 'classwork',
-  DOL: 'dol',
-  PRACTICE: 'practice',
-  QUIZ: 'quiz',
-  TEST: 'test',
-  // The two instructional stages of a Test Cycle. Neither contributes points
-  // to the recorded assessment grade — the secure Test and Retest do that, and
-  // the canonical rule in testCycleGrade.mjs has no input from either.
-  REVIEW: 'review',
-  CORRECTIONS: 'corrections',
-});
-
-const makePolicy = (policy) => Object.freeze({
-  ...policy,
-  grading: Object.freeze({ ...policy.grading }),
-  mastery: Object.freeze({ ...policy.mastery }),
-});
-
-export const ACTIVITY_POLICIES = Object.freeze({
-  [ACTIVITY_ROLES.WARMUP]: makePolicy({
-    role: ACTIVITY_ROLES.WARMUP,
-    name: 'Warm-Up',
-    attempts: 3,
-    allowReplacement: true,
-    feedback: 'immediate',
-    hintsAllowed: true,
-    remediationAllowed: true,
-    adaptiveDuringAttempt: false,
-    grading: { mode: 'engagement', pointsPossible: 5, syncDefault: 'weeklyCombined', compositeWeight: 0 },
-    mastery: { evidenceWeight: 0.8, evidenceType: 'diagnostic' },
-    calculatorDefault: 'questionSpecific',
-  }),
-  [ACTIVITY_ROLES.CLASSWORK]: makePolicy({
-    role: ACTIVITY_ROLES.CLASSWORK,
-    name: 'Classwork',
-    attempts: 3,
-    allowReplacement: true,
-    feedback: 'immediate',
-    hintsAllowed: true,
-    remediationAllowed: true,
-    adaptiveDuringAttempt: true,
-    grading: { mode: 'accuracy', pointsPossible: 100, syncDefault: 'bundleWithLesson', compositeWeight: 0.4 },
-    mastery: { evidenceWeight: 0.9, evidenceType: 'instructional' },
-    calculatorDefault: 'questionSpecific',
-  }),
-  [ACTIVITY_ROLES.DOL]: makePolicy({
-    role: ACTIVITY_ROLES.DOL,
-    name: 'Exit Ticket / DOL',
-    attempts: 1,
-    allowReplacement: false,
-    feedback: 'afterAssignmentSubmit',
-    hintsAllowed: false,
-    remediationAllowed: false,
-    adaptiveDuringAttempt: false,
-    grading: { mode: 'accuracy', pointsPossible: 100, syncDefault: 'separateColumn', compositeWeight: 0.35 },
-    mastery: { evidenceWeight: 1.25, evidenceType: 'independent' },
-    calculatorDefault: 'questionSpecific',
-  }),
-  [ACTIVITY_ROLES.PRACTICE]: makePolicy({
-    role: ACTIVITY_ROLES.PRACTICE,
-    name: 'Independent Practice',
-    attempts: 3,
-    allowReplacement: true,
-    feedback: 'immediate',
-    hintsAllowed: true,
-    remediationAllowed: true,
-    adaptiveDuringAttempt: true,
-    grading: { mode: 'accuracyWithRecovery', pointsPossible: 100, syncDefault: 'bundleOrLateDeadline', compositeWeight: 0.25 },
-    mastery: { evidenceWeight: 1, evidenceType: 'independent' },
-    calculatorDefault: 'questionSpecific',
-  }),
-  [ACTIVITY_ROLES.QUIZ]: makePolicy({
-    role: ACTIVITY_ROLES.QUIZ,
-    name: 'Quiz',
-    attempts: 1,
-    allowReplacement: false,
-    feedback: 'teacherRelease',
-    hintsAllowed: false,
-    remediationAllowed: false,
-    adaptiveDuringAttempt: false,
-    grading: { mode: 'accuracy', pointsPossible: 100, syncDefault: 'separateColumn', compositeWeight: 0 },
-    mastery: { evidenceWeight: 1.35, evidenceType: 'summative' },
-    calculatorDefault: 'questionSpecific',
-  }),
-  [ACTIVITY_ROLES.REVIEW]: makePolicy({
-    role: ACTIVITY_ROLES.REVIEW,
-    name: 'Test Review',
-    attempts: 3,
-    allowReplacement: true,
-    feedback: 'immediate',
-    hintsAllowed: true,
-    remediationAllowed: true,
-    adaptiveDuringAttempt: true,
-    // Review prepares a student for the secure Test. It is modelled on the
-    // blueprint and it earns no assessment points: a review that counted would
-    // let a student raise a test grade without ever taking the test.
-    grading: { mode: 'engagement', pointsPossible: 0, syncDefault: 'none', compositeWeight: 0 },
-    mastery: { evidenceWeight: 0.9, evidenceType: 'instructional' },
-    calculatorDefault: 'questionSpecific',
-  }),
-  [ACTIVITY_ROLES.CORRECTIONS]: makePolicy({
-    role: ACTIVITY_ROLES.CORRECTIONS,
-    name: 'Test Corrections',
-    attempts: 3,
-    allowReplacement: true,
-    feedback: 'immediate',
-    hintsAllowed: true,
-    remediationAllowed: true,
-    adaptiveDuringAttempt: true,
-    // Corrections unlock a retest; they never move a recorded grade themselves.
-    grading: { mode: 'completion', pointsPossible: 0, syncDefault: 'none', compositeWeight: 0 },
-    mastery: { evidenceWeight: 0.9, evidenceType: 'instructional' },
-    calculatorDefault: 'questionSpecific',
-  }),
-  [ACTIVITY_ROLES.TEST]: makePolicy({
-    role: ACTIVITY_ROLES.TEST,
-    name: 'Unit Test',
-    attempts: 1,
-    allowReplacement: false,
-    feedback: 'teacherRelease',
-    hintsAllowed: false,
-    remediationAllowed: false,
-    adaptiveDuringAttempt: false,
-    grading: { mode: 'accuracy', pointsPossible: 100, syncDefault: 'separateColumn', compositeWeight: 0 },
-    mastery: { evidenceWeight: 1.4, evidenceType: 'summative' },
-    calculatorDefault: 'questionSpecific',
-  }),
-});
-
-export const isActivityRole = (value) => Object.values(ACTIVITY_ROLES).includes(String(value || '').toLowerCase());
-
-export const normalizeActivityRole = (role, fallback = ACTIVITY_ROLES.CLASSWORK) => {
-  const normalized = String(role || '').trim().toLowerCase();
-  return isActivityRole(normalized) ? normalized : fallback;
-};
-
-export const getEffectiveActivityPolicy = (role) => ACTIVITY_POLICIES[normalizeActivityRole(role)];
-
-export const toEnforcedActivityPolicy = (role) => {
-  const policy = getEffectiveActivityPolicy(role);
-  return {
-    role: policy.role,
-    attemptsAllowed: policy.attempts,
-    allowReplacement: policy.allowReplacement,
-    feedbackMode: policy.feedback,
-    hintsAllowed: policy.hintsAllowed,
-    remediationAllowed: policy.remediationAllowed,
-    adaptiveDuringAttempt: policy.adaptiveDuringAttempt,
-    calculatorDefault: policy.calculatorDefault,
-    grading: { ...policy.grading },
-    mastery: { ...policy.mastery },
-  };
-};
+export {
+  ACTIVITY_ROLES,
+  ACTIVITY_POLICIES,
+  isActivityRole,
+  normalizeActivityRole,
+  getEffectiveActivityPolicy,
+  toEnforcedActivityPolicy,
+} from '../../../functions/shared/activityPolicies.mjs';
 
 export const resolveQuestionActivityRole = ({ question = {}, assignment = {}, isDOL = false } = {}) => {
   const explicit = question?.activityRole ?? question?.role;

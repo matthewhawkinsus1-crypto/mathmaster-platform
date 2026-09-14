@@ -1,4 +1,5 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CHECKPOINT_DEBOUNCE_MS } from './platform/performance/responseCheckpoint.js';
 import GraphLine from './GraphLine';
 import NumberLine from './NumberLine';
 import FractionGrader from './FractionGrader';
@@ -249,24 +250,8 @@ export default function QuestionEngine({
   const [sectionCompletionCelebrating, setSectionCompletionCelebrating] = useState(false);
   const questionEngineRef = useRef(null);
   const checkpointTimerRef = useRef(null);
-  const latestAnswerStateRef = useRef(answerState);
-  latestAnswerStateRef.current = answerState;
-
-  useEffect(() => {
-    if (!onResponseCheckpoint || serverGrading || typeof document === 'undefined') return undefined;
-    const flush = () => {
-      const latest = latestAnswerStateRef.current;
-      if (latest.isComplete && latest.responseKey) onResponseCheckpoint(latest, { reason: 'page-lifecycle' });
-    };
-    const visibility = () => { if (document.visibilityState === 'hidden') flush(); };
-    document.addEventListener('visibilitychange', visibility);
-    window.addEventListener('pagehide', flush);
-    return () => {
-      document.removeEventListener('visibilitychange', visibility);
-      window.removeEventListener('pagehide', flush);
-      flush();
-    };
-  }, [onResponseCheckpoint, serverGrading]);
+  const checkpointWrittenRef = useRef(false);
+  const checkpointPendingRef = useRef({ eligible: false, state: null });
 
   useEffect(() => {
     const wasComplete = previousSectionCompleteRef.current;
@@ -351,16 +336,74 @@ export default function QuestionEngine({
   const isCorrect = record.status === 'correct' || feedback?.status === 'correct';
   const isExpired = record.status === 'expired' || feedback?.expired;
   const locked = Boolean(isCorrect || isExpired || assignmentLocked);
-  useEffect(() => {
-    if (!onResponseCheckpoint || serverGrading || locked || !answerState.isComplete || !answerState.responseKey) return undefined;
-    window.clearTimeout(checkpointTimerRef.current);
-    checkpointTimerRef.current = window.setTimeout(() => onResponseCheckpoint(answerState, { reason: 'debounce' }), 1200);
-    return () => window.clearTimeout(checkpointTimerRef.current);
-  }, [answerState, onResponseCheckpoint, serverGrading, locked]);
   const sameIncorrectResponse =
     record.status === 'attempted' &&
     Boolean(answerState.responseKey) &&
     answerState.responseKey === (record.lastResponseKey || lastSubmittedResponseKey);
+  /*
+   * DEADLINE RESPONSE CHECKPOINTING.
+   *
+   * ONE set of eligibility rules, obeyed by both the debounce and the page
+   * lifecycle flush. They used to differ, and the difference was the bug: a
+   * student who pressed Submit and then closed the tab had the cleanup handler
+   * write a fresh checkpoint for work that was already an attempt, which the
+   * deadline could then submit a second time.
+   *
+   * An INCOMPLETE or cleared response is checkpointed too — but only once this
+   * question already has a checkpoint to supersede. That is what stops a
+   * deleted answer from being auto-submitted: the later, empty revision
+   * replaces the completed one rather than leaving it as the latest state.
+   *
+   * Nothing here waits on the network. The callback hands the revision to the
+   * durable outbox and returns.
+   */
+  const responseAlreadySubmitted = Boolean(answerState.responseKey)
+    && (answerState.responseKey === lastSubmittedResponseKey
+      || answerState.responseKey === record.lastResponseKey);
+  const checkpointAllowed = Boolean(onResponseCheckpoint)
+    && !serverGrading
+    && !locked
+    && !submitting
+    && !responseAlreadySubmitted;
+  const checkpointPending = checkpointAllowed
+    && (Boolean(answerState.isComplete && answerState.responseKey) || checkpointWrittenRef.current);
+  checkpointPendingRef.current = { eligible: checkpointPending, state: answerState };
+
+  // A different question, variant or delivery starts its own checkpoint history.
+  useEffect(() => {
+    checkpointWrittenRef.current = false;
+  }, [generationKey, draftKey]);
+
+  const flushResponseCheckpoint = useCallback((reason) => {
+    const { eligible, state } = checkpointPendingRef.current;
+    if (!eligible || !state) return;
+    checkpointWrittenRef.current = true;
+    onResponseCheckpoint?.(state, { reason });
+  }, [onResponseCheckpoint]);
+
+  useEffect(() => {
+    if (!checkpointPending) return undefined;
+    window.clearTimeout(checkpointTimerRef.current);
+    checkpointTimerRef.current = window.setTimeout(
+      () => flushResponseCheckpoint('debounce'),
+      CHECKPOINT_DEBOUNCE_MS,
+    );
+    return () => window.clearTimeout(checkpointTimerRef.current);
+  }, [answerState, checkpointPending, flushResponseCheckpoint]);
+
+  useEffect(() => {
+    if (!onResponseCheckpoint || typeof document === 'undefined') return undefined;
+    const flush = () => flushResponseCheckpoint('page-lifecycle');
+    const visibility = () => { if (document.visibilityState === 'hidden') flush(); };
+    document.addEventListener('visibilitychange', visibility);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', visibility);
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+  }, [onResponseCheckpoint, flushResponseCheckpoint]);
+
   const isMultipart = MULTIPART_TYPES.has(processedQuestion?.type) || (answerState.parts || []).length > 1;
   const scaffoldRequired = Boolean(resolvedActivityPolicy?.remediationAllowed !== false && supportPresentation.inclusion && record.status === 'attempted' && record.attemptCount >= 2 && !locked && !scaffoldComplete);
   const contextScaffoldEnabled = Boolean(processedQuestion?.context?.scenario && processedQuestion?.context?.scaffold?.enabled !== false);
