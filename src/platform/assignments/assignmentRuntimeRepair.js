@@ -6,10 +6,11 @@ const asArray = (value) => Array.isArray(value) ? value : [];
 // Version 4 also recognizes the proven historical representation that copied
 // the same synthetic identity graph onto both the question and its continuity
 // stage. Previously the question-level copy was mistaken for authored evidence.
-export const ASSIGNMENT_RUNTIME_REPAIR_VERSION = 4;
+export const ASSIGNMENT_RUNTIME_REPAIR_VERSION = 5;
 
 export const RUNTIME_REPAIR_KEYS = Object.freeze({
   NO_SYNTHETIC_FUNCTION_MODELING_GRAPH: 'function-modeling-exact-ask-no-synthetic-graph-v1',
+  NO_PRECONSTRUCTION_SYNTHETIC_GRAPH: 'workflow-preconstruction-synthetic-graph-v1',
   ACTIVE_WORKFLOW_TASK: 'workflow-active-task-presentation-v1',
   AUTHORED_GRAPH_PERSISTENCE: 'workflow-authored-graph-persistence-v1',
   COLLAPSED_WORKFLOW: 'collapsed-generated-workflow-v1',
@@ -153,6 +154,55 @@ const isContinuityClassificationStage = (stage = {}) => (
   && lower(stage.kind) === 'classification'
   && sameChoiceList(stage.choices, ['discrete', 'continuous'])
 );
+
+const continuityControlsLaterStudentGraph = (question = {}, stageId = 'continuity') => {
+  const workflow = asArray(question?.workflow);
+  const controllerIndex = workflow.findIndex((stage) => clean(stage?.id) === clean(stageId));
+  if (controllerIndex < 0) return false;
+
+  return workflow.some((stage, index) => (
+    index > controllerIndex
+    && ['graphconstruction', 'functiongraph', 'coordinateplot'].includes(lower(stage?.kind))
+    && clean(stage?.continuityStageId) === clean(stageId)
+  ));
+};
+
+/**
+ * Compatibility repair for the CURRENT form of the old identity-graph defect.
+ *
+ * Earlier repair logic only recognized generated functionModeling recipes. A
+ * reviewed V5 workflow can legitimately be explicit, which let the same stale
+ * synthetic y=x graph survive on its continuity step even though a later stage
+ * is where the student is supposed to build the graph.
+ *
+ * The combination below is unambiguous:
+ *   - continuity classification,
+ *   - known synthetic identity graph,
+ *   - later student graph explicitly controlled by that classification.
+ *
+ * We remove only the synthetic visual. Prompt, grading, student actions and the
+ * real later graph stage are untouched.
+ */
+const stripPreconstructionSyntheticGraph = (question = {}) => {
+  let changed = false;
+  const workflow = asArray(question?.workflow).map((stage) => {
+    if (
+      !isContinuityClassificationStage(stage)
+      || !isKnownSyntheticIdentityGraph(stage?.graph)
+      || !continuityControlsLaterStudentGraph(question, stage.id)
+    ) return stage;
+
+    const next = { ...stage };
+    delete next.graph;
+    changed = true;
+    return next;
+  });
+
+  return {
+    question: changed ? { ...question, workflow } : question,
+    changed,
+  };
+};
 
 const hasKnownSyntheticContinuityStageGraph = (question = {}) => (
   asArray(question?.workflow).some((stage) => (
@@ -440,6 +490,18 @@ export const repairQuestionForCurrentRuntime = (question = {}, context = {}) => 
   let changedSafely = true;
 
   try {
+    const preconstruction = stripPreconstructionSyntheticGraph(repaired);
+    if (preconstruction.changed) {
+      repairKeys.push(RUNTIME_REPAIR_KEYS.NO_PRECONSTRUCTION_SYNTHETIC_GRAPH);
+      repaired = preconstruction.question;
+      changed = true;
+      // Safe for student runtime, but intentionally not auto-persisted yet.
+      // Persistence has an independent verifier that currently permits only
+      // deletion of the older generated graph-construction stage. Keeping this
+      // in-memory prevents a broad writeback rule from touching authored work.
+      changedSafely = false;
+    }
+
     const graphRule = noSyntheticGraphRule(repaired, context);
     if (graphRule.applies) {
       repairKeys.push(RUNTIME_REPAIR_KEYS.NO_SYNTHETIC_FUNCTION_MODELING_GRAPH);

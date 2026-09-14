@@ -104,6 +104,31 @@ export const normalizeWorkflow = (workflow = []) => {
   });
 };
 
+const STUDENT_GRAPH_STAGE_KINDS = new Set(['functionGraph', 'coordinatePlot']);
+
+/**
+ * Whether a choice stage controls HOW a later student-built graph is rendered.
+ *
+ * This relationship is security-like assessment metadata: if continuity decides
+ * whether the later graph is discrete or connected, the continuity step must
+ * not display a prebuilt graph first. Doing so answers the classification before
+ * the student makes it. Runtime and Preflight share this exact predicate so one
+ * cannot drift away from the other.
+ */
+export const stageControlsLaterGraphConstruction = (workflow = [], stageId = '') => {
+  const stages = Array.isArray(workflow) ? workflow : [];
+  const controllerId = String(stageId || '').trim();
+  if (!controllerId) return false;
+  const controllerIndex = stages.findIndex((stage) => String(stage?.id || '') === controllerId);
+  if (controllerIndex < 0) return false;
+
+  return stages.some((stage, index) => (
+    index > controllerIndex
+    && STUDENT_GRAPH_STAGE_KINDS.has(stage?.kind)
+    && String(stage?.continuityStageId || '').trim() === controllerId
+  ));
+};
+
 /*
  * WHICH EARLIER STEPS A STUDENT MAY NO LONGER CHANGE.
  *
@@ -241,6 +266,21 @@ export const validateWorkflow = (workflow = [], { label = 'Question' } = {}) => 
       figureMatchProblems(entry).forEach((problem) => {
         errors.push(`${label} stage "${entry.id}" ${problem}`);
       });
+    }
+
+    // A classification that controls a later student-built graph must stay
+    // visually neutral. A static graph here reveals whether the relation is
+    // supposed to be discrete or continuous before the student chooses, and an
+    // old empty-spec fallback used to turn this exact mistake into y = x.
+    if (
+      entry.kind === 'classification'
+      && isObject(entry.graph)
+      && stageControlsLaterGraphConstruction(stages, entry.id)
+    ) {
+      errors.push(
+        `${label} stage "${entry.id}" includes a graph before the student builds the graph it controls. `
+        + 'Remove the graph from the classification step; the later graph-construction step owns that visual.',
+      );
     }
 
     // `showWhen` is validated hard, because every way it can be wrong produces a

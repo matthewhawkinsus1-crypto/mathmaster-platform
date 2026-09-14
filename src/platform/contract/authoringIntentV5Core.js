@@ -108,6 +108,35 @@ const copyCommon = (source, target = {}) => {
 const answerOf = (q) => q.answer ?? q.expectedAnswer ?? q.response?.answer ?? q.answerModel?.answer;
 const acceptedOf = (q) => q.acceptedAnswers ?? q.response?.acceptedAnswers ?? q.answerModel?.acceptedAnswers;
 
+const FUNCTION_SPEC_INTENT_KEYS = new Set([
+  'family', 'type', 'm', 'slope', 'a', 'b', 'intercept', 'h', 'k',
+  'base', 'p', 'orientation', 'domain',
+]);
+
+// An empty object is NOT a function.
+//
+// The historical compiler treated {} as an omitted linear function and filled
+// the missing slope/intercept with 1 and 0. That silently manufactured y = x
+// whenever a graph-capable question had no authored function yet. A missing
+// model must stay missing; explicit { family: 'linear', m: 1, b: 0 } remains a
+// perfectly valid authored identity function.
+const hasFunctionIntent = (raw) => (
+  isObject(raw)
+  && Object.keys(raw).some((key) => FUNCTION_SPEC_INTENT_KEYS.has(key) && raw[key] != null && raw[key] !== '')
+);
+
+const authoredFunctionIntent = (q = {}) => {
+  if (hasFunctionIntent(q.function)) return q.function;
+  if (hasFunctionIntent(q.functionSpec)) return q.functionSpec;
+  return null;
+};
+
+const hasGraphOrFunctionIntent = (q = {}) => (
+  Boolean(authoredFunctionIntent(q))
+  || isObject(q.graph)
+  || isObject(q.visual?.graph)
+);
+
 const coreFunctionSpec = (raw = {}) => {
   const f = isObject(raw) ? raw : {};
   const family = clean(f.family || f.type || 'linear');
@@ -124,7 +153,9 @@ const coreFunctionSpec = (raw = {}) => {
 };
 
 const functionSpecFromIntentQuestion = (q = {}) => {
-  const core = coreFunctionSpec(q.function || q.functionSpec || {});
+  const raw = authoredFunctionIntent(q);
+  if (!raw) return null;
+  const core = coreFunctionSpec(raw);
   // V5 authors describe mathematics, not renderer storage. If they place a
   // structured domain beside the function rather than nesting it inside the
   // function, that is still enough mathematical intent for MathMaster to
@@ -137,12 +168,14 @@ const functionSpecFromIntentQuestion = (q = {}) => {
 };
 
 const toolFunctionSpec = (raw = {}) => {
+  if (!hasFunctionIntent(raw)) return null;
   const core = coreFunctionSpec(raw);
   if (core.type !== 'linear') return core;
   return { type: 'linear', a: core.m, h: 0, k: core.b, ...(core.domain ? { domain: core.domain } : {}) };
 };
 
 const staticFunctionSpec = (raw = {}) => {
+  if (!hasFunctionIntent(raw)) return null;
   const core = coreFunctionSpec(raw);
   if (core.type === 'linear') return { type: 'line', m: core.m, b: core.b, ...(core.domain ? { domain: core.domain } : {}) };
   return core;
@@ -151,8 +184,10 @@ const staticFunctionSpec = (raw = {}) => {
 const graphFromIntent = (q = {}) => {
   if (isObject(q.graph)) return normalizeStaticGraphPoints(q.graph);
   if (isObject(q.visual?.graph)) return normalizeStaticGraphPoints(q.visual.graph);
-  if (isObject(q.function) || isObject(q.functionSpec)) {
-    return { functions: [staticFunctionSpec(q.function || q.functionSpec)] };
+  const raw = authoredFunctionIntent(q);
+  if (raw) {
+    const spec = staticFunctionSpec(raw);
+    return spec ? { functions: [spec] } : undefined;
   }
   return undefined;
 };
@@ -316,7 +351,7 @@ const derivedSetAnswers = (q = {}, kind = 'domain') => {
   // bare function here answered "all real numbers" for a graph the author had
   // explicitly bounded to -2 <= x < 5.
   const spec = functionSpecFromIntentQuestion(q);
-  if (!clean(spec.type)) return undefined;
+  if (!spec || !clean(spec.type)) return undefined;
   const notation = clean(q.notation) || 'inequality';
   try {
     const accepted = getDomainRangeAcceptedAnswers(spec, kind, notation);
@@ -329,6 +364,7 @@ const derivedSetAnswers = (q = {}, kind = 'domain') => {
 };
 
 const expressionFromSpec = (raw = {}) => {
+  if (!hasFunctionIntent(raw)) return null;
   const spec = coreFunctionSpec(raw);
   const num = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
   const shifted = (h) => (h === 0 ? 'x' : `(x ${h > 0 ? '-' : '+'} ${Math.abs(h)})`);
@@ -352,11 +388,15 @@ const normalizeGraphChoices = (choices = []) => asArray(choices).map((item, inde
   if (!isObject(item)) return item;
   const id = item.id || `g${index + 1}`;
   if (item.graph) return { ...item, id, graph: normalizeStaticGraphPoints(item.graph) };
-  if (item.function || item.functionSpec) {
+  const functionIntent = hasFunctionIntent(item.function)
+    ? item.function
+    : (hasFunctionIntent(item.functionSpec) ? item.functionSpec : null);
+  if (functionIntent) {
+    const spec = staticFunctionSpec(functionIntent);
     return {
       id,
       ...(clean(item.label) ? { label: item.label } : {}),
-      graph: { functions: [staticFunctionSpec(item.function || item.functionSpec)] },
+      ...(spec ? { graph: { functions: [spec] } } : {}),
     };
   }
   return { ...item, id };
@@ -519,7 +559,7 @@ const functionWorkflowActions = new Set([
 ]);
 
 const shouldCompileFunctionWorkflow = (q = {}, actions = []) => {
-  if (!(isObject(q.function) || isObject(q.functionSpec) || isObject(q.table) || q.answerModel?.equation)) return false;
+  if (!(authoredFunctionIntent(q) || isObject(q.table) || q.answerModel?.equation)) return false;
   const present = actions.filter((action) => functionWorkflowActions.has(action));
   if (present.length < 2) return false;
   if (actions.includes('readGraph') && !actions.includes('constructGraph') && !actions.includes('completeTable') && !actions.includes('writeEquation')) return false;
@@ -536,9 +576,7 @@ const latestStageSource = (workflow = [], preferredKinds = []) => {
 };
 
 const compileFunctionWorkflow = (q, actions) => {
-  const publicFunctionSpec = isObject(q.function) || isObject(q.functionSpec)
-    ? functionSpecFromIntentQuestion(q)
-    : null;
+  const publicFunctionSpec = functionSpecFromIntentQuestion(q);
   const tableInfo = normalizeIntentTable(q.table);
   const axis = isObject(q.axisRequirements) ? q.axisRequirements : {};
   const continuity = expectedContinuity(q);
@@ -847,9 +885,7 @@ const compileRelationshipModel = (q, actions) => {
   }
   out.graph = q.graph || relationship.graph;
   if (actions.includes('configureAxes') && !out.graph) {
-    const functionSpec = isObject(q.function) || isObject(q.functionSpec)
-      ? functionSpecFromIntentQuestion(q)
-      : null;
+    const functionSpec = functionSpecFromIntentQuestion(q);
     out.graph = blankAxisGraphFromIntent({
       question: q,
       functionSpec,
@@ -857,8 +893,9 @@ const compileRelationshipModel = (q, actions) => {
       evaluateFunction: evaluateIntentFunction,
     });
   }
-  if (!actions.includes('writeEquation') && (isObject(q.function) || isObject(q.functionSpec))) {
-    out.functionSpec = coreFunctionSpec(q.function || q.functionSpec);
+  if (!actions.includes('writeEquation')) {
+    const functionIntent = authoredFunctionIntent(q);
+    if (functionIntent) out.functionSpec = coreFunctionSpec(functionIntent);
   }
   if (q.relationshipType) out.relationshipType = q.relationshipType;
   if (q.requireRelationshipType != null) out.requireRelationshipType = q.requireRelationshipType;
@@ -898,7 +935,7 @@ const resolveIntentType = (q, actions) => {
   if (
     actions.includes('readGraph')
     && hasStudentFacingResponseFields(q)
-    && (q.graph || q.function || q.functionSpec || q.visual?.graph)
+    && hasGraphOrFunctionIntent(q)
     && !actions.includes('buildMapping')
     && !actions.includes('plotRelation')
   ) return 'multiAnswer';
@@ -933,7 +970,7 @@ const resolveIntentType = (q, actions) => {
   if (
     actions.includes('readGraph')
     && (readsFeatures || readsDomainOrRange)
-    && (q.function || q.functionSpec || q.graph || q.pairs)
+    && (authoredFunctionIntent(q) || q.graph || q.pairs)
   ) return 'functionCharacteristics';
 
   if (q.relation || q.pairs || actions.some((a) => ['buildMapping','plotRelation','classifyFunction'].includes(a))) return 'relationMapping';
@@ -983,8 +1020,8 @@ const resolveIntentType = (q, actions) => {
     // not preserve an explicitly restricted domain. A bounded segment/ray
     // therefore needs the full graphAnalysis workspace so open/closed
     // endpoints, domain restrictions, and inequality grading survive.
-    const functionIntent = q.function || q.functionSpec || {};
-    const explicitDomain = isObject(functionIntent.domain) ? functionIntent.domain : (isObject(q.domain) ? q.domain : null);
+    const functionIntent = authoredFunctionIntent(q);
+    const explicitDomain = isObject(functionIntent?.domain) ? functionIntent.domain : (isObject(q.domain) ? q.domain : null);
     const hasFiniteDomainBoundary = isObject(explicitDomain)
       && ['min', 'max'].some((key) => explicitDomain[key] != null
         && explicitDomain[key] !== ''
@@ -1002,12 +1039,12 @@ const resolveIntentType = (q, actions) => {
   if (
     actions.includes('readGraph')
     && hasStudentFacingResponseFields(q)
-    && (q.graph || q.function || q.functionSpec || q.visual?.graph)
+    && hasGraphOrFunctionIntent(q)
   ) return 'multiAnswer';
   if (
     (actions.includes('readGraph')
       || actions.some((a) => a.startsWith('analyze') || ['findVertex','findXIntercepts','findYIntercept','findMaximum','findMinimum'].includes(a)))
-    && (q.function || q.functionSpec)
+    && authoredFunctionIntent(q)
   ) return 'graphAnalysis';
   if (actions.includes('readGraph') && (q.graph || q.visual?.graph)) return 'multiAnswer';
   if (actions.includes('completeTable') || q.table?.answers) return 'table';
@@ -1147,19 +1184,54 @@ const compileOne = (q, index, repairs) => {
     case 'functionWorkflow':
       out = compileFunctionWorkflow(q, actions);
       break;
-    case 'functionGraph':
-      out = copyCommon(q, { type, functionSpec: coreFunctionSpec(q.function || q.functionSpec), graph: normalizeStaticGraphPoints(q.graph), studentChoosesX: q.studentChoosesX ?? true, showCoordinates: q.showCoordinates });
+    case 'functionGraph': {
+      const rawFunction = authoredFunctionIntent(q);
+      // A canonical stored workflow is itself a complete renderer contract and
+      // may be recompiled transiently during Library/CCMR hydration. Let that
+      // round-trip proceed without inventing a function; the unchanged canonical
+      // workflow is restored by the hydration boundary. A NEW authoring item
+      // with neither mathematics nor an existing graph workflow is still
+      // rejected.
+      const hasExistingGraphWorkflow = authoredWorkflow.some((stage) => (
+        ['functiongraph', 'coordinateplot', 'graphconstruction'].includes(clean(stage?.kind).toLowerCase())
+      ));
+      if (!rawFunction && !isObject(q.graph) && !isObject(q.visual?.graph) && !hasExistingGraphWorkflow) {
+        throw new Error(
+          `V5 question ${index + 1} asks students to construct a graph but supplies no function, graph, table, or equation model. MathMaster will not invent y = x as a fallback.`,
+        );
+      }
+      out = copyCommon(q, {
+        type,
+        ...(rawFunction ? { functionSpec: coreFunctionSpec(rawFunction) } : {}),
+        graph: normalizeStaticGraphPoints(q.graph),
+        studentChoosesX: q.studentChoosesX ?? true,
+        showCoordinates: q.showCoordinates,
+      });
       break;
+    }
     case 'functionInvestigation2': {
+      const functionIntent = authoredFunctionIntent(q);
+      if (!functionIntent) {
+        throw new Error(
+          `V5 question ${index + 1} asks students to investigate a function but supplies no function. MathMaster will not invent y = x as a fallback.`,
+        );
+      }
       const requests = analysisRequestsFromActions(actions, q);
       const kinds = requests.filter((r) => r.kind !== 'point').map((r) => r.kind);
       const mode = q.mode || (kinds.some((k) => ['domain','range'].includes(k)) ? 'domainRange' : kinds.some((k) => ['increasing','decreasing','constant','positive','negative'].includes(k)) ? 'behavior' : requests.some((r) => r.kind === 'point') ? 'intercepts' : 'features');
-      out = copyCommon(q, { type, mode, function: toolFunctionSpec(q.function || q.functionSpec), analysisRequests: requests.length ? requests : undefined });
+      out = copyCommon(q, { type, mode, function: toolFunctionSpec(functionIntent), analysisRequests: requests.length ? requests : undefined });
       break;
     }
-    case 'graphAnalysis':
-      out = copyCommon(q, { type, functionSpec: functionSpecFromIntentQuestion(q), analysisRequests: analysisRequestsFromActions(actions, q) });
+    case 'graphAnalysis': {
+      const functionSpec = functionSpecFromIntentQuestion(q);
+      if (!functionSpec) {
+        throw new Error(
+          `V5 question ${index + 1} asks students to analyze a function graph but supplies no function. MathMaster will not invent y = x as a fallback.`,
+        );
+      }
+      out = copyCommon(q, { type, functionSpec, analysisRequests: analysisRequestsFromActions(actions, q) });
       break;
+    }
     case 'functionCharacteristics': {
       // Compiles to a RECIPE rather than to a stage list. The recipe owns which
       // steps exist and which answer keys can honestly be derived from the
@@ -1266,9 +1338,15 @@ const compileOne = (q, index, repairs) => {
     case 'system':
       out = copyCommon(q, { type, equations: q.equations, answer: answerOf(q), graph: normalizeStaticGraphPoints(q.graph), showGraph: q.showGraph });
       break;
-    case 'table':
-      out = copyCommon(q, { type, table: q.table, functionSpec: q.function ? coreFunctionSpec(q.function) : q.functionSpec });
+    case 'table': {
+      const functionIntent = authoredFunctionIntent(q);
+      out = copyCommon(q, {
+        type,
+        table: q.table,
+        ...(functionIntent ? { functionSpec: coreFunctionSpec(functionIntent) } : {}),
+      });
       break;
+    }
     case 'orderedPair':
       out = copyCommon(q, { type, answer: answerOf(q) || q.point, graph: normalizeStaticGraphPoints(q.graph) });
       break;
@@ -1415,9 +1493,17 @@ const compileOne = (q, index, repairs) => {
     case 'graphComparison':
       out = copyCommon(q, { type, graphs: normalizeGraphChoices(q.graphs || q.candidateGraphs), fields: (q.fields || q.comparisonFields || q.responses || []).map(fieldFromIntent) });
       break;
-    case 'graphStory':
-      out = copyCommon(q, { type, graph: graphFromIntent(q), functionSpec: q.function ? coreFunctionSpec(q.function) : q.functionSpec, minimumScenarioCharacters: q.minimumScenarioCharacters, minimumExplanationCharacters: q.minimumExplanationCharacters });
+    case 'graphStory': {
+      const functionIntent = authoredFunctionIntent(q);
+      out = copyCommon(q, {
+        type,
+        graph: graphFromIntent(q),
+        ...(functionIntent ? { functionSpec: coreFunctionSpec(functionIntent) } : {}),
+        minimumScenarioCharacters: q.minimumScenarioCharacters,
+        minimumExplanationCharacters: q.minimumExplanationCharacters,
+      });
       break;
+    }
     case 'contextInterpretation': {
       const target = isObject(q.target)
         ? q.target

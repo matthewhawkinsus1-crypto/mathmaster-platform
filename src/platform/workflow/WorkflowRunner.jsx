@@ -15,7 +15,7 @@ import CoordinatePlane from '../../tools/shared/CoordinatePlane';
 import { previewFigures } from './choicePreview';
 import RelationMapping from '../../tools/relationMapping/RelationMapping';
 import { getStage } from './interactionStages';
-import { activeStages, hasStageResponse, lockedStageIds, readComposedQuestion, resolveStageInput, summarizeWorkflowProgress } from './questionWorkflow';
+import { activeStages, hasStageResponse, lockedStageIds, readComposedQuestion, resolveStageInput, stageControlsLaterGraphConstruction, summarizeWorkflowProgress } from './questionWorkflow';
 import { checkTableConsistency, gradeWorkflow } from './workflowGrading';
 import { buildExpressionFunctionSpec, evaluateModelAt, evaluateNumericValue, parseIntervalDomainRestriction } from './modelExpression';
 import { evaluateGraphFunction } from '../../functionGraphUtils';
@@ -921,9 +921,14 @@ const dependencyFingerprint = (value) => {
   return (hash >>> 0).toString(36);
 };
 
-const staticGraphSpec = (spec = {}) => {
-  if (!spec || typeof spec !== 'object') return null;
-  if (spec.type === 'linear') {
+export const staticGraphSpec = (spec = {}) => {
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return null;
+  const type = String(spec.type || '').trim();
+  // No type means no authored function. Returning an empty object here used to
+  // hand GraphDisplay a "function" with no mathematics, and downstream defaults
+  // turned that absence into y = x. Missing graph intent must render NOTHING.
+  if (!type) return null;
+  if (type === 'linear') {
     return {
       type: 'line',
       m: Number(spec.m ?? spec.a ?? 1),
@@ -931,7 +936,7 @@ const staticGraphSpec = (spec = {}) => {
       ...(spec.domain ? { domain: spec.domain } : {}),
     };
   }
-  return spec.type === 'expression' ? null : spec;
+  return type === 'expression' ? null : spec;
 };
 
 const endpointRequirementsForModel = (model, domain) => {
@@ -1330,7 +1335,10 @@ export default function WorkflowRunner({
               disabled={disabled}
               controlsBranch={branchControllerIds.has(stage.id)}
               openKeypad={stage.id === openKeypadStageId}
-              showFigure={focusMode ? !showPersistentGraphReference : figureStageIds.has(stage.id)}
+              showFigure={
+                !stageControlsLaterGraphConstruction(workflow, stage.id)
+                && (focusMode ? !showPersistentGraphReference : figureStageIds.has(stage.id))
+              }
               draftKey={draftKey ? `${draftKey}:${stage.id}${stage.sourceStageId && ['functionGraph', 'coordinatePlot'].includes(stage.kind) ? `:${dependencyFingerprint(input.value)}` : ''}` : null}
             />
           </>
