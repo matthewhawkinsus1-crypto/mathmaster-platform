@@ -32,7 +32,7 @@ export const ACTIVITY_POLICIES = Object.freeze({
     adaptiveDuringAttempt: false,
     grading: { mode: 'engagement', pointsPossible: 5, syncDefault: 'weeklyCombined', compositeWeight: 0 },
     mastery: { evidenceWeight: 0.8, evidenceType: 'diagnostic' },
-    calculatorDefault: 'none',
+    calculatorDefault: 'questionSpecific',
   }),
   [ACTIVITY_ROLES.CLASSWORK]: makePolicy({
     role: ACTIVITY_ROLES.CLASSWORK,
