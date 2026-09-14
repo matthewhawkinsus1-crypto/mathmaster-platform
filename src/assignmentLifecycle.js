@@ -18,8 +18,10 @@ import {
 } from '../functions/shared/classSchedule.mjs';
 import {
   MANUALLY_CONTROLLABLE_SECTION_ROLES as SHARED_MANUAL_SECTION_ROLES,
+  resolveDolInstructionDateKey,
   resolveDolWindow,
   resolveWarmupClose,
+  resolveWarmupInstructionDateKey,
 } from '../functions/shared/sectionDeadline.mjs';
 import { parseInstant, zonedDateKey } from '../functions/shared/instructionalCalendar.mjs';
 
@@ -199,52 +201,17 @@ export const localDateKey = (nowValue = Date.now()) => zonedDateKey(nowValue);
 
 // A DOL is a one-day instructional checkpoint, not a question that should
 // reopen during the last ten minutes of every day an assignment remains open.
-// New assignments save dol.instructionDate explicitly. For older assignments,
-// automatic release is the best proxy for the assigned instructional date; if
-// that was not set, the regular due date is the fallback.
-export const getDOLInstructionDateKey = (assignment, classPeriod = null, classId = null) => {
-  // A reused lesson can serve multiple real classes on different days. Class
-  // identity is more specific than a bell-period label, so a teacher moving a
-  // lesson to another class must not inherit the original class's DOL date.
-  const classSpecific = classId ? assignment?.dol?.instructionDatesByClassId?.[classId] : null;
-  const periodSpecific = classPeriod ? assignment?.dol?.instructionDatesByClassPeriod?.[classPeriod] : null;
-  const explicit = classSpecific || periodSpecific || assignment?.dol?.instructionDate || assignment?.dol?.date || assignment?.assignmentDate || null;
-  if (explicit) {
-    const text = String(explicit);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
-    const parsed = parseLocalDateTime(explicit, false);
-    if (parsed) return localDateKey(parsed);
-  }
-  const releaseAt = getAssignmentDate(assignment, 'release');
-  if (releaseAt) return localDateKey(releaseAt);
-  const dueAt = getAssignmentDate(assignment, 'due');
-  return dueAt ? localDateKey(dueAt) : null;
-};
+// A Warm-Up is the same: the lesson can stay open for completion after the
+// instructional day, but the bell-ringer belongs to one class meeting. Both
+// resolvers are shared with the Cloud Functions finalizer, which has to reach
+// the same answer to know whether today's bell governs a stored checkpoint.
+export const getDOLInstructionDateKey = (assignment, classPeriod = null, classId = null) => (
+  resolveDolInstructionDateKey({ assignment, classId, classPeriod })
+);
 
-// Warm-Up timing is section-specific for the same reason DOL timing is: the
-// lesson can remain open for completion after the instructional day, but the
-// bell-ringer should only appear around the start of the class that is actually
-// receiving it. A teacher may set a different instructional date by period for
-// A/B day classes. Older assignments fall back to the assignment release date.
-export const getWarmupInstructionDateKey = (assignment, classPeriod = null, classId = null) => {
-  // A real class id is more specific than a bell-period label. This matters
-  // when two MathMaster classes share the same period: a teacher manually
-  // opening today's Warm-Up for one class must not silently reschedule the
-  // sibling class.
-  const classSpecific = classId ? assignment?.warmup?.instructionDatesByClassId?.[classId] : null;
-  const periodSpecific = classPeriod ? assignment?.warmup?.instructionDatesByClassPeriod?.[classPeriod] : null;
-  const explicit = classSpecific || periodSpecific || assignment?.warmup?.instructionDate || assignment?.warmup?.date || assignment?.assignmentDate || null;
-  if (explicit) {
-    const text = String(explicit);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
-    const parsed = parseLocalDateTime(explicit, false);
-    if (parsed) return localDateKey(parsed);
-  }
-  const releaseAt = getAssignmentDate(assignment, 'release');
-  if (releaseAt) return localDateKey(releaseAt);
-  const dueAt = getAssignmentDate(assignment, 'due');
-  return dueAt ? localDateKey(dueAt) : null;
-};
+export const getWarmupInstructionDateKey = (assignment, classPeriod = null, classId = null) => (
+  resolveWarmupInstructionDateKey({ assignment, classId, classPeriod })
+);
 
 export const getScheduleDayType = (scheduleValue, nowValue = Date.now()) => resolveSharedScheduleDayType(scheduleValue, nowValue);
 

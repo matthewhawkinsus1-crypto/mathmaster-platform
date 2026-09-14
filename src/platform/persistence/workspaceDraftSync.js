@@ -58,29 +58,41 @@ export const createWorkspaceDraftSync = ({
     practice,
   });
 
-  const runFlush = async () => {
+  const failed = (error) => {
+    // The local copy is still durable. Mark the state dirty again so the next
+    // change — or the next explicit flush — retries it.
+    stats.failures += 1;
+    dirtySinceFlush = true;
+    console.warn('MathMaster could not back up this workspace draft yet:', error);
+  };
+
+  const runFlush = () => {
     handle = null;
-    if (stopped || !dirtySinceFlush || typeof flush !== 'function') return;
+    if (stopped || !dirtySinceFlush || typeof flush !== 'function') return inFlight;
     // One write at a time. A slow network coalesces into the next flush
     // instead of queueing a write per keystroke.
-    if (inFlight) return;
+    if (inFlight) return inFlight;
     dirtySinceFlush = false;
     revision += 1;
     const document = snapshotDocument();
     stats.flushes += 1;
-    inFlight = Promise.resolve()
-      .then(() => flush({ document }))
-      .catch((error) => {
-        // The local copy is still durable. Mark the state dirty again so the
-        // next change — or the next explicit flush — retries it.
-        stats.failures += 1;
-        dirtySinceFlush = true;
-        console.warn('MathMaster could not back up this workspace draft yet:', error);
-      })
+    // Started synchronously — the point of the debounce is to delay the write,
+    // not to add another turn of the event loop once it is due — and never
+    // awaited by whoever asked for it.
+    let started;
+    try {
+      started = flush({ document });
+    } catch (error) {
+      failed(error);
+      return null;
+    }
+    inFlight = Promise.resolve(started)
+      .catch(failed)
       .finally(() => {
         inFlight = null;
         if (dirtySinceFlush && !stopped) schedule();
       });
+    return inFlight;
   };
 
   function schedule() {

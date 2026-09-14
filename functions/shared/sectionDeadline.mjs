@@ -31,6 +31,39 @@ const overrideInstant = (record, key, timeZone) => {
 
 const overrideDateKey = (record) => (record && typeof record === 'object' ? record.dateKey || null : null);
 
+/**
+ * The instructional date a section belongs to.
+ *
+ * A lesson can stay open for completion all week, but its bell-ringer and its
+ * exit ticket belong to ONE class meeting. A real class id is more specific
+ * than a bell-period label: two MathMaster classes may share Period 3, and a
+ * reused lesson must not inherit the original class's date.
+ */
+const sectionInstructionDateKey = ({ assignment, section, classId, classPeriod, timeZone }) => {
+  const config = assignment?.[section] || {};
+  const classSpecific = classId ? config.instructionDatesByClassId?.[classId] : null;
+  const periodSpecific = classPeriod ? config.instructionDatesByClassPeriod?.[classPeriod] : null;
+  const explicit = classSpecific || periodSpecific || config.instructionDate || config.date || assignment?.assignmentDate || null;
+  if (explicit) {
+    const value = String(explicit);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const parsed = parseInstant(explicit, { timeZone });
+    if (parsed !== null) return zonedDateKey(parsed, timeZone);
+  }
+  const releaseAt = parseInstant(assignment?.releaseAt || assignment?.releaseDate, { timeZone });
+  if (releaseAt !== null) return zonedDateKey(releaseAt, timeZone);
+  const dueAt = parseInstant(assignment?.dueAt || assignment?.dueDate, { endOfDay: true, timeZone });
+  return dueAt === null ? null : zonedDateKey(dueAt, timeZone);
+};
+
+export const resolveWarmupInstructionDateKey = ({ assignment, classId = null, classPeriod = null, timeZone = null } = {}) => (
+  sectionInstructionDateKey({ assignment, section: 'warmup', classId, classPeriod, timeZone })
+);
+
+export const resolveDolInstructionDateKey = ({ assignment, classId = null, classPeriod = null, timeZone = null } = {}) => (
+  sectionInstructionDateKey({ assignment, section: 'dol', classId, classPeriod, timeZone })
+);
+
 /** The assignment's own final grading cutoff: the late window when there is one. */
 export const assignmentFinalCloseAt = (assignment, timeZone = null) => parseInstant(
   assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate,
@@ -148,7 +181,16 @@ export const resolveAuthoritativeClose = ({
   const todayKey = zonedDateKey(nowValue, timeZone);
 
   if (role === 'warmup' || role === 'dol') {
-    const window = resolvePeriodWindow({ schedule, classPeriod, nowValue, timeZone });
+    // A section's own window only governs on ITS instructional day. On any
+    // other day the assignment's grading cutoff is the only close MathMaster
+    // can prove — otherwise a checkpoint left from Monday would be measured
+    // against Tuesday's bell.
+    const instructionDateKey = role === 'warmup'
+      ? resolveWarmupInstructionDateKey({ assignment, classId, classPeriod, timeZone })
+      : resolveDolInstructionDateKey({ assignment, classId, classPeriod, timeZone });
+    const window = instructionDateKey && instructionDateKey !== todayKey
+      ? null
+      : resolvePeriodWindow({ schedule, classPeriod, nowValue, timeZone });
     if (role === 'warmup') {
       const warmup = resolveWarmupClose({ assignment, window, classId, todayKey });
       // A manual close ends the section now, whatever the timer said.
