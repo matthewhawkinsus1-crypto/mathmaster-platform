@@ -3664,7 +3664,19 @@ function App() {
     if (user?.role !== 'student') return null;
 
     const localAssignment = assignments.find((item) => item.id === activeAssignmentId);
-    if (getAssignmentLifecycle(localAssignment, Date.now()).isPracticeOnly) {
+    const submissionCapturedAt = Date.now();
+    const timedSectionAccess = captureTimedSectionAccess({
+      activityRole: activeQuestionRole,
+      assignment: localAssignment,
+      schedule: classSchedule,
+      classId: user.classId || null,
+      classPeriod: user.classPeriod,
+      capturedAt: submissionCapturedAt,
+    });
+    const teacherReopenedWarmupIsActive = activeQuestionRole === 'warmup'
+      && warmupCaptureWasActive(timedSectionAccess, submissionCapturedAt)
+      && timedSectionAccess?.teacherTimerScheduled === true;
+    if (getAssignmentLifecycle(localAssignment, submissionCapturedAt).isPracticeOnly && !teacherReopenedWarmupIsActive) {
       const currentPractice = practiceTracker[activeAssignmentId]
         || createPracticeAssignmentTracker(getStoredAssignmentQuestions(localAssignment), tracker[activeAssignmentId] || {});
       const outcome = applyAttempt(currentPractice[currentQuestionIndex]);
@@ -3763,15 +3775,6 @@ function App() {
           honors: String(user?.profile?.courseLevel || '').toLowerCase() === 'honors',
         }),
       });
-    const submissionCapturedAt = Date.now();
-    const timedSectionAccess = captureTimedSectionAccess({
-      activityRole: activeQuestionRole,
-      assignment,
-      schedule: classSchedule,
-      classId: user.classId || null,
-      classPeriod: user.classPeriod,
-      capturedAt: submissionCapturedAt,
-    });
     let queuedAction;
     try {
       setStudentPersistenceStatus('capturing');
@@ -3854,7 +3857,19 @@ function App() {
 
     if (user?.role !== 'student') return null;
     const localAssignment = assignments.find((item) => item.id === activeAssignmentId);
-    if (getAssignmentLifecycle(localAssignment, Date.now()).isPracticeOnly) {
+    const stepCapturedAt = Date.now();
+    const stepTimedSectionAccess = captureTimedSectionAccess({
+      activityRole: activeQuestionRole,
+      assignment: localAssignment,
+      schedule: classSchedule,
+      classId: user.classId || null,
+      classPeriod: user.classPeriod,
+      capturedAt: stepCapturedAt,
+    });
+    const teacherReopenedWarmupStepIsActive = activeQuestionRole === 'warmup'
+      && warmupCaptureWasActive(stepTimedSectionAccess, stepCapturedAt)
+      && stepTimedSectionAccess?.teacherTimerScheduled === true;
+    if (getAssignmentLifecycle(localAssignment, stepCapturedAt).isPracticeOnly && !teacherReopenedWarmupStepIsActive) {
       const currentPractice = practiceTracker[activeAssignmentId]
         || createPracticeAssignmentTracker(getStoredAssignmentQuestions(localAssignment), tracker[activeAssignmentId] || {});
       const outcome = applyStep(currentPractice[currentQuestionIndex]);
@@ -3890,15 +3905,6 @@ function App() {
       },
     } : classworkGradesByAssignment;
 
-    const stepCapturedAt = Date.now();
-    const stepTimedSectionAccess = captureTimedSectionAccess({
-      activityRole: activeQuestionRole,
-      assignment,
-      schedule: classSchedule,
-      classId: user.classId || null,
-      classPeriod: user.classPeriod,
-      capturedAt: stepCapturedAt,
-    });
     try {
       setStudentPersistenceStatus('capturing');
       await enqueueDurableAction(createDurableAction({
