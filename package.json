@@ -16,6 +16,7 @@
     "validate:assignments": "node scripts/validate-assignments.mjs",
     "test:live-challenge": "node --test tests/platform/liveChallenge.test.mjs",
     "build:firebase": "node scripts/build-firebase-hosting.mjs",
+    "deploy:hosting": "bash scripts/deploy-hosting-resilient.sh",
     "audit:answer-acceptance": "node scripts/audit-correct-answer-acceptance.mjs --samples 12",
     "audit:assignment-authoring-boundary": "node scripts/audit-assignment-authoring-boundary.mjs",
     "audit:legacy-assignment-source": "node scripts/audit-legacy-assignment-source.mjs",
@@ -31,7 +32,7 @@
     "release:path:sync": "node scripts/sync-path-admin-runtime.mjs",
     "test:path-release": "node --test tests/platform/pathContentCompiler.test.mjs tests/platform/pathReleaseV2Plan.test.mjs tests/platform/pathReleaseV2Job.test.mjs tests/platform/pathReleaseV2Artifact.test.mjs tests/platform/pathReleaseV2AdminWiring.test.mjs tests/platform/pathAdminCodebaseIsolation.test.mjs",
     "test:path-release:emulator": "firebase emulators:exec --only firestore --project mathmaster-path-release --config tests/browser/emulator/firebase.json \"node --test tests/integration/pathRelease/*.test.mjs\"",
-    "deploy:path-admin": "npm run release:path:build && npm run release:path:sync && firebase deploy --only functions:path-admin,hosting,firestore:rules"
+    "deploy:path-admin": "npm run release:path:build && npm run release:path:sync && firebase deploy --only functions:path-admin,firestore:rules && npm run deploy:hosting"
   },
   "dependencies": {
     "firebase": "^12.17.1",

@@ -92,6 +92,34 @@ The Functions-first order is intentional. Digital SAT / ACT / TSIA2 and ASVAB
 now use release-aware Path sessions, so the new callable/runtime protections
 must be live before any release-managed bank is activated.
 
+### Hosting-only deploys
+
+Do not use a raw `firebase deploy --only hosting` from Cloud Shell. Firebase
+Tools defaults Hosting file uploads to very high concurrency, which can exhaust
+Cloud Shell's outbound connection budget and produce repeated
+`ConnectTimeoutError` / `retries exhausted` failures against
+`upload-firebasehosting.googleapis.com`.
+
+Use the repository helper instead:
+
+```
+cd ~/mathmaster-platform && git checkout main && git pull --ff-only origin main && npm run deploy:hosting
+```
+
+The helper keeps Hosting upload concurrency at 8 by default and automatically
+retries only transient network/upload failures with backoff. Real build,
+authorization, configuration, or Firebase errors stop immediately instead of
+being hidden by retries. To override the defaults for an unusually weak
+connection:
+
+```
+FIREBASE_HOSTING_UPLOAD_CONCURRENCY=4 FIREBASE_HOSTING_DEPLOY_ATTEMPTS=8 npm run deploy:hosting
+```
+
+All MathMaster release helpers route Hosting through this same safe path, so
+Functions and Firestore rules are not repeatedly redeployed when only the
+Hosting upload transport is flaky.
+
 Finish line:
 
 ```
@@ -158,6 +186,7 @@ compound query that would need one), and no manual database work beyond Block 4.
 | Website looks unchanged | Hard refresh: **Ctrl+Shift+R**. |
 | Students still see old questions | Re-run the matching Block 4 release button: course, ASVAB, or coordinated SAT/ACT/TSIA2. |
 | **"Functions deploy had errors"** / several functions failed | See the section below — this one is expected occasionally and is not a code problem. |
+| **Hosting upload `ConnectTimeoutError` / `retries exhausted`** | Run `npm run deploy:hosting`. The helper throttles Firebase's upload concurrency and retries transient upload failures automatically. |
 
 ---
 

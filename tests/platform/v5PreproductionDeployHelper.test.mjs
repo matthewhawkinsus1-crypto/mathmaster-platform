@@ -24,15 +24,17 @@ test('V5 deployment helper runs release gates before deploying', () => {
   assert.match(script, /audit:no-legacy-assignment-bundle/);
 });
 
-test('deployment helper builds Firebase production mode and deploys Functions before web/rules', () => {
+test('deployment helper builds Firebase production mode and deploys Functions before rules and resilient Hosting', () => {
   assert.match(script, /VITE_MATHMASTER_EXECUTION_MODE=firebaseProduction/);
   assert.match(script, /npm run build:firebase/);
-  assert.match(script, /firebase deploy --only firestore:rules,hosting/);
+  assert.match(script, /firebase deploy --only firestore:rules --project/);
+  assert.match(script, /deploy-hosting-resilient\.sh/);
   assert.match(script, /deploy-functions-in-groups\.sh/);
-  assert.ok(
-    script.indexOf('deploy-functions-in-groups.sh') < script.indexOf('firebase deploy --only firestore:rules,hosting'),
-    'release-managed Functions must deploy before Hosting/rules',
-  );
+  const functionsIndex = script.indexOf('deploy-functions-in-groups.sh');
+  const rulesIndex = script.indexOf('firebase deploy --only firestore:rules --project');
+  const hostingIndex = script.indexOf('deploy-hosting-resilient.sh');
+  assert.ok(functionsIndex >= 0 && functionsIndex < rulesIndex && rulesIndex < hostingIndex,
+    'release-managed Functions must deploy before rules, and Hosting must use the resilient uploader last');
 });
 
 test('deployment helper verifies Hosting and names the three safe production bank activations', () => {

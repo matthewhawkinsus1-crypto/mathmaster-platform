@@ -78,11 +78,10 @@ node scripts/verify-functions-discovery.mjs \
   getWeeklyPathClassroomSync
 
 echo
-echo "6/7 Deploying only the surfaces changed by this upgrade..."
-echo "Firebase will run the normal Hosting and Functions predeploy hooks."
-if ! firebase deploy --only hosting,functions:authorAssignmentWithAI,functions:repairAssignmentQuestionWithAI,functions:assignmentAiSelfTest,functions:hydrateAssignmentCcmr,functions:publishWeeklyPathGrades,functions:runWeeklyPathClassroomSyncNow,functions:setWeeklyPathClassroomSync,functions:getWeeklyPathClassroomSync --project "$PROJECT"; then
+echo "6/7 Deploying only the Functions changed by this upgrade..."
+if ! firebase deploy --only functions:authorAssignmentWithAI,functions:repairAssignmentQuestionWithAI,functions:assignmentAiSelfTest,functions:hydrateAssignmentCcmr,functions:publishWeeklyPathGrades,functions:runWeeklyPathClassroomSyncNow,functions:setWeeklyPathClassroomSync,functions:getWeeklyPathClassroomSync --project "$PROJECT"; then
   echo >&2
-  echo "The deploy failed. Step 5 already proved this codebase loads and defines" >&2
+  echo "The Functions deploy failed. Step 5 already proved this codebase loads and defines" >&2
   echo "every function being deployed, so if the CLI reported" >&2
   echo "  Error: Failed to list functions for $PROJECT" >&2
   echo "the failure is in the deploy environment. In order:" >&2
@@ -91,6 +90,10 @@ if ! firebase deploy --only hosting,functions:authorAssignmentWithAI,functions:r
   echo "  3. firebase login --reauth --project $PROJECT" >&2
   exit 7
 fi
+
+echo
+echo "Deploying Hosting separately with bounded concurrency and automatic network retries..."
+FIREBASE_PROJECT="$PROJECT" bash scripts/deploy-hosting-resilient.sh
 
 echo
 echo "7/7 Verifying live Hosting and callable registration..."
