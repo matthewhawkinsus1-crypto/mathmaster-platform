@@ -276,6 +276,19 @@ for (const device of certificationDevices) {
     await page.evaluate((id) => window.__mmStage4(id), toolId);
     const toolRoot = page.locator(`[data-stage4-tool="${toolId}"]`);
     await toolRoot.waitFor({ state: 'visible' });
+
+    // The harness renders the tool ROOT; the tool itself renders the Work View
+    // host a few React commits later, once its lazily loaded chunk resolves —
+    // measured at 282-478 ms after the root becomes visible. Everything below
+    // samples the DOM instantaneously (`count()` and `isVisible()` do not
+    // auto-wait), so the fixed sleep alone was racing that render: on a loaded
+    // runner a varying subset of tools reported "Work View opener is not
+    // reachable", and none ever did on a warm machine. Wait for the host the
+    // openers are read from. A tool that genuinely renders none still falls
+    // through to exactly the same report.
+    await toolRoot.locator('.mathmaster-work-view-host').first()
+      .waitFor({ state: 'attached', timeout: 15000 })
+      .catch(() => {});
     await page.waitForTimeout(250);
     await page.screenshot({ path: path.join(familyDir, 'standard.png') });
 
