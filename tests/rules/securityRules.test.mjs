@@ -605,3 +605,72 @@ test('a student cannot read the path question bank, which holds answer keys', as
   await assertFails(getDoc(doc(studentA(), 'examQuestionBank/q-1')));
   await assertFails(getDoc(doc(studentA(), 'modelingLabDefinitions/lab-1')));
 });
+
+// --- Path Release V2 control plane ------------------------------------------
+//
+// The release state, its document index and its jobs are written ONLY by the
+// path-admin callables through the Admin SDK. A client that could write them
+// could tell every student the bank had been replaced, or forge a "complete"
+// job over a release that never ran.
+
+test('the active course release pointer is readable but never client-writable', async () => {
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'pathReleaseState/course'), {
+      status: 'active',
+      releaseId: 'course-path-v2-abcdef0123456789',
+      contentHash: 'abcdef0123456789',
+      questionCount: 1161,
+    });
+  });
+
+  // Any signed-in surface may tell "updating" from "active".
+  await assertSucceeds(getDoc(doc(studentA(), 'pathReleaseState/course')));
+  await assertSucceeds(getDoc(doc(teacherA(), 'pathReleaseState/course')));
+
+  // Nobody writes it from a browser — not a student, not a teacher, not the
+  // root administrator, whose own release actions go through the callable.
+  await assertFails(setDoc(doc(studentA(), 'pathReleaseState/course'), { status: 'active' }, { merge: true }));
+  await assertFails(setDoc(doc(teacherA(), 'pathReleaseState/course'), { status: 'active' }, { merge: true }));
+  await assertFails(setDoc(doc(admin(), 'pathReleaseState/course'), { status: 'active' }, { merge: true }));
+  await assertFails(setDoc(doc(stranger(), 'pathReleaseState/course'), { status: 'active' }));
+});
+
+test('the release document index is root-admin read-only', async () => {
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'pathReleaseState/course/documentIndex/shard-0000'), {
+      releaseId: 'course-path-v2-abcdef0123456789',
+      entries: [{ id: 'mm_A_2A_v2_table-domain-range', contentHash: 'deadbeef', courseId: 'algebra1' }],
+    });
+  });
+
+  await assertSucceeds(getDoc(doc(admin(), 'pathReleaseState/course/documentIndex/shard-0000')));
+  await assertFails(getDoc(doc(teacherA(), 'pathReleaseState/course/documentIndex/shard-0000')));
+  await assertFails(getDoc(doc(studentA(), 'pathReleaseState/course/documentIndex/shard-0000')));
+  await assertFails(setDoc(doc(admin(), 'pathReleaseState/course/documentIndex/shard-0000'), { entries: [] }));
+});
+
+test('release jobs are root-admin diagnostics and cannot be forged', async () => {
+  await env.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'pathReleaseJobs/course-path-v2-abcdef0123456789'), {
+      releaseId: 'course-path-v2-abcdef0123456789',
+      phase: 'staging',
+      totalChunks: 6,
+      completedChunks: 2,
+    });
+    await setDoc(doc(db, 'pathReleaseJobs/course-path-v2-abcdef0123456789/chunks/chunk-00000'), {
+      index: 0, status: 'complete', documentCount: 200,
+    });
+  });
+
+  await assertSucceeds(getDoc(doc(admin(), 'pathReleaseJobs/course-path-v2-abcdef0123456789')));
+  await assertSucceeds(getDoc(doc(admin(), 'pathReleaseJobs/course-path-v2-abcdef0123456789/chunks/chunk-00000')));
+  await assertFails(getDoc(doc(teacherA(), 'pathReleaseJobs/course-path-v2-abcdef0123456789')));
+  await assertFails(getDoc(doc(studentA(), 'pathReleaseJobs/course-path-v2-abcdef0123456789')));
+
+  // A forged "complete" job would make the admin page report a release that
+  // never wrote a document.
+  await assertFails(setDoc(doc(admin(), 'pathReleaseJobs/course-path-v2-abcdef0123456789'), { phase: 'complete' }, { merge: true }));
+  await assertFails(setDoc(doc(teacherA(), 'pathReleaseJobs/forged'), { phase: 'complete' }));
+  await assertFails(setDoc(doc(studentA(), 'pathReleaseJobs/forged'), { phase: 'complete' }));
+});

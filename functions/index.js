@@ -53,7 +53,7 @@ const {
   assignmentFeedbackIsHeld,
 } = require("./lib/activityFeedback");
 const mathPath = require("./lib/mathPath");
-const { firestoreSafePathRecord } = require("./lib/pathFirestoreShape");
+const { compilePathRecordForStorage } = require("./lib/pathFirestoreShape");
 const labEvaluation = require("./lib/labEvaluation");
 const secureExam = require("./lib/secureExam");
 // The Test Cycle rules are shared ESM; this is the CommonJS bridge to them.
@@ -1816,13 +1816,31 @@ async function processPathSeedImport({ db, actor, items, dryRun = false }) {
     if (!id) { rejected.push(describe("missing_id")); continue; }
     if (!standards.length) { rejected.push(describe("no_alignment_keys")); continue; }
 
-    // Validate the thing a student will actually receive. A bad template is a
-    // rejected document, not an exception that aborts diagnosis of the other
-    // 5,000 documents.
+    // Compile the record into the EXACT object that will be stored, and refuse
+    // it here if that object is not legal Firestore data. This used to be a
+    // best-effort sanitizer whose output nothing checked, so a document that
+    // still nested an array reached the write pass and failed the whole batch
+    // with "Property array contains an invalid nested entity" — naming no
+    // document, no property and no course. The compiler names all three.
+    const compiled = compilePathRecordForStorage({ ...item, id, active: item.active !== false });
+    if (!compiled.ok) {
+      const first = compiled.errors[0];
+      rejected.push({
+        ...describe("firestore_shape", { detail: first?.message || null }),
+        propertyPath: first?.path || null,
+        compilerCode: first?.code || null,
+      });
+      continue;
+    }
+
+    // Validate the thing a student will actually receive — and validate the
+    // COMPILED document, because that is what production stores and reads back.
+    // A bad template is a rejected document, not an exception that aborts
+    // diagnosis of the other 5,000 documents.
     // eslint-disable-next-line no-await-in-loop
-    const plan = await safeBuildTemplateIssuePlan(item, { operation: "seed-import-validation" });
+    const plan = await safeBuildTemplateIssuePlan(compiled.document, { operation: "seed-import-validation" });
     if (!plan.issuable) { rejected.push(describe(plan.reason, plan)); continue; }
-    accepted.push(firestoreSafePathRecord({ ...item, id, active: item.active !== false }));
+    accepted.push(compiled.document);
   }
 
   const rejectionSummary = summarizePathRejections(rejected);

@@ -102,7 +102,11 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
   const mixed = questionData.mixedSet || { equationId: targetId, tableId: fallbackMismatchId, contextId: targetId };
   const tableSpec = questionData.function || { type: 'quadratic', a: 1, h: 0, k: 0 };
   const tableRows = useMemo(() => {
-    if (questionData.rows?.length) return questionData.rows;
+    // Stored Path rows are Firestore-safe `{ cells: [...] }` maps; authored and
+    // preview content still uses plain arrays. Read both.
+    if (questionData.rows?.length) {
+      return questionData.rows.map((row) => (Array.isArray(row) ? row : (Array.isArray(row?.cells) ? row.cells : [])));
+    }
     const rows = tableRowsForFunction(tableSpec, [-2, -1, 0, 1, 2]);
     return rows.map((row, index) => index === Math.min(2, rows.length - 1) ? [row[0], row[1] + 2] : row);
   }, [questionData.rows, tableSpec.type, tableSpec.a, tableSpec.h, tableSpec.k, tableSpec.base]);

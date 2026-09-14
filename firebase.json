@@ -20,6 +20,21 @@
         "firebase-debug.*.log",
         "*.local"
       ]
+    },
+    {
+      "source": "functions-path-admin",
+      "codebase": "path-admin",
+      "predeploy": [
+        "node scripts/build-course-path-release-v2.mjs",
+        "node scripts/sync-path-admin-runtime.mjs"
+      ],
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
     }
   ],
   "hosting": {
