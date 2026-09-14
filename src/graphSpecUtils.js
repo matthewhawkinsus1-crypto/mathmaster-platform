@@ -31,11 +31,13 @@ export const evaluateStaticGraphFunction = (spec = {}, xValue) => {
   const domain = spec.domain || spec.restrictedDomain || {};
   if (finite(domain.min)) {
     const minimum = Number(domain.min);
-    if (x < minimum || (domain.minInclusive === false && Math.abs(x - minimum) < 1e-8)) return Number.NaN;
+    const minimumInclusive = domain.minInclusive !== false && domain.minClosed !== false;
+    if (x < minimum || (!minimumInclusive && Math.abs(x - minimum) < 1e-8)) return Number.NaN;
   }
   if (finite(domain.max)) {
     const maximum = Number(domain.max);
-    if (x > maximum || (domain.maxInclusive === false && Math.abs(x - maximum) < 1e-8)) return Number.NaN;
+    const maximumInclusive = domain.maxInclusive !== false && domain.maxClosed !== false;
+    if (x > maximum || (!maximumInclusive && Math.abs(x - maximum) < 1e-8)) return Number.NaN;
   }
 
   if (type === 'line') return Number(spec.m ?? 1) * x + Number(spec.b ?? 0);
@@ -169,6 +171,99 @@ const graphBounds = (graph = {}) => {
 
 const inside = (value, min, max, tolerance = 1e-7) => Number.isFinite(value) && value >= min - tolerance && value <= max + tolerance;
 
+const normalizedViewportFunction = (spec = {}) => {
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return null;
+  if (spec.type === 'linear') return { ...spec, type: 'line' };
+  return spec;
+};
+
+const unrestrictedViewportFunction = (spec = {}) => {
+  const copy = { ...spec };
+  delete copy.domain;
+  delete copy.restrictedDomain;
+  return copy;
+};
+
+const staticViewportFunctions = (graph = {}) => {
+  const functions = (Array.isArray(graph.functions) ? graph.functions : [])
+    .map(normalizedViewportFunction)
+    .filter(Boolean);
+
+  if (graph.functionSpec && typeof graph.functionSpec === 'object') {
+    const nested = normalizedViewportFunction(graph.functionSpec);
+    const type = nested?.type || nested?.kind || '';
+    // Expression specs are evaluated by workflow/modelExpression, not by this
+    // safe static evaluator. Ignoring them here preserves that boundary instead
+    // of turning a workflow-only model into a Preflight "unsupported type"
+    // regression merely because it also needs viewport fitting.
+    if (nested && STATIC_GRAPH_FUNCTION_TYPES.includes(type)) functions.push(nested);
+  }
+  if (graph.line && typeof graph.line === 'object') {
+    functions.push({ type: 'line', ...graph.line });
+  }
+  if (finite(graph.m) || finite(graph.b)) {
+    functions.push({ type: 'line', m: Number(graph.m || 0), b: Number(graph.b || 0) });
+  }
+  return functions;
+};
+
+const uniqueCoordinatePairs = (points = []) => {
+  const seen = new Set();
+  const output = [];
+  points.forEach((point) => {
+    const coordinates = readGraphPointCoordinates(point);
+    if (!coordinates) return;
+    const [x, y] = coordinates.map(Number);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    const key = `${x}|${y}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    output.push([x, y]);
+  });
+  return output;
+};
+
+/**
+ * Coordinates that must remain readable, not merely technically drawable.
+ *
+ * The authored function can continue forever; the student's answer cannot.
+ * Domain endpoints, feature points, segment ends and explicitly-declared
+ * readability points therefore outrank distant samples when a viewport is
+ * chosen. This is intentionally display metadata only — nothing here is shown
+ * as an answer.
+ */
+export const staticGraphViewportLandmarks = (graph = {}, functionsOverride = null) => {
+  const functions = Array.isArray(functionsOverride)
+    ? functionsOverride.map(normalizedViewportFunction).filter(Boolean)
+    : staticViewportFunctions(graph);
+  const candidates = [
+    ...(Array.isArray(graph.points) ? graph.points : []),
+    ...(Array.isArray(graph.readabilityPoints) ? graph.readabilityPoints : []),
+    ...(Array.isArray(graph.answerCriticalPoints) ? graph.answerCriticalPoints : []),
+  ];
+
+  (Array.isArray(graph.segments) ? graph.segments : []).forEach((segment) => {
+    [segment?.start, segment?.end, segment?.from, segment?.to].forEach((point) => {
+      if (point) candidates.push(point);
+    });
+  });
+  (Array.isArray(graph.endpointRequirements) ? graph.endpointRequirements : []).forEach((requirement) => {
+    if (requirement?.point) candidates.push(requirement.point);
+  });
+
+  functions.forEach((spec) => {
+    const domain = spec?.domain || spec?.restrictedDomain || {};
+    const unrestricted = unrestrictedViewportFunction(spec);
+    [Number(domain.min), Number(domain.max)].forEach((x) => {
+      if (!Number.isFinite(x)) return;
+      const y = evaluateStaticGraphFunction(unrestricted, x);
+      if (Number.isFinite(y)) candidates.push([x, y]);
+    });
+  });
+
+  return uniqueCoordinatePairs(candidates);
+};
+
 
 const AUTO_FIT_FUNCTION_TYPES = new Set([
   'line', 'quadratic', 'absolute', 'squareRoot', 'cubic', 'cubeRoot', 'exponential',
@@ -194,29 +289,32 @@ export const fitStaticGraphViewport = (graph = {}, { sampleCount = 160, paddingR
   if (!graph || typeof graph !== 'object' || Array.isArray(graph)) return graph;
   if (graph.lockViewport === true || graph.autoFit === false) return graph;
 
-  const functions = Array.isArray(graph.functions) ? [...graph.functions] : [];
-  if (graph.line && typeof graph.line === 'object') functions.push({ type: 'line', ...graph.line });
-  if (finite(graph.m) || finite(graph.b)) functions.push({ type: 'line', m: Number(graph.m || 0), b: Number(graph.b || 0) });
+  const functions = staticViewportFunctions(graph);
+  const landmarks = staticGraphViewportLandmarks(graph, functions);
+  const landmarkXs = landmarks.map(([x]) => x);
+  const landmarkYs = landmarks.map(([, y]) => y);
 
   const authoredXMin = finite(graph.xMin);
   const authoredXMax = finite(graph.xMax);
   let xMin = authoredXMin ? Number(graph.xMin) : Number.NaN;
   let xMax = authoredXMax ? Number(graph.xMax) : Number.NaN;
 
-  const finitePointXs = [];
-  (Array.isArray(graph.points) ? graph.points : []).forEach((point) => {
-    const coordinates = readGraphPointCoordinates(point);
-    if (coordinates) finitePointXs.push(coordinates[0]);
-  });
-
-  // If the author did not choose an x-window, select one from the mathematical
-  // family rather than dumping every function into the old [-10,10] default.
-  // This makes a simple exponential readable without requiring the AI to know
-  // renderer viewport heuristics.
+  // Answer-critical coordinates choose the first frame whenever the author did
+  // not pin an axis. For example a quadratic whose vertex/intercepts live from
+  // x=-1 to x=3 should not inherit a generic h±5 window that balloons the y-axis
+  // merely to keep distant, unassessed wings in frame.
   if (!authoredXMin || !authoredXMax) {
     let suggestedMin = -5;
     let suggestedMax = 5;
-    if (functions.length === 1) {
+
+    if (landmarkXs.length) {
+      const landmarkMin = Math.min(...landmarkXs);
+      const landmarkMax = Math.max(...landmarkXs);
+      const landmarkSpan = Math.max(2, landmarkMax - landmarkMin);
+      const pad = Math.max(1, landmarkSpan * 0.25);
+      suggestedMin = Math.floor(landmarkMin - pad);
+      suggestedMax = Math.ceil(landmarkMax + pad);
+    } else if (functions.length === 1) {
       const spec = functions[0] || {};
       const type = spec.type || spec.kind || 'line';
       const h = Number(spec.h ?? 0);
@@ -227,25 +325,30 @@ export const fitStaticGraphViewport = (graph = {}, { sampleCount = 160, paddingR
         [suggestedMin, suggestedMax] = [h - 5, h + 5];
       }
     }
-    if (finitePointXs.length) {
-      const pointMin = Math.min(...finitePointXs);
-      const pointMax = Math.max(...finitePointXs);
-      const pointSpan = Math.max(2, pointMax - pointMin);
-      suggestedMin = Math.min(suggestedMin, pointMin - pointSpan * 0.1);
-      suggestedMax = Math.max(suggestedMax, pointMax + pointSpan * 0.1);
-    }
+
     if (!authoredXMin) xMin = suggestedMin;
     if (!authoredXMax) xMax = suggestedMax;
   }
 
   if (!Number.isFinite(xMin) || !Number.isFinite(xMax) || xMin >= xMax) [xMin, xMax] = [-5, 5];
 
+  // A visible marker needs breathing room. "Contained" is not enough when an
+  // open/closed endpoint is centered on the SVG border and half of the circle
+  // is clipped. Authored bounds are therefore a minimum useful frame, not a
+  // cage, unless lockViewport/autoFit:false explicitly opted out above.
+  if (landmarkXs.length) {
+    const xSpan = Math.max(1, xMax - xMin);
+    const markerPad = Math.max(0.5, Math.min(2, xSpan * 0.08));
+    xMin = Math.min(xMin, Math.min(...landmarkXs) - markerPad);
+    xMax = Math.max(xMax, Math.max(...landmarkXs) + markerPad);
+  }
+
   const authoredYMin = finite(graph.yMin);
   const authoredYMax = finite(graph.yMax);
   let yMin = authoredYMin ? Number(graph.yMin) : Number.NaN;
   let yMax = authoredYMax ? Number(graph.yMax) : Number.NaN;
 
-  const yValues = [];
+  const yValues = [...landmarkYs];
   functions.forEach((spec) => {
     const type = spec?.type || spec?.kind || 'line';
     if (!AUTO_FIT_FUNCTION_TYPES.has(type)) return;
@@ -254,18 +357,6 @@ export const fitStaticGraphViewport = (graph = {}, { sampleCount = 160, paddingR
       const y = evaluateStaticGraphFunction(spec, x);
       if (Number.isFinite(y) && Math.abs(y) < 1e9) yValues.push(y);
     }
-  });
-
-  (Array.isArray(graph.points) ? graph.points : []).forEach((point) => {
-    const coordinates = readGraphPointCoordinates(point);
-    if (coordinates) yValues.push(coordinates[1]);
-  });
-  (Array.isArray(graph.segments) ? graph.segments : []).forEach((segment) => {
-    const endpoints = [segment?.start, segment?.end, segment?.from, segment?.to];
-    endpoints.forEach((point) => {
-      const y = Array.isArray(point) ? Number(point[1]) : Number(point?.y);
-      if (Number.isFinite(y)) yValues.push(y);
-    });
   });
 
   if (!yValues.length) {
@@ -299,6 +390,15 @@ export const fitStaticGraphViewport = (graph = {}, { sampleCount = 160, paddingR
     nextMax = Number.isFinite(yMax) ? yMax : 10;
   }
 
+  // Readable feature markers also need vertical breathing room, even when the
+  // author happened to choose a bound exactly equal to the correct coordinate.
+  if (landmarkYs.length) {
+    const visibleSpan = Math.max(1, nextMax - nextMin);
+    const markerPad = Math.max(0.5, Math.min(2, visibleSpan * 0.08));
+    nextMin = Math.min(nextMin, Math.min(...landmarkYs) - markerPad);
+    nextMax = Math.max(nextMax, Math.max(...landmarkYs) + markerPad);
+  }
+
   if ((authoredYMin && yMin === 0 && observedMin >= 0) || (!authoredYMin && observedMin >= 0)) nextMin = 0;
   if ((authoredYMax && yMax === 0 && observedMax <= 0) || (!authoredYMax && observedMax <= 0)) nextMax = 0;
 
@@ -316,12 +416,29 @@ export const auditStaticGraphViewport = (graph = {}, { label = 'graph', strictBo
     return { errors, warnings };
   }
 
-  const functions = Array.isArray(graph.functions) ? graph.functions : [];
+  const functions = staticViewportFunctions(graph);
   const points = Array.isArray(graph.points) ? graph.points : [];
   const segments = Array.isArray(graph.segments) ? graph.segments : [];
   points.forEach((point, index) => {
     errors.push(...validateGraphPoint(point, { label: `${label}.points[${index}]` }));
   });
+
+  // A deliberately locked assessment graph may not park an answer-critical
+  // marker on the border. Auto-fit repairs ordinary graphs; locked graphs must
+  // be rejected instead of forcing a student to infer a clipped coordinate.
+  if (graph.lockViewport === true && strictBoundaryVisibility) {
+    const critical = staticGraphViewportLandmarks({
+      ...graph,
+      points: [],
+    }, functions);
+    const xMargin = Math.max(1e-6, (xMax - xMin) * 0.015);
+    const yMargin = Math.max(1e-6, (yMax - yMin) * 0.015);
+    critical.forEach(([x, y]) => {
+      if (x <= xMin + xMargin || x >= xMax - xMargin || y <= yMin + yMargin || y >= yMax - yMargin) {
+        errors.push(`${label} locks answer-critical point (${x}, ${y}) on or too near the viewport edge; expand the bounds so the marker is fully readable`);
+      }
+    });
+  }
   if (!functions.length && !points.length && !segments.length && !graph.line && !finite(graph.m) && !finite(graph.b)) {
     errors.push(`${label} contains no drawable function, points, or segments`);
     return { errors, warnings };

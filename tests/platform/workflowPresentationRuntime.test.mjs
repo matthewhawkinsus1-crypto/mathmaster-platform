@@ -48,6 +48,32 @@ test('function-characteristics focus mode keeps the exact authored graph as pers
   assert.equal(selected, authoredGraph, 'do not reconstruct or replace the authored graph');
 });
 
+test('recipe feature graphs can enrich the viewport without drawing answer points', () => {
+  const question = {
+    type: 'functionCharacteristics',
+    recipe: {
+      name: 'functionCharacteristics',
+      ask: ['xInterceptExists', 'xIntercept', 'yInterceptExists', 'yIntercept', 'extremePoint'],
+    },
+    functionSpec: { type: 'quadratic', a: 1, h: 1, k: -4 },
+    graph: { functions: [{ type: 'quadratic', a: 1, h: 1, k: -4 }] },
+    xIntercepts: [[-1, 0], [3, 0]],
+    yIntercept: [0, -3],
+    extreme: { kind: 'minimum', point: [1, -4] },
+  };
+  const expanded = expandRecipe(question);
+  const selected = selectPersistentWorkflowGraph({
+    content: question,
+    workflow: expanded.workflow,
+    checkedGraph: null,
+  });
+
+  assert.ok(Array.isArray(selected.readabilityPoints));
+  assert.deepEqual(selected.readabilityPoints, [[-1, 0], [3, 0], [0, -3], [1, -4]]);
+  assert.deepEqual(selected.points, [],
+    'readability landmarks guide framing only; they are not rendered as answer dots');
+});
+
 test('a checked student graph outranks authored reference evidence once the student has created one', () => {
   const authoredGraph = { functions: [{ type: 'line', m: 2, b: -6 }] };
   const checkedGraph = { points: [{ x: 1, y: 2 }], ariaLabel: 'Your checked graph' };
@@ -84,6 +110,17 @@ test('PR #163 invariant remains protected: continuity/domain functionModeling do
   assert.equal(expanded.workflow.some((stage) => stage.id === 'graph' || stage.kind === 'graphConstruction'), false);
 });
 
+test('static and interactive graph-analysis surfaces share the assessment-safe viewport contract', async () => {
+  const display = await readFile(new URL('../../src/GraphDisplay.jsx', import.meta.url), 'utf8');
+  const featureStage = await readFile(new URL('../../src/platform/workflow/GraphFeatureSelectStage.jsx', import.meta.url), 'utf8');
+
+  assert.match(display, /const displayGraph = fitStaticGraphViewport\(graph\)/);
+  assert.match(display, /xMinorTicks[\s\S]*yMinorTicks/,
+    'static evidence keeps countable minor landmarks when major labels are sparse');
+  assert.match(featureStage, /fitStaticGraphViewport\(rawGraph\)/,
+    'feature selection uses the same fitted mathematical window');
+});
+
 test('WorkflowRunner and QuestionEngine wire the active instruction and one persistent graph into the student shell', async () => {
   const runner = await readFile(new URL('../../src/platform/workflow/WorkflowRunner.jsx', import.meta.url), 'utf8');
   const engine = await readFile(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
@@ -91,7 +128,7 @@ test('WorkflowRunner and QuestionEngine wire the active instruction and one pers
   assert.match(runner, /currentStagePrompt/);
   assert.match(runner, /selectPersistentWorkflowGraph/);
   assert.match(runner, /showPersistentGraphReference/);
-  assert.match(runner, /sourceGraph=\{content\?\.graph \|\| stage\.graph \|\| null\}/);
+  assert.match(runner, /sourceGraph=\{stage\.graph \|\| content\?\.graph \|\| null\}/);
   assert.match(runner, /showFigure=\{showFigure\}/);
   assert.match(engine, /currentStagePrompt:\s*workflowGuidanceState\?\.currentStagePrompt/);
 });

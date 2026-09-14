@@ -364,9 +364,29 @@ const BEHAVIOR_CHOICES = [
   'Increasing, then decreasing',
 ];
 
+const featureReadabilityPoints = (question) => {
+  const candidates = [...normalizedPairs(question.pairs)];
+  [xInterceptRule(question), yInterceptRule(question), extremeRule(question)].forEach((rule) => {
+    if (rule && Array.isArray(rule.points)) candidates.push(...normalizedPairs(rule.points));
+  });
+  const seen = new Set();
+  return candidates.filter(([x, y]) => {
+    const key = `${x}|${y}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 const featureGraph = (question) => ({
   ...(isObject(question.graph) ? question.graph : { xMin: -10, xMax: 10, yMin: -10, yMax: 10 }),
   points: normalizedPairs(question.pairs),
+  // Viewport-only landmarks are not drawn as answers. They tell the shared
+  // graph resolver which coordinates must remain readable while it frames an
+  // unbounded curve. This prevents a quadratic's distant wings from making its
+  // vertex/intercepts tiny and forces finite assessment features inside the
+  // coordinate plane with breathing room.
+  readabilityPoints: featureReadabilityPoints(question),
   // Preserve the structured function. The workflow needs its family and domain
   // to draw restrictions, continuation arrows and asymptotes correctly.
   ...(isObject(question.functionSpec) ? { functionSpec: question.functionSpec } : {}),

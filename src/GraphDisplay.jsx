@@ -15,8 +15,33 @@ const clampRange = (value, fallback) => {
   return Number.isFinite(number) ? number : fallback;
 };
 
+const MAX_MINOR_GRID_LINES = 64;
+const tidyTick = (value) => Number(Number(value).toFixed(8));
+const buildMinorTicks = (min, max, step) => {
+  const size = Number(step);
+  if (!Number.isFinite(size) || size <= 0 || (max - min) / size > MAX_MINOR_GRID_LINES) return [];
+  const first = Math.ceil(min / size - 1e-10);
+  const last = Math.floor(max / size + 1e-10);
+  const ticks = [];
+  for (let index = first; index <= last && ticks.length <= MAX_MINOR_GRID_LINES; index += 1) {
+    ticks.push(tidyTick(index * size));
+  }
+  return ticks;
+};
+const isMajorTick = (value, majors) => majors.some((tick) => Math.abs(Number(tick) - Number(value)) <= 1e-8);
+
 const normalizeFunctionList = (graph) => {
   const functions = Array.isArray(graph.functions) ? [...graph.functions] : [];
+
+  // Workflow evidence sometimes carries the same structured function under
+  // functionSpec instead of graph.functions. Use it only as a fallback so a
+  // graph that already supplied functions is never double-drawn.
+  if (!functions.length && graph.functionSpec && typeof graph.functionSpec === 'object') {
+    const nested = graph.functionSpec;
+    const type = String(nested.type || '').trim();
+    if (type === 'linear') functions.push({ ...nested, type: 'line' });
+    else if (type && type !== 'expression') functions.push(nested);
+  }
 
   if (graph.line) {
     functions.push({ type: 'line', ...graph.line });
@@ -169,6 +194,17 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   const yStep = clampRange(displayGraph.yStep, niceStep(yMax - yMin));
   const xTicks = majorTicks(xMin, xMax, xStep);
   const yTicks = majorTicks(yMin, yMax, yStep);
+  // Sparse labels keep the axes readable, but exact-value assessment still
+  // needs countable unit landmarks between them. Minor gridlines/ticks provide
+  // that resolution without printing twenty overlapping numbers.
+  const xMinorStep = clampRange(displayGraph.xMinorStep ?? displayGraph.gridStep, 1);
+  const yMinorStep = clampRange(displayGraph.yMinorStep ?? displayGraph.gridStep, 1);
+  const xMinorTicks = xMinorStep < xStep
+    ? buildMinorTicks(xMin, xMax, xMinorStep).filter((tick) => !isMajorTick(tick, xTicks))
+    : [];
+  const yMinorTicks = yMinorStep < yStep
+    ? buildMinorTicks(yMin, yMax, yMinorStep).filter((tick) => !isMajorTick(tick, yTicks))
+    : [];
   const functions = normalizeFunctionList(displayGraph);
   const explicitEquation = String(displayGraph.equationLatex || '').trim();
   const equationLatex = explicitEquation
@@ -250,6 +286,25 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
       >
         <title>{graph.ariaLabel || title}</title>
         <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} fill="#ffffff" stroke="#cfd4da" />
+
+        {xMinorTicks.map((tick) => {
+          const x = toScreenX(tick);
+          return (
+            <g key={`x-minor-${tick}`}>
+              <line x1={x} y1={PADDING} x2={x} y2={PADDING + innerHeight} stroke="#f3f5f7" />
+              <line x1={x} y1={axisX - 3} x2={x} y2={axisX + 3} stroke="#9aa0a6" strokeWidth="1" />
+            </g>
+          );
+        })}
+        {yMinorTicks.map((tick) => {
+          const y = toScreenY(tick);
+          return (
+            <g key={`y-minor-${tick}`}>
+              <line x1={PADDING} y1={y} x2={PADDING + innerWidth} y2={y} stroke="#f3f5f7" />
+              <line x1={axisY - 3} y1={y} x2={axisY + 3} y2={y} stroke="#9aa0a6" strokeWidth="1" />
+            </g>
+          );
+        })}
 
         {xTicks.map((tick) => {
           const x = toScreenX(tick);

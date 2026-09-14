@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import CoordinatePlane from '../../tools/shared/CoordinatePlane';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure';
 import { evaluateGraphFunction } from '../../functionGraphUtils.js';
+import { fitStaticGraphViewport } from '../../graphSpecUtils.js';
 import { evaluateModelAt } from './modelExpression';
 import { restrictEvaluatorToDomain, workflowEndpointMarkers, workflowHorizontalAsymptotes } from './workflowGraphVisuals.js';
 
@@ -85,7 +86,11 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
   const { selections, none } = readFeatureSelection(value);
   const selectionCount = Math.max(1, Number(stage?.selectionCount) || 1);
   const allowNone = stage?.allowNone !== false;
-  const graph = sourceGraph && typeof sourceGraph === 'object' ? sourceGraph : {};
+  const rawGraph = sourceGraph && typeof sourceGraph === 'object' ? sourceGraph : {};
+  // Feature selection must use the same assessment-safe frame as the static
+  // reference graph. Otherwise a student can see a repaired endpoint in one
+  // step and an off-screen/clipped version of the same graph in the next.
+  const graph = useMemo(() => fitStaticGraphViewport(rawGraph), [rawGraph]);
 
   const viewWindow = {
     xMin: Number.isFinite(Number(graph.xMin)) ? Number(graph.xMin) : -10,

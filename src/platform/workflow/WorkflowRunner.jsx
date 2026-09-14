@@ -864,10 +864,11 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey,
       return (
         <GraphFeatureSelectStage
           stage={stage}
-          // Prefer the exact authored evidence graph over a stage-level
-          // reconstructed fallback. This preserves the original window, points,
-          // labels, restrictions, and styling the student is meant to analyze.
-          sourceGraph={content?.graph || stage.graph || null}
+          // Recipe-built stage graphs preserve the authored evidence and add
+          // viewport-only readability landmarks (intercepts, extrema, domain
+          // endpoints). Prefer that enriched superset so the interactive
+          // feature step uses the same safe frame as the static reference.
+          sourceGraph={stage.graph || content?.graph || null}
           value={value}
           onChange={onChange}
           disabled={disabled}
