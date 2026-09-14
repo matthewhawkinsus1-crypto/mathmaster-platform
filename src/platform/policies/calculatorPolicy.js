@@ -57,11 +57,6 @@ export const ASSESSMENT_CALCULATOR_CONTEXTS = Object.freeze({
   asvab: Object.freeze({ mode: CALCULATOR_MODES.NONE, forceAvailable: false, accommodationOverride: false }),
 });
 
-const NO_CALCULATOR_DEFAULT_TYPES = new Set([
-  'algebra', 'fraction', 'numberLine', 'stepAlgebra', 'graphing',
-  'graphing2', 'stepAlgebra2', 'representationMatch', 'signSolutionAnalyzer',
-]);
-
 const normalizeMode = (value) => {
   const text = String(value || '').trim();
   if (CONCRETE_MODES.has(text) || text === CALCULATOR_MODES.TEACHER_CHOICE || text === CALCULATOR_MODES.INHERIT || text === 'questionSpecific') return text;
@@ -113,11 +108,7 @@ const supportSettings = (profile) => {
   };
 };
 
-const defaultForQuestion = (questionSpec) => {
-  const type = String(questionSpec?.toolId || questionSpec?.type || '');
-  if (questionSpec?.assessedConstruct === 'computation' || NO_CALCULATOR_DEFAULT_TYPES.has(type)) return CALCULATOR_MODES.NONE;
-  return CALCULATOR_MODES.BASIC;
-};
+const defaultForQuestion = () => CALCULATOR_MODES.BASIC;
 
 export const resolveCalculatorPolicy = ({
   questionSpec = {},
@@ -143,12 +134,12 @@ export const resolveCalculatorPolicy = ({
     basePolicy = activityDefault;
     baseSource = 'activityPolicy';
   }
+  const embeddedQuestionMode = normalizeMode(questionSpec?.rawSpec?.calculatorMode)
+    || normalizeMode(questionSpec?.generator?.calculatorMode)
+    || normalizeMode(questionSpec?.calculatorMode);
   if (basePolicy === 'questionSpecific') {
-    basePolicy = normalizeMode(questionSpec?.rawSpec?.calculatorMode)
-      || normalizeMode(questionSpec?.generator?.calculatorMode)
-      || normalizeMode(questionSpec?.calculatorMode)
-      || defaultForQuestion(questionSpec);
-    baseSource = 'questionDesign';
+    basePolicy = embeddedQuestionMode || defaultForQuestion(questionSpec);
+    baseSource = embeddedQuestionMode ? 'questionDesign' : 'platformDefault';
   }
   if (basePolicy === CALCULATOR_MODES.TEACHER_CHOICE) {
     const teacherMode = normalizeMode(teacherCalculatorChoice);
@@ -160,8 +151,9 @@ export const resolveCalculatorPolicy = ({
   }
 
   const support = supportSettings(studentSupportProfile);
-  const computationSkill = questionSpec.assessedConstruct === 'computation' || explicitQuestionMode === CALCULATOR_MODES.NONE;
-  if (support.calculator && (!computationSkill || support.overrideComputation)) {
+  const skillDeclaresNoCalculator = explicitQuestionMode === CALCULATOR_MODES.NONE
+    || embeddedQuestionMode === CALCULATOR_MODES.NONE;
+  if (support.calculator && (!skillDeclaresNoCalculator || support.overrideComputation)) {
     const accommodationMode = assessment?.mode && assessment.mode !== CALCULATOR_MODES.NONE
       ? assessment.mode
       : support.mode;
@@ -173,7 +165,7 @@ export const resolveCalculatorPolicy = ({
       available: false,
       mode: CALCULATOR_MODES.NONE,
       source: baseSource,
-      reason: computationSkill ? 'Calculator disabled because computation is the assessed skill.' : 'Calculator disabled by activity/question policy.',
+      reason: skillDeclaresNoCalculator ? 'No calculator is allowed for this skill.' : 'Calculator disabled by activity/question policy.',
     };
   }
   return { available: true, mode: basePolicy, source: baseSource, reason: 'Calculator allowed by the resolved question policy.' };
