@@ -114,6 +114,8 @@ export default function useMathUndoHistory({
   resetKey = null,
   enabled = true,
   limit = MATH_UNDO_LIMIT,
+  ownerId = 'mathematical-tool',
+  priority = 0,
 }) {
   const stackRef = useRef(EMPTY_MATH_UNDO_STACK);
   const previousRef = useRef(state);
@@ -176,8 +178,8 @@ export default function useMathUndoHistory({
 
   useEffect(() => {
     if (!register) return undefined;
-    return register({ canUndo, onUndo: undo, label, depth }, { id: 'mathematical-tool', priority: 0 });
-  }, [register, canUndo, undo, label, depth]);
+    return register({ canUndo, onUndo: undo, label, depth }, { id: ownerId, priority });
+  }, [register, canUndo, undo, label, depth, ownerId, priority]);
 
   // The shell renders whichever Undo descriptor reaches it. Handing back a ready
   // capability keeps the tool call sites from each inventing a label and a
