@@ -921,7 +921,7 @@ const dependencyFingerprint = (value) => {
   return (hash >>> 0).toString(36);
 };
 
-const staticGraphSpec = (spec = {}) => {
+export const staticGraphSpec = (spec = {}) => {
   if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return null;
   const type = String(spec.type || '').trim();
   // No type means no authored function. Returning an empty object here used to
