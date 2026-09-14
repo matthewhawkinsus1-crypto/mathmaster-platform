@@ -1,10 +1,22 @@
 {
-  "generatedAt": "2026-09-11T11:20:00.000Z",
+  "generatedAt": "2026-09-14T03:49:11.591Z",
   "devices": [
     {
       "id": "chromebook",
       "width": 1366,
       "height": 768,
+      "mobile": false
+    },
+    {
+      "id": "chromebook-67-percent-css",
+      "width": 2039,
+      "height": 1146,
+      "mobile": false
+    },
+    {
+      "id": "desktop",
+      "width": 1920,
+      "height": 1080,
       "mobile": false
     },
     {
@@ -21,6 +33,10 @@
     }
   ],
   "scenes": [
+    {
+      "id": "staged-restricted-linear-analysis",
+      "family": "QuestionEngineWorkflow"
+    },
     {
       "id": "step-algebra-operations",
       "family": "StepAlgebra2"
@@ -68,7 +84,7 @@
   ],
   "maxAxisLabels": 12,
   "minMobileWorkspaceShare": 0.55,
-  "measured": 33,
-  "screenshots": 231,
+  "measured": 60,
+  "screenshots": 480,
   "findings": []
 }

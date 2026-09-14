@@ -49,17 +49,25 @@ test('the matrix actually measured the families this stage migrated', () => {
   // covers four.
   assert.deepEqual(
     [...new Set(audit.scenes.map((scene) => scene.family))].sort(),
-    ['ConstraintFunctionBuilder', 'FunctionInvestigation2', 'Graphing2', 'InteractiveGraphWorkspace', 'MultiRelationAlgebra', 'SequenceExplorer', 'StepAlgebra2', 'StepByStepAlgebra', 'SystemsWorkspace', 'TransformationsLab'],
+    ['ConstraintFunctionBuilder', 'FunctionInvestigation2', 'Graphing2', 'InteractiveGraphWorkspace', 'MultiRelationAlgebra', 'QuestionEngineWorkflow', 'SequenceExplorer', 'StepAlgebra2', 'StepByStepAlgebra', 'SystemsWorkspace', 'TransformationsLab'],
   );
   assert.ok(audit.screenshots >= audit.measured * 5, 'each scene is captured at every step of the matrix');
 });
 
 test('the standard it held them to is the one Stage 3A committed to', () => {
-  // A Chromebook, and a phone in BOTH orientations — landscape is where the
-  // action rail, the keypad and the browser chrome compete for 390px of height.
+  // Certify the real Chromebook baseline, the wider CSS viewport produced by
+  // roughly 67% browser zoom, a full desktop, and a phone in BOTH orientations.
+  // Landscape is where the action rail, keypad and browser chrome compete for
+  // the least vertical space.
   assert.deepEqual(
     audit.devices.map((device) => `${device.id} ${device.width}x${device.height}`),
-    ['chromebook 1366x768', 'iphone-portrait 390x844', 'iphone-landscape 844x390'],
+    [
+      'chromebook 1366x768',
+      'chromebook-67-percent-css 2039x1146',
+      'desktop 1920x1080',
+      'iphone-portrait 390x844',
+      'iphone-landscape 844x390',
+    ],
   );
   // The readable-axis ceiling is the shared scale service's, not a number this
   // gate invented; the workspace share is the "majority of the viewport" rule

@@ -84,15 +84,30 @@ const SCENES = [
     staged: true,
     marksPlane: true,
     question: {
-      id: 'staged-restricted-linear-analysis', type: 'graphAnalysis',
-      recipe: 'functionCharacteristics',
-      prompt: 'Use the restricted linear graph to determine its domain, range, intercept and where it increases or decreases.',
-      pairs: [[-4, -3], [-2, -1], [0, 1], [2, 3], [4, 5]],
-      graph: { xMin: -6, xMax: 6, yMin: -5, yMax: 7 },
+      id: 'staged-restricted-linear-analysis',
+      type: 'graphAnalysis',
+      // Mirror the production failure that motivated #231: the graph is GIVEN
+      // and the student moves through analysis stages. Do not let this fixture
+      // fall back to functionCharacteristics.defaultAsk, because that begins
+      // with a plotting stage and tests a different workflow entirely.
+      recipe: {
+        name: 'functionCharacteristics',
+        ask: ['domain', 'range', 'xInterceptExists', 'yInterceptExists', 'behavior'],
+      },
+      prompt: 'Analyze the restricted linear graph. Determine domain, range, intercepts/zero, and whether the function is increasing or decreasing.',
+      graph: { xMin: -5, xMax: 7, yMin: -1, yMax: 8, xStep: 1, yStep: 1 },
+      functionSpec: {
+        type: 'linear',
+        m: -1,
+        b: 5,
+        domain: { min: -2, max: 5, minClosed: true, maxClosed: true },
+      },
       functionFamily: 'Linear',
-      correctDomain: '-4 <= x <= 4',
-      correctRange: '-3 <= y <= 5',
-      behavior: 'Increasing',
+      correctDomain: '-2 <= x <= 5',
+      correctRange: '0 <= y <= 7',
+      xIntercepts: [[5, 0]],
+      yIntercept: [0, 5],
+      behavior: 'Decreasing everywhere',
     },
   },
   {
@@ -301,7 +316,7 @@ const MEASURE_WORK_VIEW = new Function(`
   const viewportBox = { width: window.innerWidth, height: window.innerHeight };
 
   const planes = [...shell.querySelectorAll('svg')].filter(visible)
-    .map((svg) => ({ box: svg.getBoundingClientRect(), labels: svg.querySelectorAll('text').length }))
+    .map((svg) => ({ element: svg, box: svg.getBoundingClientRect(), labels: svg.querySelectorAll('text').length }))
     .sort((a, b) => (b.box.width * b.box.height) - (a.box.width * a.box.height));
   const plane = planes[0] || null;
 
@@ -317,13 +332,40 @@ const MEASURE_WORK_VIEW = new Function(`
   const availableBottom = keypadBox ? Math.min(shellBox.bottom, keypadBox.top) : shellBox.bottom;
   const availableHeight = Math.max(1, availableBottom - shellBox.top);
   const surfaceBox = surface ? surface.getBoundingClientRect() : null;
-  // The part of the plane the surface is not clipping — what the student sees.
-  const planeSeen = plane && surfaceBox ? {
-    left: Math.max(plane.box.left, surfaceBox.left),
-    right: Math.min(plane.box.right, surfaceBox.right),
-    top: Math.max(plane.box.top, surfaceBox.top),
-    bottom: Math.min(plane.box.bottom, surfaceBox.bottom),
-  } : (plane ? plane.box : null);
+  // The part of the plane the student can ACTUALLY see.
+  //
+  // Staged workflows add nested scroll/clipping containers between the SVG and
+  // the outer Work View surface. Looking only at the outer surface made this
+  // probe sample an off-screen part of the SVG underneath the workflow footer
+  // and falsely report Previous/Next Step as covering the graph. Intersect the
+  // SVG through every clipping ancestor up to the Work View surface so this
+  // measurement matches what the browser actually paints.
+  const clippedVisibleRect = (element, outer) => {
+    if (!element) return null;
+    const start = element.getBoundingClientRect();
+    const rect = { left: start.left, right: start.right, top: start.top, bottom: start.bottom };
+    let node = element.parentElement;
+    while (node) {
+      const style = getComputedStyle(node);
+      const clipsX = /^(hidden|clip|auto|scroll)$/.test(style.overflowX);
+      const clipsY = /^(hidden|clip|auto|scroll)$/.test(style.overflowY);
+      if (clipsX || clipsY) {
+        const box = node.getBoundingClientRect();
+        if (clipsX) {
+          rect.left = Math.max(rect.left, box.left);
+          rect.right = Math.min(rect.right, box.right);
+        }
+        if (clipsY) {
+          rect.top = Math.max(rect.top, box.top);
+          rect.bottom = Math.min(rect.bottom, box.bottom);
+        }
+      }
+      if (node === outer) break;
+      node = node.parentElement;
+    }
+    return rect;
+  };
+  const planeSeen = plane ? clippedVisibleRect(plane.element, surface) : null;
 
   // A control is clipped when any edge of it falls outside the viewport, or
   // outside the scroll container it lives in. Both are ways for a registered
@@ -448,7 +490,7 @@ const READ_MATH_STATE = new Function(`
   // this probe is for. The tool subtree is the same instance either way, because
   // Work View is a CSS change around a child that is never remounted.
   const chrome = (el) => el.closest && el.closest('.mathmaster-work-view-header, .mathmaster-work-view-drawer, .mathmaster-work-view-actions, .mathmaster-work-view-instruction');
-  const fields = [...scope.querySelectorAll('input, select, textarea')]
+  const fields = [...scope.querySelectorAll('input, select, textarea, math-field')]
     .filter((el) => el.type !== 'hidden' && !chrome(el))
     .map((el) => (el.getAttribute('aria-label') || el.name || el.placeholder || el.id || '') + '=' + String(el.value));
 
@@ -548,6 +590,17 @@ const typeIntoMathField = async (page, selector, value) => {
 };
 
 const makeEdit = async (page, sceneId) => {
+  if (sceneId === 'staged-restricted-linear-analysis') {
+    // The first production-like stage is a MathInput domain response. Editing
+    // that field exercises the same state/Undo path students use in the
+    // restricted-graph analysis question instead of asking the harness to
+    // invent a plotting interaction that this question does not contain.
+    return await typeIntoMathField(
+      page,
+      '.workflow-focus__stage-shell--active math-field',
+      '-2<=x<=5',
+    );
+  }
   if (sceneId === 'step-algebra-operations') {
     const typed = await typeIntoFirstField(page, 'input[type="number"]', '6');
     const apply = page.locator('.mathmaster-work-view-host[data-open="true"] button', { hasText: 'Apply to both sides' }).first();

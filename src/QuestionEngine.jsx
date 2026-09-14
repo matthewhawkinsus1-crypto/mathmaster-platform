@@ -267,9 +267,16 @@ export default function QuestionEngine({
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [hintUsed, setHintUsed] = useState(false);
   const [workflowGuidanceState, setWorkflowGuidanceState] = useState(null);
+  const workflowGuidanceQuestionKey = processedQuestion?.questionId
+    ?? processedQuestion?.id
+    ?? processedQuestion?.prompt
+    ?? null;
+  const currentWorkflowGuidance = workflowGuidanceState?.questionKey === workflowGuidanceQuestionKey
+    ? workflowGuidanceState
+    : null;
   const taskContextPresentation = resolveTaskContextPresentation({
     originalTaskPrompt: processedQuestion?.prompt || processedQuestion?.scenario,
-    currentStagePrompt: workflowGuidanceState?.currentStagePrompt,
+    currentStagePrompt: currentWorkflowGuidance?.currentStagePrompt,
     composed: isComposed,
   });
 
@@ -303,7 +310,6 @@ export default function QuestionEngine({
     setCalculatorUsed(false);
     setCalculatorOpen(false);
     setHintUsed(false);
-    setWorkflowGuidanceState(null);
   }, [processedQuestion]);
 
   useEffect(() => {
@@ -655,7 +661,10 @@ export default function QuestionEngine({
         <WorkflowRunner
           question={presentationQuestion}
           onStateChange={commonModuleProps.onStateChange}
-          onProgressChange={setWorkflowGuidanceState}
+          onProgressChange={(progress) => setWorkflowGuidanceState({
+            ...progress,
+            questionKey: workflowGuidanceQuestionKey,
+          })}
           disabled={commonModuleProps.disabled}
           draftKey={draftKey}
           showPrompt={false}
