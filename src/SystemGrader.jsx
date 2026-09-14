@@ -5,7 +5,7 @@ import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import GraphDisplay from './GraphDisplay';
 import QuestionVisual from './QuestionVisual';
-import { compareOrderedPair, parseOrderedPair } from './answerUtils';
+import { gradeSystemResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 
 export default function SystemGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
@@ -14,11 +14,10 @@ export default function SystemGrader({ question, onStateChange, onUndoStateChang
   // explicit null, and this value is used via `.length` further down.
   const equationsLatex = Array.isArray(question.equationsLatex) ? question.equationsLatex : [];
   const [answer, setAnswer] = useLocalDraftState(draftKey ? `${draftKey}:system` : null, '');
-  const parsed = parseOrderedPair(answer);
-  const isComplete = Boolean(parsed);
-  const xCorrect = Boolean(parsed) && Math.abs(parsed[0] - Number(solution?.[0])) <= 1e-9;
-  const yCorrect = Boolean(parsed) && Math.abs(parsed[1] - Number(solution?.[1])) <= 1e-9;
-  const isCorrect = compareOrderedPair(answer, solution);
+  // Correctness comes from the shared grading contract so every caller of it —
+  // this screen, the deadline finalizer, the tests — marks alike.
+  const graded = gradeSystemResponse({ solution }, answer);
+  const { isComplete, isCorrect } = graded;
 
   useEffect(() => {
     const equationDetails = equationsLatex.length ? ` Equations: ${equationsLatex.join(' and ')}.` : '';
@@ -28,12 +27,9 @@ export default function SystemGrader({ question, onStateChange, onUndoStateChang
       isCorrect,
       responseKey: answer,
       questionDetails: `${questionText} Response: ${answer || 'blank'}.`,
-      parts: [
-        { id: 'system-x', label: 'x-coordinate', isComplete, isCorrect: xCorrect, response: parsed?.[0] ?? answer },
-        { id: 'system-y', label: 'y-coordinate', isComplete, isCorrect: yCorrect, response: parsed?.[1] ?? answer },
-      ],
+      parts: graded.parts,
     });
-  }, [answer, isComplete, isCorrect, xCorrect, yCorrect, prompt, equationsLatex, onStateChange]);
+  }, [answer, isComplete, isCorrect, prompt, equationsLatex, onStateChange]);
 
   const incorrect = feedback?.partGrades?.some((part) => !part.isCorrect);
 

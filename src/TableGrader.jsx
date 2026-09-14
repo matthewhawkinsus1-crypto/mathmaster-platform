@@ -3,7 +3,7 @@ import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
 import { resolveLabelFormat } from './labelFormat';
-import { compareMathAnswer } from './answerUtils';
+import { gradeTableResponse, tableEditableKeys } from '../functions/shared/ordinaryResponseGrading.mjs';
 import useUndoHistory from './useUndoHistory';
 
 // `compact` is for a table embedded in a larger question, where the step
@@ -30,42 +30,27 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
     () => (Array.isArray(table.blanks) ? table.blanks.map((key) => String(key)) : []),
     [table.blanks],
   );
-  const editableKeys = useMemo(() => {
-    const seen = new Set();
-    return [...Object.keys(answers), ...blanks].filter((key) => {
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [answers, blanks]);
+  // Which cells are editable is part of the grading contract, not a detail of
+  // this screen: the deadline finalizer has to reach the same set to decide a
+  // table is complete.
+  const editableKeys = useMemo(() => tableEditableKeys({ table: { answers, blanks } }), [answers, blanks]);
   const history = useUndoHistory({}, 60, draftKey ? `${draftKey}:table` : null);
   const studentAnswers = history.value;
 
-  const parts = editableKeys.map((key) => {
-    const response = String(studentAnswers[key] ?? '');
-    const graded = Object.prototype.hasOwnProperty.call(answers, key);
-    return {
-      id: key,
-      label: `Table blank ${key}`,
-      graded,
-      isComplete: response.trim() !== '',
-      isCorrect: graded && response.trim() !== '' && compareMathAnswer(response, answers[key]),
-      response,
-    };
-  });
-  const gradedParts = parts.filter((part) => part.graded);
-  const isComplete = parts.length > 0 && parts.every((part) => part.isComplete);
-  // Correctness is claimed only for the cells this component holds a key for.
-  // A table with no keys reports itself complete and stays silent about correct,
-  // rather than reporting a filled-in table as wrong.
-  const isCorrect = isComplete && gradedParts.length > 0 && gradedParts.every((part) => part.isCorrect);
+  // Correctness comes from the shared grading contract so every caller of it —
+  // this screen, the deadline finalizer, the tests — marks alike. Correctness
+  // is claimed only for the cells the contract holds a key for: a table with no
+  // keys reports itself complete and stays silent about correct, rather than
+  // reporting a filled-in table as wrong.
+  const graded = gradeTableResponse({ table: { answers, blanks } }, studentAnswers);
+  const { parts, isComplete, isCorrect } = graded;
 
   useEffect(() => {
     const responseDetails = editableKeys.map((key) => `${key}=${studentAnswers[key] ?? ''}`).join(', ');
     onStateChange({
       isComplete,
       isCorrect,
-      gradedHere: gradedParts.length > 0,
+      gradedHere: graded.gradedHere,
       responseKey: JSON.stringify(studentAnswers),
       questionDetails: `${prompt || 'Complete the table.'}${ruleLatex ? ` Rule: ${ruleLatex}.` : ''} Responses: ${responseDetails}`,
       parts,
@@ -119,7 +104,7 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
         </table>
       </div>
       <p style={{ fontSize: '13px', color: '#80868b', marginTop: '14px' }}>
-        {gradedParts.length > 0
+        {graded.gradedHere
           ? 'Incorrect blanks are outlined after submission so you can focus only on those entries.'
           : 'These values are checked against the function you wrote, not against a fixed answer key.'}
       </p>

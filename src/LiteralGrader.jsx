@@ -4,14 +4,17 @@ import MathInput from './MathInput';
 import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
-import { matchesAnyAnswer } from './answerUtils';
+import { gradeLiteralResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
 
 export default function LiteralGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const { formula, formulaLatex, solveFor, solveForLatex, prompt, acceptedAnswers = [] } = question;
   const [answer, setAnswer] = useLocalDraftState(draftKey ? `${draftKey}:literal` : null, '');
   const safeAcceptedAnswers = useMemo(() => (Array.isArray(acceptedAnswers) ? acceptedAnswers : []), [acceptedAnswers]);
-  const isComplete = answer.trim() !== '';
-  const isCorrect = isComplete && matchesAnyAnswer(answer, safeAcceptedAnswers);
+  // Correctness comes from the shared grading contract, never from logic local
+  // to this screen: the deadline finalizer marks the same response with the
+  // same call, so a manual Submit and an auto-submit cannot disagree.
+  const graded = gradeLiteralResponse({ acceptedAnswers: safeAcceptedAnswers, solveFor }, answer);
+  const { isComplete, isCorrect } = graded;
 
   useEffect(() => {
     const questionText = `${prompt || `Solve the literal equation for ${solveFor}.`} Formula: ${formula || formulaLatex || ''}.`;
@@ -20,7 +23,7 @@ export default function LiteralGrader({ question, onStateChange, onUndoStateChan
       isCorrect,
       responseKey: answer,
       questionDetails: `${questionText} Response: ${solveFor}=${answer || 'blank'}.`,
-      parts: [{ id: 'literal', label: `Expression for ${solveFor}`, isComplete, isCorrect, response: answer }],
+      parts: graded.parts,
     });
   }, [answer, isComplete, isCorrect, formula, formulaLatex, solveFor, prompt, onStateChange]);
 
