@@ -131,6 +131,12 @@ const authoredFunctionIntent = (q = {}) => {
   return null;
 };
 
+const hasGraphOrFunctionIntent = (q = {}) => (
+  Boolean(authoredFunctionIntent(q))
+  || isObject(q.graph)
+  || isObject(q.visual?.graph)
+);
+
 const coreFunctionSpec = (raw = {}) => {
   const f = isObject(raw) ? raw : {};
   const family = clean(f.family || f.type || 'linear');
@@ -929,7 +935,7 @@ const resolveIntentType = (q, actions) => {
   if (
     actions.includes('readGraph')
     && hasStudentFacingResponseFields(q)
-    && (q.graph || q.function || q.functionSpec || q.visual?.graph)
+    && hasGraphOrFunctionIntent(q)
     && !actions.includes('buildMapping')
     && !actions.includes('plotRelation')
   ) return 'multiAnswer';
@@ -964,7 +970,7 @@ const resolveIntentType = (q, actions) => {
   if (
     actions.includes('readGraph')
     && (readsFeatures || readsDomainOrRange)
-    && (q.function || q.functionSpec || q.graph || q.pairs)
+    && (authoredFunctionIntent(q) || q.graph || q.pairs)
   ) return 'functionCharacteristics';
 
   if (q.relation || q.pairs || actions.some((a) => ['buildMapping','plotRelation','classifyFunction'].includes(a))) return 'relationMapping';
@@ -1014,8 +1020,8 @@ const resolveIntentType = (q, actions) => {
     // not preserve an explicitly restricted domain. A bounded segment/ray
     // therefore needs the full graphAnalysis workspace so open/closed
     // endpoints, domain restrictions, and inequality grading survive.
-    const functionIntent = q.function || q.functionSpec || {};
-    const explicitDomain = isObject(functionIntent.domain) ? functionIntent.domain : (isObject(q.domain) ? q.domain : null);
+    const functionIntent = authoredFunctionIntent(q);
+    const explicitDomain = isObject(functionIntent?.domain) ? functionIntent.domain : (isObject(q.domain) ? q.domain : null);
     const hasFiniteDomainBoundary = isObject(explicitDomain)
       && ['min', 'max'].some((key) => explicitDomain[key] != null
         && explicitDomain[key] !== ''
@@ -1033,12 +1039,12 @@ const resolveIntentType = (q, actions) => {
   if (
     actions.includes('readGraph')
     && hasStudentFacingResponseFields(q)
-    && (q.graph || q.function || q.functionSpec || q.visual?.graph)
+    && hasGraphOrFunctionIntent(q)
   ) return 'multiAnswer';
   if (
     (actions.includes('readGraph')
       || actions.some((a) => a.startsWith('analyze') || ['findVertex','findXIntercepts','findYIntercept','findMaximum','findMinimum'].includes(a)))
-    && (q.function || q.functionSpec)
+    && authoredFunctionIntent(q)
   ) return 'graphAnalysis';
   if (actions.includes('readGraph') && (q.graph || q.visual?.graph)) return 'multiAnswer';
   if (actions.includes('completeTable') || q.table?.answers) return 'table';
@@ -1195,15 +1201,28 @@ const compileOne = (q, index, repairs) => {
       break;
     }
     case 'functionInvestigation2': {
+      const functionIntent = authoredFunctionIntent(q);
+      if (!functionIntent) {
+        throw new Error(
+          `V5 question ${index + 1} asks students to investigate a function but supplies no function. MathMaster will not invent y = x as a fallback.`,
+        );
+      }
       const requests = analysisRequestsFromActions(actions, q);
       const kinds = requests.filter((r) => r.kind !== 'point').map((r) => r.kind);
       const mode = q.mode || (kinds.some((k) => ['domain','range'].includes(k)) ? 'domainRange' : kinds.some((k) => ['increasing','decreasing','constant','positive','negative'].includes(k)) ? 'behavior' : requests.some((r) => r.kind === 'point') ? 'intercepts' : 'features');
-      out = copyCommon(q, { type, mode, function: toolFunctionSpec(q.function || q.functionSpec), analysisRequests: requests.length ? requests : undefined });
+      out = copyCommon(q, { type, mode, function: toolFunctionSpec(functionIntent), analysisRequests: requests.length ? requests : undefined });
       break;
     }
-    case 'graphAnalysis':
-      out = copyCommon(q, { type, functionSpec: functionSpecFromIntentQuestion(q), analysisRequests: analysisRequestsFromActions(actions, q) });
+    case 'graphAnalysis': {
+      const functionSpec = functionSpecFromIntentQuestion(q);
+      if (!functionSpec) {
+        throw new Error(
+          `V5 question ${index + 1} asks students to analyze a function graph but supplies no function. MathMaster will not invent y = x as a fallback.`,
+        );
+      }
+      out = copyCommon(q, { type, functionSpec, analysisRequests: analysisRequestsFromActions(actions, q) });
       break;
+    }
     case 'functionCharacteristics': {
       // Compiles to a RECIPE rather than to a stage list. The recipe owns which
       // steps exist and which answer keys can honestly be derived from the
