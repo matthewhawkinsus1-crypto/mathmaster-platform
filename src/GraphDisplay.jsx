@@ -1,5 +1,5 @@
 import QuestionPrompt from './QuestionPrompt';
-import { evaluateStaticGraphFunction, fitStaticGraphViewport, graphAsymptoteLines, resolvePointFill, resolvePointRadius } from './graphSpecUtils';
+import { evaluateStaticGraphFunction, fitStaticGraphViewport, graphAsymptoteLines, resolvePointFill, resolvePointRadius, STATIC_GRAPH_ASYMPTOTE_STYLE } from './graphSpecUtils';
 import { readGraphPointCoordinates } from './graphPointUtils.js';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 import MathDisplay from './MathDisplay.jsx';
@@ -382,19 +382,19 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
                   y1={y}
                   x2={PADDING + innerWidth}
                   y2={y}
-                  stroke="#ffffff"
-                  strokeWidth="7"
-                  opacity="0.96"
+                  stroke={STATIC_GRAPH_ASYMPTOTE_STYLE.haloStroke}
+                  strokeWidth={STATIC_GRAPH_ASYMPTOTE_STYLE.haloWidth}
+                  opacity={STATIC_GRAPH_ASYMPTOTE_STYLE.haloOpacity}
                 />
                 <line
                   x1={PADDING}
                   y1={y}
                   x2={PADDING + innerWidth}
                   y2={y}
-                  stroke="#a020f0"
-                  strokeWidth="3.5"
-                  strokeDasharray="9 6"
-                  opacity="1"
+                  stroke={STATIC_GRAPH_ASYMPTOTE_STYLE.stroke}
+                  strokeWidth={STATIC_GRAPH_ASYMPTOTE_STYLE.strokeWidth}
+                  strokeDasharray={STATIC_GRAPH_ASYMPTOTE_STYLE.dashArray}
+                  opacity={STATIC_GRAPH_ASYMPTOTE_STYLE.opacity}
                 />
               </g>
             );
@@ -408,19 +408,19 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
                 y1={PADDING}
                 x2={x}
                 y2={PADDING + innerHeight}
-                stroke="#ffffff"
-                strokeWidth="7"
-                opacity="0.96"
+                stroke={STATIC_GRAPH_ASYMPTOTE_STYLE.haloStroke}
+                strokeWidth={STATIC_GRAPH_ASYMPTOTE_STYLE.haloWidth}
+                opacity={STATIC_GRAPH_ASYMPTOTE_STYLE.haloOpacity}
               />
               <line
                 x1={x}
                 y1={PADDING}
                 x2={x}
                 y2={PADDING + innerHeight}
-                stroke="#a020f0"
-                strokeWidth="3.5"
-                strokeDasharray="9 6"
-                opacity="1"
+                stroke={STATIC_GRAPH_ASYMPTOTE_STYLE.stroke}
+                strokeWidth={STATIC_GRAPH_ASYMPTOTE_STYLE.strokeWidth}
+                strokeDasharray={STATIC_GRAPH_ASYMPTOTE_STYLE.dashArray}
+                opacity={STATIC_GRAPH_ASYMPTOTE_STYLE.opacity}
               />
             </g>
           );
