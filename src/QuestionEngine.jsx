@@ -58,6 +58,7 @@ import { WorkViewCapabilityProvider } from './platform/workView/workViewCapabili
 import { WorkViewUndoProvider } from './platform/workView/useMathUndoHistory.js';
 import { QuestionLifecycleProvider } from './platform/question/QuestionLifecycleContext.jsx';
 import UniversalUndoButton from './components/common/UniversalUndoButton.jsx';
+import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 import { startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
 import { useRenderPerformance } from './platform/performance/useRenderPerformance.js';
 
@@ -1027,6 +1028,13 @@ export default function QuestionEngine({
           ...(workspaceActions.calculator ? [{ ...workspaceActions.calculator, onAction:workspaceActions.calculator.onClick }] : []),
         ],
       }}>
+      <EnlargeableFigure
+        label="Question Work View"
+        enlargeLabel="Enlarge question"
+        presentationKey={processedQuestion?.questionId ?? processedQuestion?.id ?? processedQuestion?.prompt ?? null}
+        forceClosed={locked}
+        style={{ width: '100%' }}
+      >
       <div className="mathmaster-question-tool-workspace" style={{ position: 'relative' }}>
         {!solverWorkspaceActive && guidedCoach}
         <fieldset disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
@@ -1087,6 +1095,7 @@ export default function QuestionEngine({
           </div>
         )}
       </div>
+      </EnlargeableFigure>
       </WorkViewCapabilityProvider>
         )}
         actionButtons={!locked && shouldShowSubmit ? (

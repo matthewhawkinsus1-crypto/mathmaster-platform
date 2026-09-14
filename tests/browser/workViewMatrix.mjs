@@ -63,6 +63,8 @@ const MIN_MOBILE_WORKSPACE_SHARE = 0.55;
 
 const DEVICES = [
   { id: 'chromebook', width: 1366, height: 768, mobile: false },
+  { id: 'chromebook-67-percent-css', width: 2039, height: 1146, mobile: false },
+  { id: 'desktop', width: 1920, height: 1080, mobile: false },
   { id: 'iphone-portrait', width: 390, height: 844, mobile: true },
   { id: 'iphone-landscape', width: 844, height: 390, mobile: true },
 ];
@@ -76,6 +78,23 @@ const DEVICES = [
  * one, parameters on another, a dropdown on a third.
  */
 const SCENES = [
+  {
+    id: 'staged-restricted-linear-analysis',
+    family: 'QuestionEngineWorkflow',
+    staged: true,
+    marksPlane: true,
+    question: {
+      id: 'staged-restricted-linear-analysis', type: 'graphAnalysis',
+      recipe: 'functionCharacteristics',
+      prompt: 'Use the restricted linear graph to determine its domain, range, intercept and where it increases or decreases.',
+      pairs: [[-4, -3], [-2, -1], [0, 1], [2, 3], [4, 5]],
+      graph: { xMin: -6, xMax: 6, yMin: -5, yMax: 7 },
+      functionFamily: 'Linear',
+      correctDomain: '-4 <= x <= 4',
+      correctRange: '-3 <= y <= 5',
+      behavior: 'Increasing',
+    },
+  },
   {
     id: 'step-algebra-operations',
     family: 'StepAlgebra2',
@@ -809,11 +828,30 @@ for (const device of DEVICES) {
       if (device.mobile && view.workspaceShare < MIN_MOBILE_WORKSPACE_SHARE) {
         problems.push({ rule: 'majority', detail: `the workspace gets ${Math.round(view.workspaceShare * 100)}% of the shell, under the ${Math.round(MIN_MOBILE_WORKSPACE_SHARE * 100)}% a phone owes the mathematics` });
       }
-      if (device.mobile) {
-        const chrome = await page.evaluate(MEASURE_CHROME);
-        if (chrome.length) {
-          problems.push({ rule: 'chrome', detail: `assignment chrome still on screen over the tool: ${chrome.join(', ')}` });
-        }
+      const chrome = await page.evaluate(MEASURE_CHROME);
+      if (chrome.length) {
+        problems.push({ rule: 'chrome', detail: `assignment chrome still on screen over the tool: ${chrome.join(', ')}` });
+      }
+      const openHostCount = await page.locator('.mathmaster-work-view-host[data-open="true"]').count();
+      if (openHostCount !== 1) {
+        problems.push({ rule: 'controls', detail: `${openHostCount} Work View hosts are open; exactly one question host is required` });
+      }
+      if (scene.staged) {
+        const stageControls = await page.evaluate(() => {
+          const shell = document.querySelector('.mathmaster-work-view-host[data-open="true"]');
+          const visible = (element) => {
+            if (!element) return false;
+            const rect = element.getBoundingClientRect();
+            const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+            return rect.width > 0 && rect.height > 0 && Boolean(hit && (hit === element || element.contains(hit)));
+          };
+          const answer = shell?.querySelector('.workflow-focus__stage-shell--active input, .workflow-focus__stage-shell--active math-field, .workflow-focus__stage-shell--active button');
+          const previous = [...(shell?.querySelectorAll('.workflow-focus__footer button') || [])].find((button) => /previous step/i.test(button.textContent));
+          const next = [...(shell?.querySelectorAll('.workflow-focus__footer button') || [])].find((button) => /next step/i.test(button.textContent));
+          return { answer: visible(answer), previous: visible(previous), next: visible(next) };
+        });
+        if (!stageControls.answer) problems.push({ rule: 'controls', detail: 'active staged answer control is not visible and hit-testable' });
+        if (!stageControls.previous || !stageControls.next) problems.push({ rule: 'controls', detail: 'Previous Step / Next Step are not visible and hit-testable' });
       }
     }
 
