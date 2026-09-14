@@ -6,8 +6,24 @@ import {
   getStoredSectionVariantModes,
 } from './platform/contract/storedAssignmentV5.js';
 import { projectCurrentAssignmentContent } from './platform/assignments/currentContentProjection.js';
+// Warm-Up/DOL/section close rules and the bell schedule live in shared code so
+// the browser timer and the Cloud Functions deadline finalizer cannot hold two
+// different opinions about when a section closed. See sectionDeadline.mjs.
+import {
+  CLASS_PERIODS as SHARED_CLASS_PERIODS,
+  DEFAULT_CLASS_SCHEDULE as SHARED_DEFAULT_CLASS_SCHEDULE,
+  normalizeSchedule as normalizeSharedSchedule,
+  resolvePeriodWindow as resolveSharedPeriodWindow,
+  resolveScheduleDayType as resolveSharedScheduleDayType,
+} from '../functions/shared/classSchedule.mjs';
+import {
+  MANUALLY_CONTROLLABLE_SECTION_ROLES as SHARED_MANUAL_SECTION_ROLES,
+  resolveDolWindow,
+  resolveWarmupClose,
+} from '../functions/shared/sectionDeadline.mjs';
+import { parseInstant, zonedDateKey } from '../functions/shared/instructionalCalendar.mjs';
 
-export const CLASS_PERIODS = Array.from({ length: 8 }, (_, index) => `Period ${index + 1}`);
+export const CLASS_PERIODS = SHARED_CLASS_PERIODS;
 
 
 export const questionIsIncluded = (question) => question?.teacherExcluded !== true;
@@ -26,38 +42,11 @@ export const getCurrentContentQuestionIndices = (assignment = {}) => (
   projectCurrentAssignmentContent(assignment).entries.map((entry) => entry.storageIndex)
 );
 
-const emptyPeriods = () => Object.fromEntries(
-  CLASS_PERIODS.map((period) => [period, { enabled: false, start: '', end: '' }]),
-);
-
-export const DEFAULT_CLASS_SCHEDULE = {
-  version: 2,
-  // `periods` is kept as a legacy/fallback schedule so older saved settings
-  // continue to work. New A/B schedules live in `daySchedules` below.
-  periods: emptyPeriods(),
-  daySchedules: {
-    A: { periods: emptyPeriods() },
-    B: { periods: emptyPeriods() },
-  },
-  // Monday/Wednesday are always A; Tuesday/Thursday are always B. Friday is
-  // intentionally null because the school alternates it and the teacher must
-  // be able to choose the real day rather than MathMaster guessing.
-  weeklyDayTypes: { 1: 'A', 2: 'B', 3: 'A', 4: 'B', 5: null },
-  dayTypeOverrides: {},
-  modifiedSchedules: {},
-};
+export const DEFAULT_CLASS_SCHEDULE = SHARED_DEFAULT_CLASS_SCHEDULE;
 
 const parseLocalDateTime = (value, endOfDay = false) => {
-  if (!value) return null;
-  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
-  if (typeof value?.toDate === 'function') return value.toDate();
-  const text = String(value);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-    const [year, month, day] = text.split('-').map(Number);
-    return new Date(year, month - 1, day, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0);
-  }
-  const parsed = new Date(text);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+  const instant = parseInstant(value, { endOfDay });
+  return instant === null ? null : new Date(instant);
 };
 
 export const getAssignmentDate = (assignment, field) => {
@@ -165,7 +154,7 @@ export const hasMixedSectionVariantModes = (assignment) => {
 };
 
 
-export const MANUALLY_CONTROLLABLE_SECTION_ROLES = Object.freeze(['classwork', 'practice']);
+export const MANUALLY_CONTROLLABLE_SECTION_ROLES = SHARED_MANUAL_SECTION_ROLES;
 
 const SECTION_ACCESS_STATES = new Set(['open', 'closed']);
 
@@ -204,42 +193,9 @@ export const getSectionAccessState = ({ assignment, activityRole, classId = null
   return { role, enabled: true, status, isOpen: status === 'open', defaultState, override, lifecycle };
 };
 
-const normalizePeriodMap = (periods, fallback = DEFAULT_CLASS_SCHEDULE.periods) => Object.fromEntries(
-  CLASS_PERIODS.map((period) => [period, {
-    ...(fallback?.[period] || DEFAULT_CLASS_SCHEDULE.periods[period]),
-    ...(periods?.[period] || {}),
-  }]),
-);
+export const normalizeSchedule = normalizeSharedSchedule;
 
-export const normalizeSchedule = (schedule) => {
-  const legacyPeriods = normalizePeriodMap(schedule?.periods);
-  const aPeriods = normalizePeriodMap(schedule?.daySchedules?.A?.periods, legacyPeriods);
-  const bPeriods = normalizePeriodMap(schedule?.daySchedules?.B?.periods, legacyPeriods);
-  return {
-    ...DEFAULT_CLASS_SCHEDULE,
-    ...(schedule || {}),
-    version: 2,
-    periods: legacyPeriods,
-    daySchedules: {
-      A: { ...(schedule?.daySchedules?.A || {}), periods: aPeriods },
-      B: { ...(schedule?.daySchedules?.B || {}), periods: bPeriods },
-    },
-    weeklyDayTypes: {
-      ...DEFAULT_CLASS_SCHEDULE.weeklyDayTypes,
-      ...(schedule?.weeklyDayTypes || {}),
-    },
-    dayTypeOverrides: schedule?.dayTypeOverrides || {},
-    modifiedSchedules: schedule?.modifiedSchedules || {},
-  };
-};
-
-export const localDateKey = (nowValue = Date.now()) => {
-  const date = nowValue instanceof Date ? nowValue : new Date(nowValue);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+export const localDateKey = (nowValue = Date.now()) => zonedDateKey(nowValue);
 
 // A DOL is a one-day instructional checkpoint, not a question that should
 // reopen during the last ten minutes of every day an assignment remains open.
@@ -290,16 +246,7 @@ export const getWarmupInstructionDateKey = (assignment, classPeriod = null, clas
   return dueAt ? localDateKey(dueAt) : null;
 };
 
-export const getScheduleDayType = (scheduleValue, nowValue = Date.now()) => {
-  const schedule = normalizeSchedule(scheduleValue);
-  const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
-  const dateKey = localDateKey(now);
-  const overridden = String(schedule.dayTypeOverrides?.[dateKey] || '').toUpperCase();
-  if (overridden === 'A' || overridden === 'B') return { dayType: overridden, source: 'override', dateKey };
-  const weekly = String(schedule.weeklyDayTypes?.[now.getDay()] || '').toUpperCase();
-  if (weekly === 'A' || weekly === 'B') return { dayType: weekly, source: 'weekly', dateKey };
-  return { dayType: null, source: 'manualRequired', dateKey };
-};
+export const getScheduleDayType = (scheduleValue, nowValue = Date.now()) => resolveSharedScheduleDayType(scheduleValue, nowValue);
 
 export const setScheduleDayTypeOverride = (scheduleValue, dateValue, dayType) => {
   const schedule = normalizeSchedule(scheduleValue);
@@ -311,38 +258,16 @@ export const setScheduleDayTypeOverride = (scheduleValue, dateValue, dayType) =>
   return { ...schedule, dayTypeOverrides: nextOverrides };
 };
 
-const timeOnDate = (date, text) => {
-  if (!/^\d{2}:\d{2}$/.test(String(text || ''))) return null;
-  const [hours, minutes] = String(text).split(':').map(Number);
-  const result = new Date(date);
-  result.setHours(hours, minutes, 0, 0);
-  return result;
-};
-
 export const getPeriodWindow = (scheduleValue, classPeriod, nowValue = Date.now()) => {
-  const schedule = normalizeSchedule(scheduleValue);
-  const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
-  const dateKey = localDateKey(now);
-  const modified = schedule.modifiedSchedules?.[dateKey]?.periods || null;
-  const dayTypeState = getScheduleDayType(schedule, now);
-  // A date-specific modified schedule always wins. Otherwise use the selected
-  // A/B schedule. If Friday has not been designated yet, return no window
-  // rather than opening a DOL at the wrong time.
-  const daySchedule = modified
-    || (dayTypeState.dayType ? schedule.daySchedules?.[dayTypeState.dayType]?.periods : null)
-    || (schedule.version < 2 ? schedule.periods : null);
-  const period = daySchedule?.[classPeriod];
-  if (!period?.enabled || !period.start || !period.end) return null;
-  const start = timeOnDate(now, period.start);
-  const end = timeOnDate(now, period.end);
-  if (!start || !end || end <= start) return null;
+  const window = resolveSharedPeriodWindow({ schedule: scheduleValue, classPeriod, nowValue });
+  if (!window) return null;
   return {
-    start,
-    end,
-    period: classPeriod,
-    modified: Boolean(modified),
-    dayType: dayTypeState.dayType,
-    dayTypeSource: dayTypeState.source,
+    start: new Date(window.startMs),
+    end: new Date(window.endMs),
+    period: window.period,
+    modified: window.modified,
+    dayType: window.dayType,
+    dayTypeSource: window.dayTypeSource,
   };
 };
 
@@ -458,22 +383,20 @@ export const getWarmupState = ({ assignment, schedule, classId = null, classPeri
     };
   }
 
-  const closedRecord = scopedOverride({ byClassId: assignment?.warmup?.closedByClassId, classId });
-  const closedAtValue = typeof closedRecord === 'object' ? closedRecord?.closedAt : closedRecord;
-  const closedDateKey = typeof closedRecord === 'object' ? closedRecord?.dateKey : null;
-  const closedAt = closedAtValue ? parseLocalDateTime(closedAtValue, false) : null;
-  const closedToday = Boolean(closedAt && (!closedDateKey || closedDateKey === todayKey));
-
-  // A teacher timer/reopen is the explicit live override. It may end before OR
-  // after the normal ten-minute cutoff, but never after the class period.
-  const autoCloseRecord = scopedOverride({ byClassId: assignment?.warmup?.autoCloseByClassId, classId });
-  const autoCloseAtValue = typeof autoCloseRecord === 'object' ? autoCloseRecord?.closesAt : autoCloseRecord;
-  const autoCloseDateKey = typeof autoCloseRecord === 'object' ? autoCloseRecord?.dateKey : null;
-  const autoCloseAt = autoCloseAtValue ? parseLocalDateTime(autoCloseAtValue, false) : null;
-  const autoCloseToday = Boolean(autoCloseAt && (!autoCloseDateKey || autoCloseDateKey === todayKey));
-  const effectiveCloseAt = autoCloseToday
-    ? new Date(Math.min(window.end.getTime(), autoCloseAt.getTime()))
-    : defaultCloseAt;
+  // The close rules themselves are shared with the Cloud Functions finalizer.
+  // A teacher timer/reopen is the explicit live override: it may end before OR
+  // after the normal ten-minute cutoff, but never after the class period, and
+  // a manual close ends the section outright.
+  const sharedClose = resolveWarmupClose({
+    assignment,
+    window: { startMs: window.start.getTime(), endMs: window.end.getTime() },
+    classId,
+    todayKey,
+  });
+  const closedAt = sharedClose.manualCloseAtMs === null ? null : new Date(sharedClose.manualCloseAtMs);
+  const closedToday = Boolean(closedAt);
+  const autoCloseToday = sharedClose.teacherTimerScheduled;
+  const effectiveCloseAt = sharedClose.effectiveCloseAtMs === null ? null : new Date(sharedClose.effectiveCloseAtMs);
   const closeReached = Boolean(effectiveCloseAt && now >= effectiveCloseAt);
 
   let status;
@@ -563,31 +486,19 @@ export const getDOLState = ({ assignment, schedule, classId = null, classPeriod,
   // window. `minutesBeforeEnd` remains the authored working-time duration for
   // backward compatibility; `closeMinutesBeforeEnd` shifts that whole timer
   // earlier without shortening it.
-  const durationMinutes = Math.max(1, Number(assignment?.dol?.minutesBeforeEnd || 10));
-  const closeMinutesBeforeEnd = Math.max(0, Number(assignment?.dol?.closeMinutesBeforeEnd ?? 5));
-  const regularEndsAt = new Date(Math.max(
-    window.start.getTime(),
-    window.end.getTime() - closeMinutesBeforeEnd * 60000,
-  ));
-  const regularOpensAt = new Date(Math.max(
-    window.start.getTime(),
-    regularEndsAt.getTime() - durationMinutes * 60000,
-  ));
-  const unlock = scopedOverride({ byClassId: assignment?.dol?.earlyUnlocksByClassId, classId });
-  const unlockDateKey = typeof unlock === 'object' ? unlock?.dateKey : null;
-  const unlockAtValue = typeof unlock === 'object' ? unlock?.unlockedAt : unlock;
-  const unlockAtParsed = unlockAtValue ? parseLocalDateTime(unlockAtValue, false) : null;
-  const unlockMatchesToday = Boolean(unlockAtParsed && (!unlockDateKey || unlockDateKey === todayKey));
-  const earlyUnlocked = unlockMatchesToday && unlockAtParsed < regularOpensAt;
-
-  let opensAt = regularOpensAt;
-  let endsAt = regularEndsAt;
-  if (earlyUnlocked) {
-    opensAt = new Date(Math.max(window.start.getTime(), unlockAtParsed.getTime()));
-    // Early release starts the same DOL timer immediately, but the DOL can
-    // never extend into the final technology-return window.
-    endsAt = new Date(Math.min(regularEndsAt.getTime(), opensAt.getTime() + durationMinutes * 60000));
-  }
+  // Shared with the Cloud Functions finalizer so the DOL cutoff the timer shows
+  // is the one the deadline actually enforces.
+  const sharedDol = resolveDolWindow({
+    assignment,
+    window: { startMs: window.start.getTime(), endMs: window.end.getTime() },
+    classId,
+    todayKey,
+  });
+  const { durationMinutes, closeMinutesBeforeEnd, earlyUnlocked } = sharedDol;
+  const regularEndsAt = new Date(sharedDol.regularEndsAtMs);
+  const regularOpensAt = new Date(sharedDol.regularOpensAtMs);
+  const opensAt = new Date(sharedDol.opensAtMs);
+  const endsAt = new Date(sharedDol.endsAtMs);
 
   const status = now < window.start
     ? 'beforeClass'
