@@ -51,6 +51,16 @@ test('a reopened Warm-Up unlocks student submission and keeps the durable save p
   assert.ok(submit.indexOf('await enqueueDurableAction') < submit.indexOf('setTracker(updatedTracker)'));
 });
 
+test('teacher-reopened Warm-Up work remains canonical even if the assignment or section closes again before sync', () => {
+  const app = read('src/App.jsx');
+  assert.match(app, /captureTimedSectionAccess/);
+  assert.match(app, /teacherTimerScheduled: state\.teacherTimerScheduled === true/);
+  assert.match(app, /createdAt: submissionCapturedAt/);
+  assert.match(app, /timedSectionAccess,/);
+  assert.match(app, /teacherReopenedWarmupAtCapture/);
+  assert.match(app, /lifecycleAtCapture\.isClosed && !teacherReopenedWarmupAtCapture/);
+});
+
 test('new assignments persist the ten-minute Warm-Up close default', () => {
   const app = read('src/App.jsx');
   assert.match(app, /closeMinutesAfterStart: 10/);
