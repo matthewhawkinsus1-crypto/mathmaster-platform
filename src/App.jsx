@@ -125,6 +125,7 @@ import {
   drainDurableActions,
   enqueueDurableAction,
   listDurableActions,
+  overlayDurableActionsOnGrades,
 } from './platform/performance/durableActionOutbox.js';
 import { EmptyState, ProgressBar, SearchField, StatCard } from './ui/primitives';
 import { buildStudentMasteryProfile, collectStudentEvidence } from './masteryEngine.js';
@@ -1724,25 +1725,38 @@ function App() {
     return repairs.length;
   };
 
+  const collectStudentGradeSnapshot = (querySnapshot) => querySnapshot.docs
+    .filter((studentDoc) => studentDoc.id !== 'test_connection')
+    .map((studentDoc) => ({ id: studentDoc.id, ...studentDoc.data(), profile: normalizeStudentProfile(studentDoc.data()?.profile || studentDoc.data()) }))
+    .sort(compareStudentsByName);
+
+  const studentGradeSourceForViewer = (viewer) => (
+    viewer.isRootAdmin || !viewer.email
+      ? collection(db, 'grades')
+      : query(collection(db, 'grades'), where('assignedTeacherEmail', '==', viewer.email))
+  );
+
   const fetchStudents = async () => {
     const viewer = viewerRef.current;
-    const readAll = viewer.isRootAdmin || !viewer.email;
-
-    const collect = (querySnapshot) => querySnapshot.docs
-      .filter((studentDoc) => studentDoc.id !== 'test_connection')
-      .map((studentDoc) => ({ id: studentDoc.id, ...studentDoc.data(), profile: normalizeStudentProfile(studentDoc.data()?.profile || studentDoc.data()) }))
-      .sort(compareStudentsByName);
 
     // The query is constrained to this teacher, deliberately matching the
     // security rule exactly. Filtering after an unconstrained read would look
     // identical on screen while leaving the whole school readable to anyone
     // with a console open.
-    const studentData = collect(await getDocs(readAll
-      ? collection(db, 'grades')
-      : query(collection(db, 'grades'), where('assignedTeacherEmail', '==', viewer.email))));
+    const studentData = collectStudentGradeSnapshot(await getDocs(studentGradeSourceForViewer(viewer)));
     setAllStudents(studentData);
     return studentData;
   };
+
+  useEffect(() => {
+    if (user?.role !== 'teacher') return undefined;
+    const viewer = { email: user.email || null, isRootAdmin: user.isRootAdmin === true };
+    return onSnapshot(
+      studentGradeSourceForViewer(viewer),
+      (snapshot) => setAllStudents(collectStudentGradeSnapshot(snapshot)),
+      (error) => console.error('Could not watch live student grades:', error),
+    );
+  }, [user?.role, user?.email, user?.isRootAdmin]);
 
   // Classes are the authoritative record of course, rigor and teacher of
   // record. Read-only from the client: only the audited admin callables write
@@ -1854,6 +1868,7 @@ function App() {
     if (!action || action.studentId !== user?.id) return { status: 'rejected' };
     const assignmentRef = doc(db, 'assignments', action.assignmentId);
     const gradesRef = doc(db, 'grades', action.studentId);
+    const capturedAt = Number.isFinite(Number(action.createdAt)) ? Number(action.createdAt) : Date.now();
     let duplicate = false;
     let rejected = false;
 
@@ -1871,7 +1886,10 @@ function App() {
         classId: user.classId || null,
         classPeriod: user.classPeriod,
       });
-      if (!authorized || getAssignmentLifecycle(assignment, Date.now()).isClosed) {
+      // Ordinary student work crosses the durability boundary before React
+      // advances. Reconciliation must judge that work at the moment it was
+      // captured, not seconds/minutes later after a deadline or teacher close.
+      if (!authorized || getAssignmentLifecycle(assignment, capturedAt).isClosed) {
         rejected = true;
         return;
       }
@@ -1880,9 +1898,13 @@ function App() {
         activityRole: action.payload.activityRole,
         classId: user.classId || null,
         classPeriod: user.classPeriod,
-        nowValue: Date.now(),
+        nowValue: capturedAt,
       });
-      if (sectionAccess.enabled && !sectionAccess.isOpen) {
+      const overrideChangedAt = sectionAccess.override?.changedAt
+        ? new Date(sectionAccess.override.changedAt).getTime()
+        : Number.NaN;
+      const accessChangedAfterCapture = Number.isFinite(overrideChangedAt) && overrideChangedAt > capturedAt;
+      if (sectionAccess.enabled && !sectionAccess.isOpen && !accessChangedAfterCapture) {
         rejected = true;
         return;
       }
@@ -2253,19 +2275,65 @@ function App() {
       return undefined;
     }
     let cancelled = false;
-    listDurableActions({ studentId: user.id })
-      .then((actions) => {
-        if (!cancelled) setStudentOutboxDepth(actions.length);
-        if (!cancelled && actions.length) setStudentPersistenceStatus('queued');
-        return drainStudentOutbox();
-      })
-      .catch((error) => console.error('Could not recover queued student work:', error));
-    const reconcileOnline = () => drainStudentOutbox()
+
+    const recoverAndReconcileQueuedStudentWork = async () => {
+      const actions = await listDurableActions({ studentId: user.id });
+      if (cancelled) return;
+      setStudentOutboxDepth(actions.length);
+      if (actions.length) {
+        setStudentPersistenceStatus('queued');
+        // A reload must restore the same visible score state immediately even
+        // before Wi-Fi returns. The server remains canonical; this is only the
+        // durable local envelope being overlaid until reconciliation succeeds.
+        setTracker((current) => overlayDurableActionsOnGrades(current, actions));
+        setSupportUsageByAssignment((current) => {
+          let next = current;
+          actions.forEach((action) => {
+            if (!action.payload?.supportUsage) return;
+            next = { ...next, [action.assignmentId]: action.payload.supportUsage };
+          });
+          return next;
+        });
+        setClassworkGradesByAssignment((current) => {
+          let next = current;
+          actions.forEach((action) => {
+            if (!action.payload?.hasClassworkGrade) return;
+            next = { ...next, [action.assignmentId]: action.payload.classworkGrade };
+          });
+          return next;
+        });
+        setDolGradesByAssignment((current) => {
+          let next = current;
+          actions.forEach((action) => {
+            if (!action.payload?.hasDolGrade) return;
+            next = { ...next, [action.assignmentId]: action.payload.dolGrade };
+          });
+          return next;
+        });
+      }
+      await drainStudentOutbox();
+    };
+
+    const reconcileQueuedStudentWork = () => recoverAndReconcileQueuedStudentWork()
       .catch((error) => console.error('Could not reconcile queued student work:', error));
-    window.addEventListener('online', reconcileOnline);
+    const reconcileWhenVisible = () => {
+      if (!document.hidden) reconcileQueuedStudentWork();
+    };
+
+    reconcileQueuedStudentWork();
+    window.addEventListener('online', reconcileQueuedStudentWork);
+    window.addEventListener('pageshow', reconcileQueuedStudentWork);
+    document.addEventListener('visibilitychange', reconcileWhenVisible);
+    // Firestore can fail transiently while navigator.onLine remains true.
+    // Periodic retry prevents a student's final answer from sitting only on
+    // this Chromebook until they submit again or reload.
+    const retryTimer = window.setInterval(reconcileQueuedStudentWork, 10_000);
     return () => {
       cancelled = true;
-      window.removeEventListener('online', reconcileOnline);
+      window.clearInterval(retryTimer);
+      window.removeEventListener('online', reconcileQueuedStudentWork);
+      window.removeEventListener('pageshow', reconcileQueuedStudentWork);
+      document.removeEventListener('visibilitychange', reconcileWhenVisible);
     };
   }, [user?.id, user?.role]);
 
