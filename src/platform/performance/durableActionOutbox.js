@@ -438,9 +438,11 @@ const withTimeout = (promise, timeoutMs) => {
   let timer = null;
   return Promise.race([
     Promise.resolve(promise).finally(() => { if (timer) clearTimeout(timer); }),
+    // Deliberately NOT unref'd. The point of this timer is to be the thing that
+    // still resolves when the reconcile never does; a timer that lets the loop
+    // drain out from under it would put the queue right back where it was.
     new Promise((_, reject) => {
       timer = setTimeout(() => reject(new Error('Reconciliation did not answer in time.')), timeoutMs);
-      if (typeof timer?.unref === 'function') timer.unref();
     }),
   ]);
 };

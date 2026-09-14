@@ -589,14 +589,24 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
       checkpointRef ? transaction.get(checkpointRef) : Promise.resolve(null),
     ]);
 
-    // A receipt already written for this action id is the whole idempotency
-    // story for a retry that arrives after the grade write committed.
+    /*
+     * A receipt already written for this action id is the whole idempotency
+     * story for a retry that arrives after the grade write committed.
+     *
+     * The answer is DUPLICATE, not the original disposition. A device asking
+     * again needs one thing: may this queue row be retired? Echoing back
+     * `accepted` would say "this was just accepted", which is how a replay
+     * gets counted as a second attempt by anything downstream. The original
+     * outcome is carried alongside, for the recovery report rather than for
+     * the queue.
+     */
     if (receiptSnapshot.exists) {
       const previous = receiptSnapshot.data() || {};
       return {
         actionId: envelope.actionId,
-        disposition: previous.disposition || dispositions.SUBMISSION_DISPOSITION.DUPLICATE,
-        reason: previous.reason || "receipt-already-issued",
+        disposition: dispositions.SUBMISSION_DISPOSITION.DUPLICATE,
+        reason: "receipt-already-issued",
+        originalDisposition: previous.disposition || null,
         receiptId: receiptSnapshot.id,
       };
     }

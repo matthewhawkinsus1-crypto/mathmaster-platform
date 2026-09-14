@@ -1,10 +1,114 @@
 <!doctype html>
 <html><body><p id="ready">Loading durable outbox…</p><script type="module">
-import { createDurableAction, drainDurableActions, enqueueDurableAction, listDurableActions } from '/src/platform/performance/durableActionOutbox.js';
+/*
+ * THE REAL INDEXEDDB HARNESS.
+ *
+ * tests/platform runs the outbox against an in-memory adapter, and on
+ * September 14 that adapter was green while real Chromebook persistence was
+ * failing. Everything here therefore runs in a real browser against real
+ * IndexedDB, across a real reload: the transaction semantics, the version-2
+ * upgrade over a version-1 database, and the guard that decides whether a
+ * coalesced row may be deleted are all things the memory adapter cannot get
+ * wrong on your behalf.
+ */
+import {
+  createDurableAction,
+  drainDurableActions,
+  enqueueDurableAction,
+  listDurableActions,
+  listRetiredDurableActions,
+  summarizeDurableOutbox,
+} from '/src/platform/performance/durableActionOutbox.js';
+import { SUBMISSION_DISPOSITION } from '/functions/shared/studentSubmissionDisposition.mjs';
+
+const STUDENT = 'browser-cert-student';
+const ASSIGNMENT = 'assignment.with`punctuation';
+
+const action = ({ actionId, kind = 'ordinarySubmission', questionIndex = 0, previous = 0, payload = {} }) =>
+  createDurableAction({
+    kind,
+    studentId: STUDENT,
+    assignmentId: ASSIGNMENT,
+    questionIndex,
+    actionId,
+    payload: {
+      previousTotalAttempts: previous,
+      activityRole: 'classwork',
+      record: { totalAttempts: previous + 1, attemptCount: previous + 1, status: 'attempted' },
+      ...payload,
+    },
+  });
+
+/*
+ * Write a PR #226-shaped row STRAIGHT INTO the database, bypassing this
+ * release's builder entirely. It is the only honest way to prove that a
+ * Chromebook which has not been reloaded since the incident can still have its
+ * queued work read and delivered: the row has schemaVersion 1, no `delivery`
+ * annotation, and none of the fields version 2 added.
+ */
+const seedLegacyRow = (row) => new Promise((resolve, reject) => {
+  const request = indexedDB.open('mathmaster-student-actions');
+  request.onerror = () => reject(request.error);
+  request.onsuccess = () => {
+    const database = request.result;
+    const transaction = database.transaction('outbox', 'readwrite');
+    transaction.objectStore('outbox').put(row);
+    transaction.oncomplete = () => { database.close(); resolve(true); };
+    transaction.onerror = () => { database.close(); reject(transaction.error); };
+  };
+});
+
+/** Create the database at VERSION 1, the way the deployed release left it. */
+const createVersionOneDatabase = () => new Promise((resolve, reject) => {
+  const request = indexedDB.open('mathmaster-student-actions', 1);
+  request.onerror = () => reject(request.error);
+  request.onupgradeneeded = () => {
+    const database = request.result;
+    if (!database.objectStoreNames.contains('outbox')) {
+      database.createObjectStore('outbox', { keyPath: 'actionId' }).createIndex('studentId', 'studentId', { unique: false });
+    }
+  };
+  request.onsuccess = () => {
+    const database = request.result;
+    const version = database.version;
+    database.close();
+    resolve(version);
+  };
+});
+
+const deleteDatabase = () => new Promise((resolve) => {
+  const request = indexedDB.deleteDatabase('mathmaster-student-actions');
+  request.onsuccess = () => resolve(true);
+  request.onerror = () => resolve(false);
+  request.onblocked = () => resolve(false);
+});
+
 window.outboxHarness = {
-  enqueue: (actionId) => enqueueDurableAction(createDurableAction({ kind: 'ordinarySubmission', studentId: 'browser-cert-student', assignmentId: 'assignment.with`punctuation', questionIndex: 0, actionId, payload: { previousTotalAttempts: 0, record: { totalAttempts: 1 } } })),
-  list: () => listDurableActions({ studentId: 'browser-cert-student' }),
-  drain: () => drainDurableActions({ studentId: 'browser-cert-student', reconcile: async () => ({ status: 'durable' }) }),
+  SUBMISSION_DISPOSITION,
+  reset: deleteDatabase,
+  createVersionOneDatabase,
+  seedLegacyRow,
+  enqueue: (actionId, options = {}) => enqueueDurableAction(action({ actionId, ...options })).then((queued) => queued.actionId),
+  list: () => listDurableActions({ studentId: STUDENT }),
+  listRetired: () => listRetiredDurableActions({ studentId: STUDENT }),
+  summary: () => summarizeDurableOutbox({ studentId: STUDENT }),
+
+  /** Every action id the reconciler was asked about, in order. */
+  drain: (script = {}) => {
+    const seen = [];
+    return drainDurableActions({
+      studentId: STUDENT,
+      timeoutMs: 2000,
+      reconcile: async (queued) => {
+        seen.push(queued.actionId);
+        const outcome = script[queued.actionId] || script[queued.kind] || { disposition: SUBMISSION_DISPOSITION.ACCEPTED };
+        if (outcome === 'throw') throw new Error('reconcile failed');
+        if (outcome === 'hang') return new Promise(() => {});
+        return outcome;
+      },
+    }).then((result) => ({ ...result, seen }));
+  },
 };
+
 document.querySelector('#ready').textContent = 'Durable outbox ready';
 </script></body></html>
