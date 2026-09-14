@@ -25,6 +25,7 @@ import { stageFamily, stageFamilyLabel } from './stageFamilies';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
 import { workflowEndpointMarkers, workflowRequiresEndpointMarkers } from './workflowGraphVisuals.js';
 import { resolveWorkflowTaskPrompt, selectPersistentWorkflowGraph } from './workflowPresentation.js';
+import useMathUndoHistory, { questionUndoResetKey } from '../workView/useMathUndoHistory.js';
 import './WorkflowFocusMode.css';
 
 // Renders a question composed from interaction primitives.
@@ -1067,6 +1068,21 @@ export default function WorkflowRunner({
     draftKey ? `${draftKey}:workflow-stage` : null,
     0,
   );
+
+  // Composed questions own mathematical state at the workflow level for simple
+  // stages such as domain/range/classification. Register that state with
+  // Universal Undo so Work View does not show a permanently disabled Undo.
+  // Delegated graph/algebra tools may register their own higher-priority owner;
+  // when they do, their native mathematical history wins while the parent
+  // workflow history remains intact underneath it.
+  useMathUndoHistory({
+    label: 'Undo the last workflow response',
+    state: responses,
+    onRestore: setResponses,
+    resetKey: questionUndoResetKey(question),
+    ownerId: 'workflow-responses',
+    priority: -1,
+  });
   // ONLY THE STEPS THIS STUDENT IS BEING ASKED.
   //
   // A stage with `showWhen` appears once its controlling choice matches what
