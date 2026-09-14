@@ -39,6 +39,17 @@ export default function useLocalDraftState(storageKey, initialValue) {
   const setPersistedValue = useCallback((nextValue) => {
     setValue((current) => {
       const resolved = typeof nextValue === 'function' ? nextValue(current) : nextValue;
+
+      // Preserve React's no-op updater semantics.
+      //
+      // Workflow delegates intentionally return `current` when a child reports
+      // the exact same state twice. Cloning that unchanged object here turns the
+      // no-op into a brand-new reference, which forces a parent render. A child
+      // effect that reports state on render then reports again, and the cycle can
+      // lock the page. This is exactly what happened when the continuity choice
+      // made the hidden Build-the-graph stage mount.
+      if (Object.is(resolved, current)) return current;
+
       const saved = cloneValue(resolved);
       writeQuestionDraft(storageKey, saved);
       return saved;
