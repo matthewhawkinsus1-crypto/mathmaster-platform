@@ -49,6 +49,50 @@ const omittedWindow = fitStaticGraphViewport({
 assert.ok(omittedWindow.xMin < 0 && omittedWindow.xMax > 0, 'MathMaster chooses a useful x-window when the AI omits it');
 assert.ok(omittedWindow.yMax > 2, 'MathMaster chooses a useful y-window from the function');
 
+const restrictedAssessmentLine = fitStaticGraphViewport({
+  functions: [{
+    type: 'line',
+    m: -1,
+    b: 5,
+    domain: { min: -2, minClosed: true, max: 6, maxClosed: false },
+  }],
+});
+assert.ok(restrictedAssessmentLine.xMin < -2 && restrictedAssessmentLine.xMax > 6,
+  'finite domain endpoints sit inside the x-window with padding, never on/off the screen edge');
+assert.ok(restrictedAssessmentLine.yMin < -1 && restrictedAssessmentLine.yMax > 7,
+  'endpoint y-values also receive visible padding');
+assert.ok(Number.isNaN(evaluateStaticGraphFunction({
+  type: 'line',
+  m: -1,
+  b: 5,
+  domain: { min: -2, minClosed: true, max: 6, maxClosed: false },
+}, 6)), 'V5 maxClosed:false is honored by the static evaluator');
+
+const readableQuadratic = fitStaticGraphViewport({
+  functions: [{ type: 'quadratic', a: 1, h: 1, k: -4 }],
+  readabilityPoints: [[-1, 0], [3, 0], [0, -3], [1, -4]],
+});
+assert.ok(readableQuadratic.xMin < -1 && readableQuadratic.xMax > 3,
+  'intercepts and vertex are framed with breathing room');
+assert.ok(readableQuadratic.yMin < -4 && readableQuadratic.yMax <= 12,
+  'answer-critical quadratic features frame the graph instead of distant unassessed wings');
+
+const lockedEndpointEdge = auditStaticGraphViewport({
+  lockViewport: true,
+  xMin: -2,
+  xMax: 6,
+  yMin: -2,
+  yMax: 8,
+  functions: [{
+    type: 'line',
+    m: -1,
+    b: 5,
+    domain: { min: -2, minClosed: true, max: 6, maxClosed: false },
+  }],
+}, { strictBoundaryVisibility: true });
+assert.ok(lockedEndpointEdge.errors.some((message) => /too near the viewport edge/.test(message)),
+  'a locked assessment graph is rejected when an endpoint marker would be clipped by the border');
+
 console.log('graphSpecUtils.test.mjs: all assertions passed');
 
 // A plotted point arrives either as [x, y] or as an object carrying its own
