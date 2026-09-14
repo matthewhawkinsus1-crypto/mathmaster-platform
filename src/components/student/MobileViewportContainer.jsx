@@ -208,7 +208,18 @@ export const MobileViewportContainer = ({
 
   const handleFocusCapture = (event) => {
     const target = event.target;
-    if (isMobile && target?.matches?.(NUMERIC_SELECTOR)) setNumericTarget(target);
+    if (isMobile) {
+      if (target?.matches?.(NUMERIC_SELECTOR)) {
+        setNumericTarget(target);
+      } else if (!target?.closest?.('.mathmaster-mobile-numeric-keypad')) {
+        // The MathMaster keypad belongs only to the numeric field that owns
+        // focus. Moving to a select, graph control, Submit, or any other normal
+        // control must dismiss it just like a native software keyboard would.
+        // Keeping the stale target alive leaves the fixed keypad intercepting
+        // later controls even though the student is no longer typing a number.
+        setNumericTarget(null);
+      }
+    }
 
     // Remember the local horizontal position at focus time. Some MathLive and
     // browser caret routines scroll the nearest overflow:auto ancestor after
