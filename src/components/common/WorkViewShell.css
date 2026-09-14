@@ -491,3 +491,56 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
     max-height: 56dvh;
   }
 }
+
+
+/*
+ * BOUND THE QUESTION WORKFLOW TO THE WORK VIEW SURFACE.
+ *
+ * The enlarged figure itself is the scroll owner for ordinary standalone tools.
+ * A staged QuestionEngine workflow is different: its Previous/Next footer must
+ * remain reachable while only the active mathematical body scrolls. Percentage
+ * heights did not resolve through the figure -> question workspace -> fieldset
+ * wrappers, so the workflow kept its natural document height and pushed its
+ * footer below the visible shell. Make that chain a single flex column only
+ * when a workflow is present. The existing workflow rules can then give the
+ * active body the remaining height and keep the footer in flow at the bottom.
+ */
+[data-open="true"] .mathmaster-work-view-surface:has(.workflow-focus) {
+  display: flex !important;
+  flex-direction: column;
+  overflow: hidden !important;
+}
+
+[data-open="true"] .mathmaster-work-view-surface:has(.workflow-focus)
+  > .mathmaster-work-view-instruction {
+  flex: 0 0 auto;
+}
+
+[data-open="true"] .mathmaster-work-view-surface:has(.workflow-focus)
+  > .mathmaster-question-tool-workspace {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+[data-open="true"] .mathmaster-work-view-surface:has(.workflow-focus)
+  > .mathmaster-question-tool-workspace > fieldset {
+  display: block;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+[data-open="true"] .mathmaster-work-view-surface:has(.workflow-focus)
+  > .mathmaster-question-tool-workspace > fieldset > div {
+  height: 100%;
+  min-height: 0;
+}
+
+[data-open="true"] .mathmaster-work-view-surface:has(.workflow-focus)
+  .workflow-focus {
+  height: 100%;
+  min-height: 0;
+}
