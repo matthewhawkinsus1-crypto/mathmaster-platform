@@ -463,7 +463,7 @@ const READ_MATH_STATE = new Function(`
   // this probe is for. The tool subtree is the same instance either way, because
   // Work View is a CSS change around a child that is never remounted.
   const chrome = (el) => el.closest && el.closest('.mathmaster-work-view-header, .mathmaster-work-view-drawer, .mathmaster-work-view-actions, .mathmaster-work-view-instruction');
-  const fields = [...scope.querySelectorAll('input, select, textarea')]
+  const fields = [...scope.querySelectorAll('input, select, textarea, math-field')]
     .filter((el) => el.type !== 'hidden' && !chrome(el))
     .map((el) => (el.getAttribute('aria-label') || el.name || el.placeholder || el.id || '') + '=' + String(el.value));
 
