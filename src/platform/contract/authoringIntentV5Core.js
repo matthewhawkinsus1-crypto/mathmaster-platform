@@ -358,6 +358,7 @@ const derivedSetAnswers = (q = {}, kind = 'domain') => {
 };
 
 const expressionFromSpec = (raw = {}) => {
+  if (!hasFunctionIntent(raw)) return null;
   const spec = coreFunctionSpec(raw);
   const num = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
   const shifted = (h) => (h === 0 ? 'x' : `(x ${h > 0 ? '-' : '+'} ${Math.abs(h)})`);
@@ -381,11 +382,15 @@ const normalizeGraphChoices = (choices = []) => asArray(choices).map((item, inde
   if (!isObject(item)) return item;
   const id = item.id || `g${index + 1}`;
   if (item.graph) return { ...item, id, graph: normalizeStaticGraphPoints(item.graph) };
-  if (item.function || item.functionSpec) {
+  const functionIntent = hasFunctionIntent(item.function)
+    ? item.function
+    : (hasFunctionIntent(item.functionSpec) ? item.functionSpec : null);
+  if (functionIntent) {
+    const spec = staticFunctionSpec(functionIntent);
     return {
       id,
       ...(clean(item.label) ? { label: item.label } : {}),
-      graph: { functions: [staticFunctionSpec(item.function || item.functionSpec)] },
+      ...(spec ? { graph: { functions: [spec] } } : {}),
     };
   }
   return { ...item, id };
@@ -874,9 +879,7 @@ const compileRelationshipModel = (q, actions) => {
   }
   out.graph = q.graph || relationship.graph;
   if (actions.includes('configureAxes') && !out.graph) {
-    const functionSpec = isObject(q.function) || isObject(q.functionSpec)
-      ? functionSpecFromIntentQuestion(q)
-      : null;
+    const functionSpec = functionSpecFromIntentQuestion(q);
     out.graph = blankAxisGraphFromIntent({
       question: q,
       functionSpec,
@@ -884,8 +887,9 @@ const compileRelationshipModel = (q, actions) => {
       evaluateFunction: evaluateIntentFunction,
     });
   }
-  if (!actions.includes('writeEquation') && (isObject(q.function) || isObject(q.functionSpec))) {
-    out.functionSpec = coreFunctionSpec(q.function || q.functionSpec);
+  if (!actions.includes('writeEquation')) {
+    const functionIntent = authoredFunctionIntent(q);
+    if (functionIntent) out.functionSpec = coreFunctionSpec(functionIntent);
   }
   if (q.relationshipType) out.relationshipType = q.relationshipType;
   if (q.requireRelationshipType != null) out.requireRelationshipType = q.requireRelationshipType;
@@ -1306,9 +1310,15 @@ const compileOne = (q, index, repairs) => {
     case 'system':
       out = copyCommon(q, { type, equations: q.equations, answer: answerOf(q), graph: normalizeStaticGraphPoints(q.graph), showGraph: q.showGraph });
       break;
-    case 'table':
-      out = copyCommon(q, { type, table: q.table, functionSpec: q.function ? coreFunctionSpec(q.function) : q.functionSpec });
+    case 'table': {
+      const functionIntent = authoredFunctionIntent(q);
+      out = copyCommon(q, {
+        type,
+        table: q.table,
+        ...(functionIntent ? { functionSpec: coreFunctionSpec(functionIntent) } : {}),
+      });
       break;
+    }
     case 'orderedPair':
       out = copyCommon(q, { type, answer: answerOf(q) || q.point, graph: normalizeStaticGraphPoints(q.graph) });
       break;
@@ -1455,9 +1465,17 @@ const compileOne = (q, index, repairs) => {
     case 'graphComparison':
       out = copyCommon(q, { type, graphs: normalizeGraphChoices(q.graphs || q.candidateGraphs), fields: (q.fields || q.comparisonFields || q.responses || []).map(fieldFromIntent) });
       break;
-    case 'graphStory':
-      out = copyCommon(q, { type, graph: graphFromIntent(q), functionSpec: q.function ? coreFunctionSpec(q.function) : q.functionSpec, minimumScenarioCharacters: q.minimumScenarioCharacters, minimumExplanationCharacters: q.minimumExplanationCharacters });
+    case 'graphStory': {
+      const functionIntent = authoredFunctionIntent(q);
+      out = copyCommon(q, {
+        type,
+        graph: graphFromIntent(q),
+        ...(functionIntent ? { functionSpec: coreFunctionSpec(functionIntent) } : {}),
+        minimumScenarioCharacters: q.minimumScenarioCharacters,
+        minimumExplanationCharacters: q.minimumExplanationCharacters,
+      });
       break;
+    }
     case 'contextInterpretation': {
       const target = isObject(q.target)
         ? q.target
