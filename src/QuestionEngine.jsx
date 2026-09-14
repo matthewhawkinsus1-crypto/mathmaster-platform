@@ -201,7 +201,7 @@ export default function QuestionEngine({
     () => [processedQuestion?.prompt, ...(referenceInfo?.statements || []).map((entry) => entry?.text)].filter(Boolean).join('. '),
     [processedQuestion?.prompt, referenceInfo],
   );
-  const { confirm: confirmAction } = useToast();
+  const { confirm: confirmAction, toastInfo } = useToast();
   // Built once per question, not once per render. StepByStepAlgebra resets its
   // whole workspace when its `question` prop changes identity, so handing it a
   // freshly-built object on every render wiped the armed operation the instant
@@ -385,6 +385,15 @@ export default function QuestionEngine({
     teacherCalculatorChoice,
     assessmentContext,
   }), [processedQuestion, resolvedActivityPolicy, studentProfile, teacherCalculatorChoice, assessmentContext]);
+  const calculatorUnavailableReason = calculatorPolicy?.reason || 'No calculator is allowed for this skill.';
+  const handleCalculatorControl = () => {
+    if (!calculatorPolicy?.available) {
+      toastInfo('Calculator unavailable', calculatorUnavailableReason);
+      return;
+    }
+    setCalculatorUsed(true);
+    setCalculatorOpen((current) => !current);
+  };
   const scaffold = processedQuestion?.scaffold || (processedQuestion?.type === 'stepAlgebra'
     ? { prompt: 'Let’s back up. What operation undoes multiplication?', options: ['Add', 'Divide'], correct: 'Divide' }
     : processedQuestion?.type === 'functionGraph' || processedQuestion?.type === 'functionInvestigation'
@@ -894,15 +903,13 @@ export default function QuestionEngine({
       disabled: scratchpadLoading,
       title: 'Open the scratchpad without covering the solver controls',
     },
-    calculator: calculatorPolicy?.available ? {
-      label: '🧮 Calculator',
-      onClick: () => {
-        setCalculatorUsed(true);
-        setCalculatorOpen((current) => !current);
-      },
+    calculator: {
+      label: calculatorPolicy?.available ? '🧮 Calculator' : '🚫 🧮 Calculator',
+      onClick: handleCalculatorControl,
       disabled: false,
-      title: 'Open the calculator',
-    } : null,
+      title: calculatorPolicy?.available ? 'Open the calculator' : calculatorUnavailableReason,
+      unavailable: !calculatorPolicy?.available,
+    },
     help: guidedCoachEnabled ? {
       label: 'Help',
       content: guidedCoach,
@@ -926,16 +933,27 @@ export default function QuestionEngine({
       <button type="button" onClick={openScratchpad} disabled={scratchpadLoading} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>
         {scratchpadLoading ? 'Opening…' : locked ? '✎ Scratchpad' : '✎ Scratchpad'}
       </button>
-      {calculatorPolicy?.available && (
-        <button
-          type="button"
-          onClick={() => { setCalculatorUsed(true); setCalculatorOpen((current) => !current); }}
-          aria-expanded={calculatorOpen}
-          style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: calculatorOpen ? '#eef4ff' : '#fff', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}
-        >
-          🧮 Calculator
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={handleCalculatorControl}
+        aria-expanded={calculatorPolicy?.available ? calculatorOpen : false}
+        aria-disabled={!calculatorPolicy?.available}
+        aria-label={calculatorPolicy?.available ? 'Calculator' : `Calculator unavailable. ${calculatorUnavailableReason}`}
+        title={calculatorPolicy?.available ? 'Open the calculator' : calculatorUnavailableReason}
+        style={{
+          minHeight: '44px',
+          padding: '9px 14px',
+          borderRadius: '999px',
+          border: calculatorPolicy?.available ? '1px solid #c5d5ef' : '1px solid #d7a5a1',
+          background: calculatorPolicy?.available && calculatorOpen ? '#eef4ff' : calculatorPolicy?.available ? '#fff' : '#fce8e6',
+          color: calculatorPolicy?.available ? '#174ea6' : '#8c1d18',
+          fontWeight: 'bold',
+          cursor: 'pointer',
+          opacity: calculatorPolicy?.available ? 1 : 0.9,
+        }}
+      >
+        {calculatorPolicy?.available ? '🧮 Calculator' : '🚫 🧮 Calculator'}
+      </button>
       {supportPresentation.textToSpeech && (
         <button type="button" onClick={() => speakText(referenceSpeechText)} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>🔊 Read</button>
       )}
