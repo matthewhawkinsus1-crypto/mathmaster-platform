@@ -99,6 +99,51 @@ export const listDurableActions = async ({ storage = indexedDbOutboxStorage, stu
       || left.actionId.localeCompare(right.actionId));
 };
 
+export const overlayDurableActionsOnGrades = (gradesByAssignment = {}, actions = []) => {
+  let next = gradesByAssignment && typeof gradesByAssignment === 'object' ? gradesByAssignment : {};
+  const ordered = [...(Array.isArray(actions) ? actions : [])]
+    .sort((left, right) => (left.createdOrder || left.createdAt || 0) - (right.createdOrder || right.createdAt || 0)
+      || String(left.actionId || '').localeCompare(String(right.actionId || '')));
+
+  ordered.forEach((action) => {
+    if (!action?.assignmentId || !Number.isInteger(Number(action.questionIndex))) return;
+    const assignmentId = String(action.assignmentId);
+    const questionIndex = Number(action.questionIndex);
+    const assignmentGrades = next[assignmentId] || {};
+    const currentRecord = assignmentGrades[questionIndex] || {};
+
+    if (action.kind === 'questionProgress') {
+      const pendingTime = Number(action.payload?.timeSpent) || 0;
+      const currentTime = Number(currentRecord?.timeSpent) || 0;
+      if (pendingTime <= currentTime) return;
+      next = {
+        ...next,
+        [assignmentId]: {
+          ...assignmentGrades,
+          [questionIndex]: { ...currentRecord, timeSpent: pendingTime },
+        },
+      };
+      return;
+    }
+
+    if (!['ordinarySubmission', 'stepSubmission', 'questionReplacement'].includes(action.kind) || !action.payload?.record) return;
+    const pendingRecord = clone(action.payload.record);
+    const pendingAttempts = Number(pendingRecord.totalAttempts) || 0;
+    const currentAttempts = Number(currentRecord?.totalAttempts) || 0;
+    if (pendingAttempts < currentAttempts) return;
+
+    next = {
+      ...next,
+      [assignmentId]: {
+        ...assignmentGrades,
+        [questionIndex]: pendingRecord,
+      },
+    };
+  });
+
+  return next;
+};
+
 export const drainDurableActions = ({ storage = indexedDbOutboxStorage, studentId, reconcile }) => {
   const run = async () => {
     const queued = await listDurableActions({ storage, studentId });
