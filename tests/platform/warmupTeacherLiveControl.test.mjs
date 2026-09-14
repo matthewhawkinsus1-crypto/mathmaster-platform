@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {
+  SUBMISSION_DISPOSITION,
+  classifyCapturedSubmission,
+} from '../../functions/shared/studentSubmissionDisposition.mjs';
 import { region } from './helpers/sourceContract.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
@@ -74,19 +78,57 @@ test('a reopened Warm-Up bypasses Practice Mode and reaches the canonical durabl
 test('teacher-reopened Warm-Up work remains canonical even if the assignment or section closes again before sync', () => {
   const app = read('src/App.jsx');
   const submit = region(app, 'const handleGradeSubmit', 'const handleStepGrade', 'ordinary grade submit');
-  const reconcile = region(app, 'const reconcileDurableStudentAction', 'const drainStudentOutbox', 'durable reconciliation');
+  const reconcile = region(app, 'const buildSubmissionEnvelopeForAction', 'const drainStudentOutbox', 'durable reconciliation');
 
   assert.match(submit, /createdAt: submissionCapturedAt/);
   assert.match(submit, /activityRole: activeQuestionRole,[\s\S]*timedSectionAccess,[\s\S]*record: outcome\.record/);
+  // The reconciler still reads the Warm-Up window the browser recorded, and
+  // still judges the assignment lifecycle at the CAPTURE time — it just hands
+  // both to the shared classifier instead of deciding inline.
   assert.match(reconcile, /const timedSectionAccess = action\.payload\?\.timedSectionAccess \|\| null/);
   assert.match(reconcile, /const teacherReopenedWarmupAtCapture = warmupWasActiveAtCapture[\s\S]*timedSectionAccess\?\.teacherTimerScheduled === true/);
-  assert.match(reconcile, /if \(lifecycleAtCapture\.isClosed && !teacherReopenedWarmupAtCapture\)/);
+  assert.match(reconcile, /getAssignmentLifecycle\(assignment, capturedAt\)/);
+  assert.match(reconcile, /assignmentClosedAtCapture: lifecycleAtCapture \? lifecycleAtCapture\.isClosed : null/);
+  assert.match(reconcile, /teacherReopenedWarmupAtCapture,/);
+});
 
-  const mutant = reconcile.replace('&& !teacherReopenedWarmupAtCapture', '');
-  assert.throws(
-    () => assert.match(mutant, /lifecycleAtCapture\.isClosed && !teacherReopenedWarmupAtCapture/),
-    undefined,
-    'removing the canonical reopen exception must break this contract',
+/*
+ * THE SAME RULE, EXERCISED RATHER THAN SPELLED.
+ *
+ * The exception used to be an inline expression in App.jsx that only a regex
+ * could see. It is a shared, importable decision now, so this runs it: work
+ * captured inside a teacher-reopened Warm-Up survives the assignment closing
+ * again, and without the exception it would not.
+ */
+test('a Warm-Up the teacher reopened keeps credit when the assignment closes again before the queue drains', () => {
+  const captured = {
+    actionId: 'warmup-attempt',
+    kind: 'ordinarySubmission',
+    activityRole: 'warmup',
+    capturedAt: 1_700_000_000_000,
+    previousTotalAttempts: 0,
+    canonicalRecord: { totalAttempts: 0 },
+    assignmentExists: true,
+    gradeRecordExists: true,
+    authorizedForClass: true,
+    // The assignment's own cutoff had already passed at capture time.
+    assignmentClosedAtCapture: true,
+    sectionOpenAtCapture: true,
+  };
+
+  assert.equal(
+    classifyCapturedSubmission({ ...captured, teacherReopenedWarmupAtCapture: true }).disposition,
+    SUBMISSION_DISPOSITION.ACCEPTED,
+  );
+  // Remove the reopen and the same capture is correctly refused: the exception
+  // is doing the work, not a permissive default.
+  assert.equal(
+    classifyCapturedSubmission({ ...captured, teacherReopenedWarmupAtCapture: false }).disposition,
+    SUBMISSION_DISPOSITION.PERMANENTLY_INVALID,
+  );
+  assert.equal(
+    classifyCapturedSubmission({ ...captured, teacherReopenedWarmupAtCapture: false }).reason,
+    'assignment-closed-at-capture',
   );
 });
 

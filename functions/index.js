@@ -494,6 +494,306 @@ exports.expediteCheckpointsOnSectionClose = onDocumentWritten(
   },
 );
 
+/* =========================================================================
+ * SERVER INGESTION OF ORDINARY STUDENT SUBMISSIONS.
+ *
+ * The September 14 incident: students worked, the browser acknowledged, and
+ * `grades/{studentId}.gradesByAssignment` stayed empty. Canonical persistence
+ * had become a client Firestore TRANSACTION running in a background drain, and
+ * a transaction is the one Firestore write that does not queue offline — it
+ * waits for the network. One stalled transaction owned the drain chain, one
+ * undifferentiated `rejected` deleted the evidence, and the teacher's gradebook
+ * never heard about work the student had plainly done.
+ *
+ * This callable is the durable path. The browser keeps its instant local
+ * acknowledgement and its IndexedDB envelope; delivery happens here, where the
+ * authoritative assignment, roster and attempt history are re-read, the
+ * response is re-graded wherever the server can mark it, and the answer is a
+ * RECEIPT the client can retire its queue row against.
+ *
+ * Idempotency key: the durable action id, carried into the canonical record as
+ * `lastSubmissionId`. A retry of a submission that already landed reports
+ * `duplicate` and writes nothing.
+ * ========================================================================= */
+let submissionIngestionModule = null;
+async function submissionIngestion() {
+  if (!submissionIngestionModule) {
+    submissionIngestionModule = await import("./shared/submissionIngestion.mjs");
+  }
+  return submissionIngestionModule;
+}
+
+let submissionDispositionModule = null;
+async function submissionDisposition() {
+  if (!submissionDispositionModule) {
+    submissionDispositionModule = await import("./shared/studentSubmissionDisposition.mjs");
+  }
+  return submissionDispositionModule;
+}
+
+const SUBMISSION_RECEIPT_COLLECTION = "studentSubmissionReceipts";
+
+/** The student's class, read from the authoritative roster row, never claimed. */
+function authoritativeStudentClassId(gradeData) {
+  return String(gradeData?.classId || "").trim() || null;
+}
+
+/**
+ * Ingest ONE envelope inside a transaction and return its receipt.
+ *
+ * Every read happens before every write, and the canonical attempt, its
+ * projections, the evidence event and the checkpoint retirement all commit
+ * together — so a teacher never sees a grade without its evidence, and a
+ * deadline can never turn one response into two attempts.
+ */
+async function ingestOneSubmission({ db, studentId, envelope, now }) {
+  const ingestion = await submissionIngestion();
+  const dispositions = await submissionDisposition();
+  const { assignmentFinalCloseAt } = await import("./shared/sectionDeadline.mjs");
+
+  const gradeRef = db.collection("grades").doc(studentId);
+  const assignmentRef = db.collection("assignments").doc(envelope.assignmentId);
+  const receiptRef = db.collection(SUBMISSION_RECEIPT_COLLECTION).doc(
+    `${encodeURIComponent(studentId)}__${encodeURIComponent(envelope.actionId)}`.slice(0, 1400),
+  );
+  const checkpointRef = envelope.checkpointDocumentId
+    ? db.collection(CHECKPOINT_COLLECTION).doc(envelope.checkpointDocumentId)
+    : null;
+
+  return db.runTransaction(async (transaction) => {
+    const [assignmentSnapshot, gradeSnapshot, receiptSnapshot, checkpointSnapshot] = await Promise.all([
+      transaction.get(assignmentRef),
+      transaction.get(gradeRef),
+      transaction.get(receiptRef),
+      checkpointRef ? transaction.get(checkpointRef) : Promise.resolve(null),
+    ]);
+
+    // A receipt already written for this action id is the whole idempotency
+    // story for a retry that arrives after the grade write committed.
+    if (receiptSnapshot.exists) {
+      const previous = receiptSnapshot.data() || {};
+      return {
+        actionId: envelope.actionId,
+        disposition: previous.disposition || dispositions.SUBMISSION_DISPOSITION.DUPLICATE,
+        reason: previous.reason || "receipt-already-issued",
+        receiptId: receiptSnapshot.id,
+      };
+    }
+
+    const assignment = assignmentSnapshot.exists
+      ? { id: assignmentSnapshot.id, ...assignmentSnapshot.data() }
+      : null;
+    const gradeData = gradeSnapshot.exists ? gradeSnapshot.data() || {} : null;
+    const classId = authoritativeStudentClassId(gradeData);
+
+    // Secure Test Cycle work keeps its own server-authoritative state machine
+    // and never becomes an ordinary attempt, whatever an envelope claims.
+    if (assignment && (secureAssignmentMode(assignment) || assignment.secure === true)) {
+      return {
+        actionId: envelope.actionId,
+        disposition: dispositions.SUBMISSION_DISPOSITION.PERMANENTLY_INVALID,
+        reason: "secure-assignment-excluded",
+      };
+    }
+
+    const question = assignment ? runtimeQuestionsFromAssignment(assignment)?.[envelope.questionIndex] || null : null;
+    const canonicalRecord = gradeData?.gradesByAssignment?.[envelope.assignmentId]?.[String(envelope.questionIndex)]
+      ?? gradeData?.gradesByAssignment?.[envelope.assignmentId]?.[envelope.questionIndex]
+      ?? null;
+
+    const finalCloseAtMs = assignment ? assignmentFinalCloseAt(assignment) : null;
+    const decision = ingestion.decideSubmissionIngestion({
+      envelope,
+      assignmentExists: assignmentSnapshot.exists,
+      gradeRecordExists: gradeSnapshot.exists,
+      authorizedForClass: assignment ? studentMatchesAssignmentAudience({ assignment, classId }) : null,
+      // Judged at the moment the student pressed Submit, not at the moment the
+      // background queue happened to reach this function.
+      assignmentClosedAtCapture: finalCloseAtMs === null
+        ? null
+        : Number(envelope.capturedAt || now) > Number(finalCloseAtMs),
+      liveSectionAccess: assignment
+        ? ingestion.resolveLiveSectionAccess({ assignment, activityRole: envelope.activityRole, classId })
+        : null,
+      question,
+      canonicalRecord,
+      deliveryAttempts: envelope.deliveryAttempts || 0,
+      now,
+    });
+
+    if (decision.disposition !== dispositions.SUBMISSION_DISPOSITION.ACCEPTED) {
+      // Nothing is written for a non-acceptance except, for a PROVEN one, the
+      // receipt that lets the device stop retrying. An unprovable outcome
+      // writes nothing at all, so the device keeps the work and tries again.
+      if (!dispositions.RETIRING_DISPOSITIONS.includes(decision.disposition)) {
+        return { actionId: envelope.actionId, disposition: decision.disposition, reason: decision.reason };
+      }
+      transaction.set(receiptRef, {
+        studentId,
+        actionId: envelope.actionId,
+        assignmentId: envelope.assignmentId,
+        questionIndex: envelope.questionIndex,
+        disposition: decision.disposition,
+        reason: decision.reason || null,
+        capturedAt: envelope.capturedAt ? new Date(envelope.capturedAt) : null,
+        issuedAt: FieldValue.serverTimestamp(),
+      });
+      return {
+        actionId: envelope.actionId,
+        disposition: decision.disposition,
+        reason: decision.reason,
+        receiptId: receiptRef.id,
+      };
+    }
+
+    const assignmentId = envelope.assignmentId;
+    const classworkIndices = runtimeIncludedQuestionIndicesForSection(assignment, "classwork");
+    const dolIndices = runtimeIncludedQuestionIndicesForSection(assignment, "dol");
+    const built = ingestion.buildIngestedAttempt({
+      envelope,
+      assignment,
+      question,
+      canonicalRecord,
+      gradeDocument: gradeData,
+      classworkIndices,
+      dolIndices,
+      occurredAt: now,
+    });
+    if (built.blocked) {
+      // The server could not mark a response it was supposed to be able to
+      // mark. Keeping the work beats guessing at it.
+      return {
+        actionId: envelope.actionId,
+        disposition: dispositions.SUBMISSION_DISPOSITION.NEEDS_REVIEW,
+        reason: built.reason,
+      };
+    }
+
+    if (envelope.activityRole === "dol" && dolIndices.length) {
+      const { getQuestionCredit, dolSectionProjection } = ingestion;
+      const totals = weightedQuestionTotals({
+        tracker: built.assignmentTracker,
+        questions: runtimeQuestionsFromAssignment(assignment),
+        indices: dolIndices,
+        creditForRecord: getQuestionCredit,
+      });
+      built.dolGrade = dolSectionProjection({
+        existing: gradeData?.dolGradesByAssignment?.[assignmentId] || null,
+        dateKey: built.dolDateKey,
+        score: totals.score ?? 0,
+        questionIndices: dolIndices,
+        recordedAt: new Date(now).toISOString(),
+        finalize: false,
+        correctionReason: "server-ingestion",
+      });
+    }
+
+    const updates = [
+      new FieldPath("gradesByAssignment", assignmentId, String(envelope.questionIndex)),
+      built.record,
+      new FieldPath("supportUsageByAssignment", assignmentId),
+      built.supportUsage,
+    ];
+    if (built.classworkGrade) {
+      // Without this a student's final classwork response could be recorded and
+      // still leave them locked out of the dependent assignment.
+      updates.push(new FieldPath("classworkGradesByAssignment", assignmentId), built.classworkGrade);
+    }
+    if (built.dolGrade) {
+      updates.push(new FieldPath("dolGradesByAssignment", assignmentId, built.dolDateKey), built.dolGrade);
+    }
+    transaction.update(gradeRef, ...updates);
+
+    if (built.evidenceEvent?.eventKey) {
+      // Deterministic for this exact attempt, so a retry after a partial
+      // failure repeats the same write rather than appending a second record.
+      transaction.set(
+        gradeRef.collection("evidenceEvents").doc(String(built.evidenceEvent.eventKey)),
+        built.evidenceEvent,
+      );
+    }
+
+    // THE EXPLICIT SUBMISSION IS NEWER AUTHORITY THAN ITS OWN CHECKPOINT.
+    // Retiring it in the same transaction makes "Submit, close the tab, the
+    // deadline arrives" produce exactly one attempt.
+    if (checkpointRef && checkpointSnapshot?.exists && checkpointSnapshot.data()?.studentId === studentId) {
+      transaction.update(checkpointRef, {
+        status: "explicitly-submitted",
+        candidateFinalizeAt: null,
+        supersededAt: FieldValue.serverTimestamp(),
+        supersededBySubmissionId: envelope.actionId,
+      });
+    }
+
+    transaction.set(receiptRef, {
+      studentId,
+      actionId: envelope.actionId,
+      assignmentId,
+      questionIndex: envelope.questionIndex,
+      disposition: dispositions.SUBMISSION_DISPOSITION.ACCEPTED,
+      reason: null,
+      gradedBy: built.gradedBy,
+      totalAttempts: Number(built.record.totalAttempts) || 0,
+      capturedAt: envelope.capturedAt ? new Date(envelope.capturedAt) : null,
+      issuedAt: FieldValue.serverTimestamp(),
+    });
+
+    return {
+      actionId: envelope.actionId,
+      disposition: dispositions.SUBMISSION_DISPOSITION.ACCEPTED,
+      reason: null,
+      gradedBy: built.gradedBy,
+      receiptId: receiptRef.id,
+      totalAttempts: Number(built.record.totalAttempts) || 0,
+    };
+  });
+}
+
+exports.ingestStudentSubmissions = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const ingestion = await submissionIngestion();
+  const dispositions = await submissionDisposition();
+
+  const incoming = Array.isArray(request.data?.submissions) ? request.data.submissions : [];
+  if (!incoming.length) throw new HttpsError("invalid-argument", "No submissions were supplied.");
+  if (incoming.length > ingestion.MAX_ENVELOPES_PER_CALL) {
+    throw new HttpsError("invalid-argument", `At most ${ingestion.MAX_ENVELOPES_PER_CALL} submissions may be ingested per call.`);
+  }
+
+  const db = getFirestore();
+  const now = Date.now();
+  const receipts = [];
+  for (const raw of incoming) {
+    const envelope = ingestion.normalizeSubmissionEnvelope(raw);
+    if (!envelope) {
+      // Unreadable is not "discard": the device keeps its copy and the teacher
+      // recovery report can see that something arrived that could not be read.
+      receipts.push({
+        actionId: String(raw?.actionId || "").slice(0, 200) || null,
+        disposition: dispositions.SUBMISSION_DISPOSITION.NEEDS_REVIEW,
+        reason: "unreadable-envelope",
+      });
+      continue;
+    }
+    // The envelope never gets to say whose work it is.
+    envelope.studentId = studentId;
+    try {
+      receipts.push(await ingestOneSubmission({ db, studentId, envelope, now }));
+    } catch (error) {
+      logger.error("Could not ingest a student submission", {
+        studentId, actionId: envelope.actionId, message: error.message,
+      });
+      // A failed write is a retry, never a retirement.
+      receipts.push({
+        actionId: envelope.actionId,
+        disposition: dispositions.SUBMISSION_DISPOSITION.RETRYABLE,
+        reason: `ingestion-error:${String(error.message || "unknown").slice(0, 120)}`,
+      });
+    }
+  }
+  return { receipts, ingestedAt: now };
+});
+
 const studentMatchesAssignmentAudience = ({ assignment = {}, classId = null } = {}) => {
   const audience = assignmentAudience(assignment);
   return Boolean(classId && audience.classIds.includes(String(classId)));

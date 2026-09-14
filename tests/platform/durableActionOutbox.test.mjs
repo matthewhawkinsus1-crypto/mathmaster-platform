@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { region } from './helpers/sourceContract.mjs';
 import {
   createDurableAction,
   createMemoryOutboxStorage,
   drainDurableActions,
   enqueueDurableAction,
   listDurableActions,
+  listRetiredDurableActions,
   overlayDurableActionsOnGrades,
+  SUBMISSION_DISPOSITION,
 } from '../../src/platform/performance/durableActionOutbox.js';
 
 const submission = ({ actionId, questionIndex = 0, previous = 0, attempts = previous + 1 } = {}) => createDurableAction({
@@ -58,7 +61,13 @@ test('online submit is persisted exactly once and retry is idempotent', async ()
   const authority = authorityHarness();
   const action = submission({ actionId: 'submit-1' });
   await enqueueDurableAction(action, { storage });
-  assert.deepEqual(await drainDurableActions({ storage, studentId: 'student', reconcile: authority.reconcile }), { recovered: 1, rejected: 0, remaining: 0 });
+  // The drain result gained classification fields (tally/retained/gradeBlocked)
+  // when rejection stopped being one undifferentiated verdict. Assert the
+  // outcome this test is about, not the whole growing shape.
+  const first = await drainDurableActions({ storage, studentId: 'student', reconcile: authority.reconcile });
+  assert.equal(first.recovered, 1);
+  assert.equal(first.rejected, 0);
+  assert.equal(first.remaining, 0);
   await enqueueDurableAction(action, { storage });
   await drainDurableActions({ storage, studentId: 'student', reconcile: authority.reconcile });
   assert.equal(authority.records.values().next().value.totalAttempts, 1);
@@ -76,12 +85,22 @@ test('offline submit remains queued and a recreated client recovers it after rec
   const storage = createMemoryOutboxStorage();
   const authority = authorityHarness({ online: false });
   await enqueueDurableAction(submission({ actionId: 'offline-submit' }), { storage });
-  assert.deepEqual(await drainDurableActions({ storage, studentId: 'student', reconcile: authority.reconcile }), { recovered: 0, rejected: 0, remaining: 1 });
+  const offlineDrain = await drainDurableActions({ storage, studentId: 'student', reconcile: authority.reconcile });
+  assert.equal(offlineDrain.recovered, 0);
+  assert.equal(offlineDrain.remaining, 1);
+  // An offline submission is grade-bearing work still owed a delivery.
+  assert.equal(offlineDrain.remainingGrade, 1);
   // A new list call represents a page reload: state comes from durable storage,
   // not from a closure owned by the submitting component.
   assert.equal((await listDurableActions({ storage, studentId: 'student' }))[0].actionId, 'offline-submit');
   authority.setOnline(true);
-  assert.deepEqual(await drainDurableActions({ storage, studentId: 'student', reconcile: authority.reconcile }), { recovered: 1, rejected: 0, remaining: 0 });
+  // The drain result gained classification fields (tally/retained/gradeBlocked)
+  // when rejection stopped being one undifferentiated verdict. Assert the
+  // outcome this test is about, not the whole growing shape.
+  const first = await drainDurableActions({ storage, studentId: 'student', reconcile: authority.reconcile });
+  assert.equal(first.recovered, 1);
+  assert.equal(first.rejected, 0);
+  assert.equal(first.remaining, 0);
 });
 
 test('submission and Next captured while offline both survive and reconcile in capture order', async () => {
@@ -159,16 +178,44 @@ test('a later legitimate attempt is distinct while an out-of-order stale retry i
   assert.equal(authority.evidence.size, 2);
 });
 
-test('authority revocation removes stale queued work without creating a canonical grade', async () => {
+/*
+ * THE SEPTEMBER 14 REGRESSION, PINNED.
+ *
+ * This test used to assert that a rejected submission was REMOVED from the
+ * queue. That is the defect: `rejected` was one undifferentiated verdict, so
+ * "the teacher closed the section a minute ago" destroyed a student's answer
+ * exactly as thoroughly as "this was never a valid submission". The behaviour
+ * the test protects — a revoked authority never mints a canonical grade — is
+ * unchanged and still asserted. What changed is that the evidence survives.
+ */
+test('an unclassified rejection never creates a canonical grade and never destroys the submission', async () => {
   const storage = createMemoryOutboxStorage();
   const authority = authorityHarness({ online: false });
   await enqueueDurableAction(submission({ actionId: 'revoked' }), { storage });
   await drainDurableActions({ storage, studentId: 'student', reconcile: authority.reconcile });
   authority.setOnline(true);
   authority.revoke();
-  await drainDurableActions({ storage, studentId: 'student', reconcile: authority.reconcile });
+  const result = await drainDurableActions({ storage, studentId: 'student', reconcile: authority.reconcile });
   assert.equal(authority.records.size, 0);
+  assert.equal((await listDurableActions({ storage })).length, 1);
+  assert.equal(result.retained[0].disposition, SUBMISSION_DISPOSITION.RETRYABLE);
+  assert.equal(result.retained[0].reason, 'unclassified-rejection');
+  assert.equal((await listRetiredDurableActions({ storage })).length, 0);
+});
+
+test('only a PROVEN disposition retires a submission, and it is retired to evidence rather than deleted', async () => {
+  const storage = createMemoryOutboxStorage();
+  const closed = async () => ({ disposition: SUBMISSION_DISPOSITION.PERMANENTLY_INVALID, reason: 'section-closed-at-capture' });
+  await enqueueDurableAction(submission({ actionId: 'after-the-bell' }), { storage });
+  const result = await drainDurableActions({ storage, studentId: 'student', reconcile: closed });
+  assert.equal(result.rejected, 1);
   assert.equal((await listDurableActions({ storage })).length, 0);
+  const retired = await listRetiredDurableActions({ storage });
+  assert.equal(retired.length, 1);
+  assert.equal(retired[0].actionId, 'after-the-bell');
+  assert.equal(retired[0].retirement.reason, 'section-closed-at-capture');
+  // The student's own envelope is still there to be reviewed.
+  assert.equal(retired[0].payload.record.totalAttempts, 1);
 });
 
 test('reload overlay restores queued answers locally without rolling a newer canonical record backward', async () => {
@@ -197,15 +244,30 @@ test('production integration uses FieldPath segments and secure Test Cycle never
   ]);
   assert.match(app, /new FieldPath\('gradesByAssignment', action\.assignmentId, String\(action\.questionIndex\)\)/);
   assert.doesNotMatch(app, /`gradesByAssignment\.\$\{activeAssignmentId\}/);
-  const reconciliation = app.slice(app.indexOf('const reconcileDurableStudentAction'), app.indexOf('const drainStudentOutbox'));
+  // THE RECONCILIATION UNIT, not one function name.
+  // Delivery is now a dispatcher plus the direct-to-Firestore fallback it calls,
+  // so the region starts where the envelope is built and ends at the drain. A
+  // region pinned to a single function would have gone red for a rename while
+  // every behaviour below stayed intact.
+  const reconciliation = region(app, 'const buildSubmissionEnvelopeForAction', 'const drainStudentOutbox', 'student reconciliation');
   assert.match(reconciliation, /if \(action\.payload\.hasClassworkGrade\)/);
   assert.match(reconciliation, /if \(action\.payload\.hasDolGrade\)/);
-  assert.match(reconciliation, /const lifecycleAtCapture = getAssignmentLifecycle\(assignment, capturedAt\)/);
+  assert.match(reconciliation, /getAssignmentLifecycle\(assignment, capturedAt\)/);
   assert.match(reconciliation, /teacherReopenedWarmupAtCapture/);
-  assert.match(reconciliation, /lifecycleAtCapture\.isClosed && !teacherReopenedWarmupAtCapture/);
+  // The closed-at-capture rule and its teacher-reopen exception moved into
+  // the shared classifier, which is exercised directly in
+  // tests/platform/studentSubmissionDisposition.test.mjs. What the reconciler
+  // still owes is handing both facts over, judged at the capture time.
+  assert.match(reconciliation, /assignmentClosedAtCapture: lifecycleAtCapture \? lifecycleAtCapture\.isClosed : null/);
+  assert.match(reconciliation, /teacherReopenedWarmupAtCapture,/);
   assert.match(reconciliation, /warmupCaptureWasActive\(timedSectionAccess, capturedAt\)/);
   assert.match(reconciliation, /nowValue: capturedAt/);
-  assert.match(reconciliation, /accessChangedAfterCapture/);
+  // A close the teacher made AFTER the capture must not erase the capture.
+  // That used to be an inline `override.changedAt > capturedAt` comparison; it
+  // is now the shared proof, which also records the section state the browser
+  // saw so a missing `changedAt` cannot silently mean "closed".
+  assert.match(reconciliation, /sectionOpenAtCapture: sectionWasOpenAtCapture\(\{/);
+  assert.match(reconciliation, /capturedSectionAccess: action\.payload\?\.capturedSectionAccess/);
   assert.doesNotMatch(reconciliation, /deleteField\(/);
   assert.match(app, /await enqueueDurableAction\(createDurableAction\(\{[\s\S]*kind: 'ordinarySubmission'/);
   assert.match(app, /createdAt: submissionCapturedAt/);

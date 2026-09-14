@@ -753,7 +753,12 @@ test('a checkpoint with no provable close holds, and leaves the due query while 
 
 test('a manual section close expedites only that assignment, class and section', () => {
   const start = functionsSource.indexOf('exports.expediteCheckpointsOnSectionClose');
-  const block = functionsSource.slice(start, functionsSource.indexOf('const studentMatchesAssignmentAudience', start));
+  // Bound to the trigger itself. Ending the slice at the next unrelated
+  // declaration made this assertion fail the moment anything was inserted
+  // between them, which says nothing about what the trigger writes.
+  const block = functionsSource.slice(start, functionsSource.indexOf('\nconst closedSectionKeys', start) === -1
+    ? functionsSource.indexOf('\n/* ===', start)
+    : functionsSource.indexOf('\n/* ===', start));
   assert.match(block, /where\("assignmentId", "==", assignmentId\)/);
   assert.match(block, /where\("classId", "==", entry\.classId\)/);
   assert.match(block, /where\("activityRole", "==", entry\.activityRole\)/);
@@ -1191,7 +1196,9 @@ test('the page-lifecycle flush obeys the same eligibility rules as the debounce'
 });
 
 test('an explicit submission retires its checkpoint in the same transaction as the attempt', () => {
-  const start = appSource.indexOf('const reconcileDurableStudentAction');
+  // The whole reconciliation unit: the dispatcher plus the direct Firestore
+  // fallback it delegates to. The checkpoint retirement lives in the write.
+  const start = appSource.indexOf('const buildSubmissionEnvelopeForAction');
   const block = appSource.slice(start, appSource.indexOf('const drainStudentOutbox', start));
   assert.match(block, /checkpointRef \? transaction\.get\(checkpointRef\) : Promise\.resolve\(null\)/);
   assert.match(block, /transaction\.update\(checkpointRef, \{\s*\n\s*status: 'explicitly-submitted'/);
