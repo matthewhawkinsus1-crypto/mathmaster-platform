@@ -8,8 +8,10 @@ const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 test('focused Assignment V5 deploy updates Hosting and only the Assignment AI callables', () => {
   // The self-test is the first thing an administrator reaches for when the AI
   // misbehaves, and per-question repair now has a server side, so both have to
-  // ship with the surfaces that call them.
-  assert.match(script, /firebase deploy --only hosting,functions:authorAssignmentWithAI,functions:repairAssignmentQuestionWithAI,functions:assignmentAiSelfTest,functions:hydrateAssignmentCcmr/);
+  // ship with the surfaces that call them. Hosting is deliberately deployed
+  // separately through the resilient Cloud Shell uploader.
+  assert.match(script, /firebase deploy --only functions:authorAssignmentWithAI,functions:repairAssignmentQuestionWithAI,functions:assignmentAiSelfTest,functions:hydrateAssignmentCcmr/);
+  assert.match(script, /deploy-hosting-resilient\.sh/);
   assert.doesNotMatch(script, /firestore:rules/);
   assert.doesNotMatch(script, /deploy-functions-in-groups/);
 });
@@ -22,8 +24,10 @@ test('focused deploy proves discovery locally and survives a small deploy VM', (
   assert.match(script, /NO_PROXY/);
   assert.match(script, /verify-functions-discovery\.mjs/);
   const preflight = script.indexOf('verify-functions-discovery.mjs');
-  const deploy = script.indexOf('firebase deploy --only hosting');
-  assert.ok(preflight >= 0 && preflight < deploy, 'discovery must be proven before deploying');
+  const functionsDeploy = script.indexOf('firebase deploy --only functions:authorAssignmentWithAI');
+  const hostingDeploy = script.indexOf('deploy-hosting-resilient.sh');
+  assert.ok(preflight >= 0 && preflight < functionsDeploy && functionsDeploy < hostingDeploy,
+    'discovery must be proven before Functions deploy, then Hosting uses the resilient uploader');
   assert.match(script, /Failed to list functions for \$PROJECT/);
   assert.match(script, /npm install -g firebase-tools/);
 });
