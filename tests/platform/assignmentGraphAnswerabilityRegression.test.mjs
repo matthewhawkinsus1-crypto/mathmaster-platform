@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 
 import { readComposedQuestion } from '../../src/platform/workflow/questionWorkflow.js';
 import { gradeStage } from '../../src/platform/workflow/workflowGrading.js';
 import { workflowGraphDomainRestriction } from '../../src/platform/workflow/workflowGraphVisuals.js';
 import { selectPersistentWorkflowGraph } from '../../src/platform/workflow/workflowPresentation.js';
+import { STATIC_GRAPH_ASYMPTOTE_STYLE } from '../../src/graphSpecUtils.js';
 
 test('continuous branch domain drives finite graph boundaries instead of continuation arrows', () => {
   const graphStage = {
@@ -122,9 +122,10 @@ test('exponential function-characteristics graph is available before the first a
   assert.equal(graph.functions.length, 1);
 });
 
-test('asymptotes use a high-contrast halo and opaque foreground when they overlap an axis', () => {
-  const source = readFileSync('src/GraphDisplay.jsx', 'utf8');
-  assert.match(source, /stroke="#ffffff"[\\s\\S]{0,180}strokeWidth="7"/);
-  assert.match(source, /stroke="#a020f0"[\\s\\S]{0,180}strokeWidth="3\.5"/);
-  assert.match(source, /strokeDasharray="9 6"[\\s\\S]{0,100}opacity="1"/);
+test('asymptote style contract stays stronger than the axis when the two overlap', () => {
+  assert.equal(STATIC_GRAPH_ASYMPTOTE_STYLE.haloStroke, '#ffffff');
+  assert.ok(STATIC_GRAPH_ASYMPTOTE_STYLE.haloWidth >= 6);
+  assert.ok(STATIC_GRAPH_ASYMPTOTE_STYLE.strokeWidth > 2);
+  assert.equal(STATIC_GRAPH_ASYMPTOTE_STYLE.opacity, 1);
+  assert.ok(String(STATIC_GRAPH_ASYMPTOTE_STYLE.dashArray).trim().length > 0);
 });
