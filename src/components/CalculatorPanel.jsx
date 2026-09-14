@@ -140,7 +140,33 @@ export const CalculatorPanel = ({
     };
   }, []);
 
-  if (!policy?.available) return null;
+  if (!policy?.available) {
+    if (!showLauncher) return null;
+    const unavailableReason = policy?.reason || 'No calculator is allowed for this skill.';
+    return (
+      <button
+        className="mathmaster-calculator-toggle is-unavailable"
+        type="button"
+        aria-disabled="true"
+        aria-label={`Calculator unavailable. ${unavailableReason}`}
+        title={unavailableReason}
+        style={{
+          minHeight:44,
+          padding:'9px 14px',
+          borderRadius:999,
+          border:'1px solid #d7a5a1',
+          background:'#fce8e6',
+          color:'#8c1d18',
+          fontWeight:800,
+          cursor:'not-allowed',
+          boxShadow:'none',
+          ...launcherStyle,
+        }}
+      >
+        🚫 🧮 Calculator
+      </button>
+    );
+  }
 
   const toggleDrawer = () => {
     if (!isOpen) onCalculatorOpened?.();
