@@ -1288,6 +1288,22 @@ export default function WorkflowRunner({
       ? `workflow-stage workflow-focus__stage-shell${focused ? ' workflow-focus__stage-shell--active' : ''}`
       : 'workflow-stage';
 
+    // Focus Mode visually shows one stage, so an inactive delegated tool must
+    // also be inactive in React. CSS `display:none` only hides pixels; it does
+    // not stop effects. Before this guard, answering "discrete/continuous"
+    // satisfied the next functionGraph prerequisite and mounted a full
+    // InteractiveGraphWorkspace off-screen. Its state-reporting effect then
+    // bounced through persisted workflow state and could lock the tab before
+    // the student ever pressed Next.
+    //
+    // Simple controlled stages stay mounted to preserve the historic Focus Mode
+    // behavior. Delegated tools own heavier internal lifecycles and all receive
+    // a draftKey, so they can safely mount only when their stage is actually
+    // active and restore their in-progress work when revisited.
+    if (focusMode && !focused && DELEGATES[stage.kind]) {
+      return <section key={stage.id} className={shellClass} aria-hidden="true" />;
+    }
+
     if (waiting) {
       const upstream = workflow.find((entry) => entry.id === waitingStageId);
       return (
