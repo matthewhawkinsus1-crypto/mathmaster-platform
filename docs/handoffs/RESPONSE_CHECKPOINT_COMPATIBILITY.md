@@ -53,7 +53,14 @@ another route.
 7. Produces the canonical question record.
 8. Produces evidence from the server-derived result
    (`functions/shared/attemptEvidenceEvent.mjs`).
-9. Atomically updates `grades/{studentId}` and the checkpoint receipt.
+9. Atomically updates `grades/{studentId}` and the checkpoint receipt —
+   including every projection an ordinary Submit maintains, not just the
+   question record: `supportUsageByAssignment` (merged),
+   `classworkGradesByAssignment` (the same completion rule, run against the
+   tracker that now carries this attempt) and `dolGradesByAssignment`.
+   `prerequisiteAccess` reads the classwork projection, so skipping it would
+   record a student's last answer and still leave them locked out of the
+   dependent assignment.
 
 There is no second grading system and no second Classroom system. The canonical
 grade write is what wakes the existing `syncGradeToClassroom` trigger.
@@ -169,7 +176,10 @@ Nothing in the interaction path is awaited.
 ### Restore order on assignment open
 
 1. canonical grades (hydrated at sign-in)
-2. durable outbox reconciliation / overlay
+2. durable outbox reconciliation / overlay — an action's IndexedDB row is
+   removed only while it is still the revision that was reconciled, checked
+   inside the same readwrite transaction, so a revision written during an
+   in-flight drain is never thrown away
 3. the server draft — applied **only** where it is newer than both this device's
    copy and the question's last canonical attempt
 4. Practice Mode state, in its own structure
@@ -196,6 +206,29 @@ render never waits: a restore that brings something new remounts the workspace.
 | `modelingLab` | **No** — server-owned canonical action |
 | Secure Test Cycle | **Excluded by design** |
 | My Math Path | **Excluded by design** |
+
+### Merging, not replacing
+
+A background save sends a PATCH — only what this device changed — and the store
+applies it inside a Firestore transaction that reads the current document and
+merges by stable draft key. A whole-document write was a data-loss bug: a device
+that restored ten questions and then edited one would send a document containing
+one entry and erase the other nine, for every device.
+
+Unrelated draft keys can therefore never conflict: Device A editing question 1
+and Device B editing question 2 both survive, in either order. For the SAME key
+the newer `savedAt` wins, which also stops an obviously stale device from wiping
+newer work. Resume and Practice Mode each carry their own timestamp and their
+own "changed" flag, so updating one never erases the other or any draft entry.
+
+A per-device `revision` is deliberately NOT used for ordering, and the rules
+deliberately do not enforce one: device A's revision 15 and device B's revision 2
+say nothing about which is newer, and a monotonic rule built on one would lock a
+fresh Chromebook out of saving entirely.
+
+An edit made while a flush is in flight stays pending and goes out on the next
+one — the same conditional-cleanup rule the durable outbox uses, so a newer draft
+is never dropped because an older write for the same key succeeded.
 
 Each draft value is stored as serialized text. A tool's workspace is its own
 shape — plotted strokes are arrays of arrays of points, which Firestore refuses
