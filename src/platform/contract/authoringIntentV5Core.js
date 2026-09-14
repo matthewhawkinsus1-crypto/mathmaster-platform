@@ -1186,7 +1186,16 @@ const compileOne = (q, index, repairs) => {
       break;
     case 'functionGraph': {
       const rawFunction = authoredFunctionIntent(q);
-      if (!rawFunction && !isObject(q.graph) && !isObject(q.visual?.graph)) {
+      // A canonical stored workflow is itself a complete renderer contract and
+      // may be recompiled transiently during Library/CCMR hydration. Let that
+      // round-trip proceed without inventing a function; the unchanged canonical
+      // workflow is restored by the hydration boundary. A NEW authoring item
+      // with neither mathematics nor an existing graph workflow is still
+      // rejected.
+      const hasExistingGraphWorkflow = authoredWorkflow.some((stage) => (
+        ['functiongraph', 'coordinateplot', 'graphconstruction'].includes(lower(stage?.kind))
+      ));
+      if (!rawFunction && !isObject(q.graph) && !isObject(q.visual?.graph) && !hasExistingGraphWorkflow) {
         throw new Error(
           `V5 question ${index + 1} asks students to construct a graph but supplies no function, graph, table, or equation model. MathMaster will not invent y = x as a fallback.`,
         );
