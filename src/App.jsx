@@ -1920,7 +1920,26 @@ function App() {
       // Ordinary student work crosses the durability boundary before React
       // advances. Reconciliation must judge that work at the moment it was
       // captured, not seconds/minutes later after a deadline or teacher close.
-      if (!authorized || getAssignmentLifecycle(assignment, capturedAt).isClosed) {
+      //
+      // A teacher-authorized Warm-Up reopen/extension is itself a live credit
+      // window. Preserve that fact in the durable action: the assignment may be
+      // closed again before this queued response reaches Firestore, and a later
+      // close must not erase work captured while the teacher had it reopened.
+      const lifecycleAtCapture = getAssignmentLifecycle(assignment, capturedAt);
+      const timedSectionAccess = action.payload?.timedSectionAccess || null;
+      const warmupWasActiveAtCapture = action.payload?.activityRole === 'warmup'
+        && warmupCaptureWasActive(timedSectionAccess, capturedAt);
+      const teacherReopenedWarmupAtCapture = warmupWasActiveAtCapture
+        && timedSectionAccess?.teacherTimerScheduled === true;
+      if (!authorized) {
+        rejected = true;
+        return;
+      }
+      if (action.payload?.activityRole === 'warmup' && timedSectionAccess && !warmupWasActiveAtCapture) {
+        rejected = true;
+        return;
+      }
+      if (lifecycleAtCapture.isClosed && !teacherReopenedWarmupAtCapture) {
         rejected = true;
         return;
       }
@@ -3744,6 +3763,15 @@ function App() {
           honors: String(user?.profile?.courseLevel || '').toLowerCase() === 'honors',
         }),
       });
+    const submissionCapturedAt = Date.now();
+    const timedSectionAccess = captureTimedSectionAccess({
+      activityRole: activeQuestionRole,
+      assignment,
+      schedule: classSchedule,
+      classId: user.classId || null,
+      classPeriod: user.classPeriod,
+      capturedAt: submissionCapturedAt,
+    });
     let queuedAction;
     try {
       setStudentPersistenceStatus('capturing');
@@ -3752,9 +3780,11 @@ function App() {
         studentId: user.id,
         assignmentId: activeAssignmentId,
         questionIndex: currentQuestionIndex,
+        createdAt: submissionCapturedAt,
         payload: {
           previousTotalAttempts: Number(normalizeQuestionRecord(currentAssignmentGrades[currentQuestionIndex]).totalAttempts) || 0,
           activityRole: activeQuestionRole,
+          timedSectionAccess,
           record: outcome.record,
           supportUsage: updatedSupportUsage[activeAssignmentId],
           hasClassworkGrade: Object.hasOwn(updatedClassworkGrades, activeAssignmentId),
@@ -3860,13 +3890,24 @@ function App() {
       },
     } : classworkGradesByAssignment;
 
+    const stepCapturedAt = Date.now();
+    const stepTimedSectionAccess = captureTimedSectionAccess({
+      activityRole: activeQuestionRole,
+      assignment,
+      schedule: classSchedule,
+      classId: user.classId || null,
+      classPeriod: user.classPeriod,
+      capturedAt: stepCapturedAt,
+    });
     try {
       setStudentPersistenceStatus('capturing');
       await enqueueDurableAction(createDurableAction({
         kind: 'stepSubmission', studentId: user.id, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex,
+        createdAt: stepCapturedAt,
         payload: {
           previousTotalAttempts: Number(priorRecord.totalAttempts) || 0,
           activityRole: activeQuestionRole,
+          timedSectionAccess: stepTimedSectionAccess,
           record: outcome.record,
           supportUsage: assignmentSupportUsage,
           hasClassworkGrade: Object.hasOwn(updatedClassworkGrades, activeAssignmentId),
