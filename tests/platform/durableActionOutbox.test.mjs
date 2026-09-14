@@ -7,6 +7,7 @@ import {
   drainDurableActions,
   enqueueDurableAction,
   listDurableActions,
+  overlayDurableActionsOnGrades,
 } from '../../src/platform/performance/durableActionOutbox.js';
 
 const submission = ({ actionId, questionIndex = 0, previous = 0, attempts = previous + 1 } = {}) => createDurableAction({
@@ -170,6 +171,25 @@ test('authority revocation removes stale queued work without creating a canonica
   assert.equal((await listDurableActions({ storage })).length, 0);
 });
 
+test('reload overlay restores queued answers locally without rolling a newer canonical record backward', async () => {
+  const queued = [
+    submission({ actionId: 'queued-q1', questionIndex: 0, previous: 0, attempts: 1 }),
+    progress({ actionId: 'queued-progress', questionIndex: 0, timeSpent: 55 }),
+    submission({ actionId: 'stale-q2', questionIndex: 1, previous: 0, attempts: 1 }),
+  ];
+  const current = {
+    'assignment.with punctuation`': {
+      0: { totalAttempts: 0, status: 'unattempted', timeSpent: 5 },
+      1: { totalAttempts: 2, status: 'correct', timeSpent: 30 },
+    },
+  };
+  const restored = overlayDurableActionsOnGrades(current, queued);
+  assert.equal(restored['assignment.with punctuation`'][0].totalAttempts, 1);
+  assert.equal(restored['assignment.with punctuation`'][0].timeSpent, 55);
+  assert.equal(restored['assignment.with punctuation`'][1].totalAttempts, 2);
+  assert.equal(restored['assignment.with punctuation`'][1].status, 'correct');
+});
+
 test('production integration uses FieldPath segments and secure Test Cycle never enters the ordinary outbox', async () => {
   const [app, secureService] = await Promise.all([
     readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8'),
@@ -180,6 +200,9 @@ test('production integration uses FieldPath segments and secure Test Cycle never
   const reconciliation = app.slice(app.indexOf('const reconcileDurableStudentAction'), app.indexOf('const drainStudentOutbox'));
   assert.match(reconciliation, /if \(action\.payload\.hasClassworkGrade\)/);
   assert.match(reconciliation, /if \(action\.payload\.hasDolGrade\)/);
+  assert.match(reconciliation, /getAssignmentLifecycle\(assignment, capturedAt\)\.isClosed/);
+  assert.match(reconciliation, /nowValue: capturedAt/);
+  assert.match(reconciliation, /accessChangedAfterCapture/);
   assert.doesNotMatch(reconciliation, /deleteField\(/);
   assert.match(app, /await enqueueDurableAction\(createDurableAction\(\{[\s\S]*kind: 'ordinarySubmission'/);
   const stepRegion = app.slice(app.indexOf('const handleStepGrade'), app.indexOf('const handleRequestNewQuestion'));
@@ -189,6 +212,12 @@ test('production integration uses FieldPath segments and secure Test Cycle never
   assert.doesNotMatch(replacementRegion, /getLiveAssignment|await updateDoc/);
   assert.ok(replacementRegion.indexOf("kind: 'questionReplacement'") < replacementRegion.indexOf('setTracker(updatedTracker)'), 'replacement must be queued before React advances');
   assert.doesNotMatch(secureService, /enqueueDurableAction|ordinarySubmission/);
+  assert.match(app, /overlayDurableActionsOnGrades\(current, actions\)/);
+  assert.match(app, /window\.setInterval\(reconcileQueuedStudentWork, 10_000\)/);
+  assert.match(app, /window\.addEventListener\('pageshow', reconcileQueuedStudentWork\)/);
+  assert.match(app, /document\.addEventListener\('visibilitychange', reconcileWhenVisible\)/);
+  assert.match(app, /studentGradeSourceForViewer\(viewer\)/);
+  assert.match(app, /setAllStudents\(collectStudentGradeSnapshot\(snapshot\)\)/);
   assert.throws(() => createDurableAction({ kind: 'ordinarySubmission', studentId: 'student', assignmentId: 'assignment', questionIndex: 0, payload: { secure: true } }), /Protected assessment data/);
   assert.throws(() => createDurableAction({ kind: 'ordinarySubmission', studentId: 'student', assignmentId: 'assignment', questionIndex: 0, payload: { answerKey: 'never' } }), /Protected assessment data/);
 });
