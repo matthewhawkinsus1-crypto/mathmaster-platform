@@ -191,7 +191,12 @@ const staticViewportFunctions = (graph = {}) => {
 
   if (graph.functionSpec && typeof graph.functionSpec === 'object') {
     const nested = normalizedViewportFunction(graph.functionSpec);
-    if (nested) functions.push(nested);
+    const type = nested?.type || nested?.kind || '';
+    // Expression specs are evaluated by workflow/modelExpression, not by this
+    // safe static evaluator. Ignoring them here preserves that boundary instead
+    // of turning a workflow-only model into a Preflight "unsupported type"
+    // regression merely because it also needs viewport fitting.
+    if (nested && STATIC_GRAPH_FUNCTION_TYPES.includes(type)) functions.push(nested);
   }
   if (graph.line && typeof graph.line === 'object') {
     functions.push({ type: 'line', ...graph.line });
