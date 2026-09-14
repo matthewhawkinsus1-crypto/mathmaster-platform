@@ -1045,9 +1045,17 @@ const solveTwoLines = (system) => {
   return { type: 'one', x, y: a * x + c };
 };
 
+// A Firestore-safe augmented matrix stores each row as `{ cells: [...] }`,
+// because Firestore cannot hold an array inside an array. Accept the authored
+// 2-D form too so preview content and anything still holding the old shape keeps
+// solving — the same both-shapes rule tables already follow.
+const matrixRowValues = (row) => (
+  Array.isArray(row) ? row : (Array.isArray(row?.cells) ? row.cells : [])
+);
+
 const threeVariableMatrixRows = (matrix = {}) => {
   if (Array.isArray(matrix?.rows) && matrix.rows.length === 3) {
-    const rows = matrix.rows.map((row) => (Array.isArray(row) ? row.slice(0, 4).map(Number) : []));
+    const rows = matrix.rows.map((row) => matrixRowValues(row).slice(0, 4).map(Number));
     return rows.every((row) => row.length === 4 && row.every(Number.isFinite)) ? rows : null;
   }
   const rows = [

@@ -400,6 +400,40 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Path Release V2 control plane.
+    //
+    // WHICH certified course release production is serving, and whether it is
+    // active or mid-update. Readable by any signed-in client so a runtime or
+    // status surface can tell "updating" from "active"; it holds a release id,
+    // hashes and counts, never question or answer content. Only the path-admin
+    // callables may write it, through the Admin SDK — a client that could write
+    // this could tell every student the bank had been replaced.
+    match /pathReleaseState/{releaseDocId} {
+      allow read: if signedIn();
+      allow create, update, delete: if false;
+    }
+
+    // The active release's id -> content-hash index, sharded. Question IDs are
+    // administrative metadata rather than content, so this stays root-admin
+    // read-only and is never client-writable.
+    match /pathReleaseState/{releaseDocId}/documentIndex/{shardId} {
+      allow read: if rootAdmin();
+      allow create, update, delete: if false;
+    }
+
+    // One resumable release job per release, with the actor, the phase, the
+    // change plan and any structured failure. Administrative diagnostics: root
+    // admin reads them, nothing client-side writes them.
+    match /pathReleaseJobs/{jobId} {
+      allow read: if rootAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /pathReleaseJobs/{jobId}/chunks/{chunkId} {
+      allow read: if rootAdmin();
+      allow create, update, delete: if false;
+    }
+
     // Phase 6A private modeling criteria are never student-readable. Teachers
     // author them; grading reads them through the Admin SDK callable.
     match /modelingLabDefinitions/{labId} {

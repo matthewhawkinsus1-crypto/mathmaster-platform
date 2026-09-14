@@ -1,0 +1,10 @@
+# Synced at predeploy from functions/shared and functions/lib by
+# scripts/sync-path-admin-runtime.mjs. One implementation lives in `functions/`;
+# this directory only carries a copy into the deployed bundle, because Firebase
+# packages a codebase's own source directory and nothing above it.
+vendor/
+
+# The answer-bearing certified package, produced by
+# scripts/build-course-path-release-v2.mjs. It is deployed with this codebase and
+# is deliberately never committed and never published to Hosting.
+release/coursePathReleaseV2.documents.json

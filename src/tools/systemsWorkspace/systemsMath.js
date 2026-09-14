@@ -99,9 +99,16 @@ export const solve2x2System = (matrix = {}) => {
   return { type: consistent1 && consistent2 ? 'infinite' : 'none', determinant: det };
 };
 
+// Firestore cannot store an array inside an array, so a stored augmented matrix
+// keeps each row as `{ cells: [...] }`. Read both that form and the authored 2-D
+// form, the same way tables do.
+export const matrixRowValues = (row) => (
+  Array.isArray(row) ? row : (Array.isArray(row?.cells) ? row.cells : [])
+);
+
 export const matrix3x4Rows = (matrix = {}) => {
   if (Array.isArray(matrix.rows) && matrix.rows.length === 3) {
-    const rows = matrix.rows.map((row) => (Array.isArray(row) ? row.slice(0, 4).map(Number) : []));
+    const rows = matrix.rows.map((row) => matrixRowValues(row).slice(0, 4).map(Number));
     return rows.every((row) => row.length === 4 && row.every(Number.isFinite)) ? rows : null;
   }
   const rows = [

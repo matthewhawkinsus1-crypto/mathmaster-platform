@@ -1,0 +1,17 @@
+{
+  "name": "functions-path-admin",
+  "description": "MathMaster Path Release V2 control plane — an isolated Cloud Functions codebase so a Path content release can be deployed without mutating the mature default backend.",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": "22"
+  },
+  "main": "index.js",
+  "scripts": {
+    "prepare-release": "node ../scripts/build-course-path-release-v2.mjs && node ../scripts/sync-path-admin-runtime.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^5.1.1"
+  }
+}

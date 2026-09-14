@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import PathReleaseV2Panel from './PathReleaseV2Panel.jsx';
 import { diagnosePathSkill, fetchPathCoverage, fetchPathRuntimeStatus, initializeBundledPathBankStarter, PATH_COVERAGE_COURSE_IDS, rebuildPathCoverage, refreshBundledCoursePathBank, refreshReleasedAsvabPathBank, refreshReleasedCcmrPathBanks, seedPathQuestionBank } from '../../platform/path/pathCoverageService.js';
 import { clearTeacherPathBankSnapshotCache } from '../../platform/path/pathBankSimulationService.js';
 import {
@@ -71,6 +72,7 @@ const REJECTION_REASON_HELP = Object.freeze({
   generator_failed: 'The generator could not produce a valid question from this template.',
   constraints_unsatisfiable: 'The generator constraints cannot produce a valid draw.',
   validator_exception: 'The production validator threw while checking this document. Use the diagnostic ID to trace the server error.',
+  firestore_shape: 'The compiled document is not legal Firestore data. The report names the exact property path to fix.',
 });
 
 const humanizeReason = (reason) => {
@@ -527,17 +529,20 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
           deliberately; every item is validated server-side before it is stored,
           so a seed file cannot put content in front of a student that the
           runtime would refuse to issue. */}
+      {/* Course content is published by the Path Release V2 control plane: a
+          certified release, an incremental comparison, resumable staging and a
+          verified activation. ASVAB and the coordinated SAT/ACT/TSIA2 release
+          keep their own independent protocols and are untouched by it. */}
+      <PathReleaseV2Panel />
+
       <section style={card}>
         <h3 style={{ margin: 0 }}>Activate built-in Path content</h3>
         <p style={{ margin: '6px 0 14px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 760 }}>
-          Existing installations use separate release-safe refreshes. Course Path content, ASVAB, and the coordinated
-          Digital SAT / ACT / TSIA2 release are intentionally independent so one refresh cannot overwrite another framework.
-          Every package is validated by the production issuer before Firestore changes.
+          Assessment frameworks keep their own release-safe refreshes. ASVAB and the coordinated Digital SAT / ACT /
+          TSIA2 release are intentionally independent so one refresh cannot overwrite another framework. Every package
+          is validated by the production issuer before Firestore changes. Course Path content is published above.
         </p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-          <button type="button" style={primary} onClick={refreshCourseBank} disabled={busy || runtimeStatus?.bankCount === 0}>
-            {busy ? 'Working…' : 'Refresh course Path bank'}
-          </button>
           <button type="button" style={primary} onClick={refreshAsvabBank} disabled={busy || runtimeStatus?.bankCount === 0}>
             {busy ? 'Working…' : 'Refresh ASVAB release'}
           </button>
@@ -546,9 +551,23 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
           </button>
         </div>
         <p style={{ margin: '0 0 14px', color: '#5f6368', fontSize: 12, lineHeight: 1.5, maxWidth: 760 }}>
-          Recommended existing-install order after deployment: <strong>course Path → ASVAB → SAT/ACT/TSIA2</strong>.
+          Recommended existing-install order after deployment: <strong>course Path release → ASVAB → SAT/ACT/TSIA2</strong>.
           The SAT/ACT/TSIA2 action is atomic and preserves the independently tracked ASVAB release.
         </p>
+        <details style={{ marginBottom: 14 }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#7a4f00' }}>
+            Deprecated: one-shot course refresh
+          </summary>
+          <p style={{ margin: '8px 0 10px', color: '#5f6368', fontSize: 12, lineHeight: 1.5, maxWidth: 760 }}>
+            <strong>Superseded by the certified course Path release above.</strong> This is the old one-shot refresh:
+            it revalidates the whole built-in package on every run, rewrites every course document whether or not it
+            changed, and cannot be resumed if it stops part way. It remains here only as a recovery route while V2 is
+            being adopted and will be removed.
+          </p>
+          <button type="button" style={quiet} onClick={refreshCourseBank} disabled={busy || runtimeStatus?.bankCount === 0}>
+            {busy ? 'Working…' : 'Refresh course Path bank'}
+          </button>
+        </details>
         <details style={{ marginBottom: 14 }}>
           <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#3c4043' }}>Fresh installation only</summary>
           <p style={{ margin: '8px 0 10px', color: '#5f6368', fontSize: 12, lineHeight: 1.5, maxWidth: 720 }}>
@@ -654,7 +673,8 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
                     <thead><tr style={{ textAlign: 'left', background: '#f1f3f4' }}>
                       <th style={{ padding: 6 }}>Question ID</th><th style={{ padding: 6 }}>Family</th>
                       <th style={{ padding: 6 }}>Standard</th><th style={{ padding: 6 }}>Type</th>
-                      <th style={{ padding: 6 }}>Tool</th><th style={{ padding: 6 }}>Reason</th><th style={{ padding: 6 }}>Diagnostic</th>
+                      <th style={{ padding: 6 }}>Tool</th><th style={{ padding: 6 }}>Reason</th>
+                      <th style={{ padding: 6 }}>Property</th><th style={{ padding: 6 }}>Diagnostic</th>
                     </tr></thead>
                     <tbody>
                       {seed.rejected.slice(0, 100).map((entry, position) => (
@@ -665,6 +685,9 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
                           <td style={{ padding: 6 }}>{entry.questionType || '—'}</td>
                           <td style={{ padding: 6 }}>{entry.pathToolId || 'field-graded'}</td>
                           <td style={{ padding: 6, color: '#a50e0e' }} title={entry.detail || ''}>{humanizeReason(entry.reason)}</td>
+                          {/* A storage-shape rejection names the exact authored property, so a
+                              content lead can open the file at that path instead of reading logs. */}
+                          <td style={{ padding: 6, fontFamily: 'monospace', fontSize: 11 }}>{entry.propertyPath || '—'}</td>
                           <td style={{ padding: 6, fontFamily: 'monospace', fontSize: 11 }}>{entry.diagnosticId || '—'}</td>
                         </tr>
                       ))}
