@@ -7,6 +7,16 @@ export const STATIC_GRAPH_FUNCTION_TYPES = Object.freeze([
   'logarithmic', 'exponential', 'reciprocal', 'rational',
 ]);
 
+export const STATIC_GRAPH_ASYMPTOTE_STYLE = Object.freeze({
+  haloStroke: '#ffffff',
+  haloWidth: 7,
+  haloOpacity: 0.96,
+  stroke: '#a020f0',
+  strokeWidth: 3.5,
+  dashArray: '9 6',
+  opacity: 1,
+});
+
 export const getQuadraticParameterization = (spec = {}) => {
   const hasVertex = hasOwn(spec, 'h') || hasOwn(spec, 'k');
   const hasStandard = hasOwn(spec, 'b') || hasOwn(spec, 'c');
