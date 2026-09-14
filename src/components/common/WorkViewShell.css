@@ -3,7 +3,9 @@
 .mathmaster-work-view-host[data-open="true"] {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  /* One deliberate application-modal layer. Assignment sticky elements never
+     compete with it; they also stand down below while this host is open. */
+  z-index: 2147483000;
   display: grid;
   /*
    * THREE ROWS, EACH CLAIMED BY NAME.
@@ -254,9 +256,9 @@ html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][da
  *   intend. A question bubble under a thumb mid-drag is a lost point and a
  *   changed question.
  *
- * Only on narrow screens: a Chromebook has the room to keep its bearings
- * visible beside the panel, and hiding them there would make Work View feel
- * like leaving the assignment.
+ * This applies at every width. A zoomed-out Chromebook has a wide CSS viewport
+ * but not extra physical screen, so breakpoint-dependent suppression lets the
+ * assignment compete with the question workspace again.
  */
 /*
  * THE EMBEDDED PHONE LAYOUT STANDS DOWN INSIDE WORK VIEW.
@@ -294,20 +296,17 @@ html[data-undo-overlay-owner="scratchpad"] .mathmaster-work-view-actions [data-w
   }
 }
 
-@media (max-width: 720px), (max-height: 460px) {
-  html[data-work-view-open="true"] .mathmaster-section-tabs,
-  html[data-work-view-open="true"] .mathmaster-question-number-strip,
-  html[data-work-view-open="true"] .mathmaster-assignment-unified-nav,
-  html[data-work-view-open="true"] .mathmaster-assignment-compact-nav,
-  html[data-work-view-open="true"] .mathmaster-assignment-header,
-  html[data-work-view-open="true"] .mathmaster-question-navigation,
-  html[data-work-view-open="true"] .mathmaster-question-attempt-strip,
-  html[data-work-view-open="true"] .mathmaster-question-alignment,
-  html[data-work-view-open="true"] .mathmaster-tool-task-card {
-    display: none !important;
-  }
+html[data-work-view-open="true"] .mathmaster-section-tabs,
+html[data-work-view-open="true"] .mathmaster-question-number-strip,
+html[data-work-view-open="true"] .mathmaster-assignment-unified-nav,
+html[data-work-view-open="true"] .mathmaster-assignment-compact-nav,
+html[data-work-view-open="true"] .mathmaster-assignment-header,
+html[data-work-view-open="true"] .mathmaster-question-navigation,
+html[data-work-view-open="true"] .mathmaster-question-attempt-strip,
+html[data-work-view-open="true"] .mathmaster-question-alignment,
+html[data-work-view-open="true"] .mathmaster-tool-task-card {
+  display: none !important;
 }
-
 
 /*
  * ONE GLOBAL WORK BAR AT A TIME.
@@ -324,4 +323,21 @@ html[data-work-view-open="true"] .mathmaster-question-container .portrait-action
 html[data-work-view-open="true"] .mathmaster-question-container .landscape-action-bar,
 html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desktop-action-bar {
   display: none !important;
+}
+
+/* A graph-analysis workflow is not a static figure. On a wide Work View the
+   persistent graph receives roughly seventy percent and the one active stage
+   receives the remainder; the existing narrow layout stacks them. DOM order
+   is unchanged, so moving between stages replaces only the response panel and
+   never remounts the graph. */
+[data-open="true"] .workflow-focus__workspace-body--with-graph {
+  grid-template-columns: minmax(0, 3fr) minmax(260px, 1.25fr);
+}
+
+[data-open="true"] .workflow-focus__graph-reference { order: -1; }
+
+@media (max-width: 700px) {
+  [data-open="true"] .workflow-focus__workspace-body--with-graph {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

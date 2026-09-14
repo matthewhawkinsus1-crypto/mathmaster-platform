@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import MathText from './MathText.jsx';
 import {
   WorkViewCapabilityPortProvider,
   combinePublishedCapabilities,
   toggleWorkViewDrawer,
+  useHasParentWorkView,
+  usePublishWorkViewCapabilities,
   useWorkViewCapabilities,
   workViewCapabilitySummary,
 } from '../../platform/workView/workViewCapabilities.js';
@@ -95,11 +97,21 @@ export default function EnlargeableFigure({
   taskText = '',
   capabilities = null,
 }) {
+  const nestedWorkView = useHasParentWorkView();
+  const nestedPublisherId = useId();
+  // A QuestionEngine shell owns the whole interaction. Legacy fixture shells
+  // inside it become capability publishers instead of creating a second modal.
+  // Their children stay at the exact same React position, so graph cameras,
+  // plotted points, staged answers, and undo history remain single instances.
+  usePublishWorkViewCapabilities(
+    nestedWorkView ? `nested-work-view-${nestedPublisherId}` : null,
+    nestedWorkView ? capabilities : null,
+  );
   const { terminal: questionTerminal } = useQuestionLifecycle();
   // `forceClosed` remains a supported escape hatch for non-QuestionEngine
   // hosts, while the shared lifecycle closes every direct or nested figure in
   // the current question without relying on a tool to forward that prop.
-  const shouldForceClose = forceClosed || questionTerminal;
+  const shouldForceClose = forceClosed || questionTerminal || nestedWorkView;
   const [enlarged, setEnlarged] = useState(() => !shouldForceClose && openEnlarged && !readDismissed(dismissKey));
   const [drawer, setDrawer] = useState(null);
   const [viewport, setViewport] = useState(() => readWorkViewViewport());
@@ -357,6 +369,22 @@ export default function EnlargeableFigure({
       <WorkViewCapabilityPortProvider publish={publish}>{children}</WorkViewCapabilityPortProvider>
     </figure>
   );
+
+  // Standalone figures still use this component as their Work View boundary.
+  // Inside a question, however, the nearest parent boundary must be the only
+  // host and opener: enlarging a picture without its response controls is the
+  // legacy failure this guard permanently prevents.
+  if (nestedWorkView) {
+    return (
+      <figure
+        className="mathmaster-work-view-nested-surface"
+        data-work-view-nested="true"
+        style={{ position: 'relative', margin: 0, boxSizing: 'border-box', ...style }}
+      >
+        {children}
+      </figure>
+    );
+  }
 
   /*
    * RENDERED IN PLACE, AND THAT PLACE HAS TO STAY UNTRANSFORMED.
