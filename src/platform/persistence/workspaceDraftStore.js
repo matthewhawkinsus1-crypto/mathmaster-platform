@@ -7,9 +7,9 @@
  * One document per assignment means one read when the assignment opens and one
  * coalesced write per debounce window.
  */
-import { collection, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, limit, orderBy, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { workspaceDraftDocumentId } from '../../../functions/shared/workspaceDraftSchema.mjs';
+import { mergeWorkspaceDraftDocument, workspaceDraftDocumentId } from '../../../functions/shared/workspaceDraftSchema.mjs';
 
 export const WORKSPACE_DRAFT_COLLECTION = 'studentWorkspaceDrafts';
 
@@ -19,13 +19,32 @@ export const readWorkspaceDraft = async ({ studentId, assignmentId }) => {
   return snapshot.exists() ? snapshot.data() : null;
 };
 
-export const writeWorkspaceDraft = async (document) => {
-  if (!document?.documentId) return false;
-  await setDoc(doc(db, WORKSPACE_DRAFT_COLLECTION, document.documentId), {
-    ...document,
-    // Server-stamped: a Chromebook with a wrong clock must not win a
-    // cross-device merge by claiming the future.
-    updatedAt: serverTimestamp(),
+/**
+ * Apply a patch by MERGING it into whatever the server currently holds.
+ *
+ * Never a whole-document write. A device that restored ten questions and then
+ * edited one would otherwise send a document containing one entry and erase
+ * the other nine — for itself and for every other device. The read and the
+ * write share a transaction, so two Chromebooks editing different questions
+ * both survive.
+ *
+ * This runs in the background flush, never in the student's typing path.
+ */
+export const writeWorkspaceDraft = async (patch) => {
+  if (!patch?.documentId) return false;
+  const reference = doc(db, WORKSPACE_DRAFT_COLLECTION, patch.documentId);
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(reference);
+    const merged = mergeWorkspaceDraftDocument({
+      existing: snapshot.exists() ? snapshot.data() : null,
+      patch,
+    });
+    transaction.set(reference, {
+      ...merged,
+      // Server-stamped: a Chromebook with a wrong clock must not win by
+      // claiming the future, and the rules require it to be request.time.
+      updatedAt: serverTimestamp(),
+    });
   });
   return true;
 };

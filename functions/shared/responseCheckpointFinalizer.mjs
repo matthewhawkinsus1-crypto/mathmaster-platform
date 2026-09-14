@@ -26,6 +26,13 @@ import { getEffectiveActivityPolicy } from './activityPolicies.mjs';
 import { normalizeQuestionRecord, recordQuestionAttempt, resolveQuestionMaximumAttempts } from './attemptPolicy.mjs';
 import { buildAttemptEvidenceEvent } from './attemptEvidenceEvent.mjs';
 import {
+  classworkGradeProjection,
+  dolSectionProjection,
+  evaluateClassworkCompletionRule,
+  mergeSupportUsage,
+} from './assignmentProjections.mjs';
+import { zonedDateKey } from './instructionalCalendar.mjs';
+import {
   CHECKPOINT_STATUS,
   FORBIDDEN_CHECKPOINT_FIELDS,
   RESPONSE_CHECKPOINT_SCHEMA_VERSION,
@@ -255,7 +262,13 @@ export const buildCheckpointFinalization = ({
   assignment,
   question,
   decision,
+  gradeDocument = {},
+  // Supplied by the caller from its own runtime projection of the assignment.
+  classworkIndices = [],
+  dolIndices = [],
+  dolSectionScore = null,
   occurredAt = Date.now(),
+  timeZone = SCHOOL_TIME_ZONE,
 } = {}) => {
   const activityPolicy = getEffectiveActivityPolicy(decision.activityRole);
   const outcome = recordQuestionAttempt({
@@ -296,7 +309,61 @@ export const buildCheckpointFinalization = ({
     occurredAt,
   });
 
-  return { record, result: outcome.result, evidenceEvent };
+  /*
+   * THE PROJECTIONS AN ATTEMPT UPDATES BESIDES ITS OWN RECORD.
+   *
+   * Writing only `gradesByAssignment` would record a student's final classwork
+   * response and still leave them locked out of the dependent assignment,
+   * because `prerequisiteAccess` reads the classwork completion score. The
+   * ordinary Submit path writes all of these; so does this.
+   */
+  const assignmentId = text(checkpoint.assignmentId);
+  const recordedAt = new Date(occurredAt).toISOString();
+  const assignmentTracker = {
+    ...(gradeDocument?.gradesByAssignment?.[assignmentId] || {}),
+    [String(checkpoint.questionIndex)]: record,
+    [Number(checkpoint.questionIndex)]: record,
+  };
+
+  const completion = evaluateClassworkCompletionRule({
+    classworkIndices,
+    assignmentTracker,
+    totalTimeSeconds: Number(gradeDocument?.assignmentActivity?.[assignmentId]?.totalTimeSeconds) || 0,
+    completionRule: assignment?.completionRule || {},
+  });
+  const classworkGrade = classworkGradeProjection({
+    completion,
+    existingGrade: gradeDocument?.classworkGradesByAssignment?.[assignmentId] || null,
+    recordedAt,
+  });
+
+  const supportUsage = mergeSupportUsage(
+    gradeDocument?.supportUsageByAssignment?.[assignmentId] || {},
+    checkpoint?.supportUsage || {},
+  );
+
+  const dolGrade = decision.activityRole === 'dol' && dolSectionScore !== null
+    ? dolSectionProjection({
+      existing: gradeDocument?.dolGradesByAssignment?.[assignmentId] || null,
+      dateKey: zonedDateKey(occurredAt, timeZone),
+      score: dolSectionScore,
+      questionIndices: dolIndices,
+      recordedAt,
+    })
+    : null;
+
+  return {
+    record,
+    result: outcome.result,
+    evidenceEvent,
+    assignmentTracker,
+    classworkGrade,
+    supportUsage,
+    dolGrade,
+    dolDateKey: zonedDateKey(occurredAt, timeZone),
+  };
 };
 
 export { CHECKPOINT_STATUS };
+export { getQuestionCredit } from './attemptPolicy.mjs';
+export { dolSectionProjection } from './assignmentProjections.mjs';

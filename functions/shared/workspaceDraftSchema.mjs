@@ -111,61 +111,137 @@ export const isSyncableDraftKey = (key) => {
  * the server, and `updatedAt` is stamped by Firestore rather than by a client
  * clock that may be wrong.
  */
-export const buildWorkspaceDraftDocument = ({
+/**
+ * Normalize one draft entry for storage, or null if it may not be stored.
+ *
+ * The value is kept as TEXT on purpose. A tool's workspace is its own shape —
+ * plotted strokes are arrays of arrays of points, and Firestore refuses an
+ * array directly inside an array. Serializing sidesteps every one of those
+ * shape rules, makes the size cap exact, and says the true thing about this
+ * field: the server stores it and never interprets it.
+ */
+const storableEntry = (entry) => {
+  const key = String(entry?.key || '');
+  if (!isSyncableDraftKey(key)) return null;
+  const check = sanitizeWorkspaceDraftValue(entry?.value !== undefined ? entry.value : undefined);
+  const valueJson = check.ok ? check.json : (typeof entry?.valueJson === 'string' ? entry.valueJson : null);
+  if (valueJson === null) return null;
+  if (valueJson.length > MAX_WORKSPACE_DRAFT_VALUE_BYTES) return null;
+  return {
+    key,
+    valueJson,
+    savedAt: Math.max(0, Number(entry?.savedAt) || 0),
+    questionIndex: Number.isInteger(Number(entry?.questionIndex)) ? Number(entry.questionIndex) : null,
+    variantIndex: Number.isInteger(Number(entry?.variantIndex)) ? Number(entry.variantIndex) : null,
+  };
+};
+
+const normalizeResume = (resume) => (resume
+  ? {
+    questionIndex: Number(resume.questionIndex) || 0,
+    activityRole: String(resume.activityRole || ''),
+    variantIndex: Number(resume.variantIndex) || 0,
+    updatedAt: Math.max(0, Number(resume.updatedAt) || 0),
+  }
+  : null);
+
+/**
+ * THE PATCH A BACKGROUND SAVE SENDS.
+ *
+ * Only what THIS device changed. A full-document write was a data-loss bug: a
+ * device that restored ten questions and then edited one would send a document
+ * containing one entry, and `setDoc` would erase the other nine for every
+ * device. `hasResume`/`hasPractice` distinguish "not changed" from "cleared",
+ * so an untouched field is never mistaken for a deletion.
+ */
+export const buildWorkspaceDraftPatch = ({
   studentId,
   assignmentId,
   classId = null,
-  revision = 1,
   entries = [],
   resume = null,
+  hasResume = false,
   practice = null,
-} = {}) => {
+  hasPractice = false,
+  practiceUpdatedAt = 0,
+} = {}) => ({
+  schemaVersion: WORKSPACE_DRAFT_SCHEMA_VERSION,
+  documentId: workspaceDraftDocumentId({ studentId, assignmentId }),
+  studentId: String(studentId ?? ''),
+  assignmentId: String(assignmentId ?? ''),
+  classId: classId ? String(classId) : null,
+  entries: (Array.isArray(entries) ? entries : []).map(storableEntry).filter(Boolean),
+  resume: normalizeResume(resume),
+  hasResume: Boolean(hasResume),
+  practice: practice && typeof practice === 'object' ? practice : null,
+  hasPractice: Boolean(hasPractice),
+  practiceUpdatedAt: Math.max(0, Number(practiceUpdatedAt) || 0),
+});
+
+/**
+ * MERGE, NEVER REPLACE.
+ *
+ * Unrelated draft keys can never conflict: they are merged by key, so Device A
+ * editing question 1 and Device B editing question 2 both survive.
+ *
+ * For the SAME key the newer `savedAt` wins. That is the student's own device
+ * clock, and both writers are the same student, so it is the best available
+ * ordering — and it means an obviously stale device cannot wipe newer work.
+ * A per-device `revision` is deliberately NOT used for this: device A's
+ * revision 15 and device B's revision 2 say nothing about which is newer.
+ *
+ * Resume uses its own `updatedAt` and Practice its own `practiceUpdatedAt` for
+ * the same reason.
+ */
+export const mergeWorkspaceDraftDocument = ({ existing = null, patch } = {}) => {
+  if (!patch) return existing;
+  const byKey = new Map();
+  (Array.isArray(existing?.entries) ? existing.entries : []).forEach((entry) => {
+    const stored = storableEntry(entry);
+    if (stored) byKey.set(stored.key, stored);
+  });
+  patch.entries.forEach((entry) => {
+    const current = byKey.get(entry.key);
+    // Ties go to the incoming write: it is the same device re-sending.
+    if (current && current.savedAt > entry.savedAt) return;
+    byKey.set(entry.key, entry);
+  });
+
+  // Bounded: newest work is kept when the caps are reached.
+  const ordered = [...byKey.values()].sort((left, right) => right.savedAt - left.savedAt);
   const accepted = [];
   let total = 0;
-  for (const entry of Array.isArray(entries) ? entries : []) {
+  for (const entry of ordered) {
     if (accepted.length >= MAX_WORKSPACE_DRAFT_ENTRIES) break;
-    const key = String(entry?.key || '');
-    if (!isSyncableDraftKey(key)) continue;
-    const check = sanitizeWorkspaceDraftValue(entry?.value);
-    if (!check.ok) continue;
-    if (total + check.bytes > MAX_WORKSPACE_DOCUMENT_BYTES) break;
-    total += check.bytes;
-    accepted.push({
-      key,
-      // STORED AS TEXT ON PURPOSE.
-      //
-      // A tool's workspace is its own shape — plotted strokes are arrays of
-      // arrays of points, and Firestore refuses an array directly inside an
-      // array. Serializing sidesteps every one of those shape rules, makes the
-      // size cap exact, and says the true thing about this field: the server
-      // stores it and never interprets it.
-      valueJson: check.json,
-      savedAt: Math.max(0, Number(entry?.savedAt) || 0),
-      questionIndex: Number.isInteger(Number(entry?.questionIndex)) ? Number(entry.questionIndex) : null,
-      variantIndex: Number.isInteger(Number(entry?.variantIndex)) ? Number(entry.variantIndex) : null,
-    });
+    if (total + entry.valueJson.length > MAX_WORKSPACE_DOCUMENT_BYTES) break;
+    total += entry.valueJson.length;
+    accepted.push(entry);
   }
+
+  const existingResume = normalizeResume(existing?.resume);
+  const resume = patch.hasResume
+    && (!existingResume || (patch.resume?.updatedAt || 0) >= existingResume.updatedAt)
+    ? patch.resume
+    : existingResume;
+
+  const existingPracticeUpdatedAt = Math.max(0, Number(existing?.practiceUpdatedAt) || 0);
+  const practiceIsNewer = patch.hasPractice && patch.practiceUpdatedAt >= existingPracticeUpdatedAt;
+
   return {
     schemaVersion: WORKSPACE_DRAFT_SCHEMA_VERSION,
-    documentId: workspaceDraftDocumentId({ studentId, assignmentId }),
-    studentId: String(studentId ?? ''),
-    assignmentId: String(assignmentId ?? ''),
-    classId: classId ? String(classId) : null,
-    revision: Math.max(1, Number(revision) || 1),
+    documentId: patch.documentId,
+    studentId: patch.studentId,
+    assignmentId: patch.assignmentId,
+    classId: patch.classId ?? existing?.classId ?? null,
     secure: false,
-    entries: accepted,
+    // Sorted by key so the stored document is stable to read and diff.
+    entries: accepted.sort((left, right) => left.key.localeCompare(right.key)),
     // Where the student was. Never authoritative over grading.
-    resume: resume
-      ? {
-        questionIndex: Number(resume.questionIndex) || 0,
-        activityRole: String(resume.activityRole || ''),
-        variantIndex: Number(resume.variantIndex) || 0,
-        updatedAt: Math.max(0, Number(resume.updatedAt) || 0),
-      }
-      : null,
+    resume,
     // Post-deadline Practice Mode. A separate structure precisely so it can
     // never be mistaken for, or merged into, the canonical grade.
-    practice: practice && typeof practice === 'object' ? practice : null,
+    practice: practiceIsNewer ? patch.practice : (existing?.practice ?? null),
+    practiceUpdatedAt: practiceIsNewer ? patch.practiceUpdatedAt : existingPracticeUpdatedAt,
   };
 };
 

@@ -383,6 +383,26 @@ service cloud.firestore {
      * Owner-only in both directions. A student may not read another student's
      * unfinished work, which would otherwise be a way to read their answers.
      */
+    /*
+     * Deliberately NO monotonic revision check.
+     *
+     * A per-device revision is not a global ordering — device A's revision 15
+     * and device B's revision 2 say nothing about which is newer — so a rule
+     * built on one would lock a fresh Chromebook out of saving entirely.
+     * Ordering is handled where it can be done correctly: the client merges
+     * per draft key inside a transaction, newest `savedAt` winning, so two
+     * devices editing different questions never conflict at all.
+     */
+    function workspaceDraftCarriesNoGrade(data) {
+      return !data.keys().hasAny([
+        'isCorrect', 'score', 'grade', 'record', 'gradesByAssignment',
+        'classworkGradesByAssignment', 'dolGradesByAssignment',
+        'evidenceEvent', 'evidence', 'mastery', 'partGrades', 'partialCredit',
+        'totalAttempts', 'attemptCount', 'answerKey', 'acceptedAnswers',
+        'solution', 'seed', 'classroomSyncStatusByAssignment',
+      ]);
+    }
+
     match /studentWorkspaceDrafts/{draftId} {
       allow read: if rootAdmin() || ownsStudent(resource.data.studentId);
       allow create: if ownsStudent(request.resource.data.studentId)
@@ -390,13 +410,15 @@ service cloud.firestore {
         && request.resource.data.secure == false
         && request.resource.data.schemaVersion == 1
         && request.resource.data.updatedAt == request.time
-        && request.resource.data.revision is number;
+        && workspaceDraftCarriesNoGrade(request.resource.data);
       allow update: if ownsStudent(resource.data.studentId)
         && request.resource.data.studentId == resource.data.studentId
         && request.resource.data.assignmentId == resource.data.assignmentId
         && request.resource.data.documentId == draftId
         && request.resource.data.secure == false
-        && request.resource.data.updatedAt == request.time;
+        && request.resource.data.schemaVersion == 1
+        && request.resource.data.updatedAt == request.time
+        && workspaceDraftCarriesNoGrade(request.resource.data);
       allow delete: if false;
     }
 

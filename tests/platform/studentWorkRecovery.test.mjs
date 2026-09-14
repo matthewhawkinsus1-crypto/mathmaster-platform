@@ -20,8 +20,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import {
-  buildWorkspaceDraftDocument,
+  MAX_WORKSPACE_DRAFT_ENTRIES,
+  buildWorkspaceDraftPatch,
   isSyncableDraftKey,
+  mergeWorkspaceDraftDocument,
   readWorkspaceDraftEntries,
   sanitizeWorkspaceDraftValue,
   selectRestorableDraftEntries,
@@ -207,10 +209,13 @@ test('a workspace whose shape Firestore would reject still round-trips', () => {
 });
 
 test('a server-backed draft restores on a different device', () => {
-  const stored = buildWorkspaceDraftDocument({
-    studentId: STUDENT,
-    assignmentId: ASSIGNMENT,
-    entries: [{ key: draftKey(0, 'literal'), value: 'A/b', savedAt: 5_000, questionIndex: 0 }],
+  const stored = mergeWorkspaceDraftDocument({
+    existing: null,
+    patch: buildWorkspaceDraftPatch({
+      studentId: STUDENT,
+      assignmentId: ASSIGNMENT,
+      entries: [{ key: draftKey(0, 'literal'), value: 'A/b', savedAt: 5_000, questionIndex: 0 }],
+    }),
   });
   // The second Chromebook has never seen this assignment.
   const restorable = selectRestorableDraftEntries({
@@ -480,4 +485,439 @@ test('every new module App.jsx calls is actually imported there', () => {
     assert.match(appSource, new RegExp(`[^\\w]${symbol}\\(`), `${symbol} is not called in App.jsx — update this list`);
     assert.match(imports, new RegExp(`\\b${symbol}\\b`), `App.jsx calls ${symbol} without importing it`);
   }
+});
+
+/* ==========================================================================
+ * REVIEW FINDINGS. Each of these is a bug that was really there.
+ * ======================================================================== */
+
+test('a revision enqueued during an in-flight drain is not deleted by the drain', async () => {
+  /*
+   * A checkpoint's queue id is deterministic so a new revision replaces the
+   * old one in place. An unconditional delete after reconciling therefore threw
+   * away a revision written while the drain was running, leaving the SERVER
+   * holding the stale response — the exact bug checkpoints exist to prevent.
+   */
+  const storage = createMemoryOutboxStorage();
+  const identity = { studentId: STUDENT, assignmentId: ASSIGNMENT, questionIndex: 0 };
+  const revisionOne = createDurableAction({
+    kind: 'responseCheckpoint', actionId: 'response_checkpoint:fixed', ...identity,
+    payload: { documentId: 'fixed', revision: 1, isComplete: true, response: { kind: 'scalar', value: '7' } },
+  });
+  await enqueueDurableAction(revisionOne, { storage });
+
+  const reconciled = [];
+  const result = await drainDurableActions({
+    storage,
+    studentId: STUDENT,
+    reconcile: async (action) => {
+      reconciled.push(action.payload.revision);
+      // The student clears their answer while this reconcile is in flight.
+      await enqueueDurableAction(createDurableAction({
+        kind: 'responseCheckpoint', actionId: 'response_checkpoint:fixed', ...identity,
+        payload: { documentId: 'fixed', revision: 2, isComplete: false, response: { kind: 'scalar', value: '' } },
+      }), { storage });
+      return { status: 'durable' };
+    },
+  });
+
+  assert.deepEqual(reconciled, [1]);
+  const remaining = await listDurableActions({ storage, studentId: STUDENT });
+  assert.equal(remaining.length, 1, 'the newer revision survived the drain');
+  assert.equal(remaining[0].payload.revision, 2);
+  assert.equal(remaining[0].payload.isComplete, false);
+  assert.equal(result.remaining, 1);
+});
+
+test('a reconciled action with no newer revision is still removed', async () => {
+  const storage = createMemoryOutboxStorage();
+  await enqueueDurableAction(createDurableAction({
+    kind: 'ordinarySubmission', studentId: STUDENT, assignmentId: ASSIGNMENT, questionIndex: 1,
+    payload: { previousTotalAttempts: 0, record: {} },
+  }), { storage });
+  const result = await drainDurableActions({ storage, studentId: STUDENT, reconcile: async () => ({ status: 'durable' }) });
+  assert.equal(result.recovered, 1);
+  assert.equal(result.remaining, 0);
+});
+
+test('the page-lifecycle listener is registered once, so cleanup means unmount', () => {
+  /*
+   * `onResponseCheckpoint` changes identity whenever the parent re-renders with
+   * new grades. An effect that depended on it would be torn down and re-run on
+   * ordinary state churn — and its cleanup flushes a checkpoint, turning "the
+   * page is going away" into "something re-rendered".
+   */
+  const start = engineSource.indexOf('REGISTERED ONCE, SO THE CLEANUP MEANS UNMOUNT');
+  assert.ok(start > 0, 'the page-lifecycle listener must document why it has no dependencies');
+  const block = engineSource.slice(start, start + 1400);
+  assert.match(block, /window\.addEventListener\('pagehide', flush\)/);
+  assert.match(block, /flushCheckpointRef\.current\('page-lifecycle'\)/);
+  // The subscription must not depend on the callback identity.
+  assert.match(block, /\}, \[\]\);/);
+  assert.doesNotMatch(block, /\}, \[onResponseCheckpoint/);
+});
+
+test('the deadline finalizer writes the projections an attempt updates, not just the record', async () => {
+  /*
+   * prerequisiteAccess opens the next assignment only when the prerequisite's
+   * classworkGradesByAssignment score is 100. A finalizer that wrote only
+   * gradesByAssignment would record a student's final classwork response and
+   * still leave them locked out.
+   */
+  const { evaluateClassworkCompletionRule, classworkGradeProjection, mergeSupportUsage } =
+    await import('../../functions/shared/assignmentProjections.mjs');
+  const { prerequisiteAccess } = await import('../../src/assignmentLifecycle.js');
+
+  const tracker = { 0: { status: 'correct' }, 1: { status: 'correct' } };
+  const completion = evaluateClassworkCompletionRule({
+    classworkIndices: [0, 1],
+    assignmentTracker: tracker,
+    totalTimeSeconds: 900,
+    completionRule: {},
+  });
+  assert.equal(completion.met, true);
+  assert.equal(completion.completionPercent, 100);
+
+  const grade = classworkGradeProjection({ completion, existingGrade: null, recordedAt: '2026-09-14T15:10:00.000Z' });
+  assert.equal(grade.score, 100);
+  // The gate the student would otherwise have stayed behind.
+  const gated = prerequisiteAccess({
+    assignment: { prerequisiteAssignmentId: ASSIGNMENT },
+    classworkGradesByAssignment: {},
+  });
+  assert.equal(gated.open, false);
+  const opened = prerequisiteAccess({
+    assignment: { prerequisiteAssignmentId: ASSIGNMENT },
+    classworkGradesByAssignment: { [ASSIGNMENT]: grade },
+  });
+  assert.equal(opened.open, true);
+
+  // Support usage accumulates rather than replacing.
+  assert.deepEqual(
+    mergeSupportUsage({ accommodations: ['calculator'] }, { accommodations: ['readAloud'], modified: true }),
+    { modified: true, accommodations: ['calculator', 'readAloud'], modifications: [] },
+  );
+});
+
+test('the finalization transaction persists every projection it derived', () => {
+  const functionsSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const start = functionsSource.indexOf('async function finalizeOneResponseCheckpoint');
+  const block = functionsSource.slice(start, functionsSource.indexOf('exports.finalizeStudentResponseCheckpoints'));
+  assert.match(block, /new FieldPath\("gradesByAssignment", assignmentId, String\(checkpoint\.questionIndex\)\)/);
+  assert.match(block, /new FieldPath\("supportUsageByAssignment", assignmentId\)/);
+  assert.match(block, /new FieldPath\("classworkGradesByAssignment", assignmentId\)/);
+  assert.match(block, /new FieldPath\("dolGradesByAssignment", assignmentId, finalization\.dolDateKey\)/);
+  assert.match(block, /transaction\.update\(gradeRef, \.\.\.gradeUpdates\)/);
+});
+
+test('a deferred reconcile of revision 1 leaves revision 2 queued, and a second drain sends it', async () => {
+  /*
+   * The full race, driven deliberately:
+   *   enqueue revision 1 → start the drain → while its reconcile is still
+   *   pending, enqueue revision 2 under the SAME deterministic action id →
+   *   resolve revision 1 → revision 2 must still be queued → drain again →
+   *   revision 2 reconciles → nothing remains.
+   */
+  const storage = createMemoryOutboxStorage();
+  const identity = { studentId: STUDENT, assignmentId: ASSIGNMENT, questionIndex: 0 };
+  const checkpoint = (revision, value, isComplete) => createDurableAction({
+    kind: 'responseCheckpoint',
+    actionId: 'response_checkpoint:coalesced',
+    ...identity,
+    payload: { documentId: 'coalesced', revision, isComplete, response: { kind: 'scalar', value } },
+  });
+
+  await enqueueDurableAction(checkpoint(1, '7', true), { storage });
+
+  let releaseFirstReconcile;
+  const firstReconcileStarted = new Promise((resolve) => { releaseFirstReconcile = resolve; });
+  let resolveFirst;
+  const firstReconcileGate = new Promise((resolve) => { resolveFirst = resolve; });
+  const reconciledRevisions = [];
+
+  const firstDrain = drainDurableActions({
+    storage,
+    studentId: STUDENT,
+    reconcile: async (action) => {
+      reconciledRevisions.push(action.payload.revision);
+      releaseFirstReconcile();
+      await firstReconcileGate;
+      return { status: 'durable' };
+    },
+  });
+
+  await firstReconcileStarted;
+  // The student clears their answer while revision 1 is still in flight.
+  await enqueueDurableAction(checkpoint(2, '', false), { storage });
+  resolveFirst();
+  const firstResult = await firstDrain;
+
+  assert.deepEqual(reconciledRevisions, [1]);
+  assert.equal(firstResult.remaining, 1, 'revision 2 was not deleted by revision 1 finishing');
+  const queued = await listDurableActions({ storage, studentId: STUDENT });
+  assert.equal(queued[0].payload.revision, 2);
+  assert.equal(queued[0].payload.isComplete, false);
+
+  const secondResult = await drainDurableActions({
+    storage,
+    studentId: STUDENT,
+    reconcile: async (action) => { reconciledRevisions.push(action.payload.revision); return { status: 'durable' }; },
+  });
+  assert.deepEqual(reconciledRevisions, [1, 2], 'the newest revision reconciled on the next drain');
+  assert.equal(secondResult.remaining, 0);
+  assert.equal((await listDurableActions({ storage, studentId: STUDENT })).length, 0);
+});
+
+test('the removal guard is atomic inside one readwrite transaction', () => {
+  const source = readFileSync(new URL('../../src/platform/performance/durableActionOutbox.js', import.meta.url), 'utf8');
+  // A list-then-delete would still race; the read and the delete must share a
+  // transaction so nothing can be written between them.
+  assert.match(source, /removeIfCurrent: async \(actionId, expectedCreatedOrder\)/);
+  const start = source.indexOf('const removeIfCurrentRequest');
+  const block = source.slice(start, source.indexOf('export const indexedDbOutboxStorage'));
+  assert.match(block, /const read = store\.get\(actionId\);/);
+  assert.match(block, /read\.onsuccess = \(\) => \{/);
+  assert.match(block, /store\.delete\(actionId\);/);
+  assert.match(source, /transactionRequest\('readwrite', \(store\) => \(\s*\n\s*removeIfCurrentRequest\(/);
+  // The memory adapter mirrors it, so tests exercise the real semantics.
+  assert.match(source, /async removeIfCurrent\(actionId, expectedCreatedOrder\) \{/);
+});
+
+test('a unique-id submission is still removed normally', async () => {
+  // The guard must not change behaviour for actions that never coalesce.
+  const storage = createMemoryOutboxStorage();
+  for (const questionIndex of [0, 1, 2]) {
+    await enqueueDurableAction(createDurableAction({
+      kind: 'ordinarySubmission', studentId: STUDENT, assignmentId: ASSIGNMENT, questionIndex,
+      payload: { previousTotalAttempts: 0, record: {} },
+    }), { storage });
+  }
+  const result = await drainDurableActions({ storage, studentId: STUDENT, reconcile: async () => ({ status: 'durable' }) });
+  assert.equal(result.recovered, 3);
+  assert.equal(result.remaining, 0);
+});
+
+/* ==========================================================================
+ * A BACKGROUND SAVE MERGES. IT NEVER REPLACES THE DOCUMENT.
+ *
+ * The bug these cover: the sync sent a whole document built only from THIS
+ * session's pending edits, and the store wrote it with setDoc. A device that
+ * restored ten questions and then edited one erased the other nine — for every
+ * device.
+ * ======================================================================== */
+
+/** Run a patch through the same merge the Firestore transaction runs. */
+const applyPatch = (existing, patch) => mergeWorkspaceDraftDocument({ existing, patch });
+
+const entryFor = (questionIndex, value, savedAt) => ({
+  key: draftKey(questionIndex, 'literal'),
+  value,
+  savedAt,
+  questionIndex,
+});
+
+const serverWith = (entries, extra = {}) => applyPatch(null, buildWorkspaceDraftPatch({
+  studentId: STUDENT, assignmentId: ASSIGNMENT, entries, ...extra,
+}));
+
+const valueOf = (document, questionIndex) => readWorkspaceDraftEntries(document)
+  .find((entry) => entry.questionIndex === questionIndex)?.value;
+
+test('a fresh device that edits one new question keeps the three it restored', () => {
+  const server = serverWith([entryFor(1, 'one', 10), entryFor(2, 'two', 11), entryFor(3, 'three', 12)]);
+  assert.equal(server.entries.length, 3);
+  // Fresh Chromebook: it restored Q1-Q3, then the student works on Q4 only.
+  const { sync, scheduler, writes } = trackingSync();
+  sync.record({ key: draftKey(4, 'literal'), value: 'four', savedAt: 20 });
+  scheduler.runAll();
+  const merged = applyPatch(server, writes[0]);
+  assert.deepEqual(readWorkspaceDraftEntries(merged).map((entry) => entry.questionIndex).sort(), [1, 2, 3, 4]);
+  assert.equal(valueOf(merged, 1), 'one');
+  assert.equal(valueOf(merged, 4), 'four');
+});
+
+test('editing one of ten questions leaves the other nine', () => {
+  const server = serverWith(Array.from({ length: 10 }, (_, index) => entryFor(index, `q${index}`, 100 + index)));
+  const { sync, scheduler, writes } = trackingSync();
+  sync.record({ key: draftKey(5, 'literal'), value: 'edited', savedAt: 500 });
+  scheduler.runAll();
+  assert.equal(writes[0].entries.length, 1, 'only the changed entry is sent');
+  const merged = applyPatch(server, writes[0]);
+  assert.equal(readWorkspaceDraftEntries(merged).length, 10);
+  assert.equal(valueOf(merged, 5), 'edited');
+  assert.equal(valueOf(merged, 9), 'q9');
+});
+
+test('updating the resume position alone does not erase draft entries', () => {
+  const server = serverWith([entryFor(0, 'kept', 10), entryFor(1, 'also kept', 11)]);
+  const { sync, scheduler, writes } = trackingSync();
+  sync.setResume({ questionIndex: 7, activityRole: 'classwork', variantIndex: 0, updatedAt: 900 });
+  scheduler.runAll();
+  assert.equal(writes[0].entries.length, 0, 'a resume update sends no draft entries');
+  const merged = applyPatch(server, writes[0]);
+  assert.equal(readWorkspaceDraftEntries(merged).length, 2);
+  assert.equal(merged.resume.questionIndex, 7);
+});
+
+test('updating Practice Mode alone does not erase ordinary draft entries', () => {
+  const server = serverWith([entryFor(0, 'kept', 10)]);
+  const { sync, scheduler, writes } = trackingSync();
+  sync.setPractice({ 0: { status: 'correct' } });
+  scheduler.runAll();
+  const merged = applyPatch(server, writes[0]);
+  assert.equal(valueOf(merged, 0), 'kept');
+  assert.equal(merged.practice[0].status, 'correct');
+});
+
+test('editing an ordinary question does not erase Practice Mode', () => {
+  const withPractice = applyPatch(null, buildWorkspaceDraftPatch({
+    studentId: STUDENT, assignmentId: ASSIGNMENT, entries: [],
+    practice: { 3: { status: 'attempted', attemptCount: 2 } }, hasPractice: true, practiceUpdatedAt: 50,
+  }));
+  assert.equal(withPractice.practice[3].attemptCount, 2);
+  const { sync, scheduler, writes } = trackingSync();
+  sync.record({ key: draftKey(0, 'literal'), value: 'ordinary work', savedAt: 60 });
+  scheduler.runAll();
+  const merged = applyPatch(withPractice, writes[0]);
+  assert.equal(merged.practice[3].attemptCount, 2, 'Practice Mode survived a draft write');
+  assert.equal(valueOf(merged, 0), 'ordinary work');
+});
+
+test('editing an ordinary question does not erase the resume position', () => {
+  const withResume = applyPatch(null, buildWorkspaceDraftPatch({
+    studentId: STUDENT, assignmentId: ASSIGNMENT, entries: [],
+    resume: { questionIndex: 6, activityRole: 'practice', variantIndex: 1, updatedAt: 40 }, hasResume: true,
+  }));
+  const { sync, scheduler, writes } = trackingSync();
+  sync.record({ key: draftKey(0, 'literal'), value: 'ordinary work', savedAt: 60 });
+  scheduler.runAll();
+  assert.equal(writes[0].hasResume, false, 'an entries-only patch must not claim to carry a resume');
+  const merged = applyPatch(withResume, writes[0]);
+  assert.equal(merged.resume.questionIndex, 6, 'the resume position survived a draft write');
+  assert.equal(valueOf(merged, 0), 'ordinary work');
+});
+
+test('two devices editing different questions both survive', () => {
+  let server = serverWith([]);
+  const deviceA = trackingSync();
+  const deviceB = trackingSync();
+  deviceA.sync.record({ key: draftKey(1, 'literal'), value: 'from A', savedAt: 100 });
+  deviceB.sync.record({ key: draftKey(2, 'literal'), value: 'from B', savedAt: 101 });
+  deviceA.scheduler.runAll();
+  deviceB.scheduler.runAll();
+  // Serialized by the transaction, in either order.
+  server = applyPatch(server, deviceA.writes[0]);
+  server = applyPatch(server, deviceB.writes[0]);
+  assert.equal(valueOf(server, 1), 'from A');
+  assert.equal(valueOf(server, 2), 'from B');
+
+  const reversed = applyPatch(applyPatch(serverWith([]), deviceB.writes[0]), deviceA.writes[0]);
+  assert.equal(valueOf(reversed, 1), 'from A');
+  assert.equal(valueOf(reversed, 2), 'from B');
+});
+
+test('for the same key the newer save wins, and a stale device cannot wipe it', () => {
+  // A per-device revision would be meaningless here: device A's revision 15
+  // and device B's revision 2 say nothing about which is newer. The entry's own
+  // savedAt does.
+  let server = serverWith([entryFor(1, 'newer work', 5_000)]);
+  const stale = buildWorkspaceDraftPatch({
+    studentId: STUDENT, assignmentId: ASSIGNMENT,
+    entries: [entryFor(1, 'stale work', 1_000)],
+  });
+  server = applyPatch(server, stale);
+  assert.equal(valueOf(server, 1), 'newer work', 'the stale device did not overwrite newer work');
+
+  const newer = buildWorkspaceDraftPatch({
+    studentId: STUDENT, assignmentId: ASSIGNMENT,
+    entries: [entryFor(1, 'newest work', 9_000)],
+  });
+  assert.equal(valueOf(applyPatch(server, newer), 1), 'newest work');
+});
+
+test('a stale resume or Practice update cannot roll back a newer one', () => {
+  let server = applyPatch(null, buildWorkspaceDraftPatch({
+    studentId: STUDENT, assignmentId: ASSIGNMENT, entries: [],
+    resume: { questionIndex: 9, activityRole: 'dol', variantIndex: 0, updatedAt: 5_000 }, hasResume: true,
+    practice: { 1: { status: 'correct' } }, hasPractice: true, practiceUpdatedAt: 5_000,
+  }));
+  server = applyPatch(server, buildWorkspaceDraftPatch({
+    studentId: STUDENT, assignmentId: ASSIGNMENT, entries: [],
+    resume: { questionIndex: 2, activityRole: 'warmup', variantIndex: 0, updatedAt: 1_000 }, hasResume: true,
+    practice: { 1: { status: 'attempted' } }, hasPractice: true, practiceUpdatedAt: 1_000,
+  }));
+  assert.equal(server.resume.questionIndex, 9);
+  assert.equal(server.practice[1].status, 'correct');
+});
+
+test('a failed write and its retry cannot revert a newer unrelated entry', async () => {
+  const scheduler = manualScheduler();
+  let attempts = 0;
+  let server = serverWith([entryFor(1, 'device A work', 100)]);
+  const sync = createWorkspaceDraftSync({
+    studentId: STUDENT,
+    assignmentId: ASSIGNMENT,
+    scheduler,
+    flush: async ({ document }) => {
+      attempts += 1;
+      if (attempts === 1) throw new Error('offline');
+      server = applyPatch(server, document);
+    },
+  });
+  sync.record({ key: draftKey(2, 'literal'), value: 'device B work', savedAt: 200 });
+  scheduler.runAll();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(attempts, 1);
+
+  // Another device lands newer work for question 1 while this one is retrying.
+  server = applyPatch(server, buildWorkspaceDraftPatch({
+    studentId: STUDENT, assignmentId: ASSIGNMENT, entries: [entryFor(1, 'device A newer', 300)],
+  }));
+
+  scheduler.runAll();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(valueOf(server, 1), 'device A newer', 'the retry did not revert the newer unrelated entry');
+  assert.equal(valueOf(server, 2), 'device B work');
+});
+
+test('an edit made while a flush is in flight is not dropped when that flush succeeds', async () => {
+  const scheduler = manualScheduler();
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  let server = serverWith([]);
+  const sync = createWorkspaceDraftSync({
+    studentId: STUDENT,
+    assignmentId: ASSIGNMENT,
+    scheduler,
+    flush: async ({ document }) => { await gate; server = applyPatch(server, document); },
+  });
+  sync.record({ key: draftKey(0, 'literal'), value: 'first', savedAt: 10 });
+  scheduler.runAll();
+  // The student keeps typing while the write is in flight.
+  sync.record({ key: draftKey(0, 'literal'), value: 'second', savedAt: 20 });
+  release();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(valueOf(server, 0), 'first');
+  // The newer value is still pending and goes out on the next flush.
+  assert.deepEqual(sync.pendingKeys(), [draftKey(0, 'literal')]);
+  scheduler.runAll();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(valueOf(server, 0), 'second');
+});
+
+test('the store merges inside a transaction rather than replacing the document', () => {
+  const storeSource = readFileSync(new URL('../../src/platform/persistence/workspaceDraftStore.js', import.meta.url), 'utf8');
+  assert.match(storeSource, /runTransaction\(db, async \(transaction\) => \{/);
+  assert.match(storeSource, /const snapshot = await transaction\.get\(reference\)/);
+  assert.match(storeSource, /mergeWorkspaceDraftDocument\(\{/);
+  // A bare setDoc of the caller's document is what caused the data loss.
+  assert.doesNotMatch(storeSource, /await setDoc\(/);
+});
+
+test('the merge is bounded, keeping the newest work when the caps are reached', () => {
+  const many = Array.from({ length: MAX_WORKSPACE_DRAFT_ENTRIES + 20 }, (_, index) => entryFor(index, `q${index}`, index + 1));
+  const merged = serverWith(many);
+  assert.equal(merged.entries.length, MAX_WORKSPACE_DRAFT_ENTRIES);
+  const savedAts = merged.entries.map((entry) => entry.savedAt);
+  assert.equal(Math.min(...savedAts) > 20, true, 'the oldest drafts are the ones dropped');
 });

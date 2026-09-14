@@ -24,6 +24,7 @@ import {
   resolveWarmupInstructionDateKey,
 } from '../functions/shared/sectionDeadline.mjs';
 import { parseInstant, zonedDateKey } from '../functions/shared/instructionalCalendar.mjs';
+import { evaluateClassworkCompletionRule } from '../functions/shared/assignmentProjections.mjs';
 
 export const CLASS_PERIODS = SHARED_CLASS_PERIODS;
 
@@ -552,18 +553,15 @@ export const evaluateClassworkCompletion = ({ assignment, assignmentTracker, act
   // Activity roles are now the source of truth. A mixed lesson bundle can carry
   // Warm-Up, Classwork, Practice and DOL together without an outer
   // assignmentType deciding which questions count as classwork completion.
-  if (!classworkIndices.length) return { met: false, score: null };
-  const rule = assignment.completionRule || {};
-  const minSeconds = Math.max(0, Number(rule.minEngagementMinutes ?? 10) * 60);
-  const requiredPercent = Math.max(0, Math.min(100, Number(rule.minimumQuestionCompletionPercent ?? 80)));
-  const completed = classworkIndices.reduce((total, index) => {
-    const status = assignmentTracker?.[index]?.status;
-    return total + (status && status !== 'unattempted' ? 1 : 0);
-  }, 0);
-  const completionPercent = Math.round((completed / classworkIndices.length) * 100);
-  const engagedSeconds = normalizeAssignmentActivity(activity).totalTimeSeconds;
-  const met = engagedSeconds >= minSeconds && completionPercent >= requiredPercent;
-  return { met, score: met ? 100 : null, engagedSeconds, completionPercent, minSeconds, requiredPercent };
+  // The RULE is shared with the Cloud Functions finalizer: an auto-submitted
+  // final classwork response has to open the same prerequisite gate a manual
+  // Submit would have opened. Only the index projection differs by side.
+  return evaluateClassworkCompletionRule({
+    classworkIndices,
+    assignmentTracker,
+    totalTimeSeconds: normalizeAssignmentActivity(activity).totalTimeSeconds,
+    completionRule: assignment.completionRule || {},
+  });
 };
 
 export const prerequisiteAccess = ({ assignment, classworkGradesByAssignment = {}, nowValue = Date.now() }) => {

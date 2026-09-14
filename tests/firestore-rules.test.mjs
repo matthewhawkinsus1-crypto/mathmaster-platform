@@ -402,10 +402,10 @@ await check('student CANNOT delete a checkpoint', assertFails(deleteDoc(checkpoi
 const workspaceDoc = (db, id) => doc(db, `studentWorkspaceDrafts/${id}`);
 const ownWorkspace = {
   documentId: 'S1042__A1', schemaVersion: 1, studentId: 'S1042', assignmentId: 'A1',
-  classId: 'class-a', revision: 1, secure: false, updatedAt: serverTimestamp(),
+  classId: 'class-a', secure: false, updatedAt: serverTimestamp(),
   entries: [{ key: 'mathmaster:draft:v2::S1042:A1:0:0:student:literal', valueJson: '"x = 3y"', savedAt: 1_700_000_000_000, questionIndex: 0, variantIndex: 0 }],
   resume: { questionIndex: 2, activityRole: 'classwork', variantIndex: 0, updatedAt: 1_700_000_000_000 },
-  practice: null,
+  practice: null, practiceUpdatedAt: 0,
 };
 await check('student saves their own unfinished workspace', assertSucceeds(setDoc(workspaceDoc(student, 'S1042__A1'), ownWorkspace)));
 await check('student restores their own unfinished workspace', assertSucceeds(getDoc(workspaceDoc(student, 'S1042__A1'))));
@@ -415,6 +415,11 @@ await check('student CANNOT point a workspace draft at a different document id',
 await check('student CANNOT backdate a workspace draft', assertFails(setDoc(workspaceDoc(student, 'S1042__A1'), { ...ownWorkspace, updatedAt: new Date('2020-01-01T00:00:00Z') })));
 await check('student CANNOT move a workspace draft to another assignment', assertFails(setDoc(workspaceDoc(student, 'S1042__A1'), { ...ownWorkspace, assignmentId: 'A9' })));
 await check('student CANNOT store secure work as an ordinary workspace draft', assertFails(setDoc(workspaceDoc(student, 'S1042__A1'), { ...ownWorkspace, secure: true })));
+await check('student CANNOT smuggle a grade into a workspace draft', assertFails(setDoc(workspaceDoc(student, 'S1042__A1'), { ...ownWorkspace, gradesByAssignment: { A1: { 0: { status: 'correct' } } } })));
+await check('student CANNOT smuggle classwork completion into a workspace draft', assertFails(setDoc(workspaceDoc(student, 'S1042__A1'), { ...ownWorkspace, classworkGradesByAssignment: { A1: { score: 100 } } })));
+await check('student CANNOT smuggle evidence into a workspace draft', assertFails(setDoc(workspaceDoc(student, 'S1042__A1'), { ...ownWorkspace, evidenceEvent: { eventKey: 'ev_1' } })));
+// A fresh Chromebook has no history and must still be able to save.
+await check('a fresh device with no prior revision can still save a workspace draft', assertSucceeds(setDoc(workspaceDoc(student, 'S1042__A1'), { ...ownWorkspace, entries: [] })));
 await check('student CANNOT delete a workspace draft', assertFails(deleteDoc(workspaceDoc(student, 'S1042__A1'))));
 
 /*

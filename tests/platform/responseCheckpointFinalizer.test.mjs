@@ -18,6 +18,7 @@ import {
   buildCheckpointFinalization,
   checkpointSubmissionId,
   decideCheckpointFinalization,
+  dolSectionProjection,
   verifyCheckpointAuthorization,
 } from '../../functions/shared/responseCheckpointFinalizer.mjs';
 import { CHECKPOINT_STATUS } from '../../functions/shared/responseCheckpointSchema.mjs';
@@ -896,6 +897,197 @@ test('an unknown schema version is refused rather than interpreted', () => {
 });
 
 /* ==========================================================================
+ * AUTO-SUBMIT PRODUCES THE SAME CANONICAL PROJECTIONS AS MANUAL SUBMIT.
+ *
+ * Writing `gradesByAssignment` is not the whole of recording an attempt. The
+ * ordinary Submit path also maintains the classwork completion projection, the
+ * accumulated support usage, and the DOL section projection — and
+ * `prerequisiteAccess` reads the first of those. A finalizer that skipped them
+ * would record a student's last classwork answer and still leave them locked
+ * out of the dependent assignment.
+ * ======================================================================== */
+
+const finalize = ({ store, now = AFTER_WARMUP, classworkIndices = [1], dolIndices = [2] }) => {
+  const decision = decide({ checkpoint: store.checkpoint, assignment: store.assignment, gradeDocument: store.grade, now });
+  assert.equal(decision.action, 'finalize', `expected finalize, got ${decision.action}: ${decision.reason}`);
+  return buildCheckpointFinalization({
+    checkpoint: store.checkpoint,
+    assignment: store.assignment,
+    question: runtimeQuestions(store.assignment)[Number(store.checkpoint.questionIndex)],
+    decision,
+    gradeDocument: store.grade,
+    classworkIndices,
+    dolIndices,
+    occurredAt: now,
+  });
+};
+
+const completeMultiAnswer = () => ({
+  isComplete: true,
+  responseKey: '{}',
+  parts: [
+    { id: 'slope', response: '3', isComplete: true },
+    { id: 'intercept', response: '-2', isComplete: true },
+  ],
+});
+
+test('auto-submitting the final Classwork answer crosses the completion threshold and unlocks the prerequisite', async () => {
+  const { prerequisiteAccess } = await import('../../src/assignmentLifecycle.js');
+  const store = newStore({
+    grade: buildGradeDocument({
+      // Question 1 is the only classwork question, and it is unattempted.
+      assignmentActivity: { A1: { totalTimeSeconds: 1200 } },
+    }),
+  });
+  store.checkpoint = buildCheckpoint({
+    question: classworkQuestion,
+    questionIndex: 1,
+    activityRole: 'classwork',
+    answerState: completeMultiAnswer(),
+    capturedAt: DURING_WARMUP,
+  });
+  const finalization = finalize({ store, now: Date.parse('2026-09-22T06:00:00Z') });
+
+  assert.equal(finalization.record.status, 'correct');
+  assert.ok(finalization.classworkGrade, 'the classwork completion projection was produced');
+  assert.equal(finalization.classworkGrade.score, 100);
+  assert.equal(finalization.classworkGrade.completionPercent, 100);
+
+  // The gate the student would otherwise have stayed behind.
+  const dependent = { prerequisiteAssignmentId: 'A1' };
+  assert.equal(prerequisiteAccess({ assignment: dependent, classworkGradesByAssignment: {} }).open, false);
+  assert.equal(
+    prerequisiteAccess({ assignment: dependent, classworkGradesByAssignment: { A1: finalization.classworkGrade } }).open,
+    true,
+  );
+});
+
+test('auto-submitting a Classwork answer that does NOT meet the rule writes no completion grade', () => {
+  const store = newStore({
+    // Not enough engaged time for the default ten-minute rule.
+    grade: buildGradeDocument({ assignmentActivity: { A1: { totalTimeSeconds: 30 } } }),
+  });
+  store.checkpoint = buildCheckpoint({
+    question: classworkQuestion, questionIndex: 1, activityRole: 'classwork',
+    answerState: completeMultiAnswer(), capturedAt: DURING_WARMUP,
+  });
+  const finalization = finalize({ store, now: Date.parse('2026-09-22T06:00:00Z') });
+  assert.equal(finalization.classworkGrade, null);
+});
+
+test('auto-submitting a DOL response updates the DOL section projection', () => {
+  const store = newStore();
+  store.checkpoint = buildCheckpoint({
+    question: dolQuestion,
+    questionIndex: 2,
+    activityRole: 'dol',
+    answerState: { isComplete: true, responseKey: '(2,5)', parts: [] },
+    capturedAt: Date.parse('2026-09-14T15:40:00Z'),
+  });
+  const finalization = finalize({ store, now: Date.parse('2026-09-14T15:46:00Z') });
+  assert.equal(finalization.record.status, 'correct');
+  // The projection is keyed by the instructional date in the school's zone.
+  assert.equal(finalization.dolDateKey, DAY);
+  const projection = dolSectionProjection({
+    existing: null, dateKey: finalization.dolDateKey, score: 100, questionIndices: [2],
+  });
+  assert.equal(projection.score, 100);
+  assert.deepEqual(projection.questionIndices, [2]);
+  // Deliberately NOT finalized: the existing DOL finalization path stays the
+  // one thing that closes a section.
+  assert.equal(projection.finalized, false);
+  assert.equal(projection.status, 'section-in-progress');
+});
+
+test('a DOL section the teacher already finalized is not reopened by an auto-submit', () => {
+  const existing = { [DAY]: { finalized: true, score: 80, status: 'section-finalized' } };
+  assert.equal(dolSectionProjection({ existing, dateKey: DAY, score: 100, questionIndices: [2] }), null);
+});
+
+test('auto-submit merges support usage rather than replacing it', () => {
+  const store = newStore({
+    grade: buildGradeDocument({
+      supportUsageByAssignment: { A1: { modified: false, accommodations: ['calculator'], modifications: [] } },
+    }),
+  });
+  store.checkpoint = buildCheckpoint({
+    answerState: completeLiteral('A/b'),
+    patch: { supportUsage: { modified: true, accommodations: ['readAloud'], modifications: ['reduce-complexity'] } },
+  });
+  const finalization = finalize({ store, classworkIndices: [], dolIndices: [] });
+  assert.deepEqual(finalization.supportUsage.accommodations.sort(), ['calculator', 'readAloud']);
+  assert.deepEqual(finalization.supportUsage.modifications, ['reduce-complexity']);
+  assert.equal(finalization.supportUsage.modified, true);
+});
+
+test('manual Submit and deadline auto-submit of the same response produce the same projections', async () => {
+  const { recordQuestionAttempt } = await import('../../functions/shared/attemptPolicy.mjs');
+  const { evaluateClassworkCompletionRule, classworkGradeProjection } =
+    await import('../../functions/shared/assignmentProjections.mjs');
+  const { gradeOrdinaryResponse } = await import('../../functions/shared/ordinaryResponseGrading.mjs');
+
+  const grade = buildGradeDocument({ assignmentActivity: { A1: { totalTimeSeconds: 1200 } } });
+  const response = { kind: 'fields', type: 'multiAnswer', value: '', fields: [
+    { id: 'slope', value: '3', isComplete: true },
+    { id: 'intercept', value: '-2', isComplete: true },
+  ] };
+
+  // What manual Submit would have produced, through the shared contracts.
+  const manualGrading = gradeOrdinaryResponse({ question: classworkQuestion, response });
+  const manual = recordQuestionAttempt({
+    record: null,
+    isCorrect: manualGrading.isCorrect,
+    parts: manualGrading.parts,
+    responseKey: '',
+    maximumAttempts: 3,
+  });
+  const manualCompletion = evaluateClassworkCompletionRule({
+    classworkIndices: [1],
+    assignmentTracker: { 1: manual.record },
+    totalTimeSeconds: 1200,
+    completionRule: {},
+  });
+  const manualClasswork = classworkGradeProjection({ completion: manualCompletion, recordedAt: '2026-09-22T06:00:00.000Z' });
+
+  // What the deadline finalizer produces from the same response.
+  const store = newStore({ grade });
+  store.checkpoint = buildCheckpoint({
+    question: classworkQuestion, questionIndex: 1, activityRole: 'classwork',
+    answerState: completeMultiAnswer(), capturedAt: DURING_WARMUP,
+  });
+  const auto = finalize({ store, now: Date.parse('2026-09-22T06:00:00Z') });
+
+  assert.equal(auto.record.status, manual.record.status);
+  assert.equal(auto.record.attemptCount, manual.record.attemptCount);
+  assert.equal(auto.record.totalAttempts, manual.record.totalAttempts);
+  assert.equal(auto.record.partialCredit, manual.record.partialCredit);
+  assert.equal(auto.result.isCorrect, manual.result.isCorrect);
+  assert.equal(auto.classworkGrade.score, manualClasswork.score);
+  assert.equal(auto.classworkGrade.completionPercent, manualClasswork.completionPercent);
+});
+
+test('a retry after a successful finalization still writes nothing new', () => {
+  const store = newStore({ grade: buildGradeDocument({ assignmentActivity: { A1: { totalTimeSeconds: 1200 } } }) });
+  store.checkpoint = buildCheckpoint({
+    question: classworkQuestion, questionIndex: 1, activityRole: 'classwork',
+    answerState: completeMultiAnswer(), capturedAt: DURING_WARMUP,
+  });
+  const now = Date.parse('2026-09-22T06:00:00Z');
+  const first = finalize({ store, now });
+  // Apply it, the way the transaction does.
+  store.grade = {
+    ...store.grade,
+    gradesByAssignment: { A1: { 1: first.record } },
+    classworkGradesByAssignment: { A1: first.classworkGrade },
+  };
+  // The retry sees the canonical record already naming this finalization.
+  const retry = decide({ checkpoint: store.checkpoint, assignment: store.assignment, gradeDocument: store.grade, now });
+  assert.equal(retry.action, 'close');
+  assert.equal(retry.reason, 'already-finalized');
+  assert.equal(store.grade.classworkGradesByAssignment.A1.metAt, first.classworkGrade.metAt);
+});
+
+/* ==========================================================================
  * 39-40. CHECKPOINTS DO NOT WAKE GOOGLE CLASSROOM. CANONICAL GRADES DO.
  * ======================================================================== */
 
@@ -911,7 +1103,11 @@ test('checkpoint and workspace writes live outside the grades document', () => {
 test('a finalized attempt goes through the canonical grades document, waking the existing passback', () => {
   const start = functionsSource.indexOf('async function finalizeOneResponseCheckpoint');
   const block = functionsSource.slice(start, functionsSource.indexOf('exports.finalizeStudentResponseCheckpoints'));
-  assert.match(block, /transaction\.update\(\s*gradeRef,\s*new FieldPath\("gradesByAssignment"/);
+  // The canonical grade row is the ONLY thing the finalizer writes that the
+  // Classroom trigger watches — and it now carries every projection an ordinary
+  // Submit would have written, not just the question record.
+  assert.match(block, /new FieldPath\("gradesByAssignment", assignmentId, String\(checkpoint\.questionIndex\)\)/);
+  assert.match(block, /transaction\.update\(gradeRef, \.\.\.gradeUpdates\)/);
   // No second Classroom system: the finalizer talks to no Classroom API.
   assert.doesNotMatch(block, /classroom|courseWork|studentSubmissions/i);
 });
@@ -926,7 +1122,7 @@ test('the page-lifecycle flush obeys the same eligibility rules as the debounce'
   // One decision, read by both paths.
   assert.match(block, /const checkpointAllowed = Boolean\(onResponseCheckpoint\)[\s\S]*?!serverGrading[\s\S]*?!locked[\s\S]*?!submitting[\s\S]*?!submissionInFlightRef\.current[\s\S]*?!responseAlreadySubmitted/);
   assert.match(block, /checkpointPendingRef\.current = \{ eligible: checkpointPending/);
-  assert.match(block, /flushResponseCheckpoint\('page-lifecycle'\)/);
+  assert.match(block, /flushCheckpointRef\.current\('page-lifecycle'\)/);
   assert.match(block, /flushResponseCheckpoint\('debounce'\)/);
   // The flush reads the shared eligibility, it does not re-derive a looser one.
   assert.match(block, /const \{ eligible, state \} = checkpointPendingRef\.current;\s*\n\s*if \(!eligible \|\| !state\) return;/);

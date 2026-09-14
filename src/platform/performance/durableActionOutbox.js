@@ -51,9 +51,43 @@ const transactionRequest = async (mode, operation) => {
   }
 };
 
+/*
+ * `removeIfCurrent` IS THE ONLY SAFE WAY TO DELETE A COALESCED ACTION.
+ *
+ * A response checkpoint's queue id is DETERMINISTIC so revisions coalesce into
+ * one row. A plain delete after reconciling therefore races: revision 2 can be
+ * written while revision 1 is still in flight, and deleting "the row" then
+ * throws revision 2 away — leaving the server holding the STALE response,
+ * which is the exact bug checkpoints exist to prevent.
+ *
+ * The read and the delete happen inside ONE readwrite transaction, so nothing
+ * can be written between them.
+ */
+const removeIfCurrentRequest = (store, actionId, expectedCreatedOrder, resolveWith) => {
+  const read = store.get(actionId);
+  read.onsuccess = () => {
+    const current = read.result;
+    // Already gone: nothing to do, and nothing was lost.
+    if (!current) { resolveWith(true); return; }
+    const storedOrder = Number(current.createdOrder ?? current.createdAt ?? 0);
+    if (storedOrder > Number(expectedCreatedOrder ?? 0)) { resolveWith(false); return; }
+    store.delete(actionId);
+    resolveWith(true);
+  };
+  return read;
+};
+
 export const indexedDbOutboxStorage = Object.freeze({
   put: (action) => transactionRequest('readwrite', (store) => store.put(clone(action))),
   remove: (actionId) => transactionRequest('readwrite', (store) => store.delete(actionId)),
+  /** Delete only while the stored row is still the revision that was reconciled. */
+  removeIfCurrent: async (actionId, expectedCreatedOrder) => {
+    let removed = true;
+    await transactionRequest('readwrite', (store) => (
+      removeIfCurrentRequest(store, actionId, expectedCreatedOrder, (value) => { removed = value; })
+    ));
+    return removed;
+  },
   list: () => transactionRequest('readonly', (store) => store.getAll()),
 });
 
@@ -144,6 +178,23 @@ export const overlayDurableActionsOnGrades = (gradesByAssignment = {}, actions =
   return next;
 };
 
+/**
+ * Remove the row we reconciled, never whatever is there now.
+ *
+ * Storage that implements `removeIfCurrent` does this atomically. The fallback
+ * exists only for a storage adapter that predates it.
+ */
+const removeReconciledAction = async (storage, action) => {
+  const expectedOrder = action.createdOrder ?? action.createdAt ?? 0;
+  if (typeof storage.removeIfCurrent === 'function') {
+    return storage.removeIfCurrent(action.actionId, expectedOrder);
+  }
+  const current = (await storage.list()).find((entry) => entry.actionId === action.actionId);
+  if (current && Number(current.createdOrder ?? current.createdAt ?? 0) > Number(expectedOrder)) return false;
+  await storage.remove(action.actionId);
+  return true;
+};
+
 export const drainDurableActions = ({ storage = indexedDbOutboxStorage, studentId, reconcile }) => {
   const run = async () => {
     const queued = await listDurableActions({ storage, studentId });
@@ -157,7 +208,7 @@ export const drainDurableActions = ({ storage = indexedDbOutboxStorage, studentI
           span.finish({ status: 'queued' });
           break;
         }
-        await storage.remove(action.actionId);
+        await removeReconciledAction(storage, action);
         recovered += 1;
         if (outcome.status === 'rejected') rejected += 1;
         span.finish({ status: outcome.status });
@@ -180,6 +231,14 @@ export const createMemoryOutboxStorage = (initial = []) => {
   return {
     async put(action) { records.set(action.actionId, clone(action)); },
     async remove(actionId) { records.delete(actionId); },
+    // Mirrors the IndexedDB guard so tests exercise the real semantics.
+    async removeIfCurrent(actionId, expectedCreatedOrder) {
+      const current = records.get(actionId);
+      if (!current) return true;
+      if (Number(current.createdOrder ?? current.createdAt ?? 0) > Number(expectedCreatedOrder ?? 0)) return false;
+      records.delete(actionId);
+      return true;
+    },
     async list() { return [...records.values()].map(clone); },
   };
 };

@@ -23,7 +23,7 @@ function driveResources() {
   return driveResourcesModule;
 }
 
-const { runtimeIncludedQuestionIndices, runtimeQuestionsFromAssignment } = require("./lib/assignmentRuntime");
+const { runtimeIncludedQuestionIndices, runtimeIncludedQuestionIndicesForSection, runtimeQuestionsFromAssignment } = require("./lib/assignmentRuntime");
 const { weightedQuestionTotals } = require("./lib/questionWeights");
 const challengeSampling = require("./lib/challengeSampling");
 const { encryptLaunchPayload, decryptLaunchToken } = require("./lib/linkToken");
@@ -312,12 +312,54 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
       });
     }
 
-    const finalization = buildCheckpointFinalization({ checkpoint, assignment, question, decision, occurredAt: now });
-    transaction.update(
-      gradeRef,
-      new FieldPath("gradesByAssignment", String(checkpoint.assignmentId), String(checkpoint.questionIndex)),
+    // The projections an attempt updates besides its own record. The runtime
+    // question list is this side's projection of which questions are classwork
+    // and which are DOL; the RULE that turns them into a completion score is
+    // shared with the browser.
+    const { getQuestionCredit, dolSectionProjection } = await responseCheckpointFinalizer();
+    const classworkIndices = runtimeIncludedQuestionIndicesForSection(assignment, "classwork");
+    const dolIndices = runtimeIncludedQuestionIndicesForSection(assignment, "dol");
+    const assignmentId = String(checkpoint.assignmentId);
+    const finalization = buildCheckpointFinalization({
+      checkpoint, assignment, question, decision,
+      gradeDocument: gradeData, classworkIndices, dolIndices, occurredAt: now,
+    });
+    if (decision.activityRole === "dol" && dolIndices.length) {
+      // Scored from the tracker that already carries this attempt, through the
+      // same weighting the rest of the platform uses.
+      const totals = weightedQuestionTotals({
+        tracker: finalization.assignmentTracker,
+        questions: runtimeQuestionsFromAssignment(assignment),
+        indices: dolIndices,
+        creditForRecord: getQuestionCredit,
+      });
+      finalization.dolGrade = dolSectionProjection({
+        existing: gradeData?.dolGradesByAssignment?.[assignmentId] || null,
+        dateKey: finalization.dolDateKey,
+        score: totals.score ?? 0,
+        questionIndices: dolIndices,
+        recordedAt: new Date(now).toISOString(),
+      });
+    }
+
+    const gradeUpdates = [
+      new FieldPath("gradesByAssignment", assignmentId, String(checkpoint.questionIndex)),
       finalization.record,
-    );
+      new FieldPath("supportUsageByAssignment", assignmentId),
+      finalization.supportUsage,
+    ];
+    if (finalization.classworkGrade) {
+      // Without this a student's final classwork response could be recorded and
+      // still leave them locked out of the dependent assignment.
+      gradeUpdates.push(new FieldPath("classworkGradesByAssignment", assignmentId), finalization.classworkGrade);
+    }
+    if (finalization.dolGrade) {
+      gradeUpdates.push(
+        new FieldPath("dolGradesByAssignment", assignmentId, finalization.dolDateKey),
+        finalization.dolGrade,
+      );
+    }
+    transaction.update(gradeRef, ...gradeUpdates);
     if (finalization.evidenceEvent?.eventKey) {
       // The event key is deterministic for this exact attempt, so a retry after
       // a partial failure repeats the same write rather than appending a second

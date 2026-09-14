@@ -12,7 +12,7 @@
  * typing does not cost a Firestore write per character.
  */
 import {
-  buildWorkspaceDraftDocument,
+  buildWorkspaceDraftPatch,
   isSyncableDraftKey,
   sanitizeWorkspaceDraftValue,
 } from '../../../functions/shared/workspaceDraftSchema.mjs';
@@ -34,28 +34,35 @@ export const createWorkspaceDraftSync = ({
   scheduler = null,
   now = () => Date.now(),
 } = {}) => {
+  // What THIS device has changed and not yet had acknowledged. A flush sends
+  // these as a patch; anything the server already holds for other questions is
+  // preserved by the merge on the way in, never resent and never erased.
   const pending = new Map();
+  let resumePatch = null;
+  let resumeDirty = false;
+  let practicePatch = null;
+  let practiceDirty = false;
+  let practiceUpdatedAt = 0;
   const timers = scheduler || {
     set: (callback, delay) => setTimeout(callback, delay),
     clear: (handle) => clearTimeout(handle),
   };
   let handle = null;
-  let revision = 0;
   let inFlight = null;
   let stopped = false;
   let dirtySinceFlush = false;
-  let resume = null;
-  let practice = null;
   const stats = { recorded: 0, skipped: 0, flushes: 0, failures: 0 };
 
-  const snapshotDocument = () => buildWorkspaceDraftDocument({
+  const snapshotPatch = () => buildWorkspaceDraftPatch({
     studentId,
     assignmentId,
     classId,
-    revision,
     entries: [...pending.values()],
-    resume,
-    practice,
+    resume: resumePatch,
+    hasResume: resumeDirty,
+    practice: practicePatch,
+    hasPractice: practiceDirty,
+    practiceUpdatedAt,
   });
 
   const failed = (error) => {
@@ -73,8 +80,14 @@ export const createWorkspaceDraftSync = ({
     // instead of queueing a write per keystroke.
     if (inFlight) return inFlight;
     dirtySinceFlush = false;
-    revision += 1;
-    const document = snapshotDocument();
+    const document = snapshotPatch();
+    // What this flush is responsible for. Anything the student changes WHILE
+    // it is in flight stays pending, exactly like the durable outbox's
+    // conditional removal — a newer draft must never be dropped because an
+    // older write for the same key succeeded.
+    const flushedAt = new Map([...pending.entries()].map(([key, entry]) => [key, entry.savedAt]));
+    const flushedResume = resumeDirty ? resumePatch?.updatedAt ?? 0 : null;
+    const flushedPractice = practiceDirty ? practiceUpdatedAt : null;
     stats.flushes += 1;
     // Started synchronously — the point of the debounce is to delay the write,
     // not to add another turn of the event loop once it is due — and never
@@ -87,6 +100,13 @@ export const createWorkspaceDraftSync = ({
       return null;
     }
     inFlight = Promise.resolve(started)
+      .then(() => {
+        flushedAt.forEach((savedAt, key) => {
+          if ((pending.get(key)?.savedAt ?? -1) === savedAt) pending.delete(key);
+        });
+        if (flushedResume !== null && (resumePatch?.updatedAt ?? 0) === flushedResume) resumeDirty = false;
+        if (flushedPractice !== null && practiceUpdatedAt === flushedPractice) practiceDirty = false;
+      })
       .catch(failed)
       .finally(() => {
         inFlight = null;
@@ -121,14 +141,21 @@ export const createWorkspaceDraftSync = ({
       schedule();
       return true;
     },
-    /** Resume position and Practice Mode ride the same document and debounce. */
+    /*
+     * Resume position and Practice Mode ride the same document and debounce.
+     * Each is marked dirty independently, so updating one never sends — and
+     * therefore never overwrites — the other, or any draft entry.
+     */
     setResume(next) {
-      resume = next ? { ...next, updatedAt: Number(next.updatedAt) || now() } : null;
+      resumePatch = next ? { ...next, updatedAt: Number(next.updatedAt) || now() } : null;
+      resumeDirty = true;
       dirtySinceFlush = true;
       schedule();
     },
     setPractice(next) {
-      practice = next && typeof next === 'object' ? next : null;
+      practicePatch = next && typeof next === 'object' ? next : null;
+      practiceUpdatedAt = now();
+      practiceDirty = true;
       dirtySinceFlush = true;
       schedule();
     },
@@ -143,6 +170,6 @@ export const createWorkspaceDraftSync = ({
     },
     pendingKeys: () => [...pending.keys()],
     stats: () => ({ ...stats }),
-    snapshotDocument,
+    snapshotPatch,
   };
 };

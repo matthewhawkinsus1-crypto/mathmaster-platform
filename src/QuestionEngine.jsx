@@ -395,9 +395,24 @@ export default function QuestionEngine({
     return () => window.clearTimeout(checkpointTimerRef.current);
   }, [answerState, checkpointPending, flushResponseCheckpoint]);
 
+  // Read through a ref so the listener below can be registered ONCE.
+  const flushCheckpointRef = useRef(flushResponseCheckpoint);
+  flushCheckpointRef.current = flushResponseCheckpoint;
+
   useEffect(() => {
-    if (!onResponseCheckpoint || typeof document === 'undefined') return undefined;
-    const flush = () => flushResponseCheckpoint('page-lifecycle');
+    if (typeof document === 'undefined') return undefined;
+    /*
+     * REGISTERED ONCE, SO THE CLEANUP MEANS UNMOUNT.
+     *
+     * `onResponseCheckpoint` changes identity whenever the parent re-renders
+     * with new grades. If this effect depended on it, React would tear down and
+     * re-run it on ordinary state churn — and the cleanup flushes. That turns a
+     * "the page is going away" signal into "something re-rendered", which is
+     * not the same thing and can flush repeatedly while the student is still
+     * working. The ref keeps the handler current without making the
+     * SUBSCRIPTION depend on it.
+     */
+    const flush = () => flushCheckpointRef.current('page-lifecycle');
     const visibility = () => { if (document.visibilityState === 'hidden') flush(); };
     document.addEventListener('visibilitychange', visibility);
     window.addEventListener('pagehide', flush);
@@ -406,7 +421,9 @@ export default function QuestionEngine({
       window.removeEventListener('pagehide', flush);
       flush();
     };
-  }, [onResponseCheckpoint, flushResponseCheckpoint]);
+    // Mount/unmount only — see above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const isMultipart = MULTIPART_TYPES.has(processedQuestion?.type) || (answerState.parts || []).length > 1;
   const scaffoldRequired = Boolean(resolvedActivityPolicy?.remediationAllowed !== false && supportPresentation.inclusion && record.status === 'attempted' && record.attemptCount >= 2 && !locked && !scaffoldComplete);
