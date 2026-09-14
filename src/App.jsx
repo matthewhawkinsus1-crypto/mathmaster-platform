@@ -423,6 +423,37 @@ const activityTitleForRole = (role) => ({
   test: 'Unit Test',
 }[role] || 'Activity');
 
+const captureTimedSectionAccess = ({
+  activityRole,
+  assignment,
+  schedule,
+  classId,
+  classPeriod,
+  capturedAt,
+}) => {
+  if (activityRole !== 'warmup') return null;
+  const state = getWarmupState({
+    assignment,
+    schedule,
+    classId,
+    classPeriod,
+    nowValue: capturedAt,
+  });
+  return {
+    role: 'warmup',
+    status: state.status,
+    teacherTimerScheduled: state.teacherTimerScheduled === true,
+    endsAt: state.endsAt instanceof Date ? state.endsAt.toISOString() : null,
+    instructionDateKey: state.instructionDateKey || null,
+  };
+};
+
+const warmupCaptureWasActive = (capture, capturedAt) => {
+  if (capture?.role !== 'warmup' || capture?.status !== 'active') return false;
+  const endsAt = capture?.endsAt ? new Date(capture.endsAt).getTime() : Number.NaN;
+  return !Number.isFinite(endsAt) || capturedAt <= endsAt;
+};
+
 const calculateDOLSectionScore = (assignmentTracker = {}, questionIndices = [], assignment = null) => {
   const indices = Array.isArray(questionIndices) ? questionIndices : [];
   if (!indices.length) return 0;
