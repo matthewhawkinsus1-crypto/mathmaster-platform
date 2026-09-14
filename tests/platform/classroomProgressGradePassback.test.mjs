@@ -93,6 +93,17 @@ test('successful Google writes create a student-visible receipt and audit the st
   assert.match(sync, /successfulCourses/);
 });
 
+test('same-stage grade changes are resynced after a timed section is reopened or extended', () => {
+  const src = read('functions/index.js');
+  const start = src.indexOf('exports.syncGradeToClassroom = onDocumentWritten');
+  const end = src.indexOf('// Quiz/Test grade writes happen', start);
+  const sync = src.slice(start, end);
+
+  assert.match(sync, /Number\(priorAudit\.grade\) === Number\(grade\)/);
+  assert.doesNotMatch(sync, /!isTestCycleAssignment \|\| Number\(priorAudit\.grade\) === Number\(grade\)/);
+  assert.match(sync, /teacher reopens\/extends a timed section/);
+});
+
 test('Classroom point values are scaled from MathMaster percent when max points is not 100', () => {
   const src = read('functions/index.js');
   const start = src.indexOf('exports.syncGradeToClassroom = onDocumentWritten');
