@@ -105,27 +105,59 @@
   box-shadow: 0 2px 10px -2px color-mix(in srgb, var(--wf-accent) 45%, transparent);
 }
 
-/* Answered stays green whatever the family: done is done, and it should not
-   take a second look to tell finished from current. */
-.workflow-focus__step--answered:not(.workflow-focus__step--active) {
-  border-color: #7fb79b;
-  background: #eefaf3;
-  color: #1c6444;
+/* RESPONSE STATE IS NOT CORRECTNESS.
+ *
+ * Before the whole question is checked, an answered step stays neutral and gets
+ * only a small dot. Green + a check is reserved for a verified correct response.
+ * After a check, incorrect steps are red. If the student edits a checked step,
+ * it becomes amber until the next submission so an old verdict never follows a
+ * new answer. */
+.workflow-focus__step--draft:not(.workflow-focus__step--active),
+.workflow-focus__step--reviewed:not(.workflow-focus__step--active) {
+  border-color: #b9c7dc;
+  background: #f8fafc;
+  color: #465468;
 }
 
-/* A small acknowledgement the moment a step is completed. */
-@keyframes workflowStepDone {
+.workflow-focus__step--correct {
+  border-color: #5aa278;
+  background: #e6f4ea;
+  color: #17643a;
+}
+
+.workflow-focus__step--incorrect {
+  border-color: #d93025;
+  background: #fce8e6;
+  color: #8c1d18;
+}
+
+.workflow-focus__step--changed {
+  border-color: #e09b00;
+  background: #fff4ce;
+  color: #6b5200;
+}
+
+/* A small acknowledgement when a grading state changes. */
+@keyframes workflowStepStatus {
   0% { transform: scale(1); }
   45% { transform: scale(1.075); }
   100% { transform: scale(1); }
 }
 
-.workflow-focus__step--answered { animation: workflowStepDone .32s ease-out; }
-
-.workflow-focus__step-check {
-  color: #188038;
-  font-weight: 900;
+.workflow-focus__step--correct,
+.workflow-focus__step--incorrect,
+.workflow-focus__step--changed {
+  animation: workflowStepStatus .32s ease-out;
 }
+
+.workflow-focus__step-icon {
+  font-weight: 950;
+}
+
+.workflow-focus__step-icon--correct { color: #188038; }
+.workflow-focus__step-icon--incorrect { color: #d93025; }
+.workflow-focus__step-icon--changed { color: #b06000; }
+.workflow-focus__step-icon--draft { color: #6b7788; }
 
 /* A step not yet reachable keeps its family tint rather than washing out to
    grey. Greying it made the whole route grey — you can only ever reach the next
@@ -162,6 +194,47 @@
    and its label — it just stops inviting a change. */
 .workflow-focus__step--locked:not(.workflow-focus__step--active) {
   border-style: dashed;
+}
+
+.workflow-focus__review-banner {
+  display: grid;
+  gap: 10px;
+  border: 2px solid #d93025;
+  border-radius: 12px;
+  background: #fff8f7;
+  padding: 12px 14px;
+  color: #7f1d18;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.workflow-focus__review-banner strong {
+  font-size: 14px;
+}
+
+.workflow-focus__review-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.workflow-focus__review-link {
+  min-height: 34px;
+  border: 1px solid #d93025;
+  border-radius: 999px;
+  background: #fff;
+  color: #a1261d;
+  padding: 6px 10px;
+  font: inherit;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.workflow-focus__review-link:hover,
+.workflow-focus__review-link:focus-visible {
+  background: #fce8e6;
+  outline: 2px solid rgba(217, 48, 37, .18);
+  outline-offset: 1px;
 }
 
 .workflow-focus__summary {
@@ -247,6 +320,32 @@
   background: linear-gradient(90deg, var(--wf-accent-dark), var(--wf-accent));
 }
 
+
+/* A checked error owns the whole active workspace visually, not just a message
+   at the bottom of the question. This is the student's correction target. */
+.workflow-focus__workspace--incorrect {
+  border: 2px solid #d93025;
+  background:
+    linear-gradient(180deg, #fce8e6 0, #fff 190px),
+    #fff;
+  box-shadow: 0 2px 10px rgba(217, 48, 37, .12);
+}
+
+.workflow-focus__workspace--incorrect::before {
+  background: #d93025;
+}
+
+.workflow-focus__workspace--changed {
+  border: 2px solid #e09b00;
+  background:
+    linear-gradient(180deg, #fff4ce 0, #fff 190px),
+    #fff;
+}
+
+.workflow-focus__workspace--changed::before {
+  background: #e09b00;
+}
+
 /* Each step arrives rather than blinking into place. Keyed on the stage id in
    the renderer, so it replays on every move — including backwards. */
 @keyframes workflowStageArrive {
@@ -256,6 +355,35 @@
 
 
 /* The family name, so the colour is never carrying meaning on its own. */
+.workflow-focus__review-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.workflow-focus__review-status--correct {
+  border: 1px solid #81b995;
+  background: #e6f4ea;
+  color: #17643a;
+}
+
+.workflow-focus__review-status--incorrect {
+  border: 1px solid #d93025;
+  background: #fce8e6;
+  color: #8c1d18;
+}
+
+.workflow-focus__review-status--changed {
+  border: 1px solid #e09b00;
+  background: #fff4ce;
+  color: #6b5200;
+}
+
 .workflow-focus__family {
   display: inline-flex;
   align-items: center;
@@ -444,7 +572,9 @@
    who asks their device for less motion simply gets the still version. */
 @media (prefers-reduced-motion: reduce) {
   .workflow-focus__active-stage,
-  .workflow-focus__step--answered {
+  .workflow-focus__step--correct,
+  .workflow-focus__step--incorrect,
+  .workflow-focus__step--changed {
     animation: none;
   }
 

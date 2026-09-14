@@ -267,6 +267,7 @@ export default function QuestionEngine({
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [hintUsed, setHintUsed] = useState(false);
   const [workflowGuidanceState, setWorkflowGuidanceState] = useState(null);
+  const [workflowSubmissionReview, setWorkflowSubmissionReview] = useState(null);
   const workflowGuidanceQuestionKey = processedQuestion?.questionId
     ?? processedQuestion?.id
     ?? processedQuestion?.prompt
@@ -310,6 +311,7 @@ export default function QuestionEngine({
     setCalculatorUsed(false);
     setCalculatorOpen(false);
     setHintUsed(false);
+    setWorkflowSubmissionReview(null);
   }, [processedQuestion]);
 
   useEffect(() => {
@@ -452,22 +454,34 @@ export default function QuestionEngine({
         // Self-grading tools report one score instead of per-part results.
         { partialCreditPercent: answerState.partialCreditPercent ?? null },
       );
-      setFeedback(
-        result || {
-          isCorrect: answerState.isCorrect,
-          status: answerState.isCorrect ? 'correct' : 'attempted',
-          attemptCount: record.attemptCount + 1,
-          remainingAttempts: Math.max(0, resolvedMaximumAttempts - record.attemptCount - 1),
-          expired: !answerState.isCorrect && record.attemptCount + 1 >= resolvedMaximumAttempts,
-          // `graded: false` marks a part whose correctness this tool cannot
-          // judge — a table cell checked against the student's own function
-          // rather than an answer key. Listing it as incorrect would tell a
-          // student they got wrong something nobody here checked.
-          incorrectParts: (answerState.parts || [])
-            .filter((part) => part.graded !== false && !part.isCorrect)
-            .map((part) => part.label),
-        },
-      );
+      const nextFeedback = result || {
+        isCorrect: answerState.isCorrect,
+        status: answerState.isCorrect ? 'correct' : 'attempted',
+        attemptCount: record.attemptCount + 1,
+        remainingAttempts: Math.max(0, resolvedMaximumAttempts - record.attemptCount - 1),
+        expired: !answerState.isCorrect && record.attemptCount + 1 >= resolvedMaximumAttempts,
+        // `graded: false` marks a part whose correctness this tool cannot
+        // judge — a table cell checked against the student's own function
+        // rather than an answer key. Listing it as incorrect would tell a
+        // student they got wrong something nobody here checked.
+        incorrectParts: (answerState.parts || [])
+          .filter((part) => part.graded !== false && !part.isCorrect)
+          .map((part) => part.label),
+      };
+      setFeedback(nextFeedback);
+      if (isComposed) {
+        // Freeze the exact submitted responses and per-step verdicts. The live
+        // answerState keeps changing as the student repairs work; without this
+        // snapshot a newly edited response could inherit the old green/red
+        // verdict. WorkflowRunner compares each current response with this
+        // snapshot and marks edited steps "check again" until the next submit.
+        setWorkflowSubmissionReview({
+          responseKey: answerState.responseKey ?? '',
+          parts: (answerState.parts || []).map((part) => ({ ...part })),
+          isCorrect: nextFeedback?.isCorrect === true,
+          attemptNumber: Number(nextFeedback?.attemptCount) || (record.attemptCount + 1),
+        });
+      }
     } finally {
       submissionInFlightRef.current = false;
       setSubmitting(false);
@@ -592,6 +606,7 @@ export default function QuestionEngine({
       setAnswerState(EMPTY_ANSWER_STATE);
       setFeedback(null);
       setLastSubmittedResponseKey('');
+      setWorkflowSubmissionReview(null);
       await onRequestNewQuestion({ clearHistory: Boolean(dolMode), clearBest: Boolean(dolMode) });
     } finally {
       setRequesting(false);
@@ -669,6 +684,7 @@ export default function QuestionEngine({
           draftKey={draftKey}
           showPrompt={false}
           showStagePrompt={false}
+          submissionReview={showOutcomeFeedback ? workflowSubmissionReview : null}
         />
       );
     }
@@ -1142,7 +1158,12 @@ export default function QuestionEngine({
             : feedback.expired
               ? `That was the final allowed attempt (${resolvedMaximumAttempts} total). This response is locked.${resolvedActivityPolicy?.allowReplacement ? ' Review the solution, then request a new question to continue.' : ''}`
               : `Not quite. You have ${feedback.remainingAttempts} ${feedback.remainingAttempts === 1 ? 'attempt' : 'attempts'} remaining on this version.`)}
-          {!feedback.isCorrect && Array.isArray(feedback.incorrectParts) && feedback.incorrectParts.length > 0 && (
+          {!feedback.isCorrect && isComposed && workflowSubmissionReview?.parts?.some((part) => part?.graded !== false && !part?.isCorrect) && (
+            <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>
+              The red steps above are the specific responses that need revision. MathMaster moved you to the first one.
+            </div>
+          )}
+          {!feedback.isCorrect && !isComposed && Array.isArray(feedback.incorrectParts) && feedback.incorrectParts.length > 0 && (
             <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>Focus on: {feedback.incorrectParts.join(', ')}.</div>
           )}
         </div>

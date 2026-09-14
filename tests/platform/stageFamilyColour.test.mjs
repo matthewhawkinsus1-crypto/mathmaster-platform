@@ -149,7 +149,7 @@ test('motion is optional', () => {
   // student who asks their device for less motion must get the still version.
   assert.match(CSS, /@media \(prefers-reduced-motion: reduce\)/);
   const guard = CSS.slice(CSS.indexOf('@media (prefers-reduced-motion: reduce)'));
-  ['workflow-focus__active-stage', 'workflow-focus__step--answered'].forEach((animated) => {
+  ['workflow-focus__active-stage', 'workflow-focus__step--correct', 'workflow-focus__step--incorrect', 'workflow-focus__step--changed'].forEach((animated) => {
     assert.ok(guard.includes(animated), `${animated} animates with no reduced-motion guard`);
   });
 });

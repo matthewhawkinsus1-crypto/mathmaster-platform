@@ -25,6 +25,7 @@ import { stageFamily, stageFamilyLabel } from './stageFamilies';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
 import { workflowEndpointMarkers, workflowGraphDomainRestriction, workflowRequiresEndpointMarkers } from './workflowGraphVisuals.js';
 import { resolveWorkflowTaskPrompt, selectPersistentWorkflowGraph } from './workflowPresentation.js';
+import { buildWorkflowReviewState, firstIncorrectWorkflowIndex } from './workflowReviewState.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../workView/useMathUndoHistory.js';
 import './WorkflowFocusMode.css';
 
@@ -1083,6 +1084,7 @@ export default function WorkflowRunner({
   draftKey = null,
   showPrompt = true,
   showStagePrompt = true,
+  submissionReview = null,
 }) {
   const { content, workflow: authoredWorkflow, grading } = useMemo(() => readComposedQuestion(question), [question]);
   const [responses, setResponses] = useLocalDraftState(
@@ -1194,6 +1196,32 @@ export default function WorkflowRunner({
   useEffect(() => { onProgressChangeRef.current = onProgressChange; }, [onProgressChange]);
 
   const progress = summarizeWorkflowProgress(workflow, responses);
+  const reviewState = useMemo(
+    () => buildWorkflowReviewState({ stages: workflow, responses, review: submissionReview }),
+    [workflow, responses, submissionReview],
+  );
+  const reviewByStageId = useMemo(
+    () => new Map(reviewState.map((entry) => [entry.id, entry])),
+    [reviewState],
+  );
+  const incorrectReviewStages = useMemo(
+    () => reviewState.filter((entry) => entry.status === 'incorrect'),
+    [reviewState],
+  );
+  const reviewAttemptKey = submissionReview
+    ? `${submissionReview.attemptNumber ?? 'attempt'}:${submissionReview.responseKey || ''}`
+    : '';
+  const handledReviewAttemptRef = useRef('');
+
+  // After a whole-question check, take the student directly to the first
+  // incorrect step. The red navigator still shows every other incorrect step,
+  // so this is guidance rather than a forced linear correction flow.
+  useEffect(() => {
+    if (!focusMode || !reviewAttemptKey || handledReviewAttemptRef.current === reviewAttemptKey) return;
+    handledReviewAttemptRef.current = reviewAttemptKey;
+    const firstIncorrect = firstIncorrectWorkflowIndex(reviewState);
+    if (firstIncorrect >= 0) setActiveStageIndex(firstIncorrect);
+  }, [focusMode, reviewAttemptKey, reviewState, setActiveStageIndex]);
 
   // Deferred deliberately. Delegated components report their state as they
   // mount, and a delegate that calls back DURING its own render would make this
@@ -1298,6 +1326,7 @@ export default function WorkflowRunner({
 
   const renderStage = (stage, index, { focused = false } = {}) => {
     const definition = getStage(stage.kind);
+    const reviewStatus = reviewByStageId.get(stage.id)?.status || 'unanswered';
     // If this modelling workflow has an authored finite domain, give only
     // its boundary semantics to the graph primitive. This lets the student
     // explicitly mark open/closed endpoints instead of leaving a stopped
@@ -1328,9 +1357,15 @@ export default function WorkflowRunner({
     // composed question's stage prompt is not that repetition — it is the only
     // sentence saying what THIS step wants — so the stylesheet needs a hook to
     // tell the two apart, and a stage with no class at all gave it none.
+    const reviewClass = ` workflow-stage--${reviewStatus}`;
     const shellClass = focusMode
-      ? `workflow-stage workflow-focus__stage-shell${focused ? ' workflow-focus__stage-shell--active' : ''}`
-      : 'workflow-stage';
+      ? `workflow-stage workflow-focus__stage-shell${focused ? ' workflow-focus__stage-shell--active' : ''}${reviewClass}`
+      : `workflow-stage${reviewClass}`;
+    const stagePanelStyle = reviewStatus === 'incorrect'
+      ? { ...panel, border: '2px solid #d93025', background: '#fff8f7' }
+      : reviewStatus === 'changed'
+        ? { ...panel, border: '2px solid #f9ab00', background: '#fffdf6' }
+        : panel;
 
     // Focus Mode visually shows one stage, so an inactive delegated tool must
     // also be inactive in React. CSS `display:none` only hides pixels; it does
@@ -1366,7 +1401,7 @@ export default function WorkflowRunner({
     }
 
     return (
-      <section key={stage.id} className={shellClass} style={focusMode ? undefined : panel}>
+      <section key={stage.id} className={shellClass} style={focusMode ? undefined : stagePanelStyle}>
         {focusMode ? null : <h4 style={stageHeading}>Step {index + 1}. {definition?.label || stage.kind}</h4>}
         {showStagePrompt && stage.prompt && <QuestionPrompt variant="plain" style={{ fontSize: 16, margin: '0 0 12px' }}>{stage.prompt}</QuestionPrompt>}
         {locked.has(stage.id) ? (
@@ -1439,6 +1474,7 @@ export default function WorkflowRunner({
   const canGoNext = safeActiveIndex < workflow.length - 1 && safeActiveIndex < furthestReachableIndex;
 
   const activeFamily = stageFamily(activeStage?.kind);
+  const activeReviewStatus = reviewByStageId.get(activeStage?.id)?.status || (activeAnswered ? 'draft' : 'unanswered');
   // Answered steps rather than position, so the rail measures work done, not
   // how far the student has clicked.
   const railPercent = workflow.length
@@ -1467,10 +1503,20 @@ export default function WorkflowRunner({
           const active = index === safeActiveIndex;
           const reachable = index <= furthestReachableIndex;
           const isLocked = locked.has(stage.id);
+          const reviewStatus = reviewByStageId.get(stage.id)?.status || (answered ? 'draft' : 'unanswered');
+          const reviewAria = reviewStatus === 'correct'
+            ? ', checked correct'
+            : reviewStatus === 'incorrect'
+              ? ', needs revision'
+              : reviewStatus === 'changed'
+                ? ', edited since last check'
+                : answered
+                  ? ', answered, not checked'
+                  : '';
           const className = [
             'workflow-focus__step',
             active ? 'workflow-focus__step--active' : '',
-            answered ? 'workflow-focus__step--answered' : '',
+            reviewStatus ? `workflow-focus__step--${reviewStatus}` : '',
             isLocked ? 'workflow-focus__step--locked' : '',
           ].filter(Boolean).join(' ');
           return (
@@ -1481,15 +1527,43 @@ export default function WorkflowRunner({
               data-family={stageFamily(stage.kind)}
               disabled={!reachable}
               aria-current={active ? 'step' : undefined}
-              aria-label={`Step ${index + 1}: ${definition?.label || stage.kind}${answered ? ', answered' : ''}${isLocked ? ', closed' : ''}`}
+              aria-label={`Step ${index + 1}: ${definition?.label || stage.kind}${reviewAria}${isLocked ? ', closed' : ''}`}
               onClick={() => setActiveStageIndex(index)}
             >
-              {answered ? <span className="workflow-focus__step-check" aria-hidden="true">✓ </span> : null}
+              {reviewStatus === 'correct' ? <span className="workflow-focus__step-icon workflow-focus__step-icon--correct" aria-hidden="true">✓ </span> : null}
+              {reviewStatus === 'incorrect' ? <span className="workflow-focus__step-icon workflow-focus__step-icon--incorrect" aria-hidden="true">! </span> : null}
+              {reviewStatus === 'changed' ? <span className="workflow-focus__step-icon workflow-focus__step-icon--changed" aria-hidden="true">↻ </span> : null}
+              {['draft', 'reviewed'].includes(reviewStatus) ? <span className="workflow-focus__step-icon workflow-focus__step-icon--draft" aria-hidden="true">• </span> : null}
               {index + 1}. {definition?.label || stage.kind}
             </button>
           );
         })}
       </nav>
+
+      {incorrectReviewStages.length ? (
+        <section className="workflow-focus__review-banner" role="alert" aria-label="Steps that need revision">
+          <div>
+            <strong>{incorrectReviewStages.length} {incorrectReviewStages.length === 1 ? 'step needs' : 'steps need'} attention.</strong>
+            <span> Red steps are the responses to revise. Correct steps stay green; an edited step turns amber until you check again.</span>
+          </div>
+          <div className="workflow-focus__review-links">
+            {incorrectReviewStages.map((entry) => {
+              const stage = workflow[entry.index];
+              const label = getStage(stage?.kind)?.label || stage?.kind || 'Step';
+              return (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onClick={() => setActiveStageIndex(entry.index)}
+                  className="workflow-focus__review-link"
+                >
+                  Step {entry.index + 1}: {label}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       {/* NOTHING TO SHOW MEANS NOTHING ON SCREEN.
           On the first step this strip was 80-94px of a placeholder explaining
@@ -1523,11 +1597,14 @@ export default function WorkflowRunner({
       </section>
       ) : null}
 
-      <main className="workflow-focus__workspace">
+      <main className={`workflow-focus__workspace${activeReviewStatus === 'incorrect' ? ' workflow-focus__workspace--incorrect' : activeReviewStatus === 'changed' ? ' workflow-focus__workspace--changed' : ''}`}>
         <div className="workflow-focus__workspace-heading">
           <div className="workflow-focus__workspace-heading-left">
             <h4>Step {safeActiveIndex + 1}. {activeDefinition?.label || activeStage?.kind}</h4>
             <span className="workflow-focus__family">{stageFamilyLabel(activeStage?.kind)}</span>
+            {activeReviewStatus === 'correct' ? <span className="workflow-focus__review-status workflow-focus__review-status--correct">✓ Checked correct</span> : null}
+            {activeReviewStatus === 'incorrect' ? <span className="workflow-focus__review-status workflow-focus__review-status--incorrect">! Needs revision</span> : null}
+            {activeReviewStatus === 'changed' ? <span className="workflow-focus__review-status workflow-focus__review-status--changed">↻ Edited — check again</span> : null}
           </div>
           <span className="workflow-focus__counter">{safeActiveIndex + 1} of {workflow.length}</span>
         </div>
