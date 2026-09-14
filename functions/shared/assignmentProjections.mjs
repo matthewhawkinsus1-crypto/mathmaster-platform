@@ -68,9 +68,14 @@ export const mergeSupportUsage = (existing = {}, incoming = {}) => ({
 /**
  * The DOL section projection for one instructional date.
  *
- * Deliberately written as `section-in-progress` and NOT finalized: the existing
- * DOL finalization path stays the one thing that closes a DOL section, so an
- * auto-submitted response joins the section score rather than racing it.
+ * During the live section, callers may still request an in-progress projection.
+ * After the authoritative cutoff, however, the server owns convergence: it can
+ * create the final projection with no browser mounted, or correct an earlier
+ * browser-finalized score when a response was safely checkpointed before the
+ * cutoff and finalized a few seconds later.
+ *
+ * A correction does NOT reopen the DOL. It stays finalized and records when and
+ * why the final score was recalculated.
  */
 export const dolSectionProjection = ({
   existing = null,
@@ -78,17 +83,35 @@ export const dolSectionProjection = ({
   score,
   questionIndices = [],
   recordedAt = new Date().toISOString(),
+  finalize = false,
+  correctionReason = 'deadline-auto-submit',
 } = {}) => {
   if (!dateKey) return null;
   const previous = existing?.[dateKey] || null;
-  if (previous?.finalized === true) return null;
+  const finalizing = Boolean(finalize);
+
+  // A live/in-progress update must never reopen or rewrite a final DOL. Only
+  // the authoritative post-cutoff path may correct it.
+  if (previous?.finalized === true && !finalizing) return null;
+
+  const correctingFinal = finalizing && previous?.finalized === true;
+  const originalFinalizedAt = previous?.finalizedAt
+    || (previous?.finalized ? previous?.recordedAt : null)
+    || (finalizing ? recordedAt : null);
+
   return {
     ...previous,
-    finalized: false,
+    finalized: finalizing,
     score,
     questionIndex: questionIndices[0] ?? null,
     questionIndices,
-    recordedAt,
-    status: 'section-in-progress',
+    // Preserve the original close receipt when correcting an already-final DOL.
+    recordedAt: correctingFinal ? (previous?.recordedAt || recordedAt) : recordedAt,
+    status: finalizing ? 'section-finalized' : 'section-in-progress',
+    ...(finalizing ? { finalizedAt: originalFinalizedAt } : {}),
+    ...(correctingFinal ? {
+      recalculatedAt: recordedAt,
+      recalculationReason: correctionReason,
+    } : {}),
   };
 };

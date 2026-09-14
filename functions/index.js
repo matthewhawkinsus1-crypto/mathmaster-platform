@@ -339,6 +339,12 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
         score: totals.score ?? 0,
         questionIndices: dolIndices,
         recordedAt: new Date(now).toISOString(),
+        // The authoritative DOL window is already over. This transaction owns
+        // the final projection even when no browser is mounted, and it may
+        // correct a browser-finalized score that omitted this valid pre-cutoff
+        // checkpoint without reopening the DOL.
+        finalize: true,
+        correctionReason: "deadline-auto-submit",
       });
     }
 

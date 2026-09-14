@@ -230,6 +230,20 @@ An edit made while a flush is in flight stays pending and goes out on the next
 one — the same conditional-cleanup rule the durable outbox uses, so a newer draft
 is never dropped because an older write for the same key succeeded.
 
+### DOL close convergence
+
+The browser may still show an immediate DOL-close result, but it is not newer
+authority than the deadline finalizer. A valid response acknowledged before the
+authoritative DOL cutoff is included even when the browser closed first or no
+assignment page is mounted. The server recomputes the section score from the
+updated canonical tracker and writes a final `section-finalized` projection.
+
+If the browser already finalized a lower score before the checkpoint scheduler
+ran, the server corrects that finalized score without reopening the DOL and
+records `recalculatedAt` / `recalculationReason: "deadline-auto-submit"`. The
+browser close path uses a transaction and refuses to overwrite an already-final
+server result.
+
 Each draft value is stored as serialized text. A tool's workspace is its own
 shape — plotted strokes are arrays of arrays of points, which Firestore refuses
 to store directly — so serializing it sidesteps every shape rule, makes the size

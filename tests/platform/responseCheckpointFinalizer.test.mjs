@@ -1004,6 +1004,68 @@ test('a DOL section the teacher already finalized is not reopened by an auto-sub
   assert.equal(dolSectionProjection({ existing, dateKey: DAY, score: 100, questionIndices: [2] }), null);
 });
 
+test('server deadline finalization creates a FINAL DOL when no browser is mounted', () => {
+  const projection = dolSectionProjection({
+    existing: null,
+    dateKey: DAY,
+    score: 100,
+    questionIndices: [2],
+    recordedAt: '2026-09-14T15:46:15.000Z',
+    finalize: true,
+  });
+  assert.equal(projection.finalized, true);
+  assert.equal(projection.status, 'section-finalized');
+  assert.equal(projection.score, 100);
+  assert.equal(projection.finalizedAt, '2026-09-14T15:46:15.000Z');
+});
+
+test('valid pre-cutoff checkpoint corrects an earlier browser-finalized DOL without reopening it', () => {
+  const existing = {
+    [DAY]: {
+      finalized: true,
+      score: 50,
+      questionIndex: 2,
+      questionIndices: [2],
+      recordedAt: '2026-09-14T15:45:00.000Z',
+      status: 'section-finalized',
+    },
+  };
+  const projection = dolSectionProjection({
+    existing,
+    dateKey: DAY,
+    score: 100,
+    questionIndices: [2],
+    recordedAt: '2026-09-14T15:46:15.000Z',
+    finalize: true,
+    correctionReason: 'deadline-auto-submit',
+  });
+  assert.equal(projection.finalized, true);
+  assert.equal(projection.status, 'section-finalized');
+  assert.equal(projection.score, 100);
+  assert.equal(projection.recordedAt, '2026-09-14T15:45:00.000Z', 'the original close receipt stays intact');
+  assert.equal(projection.finalizedAt, '2026-09-14T15:45:00.000Z');
+  assert.equal(projection.recalculatedAt, '2026-09-14T15:46:15.000Z');
+  assert.equal(projection.recalculationReason, 'deadline-auto-submit');
+});
+
+test('browser DOL close cannot overwrite a DOL the server already finalized', () => {
+  const marker = appSource.indexOf('CLIENT DOL CLOSE IS IMMEDIATE FEEDBACK, NOT NEWER AUTHORITY');
+  assert.ok(marker >= 0, 'browser/server DOL race guard is documented in the close effect');
+  const block = appSource.slice(marker, appSource.indexOf('}, [now, user, assignments, classSchedule, tracker, dolGradesByAssignment]);', marker));
+  assert.match(block, /runTransaction\(db, async \(transaction\) => \{/);
+  assert.match(block, /transaction\.get\(gradeRef\)/);
+  assert.match(block, /if \(current\?\.finalized === true\) return current;/);
+  assert.match(block, /new FieldPath\('dolGradesByAssignment', assignmentId, dateKey\)/);
+  assert.doesNotMatch(block, /updateDoc\(doc\(db, 'grades'/);
+});
+
+test('server checkpoint finalizer explicitly writes an authoritative final DOL projection', () => {
+  const start = functionsSource.indexOf('if (decision.activityRole === "dol" && dolIndices.length)');
+  const block = functionsSource.slice(start, functionsSource.indexOf('const gradeUpdates = [', start));
+  assert.match(block, /finalize: true/);
+  assert.match(block, /correctionReason: "deadline-auto-submit"/);
+});
+
 test('auto-submit merges support usage rather than replacing it', () => {
   const store = newStore({
     grade: buildGradeDocument({

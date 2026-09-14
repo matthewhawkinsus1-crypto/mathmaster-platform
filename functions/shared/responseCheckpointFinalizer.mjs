@@ -342,13 +342,20 @@ export const buildCheckpointFinalization = ({
     checkpoint?.supportUsage || {},
   );
 
+  // A scheduler can run after the wall-clock day changes. DOL ownership belongs
+  // to the instructional cutoff that accepted the response, not to the minute
+  // the background function happened to process it.
+  const dolReferenceAt = Number(decision?.cutoff) || occurredAt;
+  const dolDateKey = zonedDateKey(dolReferenceAt, timeZone);
   const dolGrade = decision.activityRole === 'dol' && dolSectionScore !== null
     ? dolSectionProjection({
       existing: gradeDocument?.dolGradesByAssignment?.[assignmentId] || null,
-      dateKey: zonedDateKey(occurredAt, timeZone),
+      dateKey: dolDateKey,
       score: dolSectionScore,
       questionIndices: dolIndices,
       recordedAt,
+      finalize: true,
+      correctionReason: 'deadline-auto-submit',
     })
     : null;
 
@@ -360,7 +367,7 @@ export const buildCheckpointFinalization = ({
     classworkGrade,
     supportUsage,
     dolGrade,
-    dolDateKey: zonedDateKey(occurredAt, timeZone),
+    dolDateKey,
   };
 };
 

@@ -3128,20 +3128,22 @@ function App() {
   useEffect(() => {
     if (user?.role !== 'student' || !user.classPeriod) return;
     const date = new Date(now);
-    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    const updates = {};
+    const fallbackDateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const closes = [];
     assignments.forEach((assignment) => {
       if (!assignmentIsForStudent(assignment, { classId: user.classId || null, classPeriod: user.classPeriod })) return;
       const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now });
       const previousStatus = lastDOLStatusRef.current[assignment.id];
       lastDOLStatusRef.current[assignment.id] = dolState.status;
       if (dolState.status !== 'ended') return;
+      const dateKey = dolState.instructionDateKey || fallbackDateKey;
       if (dolGradesByAssignment?.[assignment.id]?.[dateKey]?.finalized) return;
       if (previousStatus && !['active', 'waiting', 'beforeClass'].includes(previousStatus)) return;
       const questionIndices = dolState.questionIndices || [dolState.questionIndex];
-      updates[assignment.id] = {
-        ...(dolGradesByAssignment?.[assignment.id] || {}),
-        [dateKey]: {
+      closes.push({
+        assignmentId: assignment.id,
+        dateKey,
+        record: {
           finalized: true,
           score: calculateDOLSectionScore(tracker?.[assignment.id] || {}, questionIndices, assignment),
           questionIndex: questionIndices[0] ?? dolState.questionIndex,
@@ -3149,12 +3151,42 @@ function App() {
           recordedAt: new Date().toISOString(),
           status: 'section-finalized',
         },
-      };
+      });
     });
-    if (!Object.keys(updates).length) return;
-    const next = { ...dolGradesByAssignment, ...updates };
-    setDolGradesByAssignment(next);
-    updateDoc(doc(db, 'grades', user.id), { dolGradesByAssignment: next }).catch((error) => console.error('Could not finalize DOL grades:', error));
+    if (!closes.length) return;
+
+    // CLIENT DOL CLOSE IS IMMEDIATE FEEDBACK, NOT NEWER AUTHORITY.
+    //
+    // A pre-cutoff response checkpoint can be finalized by the server seconds
+    // after this timer fires. Read the canonical DOL entry inside a transaction:
+    // if the server already finalized/corrected it, use that value and never
+    // overwrite it with the browser's stale tracker. If the browser wins the
+    // race, the server may still correct this final score later while keeping
+    // the DOL closed.
+    closes.forEach(({ assignmentId, dateKey, record }) => {
+      const gradeRef = doc(db, 'grades', user.id);
+      void runTransaction(db, async (transaction) => {
+        const snapshot = await transaction.get(gradeRef);
+        if (!snapshot.exists()) return null;
+        const current = snapshot.data()?.dolGradesByAssignment?.[assignmentId]?.[dateKey] || null;
+        if (current?.finalized === true) return current;
+        transaction.update(
+          gradeRef,
+          new FieldPath('dolGradesByAssignment', assignmentId, dateKey),
+          record,
+        );
+        return record;
+      }).then((canonicalRecord) => {
+        if (!canonicalRecord) return;
+        setDolGradesByAssignment((current) => ({
+          ...current,
+          [assignmentId]: {
+            ...(current?.[assignmentId] || {}),
+            [dateKey]: canonicalRecord,
+          },
+        }));
+      }).catch((error) => console.error('Could not finalize DOL grades:', error));
+    });
   }, [now, user, assignments, classSchedule, tracker, dolGradesByAssignment]);
 
   useEffect(() => {
