@@ -365,39 +365,64 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
         {/* The boundary a curve approaches, drawn but not labelled. A student
             asked for the range of an exponential cannot read the boundary off a
             graph that does not show it; printing its equation here would answer
-            the questions that ask for the asymptote. */}
+            the questions that ask for the asymptote.
+
+            Two strokes are deliberate. A horizontal asymptote can be y = 0,
+            exactly on top of the x-axis. The wide white under-stroke separates
+            the asymptote from the axis/grid, then the fully opaque dashed line
+            remains visibly distinct even on a dim Chromebook display. */}
         {graphAsymptoteLines(graph).map((line) => {
           if (line.axis === 'horizontal') {
             if (!(line.value >= yMin && line.value <= yMax)) return null;
             const y = toScreenY(line.value);
             return (
-              <line
-                key={`asymptote-h-${line.value}`}
-                x1={PADDING}
-                y1={y}
-                x2={PADDING + innerWidth}
-                y2={y}
-                stroke="#9334e6"
-                strokeWidth="2"
-                strokeDasharray="7 6"
-                opacity="0.75"
-              />
+              <g key={`asymptote-h-${line.value}`}>
+                <line
+                  x1={PADDING}
+                  y1={y}
+                  x2={PADDING + innerWidth}
+                  y2={y}
+                  stroke="#ffffff"
+                  strokeWidth="7"
+                  opacity="0.96"
+                />
+                <line
+                  x1={PADDING}
+                  y1={y}
+                  x2={PADDING + innerWidth}
+                  y2={y}
+                  stroke="#a020f0"
+                  strokeWidth="3.5"
+                  strokeDasharray="9 6"
+                  opacity="1"
+                />
+              </g>
             );
           }
           if (!(line.value >= xMin && line.value <= xMax)) return null;
           const x = toScreenX(line.value);
           return (
-            <line
-              key={`asymptote-v-${line.value}`}
-              x1={x}
-              y1={PADDING}
-              x2={x}
-              y2={PADDING + innerHeight}
-              stroke="#9334e6"
-              strokeWidth="2"
-              strokeDasharray="7 6"
-              opacity="0.75"
-            />
+            <g key={`asymptote-v-${line.value}`}>
+              <line
+                x1={x}
+                y1={PADDING}
+                x2={x}
+                y2={PADDING + innerHeight}
+                stroke="#ffffff"
+                strokeWidth="7"
+                opacity="0.96"
+              />
+              <line
+                x1={x}
+                y1={PADDING}
+                x2={x}
+                y2={PADDING + innerHeight}
+                stroke="#a020f0"
+                strokeWidth="3.5"
+                strokeDasharray="9 6"
+                opacity="1"
+              />
+            </g>
           );
         })}
 
