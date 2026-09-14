@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { gradeStage } from '../../src/platform/workflow/workflowGrading.js';
 import { canonicalizeFunctionExpression, parseIntervalDomainRestriction } from '../../src/platform/workflow/modelExpression.js';
-import { workflowRequiresEndpointMarkers } from '../../src/platform/workflow/workflowGraphVisuals.js';
+import { workflowGraphDomainRestriction, workflowRequiresEndpointMarkers } from '../../src/platform/workflow/workflowGraphVisuals.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (path) => fs.readFileSync(resolve(here, '../..', path), 'utf8');
@@ -53,9 +53,15 @@ test('workflow graph uses finite-domain semantics to require boundary markers', 
     'point-only graph tasks do not ask for relationship endpoints',
   );
 
-  const source = read('src/platform/workflow/WorkflowRunner.jsx');
-  assert.match(source, /parseIntervalDomainRestriction\(grading\?\.domain\)/);
-  assert.match(source, /workflowRequiresEndpointMarkers\(/);
+  assert.deepEqual(
+    workflowGraphDomainRestriction({
+      graphStage: { id: 'graph', kind: 'functionGraph' },
+      workflow: [{ id: 'graph', kind: 'functionGraph' }],
+      grading: { domain: '0<=t<=12' },
+    }),
+    { min: 0, max: 12, minInclusive: true, maxInclusive: true },
+    'the graph runtime resolves its finite domain semantically instead of depending on one source-code expression',
+  );
 });
 
 test('closed multi-stage questions receive a complete workflow solution review', () => {
