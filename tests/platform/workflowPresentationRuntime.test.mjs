@@ -93,5 +93,6 @@ test('WorkflowRunner and QuestionEngine wire the active instruction and one pers
   assert.match(runner, /showPersistentGraphReference/);
   assert.match(runner, /sourceGraph=\{content\?\.graph \|\| stage\.graph \|\| null\}/);
   assert.match(runner, /showFigure=\{showFigure\}/);
-  assert.match(engine, /currentStagePrompt:\s*workflowGuidanceState\?\.currentStagePrompt/);
+  assert.match(engine, /currentStagePrompt:\s*currentWorkflowGuidance\?\.currentStagePrompt/);
+  assert.match(engine, /workflowGuidanceState\?\.questionKey\s*===\s*workflowGuidanceQuestionKey/);
 });
