@@ -57,8 +57,19 @@ export const selectPersistentWorkflowGraph = ({
   const stages = Array.isArray(workflow) ? workflow : [];
   if (stages.some((stage) => GRAPH_CONSTRUCTION_STAGE_KINDS.has(stage?.kind))) return null;
   if (!workflowUsesGraphEvidence(stages)) return null;
-  if (isObject(content?.graph)) return content.graph;
-
   const stageGraph = stages.find((stage) => isObject(stage?.graph))?.graph;
+
+  // Recipe-built feature graphs are a strict superset of the authored graph:
+  // they preserve its functions/window/styling and add viewport-only
+  // readability landmarks for exact intercepts/vertices. Prefer that enriched
+  // evidence only when such landmarks actually exist; ordinary workflows keep
+  // returning the authored graph by identity.
+  if (isObject(stageGraph)
+    && Array.isArray(stageGraph.readabilityPoints)
+    && stageGraph.readabilityPoints.length) {
+    return stageGraph;
+  }
+
+  if (isObject(content?.graph)) return content.graph;
   return stageGraph || null;
 };
