@@ -254,9 +254,23 @@ test('algebraic equivalence cannot be spoofed by matching a fixed set of numeric
   assert.equal(isAlgebraicallyEquivalent(probeRoots, '0'), false);
 });
 
-test('calculator inheritance honors Warm-Up none instead of falling through to basic', () => {
-  const result = resolveCalculatorPolicy({ questionSpec: { type: 'table', calculatorPolicy: 'inherit' }, activityPolicy: getEffectiveActivityPolicy('warmup') });
-  assert.deepEqual({ available: result.available, mode: result.mode, source: result.source }, { available: false, mode: 'none', source: 'activityPolicy' });
+test('a Warm-Up inherits the question calculator policy instead of blanket-denying', () => {
+  // PR #238 (commit 4fcfa2a) deliberately moved the Warm-Up policy from
+  // calculatorDefault 'none' to 'questionSpecific': a blanket denial was
+  // hiding the control on questions whose author had allowed it. This
+  // assertion still described the retired behaviour, so it had been failing on
+  // main ever since. 'inherit' now means what it says — the question decides,
+  // and falls through to the platform default.
+  const inherited = resolveCalculatorPolicy({ questionSpec: { type: 'table', calculatorPolicy: 'inherit' }, activityPolicy: getEffectiveActivityPolicy('warmup') });
+  assert.deepEqual(
+    { available: inherited.available, mode: inherited.mode, source: inherited.source },
+    { available: true, mode: 'basic', source: 'platformDefault' },
+  );
+  // What must not regress: a question that explicitly denies the calculator is
+  // still denied inside a Warm-Up.
+  const denied = resolveCalculatorPolicy({ questionSpec: { type: 'table', calculatorPolicy: 'none' }, activityPolicy: getEffectiveActivityPolicy('warmup') });
+  assert.equal(denied.available, false);
+  assert.equal(denied.mode, 'none');
 });
 
 test('calculator accommodation follows the existing accommodations-array support shape', () => {

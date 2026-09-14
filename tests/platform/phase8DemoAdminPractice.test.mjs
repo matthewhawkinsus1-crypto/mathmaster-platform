@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createDemoSeed } from '../../src/demo/demoExperienceData.js';
 import { getAssignmentLifecycle } from '../../src/assignmentLifecycle.js';
+import { buildQuestionDraftKey } from '../../src/questionDraftStorage.js';
 
 const appSource = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const demoSource = readFileSync(new URL('../../src/components/demo/DemoExperience.jsx', import.meta.url), 'utf8');
@@ -56,7 +57,18 @@ test('post-deadline assignments become uncredited in-memory practice instead of 
   assert.match(appSource, /isPracticeMode = isStudentAssignment && activeLifecycle\.isPracticeOnly/);
   assert.match(appSource, /setPracticeTracker/);
   assert.match(appSource, /Practice Mode — grading window ended/);
-  assert.match(appSource, /draftKey=\{lifecycle\.isPracticeOnly && !preview \? null/);
+  // Practice Mode is kept apart from graded work by its own DRAFT BUCKET, not
+  // by throwing the work away. Discarding it was itself a defect: a student who
+  // practised after the deadline and turned the Chromebook off started again
+  // from zero. What must stay true is that practice can never land in — or be
+  // restored from — the graded workspace the student left behind.
+  assert.match(appSource, /draftSessionMode = preview \? 'preview' : lifecycle\.isPracticeOnly \? 'post-deadline-practice'/);
+  const draftIdentity = { studentId: 'S1042', assignmentId: 'A1', questionIndex: 2, variantIndex: 0 };
+  const gradedDraftKey = buildQuestionDraftKey({ ...draftIdentity, sessionMode: 'graded' });
+  const practiceDraftKey = buildQuestionDraftKey({ ...draftIdentity, sessionMode: 'post-deadline-practice' });
+  assert.notEqual(practiceDraftKey, gradedDraftKey);
+  assert.match(practiceDraftKey, /:practice$/);
+  assert.match(gradedDraftKey, /:student$/);
   assert.match(modelingServiceSource, /postDuePractice/);
 });
 

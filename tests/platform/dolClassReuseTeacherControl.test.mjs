@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { getDOLInstructionDateKey } from '../../src/assignmentLifecycle.js';
 
 const app = fs.readFileSync('src/App.jsx', 'utf8');
 const lifecycle = fs.readFileSync('src/assignmentLifecycle.js', 'utf8');
@@ -8,15 +9,21 @@ const teacherHome = fs.readFileSync('src/TeacherHome.jsx', 'utf8');
 const classesWorkspace = fs.readFileSync('src/ClassesWorkspace.jsx', 'utf8');
 
 test('DOL instructional date prefers real class identity over shared lesson date', () => {
-  const start = lifecycle.indexOf('export const getDOLInstructionDateKey');
-  const end = lifecycle.indexOf('export const getWarmupInstructionDateKey', start);
-  const block = lifecycle.slice(start, end);
-  assert.match(block, /instructionDatesByClassId/);
-  assert.match(block, /instructionDatesByClassPeriod/);
-  assert.ok(
-    block.indexOf('instructionDatesByClassId') < block.indexOf('instructionDatesByClassPeriod'),
-    'class ID override must be more specific than period override',
-  );
+  // Two real classes can share Period 3, so a teacher moving a reused lesson
+  // to one of them must not reschedule its sibling. Asserted by running the
+  // resolver rather than by reading it: the rule now lives in shared code so
+  // the Cloud Functions deadline finalizer reaches the same answer, and what
+  // matters is the precedence, not which file states it.
+  const assignment = {
+    dol: {
+      instructionDate: '2026-01-05',
+      instructionDatesByClassPeriod: { 'Period 3': '2026-01-06' },
+      instructionDatesByClassId: { 'class-a': '2026-01-07' },
+    },
+  };
+  assert.equal(getDOLInstructionDateKey(assignment, 'Period 3', 'class-a'), '2026-01-07');
+  assert.equal(getDOLInstructionDateKey(assignment, 'Period 3', 'class-b'), '2026-01-06');
+  assert.equal(getDOLInstructionDateKey(assignment, null, null), '2026-01-05');
 });
 
 test('teacher DOL release repairs stale date for only the selected class', () => {

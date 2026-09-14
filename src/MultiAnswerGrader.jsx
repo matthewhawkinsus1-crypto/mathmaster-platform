@@ -4,7 +4,8 @@ import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
 import GraphDisplay from './GraphDisplay';
-import { answerCandidatesForField, looksLikeFiniteSetNotation, matchesFieldAnswer } from './answerUtils';
+import { answerCandidatesForField, looksLikeFiniteSetNotation } from './answerUtils';
+import { gradeMultiAnswerResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
 import { resolveLabelFormat } from './labelFormat';
 import { inferRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 import { describeAnswerFormat } from './platform/interaction/answerFormatHints.js';
@@ -91,26 +92,10 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
   );
   const history = useUndoHistory({}, 60, draftKey ? `${draftKey}:multi-answer` : null);
   const answers = history.value;
-  const parts = safeFields.map((field) => {
-    const response = String(answers[field.id] ?? '');
-    const isCorrect = response.trim() !== '' && matchesFieldAnswer(response, field);
-    return {
-      id: field.id,
-      label: field.label || field.id,
-      isComplete: response.trim() !== '',
-      // Expression equivalence is deliberately opt-in at the field level.
-      // That fixes MathLive serialization differences without making
-      // form-sensitive tasks (factoring, vertex form, etc.) overly permissive.
-      isCorrect,
-      credit: isCorrect ? 1 : 0,
-      weight: Number.isFinite(Number(field.scoreWeight)) && Number(field.scoreWeight) > 0
-        ? Math.min(20, Number(field.scoreWeight))
-        : 1,
-      response,
-    };
-  });
-  const isComplete = parts.length > 0 && parts.every((part) => part.isComplete);
-  const isCorrect = isComplete && parts.every((part) => part.isCorrect);
+  // Correctness comes from the shared grading contract so every caller of it —
+  // this screen, the deadline finalizer, the tests — marks alike.
+  const graded = gradeMultiAnswerResponse({ answerFields: safeFields }, answers);
+  const { parts, isComplete, isCorrect } = graded;
 
   useEffect(() => {
     const responseDetails = safeFields.map((field) => `${field.label || field.id}=${answers[field.id] ?? ''}`).join(', ');

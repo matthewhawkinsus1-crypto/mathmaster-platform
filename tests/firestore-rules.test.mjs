@@ -16,7 +16,7 @@ import {
   assertFails,
   assertSucceeds,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, query, where } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, query, where, serverTimestamp } from 'firebase/firestore';
 
 const testEnv = await initializeTestEnvironment({
   projectId: 'mathmaster-rules-test',
@@ -48,6 +48,8 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(db, 'grades/S1042/scratchpads/a__question_0'), { dataUrl: 'x', authorizedTeacherEmails: [TEACHER_EMAIL] });
   await setDoc(doc(db, 'grades/S1042/scratchpads/a__question_delete'), { dataUrl: 'delete-me', authorizedTeacherEmails: [TEACHER_EMAIL] });
   await setDoc(doc(db, 'assignments/A1'), { title: 'Unit 1' });
+  await setDoc(doc(db, 'studentResponseCheckpoints/other-checkpoint'), { studentId: 'S2000', assignmentId: 'A1', questionIndex: 0, status: 'active' });
+  await setDoc(doc(db, 'studentWorkspaceDrafts/S2000__A1'), { documentId: 'S2000__A1', schemaVersion: 1, studentId: 'S2000', assignmentId: 'A1', revision: 1, secure: false, entries: [] });
   await setDoc(doc(db, 'settings/classSchedule'), { periods: {} });
   await setDoc(doc(db, 'settings/gradingPeriods'), {
     periods: [{ id: '2026-mp1', label: 'Marking Period 1', order: 1, archived: false }],
@@ -349,6 +351,76 @@ await check('student CANNOT write teacher review notes', assertFails(setDoc(revi
 await check('roleless user CANNOT read teacher review notes', assertFails(getDoc(reviewDoc(roleless, 'teacher-uid__A1'))));
 await check('anonymous CANNOT read teacher review notes', assertFails(getDoc(reviewDoc(anon, 'teacher-uid__A1'))));
 await check('root admin reads any teacher review notes', assertSucceeds(getDoc(reviewDoc(rootAdmin, 'teacher-uid__A1'))));
+
+/*
+ * RESPONSE CHECKPOINTS AND WORKING DRAFTS.
+ *
+ * Both are student-written. The checkpoint is later read by an Admin SDK
+ * function that can write grades, which is what makes these cases matter: a
+ * student must not be able to write a document whose SHAPE already contains a
+ * result. The finalizer re-validates everything; these rules make the obvious
+ * forgeries fail at the door.
+ */
+const checkpointDoc = (db, id) => doc(db, `studentResponseCheckpoints/${id}`);
+const ownCheckpoint = {
+  documentId: 'own-checkpoint', schemaVersion: 2, studentId: 'S1042', assignmentId: 'A1',
+  questionIndex: 0, questionId: 'q1', variantIndex: 0, generationKey: 'A1|S1042|0|0',
+  classId: 'class-a', activityRole: 'warmup', revision: 1, isComplete: true,
+  previousTotalAttempts: 0, response: { kind: 'scalar', type: 'literal', value: '7', fields: [] },
+  secure: false, status: 'active', serverAcknowledgedAt: serverTimestamp(),
+  candidateFinalizeAt: new Date('2026-09-14T15:10:00Z'),
+};
+await check('student creates own ordinary checkpoint', assertSucceeds(setDoc(checkpointDoc(student, 'own-checkpoint'), ownCheckpoint)));
+await check('student reads own checkpoint', assertSucceeds(getDoc(checkpointDoc(student, 'own-checkpoint'))));
+await check('student CANNOT read another student checkpoint', assertFails(getDoc(checkpointDoc(student, 'other-checkpoint'))));
+await check('student CANNOT write another student checkpoint', assertFails(setDoc(checkpointDoc(student, 'other-checkpoint'), { ...ownCheckpoint, documentId: 'other-checkpoint', studentId: 'S2000' })));
+await check('student CANNOT create checkpoint for another student', assertFails(setDoc(checkpointDoc(student, 'forged-checkpoint'), { ...ownCheckpoint, documentId: 'forged-checkpoint', studentId: 'S2000' })));
+await check('student CANNOT put secure exam work in ordinary checkpoints', assertFails(setDoc(checkpointDoc(student, 'secure-checkpoint'), { ...ownCheckpoint, documentId: 'secure-checkpoint', secure: true })));
+await check('student CANNOT point a checkpoint at a different document id', assertFails(setDoc(checkpointDoc(student, 'mismatched-checkpoint'), { ...ownCheckpoint })));
+await check('student CANNOT backdate the server acknowledgement', assertFails(setDoc(checkpointDoc(student, 'backdated-checkpoint'), { ...ownCheckpoint, documentId: 'backdated-checkpoint', serverAcknowledgedAt: new Date('2020-01-01T00:00:00Z') })));
+
+// Nothing a grade is made of may enter the document a student can write.
+await check('student CANNOT claim correctness in a checkpoint', assertFails(setDoc(checkpointDoc(student, 'graded-checkpoint'), { ...ownCheckpoint, documentId: 'graded-checkpoint', isCorrect: true })));
+await check('student CANNOT claim a score in a checkpoint', assertFails(setDoc(checkpointDoc(student, 'scored-checkpoint'), { ...ownCheckpoint, documentId: 'scored-checkpoint', score: 100 })));
+await check('student CANNOT smuggle a canonical record into a checkpoint', assertFails(setDoc(checkpointDoc(student, 'record-checkpoint'), { ...ownCheckpoint, documentId: 'record-checkpoint', record: { status: 'correct' } })));
+await check('student CANNOT smuggle an evidence event into a checkpoint', assertFails(setDoc(checkpointDoc(student, 'evidence-checkpoint'), { ...ownCheckpoint, documentId: 'evidence-checkpoint', evidenceEvent: { eventKey: 'ev_1' } })));
+await check('student CANNOT smuggle a submission envelope into a checkpoint', assertFails(setDoc(checkpointDoc(student, 'envelope-checkpoint'), { ...ownCheckpoint, documentId: 'envelope-checkpoint', submissionEnvelope: { record: {} } })));
+await check('student CANNOT claim an attempt count in a checkpoint', assertFails(setDoc(checkpointDoc(student, 'attempts-checkpoint'), { ...ownCheckpoint, documentId: 'attempts-checkpoint', totalAttempts: 1 })));
+
+// Identity is pinned across revisions; the revision itself must move forward.
+await check('student writes a newer revision of their own checkpoint', assertSucceeds(setDoc(checkpointDoc(student, 'own-checkpoint'), { ...ownCheckpoint, revision: 2, isComplete: false })));
+await check('student CANNOT move a checkpoint to another question', assertFails(setDoc(checkpointDoc(student, 'own-checkpoint'), { ...ownCheckpoint, revision: 3, questionIndex: 4 })));
+await check('student CANNOT repoint a checkpoint at another question id', assertFails(setDoc(checkpointDoc(student, 'own-checkpoint'), { ...ownCheckpoint, revision: 3, questionId: 'q9' })));
+await check('student CANNOT repoint a checkpoint at another assignment', assertFails(setDoc(checkpointDoc(student, 'own-checkpoint'), { ...ownCheckpoint, revision: 3, assignmentId: 'A9' })));
+await check('student CANNOT change the activity role of a checkpoint', assertFails(setDoc(checkpointDoc(student, 'own-checkpoint'), { ...ownCheckpoint, revision: 3, activityRole: 'dol' })));
+await check('student CANNOT change the variant of a checkpoint', assertFails(setDoc(checkpointDoc(student, 'own-checkpoint'), { ...ownCheckpoint, revision: 3, variantIndex: 2 })));
+await check('student CANNOT roll a checkpoint revision backwards', assertFails(setDoc(checkpointDoc(student, 'own-checkpoint'), { ...ownCheckpoint, revision: 1 })));
+await check('student retires their own checkpoint when they submit', assertSucceeds(setDoc(checkpointDoc(student, 'own-checkpoint'), { ...ownCheckpoint, revision: 4, status: 'explicitly-submitted', candidateFinalizeAt: null })));
+await check('student CANNOT mark their own checkpoint auto-submitted', assertFails(setDoc(checkpointDoc(student, 'own-checkpoint'), { ...ownCheckpoint, revision: 5, status: 'auto-submitted', candidateFinalizeAt: null })));
+await check('student CANNOT delete a checkpoint', assertFails(deleteDoc(checkpointDoc(student, 'own-checkpoint'))));
+
+const workspaceDoc = (db, id) => doc(db, `studentWorkspaceDrafts/${id}`);
+const ownWorkspace = {
+  documentId: 'S1042__A1', schemaVersion: 1, studentId: 'S1042', assignmentId: 'A1',
+  classId: 'class-a', secure: false, updatedAt: serverTimestamp(),
+  entries: [{ key: 'mathmaster:draft:v2::S1042:A1:0:0:student:literal', valueJson: '"x = 3y"', savedAt: 1_700_000_000_000, questionIndex: 0, variantIndex: 0 }],
+  resume: { questionIndex: 2, activityRole: 'classwork', variantIndex: 0, updatedAt: 1_700_000_000_000 },
+  practice: null, practiceUpdatedAt: 0,
+};
+await check('student saves their own unfinished workspace', assertSucceeds(setDoc(workspaceDoc(student, 'S1042__A1'), ownWorkspace)));
+await check('student restores their own unfinished workspace', assertSucceeds(getDoc(workspaceDoc(student, 'S1042__A1'))));
+await check('student CANNOT read another student unfinished workspace', assertFails(getDoc(workspaceDoc(student, 'S2000__A1'))));
+await check('student CANNOT write another student unfinished workspace', assertFails(setDoc(workspaceDoc(student, 'S2000__A1'), { ...ownWorkspace, documentId: 'S2000__A1', studentId: 'S2000' })));
+await check('student CANNOT point a workspace draft at a different document id', assertFails(setDoc(workspaceDoc(student, 'S1042__A2'), ownWorkspace)));
+await check('student CANNOT backdate a workspace draft', assertFails(setDoc(workspaceDoc(student, 'S1042__A1'), { ...ownWorkspace, updatedAt: new Date('2020-01-01T00:00:00Z') })));
+await check('student CANNOT move a workspace draft to another assignment', assertFails(setDoc(workspaceDoc(student, 'S1042__A1'), { ...ownWorkspace, assignmentId: 'A9' })));
+await check('student CANNOT store secure work as an ordinary workspace draft', assertFails(setDoc(workspaceDoc(student, 'S1042__A1'), { ...ownWorkspace, secure: true })));
+await check('student CANNOT smuggle a grade into a workspace draft', assertFails(setDoc(workspaceDoc(student, 'S1042__A1'), { ...ownWorkspace, gradesByAssignment: { A1: { 0: { status: 'correct' } } } })));
+await check('student CANNOT smuggle classwork completion into a workspace draft', assertFails(setDoc(workspaceDoc(student, 'S1042__A1'), { ...ownWorkspace, classworkGradesByAssignment: { A1: { score: 100 } } })));
+await check('student CANNOT smuggle evidence into a workspace draft', assertFails(setDoc(workspaceDoc(student, 'S1042__A1'), { ...ownWorkspace, evidenceEvent: { eventKey: 'ev_1' } })));
+// A fresh Chromebook has no history and must still be able to save.
+await check('a fresh device with no prior revision can still save a workspace draft', assertSucceeds(setDoc(workspaceDoc(student, 'S1042__A1'), { ...ownWorkspace, entries: [] })));
+await check('student CANNOT delete a workspace draft', assertFails(deleteDoc(workspaceDoc(student, 'S1042__A1'))));
 
 /*
  * A review screenshot is a picture of a student-facing screen, captured by a

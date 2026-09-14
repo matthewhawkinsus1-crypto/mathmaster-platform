@@ -23,7 +23,7 @@ function driveResources() {
   return driveResourcesModule;
 }
 
-const { runtimeIncludedQuestionIndices, runtimeQuestionsFromAssignment } = require("./lib/assignmentRuntime");
+const { runtimeIncludedQuestionIndices, runtimeIncludedQuestionIndicesForSection, runtimeQuestionsFromAssignment } = require("./lib/assignmentRuntime");
 const { weightedQuestionTotals } = require("./lib/questionWeights");
 const challengeSampling = require("./lib/challengeSampling");
 const { encryptLaunchPayload, decryptLaunchToken } = require("./lib/linkToken");
@@ -160,6 +160,339 @@ const assignmentAudience = (assignment = {}) => ({
   classIds: [...new Set((Array.isArray(assignment.assignedClassIds) ? assignment.assignedClassIds : [])
     .map(String).map((value) => value.trim()).filter(Boolean))],
 });
+
+/*
+ * DEADLINE AUTO-SUBMIT.
+ *
+ * A response the student finished before the deadline is submitted when that
+ * deadline closes, whether or not the assignment page is still open. The
+ * checkpoint the browser wrote is a DRAFT: it carries the student's raw work
+ * and nothing that decides a grade. Everything authoritative is re-derived
+ * here from the assignment, the roster and the class schedule, and the
+ * response is GRADED ON THE SERVER through the same contract a manual Submit
+ * uses.
+ *
+ * Checkpoints leave the active query the moment they are decided, so retries
+ * stay bounded and history is never re-scanned. Nothing here writes to a
+ * Classroom API: only the canonical grades document changes, and the existing
+ * grades trigger remains the single Classroom passback wake-up path.
+ */
+let responseCheckpointFinalizerModule = null;
+async function responseCheckpointFinalizer() {
+  if (!responseCheckpointFinalizerModule) {
+    responseCheckpointFinalizerModule = await import("./shared/responseCheckpointFinalizer.mjs");
+  }
+  return responseCheckpointFinalizerModule;
+}
+
+const CHECKPOINT_COLLECTION = "studentResponseCheckpoints";
+const CHECKPOINT_BATCH_LIMIT = 200;
+// How long a checkpoint with no provable close waits before being re-examined.
+const CHECKPOINT_HOLD_BACKOFF_MS = 60 * 60 * 1000;
+
+const secureAssignmentMode = (assignment = {}) => (
+  String(assignment?.assessmentPolicy?.mode || "") === "testCycle"
+);
+
+/**
+ * The class period is schedule metadata, and the Warm-Up/DOL windows are
+ * defined against it. Read it from the authoritative class record, falling
+ * back to the roster row.
+ */
+async function resolveCheckpointClassPeriod(db, classId, gradeData, cache) {
+  const key = String(classId || "");
+  if (!key) return String(gradeData?.classPeriod || "") || null;
+  if (cache.has(key)) return cache.get(key) || String(gradeData?.classPeriod || "") || null;
+  let period = null;
+  try {
+    const classSnapshot = await db.collection("classes").doc(key).get();
+    period = classSnapshot.exists ? String(classSnapshot.data()?.period || "") || null : null;
+  } catch (error) {
+    logger.warn("Could not read class record for checkpoint finalization", { classId: key, message: error.message });
+  }
+  cache.set(key, period);
+  return period || String(gradeData?.classPeriod || "") || null;
+}
+
+async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCache, now }) {
+  const {
+    decideCheckpointFinalization,
+    buildCheckpointFinalization,
+  } = await responseCheckpointFinalizer();
+
+  // The student's class is needed to resolve the class period the Warm-Up/DOL
+  // window is defined against. Read it before the transaction so the
+  // transaction body performs only transactional reads.
+  const preread = await ref.get();
+  if (!preread.exists) return "missing";
+  const studentId = String(preread.data()?.studentId || "");
+  if (!studentId) return "invalid";
+  const gradePreread = await db.collection("grades").doc(studentId).get();
+  const classPeriod = await resolveCheckpointClassPeriod(
+    db,
+    gradePreread.exists ? gradePreread.data()?.classId : null,
+    gradePreread.exists ? gradePreread.data() : null,
+    classPeriodCache,
+  );
+
+  return db.runTransaction(async (transaction) => {
+    const checkpointSnapshot = await transaction.get(ref);
+    if (!checkpointSnapshot.exists) return "missing";
+    const checkpoint = { ...checkpointSnapshot.data(), documentId: checkpointSnapshot.id };
+    const gradeRef = db.collection("grades").doc(String(checkpoint.studentId || studentId));
+    const assignmentRef = db.collection("assignments").doc(String(checkpoint.assignmentId || "missing"));
+    const [assignmentSnapshot, gradeSnapshot] = await Promise.all([
+      transaction.get(assignmentRef),
+      transaction.get(gradeRef),
+    ]);
+
+    const retire = (status, reason, extra = {}) => {
+      transaction.update(ref, {
+        status,
+        candidateFinalizeAt: null,
+        finalizationReceipt: {
+          checkpointRevision: Number(checkpoint.revision) || 0,
+          finalizedAt: FieldValue.serverTimestamp(),
+          origin: "deadline-auto-submit",
+          reason: reason || null,
+          status,
+          ...extra,
+        },
+      });
+      return status;
+    };
+
+    if (!assignmentSnapshot.exists || !gradeSnapshot.exists) {
+      return retire("invalid-context", assignmentSnapshot.exists ? "missing-grade-record" : "missing-assignment");
+    }
+
+    const assignment = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
+    const gradeData = gradeSnapshot.data() || {};
+    const question = runtimeQuestionsFromAssignment(assignment)?.[Number(checkpoint.questionIndex)] || null;
+
+    const decision = decideCheckpointFinalization({
+      checkpoint,
+      assignment,
+      gradeDocument: gradeData,
+      gradeDocumentId: gradeSnapshot.id,
+      question,
+      schedule,
+      classPeriod,
+      isSecureAssignment: secureAssignmentMode(assignment),
+      now,
+    });
+
+    if (decision.action === "skip") return "skipped";
+    if (decision.action === "hold") {
+      // MathMaster cannot currently prove a close — a teacher cleared the due
+      // date, say. Holding is right, but a held checkpoint whose query time is
+      // already past would be re-examined every minute forever, so it is
+      // pushed out of the due window and looked at again later.
+      transaction.update(ref, {
+        candidateFinalizeAt: new Date(now + CHECKPOINT_HOLD_BACKOFF_MS),
+        heldReason: decision.reason || null,
+        heldAt: FieldValue.serverTimestamp(),
+      });
+      return "held";
+    }
+    if (decision.action === "reschedule") {
+      // A teacher extension or reopen moved the real close later. The client's
+      // hint is replaced by the server-derived time; it never shortens it.
+      transaction.update(ref, {
+        candidateFinalizeAt: new Date(decision.finalizeAt),
+        rescheduledAt: FieldValue.serverTimestamp(),
+        rescheduleReason: decision.reason || null,
+      });
+      return "rescheduled";
+    }
+    if (decision.action === "close") {
+      return retire(decision.status, decision.reason, {
+        cutoff: decision.cutoff ? new Date(decision.cutoff) : null,
+        resultingSubmissionId: decision.submissionId || null,
+      });
+    }
+
+    // The projections an attempt updates besides its own record. The runtime
+    // question list is this side's projection of which questions are classwork
+    // and which are DOL; the RULE that turns them into a completion score is
+    // shared with the browser.
+    const { getQuestionCredit, dolSectionProjection } = await responseCheckpointFinalizer();
+    const classworkIndices = runtimeIncludedQuestionIndicesForSection(assignment, "classwork");
+    const dolIndices = runtimeIncludedQuestionIndicesForSection(assignment, "dol");
+    const assignmentId = String(checkpoint.assignmentId);
+    const finalization = buildCheckpointFinalization({
+      checkpoint, assignment, question, decision,
+      gradeDocument: gradeData, classworkIndices, dolIndices, occurredAt: now,
+    });
+    if (decision.activityRole === "dol" && dolIndices.length) {
+      // Scored from the tracker that already carries this attempt, through the
+      // same weighting the rest of the platform uses.
+      const totals = weightedQuestionTotals({
+        tracker: finalization.assignmentTracker,
+        questions: runtimeQuestionsFromAssignment(assignment),
+        indices: dolIndices,
+        creditForRecord: getQuestionCredit,
+      });
+      finalization.dolGrade = dolSectionProjection({
+        existing: gradeData?.dolGradesByAssignment?.[assignmentId] || null,
+        dateKey: finalization.dolDateKey,
+        score: totals.score ?? 0,
+        questionIndices: dolIndices,
+        recordedAt: new Date(now).toISOString(),
+        // The authoritative DOL window is already over. This transaction owns
+        // the final projection even when no browser is mounted, and it may
+        // correct a browser-finalized score that omitted this valid pre-cutoff
+        // checkpoint without reopening the DOL.
+        finalize: true,
+        correctionReason: "deadline-auto-submit",
+      });
+    }
+
+    const gradeUpdates = [
+      new FieldPath("gradesByAssignment", assignmentId, String(checkpoint.questionIndex)),
+      finalization.record,
+      new FieldPath("supportUsageByAssignment", assignmentId),
+      finalization.supportUsage,
+    ];
+    if (finalization.classworkGrade) {
+      // Without this a student's final classwork response could be recorded and
+      // still leave them locked out of the dependent assignment.
+      gradeUpdates.push(new FieldPath("classworkGradesByAssignment", assignmentId), finalization.classworkGrade);
+    }
+    if (finalization.dolGrade) {
+      gradeUpdates.push(
+        new FieldPath("dolGradesByAssignment", assignmentId, finalization.dolDateKey),
+        finalization.dolGrade,
+      );
+    }
+    transaction.update(gradeRef, ...gradeUpdates);
+    if (finalization.evidenceEvent?.eventKey) {
+      // The event key is deterministic for this exact attempt, so a retry after
+      // a partial failure repeats the same write rather than appending a second
+      // evidence record.
+      transaction.set(
+        gradeRef.collection("evidenceEvents").doc(String(finalization.evidenceEvent.eventKey)),
+        finalization.evidenceEvent,
+      );
+    }
+    retire(decision.status, decision.reason, {
+      cutoff: decision.cutoff ? new Date(decision.cutoff) : null,
+      resultingSubmissionId: decision.submissionId,
+      isCorrect: Boolean(finalization.result.isCorrect),
+      gradedBy: "server",
+    });
+    return "finalized";
+  });
+}
+
+exports.finalizeStudentResponseCheckpoints = onSchedule(
+  { schedule: "every 1 minutes", timeZone: "America/Chicago" },
+  async () => {
+    const db = getFirestore();
+    const now = Date.now();
+    const due = await db.collection(CHECKPOINT_COLLECTION)
+      .where("status", "==", "active")
+      .where("candidateFinalizeAt", "<=", new Date(now))
+      .orderBy("candidateFinalizeAt")
+      .limit(CHECKPOINT_BATCH_LIMIT)
+      .get();
+    if (due.empty) return;
+
+    const scheduleSnapshot = await db.collection("settings").doc("classSchedule").get();
+    const schedule = scheduleSnapshot.exists ? scheduleSnapshot.data() : null;
+    const classPeriodCache = new Map();
+    const outcomes = {};
+
+    for (const snapshot of due.docs) {
+      try {
+        const outcome = await finalizeOneResponseCheckpoint({
+          db, ref: snapshot.ref, schedule, classPeriodCache, now,
+        });
+        outcomes[outcome] = (outcomes[outcome] || 0) + 1;
+      } catch (error) {
+        // One unfinalizable checkpoint must not stop the batch. It stays active
+        // and is retried on the next run.
+        outcomes.failed = (outcomes.failed || 0) + 1;
+        logger.error("Could not finalize a response checkpoint", { checkpointId: snapshot.id, message: error.message });
+      }
+    }
+    logger.info("Deadline response checkpoint batch complete", { examined: due.size, ...outcomes });
+  },
+);
+
+/*
+ * MANUAL SECTION CLOSE MAKES OUTSTANDING WORK DUE NOW.
+ *
+ * A Classwork checkpoint ordinarily carries the assignment's final deadline as
+ * its query hint, which can be tomorrow. When a teacher closes the section at
+ * 10:15 the outstanding responses for THAT assignment, class and section are
+ * due immediately — so this trigger pulls their query time forward instead of
+ * waiting for a hint that has nothing to do with the close.
+ *
+ * Bounded by construction: the query names the assignment, the class and the
+ * role, so a close touches only the students it closed for. Nothing scans the
+ * collection.
+ */
+const closedSectionKeys = (assignment = {}) => {
+  const keys = new Map();
+  const warmupClosed = assignment?.warmup?.closedByClassId;
+  if (warmupClosed && typeof warmupClosed === "object") {
+    Object.entries(warmupClosed).forEach(([classId, entry]) => {
+      keys.set(`warmup:${classId}`, { activityRole: "warmup", classId, closedAt: entry?.closedAt || entry || null });
+    });
+  }
+  ["classwork", "practice"].forEach((role) => {
+    const overrides = assignment?.sectionAccess?.[role]?.overridesByClassId;
+    if (!overrides || typeof overrides !== "object") return;
+    Object.entries(overrides).forEach(([classId, entry]) => {
+      if (String(entry?.state || "").toLowerCase() !== "closed") return;
+      keys.set(`${role}:${classId}`, { activityRole: role, classId, closedAt: entry?.changedAt || null });
+    });
+  });
+  return keys;
+};
+
+exports.expediteCheckpointsOnSectionClose = onDocumentWritten(
+  "assignments/{assignmentId}",
+  async (event) => {
+    const before = event.data?.before?.exists ? event.data.before.data() : null;
+    const after = event.data?.after?.exists ? event.data.after.data() : null;
+    if (!after) return;
+    const previous = closedSectionKeys(before || {});
+    const current = closedSectionKeys(after);
+    // Only sections that became closed, or were closed again at a new time.
+    const newlyClosed = [...current.entries()].filter(([key, entry]) => (
+      !previous.has(key) || String(previous.get(key)?.closedAt || "") !== String(entry.closedAt || "")
+    )).map(([, entry]) => entry);
+    if (!newlyClosed.length) return;
+
+    const db = getFirestore();
+    const assignmentId = event.params.assignmentId;
+    const dueAt = new Date();
+    for (const entry of newlyClosed) {
+      const outstanding = await db.collection(CHECKPOINT_COLLECTION)
+        .where("status", "==", "active")
+        .where("assignmentId", "==", assignmentId)
+        .where("classId", "==", entry.classId)
+        .where("activityRole", "==", entry.activityRole)
+        .limit(CHECKPOINT_BATCH_LIMIT)
+        .get();
+      if (outstanding.empty) continue;
+      // Only the query time moves. Whether the work counts is still decided by
+      // the finalizer re-reading this same assignment.
+      const writer = db.batch();
+      outstanding.docs.forEach((snapshot) => writer.update(snapshot.ref, {
+        candidateFinalizeAt: dueAt,
+        expeditedBy: "manual-section-close",
+        expeditedAt: FieldValue.serverTimestamp(),
+      }));
+      await writer.commit();
+      logger.info("Manual section close expedited outstanding checkpoints", {
+        assignmentId, classId: entry.classId, activityRole: entry.activityRole, count: outstanding.size,
+      });
+    }
+  },
+);
 
 const studentMatchesAssignmentAudience = ({ assignment = {}, classId = null } = {}) => {
   const audience = assignmentAudience(assignment);

@@ -3,17 +3,20 @@ import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
 import useUndoHistory from './useUndoHistory';
+import { gradeNumberLineResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
 
 export default function NumberLine({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const { target, prompt } = question;
   const history = useUndoHistory(null, 60, draftKey ? `${draftKey}:number-line` : null);
   const selectedPoint = history.value;
   const choices = Array.isArray(question.choices) && question.choices.length > 0 ? question.choices : [-10, -5, 0, 5, 10];
-  const isComplete = selectedPoint !== null;
-  const isCorrect = selectedPoint === target;
+  // Correctness comes from the shared grading contract so every caller of it —
+  // this screen, the deadline finalizer, the tests — marks alike.
+  const graded = gradeNumberLineResponse({ target }, selectedPoint);
+  const { isComplete, isCorrect } = graded;
 
   useEffect(() => {
-    onStateChange({ isComplete, isCorrect, responseKey: selectedPoint === null ? '' : String(selectedPoint), questionDetails: `${prompt || `Plot ${target} on the number line.`} Selected: ${selectedPoint ?? 'none'}.`, parts: [{ id: 'number-line', label: 'Selected point', isComplete, isCorrect, response: selectedPoint ?? '' }] });
+    onStateChange({ isComplete, isCorrect, responseKey: selectedPoint === null ? '' : String(selectedPoint), questionDetails: `${prompt || `Plot ${target} on the number line.`} Selected: ${selectedPoint ?? 'none'}.`, parts: graded.parts });
   }, [selectedPoint, target, prompt, isComplete, isCorrect, onStateChange]);
 
   useEffect(() => {

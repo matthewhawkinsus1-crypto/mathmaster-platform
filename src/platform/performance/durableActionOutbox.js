@@ -51,14 +51,64 @@ const transactionRequest = async (mode, operation) => {
   }
 };
 
+/*
+ * `removeIfCurrent` IS THE ONLY SAFE WAY TO DELETE A COALESCED ACTION.
+ *
+ * A response checkpoint's queue id is DETERMINISTIC so revisions coalesce into
+ * one row. A plain delete after reconciling therefore races: revision 2 can be
+ * written while revision 1 is still in flight, and deleting "the row" then
+ * throws revision 2 away — leaving the server holding the STALE response,
+ * which is the exact bug checkpoints exist to prevent.
+ *
+ * The read and the delete happen inside ONE readwrite transaction, so nothing
+ * can be written between them.
+ *
+ * This owns its whole transaction rather than going through
+ * `transactionRequest`, which assigns its own `onsuccess` to whatever request
+ * it is handed — that would silently replace the handler below and the delete
+ * would never be issued. It is the kind of mistake unit tests against the
+ * in-memory adapter cannot see, so tests/browser/durableOutboxRecovery.mjs
+ * exercises this against real IndexedDB.
+ */
+const removeIfCurrentTransaction = async (actionId, expectedCreatedOrder) => {
+  const database = await openDatabase();
+  try {
+    return await new Promise((resolve, reject) => {
+      const transaction = database.transaction(STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      // Assume removal unless the read proves this row has moved on.
+      let removed = true;
+      const read = store.get(actionId);
+      read.onerror = () => reject(read.error || new Error('Student action outbox request failed.'));
+      read.onsuccess = () => {
+        const current = read.result;
+        // Already gone: nothing to do, and nothing was lost.
+        if (!current) return;
+        if (Number(current.createdOrder ?? current.createdAt ?? 0) > Number(expectedCreatedOrder ?? 0)) {
+          removed = false;
+          return;
+        }
+        store.delete(actionId);
+      };
+      transaction.oncomplete = () => resolve(removed);
+      transaction.onabort = () => reject(transaction.error || new Error('Student action outbox transaction aborted.'));
+      transaction.onerror = () => reject(transaction.error || new Error('Student action outbox transaction failed.'));
+    });
+  } finally {
+    database.close();
+  }
+};
+
 export const indexedDbOutboxStorage = Object.freeze({
   put: (action) => transactionRequest('readwrite', (store) => store.put(clone(action))),
   remove: (actionId) => transactionRequest('readwrite', (store) => store.delete(actionId)),
+  /** Delete only while the stored row is still the revision that was reconciled. */
+  removeIfCurrent: (actionId, expectedCreatedOrder) => removeIfCurrentTransaction(actionId, expectedCreatedOrder),
   list: () => transactionRequest('readonly', (store) => store.getAll()),
 });
 
 export const createDurableAction = ({ kind, studentId, assignmentId, questionIndex, payload, actionId = null, createdAt = Date.now() }) => {
-  if (!['ordinarySubmission', 'stepSubmission', 'questionProgress', 'questionReplacement'].includes(kind)) throw new Error('Unsupported durable student action.');
+  if (!['ordinarySubmission', 'stepSubmission', 'questionProgress', 'questionReplacement', 'responseCheckpoint'].includes(kind)) throw new Error('Unsupported durable student action.');
   if (payload?.secure === true || payload?.answerKey != null || payload?.seed != null) throw new Error('Protected assessment data cannot enter the ordinary student outbox.');
   if (!studentId || !assignmentId || !Number.isInteger(Number(questionIndex))) throw new Error('Durable student actions require student, assignment, and question identity.');
   return Object.freeze({
@@ -144,6 +194,23 @@ export const overlayDurableActionsOnGrades = (gradesByAssignment = {}, actions =
   return next;
 };
 
+/**
+ * Remove the row we reconciled, never whatever is there now.
+ *
+ * Storage that implements `removeIfCurrent` does this atomically. The fallback
+ * exists only for a storage adapter that predates it.
+ */
+const removeReconciledAction = async (storage, action) => {
+  const expectedOrder = action.createdOrder ?? action.createdAt ?? 0;
+  if (typeof storage.removeIfCurrent === 'function') {
+    return storage.removeIfCurrent(action.actionId, expectedOrder);
+  }
+  const current = (await storage.list()).find((entry) => entry.actionId === action.actionId);
+  if (current && Number(current.createdOrder ?? current.createdAt ?? 0) > Number(expectedOrder)) return false;
+  await storage.remove(action.actionId);
+  return true;
+};
+
 export const drainDurableActions = ({ storage = indexedDbOutboxStorage, studentId, reconcile }) => {
   const run = async () => {
     const queued = await listDurableActions({ storage, studentId });
@@ -157,7 +224,7 @@ export const drainDurableActions = ({ storage = indexedDbOutboxStorage, studentI
           span.finish({ status: 'queued' });
           break;
         }
-        await storage.remove(action.actionId);
+        await removeReconciledAction(storage, action);
         recovered += 1;
         if (outcome.status === 'rejected') rejected += 1;
         span.finish({ status: outcome.status });
@@ -180,6 +247,14 @@ export const createMemoryOutboxStorage = (initial = []) => {
   return {
     async put(action) { records.set(action.actionId, clone(action)); },
     async remove(actionId) { records.delete(actionId); },
+    // Mirrors the IndexedDB guard so tests exercise the real semantics.
+    async removeIfCurrent(actionId, expectedCreatedOrder) {
+      const current = records.get(actionId);
+      if (!current) return true;
+      if (Number(current.createdOrder ?? current.createdAt ?? 0) > Number(expectedCreatedOrder ?? 0)) return false;
+      records.delete(actionId);
+      return true;
+    },
     async list() { return [...records.values()].map(clone); },
   };
 };

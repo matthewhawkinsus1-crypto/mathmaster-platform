@@ -4,14 +4,15 @@ import MathInput from './MathInput';
 import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
-import { compareMathAnswer } from './answerUtils';
+import { gradeFractionResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
 
 export default function FractionGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const { n1, d1, n2, d2, ansNum, ansDen, prompt, expressionLatex } = question;
   const [answer, setAnswer] = useLocalDraftState(draftKey ? `${draftKey}:fraction` : null, '');
-  const expectedLatex = `\\frac{${ansNum}}{${ansDen}}`;
-  const isComplete = answer !== '';
-  const isCorrect = isComplete && compareMathAnswer(answer, expectedLatex);
+  // Correctness comes from the shared grading contract so every caller of it —
+  // this screen, the deadline finalizer, the tests — marks alike.
+  const graded = gradeFractionResponse({ ansNum, ansDen }, answer);
+  const { isComplete, isCorrect } = graded;
 
   useEffect(() => {
     const questionText = prompt || `Solve: ${n1}/${d1} + ${n2}/${d2}`;
@@ -20,7 +21,7 @@ export default function FractionGrader({ question, onStateChange, onUndoStateCha
       isCorrect,
       responseKey: answer,
       questionDetails: `${questionText} Response: ${answer || 'blank'}.`,
-      parts: [{ id: 'fraction', label: 'Fraction answer', isComplete, isCorrect, response: answer }],
+      parts: graded.parts,
     });
   }, [answer, isComplete, isCorrect, n1, d1, n2, d2, prompt, onStateChange]);
 
