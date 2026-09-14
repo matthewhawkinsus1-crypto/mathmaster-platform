@@ -200,11 +200,16 @@ test('production integration uses FieldPath segments and secure Test Cycle never
   const reconciliation = app.slice(app.indexOf('const reconcileDurableStudentAction'), app.indexOf('const drainStudentOutbox'));
   assert.match(reconciliation, /if \(action\.payload\.hasClassworkGrade\)/);
   assert.match(reconciliation, /if \(action\.payload\.hasDolGrade\)/);
-  assert.match(reconciliation, /getAssignmentLifecycle\(assignment, capturedAt\)\.isClosed/);
+  assert.match(reconciliation, /const lifecycleAtCapture = getAssignmentLifecycle\(assignment, capturedAt\)/);
+  assert.match(reconciliation, /teacherReopenedWarmupAtCapture/);
+  assert.match(reconciliation, /lifecycleAtCapture\.isClosed && !teacherReopenedWarmupAtCapture/);
+  assert.match(reconciliation, /warmupCaptureWasActive\(timedSectionAccess, capturedAt\)/);
   assert.match(reconciliation, /nowValue: capturedAt/);
   assert.match(reconciliation, /accessChangedAfterCapture/);
   assert.doesNotMatch(reconciliation, /deleteField\(/);
   assert.match(app, /await enqueueDurableAction\(createDurableAction\(\{[\s\S]*kind: 'ordinarySubmission'/);
+  assert.match(app, /createdAt: submissionCapturedAt/);
+  assert.match(app, /timedSectionAccess,/);
   const stepRegion = app.slice(app.indexOf('const handleStepGrade'), app.indexOf('const handleRequestNewQuestion'));
   assert.doesNotMatch(stepRegion, /getLiveAssignment|gradesByAssignment:\s*updatedTracker|await updateDoc/);
   assert.ok(stepRegion.indexOf("kind: 'stepSubmission'") < stepRegion.indexOf('setTracker(updatedTracker)'), 'step must cross the outbox boundary before React advances');

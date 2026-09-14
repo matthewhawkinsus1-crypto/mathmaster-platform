@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { getWarmupState } from '../../src/assignmentLifecycle.js';
+import { getAssignmentLifecycle, getWarmupState } from '../../src/assignmentLifecycle.js';
 
 const dateKey = '2026-08-17'; // Monday
 const schedule = {
@@ -72,6 +72,20 @@ assert.equal(state.millisecondsRemaining, 5 * 60 * 1000);
 state = getWarmupState({ assignment: timedReopen, schedule, classId: 'class-3', classPeriod: 'Period 3', nowValue: at('09:15') });
 assert.equal(state.status, 'closed');
 assert.equal(state.autoCloseScheduled, false);
+
+// A reused/expired assignment may still be deliberately reopened by the teacher
+// for today's live Warm-Up. The overall lifecycle is Practice Mode, but the
+// teacher timer is a separate credit authorization for this timed section.
+const expiredButReopened = {
+  ...timedReopen,
+  dueAt: `${dateKey}T08:00:00`,
+  lateDueAt: `${dateKey}T08:30:00`,
+};
+const expiredLifecycle = getAssignmentLifecycle(expiredButReopened, at('09:12'));
+assert.equal(expiredLifecycle.isPracticeOnly, true);
+state = getWarmupState({ assignment: expiredButReopened, schedule, classId: 'class-3', classPeriod: 'Period 3', nowValue: at('09:12') });
+assert.equal(state.status, 'active');
+assert.equal(state.teacherTimerScheduled, true);
 
 // The timer belongs to one real class, not every class that happens to share
 // the same bell period.
