@@ -4,7 +4,7 @@ import {
   isTestCyclePolicy,
   normalizeTestCyclePolicy,
 } from '../../../functions/shared/testCyclePolicy.mjs';
-import { TEST_CYCLE_FORBIDDEN_ROLES } from '../../../functions/shared/testCyclePreflight.mjs';
+import { TEST_CYCLE_DIAGNOSTIC, TEST_CYCLE_FORBIDDEN_ROLES, inspectTestCycleContract } from '../../../functions/shared/testCyclePreflight.mjs';
 
 export const ASSIGNMENT_SCHEMA_VERSION = 5;
 export const ASSIGNMENT_SCHEMA_NAME = 'MathMaster Assignment V5';
@@ -261,6 +261,7 @@ export const normalizeAssignmentV5 = (input = {}) => {
 export const validateAssignmentV5 = (input = {}, { requireQuestions = true } = {}) => {
   const errors = [];
   const warnings = [];
+  const cycleContract = inspectTestCycleContract(input);
 
   if (!isObject(input)) {
     return { errors: ['MathMaster Assignment V5 must be a JSON object.'], warnings };
@@ -312,10 +313,17 @@ export const validateAssignmentV5 = (input = {}, { requireQuestions = true } = {
     errors.push(`variantPolicy.mode must be one of: ${V5_VARIANT_MODES.join(', ')}.`);
   }
 
+  if (cycleContract.declared && !cycleContract.policyConfigured) {
+    errors.push(`${TEST_CYCLE_DIAGNOSTIC.POLICY_MISSING}: Test Cycle assignments require assessmentPolicy.mode "testCycle".`);
+  }
+  if (cycleContract.declared && !cycleContract.embeddedBlueprintPresent && !cycleContract.secureReferencePresent) {
+    errors.push(`${TEST_CYCLE_DIAGNOSTIC.TEST_PHASE_MISSING}: This assignment is configured as a Test Cycle but no Test phase or secure Test reference can be resolved. Add/provision the Test before publishing.`);
+  }
+
   if (isTestCyclePolicy(input.assessmentPolicy)) {
     const policy = normalizeTestCyclePolicy(input.assessmentPolicy);
     const blueprint = normalizeTestBlueprint(input.testBlueprint);
-    if (!blueprint.targets.length) {
+    if (!blueprint.targets.length && !cycleContract.secureReferenceId) {
       errors.push(`assessmentPolicy.mode "${TEST_CYCLE_MODE}" requires a testBlueprint with at least one target.`);
     }
     blueprint.targets.forEach((target) => {

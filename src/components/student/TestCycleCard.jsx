@@ -47,6 +47,12 @@ const STAGE_TONE = {
   [TEST_CYCLE_STAGE.RETEST_CLOSED]: { background: '#f1f3f4', color: '#3c4043' },
 };
 
+const PHASE_STATUS_LABEL = {
+  available: 'Available', locked: 'Locked', ready: 'Ready', inProgress: 'In progress',
+  completed: 'Complete', pending: 'Pending', required: 'Required', notRequired: 'Not required',
+  unavailable: 'Unavailable',
+};
+
 export const TestCycleCard = ({ assignmentId, studentProfile = null, onOpenReview = null, onExit = null }) => {
   const [card, setCard] = useState(null);
   const [mode, setMode] = useState('card');
@@ -137,6 +143,29 @@ export const TestCycleCard = ({ assignmentId, studentProfile = null, onOpenRevie
       </div>
       <h2 style={{ margin: 0, fontSize: 'clamp(18px, 4vw, 23px)' }}>{card.title}</h2>
       <p style={{ margin: 0, color: '#3c4043', lineHeight: 1.55 }}>{card.detail}</p>
+
+      {/* Always show the whole cycle. The server supplies status-only phase
+          metadata; secure questions are fetched only after the secure runtime
+          independently authorizes Start Test/Retest. */}
+      {Array.isArray(card.phases) && (
+        <ol aria-label="Test Cycle phases" style={{ listStyle: 'none', display: 'grid', gap: 8, padding: 0, margin: 0 }}>
+          {card.phases.map((phase) => (
+            <li key={phase.id} data-test-cycle-phase={phase.id} data-phase-status={phase.status} style={{ padding: '10px 12px', border: '1px solid #e3e6ea', borderRadius: 9, background: '#f8f9fa' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                <strong>{phase.label}{phase.secure ? ' · Secure' : ''}</strong>
+                <span style={{ fontWeight: 800, color: phase.status === 'ready' ? '#0d652d' : '#5f6368' }}>{PHASE_STATUS_LABEL[phase.status] || phase.status}</span>
+              </div>
+              {phase.reason && <p style={{ margin: '5px 0 0', color: '#5f6368', fontSize: 13 }}>{phase.reason}</p>}
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {card.stage === TEST_CYCLE_STAGE.TEST && card.canEnter && (
+        <p role="status" aria-live="polite" style={{ margin: 0, padding: '10px 12px', borderRadius: 9, background: '#e6f4ea', color: '#0d652d', fontWeight: 800 }}>
+          Test unlocked — your Review is complete.
+        </p>
+      )}
 
       {/* The grade breakdown, from the one canonical record. When no retest
           happened this is deliberately just the test score. */}

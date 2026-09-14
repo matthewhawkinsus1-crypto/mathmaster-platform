@@ -222,6 +222,7 @@ import StudentGradeCenter from './components/student/StudentGradeCenter.jsx';
 import StudentAssignmentsCenter from './components/student/StudentAssignmentsCenter.jsx';
 import TestCycleCard from './components/student/TestCycleCard.jsx';
 import { isTestCycleAssignment } from './platform/assessment/testCycle.js';
+import { preflightTestCycleCandidate } from './services/testCycleService.js';
 import { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
 import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
 
@@ -5201,6 +5202,16 @@ function App() {
   const confirmAssignmentPreflight = async ({ draft, assignmentV5 }) => {
     setAssignmentPreflightBusy(true);
     try {
+      // References to server-only secure manifests cannot be certified by the
+      // browser's pure V5 validator. Only Test Cycle candidates pay for this
+      // authoritative call, and no assignment is saved/assigned before it
+      // passes.
+      if (isTestCycleAssignment(assignmentV5)) {
+        const authoritative = await preflightTestCycleCandidate({ assignment: assignmentV5 });
+        if (authoritative.preflight?.blocked) {
+          throw new Error(`This Test Cycle cannot be published:\n${(authoritative.preflight.errors || []).join('\n')}`);
+        }
+      }
       if (assignmentPreflight?.mode === 'update') {
         await updateExistingAssignmentFromReview({ draft, assignmentV5 });
       } else {

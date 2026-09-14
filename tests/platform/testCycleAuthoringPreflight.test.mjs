@@ -4,8 +4,11 @@ import { readFileSync } from 'node:fs';
 
 import {
   findSecureAnswerKeyLeaks,
+  inspectTestCycleContract,
   preflightTestCycle,
 } from '../../functions/shared/testCyclePreflight.mjs';
+import { declaresTestCycle } from '../../functions/shared/testCyclePolicy.mjs';
+import { buildTestCyclePhaseStatus, resolveTestCycleStage } from '../../functions/shared/testCycleStages.mjs';
 import {
   normalizeAssignmentV5,
   validateAssignmentV5,
@@ -16,6 +19,9 @@ import { assertCapability, componentSource, region } from './helpers/sourceContr
 
 const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
 const controls = componentSource('src/components/teacher/TestCycleControls.jsx');
+const card = componentSource('src/components/student/TestCycleCard.jsx');
+const lessonPreflight = componentSource('src/components/teacher/LessonPreflightModal.jsx');
+const app = componentSource('src/App.jsx');
 
 /*
  * WHAT A TEST CYCLE MUST NOT BE ABLE TO PUBLISH, AND HOW A TEACHER ASSIGNS ONE.
@@ -124,6 +130,120 @@ test('preflight refuses to run on an assignment that is not a Test Cycle', () =>
   const result = preflightTestCycle({ assignment: { sections: [] }, policy: { mode: 'lesson' } });
   assert.equal(result.mode, null);
   assert.ok(result.errors.some((error) => /not a Test Cycle/.test(error)));
+});
+
+test('legacy V5 Test Cycle declaration is structural, never inferred from prose', () => {
+  const reviewOnly = {
+    schemaVersion: 5,
+    assignment: { title: 'Unit Review', gradingPurpose: 'test' },
+    deliveryPolicy: { sectionGating: 'rolePolicy' },
+    sections: [{ role: 'review', questions: [{ questionId: 'r1' }] }],
+  };
+  assert.equal(declaresTestCycle(reviewOnly), true);
+  assert.equal(declaresTestCycle({ title: 'TEST CYCLE: secure Test after Review', instructions: 'Complete Review first.' }), false);
+  assert.equal(inspectTestCycleContract(reviewOnly).testResolvable, false);
+
+  const result = preflightTestCycle({ assignment: reviewOnly });
+  assert.equal(result.blocked, true);
+  assert.ok(result.errors.some((error) => error.startsWith('TEST_CYCLE_TEST_PHASE_MISSING:')));
+});
+
+test('ordinary review and non-Test V5 assignments are unaffected', () => {
+  for (const assignment of [
+    { assignment: { gradingPurpose: 'practice' }, deliveryPolicy: { sectionGating: 'rolePolicy' }, sections: [{ role: 'review' }] },
+    { assignment: { gradingPurpose: 'test' }, sections: [{ role: 'test' }] },
+  ]) assert.equal(declaresTestCycle(assignment), false);
+});
+
+test('a secure Test reference distinguishes presence from server resolution', () => {
+  const assignment = {
+    assessmentPolicy: { mode: 'testCycle' },
+    secureTestReference: { manifestId: 'manifest-unit-3' },
+    sections: [{ role: 'review' }],
+  };
+  const present = inspectTestCycleContract(assignment);
+  assert.equal(present.secureReferencePresent, true);
+  assert.equal(present.secureReferenceResolved, false);
+  assert.equal(present.testResolvable, false);
+  const missing = preflightTestCycle({ assignment });
+  assert.equal(missing.blocked, true);
+  assert.ok(missing.errors.some((error) => error.startsWith('TEST_CYCLE_SECURE_MANIFEST_NOT_FOUND:')));
+  assert.equal(missing.checks.find((check) => check.id === 'testPhaseResolvable').passed, false);
+
+  const contract = inspectTestCycleContract(assignment, { secureReferenceResolved: true });
+  assert.equal(contract.secureReferenceResolved, true);
+  assert.equal(contract.testResolvable, true);
+  assert.equal(contract.resolution, 'secureTestReference');
+  assert.deepEqual(Object.keys(contract.phases.test).sort(), ['configured', 'secure']);
+  assert.equal(JSON.stringify(contract).includes('question'), false);
+  assert.equal(JSON.stringify(contract).includes('answer'), false);
+});
+
+test('the exact Review-only V5 incident is recognized, blocked, and routed fail-closed', () => {
+  const incident = {
+    schemaVersion: 5,
+    assignment: { title: 'Algebra I Test Cycle', courseId: 'algebra1', gradingPurpose: 'test' },
+    provenance: { templateId: 'test-cycle-v5', templateVersion: 1 },
+    deliveryPolicy: { sectionGating: 'rolePolicy' },
+    sections: [{ id: 'review', role: 'review', questions: [{ questionId: 'review-1' }] }],
+  };
+  assert.equal(declaresTestCycle(incident), true);
+  const v5 = validateAssignmentV5(incident).errors;
+  assert.ok(v5.some((error) => error.startsWith('TEST_CYCLE_TEST_PHASE_MISSING:')));
+  const cycle = preflightTestCycle({ assignment: incident });
+  assert.equal(cycle.blocked, true);
+  assert.equal(resolveTestCycleStage({ policy: null, record: {}, reviewProgress: { complete: true } }), null);
+  assert.match(app, /isTestCycleAssignment\(assignmentData\) && !cycleStage/);
+  assert.match(functionsIndex, /diagnosticCode: "TEST_CYCLE_TEST_PHASE_MISSING"/);
+});
+
+test('authoritative manifest preflight runs before assignment save and Classroom publication', () => {
+  assert.match(app, /if \(isTestCycleAssignment\(assignmentV5\)\)[\s\S]*preflightTestCycleCandidate/);
+  assert.match(app, /authoritative\.preflight\?\.blocked/);
+  const publication = region(functionsIndex, 'async function publishAssignmentBatch(', 'exports.publishAssignmentToClassrooms', 'Classroom publication');
+  assert.match(publication, /loadTestCycleAssignment\(db, assignmentId, \{ allowInvalid: true \}\)/);
+  assert.match(publication, /cyclePreflight\.blocked/);
+  const candidate = region(functionsIndex, 'exports.preflightTestCycleCandidate = onCall(', '/**\n * The student\'s single card.', 'candidate preflight');
+  assert.match(candidate, /resolveSecureTestBlueprint/);
+  assert.match(candidate, /runTestCyclePreflight/);
+});
+
+test('student card renders the locked and ready UX without eagerly mounting secure runtime', () => {
+  assert.match(card, /aria-label="Test Cycle phases"/);
+  assert.match(card, /data-test-cycle-phase=\{phase\.id\}/);
+  assert.match(card, /\{phase\.reason &&/);
+  assert.match(card, /Test unlocked — your Review is complete\./);
+  assert.match(card, /\{card\.actionLabel\}/);
+  // SecureExamContainer is behind an explicit local mode transition, not the
+  // initial card render or phase metadata.
+  assert.match(card, /if \(mode === 'secure' && card\.examSessionId\)/);
+  assert.match(card, /if \(stageIsSecure\(card\.stage\)\) return setMode\('secure'\)/);
+});
+
+test('teacher Preview uses the canonical phase projection and isolated simulation', () => {
+  assert.match(lessonPreflight, /buildTestCyclePhaseStatus/);
+  assert.match(lessonPreflight, /resolveTestCycleStage/);
+  assert.match(lessonPreflight, /Simulate Review complete/);
+  assert.match(lessonPreflight, /does not create or update student Test Cycle records/);
+  assert.match(lessonPreflight, /secure questions are not loaded/);
+  assert.match(lessonPreflight, /preflightTestCycleCandidate\(\{ assignment: effectiveAssignmentV5/);
+  assert.match(lessonPreflight, /serverCyclePreflight\?\.loading === false && serverCyclePreflight\.blocked !== true/);
+});
+
+test('the complete phase strip remains visible while the server-authorized action changes', () => {
+  const policy = { mode: 'testCycle' };
+  const record = { review: { required: true }, test: { examSessionId: 'exam-1', state: 'assigned' } };
+  const lockedState = resolveTestCycleStage({ policy, record, reviewProgress: { total: 4, attempted: 2, complete: false } });
+  const locked = buildTestCyclePhaseStatus({ state: lockedState, record });
+  assert.deepEqual(locked.map((phase) => phase.id), ['review', 'test', 'corrections', 'retest']);
+  assert.equal(locked.find((phase) => phase.id === 'test').status, 'locked');
+  assert.match(locked.find((phase) => phase.id === 'test').reason, /Complete Review/);
+
+  const readyState = resolveTestCycleStage({ policy, record, reviewProgress: { total: 4, attempted: 4, complete: true } });
+  const ready = buildTestCyclePhaseStatus({ state: readyState, record });
+  assert.equal(ready.find((phase) => phase.id === 'review').status, 'completed');
+  assert.equal(ready.find((phase) => phase.id === 'test').status, 'ready');
+  assert.equal(readyState.actionLabel, 'Start Test');
 });
 
 /* --- the V5 authoring contract -------------------------------------------- */

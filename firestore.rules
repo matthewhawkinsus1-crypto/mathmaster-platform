@@ -615,6 +615,9 @@ service cloud.firestore {
     // authenticated Test Cycle callables, never from a client.
     match /testCycleRecords/{docId} { allow read, write: if false; }
     match /testCycleCorrectionPlans/{docId} { allow read, write: if false; }
+    // Secure Test manifests include blueprint family ids and issuance metadata.
+    // Assignments expose only an opaque reference; Functions resolve it.
+    match /secureTestManifests/{docId} { allow read, write: if false; }
     match /testCycleRetestPlans/{docId} { allow read, write: if false; }
     match /examSubmissions/{docId} { allow read, write: if false; }
     match /examIntegrityEvents/{docId} { allow read, write: if false; }

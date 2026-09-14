@@ -38,6 +38,12 @@ const sandboxCard = (assignmentId) => ({
   examSessionId: null,
   grade: { rows: [], simple: true, recordedGrade: null },
   corrections: null,
+  phases: [
+    { id: 'review', label: 'Review', status: 'available' },
+    { id: 'test', label: 'Test', status: 'locked', secure: true, reason: 'Complete Review to unlock Test.' },
+    { id: 'corrections', label: 'Corrections', status: 'pending' },
+    { id: 'retest', label: 'Retest', status: 'pending', secure: true },
+  ],
 });
 
 /** The student's one card for this assessment. */
@@ -68,6 +74,12 @@ export const assignTestCycleSessions = async ({ assignmentId, classId = null, st
 export const preflightTestCycleAssignment = async ({ assignmentId }) => {
   if (isSandbox()) return { success: true, preflight: { errors: [], warnings: [], checks: [], blocked: false } };
   return call('preflightTestCycleAssignment', { assignmentId });
+};
+
+/** Authoritative pre-save validation for an assignment not in Firestore yet. */
+export const preflightTestCycleCandidate = async ({ assignment }) => {
+  if (isSandbox()) return { success: true, testCycle: true, preflight: { errors: [], warnings: [], checks: [], blocked: false } };
+  return call('preflightTestCycleCandidate', { assignment });
 };
 
 export const listTeacherTestCycleRecords = async ({ assignmentId }) => {

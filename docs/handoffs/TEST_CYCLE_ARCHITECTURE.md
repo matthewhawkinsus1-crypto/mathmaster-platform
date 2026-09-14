@@ -7,6 +7,50 @@ One Google Classroom grade item.
 Review  ->  Secure Test  ->  Corrections (if needed)  ->  Secure Retest
 ```
 
+## Contract and legacy failure boundary
+
+`assessmentPolicy.mode: "testCycle"` is the canonical declaration. The secure
+Test is resolvable either from the assignment's answer-free `testBlueprint` or
+from an opaque `secureTestReference` whose manifest is stored in the
+server-only `secureTestManifests` collection. Titles and student instructions
+are never declarations and never provision a Test.
+
+The Review-only incident was possible because V5 Preflight validated sections
+and questions but invoked Test Cycle validation only when `assessmentPolicy`
+already existed. At runtime the same narrow predicate routed an assignment
+carrying the older V5 Test-template signature (`gradingPurpose: "test"`,
+`rolePolicy`, and Review) into the ordinary assignment runner. Review therefore
+looked complete even though no secure phase could resolve.
+
+The compatibility boundary now recognizes that structural legacy signature
+only to fail closed: Preflight emits `TEST_CYCLE_TEST_PHASE_MISSING` (and a
+missing-policy diagnostic), the student router sends the item through the
+server-authoritative Test Cycle entry point, and the server records a
+structured contract diagnostic while returning a student-safe unavailable
+message. It never manufactures a Test from prose or marks Review as cycle
+completion.
+
+An opaque reference being present is not the same as it resolving. Pure V5
+inspection reports `secureReferencePresent` but leaves
+`secureReferenceResolved` and `testResolvable` false. Before the browser saves
+or assigns a Test Cycle, `preflightTestCycleCandidate` loads the referenced
+`secureTestManifests/{id}` document and validates the resulting blueprint with
+the same family/private-grading gate used for session creation. A missing or
+invalid document blocks with `TEST_CYCLE_SECURE_MANIFEST_NOT_FOUND`. The Google
+Classroom publisher repeats this authoritative gate, so an alternate publishing
+route cannot bypass it. Ordinary assignments make neither Test Cycle call.
+
+Every card receives a question-free four-phase status strip from the same
+shared stage module used by Functions. It can explain a lock and announce a
+ready Test, but it cannot grant entry: `startSecureExamSession` still resolves
+the persisted record and Review progress on the server before loading any
+secure question.
+
+Teacher Assignment Preflight uses that same shared phase projection for “See
+it as a student.” Its Review-complete simulation is component-only preview
+state: it writes no grade, Test Cycle record, secure session, or browser draft,
+and it never resolves or loads secure questions.
+
 ## The rule everything else serves
 
 ```

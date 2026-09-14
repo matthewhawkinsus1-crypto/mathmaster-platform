@@ -22,12 +22,50 @@
  */
 
 import { normalizeTestBlueprint, targetFamilyCoverage } from './testCycleBlueprint.mjs';
-import { normalizeTestCyclePolicy } from './testCyclePolicy.mjs';
+import { declaresTestCycle, defaultTestCyclePolicy, normalizeTestCyclePolicy } from './testCyclePolicy.mjs';
 import { resolveRetestQuestionCount } from './testCycleRetest.mjs';
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const clean = (value) => String(value ?? '').trim();
 const list = (value) => (Array.isArray(value) ? value : []);
+
+export const TEST_CYCLE_DIAGNOSTIC = Object.freeze({
+  TEST_PHASE_MISSING: 'TEST_CYCLE_TEST_PHASE_MISSING',
+  POLICY_MISSING: 'TEST_CYCLE_POLICY_MISSING',
+  SECURE_MANIFEST_NOT_FOUND: 'TEST_CYCLE_SECURE_MANIFEST_NOT_FOUND',
+});
+
+const diagnostic = (code, message) => `${code}: ${message}`;
+
+/** Safe, question-free description of whether the secure Test can resolve. */
+export const inspectTestCycleContract = (assignment = {}, { secureReferenceResolved = false } = {}) => {
+  const declared = declaresTestCycle(assignment);
+  const blueprint = normalizeTestBlueprint(assignment?.testBlueprint);
+  const secureReference = isObject(assignment?.secureTestReference)
+    ? assignment.secureTestReference
+    : null;
+  const secureReferenceId = clean(secureReference?.blueprintId || secureReference?.manifestId || secureReference?.id);
+  const embeddedBlueprintPresent = blueprint.targets.length > 0;
+  const secureReferencePresent = Boolean(secureReferenceId);
+  return Object.freeze({
+    declared,
+    policyConfigured: Boolean(normalizeTestCyclePolicy(assignment?.assessmentPolicy)),
+    embeddedBlueprintPresent,
+    secureReferencePresent,
+    secureReferenceResolved: secureReferencePresent && secureReferenceResolved === true,
+    testResolvable: embeddedBlueprintPresent || (secureReferencePresent && secureReferenceResolved === true),
+    resolution: embeddedBlueprintPresent ? 'testBlueprint' : secureReferencePresent && secureReferenceResolved ? 'secureTestReference' : null,
+    secureReferenceId: secureReferenceId || null,
+    // This contains status metadata only. It never includes blueprint targets,
+    // families, questions, seeds, answers, or grading definitions.
+    phases: Object.freeze({
+      review: Object.freeze({ configured: list(assignment?.sections).some((s) => clean(s?.role).toLowerCase() === 'review') }),
+      test: Object.freeze({ configured: embeddedBlueprintPresent || secureReferencePresent, secure: true }),
+      corrections: Object.freeze({ configured: true, policyDriven: true }),
+      retest: Object.freeze({ configured: true, policyDriven: true, secure: true }),
+    }),
+  });
+};
 
 /*
  * Keys that carry an answer. If any of these reaches the assignment document a
@@ -75,13 +113,34 @@ export const preflightTestCycle = ({
   blueprint = null,
   families = [],
   familyIssuability = {},
+  secureReferenceResolved = false,
 } = {}) => {
   const errors = [];
   const warnings = [];
-  const resolved = normalizeTestCyclePolicy(policy || assignment?.assessmentPolicy);
+  const contract = inspectTestCycleContract(assignment || {}, { secureReferenceResolved });
+  const resolved = normalizeTestCyclePolicy(policy || assignment?.assessmentPolicy)
+    || (contract.declared ? defaultTestCyclePolicy() : null);
 
   if (!resolved) {
     return { mode: null, errors: ['This assignment is not a Test Cycle (assessmentPolicy.mode must be "testCycle").'], warnings, checks: [] };
+  }
+
+  if (!contract.policyConfigured) {
+    errors.push(diagnostic(
+      TEST_CYCLE_DIAGNOSTIC.POLICY_MISSING,
+      'This V5 assignment declares a Test Cycle but is missing assessmentPolicy.mode "testCycle".',
+    ));
+  }
+  if (contract.secureReferencePresent && !contract.secureReferenceResolved && !contract.embeddedBlueprintPresent) {
+    errors.push(diagnostic(
+      TEST_CYCLE_DIAGNOSTIC.SECURE_MANIFEST_NOT_FOUND,
+      `Secure Test reference "${contract.secureReferenceId}" exists but the server could not resolve it to a valid Test blueprint.`,
+    ));
+  } else if (!contract.testResolvable) {
+    errors.push(diagnostic(
+      TEST_CYCLE_DIAGNOSTIC.TEST_PHASE_MISSING,
+      'This assignment is configured as a Test Cycle but no Test phase or secure Test reference can be resolved. Add/provision the Test before publishing.',
+    ));
   }
 
   const normalizedBlueprint = normalizeTestBlueprint(blueprint || assignment?.testBlueprint);
@@ -166,6 +225,10 @@ export const preflightTestCycle = ({
     blocked: errors.length > 0,
     checks: [
       { id: 'secureTestCoverage', label: 'Secure Test can issue equivalent questions for every target', passed: coverage.every((entry) => entry.sufficientForTest) },
+      { id: 'testPhaseResolvable', label: 'Test: configured or secure reference resolved', passed: contract.testResolvable },
+      { id: 'reviewConfigured', label: 'Review: configured', passed: contract.phases.review.configured },
+      { id: 'correctionsConfigured', label: 'Corrections: policy-driven', passed: contract.phases.corrections.configured },
+      { id: 'retestConfigured', label: 'Retest: policy-driven secure phase', passed: contract.phases.retest.configured },
       { id: 'retestParallelCoverage', label: 'Retest has parallel coverage for every target', passed: coverage.every((entry) => entry.sufficientForRetest) },
       { id: 'privateGrading', label: 'Every declared family can be privately graded on the server', passed: declaredFamilyIds.every((familyId) => issuability[familyId]?.issuable === true) },
       { id: 'stageIsolation', label: 'No secure stage is authored as client-visible content', passed: !sections.some((section) => TEST_CYCLE_FORBIDDEN_ROLES.includes(clean(section?.role).toLowerCase())) },
@@ -173,5 +236,6 @@ export const preflightTestCycle = ({
     ],
     coverage,
     retestQuestionCount,
+    contract,
   };
 };
