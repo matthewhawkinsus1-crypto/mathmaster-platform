@@ -84,15 +84,30 @@ const SCENES = [
     staged: true,
     marksPlane: true,
     question: {
-      id: 'staged-restricted-linear-analysis', type: 'graphAnalysis',
-      recipe: 'functionCharacteristics',
-      prompt: 'Use the restricted linear graph to determine its domain, range, intercept and where it increases or decreases.',
-      pairs: [[-4, -3], [-2, -1], [0, 1], [2, 3], [4, 5]],
-      graph: { xMin: -6, xMax: 6, yMin: -5, yMax: 7 },
+      id: 'staged-restricted-linear-analysis',
+      type: 'graphAnalysis',
+      // Mirror the production failure that motivated #231: the graph is GIVEN
+      // and the student moves through analysis stages. Do not let this fixture
+      // fall back to functionCharacteristics.defaultAsk, because that begins
+      // with a plotting stage and tests a different workflow entirely.
+      recipe: {
+        name: 'functionCharacteristics',
+        ask: ['domain', 'range', 'xInterceptExists', 'yInterceptExists', 'behavior'],
+      },
+      prompt: 'Analyze the restricted linear graph. Determine domain, range, intercepts/zero, and whether the function is increasing or decreasing.',
+      graph: { xMin: -5, xMax: 7, yMin: -1, yMax: 8, xStep: 1, yStep: 1 },
+      functionSpec: {
+        type: 'linear',
+        m: -1,
+        b: 5,
+        domain: { min: -2, max: 5, minClosed: true, maxClosed: true },
+      },
       functionFamily: 'Linear',
-      correctDomain: '-4 <= x <= 4',
-      correctRange: '-3 <= y <= 5',
-      behavior: 'Increasing',
+      correctDomain: '-2 <= x <= 5',
+      correctRange: '0 <= y <= 7',
+      xIntercepts: [[5, 0]],
+      yIntercept: [0, 5],
+      behavior: 'Decreasing everywhere',
     },
   },
   {
@@ -548,6 +563,17 @@ const typeIntoMathField = async (page, selector, value) => {
 };
 
 const makeEdit = async (page, sceneId) => {
+  if (sceneId === 'staged-restricted-linear-analysis') {
+    // The first production-like stage is a MathInput domain response. Editing
+    // that field exercises the same state/Undo path students use in the
+    // restricted-graph analysis question instead of asking the harness to
+    // invent a plotting interaction that this question does not contain.
+    return await typeIntoMathField(
+      page,
+      '.workflow-focus__stage-shell--active math-field',
+      '-2<=x<=5',
+    );
+  }
   if (sceneId === 'step-algebra-operations') {
     const typed = await typeIntoFirstField(page, 'input[type="number"]', '6');
     const apply = page.locator('.mathmaster-work-view-host[data-open="true"] button', { hasText: 'Apply to both sides' }).first();
