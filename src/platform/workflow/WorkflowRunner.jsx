@@ -17,13 +17,13 @@ import RelationMapping from '../../tools/relationMapping/RelationMapping';
 import { getStage } from './interactionStages';
 import { activeStages, hasStageResponse, lockedStageIds, readComposedQuestion, resolveStageInput, stageControlsLaterGraphConstruction, summarizeWorkflowProgress } from './questionWorkflow';
 import { checkTableConsistency, gradeWorkflow } from './workflowGrading';
-import { buildExpressionFunctionSpec, evaluateModelAt, evaluateNumericValue, parseIntervalDomainRestriction } from './modelExpression';
+import { buildExpressionFunctionSpec, evaluateModelAt, evaluateNumericValue } from './modelExpression';
 import { evaluateGraphFunction } from '../../functionGraphUtils';
 import { buildStudentTableMagneticTargets } from '../../graphInteractionPrecision';
 import { buildWorkflowSummaryItems, shouldUseWorkflowFocusMode, summarizeStageResponse } from './workflowFocusMode';
 import { stageFamily, stageFamilyLabel } from './stageFamilies';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
-import { workflowEndpointMarkers, workflowRequiresEndpointMarkers } from './workflowGraphVisuals.js';
+import { workflowEndpointMarkers, workflowGraphDomainRestriction, workflowRequiresEndpointMarkers } from './workflowGraphVisuals.js';
 import { resolveWorkflowTaskPrompt, selectPersistentWorkflowGraph } from './workflowPresentation.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../workView/useMathUndoHistory.js';
 import './WorkflowFocusMode.css';
@@ -740,9 +740,15 @@ const DELEGATES = {
       );
     }
 
+    const fallbackFunctionSpec = sourceFunctionSpec || content?.functionSpec;
     const functionSpec = sourceModel
       ? buildExpressionFunctionSpec(sourceModel, { referencePoints: points, domain: stage.domainRestriction || null })
-      : (sourceFunctionSpec || content?.functionSpec);
+      : (fallbackFunctionSpec
+        ? {
+            ...fallbackFunctionSpec,
+            ...(stage.domainRestriction ? { domain: stage.domainRestriction } : {}),
+          }
+        : null);
 
     if (!functionSpec) {
       return (
@@ -812,6 +818,7 @@ const DELEGATES = {
 };
 
 const NOTATION_PROFILE = { interval: 'interval', inequality: 'inequality', set: 'set' };
+export const ALL_REAL_NUMBERS_RESPONSE = '\\text{All Real Numbers}';
 
 function StageBody({ stage, input, content, value, onChange, disabled, draftKey, controlsBranch = false, openKeypad = true, showFigure = true }) {
   const delegate = DELEGATES[stage.kind];
@@ -859,6 +866,19 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey,
             placeholder={stage.placeholder || stage.notation || (stage.kind === 'valueSet' ? '{ }' : 'interval notation')}
             ariaLabel={stage.prompt || (stage.kind === 'valueSet' ? 'Values' : 'Interval notation')}
           />
+          {['domainInput', 'rangeInput'].includes(stage.kind) && stage.notation === 'inequality' ? (
+            <div style={{ marginTop: 10 }}>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => onChange(ALL_REAL_NUMBERS_RESPONSE)}
+                style={choiceChip(value === ALL_REAL_NUMBERS_RESPONSE)}
+                aria-label="Answer All Real Numbers"
+              >
+                All Real Numbers
+              </button>
+            </div>
+          ) : null}
         </>
       );
     case 'graphFeatureSelect':
@@ -1027,7 +1047,11 @@ const checkedGraphReference = ({ workflow, responses, content, grading, activeSt
 
   const sourceModel = sourceIsTable ? source.sourceModel : (typeof source === 'string' ? source : null);
   const sourceFunctionSpec = sourceIsTable ? source.sourceFunctionSpec : null;
-  const domain = graphStage.domainRestriction || parseIntervalDomainRestriction(grading?.domain);
+  const domain = workflowGraphDomainRestriction({
+    graphStage,
+    workflow,
+    grading,
+  });
 
   if (sourceModel) {
     const segments = sampleModelSegments(sourceModel, graphWindow, domain);
@@ -1279,7 +1303,11 @@ export default function WorkflowRunner({
     // explicitly mark open/closed endpoints instead of leaving a stopped
     // segment visually ambiguous. The later domain stage remains separate.
     const domainRestriction = stage.kind === 'functionGraph'
-      ? parseIntervalDomainRestriction(grading?.domain)
+      ? workflowGraphDomainRestriction({
+          graphStage: stage,
+          workflow,
+          grading,
+        })
       : null;
     const baseEffectiveStage = domainRestriction && !stage.domainRestriction
       ? { ...stage, domainRestriction }
