@@ -41,6 +41,16 @@ test('Warm-Up countdown is visible across teacher and student surfaces', () => {
   assert.match(app, /Warm-Up reminder — timer is running/);
 });
 
+test('a reopened Warm-Up unlocks student submission and keeps the durable save path', () => {
+  const app = read('src/App.jsx');
+  assert.match(app, /currentIsWarmup && warmupState\.status !== 'active'/);
+  assert.match(app, /kind: 'ordinarySubmission'/);
+  const submitStart = app.indexOf('const handleGradeSubmit');
+  const submitEnd = app.indexOf('const handleStepGrade', submitStart);
+  const submit = app.slice(submitStart, submitEnd);
+  assert.ok(submit.indexOf('await enqueueDurableAction') < submit.indexOf('setTracker(updatedTracker)'));
+});
+
 test('new assignments persist the ten-minute Warm-Up close default', () => {
   const app = read('src/App.jsx');
   assert.match(app, /closeMinutesAfterStart: 10/);
