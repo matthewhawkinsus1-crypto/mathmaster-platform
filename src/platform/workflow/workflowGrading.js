@@ -115,6 +115,11 @@ const matchesAnswer = (stage, response, expected) => {
   // several equivalent ways, so use the shared semantic set comparator before
   // algebraic-expression equivalence.
   if (looksLikeFiniteSetNotation(expected)) return compareMathAnswer(response, expected);
+  // Domain/range quick answers such as "\\text{All Real Numbers}" are
+  // semantic text, not an expression for mathjs to simplify. Normalize both
+  // sides before the algebraic path so the visible button, typed words, and the
+  // canonical key "allrealnumbers" are treated as the same answer.
+  if (normalizeMathAnswer(response) === normalizeMathAnswer(expected)) return true;
   if (ALGEBRAIC_KINDS.has(stage.kind)) {
     if (isAlgebraicallyEquivalent(response, expected)) return true;
     if (stage.kind === 'equationInput' && definesAFunction(response) && definesAFunction(expected)) {
