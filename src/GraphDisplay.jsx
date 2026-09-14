@@ -33,6 +33,16 @@ const isMajorTick = (value, majors) => majors.some((tick) => Math.abs(Number(tic
 const normalizeFunctionList = (graph) => {
   const functions = Array.isArray(graph.functions) ? [...graph.functions] : [];
 
+  // Workflow evidence sometimes carries the same structured function under
+  // functionSpec instead of graph.functions. Use it only as a fallback so a
+  // graph that already supplied functions is never double-drawn.
+  if (!functions.length && graph.functionSpec && typeof graph.functionSpec === 'object') {
+    const nested = graph.functionSpec;
+    const type = String(nested.type || '').trim();
+    if (type === 'linear') functions.push({ ...nested, type: 'line' });
+    else if (type && type !== 'expression') functions.push(nested);
+  }
+
   if (graph.line) {
     functions.push({ type: 'line', ...graph.line });
   }
