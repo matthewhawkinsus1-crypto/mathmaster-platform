@@ -110,6 +110,17 @@ test('PR #163 invariant remains protected: continuity/domain functionModeling do
   assert.equal(expanded.workflow.some((stage) => stage.id === 'graph' || stage.kind === 'graphConstruction'), false);
 });
 
+test('static and interactive graph-analysis surfaces share the assessment-safe viewport contract', async () => {
+  const display = await readFile(new URL('../../src/GraphDisplay.jsx', import.meta.url), 'utf8');
+  const featureStage = await readFile(new URL('../../src/platform/workflow/GraphFeatureSelectStage.jsx', import.meta.url), 'utf8');
+
+  assert.match(display, /const displayGraph = fitStaticGraphViewport\(graph\)/);
+  assert.match(display, /xMinorTicks[\s\S]*yMinorTicks/,
+    'static evidence keeps countable minor landmarks when major labels are sparse');
+  assert.match(featureStage, /fitStaticGraphViewport\(rawGraph\)/,
+    'feature selection uses the same fitted mathematical window');
+});
+
 test('WorkflowRunner and QuestionEngine wire the active instruction and one persistent graph into the student shell', async () => {
   const runner = await readFile(new URL('../../src/platform/workflow/WorkflowRunner.jsx', import.meta.url), 'utf8');
   const engine = await readFile(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
