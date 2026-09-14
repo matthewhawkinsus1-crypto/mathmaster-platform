@@ -5851,8 +5851,11 @@ exports.syncGradeToClassroom = onDocumentWritten(
         const classroomGrade = Math.round((grade / 100) * maxPoints * 100) / 100;
 
         // Do not send the same grade/stage repeatedly just because a student
-        // spent more time on the same saved answer. Manual retry deliberately
-        // bypasses this so a teacher can repair an external Classroom issue.
+        // spent more time on the same saved answer. A same-stage numeric grade
+        // change is NOT a duplicate: this happens when a teacher reopens a
+        // Warm-Up or otherwise gives additional credit after an earlier
+        // checkpoint was already posted. Manual retry deliberately bypasses
+        // this so a teacher can repair an external Classroom issue.
         const syncId = gradeSyncDocumentId(publicationDoc.id, event.params.studentId);
         // eslint-disable-next-line no-await-in-loop
         const priorAuditSnap = await db.doc(`classroomGradeSyncs/${syncId}`).get();
@@ -5865,9 +5868,11 @@ exports.syncGradeToClassroom = onDocumentWritten(
           && String(priorAudit.stage || "") === stage
           && Number(priorAudit.maxPoints || 100) === maxPoints
           && Boolean(priorAudit.studentVisible) === releasePolicy.studentVisible
-          // A re-released Test Cycle score keeps the same stage, so the stage
-          // alone cannot answer "has anything changed?" for this assignment.
-          && (!isTestCycleAssignment || Number(priorAudit.grade) === Number(grade))
+          // Stage identity alone cannot answer "has anything changed?".
+          // Ordinary assignments can improve inside the same checkpoint stage
+          // after a teacher reopens/extends a timed section, so compare the
+          // actual MathMaster percentage for every assignment type.
+          && Number(priorAudit.grade) === Number(grade)
           && (!releasePolicy.shouldReturn || priorReturnConfirmed)
         ) {
           continue;
