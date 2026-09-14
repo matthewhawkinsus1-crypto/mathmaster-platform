@@ -97,11 +97,32 @@ test('WorkflowRunner keeps one active workspace and does not run hidden delegate
   assert.match(source, /activeStageIndex/);
 });
 
-test('focus navigation does not imply that answered means correct', async () => {
+test('focus navigation reserves green checks for submitted correct work', async () => {
   const source = await readFile(new URL('../../src/platform/workflow/WorkflowRunner.jsx', import.meta.url), 'utf8');
-  assert.match(source, /, answered'/);
-  assert.doesNotMatch(source, /, correct'/);
+  const css = await readFile(new URL('../../src/platform/workflow/WorkflowFocusMode.css', import.meta.url), 'utf8');
+
+  assert.match(source, /buildWorkflowReviewState/);
+  assert.match(source, /reviewStatus === 'correct'/);
+  assert.match(source, /reviewStatus === 'incorrect'/);
+  assert.match(source, /reviewStatus === 'changed'/);
+  assert.match(source, /answered, not checked/);
+  assert.doesNotMatch(source, /answered \? <span className="workflow-focus__step-check"/);
+  assert.match(source, /incorrectReviewStages\.length/);
+  assert.match(source, /Red steps are the responses to revise/);
+  assert.match(source, /firstIncorrectWorkflowIndex/);
+  assert.match(css, /workflow-focus__step--correct/);
+  assert.match(css, /workflow-focus__step--incorrect/);
+  assert.match(css, /workflow-focus__workspace--incorrect/);
   assert.match(source, /steps answered/);
+});
+
+test('QuestionEngine freezes the submitted workflow verdicts instead of grading live edits visually', async () => {
+  const source = await readFile(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
+  assert.match(source, /workflowSubmissionReview/);
+  assert.match(source, /setWorkflowSubmissionReview\(\{/);
+  assert.match(source, /parts: \(answerState\.parts \|\| \[\]\)\.map/);
+  assert.match(source, /submissionReview=\{showOutcomeFeedback \? workflowSubmissionReview : null\}/);
+  assert.match(source, /red steps above are the specific responses that need revision/i);
 });
 
 
