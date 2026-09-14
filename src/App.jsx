@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import {
   addDoc,
@@ -13,11 +13,13 @@ import {
   query,
   runTransaction,
   setDoc,
+  serverTimestamp,
   updateDoc,
   where,
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { enqueueResponseCheckpoint } from './platform/performance/responseCheckpoint.js';
 import { teacherAdmin } from './auth/authService';
 import {
   buildScratchpadWrites,
@@ -1935,6 +1937,20 @@ function App() {
         rejected = true;
         return;
       }
+      if (action.kind === 'responseCheckpoint') {
+        const checkpointRef = doc(db, 'studentResponseCheckpoints', action.payload.documentId);
+        transaction.set(checkpointRef, {
+          ...action.payload,
+          studentId: action.studentId,
+          assignmentId: action.assignmentId,
+          questionIndex: action.questionIndex,
+          capturedAt: serverTimestamp(),
+          serverAcknowledgedAt: serverTimestamp(),
+          candidateFinalizeAt: action.payload.candidateFinalizeAt ? new Date(action.payload.candidateFinalizeAt) : null,
+          status: 'active',
+        });
+        return;
+      }
       if (action.payload?.activityRole === 'warmup' && timedSectionAccess && !warmupWasActiveAtCapture) {
         rejected = true;
         return;
@@ -3631,6 +3647,66 @@ function App() {
       setTeacherScratchpadLoading(false);
     }
   };
+
+  const handleResponseCheckpoint = useCallback(async (answerState) => {
+    if (!activeAssignmentId || user?.role !== 'student' || !answerState?.isComplete || isTeacherPreview) return;
+    const assignment = assignments.find((item) => item.id === activeAssignmentId);
+    if (!assignment || isTestCycleAssignment(assignment)) return;
+    const question = activeQuestions[currentQuestionIndex];
+    const currentRecord = normalizeQuestionRecord(tracker?.[activeAssignmentId]?.[currentQuestionIndex]);
+    const outcome = recordQuestionAttempt({
+      record: currentRecord,
+      isCorrect: answerState.isCorrect,
+      questionDetails: answerState.questionDetails,
+      timeSpent: activeTimeRef.current,
+      parts: answerState.parts || [],
+      supportUsage: buildSupportUsage(user?.profile, question),
+      responseKey: answerState.responseKey,
+      partialCreditPercent: answerState.partialCreditPercent,
+      maximumAttempts: resolveQuestionMaximumAttempts({ question, maximumAttempts: activeActivityPolicy.attempts, activityPolicy: activeActivityPolicy }),
+    });
+    const now = Date.now();
+    const warmup = getWarmupState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now });
+    const dol = getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now });
+    const finalDeadline = assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate || null;
+    const close = activeQuestionRole === 'warmup' ? warmup.endsAt : activeQuestionRole === 'dol' ? dol.endsAt : finalDeadline;
+    const reason = activeQuestionRole === 'warmup' ? 'warmup-close' : activeQuestionRole === 'dol' ? 'dol-close' : 'assignment-final-deadline';
+    const evidenceEvent = question?.type === 'modelingLab' ? null : buildAttemptEvidenceEvent({
+      studentId: user.id, assignment, question, questionIndex: currentQuestionIndex,
+      activityRole: activeQuestionRole, attemptRecord: outcome.record, attemptResult: outcome.result,
+      supportUsage: outcome.record.supportUsage || {},
+      delivered: resolveDeliveredQuestionMetadata({ question, learningProfile: studentLearningProfile, activityRole: activeQuestionRole }),
+    });
+    try {
+      setStudentPersistenceStatus('capturing');
+      const queued = await enqueueResponseCheckpoint({
+        identity: {
+          studentId: user.id, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex,
+          questionId: question?.questionId || question?.id || '', variantIndex: currentRecord.variantIndex,
+          generationKey: `${activeAssignmentId}|${user.id}|${currentQuestionIndex}|variant:${currentRecord.variantIndex}`,
+        },
+        activityRole: activeQuestionRole,
+        answerState,
+        revision: now,
+        finalizeAt: close ? new Date(close).toISOString() : null,
+        finalizationReason: reason,
+        finalizationContext: { classId: user.classId || null, classPeriod: user.classPeriod || null },
+        submissionEnvelope: {
+          previousTotalAttempts: currentRecord.totalAttempts,
+          record: { ...outcome.record, submissionOrigin: 'deadline-auto-submit', finalizationReason: reason },
+          evidenceEvent,
+        },
+        capturedAt: now,
+      });
+      if (!queued) return;
+      setStudentOutboxDepth((depth) => depth + 1);
+      setStudentPersistenceStatus('queued');
+      void drainStudentOutbox();
+    } catch (error) {
+      console.error('Response checkpoint remains local:', error);
+      setStudentPersistenceStatus('volatile');
+    }
+  }, [activeAssignmentId, user, isTeacherPreview, assignments, activeQuestions, currentQuestionIndex, tracker, activeActivityPolicy, classSchedule, activeQuestionRole, studentLearningProfile]);
 
   const handleGradeSubmit = async (isCorrect, specificQuestionData, parts = [], supportUsage = null, responseKey = '', attemptMetadata = {}) => {
     if (!activeAssignmentId) return null;
@@ -7727,6 +7803,7 @@ function App() {
               generationKey={`${activeAssignmentId}|${generationStudentKey}|${currentQuestionIndex}|variant:${currentRecord.variantIndex}`}
               adaptation={currentAdaptation}
               onGrade={handleGradeSubmit}
+              onResponseCheckpoint={preview ? null : handleResponseCheckpoint}
               onStepGrade={handleStepGrade}
               onRequestNewQuestion={handleRequestNewQuestion}
               onLoadScratchpad={handleLoadScratchpad}
@@ -7773,15 +7850,18 @@ function App() {
             {!preview && studentPersistenceStatus !== 'idle' && (
               <p role="status" aria-live="polite" style={{ margin: '8px 4px 0', color: '#5f6368', fontSize: 12 }}>
                 {studentPersistenceStatus === 'capturing'
-                  ? 'Capturing this change on this device…'
+                  ? 'Saved on this device…'
                   : studentPersistenceStatus === 'queued'
                     ? `Saving ${studentOutboxDepth} queued change${studentOutboxDepth === 1 ? '' : 's'}… You may keep working.`
                     : studentPersistenceStatus === 'durable'
-                      ? 'Saved on the server.'
+                      ? 'Saved to MathMaster.'
                       : studentPersistenceStatus === 'rejected'
                         ? 'This change was not accepted because the assignment is no longer available.'
                         : 'This change is still only on screen. Please try again.'}
               </p>
+            )}
+            {!preview && ['warmup', 'dol'].includes(runtimeActivityRole) && (
+              <p style={{ margin: '8px 4px 0', color: '#5f6368', fontSize: 12 }}>Your latest completed response will be submitted automatically when time expires.</p>
             )}
           </main>
         </div>

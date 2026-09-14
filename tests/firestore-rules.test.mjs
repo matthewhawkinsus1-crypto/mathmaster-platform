@@ -16,7 +16,7 @@ import {
   assertFails,
   assertSucceeds,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, query, where } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, query, where, serverTimestamp } from 'firebase/firestore';
 
 const testEnv = await initializeTestEnvironment({
   projectId: 'mathmaster-rules-test',
@@ -48,6 +48,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(db, 'grades/S1042/scratchpads/a__question_0'), { dataUrl: 'x', authorizedTeacherEmails: [TEACHER_EMAIL] });
   await setDoc(doc(db, 'grades/S1042/scratchpads/a__question_delete'), { dataUrl: 'delete-me', authorizedTeacherEmails: [TEACHER_EMAIL] });
   await setDoc(doc(db, 'assignments/A1'), { title: 'Unit 1' });
+  await setDoc(doc(db, 'studentResponseCheckpoints/other-checkpoint'), { studentId: 'S2000', assignmentId: 'A1', questionIndex: 0, status: 'active' });
   await setDoc(doc(db, 'settings/classSchedule'), { periods: {} });
   await setDoc(doc(db, 'settings/gradingPeriods'), {
     periods: [{ id: '2026-mp1', label: 'Marking Period 1', order: 1, archived: false }],
@@ -349,6 +350,18 @@ await check('student CANNOT write teacher review notes', assertFails(setDoc(revi
 await check('roleless user CANNOT read teacher review notes', assertFails(getDoc(reviewDoc(roleless, 'teacher-uid__A1'))));
 await check('anonymous CANNOT read teacher review notes', assertFails(getDoc(reviewDoc(anon, 'teacher-uid__A1'))));
 await check('root admin reads any teacher review notes', assertSucceeds(getDoc(reviewDoc(rootAdmin, 'teacher-uid__A1'))));
+
+const checkpointDoc = (db, id) => doc(db, `studentResponseCheckpoints/${id}`);
+const ownCheckpoint = {
+  documentId: 'own-checkpoint', schemaVersion: 1, studentId: 'S1042', assignmentId: 'A1',
+  questionIndex: 0, questionId: 'q1', variantIndex: 0, generationKey: 'A1|S1042|0|0', revision: 1,
+  secure: false, status: 'active', capturedAt: serverTimestamp(), serverAcknowledgedAt: serverTimestamp(),
+};
+await check('student creates own ordinary checkpoint', assertSucceeds(setDoc(checkpointDoc(student, 'own-checkpoint'), ownCheckpoint)));
+await check('student reads own checkpoint', assertSucceeds(getDoc(checkpointDoc(student, 'own-checkpoint'))));
+await check('student CANNOT read another student checkpoint', assertFails(getDoc(checkpointDoc(student, 'other-checkpoint'))));
+await check('student CANNOT create checkpoint for another student', assertFails(setDoc(checkpointDoc(student, 'forged-checkpoint'), { ...ownCheckpoint, documentId: 'forged-checkpoint', studentId: 'S2000' })));
+await check('student CANNOT put secure exam work in ordinary checkpoints', assertFails(setDoc(checkpointDoc(student, 'secure-checkpoint'), { ...ownCheckpoint, documentId: 'secure-checkpoint', secure: true })));
 
 /*
  * A review screenshot is a picture of a student-facing screen, captured by a

@@ -160,6 +160,7 @@ export default function QuestionEngine({
   // the result, and the tools are told not to show a verdict of their own.
   //   { pathToolId, submit(rawWork, supportUsage, meta) -> feedback }
   serverGrading = null,
+  onResponseCheckpoint = null,
 }) {
   useRenderPerformance('QuestionEngine', String(question?.toolId || question?.type || 'question'));
   const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
@@ -247,6 +248,25 @@ export default function QuestionEngine({
   const previousSectionCompleteRef = useRef(Boolean(sectionComplete));
   const [sectionCompletionCelebrating, setSectionCompletionCelebrating] = useState(false);
   const questionEngineRef = useRef(null);
+  const checkpointTimerRef = useRef(null);
+  const latestAnswerStateRef = useRef(answerState);
+  latestAnswerStateRef.current = answerState;
+
+  useEffect(() => {
+    if (!onResponseCheckpoint || serverGrading || typeof document === 'undefined') return undefined;
+    const flush = () => {
+      const latest = latestAnswerStateRef.current;
+      if (latest.isComplete && latest.responseKey) onResponseCheckpoint(latest, { reason: 'page-lifecycle' });
+    };
+    const visibility = () => { if (document.visibilityState === 'hidden') flush(); };
+    document.addEventListener('visibilitychange', visibility);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', visibility);
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+  }, [onResponseCheckpoint, serverGrading]);
 
   useEffect(() => {
     const wasComplete = previousSectionCompleteRef.current;
@@ -331,6 +351,12 @@ export default function QuestionEngine({
   const isCorrect = record.status === 'correct' || feedback?.status === 'correct';
   const isExpired = record.status === 'expired' || feedback?.expired;
   const locked = Boolean(isCorrect || isExpired || assignmentLocked);
+  useEffect(() => {
+    if (!onResponseCheckpoint || serverGrading || locked || !answerState.isComplete || !answerState.responseKey) return undefined;
+    window.clearTimeout(checkpointTimerRef.current);
+    checkpointTimerRef.current = window.setTimeout(() => onResponseCheckpoint(answerState, { reason: 'debounce' }), 1200);
+    return () => window.clearTimeout(checkpointTimerRef.current);
+  }, [answerState, onResponseCheckpoint, serverGrading, locked]);
   const sameIncorrectResponse =
     record.status === 'attempted' &&
     Boolean(answerState.responseKey) &&

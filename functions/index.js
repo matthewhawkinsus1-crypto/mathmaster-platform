@@ -72,6 +72,7 @@ const studentSessionSummary = require("./lib/studentSessionSummary");
 const fullAssignmentRepair = require("./lib/fullAssignmentRepair");
 const assignmentContentVersion = require("./lib/assignmentContentVersion");
 const assignmentContentTrackerMigration = require("./lib/assignmentContentTrackerMigration");
+const { decideCheckpointFinalization } = require("./lib/responseCheckpointFinalizer");
 
 // HTTPS/callable transport must be reachable by the Firebase client SDK.
 // MathMaster authorization still happens INSIDE each callable through
@@ -159,6 +160,81 @@ function safePdfFileName(value, fallback = "MathMaster_Student_Notes.pdf") {
 const assignmentAudience = (assignment = {}) => ({
   classIds: [...new Set((Array.isArray(assignment.assignedClassIds) ? assignment.assignedClassIds : [])
     .map(String).map((value) => value.trim()).filter(Boolean))],
+});
+
+// Batch finalization is authoritative and independent of an open student tab.
+// Checkpoints leave the active query immediately, so retries are bounded and
+// the grades trigger remains the single Classroom passback wake-up path.
+exports.finalizeStudentResponseCheckpoints = onSchedule({ schedule: "every 1 minutes", timeZone: "America/Chicago" }, async () => {
+  const db = getFirestore();
+  const now = Date.now();
+  const due = await db.collection("studentResponseCheckpoints")
+    .where("status", "==", "active")
+    .where("candidateFinalizeAt", "<=", new Date(now))
+    .orderBy("candidateFinalizeAt")
+    .limit(250)
+    .get();
+  let finalized = 0;
+  for (const snapshot of due.docs) {
+    await db.runTransaction(async (transaction) => {
+      const checkpointSnapshot = await transaction.get(snapshot.ref);
+      if (!checkpointSnapshot.exists) return;
+      const checkpoint = checkpointSnapshot.data();
+      const assignmentRef = db.collection("assignments").doc(String(checkpoint.assignmentId));
+      const gradeRef = db.collection("grades").doc(String(checkpoint.studentId));
+      const [assignmentSnapshot, gradeSnapshot] = await Promise.all([
+        transaction.get(assignmentRef), transaction.get(gradeRef),
+      ]);
+      if (!assignmentSnapshot.exists || !gradeSnapshot.exists) {
+        transaction.update(snapshot.ref, { status: "invalid-context", candidateFinalizeAt: null, finalizedAt: FieldValue.serverTimestamp() });
+        return;
+      }
+      const assignment = assignmentSnapshot.data();
+      const gradeData = gradeSnapshot.data();
+      const authorizedClass = !checkpoint.finalizationContext?.classId
+        || String(gradeData.classId || "") === String(checkpoint.finalizationContext.classId);
+      const authoritativeQuestion = runtimeQuestionsFromAssignment(assignment)?.[Number(checkpoint.questionIndex)];
+      const expectedQuestionId = authoritativeQuestion?.questionId || authoritativeQuestion?.id || null;
+      if (!authorizedClass || (checkpoint.questionId && expectedQuestionId && checkpoint.questionId !== expectedQuestionId)) {
+        transaction.update(snapshot.ref, { status: "invalid-context", candidateFinalizeAt: null, finalizedAt: FieldValue.serverTimestamp() });
+        return;
+      }
+      const gradeRecord = gradeData?.gradesByAssignment?.[checkpoint.assignmentId]?.[checkpoint.questionIndex] || {};
+      const decision = decideCheckpointFinalization({ checkpoint, assignment, gradeRecord, now });
+      if (decision.action === "reschedule") {
+        transaction.update(snapshot.ref, { candidateFinalizeAt: new Date(decision.finalizeAt), rescheduledAt: FieldValue.serverTimestamp() });
+        return;
+      }
+      if (decision.action === "hold" || decision.action === "skip") return;
+      const receipt = {
+        checkpointRevision: checkpoint.revision,
+        cutoff: decision.cutoff ? new Date(decision.cutoff) : null,
+        finalizedAt: FieldValue.serverTimestamp(),
+        origin: "deadline-auto-submit",
+        reason: decision.reason || checkpoint.finalizationReason || null,
+        resultingSubmissionId: `deadline:${snapshot.id}:${checkpoint.revision}`,
+        status: decision.status || "auto-submitted",
+      };
+      if (decision.action === "finalize") {
+        const record = checkpoint.submissionEnvelope?.record;
+        if (!record) {
+          transaction.update(snapshot.ref, { status: "invalid-envelope", candidateFinalizeAt: null, finalizationReceipt: receipt });
+          return;
+        }
+        transaction.update(gradeRef,
+          new FieldPath("gradesByAssignment", checkpoint.assignmentId, String(checkpoint.questionIndex)),
+          { ...record, lastSubmissionId: receipt.resultingSubmissionId, submissionOrigin: "deadline-auto-submit", finalizationReason: decision.reason },
+        );
+        const evidence = checkpoint.submissionEnvelope?.evidenceEvent;
+        if (evidence?.eventKey) {
+          transaction.set(gradeRef.collection("evidenceEvents").doc(String(evidence.eventKey)), evidence, { merge: false });
+        }
+        finalized += 1;
+      }
+      transaction.update(snapshot.ref, { status: decision.status || "finalized", candidateFinalizeAt: null, finalizationReceipt: receipt });
+    });
+  }
+  logger.info("Deadline response checkpoint batch complete", { examined: due.size, finalized });
 });
 
 const studentMatchesAssignmentAudience = ({ assignment = {}, classId = null } = {}) => {

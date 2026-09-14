@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "studentResponseCheckpoints",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "candidateFinalizeAt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "studentSupportEvents",
       "queryScope": "COLLECTION",
       "fields": [

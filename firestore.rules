@@ -302,6 +302,35 @@ service cloud.firestore {
       allow create, update, delete: if teacher();
     }
 
+    // Ordinary response checkpoints are drafts, never grades. The server
+    // acknowledgement uses request.time so a browser cannot backdate offline
+    // work across a cutoff. Secure/Test Cycle responses are rejected here and
+    // remain in their dedicated server-owned state machines.
+    match /studentResponseCheckpoints/{checkpointId} {
+      allow read: if rootAdmin() || ownsStudent(resource.data.studentId);
+      allow create: if ownsStudent(request.resource.data.studentId)
+        && request.resource.data.documentId == checkpointId
+        && request.resource.data.secure == false
+        && request.resource.data.schemaVersion == 1
+        && request.resource.data.capturedAt == request.time
+        && request.resource.data.serverAcknowledgedAt == request.time
+        && request.resource.data.status == 'active';
+      allow update: if ownsStudent(resource.data.studentId)
+        && request.resource.data.studentId == resource.data.studentId
+        && request.resource.data.assignmentId == resource.data.assignmentId
+        && request.resource.data.questionIndex == resource.data.questionIndex
+        && request.resource.data.questionId == resource.data.questionId
+        && request.resource.data.variantIndex == resource.data.variantIndex
+        && request.resource.data.generationKey == resource.data.generationKey
+        && request.resource.data.documentId == checkpointId
+        && request.resource.data.secure == false
+        && request.resource.data.revision >= resource.data.revision
+        && request.resource.data.capturedAt == request.time
+        && request.resource.data.serverAcknowledgedAt == request.time
+        && request.resource.data.status == 'active';
+      allow delete: if false;
+    }
+
     // Broken or unfinished authoring drafts never enter the shared assignments
     // collection. They are visible only to the teacher who owns the draft (or
     // the root administrator). Ownership is immutable from the client so one
