@@ -71,7 +71,7 @@ test('model-so-far keeps graph labels after the axis stage', () => {
   assert.match(items[0].text, /y by 12/);
 });
 
-test('WorkflowRunner uses one active workspace while keeping every stage mounted', async () => {
+test('WorkflowRunner keeps one active workspace and does not run hidden delegated tools', async () => {
   const source = await readFile(new URL('../../src/platform/workflow/WorkflowRunner.jsx', import.meta.url), 'utf8');
   // The AUTHORED workflow, not the visible one. Stages can be hidden by a
   // `showWhen` branch, and deciding focus mode from the visible list would flip
@@ -90,6 +90,9 @@ test('WorkflowRunner uses one active workspace while keeping every stage mounted
   assert.match(source, /workflow-focus__workspace/);
   assert.match(source, /workflow\.map\(\(stage, index\) => renderStage\(stage, index, \{ focused: index === safeActiveIndex \}\)\)/);
   assert.match(source, /workflow-focus__stage-shell--active/);
+  assert.match(source, /focusMode && !focused && DELEGATES\[stage\.kind\]/,
+    'a future graph/tool step may have a hidden shell, but its live delegated component must not mount');
+  assert.match(source, /aria-hidden="true"/);
   assert.match(source, /onProgressChangeRef\.current/);
   assert.match(source, /activeStageIndex/);
 });
@@ -99,4 +102,14 @@ test('focus navigation does not imply that answered means correct', async () => 
   assert.match(source, /, answered'/);
   assert.doesNotMatch(source, /, correct'/);
   assert.match(source, /steps answered/);
+});
+
+
+test('persisted draft no-op updates preserve object identity instead of forcing render loops', async () => {
+  const source = await readFile(new URL('../../src/useLocalDraftState.js', import.meta.url), 'utf8');
+  assert.match(source, /if \(Object\.is\(resolved, current\)\) return current;/);
+  assert.ok(
+    source.indexOf('Object.is(resolved, current)') < source.indexOf('const saved = cloneValue(resolved)'),
+    'identity must be checked before cloning, otherwise an unchanged object becomes a render-triggering new reference',
+  );
 });
