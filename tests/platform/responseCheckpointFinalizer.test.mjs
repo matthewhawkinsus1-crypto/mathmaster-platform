@@ -908,7 +908,7 @@ test('the page-lifecycle flush obeys the same eligibility rules as the debounce'
   const start = engineSource.indexOf('DEADLINE RESPONSE CHECKPOINTING');
   const block = engineSource.slice(start, engineSource.indexOf('const isMultipart', start));
   // One decision, read by both paths.
-  assert.match(block, /const checkpointAllowed = Boolean\(onResponseCheckpoint\)[\s\S]*?!serverGrading[\s\S]*?!locked[\s\S]*?!submitting[\s\S]*?!responseAlreadySubmitted/);
+  assert.match(block, /const checkpointAllowed = Boolean\(onResponseCheckpoint\)[\s\S]*?!serverGrading[\s\S]*?!locked[\s\S]*?!submitting[\s\S]*?!submissionInFlightRef\.current[\s\S]*?!responseAlreadySubmitted/);
   assert.match(block, /checkpointPendingRef\.current = \{ eligible: checkpointPending/);
   assert.match(block, /flushResponseCheckpoint\('page-lifecycle'\)/);
   assert.match(block, /flushResponseCheckpoint\('debounce'\)/);

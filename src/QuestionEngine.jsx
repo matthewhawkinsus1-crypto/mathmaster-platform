@@ -363,7 +363,11 @@ export default function QuestionEngine({
   const checkpointAllowed = Boolean(onResponseCheckpoint)
     && !serverGrading
     && !locked
+    // `submitting` is state and arrives a render later; the ref flips the
+    // instant Submit is pressed. A pagehide in that gap must not checkpoint
+    // work that is already becoming an attempt.
     && !submitting
+    && !submissionInFlightRef.current
     && !responseAlreadySubmitted;
   const checkpointPending = checkpointAllowed
     && (Boolean(answerState.isComplete && answerState.responseKey) || checkpointWrittenRef.current);
@@ -786,7 +790,12 @@ export default function QuestionEngine({
               a tool joins it with `useMathUndoHistory`. */}
           <Suspense fallback={<p role="status">Opening Work View…</p>}>
             <WorkViewReadySignal span={workViewSpan} />
-            <Tool questionData={presentationQuestion} onAction={handleMissingToolAction} />
+            {/* `draftKey` is the seam a registry tool adopts to make its own
+                workspace survive a device restart: useLocalDraftState or
+                useUndoHistory under this key is backed up automatically. No
+                registry tool has adopted it yet — see
+                docs/handoffs/RESPONSE_CHECKPOINT_COMPATIBILITY.md. */}
+            <Tool questionData={presentationQuestion} onAction={handleMissingToolAction} draftKey={draftKey} />
           </Suspense>
         </ToolRuntimeProvider>
       );
