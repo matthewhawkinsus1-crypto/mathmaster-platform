@@ -4732,6 +4732,17 @@ async function publishAssignmentBatch(request) {
     throw new HttpsError("not-found", "Assignment not found.");
   }
   const assignment = assignmentSnap.data();
+  if ((await testCycleLib.shared()).policy.declaresTestCycle(assignment)) {
+    const loaded = await loadTestCycleAssignment(db, assignmentId, { allowInvalid: true });
+    const { result: cyclePreflight } = await runTestCyclePreflight(db, loaded);
+    if (cyclePreflight.blocked) {
+      throw new HttpsError(
+        "failed-precondition",
+        `This Test Cycle cannot be published: ${cyclePreflight.errors[0]}`,
+        { preflight: cyclePreflight },
+      );
+    }
+  }
   const audience = assignmentAudience(assignment);
   if (!audience.classIds.length) {
     throw new HttpsError(
@@ -10518,6 +10529,34 @@ function testCycleRecordKey(assignmentId, studentId) {
   return `${String(assignmentId || "").trim()}__${String(studentId || "").trim()}`;
 }
 
+async function resolveSecureTestBlueprint(db, assignment, shared) {
+  const embedded = shared.blueprint.normalizeTestBlueprint(assignment?.testBlueprint);
+  if (embedded.targets.length) {
+    return { blueprint: embedded, blueprintSource: assignment.testBlueprint, secureReferencePresent: false, secureReferenceResolved: false, secureManifestId: null };
+  }
+  const secureManifestId = String(
+    assignment?.secureTestReference?.manifestId
+      || assignment?.secureTestReference?.blueprintId
+      || assignment?.secureTestReference?.id
+      || "",
+  ).trim();
+  if (!secureManifestId) {
+    return { blueprint: embedded, blueprintSource: null, secureReferencePresent: false, secureReferenceResolved: false, secureManifestId: null };
+  }
+  const manifestSnapshot = await db.collection("secureTestManifests").doc(secureManifestId).get();
+  const blueprintSource = manifestSnapshot.exists
+    ? manifestSnapshot.data()?.testBlueprint || manifestSnapshot.data()?.blueprint
+    : null;
+  const blueprint = shared.blueprint.normalizeTestBlueprint(blueprintSource);
+  return {
+    blueprint,
+    blueprintSource,
+    secureReferencePresent: true,
+    secureReferenceResolved: blueprint.targets.length > 0,
+    secureManifestId,
+  };
+}
+
 async function loadTestCycleAssignment(db, assignmentId, { allowInvalid = false } = {}) {
   const id = String(assignmentId || "").trim();
   if (!id || id.length > 180) throw new HttpsError("invalid-argument", "A valid assignmentId is required.");
@@ -10539,18 +10578,8 @@ async function loadTestCycleAssignment(db, assignmentId, { allowInvalid = false 
   // A secure reference contains only an opaque manifest id in the assignment
   // students can read. The actual blueprint remains in a server-only
   // collection and is resolved here, never serialized by this callable.
-  let blueprintSource = assignment.testBlueprint;
-  const secureManifestId = String(
-    assignment.secureTestReference?.manifestId
-      || assignment.secureTestReference?.blueprintId
-      || assignment.secureTestReference?.id
-      || "",
-  ).trim();
-  if (!shared.blueprint.normalizeTestBlueprint(blueprintSource).targets.length && secureManifestId) {
-    const manifestSnapshot = await db.collection("secureTestManifests").doc(secureManifestId).get();
-    if (manifestSnapshot.exists) blueprintSource = manifestSnapshot.data()?.testBlueprint || manifestSnapshot.data()?.blueprint;
-  }
-  const blueprint = shared.blueprint.normalizeTestBlueprint(blueprintSource);
+  const resolution = await resolveSecureTestBlueprint(db, assignment, shared);
+  const { blueprint, blueprintSource, secureManifestId } = resolution;
   if (!blueprint.targets.length) {
     console.error("test_cycle_contract_invalid", {
       assignmentId: id,
@@ -10570,6 +10599,7 @@ async function loadTestCycleAssignment(db, assignmentId, { allowInvalid = false 
     assignment: resolvedAssignment,
     policy: policy || shared.policy.defaultTestCyclePolicy(),
     blueprint,
+    secureReferenceResolved: resolution.secureReferenceResolved,
     shared,
   };
 }
@@ -10632,12 +10662,12 @@ async function testCycleFamilyIssuability(families) {
   return verdicts;
 }
 
-async function runTestCyclePreflight(db, { assignment, policy, blueprint, shared }) {
+async function runTestCyclePreflight(db, { assignment, policy, blueprint, shared, secureReferenceResolved = false }) {
   const families = await resolveBlueprintFamilies(db, blueprintFamilyIds(blueprint));
   const familyIssuability = await testCycleFamilyIssuability(families);
   return {
     families,
-    result: shared.preflight.preflightTestCycle({ assignment, policy, blueprint, families, familyIssuability }),
+    result: shared.preflight.preflightTestCycle({ assignment, policy, blueprint, families, familyIssuability, secureReferenceResolved }),
   };
 }
 
@@ -10889,7 +10919,7 @@ exports.assignTestCycleSessions = onCall(async (request) => {
   const assignmentSnapshot = await db.collection("assignments").doc(String(request.data?.assignmentId || "").trim()).get();
   if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
   const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
-  const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
+  const { assignmentId, assignment, policy, blueprint, secureReferenceResolved, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
 
   /*
    * THE AUDIENCE IS THE ASSIGNMENT'S, NOT THE CALLER'S.
@@ -10914,7 +10944,7 @@ exports.assignTestCycleSessions = onCall(async (request) => {
 
   // Only once the caller is pointing at the right class is it worth generating
   // and grading sample instances for every declared family.
-  const { families, result: preflight } = await runTestCyclePreflight(db, { assignment, policy, blueprint, shared });
+  const { families, result: preflight } = await runTestCyclePreflight(db, { assignment, policy, blueprint, shared, secureReferenceResolved });
   if (preflight.blocked) {
     // Refused before a single session exists. A Test Cycle that cannot issue
     // equivalent secure coverage for every student must not reach a classroom.
@@ -11017,9 +11047,34 @@ exports.assignTestCycleSessions = onCall(async (request) => {
 exports.preflightTestCycleAssignment = onCall(async (request) => {
   const db = getFirestore();
   await requireTeacher(request);
-  const { assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
-  const { result } = await runTestCyclePreflight(db, { assignment, policy, blueprint, shared });
+  const { assignment, policy, blueprint, secureReferenceResolved, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
+  const { result } = await runTestCyclePreflight(db, { assignment, policy, blueprint, shared, secureReferenceResolved });
   return { success: true, preflight: result };
+});
+
+/** Authoritative pre-save gate used only for Test Cycle candidates. */
+exports.preflightTestCycleCandidate = onCall(async (request) => {
+  await requireTeacher(request);
+  const assignment = request.data?.assignment;
+  if (!assignment || typeof assignment !== "object" || Array.isArray(assignment)) {
+    throw new HttpsError("invalid-argument", "A Test Cycle assignment candidate is required.");
+  }
+  const db = getFirestore();
+  const shared = await testCycleLib.shared();
+  if (!shared.policy.declaresTestCycle(assignment)) {
+    return { success: true, testCycle: false, preflight: null };
+  }
+  const policy = shared.policy.normalizeTestCyclePolicy(assignment.assessmentPolicy)
+    || shared.policy.defaultTestCyclePolicy();
+  const resolution = await resolveSecureTestBlueprint(db, assignment, shared);
+  const { result } = await runTestCyclePreflight(db, {
+    assignment,
+    policy,
+    blueprint: resolution.blueprint,
+    shared,
+    secureReferenceResolved: resolution.secureReferenceResolved,
+  });
+  return { success: true, testCycle: true, preflight: result };
 });
 
 /**

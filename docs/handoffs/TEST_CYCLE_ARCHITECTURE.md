@@ -30,11 +30,26 @@ structured contract diagnostic while returning a student-safe unavailable
 message. It never manufactures a Test from prose or marks Review as cycle
 completion.
 
+An opaque reference being present is not the same as it resolving. Pure V5
+inspection reports `secureReferencePresent` but leaves
+`secureReferenceResolved` and `testResolvable` false. Before the browser saves
+or assigns a Test Cycle, `preflightTestCycleCandidate` loads the referenced
+`secureTestManifests/{id}` document and validates the resulting blueprint with
+the same family/private-grading gate used for session creation. A missing or
+invalid document blocks with `TEST_CYCLE_SECURE_MANIFEST_NOT_FOUND`. The Google
+Classroom publisher repeats this authoritative gate, so an alternate publishing
+route cannot bypass it. Ordinary assignments make neither Test Cycle call.
+
 Every card receives a question-free four-phase status strip from the same
 shared stage module used by Functions. It can explain a lock and announce a
 ready Test, but it cannot grant entry: `startSecureExamSession` still resolves
 the persisted record and Review progress on the server before loading any
 secure question.
+
+Teacher Assignment Preflight uses that same shared phase projection for “See
+it as a student.” Its Review-complete simulation is component-only preview
+state: it writes no grade, Test Cycle record, secure session, or browser draft,
+and it never resolves or loads secure questions.
 
 ## The rule everything else serves
 

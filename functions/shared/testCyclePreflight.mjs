@@ -32,30 +32,35 @@ const list = (value) => (Array.isArray(value) ? value : []);
 export const TEST_CYCLE_DIAGNOSTIC = Object.freeze({
   TEST_PHASE_MISSING: 'TEST_CYCLE_TEST_PHASE_MISSING',
   POLICY_MISSING: 'TEST_CYCLE_POLICY_MISSING',
+  SECURE_MANIFEST_NOT_FOUND: 'TEST_CYCLE_SECURE_MANIFEST_NOT_FOUND',
 });
 
 const diagnostic = (code, message) => `${code}: ${message}`;
 
 /** Safe, question-free description of whether the secure Test can resolve. */
-export const inspectTestCycleContract = (assignment = {}) => {
+export const inspectTestCycleContract = (assignment = {}, { secureReferenceResolved = false } = {}) => {
   const declared = declaresTestCycle(assignment);
   const blueprint = normalizeTestBlueprint(assignment?.testBlueprint);
   const secureReference = isObject(assignment?.secureTestReference)
     ? assignment.secureTestReference
     : null;
   const secureReferenceId = clean(secureReference?.blueprintId || secureReference?.manifestId || secureReference?.id);
-  const embeddedManifest = blueprint.targets.length > 0;
+  const embeddedBlueprintPresent = blueprint.targets.length > 0;
+  const secureReferencePresent = Boolean(secureReferenceId);
   return Object.freeze({
     declared,
     policyConfigured: Boolean(normalizeTestCyclePolicy(assignment?.assessmentPolicy)),
-    testResolvable: embeddedManifest || Boolean(secureReferenceId),
-    resolution: embeddedManifest ? 'testBlueprint' : secureReferenceId ? 'secureTestReference' : null,
+    embeddedBlueprintPresent,
+    secureReferencePresent,
+    secureReferenceResolved: secureReferencePresent && secureReferenceResolved === true,
+    testResolvable: embeddedBlueprintPresent || (secureReferencePresent && secureReferenceResolved === true),
+    resolution: embeddedBlueprintPresent ? 'testBlueprint' : secureReferencePresent && secureReferenceResolved ? 'secureTestReference' : null,
     secureReferenceId: secureReferenceId || null,
     // This contains status metadata only. It never includes blueprint targets,
     // families, questions, seeds, answers, or grading definitions.
     phases: Object.freeze({
       review: Object.freeze({ configured: list(assignment?.sections).some((s) => clean(s?.role).toLowerCase() === 'review') }),
-      test: Object.freeze({ configured: embeddedManifest || Boolean(secureReferenceId), secure: true }),
+      test: Object.freeze({ configured: embeddedBlueprintPresent || secureReferencePresent, secure: true }),
       corrections: Object.freeze({ configured: true, policyDriven: true }),
       retest: Object.freeze({ configured: true, policyDriven: true, secure: true }),
     }),
@@ -108,10 +113,11 @@ export const preflightTestCycle = ({
   blueprint = null,
   families = [],
   familyIssuability = {},
+  secureReferenceResolved = false,
 } = {}) => {
   const errors = [];
   const warnings = [];
-  const contract = inspectTestCycleContract(assignment || {});
+  const contract = inspectTestCycleContract(assignment || {}, { secureReferenceResolved });
   const resolved = normalizeTestCyclePolicy(policy || assignment?.assessmentPolicy)
     || (contract.declared ? defaultTestCyclePolicy() : null);
 
@@ -125,7 +131,12 @@ export const preflightTestCycle = ({
       'This V5 assignment declares a Test Cycle but is missing assessmentPolicy.mode "testCycle".',
     ));
   }
-  if (!contract.testResolvable) {
+  if (contract.secureReferencePresent && !contract.secureReferenceResolved && !contract.embeddedBlueprintPresent) {
+    errors.push(diagnostic(
+      TEST_CYCLE_DIAGNOSTIC.SECURE_MANIFEST_NOT_FOUND,
+      `Secure Test reference "${contract.secureReferenceId}" exists but the server could not resolve it to a valid Test blueprint.`,
+    ));
+  } else if (!contract.testResolvable) {
     errors.push(diagnostic(
       TEST_CYCLE_DIAGNOSTIC.TEST_PHASE_MISSING,
       'This assignment is configured as a Test Cycle but no Test phase or secure Test reference can be resolved. Add/provision the Test before publishing.',

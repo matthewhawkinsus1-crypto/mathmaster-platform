@@ -76,6 +76,12 @@ export const preflightTestCycleAssignment = async ({ assignmentId }) => {
   return call('preflightTestCycleAssignment', { assignmentId });
 };
 
+/** Authoritative pre-save validation for an assignment not in Firestore yet. */
+export const preflightTestCycleCandidate = async ({ assignment }) => {
+  if (isSandbox()) return { success: true, testCycle: true, preflight: { errors: [], warnings: [], checks: [], blocked: false } };
+  return call('preflightTestCycleCandidate', { assignment });
+};
+
 export const listTeacherTestCycleRecords = async ({ assignmentId }) => {
   if (isSandbox()) return { success: true, assignmentId, rows: [] };
   return call('listTeacherTestCycleRecords', { assignmentId });

@@ -8,6 +8,11 @@ import {
 } from '../../platform/authoring/lessonPublishingIntent.js';
 import { defaultAssignmentDateInputs } from '../../platform/assignments/assignmentDateDefaults.js';
 import { buildAssignmentV5PreflightModel } from '../../platform/preflight/assignmentV5PreflightModel.js';
+import {
+  buildTestCyclePhaseStatus,
+  isTestCycleAssignment,
+  resolveTestCycleStage,
+} from '../../platform/assessment/testCycle.js';
 import InteractiveModelingLabPlayer from '../labs/InteractiveModelingLabPlayer.jsx';
 import { buildHonorsEnrichmentQuestion, inspectHonorsRigor } from '../../platform/rigor/courseRigor.js';
 import {
@@ -24,6 +29,7 @@ import {
   buildAssignmentWithAI,
   repairQuestionWithAI,
 } from '../../services/assignmentAiService.js';
+import { preflightTestCycleCandidate } from '../../services/testCycleService.js';
 import RepresentationAudit from './RepresentationAudit';
 import SectionBalanceRigorAudit from './SectionBalanceRigorAudit.jsx';
 import {
@@ -179,6 +185,8 @@ export const LessonPreflightModal = ({
   const [demoCalculator, setDemoCalculator] = useState(false);
   const [showDemoControls, setShowDemoControls] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewReviewComplete, setPreviewReviewComplete] = useState(false);
+  const [serverCyclePreflight, setServerCyclePreflight] = useState(null);
   const [honorsEnrichmentQuestion, setHonorsEnrichmentQuestion] = useState(null);
   const [honorsAiBusy, setHonorsAiBusy] = useState(false);
   const [honorsAiMessage, setHonorsAiMessage] = useState('');
@@ -213,6 +221,32 @@ export const LessonPreflightModal = ({
   const hasAuthoredWarmup = activityRoles.includes('warmup');
   const hasAuthoredDOL = activityRoles.includes('dol');
   const previewQuestions = preflightModel.questions;
+  const testCyclePreview = useMemo(() => {
+    if (!isTestCycleAssignment(effectiveAssignmentV5)) return null;
+    const record = { review: { required: true }, test: { examSessionId: 'teacher-preview-secure-test', state: 'assigned' } };
+    const state = resolveTestCycleStage({
+      policy: effectiveAssignmentV5.assessmentPolicy || { mode: 'testCycle' },
+      record,
+      reviewProgress: { total: 1, attempted: previewReviewComplete ? 1 : 0, complete: previewReviewComplete },
+    });
+    return { state, phases: buildTestCyclePhaseStatus({ state, record }) };
+  }, [effectiveAssignmentV5, previewReviewComplete]);
+  useEffect(() => {
+    let active = true;
+    if (!isTestCycleAssignment(effectiveAssignmentV5)) {
+      setServerCyclePreflight(null);
+      return () => { active = false; };
+    }
+    setServerCyclePreflight({ loading: true, blocked: true, checks: [], errors: [] });
+    preflightTestCycleCandidate({ assignment: effectiveAssignmentV5 })
+      .then((response) => {
+        if (active) setServerCyclePreflight({ ...(response.preflight || {}), loading: false });
+      })
+      .catch((error) => {
+        if (active) setServerCyclePreflight({ loading: false, blocked: true, checks: [], errors: [error.message || 'Secure Test validation could not be completed.'] });
+      });
+    return () => { active = false; };
+  }, [effectiveAssignmentV5]);
   const publishingValidation = useMemo(
     () => validateLessonPublishingIntent(publishingIntent),
     [publishingIntent],
@@ -640,7 +674,9 @@ export const LessonPreflightModal = ({
       : [...currentIds, classRecord.classId]);
   };
 
-  const canCreate = readiness.canCreate && !busy;
+  const canCreate = readiness.canCreate
+    && !busy
+    && (!testCyclePreview || (serverCyclePreflight?.loading === false && serverCyclePreflight.blocked !== true));
   const isUpdateMode = reviewMode === 'update';
   // The button says which of the two actions it performs. A teacher who has
   // selected no class is saving to the library, and the label should not
@@ -1272,6 +1308,22 @@ export const LessonPreflightModal = ({
 
   const studentPreview = (
     <>
+      {testCyclePreview && (
+        <section aria-label="Test Cycle student preview" style={{ display: 'grid', gap: 9, marginBottom: 16 }}>
+          <strong>Test Cycle phases</strong>
+          {testCyclePreview.phases.map((phase) => (
+            <div key={phase.id} data-preview-test-cycle-phase={phase.id} data-phase-status={phase.status} style={{ padding: 10, border: '1px solid #e0e0e0', borderRadius: 8 }}>
+              <strong>{phase.label}</strong> — {phase.status === 'notRequired' ? 'Not required' : phase.status[0].toUpperCase() + phase.status.slice(1)}
+              {phase.reason && <div style={{ color: '#5f6368', marginTop: 4 }}>{phase.reason}</div>}
+            </div>
+          ))}
+          {testCyclePreview.state.stage === 'test' && testCyclePreview.state.canEnter && <div role="status">Test unlocked — your Review is complete. Start Test</div>}
+          <button type="button" onClick={() => setPreviewReviewComplete((value) => !value)}>
+            {previewReviewComplete ? 'Reset Review preview' : 'Simulate Review complete'}
+          </button>
+          <small>This preview is isolated. It does not create or update student Test Cycle records, and secure questions are not loaded.</small>
+        </section>
+      )}
       {!currentActivity && <p>No sections are available to preview.</p>}
       {currentActivity && !currentQuestion && !currentActivity.isModelingLab && <p>This section has no questions to preview.</p>}
       {currentActivity?.isModelingLab && <InteractiveModelingLabPlayer rawLabSpec={currentActivity.labDefinition} executionScope="teacherPreview" />}
@@ -1392,6 +1444,13 @@ export const LessonPreflightModal = ({
           it stays unmounted until the teacher asks for it. The old layout got
           this for free by putting it behind a tab; every section is on the page
           at once now, so the gate has to be explicit. */}
+      {testCyclePreview && serverCyclePreflight && (
+        <section aria-label="Authoritative Test Cycle preflight" style={{ ...fieldsetStyle, background: serverCyclePreflight.blocked ? '#fff8f7' : '#f0f8f1' }}>
+          <strong>{serverCyclePreflight.loading ? 'Resolving secure Test…' : serverCyclePreflight.blocked ? 'Test Cycle cannot be published' : 'Test Cycle server preflight passed'}</strong>
+          {(serverCyclePreflight.checks || []).map((check) => <div key={check.id}>{check.passed ? '✓' : '✗'} {check.label}</div>)}
+          {(serverCyclePreflight.errors || []).map((error) => <div key={error} role="alert" style={{ color: '#a50e0e' }}>{error}</div>)}
+        </section>
+      )}
       <fieldset style={{ ...fieldsetStyle, marginTop: 0, padding: 0 }}>
         <legend style={legendStyle}>See it as a student</legend>
         <button

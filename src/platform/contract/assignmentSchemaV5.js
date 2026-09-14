@@ -316,7 +316,7 @@ export const validateAssignmentV5 = (input = {}, { requireQuestions = true } = {
   if (cycleContract.declared && !cycleContract.policyConfigured) {
     errors.push(`${TEST_CYCLE_DIAGNOSTIC.POLICY_MISSING}: Test Cycle assignments require assessmentPolicy.mode "testCycle".`);
   }
-  if (cycleContract.declared && !cycleContract.testResolvable) {
+  if (cycleContract.declared && !cycleContract.embeddedBlueprintPresent && !cycleContract.secureReferencePresent) {
     errors.push(`${TEST_CYCLE_DIAGNOSTIC.TEST_PHASE_MISSING}: This assignment is configured as a Test Cycle but no Test phase or secure Test reference can be resolved. Add/provision the Test before publishing.`);
   }
 
