@@ -30,7 +30,7 @@
     "release:path:verify": "node scripts/build-course-path-release-v2.mjs --verify",
     "release:path:sync": "node scripts/sync-path-admin-runtime.mjs",
     "test:path-release": "node --test tests/platform/pathContentCompiler.test.mjs tests/platform/pathReleaseV2Plan.test.mjs tests/platform/pathReleaseV2Job.test.mjs tests/platform/pathReleaseV2Artifact.test.mjs tests/platform/pathReleaseV2AdminWiring.test.mjs tests/platform/pathAdminCodebaseIsolation.test.mjs",
-    "test:path-release:emulator": "firebase emulators:exec --only firestore --project mathmaster-path-release --config tests/browser/emulator/firebase.json \"node --test tests/integration/pathReleaseV2Resume.test.mjs\"",
+    "test:path-release:emulator": "firebase emulators:exec --only firestore --project mathmaster-path-release --config tests/browser/emulator/firebase.json \"node --test tests/integration/pathRelease/*.test.mjs\"",
     "deploy:path-admin": "npm run release:path:build && npm run release:path:sync && firebase deploy --only functions:path-admin"
   },
   "dependencies": {

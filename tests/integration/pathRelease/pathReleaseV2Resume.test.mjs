@@ -3,6 +3,14 @@
  *
  * HOW TO RUN:  npm run test:path-release:emulator
  *
+ * WHY THIS IS IN A SUBDIRECTORY. `npm run test:challenge-finish` runs
+ * `node --test tests/integration/*.test.mjs` — one emulator, every suite in that
+ * directory, in parallel. This suite stages 1,161 documents into
+ * `pathQuestionBank` and clears `pathCoverage` around itself, which is exactly
+ * the state the Live Challenge and Test Cycle certifications are reading. The
+ * glob is not recursive, so living one level down keeps both honest: they get an
+ * undisturbed database, and this gets a database it is allowed to own.
+ *
  * tests/platform proves the RULES with a Firestore stand-in: what the diff says,
  * which chunk resumes, what order activation and cleanup happen in. All of that
  * can be true while the release is broken, because none of it runs against a
@@ -21,7 +29,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const repo = path.resolve(here, '../..');
+const repo = path.resolve(here, '../../..');
 const require = createRequire(import.meta.url);
 
 assert.ok(

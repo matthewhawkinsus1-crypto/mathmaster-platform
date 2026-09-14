@@ -8,7 +8,7 @@
 // means in a test.
 //
 // It implements only the surface the release engine actually uses. An emulator
-// certification (tests/integration/pathReleaseV2Resume.test.mjs) proves the same
+// certification (tests/integration/pathRelease/pathReleaseV2Resume.test.mjs) proves the same
 // contracts against real Firestore.
 
 class InterruptedCommit extends Error {
