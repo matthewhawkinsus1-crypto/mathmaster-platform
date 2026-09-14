@@ -27,7 +27,7 @@ const continuityThenStudentGraph = (continuityGraph = undefined) => ([
     id: 'continuity',
     kind: 'classification',
     prompt: 'Is this discrete or continuous?',
-    choices: ['continuous', 'discrete'],
+    choices: ['discrete', 'continuous'],
     ...(continuityGraph ? { graph: continuityGraph } : {}),
   },
   {
