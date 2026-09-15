@@ -108,6 +108,30 @@ export const emptyQuestionRecord = () => ({
   },
 });
 
+/*
+ * WHEN THE STUDENT DID THE WORK — NOT WHEN THE SERVER HEARD ABOUT IT.
+ *
+ * Both recorders below used to stamp `new Date()` internally, which is right
+ * for a student pressing Submit and wrong for every recovery path: a response
+ * captured on September 14 and reconciled on September 15 was recorded as
+ * September 15. That moves a grade between instructional days, and for a DOL it
+ * moves it into the wrong date bucket entirely.
+ *
+ * So the ACADEMIC OCCURRENCE TIME is now a parameter. An ordinary caller omits
+ * it and gets the current time, exactly as before; a recovery caller passes the
+ * time it can prove the work happened. The server's own ingestion time is a
+ * different fact and lives on the receipt, never on the record.
+ */
+export const resolveOccurrenceIso = (occurredAt) => {
+  if (occurredAt === null || occurredAt === undefined || occurredAt === '') return new Date().toISOString();
+  const millis = occurredAt instanceof Date ? occurredAt.getTime() : Number(occurredAt);
+  if (!Number.isFinite(millis)) {
+    const parsed = Date.parse(String(occurredAt));
+    return Number.isFinite(parsed) ? new Date(parsed).toISOString() : new Date().toISOString();
+  }
+  return new Date(millis).toISOString();
+};
+
 const clampPercent = (value) =>
   Math.max(0, Math.min(100, Number.isFinite(Number(value)) ? Number(value) : 0));
 
@@ -239,8 +263,12 @@ export const recordQuestionStep = ({
   statePatch = {},
   supportUsage = null,
   maximumAttempts = MAX_ATTEMPTS_PER_QUESTION,
+  // The academic occurrence time. Omitted by an ordinary caller; supplied by
+  // every recovery path, which knows when the work actually happened.
+  occurredAt = null,
 }) => {
   const current = normalizeQuestionRecord(record);
+  const occurrenceIso = resolveOccurrenceIso(occurredAt);
 
   if (current.status === 'correct' || current.status === 'expired') {
     return {
@@ -273,7 +301,7 @@ export const recordQuestionStep = ({
       0,
       Number(stepGrade?.expectedTotalPoints) || 0,
     ),
-    recordedAt: new Date().toISOString(),
+    recordedAt: occurrenceIso,
   };
   const stepGrades = [...current.stepGrades, compactStep].slice(
     -MAX_STORED_STEP_GRADES,
@@ -315,7 +343,7 @@ export const recordQuestionStep = ({
         && !supportUsage.remediationUsed
         && !supportUsage.workedExampleUsed,
     } : current.supportUsage,
-    lastAttemptAt: new Date().toISOString(),
+    lastAttemptAt: occurrenceIso,
   };
 
   return {
@@ -339,8 +367,12 @@ export const recordQuestionAttempt = ({
   responseKey = '',
   partialCreditPercent = null,
   maximumAttempts = MAX_ATTEMPTS_PER_QUESTION,
+  // The academic occurrence time. Omitted by an ordinary caller; supplied by
+  // every recovery path, which knows when the work actually happened.
+  occurredAt = null,
 }) => {
   const current = normalizeQuestionRecord(record);
+  const occurrenceIso = resolveOccurrenceIso(occurredAt);
 
   if (current.status === 'correct') {
     return {
@@ -437,7 +469,7 @@ export const recordQuestionAttempt = ({
         && !supportUsage.remediationUsed
         && !supportUsage.workedExampleUsed,
     } : current.supportUsage,
-    lastAttemptAt: new Date().toISOString(),
+    lastAttemptAt: occurrenceIso,
   };
 
   return {

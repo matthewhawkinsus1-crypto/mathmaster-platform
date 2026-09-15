@@ -199,6 +199,110 @@ test('a reconcile that never answers is bounded, and the next question still rea
   assert.match(result.retained[0].reason, /^delivery-error:/);
 });
 
+/*
+ * A HUNG QUESTION MUST NOT MAKE ANOTHER QUESTION WAIT OUT ITS TIMEOUT.
+ *
+ * Grouping into streams stopped a stalled question blocking another one
+ * PERMANENTLY. Draining those streams one after another still made question 2
+ * wait the full reconcile timeout behind question 1 — fifteen seconds in
+ * production. Independent streams run concurrently now, so "not blocked" means
+ * "not delayed", which is what the invariant actually says.
+ */
+test('a hung question 1 does not delay question 2, and question 3 stays ordered', async () => {
+  const storage = createMemoryOutboxStorage();
+  const store = canonicalStore();
+  const TIMEOUT_MS = 800;
+  const landedAt = new Map();
+
+  const reconcile = async (action) => {
+    // Question 1 never answers at all — the offline Firestore transaction that
+    // waits for connectivity rather than failing.
+    if (action.questionIndex === 1) return new Promise(() => {});
+    const outcome = await store.reconcile(action);
+    landedAt.set(action.actionId, Date.now());
+    return outcome;
+  };
+
+  await enqueueDurableAction(submission({ actionId: 'q1-hangs', questionIndex: 1 }), { storage });
+  await enqueueDurableAction(submission({ actionId: 'q2-fast', questionIndex: 2 }), { storage });
+  await enqueueDurableAction(submission({ actionId: 'q3-a1', questionIndex: 3, previous: 0, attempts: 1 }), { storage });
+  await enqueueDurableAction(submission({ actionId: 'q3-a2', questionIndex: 3, previous: 1, attempts: 2 }), { storage });
+
+  const startedAt = Date.now();
+  const result = await drainDurableActions({
+    storage, studentId: STUDENT, reconcile, timeoutMs: TIMEOUT_MS,
+  });
+
+  // Question 2 is canonical, and it got there without waiting out question 1.
+  assert.equal(store.attempts(2), 1);
+  const q2Delay = landedAt.get('q2-fast') - startedAt;
+  assert.ok(
+    q2Delay < TIMEOUT_MS / 2,
+    `question 2 landed after ${q2Delay}ms; it must not wait behind question 1's ${TIMEOUT_MS}ms timeout`,
+  );
+
+  // Question 3's two attempts are still in the order the student made them.
+  assert.equal(store.attempts(3), 2);
+  assert.ok(store.seen.indexOf('q3-a1') < store.seen.indexOf('q3-a2'));
+
+  // And the hung question is kept, not discarded.
+  assert.equal(result.remainingGrade, 1);
+  assert.deepEqual((await listDurableActions({ storage })).map((action) => action.actionId), ['q1-hangs']);
+});
+
+test('the pool is bounded: a hundred queued questions never open more than the limit at once', async () => {
+  const storage = createMemoryOutboxStorage();
+  const store = canonicalStore();
+  let inFlight = 0;
+  let peak = 0;
+  const reconcile = async (action) => {
+    inFlight += 1;
+    peak = Math.max(peak, inFlight);
+    await new Promise((resolve) => { setTimeout(resolve, 1); });
+    try {
+      return await store.reconcile(action);
+    } finally {
+      inFlight -= 1;
+    }
+  };
+
+  for (let question = 0; question < 100; question += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await enqueueDurableAction(submission({ actionId: `bulk-q${question}`, questionIndex: question }), { storage });
+  }
+  const result = await drainDurableActions({
+    storage, studentId: STUDENT, reconcile, timeoutMs: 2000, gradeConcurrency: 4,
+  });
+
+  assert.equal(result.remaining, 0, 'every question must be delivered');
+  assert.ok(peak > 1, 'independent questions must actually run concurrently');
+  assert.ok(peak <= 4, `peak concurrency was ${peak}; a recovered queue must not fire unbounded writes`);
+});
+
+test('a stalled grade stream still runs before any background work starts', async () => {
+  const storage = createMemoryOutboxStorage();
+  const store = canonicalStore();
+  const order = [];
+  const reconcile = async (action) => {
+    order.push(action.kind);
+    if (action.actionId === 'slow-submit') await new Promise((resolve) => { setTimeout(resolve, 30); });
+    return store.reconcile(action);
+  };
+
+  // Captured oldest-first: the background work would win a plain queue order.
+  await enqueueDurableAction(checkpoint({ actionId: 'old-checkpoint' }), { storage });
+  await enqueueDurableAction(progress({ actionId: 'old-progress' }), { storage });
+  await enqueueDurableAction(submission({ actionId: 'slow-submit', questionIndex: 5 }), { storage });
+
+  await drainDurableActions({ storage, studentId: STUDENT, reconcile, timeoutMs: 2000 });
+  assert.equal(order[0], 'ordinarySubmission', 'the grade lane must start first');
+  assert.ok(
+    order.indexOf('ordinarySubmission') < order.indexOf('responseCheckpoint'),
+    'background work must not start before grade-bearing work has been attempted',
+  );
+  assert.equal(store.attempts(5), 1);
+});
+
 /* ==========================================================================
  * NOTHING CAPTURED IS SILENTLY DISCARDED.
  * ======================================================================== */
@@ -762,6 +866,79 @@ test('18. a PR #243 checkpoint row keeps its deterministic id and stays a backgr
   assert.equal(listed[0].actionId, legacyCheckpoint.actionId);
   assert.equal(actionLane(listed[0]), 'background');
   assert.equal(listed[0].payload.revision, 3, 'the revision the deadline finalizer needs survives');
+});
+
+/* ==========================================================================
+ * A DEVICE QUEUE BELONGS TO ASSIGNMENTS, NOT TO A DEVICE.
+ *
+ * The first version reported one aggregate, and an assignment report then
+ * showed a Chromebook's whole queue as if every row belonged to the assignment
+ * in front of the teacher.
+ * ======================================================================== */
+
+test('the device summary separates queued work by assignment', async () => {
+  const storage = createMemoryOutboxStorage();
+  const forAssignment = (assignmentId, actionId, questionIndex) => createDurableAction({
+    kind: 'ordinarySubmission',
+    studentId: STUDENT,
+    assignmentId,
+    questionIndex,
+    actionId,
+    payload: { previousTotalAttempts: 0, activityRole: 'classwork', record: { totalAttempts: 1, status: 'attempted' } },
+  });
+
+  // Nothing pending for assignment A; three pending for assignment B.
+  await enqueueDurableAction(forAssignment('assignment-b', 'b-q0', 0), { storage });
+  await enqueueDurableAction(forAssignment('assignment-b', 'b-q1', 1), { storage });
+  await enqueueDurableAction(forAssignment('assignment-b', 'b-q2', 2), { storage });
+  // ...plus one background action for A, which is not grade-bearing.
+  await enqueueDurableAction(createDurableAction({
+    kind: 'responseCheckpoint',
+    studentId: STUDENT,
+    assignmentId: 'assignment-a',
+    questionIndex: 0,
+    actionId: 'a-checkpoint',
+    payload: { documentId: 'cp', activityRole: 'classwork' },
+  }), { storage });
+
+  const summary = await summarizeDurableOutbox({ storage, studentId: STUDENT });
+  assert.equal(summary.summarySchemaVersion, 2);
+  assert.equal(summary.queuedGradeBearing, 3, 'the device-wide total is still available');
+  // THE NUMBER AN ASSIGNMENT REPORT MAY SHOW.
+  assert.equal(summary.queuedGradeBearingByAssignment['assignment-b'], 3);
+  assert.equal(
+    summary.queuedGradeBearingByAssignment['assignment-a'],
+    undefined,
+    'assignment A has no grade-bearing work queued, and must not inherit B\'s count',
+  );
+  assert.equal(summary.queuedByAssignment['assignment-a'], 1, 'its checkpoint is still counted, as a checkpoint');
+});
+
+test('needs-review counts are broken down by assignment too', async () => {
+  const storage = createMemoryOutboxStorage();
+  const build = (assignmentId, actionId) => createDurableAction({
+    kind: 'ordinarySubmission',
+    studentId: STUDENT,
+    assignmentId,
+    questionIndex: 0,
+    actionId,
+    payload: { previousTotalAttempts: 0, activityRole: 'classwork', record: { totalAttempts: 1, status: 'attempted' } },
+  });
+  await enqueueDurableAction(build('assignment-a', 'a-review'), { storage });
+  await enqueueDurableAction(build('assignment-b', 'b-fine'), { storage });
+
+  await drainDurableActions({
+    storage,
+    studentId: STUDENT,
+    timeoutMs: 500,
+    reconcile: async (action) => (action.assignmentId === 'assignment-a'
+      ? { disposition: SUBMISSION_DISPOSITION.NEEDS_REVIEW, reason: 'section-close-time-unknown' }
+      : { disposition: SUBMISSION_DISPOSITION.ACCEPTED }),
+  });
+
+  const summary = await summarizeDurableOutbox({ storage, studentId: STUDENT });
+  assert.equal(summary.needsReviewByAssignment['assignment-a'], 1);
+  assert.equal(summary.needsReviewByAssignment['assignment-b'], undefined);
 });
 
 /* ==========================================================================

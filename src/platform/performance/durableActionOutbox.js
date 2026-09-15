@@ -94,6 +94,47 @@ export const actionStreamKey = (action) => JSON.stringify([
  */
 export const RECONCILE_TIMEOUT_MS = 15_000;
 
+/*
+ * HOW MANY INDEPENDENT QUESTIONS RECONCILE AT ONCE.
+ *
+ * Grouping work into a stream per question stops a stalled question from
+ * blocking another one PERMANENTLY, but draining those streams one after
+ * another still makes question 2 wait out question 1's whole reconcile
+ * timeout. Fifteen seconds is not "immediately", and the invariant this
+ * architecture exists for is that one question cannot hold another's grade
+ * delivery at all.
+ *
+ * So independent streams run through a bounded worker pool. Bounded, because
+ * `Promise.all` over a recovered Chromebook's queue would fire a hundred
+ * Firestore transactions at once from a device on school Wi-Fi — which is the
+ * failure mode this whole change exists to avoid, pointed the other way.
+ *
+ * Ordering is untouched: a stream is still one question's attempts in capture
+ * order, and a worker runs a whole stream before taking the next one.
+ */
+export const GRADE_STREAM_CONCURRENCY = 4;
+export const BACKGROUND_STREAM_CONCURRENCY = 2;
+
+/**
+ * Run `worker` over `items` with at most `limit` in flight.
+ *
+ * Each worker takes the next index and runs it to completion, so nothing is
+ * processed twice and a slow item delays only its own worker.
+ */
+const runWithBoundedConcurrency = async (items, limit, worker) => {
+  if (!items.length) return;
+  let cursor = 0;
+  const take = async () => {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      // eslint-disable-next-line no-await-in-loop
+      await worker(items[index]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, take));
+};
+
 let drainChain = Promise.resolve();
 let lastCreatedOrder = 0;
 
@@ -481,6 +522,8 @@ export const drainDurableActions = ({
   reconcile,
   timeoutMs = RECONCILE_TIMEOUT_MS,
   now = Date.now(),
+  gradeConcurrency = GRADE_STREAM_CONCURRENCY,
+  backgroundConcurrency = BACKGROUND_STREAM_CONCURRENCY,
 } = {}) => {
   const run = async () => {
     const queued = await listDurableActions({ storage, studentId });
@@ -554,11 +597,26 @@ export const drainDurableActions = ({
       }
     };
 
-    // Grade-bearing work is drained to completion before anything else is
-    // attempted. A checkpoint or a progress save cannot get in front of a
-    // Submit even by being older.
-    for (const stream of streams.filter((entry) => entry.lane === LANE.GRADE)) await drainStream(stream);
-    for (const stream of streams.filter((entry) => entry.lane !== LANE.GRADE)) await drainStream(stream);
+    /*
+     * GRADE-BEARING WORK FIRST, AND INDEPENDENT QUESTIONS TOGETHER.
+     *
+     * The grade lane is drained before the background lane is started at all,
+     * so a checkpoint or a progress save can never get in front of a Submit —
+     * not even by being older. Within the lane, independent questions run
+     * concurrently up to the bound, so a question whose reconcile hangs delays
+     * only itself: question 2 reaches canonical storage while question 1 is
+     * still waiting out its timeout.
+     */
+    await runWithBoundedConcurrency(
+      streams.filter((entry) => entry.lane === LANE.GRADE),
+      gradeConcurrency,
+      drainStream,
+    );
+    await runWithBoundedConcurrency(
+      streams.filter((entry) => entry.lane !== LANE.GRADE),
+      backgroundConcurrency,
+      drainStream,
+    );
 
     if (recovered) recordPerformanceSample('submission_recovery_count', recovered, { flow: 'outbox' });
     if (tally.needsReview) recordPerformanceSample('submission_needs_review_count', tally.needsReview, { flow: 'outbox' });
@@ -587,26 +645,67 @@ export const drainDurableActions = ({
  * Reported by the student's own browser after it reconnects, because an
  * IndexedDB queue is the one part of the incident no server query can see.
  */
+/*
+ * VERSION 2 OF THE DEVICE SUMMARY BROKE THE COUNTS DOWN BY ASSIGNMENT.
+ *
+ * Version 1 reported one aggregate, and a teacher's recovery report for
+ * Assignment A then showed "3 queued" for a Chromebook whose three pending
+ * submissions all belonged to Assignment B. That is not a rounding error — it
+ * tells a teacher that work is outstanding on the assignment in front of them
+ * when none is, and it hides that nothing is outstanding on it.
+ *
+ * The server never reinterprets a version 1 aggregate as assignment-specific.
+ * It reports it as what it is: an aggregate from a device that has not been
+ * updated yet.
+ */
+export const DEVICE_SUMMARY_SCHEMA_VERSION = 2;
+
+// A device with work queued across more assignments than this is reporting a
+// shape nobody will read; the cap keeps one bad row from bloating a document.
+const MAX_SUMMARIZED_ASSIGNMENTS = 40;
+
+const countByAssignment = (actions) => {
+  const counts = {};
+  actions.forEach((action) => {
+    const assignmentId = String(action.assignmentId || '');
+    if (!assignmentId) return;
+    counts[assignmentId] = (counts[assignmentId] || 0) + 1;
+  });
+  return Object.fromEntries(
+    Object.entries(counts)
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, MAX_SUMMARIZED_ASSIGNMENTS),
+  );
+};
+
 export const summarizeDurableOutbox = async ({ storage = indexedDbOutboxStorage, studentId = null } = {}) => {
   const [queued, retired] = await Promise.all([
     listDurableActions({ storage, studentId }),
     listRetiredDurableActions({ storage, studentId }).catch(() => []),
   ]);
   const gradeBearing = queued.filter(isGradeBearingAction);
+  const needsReviewActions = queued.filter(
+    (action) => action.delivery?.disposition === SUBMISSION_DISPOSITION.NEEDS_REVIEW,
+  );
   const byReason = {};
   queued.forEach((action) => {
     const reason = action.delivery?.reason || 'not-attempted';
     byReason[reason] = (byReason[reason] || 0) + 1;
   });
   return {
+    summarySchemaVersion: DEVICE_SUMMARY_SCHEMA_VERSION,
     studentId: studentId || null,
     queued: queued.length,
     queuedGradeBearing: gradeBearing.length,
     queuedByKind: queued.reduce((counts, action) => ({ ...counts, [action.kind]: (counts[action.kind] || 0) + 1 }), {}),
+    // The counts a per-assignment report can honestly display.
+    queuedByAssignment: countByAssignment(queued),
+    queuedGradeBearingByAssignment: countByAssignment(gradeBearing),
+    needsReviewByAssignment: countByAssignment(needsReviewActions),
     oldestCapturedAt: queued.length ? Math.min(...queued.map((action) => Number(action.createdAt) || 0)) : null,
     latestCapturedAt: queued.length ? Math.max(...queued.map((action) => Number(action.createdAt) || 0)) : null,
     blockedReasons: byReason,
-    needsReview: queued.filter((action) => action.delivery?.disposition === SUBMISSION_DISPOSITION.NEEDS_REVIEW).length,
+    needsReview: needsReviewActions.length,
     retired: retired.length,
     retiredByDisposition: retired.reduce(
       (counts, action) => ({ ...counts, [action.retirement?.disposition || 'unknown']: (counts[action.retirement?.disposition || 'unknown'] || 0) + 1 }),

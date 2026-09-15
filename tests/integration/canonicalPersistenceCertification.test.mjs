@@ -308,16 +308,154 @@ test('the recovery report refuses a class the assignment was never assigned to',
 test('a device queue report is stored under the calling student and nobody else', async () => {
   await fns.reportStudentDeviceQueue.run(studentRequest(STUDENT_A, {
     deviceId: 'chromebook-01',
-    summary: { queued: 3, queuedGradeBearing: 2, needsReview: 1, blockedReasons: { 'delivery-error:offline': 2 } },
+    summary: {
+      summarySchemaVersion: 2,
+      queued: 5,
+      queuedGradeBearing: 5,
+      needsReview: 1,
+      blockedReasons: { 'delivery-error:offline': 2 },
+      // Two pending for THIS assignment; three for a different one.
+      queuedByAssignment: { [ASSIGNMENT_ID]: 2, 'some-other-assignment': 3 },
+      queuedGradeBearingByAssignment: { [ASSIGNMENT_ID]: 2, 'some-other-assignment': 3 },
+      needsReviewByAssignment: { [ASSIGNMENT_ID]: 1 },
+    },
   }));
   const report = await fns.getStudentPersistenceRecoveryReport.run(teacherRequest({
     assignmentId: ASSIGNMENT_ID, classId: CLASS_ID,
   }));
   const rowA = report.students.find((student) => student.studentId === STUDENT_A);
   assert.equal(rowA.deviceQueues.length, 1);
-  assert.equal(rowA.deviceQueues[0].queuedGradeBearing, 2);
   assert.equal(rowA.deviceQueues[0].deviceId, 'chromebook-01');
-  assert.ok(rowA.needsReview.some((item) => item.source === 'deviceQueue' && item.reason === 'delivery-error:offline'));
+
+  // THE NUMBER THE ASSIGNMENT REPORT SHOWS IS THIS ASSIGNMENT'S.
+  assert.equal(rowA.deviceQueues[0].assignmentQueueKnown, true);
+  assert.equal(rowA.deviceQueues[0].queuedGradeBearingForAssignment, 2);
+  assert.equal(rowA.deviceQueues[0].needsReviewForAssignment, 1);
+  // The device-wide total is still available, and labelled as device-wide.
+  assert.equal(rowA.deviceQueues[0].deviceWideQueuedGradeBearing, 5);
+  assert.equal(report.totals.queuedOnDevices, 2, 'the class total must count only this assignment');
+
+  assert.ok(rowA.needsReview.some(
+    (item) => item.source === 'deviceQueue' && item.reason === 'delivery-error:offline' && item.scope === 'device-wide',
+  ));
+});
+
+test('a device that reported only an aggregate is never read as this assignment\u2019s count', async () => {
+  // The release before the breakdown existed. Its three queued submissions all
+  // belong to a different assignment, and showing "3" here would tell a teacher
+  // work is outstanding on the assignment in front of them when none is.
+  await fns.reportStudentDeviceQueue.run(studentRequest(STUDENT_B, {
+    deviceId: 'legacy-chromebook',
+    summary: { queued: 3, queuedGradeBearing: 3, needsReview: 0 },
+  }));
+  const report = await fns.getStudentPersistenceRecoveryReport.run(teacherRequest({
+    assignmentId: ASSIGNMENT_ID, classId: CLASS_ID,
+  }));
+  const rowB = report.students.find((student) => student.studentId === STUDENT_B);
+  const legacy = rowB.deviceQueues.find((queue) => queue.deviceId === 'legacy-chromebook');
+  assert.ok(legacy, 'the legacy device must still appear in the report');
+  assert.equal(legacy.assignmentQueueKnown, false);
+  assert.equal(legacy.queuedGradeBearingForAssignment, null, 'the aggregate must not be reinterpreted');
+  assert.equal(legacy.deviceWideQueuedGradeBearing, 3, 'the aggregate is still reported, as an aggregate');
+  assert.equal(legacy.summarySchemaVersion, 1);
+  assert.ok(
+    report.totals.devicesWithoutAssignmentBreakdown >= 1,
+    'the report must say how many devices could not answer per assignment',
+  );
+});
+
+/* ==========================================================================
+ * A SWEEP MUST NOT STOP AT 200 AND CALL ITSELF DONE.
+ *
+ * Thirty students and a dozen Classwork questions is more than 200 active
+ * checkpoints. The first version read one page and returned, so a teacher was
+ * told the assignment had been swept when only its first 200 records had been
+ * looked at — and the rest of the class's work stayed lost.
+ * ======================================================================== */
+
+test('a sweep pages past 200 checkpoints and only reports complete when it is', async () => {
+  const CHECKPOINT_COUNT = 260;
+  const writer = [];
+  for (let index = 0; index < CHECKPOINT_COUNT; index += 1) {
+    const studentId = `${PREFIX}-sweep-student-${String(index % 30).padStart(2, '0')}`;
+    writer.push(db.collection('studentResponseCheckpoints').doc(`${PREFIX}-sweep-${String(index).padStart(4, '0')}`).set({
+      schemaVersion: 2,
+      documentId: `${PREFIX}-sweep-${String(index).padStart(4, '0')}`,
+      studentId,
+      assignmentId: ASSIGNMENT_ID,
+      classId: CLASS_ID,
+      questionIndex: index % 4,
+      questionId: `${PREFIX}-q${index % 4}`,
+      variantIndex: 0,
+      activityRole: 'classwork',
+      revision: 1,
+      response: { kind: 'scalar', type: 'literal', value: '2x+1', fields: [] },
+      isComplete: true,
+      previousTotalAttempts: 0,
+      // Deliberately NULL: the hint the scheduled due query can never select,
+      // which is exactly what the sweep exists to reach.
+      candidateFinalizeAt: null,
+      status: 'active',
+      secure: false,
+    }));
+  }
+  await Promise.all(writer);
+
+  const first = await fns.sweepStudentResponseCheckpoints.run(teacherRequest({
+    assignmentId: ASSIGNMENT_ID, classId: CLASS_ID,
+  }));
+  assert.ok(first.examined > 200, `a sweep examined only ${first.examined}; it must page past one batch`);
+  assert.ok(first.pages >= 2, 'more than one page must have been read');
+  assert.equal(first.complete, true, 'every matching checkpoint was reachable, so the sweep is complete');
+  assert.equal(first.nextCursor, null);
+
+  // Every one of them was decided, so none is still in the sweep's working set.
+  const stillActive = await db.collection('studentResponseCheckpoints')
+    .where('assignmentId', '==', ASSIGNMENT_ID)
+    .where('classId', '==', CLASS_ID)
+    .where('status', '==', 'active')
+    .count().get();
+  assert.equal(
+    stillActive.data().count,
+    0,
+    'a complete sweep must leave nothing it never looked at',
+  );
+});
+
+test('a bounded sweep resumes deterministically and never re-reads a held checkpoint', async () => {
+  // Re-seed a smaller set and drive the cursor by hand, which is what a
+  // truncated call hands back.
+  const ids = Array.from({ length: 12 }, (_unused, index) => `${PREFIX}-cursor-${String(index).padStart(2, '0')}`);
+  await Promise.all(ids.map((id, index) => db.collection('studentResponseCheckpoints').doc(id).set({
+    schemaVersion: 2,
+    documentId: id,
+    studentId: STUDENT_B,
+    assignmentId: ASSIGNMENT_ID,
+    classId: CLASS_ID,
+    questionIndex: index % 4,
+    questionId: `${PREFIX}-q${index % 4}`,
+    variantIndex: 0,
+    activityRole: 'classwork',
+    revision: 1,
+    response: { kind: 'scalar', type: 'literal', value: 'not right', fields: [] },
+    isComplete: true,
+    previousTotalAttempts: 0,
+    candidateFinalizeAt: null,
+    status: 'active',
+    secure: false,
+  })));
+
+  // Resume after the sixth id: the continuation must examine only what is
+  // beyond the cursor, in the same document order.
+  const resumed = await fns.sweepStudentResponseCheckpoints.run(teacherRequest({
+    assignmentId: ASSIGNMENT_ID, classId: CLASS_ID, cursor: ids[5],
+  }));
+  assert.equal(resumed.complete, true);
+  assert.ok(resumed.examined <= 6, `a resumed sweep examined ${resumed.examined}; it must not restart from the beginning`);
+
+  // The ones before the cursor were never touched by that call.
+  const untouched = await db.collection('studentResponseCheckpoints').doc(ids[0]).get();
+  assert.equal(untouched.data().status, 'active', 'documents before the cursor must be left for the next pass');
 });
 
 /* ==========================================================================

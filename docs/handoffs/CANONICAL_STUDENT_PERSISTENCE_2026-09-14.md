@@ -93,7 +93,14 @@ should have produced a canonical attempt silently never did.
   same question stay in order; unrelated questions do not block each other.
 - **Grade-bearing streams drain first**, always — a checkpoint or a progress
   save cannot get in front of a Submit even by being older.
-- A stalled stream stalls **only itself**.
+- Independent streams run through a **bounded worker pool** (4 grade, 2
+  background). Draining them one after another still made question 2 wait out
+  question 1's whole reconcile timeout — fifteen seconds in production — which
+  is not what "one question cannot hold another's delivery" means. The pool is
+  bounded rather than a `Promise.all`, because firing a recovered Chromebook's
+  whole queue at once is the same failure pointed the other way.
+- A stalled stream stalls **only itself**, and no longer even delays its
+  neighbours.
 - Every reconcile is **bounded** (`RECONCILE_TIMEOUT_MS`), so a transaction that
   waits for the network cannot own the queue. The write may still commit
   afterwards, which is harmless: every path is idempotent on the action id.
@@ -148,6 +155,36 @@ server can do better it does:
   what is already recorded, and `lastSubmissionId` is stamped server-side;
 - Secure Test Cycle, My Math Path and server-graded tools never enter this path.
 
+### Academic time is not ingestion time
+
+The first version of this work stamped every recovered attempt with the moment
+the server processed it. A submission captured on September 14 and delivered on
+September 15 was therefore recorded as September 15 work, and a September 14
+DOL was filed under the 15th — where the class that sat it cannot see it.
+
+Those are two different facts and they are now kept apart:
+
+| Fact | Where it goes |
+| --- | --- |
+| academic occurrence time | `lastAttemptAt`, evidence `occurredAt`, every projection's `recordedAt`, the DOL date key |
+| server ingestion time | the receipt's `issuedAt`, and `ingestedAt` / `finalizedAtRunTime` beside the record |
+
+`recordQuestionAttempt` and `recordQuestionStep` take an optional `occurredAt`.
+Omit it — as every live student interaction does — and the behaviour is exactly
+what it was. Each recovery path supplies the best time it can *prove*:
+
+- **queued submissions** — the captured time, bounded by the server's own clock
+  and by the assignment's release, so a wrong device clock cannot backdate work
+  before the assignment existed or postdate it into the future;
+- **response checkpoints** — the authoritative close the finalization is acting
+  on, bounded below by `serverAcknowledgedAt` (stamped by Firestore's own
+  `request.time` under the rules, so a browser cannot move it);
+- **workspace drafts** — the server-stamped `updatedAt` on the draft document,
+  which is the only save time a Chromebook clock cannot touch.
+
+A record recovered late carries `recoveredLate: true` and both timestamps, so
+the delay is visible in the audit trail instead of in the grade.
+
 ### Capture-time authority
 
 Submissions now carry the section state the browser observed **at capture**.
@@ -192,6 +229,17 @@ finalizer, through the existing server grading rules, for the supported
 server-gradeable question types. The **null-hint hole is repaired**, so
 checkpoints that never entered the due query are examined now. A teacher can
 also run the sweep on demand for one assignment and class.
+
+The sweep **pages through every matching checkpoint**, ordered by document id
+so one pass walks each exactly once and never revisits a `held` or
+`rescheduled` one — both of which are still `active`, and both of which a
+cursor without an order would hand back forever. Thirty students and a dozen
+Classwork questions is well past a single 200-document batch, and a recovery
+command that stopped there while reporting success would leave the rest of the
+class's work lost. A call that reaches its own bound returns
+`complete: false` with a `nextCursor` and a remaining count; the teacher button
+follows the cursor, and says plainly when the assignment is **not** fully
+swept.
 
 Attempts already written are never duplicated: the finalizer skips a question
 whose canonical attempt count has moved, and an explicit Submit retires its own
@@ -256,13 +304,22 @@ assigned to, and carries no student's raw responses. Per student:
 - checkpoint counts by status, and the latest server acknowledgement
 - whether a server workspace draft exists, when it was saved, and its recovery
   assessment counts
-- device queue depth **as reported by that student's own devices**
+- device queue depth for **this assignment**, as reported by that student's own
+  devices
 - recovered attempts, from issued receipts
 - every blocked item with its reason
 
 A Chromebook can only report its own queue after it reconnects and the student
 signs in. The report says so in the UI: `not reported` means no device has said
 anything yet, never that nothing is waiting.
+
+The device summary breaks its counts down **by assignment**. An aggregate
+cannot be shown inside one assignment's report: a Chromebook holding three
+pending submissions for a different assignment would read as three outstanding
+here, which tells a teacher the opposite of the truth in both directions. A
+device still on the older release reports `assignment queue unknown ·  N queued
+device-wide`, and the class total counts only devices that can answer per
+assignment, with the rest counted separately.
 
 ---
 
@@ -273,10 +330,10 @@ IndexedDB (60 submissions):
 
 | Measure | Value |
 | --- | --- |
-| local acknowledgement p50 | 1.9 ms |
-| local acknowledgement p95 | 3.2 ms |
-| local acknowledgement max | 6.2 ms |
-| queue drain overhead | 1.0 ms per action |
+| local acknowledgement p50 | 1.7 ms |
+| local acknowledgement p95 | 2.3 ms |
+| local acknowledgement max | 4.3 ms |
+| queue drain overhead | 0.6 ms per action |
 
 The only additions to the student's critical path are two pure function calls
 before the enqueue: the capture-time section proof and the normalized response.
@@ -290,20 +347,27 @@ student is never told "submitted" while anything is still owed a delivery.
 
 ## Tests
 
-| Suite | What it can fail on |
-| --- | --- |
-| `npm run test:platform` | the queue and classifier as functions |
-| `npm run test:durable-outbox` | real IndexedDB, real reload, real version-1 upgrade |
-| `npm run test:canonical-persistence` | the real callable against real Firestore |
-| `npm run test:rules` | the two new server-owned collections |
+| Suite | What it can fail on | Result |
+| --- | --- | --- |
+| `npm run test:platform` | the queue, the classifier and the timestamp contract as functions | 4982 pass |
+| `npm run test:authoring-v5` | the authoring gate this change must not disturb | 670 pass |
+| `npm run test:durable-outbox` | real IndexedDB, real reload, real version-1 upgrade, real concurrency timing | PASS (not skipped) |
+| `npm run test:canonical-persistence` | the real callable against real Firestore, including a >200 checkpoint sweep | 21 pass |
+| `npm run test:rules` | the two new server-owned collections | 39 pass |
 
 The in-memory outbox suite was green on September 14. The bottom three exist
 because of that.
 
-Safety assertions are mutation-tested: restoring the serial break, retiring on a
-bare rejection, trusting the client verdict, dropping attempt clamping, dropping
-the receipt idempotency check, and ignoring the capture-time witness each turn
-the relevant tests red.
+Safety assertions are mutation-tested. Each of these turns the relevant tests
+red: restoring the serial break; retiring on a bare rejection; trusting the
+client verdict; dropping attempt clamping; dropping the receipt idempotency
+check; ignoring the capture-time witness; stamping the ingestion time as the
+academic time; making `recordQuestionAttempt` ignore `occurredAt`; finalizing a
+checkpoint at the scheduler's clock; draining grade streams sequentially;
+removing the concurrency bound; starting background work alongside the grade
+lane; reinterpreting a legacy device aggregate as assignment-specific; dropping
+the per-assignment breakdown; stopping the sweep after one page; and paging the
+sweep without a document order.
 
 ---
 

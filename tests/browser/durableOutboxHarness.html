@@ -93,20 +93,30 @@ window.outboxHarness = {
   listRetired: () => listRetiredDurableActions({ studentId: STUDENT }),
   summary: () => summarizeDurableOutbox({ studentId: STUDENT }),
 
-  /** Every action id the reconciler was asked about, in order. */
-  drain: (script = {}) => {
+  /**
+   * Drain, reporting which action ids the reconciler saw and WHEN each one
+   * finished relative to the start. The timing is what proves a hung question
+   * delays only itself — "not blocked" has to mean "not delayed", or a question
+   * still waits out another question's whole reconcile timeout.
+   */
+  drain: (options = {}) => {
+    const { script = {}, timeoutMs = 2000, gradeConcurrency } = options;
     const seen = [];
+    const settledAfterMs = {};
+    const startedAt = performance.now();
     return drainDurableActions({
       studentId: STUDENT,
-      timeoutMs: 2000,
+      timeoutMs,
+      ...(gradeConcurrency ? { gradeConcurrency } : {}),
       reconcile: async (queued) => {
         seen.push(queued.actionId);
         const outcome = script[queued.actionId] || script[queued.kind] || { disposition: SUBMISSION_DISPOSITION.ACCEPTED };
         if (outcome === 'throw') throw new Error('reconcile failed');
         if (outcome === 'hang') return new Promise(() => {});
+        settledAfterMs[queued.actionId] = performance.now() - startedAt;
         return outcome;
       },
-    }).then((result) => ({ ...result, seen }));
+    }).then((result) => ({ ...result, seen, settledAfterMs, totalMs: performance.now() - startedAt }));
   },
 };
 

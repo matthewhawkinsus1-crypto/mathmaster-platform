@@ -57,8 +57,7 @@ try {
   await harness(() => window.outboxHarness.enqueue('submit-behind'));
 
   const laneResult = await harness(() => window.outboxHarness.drain({
-    responseCheckpoint: 'throw',
-    questionProgress: 'throw',
+    script: { responseCheckpoint: 'throw', questionProgress: 'throw' },
   }));
   check(laneResult.seen[0] === 'submit-behind',
     '5. the grade-bearing submission must be attempted first, not behind the background work');
@@ -74,7 +73,7 @@ try {
   await harness(() => window.outboxHarness.reset());
   await open();
   await harness(() => window.outboxHarness.enqueue('bare-rejection'));
-  await harness(() => window.outboxHarness.drain({ 'bare-rejection': { status: 'rejected' } }));
+  await harness(() => window.outboxHarness.drain({ script: { 'bare-rejection': { status: 'rejected' } } }));
   const afterRejection = await harness(() => window.outboxHarness.list());
   check(afterRejection.length === 1,
     '2. a bare rejection must keep the student submission in IndexedDB');
@@ -85,7 +84,7 @@ try {
    * A PROVEN RETIREMENT IS A MOVE ACROSS TWO STORES, NOT A DELETE.
    * ------------------------------------------------------------------- */
   await harness(() => window.outboxHarness.drain({
-    'bare-rejection': { disposition: 'permanently-invalid', reason: 'section-closed-at-capture' },
+    script: { 'bare-rejection': { disposition: 'permanently-invalid', reason: 'section-closed-at-capture' } },
   }));
   const queueAfterRetirement = await harness(() => window.outboxHarness.list());
   const retired = await harness(() => window.outboxHarness.listRetired());
@@ -148,11 +147,29 @@ try {
   await open();
   await harness(() => window.outboxHarness.enqueue('hung-q0', { questionIndex: 0 }));
   await harness(() => window.outboxHarness.enqueue('fine-q1', { questionIndex: 1 }));
-  const hungResult = await harness(() => window.outboxHarness.drain({ 'hung-q0': 'hang' }));
+  await harness(() => window.outboxHarness.enqueue('q2-a1', { questionIndex: 2, previous: 0 }));
+  await harness(() => window.outboxHarness.enqueue('q2-a2', { questionIndex: 2, previous: 1 }));
+  const HUNG_TIMEOUT_MS = 1500;
+  const hungResult = await harness((timeoutMs) => window.outboxHarness.drain({
+    script: { 'hung-q0': 'hang' }, timeoutMs,
+  }), HUNG_TIMEOUT_MS);
+
   check(hungResult.seen.includes('fine-q1'),
     'a hung reconcile on one question must not stop another question being delivered');
   check(hungResult.remainingGrade === 1,
     'the hung question must remain queued rather than be discarded');
+  // NOT BLOCKED HAS TO MEAN NOT DELAYED.
+  // Draining streams one after another left question 1 waiting out question 0's
+  // whole timeout — fifteen seconds in production.
+  check(
+    hungResult.settledAfterMs['fine-q1'] !== undefined
+      && hungResult.settledAfterMs['fine-q1'] < HUNG_TIMEOUT_MS / 2,
+    `question 1 landed after ${hungResult.settledAfterMs['fine-q1']}ms; it must not wait out question 0's ${HUNG_TIMEOUT_MS}ms timeout`,
+  );
+  check(
+    hungResult.seen.indexOf('q2-a1') < hungResult.seen.indexOf('q2-a2'),
+    'two attempts at the same question must stay ordered while other questions run concurrently',
+  );
 
   /* ---------------------------------------------------------------------
    * THE DEVICE CAN SAY WHAT IT IS STILL HOLDING.

@@ -30,8 +30,37 @@ export const getStudentPersistenceRecoveryReport = ({ assignmentId, classId }) =
  * LOOK, which matters for a checkpoint whose query hint was null and which the
  * due query therefore never selected at all.
  */
-export const sweepStudentResponseCheckpoints = ({ assignmentId, classId }) =>
-  call('sweepStudentResponseCheckpoints', { assignmentId, classId });
+export const sweepStudentResponseCheckpoints = ({ assignmentId, classId, cursor = null }) =>
+  call('sweepStudentResponseCheckpoints', { assignmentId, classId, cursor });
+
+/*
+ * SWEEP UNTIL IT IS ACTUALLY DONE.
+ *
+ * One call is bounded so it cannot run past its own function timeout, and says
+ * so with `complete: false` and a cursor. A teacher pressing one button means
+ * "sweep this assignment", so the button follows the cursor rather than leaving
+ * them to notice a number that stopped short. If it still has not finished
+ * after `maxCalls`, the result says so — never the opposite.
+ */
+export const sweepAllStudentResponseCheckpoints = async ({ assignmentId, classId, maxCalls = 10 }) => {
+  const totals = { examined: 0, pages: 0, outcomes: {}, calls: 0 };
+  let cursor = null;
+  for (let call = 0; call < maxCalls; call += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    const result = await sweepStudentResponseCheckpoints({ assignmentId, classId, cursor });
+    totals.calls += 1;
+    totals.examined += Number(result.examined) || 0;
+    totals.pages += Number(result.pages) || 0;
+    Object.entries(result.outcomes || {}).forEach(([key, count]) => {
+      totals.outcomes[key] = (totals.outcomes[key] || 0) + (Number(count) || 0);
+    });
+    if (result.complete) return { ...totals, complete: true, remaining: 0, nextCursor: null };
+    cursor = result.nextCursor;
+    totals.remaining = Number(result.remainingAtCursor) || 0;
+    if (!cursor) break;
+  }
+  return { ...totals, complete: false, nextCursor: cursor };
+};
 
 /**
  * Workspace-draft recovery. Dry run unless `commit` is explicitly true.

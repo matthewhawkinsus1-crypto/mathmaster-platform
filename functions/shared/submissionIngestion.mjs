@@ -50,7 +50,7 @@ import {
   evaluateClassworkCompletionRule,
   mergeSupportUsage,
 } from './assignmentProjections.mjs';
-import { zonedDateKey } from './instructionalCalendar.mjs';
+import { parseInstant, zonedDateKey } from './instructionalCalendar.mjs';
 import { SCHOOL_TIME_ZONE } from './sectionDeadline.mjs';
 import {
   SUBMISSION_DISPOSITION,
@@ -284,6 +284,32 @@ export const envelopeMatchesQuestion = ({ envelope, question, canonicalRecord })
   return { ok: true, reason: null };
 };
 
+/*
+ * THE ACADEMIC TIME OF A SUBMISSION IS WHEN THE STUDENT PRESSED SUBMIT.
+ *
+ * Not when the queue drained, and not when this function ran. A response
+ * captured on September 14 and ingested on September 15 is September 14 work:
+ * it belongs to that instructional day, to that DOL date bucket, and to that
+ * position in the student's attempt history. Recording the ingestion time
+ * instead silently moves a grade between school days, which is worse than the
+ * delay it came from.
+ *
+ * `capturedAt` is a client clock, so it is BOUNDED by the server's own reading:
+ * a device with a wrong clock cannot backdate work before the assignment was
+ * released, and cannot postdate it into the future. Eligibility has already
+ * been decided by `decideSubmissionIngestion` before this is used — this is
+ * only about which moment an ACCEPTED submission is recorded at.
+ */
+export const resolveAcademicOccurrenceAt = ({ envelope, assignment = null, ingestedAt = Date.now() } = {}) => {
+  const captured = finite(envelope?.capturedAt, 0);
+  if (!captured) return ingestedAt;
+  // Never later than the moment the server is handling it.
+  const upperBound = Math.min(captured, finite(ingestedAt, Date.now()));
+  const releasedAt = assignment ? parseInstant(assignment.releaseAt || assignment.releaseDate, { endOfDay: false }) : null;
+  // Never earlier than the assignment could be worked on.
+  return releasedAt !== null && upperBound < releasedAt ? releasedAt : upperBound;
+};
+
 /**
  * Decide what to do with one envelope, from authoritative context the caller
  * has already read. Reads nothing, writes nothing, trusts no verdict.
@@ -407,10 +433,17 @@ export const buildIngestedAttempt = ({
   classworkIndices = [],
   dolIndices = [],
   dolSectionScore = null,
-  occurredAt = Date.now(),
+  // WHEN THE STUDENT DID IT, and separately WHEN THE SERVER HEARD ABOUT IT.
+  // Everything academic below is stamped with the first. The second reaches
+  // only the receipt, which is a delivery fact rather than an academic one.
+  occurredAt = null,
+  ingestedAt = Date.now(),
   timeZone = SCHOOL_TIME_ZONE,
 } = {}) => {
   const canonical = normalizeQuestionRecord(canonicalRecord);
+  const academicAt = occurredAt === null || occurredAt === undefined
+    ? resolveAcademicOccurrenceAt({ envelope, assignment, ingestedAt })
+    : finite(occurredAt, ingestedAt);
   const activityPolicy = getEffectiveActivityPolicy(envelope.activityRole);
   const maximumAttempts = resolveQuestionMaximumAttempts({ question, maximumAttempts: activityPolicy.attempts, activityPolicy });
   const regrade = serverCanRegradeEnvelope({ envelope, question });
@@ -435,6 +468,8 @@ export const buildIngestedAttempt = ({
       // browser sent.
       partialCreditPercent: null,
       maximumAttempts,
+      // `lastAttemptAt` is academic history, not a delivery timestamp.
+      occurredAt: academicAt,
     });
     record = outcome.record;
     result = outcome.result;
@@ -458,10 +493,15 @@ export const buildIngestedAttempt = ({
     submissionOrigin: 'server-ingestion',
     gradedBy,
     serverGradingReason: regrade.regrade ? null : regrade.reason,
+    // The audit trail for a delayed recovery: the record reads as the day the
+    // student worked, and says separately when it actually arrived.
+    academicOccurredAt: new Date(academicAt).toISOString(),
+    ingestedAt: new Date(finite(ingestedAt, Date.now())).toISOString(),
+    recoveredLate: finite(ingestedAt, Date.now()) - academicAt > 60_000 ? true : null,
   };
 
   const assignmentId = trimmed(envelope.assignmentId);
-  const recordedAt = new Date(occurredAt).toISOString();
+  const recordedAt = new Date(academicAt).toISOString();
   const assignmentTracker = {
     ...(gradeDocument?.gradesByAssignment?.[assignmentId] || {}),
     [String(envelope.questionIndex)]: stamped,
@@ -485,7 +525,10 @@ export const buildIngestedAttempt = ({
     envelope.assignmentSupportUsage || envelope.supportUsage || {},
   );
 
-  const dolDateKey = zonedDateKey(occurredAt, timeZone);
+  // THE DOL BUCKET IS THE DAY THE STUDENT ANSWERED.
+  // Deriving it from the ingestion time files a September 14 DOL under
+  // September 15, where the class it belongs to cannot see it.
+  const dolDateKey = zonedDateKey(academicAt, timeZone);
   const dolGrade = envelope.activityRole === 'dol' && dolSectionScore !== null
     ? dolSectionProjection({
       existing: gradeDocument?.dolGradesByAssignment?.[assignmentId] || null,
@@ -507,7 +550,7 @@ export const buildIngestedAttempt = ({
     attemptRecord: stamped,
     attemptResult: result,
     supportUsage: stamped.supportUsage || {},
-    occurredAt,
+    occurredAt: academicAt,
   });
 
   return {
@@ -522,6 +565,7 @@ export const buildIngestedAttempt = ({
     supportUsage,
     dolGrade,
     dolDateKey,
+    academicAt,
   };
 };
 

@@ -252,6 +252,34 @@ export const decideCheckpointFinalization = ({
   };
 };
 
+/*
+ * WHEN A DEADLINE AUTO-SUBMIT ACTUALLY HAPPENED, ACADEMICALLY.
+ *
+ * Never the minute the scheduler ran. A checkpoint due at Friday's bell that
+ * the scheduler reaches on Monday is Friday's work, and recording it as Monday
+ * moves a grade — and a DOL — into a day the class it belongs to cannot see.
+ *
+ * Two server-held times can prove when the work existed, and both are trusted
+ * because a browser cannot move either:
+ *
+ *   `serverAcknowledgedAt`  when MathMaster received the response, stamped by
+ *                           Firestore's own `request.time` under the rules.
+ *   the authoritative CLOSE the deadline this finalization is acting on.
+ *
+ * The response was in hand at acknowledgement and was submitted by the close,
+ * so the close is the moment the submission is treated as made — bounded below
+ * by the acknowledgement, because work cannot be recorded before MathMaster
+ * held it. `runAt` is the fallback only when neither is available.
+ */
+export const resolveCheckpointOccurrenceAt = ({ checkpoint, decision, runAt = Date.now() } = {}) => {
+  const acknowledgedAt = asMillis(checkpoint?.serverAcknowledgedAt);
+  const cutoff = Number(decision?.cutoff);
+  if (Number.isFinite(cutoff) && cutoff > 0) {
+    return acknowledgedAt === null ? cutoff : Math.max(acknowledgedAt, Math.min(cutoff, runAt));
+  }
+  return acknowledgedAt === null ? runAt : acknowledgedAt;
+};
+
 /**
  * Turn a server-derived grading result into the canonical attempt and its
  * evidence — through the same attempt policy and the same evidence builder a
@@ -267,10 +295,17 @@ export const buildCheckpointFinalization = ({
   classworkIndices = [],
   dolIndices = [],
   dolSectionScore = null,
-  occurredAt = Date.now(),
+  // The ACADEMIC occurrence time. Omit it and it is derived from the
+  // server-trusted acknowledgement and the authoritative close; `runAt` is the
+  // scheduler's own clock and is only a last-resort fallback.
+  occurredAt = null,
+  runAt = Date.now(),
   timeZone = SCHOOL_TIME_ZONE,
 } = {}) => {
   const activityPolicy = getEffectiveActivityPolicy(decision.activityRole);
+  const academicAt = occurredAt === null || occurredAt === undefined
+    ? resolveCheckpointOccurrenceAt({ checkpoint, decision, runAt })
+    : Number(occurredAt);
   const outcome = recordQuestionAttempt({
     record: decision.canonicalRecord,
     isCorrect: decision.grading.isCorrect,
@@ -287,6 +322,9 @@ export const buildCheckpointFinalization = ({
       maximumAttempts: activityPolicy.attempts,
       activityPolicy,
     }),
+    // `lastAttemptAt` is the deadline this response was submitted at, not the
+    // minute a background function happened to process it.
+    occurredAt: academicAt,
   });
 
   const record = {
@@ -295,6 +333,11 @@ export const buildCheckpointFinalization = ({
     submissionOrigin: 'deadline-auto-submit',
     finalizationReason: decision.reason || null,
     gradedBy: 'server',
+    // The audit trail for a late finalization: academic day on the record,
+    // real processing time recorded beside it.
+    academicOccurredAt: new Date(academicAt).toISOString(),
+    finalizedAtRunTime: new Date(runAt).toISOString(),
+    recoveredLate: runAt - academicAt > 60_000 ? true : null,
   };
 
   const evidenceEvent = question?.type === 'modelingLab' ? null : buildAttemptEvidenceEvent({
@@ -306,7 +349,7 @@ export const buildCheckpointFinalization = ({
     attemptRecord: record,
     attemptResult: outcome.result,
     supportUsage: record.supportUsage || {},
-    occurredAt,
+    occurredAt: academicAt,
   });
 
   /*
@@ -318,7 +361,7 @@ export const buildCheckpointFinalization = ({
    * ordinary Submit path writes all of these; so does this.
    */
   const assignmentId = text(checkpoint.assignmentId);
-  const recordedAt = new Date(occurredAt).toISOString();
+  const recordedAt = new Date(academicAt).toISOString();
   const assignmentTracker = {
     ...(gradeDocument?.gradesByAssignment?.[assignmentId] || {}),
     [String(checkpoint.questionIndex)]: record,
@@ -345,7 +388,7 @@ export const buildCheckpointFinalization = ({
   // A scheduler can run after the wall-clock day changes. DOL ownership belongs
   // to the instructional cutoff that accepted the response, not to the minute
   // the background function happened to process it.
-  const dolReferenceAt = Number(decision?.cutoff) || occurredAt;
+  const dolReferenceAt = Number(decision?.cutoff) || academicAt;
   const dolDateKey = zonedDateKey(dolReferenceAt, timeZone);
   const dolGrade = decision.activityRole === 'dol' && dolSectionScore !== null
     ? dolSectionProjection({
@@ -368,6 +411,7 @@ export const buildCheckpointFinalization = ({
     supportUsage,
     dolGrade,
     dolDateKey,
+    academicAt,
   };
 };
 

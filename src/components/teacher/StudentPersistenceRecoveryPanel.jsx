@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   applyWorkspaceDraftRecovery,
   getStudentPersistenceRecoveryReport,
-  sweepStudentResponseCheckpoints,
+  sweepAllStudentResponseCheckpoints,
 } from '../../services/persistenceRecoveryService.js';
 
 /*
@@ -33,6 +33,24 @@ const CELL = { padding: '8px 10px', borderBottom: '1px solid #f1f3f4', fontSize:
 const clock = (value) => (Number(value) ? new Date(Number(value)).toLocaleString(undefined, {
   month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
 }) : '—');
+
+/*
+ * WHAT ONE DEVICE IS HOLDING FOR *THIS* ASSIGNMENT.
+ *
+ * A device on the release before the per-assignment breakdown existed sent one
+ * aggregate across every assignment. Showing that number in an assignment
+ * report is a misattribution, not an approximation: a Chromebook with three
+ * pending submissions for a different assignment would read as three
+ * outstanding here. So the aggregate is labelled as an aggregate and the
+ * assignment's own count is reported as unknown.
+ */
+const describeDeviceQueue = (queue) => {
+  const when = clock(queue.reportedAt);
+  if (!queue.assignmentQueueKnown) {
+    return `assignment queue unknown · ${queue.deviceWideQueuedGradeBearing} queued device-wide (${when})`;
+  }
+  return `${queue.queuedGradeBearingForAssignment} (${when})`;
+};
 
 const countList = (counts = {}) => Object.entries(counts)
   .filter(([, count]) => Number(count) > 0)
@@ -69,8 +87,14 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
   });
 
   const sweepCheckpoints = () => run('sweep', async () => {
-    const result = await sweepStudentResponseCheckpoints({ assignmentId, classId });
-    setNotice(`Examined ${result.examined} outstanding checkpoint${result.examined === 1 ? '' : 's'}: ${countList(result.outcomes)}.`);
+    const result = await sweepAllStudentResponseCheckpoints({ assignmentId, classId });
+    // NEVER REPORT A PARTIAL SWEEP AS A FINISHED ONE. A teacher acting on
+    // "examined 200" as though it were the whole assignment is how the rest of
+    // the class's work stays lost.
+    setNotice(result.complete
+      ? `Examined all ${result.examined} outstanding checkpoint${result.examined === 1 ? '' : 's'}: ${countList(result.outcomes)}.`
+      : `Examined ${result.examined} checkpoint${result.examined === 1 ? '' : 's'} so far: ${countList(result.outcomes)}. `
+        + `${result.remaining || 'More'} still outstanding — this assignment is NOT fully swept. Run it again to continue.`);
     await loadReport();
     return result;
   });
@@ -123,7 +147,14 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 14, fontSize: 13 }}>
             <span><strong>{report.totals.canonicalAttempted}</strong> canonical attempts</span>
             <span><strong>{report.totals.unaccountedForQuestions}</strong> unaccounted-for questions</span>
-            <span><strong>{report.totals.queuedOnDevices}</strong> still queued on reporting devices</span>
+            <span><strong>{report.totals.queuedOnDevices}</strong> still queued on reporting devices for this assignment</span>
+            {report.totals.devicesWithoutAssignmentBreakdown > 0 && (
+              <span>
+                <strong>{report.totals.devicesWithoutAssignmentBreakdown}</strong> device
+                {report.totals.devicesWithoutAssignmentBreakdown === 1 ? '' : 's'} on an older release report only a
+                device-wide total
+              </span>
+            )}
             <span><strong>{report.totals.recoverableDrafts}</strong> recoverable drafts</span>
           </div>
 
@@ -161,7 +192,7 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
                     <td style={CELL}>{student.workspaceDraft.present ? clock(student.workspaceDraft.savedAt) : '—'}</td>
                     <td style={CELL}>
                       {student.deviceQueues.length
-                        ? student.deviceQueues.map((queue) => `${queue.queuedGradeBearing} (${clock(queue.reportedAt)})`).join(', ')
+                        ? student.deviceQueues.map(describeDeviceQueue).join(', ')
                         : 'not reported'}
                     </td>
                     <td style={CELL}>{student.recoveredAttempts || '—'}</td>
@@ -179,6 +210,8 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
           <p style={{ marginTop: 10, fontSize: 12, color: '#5f6368' }}>
             A Chromebook can only report its own queue after it reconnects and the student signs in.
             <strong> not reported</strong> means no device has said anything yet — never that nothing is waiting.
+            <strong> assignment queue unknown</strong> means that device is on an older release and could only send a
+            total across every assignment; its number is not this assignment&rsquo;s.
           </p>
         </>
       )}

@@ -325,7 +325,12 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
     const assignmentId = String(checkpoint.assignmentId);
     const finalization = buildCheckpointFinalization({
       checkpoint, assignment, question, decision,
-      gradeDocument: gradeData, classworkIndices, dolIndices, occurredAt: now,
+      gradeDocument: gradeData, classworkIndices, dolIndices,
+      // `now` is the scheduler's clock, not the academic time. The academic
+      // time is derived from the server-trusted acknowledgement and the
+      // authoritative close, so a Friday deadline finalized on Monday is still
+      // recorded as Friday's work.
+      runAt: now,
     });
     if (decision.activityRole === "dol" && dolIndices.length) {
       // Scored from the tracker that already carries this attempt, through the
@@ -341,7 +346,7 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
         dateKey: finalization.dolDateKey,
         score: totals.score ?? 0,
         questionIndices: dolIndices,
-        recordedAt: new Date(now).toISOString(),
+        recordedAt: new Date(finalization.academicAt).toISOString(),
         // The authoritative DOL window is already over. This transaction owns
         // the final projection even when no browser is mounted, and it may
         // correct a browser-finalized score that omitted this valid pre-cutoff
@@ -383,6 +388,9 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
       resultingSubmissionId: decision.submissionId,
       isCorrect: Boolean(finalization.result.isCorrect),
       gradedBy: "server",
+      // `finalizedAt` in the receipt is the server's own time; this is the
+      // academic moment the attempt was recorded at.
+      academicOccurredAt: new Date(finalization.academicAt),
     });
     return "finalized";
   });
@@ -688,7 +696,10 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
       gradeDocument: gradeData,
       classworkIndices,
       dolIndices,
-      occurredAt: now,
+      // `now` is when the SERVER heard about this, which is the receipt's
+      // business. The academic time is resolved from the capture, bounded by
+      // the assignment's release and by this moment.
+      ingestedAt: now,
     });
     if (built.blocked) {
       // The server could not mark a response it was supposed to be able to
@@ -710,10 +721,11 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
       });
       built.dolGrade = dolSectionProjection({
         existing: gradeData?.dolGradesByAssignment?.[assignmentId] || null,
+        // The day the student answered, not the day the queue drained.
         dateKey: built.dolDateKey,
         score: totals.score ?? 0,
         questionIndices: dolIndices,
-        recordedAt: new Date(now).toISOString(),
+        recordedAt: new Date(built.academicAt).toISOString(),
         finalize: false,
         correctionReason: "server-ingestion",
       });
@@ -766,6 +778,10 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
       gradedBy: built.gradedBy,
       totalAttempts: Number(built.record.totalAttempts) || 0,
       capturedAt: envelope.capturedAt ? new Date(envelope.capturedAt) : null,
+      // The academic time the attempt was recorded at, and separately the real
+      // server time this receipt was issued. A delayed recovery is visible as
+      // the gap between them rather than by moving the grade.
+      academicOccurredAt: new Date(built.academicAt),
       issuedAt: FieldValue.serverTimestamp(),
     });
 
@@ -776,6 +792,8 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
       gradedBy: built.gradedBy,
       receiptId: receiptRef.id,
       totalAttempts: Number(built.record.totalAttempts) || 0,
+      academicOccurredAt: built.academicAt,
+      ingestedAt: now,
     };
   });
 }
@@ -13570,15 +13588,41 @@ exports.reportStudentDeviceQueue = onCall(async (request) => {
       .slice(0, 40)
       .map(([key, count]) => [String(key).slice(0, 80), number(count)]),
   );
+  /*
+   * Firestore map keys cannot contain `/`, `.`, `[`, `]`, `*` or backtick, and
+   * an assignment id can. Encoding the key keeps the breakdown storable without
+   * losing which assignment it belongs to; the reader decodes with the same
+   * function, so a document id that survives a round trip is the only contract.
+   */
+  const assignmentCountMap = (value) => Object.fromEntries(
+    Object.entries(value && typeof value === "object" ? value : {})
+      .slice(0, 40)
+      .map(([key, count]) => [encodeURIComponent(String(key)).slice(0, 300), number(count)]),
+  );
+
+  /*
+   * A version 1 device sent only an aggregate. It is stored as an aggregate and
+   * never reinterpreted: a per-assignment report that showed it would tell a
+   * teacher three submissions are outstanding on the assignment they are
+   * looking at when all three belong to a different one.
+   */
+  const summarySchemaVersion = Math.max(1, Number(summary.summarySchemaVersion) || 1);
+  const hasAssignmentBreakdown = summary.queuedGradeBearingByAssignment
+    && typeof summary.queuedGradeBearingByAssignment === "object";
 
   const db = getFirestore();
   await db.collection(DEVICE_QUEUE_REPORT_COLLECTION).doc(`${encodeURIComponent(studentId)}__${deviceId}`).set({
     studentId,
     deviceId,
+    summarySchemaVersion,
+    hasAssignmentBreakdown: Boolean(hasAssignmentBreakdown),
     classId: String((await db.collection("grades").doc(studentId).get()).data()?.classId || "") || null,
     queued: number(summary.queued),
     queuedGradeBearing: number(summary.queuedGradeBearing),
     queuedByKind: countMap(summary.queuedByKind),
+    queuedByAssignment: assignmentCountMap(summary.queuedByAssignment),
+    queuedGradeBearingByAssignment: assignmentCountMap(summary.queuedGradeBearingByAssignment),
+    needsReviewByAssignment: assignmentCountMap(summary.needsReviewByAssignment),
     blockedReasons: countMap(summary.blockedReasons),
     needsReview: number(summary.needsReview),
     retired: number(summary.retired),
@@ -13588,7 +13632,7 @@ exports.reportStudentDeviceQueue = onCall(async (request) => {
     ingestionFallbacks: number(summary.ingestionFallbacks),
     reportedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
-  return { success: true };
+  return { success: true, summarySchemaVersion };
 });
 
 /** The teacher of record for a class, or the root administrator. Nobody else. */
@@ -13621,11 +13665,45 @@ async function requireClassTeacher(request, classId) {
  * anything acknowledged after it, and skips a question a newer attempt already
  * settled. This makes the finalizer LOOK; it does not make it lenient.
  */
+/*
+ * HOW MUCH ONE SWEEP CALL WILL DO, AND HOW IT SAYS WHEN IT HAS NOT FINISHED.
+ *
+ * The first version read one page of 200 and returned. An assignment with 30
+ * students and a dozen Classwork questions exceeds that easily, so a teacher
+ * pressing "finalize outstanding checkpoints" was told the assignment had been
+ * swept when only its first 200 records had been looked at. A recovery command
+ * that quietly does part of the job is worse than one that refuses.
+ */
+const SWEEP_PAGE_SIZE = CHECKPOINT_BATCH_LIMIT;
+// A ceiling so one call cannot run past its own function timeout. Reaching it
+// is reported as truncation with a cursor, never as completion.
+const SWEEP_MAX_EXAMINED = 2_000;
+// Checkpoints for DIFFERENT students finalize concurrently; two for the SAME
+// student do not, because their transactions would contend on one grade
+// document and retry each other.
+const SWEEP_STUDENT_CONCURRENCY = 5;
+
+/** Run `worker` over `items` with at most `limit` in flight. */
+async function runBounded(items, limit, worker) {
+  if (!items.length) return;
+  let cursor = 0;
+  const take = async () => {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      // eslint-disable-next-line no-await-in-loop
+      await worker(items[index]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, take));
+}
+
 exports.sweepStudentResponseCheckpoints = onCall({ timeoutSeconds: 540 }, async (request) => {
   const assignmentId = String(request.data?.assignmentId || "").trim();
   const classId = String(request.data?.classId || "").trim();
   if (!assignmentId || !classId) throw new HttpsError("invalid-argument", "assignmentId and classId are required.");
   await requireClassTeacher(request, classId);
+  const cursor = String(request.data?.cursor || "").trim() || null;
 
   const db = getFirestore();
   const now = Date.now();
@@ -13633,30 +13711,103 @@ exports.sweepStudentResponseCheckpoints = onCall({ timeoutSeconds: 540 }, async 
   const schedule = scheduleSnapshot.exists ? scheduleSnapshot.data() : null;
   const classPeriodCache = new Map();
 
-  const outstanding = await db.collection(CHECKPOINT_COLLECTION)
-    .where("assignmentId", "==", assignmentId)
-    .where("classId", "==", classId)
-    .where("status", "==", CHECKPOINT_STATUS_ACTIVE)
-    .limit(CHECKPOINT_BATCH_LIMIT)
-    .get();
-
   const outcomes = {};
-  for (const snapshot of outstanding.docs) {
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      const outcome = await finalizeOneResponseCheckpoint({ db, ref: snapshot.ref, schedule, classPeriodCache, now });
-      outcomes[outcome] = (outcomes[outcome] || 0) + 1;
-    } catch (error) {
-      // One unfinalizable checkpoint must not stop the sweep. It stays active
-      // and is retried, exactly as it would be by the scheduler.
-      outcomes.failed = (outcomes.failed || 0) + 1;
-      logger.error("Could not finalize a checkpoint during a recovery sweep", {
-        assignmentId, classId, checkpointId: snapshot.id, message: error.message,
-      });
+  let examined = 0;
+  let pages = 0;
+  /*
+   * PAGED BY DOCUMENT ID, WHICH IS A TOTAL ORDER.
+   *
+   * Ordering by `__name__` and continuing with `startAfter` means one sweep
+   * walks every matching checkpoint exactly once and never revisits one. That
+   * matters because a `held` or `rescheduled` checkpoint is STILL `active`: a
+   * cursor that re-queried the same filter without an order would keep handing
+   * back the same held documents and the sweep would spin on them forever
+   * without ever reaching the ones behind them.
+   */
+  let after = cursor;
+  let truncated = false;
+
+  for (;;) {
+    let query = db.collection(CHECKPOINT_COLLECTION)
+      .where("assignmentId", "==", assignmentId)
+      .where("classId", "==", classId)
+      .where("status", "==", CHECKPOINT_STATUS_ACTIVE)
+      .orderBy(FieldPath.documentId())
+      .limit(SWEEP_PAGE_SIZE);
+    if (after) query = query.startAfter(after);
+
+    // eslint-disable-next-line no-await-in-loop
+    const page = await query.get();
+    if (page.empty) break;
+    pages += 1;
+    after = page.docs[page.docs.length - 1].id;
+
+    // One group per student: different students run together, one student's
+    // checkpoints run in order against their single grade document.
+    const byStudent = new Map();
+    page.docs.forEach((snapshot) => {
+      const studentId = String(snapshot.data()?.studentId || snapshot.id);
+      if (!byStudent.has(studentId)) byStudent.set(studentId, []);
+      byStudent.get(studentId).push(snapshot);
+    });
+
+    // eslint-disable-next-line no-await-in-loop
+    await runBounded([...byStudent.values()], SWEEP_STUDENT_CONCURRENCY, async (group) => {
+      for (const snapshot of group) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          const outcome = await finalizeOneResponseCheckpoint({ db, ref: snapshot.ref, schedule, classPeriodCache, now });
+          outcomes[outcome] = (outcomes[outcome] || 0) + 1;
+        } catch (error) {
+          // One unfinalizable checkpoint must not stop the sweep. It stays
+          // active and is retried, exactly as the scheduler would retry it.
+          outcomes.failed = (outcomes.failed || 0) + 1;
+          logger.error("Could not finalize a checkpoint during a recovery sweep", {
+            assignmentId, classId, checkpointId: snapshot.id, message: error.message,
+          });
+        }
+      }
+    });
+
+    examined += page.size;
+    if (page.size < SWEEP_PAGE_SIZE) break;
+    if (examined >= SWEEP_MAX_EXAMINED) {
+      truncated = true;
+      break;
     }
   }
-  logger.info("Checkpoint recovery sweep complete", { assignmentId, classId, examined: outstanding.size, ...outcomes });
-  return { assignmentId, classId, examined: outstanding.size, outcomes };
+
+  /*
+   * `complete` is the only thing a teacher should read as "this assignment has
+   * been swept". When it is false, `nextCursor` resumes exactly where this call
+   * stopped — the same document order, continuing after the last id examined.
+   */
+  const complete = !truncated;
+  logger.info("Checkpoint recovery sweep finished", {
+    assignmentId, classId, examined, pages, complete, ...outcomes,
+  });
+  return {
+    assignmentId,
+    classId,
+    examined,
+    pages,
+    outcomes,
+    complete,
+    truncated,
+    nextCursor: truncated ? after : null,
+    // How many were still outstanding when this call stopped, so "not complete"
+    // comes with a number rather than only a flag.
+    remainingAtCursor: truncated
+      ? (await db.collection(CHECKPOINT_COLLECTION)
+        .where("assignmentId", "==", assignmentId)
+        .where("classId", "==", classId)
+        .where("status", "==", CHECKPOINT_STATUS_ACTIVE)
+        .orderBy(FieldPath.documentId())
+        .startAfter(after)
+        .count()
+        .get()).data().count
+      : 0,
+  };
 });
 
 const RECOVERY_REPORT_STUDENT_LIMIT = 60;
@@ -13774,8 +13925,20 @@ async function buildStudentRecoveryRow({
     ...Object.entries((draftAssessment?.counts) || {})
       .filter(([status]) => status !== "recoverable")
       .map(([status, count]) => ({ source: "workspaceDraft", reason: status, count })),
+    /*
+     * A device's blocked reasons are device-wide: the outbox records why a
+     * delivery failed, not which assignment it failed for. They are listed
+     * with that scope named, so a teacher reads them as "this Chromebook has a
+     * problem" rather than "this assignment has a problem".
+     */
     ...deviceSnapshot.docs.flatMap((snapshot) => Object.entries(snapshot.data()?.blockedReasons || {})
-      .map(([reason, count]) => ({ source: "deviceQueue", reason, count, deviceId: snapshot.data()?.deviceId || null }))),
+      .map(([reason, count]) => ({
+        source: "deviceQueue",
+        scope: "device-wide",
+        reason,
+        count,
+        deviceId: snapshot.data()?.deviceId || null,
+      }))),
   ];
 
   return {
@@ -13802,17 +13965,42 @@ async function buildStudentRecoveryRow({
         recoverableCount: draftAssessment.recoverable.length,
       }
       : { present: false, entryCount: 0, savedAt: null, latestEntrySavedAt: null, counts: {}, recoverableCount: 0 },
-    // Only this student's own devices can report these, and only after they
-    // reconnect. An empty list means "nothing has reported", never "nothing is
-    // queued" — it is the one number this report cannot prove.
+    /*
+     * WHAT THIS DEVICE IS HOLDING FOR *THIS* ASSIGNMENT.
+     *
+     * Only this student's own devices can report this, and only after they
+     * reconnect. An empty list means "nothing has reported", never "nothing is
+     * queued" — it is the one number this report cannot prove.
+     *
+     * A device that sent only an aggregate (the release before the breakdown
+     * existed) reports `assignmentQueueKnown: false`. Its aggregate is passed
+     * through as an aggregate and never displayed as this assignment's count:
+     * three submissions queued for a different assignment must not read as
+     * three outstanding here.
+     */
     deviceQueues: deviceSnapshot.docs.map((snapshot) => {
       const data = snapshot.data() || {};
+      const assignmentKey = encodeURIComponent(assignmentId);
+      const knowsAssignments = data.hasAssignmentBreakdown === true;
       return {
         deviceId: data.deviceId || null,
         reportedAt: millisOf(data.reportedAt),
-        queued: Number(data.queued) || 0,
-        queuedGradeBearing: Number(data.queuedGradeBearing) || 0,
-        needsReview: Number(data.needsReview) || 0,
+        summarySchemaVersion: Number(data.summarySchemaVersion) || 1,
+        assignmentQueueKnown: knowsAssignments,
+        queuedGradeBearingForAssignment: knowsAssignments
+          ? Number(data.queuedGradeBearingByAssignment?.[assignmentKey]) || 0
+          : null,
+        queuedForAssignment: knowsAssignments
+          ? Number(data.queuedByAssignment?.[assignmentKey]) || 0
+          : null,
+        needsReviewForAssignment: knowsAssignments
+          ? Number(data.needsReviewByAssignment?.[assignmentKey]) || 0
+          : null,
+        // Device-wide totals across every assignment. Labelled, so a reader
+        // cannot mistake them for this assignment's.
+        deviceWideQueued: Number(data.queued) || 0,
+        deviceWideQueuedGradeBearing: Number(data.queuedGradeBearing) || 0,
+        deviceWideNeedsReview: Number(data.needsReview) || 0,
         retired: Number(data.retired) || 0,
         oldestCapturedAt: Number(data.oldestCapturedAt) || null,
       };
@@ -13890,7 +14078,15 @@ exports.getStudentPersistenceRecoveryReport = onCall({ timeoutSeconds: 300 }, as
       canonicalAttempted: rows.reduce((total, row) => total + row.canonicalAttempted, 0),
       unaccountedForQuestions: rows.reduce((total, row) => total + row.unaccountedForQuestions, 0),
       recoverableDrafts: rows.reduce((total, row) => total + row.workspaceDraft.recoverableCount, 0),
-      queuedOnDevices: rows.reduce((total, row) => total + row.deviceQueues.reduce((sum, queue) => sum + queue.queuedGradeBearing, 0), 0),
+      // Only devices that can answer per-assignment are counted here. A legacy
+      // aggregate is reported separately rather than folded in, because adding
+      // it would be the same misattribution at class scale.
+      queuedOnDevices: rows.reduce((total, row) => total + row.deviceQueues.reduce(
+        (sum, queue) => sum + (queue.assignmentQueueKnown ? queue.queuedGradeBearingForAssignment : 0), 0,
+      ), 0),
+      devicesWithoutAssignmentBreakdown: rows.reduce((total, row) => total + row.deviceQueues.filter(
+        (queue) => !queue.assignmentQueueKnown,
+      ).length, 0),
     },
     students: rows.sort((left, right) => right.unaccountedForQuestions - left.unaccountedForQuestions),
   };
