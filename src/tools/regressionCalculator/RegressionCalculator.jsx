@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import CoordinatePlane from '../shared/CoordinatePlane';
@@ -38,16 +39,16 @@ const boundsFor = (points) => {
 export default function RegressionCalculator({ questionData = {}, onAction }) {
   const source = cleanRegressionPoints(questionData.sourceData || questionData.points);
   const sourceMode = questionData.sourceMode === 'scatterplot' ? 'scatterplot' : 'data';
-  const [rows, setRows] = useState(() => [EMPTY_EXPRESSION()]);
+  const [rows, setRows] = usePersistentToolState('rows', () => [EMPTY_EXPRESSION()]);
   const [selectedId, setSelectedId] = useState(null);
   const [editOpen, setEditOpen] = useState(false);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [run, setRun] = useState(null);
-  const [direction, setDirection] = useState('');
-  const [strength, setStrength] = useState('');
+  const [run, setRun] = usePersistentToolState('run', null);
+  const [direction, setDirection] = usePersistentToolState('direction', '');
+  const [strength, setStrength] = usePersistentToolState('strength', '');
   const [notice, setNotice] = useState('');
-  const [processEvidence, setProcessEvidence] = useState([]);
+  const [processEvidence, setProcessEvidence] = usePersistentToolState('processEvidence', []);
   const [redoDepth, setRedoDepth] = useState(0);
   const redoStackRef = useRef([]);
   const inputRefs = useRef([]);

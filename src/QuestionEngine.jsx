@@ -38,6 +38,7 @@ import { resolveCalculatorPolicy } from './platform/policies/calculatorPolicy';
 import { getToolDefinition } from './tools/toolRegistry';
 import { buildRawPathResponse } from './platform/path/pathToolResponses';
 import { ToolRuntimeProvider } from './tools/shared/ToolRuntimeContext';
+import { ToolDraftScopeProvider, forgetToolDrafts, stampToolDraftSubmission } from './tools/shared/usePersistentToolState.js';
 import InteractiveModelingLabPlayer from './components/labs/InteractiveModelingLabPlayer.jsx';
 import { useToast } from './ui/Toast';
 import QuestionModuleBoundary from './QuestionModuleBoundary';
@@ -234,6 +235,16 @@ export default function QuestionEngine({
     [missingToolDefinition],
   );
   const record = normalizeQuestionRecord(questionRecord);
+  /*
+   * WHEN THIS QUESTION WAS LAST REALLY ANSWERED.
+   *
+   * The precedence an unfinished draft has to respect: a newer submitted answer
+   * outranks it. Read from the question record the platform already keeps —
+   * never from anything a tool or a browser reports about its own freshness —
+   * and 0 while the question has never been submitted, which is the common case
+   * and leaves the draft entirely in charge.
+   */
+  const canonicalAnswerSavedAt = Date.parse(record.lastAttemptAt || '') || 0;
   const [answerState, setAnswerState] = useState(EMPTY_ANSWER_STATE);
   const [feedback, setFeedback] = useState(null);
   const [lastSubmittedResponseKey, setLastSubmittedResponseKey] = useState('');
@@ -614,6 +625,10 @@ export default function QuestionEngine({
         setFeedback(await submitToServer(payload?.response, { responseKey: JSON.stringify(payload?.response ?? {}) }));
       } finally {
         setSubmitting(false);
+        // The work the student just submitted is current, not stale. Writing the
+        // same values back keeps `toolDraftIsSuperseded` meaningful without
+        // creating an attempt or touching a grade.
+        stampToolDraftSubmission(draftKey);
       }
       return;
     }
@@ -655,6 +670,7 @@ export default function QuestionEngine({
       });
     } finally {
       setSubmitting(false);
+      stampToolDraftSubmission(draftKey);
     }
   };
 
@@ -702,6 +718,10 @@ export default function QuestionEngine({
     setRequesting(true);
     try {
       removeQuestionDraftFamily(draftKey);
+      // The stored entries are gone; drop the parsed copies too, or a
+      // replacement that reuses this key could still be answered from the
+      // previous variant's workspace.
+      forgetToolDrafts(draftKey);
       setAnswerState(EMPTY_ANSWER_STATE);
       setFeedback(null);
       setLastSubmittedResponseKey('');
@@ -781,6 +801,7 @@ export default function QuestionEngine({
           })}
           disabled={commonModuleProps.disabled}
           draftKey={draftKey}
+          canonicalSavedAt={canonicalAnswerSavedAt}
           showPrompt={false}
           showStagePrompt={false}
           submissionReview={showOutcomeFeedback ? workflowSubmissionReview : null}
@@ -805,15 +826,23 @@ export default function QuestionEngine({
               beside its own controls, and no two of them took back the same
               amount of work. The channel is opened once, at the call site, and
               a tool joins it with `useMathUndoHistory`. */}
-          <Suspense fallback={<p role="status">Opening Work View…</p>}>
-            <WorkViewReadySignal span={workViewSpan} />
-            {/* `draftKey` is the seam a registry tool adopts to make its own
-                workspace survive a device restart: useLocalDraftState or
-                useUndoHistory under this key is backed up automatically. No
-                registry tool has adopted it yet — see
-                docs/handoffs/RESPONSE_CHECKPOINT_COMPATIBILITY.md. */}
-            <Tool questionData={presentationQuestion} onAction={handleMissingToolAction} draftKey={draftKey} />
-          </Suspense>
+          {/* AND THIS IS WHERE THEIR UNFINISHED WORK SURVIVES LEAVING.
+              The workspace is remounted on every navigation, so a value held in
+              a tool's own `useState` is gone the moment the student presses
+              Next. The registry tools adopt the `draftKey` seam through this
+              provider: `usePersistentToolState` names a field, the platform
+              decides where it lives, and the existing local-draft plus
+              background workspace-sync layers carry it from there. A tool still
+              knows nothing about Firestore.
+
+              `canonicalSavedAt` is what stops a stale draft outranking a newer
+              submitted answer — see `toolDraftIsSuperseded`. */}
+          <ToolDraftScopeProvider draftKey={draftKey} canonicalSavedAt={canonicalAnswerSavedAt}>
+            <Suspense fallback={<p role="status">Opening Work View…</p>}>
+              <WorkViewReadySignal span={workViewSpan} />
+              <Tool questionData={presentationQuestion} onAction={handleMissingToolAction} draftKey={draftKey} />
+            </Suspense>
+          </ToolDraftScopeProvider>
         </ToolRuntimeProvider>
       );
     }

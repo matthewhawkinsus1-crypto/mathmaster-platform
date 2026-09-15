@@ -25,6 +25,16 @@ on:
       - "src/platform/workView/**"
       - "src/platform/graph/graphScaleService.js"
       - "src/QuestionEngine.jsx"
+      - "src/questionDraftStorage.js"
+      - "src/tools/shared/usePersistentToolState.js"
+      - "src/tools/toolStatePersistence.js"
+      - "src/platform/workflow/WorkflowRunner.jsx"
+      - "src/tools/**"
+      - "scripts/run-draft-persistence-certification.mjs"
+      - "tests/browser/draftPersistence*"
+      - "tests/platform/toolDraftPersistence*.test.mjs"
+      - "tests/platform/draftPersistenceFindings.test.mjs"
+      - "tests/platform/fixtures/draftPersistenceFindings.json"
       - "src/platform/performance/**"
       - "scripts/certify-performance*.mjs"
       - "tests/platform/durableActionOutbox.test.mjs"
@@ -93,6 +103,11 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: npm run test:test-cycle-device
+
+      - name: Certify unfinished work persistence
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: npm run test:draft-persistence
 
       - name: Certify durable 30-student action load
         run: npm run certify:performance:load

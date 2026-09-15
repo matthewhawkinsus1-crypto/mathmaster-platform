@@ -1,5 +1,6 @@
 import React, { lazy } from 'react';
 import { getToolCapabilities } from './toolCapabilities';
+import { getToolStatePersistence } from './toolStatePersistence';
 import { TOOL_CATALOG } from './toolCatalog';
 import { getMobileToolProfile } from '../platform/mobile/mobileToolProfiles.js';
 import RegisteredToolWorkView from './shared/RegisteredToolWorkView.jsx';
@@ -60,7 +61,17 @@ export const TOOL_REGISTRY = Object.fromEntries(
 export const getToolDefinition = (toolId) => {
   const definition = TOOL_REGISTRY[toolId];
   if (!definition) return null;
-  return { toolId, ...definition, capabilities: getToolCapabilities(toolId), mobileInteraction: getMobileToolProfile(toolId) };
+  const persistence = getToolStatePersistence(toolId);
+  return {
+    toolId,
+    ...definition,
+    capabilities: getToolCapabilities(toolId),
+    mobileInteraction: getMobileToolProfile(toolId),
+    // WHETHER A STUDENT'S UNFINISHED WORK IN THIS TOOL SURVIVES NAVIGATION.
+    // Declared per tool in toolStatePersistence.js and enforced against the
+    // tool's own source by tests/platform/toolDraftPersistenceContract.
+    studentStatePersistence: persistence?.studentStatePersistence || null,
+  };
 };
 
 export const toolUsesRegistryWorkView = (toolId) => REGISTRY_WORK_VIEW_IDS.has(toolId);

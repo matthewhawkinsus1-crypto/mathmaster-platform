@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
@@ -167,9 +168,9 @@ function AnalyzeSequence({ questionData, feedback, submit, onAction }) {
   const targetN = Number(questionData.targetN ?? 8);
   const expectedChange = sequenceChange(spec);
   const expectedTerm = sequenceTerm(spec, targetN);
-  const [kindAnswer, setKindAnswer] = useState('');
-  const [changeAnswer, setChangeAnswer] = useState('');
-  const [termAnswer, setTermAnswer] = useState('');
+  const [kindAnswer, setKindAnswer] = usePersistentToolState('kindAnswer', '');
+  const [changeAnswer, setChangeAnswer] = usePersistentToolState('changeAnswer', '');
+  const [termAnswer, setTermAnswer] = usePersistentToolState('termAnswer', '');
   const mathState = useMemo(() => ({ kindAnswer, changeAnswer, termAnswer }), [kindAnswer, changeAnswer, termAnswer]);
   const restore = useCallback((value) => { setKindAnswer(value?.kindAnswer || ''); setChangeAnswer(value?.changeAnswer || ''); setTermAnswer(value?.termAnswer || ''); }, []);
   const undoHistory = useMathUndoHistory({ label: 'Undo the last sequence answer edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
@@ -215,15 +216,15 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
   const requireRecursive = actions.includes('writeRecursive');
   const requireTarget = actions.includes('findSequenceTerm') && targetN > 0;
 
-  const [tableValues, setTableValues] = useState(() => rows.map(() => ''));
-  const [plottedPoints, setPlottedPoints] = useState([]);
+  const [tableValues, setTableValues] = usePersistentToolState('tableValues', () => rows.map(() => ''));
+  const [plottedPoints, setPlottedPoints] = usePersistentToolState('plottedPoints', []);
   const [plotMessage, setPlotMessage] = useState('');
-  const [kindAnswer, setKindAnswer] = useState('');
-  const [changeAnswer, setChangeAnswer] = useState('');
-  const [explicitRule, setExplicitRule] = useState('');
-  const [recursiveFirst, setRecursiveFirst] = useState('');
-  const [recursiveRule, setRecursiveRule] = useState('');
-  const [termAnswer, setTermAnswer] = useState('');
+  const [kindAnswer, setKindAnswer] = usePersistentToolState('kindAnswer', '');
+  const [changeAnswer, setChangeAnswer] = usePersistentToolState('changeAnswer', '');
+  const [explicitRule, setExplicitRule] = usePersistentToolState('explicitRule', '');
+  const [recursiveFirst, setRecursiveFirst] = usePersistentToolState('recursiveFirst', '');
+  const [recursiveRule, setRecursiveRule] = usePersistentToolState('recursiveRule', '');
+  const [termAnswer, setTermAnswer] = usePersistentToolState('termAnswer', '');
 
   const mathState = useMemo(() => ({
     tableValues, plottedPoints, kindAnswer, changeAnswer, explicitRule,
@@ -480,9 +481,9 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
 
 function RuleBridge({ questionData, feedback, submit, onAction }) {
   const spec = sequenceFromQuestion(questionData);
-  const [explicitRule, setExplicitRule] = useState('');
-  const [recursiveFirst, setRecursiveFirst] = useState('');
-  const [recursiveRule, setRecursiveRule] = useState('');
+  const [explicitRule, setExplicitRule] = usePersistentToolState('explicitRule', '');
+  const [recursiveFirst, setRecursiveFirst] = usePersistentToolState('recursiveFirst', '');
+  const [recursiveRule, setRecursiveRule] = usePersistentToolState('recursiveRule', '');
   const mathState = useMemo(() => ({ explicitRule, recursiveFirst, recursiveRule }), [explicitRule, recursiveFirst, recursiveRule]);
   const restore = useCallback((value) => { setExplicitRule(value?.explicitRule || ''); setRecursiveFirst(value?.recursiveFirst || ''); setRecursiveRule(value?.recursiveRule || ''); }, []);
   const undoHistory = useMathUndoHistory({ label: 'Undo the last rule edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
@@ -557,8 +558,8 @@ function MissingTerm({ questionData, feedback, submit, onAction }) {
   const count = Math.max(6, Number(questionData.displayCount ?? 7), missingIndex + 1);
   const rows = generateSequence(spec, count);
   const expected = sequenceTerm(spec, missingIndex);
-  const [termAnswer, setTermAnswer] = useState('');
-  const [kindAnswer, setKindAnswer] = useState('');
+  const [termAnswer, setTermAnswer] = usePersistentToolState('termAnswer', '');
+  const [kindAnswer, setKindAnswer] = usePersistentToolState('kindAnswer', '');
   const mathState = useMemo(() => ({ termAnswer, kindAnswer }), [termAnswer, kindAnswer]);
   const restore = useCallback((value) => { setTermAnswer(value?.termAnswer || ''); setKindAnswer(value?.kindAnswer || ''); }, []);
   const undoHistory = useMathUndoHistory({ label: 'Undo the last missing-term edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
@@ -589,8 +590,8 @@ function PartialSum({ questionData, feedback, submit, onAction }) {
   const sumN = Number(questionData.sumN ?? 6);
   const expectedLast = sequenceTerm(spec, sumN);
   const expectedSum = sequencePartialSum(spec, sumN);
-  const [lastTerm, setLastTerm] = useState('');
-  const [sumAnswer, setSumAnswer] = useState('');
+  const [lastTerm, setLastTerm] = usePersistentToolState('lastTerm', '');
+  const [sumAnswer, setSumAnswer] = usePersistentToolState('sumAnswer', '');
   const mathState = useMemo(() => ({ lastTerm, sumAnswer }), [lastTerm, sumAnswer]);
   const restore = useCallback((value) => { setLastTerm(value?.lastTerm || ''); setSumAnswer(value?.sumAnswer || ''); }, []);
   const undoHistory = useMathUndoHistory({ label: 'Undo the last finite-sum edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
@@ -635,12 +636,12 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
   const rightRows = generateSequence(right, plotCount);
   const bounds = graphBounds([...leftRows, ...rightRows].map((row) => row.value));
   const plotSnapStep = inferPlotSnapStep([...leftRows, ...rightRows], questionData.plotSnapStep);
-  const [activeSeries, setActiveSeries] = useState('A');
-  const [leftPlottedPoints, setLeftPlottedPoints] = useState([]);
-  const [rightPlottedPoints, setRightPlottedPoints] = useState([]);
+  const [activeSeries, setActiveSeries] = usePersistentToolState('activeSeries', 'A');
+  const [leftPlottedPoints, setLeftPlottedPoints] = usePersistentToolState('leftPlottedPoints', []);
+  const [rightPlottedPoints, setRightPlottedPoints] = usePersistentToolState('rightPlottedPoints', []);
   const [plotMessage, setPlotMessage] = useState('');
-  const [relation, setRelation] = useState('');
-  const [difference, setDifference] = useState('');
+  const [relation, setRelation] = usePersistentToolState('relation', '');
+  const [difference, setDifference] = usePersistentToolState('difference', '');
   const mathState = useMemo(() => ({ activeSeries, leftPlottedPoints, rightPlottedPoints, relation, difference }),
     [activeSeries, leftPlottedPoints, rightPlottedPoints, relation, difference]);
   const restoreMathState = useCallback((previous) => {

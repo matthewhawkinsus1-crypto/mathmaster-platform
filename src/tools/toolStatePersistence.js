@@ -1,0 +1,118 @@
+/*
+ * THE CONTRACT THAT STOPS THIS BUG COMING BACK.
+ *
+ * Students lost unfinished work because a registry tool could hold the whole of
+ * their answer in `useState` and look completely finished: it rendered, it
+ * graded, it passed every test. Nothing anywhere said that a workspace which is
+ * remounted on navigation cannot keep the student's answer in component state.
+ *
+ * So it is said here, per tool, in a file Node can read:
+ *
+ *   studentStatePersistence   'draft-backed' — the student can edit mathematics
+ *                             in this tool, and every such value goes through
+ *                             `usePersistentToolState`.
+ *                             'read-only' — the tool has nothing a student can
+ *                             answer with. It displays.
+ *
+ *   transientState            The `useState` calls that are allowed to stay
+ *                             transient, each with the reason. Presentation,
+ *                             never mathematics: a camera, a hover, a menu, a
+ *                             message that is regenerated from state anyway.
+ *
+ * `tests/platform/toolDraftPersistenceContract.test.mjs` reads every registry
+ * tool's source and fails on any `useState` that is not named here. A new tool
+ * whose answer sits in `useState` cannot ship silently: the gate names the
+ * field, and the author either moves it to the draft-backed hook or writes down
+ * why it is only presentation.
+ */
+
+export const STUDENT_STATE_PERSISTENCE_MODES = Object.freeze(['draft-backed', 'read-only']);
+
+const entry = (sources, transientState = {}, studentStatePersistence = 'draft-backed') => Object.freeze({
+  studentStatePersistence,
+  sources: Object.freeze(sources),
+  transientState: Object.freeze(transientState),
+});
+
+export const TOOL_STATE_PERSISTENCE = Object.freeze({
+  dataModelingLab: entry(['dataModeling/DataModelingLab.jsx']),
+  regressionCalculator: entry(['regressionCalculator/RegressionCalculator.jsx'], {
+    selectedId: 'Which row the cursor is in. Selection, not an answer.',
+    editOpen: 'Row editor open/closed.',
+    addMenuOpen: 'Add menu open/closed.',
+    collapsed: 'Whether the list is collapsed.',
+    notice: 'Transient status line, regenerated from the action that raised it.',
+    redoDepth: 'Mirror of the redo stack depth, for enabling a button.',
+  }),
+  inverseCompositionLab: entry([
+    'inverseComposition/InverseCompositionLabRouter.jsx',
+    'inverseComposition/InverseCompositionLab.jsx',
+    'inverseComposition/InverseDerivationLab.jsx',
+  ], {
+    operationError: 'Why the last operation was rejected. Error text, not work.',
+  }),
+  functionOperationsLab: entry(['functionOperations/FunctionOperationsLab.jsx']),
+  systemsWorkspace: entry(['systemsWorkspace/SystemsWorkspace.jsx']),
+  parabolaGeometryLab: entry(['parabolaGeometry/ParabolaGeometryLab.jsx']),
+  polynomialWorkshop: entry(['polynomialWorkshop/PolynomialWorkshop.jsx']),
+  signSolutionAnalyzer: entry(['signSolutionAnalyzer/SignSolutionAnalyzer.jsx']),
+  sequenceExplorer: entry(['sequenceExplorer/SequenceExplorer.jsx'], {
+    plotMessage: 'Why a click was not a valid term position. Error text.',
+  }),
+  complexPlaneLab: entry(['complexPlane/ComplexPlaneLab.jsx']),
+  exponentialLogBridge: entry(['exponentialLog/ExponentialLogBridge.jsx']),
+  transformationsLab: entry(['transformations/TransformationsLab.jsx']),
+  representationMatch: entry(['representationMatch/RepresentationMatch.jsx']),
+  functionInvestigation2: entry(['functionInvestigation2/FunctionInvestigation2.jsx']),
+  graphing2: entry(['graphing2/Graphing2.jsx']),
+  stepAlgebra2: entry(['stepAlgebra2/StepAlgebra2.jsx'], {
+    inputError: 'Why an operand was rejected. Error text, not a step.',
+  }),
+  // Nothing here is answerable: it renders an attempt that has already been
+  // graded. A draft would have nothing to hold.
+  solutionReview2: entry(['solutionReview2/SolutionReview2.jsx'], {}, 'read-only'),
+  intervalNumberLine: entry(['intervalNumberLine/IntervalNumberLine.jsx'], {
+    viewport: 'The camera. Presentation — panning must never look like an edit.',
+    endpointError: 'Why a typed endpoint was rejected. Error text.',
+    dragging: 'Which endpoint the finger is currently on. Gone at pointer-up.',
+  }),
+  relationMapping: entry(['relationMapping/RelationMapping.jsx'], {
+    hoverPoint: 'The cursor preview on the plane.',
+    selectedDomain: 'Which domain value is armed for the next arrow. Selection.',
+  }),
+  openSortBoard: entry(['openSortBoard/OpenSortBoard.jsx'], {
+    selectedId: 'Which card is picked up. Selection, not a placement.',
+  }),
+  constraintFunctionBuilder: entry(['constraintFunctionBuilder/ConstraintFunctionBuilder.jsx']),
+});
+
+export const getToolStatePersistence = (toolId) => TOOL_STATE_PERSISTENCE[toolId] || null;
+
+/** The tools a student can answer with, and which therefore must be draft-backed. */
+export const draftBackedToolIds = () => Object.entries(TOOL_STATE_PERSISTENCE)
+  .filter(([, value]) => value.studentStatePersistence === 'draft-backed')
+  .map(([toolId]) => toolId);
+
+/*
+ * Shared tool components are audited too, and separately, because they hold no
+ * question identity of their own: `CoordinatePlane` reports a point up to
+ * whichever tool mounted it and must never persist one itself, and `ToolShell`
+ * owns nothing but its own disclosure.
+ */
+export const SHARED_TOOL_TRANSIENT_STATE = Object.freeze({
+  'shared/CoordinatePlane.jsx': Object.freeze({
+    view: 'Zoom and pan. The camera is presentation and is excluded from undo too.',
+    pointerPreview: 'Where the cursor is hovering.',
+    keyboardCursor: 'Where the keyboard cursor is.',
+    hoveredPointIndex: 'Which plotted point is under the cursor.',
+    keyboardActive: 'Whether the keyboard cursor is showing.',
+    dragIndex: 'Which point the current gesture is moving. Gone at pointer-up.',
+    gestureActive: 'Whether a pointer gesture is in progress.',
+  }),
+  'shared/ToolShell.jsx': Object.freeze({
+    revealed: 'Whether the hint list is open.',
+  }),
+  'shared/useToolSubmission.js': Object.freeze({
+    feedback: 'The verdict for the last submission. A grading result, never a draft.',
+  }),
+});

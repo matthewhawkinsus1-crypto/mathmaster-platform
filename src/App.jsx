@@ -147,6 +147,7 @@ import {
   reconcileAssignmentActivityProjection,
   reportDeviceQueueState,
 } from './services/submissionIngestionService.js';
+import { forgetAssignmentToolDrafts } from './tools/shared/usePersistentToolState.js';
 import { createDeviceReportCoordinator, reconcileWithDeviceReports } from './platform/persistence/deviceReportCoordinator.js';
 import {
   INGESTIBLE_KINDS,
@@ -3794,6 +3795,7 @@ function App() {
     // localStorage. Clear that preview-only draft family too so "View as
     // Student" really begins at a blank first attempt every time.
     removeAssignmentDrafts({ studentId: 'teacher-preview', assignmentId });
+    forgetAssignmentToolDrafts({ studentId: 'teacher-preview', assignmentId });
     setPreviewSessionId((current) => current + 1);
     setActiveAssignmentId(assignmentId);
     setCurrentQuestionIndex(getCurrentContentQuestionIndices(assignmentData)[0] ?? 0);

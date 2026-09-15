@@ -1,0 +1,160 @@
+{
+  "generatedAt": "2026-09-15T22:33:40.666Z",
+  "journeys": [
+    "navigate",
+    "reload",
+    "reopen",
+    "replacement"
+  ],
+  "budgets": {
+    "maxSingleWriteMs": 4,
+    "maxWriteShare": 0.1
+  },
+  "families": [
+    {
+      "id": "literal-input",
+      "label": "Basic literal/input question",
+      "family": "LiteralGrader",
+      "navigate": "pass",
+      "reload": "pass",
+      "reopen": "pass",
+      "replacement": "n/a"
+    },
+    {
+      "id": "multi-answer",
+      "label": "multiAnswer",
+      "family": "MultiAnswerGrader",
+      "navigate": "pass",
+      "reload": "pass",
+      "reopen": "pass",
+      "replacement": "n/a"
+    },
+    {
+      "id": "table",
+      "label": "table",
+      "family": "TableGrader",
+      "navigate": "pass",
+      "reload": "pass",
+      "reopen": "pass",
+      "replacement": "n/a"
+    },
+    {
+      "id": "composed-workflow",
+      "label": "Workflow/composed question",
+      "family": "WorkflowRunner",
+      "navigate": "pass",
+      "reload": "pass",
+      "reopen": "pass",
+      "replacement": "n/a"
+    },
+    {
+      "id": "interactive-graph",
+      "label": "Interactive graph workspace (mixed: points + typed answer)",
+      "family": "InteractiveGraphWorkspace",
+      "navigate": "pass",
+      "reload": "pass",
+      "reopen": "pass",
+      "replacement": "n/a"
+    },
+    {
+      "id": "step-algebra",
+      "label": "Step Algebra",
+      "family": "StepByStepAlgebra",
+      "navigate": "pass",
+      "reload": "pass",
+      "reopen": "pass",
+      "replacement": "n/a"
+    },
+    {
+      "id": "function-operations",
+      "label": "Function Operations Workbench",
+      "family": "functionOperationsLab",
+      "navigate": "pass",
+      "reload": "pass",
+      "reopen": "pass",
+      "replacement": "pass"
+    },
+    {
+      "id": "function-investigation",
+      "label": "Function Investigation 2",
+      "family": "functionInvestigation2",
+      "navigate": "pass",
+      "reload": "pass",
+      "reopen": "pass",
+      "replacement": "n/a"
+    },
+    {
+      "id": "graphing2",
+      "label": "Graphing 2",
+      "family": "graphing2",
+      "navigate": "pass",
+      "reload": "pass",
+      "reopen": "pass",
+      "replacement": "n/a"
+    },
+    {
+      "id": "sequence-explorer",
+      "label": "Sequence Explorer (fullBridge — mixed: table + plot + dropdown + rules)",
+      "family": "sequenceExplorer",
+      "navigate": "pass",
+      "reload": "pass",
+      "reopen": "pass",
+      "replacement": "n/a"
+    },
+    {
+      "id": "systems-workspace",
+      "label": "Systems Workspace",
+      "family": "systemsWorkspace",
+      "navigate": "pass",
+      "reload": "pass",
+      "reopen": "pass",
+      "replacement": "n/a"
+    },
+    {
+      "id": "transformations",
+      "label": "Transformations Lab",
+      "family": "transformationsLab",
+      "navigate": "pass",
+      "reload": "pass",
+      "reopen": "pass",
+      "replacement": "n/a"
+    },
+    {
+      "id": "interval-number-line",
+      "label": "Number line and intervals (drag-rate workspace)",
+      "family": "intervalNumberLine",
+      "navigate": "pass",
+      "reload": "pass",
+      "reopen": "pass",
+      "replacement": "n/a"
+    },
+    {
+      "id": "data-modeling",
+      "label": "Data/modeling tool",
+      "family": "dataModelingLab",
+      "navigate": "pass",
+      "reload": "pass",
+      "reopen": "pass",
+      "replacement": "n/a"
+    }
+  ],
+  "performance": [
+    {
+      "probe": "rapid typing",
+      "burstMs": 82,
+      "count": 18,
+      "totalMs": 0.7999999998137355,
+      "maxMs": 0.10000000009313226,
+      "share": 0.009756097558704092
+    },
+    {
+      "probe": "endpoint drag",
+      "burstMs": 1022,
+      "count": 8,
+      "totalMs": 0.4999999990686774,
+      "maxMs": 0.10000000009313226,
+      "share": 0.0004892367896953791
+    }
+  ],
+  "findings": []
+}

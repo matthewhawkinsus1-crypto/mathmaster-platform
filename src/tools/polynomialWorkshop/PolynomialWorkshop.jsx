@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
+import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { evaluatePolynomial, matchesNumericAnswer, nearlyEqual, parseNumericAnswer } from '../shared/toolMath';
@@ -47,8 +48,8 @@ function FactorZero({ questionData, feedback, submit, onAction }) {
   const candidateRoot = Number(questionData.candidateRoot ?? 2);
   const polynomialValue = evaluatePolynomial(coefficients, candidateRoot);
   const isFactor = Math.abs(polynomialValue) < 1e-9;
-  const [value,setValue]=useState('');
-  const [factorChoice,setFactorChoice]=useState('yes');
+  const [value, setValue] = usePersistentToolState('value', '');
+  const [factorChoice, setFactorChoice] = usePersistentToolState('factorChoice', 'yes');
   const check=()=>{
     const valueCorrect=matchesNumericAnswer(value,polynomialValue,0.01);
     const factorCorrect=(factorChoice==='yes')===isFactor;
@@ -69,8 +70,8 @@ function MultiplyArea({ questionData, feedback, submit, onAction }) {
   const expectedCells = [left[0]*right[0], left[0]*right[1], left[1]*right[0], left[1]*right[1]];
   const cellDegrees = [2, 1, 1, 0];
   const product = polynomialMultiply(left,right);
-  const [cells,setCells]=useState(['','','','']);
-  const [expanded,setExpanded]=useState('');
+  const [cells, setCells] = usePersistentToolState('cells', ['','','','']);
+  const [expanded, setExpanded] = usePersistentToolState('expanded', '');
   const setCell=(index,value)=>setCells((old)=>old.map((v,i)=>i===index?value:v));
   const check=()=>{
     const cellCorrect=cells.map((v,i)=>matchesNumericAnswer(v,expectedCells[i],0.01));
@@ -96,7 +97,7 @@ function MultiplyArea({ questionData, feedback, submit, onAction }) {
 function FactorQuadratic({ questionData, feedback, submit, onAction }) {
   const coefficients = questionData.coefficients || [1,-5,6];
   const expected = integerFactorPairForMonicQuadratic(coefficients);
-  const [p,setP]=useState(''); const [q,setQ]=useState('');
+  const [p, setP] = usePersistentToolState('p', ''); const [q, setQ] = usePersistentToolState('q', '');
   const check=()=>{
     const parsedP=parseNumericAnswer(p); const parsedQ=parseNumericAnswer(q);
     const isCorrect=!!expected && parsedP!==null && parsedQ!==null && sameNumberMultiset([parsedP,parsedQ],expected,0.01);
@@ -112,7 +113,7 @@ function DivisionMode({ questionData, feedback, submit, onAction }) {
   const dividend = questionData.dividend || [1,-4,-7,10];
   const divisor = questionData.divisor || [1,-2];
   const result = useMemo(()=>polynomialLongDivide(dividend,divisor),[dividend,divisor]);
-  const [quotient,setQuotient]=useState(''); const [remainder,setRemainder]=useState('');
+  const [quotient, setQuotient] = usePersistentToolState('quotient', ''); const [remainder, setRemainder] = usePersistentToolState('remainder', '');
   const check=()=>{
     const q=parseNumbers(quotient); const r=parseNumbers(remainder);
     const qCorrect=q.length===result.quotient.length && q.every((v,i)=>nearlyEqual(v,result.quotient[i],0.01));
@@ -131,7 +132,7 @@ function GraphConnection({ questionData, feedback, submit, onAction }) {
   const targetEntry = roots.find((entry)=>nearlyEqual(entry.root,target)) || roots[0];
   const expectedBehavior = factorBehaviorAtRoot(targetEntry.multiplicity);
   const expectedEnd = endBehavior(coefficients);
-  const [behavior,setBehavior]=useState('crosses'); const [end,setEnd]=useState('both ends rise');
+  const [behavior, setBehavior] = usePersistentToolState('behavior', 'crosses'); const [end, setEnd] = usePersistentToolState('end', 'both ends rise');
   const fn=(x)=>evaluatePolynomial(coefficients,x);
   const check=()=>{
     const behaviorCorrect=behavior===expectedBehavior; const endCorrect=end===expectedEnd.label;
@@ -147,7 +148,7 @@ function RationalFeatures({ questionData, feedback, submit, onAction }) {
   const features=useMemo(()=>rationalFeatureMap({numeratorRoots,denominatorRoots}),[numeratorRoots,denominatorRoots]);
   const targetValue=Number(questionData.targetValue ?? features[0]?.root ?? 2);
   const target=features.find(f=>nearlyEqual(f.root,targetValue));
-  const [choice,setChoice]=useState('hole');
+  const [choice, setChoice] = usePersistentToolState('choice', 'hole');
   const check=()=>submit({isCorrect:choice===target?.type,score:choice===target?.type?1:0},{choice},{mode:'rationalFeatures'});
   return <ToolShell title="Polynomial Workshop" subtitle="Track common factors to distinguish zeros, holes, and vertical asymptotes." badge="Algebra II · Rational Bridge">
     <TaskCard question={questionData} task={'Decide what happens to the rational function at the given x-value.'} steps={['Check whether the value is a root of the numerator, the denominator, or both.', 'A factor in both cancels.', 'Choose the feature that survives cancellation.']} /><ToolGrid min={320}><Panel title="Factored structure"><p><strong>Numerator roots:</strong> {numeratorRoots.join(', ')}</p><p><strong>Denominator roots:</strong> {denominatorRoots.join(', ')}</p><p style={{color:'#5f6b7a'}}>A common factor cancels algebraically but remains excluded from the original domain.</p></Panel><Panel title={`What happens at x = ${targetValue}?`}><select value={choice} onChange={e=>setChoice(e.target.value)} style={inputStyle}><option value="hole">Hole</option><option value="verticalAsymptote">Vertical asymptote</option><option value="zero">Zero / x-intercept</option><option value="none">None of these</option></select><button type="button" onClick={check} style={actionStyle}>Check feature</button><Feedback feedback={feedback} success="You tracked cancellation and domain restrictions correctly." retry="Compare numerator and denominator multiplicities before and after cancellation."/><HintPanel hints={['Every interesting point on a rational function comes from a factor in the numerator, the denominator, or both.', 'A factor in the denominator only gives a vertical asymptote. A factor in the numerator only gives an x-intercept.', 'A factor in both cancels and leaves a hole — but the value is still excluded from the domain.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel></ToolGrid></ToolShell>;
