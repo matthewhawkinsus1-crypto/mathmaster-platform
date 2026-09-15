@@ -14112,17 +14112,18 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
   const assignmentId = String(request.data?.assignmentId || "").trim();
   const classId = String(request.data?.classId || "").trim();
   const commit = request.data?.commit === true;
-  const previewActionIds = Array.isArray(request.data?.previewActionIds)
-    ? request.data.previewActionIds.map((value) => String(value || "")).filter(Boolean)
+  const previewTokens = Array.isArray(request.data?.previewTokens)
+    ? request.data.previewTokens.map((value) => String(value || "")).filter(Boolean)
     : [];
   if (!assignmentId || !classId) throw new HttpsError("invalid-argument", "assignmentId and classId are required.");
-  if (commit && !previewActionIds.length) {
+  if (commit && !previewTokens.length) {
     throw new HttpsError("failed-precondition", "Preview this class and assignment before recovering workspace drafts.");
   }
   const { classSnapshot, email } = await requireClassTeacher(request, classId);
 
   const db = getFirestore();
   const recovery = await workspaceDraftRecovery();
+  const { recoveryPreviewToken, previewTokenSetsMatch } = await import("./shared/recoveryPreviewToken.mjs");
   const ingestion = await submissionIngestion();
   const { resolveAuthoritativeClose } = await import("./shared/sectionDeadline.mjs");
 
@@ -14178,7 +14179,7 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
 
     assessment.recoverable.forEach((entry) => {
       const question = questions[Number(entry.questionIndex)] || null;
-      proposals.push({
+      const proposal = {
         studentId,
         studentName: String(gradeData.displayName || studentId).slice(0, 180),
         questionIndex: Number(entry.questionIndex),
@@ -14211,7 +14212,20 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
           record: null,
           response: entry.response,
         }),
+      };
+      proposal.previewToken = recoveryPreviewToken({
+        studentId,
+        assignmentId,
+        classId,
+        questionIndex: proposal.questionIndex,
+        questionId: proposal.questionId,
+        variantIndex: proposal.envelope.variantIndex,
+        draftKey: proposal.draftKey,
+        savedAt: proposal.savedAt,
+        response: proposal.envelope.response,
+        closesAt: proposal.closesAt,
       });
+      proposals.push(proposal);
     });
   }
 
@@ -14228,16 +14242,13 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
   // A commit is bounded to the exact server-issued proposal identities the UI
   // just displayed. Reassessment above still wins: stale/newer attempts simply
   // disappear and can never be overwritten.
-  const previewSet = new Set(previewActionIds);
-  const currentActionIds = new Set(proposals.map((proposal) => proposal.actionId));
-  if (previewActionIds.length !== proposals.length
-    || previewActionIds.some((actionId) => !currentActionIds.has(actionId))) {
+  const currentTokens = proposals.map((proposal) => proposal.previewToken);
+  if (!previewTokenSetsMatch(previewTokens, currentTokens)) {
     throw new HttpsError("failed-precondition", "The preview is stale. Run draft recovery preview again.");
   }
-  const approvedProposals = proposals.filter((proposal) => previewSet.has(proposal.actionId));
 
   const applied = [];
-  for (const proposal of approvedProposals) {
+  for (const proposal of proposals) {
     try {
       // eslint-disable-next-line no-await-in-loop
       const receipt = await ingestOneSubmission({

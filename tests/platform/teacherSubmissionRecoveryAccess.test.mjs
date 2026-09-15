@@ -34,7 +34,7 @@ test('draft recovery shows exact safe proposals and confirms before its write', 
   assert.match(panel, /onClick=\{\(\) => setConfirmationOpen\(true\)\}/);
   assert.match(panel, /Recover these saved responses as graded attempts\?/);
   assert.match(panel, /onClick=\{commitDrafts\}>Recover responses/);
-  assert.match(service, /previewActionIds/);
+  assert.match(service, /previewTokens/);
 });
 
 test('server preview is non-writing, securely scoped, and commit requires that preview', () => {
@@ -43,7 +43,7 @@ test('server preview is non-writing, securely scoped, and commit requires that p
   assert.match(callable, /studentMatchesAssignmentAudience\(\{ assignment, classId \}\)/);
   assert.match(callable, /secureAssignmentMode\(assignment\)/);
   assert.match(callable, /if \(!commit\) \{[\s\S]*committed: false/);
-  assert.match(callable, /if \(commit && !previewActionIds\.length\)/);
+  assert.match(callable, /if \(commit && !previewTokens\.length\)/);
   assert.match(callable, /String\(gradeData\.classId \|\| ""\) !== classId/);
   assert.match(callable, /No canonical attempt/);
   assert.doesNotMatch(callable, /answerKey:/);
@@ -56,4 +56,3 @@ test('the post-commit path refreshes the report and preserves unresolved proposa
   assert.match(panel, /Accepted \{commitSummary\.accepted\}/);
   assert.match(panel, /Failed\/retryable/);
 });
-

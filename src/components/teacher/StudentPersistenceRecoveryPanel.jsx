@@ -143,8 +143,8 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
       setError('Preview this assignment before recovering it — the proposals on screen were computed for a different one.');
       return null;
     }
-    const previewActionIds = proposals.proposals.map((proposal) => proposal.actionId);
-    const result = await applyWorkspaceDraftRecovery({ assignmentId, classId, commit: true, previewActionIds });
+    const previewTokens = proposals.proposals.map((proposal) => proposal.previewToken);
+    const result = await applyWorkspaceDraftRecovery({ assignmentId, classId, commit: true, previewTokens });
     const appliedByAction = new Map((result.applied || []).map((entry) => [entry.actionId, entry]));
     const summary = (result.applied || []).reduce((counts, entry) => {
       const disposition = ['accepted', 'duplicate', 'superseded', 'needs-review', 'retryable'].includes(entry.disposition)
