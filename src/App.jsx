@@ -23,6 +23,7 @@ import {
   checkpointDocumentId,
   checkpointEligibility,
   enqueueResponseCheckpoint,
+  normalizeCheckpointResponse,
   responseFingerprint,
 } from './platform/performance/responseCheckpoint.js';
 import { createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
@@ -141,6 +142,17 @@ import {
   listDurableActions,
   overlayDurableActionsOnGrades,
 } from './platform/performance/durableActionOutbox.js';
+import { ingestOneSubmission, reportDeviceQueueState } from './services/submissionIngestionService.js';
+import {
+  INGESTIBLE_KINDS,
+  buildSubmissionEnvelope,
+  captureSectionAccessProof,
+} from '../functions/shared/submissionIngestion.mjs';
+import {
+  SUBMISSION_DISPOSITION,
+  classifyCapturedSubmission,
+  sectionWasOpenAtCapture,
+} from '../functions/shared/studentSubmissionDisposition.mjs';
 import { EmptyState, ProgressBar, SearchField, StatCard } from './ui/primitives';
 import { buildStudentMasteryProfile, collectStudentEvidence } from './masteryEngine.js';
 import {
@@ -605,7 +617,14 @@ function App() {
   const [activeAssignmentId, setActiveAssignmentId] = useState(null);
   const [tracker, setTracker] = useState({});
   const [studentOutboxDepth, setStudentOutboxDepth] = useState(0);
+  // Grade-bearing work is counted separately: a pending checkpoint is not a
+  // reason to worry a student, and a pending Submit is.
+  const [studentPendingGradeCount, setStudentPendingGradeCount] = useState(0);
+  const [studentNeedsReviewCount, setStudentNeedsReviewCount] = useState(0);
   const [studentPersistenceStatus, setStudentPersistenceStatus] = useState('idle');
+  // How often this device had to fall back from server ingestion to the direct
+  // Firestore write. Reported with the device's queue summary, never shown.
+  const studentIngestionFallbackRef = useRef(0);
   // What the deadline finalizer did with each checkpointed question, read back
   // from the server's own receipt. A student who was not in the tab when time
   // ended finds out here what happened, and never reads "submitted" for a
@@ -1925,13 +1944,70 @@ function App() {
     return { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
   };
 
-  const reconcileDurableStudentAction = async (action) => {
-    if (!action || action.studentId !== user?.id) return { status: 'rejected' };
+  /*
+   * DELIVERING ONE CAPTURED ACTION TO CANONICAL STORAGE.
+   *
+   * The answer is a DISPOSITION, never a bare "rejected". That word is what
+   * caused the September 14 incident: it meant "the teacher closed the section
+   * a minute ago", "your roster row has not been written yet" and "you already
+   * submitted this" all at once, and the outbox deleted the student's work for
+   * every one of them. Each outcome is now classified, and only a PROVEN
+   * duplicate, supersession or ineligibility retires anything.
+   *
+   * Grade-bearing work goes to the server ingestion callable, which re-reads
+   * the authoritative assignment and roster and re-grades the raw response
+   * wherever it can. The client transaction below remains as the fallback for
+   * a device that can reach Firestore but not Cloud Functions; both are
+   * idempotent on the same durable action id, so using either — or both — can
+   * never produce two attempts.
+   */
+  const buildSubmissionEnvelopeForAction = (action) => {
+    const payload = action.payload || {};
+    return buildSubmissionEnvelope({
+      actionId: action.actionId,
+      kind: action.kind,
+      studentId: action.studentId,
+      assignmentId: action.assignmentId,
+      questionIndex: action.questionIndex,
+      questionId: payload.questionId || null,
+      variantIndex: payload.variantIndex ?? normalizeQuestionRecord(payload.record).variantIndex,
+      activityRole: payload.activityRole,
+      capturedAt: Number(action.createdAt) || Date.now(),
+      previousTotalAttempts: payload.previousTotalAttempts,
+      record: payload.record,
+      // The student's RAW work. Where the server can mark this question type it
+      // marks this, and the browser's verdict is discarded entirely.
+      response: payload.response || null,
+      supportUsage: payload.record?.supportUsage || null,
+      assignmentSupportUsage: payload.supportUsage || null,
+      hasClassworkGrade: payload.hasClassworkGrade === true,
+      hasDolGrade: payload.hasDolGrade === true,
+      timedSectionAccess: payload.timedSectionAccess || null,
+      capturedSectionAccess: payload.capturedSectionAccess || null,
+      checkpointDocumentId: payload.checkpointDocumentId || null,
+      timeSpentSeconds: payload.timeSpentSeconds || payload.record?.timeSpent || 0,
+      // How many times this device has already tried. The server escalates a
+      // retry that has never cleared into `needs-review` from this, so leaving
+      // it out means a week-old submission retries forever unseen.
+      deliveryAttempts: Number(action.delivery?.attempts || 0),
+    });
+  };
+
+  /**
+   * The direct-to-Firestore path, kept as a fallback and classified.
+   *
+   * Everything it judges, it judges at CAPTURE TIME: the assignment lifecycle,
+   * the Warm-Up window the browser recorded, and the Classwork/Practice section
+   * state. A student who answered while the section was open must not lose that
+   * answer because the teacher closed the section before the background queue
+   * reached Firestore.
+   */
+  const reconcileThroughClientTransaction = async (action) => {
     const assignmentRef = doc(db, 'assignments', action.assignmentId);
     const gradesRef = doc(db, 'grades', action.studentId);
     const capturedAt = Number.isFinite(Number(action.createdAt)) ? Number(action.createdAt) : Date.now();
-    let duplicate = false;
-    let rejected = false;
+    let classification = { disposition: SUBMISSION_DISPOSITION.ACCEPTED, reason: null };
+    let wroteEvidenceFor = null;
 
     // Every read happens before any write: a Firestore transaction requires it,
     // and the checkpoint release below is part of the same atomic step as the
@@ -1946,39 +2022,39 @@ function App() {
         transaction.get(gradesRef),
         checkpointRef ? transaction.get(checkpointRef) : Promise.resolve(null),
       ]);
-      if (!assignmentSnapshot.exists() || !gradesSnapshot.exists()) {
-        rejected = true;
-        return;
-      }
-      const assignment = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
-      const authorized = assignmentIsForStudent(assignment, {
-        classId: user.classId || null,
-        classPeriod: user.classPeriod,
-      });
-      // Ordinary student work crosses the durability boundary before React
-      // advances. Reconciliation must judge that work at the moment it was
-      // captured, not seconds/minutes later after a deadline or teacher close.
-      //
+      const assignment = assignmentSnapshot.exists()
+        ? { id: assignmentSnapshot.id, ...assignmentSnapshot.data() }
+        : null;
+      const saved = gradesSnapshot.exists() ? gradesSnapshot.data() || {} : null;
+      const currentRecord = normalizeQuestionRecord(
+        saved?.gradesByAssignment?.[action.assignmentId]?.[action.questionIndex],
+      );
+
       // A teacher-authorized Warm-Up reopen/extension is itself a live credit
       // window. Preserve that fact in the durable action: the assignment may be
       // closed again before this queued response reaches Firestore, and a later
       // close must not erase work captured while the teacher had it reopened.
-      const lifecycleAtCapture = getAssignmentLifecycle(assignment, capturedAt);
+      const lifecycleAtCapture = assignment ? getAssignmentLifecycle(assignment, capturedAt) : null;
       const timedSectionAccess = action.payload?.timedSectionAccess || null;
       const warmupWasActiveAtCapture = action.payload?.activityRole === 'warmup'
         && warmupCaptureWasActive(timedSectionAccess, capturedAt);
       const teacherReopenedWarmupAtCapture = warmupWasActiveAtCapture
         && timedSectionAccess?.teacherTimerScheduled === true;
-      if (!authorized) {
-        rejected = true;
-        return;
-      }
+
       if (action.kind === 'responseCheckpoint') {
         // A checkpoint is stored whatever the section's CURRENT state is: it is
         // a draft, and whether the work counts is the finalizer's decision,
         // made from the server acknowledgement time against the real close. A
         // response that only reaches MathMaster after the deadline therefore
         // stays recoverable history and changes no grade.
+        if (!assignment || !saved) {
+          classification = { disposition: SUBMISSION_DISPOSITION.RETRYABLE, reason: 'context-unreadable' };
+          return;
+        }
+        if (!assignmentIsForStudent(assignment, { classId: user.classId || null, classPeriod: user.classPeriod })) {
+          classification = { disposition: SUBMISSION_DISPOSITION.RETRYABLE, reason: 'assignment-not-assigned-to-class' };
+          return;
+        }
         transaction.set(doc(db, 'studentResponseCheckpoints', action.payload.documentId), {
           ...action.payload,
           studentId: action.studentId,
@@ -1989,45 +2065,48 @@ function App() {
           candidateFinalizeAt: action.payload.candidateFinalizeAt ? new Date(action.payload.candidateFinalizeAt) : null,
           status: 'active',
         });
-        return;
-      }
-      if (action.payload?.activityRole === 'warmup' && timedSectionAccess && !warmupWasActiveAtCapture) {
-        rejected = true;
-        return;
-      }
-      if (lifecycleAtCapture.isClosed && !teacherReopenedWarmupAtCapture) {
-        rejected = true;
-        return;
-      }
-      const sectionAccess = getSectionAccessState({
-        assignment,
-        activityRole: action.payload.activityRole,
-        classId: user.classId || null,
-        classPeriod: user.classPeriod,
-        nowValue: capturedAt,
-      });
-      const overrideChangedAt = sectionAccess.override?.changedAt
-        ? new Date(sectionAccess.override.changedAt).getTime()
-        : Number.NaN;
-      const accessChangedAfterCapture = Number.isFinite(overrideChangedAt) && overrideChangedAt > capturedAt;
-      if (sectionAccess.enabled && !sectionAccess.isOpen && !accessChangedAfterCapture) {
-        rejected = true;
+        classification = { disposition: SUBMISSION_DISPOSITION.ACCEPTED, reason: null };
         return;
       }
 
-      const saved = gradesSnapshot.data() || {};
-      const currentRecord = normalizeQuestionRecord(
-        saved.gradesByAssignment?.[action.assignmentId]?.[action.questionIndex],
-      );
+      const sectionAccessAtNow = assignment
+        ? getSectionAccessState({
+          assignment,
+          activityRole: action.payload.activityRole,
+          classId: user.classId || null,
+          classPeriod: user.classPeriod,
+          nowValue: capturedAt,
+        })
+        : null;
+
+      classification = classifyCapturedSubmission({
+        actionId: action.actionId,
+        kind: action.kind,
+        activityRole: action.payload?.activityRole || null,
+        capturedAt,
+        previousTotalAttempts: action.payload?.previousTotalAttempts,
+        canonicalRecord: currentRecord,
+        assignmentExists: assignmentSnapshot.exists(),
+        gradeRecordExists: gradesSnapshot.exists(),
+        authorizedForClass: assignment
+          ? assignmentIsForStudent(assignment, { classId: user.classId || null, classPeriod: user.classPeriod })
+          : null,
+        assignmentClosedAtCapture: lifecycleAtCapture ? lifecycleAtCapture.isClosed : null,
+        teacherReopenedWarmupAtCapture,
+        warmupActiveAtCapture: action.payload?.activityRole === 'warmup' && timedSectionAccess
+          ? warmupWasActiveAtCapture
+          : null,
+        sectionOpenAtCapture: sectionWasOpenAtCapture({
+          capturedSectionAccess: action.payload?.capturedSectionAccess || null,
+          liveSectionAccess: sectionAccessAtNow,
+          capturedAt,
+        }),
+        deliveryAttempts: Number(action.delivery?.attempts || 0),
+        now: Date.now(),
+      });
+      if (classification.disposition !== SUBMISSION_DISPOSITION.ACCEPTED) return;
+
       if (['ordinarySubmission', 'stepSubmission', 'questionReplacement'].includes(action.kind)) {
-        if (currentRecord.lastSubmissionId === action.actionId) {
-          duplicate = true;
-          return;
-        }
-        if (Number(currentRecord.totalAttempts || 0) !== Number(action.payload.previousTotalAttempts || 0)) {
-          rejected = true;
-          return;
-        }
         // THE EXPLICIT SUBMISSION IS NEWER AUTHORITY THAN ITS OWN CHECKPOINT.
         //
         // Retiring the checkpoint in the same transaction as the attempt is
@@ -2055,6 +2134,9 @@ function App() {
           new FieldPath('dolGradesByAssignment', action.assignmentId), action.payload.dolGrade,
         );
         transaction.update(gradesRef, ...updates);
+        wroteEvidenceFor = ['ordinarySubmission', 'stepSubmission'].includes(action.kind)
+          ? action.payload.evidenceEvent || null
+          : null;
         return;
       }
 
@@ -2068,21 +2150,56 @@ function App() {
       );
     });
 
-    if (rejected) return { status: 'rejected' };
     // The event key is deterministic for this exact attempt. If the tab closes
     // after the grade transaction but before this write, recovery repeats the
     // same setDoc rather than appending a second evidence record.
-    if (['ordinarySubmission', 'stepSubmission'].includes(action.kind) && action.payload.evidenceEvent) {
-      await writeImmutableEvidenceEvent(action.studentId, action.payload.evidenceEvent);
-    }
-    return { status: 'durable', duplicate };
+    if (wroteEvidenceFor) await writeImmutableEvidenceEvent(action.studentId, wroteEvidenceFor);
+    return classification;
   };
 
+  const reconcileDurableStudentAction = async (action) => {
+    // A queue row that belongs to someone else is not this session's to judge.
+    // It stays exactly where it is until its owner signs in on this device.
+    if (!action || action.studentId !== user?.id) {
+      return { disposition: SUBMISSION_DISPOSITION.RETRYABLE, reason: 'not-this-student' };
+    }
+
+    if (INGESTIBLE_KINDS.includes(action.kind)) {
+      try {
+        const receipt = await ingestOneSubmission(buildSubmissionEnvelopeForAction(action));
+        return { disposition: receipt.disposition, reason: receipt.reason || null, receipt };
+      } catch (error) {
+        // The server could not be reached. That is a transport failure, not a
+        // verdict, so the direct Firestore path is tried before giving up — and
+        // if that fails too the submission simply stays queued.
+        console.warn('Server ingestion unavailable; falling back to the direct write:', error?.message || error);
+        studentIngestionFallbackRef.current += 1;
+      }
+    }
+    return reconcileThroughClientTransaction(action);
+  };
+  /*
+   * SAY WHAT ACTUALLY HAPPENED TO THE STUDENT'S WORK.
+   *
+   * `successStatus` is only reached when NOTHING is still owed a delivery.
+   * A student is never told "Submitted." while a submission is still sitting in
+   * this device's queue — that is the difference the incident turned on, and it
+   * is why the queued state names the count and the retry state is distinct
+   * from the "not eligible" one.
+   */
   const drainStudentOutbox = async ({ successStatus = 'durable' } = {}) => {
     if (user?.role !== 'student' || !user.id) return;
     const result = await drainDurableActions({ studentId: user.id, reconcile: reconcileDurableStudentAction });
     setStudentOutboxDepth(result.remaining);
-    setStudentPersistenceStatus(result.remaining ? 'queued' : result.rejected ? 'rejected' : successStatus);
+    setStudentPendingGradeCount(result.remainingGrade);
+    setStudentNeedsReviewCount(result.tally.needsReview);
+    setStudentPersistenceStatus(
+      result.remaining
+        ? (result.tally.needsReview ? 'needs-retry' : 'queued')
+        : result.tally.permanentlyInvalid
+          ? 'rejected'
+          : successStatus,
+    );
   };
 
   const leaveUnavailableAssignment = () => {
@@ -2577,6 +2694,14 @@ function App() {
         });
       }
       await drainStudentOutbox();
+      // TELL THE SERVER WHAT THIS CHROMEBOOK IS STILL HOLDING.
+      //
+      // An IndexedDB queue is the one part of the incident no server query can
+      // see. Once the drain has done what it can, this device reports its own
+      // remaining depth and the reasons, so the teacher recovery report can
+      // show work that exists but has not arrived. Counts only — never a
+      // response, never a record.
+      await reportDeviceQueueState({ studentId: user.id }).catch(() => null);
     };
 
     const reconcileQueuedStudentWork = () => recoverAndReconcileQueuedStudentWork()
@@ -4109,6 +4234,23 @@ function App() {
           honors: String(user?.profile?.courseLevel || '').toLowerCase() === 'honors',
         }),
       });
+    const capturedSectionAccess = captureSectionAccessProof({
+      sectionAccess: getSectionAccessState({
+        assignment,
+        activityRole: activeQuestionRole,
+        classId: user.classId || null,
+        classPeriod: user.classPeriod,
+        nowValue: submissionCapturedAt,
+      }),
+      capturedAt: submissionCapturedAt,
+    });
+    // Built from the student's own parts and response key through the SHARED
+    // contract, so what the server re-grades is exactly what the browser saw.
+    const capturedResponse = normalizeCheckpointResponse(
+      assignmentQuestions[currentQuestionIndex],
+      { parts, responseKey, isComplete: true },
+    );
+
     let queuedAction;
     try {
       setStudentPersistenceStatus('capturing');
@@ -4122,6 +4264,20 @@ function App() {
           previousTotalAttempts: Number(normalizeQuestionRecord(currentAssignmentGrades[currentQuestionIndex]).totalAttempts) || 0,
           activityRole: activeQuestionRole,
           timedSectionAccess,
+          // THE SECTION STATE AS IT WAS WHEN THE STUDENT PRESSED SUBMIT.
+          //
+          // The only witness a teacher's later close cannot rewrite. Without it
+          // a Classwork answer given at 10:10 and closed at 10:15 is
+          // indistinguishable from one given after the close — and the old
+          // reconciler resolved that ambiguity by destroying the answer.
+          capturedSectionAccess,
+          // The student's RAW response, so the server can mark this itself for
+          // every question type the shared grading contract supports. Where it
+          // can, the browser's verdict is discarded at ingestion.
+          response: capturedResponse,
+          questionId: assignmentQuestions[currentQuestionIndex]?.questionId || assignmentQuestions[currentQuestionIndex]?.id || null,
+          variantIndex: normalizeQuestionRecord(currentAssignmentGrades[currentQuestionIndex]).variantIndex,
+          timeSpentSeconds: activeTimeRef.current,
           // Retiring this question's checkpoint rides the same transaction as
           // the attempt, so a deadline can never turn one response into two.
           checkpointDocumentId: checkpointDocumentId({
@@ -4258,6 +4414,22 @@ function App() {
           previousTotalAttempts: Number(priorRecord.totalAttempts) || 0,
           activityRole: activeQuestionRole,
           timedSectionAccess: stepTimedSectionAccess,
+          // Rapid step submissions are the case that most needs capture-time
+          // eligibility: several of them can be queued inside the seconds it
+          // takes a teacher to close a section.
+          capturedSectionAccess: captureSectionAccessProof({
+            sectionAccess: getSectionAccessState({
+              assignment,
+              activityRole: activeQuestionRole,
+              classId: user.classId || null,
+              classPeriod: user.classPeriod,
+              nowValue: stepCapturedAt,
+            }),
+            capturedAt: stepCapturedAt,
+          }),
+          questionId: activeQuestions[currentQuestionIndex]?.questionId || activeQuestions[currentQuestionIndex]?.id || null,
+          variantIndex: priorRecord.variantIndex,
+          timeSpentSeconds: activeTimeRef.current,
           record: outcome.record,
           supportUsage: assignmentSupportUsage,
           hasClassworkGrade: Object.hasOwn(updatedClassworkGrades, activeAssignmentId),
@@ -4351,6 +4523,8 @@ function App() {
         payload: {
           previousTotalAttempts: Number(normalizeQuestionRecord(currentAssignmentGrades[currentQuestionIndex]).totalAttempts) || 0,
           activityRole: activeQuestionRole,
+          questionId: activeQuestions[currentQuestionIndex]?.questionId || activeQuestions[currentQuestionIndex]?.id || null,
+          variantIndex: Number(replacement?.variantIndex) || 0,
           record: replacement,
           supportUsage: supportUsageByAssignment[activeAssignmentId] || { modified: false, accommodations: [], modifications: [] },
           hasClassworkGrade: false,
@@ -8127,22 +8301,28 @@ function App() {
               continueSectionLabel={nextAvailableSectionMeta?.label || ''}
             />
             {/* SAVE HEALTH, IN THE STUDENT'S WORDS.
-                Four states they can act on: still saving, safe on this device
-                even if the network is gone, safe on MathMaster and therefore
-                safe on any device, and submitted. */}
+                A STUDENT IS NEVER TOLD "SUBMITTED" BEFORE THE SERVER HAS IT.
+                That sentence is the whole point of this line: during the
+                September 14 incident the button said the work was in and the
+                teacher's gradebook never received it. "Submitted to MathMaster"
+                is now reachable only from a drain that left nothing owed, and
+                every other state names where the work actually is and whether
+                anything is still to come. */}
             {!preview && studentPersistenceStatus !== 'idle' && (
               <p role="status" aria-live="polite" style={{ margin: '8px 4px 0', color: '#5f6368', fontSize: 12 }}>
                 {studentPersistenceStatus === 'capturing'
                   ? 'Saving…'
                   : studentPersistenceStatus === 'queued'
                     ? `Saved on this device. Saving ${studentOutboxDepth} change${studentOutboxDepth === 1 ? '' : 's'} to MathMaster… You may keep working.`
-                    : studentPersistenceStatus === 'submitted'
-                      ? 'Submitted.'
-                      : studentPersistenceStatus === 'durable'
-                        ? 'Saved to MathMaster.'
-                        : studentPersistenceStatus === 'rejected'
-                          ? 'This change was not accepted because the assignment is no longer available.'
-                          : 'Saved on this device only. MathMaster will finish saving when you are back online.'}
+                    : studentPersistenceStatus === 'needs-retry'
+                      ? `Saved on this device. ${studentPendingGradeCount || studentOutboxDepth} item${(studentPendingGradeCount || studentOutboxDepth) === 1 ? '' : 's'} still need${(studentPendingGradeCount || studentOutboxDepth) === 1 ? 's' : ''} to reach MathMaster — keep working and stay signed in, and your teacher can see this too.`
+                      : studentPersistenceStatus === 'submitted'
+                        ? 'Submitted to MathMaster.'
+                        : studentPersistenceStatus === 'durable'
+                          ? 'Saved to MathMaster.'
+                          : studentPersistenceStatus === 'rejected'
+                            ? 'This change was not accepted because the assignment is no longer available.'
+                            : 'Saved on this device only. MathMaster will finish saving when you are back online.'}
               </p>
             )}
             {!preview && ['warmup', 'dol'].includes(runtimeActivityRole) && !currentCheckpointOutcome && (

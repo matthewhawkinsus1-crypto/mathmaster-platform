@@ -674,3 +674,60 @@ test('release jobs are root-admin diagnostics and cannot be forged', async () =>
   await assertFails(setDoc(doc(teacherA(), 'pathReleaseJobs/forged'), { phase: 'complete' }));
   await assertFails(setDoc(doc(studentA(), 'pathReleaseJobs/forged'), { phase: 'complete' }));
 });
+
+/*
+ * THE TWO SERVER-OWNED COLLECTIONS THE INCIDENT RECOVERY ADDED.
+ *
+ * Both are written only by the Admin SDK, which bypasses these rules entirely.
+ * What the rules have to guarantee is the other direction: that no client can
+ * write one. A forged receipt is the dangerous case — it is the document a
+ * Chromebook retires a queue row against, so anyone who could write one could
+ * tell a device to discard work that never reached the gradebook.
+ */
+test('a submission receipt is readable by its own student and writable by nobody', async () => {
+  await env.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'studentSubmissionReceipts/STUDENT_A__action-1'), {
+      studentId: 'STUDENT_A',
+      actionId: 'action-1',
+      assignmentId: 'A1',
+      questionIndex: 0,
+      disposition: 'accepted',
+      totalAttempts: 1,
+    });
+  });
+
+  await assertSucceeds(getDoc(doc(studentA(), 'studentSubmissionReceipts/STUDENT_A__action-1')));
+  await assertSucceeds(getDoc(doc(admin(), 'studentSubmissionReceipts/STUDENT_A__action-1')));
+  // Another student must not learn what this student has submitted.
+  await assertFails(getDoc(doc(studentB(), 'studentSubmissionReceipts/STUDENT_A__action-1')));
+  await assertFails(getDoc(doc(stranger(), 'studentSubmissionReceipts/STUDENT_A__action-1')));
+
+  // A forged receipt would tell a device its work landed when it did not.
+  await assertFails(setDoc(doc(studentA(), 'studentSubmissionReceipts/STUDENT_A__forged'), {
+    studentId: 'STUDENT_A', actionId: 'forged', disposition: 'accepted',
+  }));
+  await assertFails(updateDoc(doc(studentA(), 'studentSubmissionReceipts/STUDENT_A__action-1'), { disposition: 'accepted' }));
+  await assertFails(setDoc(doc(teacherA(), 'studentSubmissionReceipts/STUDENT_A__forged'), { studentId: 'STUDENT_A' }));
+  await assertFails(setDoc(doc(admin(), 'studentSubmissionReceipts/STUDENT_A__forged'), { studentId: 'STUDENT_A' }));
+});
+
+test('a device persistence report is readable by its own student and writable by nobody', async () => {
+  await env.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'studentDevicePersistenceReports/STUDENT_A__chromebook-01'), {
+      studentId: 'STUDENT_A', deviceId: 'chromebook-01', queued: 3, queuedGradeBearing: 2,
+    });
+  });
+
+  await assertSucceeds(getDoc(doc(studentA(), 'studentDevicePersistenceReports/STUDENT_A__chromebook-01')));
+  await assertFails(getDoc(doc(studentB(), 'studentDevicePersistenceReports/STUDENT_A__chromebook-01')));
+  // One student fabricating another's incident record is exactly what the
+  // audited callable exists to prevent.
+  await assertFails(setDoc(doc(studentB(), 'studentDevicePersistenceReports/STUDENT_A__forged'), {
+    studentId: 'STUDENT_A', deviceId: 'forged', queued: 0,
+  }));
+  await assertFails(setDoc(doc(studentA(), 'studentDevicePersistenceReports/STUDENT_A__own-forgery'), {
+    studentId: 'STUDENT_A', deviceId: 'own', queued: 0,
+  }));
+});

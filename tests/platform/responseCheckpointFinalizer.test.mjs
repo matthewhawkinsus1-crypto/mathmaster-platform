@@ -12,6 +12,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { assertCapability } from './helpers/sourceContract.mjs';
 import { readFileSync } from 'node:fs';
 
 import {
@@ -717,9 +718,37 @@ test('the finalizer is a scheduled function, driven by a Firestore query', () =>
   const start = functionsSource.indexOf('exports.finalizeStudentResponseCheckpoints');
   const block = functionsSource.slice(start, functionsSource.indexOf('exports.expediteCheckpointsOnSectionClose'));
   assert.match(block, /collection\(CHECKPOINT_COLLECTION\)/);
-  assert.match(block, /where\("status", "==", "active"\)/);
+  // The active status is a named constant now, so the sweep and the scheduler
+  // cannot drift apart on what "outstanding" means. Either spelling is the
+  // same query.
+  assertCapability(
+    block,
+    [/where\("status", "==", CHECKPOINT_STATUS_ACTIVE\)/, /where\("status", "==", "active"\)/],
+    'the scheduled finalizer must select only active checkpoints',
+  );
   assert.match(block, /where\("candidateFinalizeAt", "<=", new Date\(now\)\)/);
   assert.match(block, /settings"\)\.doc\("classSchedule"\)/);
+});
+
+/*
+ * THE HOLE THAT LOST VALID WORK.
+ *
+ * `candidateFinalizeAt: null` is deliberately allowed — a deadline a teacher
+ * has not set yet must keep the student's work rather than fail their write.
+ * But a null never satisfies `<= now`, so those checkpoints left the
+ * scheduler's sight completely: a complete, gradeable, pre-cutoff response
+ * that should have produced a canonical attempt silently never did.
+ */
+test('a checkpoint with a null query hint is still examined by the scheduler', () => {
+  const start = functionsSource.indexOf('exports.finalizeStudentResponseCheckpoints');
+  const block = functionsSource.slice(start, functionsSource.indexOf('exports.expediteCheckpointsOnSectionClose'));
+  assert.match(block, /where\("candidateFinalizeAt", "==", null\)/);
+  // Both sets go through the SAME finalizer. A separate, looser path for
+  // unhinted checkpoints would be a second grading rule.
+  assert.match(block, /for \(const snapshot of \[\.\.\.due\.docs, \.\.\.unhinted\.docs\]\)/);
+  assert.match(block, /finalizeOneResponseCheckpoint\(\{/);
+  // And the scheduler must not return early when only unhinted work is waiting.
+  assert.match(block, /if \(due\.empty && unhinted\.empty\) return;/);
 });
 
 test('the finalizer grades with the shared contract and never with the checkpoint', () => {
@@ -753,7 +782,12 @@ test('a checkpoint with no provable close holds, and leaves the due query while 
 
 test('a manual section close expedites only that assignment, class and section', () => {
   const start = functionsSource.indexOf('exports.expediteCheckpointsOnSectionClose');
-  const block = functionsSource.slice(start, functionsSource.indexOf('const studentMatchesAssignmentAudience', start));
+  // Bound to the trigger itself. Ending the slice at the next unrelated
+  // declaration made this assertion fail the moment anything was inserted
+  // between them, which says nothing about what the trigger writes.
+  const block = functionsSource.slice(start, functionsSource.indexOf('\nconst closedSectionKeys', start) === -1
+    ? functionsSource.indexOf('\n/* ===', start)
+    : functionsSource.indexOf('\n/* ===', start));
   assert.match(block, /where\("assignmentId", "==", assignmentId\)/);
   assert.match(block, /where\("classId", "==", entry\.classId\)/);
   assert.match(block, /where\("activityRole", "==", entry\.activityRole\)/);
@@ -1191,7 +1225,9 @@ test('the page-lifecycle flush obeys the same eligibility rules as the debounce'
 });
 
 test('an explicit submission retires its checkpoint in the same transaction as the attempt', () => {
-  const start = appSource.indexOf('const reconcileDurableStudentAction');
+  // The whole reconciliation unit: the dispatcher plus the direct Firestore
+  // fallback it delegates to. The checkpoint retirement lives in the write.
+  const start = appSource.indexOf('const buildSubmissionEnvelopeForAction');
   const block = appSource.slice(start, appSource.indexOf('const drainStudentOutbox', start));
   assert.match(block, /checkpointRef \? transaction\.get\(checkpointRef\) : Promise\.resolve\(null\)/);
   assert.match(block, /transaction\.update\(checkpointRef, \{\s*\n\s*status: 'explicitly-submitted'/);
