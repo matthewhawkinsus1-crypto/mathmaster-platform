@@ -202,7 +202,7 @@ render never waits: a restore that brings something new remounts the workspace.
 | `stepAlgebra`, `algebra`, multi-relation algebra | **Yes** — workspace draft state (committed steps are canonical anyway) |
 | Workflow / composed multi-part | **Yes** — stage responses |
 | Guided Classwork coach state | **Yes** |
-| Registry Work View tools (21) | **Yes, since PR #249** — every student-editable value. They adopt the seam through `usePersistentToolState`, which the `ToolDraftScopeProvider` in QuestionEngine feeds with `draftKey`; the tool names a field and knows nothing about Firestore. `solutionReview2` is the one exception and has nothing to restore: it renders an attempt that has already been graded. Declared per tool in `src/tools/toolStatePersistence.js` and enforced against the tools' source by `tests/platform/toolDraftPersistenceContract.test.mjs`. |
+| Registry Work View tools (21) | **Yes, since PR #250** — every student-editable value. They adopt the seam through `usePersistentToolState`, which the `ToolDraftScopeProvider` in QuestionEngine feeds with `draftKey`; the tool names a field and knows nothing about Firestore. `solutionReview2` is the one exception and has nothing to restore: it renders an attempt that has already been graded. Declared per tool in `src/tools/toolStatePersistence.js` and enforced against the tools' source by `tests/platform/toolDraftPersistenceContract.test.mjs`. |
 | `modelingLab` | **No** — server-owned canonical action |
 | Secure Test Cycle | **Excluded by design** |
 | My Math Path | **Excluded by design** |
