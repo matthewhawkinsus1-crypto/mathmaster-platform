@@ -616,6 +616,7 @@ const DELEGATES = {
         }}
         onStateChange={onChange}
         draftKey={draftKey}
+              canonicalSavedAt={canonicalSavedAt}
         compact
       />
     );
@@ -697,6 +698,7 @@ const DELEGATES = {
         mode="construct"
         onStateChange={onChange}
         draftKey={draftKey}
+              canonicalSavedAt={canonicalSavedAt}
       />
     );
   },
@@ -800,6 +802,7 @@ const DELEGATES = {
         mode="construct"
         onStateChange={onChange}
         draftKey={draftKey}
+              canonicalSavedAt={canonicalSavedAt}
       />
     );
   },
@@ -815,6 +818,7 @@ const DELEGATES = {
       questionRecord={null}
       onStateChange={onChange}
       draftKey={draftKey}
+              canonicalSavedAt={canonicalSavedAt}
     />
   ),
 };
@@ -822,7 +826,7 @@ const DELEGATES = {
 const NOTATION_PROFILE = { interval: 'interval', inequality: 'inequality', set: 'set' };
 export const ALL_REAL_NUMBERS_RESPONSE = '\\text{All Real Numbers}';
 
-function StageBody({ stage, input, content, value, onChange, disabled, draftKey, controlsBranch = false, openKeypad = true, showFigure = true }) {
+function StageBody({ stage, input, content, value, onChange, disabled, draftKey, canonicalSavedAt = 0, controlsBranch = false, openKeypad = true, showFigure = true }) {
   const delegate = DELEGATES[stage.kind];
   /*
    * A STAGE'S TOOL GETS ITS OWN DRAFT NAMESPACE.
@@ -835,7 +839,11 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey,
    */
   if (delegate) {
     return (
-      <ToolDraftScopeProvider draftKey={draftKey} scope={`stage-${stage.id || stage.kind}`}>
+      <ToolDraftScopeProvider
+        draftKey={draftKey}
+        scope={`stage-${stage.id || stage.kind}`}
+        canonicalSavedAt={canonicalSavedAt}
+      >
         {delegate({ stage, input, content, onChange, draftKey, disabled })}
       </ToolDraftScopeProvider>
     );
@@ -1098,6 +1106,7 @@ export default function WorkflowRunner({
   onProgressChange,
   disabled = false,
   draftKey = null,
+  canonicalSavedAt = 0,
   showPrompt = true,
   showStagePrompt = true,
   submissionReview = null,
