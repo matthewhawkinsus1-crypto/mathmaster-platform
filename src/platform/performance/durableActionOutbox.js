@@ -38,15 +38,28 @@ const DATABASE_NAME = 'mathmaster-student-actions';
 const STORE_NAME = 'outbox';
 const RETIRED_STORE_NAME = 'retired';
 /*
- * VERSION 2 IS ADDITIVE ON PURPOSE.
+ * WHO THIS DEVICE IS, STORED WHERE ITS QUEUE IS.
+ *
+ * Device identity lives in the SAME database as the outbox, and that placement
+ * is the whole point: a device report is a claim about what this queue holds,
+ * so the identity making the claim has to survive exactly as long as the queue
+ * does. Identity in `localStorage` and queue in IndexedDB can diverge — a
+ * browser that clears one and not the other leaves rows nobody can clear.
+ */
+const DEVICE_IDENTITY_STORE_NAME = 'deviceIdentity';
+const DEVICE_IDENTITY_KEY = 'self';
+/*
+ * EVERY VERSION BUMP IS ADDITIVE ON PURPOSE.
  *
  * Chromebooks in the field are holding version 1 rows written by PR #226 and
- * PR #243, and those rows ARE the September 14 recovery. The upgrade adds the
- * `retired` store and leaves every existing row untouched; nothing reads a
- * field a version 1 row lacks without a default. Opening the database must
- * never be able to cost a student their queued work.
+ * PR #243, and those rows ARE the September 14 recovery. Each upgrade adds a
+ * store and leaves every existing row untouched; nothing reads a field an
+ * older row lacks without a default. Opening the database must never be able
+ * to cost a student their queued work.
+ *
+ * Version 3 adds `deviceIdentity`.
  */
-const DATABASE_VERSION = 2;
+const DATABASE_VERSION = 3;
 
 export const DURABLE_ACTION_SCHEMA_VERSION = 2;
 
@@ -164,6 +177,12 @@ const openDatabase = () => new Promise((resolve, reject) => {
     if (!database.objectStoreNames.contains(RETIRED_STORE_NAME)) {
       const retired = database.createObjectStore(RETIRED_STORE_NAME, { keyPath: 'actionId' });
       retired.createIndex('studentId', 'studentId', { unique: false });
+    }
+    if (!database.objectStoreNames.contains(DEVICE_IDENTITY_STORE_NAME)) {
+      // One record, `self`. Not keyed by student: the identity belongs to the
+      // BROWSER INSTALLATION, so two students sharing a Chromebook are two
+      // report rows for one device rather than two devices.
+      database.createObjectStore(DEVICE_IDENTITY_STORE_NAME, { keyPath: 'key' });
     }
   };
   request.onsuccess = () => resolve(request.result);
@@ -301,6 +320,37 @@ const annotateIfCurrentTransaction = async (actionId, expectedCreatedOrder, deli
   }
 };
 
+/*
+ * READ-MODIFY-WRITE ON THE DEVICE IDENTITY, IN ONE TRANSACTION.
+ *
+ * Two tabs reporting at the same moment must not mint two device ids, and two
+ * reports captured in the same millisecond must not be handed the same
+ * generation. Both are read-then-write races, so both happen inside a single
+ * IndexedDB `readwrite` transaction rather than as a get followed by a put.
+ */
+const deviceIdentityTransaction = async (mutate) => {
+  const database = await openDatabase();
+  try {
+    return await new Promise((resolve, reject) => {
+      const transaction = database.transaction(DEVICE_IDENTITY_STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(DEVICE_IDENTITY_STORE_NAME);
+      let result = null;
+      const read = store.get(DEVICE_IDENTITY_KEY);
+      read.onerror = () => reject(read.error || new Error('Could not read this device identity.'));
+      read.onsuccess = () => {
+        const next = mutate(read.result || null);
+        result = next;
+        if (next) store.put({ ...next, key: DEVICE_IDENTITY_KEY });
+      };
+      transaction.oncomplete = () => resolve(result);
+      transaction.onabort = () => reject(transaction.error || new Error('Device identity transaction aborted.'));
+      transaction.onerror = () => reject(transaction.error || new Error('Device identity transaction failed.'));
+    });
+  } finally {
+    database.close();
+  }
+};
+
 export const indexedDbOutboxStorage = Object.freeze({
   put: (action) => transactionRequest('readwrite', (store) => store.put(clone(action))),
   remove: (actionId) => transactionRequest('readwrite', (store) => store.delete(actionId)),
@@ -311,6 +361,24 @@ export const indexedDbOutboxStorage = Object.freeze({
   annotateIfCurrent: (actionId, expectedCreatedOrder, delivery) => annotateIfCurrentTransaction(actionId, expectedCreatedOrder, delivery),
   list: () => transactionRequest('readonly', (store) => store.getAll()),
   listRetired: () => transactionRequest('readonly', (store) => store.getAll(), RETIRED_STORE_NAME),
+  /** The stored identity, or null when this browser has never reported. */
+  readDeviceIdentity: () => deviceIdentityTransaction((current) => current),
+  /**
+   * Adopt `candidate` only if nothing is stored yet; an existing identity
+   * always wins, so a second tab joins the device rather than forking it.
+   */
+  claimDeviceIdentity: (candidate) => deviceIdentityTransaction(
+    (current) => (current?.deviceId ? current : { ...candidate, reportGeneration: Number(current?.reportGeneration) || 0 }),
+  ),
+  /**
+   * The next report generation for this device, strictly greater than the
+   * stored one and never below `floor`. Returns the whole identity so a caller
+   * can never pair a generation with the wrong device id.
+   */
+  nextReportGeneration: (floor) => deviceIdentityTransaction((current) => ({
+    ...current,
+    reportGeneration: Math.max(Number(current?.reportGeneration || 0) + 1, Number(floor) || 0),
+  })),
 });
 
 export const createDurableAction = ({ kind, studentId, assignmentId, questionIndex, payload, actionId = null, createdAt = Date.now() }) => {
@@ -582,11 +650,19 @@ export const drainDurableActions = ({
         else tally.retryable += 1;
         if (stream.lane === LANE.GRADE) gradeBlocked += 1;
         retained.push({ actionId: action.actionId, kind: action.kind, ...normalized });
+        const attemptedAt = Number(now) || Date.now();
         const delivery = {
           attempts: Number(action.delivery?.attempts || 0) + 1,
           disposition: normalized.disposition,
-          reason: normalized.reason,
-          lastAttemptAt: now,
+          reason: String(normalized.reason || 'delivery-failed').slice(0, 160),
+          safeReason: String(normalized.diagnostic?.safeReason || normalized.reason || 'delivery-failed').slice(0, 160),
+          transport: String(normalized.diagnostic?.transport || action.delivery?.transport || 'unknown').slice(0, 40),
+          firebaseCode: normalized.diagnostic?.firebaseCode
+            ? String(normalized.diagnostic.firebaseCode).slice(0, 80)
+            : (action.delivery?.firebaseCode || null),
+          firstFailureAt: Number(action.delivery?.firstFailureAt) || attemptedAt,
+          latestFailureAt: attemptedAt,
+          lastAttemptAt: attemptedAt,
         };
         if (typeof storage.annotateIfCurrent === 'function') {
           await storage.annotateIfCurrent(action.actionId, action.createdOrder ?? action.createdAt ?? 0, delivery)
@@ -658,7 +734,7 @@ export const drainDurableActions = ({
  * It reports it as what it is: an aggregate from a device that has not been
  * updated yet.
  */
-export const DEVICE_SUMMARY_SCHEMA_VERSION = 2;
+export const DEVICE_SUMMARY_SCHEMA_VERSION = 3;
 
 // A device with work queued across more assignments than this is reporting a
 // shape nobody will read; the cap keeps one bad row from bloating a document.
@@ -676,6 +752,19 @@ const countByAssignment = (actions) => {
       .sort((left, right) => right[1] - left[1])
       .slice(0, MAX_SUMMARIZED_ASSIGNMENTS),
   );
+};
+
+const nestedCountByAssignment = (actions, valueForAction) => {
+  const summaries = {};
+  actions.forEach((action) => {
+    const assignmentId = String(action.assignmentId || '');
+    const value = String(valueForAction(action) || '');
+    if (!assignmentId || !value) return;
+    const counts = summaries[assignmentId] || {};
+    counts[value] = (counts[value] || 0) + 1;
+    summaries[assignmentId] = counts;
+  });
+  return Object.fromEntries(Object.entries(summaries).slice(0, MAX_SUMMARIZED_ASSIGNMENTS));
 };
 
 export const summarizeDurableOutbox = async ({ storage = indexedDbOutboxStorage, studentId = null } = {}) => {
@@ -702,6 +791,11 @@ export const summarizeDurableOutbox = async ({ storage = indexedDbOutboxStorage,
     queuedByAssignment: countByAssignment(queued),
     queuedGradeBearingByAssignment: countByAssignment(gradeBearing),
     needsReviewByAssignment: countByAssignment(needsReviewActions),
+    queuedKindsByAssignment: nestedCountByAssignment(queued, (action) => action.kind),
+    blockedReasonsByAssignment: nestedCountByAssignment(
+      queued,
+      (action) => action.delivery?.safeReason || action.delivery?.reason || 'not-attempted',
+    ),
     oldestCapturedAt: queued.length ? Math.min(...queued.map((action) => Number(action.createdAt) || 0)) : null,
     latestCapturedAt: queued.length ? Math.max(...queued.map((action) => Number(action.createdAt) || 0)) : null,
     blockedReasons: byReason,
@@ -717,6 +811,7 @@ export const summarizeDurableOutbox = async ({ storage = indexedDbOutboxStorage,
 export const createMemoryOutboxStorage = (initial = []) => {
   const records = new Map(initial.map((action) => [action.actionId, clone(action)]));
   const retired = new Map();
+  let deviceIdentity = null;
   return {
     async put(action) { records.set(action.actionId, clone(action)); },
     async remove(actionId) { records.delete(actionId); },
@@ -745,6 +840,22 @@ export const createMemoryOutboxStorage = (initial = []) => {
     },
     async list() { return [...records.values()].map(clone); },
     async listRetired() { return [...retired.values()].map(clone); },
+    // The same device-identity semantics, in memory, so tests exercise the
+    // real read-modify-write rules rather than a simplified stand-in.
+    async readDeviceIdentity() { return deviceIdentity ? clone(deviceIdentity) : null; },
+    async claimDeviceIdentity(candidate) {
+      if (!deviceIdentity?.deviceId) {
+        deviceIdentity = clone({ ...candidate, reportGeneration: Number(deviceIdentity?.reportGeneration) || 0 });
+      }
+      return clone(deviceIdentity);
+    },
+    async nextReportGeneration(floor) {
+      deviceIdentity = clone({
+        ...deviceIdentity,
+        reportGeneration: Math.max(Number(deviceIdentity?.reportGeneration || 0) + 1, Number(floor) || 0),
+      });
+      return clone(deviceIdentity);
+    },
   };
 };
 

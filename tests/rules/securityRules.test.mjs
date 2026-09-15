@@ -712,6 +712,53 @@ test('a submission receipt is readable by its own student and writable by nobody
   await assertFails(setDoc(doc(admin(), 'studentSubmissionReceipts/STUDENT_A__forged'), { studentId: 'STUDENT_A' }));
 });
 
+/*
+ * A PERSISTENCE RESOLUTION IS THE FLAG THAT RELEASES A FINAL GRADE.
+ *
+ * Anything that can write one can release its own final Classroom passback, so
+ * no client may write one — not a student, not a teacher, not the root
+ * administrator. The only writer is `resolveStudentPersistenceHold`, which runs
+ * on the Admin SDK (bypassing these rules) after checking the caller is the
+ * teacher of record for the class the student is actually in.
+ *
+ * This is also why the flag does NOT live on `grades/{studentId}`: a student
+ * may write parts of their own grade document.
+ */
+test('a persistence resolution is readable by its own student and writable by nobody at all', async () => {
+  await env.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'studentPersistenceResolutions/STUDENT_A__assignment-1'), {
+      studentId: 'STUDENT_A',
+      assignmentId: 'assignment-1',
+      classId: 'class-a',
+      resolvedByEmail: TEACHER_A,
+      acknowledgedWorked: 5,
+      acknowledgedCanonicalAttempted: 3,
+    });
+  });
+
+  await assertSucceeds(getDoc(doc(studentA(), 'studentPersistenceResolutions/STUDENT_A__assignment-1')));
+  await assertSucceeds(getDoc(doc(admin(), 'studentPersistenceResolutions/STUDENT_A__assignment-1')));
+  await assertFails(getDoc(doc(studentB(), 'studentPersistenceResolutions/STUDENT_A__assignment-1')));
+
+  const forged = {
+    studentId: 'STUDENT_A', assignmentId: 'assignment-1', classId: 'class-a',
+    resolvedByEmail: TEACHER_A, acknowledgedWorked: 5, acknowledgedCanonicalAttempted: 3,
+  };
+  // A student releasing their own final grade.
+  await assertFails(setDoc(doc(studentA(), 'studentPersistenceResolutions/STUDENT_A__forged'), forged));
+  // One student releasing another's.
+  await assertFails(setDoc(doc(studentB(), 'studentPersistenceResolutions/STUDENT_A__forged-b'), forged));
+  // A teacher going round the audited callable, so no actor or reason is
+  // recorded and no authorization is checked.
+  await assertFails(setDoc(doc(teacherA(), 'studentPersistenceResolutions/STUDENT_A__teacher-direct'), forged));
+  await assertFails(setDoc(doc(admin(), 'studentPersistenceResolutions/STUDENT_A__admin-direct'), forged));
+  // Editing or deleting an existing one is the same authority by another route.
+  await assertFails(updateDoc(doc(teacherA(), 'studentPersistenceResolutions/STUDENT_A__assignment-1'), { acknowledgedWorked: 99 }));
+  await assertFails(updateDoc(doc(studentA(), 'studentPersistenceResolutions/STUDENT_A__assignment-1'), { acknowledgedWorked: 99 }));
+  await assertFails(setDoc(doc(stranger(), 'studentPersistenceResolutions/STUDENT_A__anon'), forged));
+});
+
 test('a device persistence report is readable by its own student and writable by nobody', async () => {
   await env.withSecurityRulesDisabled(async (context) => {
     const db = context.firestore();

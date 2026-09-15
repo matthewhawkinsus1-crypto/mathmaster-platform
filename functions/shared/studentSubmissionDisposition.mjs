@@ -265,6 +265,7 @@ export const normalizeReconcileOutcome = (result) => {
       disposition: known ? disposition : SUBMISSION_DISPOSITION.RETRYABLE,
       reason: result.reason || (known ? null : `unknown-disposition:${disposition}`),
       receipt: result.receipt || null,
+      diagnostic: result.diagnostic && typeof result.diagnostic === 'object' ? result.diagnostic : null,
     };
   }
   const status = text(result?.status);

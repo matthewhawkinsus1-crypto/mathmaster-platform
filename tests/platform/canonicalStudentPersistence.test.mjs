@@ -21,6 +21,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   GRADE_BEARING_KINDS,
+  DEVICE_SUMMARY_SCHEMA_VERSION,
   SUBMISSION_DISPOSITION,
   actionLane,
   actionStreamKey,
@@ -902,7 +903,7 @@ test('the device summary separates queued work by assignment', async () => {
   }), { storage });
 
   const summary = await summarizeDurableOutbox({ storage, studentId: STUDENT });
-  assert.equal(summary.summarySchemaVersion, 2);
+  assert.equal(summary.summarySchemaVersion, DEVICE_SUMMARY_SCHEMA_VERSION);
   assert.equal(summary.queuedGradeBearing, 3, 'the device-wide total is still available');
   // THE NUMBER AN ASSIGNMENT REPORT MAY SHOW.
   assert.equal(summary.queuedGradeBearingByAssignment['assignment-b'], 3);

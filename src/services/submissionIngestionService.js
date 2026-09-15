@@ -17,6 +17,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase.js';
 import { measurePerformanceOperation } from '../platform/performance/performanceTelemetry.js';
 import { summarizeDurableOutbox } from '../platform/performance/durableActionOutbox.js';
+import { nextDeviceReportGeneration } from '../platform/persistence/deviceIdentity.js';
 import {
   MAX_ENVELOPES_PER_CALL,
   SUBMISSION_DISPOSITION,
@@ -38,7 +39,11 @@ const withTimeout = (promise, timeoutMs) => {
   return Promise.race([
     Promise.resolve(promise).finally(() => { if (timer) clearTimeout(timer); }),
     new Promise((_, reject) => {
-      timer = setTimeout(() => reject(new Error('The server did not answer in time.')), timeoutMs);
+      timer = setTimeout(() => {
+        const error = new Error('The server did not answer in time.');
+        error.code = 'functions/deadline-exceeded';
+        reject(error);
+      }, timeoutMs);
     }),
   ]);
 };
@@ -79,6 +84,22 @@ export const ingestOneSubmission = async (envelope, options) => {
 
 export { SUBMISSION_DISPOSITION };
 
+const SAFE_FIREBASE_CODES = new Set([
+  'cancelled', 'deadline-exceeded', 'internal', 'permission-denied',
+  'resource-exhausted', 'unauthenticated', 'unavailable', 'unknown',
+]);
+
+/** Reduce a callable failure to operational metadata; never retain its message/details. */
+export const callableDeliveryDiagnostic = (error, transport = 'callable') => {
+  const rawCode = String(error?.code || '').replace(/^functions\//, '').toLowerCase();
+  const firebaseCode = SAFE_FIREBASE_CODES.has(rawCode) ? rawCode : 'unknown';
+  return Object.freeze({
+    transport,
+    firebaseCode,
+    safeReason: `callable-${firebaseCode}`,
+  });
+};
+
 /*
  * THIS DEVICE'S OWN INCIDENT REPORT.
  *
@@ -90,30 +111,57 @@ export { SUBMISSION_DISPOSITION };
  * Counts and blocked-reason labels only. No responses, no attempt records,
  * nothing that could become a grade — the report is diagnostics, and a
  * diagnostic that carried academic data would be a second grading store.
+ *
+ * WHO is reporting and WHICH report is newer both come from
+ * `deviceIdentity.js`, which keeps them beside the queue they describe. The
+ * generation is stamped at CAPTURE, in the same step that reads the summary,
+ * because what the server has to order is when the queue was observed — not
+ * when the request happened to arrive. `withTimeout` below stops waiting; it
+ * cannot cancel a callable already on the wire, so a slow positive report can
+ * and does arrive after the zero report that replaced it.
  */
-const DEVICE_ID_STORAGE_KEY = 'mathmaster:device-id';
+export { resolveDeviceId } from '../platform/persistence/deviceIdentity.js';
 
-/** A per-browser id so one student's two Chromebooks are two rows, not one. */
-export const resolveDeviceId = () => {
-  try {
-    const stored = window.localStorage.getItem(DEVICE_ID_STORAGE_KEY);
-    if (stored) return stored;
-    const created = `dev_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
-    window.localStorage.setItem(DEVICE_ID_STORAGE_KEY, created);
-    return created;
-  } catch {
-    // Storage can be blocked. A per-session id still separates devices well
-    // enough for a report, and reporting nothing would be worse.
-    return `dev_session_${Math.random().toString(36).slice(2)}`;
-  }
+export const reportDeviceQueueState = async ({ studentId, summary = null, timeoutMs = INGEST_TIMEOUT_MS } = {}) => {
+  if (!studentId) return null;
+  const [payload, { deviceId, generation }] = await Promise.all([
+    summary || summarizeDurableOutbox({ studentId }),
+    nextDeviceReportGeneration(),
+  ]);
+  const response = await withTimeout(
+    httpsCallable(functions, 'reportStudentDeviceQueue')({
+      deviceId,
+      reportGeneration: generation,
+      summary: payload,
+    }),
+    timeoutMs,
+  );
+  return response?.data || null;
 };
 
-export const reportDeviceQueueState = async ({ studentId, summary = null, ingestionFallbacks = 0 } = {}) => {
-  if (!studentId) return null;
-  const payload = summary || await summarizeDurableOutbox({ studentId });
-  const response = await httpsCallable(functions, 'reportStudentDeviceQueue')({
-    deviceId: resolveDeviceId(),
-    summary: { ...payload, ingestionFallbacks },
-  });
+/*
+ * ASK THE SERVER TO RE-DERIVE CLASSWORK COMPLETION FROM CANONICAL ATTEMPTS.
+ *
+ * The browser no longer authors `classworkGradesByAssignment`. It cannot: the
+ * only tracker it has is the local overlay, which contains attempts that are
+ * still queued on this device and have never reached canonical grades, so a
+ * completion computed here could mark a student Classwork-complete on evidence
+ * the gradebook cannot see.
+ *
+ * Ingestion already re-derives the projection whenever an attempt lands. This
+ * covers the one case it cannot: the completion rule also counts engagement
+ * minutes, so the threshold can be crossed by TIME after the last response was
+ * already ingested. The call carries an assignment id and nothing else — no
+ * completion, no score, no tracker. The server reads the canonical document and
+ * decides.
+ *
+ * It is a background reconciliation. Nothing a student does waits for it.
+ */
+export const reconcileAssignmentActivityProjection = async ({ assignmentId, timeoutMs = INGEST_TIMEOUT_MS } = {}) => {
+  if (!assignmentId) return null;
+  const response = await withTimeout(
+    httpsCallable(functions, 'reconcileAssignmentActivityProjection')({ assignmentId }),
+    timeoutMs,
+  );
   return response?.data || null;
 };

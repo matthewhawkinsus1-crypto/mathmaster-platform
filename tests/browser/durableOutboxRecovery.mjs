@@ -137,6 +137,97 @@ try {
     '17. a PR #226 row must be deliverable by the new drain');
 
   /* ---------------------------------------------------------------------
+   * DEVICE IDENTITY SURVIVES WHATEVER THE QUEUE SURVIVES.
+   *
+   * A device report is a claim about what this IndexedDB queue holds, so the
+   * identity making the claim has to outlive a reload exactly as the queue
+   * does. In node this can only be simulated; here the page really reloads,
+   * the module cache really goes, and only the durable record can answer.
+   *
+   * The failure this replaces: the old fallback minted a fresh
+   * `dev_session_<random>` per call, so the pre-drain report ("2 queued") and
+   * the post-drain report ("0 queued") landed on two different device rows and
+   * the positive one was never cleared by anything.
+   * ------------------------------------------------------------------- */
+  await harness(() => window.outboxHarness.reset());
+  await open();
+  await harness(() => window.outboxHarness.enqueue('identity-survives-reload'));
+  const firstDeviceId = await harness(() => window.outboxHarness.deviceId());
+  const repeatDeviceId = await harness(() => window.outboxHarness.deviceId());
+  check(Boolean(firstDeviceId), 'a device must be able to identify itself');
+  check(firstDeviceId === repeatDeviceId, 'repeated calls must not mint a second device id');
+  check(!/^dev_session_/.test(firstDeviceId), 'the per-call session fallback must be gone');
+
+  const beforeReloadGeneration = await harness(() => window.outboxHarness.reportGeneration());
+  check(beforeReloadGeneration.deviceId === firstDeviceId,
+    'a report generation must be paired with this device, never another');
+
+  // A real reload. Module state is gone; the database is not.
+  await page.reload();
+  await page.getByText('Durable outbox ready').waitFor();
+  const afterReloadDeviceId = await harness(() => window.outboxHarness.deviceId());
+  check(afterReloadDeviceId === firstDeviceId,
+    `device identity changed across a reload (${firstDeviceId} -> ${afterReloadDeviceId}); the queued row survived and its identity must too`);
+  check((await harness(() => window.outboxHarness.list())).some((entry) => entry.actionId === 'identity-survives-reload'),
+    'the queue this identity describes must still be there');
+
+  const afterReloadGeneration = await harness(() => window.outboxHarness.reportGeneration());
+  check(afterReloadGeneration.generation > beforeReloadGeneration.generation,
+    `report generation went backwards across a reload (${beforeReloadGeneration.generation} -> ${afterReloadGeneration.generation}); the server would ignore every later report from this device`);
+
+  // localStorage alone is not what holds the identity. Clearing it must change
+  // nothing, because the durable record is the authority.
+  await harness(() => window.outboxHarness.clearDeviceLocalStorage());
+  await page.reload();
+  await page.getByText('Durable outbox ready').waitFor();
+  check((await harness(() => window.outboxHarness.deviceId())) === firstDeviceId,
+    'device identity must survive localStorage being cleared while the queue survives');
+
+  /* ---------------------------------------------------------------------
+   * AND IT SURVIVES THE DATABASE UPGRADE, WITH THE LEGACY ROW.
+   *
+   * A Chromebook that has not reloaded since PR #226 opens a version 1
+   * database. Version 3 adds the identity store; the upgrade is additive, so
+   * the queued row it is holding must be untouched.
+   * ------------------------------------------------------------------- */
+  await harness(() => window.outboxHarness.reset());
+  await harness(() => window.outboxHarness.createVersionOneDatabase());
+  await harness(() => window.outboxHarness.seedLegacyRow({
+    actionId: 'legacy-row-through-v3',
+    schemaVersion: 1,
+    kind: 'ordinarySubmission',
+    studentId: 'browser-cert-student',
+    assignmentId: 'assignment.with`punctuation',
+    questionIndex: 2,
+    createdAt: Date.now() - 90_000,
+    payload: { previousTotalAttempts: 0, record: { totalAttempts: 1, attemptCount: 1, status: 'attempted' } },
+  }));
+  await open();
+  const upgradedDeviceId = await harness(() => window.outboxHarness.deviceId());
+  check(Boolean(upgradedDeviceId), 'a version 1 database must still yield a device identity after upgrading');
+  const throughUpgrade = await harness(() => window.outboxHarness.list());
+  check(throughUpgrade.some((entry) => entry.actionId === 'legacy-row-through-v3'),
+    'the version 3 upgrade must not cost a Chromebook its queued work');
+
+  /* ---------------------------------------------------------------------
+   * SUBMIT WAITS FOR INDEXEDDB, NEVER FOR THE NETWORK.
+   * ------------------------------------------------------------------- */
+  await harness(() => window.outboxHarness.reset());
+  await open();
+  const localAdvance = await harness(async () => {
+    const result = await window.outboxHarness.captureThenDeliverInBackground('slow-network-submit', 5000);
+    // Promises cannot cross the page boundary; intentionally leave delivery
+    // running and return only when the UI would advance.
+    return { advancedAfterMs: result.advancedAfterMs };
+  });
+  check(localAdvance.advancedAfterMs < 500,
+    `Submit waited ${localAdvance.advancedAfterMs}ms; a 5s server call must remain outside the interaction path`);
+  await harness(() => window.outboxHarness.enqueue('interaction-during-slow-sync', { questionIndex: 9 }));
+  check((await harness(() => window.outboxHarness.list())).some((entry) => entry.actionId === 'interaction-during-slow-sync'),
+    'a slow delivery must not block another local durable interaction');
+  await page.waitForTimeout(5100);
+
+  /* ---------------------------------------------------------------------
    * A HUNG RECONCILE MUST NOT OWN THE QUEUE.
    *
    * A Firestore client transaction does not fail fast when the network is gone;

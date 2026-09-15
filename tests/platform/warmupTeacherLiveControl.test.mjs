@@ -82,14 +82,12 @@ test('teacher-reopened Warm-Up work remains canonical even if the assignment or 
 
   assert.match(submit, /createdAt: submissionCapturedAt/);
   assert.match(submit, /activityRole: activeQuestionRole,[\s\S]*timedSectionAccess,[\s\S]*record: outcome\.record/);
-  // The reconciler still reads the Warm-Up window the browser recorded, and
-  // still judges the assignment lifecycle at the CAPTURE time — it just hands
-  // both to the shared classifier instead of deciding inline.
-  assert.match(reconcile, /const timedSectionAccess = action\.payload\?\.timedSectionAccess \|\| null/);
-  assert.match(reconcile, /const teacherReopenedWarmupAtCapture = warmupWasActiveAtCapture[\s\S]*timedSectionAccess\?\.teacherTimerScheduled === true/);
-  assert.match(reconcile, /getAssignmentLifecycle\(assignment, capturedAt\)/);
-  assert.match(reconcile, /assignmentClosedAtCapture: lifecycleAtCapture \? lifecycleAtCapture\.isClosed : null/);
-  assert.match(reconcile, /teacherReopenedWarmupAtCapture,/);
+  // The capture proof travels in the ingestion envelope. The server is now the
+  // only grade authority and applies the shared capture-time classifier there.
+  assert.match(reconcile, /timedSectionAccess: payload\.timedSectionAccess \|\| null/);
+  assert.match(reconcile, /capturedSectionAccess: payload\.capturedSectionAccess \|\| null/);
+  assert.match(reconcile, /await ingestOneSubmission\(buildSubmissionEnvelopeForAction\(action\)\)/);
+  assert.doesNotMatch(reconcile, /lastSubmissionId: action\.actionId/);
 });
 
 /*

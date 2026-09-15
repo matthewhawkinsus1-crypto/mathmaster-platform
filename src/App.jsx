@@ -87,7 +87,6 @@ import {
   CLASS_PERIODS,
   DEFAULT_CLASS_SCHEDULE,
   assignmentIsForStudent,
-  evaluateClassworkCompletion,
   formatDateTime,
   formatRemainingTime,
   getAssignmentLifecycle,
@@ -142,7 +141,13 @@ import {
   listDurableActions,
   overlayDurableActionsOnGrades,
 } from './platform/performance/durableActionOutbox.js';
-import { ingestOneSubmission, reportDeviceQueueState } from './services/submissionIngestionService.js';
+import {
+  callableDeliveryDiagnostic,
+  ingestOneSubmission,
+  reconcileAssignmentActivityProjection,
+  reportDeviceQueueState,
+} from './services/submissionIngestionService.js';
+import { createDeviceReportCoordinator, reconcileWithDeviceReports } from './platform/persistence/deviceReportCoordinator.js';
 import {
   INGESTIBLE_KINDS,
   buildSubmissionEnvelope,
@@ -150,8 +155,6 @@ import {
 } from '../functions/shared/submissionIngestion.mjs';
 import {
   SUBMISSION_DISPOSITION,
-  classifyCapturedSubmission,
-  sectionWasOpenAtCapture,
 } from '../functions/shared/studentSubmissionDisposition.mjs';
 import { EmptyState, ProgressBar, SearchField, StatCard } from './ui/primitives';
 import { buildStudentMasteryProfile, collectStudentEvidence } from './masteryEngine.js';
@@ -199,7 +202,6 @@ import { normalizeLessonPublishingIntentV5 } from './platform/authoring/lessonPu
 import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
 import { buildAttemptEvidenceEvent } from './platform/history/evidenceEvent.js';
-import { writeImmutableEvidenceEvent } from './platform/history/evidencePersistence.js';
 
 
 
@@ -622,9 +624,7 @@ function App() {
   const [studentPendingGradeCount, setStudentPendingGradeCount] = useState(0);
   const [studentNeedsReviewCount, setStudentNeedsReviewCount] = useState(0);
   const [studentPersistenceStatus, setStudentPersistenceStatus] = useState('idle');
-  // How often this device had to fall back from server ingestion to the direct
-  // Firestore write. Reported with the device's queue summary, never shown.
-  const studentIngestionFallbackRef = useRef(0);
+  const [studentReportingError, setStudentReportingError] = useState(null);
   // What the deadline finalizer did with each checkpointed question, read back
   // from the server's own receipt. A student who was not in the tab when time
   // ended finds out here what happened, and never reads "submitted" for a
@@ -1955,11 +1955,10 @@ function App() {
    * duplicate, supersession or ineligibility retires anything.
    *
    * Grade-bearing work goes to the server ingestion callable, which re-reads
-   * the authoritative assignment and roster and re-grades the raw response
-   * wherever it can. The client transaction below remains as the fallback for
-   * a device that can reach Firestore but not Cloud Functions; both are
-   * idempotent on the same durable action id, so using either — or both — can
-   * never produce two attempts.
+   * the authoritative assignment and roster and re-grades the raw response.
+   * There is deliberately no browser grade-writing fallback: an unavailable
+   * callable leaves the envelope in IndexedDB so grade, evidence and receipt
+   * remain one atomic server decision.
    */
   const buildSubmissionEnvelopeForAction = (action) => {
     const payload = action.payload || {};
@@ -1994,33 +1993,22 @@ function App() {
   };
 
   /**
-   * The direct-to-Firestore path, kept as a fallback and classified.
-   *
-   * Everything it judges, it judges at CAPTURE TIME: the assignment lifecycle,
-   * the Warm-Up window the browser recorded, and the Classwork/Practice section
-   * state. A student who answered while the section was open must not lose that
-   * answer because the teacher closed the section before the background queue
-   * reached Firestore.
+   * Direct Firestore is restricted to non-grade background state: checkpoints
+   * and elapsed-time progress. The guard is intentional defense in depth; a
+   * future dispatcher edit cannot turn this back into a second grade writer.
    */
   const reconcileThroughClientTransaction = async (action) => {
+    if (INGESTIBLE_KINDS.includes(action.kind)) {
+      throw new Error('Grade-bearing actions require server ingestion.');
+    }
     const assignmentRef = doc(db, 'assignments', action.assignmentId);
     const gradesRef = doc(db, 'grades', action.studentId);
-    const capturedAt = Number.isFinite(Number(action.createdAt)) ? Number(action.createdAt) : Date.now();
     let classification = { disposition: SUBMISSION_DISPOSITION.ACCEPTED, reason: null };
-    let wroteEvidenceFor = null;
-
-    // Every read happens before any write: a Firestore transaction requires it,
-    // and the checkpoint release below is part of the same atomic step as the
-    // submission that supersedes it.
-    const checkpointRef = action.payload?.checkpointDocumentId
-      ? doc(db, 'studentResponseCheckpoints', String(action.payload.checkpointDocumentId))
-      : null;
 
     await runTransaction(db, async (transaction) => {
-      const [assignmentSnapshot, gradesSnapshot, checkpointSnapshot] = await Promise.all([
+      const [assignmentSnapshot, gradesSnapshot] = await Promise.all([
         transaction.get(assignmentRef),
         transaction.get(gradesRef),
-        checkpointRef ? transaction.get(checkpointRef) : Promise.resolve(null),
       ]);
       const assignment = assignmentSnapshot.exists()
         ? { id: assignmentSnapshot.id, ...assignmentSnapshot.data() }
@@ -2029,17 +2017,6 @@ function App() {
       const currentRecord = normalizeQuestionRecord(
         saved?.gradesByAssignment?.[action.assignmentId]?.[action.questionIndex],
       );
-
-      // A teacher-authorized Warm-Up reopen/extension is itself a live credit
-      // window. Preserve that fact in the durable action: the assignment may be
-      // closed again before this queued response reaches Firestore, and a later
-      // close must not erase work captured while the teacher had it reopened.
-      const lifecycleAtCapture = assignment ? getAssignmentLifecycle(assignment, capturedAt) : null;
-      const timedSectionAccess = action.payload?.timedSectionAccess || null;
-      const warmupWasActiveAtCapture = action.payload?.activityRole === 'warmup'
-        && warmupCaptureWasActive(timedSectionAccess, capturedAt);
-      const teacherReopenedWarmupAtCapture = warmupWasActiveAtCapture
-        && timedSectionAccess?.teacherTimerScheduled === true;
 
       if (action.kind === 'responseCheckpoint') {
         // A checkpoint is stored whatever the section's CURRENT state is: it is
@@ -2069,77 +2046,6 @@ function App() {
         return;
       }
 
-      const sectionAccessAtNow = assignment
-        ? getSectionAccessState({
-          assignment,
-          activityRole: action.payload.activityRole,
-          classId: user.classId || null,
-          classPeriod: user.classPeriod,
-          nowValue: capturedAt,
-        })
-        : null;
-
-      classification = classifyCapturedSubmission({
-        actionId: action.actionId,
-        kind: action.kind,
-        activityRole: action.payload?.activityRole || null,
-        capturedAt,
-        previousTotalAttempts: action.payload?.previousTotalAttempts,
-        canonicalRecord: currentRecord,
-        assignmentExists: assignmentSnapshot.exists(),
-        gradeRecordExists: gradesSnapshot.exists(),
-        authorizedForClass: assignment
-          ? assignmentIsForStudent(assignment, { classId: user.classId || null, classPeriod: user.classPeriod })
-          : null,
-        assignmentClosedAtCapture: lifecycleAtCapture ? lifecycleAtCapture.isClosed : null,
-        teacherReopenedWarmupAtCapture,
-        warmupActiveAtCapture: action.payload?.activityRole === 'warmup' && timedSectionAccess
-          ? warmupWasActiveAtCapture
-          : null,
-        sectionOpenAtCapture: sectionWasOpenAtCapture({
-          capturedSectionAccess: action.payload?.capturedSectionAccess || null,
-          liveSectionAccess: sectionAccessAtNow,
-          capturedAt,
-        }),
-        deliveryAttempts: Number(action.delivery?.attempts || 0),
-        now: Date.now(),
-      });
-      if (classification.disposition !== SUBMISSION_DISPOSITION.ACCEPTED) return;
-
-      if (['ordinarySubmission', 'stepSubmission', 'questionReplacement'].includes(action.kind)) {
-        // THE EXPLICIT SUBMISSION IS NEWER AUTHORITY THAN ITS OWN CHECKPOINT.
-        //
-        // Retiring the checkpoint in the same transaction as the attempt is
-        // what makes "Submit, then close the tab, then the deadline arrives"
-        // produce exactly one attempt. The finalizer's attempt-count
-        // precondition would also catch it; this makes the race impossible
-        // rather than merely survivable.
-        if (checkpointRef && checkpointSnapshot?.exists()) {
-          transaction.update(checkpointRef, {
-            status: 'explicitly-submitted',
-            candidateFinalizeAt: null,
-            supersededAt: serverTimestamp(),
-            supersededBySubmissionId: action.actionId,
-          });
-        }
-        const record = { ...action.payload.record, lastSubmissionId: action.actionId };
-        const updates = [
-          new FieldPath('gradesByAssignment', action.assignmentId, String(action.questionIndex)), record,
-          new FieldPath('supportUsageByAssignment', action.assignmentId), action.payload.supportUsage,
-        ];
-        if (action.payload.hasClassworkGrade) updates.push(
-          new FieldPath('classworkGradesByAssignment', action.assignmentId), action.payload.classworkGrade,
-        );
-        if (action.payload.hasDolGrade) updates.push(
-          new FieldPath('dolGradesByAssignment', action.assignmentId), action.payload.dolGrade,
-        );
-        transaction.update(gradesRef, ...updates);
-        wroteEvidenceFor = ['ordinarySubmission', 'stepSubmission'].includes(action.kind)
-          ? action.payload.evidenceEvent || null
-          : null;
-        return;
-      }
-
       // Progress actions never replace an answer. They merge only elapsed time
       // into the latest canonical record, so a pending Next cannot undo a
       // concurrently reconciled submission.
@@ -2150,10 +2056,6 @@ function App() {
       );
     });
 
-    // The event key is deterministic for this exact attempt. If the tab closes
-    // after the grade transaction but before this write, recovery repeats the
-    // same setDoc rather than appending a second evidence record.
-    if (wroteEvidenceFor) await writeImmutableEvidenceEvent(action.studentId, wroteEvidenceFor);
     return classification;
   };
 
@@ -2169,13 +2071,16 @@ function App() {
         const receipt = await ingestOneSubmission(buildSubmissionEnvelopeForAction(action));
         return { disposition: receipt.disposition, reason: receipt.reason || null, receipt };
       } catch (error) {
-        // The server could not be reached. That is a transport failure, not a
-        // verdict, so the direct Firestore path is tried before giving up — and
-        // if that fails too the submission simply stays queued.
-        console.warn('Server ingestion unavailable; falling back to the direct write:', error?.message || error);
-        studentIngestionFallbackRef.current += 1;
+        const diagnostic = callableDeliveryDiagnostic(error);
+        console.warn('Server ingestion unavailable; submission remains durably queued:', diagnostic.safeReason);
+        return {
+          disposition: SUBMISSION_DISPOSITION.RETRYABLE,
+          reason: diagnostic.safeReason,
+          diagnostic,
+        };
       }
     }
+    // Checkpoints and elapsed-time progress are non-grade background state.
     return reconcileThroughClientTransaction(action);
   };
   /*
@@ -2195,12 +2100,63 @@ function App() {
     setStudentNeedsReviewCount(result.tally.needsReview);
     setStudentPersistenceStatus(
       result.remaining
-        ? (result.tally.needsReview ? 'needs-retry' : 'queued')
+        ? (result.tally.needsReview ? 'needs-review' : (navigator.onLine ? 'syncing' : 'offline'))
         : result.tally.permanentlyInvalid
           ? 'rejected'
           : successStatus,
     );
+    return result;
   };
+
+  /*
+   * THE DEVICE'S OWN INCIDENT REPORT — COALESCED, AND OFF THE GRADE PATH.
+   *
+   * One coordinator for the whole session, so a burst of submissions cannot
+   * spawn a report cycle each. A reporting failure updates a banner and
+   * nothing else: it never reaches the delivery path, which is the point.
+   */
+  const studentReportCoordinatorRef = useRef(null);
+  const reportStudentOutbox = () => {
+    if (user?.role !== 'student' || !user.id) return;
+    const studentId = user.id;
+    if (!studentReportCoordinatorRef.current || studentReportCoordinatorRef.current.studentId !== studentId) {
+      studentReportCoordinatorRef.current?.coordinator?.cancel();
+      studentReportCoordinatorRef.current = {
+        studentId,
+        coordinator: createDeviceReportCoordinator({
+          report: () => reportDeviceQueueState({ studentId }),
+          onSettled: ({ ok, error }) => {
+            if (ok) {
+              setStudentReportingError(null);
+              return;
+            }
+            const diagnostic = callableDeliveryDiagnostic(error);
+            setStudentReportingError(diagnostic.safeReason);
+            console.warn('Device queue report unavailable:', diagnostic.safeReason);
+          },
+        }),
+      };
+    }
+    // Hydration, reconnect, pageshow, visibility return, newly queued work and
+    // the post-drain snapshot all arrive here, and all report immediately
+    // unless one is already in flight — in which case exactly one follow-up is
+    // queued behind it rather than a second, third and fourth cycle.
+    studentReportCoordinatorRef.current.coordinator.request({ immediate: true });
+  };
+
+  /*
+   * GRADE DELIVERY IS HIGHER PRIORITY THAN DIAGNOSTICS.
+   *
+   * The pre-drain report starts first so the teacher gets the "before"
+   * snapshot, but the drain does not wait for it: a `reportStudentDeviceQueue`
+   * hanging out its full 12-second timeout while `ingestStudentSubmissions` is
+   * healthy must not delay a single canonical grade. See
+   * `reconcileWithDeviceReports` for the whole argument.
+   */
+  const reconcileAndReportStudentOutbox = (options) => reconcileWithDeviceReports({
+    report: reportStudentOutbox,
+    drain: () => drainStudentOutbox(options),
+  });
 
   const leaveUnavailableAssignment = () => {
     setActiveAssignmentId(null);
@@ -2435,7 +2391,13 @@ function App() {
     return { attempted, correct, total: included.length };
   };
 
-  const flushAssignmentActivity = async (assignmentId = activeAssignmentId, trackerOverride = null) => {
+  /*
+   * The local tracker is deliberately NOT a parameter any more. This function
+   * used to take it so it could compute Classwork completion from the caller's
+   * in-flight overlay; that computation is the server's now, from canonical
+   * records, so passing a tracker here could only mislead the next reader.
+   */
+  const flushAssignmentActivity = async (assignmentId = activeAssignmentId) => {
     if (user?.role !== 'student' || !assignmentId) return null;
     const assignment = assignments.find((item) => item.id === assignmentId);
     if (!assignment) return null;
@@ -2457,35 +2419,52 @@ function App() {
     const updatedActivity = { ...assignmentActivity, [assignmentId]: nextRecord };
     setAssignmentActivity(updatedActivity);
 
-    const completion = evaluateClassworkCompletion({
-      assignment,
-      assignmentTracker: trackerOverride?.[assignmentId] || tracker[assignmentId] || {},
-      activity: nextRecord,
-    });
-    let updatedClassworkGrades = classworkGradesByAssignment;
-    if (completion.met && Number(classworkGradesByAssignment?.[assignmentId]?.score) !== 100) {
-      updatedClassworkGrades = {
-        ...classworkGradesByAssignment,
-        [assignmentId]: {
-          score: 100,
-          metAt: new Date().toISOString(),
-          engagedSeconds: completion.engagedSeconds,
-          completionPercent: completion.completionPercent,
-        },
-      };
-      setClassworkGradesByAssignment(updatedClassworkGrades);
-    }
-
+    /*
+     * ENGAGEMENT TIME IS THE ONLY THING THIS WRITES.
+     *
+     * It used to also compute Classwork completion from `tracker` and write
+     * `classworkGradesByAssignment` itself. `tracker` is the LOCAL OVERLAY: it
+     * contains attempts still sitting in this Chromebook's durable queue that
+     * canonical grades have never seen. So a browser could mark a student
+     * Classwork-complete — which opens the next assignment through
+     * `prerequisiteAccess` — on the strength of work that had not been
+     * recorded anywhere, and might yet be proven invalid.
+     *
+     * Under Persistence V3 the browser may save engagement/activity state, and
+     * may not author a grade or completion projection. The projection is
+     * derived from canonical attempts by the server: at ingestion for every
+     * case a RESPONSE completes the rule, and by the reconciliation callable
+     * below for the one case ingestion cannot see — the rule's engagement
+     * term being satisfied by TIME after the last response was ingested.
+     */
     try {
-      const updates = [new FieldPath('assignmentActivity', assignmentId), nextRecord];
-      if (completion.met) updates.push(
-        new FieldPath('classworkGradesByAssignment', assignmentId),
-        updatedClassworkGrades[assignmentId],
+      await updateDoc(
+        doc(db, 'grades', user.id),
+        new FieldPath('assignmentActivity', assignmentId),
+        nextRecord,
       );
-      await updateDoc(doc(db, 'grades', user.id), ...updates);
     } catch (error) {
       pendingAssignmentSecondsRef.current += pendingSeconds;
       console.error('Could not save assignment activity:', error);
+      return nextRecord;
+    }
+
+    // The activity total is canonical now, so the server can be asked to look
+    // again. It re-reads the canonical tracker and the canonical activity and
+    // writes the projection only if THAT evidence supports it; this call sends
+    // no completion and no score. It is diagnostics-grade background work — a
+    // failure leaves the projection to the next ingestion or the next flush.
+    try {
+      const reconciled = await reconcileAssignmentActivityProjection({ assignmentId });
+      if (reconciled?.classworkGrade) {
+        setClassworkGradesByAssignment((current) => (
+          current?.[assignmentId] === reconciled.classworkGrade
+            ? current
+            : { ...current, [assignmentId]: reconciled.classworkGrade }
+        ));
+      }
+    } catch (error) {
+      console.warn('Classwork completion will be reconciled on the next canonical write:', error);
     }
     return nextRecord;
   };
@@ -2676,14 +2655,14 @@ function App() {
           });
           return next;
         });
-        setClassworkGradesByAssignment((current) => {
-          let next = current;
-          actions.forEach((action) => {
-            if (!action.payload?.hasClassworkGrade) return;
-            next = { ...next, [action.assignmentId]: action.payload.classworkGrade };
-          });
-          return next;
-        });
+        /*
+         * Queued work is overlaid onto the TRACKER above so a reload shows the
+         * student their own answers immediately. It is deliberately NOT
+         * overlaid onto `classworkGradesByAssignment`: that projection opens
+         * the next assignment, and a queued attempt has not been recorded
+         * anywhere yet. It arrives from the canonical document once the server
+         * has ingested the work that supports it.
+         */
         setDolGradesByAssignment((current) => {
           let next = current;
           actions.forEach((action) => {
@@ -2693,15 +2672,13 @@ function App() {
           return next;
         });
       }
-      await drainStudentOutbox();
-      // TELL THE SERVER WHAT THIS CHROMEBOOK IS STILL HOLDING.
+      // TELL THE SERVER BEFORE DELIVERY, THEN AGAIN AFTERWARD.
       //
       // An IndexedDB queue is the one part of the incident no server query can
-      // see. Once the drain has done what it can, this device reports its own
-      // remaining depth and the reasons, so the teacher recovery report can
-      // show work that exists but has not arrived. Counts only — never a
-      // response, never a record.
-      await reportDeviceQueueState({ studentId: user.id }).catch(() => null);
+      // see. Reporting first means a hung/failed drain cannot leave the teacher
+      // with "not reported"; reporting after records what actually cleared.
+      // A report failure is diagnosed locally and never blocks student work.
+      await reconcileAndReportStudentOutbox();
     };
 
     const reconcileQueuedStudentWork = () => recoverAndReconcileQueuedStudentWork()
@@ -2724,6 +2701,10 @@ function App() {
       window.removeEventListener('online', reconcileQueuedStudentWork);
       window.removeEventListener('pageshow', reconcileQueuedStudentWork);
       document.removeEventListener('visibilitychange', reconcileWhenVisible);
+      // Drop any deferred report. An in-flight one is left to settle: it is
+      // already describing a real queue, and cancelling it would lose the
+      // teacher's last view of this device for no benefit.
+      studentReportCoordinatorRef.current?.coordinator?.cancel();
     };
   }, [user?.id, user?.role]);
 
@@ -3476,7 +3457,7 @@ function App() {
     void (async () => {
       try {
         await drainStudentOutbox();
-        await flushAssignmentActivity(activeAssignmentId, updatedTracker);
+        await flushAssignmentActivity(activeAssignmentId);
       } catch (error) {
         console.error('Could not reconcile question navigation:', error);
       }
@@ -4153,7 +4134,6 @@ function App() {
     // interaction. Revalidate it before persistence below, but do not make a
     // student's click wait for an otherwise redundant getDoc roundtrip.
     const assignment = localAssignment;
-    const activityRecord = assignmentActivity[activeAssignmentId] || null;
     const gradingSpan = startPerformanceSpan('grading_ms', { flow: 'ordinary_assignment' });
     const currentAssignmentGrades = tracker[activeAssignmentId] || {};
     const outcome = applyAttempt(currentAssignmentGrades[currentQuestionIndex]);
@@ -4176,23 +4156,15 @@ function App() {
       },
     };
 
-    const completion = evaluateClassworkCompletion({
-      assignment,
-      assignmentTracker: updatedTracker[activeAssignmentId],
-      activity: activityRecord || assignmentActivity[activeAssignmentId],
-    });
-    const updatedClassworkGrades = completion.met
-      ? {
-          ...classworkGradesByAssignment,
-          [activeAssignmentId]: {
-            score: 100,
-            metAt: classworkGradesByAssignment?.[activeAssignmentId]?.metAt || new Date().toISOString(),
-            engagedSeconds: completion.engagedSeconds,
-            completionPercent: completion.completionPercent,
-          },
-        }
-      : classworkGradesByAssignment;
-
+    /*
+     * NO CLASSWORK COMPLETION IS COMPUTED HERE.
+     *
+     * `updatedTracker` is the local overlay and this attempt is not canonical
+     * yet — it is about to be queued. Deriving completion from it and carrying
+     * it forward would be the browser asserting a projection the gradebook
+     * cannot support. Server ingestion derives it from canonical records in
+     * the same transaction that records this attempt.
+     */
     let updatedDOLGrades = dolGradesByAssignment;
     const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: Date.now() });
     if (activeQuestionRole === 'dol' && dolState.status === 'active' && (dolState.questionIndices || [dolState.questionIndex]).includes(currentQuestionIndex)) {
@@ -4290,8 +4262,8 @@ function App() {
           }),
           record: outcome.record,
           supportUsage: updatedSupportUsage[activeAssignmentId],
-          hasClassworkGrade: Object.hasOwn(updatedClassworkGrades, activeAssignmentId),
-          classworkGrade: updatedClassworkGrades[activeAssignmentId] ?? null,
+          hasClassworkGrade: false,
+          classworkGrade: null,
           hasDolGrade: Object.hasOwn(updatedDOLGrades, activeAssignmentId),
           dolGrade: updatedDOLGrades[activeAssignmentId] ?? null,
           evidenceEvent,
@@ -4308,7 +4280,6 @@ function App() {
 
     setTracker(updatedTracker);
     setSupportUsageByAssignment(updatedSupportUsage);
-    setClassworkGradesByAssignment(updatedClassworkGrades);
     setDolGradesByAssignment(updatedDOLGrades);
 
     const serverAckSpan = startPerformanceSpan('submit_server_ack_ms', { flow: 'ordinary_assignment' });
@@ -4317,8 +4288,8 @@ function App() {
     // the student's critical interaction path.
     void (async () => {
       try {
-        await drainStudentOutbox({ successStatus: 'submitted' });
-        await flushAssignmentActivity(activeAssignmentId, updatedTracker);
+        await reconcileAndReportStudentOutbox({ successStatus: 'submitted' });
+        await flushAssignmentActivity(activeAssignmentId);
         serverAckSpan.finish({ status: 'durable' });
       } catch (error) {
         serverAckSpan.finish({ status: 'failed' });
@@ -4394,17 +4365,8 @@ function App() {
       modifications: [...new Set([...(previousSupport.modifications || []), ...(supportUsage.modifications || [])])],
     };
     const updatedSupportUsage = { ...supportUsageByAssignment, [activeAssignmentId]: assignmentSupportUsage };
-    const completion = evaluateClassworkCompletion({ assignment, assignmentTracker: updatedTracker[activeAssignmentId], activity: assignmentActivity[activeAssignmentId] });
-    const updatedClassworkGrades = completion.met ? {
-      ...classworkGradesByAssignment,
-      [activeAssignmentId]: {
-        score: 100,
-        metAt: classworkGradesByAssignment?.[activeAssignmentId]?.metAt || new Date().toISOString(),
-        engagedSeconds: completion.engagedSeconds,
-        completionPercent: completion.completionPercent,
-      },
-    } : classworkGradesByAssignment;
-
+    // As above: completion is the server's projection from canonical records,
+    // never this browser's from a tracker holding unqueued work.
     try {
       setStudentPersistenceStatus('capturing');
       await enqueueDurableAction(createDurableAction({
@@ -4432,8 +4394,8 @@ function App() {
           timeSpentSeconds: activeTimeRef.current,
           record: outcome.record,
           supportUsage: assignmentSupportUsage,
-          hasClassworkGrade: Object.hasOwn(updatedClassworkGrades, activeAssignmentId),
-          classworkGrade: updatedClassworkGrades[activeAssignmentId] ?? null,
+          hasClassworkGrade: false,
+          classworkGrade: null,
           hasDolGrade: false,
         },
       }));
@@ -4447,11 +4409,10 @@ function App() {
     }
     setTracker(updatedTracker);
     setSupportUsageByAssignment(updatedSupportUsage);
-    setClassworkGradesByAssignment(updatedClassworkGrades);
     void (async () => {
       try {
-        await drainStudentOutbox();
-        await flushAssignmentActivity(activeAssignmentId, updatedTracker);
+        await reconcileAndReportStudentOutbox();
+        await flushAssignmentActivity(activeAssignmentId);
       } catch (error) {
         console.error('Algebra step remains queued for retry:', error);
       }
@@ -4542,7 +4503,7 @@ function App() {
     }
     setTracker(updatedTracker);
     if (options.clearHistory) setDolGradesByAssignment(updatedDOLGrades);
-    void drainStudentOutbox().catch((error) => console.error('Question replacement remains queued for retry:', error));
+    void reconcileAndReportStudentOutbox().catch((error) => console.error('Question replacement remains queued for retry:', error));
   };
 
   const V5_COMPILER_PLUMBING_ERROR = /missing a type\/toolId|refers to a table in its prompt, but the question contains none|refers to a graph in its prompt, but the question contains none|needs `functionSpec\.type`|needs `analysisRequests`|needs a `graph` object with functions, points or segments|cannot yet build that interactive graph from an upstream response/i;
@@ -8312,17 +8273,24 @@ function App() {
               <p role="status" aria-live="polite" style={{ margin: '8px 4px 0', color: '#5f6368', fontSize: 12 }}>
                 {studentPersistenceStatus === 'capturing'
                   ? 'Saving…'
-                  : studentPersistenceStatus === 'queued'
-                    ? `Saved on this device. Saving ${studentOutboxDepth} change${studentOutboxDepth === 1 ? '' : 's'} to MathMaster… You may keep working.`
-                    : studentPersistenceStatus === 'needs-retry'
-                      ? `Saved on this device. ${studentPendingGradeCount || studentOutboxDepth} item${(studentPendingGradeCount || studentOutboxDepth) === 1 ? '' : 's'} still need${(studentPendingGradeCount || studentOutboxDepth) === 1 ? 's' : ''} to reach MathMaster — keep working and stay signed in, and your teacher can see this too.`
+                  : studentPersistenceStatus === 'queued' || studentPersistenceStatus === 'syncing'
+                    ? `Syncing · ${studentOutboxDepth} change${studentOutboxDepth === 1 ? '' : 's'} saved on this device. You may keep working.`
+                    : studentPersistenceStatus === 'offline'
+                      ? `Waiting for connection · ${studentPendingGradeCount || studentOutboxDepth} item${(studentPendingGradeCount || studentOutboxDepth) === 1 ? '' : 's'} saved on this device.`
+                      : studentPersistenceStatus === 'needs-review'
+                        ? `Needs review · ${studentPendingGradeCount || studentOutboxDepth} saved item${(studentPendingGradeCount || studentOutboxDepth) === 1 ? '' : 's'} has not been recorded yet. You may keep working.`
                       : studentPersistenceStatus === 'submitted'
-                        ? 'Submitted to MathMaster.'
+                        ? 'Recorded by MathMaster.'
                         : studentPersistenceStatus === 'durable'
-                          ? 'Saved to MathMaster.'
+                          ? 'Recorded by MathMaster.'
                           : studentPersistenceStatus === 'rejected'
                             ? 'This change was not accepted because the assignment is no longer available.'
                             : 'Saved on this device only. MathMaster will finish saving when you are back online.'}
+              </p>
+            )}
+            {!preview && studentReportingError && (
+              <p role="status" style={{ margin: '2px 4px 0', color: '#b06000', fontSize: 11 }}>
+                Device reporting unavailable ({studentReportingError}); locally saved work is unchanged.
               </p>
             )}
             {!preview && ['warmup', 'dol'].includes(runtimeActivityRole) && !currentCheckpointOutcome && (

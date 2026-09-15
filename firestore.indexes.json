@@ -69,6 +69,24 @@
       ]
     },
     {
+      "collectionGroup": "studentResponseCheckpoints",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "studentId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "assignmentId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "studentSessionSummaries",
       "queryScope": "COLLECTION",
       "fields": [
