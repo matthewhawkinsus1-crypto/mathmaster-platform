@@ -312,3 +312,36 @@ test('the same question rendered twice in one workflow keeps two workspaces apar
   const draftKey = await uniqueKey();
   assert.notEqual(toolDraftKey(draftKey, 'stage-plot'), toolDraftKey(draftKey, 'stage-classify'));
 });
+
+
+test('workflow delegated tool scopes respect newer canonical attempts', () => {
+  const engine = stripComments(read('src/QuestionEngine.jsx'));
+  const runner = stripComments(read('src/platform/workflow/WorkflowRunner.jsx'));
+  assert.match(engine, /<WorkflowRunner[\s\S]*canonicalSavedAt=\{canonicalAnswerSavedAt\}/);
+  assert.match(runner, /canonicalSavedAt\s*=\s*0/);
+  assert.match(runner, /<StageBody[\s\S]*canonicalSavedAt=\{canonicalSavedAt\}/);
+  assert.match(runner, /<ToolDraftScopeProvider[\s\S]*canonicalSavedAt=\{canonicalSavedAt\}/);
+});
+
+test('assignment-level draft clearing also evicts parsed tool workspace caches', async () => {
+  const store = memoryLocalStorage();
+  await withLocalStorage(store, async () => {
+    const { removeAssignmentDrafts, writeQuestionDraft } = await draftModule();
+    const { forgetAssignmentToolDrafts, readToolDraftRecord, toolDraftKey } = await toolModule();
+    const draftKey = await uniqueKey({ studentId: 'teacher-preview', assignmentId: 'preview-assignment', questionIndex: 2 });
+    writeQuestionDraft(toolDraftKey(draftKey), { responses: { sum: '3x' } });
+    assert.deepEqual(readToolDraftRecord(draftKey), { responses: { sum: '3x' } });
+    removeAssignmentDrafts({ studentId: 'teacher-preview', assignmentId: 'preview-assignment' });
+    forgetAssignmentToolDrafts({ studentId: 'teacher-preview', assignmentId: 'preview-assignment' });
+    assert.deepEqual(readToolDraftRecord(draftKey), {}, 'cleared work must not be resurrected from memory');
+  });
+});
+
+test('the shared hook refreshes question-specific initializers before a draft-key change', () => {
+  const source = stripComments(read('src/tools/shared/usePersistentToolState.js'));
+  const assign = source.indexOf('initialRef.current = initialValue');
+  const effect = source.indexOf('useEffect(() => {', assign);
+  assert.ok(assign >= 0, 'the hook must keep the latest initializer');
+  assert.ok(effect > assign, 'the latest initializer must be available before key-change restoration');
+  assert.match(source.slice(effect, effect + 1400), /restoreField\(key, field, initialRef\.current, canonicalSavedAt\)/);
+});
