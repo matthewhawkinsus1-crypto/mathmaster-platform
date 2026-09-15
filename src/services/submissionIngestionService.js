@@ -137,3 +137,30 @@ export const reportDeviceQueueState = async ({ studentId, summary = null, timeou
   );
   return response?.data || null;
 };
+
+/*
+ * ASK THE SERVER TO RE-DERIVE CLASSWORK COMPLETION FROM CANONICAL ATTEMPTS.
+ *
+ * The browser no longer authors `classworkGradesByAssignment`. It cannot: the
+ * only tracker it has is the local overlay, which contains attempts that are
+ * still queued on this device and have never reached canonical grades, so a
+ * completion computed here could mark a student Classwork-complete on evidence
+ * the gradebook cannot see.
+ *
+ * Ingestion already re-derives the projection whenever an attempt lands. This
+ * covers the one case it cannot: the completion rule also counts engagement
+ * minutes, so the threshold can be crossed by TIME after the last response was
+ * already ingested. The call carries an assignment id and nothing else — no
+ * completion, no score, no tracker. The server reads the canonical document and
+ * decides.
+ *
+ * It is a background reconciliation. Nothing a student does waits for it.
+ */
+export const reconcileAssignmentActivityProjection = async ({ assignmentId, timeoutMs = INGEST_TIMEOUT_MS } = {}) => {
+  if (!assignmentId) return null;
+  const response = await withTimeout(
+    httpsCallable(functions, 'reconcileAssignmentActivityProjection')({ assignmentId }),
+    timeoutMs,
+  );
+  return response?.data || null;
+};

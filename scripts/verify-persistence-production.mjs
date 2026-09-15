@@ -2,10 +2,17 @@
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
-export const REQUIRED_PERSISTENCE_SERVICES = Object.freeze([
-  'ingeststudentsubmissions',
-  'reportstudentdevicequeue',
-]);
+import { clientFacingServiceIds } from './persistence-deploy-surface.mjs';
+
+/*
+ * EVERY CALLABLE A STUDENT'S BROWSER INVOKES DIRECTLY.
+ *
+ * Derived from the deployed surface rather than retyped here, so a callable
+ * added to the release cannot be left out of the IAM check — which is the one
+ * failure that makes a healthy deploy look, from the classroom, exactly like
+ * lost work.
+ */
+export const REQUIRED_PERSISTENCE_SERVICES = Object.freeze(clientFacingServiceIds());
 
 export const serviceIsClientInvokable = (policy = {}) => (policy.bindings || []).some(
   (binding) => binding.role === 'roles/run.invoker' && (binding.members || []).includes('allUsers'),

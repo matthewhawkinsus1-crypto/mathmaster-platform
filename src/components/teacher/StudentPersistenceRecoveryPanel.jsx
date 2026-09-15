@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   applyWorkspaceDraftRecovery,
   getStudentPersistenceRecoveryReport,
+  resolveStudentPersistenceHold,
   sweepAllStudentResponseCheckpoints,
 } from '../../services/persistenceRecoveryService.js';
 
@@ -65,6 +66,10 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
   const [proposals, setProposals] = useState(null);
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [commitSummary, setCommitSummary] = useState(null);
+  // The one student whose unrecoverable discrepancy is being acknowledged, and
+  // the reason the teacher typed. Null whenever no confirmation is open.
+  const [resolutionTarget, setResolutionTarget] = useState(null);
+  const [resolutionReason, setResolutionReason] = useState('');
 
   const ready = Boolean(assignmentId && classId);
 
@@ -86,6 +91,8 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
     setError(null);
     setConfirmationOpen(false);
     setCommitSummary(null);
+    setResolutionTarget(null);
+    setResolutionReason('');
   }, [assignmentId, classId]);
 
   const run = async (label, work) => {
@@ -173,6 +180,51 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
       .filter((proposal) => ['needs-review', 'retryable'].includes(proposal.outcome.disposition));
     setProposals({ ...proposals, proposalCount: 0, proposals: unresolved });
     setConfirmationOpen(false);
+    await loadReport();
+    return result;
+  });
+
+  /*
+   * THE ONLY HOLD A HUMAN MAY CLOSE, AND ONLY AFTER SEEING IT.
+   *
+   * `session-summary-gap` is the one reason that can be permanently true with
+   * nothing left to recover. Every other reason names a concrete artifact that
+   * still exists — a queued submission, a checkpoint, a recoverable draft — so
+   * the action is offered only when the gap is the ONLY thing blocking, and the
+   * server refuses it otherwise.
+   *
+   * The two numbers the teacher was shown go back with the call. If the
+   * evidence has changed since this row was rendered, the server refuses rather
+   * than closing an incident nobody looked at.
+   */
+  const resolvableHold = (student) => Boolean(
+    student.persistencePending
+    && (student.persistencePendingReasons || []).length === 1
+    && (student.persistencePendingReasons || [])[0] === 'session-summary-gap',
+  );
+
+  const resolveHold = () => run('resolve', async () => {
+    const target = resolutionTarget;
+    if (!target) return null;
+    const reason = resolutionReason.trim();
+    if (!reason) {
+      setError('Record why this discrepancy is unrecoverable before resolving it.');
+      return null;
+    }
+    const result = await resolveStudentPersistenceHold({
+      studentId: target.studentId,
+      assignmentId,
+      classId,
+      reason,
+      acknowledgedWorked: target.presence.answered,
+      acknowledgedCanonicalAttempted: target.canonicalAttempted,
+    });
+    setResolutionTarget(null);
+    setResolutionReason('');
+    setNotice(
+      `Technical persistence hold resolved for ${target.studentName}. No grade, attempt or score was created; `
+      + 'finalization now proceeds on the canonical evidence that exists.',
+    );
     await loadReport();
     return result;
   });
@@ -273,7 +325,7 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
               <thead>
                 <tr>
-                  {['Student', 'Attempted', 'Worked', 'Unaccounted', 'Checkpoints', 'Draft saved', 'On devices', 'Recovered', 'Blocked by'].map((heading) => (
+                  {['Student', 'Attempted', 'Worked', 'Unaccounted', 'Checkpoints', 'Draft saved', 'On devices', 'Recovered', 'Blocked by', 'Resolution'].map((heading) => (
                     <th key={heading} style={{ ...CELL, fontWeight: 900, borderBottom: '2px solid #dadce0' }}>{heading}</th>
                   ))}
                 </tr>
@@ -281,7 +333,19 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
               <tbody>
                 {report.students.map((student) => (
                   <tr key={student.studentId} style={student.persistencePending ? { background: '#fef7e0' } : undefined}>
-                    <td style={CELL}>{student.studentName}{student.persistencePending ? <><br /><strong>Sync pending</strong></> : null}</td>
+                    <td style={CELL}>
+                      {student.studentName}
+                      {/* Name the DISCREPANCY, not just the state. A teacher
+                          deciding whether work is unrecoverable needs to see
+                          which evidence disagrees with the gradebook before
+                          they are offered a way to accept it. */}
+                      {student.persistencePending && resolvableHold(student) ? (
+                        <><br /><strong>Sync pending — session evidence exceeds recorded attempts</strong></>
+                      ) : null}
+                      {student.persistencePending && !resolvableHold(student) ? (
+                        <><br /><strong>Sync pending</strong></>
+                      ) : null}
+                    </td>
                     <td style={CELL}>{student.canonicalAttempted} / {student.expectedQuestionCount}</td>
                     <td style={CELL}>{student.presence.answered || '—'}</td>
                     <td style={{ ...CELL, fontWeight: student.unaccountedForQuestions ? 900 : 400 }}>{student.unaccountedForQuestions || '—'}</td>
@@ -297,6 +361,33 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
                       ...student.needsReview.map((item) => [`${item.source}:${item.reason}`, item.count]),
                       ...(student.persistencePendingReasons || []).map((reason) => [`pending:${reason}`, 1]),
                     ]))}</td>
+                    <td style={CELL}>
+                      {resolvableHold(student) ? (
+                        <button
+                          type="button"
+                          style={{ ...BUTTON, background: '#fce8e6', color: '#b3261e', minHeight: 32, padding: '6px 10px', fontSize: 12 }}
+                          disabled={Boolean(busy)}
+                          onClick={() => { setResolutionTarget(student); setResolutionReason(''); }}
+                        >
+                          Resolve technical persistence hold
+                        </button>
+                      ) : null}
+                      {/* A resolution is a closed incident, not a cleared one:
+                          the discrepancy is still shown above, and this says
+                          who accepted it and when. */}
+                      {student.persistenceResolution && !student.persistenceResolution.supersededByNewEvidence ? (
+                        <span style={{ fontSize: 11, color: '#5f6368' }}>
+                          Resolved by {student.persistenceResolution.resolvedByEmail || 'a teacher of record'}
+                          {' · '}{clock(student.persistenceResolution.resolvedAt)}
+                        </span>
+                      ) : null}
+                      {student.persistenceResolution?.supersededByNewEvidence ? (
+                        <span style={{ fontSize: 11, color: '#b3261e' }}>
+                          Earlier resolution no longer applies — new evidence appeared.
+                        </span>
+                      ) : null}
+                      {!resolvableHold(student) && !student.persistenceResolution ? '—' : null}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -332,6 +423,57 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
               <button type="button" style={{ ...BUTTON, background: '#f1f3f4' }} onClick={() => setConfirmationOpen(false)}>Cancel</button>
               <button type="button" style={{ ...BUTTON, background: '#137333', color: '#fff' }} disabled={Boolean(busy)} onClick={commitDrafts}>Recover responses</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {resolutionTarget && (
+        <div role="dialog" aria-modal="true" aria-labelledby="resolve-hold-title" style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(32,33,36,.55)' }}>
+          <div style={{ ...CARD, width: 'min(560px, 100%)', boxShadow: '0 12px 40px rgba(0,0,0,.28)' }}>
+            <h3 id="resolve-hold-title" style={{ marginTop: 0 }}>Resolve technical persistence hold?</h3>
+            {/* THE EXACT MEANING OF THE ACTION, IN THE DIALOG THAT TAKES IT. */}
+            <p style={{ fontWeight: 800 }}>
+              I acknowledge the unrecoverable discrepancy and permit normal finalization using the canonical
+              evidence that exists.
+            </p>
+            <p style={{ fontSize: 13 }}>
+              This creates <strong>no grade, no attempt and no zero</strong>. Nothing in {resolutionTarget.studentName}&rsquo;s
+              record changes. Only the safety hold on the final Google Classroom passback is released, and only for the
+              discrepancy shown here.
+            </p>
+            <dl style={{ display: 'grid', gridTemplateColumns: '190px 1fr', gap: 6, fontSize: 13 }}>
+              <dt>Student</dt><dd style={{ margin: 0, fontWeight: 800 }}>{resolutionTarget.studentName}</dd>
+              <dt>Assignment</dt><dd style={{ margin: 0, fontWeight: 800 }}>{assignmentTitle || assignmentId}</dd>
+              <dt>Session says worked</dt><dd style={{ margin: 0, fontWeight: 800 }}>{resolutionTarget.presence.answered}</dd>
+              <dt>Canonical attempts</dt><dd style={{ margin: 0, fontWeight: 800 }}>{resolutionTarget.canonicalAttempted}</dd>
+              <dt>Unaccounted for</dt><dd style={{ margin: 0, fontWeight: 900 }}>{resolutionTarget.unaccountedForQuestions}</dd>
+            </dl>
+            <label htmlFor="resolve-hold-reason" style={{ display: 'block', marginTop: 14, fontSize: 13, fontWeight: 800 }}>
+              Why is this discrepancy unrecoverable?
+            </label>
+            <textarea
+              id="resolve-hold-reason"
+              rows={3}
+              value={resolutionReason}
+              onChange={(event) => setResolutionReason(event.target.value.slice(0, 500))}
+              style={{ width: '100%', marginTop: 6, padding: 8, borderRadius: 8, border: '1px solid #dadce0', fontSize: 13 }}
+              placeholder="e.g. Chromebook was reimaged by IT on the 16th; the queued responses are gone."
+            />
+            <p style={{ fontSize: 12, color: '#5f6368' }}>
+              Recorded with your name and the time. If concrete recoverable evidence appears later — a Chromebook
+              reconnects and reports queued work — the hold becomes active again.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
+              <button type="button" style={{ ...BUTTON, background: '#f1f3f4' }} onClick={() => { setResolutionTarget(null); setResolutionReason(''); }}>Cancel</button>
+              <button
+                type="button"
+                style={{ ...BUTTON, background: '#b3261e', color: '#fff' }}
+                disabled={Boolean(busy) || !resolutionReason.trim()}
+                onClick={resolveHold}
+              >
+                {busy === 'resolve' ? 'Resolving…' : 'Acknowledge and resolve'}
+              </button>
             </div>
           </div>
         </div>

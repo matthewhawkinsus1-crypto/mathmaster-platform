@@ -461,6 +461,30 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    /*
+     * A PERSISTENCE INCIDENT A TEACHER OF RECORD HAS CLOSED.
+     *
+     * This record is what lets a final Classroom passback resume after a
+     * session/canonical discrepancy has been proven unrecoverable, so a client
+     * that could write one could release its own final grade. NOBODY writes
+     * here from a client — not a student, not a teacher, not the root
+     * administrator. The only writer is `resolveStudentPersistenceHold`, which
+     * runs on the Admin SDK and bypasses these rules after checking that the
+     * caller is the teacher of record for the class the student is actually in.
+     *
+     * This is also why the flag does not live on `grades/{studentId}`: a
+     * student may write parts of their own grade document, and no field a
+     * student can reach may ever release a final grade.
+     *
+     * Reads are for the audited teacher recovery report, which likewise runs
+     * on the Admin SDK; a student may read their own so a device can explain
+     * its own state without a second store.
+     */
+    match /studentPersistenceResolutions/{resolutionId} {
+      allow read: if rootAdmin() || ownsStudent(resource.data.studentId);
+      allow create, update, delete: if false;
+    }
+
     // Broken or unfinished authoring drafts never enter the shared assignments
     // collection. They are visible only to the teacher who owns the draft (or
     // the root administrator). Ownership is immutable from the client so one

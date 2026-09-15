@@ -193,6 +193,23 @@ export const seedFixture = async () => {
   }
 };
 
+/**
+ * One more student on this class's roster, seeded the way `seedFixture` seeds
+ * the original three — including the Google Classroom roster link, without
+ * which the passback trigger has nobody to post a grade for and every
+ * assertion about withholding one would pass for the wrong reason.
+ */
+export const seedRosteredStudent = async (studentId, { totalTimeSeconds = 1800 } = {}) => {
+  await db.collection('grades').doc(studentId).set({
+    displayName: studentId, classId: CLASS_ID, classPeriod: 'Period 1',
+    assignedTeacherEmail: TEACHER_EMAIL, status: 'active', gradesByAssignment: {},
+    assignmentActivity: { [ASSIGNMENT_ID]: { totalTimeSeconds } },
+  });
+  await db.collection('classroomRosterLinks').doc(rosterLinkDocumentId(COURSE_ID, studentId)).set({
+    courseId: COURSE_ID, studentId, googleUserId: `google-${studentId}`,
+  });
+};
+
 const deletePrefixed = async (collection, field = null) => {
   const snapshot = field
     ? await db.collection(collection).where(field, '>=', PREFIX).where(field, '<', `${PREFIX}`).get()
@@ -207,6 +224,7 @@ export const teardownFixture = async () => {
     'classes', 'grades', 'assignments', 'classroomLinks', 'classroomRosterLinks',
     'studentSubmissionReceipts', 'studentDevicePersistenceReports',
     'studentResponseCheckpoints', 'studentWorkspaceDrafts',
+    'studentSessionSummaries', 'studentPersistenceResolutions',
   ]) {
     // eslint-disable-next-line no-await-in-loop
     await deletePrefixed(collection);

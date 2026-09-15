@@ -87,7 +87,6 @@ import {
   CLASS_PERIODS,
   DEFAULT_CLASS_SCHEDULE,
   assignmentIsForStudent,
-  evaluateClassworkCompletion,
   formatDateTime,
   formatRemainingTime,
   getAssignmentLifecycle,
@@ -142,7 +141,13 @@ import {
   listDurableActions,
   overlayDurableActionsOnGrades,
 } from './platform/performance/durableActionOutbox.js';
-import { callableDeliveryDiagnostic, ingestOneSubmission, reportDeviceQueueState } from './services/submissionIngestionService.js';
+import {
+  callableDeliveryDiagnostic,
+  ingestOneSubmission,
+  reconcileAssignmentActivityProjection,
+  reportDeviceQueueState,
+} from './services/submissionIngestionService.js';
+import { createDeviceReportCoordinator, reconcileWithDeviceReports } from './platform/persistence/deviceReportCoordinator.js';
 import {
   INGESTIBLE_KINDS,
   buildSubmissionEnvelope,
@@ -2103,25 +2108,55 @@ function App() {
     return result;
   };
 
-  const reportStudentOutbox = async () => {
-    try {
-      const result = await reportDeviceQueueState({ studentId: user.id });
-      setStudentReportingError(null);
-      return result;
-    } catch (error) {
-      const diagnostic = callableDeliveryDiagnostic(error);
-      setStudentReportingError(diagnostic.safeReason);
-      console.warn('Device queue report unavailable:', diagnostic.safeReason);
-      return null;
+  /*
+   * THE DEVICE'S OWN INCIDENT REPORT — COALESCED, AND OFF THE GRADE PATH.
+   *
+   * One coordinator for the whole session, so a burst of submissions cannot
+   * spawn a report cycle each. A reporting failure updates a banner and
+   * nothing else: it never reaches the delivery path, which is the point.
+   */
+  const studentReportCoordinatorRef = useRef(null);
+  const reportStudentOutbox = () => {
+    if (user?.role !== 'student' || !user.id) return;
+    const studentId = user.id;
+    if (!studentReportCoordinatorRef.current || studentReportCoordinatorRef.current.studentId !== studentId) {
+      studentReportCoordinatorRef.current?.coordinator?.cancel();
+      studentReportCoordinatorRef.current = {
+        studentId,
+        coordinator: createDeviceReportCoordinator({
+          report: () => reportDeviceQueueState({ studentId }),
+          onSettled: ({ ok, error }) => {
+            if (ok) {
+              setStudentReportingError(null);
+              return;
+            }
+            const diagnostic = callableDeliveryDiagnostic(error);
+            setStudentReportingError(diagnostic.safeReason);
+            console.warn('Device queue report unavailable:', diagnostic.safeReason);
+          },
+        }),
+      };
     }
+    // Hydration, reconnect, pageshow, visibility return, newly queued work and
+    // the post-drain snapshot all arrive here, and all report immediately
+    // unless one is already in flight — in which case exactly one follow-up is
+    // queued behind it rather than a second, third and fourth cycle.
+    studentReportCoordinatorRef.current.coordinator.request({ immediate: true });
   };
 
-  const reconcileAndReportStudentOutbox = async (options) => {
-    await reportStudentOutbox();
-    const result = await drainStudentOutbox(options);
-    await reportStudentOutbox();
-    return result;
-  };
+  /*
+   * GRADE DELIVERY IS HIGHER PRIORITY THAN DIAGNOSTICS.
+   *
+   * The pre-drain report starts first so the teacher gets the "before"
+   * snapshot, but the drain does not wait for it: a `reportStudentDeviceQueue`
+   * hanging out its full 12-second timeout while `ingestStudentSubmissions` is
+   * healthy must not delay a single canonical grade. See
+   * `reconcileWithDeviceReports` for the whole argument.
+   */
+  const reconcileAndReportStudentOutbox = (options) => reconcileWithDeviceReports({
+    report: reportStudentOutbox,
+    drain: () => drainStudentOutbox(options),
+  });
 
   const leaveUnavailableAssignment = () => {
     setActiveAssignmentId(null);
@@ -2356,7 +2391,13 @@ function App() {
     return { attempted, correct, total: included.length };
   };
 
-  const flushAssignmentActivity = async (assignmentId = activeAssignmentId, trackerOverride = null) => {
+  /*
+   * The local tracker is deliberately NOT a parameter any more. This function
+   * used to take it so it could compute Classwork completion from the caller's
+   * in-flight overlay; that computation is the server's now, from canonical
+   * records, so passing a tracker here could only mislead the next reader.
+   */
+  const flushAssignmentActivity = async (assignmentId = activeAssignmentId) => {
     if (user?.role !== 'student' || !assignmentId) return null;
     const assignment = assignments.find((item) => item.id === assignmentId);
     if (!assignment) return null;
@@ -2378,35 +2419,52 @@ function App() {
     const updatedActivity = { ...assignmentActivity, [assignmentId]: nextRecord };
     setAssignmentActivity(updatedActivity);
 
-    const completion = evaluateClassworkCompletion({
-      assignment,
-      assignmentTracker: trackerOverride?.[assignmentId] || tracker[assignmentId] || {},
-      activity: nextRecord,
-    });
-    let updatedClassworkGrades = classworkGradesByAssignment;
-    if (completion.met && Number(classworkGradesByAssignment?.[assignmentId]?.score) !== 100) {
-      updatedClassworkGrades = {
-        ...classworkGradesByAssignment,
-        [assignmentId]: {
-          score: 100,
-          metAt: new Date().toISOString(),
-          engagedSeconds: completion.engagedSeconds,
-          completionPercent: completion.completionPercent,
-        },
-      };
-      setClassworkGradesByAssignment(updatedClassworkGrades);
-    }
-
+    /*
+     * ENGAGEMENT TIME IS THE ONLY THING THIS WRITES.
+     *
+     * It used to also compute Classwork completion from `tracker` and write
+     * `classworkGradesByAssignment` itself. `tracker` is the LOCAL OVERLAY: it
+     * contains attempts still sitting in this Chromebook's durable queue that
+     * canonical grades have never seen. So a browser could mark a student
+     * Classwork-complete — which opens the next assignment through
+     * `prerequisiteAccess` — on the strength of work that had not been
+     * recorded anywhere, and might yet be proven invalid.
+     *
+     * Under Persistence V3 the browser may save engagement/activity state, and
+     * may not author a grade or completion projection. The projection is
+     * derived from canonical attempts by the server: at ingestion for every
+     * case a RESPONSE completes the rule, and by the reconciliation callable
+     * below for the one case ingestion cannot see — the rule's engagement
+     * term being satisfied by TIME after the last response was ingested.
+     */
     try {
-      const updates = [new FieldPath('assignmentActivity', assignmentId), nextRecord];
-      if (completion.met) updates.push(
-        new FieldPath('classworkGradesByAssignment', assignmentId),
-        updatedClassworkGrades[assignmentId],
+      await updateDoc(
+        doc(db, 'grades', user.id),
+        new FieldPath('assignmentActivity', assignmentId),
+        nextRecord,
       );
-      await updateDoc(doc(db, 'grades', user.id), ...updates);
     } catch (error) {
       pendingAssignmentSecondsRef.current += pendingSeconds;
       console.error('Could not save assignment activity:', error);
+      return nextRecord;
+    }
+
+    // The activity total is canonical now, so the server can be asked to look
+    // again. It re-reads the canonical tracker and the canonical activity and
+    // writes the projection only if THAT evidence supports it; this call sends
+    // no completion and no score. It is diagnostics-grade background work — a
+    // failure leaves the projection to the next ingestion or the next flush.
+    try {
+      const reconciled = await reconcileAssignmentActivityProjection({ assignmentId });
+      if (reconciled?.classworkGrade) {
+        setClassworkGradesByAssignment((current) => (
+          current?.[assignmentId] === reconciled.classworkGrade
+            ? current
+            : { ...current, [assignmentId]: reconciled.classworkGrade }
+        ));
+      }
+    } catch (error) {
+      console.warn('Classwork completion will be reconciled on the next canonical write:', error);
     }
     return nextRecord;
   };
@@ -2597,14 +2655,14 @@ function App() {
           });
           return next;
         });
-        setClassworkGradesByAssignment((current) => {
-          let next = current;
-          actions.forEach((action) => {
-            if (!action.payload?.hasClassworkGrade) return;
-            next = { ...next, [action.assignmentId]: action.payload.classworkGrade };
-          });
-          return next;
-        });
+        /*
+         * Queued work is overlaid onto the TRACKER above so a reload shows the
+         * student their own answers immediately. It is deliberately NOT
+         * overlaid onto `classworkGradesByAssignment`: that projection opens
+         * the next assignment, and a queued attempt has not been recorded
+         * anywhere yet. It arrives from the canonical document once the server
+         * has ingested the work that supports it.
+         */
         setDolGradesByAssignment((current) => {
           let next = current;
           actions.forEach((action) => {
@@ -2643,6 +2701,10 @@ function App() {
       window.removeEventListener('online', reconcileQueuedStudentWork);
       window.removeEventListener('pageshow', reconcileQueuedStudentWork);
       document.removeEventListener('visibilitychange', reconcileWhenVisible);
+      // Drop any deferred report. An in-flight one is left to settle: it is
+      // already describing a real queue, and cancelling it would lose the
+      // teacher's last view of this device for no benefit.
+      studentReportCoordinatorRef.current?.coordinator?.cancel();
     };
   }, [user?.id, user?.role]);
 
@@ -3395,7 +3457,7 @@ function App() {
     void (async () => {
       try {
         await drainStudentOutbox();
-        await flushAssignmentActivity(activeAssignmentId, updatedTracker);
+        await flushAssignmentActivity(activeAssignmentId);
       } catch (error) {
         console.error('Could not reconcile question navigation:', error);
       }
@@ -4072,7 +4134,6 @@ function App() {
     // interaction. Revalidate it before persistence below, but do not make a
     // student's click wait for an otherwise redundant getDoc roundtrip.
     const assignment = localAssignment;
-    const activityRecord = assignmentActivity[activeAssignmentId] || null;
     const gradingSpan = startPerformanceSpan('grading_ms', { flow: 'ordinary_assignment' });
     const currentAssignmentGrades = tracker[activeAssignmentId] || {};
     const outcome = applyAttempt(currentAssignmentGrades[currentQuestionIndex]);
@@ -4095,23 +4156,15 @@ function App() {
       },
     };
 
-    const completion = evaluateClassworkCompletion({
-      assignment,
-      assignmentTracker: updatedTracker[activeAssignmentId],
-      activity: activityRecord || assignmentActivity[activeAssignmentId],
-    });
-    const updatedClassworkGrades = completion.met
-      ? {
-          ...classworkGradesByAssignment,
-          [activeAssignmentId]: {
-            score: 100,
-            metAt: classworkGradesByAssignment?.[activeAssignmentId]?.metAt || new Date().toISOString(),
-            engagedSeconds: completion.engagedSeconds,
-            completionPercent: completion.completionPercent,
-          },
-        }
-      : classworkGradesByAssignment;
-
+    /*
+     * NO CLASSWORK COMPLETION IS COMPUTED HERE.
+     *
+     * `updatedTracker` is the local overlay and this attempt is not canonical
+     * yet — it is about to be queued. Deriving completion from it and carrying
+     * it forward would be the browser asserting a projection the gradebook
+     * cannot support. Server ingestion derives it from canonical records in
+     * the same transaction that records this attempt.
+     */
     let updatedDOLGrades = dolGradesByAssignment;
     const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: Date.now() });
     if (activeQuestionRole === 'dol' && dolState.status === 'active' && (dolState.questionIndices || [dolState.questionIndex]).includes(currentQuestionIndex)) {
@@ -4209,8 +4262,8 @@ function App() {
           }),
           record: outcome.record,
           supportUsage: updatedSupportUsage[activeAssignmentId],
-          hasClassworkGrade: Object.hasOwn(updatedClassworkGrades, activeAssignmentId),
-          classworkGrade: updatedClassworkGrades[activeAssignmentId] ?? null,
+          hasClassworkGrade: false,
+          classworkGrade: null,
           hasDolGrade: Object.hasOwn(updatedDOLGrades, activeAssignmentId),
           dolGrade: updatedDOLGrades[activeAssignmentId] ?? null,
           evidenceEvent,
@@ -4227,7 +4280,6 @@ function App() {
 
     setTracker(updatedTracker);
     setSupportUsageByAssignment(updatedSupportUsage);
-    setClassworkGradesByAssignment(updatedClassworkGrades);
     setDolGradesByAssignment(updatedDOLGrades);
 
     const serverAckSpan = startPerformanceSpan('submit_server_ack_ms', { flow: 'ordinary_assignment' });
@@ -4237,7 +4289,7 @@ function App() {
     void (async () => {
       try {
         await reconcileAndReportStudentOutbox({ successStatus: 'submitted' });
-        await flushAssignmentActivity(activeAssignmentId, updatedTracker);
+        await flushAssignmentActivity(activeAssignmentId);
         serverAckSpan.finish({ status: 'durable' });
       } catch (error) {
         serverAckSpan.finish({ status: 'failed' });
@@ -4313,17 +4365,8 @@ function App() {
       modifications: [...new Set([...(previousSupport.modifications || []), ...(supportUsage.modifications || [])])],
     };
     const updatedSupportUsage = { ...supportUsageByAssignment, [activeAssignmentId]: assignmentSupportUsage };
-    const completion = evaluateClassworkCompletion({ assignment, assignmentTracker: updatedTracker[activeAssignmentId], activity: assignmentActivity[activeAssignmentId] });
-    const updatedClassworkGrades = completion.met ? {
-      ...classworkGradesByAssignment,
-      [activeAssignmentId]: {
-        score: 100,
-        metAt: classworkGradesByAssignment?.[activeAssignmentId]?.metAt || new Date().toISOString(),
-        engagedSeconds: completion.engagedSeconds,
-        completionPercent: completion.completionPercent,
-      },
-    } : classworkGradesByAssignment;
-
+    // As above: completion is the server's projection from canonical records,
+    // never this browser's from a tracker holding unqueued work.
     try {
       setStudentPersistenceStatus('capturing');
       await enqueueDurableAction(createDurableAction({
@@ -4351,8 +4394,8 @@ function App() {
           timeSpentSeconds: activeTimeRef.current,
           record: outcome.record,
           supportUsage: assignmentSupportUsage,
-          hasClassworkGrade: Object.hasOwn(updatedClassworkGrades, activeAssignmentId),
-          classworkGrade: updatedClassworkGrades[activeAssignmentId] ?? null,
+          hasClassworkGrade: false,
+          classworkGrade: null,
           hasDolGrade: false,
         },
       }));
@@ -4366,11 +4409,10 @@ function App() {
     }
     setTracker(updatedTracker);
     setSupportUsageByAssignment(updatedSupportUsage);
-    setClassworkGradesByAssignment(updatedClassworkGrades);
     void (async () => {
       try {
         await reconcileAndReportStudentOutbox();
-        await flushAssignmentActivity(activeAssignmentId, updatedTracker);
+        await flushAssignmentActivity(activeAssignmentId);
       } catch (error) {
         console.error('Algebra step remains queued for retry:', error);
       }

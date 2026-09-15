@@ -71,3 +71,30 @@ export const sweepAllStudentResponseCheckpoints = async ({ assignmentId, classId
  */
 export const applyWorkspaceDraftRecovery = ({ assignmentId, classId, commit = false, previewTokens = [] }) =>
   call('applyWorkspaceDraftRecovery', { assignmentId, classId, commit, previewTokens });
+
+/*
+ * CLOSE A PERSISTENCE INCIDENT THAT CANNOT BE RECOVERED.
+ *
+ * `session-summary-gap` withholds a final Classroom passback while a student's
+ * own session says they worked more questions than the gradebook can account
+ * for. Sometimes that is permanently true — the response was proven invalid,
+ * the Chromebook was reimaged, presence counted something that was never going
+ * to become an attempt — and the assignment would otherwise never pass back.
+ *
+ * This is the teacher of record saying, on the record:
+ *
+ *   "I acknowledge the unrecoverable discrepancy and permit normal
+ *    finalization using the canonical evidence that exists."
+ *
+ * It creates NO grade, NO attempt and NO zero. The two acknowledged numbers are
+ * the ones the teacher was shown; the server refuses the call if the evidence
+ * has moved since, so a stale confirmation cannot close an incident nobody
+ * looked at.
+ */
+export const resolveStudentPersistenceHold = ({
+  studentId, assignmentId, classId, reason,
+  acknowledgedWorked, acknowledgedCanonicalAttempted,
+}) => call('resolveStudentPersistenceHold', {
+  studentId, assignmentId, classId, reason,
+  acknowledgedWorked, acknowledgedCanonicalAttempted,
+});

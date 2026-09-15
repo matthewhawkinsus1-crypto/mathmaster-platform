@@ -6520,8 +6520,14 @@ exports.syncGradeToClassroom = onDocumentWritten(
           assignmentId,
           canonicalAttempted: progress.attempted,
           secureTestCycle: false,
+          // The workspace-draft signal is assessed against the real assignment
+          // and the real canonical tracker, exactly as the recovery report
+          // assesses it, so the two can never disagree about what is still
+          // recoverable.
+          assignment: { id: assignmentId, ...assignment },
+          gradeData: afterData,
         })
-        : { persistencePending: false, reasons: [] };
+        : { persistencePending: false, reasons: [], resolvedReasons: [] };
       const releasePolicy = classroomGradeReleasePolicy({
         stage,
         assignment,
@@ -6556,6 +6562,10 @@ exports.syncGradeToClassroom = onDocumentWritten(
             isFinal: false,
             persistencePending: true,
             persistencePendingReasons: persistenceState.reasons,
+            // A reason a teacher of record has already acknowledged is carried
+            // in the audit alongside the ones still blocking, so the record
+            // says what was resolved as well as what is outstanding.
+            persistenceResolvedReasons: persistenceState.resolvedReasons || [],
             studentVisible: false,
             returnedToStudent: false,
             message: "Known persistence evidence is still unresolved; final Classroom passback is withheld.",
@@ -13598,6 +13608,24 @@ exports.assignmentAiSelfTest = onCall({
  * ========================================================================= */
 
 const DEVICE_QUEUE_REPORT_COLLECTION = "studentDevicePersistenceReports";
+const WORKSPACE_DRAFT_COLLECTION = "studentWorkspaceDrafts";
+
+/*
+ * A TECHNICAL INCIDENT A TEACHER OF RECORD HAS CLOSED.
+ *
+ * SERVER-ONLY, and deliberately not a field on `grades/{studentId}`: a student
+ * can write parts of their own grade document, and a flag that releases a final
+ * passback must never sit anywhere a student can reach. Firestore rules refuse
+ * every client write to this collection; the audited callable below, on the
+ * Admin SDK, is the only way one is created.
+ *
+ * It records an ACKNOWLEDGEMENT, never a result. No grade, no attempt, no
+ * correctness, no zero.
+ */
+const PERSISTENCE_RESOLUTION_COLLECTION = "studentPersistenceResolutions";
+const persistenceResolutionDocumentId = ({ studentId, assignmentId } = {}) => (
+  [studentId, assignmentId].map((part) => encodeURIComponent(String(part ?? ""))).join("__").slice(0, 1400)
+);
 
 let persistencePendingModule = null;
 async function persistencePendingLib() {
@@ -13605,13 +13633,44 @@ async function persistencePendingLib() {
   return persistencePendingModule;
 }
 
-async function readPersistencePending({ db, studentId, assignmentId, canonicalAttempted, secureTestCycle = false }) {
-  const [deviceSnapshot, checkpointSnapshot, sessionSnapshot] = await Promise.all([
+/*
+ * EVERY SIGNAL THE POLICY ACCEPTS, READ FROM THE PLACE THAT OWNS IT.
+ *
+ * `assessPersistencePending` advertises four sources. This function is the
+ * only production reader of it, so any source it does not actually inspect is
+ * an advertised safety net with nothing behind it. It inspects all four:
+ *
+ *   device-queue         what a Chromebook says it is still holding.
+ *   response-checkpoint  server-held drafts of a response, not yet finalized.
+ *   workspace-draft      a server-held draft our own recovery rules say a
+ *                        teacher can still commit into a canonical attempt.
+ *   session-summary-gap  the student's own session says they worked more
+ *                        questions than the gradebook can account for.
+ *
+ * The workspace draft read is a single document get on a deterministic id, and
+ * the schedule/class reads it needs happen only when a draft actually exists,
+ * so the ordinary green path costs nothing extra.
+ */
+async function readPersistencePending({
+  db,
+  studentId,
+  assignmentId,
+  canonicalAttempted,
+  secureTestCycle = false,
+  assignment = null,
+  gradeData = null,
+}) {
+  const { workspaceDraftDocumentId } = await import("./shared/workspaceDraftSchema.mjs");
+  const [deviceSnapshot, checkpointSnapshot, sessionSnapshot, draftSnapshot, resolutionSnapshot] = await Promise.all([
     db.collection(DEVICE_QUEUE_REPORT_COLLECTION).where("studentId", "==", studentId).limit(10).get(),
     db.collection(CHECKPOINT_COLLECTION).where("studentId", "==", studentId)
       .where("assignmentId", "==", assignmentId).where("status", "==", CHECKPOINT_STATUS_ACTIVE).limit(200).get(),
     db.collection(STUDENT_SESSION_SUMMARY_COLLECTION).where("studentId", "==", studentId)
       .where("assignmentId", "==", assignmentId).limit(50).get(),
+    db.collection(WORKSPACE_DRAFT_COLLECTION)
+      .doc(workspaceDraftDocumentId({ studentId, assignmentId })).get(),
+    db.collection(PERSISTENCE_RESOLUTION_COLLECTION)
+      .doc(persistenceResolutionDocumentId({ studentId, assignmentId })).get(),
   ]);
   const assignmentKey = encodeURIComponent(assignmentId);
   const queuedGradeBearing = deviceSnapshot.docs.reduce(
@@ -13620,14 +13679,70 @@ async function readPersistencePending({ db, studentId, assignmentId, canonicalAt
   const worked = sessionSnapshot.docs.reduce(
     (maximum, snapshot) => Math.max(maximum, Number(snapshot.data()?.answered) || 0), 0,
   );
+  const recoverableDrafts = draftSnapshot.exists
+    ? await countRecoverableWorkspaceDrafts({
+      db,
+      draft: draftSnapshot.data() || {},
+      draftSavedAtMs: millisOf(draftSnapshot.data()?.updatedAt),
+      assignment,
+      assignmentId,
+      gradeData,
+    })
+    : 0;
   const { assessPersistencePending } = await persistencePendingLib();
   return assessPersistencePending({
     queuedGradeBearing,
     activeCheckpoints: checkpointSnapshot.size,
+    recoverableDrafts,
     worked,
     canonicalAttempted,
     secureTestCycle,
+    sessionGapResolution: resolutionSnapshot.exists ? resolutionSnapshot.data() : null,
   });
+}
+
+/**
+ * How many entries of this student's server-held workspace draft our recovery
+ * rules would still accept as a canonical attempt.
+ *
+ * This is the SAME assessment the teacher recovery report and the recovery
+ * dry run make — deliberately, so "the recovery panel says one response is
+ * recoverable" and "final passback is held" can never disagree. Anything the
+ * rules refuse (saved after the cutoff, no provable cutoff, superseded by a
+ * newer canonical attempt, not a response at all) counts zero here: it is not
+ * recoverable, so it is not a reason to withhold a grade forever.
+ */
+async function countRecoverableWorkspaceDrafts({
+  db, draft, draftSavedAtMs, assignment, assignmentId, gradeData,
+}) {
+  if (!assignment) return 0;
+  const recovery = await workspaceDraftRecovery();
+  const { resolveAuthoritativeClose } = await import("./shared/sectionDeadline.mjs");
+  const classId = String(gradeData?.classId || "").trim() || null;
+  const [scheduleSnapshot, classSnapshot] = await Promise.all([
+    db.collection("settings").doc("classSchedule").get(),
+    classId ? db.collection(CLASS_COLLECTION).doc(classId).get() : Promise.resolve(null),
+  ]);
+  const schedule = scheduleSnapshot.exists ? scheduleSnapshot.data() : null;
+  const classPeriod = String(classSnapshot?.data()?.period || "") || null;
+  const questions = runtimeQuestionsFromAssignment(assignment) || [];
+  const tracker = gradeData?.gradesByAssignment?.[assignmentId] || {};
+  const assessment = recovery.assessWorkspaceDraftDocument({
+    document: draft,
+    documentSavedAtMs: draftSavedAtMs,
+    resolveQuestion: (entry) => questions[Number(entry.questionIndex)] || null,
+    resolveCanonicalRecord: (entry) => tracker?.[String(entry.questionIndex)] ?? tracker?.[entry.questionIndex] ?? null,
+    resolveCloseAt: (entry) => resolveAuthoritativeClose({
+      assignment,
+      activityRole: questions[Number(entry.questionIndex)]?.activityRole || "classwork",
+      schedule,
+      classId,
+      classPeriod,
+      // Measured against the day the draft was SAVED, never today.
+      nowValue: draftSavedAtMs || Date.now(),
+    }).closesAtMs,
+  });
+  return Number(assessment?.recoverable?.length) || 0;
 }
 
 let workspaceDraftRecoveryModule = null;
@@ -13687,14 +13802,33 @@ exports.reportStudentDeviceQueue = onCall(async (request) => {
   const db = getFirestore();
   const reportRef = db.collection(DEVICE_QUEUE_REPORT_COLLECTION).doc(`${encodeURIComponent(studentId)}__${deviceId}`);
   const previousReport = await reportRef.get();
-  const previousByAssignment = previousReport.data()?.queuedGradeBearingByAssignment || {};
+  const previousData = previousReport.data() || {};
+  const previousByAssignment = previousData.queuedGradeBearingByAssignment || {};
   const nextByAssignment = assignmentCountMap(summary.queuedGradeBearingByAssignment);
+  /*
+   * THIS DOCUMENT IS A SNAPSHOT, SO IT IS WRITTEN AS ONE.
+   *
+   * `{ merge: true }` merges Firestore maps RECURSIVELY. A device that
+   * reported `queuedGradeBearingByAssignment.assignmentA = 1` and then drained
+   * it sends a summary with no `assignmentA` key at all — and a recursive
+   * merge leaves the stale `1` exactly where it was. Nothing ever removes it,
+   * so the assignment reads as permanently `persistencePending`, its Classroom
+   * passback stays `sync-pending` forever, and the teacher recovery report
+   * shows queued work on a Chromebook that is empty.
+   *
+   * A full `set()` replaces the document, so a key the device stopped
+   * reporting actually disappears. The device sends its ENTIRE current state
+   * on every report, so there is nothing here worth merging — except the
+   * fields below, which are carried forward deliberately because they are
+   * history rather than state.
+   */
+  const gradeData = (await db.collection("grades").doc(studentId).get()).data() || {};
   await reportRef.set({
     studentId,
     deviceId,
     summarySchemaVersion,
     hasAssignmentBreakdown: Boolean(hasAssignmentBreakdown),
-    classId: String((await db.collection("grades").doc(studentId).get()).data()?.classId || "") || null,
+    classId: String(gradeData.classId || "") || null,
     queued: number(summary.queued),
     queuedGradeBearing: number(summary.queuedGradeBearing),
     queuedByKind: countMap(summary.queuedByKind),
@@ -13709,8 +13843,13 @@ exports.reportStudentDeviceQueue = onCall(async (request) => {
     retiredByDisposition: countMap(summary.retiredByDisposition),
     oldestCapturedAt: Number(summary.oldestCapturedAt) || null,
     latestCapturedAt: Number(summary.latestCapturedAt) || null,
+    // CARRIED FORWARD ON PURPOSE. When this device first said anything is
+    // incident history: it survives every later snapshot, and it is how a
+    // teacher tells "reported once, three days ago" from "reporting since
+    // Tuesday".
+    firstReportedAt: previousData.firstReportedAt || FieldValue.serverTimestamp(),
     reportedAt: FieldValue.serverTimestamp(),
-  }, { merge: true });
+  });
   // Clearing the last locally reported item must wake the existing grade
   // trigger; otherwise a passback withheld as sync-pending would wait until the
   // next unrelated grade change.
@@ -13729,6 +13868,261 @@ exports.reportStudentDeviceQueue = onCall(async (request) => {
     await gradeRef.update(...updates);
   }
   return { success: true, summarySchemaVersion };
+});
+
+/*
+ * CLASSWORK COMPLETION IS DERIVED FROM CANONICAL ATTEMPTS, BY THE SERVER.
+ *
+ * `classworkGradesByAssignment` unlocks the next assignment through
+ * `prerequisiteAccess`, so it is a completion projection with real academic
+ * consequences — not engagement state. The browser used to compute it from its
+ * OWN tracker, which is the local overlay: it contains attempts that are still
+ * only durably queued on this Chromebook and have never reached canonical
+ * grades. A student could therefore be marked Classwork-complete on evidence
+ * the gradebook cannot see, and stay marked complete even if that queued work
+ * turned out to be permanently invalid.
+ *
+ * Ingestion already derives this projection from canonical records every time
+ * an attempt lands, which covers every case where a RESPONSE completes the
+ * rule. This callable exists for the one case ingestion cannot see: the
+ * completion rule also has an engagement-minutes term, so a student whose last
+ * response was ingested at minute 8 crosses the threshold at minute 10 with no
+ * attempt to trigger anything.
+ *
+ * The browser may ask for the projection to be refreshed. It may not supply
+ * it. Everything below is re-read from the canonical document — the tracker
+ * the gradebook shows, and the activity total the server already holds — so
+ * the answer is identical to the one ingestion would have computed, and an
+ * attempt still sitting in a device queue cannot contribute to it.
+ */
+exports.reconcileAssignmentActivityProjection = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  if (!assignmentId) throw new HttpsError("invalid-argument", "An assignmentId is required.");
+
+  const db = getFirestore();
+  const [gradeSnapshot, assignmentSnapshot] = await Promise.all([
+    db.collection("grades").doc(studentId).get(),
+    db.collection("assignments").doc(assignmentId).get(),
+  ]);
+  if (!gradeSnapshot.exists || !assignmentSnapshot.exists) {
+    return { reconciled: false, reason: "context-unavailable", classworkGrade: null };
+  }
+  const gradeData = gradeSnapshot.data() || {};
+  const assignment = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
+  const classId = authoritativeStudentClassId(gradeData);
+  if (!studentMatchesAssignmentAudience({ assignment, classId })) {
+    return { reconciled: false, reason: "assignment-not-assigned-to-class", classworkGrade: null };
+  }
+  if (secureAssignmentMode(assignment) || assignment.secure === true) {
+    // A Test Cycle has no classwork completion projection to refresh.
+    return { reconciled: false, reason: "secure-assignment", classworkGrade: null };
+  }
+
+  const { classworkGradeProjection, evaluateClassworkCompletionRule } = await import("./shared/assignmentProjections.mjs");
+  const completion = evaluateClassworkCompletionRule({
+    classworkIndices: runtimeIncludedQuestionIndicesForSection(assignment, "classwork"),
+    // THE CANONICAL TRACKER. Not the caller's, and not a merge of the two.
+    assignmentTracker: gradeData?.gradesByAssignment?.[assignmentId] || {},
+    totalTimeSeconds: Number(gradeData?.assignmentActivity?.[assignmentId]?.totalTimeSeconds) || 0,
+    completionRule: assignment?.completionRule || {},
+  });
+  const existingGrade = gradeData?.classworkGradesByAssignment?.[assignmentId] || null;
+  const classworkGrade = classworkGradeProjection({
+    completion,
+    existingGrade,
+    recordedAt: new Date().toISOString(),
+  });
+  // Unmet writes NOTHING. This path can only ever add a completion the
+  // canonical evidence supports; it never removes or downgrades one, which is
+  // a teacher's decision and not a background reconciliation's.
+  if (!classworkGrade) {
+    return { reconciled: false, reason: "completion-not-met", completion, classworkGrade: null };
+  }
+  if (existingGrade && Number(existingGrade.score) === Number(classworkGrade.score)) {
+    return { reconciled: false, reason: "already-recorded", completion, classworkGrade: existingGrade };
+  }
+  await db.collection("grades").doc(studentId).update(
+    new FieldPath("classworkGradesByAssignment", assignmentId),
+    classworkGrade,
+  );
+  return { reconciled: true, reason: null, completion, classworkGrade };
+});
+
+/*
+ * CLOSING A PERSISTENCE INCIDENT THAT CANNOT BE RECOVERED.
+ *
+ * `session-summary-gap` fires when a student's own session says they worked
+ * more questions than the gradebook can account for. That is the right alarm:
+ * something happened and no grade came of it. But it can be permanently true.
+ * A queued response proven invalid, a Chromebook reimaged, presence counting
+ * something that was never going to become an attempt — in each case the work
+ * is gone, and the assignment would otherwise sit at `sync-pending` and never
+ * pass back to Classroom for the rest of the year.
+ *
+ * The fix is NOT a timeout. A gate that expires protects nobody, because the
+ * case it is protecting against — work that really is still recoverable —
+ * looks identical on the clock. The fix is a named human, on the record.
+ *
+ * WHAT THIS ACTION MEANS, EXACTLY:
+ *
+ *   "I acknowledge the unrecoverable discrepancy and permit normal
+ *    finalization using the canonical evidence that exists."
+ *
+ * WHAT IT DOES NOT DO. It writes no grade, creates no attempt, manufactures no
+ * zero and marks nothing correct or incorrect. The gradebook after this call
+ * is byte-for-byte the gradebook before it. All that changes is that ONE
+ * safety reason stops withholding the final passback.
+ *
+ * AND IT ONLY COVERS THE DISCREPANCY THE TEACHER ACTUALLY SAW. The caller must
+ * send back the two numbers the panel showed them; if the evidence has moved
+ * since, the call is refused rather than applied to a different incident. If
+ * new concrete recoverable evidence appears later — a Chromebook reconnects
+ * and reports queued grade-bearing work — that raises its own reason, which no
+ * resolution suppresses, and the hard hold is active again.
+ */
+exports.resolveStudentPersistenceHold = onCall(async (request) => {
+  const studentId = String(request.data?.studentId || "").trim();
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const classId = String(request.data?.classId || "").trim();
+  const reason = String(request.data?.reason || "").trim().slice(0, 500);
+  if (!studentId || !assignmentId || !classId) {
+    throw new HttpsError("invalid-argument", "studentId, assignmentId and classId are required.");
+  }
+  if (!reason) {
+    throw new HttpsError("invalid-argument", "Record why this discrepancy is unrecoverable.");
+  }
+
+  // Teacher of record for THIS class, or the root administrator. Nobody else,
+  // including a teacher of record for some other class.
+  const { email } = await requireClassTeacher(request, classId);
+  const db = getFirestore();
+
+  const [gradeSnapshot, assignmentSnapshot] = await Promise.all([
+    db.collection("grades").doc(studentId).get(),
+    db.collection("assignments").doc(assignmentId).get(),
+  ]);
+  if (!gradeSnapshot.exists) throw new HttpsError("not-found", "That student record no longer exists.");
+  const gradeData = gradeSnapshot.data() || {};
+  // The student must be on THIS class's roster, read from the authoritative
+  // roster row rather than from anything the caller claimed.
+  if (authoritativeStudentClassId(gradeData) !== classId) {
+    throw new HttpsError("permission-denied", "That student is not in this class.");
+  }
+  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment no longer exists.");
+  const assignment = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
+  if (!studentMatchesAssignmentAudience({ assignment, classId })) {
+    throw new HttpsError("failed-precondition", "That assignment is not assigned to this class.");
+  }
+  if (secureAssignmentMode(assignment) || assignment.secure === true) {
+    // Secure Test Cycle release is a separate, server-authoritative authority.
+    // It does not consult this policy, so there is nothing here to resolve.
+    throw new HttpsError("failed-precondition", "Secure Test Cycle results are released through their own path.");
+  }
+
+  const { normalizeQuestionRecord } = await import("./shared/attemptPolicy.mjs");
+  const tracker = gradeData?.gradesByAssignment?.[assignmentId] || {};
+  const canonicalAttempted = runtimeIncludedQuestionIndices(assignment).reduce((total, index) => {
+    const record = normalizeQuestionRecord(tracker?.[String(index)] ?? tracker?.[index]);
+    return total + (Number(record.totalAttempts) > 0 ? 1 : 0);
+  }, 0);
+  const sessionSnapshot = await db.collection(STUDENT_SESSION_SUMMARY_COLLECTION)
+    .where("studentId", "==", studentId).where("assignmentId", "==", assignmentId).limit(50).get();
+  const worked = sessionSnapshot.docs.reduce(
+    (maximum, snapshot) => Math.max(maximum, Number(snapshot.data()?.answered) || 0), 0,
+  );
+
+  if (!(worked > canonicalAttempted)) {
+    throw new HttpsError(
+      "failed-precondition",
+      "There is no session/canonical discrepancy to resolve for this student and assignment.",
+    );
+  }
+
+  /*
+   * REFUSE WHILE THE WORK IS STILL REACHABLE.
+   *
+   * Every other reason names a concrete artifact a teacher can still recover
+   * into a real attempt. Acknowledging the gap while one of those is
+   * outstanding would be acknowledging work that has not been lost yet — so
+   * the caller is sent to recover it instead. The policy would ignore the
+   * resolution for those reasons anyway; refusing here means the audit trail
+   * never records an acknowledgement that was not true when it was made.
+   */
+  const liveState = await readPersistencePending({
+    db,
+    studentId,
+    assignmentId,
+    canonicalAttempted,
+    secureTestCycle: false,
+    assignment,
+    gradeData,
+  });
+  const recoverableReasons = liveState.reasons.filter((entry) => entry !== "session-summary-gap");
+  if (recoverableReasons.length) {
+    throw new HttpsError(
+      "failed-precondition",
+      `Recoverable evidence still exists (${recoverableReasons.join(", ")}). Recover it before resolving the hold.`,
+    );
+  }
+
+  /*
+   * THE TEACHER MUST HAVE SEEN THESE EXACT NUMBERS.
+   *
+   * A confirmation dialog opened ten minutes ago describes a discrepancy that
+   * may no longer be the discrepancy. Requiring the panel to send back what it
+   * displayed makes a stale confirmation a refusal instead of a resolution of
+   * something nobody looked at.
+   */
+  const seenWorked = Number(request.data?.acknowledgedWorked);
+  const seenAttempted = Number(request.data?.acknowledgedCanonicalAttempted);
+  if (seenWorked !== worked || seenAttempted !== canonicalAttempted) {
+    throw new HttpsError(
+      "failed-precondition",
+      "The persistence evidence changed since this discrepancy was displayed. Reload the report and look again.",
+    );
+  }
+
+  const resolutionRef = db.collection(PERSISTENCE_RESOLUTION_COLLECTION)
+    .doc(persistenceResolutionDocumentId({ studentId, assignmentId }));
+  await resolutionRef.set({
+    studentId,
+    assignmentId,
+    classId,
+    resolvedByUid: request.auth?.uid || null,
+    resolvedByEmail: email,
+    resolvedAt: FieldValue.serverTimestamp(),
+    reason,
+    // The discrepancy that was acknowledged, frozen. Session evidence that
+    // grows past this makes the resolution stop applying.
+    acknowledgedWorked: worked,
+    acknowledgedCanonicalAttempted: canonicalAttempted,
+    acknowledgement: "The teacher of record acknowledged an unrecoverable discrepancy and permitted normal "
+      + "finalization using the canonical evidence that exists. No grade, attempt or score was created.",
+    revokedAt: null,
+  });
+  await writeAdminAudit(
+    db,
+    { uid: request.auth?.uid || null, email },
+    "student_persistence_hold_resolved",
+    `${studentId}__${assignmentId}`,
+    { classId, worked, canonicalAttempted, reason },
+  );
+
+  // Wake the existing grade trigger so a passback withheld as `sync-pending`
+  // resumes now rather than at the next unrelated grade change.
+  await db.collection("grades").doc(studentId).update(
+    new FieldPath("classroomReleaseSignals", assignmentId),
+    { requestedAt: new Date().toISOString(), reason: "persistence-hold-resolved" },
+  );
+
+  return {
+    success: true,
+    studentId,
+    assignmentId,
+    acknowledgedWorked: worked,
+    acknowledgedCanonicalAttempted: canonicalAttempted,
+  };
 });
 
 /** The teacher of record for a class, or the root administrator. Nobody else. */
@@ -13951,7 +14345,7 @@ async function buildStudentRecoveryRow({
     if (at && (!latestCanonicalAttemptAt || at > latestCanonicalAttemptAt)) latestCanonicalAttemptAt = at;
   });
 
-  const [checkpointSnapshot, receiptSnapshot, deviceSnapshot, sessionSnapshot] = await Promise.all([
+  const [checkpointSnapshot, receiptSnapshot, deviceSnapshot, sessionSnapshot, resolutionSnapshot] = await Promise.all([
     db.collection(CHECKPOINT_COLLECTION)
       .where("studentId", "==", studentId).where("assignmentId", "==", assignmentId)
       .limit(CHECKPOINT_BATCH_LIMIT).get(),
@@ -13962,7 +14356,10 @@ async function buildStudentRecoveryRow({
     db.collection(STUDENT_SESSION_SUMMARY_COLLECTION)
       .where("studentId", "==", studentId).where("assignmentId", "==", assignmentId)
       .limit(50).get(),
+    db.collection(PERSISTENCE_RESOLUTION_COLLECTION)
+      .doc(persistenceResolutionDocumentId({ studentId, assignmentId })).get(),
   ]);
+  const persistenceResolution = resolutionSnapshot.exists ? resolutionSnapshot.data() : null;
 
   const checkpointsByStatus = {};
   let latestCheckpointAcknowledgedAt = null;
@@ -14020,6 +14417,10 @@ async function buildStudentRecoveryRow({
     worked: presenceAnswered,
     canonicalAttempted,
     secureTestCycle: secureAssignmentMode(assignment),
+    // The teacher must see the SAME verdict final passback will reach. A panel
+    // that still reads "sync pending" after a resolution the passback already
+    // honours would send a teacher looking for a fault that is not there.
+    sessionGapResolution: persistenceResolution,
   });
 
   /*
@@ -14130,6 +14531,29 @@ async function buildStudentRecoveryRow({
     unaccountedForQuestions: Math.max(0, presenceAnswered - canonicalAttempted),
     persistencePending: persistenceState.persistencePending,
     persistencePendingReasons: persistenceState.reasons,
+    /*
+     * A HOLD A TEACHER OF RECORD HAS ALREADY CLOSED.
+     *
+     * The discrepancy itself is still reported above, unchanged, because it
+     * really happened. This says only that a named human looked at it, on a
+     * recorded date, and accepted that the work is unrecoverable — so the row
+     * reads as a closed incident rather than as a live one, and the panel can
+     * refuse to offer the action twice.
+     */
+    persistenceResolvedReasons: persistenceState.resolvedReasons || [],
+    persistenceResolution: persistenceResolution
+      ? {
+        resolvedByEmail: String(persistenceResolution.resolvedByEmail || "") || null,
+        resolvedAt: millisOf(persistenceResolution.resolvedAt),
+        reason: String(persistenceResolution.reason || "").slice(0, 500),
+        acknowledgedWorked: Number(persistenceResolution.acknowledgedWorked) || 0,
+        acknowledgedCanonicalAttempted: Number(persistenceResolution.acknowledgedCanonicalAttempted) || 0,
+        // True when evidence has moved past what the teacher acknowledged, so
+        // the panel can say the hold came back rather than silently re-arming.
+        supersededByNewEvidence: !(persistenceState.resolvedReasons || []).includes("session-summary-gap")
+          && presenceAnswered > canonicalAttempted,
+      }
+      : null,
     needsReview,
   };
 }

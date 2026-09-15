@@ -37,6 +37,7 @@
     "test:canonical-persistence": "firebase emulators:exec --only firestore --project mathmaster-persist-harness --config tests/browser/emulator/firebase.json \"node --test tests/integration/canonicalPersistenceCertification.test.mjs\"",
     "test:persistence-v3": "node --test tests/platform/persistenceV3.test.mjs",
     "verify:persistence-production": "node scripts/verify-persistence-production.mjs",
+    "verify:persistence-indexes": "node scripts/check-persistence-indexes.mjs",
     "deploy:persistence": "bash scripts/deploy-persistence.sh"
   },
   "dependencies": {
