@@ -1136,7 +1136,7 @@ test('recovery proposals cannot be committed against an assignment they were not
   // Belt and braces: the state is cleared on a target change, and the mount
   // site keys the component so it remounts anyway.
   assert.match(panel, /useEffect\(\(\) => \{[\s\S]*?setProposals\(null\);[\s\S]*?\}, \[assignmentId, classId\]\);/);
-  assert.match(home, /key=\{`\$\{classIdInSession\}::\$\{recoveryAssignmentId\}`\}/);
+  assert.match(home, /key=\{`\$\{recoveryClassId\}::\$\{recoveryAssignmentId\}`\}/);
 });
 
 test('the client sends its delivery attempt count with every ingested submission', async () => {

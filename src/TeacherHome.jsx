@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   CLASS_PERIODS,
   assignmentIsForStudent,
@@ -30,6 +30,7 @@ const greetingFor = (date) => {
 export default function TeacherHome({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], studentSupportEvents = [], studentSessionSummaries = [], onRecordStudentSupportEvent = null, onRecommendPersonalPath = null, pathInterventionBusyStudentId = null }) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
   const [warmupTimerMinutesByKey, setWarmupTimerMinutesByKey] = useState({});
+  const [recoveryClassId, setRecoveryClassId] = useState('');
   const [recoveryAssignmentId, setRecoveryAssignmentId] = useState('');
 
   const classOptions = classes.length
@@ -62,6 +63,22 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
     ? { classId: classIdInSession, classPeriod: periodInSession }
     : null;
   const liveClassLabel = currentClass?.name || periodInSession;
+
+  // The live period is a useful default, not an access requirement. Once a
+  // teacher chooses a class, keep that choice for this Teacher Home session.
+  useEffect(() => {
+    if (currentClass?.classId) setRecoveryClassId((selected) => selected || currentClass.classId);
+  }, [currentClass?.classId]);
+
+  const recoveryClass = classOptions.find((entry) => entry.classId === recoveryClassId) || null;
+  const recoveryAssignments = recoveryClass
+    ? assignments.filter((assignment) => assignmentIsForStudent(assignment, { classId: recoveryClassId }))
+    : [];
+
+  const selectRecoveryClass = (classId) => {
+    setRecoveryClassId(classId);
+    setRecoveryAssignmentId('');
+  };
 
   // The roster is the source of truth for who is in the class; presence only
   // says what they are doing right now. Joining here means a student with no
@@ -328,41 +345,50 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
         onOpenWeeklyPath={onOpenWeeklyPath}
       />
 
-      {/* SUBMISSION RECOVERY, WHERE THE TEACHER ALREADY IS.
-          The question this answers — "they were working, why is the gradebook
-          empty?" — is asked about the class in session, so it lives next to
-          that class rather than behind a separate admin screen. */}
-      {currentClass && (
-        <section style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 900, color: '#5f6368', marginBottom: 6 }}>
-            Check submission records for
+      {/* Recovery is permanent teacher work, not a live-period control. The
+          selected IDs remain server-authorized by each recovery callable. */}
+      <section style={{ marginBottom: 16, padding: 16, border: '1px solid #dadce0', borderRadius: 12, background: '#f8fafd' }}>
+        <h2 style={{ margin: '0 0 4px', fontSize: 18 }}>Submission Recovery</h2>
+        <p style={{ margin: '0 0 14px', color: '#5f6368', fontSize: 13 }}>Review and safely restore submission records for any active class.</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
+          <label style={{ display: 'grid', gap: 6, fontSize: 12, fontWeight: 900, color: '#5f6368' }}>
+            Class
             <select
-              value={recoveryAssignmentId}
-              onChange={(event) => setRecoveryAssignmentId(event.target.value)}
-              style={{ marginLeft: 8, minHeight: 36, padding: '6px 8px', borderRadius: 8, border: '1px solid #dadce0', fontWeight: 700 }}
+              value={recoveryClassId}
+              onChange={(event) => selectRecoveryClass(event.target.value)}
+              style={{ minHeight: 40, minWidth: 220, padding: '6px 8px', borderRadius: 8, border: '1px solid #dadce0', fontWeight: 700 }}
             >
-              <option value="">Select an assignment…</option>
-              {assignments
-                .filter((assignment) => assignmentIsForStudent(assignment, classContextInSession))
-                .map((assignment) => (
-                  <option key={assignment.id} value={assignment.id}>{assignment.title || assignment.id}</option>
-                ))}
+              <option value="">Select a class…</option>
+              {classOptions.filter((entry) => entry.classId).map((entry) => (
+                <option key={entry.classId} value={entry.classId}>{entry.name || entry.period || entry.classId}</option>
+              ))}
             </select>
           </label>
-          {recoveryAssignmentId && (
-            <StudentPersistenceRecoveryPanel
-              // Keyed by the target, so switching assignment or class remounts
-              // rather than leaving one assignment's report and proposals on
-              // screen under another assignment's title.
-              key={`${classIdInSession}::${recoveryAssignmentId}`}
-              assignmentId={recoveryAssignmentId}
-              classId={classIdInSession}
-              assignmentTitle={assignments.find((assignment) => assignment.id === recoveryAssignmentId)?.title || ''}
-              className={currentClass?.name || periodInSession}
-            />
-          )}
-        </section>
-      )}
+          <label style={{ display: 'grid', gap: 6, fontSize: 12, fontWeight: 900, color: '#5f6368' }}>
+            Assignment
+            <select
+              value={recoveryAssignmentId}
+              disabled={!recoveryClassId}
+              onChange={(event) => setRecoveryAssignmentId(event.target.value)}
+              style={{ minHeight: 40, minWidth: 260, padding: '6px 8px', borderRadius: 8, border: '1px solid #dadce0', fontWeight: 700 }}
+            >
+              <option value="">Select an assignment…</option>
+              {recoveryAssignments.map((assignment) => (
+                <option key={assignment.id} value={assignment.id}>{assignment.title || assignment.id}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {recoveryAssignmentId && (
+          <StudentPersistenceRecoveryPanel
+            key={`${recoveryClassId}::${recoveryAssignmentId}`}
+            assignmentId={recoveryAssignmentId}
+            classId={recoveryClassId}
+            assignmentTitle={recoveryAssignments.find((assignment) => assignment.id === recoveryAssignmentId)?.title || ''}
+            className={recoveryClass?.name || recoveryClass?.period || ''}
+          />
+        )}
+      </section>
 
       {currentClass && (
         <StudentSupportDashboard

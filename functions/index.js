@@ -14112,7 +14112,13 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
   const assignmentId = String(request.data?.assignmentId || "").trim();
   const classId = String(request.data?.classId || "").trim();
   const commit = request.data?.commit === true;
+  const previewActionIds = Array.isArray(request.data?.previewActionIds)
+    ? request.data.previewActionIds.map((value) => String(value || "")).filter(Boolean)
+    : [];
   if (!assignmentId || !classId) throw new HttpsError("invalid-argument", "assignmentId and classId are required.");
+  if (commit && !previewActionIds.length) {
+    throw new HttpsError("failed-precondition", "Preview this class and assignment before recovering workspace drafts.");
+  }
   const { classSnapshot, email } = await requireClassTeacher(request, classId);
 
   const db = getFirestore();
@@ -14174,10 +14180,18 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
       const question = questions[Number(entry.questionIndex)] || null;
       proposals.push({
         studentId,
+        studentName: String(gradeData.displayName || studentId).slice(0, 180),
         questionIndex: Number(entry.questionIndex),
+        questionNumber: Number(entry.questionIndex) + 1,
+        questionId: question?.questionId || question?.id || null,
+        activityRole: question?.activityRole || "classwork",
         draftKey: entry.key,
         savedAt: entry.documentSavedAtMs,
+        academicOccurredAt: entry.documentSavedAtMs,
         closesAt: entry.closesAtMs,
+        qualificationReason: "Complete response saved on the server before the section closed; no canonical attempt exists.",
+        canonicalStatus: "No canonical attempt",
+        proposedResult: entry.proposedResult || "Server can grade this response",
         // The ONE thing that makes this idempotent across re-runs: the same
         // draft entry always proposes the same submission id, so a second
         // commit finds it already canonical and writes nothing.
@@ -14211,8 +14225,19 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
     };
   }
 
+  // A commit is bounded to the exact server-issued proposal identities the UI
+  // just displayed. Reassessment above still wins: stale/newer attempts simply
+  // disappear and can never be overwritten.
+  const previewSet = new Set(previewActionIds);
+  const currentActionIds = new Set(proposals.map((proposal) => proposal.actionId));
+  if (previewActionIds.length !== proposals.length
+    || previewActionIds.some((actionId) => !currentActionIds.has(actionId))) {
+    throw new HttpsError("failed-precondition", "The preview is stale. Run draft recovery preview again.");
+  }
+  const approvedProposals = proposals.filter((proposal) => previewSet.has(proposal.actionId));
+
   const applied = [];
-  for (const proposal of proposals) {
+  for (const proposal of approvedProposals) {
     try {
       // eslint-disable-next-line no-await-in-loop
       const receipt = await ingestOneSubmission({

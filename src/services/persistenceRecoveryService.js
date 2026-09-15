@@ -69,5 +69,5 @@ export const sweepAllStudentResponseCheckpoints = async ({ assignmentId, classId
  * decides. Committing runs each proven draft through the same server grader and
  * attempt policy an ordinary Submit uses, with no verdict of its own.
  */
-export const applyWorkspaceDraftRecovery = ({ assignmentId, classId, commit = false }) =>
-  call('applyWorkspaceDraftRecovery', { assignmentId, classId, commit });
+export const applyWorkspaceDraftRecovery = ({ assignmentId, classId, commit = false, previewActionIds = [] }) =>
+  call('applyWorkspaceDraftRecovery', { assignmentId, classId, commit, previewActionIds });
