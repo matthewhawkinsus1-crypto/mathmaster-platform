@@ -1457,6 +1457,7 @@ export default function WorkflowRunner({
                 && (focusMode ? !showPersistentGraphReference : figureStageIds.has(stage.id))
               }
               draftKey={draftKey ? `${draftKey}:${stage.id}${stage.sourceStageId && ['functionGraph', 'coordinatePlot'].includes(stage.kind) ? `:${dependencyFingerprint(input.value)}` : ''}` : null}
+              canonicalSavedAt={canonicalSavedAt}
             />
           </>
         )}
