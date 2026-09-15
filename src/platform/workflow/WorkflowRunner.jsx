@@ -616,7 +616,6 @@ const DELEGATES = {
         }}
         onStateChange={onChange}
         draftKey={draftKey}
-              canonicalSavedAt={canonicalSavedAt}
         compact
       />
     );
@@ -698,7 +697,6 @@ const DELEGATES = {
         mode="construct"
         onStateChange={onChange}
         draftKey={draftKey}
-              canonicalSavedAt={canonicalSavedAt}
       />
     );
   },
@@ -802,7 +800,6 @@ const DELEGATES = {
         mode="construct"
         onStateChange={onChange}
         draftKey={draftKey}
-              canonicalSavedAt={canonicalSavedAt}
       />
     );
   },
@@ -818,7 +815,6 @@ const DELEGATES = {
       questionRecord={null}
       onStateChange={onChange}
       draftKey={draftKey}
-              canonicalSavedAt={canonicalSavedAt}
     />
   ),
 };
