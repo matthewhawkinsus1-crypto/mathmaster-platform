@@ -8,13 +8,16 @@ const panel = fs.readFileSync('src/components/teacher/StudentPersistenceRecovery
 const service = fs.readFileSync('src/services/persistenceRecoveryService.js', 'utf8');
 const functions = fs.readFileSync('functions/index.js', 'utf8');
 
-test('Submission Recovery is permanent and selects an active class before its assignments', () => {
+test('Submission Recovery is permanent and scopes classes to the viewer before listing assignments', () => {
   const recovery = region(home, '<h2 style={{ margin:', '{currentClass && (', 'permanent recovery section');
   assert.match(recovery, />Submission Recovery</);
   assert.doesNotMatch(recovery, /currentClass\s*&&/);
-  assert.match(recovery, /classOptions\.filter\(\(entry\) => entry\.classId\)/);
+  assert.match(home, /classIdsForTeacher\(classOptions, teacherEmail\)/);
+  assert.match(home, /isRootAdmin \|\| recoveryAllowedClassIds\.has\(entry\.classId\)/);
+  assert.match(recovery, /recoveryClassOptions\.map/);
   assert.match(recovery, /recoveryAssignments\.map/);
   assert.match(home, /assignments\.filter\(\(assignment\) => assignmentIsForStudent\(assignment, \{ classId: recoveryClassId \}\)\)/);
+  assert.match(home, /currentClassCanUseRecovery/);
 });
 
 test('changing a recovery target cannot retain state from the previous target', () => {
@@ -55,4 +58,19 @@ test('the post-commit path refreshes the report and preserves unresolved proposa
   assert.match(commit, /await loadReport\(\)/);
   assert.match(panel, /Accepted \{commitSummary\.accepted\}/);
   assert.match(panel, /Failed\/retryable/);
+});
+
+test('recovery class scoping preserves teacher-of-record and root-admin behavior', () => {
+  assert.match(home, /teacherEmail = ''/);
+  assert.match(home, /isRootAdmin = false/);
+  assert.match(home, /const recoveryAllowedClassIds = isRootAdmin[\s\S]*classIdsForTeacher\(classOptions, teacherEmail\)/);
+  assert.match(home, /Boolean\(entry\?\.classId\)[\s\S]*isRootAdmin \|\| recoveryAllowedClassIds\.has\(entry\.classId\)/);
+  assert.match(home, /if \(currentClassCanUseRecovery\)[\s\S]*setRecoveryClassId/);
+});
+
+test('post-commit unresolved table excludes terminal dispositions', () => {
+  const commit = region(panel, 'const commitDrafts', 'const affectedStudents', 'draft commit handler');
+  assert.match(commit, /\['needs-review', 'retryable'\]\.includes\(proposal\.outcome\.disposition\)/);
+  assert.doesNotMatch(commit, /proposal\.outcome\.disposition !== 'accepted'/);
+  assert.match(commit, /accepted', 'duplicate', 'superseded', 'needs-review', 'retryable'/);
 });
