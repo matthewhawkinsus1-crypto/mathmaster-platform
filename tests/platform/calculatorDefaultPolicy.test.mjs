@@ -56,3 +56,44 @@ test('student UI keeps a visible prohibited calculator control when calculator u
   assert.match(calculatorPanel, /Calculator unavailable/);
   assert.match(calculatorPanel, /🚫 🧮 Calculator/);
 });
+
+
+test('assignment tool policy supplies the calculator mode when the question does not override it', () => {
+  const policy = resolveCalculatorPolicy({
+    questionSpec: { type: 'regressionCalculator' },
+    activityPolicy: { calculatorDefault: 'questionSpecific' },
+    assignmentCalculatorMode: CALCULATOR_MODES.GRAPHING,
+  });
+  assert.equal(policy.available, true);
+  assert.equal(policy.mode, CALCULATOR_MODES.GRAPHING);
+  assert.equal(policy.source, 'assignmentToolPolicy');
+
+  const explicitlyBlocked = resolveCalculatorPolicy({
+    questionSpec: { type: 'regressionCalculator', calculatorPolicy: CALCULATOR_MODES.NONE },
+    activityPolicy: { calculatorDefault: 'questionSpecific' },
+    assignmentCalculatorMode: CALCULATOR_MODES.GRAPHING,
+  });
+  assert.equal(explicitlyBlocked.available, false);
+  assert.equal(explicitlyBlocked.mode, CALCULATOR_MODES.NONE);
+});
+
+test('student assignment runtime forwards toolPolicy calculator mode into QuestionEngine', () => {
+  const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+  const engine = readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
+
+  assert.match(app, /assignmentCalculatorMode=\{assignment\?\.toolPolicy\?\.calculator \|\| null\}/);
+  assert.match(engine, /assignmentCalculatorMode,\s*assessmentContext/);
+});
+
+test('calculator panel layers above the full-screen Work View host', () => {
+  const calculatorPanel = readFileSync(new URL('../../src/components/CalculatorPanel.jsx', import.meta.url), 'utf8');
+  const workViewCss = readFileSync(new URL('../../src/components/common/WorkViewShell.css', import.meta.url), 'utf8');
+
+  const calculatorLayer = Number(calculatorPanel.match(/CALCULATOR_LAYER_Z_INDEX\s*=\s*(\d+)/)?.[1]);
+  const workViewLayer = Number(workViewCss.match(/mathmaster-work-view-host\[data-open="true"\][\s\S]*?z-index:\s*(\d+)/)?.[1]);
+
+  assert.ok(Number.isFinite(calculatorLayer));
+  assert.ok(Number.isFinite(workViewLayer));
+  assert.ok(calculatorLayer > workViewLayer, `calculator layer ${calculatorLayer} must stay above Work View ${workViewLayer}`);
+  assert.match(calculatorPanel, /zIndex:\s*CALCULATOR_LAYER_Z_INDEX \+ 1/);
+});
