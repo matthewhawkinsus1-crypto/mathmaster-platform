@@ -1,4 +1,5 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
+import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
@@ -38,8 +39,8 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
     // absolute/exponential defaults until the student actually constructs one.
     ...(hasAuthoredInitialModel ? questionData.initialModel : { a: 0, h: 0, k: 0 }),
   });
-  const [model, setModel] = useState(initial);
-  const [hasEdited, setHasEdited] = useState(false);
+  const [model, setModel] = usePersistentToolState('model', initial);
+  const [hasEdited, setHasEdited] = usePersistentToolState('hasEdited', false);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
   const effectiveConstraints = useMemo(() => {
     const prompt = String(questionData.prompt || '');

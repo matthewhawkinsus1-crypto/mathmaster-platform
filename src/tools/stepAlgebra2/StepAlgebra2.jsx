@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure';
 import useMathUndoHistory from '../../platform/workView/useMathUndoHistory';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
@@ -42,10 +43,10 @@ const describeOperation = (operation, value) => {
 
 export default function StepAlgebra2({ questionData = {}, onAction }) {
   const original = questionData.equation || { a: 3, b: 6, c: 21 };
-  const [state, setState] = useState({ ...original });
-  const [operation, setOperation] = useState('subtract');
-  const [operand, setOperand] = useState('');
-  const [history, setHistory] = useState([]);
+  const [state, setState] = usePersistentToolState('state', { ...original });
+  const [operation, setOperation] = usePersistentToolState('operation', 'subtract');
+  const [operand, setOperand] = usePersistentToolState('operand', '');
+  const [history, setHistory] = usePersistentToolState('history', []);
   const [inputError, setInputError] = useState('');
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 

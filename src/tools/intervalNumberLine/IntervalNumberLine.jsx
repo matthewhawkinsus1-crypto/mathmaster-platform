@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
+import usePersistentToolState, { TOOL_DRAFT_COALESCE_MS, flushToolDrafts } from '../shared/usePersistentToolState.js';
 import { evaluate } from 'mathjs';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { figureDismissalKey, shouldOpenFigureEnlarged } from '../../platform/student/figurePresentation.js';
@@ -347,12 +348,22 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
     ] : []),
   ];
 
-  const [pending, setPending] = useState(null);
-  const [built, setBuilt] = useState([]);
-  const [closedEnd, setClosedEnd] = useState(true);
-  const [notation, setNotation] = useState('');
-  const [inequality, setInequality] = useState('');
-  const [exactEndpoint, setExactEndpoint] = useState('');
+  /*
+   * THE ONE PLACE IN THIS TOOL THAT WRITES AT DISPLAY RATE.
+   *
+   * Dragging an endpoint calls `updateDraggedValue` from `onPointerMove`, so
+   * these two are re-serialised as fast as the browser reports the finger.
+   * They coalesce inside a tight window rather than writing per frame, and
+   * `endDrag` flushes the moment the finger lifts — so the persisted value is
+   * always a real endpoint the student stopped on, and a sudden shutdown
+   * mid-drag can cost at most a fraction of one gesture.
+   */
+  const [pending, setPending] = usePersistentToolState('pending', null, { coalesceMs: TOOL_DRAFT_COALESCE_MS });
+  const [built, setBuilt] = usePersistentToolState('built', [], { coalesceMs: TOOL_DRAFT_COALESCE_MS });
+  const [closedEnd, setClosedEnd] = usePersistentToolState('closedEnd', true);
+  const [notation, setNotation] = usePersistentToolState('notation', '');
+  const [inequality, setInequality] = usePersistentToolState('inequality', '');
+  const [exactEndpoint, setExactEndpoint] = usePersistentToolState('exactEndpoint', '');
   const [endpointError, setEndpointError] = useState('');
   const [dragging, setDragging] = useState(null);
   const restoreMath = useCallback((state) => {
@@ -537,6 +548,9 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
   const endDrag = () => {
     if (dragMovedRef.current) suppressEndpointClickRef.current = true;
     setDragging(null);
+    // The endpoint the student actually chose. Persisted now rather than at the
+    // end of the coalescing window.
+    flushToolDrafts();
   };
 
   const handleEndpointClick = (action) => {

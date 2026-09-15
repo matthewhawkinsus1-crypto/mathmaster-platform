@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import MathDisplay from '../../MathDisplay';
@@ -141,15 +142,15 @@ export default function RelationMapping({ questionData = {}, onAction }) {
   );
   const allowTypedPlot = questionData.plotEntryMode === 'typed' || questionData.plotEntryMode === 'clickOrType';
 
-  const [arrows, setArrows] = useState([]);
+  const [arrows, setArrows] = usePersistentToolState('arrows', []);
   const [selectedDomain, setSelectedDomain] = useState(null);
-  const [domainAnswer, setDomainAnswer] = useState('');
-  const [rangeAnswer, setRangeAnswer] = useState('');
-  const [functionAnswer, setFunctionAnswer] = useState('');
-  const [fieldAnswers, setFieldAnswers] = useState({});
-  const [plottedPoints, setPlottedPoints] = useState([]);
-  const [plotX, setPlotX] = useState('');
-  const [plotY, setPlotY] = useState('');
+  const [domainAnswer, setDomainAnswer] = usePersistentToolState('domainAnswer', '');
+  const [rangeAnswer, setRangeAnswer] = usePersistentToolState('rangeAnswer', '');
+  const [functionAnswer, setFunctionAnswer] = usePersistentToolState('functionAnswer', '');
+  const [fieldAnswers, setFieldAnswers] = usePersistentToolState('fieldAnswers', {});
+  const [plottedPoints, setPlottedPoints] = usePersistentToolState('plottedPoints', []);
+  const [plotX, setPlotX] = usePersistentToolState('plotX', '');
+  const [plotY, setPlotY] = usePersistentToolState('plotY', '');
   const restoreMath = useCallback((state) => {
     setArrows(state.arrows); setDomainAnswer(state.domainAnswer); setRangeAnswer(state.rangeAnswer);
     setFunctionAnswer(state.functionAnswer); setFieldAnswers(state.fieldAnswers);

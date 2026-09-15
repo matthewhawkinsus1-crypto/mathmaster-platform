@@ -1,4 +1,5 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
+import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
@@ -53,9 +54,9 @@ function LinearMode({ questionData, onAction }) {
   const system = questionData.system || DEFAULT_SYSTEM;
   const solution = useMemo(() => solveTwoLines(system), [system]);
   const revealAnswers = useRevealAnswers();
-  const [x, setX] = useState('');
-  const [y, setY] = useState('');
-  const [classification, setClassification] = useState('one');
+  const [x, setX] = usePersistentToolState('x', '');
+  const [y, setY] = usePersistentToolState('y', '');
+  const [classification, setClassification] = usePersistentToolState('classification', 'one');
   const { feedback, submit } = useToolSubmission(onAction);
   const mathState = useMemo(() => ({ x, y, classification }), [x, y, classification]);
   const restore = useCallback((value) => { setX(value?.x || ''); setY(value?.y || ''); setClassification(value?.classification || 'one'); }, []);
@@ -123,10 +124,10 @@ function InequalityMode({ questionData, onAction }) {
   const correctPolygon = useMemo(() => feasibleRegionPolygon(inequalities, bounds), [inequalities, bounds]);
   const testPoint = questionData.testPoint || { x:2, y:4 };
   const expectedTestPoint = inequalities.every((ineq) => satisfiesLinearInequality(ineq, testPoint.x, testPoint.y));
-  const [x, setX] = useState('');
-  const [y, setY] = useState('');
-  const [testChoice, setTestChoice] = useState('');
-  const [construction, setConstruction] = useState(() => inequalities.map(() => ({
+  const [x, setX] = usePersistentToolState('x', '');
+  const [y, setY] = usePersistentToolState('y', '');
+  const [testChoice, setTestChoice] = usePersistentToolState('testChoice', '');
+  const [construction, setConstruction] = usePersistentToolState('construction', () => inequalities.map(() => ({
     x1:'', y1:'', x2:'', y2:'', boundaryStyle:'', shade:'',
   })));
   const { feedback, submit } = useToolSubmission(onAction);
@@ -365,8 +366,8 @@ function LinearQuadraticMode({ questionData, onAction }) {
   const config = questionData.linearQuadratic || DEFAULT_LINEAR_QUADRATIC;
   const intersections = useMemo(() => solveLinearQuadratic(config), [config]);
   const revealAnswers = useRevealAnswers();
-  const [count, setCount] = useState('');
-  const [values, setValues] = useState({ x1:'', y1:'', x2:'', y2:'' });
+  const [count, setCount] = usePersistentToolState('count', '');
+  const [values, setValues] = usePersistentToolState('values', { x1:'', y1:'', x2:'', y2:'' });
   const { feedback, submit } = useToolSubmission(onAction);
   const mathState = useMemo(() => ({ count, values }), [count, values]);
   const restore = useCallback((value) => { setCount(value?.count || ''); setValues(value?.values || { x1:'', y1:'', x2:'', y2:'' }); }, []);
@@ -431,11 +432,11 @@ function MatrixMode({ questionData, onAction }) {
     [isMatrix3, matrix],
   );
   const revealAnswers = useRevealAnswers();
-  const [classification,setClassification] = useState('one');
-  const [x,setX] = useState('');
-  const [y,setY] = useState('');
-  const [z,setZ] = useState('');
-  const [technologyUsed,setTechnologyUsed] = useState(false);
+  const [classification, setClassification] = usePersistentToolState('classification', 'one');
+  const [x, setX] = usePersistentToolState('x', '');
+  const [y, setY] = usePersistentToolState('y', '');
+  const [z, setZ] = usePersistentToolState('z', '');
+  const [technologyUsed, setTechnologyUsed] = usePersistentToolState('technologyUsed', false);
   const { feedback, submit } = useToolSubmission(onAction);
   const mathState = useMemo(() => ({ classification, x, y, z, technologyUsed }), [classification, x, y, z, technologyUsed]);
   const restore = useCallback((value) => { setClassification(value?.classification || 'one'); setX(value?.x || ''); setY(value?.y || ''); setZ(value?.z || ''); setTechnologyUsed(Boolean(value?.technologyUsed)); }, []);

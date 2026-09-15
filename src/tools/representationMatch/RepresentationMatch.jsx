@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
+import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import MathDisplay from '../../MathDisplay';
@@ -110,12 +111,12 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
     const rows = tableRowsForFunction(tableSpec, [-2, -1, 0, 1, 2]);
     return rows.map((row, index) => index === Math.min(2, rows.length - 1) ? [row[0], row[1] + 2] : row);
   }, [questionData.rows, tableSpec.type, tableSpec.a, tableSpec.h, tableSpec.k, tableSpec.base]);
-  const [equation, setEquation] = useState('');
-  const [table, setTable] = useState('');
-  const [context, setContext] = useState('');
-  const [mismatchKind, setMismatchKind] = useState('');
-  const [badRow, setBadRow] = useState(null);
-  const [graphId, setGraphId] = useState('');
+  const [equation, setEquation] = usePersistentToolState('equation', '');
+  const [table, setTable] = usePersistentToolState('table', '');
+  const [context, setContext] = usePersistentToolState('context', '');
+  const [mismatchKind, setMismatchKind] = usePersistentToolState('mismatchKind', '');
+  const [badRow, setBadRow] = usePersistentToolState('badRow', null);
+  const [graphId, setGraphId] = usePersistentToolState('graphId', '');
   const { feedback, submit } = useToolSubmission(onAction);
 
   const checkCompleteSet = () => {

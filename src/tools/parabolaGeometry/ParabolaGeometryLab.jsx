@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React from 'react';
+import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { matchesNumericAnswer, round } from '../shared/toolMath';
@@ -37,7 +38,7 @@ function ParabolaVisual({spec,point=null}){
 function FeatureMode({questionData,feedback,submit,onAction}){
   const spec={h:Number(questionData.h??1),k:Number(questionData.k??-1),p:Number(questionData.p??2),orientation:questionData.orientation||'vertical'};
   const features=parabolaFeatures(spec);
-  const [focusX,setFocusX]=useState(''); const [focusY,setFocusY]=useState(''); const [directrix,setDirectrix]=useState(''); const [latus,setLatus]=useState('');
+  const [focusX, setFocusX] = usePersistentToolState('focusX', ''); const [focusY, setFocusY] = usePersistentToolState('focusY', ''); const [directrix, setDirectrix] = usePersistentToolState('directrix', ''); const [latus, setLatus] = usePersistentToolState('latus', '');
   const check=()=>{
     const checks=[matchesNumericAnswer(focusX,features.focus[0],0.01),matchesNumericAnswer(focusY,features.focus[1],0.01),matchesNumericAnswer(directrix,features.directrix.value,0.01),matchesNumericAnswer(latus,features.latusRectumLength,0.01)];
     submit({isCorrect:checks.every(Boolean),score:checks.filter(Boolean).length/checks.length},{focusX,focusY,directrix,latus},{mode:'features'});
@@ -49,7 +50,7 @@ function Equidistance({questionData,feedback,submit,onAction}){
   const spec={h:Number(questionData.h??0),k:Number(questionData.k??0),p:Number(questionData.p??2),orientation:questionData.orientation||'vertical'};
   const point=questionData.point || sampleParabolaPoint(spec,Number(questionData.offset??4));
   const distances=pointDistances(spec,point);
-  const [focusDistance,setFocusDistance]=useState(''); const [directrixDistance,setDirectrixDistance]=useState(''); const [onCurve,setOnCurve]=useState('yes');
+  const [focusDistance, setFocusDistance] = usePersistentToolState('focusDistance', ''); const [directrixDistance, setDirectrixDistance] = usePersistentToolState('directrixDistance', ''); const [onCurve, setOnCurve] = usePersistentToolState('onCurve', 'yes');
   const check=()=>{
     const checks=[matchesNumericAnswer(focusDistance,distances.focusDistance,0.02),matchesNumericAnswer(directrixDistance,distances.directrixDistance,0.02),(onCurve==='yes')===distances.onParabola];
     submit({isCorrect:checks.every(Boolean),score:checks.filter(Boolean).length/3},{focusDistance,directrixDistance,onCurve},{mode:'equidistance'});
@@ -60,7 +61,7 @@ function Equidistance({questionData,feedback,submit,onAction}){
 function FromGeometry({questionData,feedback,submit,onAction}){
   const focus=questionData.focus || [2,3]; const directrix=questionData.directrix || {kind:'horizontal',value:-1};
   const expected=geometryFromFocusDirectrix({focus,directrix});
-  const [h,setH]=useState(''); const [k,setK]=useState(''); const [p,setP]=useState('');
+  const [h, setH] = usePersistentToolState('h', ''); const [k, setK] = usePersistentToolState('k', ''); const [p, setP] = usePersistentToolState('p', '');
   const check=()=>{
     const checks=expected?[matchesNumericAnswer(h,expected.h,0.01),matchesNumericAnswer(k,expected.k,0.01),matchesNumericAnswer(p,expected.p,0.01)]:[false,false,false];
     submit({isCorrect:checks.every(Boolean),score:checks.filter(Boolean).length/3},{h,k,p},{mode:'fromGeometry'});
@@ -71,7 +72,7 @@ function FromGeometry({questionData,feedback,submit,onAction}){
 function EquationMode({questionData,feedback,submit,onAction}){
   const spec={h:Number(questionData.h??-2),k:Number(questionData.k??1),p:Number(questionData.p??1.5),orientation:questionData.orientation||'vertical'};
   const parts=standardEquationParts(spec); const features=parabolaFeatures(spec);
-  const [coefficient,setCoefficient]=useState(''); const [opening,setOpening]=useState('up');
+  const [coefficient, setCoefficient] = usePersistentToolState('coefficient', ''); const [opening, setOpening] = usePersistentToolState('opening', 'up');
   const check=()=>{
     const coeffCorrect=matchesNumericAnswer(coefficient,parts.coefficient,0.01); const openCorrect=opening===features.opens;
     submit({isCorrect:coeffCorrect&&openCorrect,score:[coeffCorrect,openCorrect].filter(Boolean).length/2},{coefficient,opening},{mode:'equation'});

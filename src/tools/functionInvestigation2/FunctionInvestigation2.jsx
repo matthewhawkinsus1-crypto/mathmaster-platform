@@ -1,4 +1,5 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
+import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
@@ -83,16 +84,16 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
   const features = investigationFeatures(spec);
   const domainRange = domainRangeForSpec(spec);
   const intercepts = interceptsForSpec(spec);
-  const [anchorX, setAnchorX] = useState('');
-  const [anchorY, setAnchorY] = useState('');
-  const [verticalAsymptote, setVerticalAsymptote] = useState('');
-  const [horizontalAsymptote, setHorizontalAsymptote] = useState('');
-  const [domainCode, setDomainCode] = useState('');
-  const [rangeCode, setRangeCode] = useState('');
-  const [xIntercepts, setXIntercepts] = useState('');
-  const [yIntercept, setYIntercept] = useState('');
-  const [behavior, setBehavior] = useState('');
-  const [comparison, setComparison] = useState('');
+  const [anchorX, setAnchorX] = usePersistentToolState('anchorX', '');
+  const [anchorY, setAnchorY] = usePersistentToolState('anchorY', '');
+  const [verticalAsymptote, setVerticalAsymptote] = usePersistentToolState('verticalAsymptote', '');
+  const [horizontalAsymptote, setHorizontalAsymptote] = usePersistentToolState('horizontalAsymptote', '');
+  const [domainCode, setDomainCode] = usePersistentToolState('domainCode', '');
+  const [rangeCode, setRangeCode] = usePersistentToolState('rangeCode', '');
+  const [xIntercepts, setXIntercepts] = usePersistentToolState('xIntercepts', '');
+  const [yIntercept, setYIntercept] = usePersistentToolState('yIntercept', '');
+  const [behavior, setBehavior] = usePersistentToolState('behavior', '');
+  const [comparison, setComparison] = usePersistentToolState('comparison', '');
   const { feedback, submit } = useToolSubmission(onAction);
 
   /*

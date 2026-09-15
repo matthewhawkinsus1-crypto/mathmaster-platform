@@ -225,7 +225,18 @@ export default function StepByStepAlgebra({
   const [balancePulse, setBalancePulse] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(prefersReducedMotion);
   useEffect(() => watchReducedMotion(setReducedMotion), []);
-  const [armedTile, setArmedTile] = useState(null); // { operation, sourceSide }
+  /*
+   * THE OPERATION THE STUDENT HAS PICKED UP, AND HAS NOT PLACED YET.
+   *
+   * `operand` was already durable, but on its own it restored to nothing the
+   * student could see: the operand box only exists while an operation is armed.
+   * A student who chose "subtract", typed 5, and walked to the next question
+   * came back to a workspace that had forgotten both. This is unfinished work
+   * before any step is committed, so it belongs in the same draft as the
+   * operand — and it stays out of the step/attempt architecture entirely:
+   * restoring an armed tile places nothing, commits nothing and grades nothing.
+   */
+  const [armedTile, setArmedTile] = useState(savedDraft?.armedTile || null); // { operation, sourceSide }
   const [operationFocusSignal, setOperationFocusSignal] = useState(0);
   const [mathToolsCollapseSignal, setMathToolsCollapseSignal] = useState(0);
   const [tapPlacementArmed, setTapPlacementArmed] = useState(false);
@@ -321,6 +332,7 @@ export default function StepByStepAlgebra({
       equation,
       supportLevel,
       operand,
+      armedTile,
       pendingMove,
       crossedSides,
       cancelledPairIds,
@@ -328,7 +340,7 @@ export default function StepByStepAlgebra({
       simplificationAnswers,
       promptAnswers,
     });
-  }, [localDraftKey, equation, supportLevel, operand, pendingMove, crossedSides, cancelledPairIds, selectedCancellationIndices, simplificationAnswers, promptAnswers]);
+  }, [localDraftKey, equation, supportLevel, operand, armedTile, pendingMove, crossedSides, cancelledPairIds, selectedCancellationIndices, simplificationAnswers, promptAnswers]);
 
   useEffect(() => {
     const solved = isSolvedEquation(equation);

@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
+import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import { useRevealAnswers } from '../shared/ToolRuntimeContext';
@@ -32,7 +33,7 @@ function SignChart({ questionData, feedback, submit, mode, onAction }) {
   const analysis = useMemo(() => buildSignIntervals(spec, relation), [numeratorFactors, denominatorFactors, relation]);
   const expectedPieces = useMemo(() => solutionPiecesForRelation(spec, relation), [numeratorFactors, denominatorFactors, relation]);
   const expectedIdx = analysis.intervals.map((interval, index) => interval.included ? index : null).filter((value) => value !== null);
-  const [selected, setSelected] = useState([]);
+  const [selected, setSelected] = usePersistentToolState('selected', []);
   const toggle = (index) => setSelected((old) => old.includes(index) ? old.filter((value) => value !== index) : [...old, index]);
 
   const check = () => {
@@ -126,7 +127,7 @@ function RadicalCheck({ questionData, feedback, submit, onAction }) {
   const candidates = questionData.candidates || [3,-15];
   const revealAnswers = useRevealAnswers();
   const expected = validRadicalCandidates(spec, candidates);
-  const [selected, setSelected] = useState([]);
+  const [selected, setSelected] = usePersistentToolState('selected', []);
   const toggle = (value) => setSelected((old) => old.includes(value) ? old.filter((entry) => entry !== value) : [...old, value]);
   const same = (a, b) => a.length === b.length && [...a].sort((x, y) => x - y).every((value, index) => value === [...b].sort((x, y) => x - y)[index]);
   const check = () => {

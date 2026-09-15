@@ -27,6 +27,7 @@ import { workflowEndpointMarkers, workflowGraphDomainRestriction, workflowRequir
 import { resolveWorkflowTaskPrompt, selectPersistentWorkflowGraph } from './workflowPresentation.js';
 import { buildWorkflowReviewState, firstIncorrectWorkflowIndex } from './workflowReviewState.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../workView/useMathUndoHistory.js';
+import { ToolDraftScopeProvider } from '../../tools/shared/usePersistentToolState.js';
 import './WorkflowFocusMode.css';
 
 // Renders a question composed from interaction primitives.
@@ -823,7 +824,22 @@ export const ALL_REAL_NUMBERS_RESPONSE = '\\text{All Real Numbers}';
 
 function StageBody({ stage, input, content, value, onChange, disabled, draftKey, controlsBranch = false, openKeypad = true, showFigure = true }) {
   const delegate = DELEGATES[stage.kind];
-  if (delegate) return delegate({ stage, input, content, onChange, draftKey, disabled });
+  /*
+   * A STAGE'S TOOL GETS ITS OWN DRAFT NAMESPACE.
+   *
+   * A composed question can put the same tool in two stages, and `stage.id` is
+   * what keeps their workspaces apart. The workflow's own responses are already
+   * draft-backed through `useLocalDraftState`; this is the tool's INTERNAL
+   * workspace — the half-built interval, the arrows not yet committed — which
+   * has no response to be saved as until the student finishes it.
+   */
+  if (delegate) {
+    return (
+      <ToolDraftScopeProvider draftKey={draftKey} scope={`stage-${stage.id || stage.kind}`}>
+        {delegate({ stage, input, content, onChange, draftKey, disabled })}
+      </ToolDraftScopeProvider>
+    );
+  }
 
   switch (stage.kind) {
     case 'axisSetup':
