@@ -268,6 +268,89 @@ test('an unchanged viewport still falls through to the general live-repair prote
   assert.match(result.reason, /response-entry fields only/i);
 });
 
+/*
+ * The shape the tool actually ships. systemsWorkspace draws its two lines from
+ * `system` and reads `graph` only for the axes (CoordinatePlane falls back to
+ * xMin -6 / xMax 8 / yMin -6 / yMax 12 when it is absent), which is why
+ * a2sys-cw-05 could hide its own intersection: with no `graph` key at all, the
+ * default window stops at y = 12 and the crossing point sits at (8, 66).
+ */
+const liveSystemsWorkspaceQuestion = () => ({
+  questionId: 'a2sys-cw-05',
+  type: 'systemsWorkspace',
+  mode: 'linear',
+  activityRole: 'classwork',
+  prompt: 'Graph the system $y=6x+18$ and $y=3x+42$ and identify the intersection.',
+  system: { m1: 6, b1: 18, m2: 3, b2: 42 },
+  calculatorPolicy: 'inherit',
+  representation: 'graph',
+  dok: 2,
+  alignments: [{ framework: 'teks', code: 'A2.3B', role: 'primary' }],
+  teacherExcluded: false,
+});
+
+test('a question with no graph object at all can be given the window its defaults got wrong', () => {
+  const before = liveSystemsWorkspaceQuestion();
+  const after = { ...before, graph: { ...TEACHER_VIEWPORT } };
+
+  const result = analyzeSafeResponseEntryRepair(before, after);
+  assert.equal(result.safe, true);
+  assert.equal(result.repairKind, GRAPH_VIEWPORT_REPAIR_KIND);
+  assert.deepEqual(result.affectedFieldIds, []);
+  assert.deepEqual(result.changedViewportKeys, ['xMin', 'xMax', 'yMin', 'yMax']);
+
+  // The system itself is untouched, and (8, 66) — the solution of
+  // y = 6x + 18 and y = 3x + 42 — is now inside the window.
+  assert.deepEqual(after.system, { m1: 6, b1: 18, m2: 3, b2: 42 });
+  const intersectionX = (42 - 18) / (6 - 3);
+  const intersectionY = 6 * intersectionX + 18;
+  assert.deepEqual([intersectionX, intersectionY], [8, 66]);
+  assert.ok(result.viewport.xMin <= 8 && 8 <= result.viewport.xMax);
+  assert.ok(result.viewport.yMin <= 66 && 66 <= result.viewport.yMax);
+});
+
+test('adding a graph object that carries content, not just a window, is refused', () => {
+  const before = liveSystemsWorkspaceQuestion();
+  const cases = [
+    { ...TEACHER_VIEWPORT, points: [{ id: 'solution', x: 8, y: 66, label: 'Solution' }] },
+    { ...TEACHER_VIEWPORT, functions: [{ id: 'f1', type: 'linear', slope: 6, intercept: 18 }] },
+    { ...TEACHER_VIEWPORT, lines: [{ from: [0, 18], to: [8, 66] }] },
+    { ...TEACHER_VIEWPORT, xAxisLabel: 'weeks' },
+  ];
+  for (const graph of cases) {
+    const result = analyzeSafeResponseEntryRepair(before, { ...before, graph });
+    assert.equal(result.safe, false, `${Object.keys(graph).filter((key) => !key.startsWith('x') && !key.startsWith('y')).join(',')} must not be addable live`);
+    assert.match(result.reason, /viewport bounds only/i);
+  }
+});
+
+test('adding a window to a systemsWorkspace question changes nothing about the system or its grading', () => {
+  const before = liveSystemsWorkspaceQuestion();
+  const after = { ...before, graph: { ...TEACHER_VIEWPORT } };
+  const classified = classifyContentQuestionChange(before, after);
+  assert.equal(classified.classification, 'graphViewportRepair');
+  assert.equal(classified.presentationOnly, true);
+
+  const mode = { ...after, mode: 'inequalities' };
+  assert.equal(analyzeSafeResponseEntryRepair(before, mode).safe, false);
+  const system = { ...after, system: { m1: 6, b1: 18, m2: 3, b2: 40 } };
+  assert.equal(analyzeSafeResponseEntryRepair(before, system).safe, false);
+});
+
+test('a live viewport repair opens no student grade document at all', () => {
+  const app = fs.readFileSync('src/App.jsx', 'utf8');
+  // Reading a grade doc inside the transaction is what makes this repair cost
+  // a per-student write; a display-only repair must not take that path even to
+  // write an identical tracker back.
+  assert.match(app, /needsStudentGradeMigration/);
+  assert.match(
+    app,
+    /const needsStudentGradeMigration = weightChanges\.length > 0\s*\|\|\s*\(Array\.isArray\(liveRepairs\) && liveRepairs\.length > 0 && !presentationOnlyLiveRepair\);/,
+  );
+  assert.match(app, /const gradeEntries = needsStudentGradeMigration/);
+  assert.match(app, /if \(needsStudentGradeMigration && audienceStudents\.length > 450\)/);
+});
+
 test('the live save path records the repair kind in the assignment audit, never in student records', () => {
   const app = fs.readFileSync('src/App.jsx', 'utf8');
   // The audit entry rides the assignment write that already happens inside the

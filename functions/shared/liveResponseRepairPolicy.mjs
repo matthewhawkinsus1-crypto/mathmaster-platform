@@ -61,18 +61,42 @@ const VIEWPORT_KEY_SET = new Set(GRAPH_VIEWPORT_KEYS);
 
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
+// A graph object holding nothing but bounds is a window, not content. Dropping
+// an emptied one lets a question that never carried a `graph` key compare equal
+// to the same question with a window added: tools like systemsWorkspace draw
+// their lines from `system` and read `graph` only for the axes, so the window
+// is the one part of it that was never mathematical.
 const withoutViewport = (question = {}) => {
   if (!isPlainObject(question.graph)) return question;
-  return { ...question, graph: withoutKeys(question.graph, VIEWPORT_KEY_SET) };
+  const remaining = withoutKeys(question.graph, VIEWPORT_KEY_SET);
+  const copy = { ...question };
+  if (Object.keys(remaining).length) copy.graph = remaining;
+  else delete copy.graph;
+  return copy;
 };
 
 const analyzeGraphViewportRepair = (before = {}, after = {}) => {
   const beforeGraph = isPlainObject(before.graph) ? before.graph : null;
   const afterGraph = isPlainObject(after.graph) ? after.graph : null;
-  if (!beforeGraph || !afterGraph) return null;
+  if (!afterGraph) return null;
+
+  if (!beforeGraph) {
+    // The live question has no graph object at all: the tool is drawing from
+    // its own mathematical fields and falling back to default axes. A repair
+    // may supply the window those defaults got wrong, and nothing else — an
+    // added graph carrying functions, lines, points or labels is new content.
+    const contentKeys = Object.keys(afterGraph).filter((key) => !VIEWPORT_KEY_SET.has(key));
+    if (contentKeys.length) {
+      return {
+        safe: false,
+        affectedFieldIds: [],
+        reason: `A live repair may add graph viewport bounds only. This repair also adds graph content (${contentKeys.join(', ')}) to a question students already received.`,
+      };
+    }
+  }
 
   const changedKeys = GRAPH_VIEWPORT_KEYS.filter((key) => (
-    stableStringify(beforeGraph[key] ?? null) !== stableStringify(afterGraph[key] ?? null)
+    stableStringify(beforeGraph?.[key] ?? null) !== stableStringify(afterGraph[key] ?? null)
   ));
   if (!changedKeys.length) return null;
 
