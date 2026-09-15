@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { nearlyEqual, round } from '../shared/toolMath';
@@ -71,9 +72,9 @@ function Features({ questionData, feedback, submit, onAction }) {
   const conjugate = complexConjugateValue(z);
   const magnitude = complexMagnitudeValue(z);
   const angle = complexArgumentDegrees(z);
-  const [magnitudeAnswer, setMagnitudeAnswer] = useState('');
-  const [conjugateRe, setConjugateRe] = useState('');
-  const [conjugateIm, setConjugateIm] = useState('');
+  const [magnitudeAnswer, setMagnitudeAnswer] = usePersistentToolState('magnitudeAnswer', '');
+  const [conjugateRe, setConjugateRe] = usePersistentToolState('conjugateRe', '');
+  const [conjugateIm, setConjugateIm] = usePersistentToolState('conjugateIm', '');
   const check = () => {
     const checks = [matchesNumber(magnitudeAnswer, magnitude), matchesNumber(conjugateRe, conjugate.re), matchesNumber(conjugateIm, conjugate.im)];
     submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length }, { magnitudeAnswer, conjugateRe, conjugateIm }, { mode: 'features' });
@@ -101,8 +102,8 @@ function Operations({ questionData, feedback, submit, onAction }) {
   const operation = questionData.operation || 'multiply';
   const expected = operation === 'add' ? complexAdd(z, w) : operation === 'subtract' ? complexSubtract(z, w) : complexMultiplyValues(z, w);
   const symbol = operation === 'add' ? '+' : operation === 'subtract' ? '−' : '×';
-  const [real, setReal] = useState('');
-  const [imaginary, setImaginary] = useState('');
+  const [real, setReal] = usePersistentToolState('real', '');
+  const [imaginary, setImaginary] = usePersistentToolState('imaginary', '');
   const check = () => {
     const checks = [matchesNumber(real, expected.re), matchesNumber(imaginary, expected.im)];
     submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { real, imaginary }, { mode: 'operations', operation });
@@ -128,10 +129,10 @@ function Division({ questionData, feedback, submit, onAction }) {
   const w = toComplex(questionData.w || { re: 1, im: -1 });
   const conjugate = complexConjugateValue(w);
   const quotient = complexDivide(z, w);
-  const [conjugateRe, setConjugateRe] = useState('');
-  const [conjugateIm, setConjugateIm] = useState('');
-  const [real, setReal] = useState('');
-  const [imaginary, setImaginary] = useState('');
+  const [conjugateRe, setConjugateRe] = usePersistentToolState('conjugateRe', '');
+  const [conjugateIm, setConjugateIm] = usePersistentToolState('conjugateIm', '');
+  const [real, setReal] = usePersistentToolState('real', '');
+  const [imaginary, setImaginary] = usePersistentToolState('imaginary', '');
   const check = () => {
     const checks = [matchesNumber(conjugateRe, conjugate.re), matchesNumber(conjugateIm, conjugate.im), matchesNumber(real, quotient.re), matchesNumber(imaginary, quotient.im)];
     submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length }, { conjugateRe, conjugateIm, real, imaginary }, { mode: 'division' });
@@ -157,9 +158,9 @@ function Powers({ questionData, feedback, submit, onAction }) {
   const exponent = Number(questionData.exponent ?? 3);
   const expected = complexPower(z, exponent);
   const expectedMagnitude = complexMagnitudeValue(expected);
-  const [real, setReal] = useState('');
-  const [imaginary, setImaginary] = useState('');
-  const [magnitude, setMagnitude] = useState('');
+  const [real, setReal] = usePersistentToolState('real', '');
+  const [imaginary, setImaginary] = usePersistentToolState('imaginary', '');
+  const [magnitude, setMagnitude] = usePersistentToolState('magnitude', '');
   const check = () => {
     const checks = [matchesNumber(real, expected.re), matchesNumber(imaginary, expected.im), matchesNumber(magnitude, expectedMagnitude, 0.02)];
     submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length }, { real, imaginary, magnitude }, { mode: 'powers', exponent });
@@ -186,9 +187,9 @@ function Rotation({ questionData, feedback, submit, onAction }) {
   const quarterTurns = Number(questionData.quarterTurns ?? 1);
   const expected = rotateByPowerOfI(z, quarterTurns);
   const expectedTurns = `${normalizedQuarterTurns(quarterTurns)}`;
-  const [real, setReal] = useState('');
-  const [imaginary, setImaginary] = useState('');
-  const [rotation, setRotation] = useState('');
+  const [real, setReal] = usePersistentToolState('real', '');
+  const [imaginary, setImaginary] = usePersistentToolState('imaginary', '');
+  const [rotation, setRotation] = usePersistentToolState('rotation', '');
   const check = () => {
     const checks = [matchesNumber(real, expected.re), matchesNumber(imaginary, expected.im), rotation === expectedTurns];
     submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length }, { real, imaginary, rotation }, { mode: 'rotation', quarterTurns });
@@ -213,8 +214,8 @@ function Rotation({ questionData, feedback, submit, onAction }) {
 function QuadraticRoots({ questionData, feedback, submit, onAction }) {
   const quadratic = { a: Number(questionData.quadratic?.a ?? 1), b: Number(questionData.quadratic?.b ?? 2), c: Number(questionData.quadratic?.c ?? 5) };
   const roots = quadraticRootsComplex(quadratic);
-  const [r1Re, setR1Re] = useState(''); const [r1Im, setR1Im] = useState('');
-  const [r2Re, setR2Re] = useState(''); const [r2Im, setR2Im] = useState('');
+  const [r1Re, setR1Re] = usePersistentToolState('r1Re', ''); const [r1Im, setR1Im] = usePersistentToolState('r1Im', '');
+  const [r2Re, setR2Re] = usePersistentToolState('r2Re', ''); const [r2Im, setR2Im] = usePersistentToolState('r2Im', '');
   const check = () => {
     const complete = [r1Re, r1Im, r2Re, r2Im].every((value) => `${value}`.trim() !== '');
     const actual = [{ re: Number(r1Re), im: Number(r1Im) }, { re: Number(r2Re), im: Number(r2Im) }];

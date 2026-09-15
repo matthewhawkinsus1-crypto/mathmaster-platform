@@ -131,6 +131,18 @@ export const questionDraftSavedAt = (key) => {
   return Number(parsed?.savedAt) || 0;
 };
 
+/*
+ * HOW A CACHE KNOWS THE SERVER OVERWROTE IT.
+ *
+ * `restoreQuestionDrafts` writes straight into local storage, behind the back
+ * of anything holding a parsed copy. A holder that compares this counter
+ * against the value it last saw knows its copy is history without re-parsing
+ * every key on every read. Bumped once per restore pass, not per entry.
+ */
+let restoreGeneration = 0;
+
+export const questionDraftRestoreGeneration = () => restoreGeneration;
+
 /**
  * Write server-held drafts back into this device, newest wins.
  *
@@ -152,6 +164,7 @@ export const restoreQuestionDrafts = (entries = []) => {
       // Out of quota: the student keeps whatever this device already had.
     }
   });
+  if (restored) restoreGeneration += 1;
   return restored;
 };
 

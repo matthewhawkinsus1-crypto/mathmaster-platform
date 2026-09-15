@@ -10,6 +10,9 @@ const cleanTransientState = (draft, equation) => ({
   algebraDraftVersion: ALGEBRA_DRAFT_VERSION,
   equation,
   operand: '',
+  // The armed operation goes with the operand it was going to use. Keeping one
+  // without the other would restore a student into a half-gesture.
+  armedTile: null,
   pendingMove: null,
   crossedSides: [],
   cancelledPairIds: {},

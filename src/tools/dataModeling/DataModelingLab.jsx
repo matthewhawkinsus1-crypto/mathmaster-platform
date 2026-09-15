@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
+import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { correlation, linearRegression, parseNumericAnswer, round } from '../shared/toolMath';
@@ -130,32 +131,32 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
     challengeClicks: questionData.fitChallengeClicks,
   }), [regression.m, regression.b, dataXMin, dataXMax, dataYMin, dataYMax, exploratoryLineFit, questionData.slopeTolerance, questionData.interceptTolerance, questionData.slopeStep, questionData.interceptStep, questionData.fitChallengeClicks]);
 
-  const [m, setM] = useState(startingModel.m ?? (exploratoryLineFit ? fitControls.slope.start : (forcedModelId === 'linear' ? 1 : round(regression.m * 0.75, 2))));
-  const [b, setB] = useState(startingModel.b ?? (exploratoryLineFit ? fitControls.intercept.start : (forcedModelId === 'linear' ? 0 : round(regression.b + 1, 2))));
+  const [m, setM] = usePersistentToolState('m', startingModel.m ?? (exploratoryLineFit ? fitControls.slope.start : (forcedModelId === 'linear' ? 1 : round(regression.m * 0.75, 2))));
+  const [b, setB] = usePersistentToolState('b', startingModel.b ?? (exploratoryLineFit ? fitControls.intercept.start : (forcedModelId === 'linear' ? 0 : round(regression.b + 1, 2))));
   const slopeIncrements = interactionIncrements(regression.m);
   const interceptIncrements = interactionIncrements(Math.max(Math.abs(regression.b), yMax - yMin));
-  const [direction, setDirection] = useState('positive');
-  const [strength, setStrength] = useState('moderate');
-  const [causation, setCausation] = useState('association');
-  const [modelChoice, setModelChoice] = useState('linear');
+  const [direction, setDirection] = usePersistentToolState('direction', 'positive');
+  const [strength, setStrength] = usePersistentToolState('strength', 'moderate');
+  const [causation, setCausation] = usePersistentToolState('causation', 'association');
+  const [modelChoice, setModelChoice] = usePersistentToolState('modelChoice', 'linear');
   // Keep the default prediction target tied to the observed data, not to display/camera bounds.
   // Work View and graph fitting are presentation concerns and must not change submitted math state.
   const defaultPredictionX = Math.ceil(Math.max(...xs, 1) + 1);
-  const [predictionX, setPredictionX] = useState(questionData.predictionX ?? defaultPredictionX);
-  const [predictionY, setPredictionY] = useState('');
-  const [predictionType, setPredictionType] = useState(FIT_PREDICTION_MODELS[mode] ? '' : 'interpolation');
-  const [correlationEntry, setCorrelationEntry] = useState('');
+  const [predictionX, setPredictionX] = usePersistentToolState('predictionX', questionData.predictionX ?? defaultPredictionX);
+  const [predictionY, setPredictionY] = usePersistentToolState('predictionY', '');
+  const [predictionType, setPredictionType] = usePersistentToolState('predictionType', FIT_PREDICTION_MODELS[mode] ? '' : 'interpolation');
+  const [correlationEntry, setCorrelationEntry] = usePersistentToolState('correlationEntry', '');
   // Neutral defaults are deliberate. Initialising these fields from the
   // regression result would put most of the answer in the boxes before the
   // student used technology to calculate it.
-  const [quadraticA, setQuadraticA] = useState(startingModel.a ?? '');
-  const [quadraticB, setQuadraticB] = useState(startingModel.b ?? '');
-  const [quadraticC, setQuadraticC] = useState(startingModel.c ?? '');
-  const [exponentialA, setExponentialA] = useState(startingModel.a ?? '');
-  const [exponentialBase, setExponentialBase] = useState(startingModel.base ?? '');
-  const [squareRootA, setSquareRootA] = useState(startingModel.a ?? '');
-  const [squareRootH, setSquareRootH] = useState(startingModel.h ?? '');
-  const [squareRootK, setSquareRootK] = useState(startingModel.k ?? '');
+  const [quadraticA, setQuadraticA] = usePersistentToolState('quadraticA', startingModel.a ?? '');
+  const [quadraticB, setQuadraticB] = usePersistentToolState('quadraticB', startingModel.b ?? '');
+  const [quadraticC, setQuadraticC] = usePersistentToolState('quadraticC', startingModel.c ?? '');
+  const [exponentialA, setExponentialA] = usePersistentToolState('exponentialA', startingModel.a ?? '');
+  const [exponentialBase, setExponentialBase] = usePersistentToolState('exponentialBase', startingModel.base ?? '');
+  const [squareRootA, setSquareRootA] = usePersistentToolState('squareRootA', startingModel.a ?? '');
+  const [squareRootH, setSquareRootH] = usePersistentToolState('squareRootH', startingModel.h ?? '');
+  const [squareRootK, setSquareRootK] = usePersistentToolState('squareRootK', startingModel.k ?? '');
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
   const studentPredict = useMemo(() => {

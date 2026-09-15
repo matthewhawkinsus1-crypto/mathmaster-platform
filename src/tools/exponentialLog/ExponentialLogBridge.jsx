@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
+import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { nearlyEqual, round } from '../shared/toolMath';
@@ -66,8 +67,8 @@ export default function ExponentialLogBridge({ questionData = {}, onAction }) {
 
 function EquivalentForms({ questionData, feedback, submit, onAction }) {
   const values = equivalentExpLogValues({ base: Number(questionData.base ?? 2), exponent: Number(questionData.exponent ?? 3) });
-  const [logAnswer, setLogAnswer] = useState('');
-  const [expAnswer, setExpAnswer] = useState('');
+  const [logAnswer, setLogAnswer] = usePersistentToolState('logAnswer', '');
+  const [expAnswer, setExpAnswer] = usePersistentToolState('expAnswer', '');
   const check = () => {
     const checks = [matchesNumber(logAnswer, values.exponent), matchesNumber(expAnswer, values.value)];
     submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { logAnswer, expAnswer }, { mode: 'equivalentForms' });
@@ -97,8 +98,8 @@ function SolveExponential({ questionData, feedback, submit, onAction }) {
     rhs: Number(questionData.equation?.rhs ?? 16),
   };
   const solution = solveExponentialLinearExponent(equation);
-  const [xAnswer, setXAnswer] = useState('');
-  const [exponentAnswer, setExponentAnswer] = useState('');
+  const [xAnswer, setXAnswer] = usePersistentToolState('xAnswer', '');
+  const [exponentAnswer, setExponentAnswer] = usePersistentToolState('exponentAnswer', '');
   const check = () => {
     const checks = [matchesNumber(xAnswer, solution.x, 0.01), matchesNumber(exponentAnswer, solution.exponentValue, 0.01)];
     submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { xAnswer, exponentAnswer }, { mode: 'solveExponential' });
@@ -130,8 +131,8 @@ function SolveLogarithmic({ questionData, feedback, submit, onAction }) {
     result: Number(questionData.equation?.result ?? 2),
   };
   const solution = solveLogLinearArgument(equation);
-  const [argumentAnswer, setArgumentAnswer] = useState('');
-  const [xAnswer, setXAnswer] = useState('');
+  const [argumentAnswer, setArgumentAnswer] = usePersistentToolState('argumentAnswer', '');
+  const [xAnswer, setXAnswer] = usePersistentToolState('xAnswer', '');
   const check = () => {
     const checks = [matchesNumber(argumentAnswer, solution.argumentValue, 0.01), matchesNumber(xAnswer, solution.x, 0.01)];
     submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { argumentAnswer, xAnswer }, { mode: 'solveLogarithmic' });
@@ -160,9 +161,9 @@ function InverseMode({ questionData, feedback, submit, onAction }) {
   const sampleX = Number(questionData.x ?? 2);
   const pair = inversePoint(spec, sampleX);
   const features = inversePairFeatures(spec);
-  const [inverseAnswer, setInverseAnswer] = useState('');
-  const [asymptote, setAsymptote] = useState('');
-  const [domainSide, setDomainSide] = useState('');
+  const [inverseAnswer, setInverseAnswer] = usePersistentToolState('inverseAnswer', '');
+  const [asymptote, setAsymptote] = usePersistentToolState('asymptote', '');
+  const [domainSide, setDomainSide] = usePersistentToolState('domainSide', '');
   const check = () => {
     const checks = [matchesNumber(inverseAnswer, sampleX, 0.01), matchesNumber(asymptote, features.logarithmVerticalAsymptote, 0.01), domainSide === features.logarithmDomainSide];
     submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length }, { inverseAnswer, asymptote, domainSide }, { mode: 'inverse', sampleX });
@@ -191,8 +192,8 @@ function CompositionMode({ questionData, feedback, submit, onAction }) {
   const y = Number(questionData.y ?? defaultY);
   const expectedX = composeInverseAfterForward(spec, x);
   const expectedY = composeForwardAfterInverse(spec, y);
-  const [inverseAfterForward, setInverseAfterForward] = useState('');
-  const [forwardAfterInverse, setForwardAfterInverse] = useState('');
+  const [inverseAfterForward, setInverseAfterForward] = usePersistentToolState('inverseAfterForward', '');
+  const [forwardAfterInverse, setForwardAfterInverse] = usePersistentToolState('forwardAfterInverse', '');
   const check = () => {
     const checks = [matchesNumber(inverseAfterForward, expectedX, 0.01), matchesNumber(forwardAfterInverse, expectedY, 0.01)];
     submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { inverseAfterForward, forwardAfterInverse }, { mode: 'composition', x, y });

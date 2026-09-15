@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { evaluateFunctionSpec } from '../shared/toolMath';
@@ -83,7 +84,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
   const rationaleMinLength = Math.max(0, Number(questionData.rationaleMinLength ?? 12));
   const requireRationale = controlled ? false : questionData.requireRationale !== false;
   const requireGroupNames = controlled ? false : questionData.requireGroupNames !== false;
-  const [groups, setGroups] = useState(() => (
+  const [groups, setGroups] = usePersistentToolState('groups', () => (
     controlled
       ? categories.map((category) => ({ id: String(category.id), name: String(category.label), rationale: '', itemIds: [] }))
       : emptyGroups(minGroups)

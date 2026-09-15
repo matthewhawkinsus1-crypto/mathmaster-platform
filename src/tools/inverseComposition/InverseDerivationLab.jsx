@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { HintPanel, Panel, ResultPill, TaskCard, ToolGrid } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import {
@@ -38,13 +39,23 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
   const f = questionData.f || { type: 'linear', a: 2, h: 0, k: 3 };
   const resetKey = JSON.stringify({ type: f.type, a: f.a, h: f.h, k: f.k });
   const makeInitial = () => createLinearInverseDerivation(f);
-  const [derivation, setDerivation] = useState(makeInitial);
-  const [operation, setOperation] = useState('subtract');
-  const [operand, setOperand] = useState('');
+  const [derivation, setDerivation] = usePersistentToolState('derivation', makeInitial);
+  const [operation, setOperation] = usePersistentToolState('operation', 'subtract');
+  const [operand, setOperand] = usePersistentToolState('operand', '');
   const [operationError, setOperationError] = useState('');
   const { feedback, submit } = useToolSubmission(onAction);
 
+  // Reset when the AUTHORED FUNCTION changes — not on mount.
+  //
+  // This effect used to run on every mount, which was invisible while the
+  // derivation lived in component state and started empty anyway. Now that a
+  // half-finished derivation is restored from the draft, an unconditional reset
+  // here would throw the student's staged work away the instant they navigated
+  // back to it.
+  const resetKeyRef = useRef(resetKey);
   useEffect(() => {
+    if (resetKeyRef.current === resetKey) return;
+    resetKeyRef.current = resetKey;
     setDerivation(makeInitial());
     setOperand('');
     setOperationError('');

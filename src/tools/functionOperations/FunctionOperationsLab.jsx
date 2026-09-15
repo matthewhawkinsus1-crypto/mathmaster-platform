@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import ToolShell, { HintPanel, Panel, ResultPill, TaskCard, ToolGrid } from '../shared/ToolShell';
+import usePersistentToolState from '../shared/usePersistentToolState.js';
 import useToolSubmission from '../shared/useToolSubmission';
 import MathInput from '../../MathInput.jsx';
 import MathDisplay from '../../MathDisplay.jsx';
@@ -57,8 +58,11 @@ export default function FunctionOperationsLab({ questionData = {}, onAction }) {
     restrictions: questionData.restrictions,
   }), [questionData.f, questionData.g, questionData.restrictions, operations, composeOrder]);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
-  const [responses, setResponses] = useState(() => Object.fromEntries(operations.map((operation) => [operation, ''])));
-  const [restrictionResponse, setRestrictionResponse] = useState('');
+  // The student's answers, and the reason this file changed: they used to be
+  // plain component state, so walking to the next question and back handed the
+  // student four empty boxes they had already filled in.
+  const [responses, setResponses] = usePersistentToolState('responses', () => Object.fromEntries(operations.map((operation) => [operation, ''])));
+  const [restrictionResponse, setRestrictionResponse] = usePersistentToolState('restrictionResponse', '');
 
   const setResponse = (operation, value) => {
     clearFeedback?.();

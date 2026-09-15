@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
+import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { matchesNumericAnswer, round } from '../shared/toolMath';
@@ -25,11 +26,11 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
   const showComposition = mode === 'composition' || mode === 'full';
   const showInverse = mode !== 'composition';
   const inputLocked = questionData.x !== undefined && questionData.allowInputChange !== true;
-  const [x, setX] = useState(questionData.x ?? 2);
-  const [fogAnswer, setFogAnswer] = useState('');
-  const [gofAnswer, setGofAnswer] = useState('');
-  const [inverseAnswer, setInverseAnswer] = useState('');
-  const [restrictionChoice, setRestrictionChoice] = useState('none');
+  const [x, setX] = usePersistentToolState('x', questionData.x ?? 2);
+  const [fogAnswer, setFogAnswer] = usePersistentToolState('fogAnswer', '');
+  const [gofAnswer, setGofAnswer] = usePersistentToolState('gofAnswer', '');
+  const [inverseAnswer, setInverseAnswer] = usePersistentToolState('inverseAnswer', '');
+  const [restrictionChoice, setRestrictionChoice] = usePersistentToolState('restrictionChoice', 'none');
   const { feedback, submit } = useToolSubmission(onAction);
   const revealAnswers = useRevealAnswers();
 
