@@ -43,6 +43,79 @@ const sameOutsideAnswerFields = (before = {}, after = {}) => {
   return stableStringify(strip(before)) === stableStringify(strip(after));
 };
 
+/*
+ * PRESENTATION-ONLY GRAPH VIEWPORT REPAIR.
+ *
+ * A teacher watching a live assignment can discover that an authored window
+ * hides the part of the graph the question is about — a system whose
+ * intersection sits outside the authored bounds, for example. Changing where
+ * the same graph is framed changes nothing a student is asked to do and
+ * nothing the grader reads, so it is the one graph edit that stays safe after
+ * students begin work. Everything else about the graph — its functions, lines,
+ * points, labels — is mathematical content and stays frozen.
+ */
+export const GRAPH_VIEWPORT_KEYS = Object.freeze(['xMin', 'xMax', 'yMin', 'yMax']);
+export const GRAPH_VIEWPORT_REPAIR_KIND = 'graph-viewport-repair';
+
+const VIEWPORT_KEY_SET = new Set(GRAPH_VIEWPORT_KEYS);
+
+const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const withoutViewport = (question = {}) => {
+  if (!isPlainObject(question.graph)) return question;
+  return { ...question, graph: withoutKeys(question.graph, VIEWPORT_KEY_SET) };
+};
+
+const analyzeGraphViewportRepair = (before = {}, after = {}) => {
+  const beforeGraph = isPlainObject(before.graph) ? before.graph : null;
+  const afterGraph = isPlainObject(after.graph) ? after.graph : null;
+  if (!beforeGraph || !afterGraph) return null;
+
+  const changedKeys = GRAPH_VIEWPORT_KEYS.filter((key) => (
+    stableStringify(beforeGraph[key] ?? null) !== stableStringify(afterGraph[key] ?? null)
+  ));
+  if (!changedKeys.length) return null;
+
+  if (stableStringify(withoutViewport(before)) !== stableStringify(withoutViewport(after))) {
+    return {
+      safe: false,
+      affectedFieldIds: [],
+      reason: 'A live graph repair may change only the viewport bounds (xMin, xMax, yMin, yMax). The prompt, standards, tool type, equations, plotted objects, grading, and every other field must stay exactly as students received them.',
+    };
+  }
+
+  const bounds = {};
+  for (const key of GRAPH_VIEWPORT_KEYS) {
+    const value = Number(afterGraph[key]);
+    if (!Number.isFinite(value)) {
+      return {
+        safe: false,
+        affectedFieldIds: [],
+        reason: `Graph viewport bound “${key}” must be a finite number.`,
+      };
+    }
+    bounds[key] = value;
+  }
+  if (!(bounds.xMin < bounds.xMax)) {
+    return { safe: false, affectedFieldIds: [], reason: 'Graph viewport bounds require xMin to be less than xMax.' };
+  }
+  if (!(bounds.yMin < bounds.yMax)) {
+    return { safe: false, affectedFieldIds: [], reason: 'Graph viewport bounds require yMin to be less than yMax.' };
+  }
+
+  // No affected response fields, by construction: nothing a student answered
+  // was rewritten, so no live correction credit and no extra attempt can be
+  // owed for reframing the same picture.
+  return {
+    safe: true,
+    presentationOnly: true,
+    repairKind: GRAPH_VIEWPORT_REPAIR_KIND,
+    affectedFieldIds: [],
+    changedViewportKeys: changedKeys,
+    viewport: bounds,
+  };
+};
+
 const WORKFLOW_WORD_CHOICE_REPAIRS = Object.freeze([
   { choiceKey: 'domainWordsChoices', correctKey: 'correctDomainWords', stageId: 'domainWords', askKey: 'domainWords' },
   { choiceKey: 'rangeWordsChoices', correctKey: 'correctRangeWords', stageId: 'rangeWords', askKey: 'rangeWords' },
@@ -201,6 +274,9 @@ export const analyzeSafeResponseEntryRepair = (beforeQuestion = {}, afterQuestio
   if (!beforeQuestion?.questionId || beforeQuestion.questionId !== afterQuestion?.questionId) {
     return { safe: false, affectedFieldIds: [], reason: 'The question ID must stay exactly the same.' };
   }
+
+  const viewportRepair = analyzeGraphViewportRepair(beforeQuestion, afterQuestion);
+  if (viewportRepair) return viewportRepair;
 
   const workflowRepair = analyzeWorkflowWordChoiceRepair(beforeQuestion, afterQuestion);
   if (workflowRepair) return workflowRepair;

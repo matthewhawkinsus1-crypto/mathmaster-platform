@@ -1,4 +1,5 @@
 import { analyzeResponseEntryRepair } from './liveQuestionCorrection.js';
+import { preservePlatformOwnedFields } from '../contract/platformOwnedFields.js';
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
@@ -70,15 +71,14 @@ export const prepareSafeLiveRepairPack = ({
       throw new Error(`Question ${wrappedId} moved from its protected index. The entire pack was rejected to protect student history.`);
     }
 
-    const nextQuestion = {
+    // Every MathMaster-owned field comes from the live question, not from the
+    // pack: a repair reply is forbidden from returning them, so its silence
+    // must not read as a teacher decision (teacherExcluded, archived) being
+    // reversed. The protected-field contract is the list.
+    const nextQuestion = preservePlatformOwnedFields(historical.question, {
       ...clone(replacement),
       questionId: wrappedId,
-    };
-    if (Object.prototype.hasOwnProperty.call(historical.question || {}, 'teacherExcluded')) {
-      nextQuestion.teacherExcluded = historical.question.teacherExcluded;
-    } else {
-      delete nextQuestion.teacherExcluded;
-    }
+    });
     // Grade weighting is teacher-owned live metadata, not part of a response
     // repair pack. Preserve it exactly so importing a later repair cannot erase
     // or rewrite the teacher's scoring decision.
@@ -110,6 +110,8 @@ export const prepareSafeLiveRepairPack = ({
       questionIndex: current.index,
       affectedFieldIds: analysis.affectedFieldIds,
       beforeFingerprint: analysis.beforeFingerprint,
+      repairKind: analysis.repairKind || 'response-entry-repair',
+      changedViewportKeys: analysis.changedViewportKeys || [],
     });
   });
 

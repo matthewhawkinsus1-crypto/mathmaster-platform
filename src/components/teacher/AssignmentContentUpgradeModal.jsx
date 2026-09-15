@@ -4,6 +4,7 @@ import { describeAuthError, teacherAdmin } from '../../auth/authService.js';
 const LABELS = {
   unchanged: 'Unchanged',
   safeResponseControl: 'Safe response controls',
+  graphViewportRepair: 'Graph viewport (display only)',
   gradingExpansion: 'More forgiving grading',
   clarificationOnly: 'Clarification only',
   fundamental: 'Fundamental correction',

@@ -27,22 +27,9 @@ import {
 export const CONTRACT_SCHEMA_VERSION = 5;
 export const CONTRACT_SCHEMA_NAME = 'MathMaster Assignment V5';
 
-// Every field the platform owns. An AI that invents these produces JSON that
-// looks authoritative and silently contradicts instructional policy, so the
-// contract names them explicitly and the importer strips them.
-export const PLATFORM_OWNED_FIELDS = Object.freeze([
-  'id', 'assignmentId', 'questionId', 'createdAt', 'updatedAt',
-  'attempts', 'maxAttempts', 'attemptsAllowed', 'attemptPolicy',
-  'hintPolicy', 'hintsAllowed', 'replacementPolicy', 'allowReplacement',
-  'feedbackPolicy', 'feedbackReleased', 'feedbackReleasedAt',
-  'masteryPolicy', 'masteryWeight', 'readinessBand', 'studentReadiness',
-  'isAdvanced', 'advanced', 'honors', 'isHonors', 'courseLevel',
-  'alignmentKeys', 'masteryEvidenceKeys', 'evidenceKeys',
-  'gradesByAssignment', 'questionRecords', 'persistence', 'serverState',
-  // Teacher decisions about an existing assignment, not authoring input. An AI
-  // that sets these overrides a choice a person made in the UI.
-  'teacherExcluded', 'archived', 'archivedAt',
-]);
+// The protected-field contract lives in one module so the prompt text, the
+// importer and the validator cannot drift apart.
+export { PLATFORM_OWNED_FIELDS, preservePlatformOwnedFields } from './platformOwnedFields.js';
 
 // Fields a question may carry that the generator interprets. Kept here so the
 // contract and the validator cannot drift.

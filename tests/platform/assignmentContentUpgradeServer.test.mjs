@@ -58,6 +58,10 @@ test('preview classifies all live V1 to V2 change kinds', async () => {
   assert.deepEqual(plan.counts, {
     unchanged: 1,
     safeResponseControl: 1,
+    // Presentation-only graph viewport repairs are their own classification, so
+    // reframing a graph is never counted as a response-control correction. This
+    // fixture contains none of them.
+    graphViewportRepair: 0,
     gradingExpansion: 1,
     clarificationOnly: 1,
     fundamental: 1,
