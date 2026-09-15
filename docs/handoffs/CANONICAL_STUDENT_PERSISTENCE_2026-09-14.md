@@ -155,6 +155,19 @@ server can do better it does:
   what is already recorded, and `lastSubmissionId` is stamped server-side;
 - Secure Test Cycle, My Math Path and server-graded tools never enter this path.
 
+### A replacement question keeps its reset
+
+`requestReplacementQuestion` clears `totalAttempts` and `bestPartialCredit` for a
+DOL replacement, deliberately: the student is answering a new question and starts
+again on it. The ingestion sanitizer clamps every credit-bearing field up to the
+server's own canonical values, and clamping *these* broke the next submission —
+it arrived with `previousTotalAttempts: 0`, was compared against the restored
+count, classified `superseded`, and retired **without ever being graded**. The
+reset is now honoured, but only when the server's own record agrees a
+replacement was legitimately issued: the question had to be `expired` and the
+variant has to move forward. A browser cannot wipe the attempt count on a
+question it simply does not like.
+
 ### Academic time is not ingestion time
 
 The first version of this work stamped every recovered attempt with the moment
@@ -193,9 +206,19 @@ cases distinguishable that used to be one:
 
 | Evidence | Outcome |
 | --- | --- |
-| section was open at capture | accepted |
-| close is stamped before the capture | `permanently-invalid` |
-| closed now, nothing says when | `needs-review` — kept, and reported |
+| the assignment's own close is stamped **after** the capture | accepted — the close arrived on a student who had already answered |
+| the assignment's own close is stamped **at or before** the capture | `permanently-invalid` |
+| no close in force now | accepted |
+| closed now, no recorded close time, capture proof says open | accepted |
+| closed now, no recorded close time, no capture proof | `needs-review` — kept, and reported |
+
+The server's own close time **outranks** the capture proof. A student's
+assignment listener can be stale — a teacher closes Classwork at 10:00, the
+update has not reached the device, and the student answers at 10:05 with a
+snapshot that still says open — so trusting that snapshot unconditionally would
+launder post-close work into a grade. The capture proof is what rescues work
+when the assignment itself cannot say *when* it closed; it is not a licence to
+override a close the assignment can prove.
 
 ---
 
@@ -349,7 +372,7 @@ student is never told "submitted" while anything is still owed a delivery.
 
 | Suite | What it can fail on | Result |
 | --- | --- | --- |
-| `npm run test:platform` | the queue, the classifier and the timestamp contract as functions | 4982 pass |
+| `npm run test:platform` | the queue, the classifier and the timestamp contract as functions | 4990 pass |
 | `npm run test:authoring-v5` | the authoring gate this change must not disturb | 670 pass |
 | `npm run test:durable-outbox` | real IndexedDB, real reload, real version-1 upgrade, real concurrency timing | PASS (not skipped) |
 | `npm run test:canonical-persistence` | the real callable against real Firestore, including a >200 checkpoint sweep | 21 pass |

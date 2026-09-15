@@ -43,6 +43,30 @@ const millisOrNull = (value) => (
     ? null
     : Number(value)
 );
+// Same trap as `millisOrNull`: `Number(null)` is 0 and 0 is a valid question
+// index, so a draft entry with no index read as question ZERO. A recovery that
+// graded an entry against a question it never identified would be inventing an
+// academic record, which is the one thing this module exists not to do.
+const questionIndexOrNull = (value) => (
+  value === null || value === undefined || value === '' || !Number.isInteger(Number(value)) || Number(value) < 0
+    ? null
+    : Number(value)
+);
+
+/*
+ * The index encoded in the draft key itself, as a cross-check.
+ *
+ * A key is `<prefix>:<bucket>:<student>:<assignment>:<index>:<variant>` plus a
+ * tool suffix, so the key and the stored `questionIndex` are two independent
+ * statements of the same fact. When they disagree, nothing here can say which
+ * question the work belongs to, and the entry is kept for review instead.
+ */
+export const questionIndexFromDraftKey = (key) => {
+  const parts = text(key).split(':');
+  // ... prefix, bucket, student, assignment, index, variant, suffix
+  if (parts.length < 7) return null;
+  return questionIndexOrNull(parts[parts.length - 3]);
+};
 
 /** Why a draft is not eligible. Every one of these keeps the data. */
 export const DRAFT_RECOVERY_STATUS = Object.freeze({
@@ -136,7 +160,7 @@ export const assessWorkspaceDraftEntry = ({
   documentSavedAtMs = null,
   closesAtMs = null,
 } = {}) => {
-  const questionIndex = Number.isInteger(Number(entry?.questionIndex)) ? Number(entry.questionIndex) : null;
+  const questionIndex = questionIndexOrNull(entry?.questionIndex);
   const base = { key: text(entry?.key), questionIndex, savedAt: Number(entry?.savedAt) || 0 };
 
   if (draftKeyIsPracticeBucket(entry?.key)) {
@@ -148,6 +172,12 @@ export const assessWorkspaceDraftEntry = ({
   }
   if (questionIndex === null) {
     return { ...base, ...outcome(DRAFT_RECOVERY_STATUS.QUESTION_NOT_RECONSTRUCTIBLE, 'draft-has-no-question-index') };
+  }
+  // The key and the stored index are two independent statements of the same
+  // fact. A disagreement means neither can be trusted to place the work.
+  const keyIndex = questionIndexFromDraftKey(entry?.key);
+  if (keyIndex !== null && keyIndex !== questionIndex) {
+    return { ...base, ...outcome(DRAFT_RECOVERY_STATUS.QUESTION_NOT_RECONSTRUCTIBLE, `draft-key-index-mismatch:${keyIndex}`) };
   }
   if (!question || typeof question !== 'object') {
     return { ...base, ...outcome(DRAFT_RECOVERY_STATUS.QUESTION_NOT_RECONSTRUCTIBLE, 'question-index-not-found') };

@@ -310,3 +310,91 @@ test('a submission ingested immediately is not marked as a late recovery', () =>
   assert.equal(built.record.recoveredLate, null);
   assert.ok(Math.abs(Date.parse(built.record.lastAttemptAt) - now) < 5_000);
 });
+
+/* ==========================================================================
+ * A DRAFT MUST NAME THE QUESTION IT BELONGS TO.
+ * ======================================================================== */
+
+test('a draft entry with no question index is never assessed as question zero', async () => {
+  const { assessWorkspaceDraftEntry, questionIndexFromDraftKey } = await import('../../functions/shared/workspaceDraftRecovery.mjs');
+  const question = { type: 'literal', acceptedAnswers: ['2x+1'], solveFor: 'y', activityRole: 'classwork' };
+
+  // `Number(null)` is 0, and 0 is a real question index. A guard that only
+  // tested `Number.isInteger` read a missing index as question ZERO, and a
+  // matching suffix and response type would then have produced an attempt for
+  // a question the entry never identified.
+  const noIndex = {
+    key: 'mathmaster-draft:student:S1042:A1:0:0:literal',
+    value: '2x+1',
+    savedAt: SEPT_14_CLASS,
+    questionIndex: null,
+    variantIndex: 0,
+  };
+  const assessed = assessWorkspaceDraftEntry({
+    entry: noIndex, question, documentSavedAtMs: SEPT_14_CLASS, closesAtMs: SEPT_14_CLOSE,
+  });
+  assert.equal(assessed.recoverable, false);
+  assert.equal(assessed.reason, 'draft-has-no-question-index');
+
+  // The key and the stored index are two independent statements of the same
+  // fact; a disagreement means neither can place the work.
+  const mismatch = { ...noIndex, key: 'mathmaster-draft:student:S1042:A1:7:0:literal', questionIndex: 0 };
+  const conflicted = assessWorkspaceDraftEntry({
+    entry: mismatch, question, documentSavedAtMs: SEPT_14_CLASS, closesAtMs: SEPT_14_CLOSE,
+  });
+  assert.equal(conflicted.recoverable, false);
+  assert.match(conflicted.reason, /^draft-key-index-mismatch/);
+
+  assert.equal(questionIndexFromDraftKey('mathmaster-draft:student:S1042:A1:3:0:literal'), 3);
+  assert.equal(questionIndexFromDraftKey('too:short'), null);
+
+  // A well-formed entry whose key and index agree is still recoverable.
+  const agreeing = { ...noIndex, questionIndex: 0 };
+  assert.equal(
+    assessWorkspaceDraftEntry({ entry: agreeing, question, documentSavedAtMs: SEPT_14_CLASS, closesAtMs: SEPT_14_CLOSE }).recoverable,
+    true,
+  );
+});
+
+test('a recovered workspace draft is recorded at its server-stamped save time', async () => {
+  const { assessWorkspaceDraftEntry } = await import('../../functions/shared/workspaceDraftRecovery.mjs');
+  const question = { type: 'literal', acceptedAnswers: ['2x+1'], solveFor: 'y', activityRole: 'dol', questionId: 'q-recovered', id: 'q-recovered' };
+  const entry = {
+    key: 'mathmaster-draft:student:S1042:A1:0:0:literal',
+    value: '2x+1',
+    savedAt: SEPT_14_CLASS,
+    questionIndex: 0,
+    variantIndex: 0,
+  };
+  const assessed = assessWorkspaceDraftEntry({
+    entry, question, documentSavedAtMs: SEPT_14_CLASS, closesAtMs: SEPT_14_CLOSE,
+  });
+  assert.equal(assessed.recoverable, true);
+
+  // The recovery builds its envelope from that proven save time, so a draft
+  // recovered on the 15th is still recorded as the 14th's work.
+  const built = buildIngestedAttempt({
+    envelope: buildSubmissionEnvelope({
+      actionId: `draft-recovery:doc:${entry.key}`,
+      kind: 'ordinarySubmission',
+      studentId: 'S1042',
+      assignmentId: 'A1',
+      questionIndex: 0,
+      questionId: 'q-recovered',
+      activityRole: 'dol',
+      capturedAt: assessed.documentSavedAtMs,
+      previousTotalAttempts: 0,
+      record: null,
+      response: assessed.response,
+    }),
+    assignment: { id: 'A1', releaseAt: RELEASED_AT },
+    question,
+    canonicalRecord: null,
+    dolIndices: [0],
+    dolSectionScore: 100,
+    ingestedAt: SEPT_15_RECOVERY,
+  });
+  assert.equal(dayOf(built.record.lastAttemptAt), '2026-09-14');
+  assert.equal(built.dolDateKey, '2026-09-14');
+  assert.equal(built.gradedBy, 'server');
+});

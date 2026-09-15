@@ -1986,6 +1986,10 @@ function App() {
       capturedSectionAccess: payload.capturedSectionAccess || null,
       checkpointDocumentId: payload.checkpointDocumentId || null,
       timeSpentSeconds: payload.timeSpentSeconds || payload.record?.timeSpent || 0,
+      // How many times this device has already tried. The server escalates a
+      // retry that has never cleared into `needs-review` from this, so leaving
+      // it out means a week-old submission retries forever unseen.
+      deliveryAttempts: Number(action.delivery?.attempts || 0),
     });
   };
 

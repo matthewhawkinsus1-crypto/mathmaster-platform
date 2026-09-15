@@ -86,8 +86,15 @@ export const readWorkspaceDraftEntries = (document) => (
         key: String(entry?.key || ''),
         value: JSON.parse(String(entry?.valueJson ?? 'null')),
         savedAt: Number(entry?.savedAt) || 0,
-        questionIndex: Number.isInteger(Number(entry?.questionIndex)) ? Number(entry.questionIndex) : null,
-        variantIndex: Number.isInteger(Number(entry?.variantIndex)) ? Number(entry.variantIndex) : null,
+        // `Number(null)` is 0, and 0 is a real question index, so a guard that
+        // only tests `Number.isInteger` turns a missing index into question
+        // zero. Read nulls as nulls.
+        questionIndex: entry?.questionIndex === null || entry?.questionIndex === undefined
+          ? null
+          : (Number.isInteger(Number(entry.questionIndex)) ? Number(entry.questionIndex) : null),
+        variantIndex: entry?.variantIndex === null || entry?.variantIndex === undefined
+          ? null
+          : (Number.isInteger(Number(entry.variantIndex)) ? Number(entry.variantIndex) : null),
       }];
     } catch {
       return [];

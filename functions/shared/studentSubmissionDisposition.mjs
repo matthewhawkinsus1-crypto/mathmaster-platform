@@ -110,21 +110,39 @@ export const sectionWasOpenAtCapture = ({
   liveSectionAccess = null,
   capturedAt = null,
 } = {}) => {
+  const live = liveSectionAccess && typeof liveSectionAccess === 'object' ? liveSectionAccess : null;
+  const capture = millis(capturedAt);
+  const closedNow = Boolean(live && live.enabled === true && live.isOpen !== true);
+  const closedAt = closedNow ? millis(live?.override?.changedAt) : null;
+
+  /*
+   * THE SERVER'S OWN CLOSE TIME OUTRANKS THE BROWSER'S SNAPSHOT.
+   *
+   * The capture proof is read from the student's assignment listener, and that
+   * listener can be STALE: a teacher closes Classwork at 10:00, the update has
+   * not reached the device, and the student answers at 10:05 with a snapshot
+   * that still says open. Trusting that snapshot unconditionally would launder
+   * post-close work into a grade — so when the assignment itself carries a
+   * close stamped at or before the capture, that is the answer.
+   *
+   * This still preserves the rule the incident turned on: a close stamped
+   * AFTER the capture closed the section on a student who had already
+   * answered, and their work stands.
+   */
+  if (closedAt !== null && capture !== null) return closedAt > capture;
+
+  // No close in force: nothing to have been closed against.
+  if (!closedNow) return true;
+
+  /*
+   * Closed now, with no record of WHEN. The section state the browser observed
+   * at capture is the only witness left, and it is the reason a teacher's
+   * later close cannot silently erase work — see the incident write-up.
+   */
   const captured = capturedSectionAccess && typeof capturedSectionAccess === 'object' ? capturedSectionAccess : null;
   if (captured && typeof captured.isOpen === 'boolean') return captured.isOpen;
 
-  const live = liveSectionAccess && typeof liveSectionAccess === 'object' ? liveSectionAccess : null;
-  if (!live || live.enabled !== true) return true;
-  if (live.isOpen === true) return true;
-
-  const changedAt = millis(live?.override?.changedAt);
-  const capture = millis(capturedAt);
-  // The close is stamped later than the capture: it closed the section on a
-  // student who had already answered.
-  if (changedAt !== null && capture !== null && changedAt > capture) return true;
-  // A closed section with a close time at or before the capture is proof.
-  if (changedAt !== null && capture !== null) return false;
-  // Closed, but nothing says when. Unprovable either way.
+  // Closed, and nothing anywhere says when. Unprovable either way.
   return null;
 };
 

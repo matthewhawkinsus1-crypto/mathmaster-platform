@@ -981,3 +981,168 @@ test('25. thirty students submitting ordinary work each reach canonical storage 
     assert.equal(result.remaining, 0, `${result.studentId} must have an empty queue`);
   });
 });
+
+/* ==========================================================================
+ * REVIEW FINDINGS — each of these was a real hole in the first version.
+ * ======================================================================== */
+
+test('a stale client snapshot cannot launder work submitted after a stamped close', async () => {
+  const { sectionWasOpenAtCapture: openAtCapture } = await import('../../functions/shared/studentSubmissionDisposition.mjs');
+  const closedAt = Date.parse('2026-09-14T15:00:00Z');
+  const answeredAt = Date.parse('2026-09-14T15:05:00Z');
+  const staleSnapshot = { role: 'classwork', enabled: true, isOpen: true, status: 'open', overrideChangedAt: null };
+  const live = { role: 'classwork', enabled: true, isOpen: false, override: { state: 'closed', changedAt: new Date(closedAt).toISOString() } };
+
+  // The teacher closed Classwork at 15:00. The student's assignment listener
+  // had not caught up, so their capture proof still says "open" — and they
+  // answered at 15:05. The assignment's own close time is the answer.
+  assert.equal(openAtCapture({ capturedSectionAccess: staleSnapshot, liveSectionAccess: live, capturedAt: answeredAt }), false);
+
+  // The rule the incident turned on is untouched: a close stamped AFTER the
+  // capture closed the section on a student who had already answered.
+  const closedLater = { ...live, override: { state: 'closed', changedAt: new Date(answeredAt + 600_000).toISOString() } };
+  assert.equal(openAtCapture({ capturedSectionAccess: staleSnapshot, liveSectionAccess: closedLater, capturedAt: answeredAt }), true);
+
+  // And a close with no recorded time still falls back to the capture witness.
+  const noCloseTime = { role: 'classwork', enabled: true, isOpen: false, override: { state: 'closed', changedAt: null } };
+  assert.equal(openAtCapture({ capturedSectionAccess: staleSnapshot, liveSectionAccess: noCloseTime, capturedAt: answeredAt }), true);
+  assert.equal(openAtCapture({ liveSectionAccess: noCloseTime, capturedAt: answeredAt }), null);
+});
+
+test('a DOL replacement keeps its attempt reset, so the next answer is graded rather than retired', async () => {
+  const { requestReplacementQuestion } = await import('../../functions/shared/attemptPolicy.mjs');
+  // The canonical state a student reaches after exhausting a DOL question.
+  const expired = { status: 'expired', attemptCount: 3, totalAttempts: 3, variantIndex: 0, bestPartialCredit: 40 };
+  // What the browser's replacement policy produces — the reset is deliberate.
+  const replacement = requestReplacementQuestion(expired, { clearHistory: true, clearBest: true });
+  assert.equal(replacement.totalAttempts, 0);
+  assert.equal(replacement.variantIndex, 1);
+
+  const built = buildIngestedAttempt({
+    envelope: buildSubmissionEnvelope({
+      actionId: 'dol-replacement',
+      kind: 'questionReplacement',
+      studentId: STUDENT,
+      assignmentId: ASSIGNMENT,
+      questionIndex: 0,
+      activityRole: 'dol',
+      previousTotalAttempts: 3,
+      record: replacement,
+    }),
+    assignment: { id: ASSIGNMENT },
+    question: { type: 'functionGraph', activityRole: 'dol' },
+    canonicalRecord: expired,
+  });
+
+  // Clamping this back up to 3 is what made the NEXT submission — which
+  // carries previousTotalAttempts: 0 — read as superseded and get retired
+  // without ever being graded.
+  assert.equal(built.record.totalAttempts, 0, 'the replacement reset must survive ingestion');
+  assert.equal(built.record.attemptCount, 0);
+  assert.equal(built.record.status, 'unattempted');
+  assert.equal(built.record.variantIndex, 1);
+  assert.equal(built.record.bestPartialCredit, 0, 'clearBest must survive too');
+
+  // And the student's answer to the replacement is now accepted.
+  assert.equal(
+    classifyCapturedSubmission({
+      actionId: 'answer-to-replacement',
+      previousTotalAttempts: 0,
+      canonicalRecord: built.record,
+      assignmentExists: true,
+      gradeRecordExists: true,
+      authorizedForClass: true,
+      assignmentClosedAtCapture: false,
+      sectionOpenAtCapture: true,
+    }).disposition,
+    SUBMISSION_DISPOSITION.ACCEPTED,
+  );
+});
+
+test('an unauthorized attempt reset is still refused', () => {
+  // Not expired, and the variant did not move: a browser cannot wipe an
+  // attempt count on a question it simply does not like.
+  const built = buildIngestedAttempt({
+    envelope: buildSubmissionEnvelope({
+      actionId: 'forged-reset',
+      kind: 'questionReplacement',
+      studentId: STUDENT,
+      assignmentId: ASSIGNMENT,
+      questionIndex: 0,
+      activityRole: 'classwork',
+      previousTotalAttempts: 2,
+      record: { status: 'unattempted', attemptCount: 0, totalAttempts: 0, variantIndex: 0, bestPartialCredit: 0 },
+    }),
+    assignment: { id: ASSIGNMENT },
+    question: { type: 'functionGraph', activityRole: 'classwork' },
+    canonicalRecord: { status: 'attempted', attemptCount: 2, totalAttempts: 2, variantIndex: 0, bestPartialCredit: 60 },
+  });
+  assert.equal(built.record.totalAttempts, 2, 'the canonical attempt count must stand');
+  assert.equal(built.record.bestPartialCredit, 60, 'earned credit must stand');
+});
+
+test('the envelope carries the delivery attempt count, so escalation can happen server-side', () => {
+  const envelope = normalizeSubmissionEnvelope(buildSubmissionEnvelope({
+    actionId: 'week-old',
+    kind: 'ordinarySubmission',
+    studentId: STUDENT,
+    assignmentId: ASSIGNMENT,
+    questionIndex: 0,
+    activityRole: 'classwork',
+    capturedAt: Date.now() - (8 * 24 * 60 * 60 * 1000),
+    previousTotalAttempts: 0,
+    record: { totalAttempts: 1, status: 'attempted' },
+    deliveryAttempts: 400,
+  }));
+  assert.equal(envelope.deliveryAttempts, 400, 'the count must survive the wire');
+
+  // Without it this stayed `retryable` forever and never reached a teacher.
+  const decision = decideSubmissionIngestion({
+    envelope,
+    assignmentExists: false,
+    gradeRecordExists: true,
+    authorizedForClass: true,
+    assignmentClosedAtCapture: false,
+    deliveryAttempts: envelope.deliveryAttempts,
+  });
+  assert.equal(decision.disposition, SUBMISSION_DISPOSITION.NEEDS_REVIEW);
+});
+
+test('recovery proposals cannot be committed against an assignment they were not computed for', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { region } = await import('./helpers/sourceContract.mjs');
+  const [panel, home] = await Promise.all([
+    readFile(new URL('../../src/components/teacher/StudentPersistenceRecoveryPanel.jsx', import.meta.url), 'utf8'),
+    readFile(new URL('../../src/TeacherHome.jsx', import.meta.url), 'utf8'),
+  ]);
+
+  /*
+   * Changing the assignment dropdown swaps props without remounting, so a
+   * preview run against assignment A stayed on screen when B was selected: A's
+   * proposal count enabled the button and the commit sent B's ids. That writes
+   * canonical grades for an assignment nobody previewed.
+   */
+  const commit = region(panel, 'const commitDrafts', 'return (', 'draft recovery commit');
+  assert.match(
+    commit,
+    /proposals\?\.assignmentId !== assignmentId \|\| proposals\?\.classId !== classId/,
+    'the write path itself must refuse proposals computed for a different target',
+  );
+  assert.ok(
+    commit.indexOf('setError') < commit.indexOf('applyWorkspaceDraftRecovery'),
+    'the guard must run BEFORE the recovery call, not after it',
+  );
+
+  // Belt and braces: the state is cleared on a target change, and the mount
+  // site keys the component so it remounts anyway.
+  assert.match(panel, /useEffect\(\(\) => \{[\s\S]*?setProposals\(null\);[\s\S]*?\}, \[assignmentId, classId\]\);/);
+  assert.match(home, /key=\{`\$\{classIdInSession\}::\$\{recoveryAssignmentId\}`\}/);
+});
+
+test('the client sends its delivery attempt count with every ingested submission', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { region } = await import('./helpers/sourceContract.mjs');
+  const app = await readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+  const builder = region(app, 'const buildSubmissionEnvelopeForAction', 'const reconcileThroughClientTransaction', 'envelope builder');
+  assert.match(builder, /deliveryAttempts: Number\(action\.delivery\?\.attempts \|\| 0\)/);
+});

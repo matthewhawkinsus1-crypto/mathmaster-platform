@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   applyWorkspaceDraftRecovery,
   getStudentPersistenceRecoveryReport,
@@ -66,6 +66,24 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
 
   const ready = Boolean(assignmentId && classId);
 
+  /*
+   * STATE BELONGS TO A TARGET, NOT TO THE COMPONENT.
+   *
+   * Changing the assignment dropdown swaps these props without remounting, so
+   * a preview run against assignment A would otherwise still be sitting here
+   * when assignment B is selected: A's proposal count enables the button, and
+   * the commit sends B's ids. A teacher could write recovered grades for an
+   * assignment they never previewed. The mount site keys this component by both
+   * ids so it remounts; this clears the state anyway, so the component is
+   * correct wherever it is mounted.
+   */
+  useEffect(() => {
+    setReport(null);
+    setProposals(null);
+    setNotice(null);
+    setError(null);
+  }, [assignmentId, classId]);
+
   const run = async (label, work) => {
     setBusy(label);
     setError(null);
@@ -109,6 +127,18 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
   });
 
   const commitDrafts = () => run('commit', async () => {
+    /*
+     * THE WRITE PATH CHECKS THE TARGET ITSELF.
+     *
+     * Clearing state on a prop change is the tidy fix; this is the one that
+     * makes it impossible. Recovery writes canonical grades, so it happens only
+     * against the exact assignment and class the proposals were computed for —
+     * which the server named in its own dry-run response.
+     */
+    if (proposals?.assignmentId !== assignmentId || proposals?.classId !== classId) {
+      setError('Preview this assignment before recovering it — the proposals on screen were computed for a different one.');
+      return null;
+    }
     const result = await applyWorkspaceDraftRecovery({ assignmentId, classId, commit: true });
     const accepted = (result.applied || []).filter((entry) => entry.disposition === 'accepted').length;
     setNotice(`Recovered ${accepted} attempt${accepted === 1 ? '' : 's'} from workspace drafts.`);

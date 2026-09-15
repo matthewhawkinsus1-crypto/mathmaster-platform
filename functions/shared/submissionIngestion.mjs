@@ -185,6 +185,10 @@ export const buildSubmissionEnvelope = ({
   capturedSectionAccess = null,
   checkpointDocumentId = null,
   timeSpentSeconds = 0,
+  // How many times this device has already tried to deliver this submission.
+  // The server's escalation from `retryable` to `needs-review` reads it, and
+  // without it a week-old submission retries forever and is never surfaced.
+  deliveryAttempts = 0,
 } = {}) => {
   if (!INGESTIBLE_KINDS.includes(kind)) throw new Error('Only grade-bearing student actions are ingested.');
   if (!trimmed(actionId)) throw new Error('A submission envelope requires its durable action id.');
@@ -213,6 +217,7 @@ export const buildSubmissionEnvelope = ({
     capturedSectionAccess: capturedSectionAccess || null,
     checkpointDocumentId: trimmed(checkpointDocumentId) || null,
     timeSpentSeconds: Math.max(0, Math.min(86_400, finite(timeSpentSeconds, 0))),
+    deliveryAttempts: Math.max(0, Math.min(100_000, finite(deliveryAttempts, 0))),
   };
   assertEnvelopeCarriesNoSecureData(envelope);
   return envelope;
@@ -246,6 +251,9 @@ export const normalizeSubmissionEnvelope = (raw) => {
     capturedSectionAccess: raw.capturedSectionAccess && typeof raw.capturedSectionAccess === 'object' ? raw.capturedSectionAccess : null,
     checkpointDocumentId: trimmed(raw.checkpointDocumentId) || null,
     timeSpentSeconds: Math.max(0, Math.min(86_400, finite(raw.timeSpentSeconds, 0))),
+    // Bounded: it only ever moves an unprovable retry to `needs-review`, and a
+    // device inflating it can only ask for its own work to be looked at.
+    deliveryAttempts: Math.max(0, Math.min(100_000, finite(raw.deliveryAttempts, 0))),
   };
 };
 
@@ -376,9 +384,54 @@ export const decideSubmissionIngestion = ({
  */
 const ATTEMPT_STATUSES = new Set(['unattempted', 'attempted', 'correct', 'expired']);
 
+/*
+ * A REPLACEMENT QUESTION IS ALLOWED TO RESET THE ATTEMPT HISTORY.
+ *
+ * `requestReplacementQuestion` clears `totalAttempts` and `bestPartialCredit`
+ * for a DOL replacement, deliberately: the student is answering a NEW question
+ * and starts again on it. Clamping those fields up to the canonical values the
+ * way every other field is clamped breaks the next submission — it would arrive
+ * with `previousTotalAttempts: 0`, be compared against the restored count, be
+ * classified `superseded`, and be retired WITHOUT EVER BEING GRADED. That is
+ * the exact silent-loss shape this whole change exists to remove.
+ *
+ * The reset is still not the browser's to assert. It is honoured only when the
+ * SERVER's own record agrees a replacement was legitimately issued: the
+ * question had to be expired, and the variant has to move forward. A student
+ * cannot wipe the attempt count on a question they simply do not like.
+ */
+const replacementResetIsAuthorized = ({ envelope, canonical, claimed }) => (
+  envelope.kind === 'questionReplacement'
+  && canonical.status === 'expired'
+  && finite(claimed.variantIndex, 0) > finite(canonical.variantIndex, 0)
+);
+
 export const sanitizeClientAttemptRecord = ({ envelope, canonicalRecord, maximumAttempts }) => {
   const canonical = normalizeQuestionRecord(canonicalRecord);
   const claimed = normalizeQuestionRecord(envelope.record);
+  const resetting = replacementResetIsAuthorized({ envelope, canonical, claimed });
+
+  if (resetting) {
+    // The record the replacement policy itself produces, rebuilt on the server
+    // from the server's own canonical row rather than trusted from the wire.
+    return normalizeQuestionRecord({
+      ...canonical,
+      status: 'unattempted',
+      attemptCount: 0,
+      questionDetails: '',
+      lastResponseKey: '',
+      partialCredit: 0,
+      // `clearHistory`/`clearBest` ride together on a DOL replacement; anything
+      // the client did not clear stays at the canonical value.
+      totalAttempts: Math.min(finite(claimed.totalAttempts, 0), finite(canonical.totalAttempts, 0)),
+      bestPartialCredit: Math.min(finite(claimed.bestPartialCredit, 0), finite(canonical.bestPartialCredit, 0)),
+      stepGrades: Array.isArray(claimed.stepGrades) && claimed.stepGrades.length === 0 ? [] : canonical.stepGrades,
+      variantIndex: finite(claimed.variantIndex, 0),
+      algebraState: null,
+      partGrades: [],
+    });
+  }
+
   const advanced = finite(claimed.totalAttempts, 0) > finite(canonical.totalAttempts, 0);
   const totalAttempts = Math.min(finite(canonical.totalAttempts, 0) + (advanced ? 1 : 0), finite(claimed.totalAttempts, 0) || finite(canonical.totalAttempts, 0));
   const attemptCount = Math.min(

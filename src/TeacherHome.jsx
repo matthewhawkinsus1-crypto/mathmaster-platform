@@ -351,6 +351,10 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
           </label>
           {recoveryAssignmentId && (
             <StudentPersistenceRecoveryPanel
+              // Keyed by the target, so switching assignment or class remounts
+              // rather than leaving one assignment's report and proposals on
+              // screen under another assignment's title.
+              key={`${classIdInSession}::${recoveryAssignmentId}`}
               assignmentId={recoveryAssignmentId}
               classId={classIdInSession}
               assignmentTitle={assignments.find((assignment) => assignment.id === recoveryAssignmentId)?.title || ''}
