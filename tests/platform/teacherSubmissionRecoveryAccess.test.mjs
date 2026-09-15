@@ -52,11 +52,13 @@ test('server preview is non-writing, securely scoped, and commit requires that p
   assert.doesNotMatch(callable, /answerKey:/);
 });
 
-test('the post-commit path refreshes the report and preserves unresolved proposals', () => {
+test('the post-commit path refreshes the report and preserves only genuinely unresolved proposals', () => {
   const commit = region(panel, 'const commitDrafts', 'const affectedStudents', 'draft commit handler');
-  assert.match(commit, /filter\(\(proposal\) => proposal\.outcome\.disposition !== 'accepted'\)/);
+  assert.match(commit, /\['needs-review', 'retryable'\]\.includes\(proposal\.outcome\.disposition\)/);
   assert.match(commit, /await loadReport\(\)/);
   assert.match(panel, /Accepted \{commitSummary\.accepted\}/);
+  assert.match(panel, /Duplicate \{commitSummary\.duplicate\}/);
+  assert.match(panel, /Superseded \{commitSummary\.superseded\}/);
   assert.match(panel, /Failed\/retryable/);
 });
 
