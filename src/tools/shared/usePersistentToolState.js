@@ -30,6 +30,7 @@
  */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  parseQuestionDraftKey,
   questionDraftRestoreGeneration,
   questionDraftSavedAt,
   readQuestionDraft,
@@ -268,6 +269,32 @@ export const forgetToolDrafts = (draftKey) => {
 };
 
 /**
+ * Forget every cached tool workspace for one student/assignment.
+ *
+ * localStorage can be cleared independently of this module-level parsed cache
+ * (teacher "Restart Preview Fresh" is the important case). Clearing only disk
+ * and leaving this cache alive resurrects the supposedly deleted answers on
+ * the next mount.
+ */
+export const forgetAssignmentToolDrafts = ({ studentId, assignmentId } = {}) => {
+  const wantedStudent = String(studentId ?? '');
+  const wantedAssignment = String(assignmentId ?? '');
+  if (!wantedStudent || !wantedAssignment) return 0;
+  let forgotten = 0;
+  [...stores.keys()].forEach((key) => {
+    const identity = parseQuestionDraftKey(key);
+    if (!identity) return;
+    if (identity.studentId !== wantedStudent || identity.assignmentId !== wantedAssignment) return;
+    if (!String(identity.toolSuffix || '').startsWith(`${TOOL_DRAFT_SEGMENT}:`)) return;
+    const store = stores.get(key);
+    if (store?.timer !== null && store?.timer !== undefined) clearTimeout(store.timer);
+    stores.delete(key);
+    forgotten += 1;
+  });
+  return forgotten;
+};
+
+/**
  * Mark this question's workspace drafts as current at submission time.
  *
  * Without this, submitting would make the student's own work look stale: the
@@ -344,6 +371,11 @@ export default function usePersistentToolState(field, initialValue, options = {}
   const key = enabled ? scope?.key || null : null;
   const canonicalSavedAt = scope?.canonicalSavedAt || 0;
   const initialRef = useRef(initialValue);
+  // Keep the latest question-specific initializer available for a key change.
+  // Several registry tools derive defaults from questionData; if a host swaps
+  // questions without remounting the tool, the new key must not fall back to
+  // the previous question's defaults.
+  initialRef.current = initialValue;
   const [value, setValue] = useState(() => restoreField(key, field, initialRef.current, canonicalSavedAt));
 
   // The question can change UNDER a mounted tool: PathSessionPlayer renders one
