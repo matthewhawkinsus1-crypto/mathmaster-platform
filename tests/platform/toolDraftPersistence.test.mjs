@@ -304,7 +304,7 @@ test('QuestionEngine opens the draft scope registry tools read', async () => {
 test('a workflow stage gives its tool a namespace of its own', async () => {
   const runner = stripComments(read('src/platform/workflow/WorkflowRunner.jsx'));
   assert.match(runner, /import \{ ToolDraftScopeProvider \} from '\.\.\/\.\.\/tools\/shared\/usePersistentToolState\.js'/);
-  assert.match(runner, /<ToolDraftScopeProvider draftKey=\{draftKey\} scope=\{`stage-\$\{stage\.id \|\| stage\.kind\}`\}>/);
+  assert.match(runner, /<ToolDraftScopeProvider[\s\S]*draftKey=\{draftKey\}[\s\S]*scope=\{`stage-\$\{stage\.id \|\| stage\.kind\}`\}[\s\S]*canonicalSavedAt=\{canonicalSavedAt\}/);
 });
 
 test('the same question rendered twice in one workflow keeps two workspaces apart', async () => {
