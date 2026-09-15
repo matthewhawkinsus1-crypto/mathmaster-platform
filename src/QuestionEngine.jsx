@@ -801,6 +801,7 @@ export default function QuestionEngine({
           })}
           disabled={commonModuleProps.disabled}
           draftKey={draftKey}
+          canonicalSavedAt={canonicalAnswerSavedAt}
           showPrompt={false}
           showStagePrompt={false}
           submissionReview={showOutcomeFeedback ? workflowSubmissionReview : null}
