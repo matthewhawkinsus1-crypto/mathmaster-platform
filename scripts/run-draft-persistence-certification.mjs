@@ -35,7 +35,7 @@ try {
 
 const server = spawn(
   process.execPath,
-  ['node_modules/vite/bin/vite.js', '--config', 'tests/browser/emulator/vite.config.mjs', '--port', String(PORT), '--strictPort'],
+  ['node_modules/vite/bin/vite.js', '--config', 'tests/browser/emulator/vite.config.mjs', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'],
   { stdio: ['ignore', 'pipe', 'pipe'] },
 );
 let serverLog = '';
