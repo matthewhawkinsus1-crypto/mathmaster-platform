@@ -13,7 +13,7 @@ import NeedsAttentionQueue from './components/teacher/NeedsAttentionQueue';
 import StudentSupportDashboard from './components/teacher/StudentSupportDashboard';
 import StudentPersistenceRecoveryPanel from './components/teacher/StudentPersistenceRecoveryPanel.jsx';
 import DOLCountdown from './components/student/DOLCountdown.jsx';
-import { studentsInClass } from '../functions/shared/classModel.mjs';
+import { classIdsForTeacher, studentsInClass } from '../functions/shared/classModel.mjs';
 
 const formatClock = (date) => date instanceof Date ? date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
 
@@ -27,7 +27,7 @@ const greetingFor = (date) => {
 // Landing tab for teachers: today's classes at a glance, so a period's
 // status and roster are one click away instead of hunting through the
 // class-period dropdown on Grades or scrolling the full Classes grid.
-export default function TeacherHome({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], studentSupportEvents = [], studentSessionSummaries = [], onRecordStudentSupportEvent = null, onRecommendPersonalPath = null, pathInterventionBusyStudentId = null }) {
+export default function TeacherHome({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], teacherEmail = '', isRootAdmin = false, studentSupportEvents = [], studentSessionSummaries = [], onRecordStudentSupportEvent = null, onRecommendPersonalPath = null, pathInterventionBusyStudentId = null }) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
   const [warmupTimerMinutesByKey, setWarmupTimerMinutesByKey] = useState({});
   const [recoveryClassId, setRecoveryClassId] = useState('');
@@ -36,6 +36,17 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
   const classOptions = classes.length
     ? classes.filter((entry) => entry?.status !== 'archived')
     : CLASS_PERIODS.map((period) => ({ classId: null, name: period, period }));
+
+  // Recovery is a grade-writing surface, so its selector mirrors the server's
+  // teacher-of-record boundary instead of listing every class the client can read.
+  // Root administration retains school-wide recovery access.
+  const recoveryAllowedClassIds = isRootAdmin
+    ? null
+    : new Set(classIdsForTeacher(classOptions, teacherEmail));
+  const recoveryClassOptions = classOptions.filter((entry) => (
+    Boolean(entry?.classId)
+    && (isRootAdmin || recoveryAllowedClassIds.has(entry.classId))
+  ));
   const todaysClasses = classOptions
     .map((classRecord) => {
       const period = classRecord.period;
@@ -66,11 +77,18 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
 
   // The live period is a useful default, not an access requirement. Once a
   // teacher chooses a class, keep that choice for this Teacher Home session.
-  useEffect(() => {
-    if (currentClass?.classId) setRecoveryClassId((selected) => selected || currentClass.classId);
-  }, [currentClass?.classId]);
+  const currentClassCanUseRecovery = Boolean(
+    currentClass?.classId
+    && recoveryClassOptions.some((entry) => entry.classId === currentClass.classId),
+  );
 
-  const recoveryClass = classOptions.find((entry) => entry.classId === recoveryClassId) || null;
+  useEffect(() => {
+    if (currentClassCanUseRecovery) {
+      setRecoveryClassId((selected) => selected || currentClass.classId);
+    }
+  }, [currentClass?.classId, currentClassCanUseRecovery]);
+
+  const recoveryClass = recoveryClassOptions.find((entry) => entry.classId === recoveryClassId) || null;
   const recoveryAssignments = recoveryClass
     ? assignments.filter((assignment) => assignmentIsForStudent(assignment, { classId: recoveryClassId }))
     : [];
@@ -359,7 +377,7 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
               style={{ minHeight: 40, minWidth: 220, padding: '6px 8px', borderRadius: 8, border: '1px solid #dadce0', fontWeight: 700 }}
             >
               <option value="">Select a class…</option>
-              {classOptions.filter((entry) => entry.classId).map((entry) => (
+              {recoveryClassOptions.map((entry) => (
                 <option key={entry.classId} value={entry.classId}>{entry.name || entry.period || entry.classId}</option>
               ))}
             </select>
