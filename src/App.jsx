@@ -197,6 +197,7 @@ import {
   repairAssignmentTrackerForGranularWorkflowCredit,
   repairAssignmentTrackerForLiveCorrections,
 } from './platform/assignment/liveQuestionCorrection.js';
+import { GRAPH_VIEWPORT_REPAIR_KIND } from '../functions/shared/liveResponseRepairPolicy.mjs';
 import { normalizeQuestionWeight } from './platform/grading/questionWeights.js';
 import { normalizeLessonPublishingIntentV5 } from './platform/authoring/lessonPublishingIntent.js';
 import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
@@ -5400,6 +5401,18 @@ function App() {
 
     const needsLiveGradeTransaction = !isLibraryAssignment(questionEditorAssignment)
       && ((Array.isArray(liveRepairs) && liveRepairs.length > 0) || weightChanges.length > 0);
+    // A viewport repair reframes the picture; it never rewrites a response
+    // control, so it earns no correction credit and no returned attempt.
+    const presentationOnlyLiveRepair = Array.isArray(liveRepairs)
+      && liveRepairs.length > 0
+      && liveRepairs.every((repair) => repair?.repairKind === GRAPH_VIEWPORT_REPAIR_KIND);
+    // Nothing in a student's grade document can be affected by where a graph is
+    // framed, so a presentation-only repair never opens one. It reads and
+    // writes no student record at all: not to migrate a tracker, not to write
+    // back an identical one, and not to log that it happened. The repair is
+    // recorded once, on the assignment.
+    const needsStudentGradeMigration = weightChanges.length > 0
+      || (Array.isArray(liveRepairs) && liveRepairs.length > 0 && !presentationOnlyLiveRepair);
 
     if (needsLiveGradeTransaction) {
       const assignmentId = questionEditorAssignment.id;
@@ -5412,7 +5425,7 @@ function App() {
         },
       ));
 
-      if (audienceStudents.length > 450) {
+      if (needsStudentGradeMigration && audienceStudents.length > 450) {
         throw new Error(
           'This assignment has too many student records for a browser-side live correction. Use the server migration path so every student is updated atomically.',
         );
@@ -5480,11 +5493,13 @@ function App() {
           }
         });
 
-        const gradeEntries = await Promise.all(audienceStudents.map(async (student) => {
-          const studentRef = doc(db, 'grades', student.id);
-          const snapshot = await transaction.get(studentRef);
-          return { student, studentRef, snapshot };
-        }));
+        const gradeEntries = needsStudentGradeMigration
+          ? await Promise.all(audienceStudents.map(async (student) => {
+            const studentRef = doc(db, 'grades', student.id);
+            const snapshot = await transaction.get(studentRef);
+            return { student, studentRef, snapshot };
+          }))
+          : [];
 
         gradeEntries.forEach(({ studentRef, snapshot }) => {
           if (!snapshot.exists()) return;
@@ -5530,6 +5545,25 @@ function App() {
           if (Object.keys(studentPatch).length > 0) transaction.update(studentRef, studentPatch);
         });
 
+        // The live repair audit trail lives with the assignment, not with any
+        // student record, so a display-only correction is recorded without
+        // touching attempts, responses, grades or progress.
+        const priorLiveRepairHistory = Array.isArray(liveAssignment.liveRepairHistory)
+          ? liveAssignment.liveRepairHistory
+          : [];
+        const liveRepairAudit = (Array.isArray(liveRepairs) ? liveRepairs : []).map((repair) => ({
+          kind: repair?.repairKind || 'response-entry-repair',
+          questionId: repair?.questionId || null,
+          questionIndex: Number(repair?.questionIndex),
+          affectedFieldIds: Array.isArray(repair?.affectedFieldIds) ? repair.affectedFieldIds : [],
+          changedViewportKeys: Array.isArray(repair?.changedViewportKeys) ? repair.changedViewportKeys : [],
+          correctedAt,
+        }));
+
+        if (liveRepairAudit.length) {
+          assignmentPatch.liveRepairHistory = [...priorLiveRepairHistory, ...liveRepairAudit].slice(-50);
+        }
+
         transaction.update(assignmentRef, assignmentPatch);
       });
 
@@ -5542,6 +5576,11 @@ function App() {
         toastSuccess(
           'Grade weights saved',
           'Existing responses and attempts were not changed. MathMaster recalculated the assignment using the new question weights and queued Google Classroom to reconcile the updated score.',
+        );
+      } else if (presentationOnlyLiveRepair) {
+        toastSuccess(
+          'Graph viewport corrected',
+          'The graph is now framed so students can see the whole picture. This is a display-only change: attempts, responses, grades and progress were left exactly as they were.',
         );
       } else {
         toastSuccess(

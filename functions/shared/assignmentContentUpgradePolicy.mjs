@@ -1,4 +1,7 @@
-import { analyzeSafeResponseEntryRepair } from './liveResponseRepairPolicy.mjs';
+import {
+  GRAPH_VIEWPORT_REPAIR_KIND,
+  analyzeSafeResponseEntryRepair,
+} from './liveResponseRepairPolicy.mjs';
 
 const canonicalize = (value) => {
   if (Array.isArray(value)) return value.map(canonicalize);
@@ -131,6 +134,17 @@ export function classifyContentQuestionChange(before = {}, after = {}) {
   if (stable(before) === stable(after)) return { classification: 'unchanged', safe: true };
 
   const responseRepair = analyzeSafeResponseEntryRepair(before, after);
+  if (responseRepair.safe && responseRepair.repairKind === GRAPH_VIEWPORT_REPAIR_KIND) {
+    // Reframing the same graph is display-only: no response field changed, so
+    // nothing is regraded and no attempt is returned.
+    return {
+      classification: 'graphViewportRepair',
+      safe: true,
+      presentationOnly: true,
+      affectedFieldIds: [],
+      changedViewportKeys: responseRepair.changedViewportKeys || [],
+    };
+  }
   if (responseRepair.safe) {
     return {
       classification: 'safeResponseControl',

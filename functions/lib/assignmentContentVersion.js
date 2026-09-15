@@ -173,6 +173,7 @@ async function buildContentUpgradePlan({ liveAssignment, targetAssignment } = {}
   const counts = {
     unchanged: 0,
     safeResponseControl: 0,
+    graphViewportRepair: 0,
     gradingExpansion: 0,
     clarificationOnly: 0,
     fundamental: 0,

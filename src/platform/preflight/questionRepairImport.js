@@ -1,4 +1,5 @@
 import { parseExternalAiJson } from '../contract/externalAiJson.js';
+import { preservePlatformOwnedFields } from '../contract/platformOwnedFields.js';
 import { applyQuestionBatchRepairReplacements } from '../contract/questionBatchRepairPacket.js';
 import { buildAssignmentV5PreflightModel } from './assignmentV5PreflightModel.js';
 import { teacherFlagNeedsReview } from './assignmentAuthoringState.js';
@@ -162,6 +163,26 @@ const jsonDiff = (before, after, path = '') => {
   return [{ path, before, after }];
 };
 
+const GRAPH_VIEWPORT_PATHS = new Set(['graph.xMin', 'graph.xMax', 'graph.yMin', 'graph.yMax']);
+
+const topLevelArea = (path) => text(path).split(/[.[]/)[0] || '(root)';
+
+/**
+ * Name what a staged repair touches in the teacher's language. "graph" covers
+ * everything from a rewritten system to a relabelled axis, so a change that is
+ * only the window the same graph is drawn in says so: a teacher approving a
+ * live repair needs to see that difference without reading JSON paths.
+ */
+export const summarizeRepairDiff = (diff = []) => {
+  const paths = list(diff).map((change) => text(change?.path));
+  const graphPaths = paths.filter((path) => topLevelArea(path) === 'graph');
+  const viewportOnly = graphPaths.length > 0 && graphPaths.every((path) => GRAPH_VIEWPORT_PATHS.has(path));
+  return [...new Set(paths.map((path) => {
+    const area = topLevelArea(path);
+    return area === 'graph' && viewportOnly ? 'graph viewport' : area;
+  }))];
+};
+
 const pendingTeacherFlagsFor = (teacherReviewContext, row) => (
   reviewContextForQuestion(teacherReviewContext, {
     sectionId: row.sectionId,
@@ -194,7 +215,11 @@ const stageSingle = ({
   const row = rowForQuestionId(assignmentV5, questionId);
   requireReplacementIdentity(replacementQuestion, row.questionId);
 
-  const replacementSnapshot = cloneJson(replacementQuestion);
+  // MathMaster-owned fields are never authored by a repair reply, and the
+  // repair prompts explicitly forbid returning them. Restoring them from the
+  // live question before the diff means an omitted `teacherExcluded` reads as
+  // what it is — untouched — instead of as a teacher decision being reversed.
+  const replacementSnapshot = preservePlatformOwnedFields(row.question, cloneJson(replacementQuestion));
   const candidateAssignmentV5 = applyQuestionBatchRepairReplacements(assignmentV5, {
     replacements: [{ questionId: row.questionId, question: replacementSnapshot }],
   });
@@ -202,6 +227,7 @@ const stageSingle = ({
   const after = buildAssignmentV5PreflightModel(candidateAssignmentV5);
   const validation = validationSummary(before, after);
   const pendingFlags = pendingTeacherFlagsFor(teacherReviewContext, row);
+  const diff = jsonDiff(row.question, replacementSnapshot);
 
   return {
     kind: 'singleQuestionRepairImport',
@@ -210,7 +236,8 @@ const stageSingle = ({
     baseRevision: base,
     previousQuestion: cloneJson(row.question),
     replacementQuestion: replacementSnapshot,
-    diff: jsonDiff(row.question, replacementSnapshot),
+    diff,
+    changeSummary: summarizeRepairDiff(diff),
     candidateAssignmentV5,
     validation,
     canCommit: validation.newBlockingDiagnostics.length === 0,
@@ -263,7 +290,15 @@ export const stageBatchQuestionRepairImport = ({
     beforeModel,
   }));
 
-  const candidateAssignmentV5 = applyQuestionBatchRepairReplacements(assignmentV5, { replacements });
+  // The combined candidate must use the same platform-field-preserving
+  // snapshots the per-question staging diffed, or committing the batch would
+  // reapply the raw reply and undo that preservation.
+  const candidateAssignmentV5 = applyQuestionBatchRepairReplacements(assignmentV5, {
+    replacements: questionResults.map((result) => ({
+      questionId: result.questionId,
+      question: result.replacementQuestion,
+    })),
+  });
   const combinedAfterModel = buildAssignmentV5PreflightModel(candidateAssignmentV5);
   const aggregateValidation = validationSummary(beforeModel, combinedAfterModel);
   const pendingTeacherFlagIds = [...new Set(questionResults.flatMap((result) => result.pendingTeacherFlagIds))];

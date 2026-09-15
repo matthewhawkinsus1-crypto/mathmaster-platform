@@ -298,6 +298,11 @@ export default function AssignmentQuestionEditor(props) {
         questionIndex: historical.index,
         affectedFieldIds: analysis.affectedFieldIds,
         beforeFingerprint: analysis.beforeFingerprint,
+        // What kind of live repair this is, carried into the audit entry. A
+        // presentation-only graph viewport repair must never be mistaken for a
+        // response-entry correction, which returns credit and attempts.
+        repairKind: analysis.repairKind || 'response-entry-repair',
+        changedViewportKeys: analysis.changedViewportKeys || [],
       };
     });
   };
@@ -454,6 +459,7 @@ export default function AssignmentQuestionEditor(props) {
                     <div style={{ fontWeight: 900 }}>Question ID {result.questionId}</div>
                     <div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>
                       {result.diff.length} changed field{result.diff.length === 1 ? '' : 's'}
+                      {result.changeSummary?.length ? ` · ${result.changeSummary.join(' · ')}` : ''}
                       {result.diff.length ? ` · ${result.diff.slice(0, 5).map((change) => change.path || '(root)').join(' · ')}${result.diff.length > 5 ? ' · …' : ''}` : ''}
                     </div>
                   </div>

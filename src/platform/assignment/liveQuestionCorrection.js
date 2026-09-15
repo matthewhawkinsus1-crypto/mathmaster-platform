@@ -5,7 +5,10 @@ import {
 import { stableStringify } from '../../utils/idUtils.js';
 import { getDomainRangeAcceptedAnswers } from '../../interactiveGraphEngine.js';
 import { pathAnalysisTextMatches } from '../../../functions/shared/pathToolContracts.mjs';
-import { analyzeSafeResponseEntryRepair } from '../../../functions/shared/liveResponseRepairPolicy.mjs';
+import {
+  GRAPH_VIEWPORT_REPAIR_KIND,
+  analyzeSafeResponseEntryRepair,
+} from '../../../functions/shared/liveResponseRepairPolicy.mjs';
 import { readComposedQuestion } from '../workflow/questionWorkflow.js';
 import { gradeWorkflow } from '../workflow/workflowGrading.js';
 
@@ -30,8 +33,15 @@ export const repairQuestionRecordForLiveCorrection = ({
   record,
   question,
   affectedFieldIds = [],
+  repairKind = null,
   correctedAt = new Date().toISOString(),
 } = {}) => {
+  // A presentation-only repair (today: graph viewport bounds) reframes what a
+  // student looks at without changing anything they were asked or anything the
+  // grader reads. Nothing about the stored record is re-derived from it: no
+  // correction credit, no returned attempt, no status change, no history entry
+  // claiming a response was fixed.
+  if (repairKind === GRAPH_VIEWPORT_REPAIR_KIND) return record;
   if (!record || !affectedFieldIds.length) return record;
   const current = normalizeQuestionRecord(record);
   const hadActivity = Number(current.totalAttempts || current.attemptCount || 0) > 0
@@ -113,6 +123,7 @@ export const repairAssignmentTrackerForLiveCorrections = ({
       record,
       question: questions[index],
       affectedFieldIds: repair.affectedFieldIds || [],
+      repairKind: repair.repairKind || null,
       correctedAt,
     });
   });

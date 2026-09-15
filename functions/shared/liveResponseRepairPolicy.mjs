@@ -43,6 +43,103 @@ const sameOutsideAnswerFields = (before = {}, after = {}) => {
   return stableStringify(strip(before)) === stableStringify(strip(after));
 };
 
+/*
+ * PRESENTATION-ONLY GRAPH VIEWPORT REPAIR.
+ *
+ * A teacher watching a live assignment can discover that an authored window
+ * hides the part of the graph the question is about — a system whose
+ * intersection sits outside the authored bounds, for example. Changing where
+ * the same graph is framed changes nothing a student is asked to do and
+ * nothing the grader reads, so it is the one graph edit that stays safe after
+ * students begin work. Everything else about the graph — its functions, lines,
+ * points, labels — is mathematical content and stays frozen.
+ */
+export const GRAPH_VIEWPORT_KEYS = Object.freeze(['xMin', 'xMax', 'yMin', 'yMax']);
+export const GRAPH_VIEWPORT_REPAIR_KIND = 'graph-viewport-repair';
+
+const VIEWPORT_KEY_SET = new Set(GRAPH_VIEWPORT_KEYS);
+
+const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+// A graph object holding nothing but bounds is a window, not content. Dropping
+// an emptied one lets a question that never carried a `graph` key compare equal
+// to the same question with a window added: tools like systemsWorkspace draw
+// their lines from `system` and read `graph` only for the axes, so the window
+// is the one part of it that was never mathematical.
+const withoutViewport = (question = {}) => {
+  if (!isPlainObject(question.graph)) return question;
+  const remaining = withoutKeys(question.graph, VIEWPORT_KEY_SET);
+  const copy = { ...question };
+  if (Object.keys(remaining).length) copy.graph = remaining;
+  else delete copy.graph;
+  return copy;
+};
+
+const analyzeGraphViewportRepair = (before = {}, after = {}) => {
+  const beforeGraph = isPlainObject(before.graph) ? before.graph : null;
+  const afterGraph = isPlainObject(after.graph) ? after.graph : null;
+  if (!afterGraph) return null;
+
+  if (!beforeGraph) {
+    // The live question has no graph object at all: the tool is drawing from
+    // its own mathematical fields and falling back to default axes. A repair
+    // may supply the window those defaults got wrong, and nothing else — an
+    // added graph carrying functions, lines, points or labels is new content.
+    const contentKeys = Object.keys(afterGraph).filter((key) => !VIEWPORT_KEY_SET.has(key));
+    if (contentKeys.length) {
+      return {
+        safe: false,
+        affectedFieldIds: [],
+        reason: `A live repair may add graph viewport bounds only. This repair also adds graph content (${contentKeys.join(', ')}) to a question students already received.`,
+      };
+    }
+  }
+
+  const changedKeys = GRAPH_VIEWPORT_KEYS.filter((key) => (
+    stableStringify(beforeGraph?.[key] ?? null) !== stableStringify(afterGraph[key] ?? null)
+  ));
+  if (!changedKeys.length) return null;
+
+  if (stableStringify(withoutViewport(before)) !== stableStringify(withoutViewport(after))) {
+    return {
+      safe: false,
+      affectedFieldIds: [],
+      reason: 'A live graph repair may change only the viewport bounds (xMin, xMax, yMin, yMax). The prompt, standards, tool type, equations, plotted objects, grading, and every other field must stay exactly as students received them.',
+    };
+  }
+
+  const bounds = {};
+  for (const key of GRAPH_VIEWPORT_KEYS) {
+    const value = Number(afterGraph[key]);
+    if (!Number.isFinite(value)) {
+      return {
+        safe: false,
+        affectedFieldIds: [],
+        reason: `Graph viewport bound “${key}” must be a finite number.`,
+      };
+    }
+    bounds[key] = value;
+  }
+  if (!(bounds.xMin < bounds.xMax)) {
+    return { safe: false, affectedFieldIds: [], reason: 'Graph viewport bounds require xMin to be less than xMax.' };
+  }
+  if (!(bounds.yMin < bounds.yMax)) {
+    return { safe: false, affectedFieldIds: [], reason: 'Graph viewport bounds require yMin to be less than yMax.' };
+  }
+
+  // No affected response fields, by construction: nothing a student answered
+  // was rewritten, so no live correction credit and no extra attempt can be
+  // owed for reframing the same picture.
+  return {
+    safe: true,
+    presentationOnly: true,
+    repairKind: GRAPH_VIEWPORT_REPAIR_KIND,
+    affectedFieldIds: [],
+    changedViewportKeys: changedKeys,
+    viewport: bounds,
+  };
+};
+
 const WORKFLOW_WORD_CHOICE_REPAIRS = Object.freeze([
   { choiceKey: 'domainWordsChoices', correctKey: 'correctDomainWords', stageId: 'domainWords', askKey: 'domainWords' },
   { choiceKey: 'rangeWordsChoices', correctKey: 'correctRangeWords', stageId: 'rangeWords', askKey: 'rangeWords' },
@@ -201,6 +298,9 @@ export const analyzeSafeResponseEntryRepair = (beforeQuestion = {}, afterQuestio
   if (!beforeQuestion?.questionId || beforeQuestion.questionId !== afterQuestion?.questionId) {
     return { safe: false, affectedFieldIds: [], reason: 'The question ID must stay exactly the same.' };
   }
+
+  const viewportRepair = analyzeGraphViewportRepair(beforeQuestion, afterQuestion);
+  if (viewportRepair) return viewportRepair;
 
   const workflowRepair = analyzeWorkflowWordChoiceRepair(beforeQuestion, afterQuestion);
   if (workflowRepair) return workflowRepair;
