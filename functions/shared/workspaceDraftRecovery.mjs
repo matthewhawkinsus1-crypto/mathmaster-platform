@@ -231,6 +231,9 @@ export const assessWorkspaceDraftEntry = ({
     ...base,
     ...outcome(DRAFT_RECOVERY_STATUS.RECOVERABLE, 'all-five-proofs-hold', {
       response,
+      // Safe for teacher preview: this is the server-derived verdict only,
+      // never the submitted response, answer key, or grading contract.
+      proposedResult: grading.isCorrect ? 'Correct' : 'Incorrect',
       documentSavedAtMs: savedAt,
       closesAtMs: closeAt,
     }),

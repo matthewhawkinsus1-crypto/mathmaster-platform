@@ -9006,6 +9006,8 @@ function App() {
                 learningProfilesByStudentId={teacherLearningProfiles}
                 activeClassId={activeClass.classId}
                 classes={classes}
+                teacherEmail={user.email || ''}
+                isRootAdmin={user.isRootAdmin === true}
                 studentSupportEvents={studentSupportEvents}
                 studentSessionSummaries={studentSessionSummaries}
                 onRecordStudentSupportEvent={handleRecordStudentSupportEvent}
