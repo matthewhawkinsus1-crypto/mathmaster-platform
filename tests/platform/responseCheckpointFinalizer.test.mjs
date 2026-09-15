@@ -1225,12 +1225,12 @@ test('the page-lifecycle flush obeys the same eligibility rules as the debounce'
 });
 
 test('an explicit submission retires its checkpoint in the same transaction as the attempt', () => {
-  // The whole reconciliation unit: the dispatcher plus the direct Firestore
-  // fallback it delegates to. The checkpoint retirement lives in the write.
-  const start = appSource.indexOf('const buildSubmissionEnvelopeForAction');
-  const block = appSource.slice(start, appSource.indexOf('const drainStudentOutbox', start));
+  // Canonical ingestion is the only grade writer, so bind this atomicity check
+  // to the server transaction rather than the removed browser fallback.
+  const start = functionsSource.indexOf('async function ingestOneSubmission');
+  const block = functionsSource.slice(start, functionsSource.indexOf('exports.ingestStudentSubmissions', start));
   assert.match(block, /checkpointRef \? transaction\.get\(checkpointRef\) : Promise\.resolve\(null\)/);
-  assert.match(block, /transaction\.update\(checkpointRef, \{\s*\n\s*status: 'explicitly-submitted'/);
+  assert.match(block, /transaction\.update\(checkpointRef, \{\s*\n\s*status: "explicitly-submitted"/);
   assert.match(block, /candidateFinalizeAt: null/);
 });
 

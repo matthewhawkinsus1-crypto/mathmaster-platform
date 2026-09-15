@@ -582,11 +582,19 @@ export const drainDurableActions = ({
         else tally.retryable += 1;
         if (stream.lane === LANE.GRADE) gradeBlocked += 1;
         retained.push({ actionId: action.actionId, kind: action.kind, ...normalized });
+        const attemptedAt = Number(now) || Date.now();
         const delivery = {
           attempts: Number(action.delivery?.attempts || 0) + 1,
           disposition: normalized.disposition,
-          reason: normalized.reason,
-          lastAttemptAt: now,
+          reason: String(normalized.reason || 'delivery-failed').slice(0, 160),
+          safeReason: String(normalized.diagnostic?.safeReason || normalized.reason || 'delivery-failed').slice(0, 160),
+          transport: String(normalized.diagnostic?.transport || action.delivery?.transport || 'unknown').slice(0, 40),
+          firebaseCode: normalized.diagnostic?.firebaseCode
+            ? String(normalized.diagnostic.firebaseCode).slice(0, 80)
+            : (action.delivery?.firebaseCode || null),
+          firstFailureAt: Number(action.delivery?.firstFailureAt) || attemptedAt,
+          latestFailureAt: attemptedAt,
+          lastAttemptAt: attemptedAt,
         };
         if (typeof storage.annotateIfCurrent === 'function') {
           await storage.annotateIfCurrent(action.actionId, action.createdOrder ?? action.createdAt ?? 0, delivery)
@@ -658,7 +666,7 @@ export const drainDurableActions = ({
  * It reports it as what it is: an aggregate from a device that has not been
  * updated yet.
  */
-export const DEVICE_SUMMARY_SCHEMA_VERSION = 2;
+export const DEVICE_SUMMARY_SCHEMA_VERSION = 3;
 
 // A device with work queued across more assignments than this is reporting a
 // shape nobody will read; the cap keeps one bad row from bloating a document.
@@ -676,6 +684,19 @@ const countByAssignment = (actions) => {
       .sort((left, right) => right[1] - left[1])
       .slice(0, MAX_SUMMARIZED_ASSIGNMENTS),
   );
+};
+
+const nestedCountByAssignment = (actions, valueForAction) => {
+  const summaries = {};
+  actions.forEach((action) => {
+    const assignmentId = String(action.assignmentId || '');
+    const value = String(valueForAction(action) || '');
+    if (!assignmentId || !value) return;
+    const counts = summaries[assignmentId] || {};
+    counts[value] = (counts[value] || 0) + 1;
+    summaries[assignmentId] = counts;
+  });
+  return Object.fromEntries(Object.entries(summaries).slice(0, MAX_SUMMARIZED_ASSIGNMENTS));
 };
 
 export const summarizeDurableOutbox = async ({ storage = indexedDbOutboxStorage, studentId = null } = {}) => {
@@ -702,6 +723,11 @@ export const summarizeDurableOutbox = async ({ storage = indexedDbOutboxStorage,
     queuedByAssignment: countByAssignment(queued),
     queuedGradeBearingByAssignment: countByAssignment(gradeBearing),
     needsReviewByAssignment: countByAssignment(needsReviewActions),
+    queuedKindsByAssignment: nestedCountByAssignment(queued, (action) => action.kind),
+    blockedReasonsByAssignment: nestedCountByAssignment(
+      queued,
+      (action) => action.delivery?.safeReason || action.delivery?.reason || 'not-attempted',
+    ),
     oldestCapturedAt: queued.length ? Math.min(...queued.map((action) => Number(action.createdAt) || 0)) : null,
     latestCapturedAt: queued.length ? Math.max(...queued.map((action) => Number(action.createdAt) || 0)) : null,
     blockedReasons: byReason,

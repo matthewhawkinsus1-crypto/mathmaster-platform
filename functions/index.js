@@ -6509,6 +6509,19 @@ exports.syncGradeToClassroom = onDocumentWritten(
 
       const grade = progress.grade;
       const isFinal = ["final-complete", "final-deadline"].includes(stage);
+      // A final-looking partial grade is more dangerous than a delayed grade.
+      // Ordinary assignments consult known queue/checkpoint/session evidence;
+      // Secure Test Cycle retains its separate release authority unchanged.
+      const persistenceState = (!isTestCycleAssignment && isFinal)
+        // eslint-disable-next-line no-await-in-loop
+        ? await readPersistencePending({
+          db,
+          studentId: event.params.studentId,
+          assignmentId,
+          canonicalAttempted: progress.attempted,
+          secureTestCycle: false,
+        })
+        : { persistencePending: false, reasons: [] };
       const releasePolicy = classroomGradeReleasePolicy({
         stage,
         assignment,
@@ -6525,6 +6538,31 @@ exports.syncGradeToClassroom = onDocumentWritten(
         (doc) => doc.data().status === "published" && doc.data().courseworkId
       );
       if (publications.length === 0) continue;
+
+      if (persistenceState.persistencePending) {
+        for (const publicationDoc of publications) {
+          const publication = publicationDoc.data() || {};
+          // eslint-disable-next-line no-await-in-loop
+          await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            assignmentId,
+            courseId: String(publication.courseId || ""),
+            courseworkId: publication.courseworkId || null,
+            status: "sync-pending",
+            stage: "sync-pending",
+            grade,
+            attempted: progress.attempted,
+            total: progress.total,
+            creditOnAttempted: progress.creditOnAttempted,
+            isFinal: false,
+            persistencePending: true,
+            persistencePendingReasons: persistenceState.reasons,
+            studentVisible: false,
+            returnedToStudent: false,
+            message: "Known persistence evidence is still unresolved; final Classroom passback is withheld.",
+          });
+        }
+        continue;
+      }
 
       const successfulCourses = [];
 
@@ -13561,6 +13599,37 @@ exports.assignmentAiSelfTest = onCall({
 
 const DEVICE_QUEUE_REPORT_COLLECTION = "studentDevicePersistenceReports";
 
+let persistencePendingModule = null;
+async function persistencePendingLib() {
+  if (!persistencePendingModule) persistencePendingModule = await import("./shared/persistencePending.mjs");
+  return persistencePendingModule;
+}
+
+async function readPersistencePending({ db, studentId, assignmentId, canonicalAttempted, secureTestCycle = false }) {
+  const [deviceSnapshot, checkpointSnapshot, sessionSnapshot] = await Promise.all([
+    db.collection(DEVICE_QUEUE_REPORT_COLLECTION).where("studentId", "==", studentId).limit(10).get(),
+    db.collection(CHECKPOINT_COLLECTION).where("studentId", "==", studentId)
+      .where("assignmentId", "==", assignmentId).where("status", "==", CHECKPOINT_STATUS_ACTIVE).limit(200).get(),
+    db.collection(STUDENT_SESSION_SUMMARY_COLLECTION).where("studentId", "==", studentId)
+      .where("assignmentId", "==", assignmentId).limit(50).get(),
+  ]);
+  const assignmentKey = encodeURIComponent(assignmentId);
+  const queuedGradeBearing = deviceSnapshot.docs.reduce(
+    (total, snapshot) => total + (Number(snapshot.data()?.queuedGradeBearingByAssignment?.[assignmentKey]) || 0), 0,
+  );
+  const worked = sessionSnapshot.docs.reduce(
+    (maximum, snapshot) => Math.max(maximum, Number(snapshot.data()?.answered) || 0), 0,
+  );
+  const { assessPersistencePending } = await persistencePendingLib();
+  return assessPersistencePending({
+    queuedGradeBearing,
+    activeCheckpoints: checkpointSnapshot.size,
+    worked,
+    canonicalAttempted,
+    secureTestCycle,
+  });
+}
+
 let workspaceDraftRecoveryModule = null;
 async function workspaceDraftRecovery() {
   if (!workspaceDraftRecoveryModule) {
@@ -13599,6 +13668,11 @@ exports.reportStudentDeviceQueue = onCall(async (request) => {
       .slice(0, 40)
       .map(([key, count]) => [encodeURIComponent(String(key)).slice(0, 300), number(count)]),
   );
+  const assignmentNestedCountMap = (value) => Object.fromEntries(
+    Object.entries(value && typeof value === "object" ? value : {})
+      .slice(0, 40)
+      .map(([key, counts]) => [encodeURIComponent(String(key)).slice(0, 300), countMap(counts)]),
+  );
 
   /*
    * A version 1 device sent only an aggregate. It is stored as an aggregate and
@@ -13611,7 +13685,11 @@ exports.reportStudentDeviceQueue = onCall(async (request) => {
     && typeof summary.queuedGradeBearingByAssignment === "object";
 
   const db = getFirestore();
-  await db.collection(DEVICE_QUEUE_REPORT_COLLECTION).doc(`${encodeURIComponent(studentId)}__${deviceId}`).set({
+  const reportRef = db.collection(DEVICE_QUEUE_REPORT_COLLECTION).doc(`${encodeURIComponent(studentId)}__${deviceId}`);
+  const previousReport = await reportRef.get();
+  const previousByAssignment = previousReport.data()?.queuedGradeBearingByAssignment || {};
+  const nextByAssignment = assignmentCountMap(summary.queuedGradeBearingByAssignment);
+  await reportRef.set({
     studentId,
     deviceId,
     summarySchemaVersion,
@@ -13621,17 +13699,35 @@ exports.reportStudentDeviceQueue = onCall(async (request) => {
     queuedGradeBearing: number(summary.queuedGradeBearing),
     queuedByKind: countMap(summary.queuedByKind),
     queuedByAssignment: assignmentCountMap(summary.queuedByAssignment),
-    queuedGradeBearingByAssignment: assignmentCountMap(summary.queuedGradeBearingByAssignment),
+    queuedGradeBearingByAssignment: nextByAssignment,
     needsReviewByAssignment: assignmentCountMap(summary.needsReviewByAssignment),
+    queuedKindsByAssignment: assignmentNestedCountMap(summary.queuedKindsByAssignment),
+    blockedReasonsByAssignment: assignmentNestedCountMap(summary.blockedReasonsByAssignment),
     blockedReasons: countMap(summary.blockedReasons),
     needsReview: number(summary.needsReview),
     retired: number(summary.retired),
     retiredByDisposition: countMap(summary.retiredByDisposition),
     oldestCapturedAt: Number(summary.oldestCapturedAt) || null,
     latestCapturedAt: Number(summary.latestCapturedAt) || null,
-    ingestionFallbacks: number(summary.ingestionFallbacks),
     reportedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
+  // Clearing the last locally reported item must wake the existing grade
+  // trigger; otherwise a passback withheld as sync-pending would wait until the
+  // next unrelated grade change.
+  const resolvedAssignments = Object.keys(previousByAssignment).filter(
+    (key) => Number(previousByAssignment[key]) > 0 && Number(nextByAssignment[key] || 0) === 0,
+  );
+  if (resolvedAssignments.length) {
+    const gradeRef = db.collection("grades").doc(studentId);
+    const updates = [];
+    resolvedAssignments.forEach((encodedAssignmentId) => {
+      updates.push(
+        new FieldPath("classroomReleaseSignals", decodeURIComponent(encodedAssignmentId)),
+        { requestedAt: new Date().toISOString(), reason: "persistence-reconciled" },
+      );
+    });
+    await gradeRef.update(...updates);
+  }
   return { success: true, summarySchemaVersion };
 });
 
@@ -13910,6 +14006,21 @@ async function buildStudentRecoveryRow({
   const presenceActiveSeconds = sessionSnapshot.docs.reduce(
     (total, snapshot) => total + (Number(snapshot.data()?.activeSeconds) || 0), 0,
   );
+  const queuedGradeBearingForAssignment = deviceSnapshot.docs.reduce((total, snapshot) => {
+    const data = snapshot.data() || {};
+    return total + (Number(data.queuedGradeBearingByAssignment?.[encodeURIComponent(assignmentId)]) || 0);
+  }, 0);
+  const { assessPersistencePending } = await persistencePendingLib();
+  const persistenceState = assessPersistencePending({
+    queuedGradeBearing: queuedGradeBearingForAssignment,
+    activeCheckpoints: Object.entries(checkpointsByStatus)
+      .filter(([status]) => ["active", "recoverable", "recovered-after-close", "incomplete-at-close"].includes(status))
+      .reduce((total, [, count]) => total + Number(count || 0), 0),
+    recoverableDrafts: Number(draftAssessment?.recoverable?.length) || 0,
+    worked: presenceAnswered,
+    canonicalAttempted,
+    secureTestCycle: secureAssignmentMode(assignment),
+  });
 
   /*
    * WHY A RECOVERY IS BLOCKED, IN ONE LIST.
@@ -13925,20 +14036,20 @@ async function buildStudentRecoveryRow({
     ...Object.entries((draftAssessment?.counts) || {})
       .filter(([status]) => status !== "recoverable")
       .map(([status, count]) => ({ source: "workspaceDraft", reason: status, count })),
-    /*
-     * A device's blocked reasons are device-wide: the outbox records why a
-     * delivery failed, not which assignment it failed for. They are listed
-     * with that scope named, so a teacher reads them as "this Chromebook has a
-     * problem" rather than "this assignment has a problem".
-     */
-    ...deviceSnapshot.docs.flatMap((snapshot) => Object.entries(snapshot.data()?.blockedReasons || {})
+    ...deviceSnapshot.docs.flatMap((snapshot) => {
+      const data = snapshot.data() || {};
+      const assignmentKey = encodeURIComponent(assignmentId);
+      const scoped = data.blockedReasonsByAssignment?.[assignmentKey];
+      const reasons = scoped && typeof scoped === "object" ? scoped : data.blockedReasons || {};
+      return Object.entries(reasons)
       .map(([reason, count]) => ({
         source: "deviceQueue",
-        scope: "device-wide",
+        scope: scoped ? "assignment" : "device-wide",
         reason,
         count,
-        deviceId: snapshot.data()?.deviceId || null,
-      }))),
+        deviceId: data.deviceId || null,
+      }));
+    }),
   ];
 
   return {
@@ -13996,6 +14107,12 @@ async function buildStudentRecoveryRow({
         needsReviewForAssignment: knowsAssignments
           ? Number(data.needsReviewByAssignment?.[assignmentKey]) || 0
           : null,
+        blockedReasonsForAssignment: knowsAssignments
+          ? (data.blockedReasonsByAssignment?.[assignmentKey] || {})
+          : null,
+        queuedKindsForAssignment: knowsAssignments
+          ? (data.queuedKindsByAssignment?.[assignmentKey] || {})
+          : null,
         // Device-wide totals across every assignment. Labelled, so a reader
         // cannot mistake them for this assignment's.
         deviceWideQueued: Number(data.queued) || 0,
@@ -14011,6 +14128,8 @@ async function buildStudentRecoveryRow({
     // The headline. Work the student's own session says they did, that the
     // gradebook cannot account for.
     unaccountedForQuestions: Math.max(0, presenceAnswered - canonicalAttempted),
+    persistencePending: persistenceState.persistencePending,
+    persistencePendingReasons: persistenceState.reasons,
     needsReview,
   };
 }
@@ -14087,6 +14206,19 @@ exports.getStudentPersistenceRecoveryReport = onCall({ timeoutSeconds: 300 }, as
       devicesWithoutAssignmentBreakdown: rows.reduce((total, row) => total + row.deviceQueues.filter(
         (queue) => !queue.assignmentQueueKnown,
       ).length, 0),
+    },
+    persistenceHealth: {
+      ingestionService: rows.some((row) => row.needsReview.some(
+        (item) => item.source === "deviceQueue" && /^callable-(unavailable|permission-denied|deadline-exceeded)/.test(item.reason),
+      )) ? "degraded" : "no-reported-transport-error",
+      deviceReportingService: rows.some((row) => row.deviceQueues.length) ? "reporting" : "not-yet-reported",
+      queuedGradeBearing: rows.reduce((total, row) => total + row.deviceQueues.reduce(
+        (sum, queue) => sum + (Number(queue.queuedGradeBearingForAssignment) || 0), 0,
+      ), 0),
+      oldestQueuedActionAt: rows.reduce((oldest, row) => row.deviceQueues.reduce((value, queue) => {
+        const captured = Number(queue.oldestCapturedAt) || null;
+        return captured && (!value || captured < value) ? captured : value;
+      }, oldest), null),
     },
     students: rows.sort((left, right) => right.unaccountedForQuestions - left.unaccountedForQuestions),
   };

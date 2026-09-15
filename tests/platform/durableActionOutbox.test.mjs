@@ -242,32 +242,19 @@ test('production integration uses FieldPath segments and secure Test Cycle never
     readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8'),
     readFile(new URL('../../src/services/secureExamService.js', import.meta.url), 'utf8'),
   ]);
-  assert.match(app, /new FieldPath\('gradesByAssignment', action\.assignmentId, String\(action\.questionIndex\)\)/);
   assert.doesNotMatch(app, /`gradesByAssignment\.\$\{activeAssignmentId\}/);
   // THE RECONCILIATION UNIT, not one function name.
-  // Delivery is now a dispatcher plus the direct-to-Firestore fallback it calls,
+  // Delivery is now a dispatcher plus non-grade background persistence,
   // so the region starts where the envelope is built and ends at the drain. A
   // region pinned to a single function would have gone red for a rename while
   // every behaviour below stayed intact.
   const reconciliation = region(app, 'const buildSubmissionEnvelopeForAction', 'const drainStudentOutbox', 'student reconciliation');
-  assert.match(reconciliation, /if \(action\.payload\.hasClassworkGrade\)/);
-  assert.match(reconciliation, /if \(action\.payload\.hasDolGrade\)/);
-  assert.match(reconciliation, /getAssignmentLifecycle\(assignment, capturedAt\)/);
-  assert.match(reconciliation, /teacherReopenedWarmupAtCapture/);
-  // The closed-at-capture rule and its teacher-reopen exception moved into
-  // the shared classifier, which is exercised directly in
-  // tests/platform/studentSubmissionDisposition.test.mjs. What the reconciler
-  // still owes is handing both facts over, judged at the capture time.
-  assert.match(reconciliation, /assignmentClosedAtCapture: lifecycleAtCapture \? lifecycleAtCapture\.isClosed : null/);
-  assert.match(reconciliation, /teacherReopenedWarmupAtCapture,/);
-  assert.match(reconciliation, /warmupCaptureWasActive\(timedSectionAccess, capturedAt\)/);
-  assert.match(reconciliation, /nowValue: capturedAt/);
-  // A close the teacher made AFTER the capture must not erase the capture.
-  // That used to be an inline `override.changedAt > capturedAt` comparison; it
-  // is now the shared proof, which also records the section state the browser
-  // saw so a missing `changedAt` cannot silently mean "closed".
-  assert.match(reconciliation, /sectionOpenAtCapture: sectionWasOpenAtCapture\(\{/);
-  assert.match(reconciliation, /capturedSectionAccess: action\.payload\?\.capturedSectionAccess/);
+  assert.match(reconciliation, /hasClassworkGrade: payload\.hasClassworkGrade === true/);
+  assert.match(reconciliation, /hasDolGrade: payload\.hasDolGrade === true/);
+  assert.match(reconciliation, /if \(INGESTIBLE_KINDS\.includes\(action\.kind\)\) \{\s*throw new Error\('Grade-bearing actions require server ingestion\.'/);
+  assert.match(reconciliation, /await ingestOneSubmission\(buildSubmissionEnvelopeForAction\(action\)\)/);
+  assert.match(reconciliation, /disposition: SUBMISSION_DISPOSITION\.RETRYABLE/);
+  assert.doesNotMatch(reconciliation, /lastSubmissionId: action\.actionId|wroteEvidenceFor/);
   assert.doesNotMatch(reconciliation, /deleteField\(/);
   assert.match(app, /await enqueueDurableAction\(createDurableAction\(\{[\s\S]*kind: 'ordinarySubmission'/);
   assert.match(app, /createdAt: submissionCapturedAt/);

@@ -206,6 +206,12 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
 
       {report && (
         <>
+          <div role="status" style={{ ...CARD, marginTop: 12, background: '#f8fafd', fontSize: 13 }}>
+            <strong>Persistence health:</strong>{' '}
+            ingestion {report.persistenceHealth?.ingestionService || 'unknown'} · device reporting {report.persistenceHealth?.deviceReportingService || 'unknown'} ·{' '}
+            {report.persistenceHealth?.queuedGradeBearing || 0} grade-bearing item(s) queued
+            {report.persistenceHealth?.oldestQueuedActionAt ? ` · oldest ${clock(report.persistenceHealth.oldestQueuedActionAt)}` : ''}
+          </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 14, fontSize: 13 }}>
             <span><strong>{report.totals.canonicalAttempted}</strong> canonical attempts</span>
             <span><strong>{report.totals.unaccountedForQuestions}</strong> unaccounted-for questions</span>
@@ -274,8 +280,8 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
               </thead>
               <tbody>
                 {report.students.map((student) => (
-                  <tr key={student.studentId} style={student.unaccountedForQuestions > 0 ? { background: '#fef7e0' } : undefined}>
-                    <td style={CELL}>{student.studentName}</td>
+                  <tr key={student.studentId} style={student.persistencePending ? { background: '#fef7e0' } : undefined}>
+                    <td style={CELL}>{student.studentName}{student.persistencePending ? <><br /><strong>Sync pending</strong></> : null}</td>
                     <td style={CELL}>{student.canonicalAttempted} / {student.expectedQuestionCount}</td>
                     <td style={CELL}>{student.presence.answered || '—'}</td>
                     <td style={{ ...CELL, fontWeight: student.unaccountedForQuestions ? 900 : 400 }}>{student.unaccountedForQuestions || '—'}</td>
@@ -287,7 +293,10 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
                         : 'not reported'}
                     </td>
                     <td style={CELL}>{student.recoveredAttempts || '—'}</td>
-                    <td style={CELL}>{countList(Object.fromEntries(student.needsReview.map((item) => [`${item.source}:${item.reason}`, item.count])))}</td>
+                    <td style={CELL}>{countList(Object.fromEntries([
+                      ...student.needsReview.map((item) => [`${item.source}:${item.reason}`, item.count]),
+                      ...(student.persistencePendingReasons || []).map((reason) => [`pending:${reason}`, 1]),
+                    ]))}</td>
                   </tr>
                 ))}
               </tbody>

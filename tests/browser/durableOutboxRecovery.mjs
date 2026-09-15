@@ -137,6 +137,24 @@ try {
     '17. a PR #226 row must be deliverable by the new drain');
 
   /* ---------------------------------------------------------------------
+   * SUBMIT WAITS FOR INDEXEDDB, NEVER FOR THE NETWORK.
+   * ------------------------------------------------------------------- */
+  await harness(() => window.outboxHarness.reset());
+  await open();
+  const localAdvance = await harness(async () => {
+    const result = await window.outboxHarness.captureThenDeliverInBackground('slow-network-submit', 5000);
+    // Promises cannot cross the page boundary; intentionally leave delivery
+    // running and return only when the UI would advance.
+    return { advancedAfterMs: result.advancedAfterMs };
+  });
+  check(localAdvance.advancedAfterMs < 500,
+    `Submit waited ${localAdvance.advancedAfterMs}ms; a 5s server call must remain outside the interaction path`);
+  await harness(() => window.outboxHarness.enqueue('interaction-during-slow-sync', { questionIndex: 9 }));
+  check((await harness(() => window.outboxHarness.list())).some((entry) => entry.actionId === 'interaction-during-slow-sync'),
+    'a slow delivery must not block another local durable interaction');
+  await page.waitForTimeout(5100);
+
+  /* ---------------------------------------------------------------------
    * A HUNG RECONCILE MUST NOT OWN THE QUEUE.
    *
    * A Firestore client transaction does not fail fast when the network is gone;

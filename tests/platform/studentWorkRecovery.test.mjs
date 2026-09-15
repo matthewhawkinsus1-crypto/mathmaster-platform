@@ -394,10 +394,12 @@ test('the submission path still captures durably first and reconciles in the bac
   const block = appSource.slice(start, appSource.indexOf('const handleStepGrade', start));
   // The student's click waits on IndexedDB, never on Firestore.
   assert.match(block, /queuedAction = await enqueueDurableAction\(createDurableAction\(\{/);
-  assert.match(block, /void \(async \(\) => \{[\s\S]*?await drainStudentOutbox\(\{ successStatus: 'submitted' \}\)/);
+  // Delivery now wraps the drain with pre/post device reports; it is still
+  // launched only after local state advances and remains deliberately voided.
+  assert.match(block, /void \(async \(\) => \{[\s\S]*?await reconcileAndReportStudentOutbox\(\{ successStatus: 'submitted' \}\)/);
   const capture = block.indexOf('enqueueDurableAction');
   const uiUpdate = block.indexOf('setTracker(updatedTracker)');
-  const network = block.indexOf('drainStudentOutbox');
+  const network = block.indexOf('reconcileAndReportStudentOutbox');
   assert.ok(capture < uiUpdate && uiUpdate < network, 'capture, then UI, then network');
 });
 

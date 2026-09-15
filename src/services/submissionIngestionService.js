@@ -38,7 +38,11 @@ const withTimeout = (promise, timeoutMs) => {
   return Promise.race([
     Promise.resolve(promise).finally(() => { if (timer) clearTimeout(timer); }),
     new Promise((_, reject) => {
-      timer = setTimeout(() => reject(new Error('The server did not answer in time.')), timeoutMs);
+      timer = setTimeout(() => {
+        const error = new Error('The server did not answer in time.');
+        error.code = 'functions/deadline-exceeded';
+        reject(error);
+      }, timeoutMs);
     }),
   ]);
 };
@@ -79,6 +83,22 @@ export const ingestOneSubmission = async (envelope, options) => {
 
 export { SUBMISSION_DISPOSITION };
 
+const SAFE_FIREBASE_CODES = new Set([
+  'cancelled', 'deadline-exceeded', 'internal', 'permission-denied',
+  'resource-exhausted', 'unauthenticated', 'unavailable', 'unknown',
+]);
+
+/** Reduce a callable failure to operational metadata; never retain its message/details. */
+export const callableDeliveryDiagnostic = (error, transport = 'callable') => {
+  const rawCode = String(error?.code || '').replace(/^functions\//, '').toLowerCase();
+  const firebaseCode = SAFE_FIREBASE_CODES.has(rawCode) ? rawCode : 'unknown';
+  return Object.freeze({
+    transport,
+    firebaseCode,
+    safeReason: `callable-${firebaseCode}`,
+  });
+};
+
 /*
  * THIS DEVICE'S OWN INCIDENT REPORT.
  *
@@ -108,12 +128,12 @@ export const resolveDeviceId = () => {
   }
 };
 
-export const reportDeviceQueueState = async ({ studentId, summary = null, ingestionFallbacks = 0 } = {}) => {
+export const reportDeviceQueueState = async ({ studentId, summary = null, timeoutMs = INGEST_TIMEOUT_MS } = {}) => {
   if (!studentId) return null;
   const payload = summary || await summarizeDurableOutbox({ studentId });
-  const response = await httpsCallable(functions, 'reportStudentDeviceQueue')({
-    deviceId: resolveDeviceId(),
-    summary: { ...payload, ingestionFallbacks },
-  });
+  const response = await withTimeout(
+    httpsCallable(functions, 'reportStudentDeviceQueue')({ deviceId: resolveDeviceId(), summary: payload }),
+    timeoutMs,
+  );
   return response?.data || null;
 };

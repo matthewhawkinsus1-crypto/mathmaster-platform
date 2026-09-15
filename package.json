@@ -34,7 +34,10 @@
     "test:path-release:emulator": "firebase emulators:exec --only firestore --project mathmaster-path-release --config tests/browser/emulator/firebase.json \"node --test tests/integration/pathRelease/*.test.mjs\"",
     "deploy:path-admin": "npm run release:path:build && npm run release:path:sync && firebase deploy --only functions:path-admin,firestore:rules && npm run deploy:hosting",
     "test:durable-outbox": "node scripts/run-durable-outbox-certification.mjs",
-    "test:canonical-persistence": "firebase emulators:exec --only firestore --project mathmaster-persist-harness --config tests/browser/emulator/firebase.json \"node --test tests/integration/canonicalPersistenceCertification.test.mjs\""
+    "test:canonical-persistence": "firebase emulators:exec --only firestore --project mathmaster-persist-harness --config tests/browser/emulator/firebase.json \"node --test tests/integration/canonicalPersistenceCertification.test.mjs\"",
+    "test:persistence-v3": "node --test tests/platform/persistenceV3.test.mjs",
+    "verify:persistence-production": "node scripts/verify-persistence-production.mjs",
+    "deploy:persistence": "bash scripts/deploy-persistence.sh"
   },
   "dependencies": {
     "firebase": "^12.17.1",

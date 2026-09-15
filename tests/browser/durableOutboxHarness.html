@@ -92,6 +92,18 @@ window.outboxHarness = {
   list: () => listDurableActions({ studentId: STUDENT }),
   listRetired: () => listRetiredDurableActions({ studentId: STUDENT }),
   summary: () => summarizeDurableOutbox({ studentId: STUDENT }),
+  captureThenDeliverInBackground: async (actionId, networkDelayMs) => {
+    const startedAt = performance.now();
+    await enqueueDurableAction(action({ actionId }));
+    const advancedAfterMs = performance.now() - startedAt;
+    const delivery = drainDurableActions({
+      studentId: STUDENT,
+      reconcile: () => new Promise((resolve) => setTimeout(
+        () => resolve({ disposition: SUBMISSION_DISPOSITION.ACCEPTED }), networkDelayMs,
+      )),
+    });
+    return { advancedAfterMs, delivery };
+  },
 
   /**
    * Drain, reporting which action ids the reconciler saw and WHEN each one
