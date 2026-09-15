@@ -155,8 +155,22 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
     setCommitSummary(summary);
     setNotice(`Recovery finished for ${result.applied?.length || 0} proposed response${result.applied?.length === 1 ? '' : 's'}.`);
     const unresolved = proposals.proposals
-      .map((proposal) => ({ ...proposal, outcome: appliedByAction.get(proposal.actionId) || { disposition: 'retryable', reason: 'no-result-returned' } }))
-      .filter((proposal) => proposal.outcome.disposition !== 'accepted');
+      .map((proposal) => {
+        const rawOutcome = appliedByAction.get(proposal.actionId) || { disposition: 'retryable', reason: 'no-result-returned' };
+        const knownDisposition = ['accepted', 'duplicate', 'superseded', 'needs-review', 'retryable'].includes(rawOutcome.disposition);
+        const disposition = knownDisposition ? rawOutcome.disposition : 'retryable';
+        return {
+          ...proposal,
+          outcome: {
+            ...rawOutcome,
+            disposition,
+            reason: rawOutcome.reason || (!knownDisposition ? `unexpected-disposition:${rawOutcome.disposition || 'missing'}` : null),
+          },
+        };
+      })
+      // accepted/duplicate/superseded are terminal. The refreshed report owns
+      // their new canonical state; only rows that still need human/retry action stay here.
+      .filter((proposal) => ['needs-review', 'retryable'].includes(proposal.outcome.disposition));
     setProposals({ ...proposals, proposalCount: 0, proposals: unresolved });
     setConfirmationOpen(false);
     await loadReport();
