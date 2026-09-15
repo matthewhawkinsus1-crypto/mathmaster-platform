@@ -13627,6 +13627,50 @@ const persistenceResolutionDocumentId = ({ studentId, assignmentId } = {}) => (
   [studentId, assignmentId].map((part) => encodeURIComponent(String(part ?? ""))).join("__").slice(0, 1400)
 );
 
+/*
+ * EVERY DEVICE THIS STUDENT HAS EVER REPORTED FROM. NOT THE FIRST TEN.
+ *
+ * These rows are the only evidence of work that exists nowhere a server query
+ * can see, and they are read to decide whether a final Google Classroom grade
+ * may go out. The query used to be `.limit(10)` with no ordering, so a student
+ * with eleven device rows — a class set of Chromebooks, a browser-storage
+ * reset, the old unstable fallback id minting a row per report — could have
+ * the ONE device still holding an unsynced answer silently omitted. The total
+ * came back zero and the final grade went out over the top of real work.
+ *
+ * There is no cap here, silent or otherwise. The pages are read to exhaustion.
+ * `MAX_DEVICE_REPORT_PAGES` is a runaway guard, not a limit: reaching it means
+ * something is badly wrong, and it THROWS rather than returning a short list,
+ * because on this path a short list is indistinguishable from good news. A
+ * throw withholds the final passback and surfaces in the teacher report; a
+ * quiet under-count publishes a grade that should not exist.
+ */
+const DEVICE_REPORT_PAGE_SIZE = 300;
+const MAX_DEVICE_REPORT_PAGES = 50;
+
+async function readAllDeviceReportsForStudent({ db, studentId }) {
+  const documents = [];
+  let cursor = null;
+  for (let page = 0; page < MAX_DEVICE_REPORT_PAGES; page += 1) {
+    let query = db.collection(DEVICE_QUEUE_REPORT_COLLECTION)
+      .where("studentId", "==", studentId)
+      // Ordering by document id is what makes the cursor stable; an unordered
+      // paginated read can repeat and skip rows.
+      .orderBy(FieldPath.documentId())
+      .limit(DEVICE_REPORT_PAGE_SIZE);
+    if (cursor) query = query.startAfter(cursor);
+    // eslint-disable-next-line no-await-in-loop
+    const snapshot = await query.get();
+    documents.push(...snapshot.docs);
+    if (snapshot.size < DEVICE_REPORT_PAGE_SIZE) return documents;
+    cursor = snapshot.docs[snapshot.docs.length - 1].id;
+  }
+  throw new Error(
+    `Student ${studentId} has more than ${MAX_DEVICE_REPORT_PAGES * DEVICE_REPORT_PAGE_SIZE} device persistence `
+    + "reports; refusing to decide final-grade safety from a partial read.",
+  );
+}
+
 let persistencePendingModule = null;
 async function persistencePendingLib() {
   if (!persistencePendingModule) persistencePendingModule = await import("./shared/persistencePending.mjs");
@@ -13661,8 +13705,8 @@ async function readPersistencePending({
   gradeData = null,
 }) {
   const { workspaceDraftDocumentId } = await import("./shared/workspaceDraftSchema.mjs");
-  const [deviceSnapshot, checkpointSnapshot, sessionSnapshot, draftSnapshot, resolutionSnapshot] = await Promise.all([
-    db.collection(DEVICE_QUEUE_REPORT_COLLECTION).where("studentId", "==", studentId).limit(10).get(),
+  const [deviceDocuments, checkpointSnapshot, sessionSnapshot, draftSnapshot, resolutionSnapshot] = await Promise.all([
+    readAllDeviceReportsForStudent({ db, studentId }),
     db.collection(CHECKPOINT_COLLECTION).where("studentId", "==", studentId)
       .where("assignmentId", "==", assignmentId).where("status", "==", CHECKPOINT_STATUS_ACTIVE).limit(200).get(),
     db.collection(STUDENT_SESSION_SUMMARY_COLLECTION).where("studentId", "==", studentId)
@@ -13673,7 +13717,7 @@ async function readPersistencePending({
       .doc(persistenceResolutionDocumentId({ studentId, assignmentId })).get(),
   ]);
   const assignmentKey = encodeURIComponent(assignmentId);
-  const queuedGradeBearing = deviceSnapshot.docs.reduce(
+  const queuedGradeBearing = deviceDocuments.reduce(
     (total, snapshot) => total + (Number(snapshot.data()?.queuedGradeBearingByAssignment?.[assignmentKey]) || 0), 0,
   );
   const worked = sessionSnapshot.docs.reduce(
@@ -13799,12 +13843,29 @@ exports.reportStudentDeviceQueue = onCall(async (request) => {
   const hasAssignmentBreakdown = summary.queuedGradeBearingByAssignment
     && typeof summary.queuedGradeBearingByAssignment === "object";
 
+  /*
+   * WHICH OF TWO REPORTS FROM ONE DEVICE IS NEWER.
+   *
+   * The client's 12-second bound stops it WAITING; it does not cancel the
+   * callable already on the wire. So a "2 queued" report captured before a
+   * drain can arrive AFTER the "0 queued" report captured after it, and an
+   * unconditional write would restore the stale count — with the tab closed,
+   * nothing left to correct it, and the student's final Classroom grade held
+   * as sync-pending indefinitely.
+   *
+   * The device stamps a monotonically increasing generation at CAPTURE (see
+   * `deviceIdentity.js`), so arrival order stops mattering. A report that is
+   * not strictly newer than what is stored is IGNORED, not rejected: the
+   * client is not at fault, nothing is wrong, and an error would only make it
+   * retry a report that is already obsolete.
+   */
+  const reportGeneration = Math.max(0, Number(request.data?.reportGeneration) || 0);
+
   const db = getFirestore();
   const reportRef = db.collection(DEVICE_QUEUE_REPORT_COLLECTION).doc(`${encodeURIComponent(studentId)}__${deviceId}`);
-  const previousReport = await reportRef.get();
-  const previousData = previousReport.data() || {};
-  const previousByAssignment = previousData.queuedGradeBearingByAssignment || {};
   const nextByAssignment = assignmentCountMap(summary.queuedGradeBearingByAssignment);
+  const gradeData = (await db.collection("grades").doc(studentId).get()).data() || {};
+
   /*
    * THIS DOCUMENT IS A SNAPSHOT, SO IT IS WRITTEN AS ONE.
    *
@@ -13819,40 +13880,90 @@ exports.reportStudentDeviceQueue = onCall(async (request) => {
    * A full `set()` replaces the document, so a key the device stopped
    * reporting actually disappears. The device sends its ENTIRE current state
    * on every report, so there is nothing here worth merging — except the
-   * fields below, which are carried forward deliberately because they are
-   * history rather than state.
+   * fields carried forward below, which are history rather than state.
+   *
+   * The read and the write share a TRANSACTION so the generation check cannot
+   * be raced by the very concurrency it exists to order.
    */
-  const gradeData = (await db.collection("grades").doc(studentId).get()).data() || {};
-  await reportRef.set({
-    studentId,
-    deviceId,
-    summarySchemaVersion,
-    hasAssignmentBreakdown: Boolean(hasAssignmentBreakdown),
-    classId: String(gradeData.classId || "") || null,
-    queued: number(summary.queued),
-    queuedGradeBearing: number(summary.queuedGradeBearing),
-    queuedByKind: countMap(summary.queuedByKind),
-    queuedByAssignment: assignmentCountMap(summary.queuedByAssignment),
-    queuedGradeBearingByAssignment: nextByAssignment,
-    needsReviewByAssignment: assignmentCountMap(summary.needsReviewByAssignment),
-    queuedKindsByAssignment: assignmentNestedCountMap(summary.queuedKindsByAssignment),
-    blockedReasonsByAssignment: assignmentNestedCountMap(summary.blockedReasonsByAssignment),
-    blockedReasons: countMap(summary.blockedReasons),
-    needsReview: number(summary.needsReview),
-    retired: number(summary.retired),
-    retiredByDisposition: countMap(summary.retiredByDisposition),
-    oldestCapturedAt: Number(summary.oldestCapturedAt) || null,
-    latestCapturedAt: Number(summary.latestCapturedAt) || null,
-    // CARRIED FORWARD ON PURPOSE. When this device first said anything is
-    // incident history: it survives every later snapshot, and it is how a
-    // teacher tells "reported once, three days ago" from "reporting since
-    // Tuesday".
-    firstReportedAt: previousData.firstReportedAt || FieldValue.serverTimestamp(),
-    reportedAt: FieldValue.serverTimestamp(),
+  const outcome = await db.runTransaction(async (transaction) => {
+    const previousSnapshot = await transaction.get(reportRef);
+    const previousData = previousSnapshot.data() || {};
+    const storedGeneration = Math.max(0, Number(previousData.reportGeneration) || 0);
+
+    /*
+     * A device on the release before generations existed sends none, and
+     * arrives here as generation 0. Those reports keep working exactly as they
+     * did — there is no newer report from that device to protect, because a
+     * device runs one release at a time.
+     *
+     * The moment a generation-stamped report IS stored for this device id, an
+     * unversioned one is necessarily from the older client and loses. The only
+     * way to see both is two tabs across a deploy, and there the versioned tab
+     * is the one telling the truth.
+     */
+    const unversionedAndUncontested = reportGeneration === 0 && storedGeneration === 0;
+    if (!unversionedAndUncontested && reportGeneration <= storedGeneration) {
+      return {
+        applied: false,
+        reason: "superseded-by-newer-report",
+        storedGeneration,
+        previousByAssignment: previousData.queuedGradeBearingByAssignment || {},
+      };
+    }
+
+    transaction.set(reportRef, {
+      studentId,
+      deviceId,
+      summarySchemaVersion,
+      reportGeneration,
+      hasAssignmentBreakdown: Boolean(hasAssignmentBreakdown),
+      classId: String(gradeData.classId || "") || null,
+      queued: number(summary.queued),
+      queuedGradeBearing: number(summary.queuedGradeBearing),
+      queuedByKind: countMap(summary.queuedByKind),
+      queuedByAssignment: assignmentCountMap(summary.queuedByAssignment),
+      queuedGradeBearingByAssignment: nextByAssignment,
+      needsReviewByAssignment: assignmentCountMap(summary.needsReviewByAssignment),
+      queuedKindsByAssignment: assignmentNestedCountMap(summary.queuedKindsByAssignment),
+      blockedReasonsByAssignment: assignmentNestedCountMap(summary.blockedReasonsByAssignment),
+      blockedReasons: countMap(summary.blockedReasons),
+      needsReview: number(summary.needsReview),
+      retired: number(summary.retired),
+      retiredByDisposition: countMap(summary.retiredByDisposition),
+      oldestCapturedAt: Number(summary.oldestCapturedAt) || null,
+      latestCapturedAt: Number(summary.latestCapturedAt) || null,
+      // CARRIED FORWARD ON PURPOSE. When this device first said anything is
+      // incident history: it survives every later snapshot, and it is how a
+      // teacher tells "reported once, three days ago" from "reporting since
+      // Tuesday".
+      firstReportedAt: previousData.firstReportedAt || FieldValue.serverTimestamp(),
+      reportedAt: FieldValue.serverTimestamp(),
+    });
+    return {
+      applied: true,
+      reason: null,
+      storedGeneration,
+      previousByAssignment: previousData.queuedGradeBearingByAssignment || {},
+    };
   });
+
+  // An ignored report changed nothing, so there is nothing to wake.
+  if (!outcome.applied) {
+    return {
+      success: true,
+      applied: false,
+      ignored: true,
+      reason: outcome.reason,
+      reportGeneration,
+      storedReportGeneration: outcome.storedGeneration,
+      summarySchemaVersion,
+    };
+  }
+
   // Clearing the last locally reported item must wake the existing grade
   // trigger; otherwise a passback withheld as sync-pending would wait until the
   // next unrelated grade change.
+  const previousByAssignment = outcome.previousByAssignment;
   const resolvedAssignments = Object.keys(previousByAssignment).filter(
     (key) => Number(previousByAssignment[key]) > 0 && Number(nextByAssignment[key] || 0) === 0,
   );
@@ -13867,7 +13978,7 @@ exports.reportStudentDeviceQueue = onCall(async (request) => {
     });
     await gradeRef.update(...updates);
   }
-  return { success: true, summarySchemaVersion };
+  return { success: true, applied: true, ignored: false, reportGeneration, summarySchemaVersion };
 });
 
 /*
@@ -14345,14 +14456,16 @@ async function buildStudentRecoveryRow({
     if (at && (!latestCanonicalAttemptAt || at > latestCanonicalAttemptAt)) latestCanonicalAttemptAt = at;
   });
 
-  const [checkpointSnapshot, receiptSnapshot, deviceSnapshot, sessionSnapshot, resolutionSnapshot] = await Promise.all([
+  const [checkpointSnapshot, receiptSnapshot, deviceDocuments, sessionSnapshot, resolutionSnapshot] = await Promise.all([
     db.collection(CHECKPOINT_COLLECTION)
       .where("studentId", "==", studentId).where("assignmentId", "==", assignmentId)
       .limit(CHECKPOINT_BATCH_LIMIT).get(),
     db.collection(SUBMISSION_RECEIPT_COLLECTION)
       .where("studentId", "==", studentId).where("assignmentId", "==", assignmentId)
       .limit(500).get(),
-    db.collection(DEVICE_QUEUE_REPORT_COLLECTION).where("studentId", "==", studentId).limit(10).get(),
+    // Every device, not the first ten — a teacher's incident report that omits
+    // the one Chromebook still holding work is worse than no report at all.
+    readAllDeviceReportsForStudent({ db, studentId }),
     db.collection(STUDENT_SESSION_SUMMARY_COLLECTION)
       .where("studentId", "==", studentId).where("assignmentId", "==", assignmentId)
       .limit(50).get(),
@@ -14403,7 +14516,7 @@ async function buildStudentRecoveryRow({
   const presenceActiveSeconds = sessionSnapshot.docs.reduce(
     (total, snapshot) => total + (Number(snapshot.data()?.activeSeconds) || 0), 0,
   );
-  const queuedGradeBearingForAssignment = deviceSnapshot.docs.reduce((total, snapshot) => {
+  const queuedGradeBearingForAssignment = deviceDocuments.reduce((total, snapshot) => {
     const data = snapshot.data() || {};
     return total + (Number(data.queuedGradeBearingByAssignment?.[encodeURIComponent(assignmentId)]) || 0);
   }, 0);
@@ -14437,7 +14550,7 @@ async function buildStudentRecoveryRow({
     ...Object.entries((draftAssessment?.counts) || {})
       .filter(([status]) => status !== "recoverable")
       .map(([status, count]) => ({ source: "workspaceDraft", reason: status, count })),
-    ...deviceSnapshot.docs.flatMap((snapshot) => {
+    ...deviceDocuments.flatMap((snapshot) => {
       const data = snapshot.data() || {};
       const assignmentKey = encodeURIComponent(assignmentId);
       const scoped = data.blockedReasonsByAssignment?.[assignmentKey];
@@ -14490,7 +14603,7 @@ async function buildStudentRecoveryRow({
      * three submissions queued for a different assignment must not read as
      * three outstanding here.
      */
-    deviceQueues: deviceSnapshot.docs.map((snapshot) => {
+    deviceQueues: deviceDocuments.map((snapshot) => {
       const data = snapshot.data() || {};
       const assignmentKey = encodeURIComponent(assignmentId);
       const knowsAssignments = data.hasAssignmentBreakdown === true;

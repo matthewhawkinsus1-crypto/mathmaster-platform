@@ -2,17 +2,24 @@
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
-import { clientFacingServiceIds } from './persistence-deploy-surface.mjs';
+import { browserCallableServiceIds } from './persistence-deploy-surface.mjs';
 
 /*
- * EVERY CALLABLE A STUDENT'S BROWSER INVOKES DIRECTLY.
+ * EVERY CALLABLE A BROWSER INVOKES DIRECTLY — STUDENT OR TEACHER.
  *
  * Derived from the deployed surface rather than retyped here, so a callable
  * added to the release cannot be left out of the IAM check — which is the one
  * failure that makes a healthy deploy look, from the classroom, exactly like
  * lost work.
+ *
+ * It says `browserCallable` rather than "client-facing" because the earlier,
+ * vaguer name let the teacher callables be quietly excluded. Cloud Run's
+ * transport requirement is about the BROWSER, not about whose browser it is:
+ * a teacher opening the recovery panel needs `allUsers -> roles/run.invoker`
+ * on `getstudentpersistencerecoveryreport` exactly as a student needs it on
+ * `ingeststudentsubmissions`.
  */
-export const REQUIRED_PERSISTENCE_SERVICES = Object.freeze(clientFacingServiceIds());
+export const REQUIRED_PERSISTENCE_SERVICES = Object.freeze(browserCallableServiceIds());
 
 export const serviceIsClientInvokable = (policy = {}) => (policy.bindings || []).some(
   (binding) => binding.role === 'roles/run.invoker' && (binding.members || []).includes('allUsers'),

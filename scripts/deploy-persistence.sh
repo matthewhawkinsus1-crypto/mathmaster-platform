@@ -18,12 +18,19 @@ set -euo pipefail
 #
 # The order below is the order the dependencies demand:
 #
-#   1. build                     the client this server contract belongs to
-#   2. firestore:indexes         the composite index the safety check queries
-#   3. GATE                      the index must be ENABLED before step 4
-#   4. functions:<exact names>   the persistence functions, individually named
-#   5. IAM verification          the client-facing callables are reachable
-#   6. hosting                   the client, last, once its server is live
+#   1. build                        the client this server contract belongs to
+#   2. firestore:rules,indexes      the rules protecting the collections these
+#                                   functions read and write, and the composite
+#                                   index the final-grade safety check queries
+#   3. GATE                         the index must be ENABLED before step 4
+#   4. functions:<exact names>      the persistence functions, individually named
+#   5. IAM verification             every browser-called callable is reachable
+#   6. hosting                      the client, last, once its server is live
+#
+# Rules ship with the indexes and before any function. This release adds the
+# `studentPersistenceResolutions` match block, and that collection holds the
+# flag that RELEASES a final Classroom grade — deploying the function that
+# reads it without the rules that protect it is the wrong half to ship first.
 #
 # Step 3 is the one that matters. The new
 # `studentResponseCheckpoints(studentId, assignmentId, status)` index backs the
@@ -55,14 +62,19 @@ INDEX_DEPENDENT="$(node -e '
   import("./scripts/persistence-deploy-surface.mjs")
     .then((surface) => process.stdout.write(surface.indexDependentFunctionNames().join(", ")));
 ')"
+FIRESTORE_TARGETS="$(node -e '
+  import("./scripts/persistence-deploy-surface.mjs")
+    .then((surface) => process.stdout.write(surface.firebaseFirestoreTargets()));
+')"
 
-if [ -z "$FUNCTION_TARGETS" ]; then
-  echo "Could not resolve the persistence function list. Refusing to deploy a guessed surface." >&2
+if [ -z "$FUNCTION_TARGETS" ] || [ -z "$FIRESTORE_TARGETS" ]; then
+  echo "Could not resolve the persistence deploy surface. Refusing to deploy a guessed one." >&2
   exit 1
 fi
 
 echo "=== MathMaster Persistence V3 targeted deploy ==="
 echo "Project:   $PROJECT"
+echo "Firestore: $FIRESTORE_TARGETS"
 echo "Functions: $FUNCTION_TARGETS"
 echo
 
@@ -71,13 +83,13 @@ echo "--- 1/6 Building the client ---"
 npm run build
 npm run build:firebase
 
-# --- 2. Firestore indexes ---------------------------------------------------
+# --- 2. Firestore rules and indexes -----------------------------------------
 echo
 if [ "${PERSISTENCE_INDEXES_READY:-0}" = "1" ]; then
-  echo "--- 2/6 Firestore indexes: already deployed on the earlier run, skipping ---"
+  echo "--- 2/6 Firestore rules and indexes: already deployed on the earlier run, skipping ---"
 else
-  echo "--- 2/6 Deploying Firestore indexes ---"
-  firebase deploy --project "$PROJECT" --only firestore:indexes
+  echo "--- 2/6 Deploying Firestore rules and indexes ---"
+  firebase deploy --project "$PROJECT" --only "$FIRESTORE_TARGETS"
 fi
 
 # --- 3. The index gate ------------------------------------------------------
@@ -95,11 +107,12 @@ else
   cat >&2 <<STOP
 
 ================================================================================
-STOPPED AFTER INDEX DEPLOYMENT — THIS IS NOT A FAILED DEPLOY.
+STOPPED AFTER RULES AND INDEXES — THIS IS NOT A FAILED DEPLOY.
 
 The index build has been REQUESTED and is not usable yet (or its state could
-not be read). The build is complete and the indexes are deployed; nothing is
-broken and nothing is half-applied.
+not be read). The build is complete and the Firestore rules and indexes are
+deployed; nothing is broken and nothing is half-applied. Rules deploying
+before the functions is the safe order, not an accident.
 
 What is NOT deployed yet: the functions, the IAM check, and hosting.
 
@@ -116,11 +129,11 @@ WHAT TO DO:
          FIREBASE_PROJECT=$PROJECT node scripts/check-persistence-indexes.mjs
 
   2. When it passes, finish the deploy. This rebuilds the client, skips the
-     index deploy and the gate, and picks up at the functions:
+     rules/index deploy and the gate, and picks up at the functions:
          FIREBASE_PROJECT=$PROJECT PERSISTENCE_INDEXES_READY=1 npm run deploy:persistence
 
 Nothing else is required. Re-running the whole script instead is also safe; it
-will simply rebuild and re-request the same indexes.
+will simply rebuild and re-apply the same rules and indexes.
 ================================================================================
 STOP
   exit 2
@@ -132,9 +145,9 @@ echo "--- 4/6 Deploying the persistence functions ---"
 # NOTE: never `--only functions`. Each function is named individually.
 firebase deploy --project "$PROJECT" --only "$FUNCTION_TARGETS"
 
-# --- 5. Client-facing IAM ---------------------------------------------------
+# --- 5. Browser-callable IAM ------------------------------------------------
 echo
-echo "--- 5/6 Verifying client-facing callable IAM ---"
+echo "--- 5/6 Verifying IAM on every browser-called callable ---"
 FIREBASE_PROJECT="$PROJECT" npm run verify:persistence-production
 
 # --- 6. Hosting -------------------------------------------------------------
@@ -143,4 +156,4 @@ echo "--- 6/6 Deploying hosting ---"
 FIREBASE_PROJECT="$PROJECT" npm run deploy:hosting
 
 echo
-echo "=== Persistence V3 deploy complete: indexes, ${FUNCTION_TARGETS//functions:/}, hosting ==="
+echo "=== Persistence V3 deploy complete: $FIRESTORE_TARGETS, ${FUNCTION_TARGETS//functions:/}, hosting ==="

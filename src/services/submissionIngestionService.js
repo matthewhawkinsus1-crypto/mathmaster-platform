@@ -17,6 +17,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase.js';
 import { measurePerformanceOperation } from '../platform/performance/performanceTelemetry.js';
 import { summarizeDurableOutbox } from '../platform/performance/durableActionOutbox.js';
+import { nextDeviceReportGeneration } from '../platform/persistence/deviceIdentity.js';
 import {
   MAX_ENVELOPES_PER_CALL,
   SUBMISSION_DISPOSITION,
@@ -110,29 +111,29 @@ export const callableDeliveryDiagnostic = (error, transport = 'callable') => {
  * Counts and blocked-reason labels only. No responses, no attempt records,
  * nothing that could become a grade — the report is diagnostics, and a
  * diagnostic that carried academic data would be a second grading store.
+ *
+ * WHO is reporting and WHICH report is newer both come from
+ * `deviceIdentity.js`, which keeps them beside the queue they describe. The
+ * generation is stamped at CAPTURE, in the same step that reads the summary,
+ * because what the server has to order is when the queue was observed — not
+ * when the request happened to arrive. `withTimeout` below stops waiting; it
+ * cannot cancel a callable already on the wire, so a slow positive report can
+ * and does arrive after the zero report that replaced it.
  */
-const DEVICE_ID_STORAGE_KEY = 'mathmaster:device-id';
-
-/** A per-browser id so one student's two Chromebooks are two rows, not one. */
-export const resolveDeviceId = () => {
-  try {
-    const stored = window.localStorage.getItem(DEVICE_ID_STORAGE_KEY);
-    if (stored) return stored;
-    const created = `dev_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
-    window.localStorage.setItem(DEVICE_ID_STORAGE_KEY, created);
-    return created;
-  } catch {
-    // Storage can be blocked. A per-session id still separates devices well
-    // enough for a report, and reporting nothing would be worse.
-    return `dev_session_${Math.random().toString(36).slice(2)}`;
-  }
-};
+export { resolveDeviceId } from '../platform/persistence/deviceIdentity.js';
 
 export const reportDeviceQueueState = async ({ studentId, summary = null, timeoutMs = INGEST_TIMEOUT_MS } = {}) => {
   if (!studentId) return null;
-  const payload = summary || await summarizeDurableOutbox({ studentId });
+  const [payload, { deviceId, generation }] = await Promise.all([
+    summary || summarizeDurableOutbox({ studentId }),
+    nextDeviceReportGeneration(),
+  ]);
   const response = await withTimeout(
-    httpsCallable(functions, 'reportStudentDeviceQueue')({ deviceId: resolveDeviceId(), summary: payload }),
+    httpsCallable(functions, 'reportStudentDeviceQueue')({
+      deviceId,
+      reportGeneration: generation,
+      summary: payload,
+    }),
     timeoutMs,
   );
   return response?.data || null;

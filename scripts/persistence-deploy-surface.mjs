@@ -27,51 +27,65 @@
  * whether a final grade may reach Google Classroom. A failing safety check is
  * not a safe default; it is an outage on the finalization path.
  *
- * `clientFacing` functions are called directly by a student's browser, so their
- * Gen 2 Cloud Run services must grant `allUsers` the transport-only
- * `roles/run.invoker`. A deploy that silently drops that binding turns every
- * Submit into a 403 that looks, from the classroom, exactly like lost work.
+ * `browserCallable` means a BROWSER invokes it through `httpsCallable`, so its
+ * Gen 2 Cloud Run service must grant `allUsers` the transport-only
+ * `roles/run.invoker`. A deploy that silently drops that binding turns the call
+ * into a 403 that looks, from the classroom, exactly like lost work.
+ *
+ * The flag used to be called `clientFacing`, and the vaguer name hid a real
+ * gap: the teacher callables were left out, as though Cloud Run's transport
+ * requirement cared whose browser was calling. It does not. Every callable a
+ * browser reaches is `browserCallable`, student-facing or teacher-facing. What
+ * is NOT browser-callable is a trigger — `syncGradeToClassroom` is invoked by
+ * Firestore, never by a browser, and binding `allUsers` to it would widen its
+ * surface for nothing.
  */
 export const PERSISTENCE_FUNCTIONS = Object.freeze([
   Object.freeze({
     name: 'ingestStudentSubmissions',
     kind: 'callable',
-    clientFacing: true,
+    browserCallable: true,
     indexDependent: false,
     why: 'The only canonical writer for grade-bearing student work.',
   }),
   Object.freeze({
     name: 'reportStudentDeviceQueue',
     kind: 'callable',
-    clientFacing: true,
+    browserCallable: true,
     indexDependent: false,
     why: 'Stores each device queue report as a replaceable snapshot so a drained assignment key disappears.',
   }),
   Object.freeze({
     name: 'reconcileAssignmentActivityProjection',
     kind: 'callable',
-    clientFacing: true,
+    browserCallable: true,
     indexDependent: false,
     why: 'Derives Classwork completion from canonical attempts now that the browser no longer writes it.',
   }),
   Object.freeze({
     name: 'syncGradeToClassroom',
     kind: 'trigger',
-    clientFacing: false,
+    // A Firestore trigger. No browser ever calls it, so it is deliberately the
+    // one function in this release without a public invoker binding.
+    browserCallable: false,
     indexDependent: true,
     why: 'Withholds a final Classroom passback while persistence evidence is unresolved.',
   }),
   Object.freeze({
     name: 'getStudentPersistenceRecoveryReport',
     kind: 'callable',
-    clientFacing: false,
+    // Called from the teacher's browser, through `httpsCallable`, in
+    // StudentPersistenceRecoveryPanel.
+    browserCallable: true,
     indexDependent: false,
     why: 'The teacher recovery report, which now also reports resolved persistence holds.',
   }),
   Object.freeze({
     name: 'resolveStudentPersistenceHold',
     kind: 'callable',
-    clientFacing: false,
+    // Also the teacher's browser. Cloud Run's transport requirement does not
+    // care that the caller is a teacher.
+    browserCallable: true,
     indexDependent: true,
     why: 'The audited teacher-of-record resolution for an unrecoverable session/canonical discrepancy.',
   }),
@@ -87,10 +101,50 @@ export const firebaseFunctionTargets = (names = persistenceFunctionNames()) =>
 export const indexDependentFunctionNames = () =>
   PERSISTENCE_FUNCTIONS.filter((entry) => entry.indexDependent).map((entry) => entry.name);
 
+/** Every function a browser calls, by name. */
+export const browserCallableFunctionNames = () => PERSISTENCE_FUNCTIONS
+  .filter((entry) => entry.browserCallable)
+  .map((entry) => entry.name);
+
 /** Cloud Run service ids are the function name, lowercased. */
-export const clientFacingServiceIds = () => PERSISTENCE_FUNCTIONS
-  .filter((entry) => entry.clientFacing)
-  .map((entry) => entry.name.toLowerCase());
+export const browserCallableServiceIds = () => browserCallableFunctionNames()
+  .map((name) => name.toLowerCase());
+
+/*
+ * THE FIRESTORE TARGETS THIS RELEASE DEPLOYS, AND WHY RULES ARE ONE OF THEM.
+ *
+ * The release shipped `firestore:indexes` and not `firestore:rules`, while the
+ * same PR added a `studentPersistenceResolutions` match block. Without that
+ * block the collection falls through to whatever the deployed rules say about
+ * an unmatched path — and the collection holds the flag that RELEASES a final
+ * Classroom grade. Shipping the functions that read it without the rules that
+ * protect it is the wrong half of the release to ship first.
+ *
+ * Rules are deployed alongside indexes, before any function, because both only
+ * ever restrict or enable what the functions then rely on.
+ */
+export const FIRESTORE_DEPLOY_TARGETS = Object.freeze(['firestore:rules', 'firestore:indexes']);
+
+export const firebaseFirestoreTargets = () => FIRESTORE_DEPLOY_TARGETS.join(',');
+
+/*
+ * COLLECTIONS THIS RELEASE'S FUNCTIONS DEPEND ON RULES FOR.
+ *
+ * Every entry must have a `match` block in `firestore.rules`, and because it
+ * must, `firestore:rules` must be in the deploy path. That is the link the
+ * test enforces: add a server-only collection to this release, and a deploy
+ * that does not ship rules fails CI rather than production.
+ */
+export const RULES_BACKED_COLLECTIONS = Object.freeze([
+  Object.freeze({
+    collection: 'studentPersistenceResolutions',
+    why: 'Holds the flag that releases a final Classroom grade. No client may write it.',
+  }),
+  Object.freeze({
+    collection: 'studentDevicePersistenceReports',
+    why: 'A client-writable row here would let one student fabricate another device incident.',
+  }),
+]);
 
 /*
  * THE COMPOSITE INDEX THE FINAL-GRADE SAFETY CHECK QUERIES.

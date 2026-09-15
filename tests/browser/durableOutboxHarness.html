@@ -20,6 +20,10 @@ import {
   summarizeDurableOutbox,
 } from '/src/platform/performance/durableActionOutbox.js';
 import { SUBMISSION_DISPOSITION } from '/functions/shared/studentSubmissionDisposition.mjs';
+import {
+  nextDeviceReportGeneration,
+  resolveDeviceId,
+} from '/src/platform/persistence/deviceIdentity.js';
 
 const STUDENT = 'browser-cert-student';
 const ASSIGNMENT = 'assignment.with`punctuation';
@@ -86,6 +90,17 @@ const deleteDatabase = () => new Promise((resolve) => {
 window.outboxHarness = {
   SUBMISSION_DISPOSITION,
   reset: deleteDatabase,
+  /*
+   * Device identity, read through the real module against real IndexedDB. A
+   * page reload re-evaluates the module, so its in-memory cache is genuinely
+   * gone and only the durable record can answer.
+   */
+  deviceId: () => resolveDeviceId(),
+  reportGeneration: () => nextDeviceReportGeneration(),
+  clearDeviceLocalStorage: () => {
+    try { window.localStorage.removeItem('mathmaster:device-id'); } catch { /* blocked */ }
+    return true;
+  },
   createVersionOneDatabase,
   seedLegacyRow,
   enqueue: (actionId, options = {}) => enqueueDurableAction(action({ actionId, ...options })).then((queued) => queued.actionId),

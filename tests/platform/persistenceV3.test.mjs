@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import test from 'node:test';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import {
@@ -17,8 +17,12 @@ import {
 } from '../../functions/shared/persistencePending.mjs';
 import { verifyPolicies } from '../../scripts/verify-persistence-production.mjs';
 import {
+  FIRESTORE_DEPLOY_TARGETS,
+  RULES_BACKED_COLLECTIONS,
   assessRequiredIndexes,
-  clientFacingServiceIds,
+  browserCallableFunctionNames,
+  browserCallableServiceIds,
+  firebaseFirestoreTargets,
   firebaseFunctionTargets,
   indexDependentFunctionNames,
   persistenceFunctionNames,
@@ -27,6 +31,33 @@ import {
   createDeviceReportCoordinator,
   reconcileWithDeviceReports,
 } from '../../src/platform/persistence/deviceReportCoordinator.js';
+import {
+  nextDeviceReportGeneration,
+  resetDeviceIdentityCacheForTests,
+  resolveDeviceId,
+} from '../../src/platform/persistence/deviceIdentity.js';
+
+/*
+ * Every file the browser ships, read once. Used to check a claim about the
+ * client (which callables it invokes) against the client itself rather than
+ * against a list someone remembered to update.
+ */
+const readClientSources = async () => {
+  const root = new URL('../../src/', import.meta.url);
+  const files = [];
+  const walk = async (directory) => {
+    const entries = await readdir(directory, { withFileTypes: true });
+    await Promise.all(entries.map(async (entry) => {
+      const child = new URL(`${entry.name}${entry.isDirectory() ? '/' : ''}`, directory);
+      if (entry.isDirectory()) return walk(child);
+      if (!/\.(js|jsx|mjs)$/.test(entry.name)) return undefined;
+      files.push(await readFile(child, 'utf8'));
+      return undefined;
+    }));
+  };
+  await walk(root);
+  return files;
+};
 
 const action = ({ id, assignmentId = 'assignment-a', kind = 'ordinarySubmission', questionIndex = 0 }) => createDurableAction({
   actionId: id, kind, studentId: 'student-a', assignmentId, questionIndex,
@@ -91,10 +122,24 @@ test('known ordinary persistence gaps block finality and clearing them restores 
  * unverified — which is the failure that makes a healthy deploy look, from the
  * classroom, exactly like lost work.
  */
-test('production IAM verification requires a public invoker binding on every client-facing callable', () => {
-  const services = clientFacingServiceIds();
-  assert.ok(services.length >= 2, 'the release has more than one client-facing callable');
-  assert.ok(services.includes('ingeststudentsubmissions') && services.includes('reportstudentdevicequeue'));
+test('production IAM verification requires a public invoker binding on every browser-called callable', () => {
+  const services = browserCallableServiceIds();
+  /*
+   * THE FULL LIST, STUDENT AND TEACHER ALIKE. The earlier `clientFacing` flag
+   * quietly omitted the teacher callables, as though Cloud Run's transport
+   * requirement cared whose browser was calling. A teacher opening the
+   * recovery panel gets the same 403 a student gets.
+   */
+  assert.deepEqual([...services].sort(), [
+    'getstudentpersistencerecoveryreport',
+    'ingeststudentsubmissions',
+    'reconcileassignmentactivityprojection',
+    'reportstudentdevicequeue',
+    'resolvestudentpersistencehold',
+  ]);
+  // The trigger is deliberately absent: Firestore invokes it, no browser does,
+  // and binding allUsers to it would widen its surface for nothing.
+  assert.equal(services.includes('syncgradetoclassroom'), false);
 
   const valid = { bindings: [{ role: 'roles/run.invoker', members: ['allUsers'] }] };
   const privatePolicy = { bindings: [{ role: 'roles/run.invoker', members: ['user:teacher@example.com'] }] };
@@ -344,7 +389,7 @@ test('the deploy script deploys named functions, never the whole fleet, in depen
 
   const order = [
     executable.indexOf('npm run build'),
-    executable.indexOf('--only firestore:indexes'),
+    executable.indexOf('--only "$FIRESTORE_TARGETS"'),
     executable.indexOf('scripts/check-persistence-indexes.mjs'),
     executable.indexOf('--only "$FUNCTION_TARGETS"'),
     executable.indexOf('npm run verify:persistence-production'),
@@ -355,9 +400,102 @@ test('the deploy script deploys named functions, never the whole fleet, in depen
     if (index > 0) {
       assert.ok(
         order[index - 1] < position,
-        `deploy step ${index + 1} must come after step ${index}: build, indexes, index gate, functions, IAM, hosting`,
+        `deploy step ${index + 1} must come after step ${index}: `
+        + 'build, rules+indexes, index gate, functions, IAM, hosting',
       );
     }
+  });
+});
+
+/*
+ * RULES ARE PART OF THE RELEASE, NOT AN AFTERTHOUGHT.
+ *
+ * This PR adds a `studentPersistenceResolutions` match block, and that
+ * collection holds the flag that RELEASES a final Classroom grade. The release
+ * shipped `firestore:indexes` and not `firestore:rules`, which is the wrong
+ * half to ship first: the function that reads the collection would go live
+ * against whatever rules production already had.
+ *
+ * The link this test enforces: every collection the release's functions depend
+ * on rules for must have a match block, and because they must, the deploy path
+ * must ship rules. Drop `firestore:rules` and CI fails here.
+ */
+test('the release deploys Firestore rules alongside indexes, before any function', async () => {
+  const [script, rules] = await Promise.all([
+    readFile(new URL('../../scripts/deploy-persistence.sh', import.meta.url), 'utf8'),
+    readFile(new URL('../../firestore.rules', import.meta.url), 'utf8'),
+  ]);
+
+  assert.ok(
+    FIRESTORE_DEPLOY_TARGETS.includes('firestore:rules'),
+    'this release changes firestore.rules, so the release path must deploy them',
+  );
+  assert.ok(FIRESTORE_DEPLOY_TARGETS.includes('firestore:indexes'));
+  assert.equal(firebaseFirestoreTargets(), 'firestore:rules,firestore:indexes');
+
+  // Every collection the release depends on rules for actually has a block…
+  assert.ok(RULES_BACKED_COLLECTIONS.length >= 1);
+  RULES_BACKED_COLLECTIONS.forEach(({ collection }) => {
+    assert.match(
+      rules,
+      new RegExp(`match\\s+/${collection}/`),
+      `firestore.rules must carry a match block for ${collection}`,
+    );
+    // …and no client may write it, which is the property the functions rely on.
+    const block = rules.slice(rules.indexOf(`match /${collection}/`));
+    assert.match(
+      block.slice(0, block.indexOf('\n    }')),
+      /allow create, update, delete: if false;/,
+      `${collection} must refuse every client write`,
+    );
+  });
+
+  // …and the script really ships them, in one deploy with the indexes, before
+  // the gate and therefore before any function.
+  const executable = script.split('\n').map((line) => line.replace(/^\s*#.*/, '')).join('\n');
+  const firestoreDeploy = executable.indexOf('--only "$FIRESTORE_TARGETS"');
+  assert.ok(firestoreDeploy >= 0, 'the script must deploy the Firestore targets');
+  assert.ok(
+    firestoreDeploy < executable.indexOf('--only "$FUNCTION_TARGETS"'),
+    'rules and indexes must be live before the functions that depend on them',
+  );
+  assert.match(script, /surface\.firebaseFirestoreTargets\(\)/, 'the targets come from the surface module');
+});
+
+/*
+ * THE IAM VERIFIER AND THE CLIENT CANNOT DRIFT APART.
+ *
+ * `browserCallable` is a claim about the real client, so it is checked against
+ * the real client: any function in this release that the browser names in an
+ * `httpsCallable` invocation must be in the IAM verifier, and one that the
+ * browser never names must not be.
+ */
+test('every persistence function the browser calls is covered by the IAM verifier', async () => {
+  const clientSources = await readClientSources();
+  const named = (name) => clientSources.some((source) => source.includes(`'${name}'`));
+
+  const covered = browserCallableServiceIds();
+  persistenceFunctionNames().forEach((name) => {
+    const inClient = named(name);
+    const inVerifier = covered.includes(name.toLowerCase());
+    assert.equal(
+      inVerifier,
+      inClient,
+      inClient
+        ? `${name} is invoked from the browser but is missing from the IAM verifier — its Cloud Run service `
+          + 'needs allUsers -> roles/run.invoker or every call is a 403'
+        : `${name} is never invoked from the browser, so it must not be given a public invoker binding`,
+    );
+  });
+
+  // The callable names really do reach `httpsCallable`, rather than merely
+  // appearing in a comment somewhere in src/.
+  const invokers = clientSources.filter((source) => source.includes('httpsCallable('));
+  browserCallableFunctionNames().forEach((name) => {
+    assert.ok(
+      invokers.some((source) => source.includes(`'${name}'`)),
+      `${name} must be named in a module that invokes httpsCallable`,
+    );
   });
 });
 
@@ -652,4 +790,182 @@ test('Submit still advances on the durable write alone, with every network call 
     /await (ingestOneSubmission|reportDeviceQueueState|reconcileAssignmentActivityProjection|drainStudentOutbox)\(/,
     'no network call may be awaited between the durable write and the student advancing',
   );
+});
+
+/* ==========================================================================
+ * WHICH CHROMEBOOK IS SPEAKING.
+ *
+ * The old fallback minted a fresh `dev_session_<random>` on EVERY call when
+ * localStorage threw. So the pre-drain report ("2 queued") was filed under
+ * device A and the post-drain report ("0 queued") under device B. Nothing ever
+ * cleared device A, every periodic retry added another positive row, and the
+ * student's final Classroom grade was withheld for as long as those rows
+ * existed — which was forever.
+ * ======================================================================== */
+
+// node has no `window`, so `window.localStorage` throws a ReferenceError here
+// exactly as a blocked-storage browser does. That is the failing case, tested
+// as the default rather than as a special one.
+const withLocalStorage = async (store, run) => {
+  const previous = globalThis.window;
+  globalThis.window = { localStorage: store };
+  try {
+    return await run();
+  } finally {
+    if (previous === undefined) delete globalThis.window;
+    else globalThis.window = previous;
+  }
+};
+
+const throwingLocalStorage = {
+  getItem() { throw new Error('storage is blocked'); },
+  setItem() { throw new Error('storage is blocked'); },
+};
+
+const memoryLocalStorage = (initial = {}) => {
+  const values = new Map(Object.entries(initial));
+  return {
+    getItem: (key) => (values.has(key) ? values.get(key) : null),
+    setItem: (key, value) => { values.set(key, String(value)); },
+  };
+};
+
+test('a blocked localStorage still yields one stable device id for the whole page', async () => {
+  await withLocalStorage(throwingLocalStorage, async () => {
+    resetDeviceIdentityCacheForTests();
+    // No durable storage either: the worst case, both layers gone.
+    const broken = {
+      claimDeviceIdentity: () => { throw new Error('IndexedDB is unavailable'); },
+      nextReportGeneration: () => { throw new Error('IndexedDB is unavailable'); },
+    };
+    const first = await resolveDeviceId({ storage: broken });
+    const second = await resolveDeviceId({ storage: broken });
+    const third = await resolveDeviceId({ storage: broken });
+    assert.ok(first, 'a device must still be able to identify itself');
+    assert.equal(second, first, 'repeated calls must not mint a new device');
+    assert.equal(third, first);
+    assert.doesNotMatch(first, /^dev_session_/, 'the per-call session id is gone');
+  });
+});
+
+test('the pre-drain and post-drain reports come from the same device when storage is blocked', async () => {
+  await withLocalStorage(throwingLocalStorage, async () => {
+    resetDeviceIdentityCacheForTests();
+    const broken = {
+      claimDeviceIdentity: () => { throw new Error('IndexedDB is unavailable'); },
+      nextReportGeneration: () => { throw new Error('IndexedDB is unavailable'); },
+    };
+    // The real cycle: report, drain, report — the two reports that used to be
+    // filed under two different devices.
+    const filed = [];
+    await reconcileWithDeviceReports({
+      report: async () => { filed.push(await nextDeviceReportGeneration({ storage: broken })); },
+      drain: async () => ({ remaining: 0 }),
+    });
+    await new Promise((resolve) => { setTimeout(resolve, 0); });
+
+    assert.equal(filed.length, 2, 'a pre-drain and a post-drain report');
+    assert.equal(
+      filed[0].deviceId,
+      filed[1].deviceId,
+      'the cleared report must replace the positive one, not land on a second device row',
+    );
+    assert.ok(
+      filed[1].generation > filed[0].generation,
+      'and the post-drain report must be the newer generation',
+    );
+  });
+});
+
+test('device identity survives a reload whenever the durable queue does', async () => {
+  const storage = createMemoryOutboxStorage();
+  resetDeviceIdentityCacheForTests();
+  const before = await resolveDeviceId({ storage });
+
+  // A reload: the module cache is gone, the IndexedDB database is not.
+  resetDeviceIdentityCacheForTests();
+  const after = await resolveDeviceId({ storage });
+  assert.equal(after, before, 'the queue survived the reload, so its identity must too');
+
+  // A different browser installation is a different database, and must never
+  // share an identity with this one.
+  resetDeviceIdentityCacheForTests();
+  const otherInstallation = await resolveDeviceId({ storage: createMemoryOutboxStorage() });
+  assert.notEqual(otherInstallation, before, 'two browser installations are two devices');
+});
+
+test('an id an earlier release left in localStorage is adopted, never replaced', async () => {
+  // A Chromebook already reporting under `dev_legacy` has a server row under
+  // that id. Minting a new one would orphan the row with its stale counts
+  // intact — the exact permanent-pending failure this work removes.
+  const local = memoryLocalStorage({ 'mathmaster:device-id': 'dev_legacy' });
+  await withLocalStorage(local, async () => {
+    resetDeviceIdentityCacheForTests();
+    const storage = createMemoryOutboxStorage();
+    assert.equal(await resolveDeviceId({ storage }), 'dev_legacy');
+    // And it is promoted into durable storage, so the next reload keeps it even
+    // if localStorage is cleared.
+    assert.equal((await storage.readDeviceIdentity()).deviceId, 'dev_legacy');
+  });
+  resetDeviceIdentityCacheForTests();
+});
+
+test('report generations increase monotonically and survive a reload', async () => {
+  const storage = createMemoryOutboxStorage();
+  resetDeviceIdentityCacheForTests();
+  const clock = { value: 1_000 };
+  const now = () => clock.value;
+
+  const first = await nextDeviceReportGeneration({ storage, now });
+  const second = await nextDeviceReportGeneration({ storage, now });
+  assert.ok(second.generation > first.generation, 'two reports in the same millisecond still order');
+  assert.equal(second.deviceId, first.deviceId);
+
+  // Reload. The counter continues from the stored value, it does not restart.
+  resetDeviceIdentityCacheForTests();
+  const afterReload = await nextDeviceReportGeneration({ storage, now });
+  assert.ok(
+    afterReload.generation > second.generation,
+    'a reload must not hand back a generation the server already has',
+  );
+
+  // A clock that jumps backward cannot make a report look older than one the
+  // server already stored.
+  clock.value = 1;
+  const afterClockSkew = await nextDeviceReportGeneration({ storage, now });
+  assert.ok(afterClockSkew.generation > afterReload.generation);
+});
+
+test('a device that loses durable storage can still outrank what the server already holds', async () => {
+  /*
+   * The trap a plain counter falls into: the server holds generation 812 for
+   * this device, the browser's storage is wiped, and a counter restarting at 1
+   * means every later report is ignored — the device is silenced for good while
+   * holding a student's final grade. Flooring at the wall clock avoids it,
+   * because the stored 812 was itself floored at a clock that has since moved.
+   */
+  resetDeviceIdentityCacheForTests();
+  const broken = {
+    claimDeviceIdentity: () => { throw new Error('IndexedDB is unavailable'); },
+    nextReportGeneration: () => { throw new Error('IndexedDB is unavailable'); },
+  };
+  const storedOnServer = Date.now() - 60_000;
+  const recovered = await nextDeviceReportGeneration({ storage: broken });
+  assert.ok(
+    recovered.generation > storedOnServer,
+    'a device with no durable counter must still be able to correct its own row',
+  );
+  resetDeviceIdentityCacheForTests();
+});
+
+test('the reporting callable sends the device id and the generation together', async () => {
+  const service = await readFile(
+    new URL('../../src/services/submissionIngestionService.js', import.meta.url),
+    'utf8',
+  );
+  const report = region(service, 'export const reportDeviceQueueState', 'ASK THE SERVER TO RE-DERIVE', 'device report');
+  assert.match(report, /nextDeviceReportGeneration\(\)/);
+  assert.match(report, /deviceId,[\s\S]*reportGeneration: generation,/);
+  // The old per-call fallback is gone from the service entirely.
+  assert.doesNotMatch(executableSource(service), /dev_session_/);
 });

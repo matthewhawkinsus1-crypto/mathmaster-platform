@@ -505,9 +505,21 @@ const SNAPSHOT_REPORT_ID = `${encodeURIComponent(SNAPSHOT_STUDENT)}__${SNAPSHOT_
 const OTHER_ASSIGNMENT_B = `${PREFIX}-assignment-b`;
 const OTHER_ASSIGNMENT_C = `${PREFIX}-assignment-c`;
 
-const reportQueue = (studentId, deviceId, queuedGradeBearingByAssignment) =>
+/*
+ * A report as the current client sends one: generation-stamped.
+ *
+ * `reportGeneration` defaults to a fresh monotonic value so the ordinary case
+ * behaves like production. Passing one explicitly is how the race below drives
+ * arrival order independently of capture order. Passing `null` reproduces a
+ * device on the release before generations existed.
+ */
+let nextHarnessGeneration = Date.now();
+const reportQueue = (studentId, deviceId, queuedGradeBearingByAssignment, reportGeneration) =>
   fns.reportStudentDeviceQueue.run(studentRequest(studentId, {
     deviceId,
+    ...(reportGeneration === null
+      ? {}
+      : { reportGeneration: reportGeneration ?? (nextHarnessGeneration += 1) }),
     summary: {
       summarySchemaVersion: 2,
       queued: Object.values(queuedGradeBearingByAssignment).reduce((total, count) => total + count, 0),
@@ -983,4 +995,167 @@ test('29. a resolved unrecoverable gap lets the same passback finish', async () 
     100,
     'and it finalizes on the CANONICAL evidence that exists — no zeros are manufactured for the gap',
   );
+});
+
+/* ==========================================================================
+ * 30. EVERY DEVICE IS INSPECTED BEFORE A FINAL GRADE, NOT THE FIRST TEN.
+ *
+ * The safety read was `.limit(10)` with no ordering. A student with eleven
+ * device rows — a class set of Chromebooks, a browser-storage reset, the old
+ * unstable fallback id minting a row per report — could have the ONE device
+ * still holding an unsynced answer omitted from the read. The total came back
+ * zero and the final grade went out over the top of real work.
+ * ======================================================================== */
+
+const MANY_DEVICE_STUDENT = `${PREFIX}-many-device-student`;
+
+test('30. the eleventh device still holding queued work withholds the final grade', async () => {
+  await seedRosteredStudent(MANY_DEVICE_STUDENT);
+  const answers = ['2x+1', 'x+5', 'x-4', '9'];
+  for (let index = 0; index < answers.length; index += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await ingest(MANY_DEVICE_STUDENT, [submissionEnvelope({
+      actionId: `${PREFIX}-many-q${index}`,
+      questionIndex: index,
+      response: { kind: 'scalar', type: 'literal', value: answers[index], fields: [] },
+    })]);
+  }
+
+  // Ten devices that have drained everything, and an eleventh that has not.
+  // The empty ones are reported FIRST so that any surviving cap would read the
+  // reassuring rows and stop before reaching the one that matters.
+  for (let device = 1; device <= 10; device += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await reportQueue(MANY_DEVICE_STUDENT, `chromebook-${String(device).padStart(2, '0')}`, {});
+  }
+  await reportQueue(MANY_DEVICE_STUDENT, 'chromebook-11', { [ASSIGNMENT_ID]: 1 });
+
+  const stored = await db.collection('studentDevicePersistenceReports')
+    .where('studentId', '==', MANY_DEVICE_STUDENT).get();
+  assert.equal(stored.size, 11, 'the fixture must actually exceed the old cap');
+
+  // THE SAFETY DECISION. `readPersistencePending` is exercised through the
+  // trigger that consumes it, which is where the missed device did its damage.
+  resetClassroomCalls();
+  await runClassroomSync(MANY_DEVICE_STUDENT, {});
+  assert.equal(
+    patchGradeCalls().length,
+    0,
+    'an eleventh device holding an unsynced answer must withhold the final Classroom grade',
+  );
+  const heldAudit = await db.collection('classroomGradeSyncs')
+    .where('studentId', '==', MANY_DEVICE_STUDENT).get();
+  const held = heldAudit.docs.map((doc) => doc.data()).find((data) => data.status === 'sync-pending');
+  assert.ok(held, 'and the withholding must be audited');
+  assert.deepEqual(held.persistencePendingReasons, ['device-queue']);
+
+  // THE TEACHER REPORT SEES IT TOO — all eleven rows, and the right total.
+  const row = await persistenceRowFor(MANY_DEVICE_STUDENT);
+  assert.equal(row.persistencePending, true);
+  assert.equal(row.deviceQueues.length, 11, 'the teacher report must list every device, not ten');
+  const eleventh = row.deviceQueues.find((queue) => queue.deviceId === 'chromebook-11');
+  assert.ok(eleventh, 'the device holding the work must appear in the report');
+  assert.equal(eleventh.queuedGradeBearingForAssignment, 1);
+
+  // And once that device drains, the grade goes out.
+  await reportQueue(MANY_DEVICE_STUDENT, 'chromebook-11', {});
+  resetClassroomCalls();
+  await runClassroomSync(MANY_DEVICE_STUDENT, {});
+  assert.ok(patchGradeCalls().length >= 1, 'the passback resumes once every device is clear');
+  assert.equal(patchGradeCalls().at(-1).grade, 100);
+});
+
+/* ==========================================================================
+ * 31. A LATE REPORT CANNOT RESTORE A QUEUE THAT IS ALREADY EMPTY.
+ *
+ * The client's 12-second bound stops it WAITING; it does not cancel a callable
+ * already on the wire. So a "2 queued" report captured before a drain can
+ * arrive after the "0 queued" report captured after it. An unconditional write
+ * restores the stale count with the tab closed and nothing left to correct it,
+ * and the student's final grade is held as sync-pending indefinitely.
+ * ======================================================================== */
+
+const RACE_STUDENT = `${PREFIX}-race-student`;
+const RACE_DEVICE = 'race-chromebook';
+const RACE_REPORT_ID = `${encodeURIComponent(RACE_STUDENT)}__${RACE_DEVICE}`;
+const readRaceReport = async () =>
+  (await db.collection('studentDevicePersistenceReports').doc(RACE_REPORT_ID).get()).data() || {};
+
+test('31. generation 7 arriving after generation 8 does not overwrite it', async () => {
+  await seedRosteredStudent(RACE_STUDENT);
+
+  // Establish the device with an older generation so both racers are updates
+  // rather than first writes.
+  await reportQueue(RACE_STUDENT, RACE_DEVICE, { [ASSIGNMENT_ID]: 3 }, 6);
+  assert.equal((await readRaceReport()).reportGeneration, 6);
+  const firstReportedAt = (await readRaceReport()).firstReportedAt;
+  assert.ok(firstReportedAt, 'the device has a first-reported time to preserve');
+
+  // Generation 8 — captured after the drain, says nothing is queued — LANDS FIRST.
+  const landedFirst = await reportQueue(RACE_STUDENT, RACE_DEVICE, {}, 8);
+  assert.equal(landedFirst.applied, true);
+  assert.equal((await readRaceReport()).reportGeneration, 8);
+
+  // Generation 7 — captured BEFORE the drain, says 2 are queued — was delayed
+  // in flight and arrives now.
+  const arrivedLate = await reportQueue(RACE_STUDENT, RACE_DEVICE, { [ASSIGNMENT_ID]: 2 }, 7);
+
+  // It succeeds, because the client did nothing wrong and must not retry an
+  // obsolete report — but it is ignored, not applied.
+  assert.equal(arrivedLate.success, true);
+  assert.equal(arrivedLate.applied, false);
+  assert.equal(arrivedLate.ignored, true);
+  assert.equal(arrivedLate.reason, 'superseded-by-newer-report');
+  assert.equal(arrivedLate.storedReportGeneration, 8);
+
+  const final = await readRaceReport();
+  assert.equal(final.reportGeneration, 8, 'the newest generation must remain the stored one');
+  assert.equal(
+    Object.hasOwn(final.queuedGradeBearingByAssignment, encodeURIComponent(ASSIGNMENT_ID)),
+    false,
+    'the stale positive count must not be restored',
+  );
+  assert.equal(final.queuedGradeBearing, 0);
+  assert.equal(final.firstReportedAt.toMillis(), firstReportedAt.toMillis(), 'firstReportedAt is preserved');
+
+  // The consequence that matters: the final grade is not held by a report that
+  // was obsolete before it arrived.
+  const row = await persistenceRowFor(RACE_STUDENT);
+  assert.equal(row.persistencePending, false);
+
+  // A repeat of the generation already stored is ignored the same way, so a
+  // retry of a delivered report cannot resurrect anything either.
+  const replay = await reportQueue(RACE_STUDENT, RACE_DEVICE, { [ASSIGNMENT_ID]: 5 }, 8);
+  assert.equal(replay.ignored, true);
+  assert.equal((await readRaceReport()).queuedGradeBearing, 0);
+
+  // And a genuinely newer report still lands.
+  const newer = await reportQueue(RACE_STUDENT, RACE_DEVICE, { [ASSIGNMENT_ID]: 1 }, 9);
+  assert.equal(newer.applied, true);
+  assert.equal((await readRaceReport()).queuedGradeBearing, 1);
+  await reportQueue(RACE_STUDENT, RACE_DEVICE, {}, 10);
+});
+
+test('31. a device on the release before generations existed still reports', async () => {
+  // It sends no generation at all. Nothing generation-stamped has been stored
+  // for this device id, so its reports work exactly as they did before.
+  const legacyDevice = `${PREFIX}-legacy-gen-device`;
+  const legacyId = `${encodeURIComponent(RACE_STUDENT)}__${legacyDevice}`;
+  const readLegacy = async () =>
+    (await db.collection('studentDevicePersistenceReports').doc(legacyId).get()).data() || {};
+
+  assert.equal((await reportQueue(RACE_STUDENT, legacyDevice, { [ASSIGNMENT_ID]: 2 }, null)).applied, true);
+  assert.equal((await readLegacy()).queuedGradeBearing, 2);
+  // Repeated unversioned reports keep working — a legacy device must not be
+  // silenced after its first report.
+  assert.equal((await reportQueue(RACE_STUDENT, legacyDevice, {}, null)).applied, true);
+  assert.equal((await readLegacy()).queuedGradeBearing, 0);
+
+  // Once the browser updates and sends a generation, it wins…
+  assert.equal((await reportQueue(RACE_STUDENT, legacyDevice, { [ASSIGNMENT_ID]: 4 }, 100)).applied, true);
+  // …and an unversioned report still in flight from the old tab cannot undo it.
+  const staleUnversioned = await reportQueue(RACE_STUDENT, legacyDevice, {}, null);
+  assert.equal(staleUnversioned.ignored, true);
+  assert.equal((await readLegacy()).queuedGradeBearing, 4);
+  await reportQueue(RACE_STUDENT, legacyDevice, {}, 101);
 });
