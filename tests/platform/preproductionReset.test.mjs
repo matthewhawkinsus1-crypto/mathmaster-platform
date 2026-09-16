@@ -274,13 +274,12 @@ test('permanent student deletion erases the complete Class Points footprint, gat
   const callableBlock = functionsSource.slice(callableStart, callableEnd);
   const classPointsCleanup = callableBlock.indexOf('await deleteStudentClassPointsFootprint(db, studentId, deleted)');
   const rosterDelete = callableBlock.indexOf('await recursiveDeleteDocument(db, rosterRef');
-  const directoryDelete = callableBlock.indexOf('db.collection(authLib.DIRECTORY_COLLECTION).where("studentId", "==", studentId)');
+  const directoryDelete = callableBlock.indexOf(
+    'recursiveDeleteQuery(\n    db,\n    db.collection(authLib.DIRECTORY_COLLECTION).where("studentId", "==", studentId)',
+  );
   assert.ok(classPointsCleanup >= 0, 'permanent delete must invoke Class Points cleanup');
   assert.ok(rosterDelete > classPointsCleanup, 'Class Points cleanup must finish before the roster identity is erased');
-  assert.ok(
-    directoryDelete === -1 || classPointsCleanup < directoryDelete,
-    'Class Points cleanup must run while directory identity is still available for a retry',
-  );
+  assert.ok(directoryDelete > classPointsCleanup, 'Class Points cleanup must finish before directory identity is erased');
 });
 
 test('account disable never touches Class Points -- history survives deactivation', () => {
