@@ -33,6 +33,8 @@ test('reset collection policy deletes test/runtime state but explicitly preserve
     'liveChallengeRooms',
     'liveChallengeTeacherActive',
     'liveChallengePrivate',
+    'liveSpotlightRequests',
+    'liveSpotlightFrames',
     'pathHistory',
     'classroomLinks',
     'classroomRosterLinks',
