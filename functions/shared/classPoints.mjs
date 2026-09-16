@@ -18,6 +18,13 @@
 // is what keeps "what happened" honest even after "the balance right now" is
 // corrected.
 //
+// AUTHORIZATION is decided from `classes/{classId}`, never from the
+// denormalized `grades.assignedTeacherEmail` alone: functions/shared/
+// classModel.mjs is explicit that the class record is authoritative for
+// `teacherOfRecord`, and the roster field is a scalability copy of it. A
+// caller here is authorized only when BOTH agree with the requested class —
+// see `authorizeClassPointsActor`.
+//
 // This file is pure and shared, the same way functions/shared/classModel.mjs
 // and functions/shared/authorizationContext.mjs are: the callable enforces it
 // server-side, and it is unit-tested directly without a Functions runtime or
@@ -56,7 +63,8 @@ export const DEFAULT_REASON_LABELS = Object.freeze({
  * `rewardRedemption` are accepted shapes for future work — this PR does not
  * issue either kind, but the ledger must already be able to hold them so the
  * eventual Live Challenge bonus and reward-shop redemption do not need a
- * schema migration to land.
+ * schema migration to land. `reverseClassPointAward` only ever operates on a
+ * `teacherAward` — see `isReversibleAward`.
  */
 export const SOURCE_TYPES = Object.freeze({
   TEACHER_AWARD: 'teacherAward',
@@ -82,9 +90,33 @@ export class ClassPointsInputError extends Error {
 const reject = (message) => { throw new ClassPointsInputError(message); };
 
 const cleanText = (value, max) => String(value ?? '').trim().slice(0, max);
+const cleanEmail = (value) => {
+  const text = String(value ?? '').trim().toLowerCase();
+  return text || null;
+};
+const uniqueEmails = (values) => [...new Set((values || []).map(cleanEmail).filter(Boolean))].sort();
+const sameEmailList = (left, right) => {
+  const a = uniqueEmails(left);
+  const b = uniqueEmails(right);
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+};
 
-/** The stable id an account projection lives at. */
-export const accountId = (studentId, classId) => `${cleanText(studentId, 64)}__${cleanText(classId, 120)}`;
+/**
+ * The stable id an account projection lives at.
+ *
+ * Length-prefixing `studentId` makes the boundary between the two components
+ * unambiguous no matter what characters either one contains. A fixed
+ * separator alone is not safe here: `studentId` allows underscores (see
+ * functions/lib/auth.js's STUDENT_ID_PATTERN), and `classId` can be an
+ * admin-typed document id (see `saveClass`) with no character restriction at
+ * all, so student "a__b" + class "c" and student "a" + class "b__c" would
+ * otherwise collide on the identical id "a__b__c".
+ */
+export const accountId = (studentId, classId) => {
+  const student = cleanText(studentId, 64);
+  const cls = cleanText(classId, 120);
+  return `${student.length}:${student}:${cls}`;
+};
 
 /**
  * Validate and normalize an `awardClassPoints` call. Throws
@@ -142,15 +174,125 @@ export const validateReversalInput = (input = {}) => {
   };
 };
 
+/**
+ * A canonical, order-stable fingerprint of what an award *means*, independent
+ * of the requestId that carries it. Two calls with the same requestId but a
+ * different fingerprint are not "the same request retried" — they are a
+ * requestId reused for a different award — and must never be silently
+ * satisfied from the first call's cached result. See `awardClassPoints`'s
+ * idempotency check.
+ */
+export const awardPayloadFingerprint = ({
+  studentId, classId, amount, reasonCode, reasonLabel, announce,
+} = {}) => JSON.stringify({
+  studentId: cleanText(studentId, 64),
+  classId: cleanText(classId, 120),
+  amount: Number(amount),
+  reasonCode: cleanText(reasonCode, 40),
+  reasonLabel: cleanText(reasonLabel, 140),
+  announce: Boolean(announce),
+});
+
+/**
+ * Whether `teacherEmail` may award or reverse Class Points for `studentId` in
+ * `requestedClassId` right now.
+ *
+ * `classes/{classId}` is authoritative for who teaches a class
+ * (functions/shared/classModel.mjs); `grades.assignedTeacherEmail` is a
+ * denormalized copy kept only so rules and roster queries can avoid a get()
+ * per document. This function trusts the class record for identity and
+ * requires the roster copy to agree with it before trusting either — a
+ * caller is never authorized from a stale roster field alone, even when that
+ * caller happens to be the email the stale field names.
+ *
+ * Both `awardClassPoints` and `reverseClassPointAward` call this ONE
+ * function so the two callables cannot drift on what "authorized" means.
+ *
+ * `classRecord` and `studentRecord` existing is checked unconditionally,
+ * including for the root administrator — there is nothing to authorize
+ * against a document that is not there. Everything past that point is a
+ * business rule the administrator may bypass, matching the rest of the
+ * platform's admin escape hatch (see `overrideStudentResponseGrade`).
+ */
+export const authorizeClassPointsActor = ({
+  isRootAdmin = false,
+  teacherEmail,
+  classRecord = null,
+  studentRecord = null,
+  requestedClassId,
+} = {}) => {
+  if (!classRecord) {
+    return { authorized: false, reason: 'not-found', message: 'That class was not found.' };
+  }
+  if (!studentRecord) {
+    return { authorized: false, reason: 'not-found', message: 'That student was not found.' };
+  }
+
+  if (isRootAdmin) return { authorized: true };
+
+  if (classRecord.status === 'archived') {
+    return {
+      authorized: false,
+      reason: 'failed-precondition',
+      message: 'That class is archived. Class Points cannot be issued for, or reversed against, an archived class.',
+    };
+  }
+
+  if (String(studentRecord.classId || '') !== String(requestedClassId || '')) {
+    return {
+      authorized: false,
+      reason: 'failed-precondition',
+      message: 'This student does not currently belong to that class.',
+    };
+  }
+
+  const teacherOfRecord = cleanEmail(classRecord.teacherOfRecord);
+  const assignedTeacherEmail = cleanEmail(studentRecord.assignedTeacherEmail);
+  if (!teacherOfRecord || assignedTeacherEmail !== teacherOfRecord) {
+    return {
+      authorized: false,
+      reason: 'failed-precondition',
+      message: "This class's roster authorization is out of sync. An administrator must resave the class before Class Points can be issued or reversed.",
+    };
+  }
+
+  if (cleanEmail(teacherEmail) !== teacherOfRecord) {
+    return {
+      authorized: false,
+      reason: 'permission-denied',
+      message: "Only this class's teacher of record may do that.",
+    };
+  }
+
+  return { authorized: true };
+};
+
+/**
+ * Only a live, un-reversed teacher award can be reversed. This is a separate
+ * check from `authorizeClassPointsActor` on purpose: a caller can be fully
+ * authorized for the class and still be pointed at a transaction that is not
+ * a reversible teacher award — a `teacherReversal` (already a correction), a
+ * future `rewardRedemption` (a spend, not an earning), or a future
+ * `liveChallengeAchievement` bonus, none of which should inherit teacher-award
+ * reversal semantics by accident.
+ */
+export const isReversibleAward = (transaction = {}) => (
+  transaction?.sourceType === SOURCE_TYPES.TEACHER_AWARD
+  && transaction?.isReversal === false
+  && Number.isInteger(Number(transaction?.amount))
+  && Number(transaction.amount) > 0
+);
+
 /** The zero-balance account a student+class starts at before any transaction. */
-export const emptyAccount = ({ studentId, classId, authorizedTeacherEmails = [] }) => ({
+export const emptyAccount = ({ studentId, classId }) => ({
   schemaVersion: CLASS_POINTS_SCHEMA_VERSION,
   studentId,
   classId,
   balance: 0,
   lifetimeEarned: 0,
   lifetimeSpent: 0,
-  authorizedTeacherEmails,
+  originTeacherEmail: null,
+  authorizedTeacherEmails: [],
   updatedAt: null,
 });
 
@@ -192,6 +334,52 @@ export const applyTransaction = (account, transaction) => {
   };
 };
 
+/**
+ * The authorization fields (`originTeacherEmail`, `authorizedTeacherEmails`)
+ * an account or transaction should carry right now, given the class's
+ * CURRENT teacher of record and whatever authorization the record already
+ * had.
+ *
+ * `originTeacherEmail` is frozen at whoever taught the class when this
+ * studentId+classId wallet was first created — mirroring the origin/current
+ * split in functions/shared/authorizationContext.mjs — and, per MathMaster's
+ * existing historical-authorization policy, is never dropped from
+ * `authorizedTeacherEmails` even after the class changes hands.
+ */
+export const classPointsAuthorizationContext = ({ classRecord = null, existingRecord = null } = {}) => {
+  const currentTeacher = cleanEmail(classRecord?.teacherOfRecord);
+  const originTeacherEmail = cleanEmail(existingRecord?.originTeacherEmail) || currentTeacher;
+  const authorizedTeacherEmails = uniqueEmails([
+    ...(Array.isArray(existingRecord?.authorizedTeacherEmails) ? existingRecord.authorizedTeacherEmails : []),
+    originTeacherEmail,
+    currentTeacher,
+  ]);
+  return { originTeacherEmail, authorizedTeacherEmails };
+};
+
+/**
+ * What a Class Points account or transaction should be rewritten to when a
+ * class's teacher of record changes, or `null` when nothing should change.
+ *
+ * Class Points are scoped to studentId + classId and must never migrate
+ * between classes: a record belonging to a DIFFERENT class than
+ * `classRecord` (e.g. a wallet the student earned before moving classes) is
+ * left completely untouched, never re-pointed at the student's new class.
+ * Only a record for the SAME class gains the new teacher's access, and the
+ * classId itself is never part of the returned change.
+ */
+export const reauthorizeClassPointsRecord = (record = {}, { classRecord = null } = {}) => {
+  if (!classRecord?.classId) return null;
+  if (String(record?.classId || '') !== String(classRecord.classId)) return null;
+
+  const context = classPointsAuthorizationContext({ classRecord, existingRecord: record });
+  const unchanged = cleanEmail(record.originTeacherEmail) === context.originTeacherEmail
+    && sameEmailList(record.authorizedTeacherEmails, context.authorizedTeacherEmails);
+  if (unchanged) return null;
+
+  return context;
+};
+
 /** The immutable ledger entry a teacher award creates. */
 export const buildAwardTransaction = ({
   studentId,
@@ -202,6 +390,7 @@ export const buildAwardTransaction = ({
   requestId,
   issuedByUid,
   issuedByEmail,
+  originTeacherEmail,
   authorizedTeacherEmails,
   at,
 }) => ({
@@ -217,6 +406,7 @@ export const buildAwardTransaction = ({
   requestId,
   isReversal: false,
   reversalOf: null,
+  originTeacherEmail,
   authorizedTeacherEmails,
   createdAt: at,
 });
@@ -224,6 +414,11 @@ export const buildAwardTransaction = ({
 /**
  * The compensating ledger entry a reversal creates. `original` is the award
  * transaction being undone, complete with its own document id as `id`.
+ * `originTeacherEmail`/`authorizedTeacherEmails` are the CURRENT authorization
+ * context (from `classPointsAuthorizationContext`) rather than a copy of the
+ * original transaction's — a legitimate teacher-of-record change between the
+ * award and its reversal should not leave the reversal itself unreadable by
+ * the class's current teacher.
  */
 export const buildReversalTransaction = ({
   original,
@@ -231,6 +426,8 @@ export const buildReversalTransaction = ({
   requestId,
   issuedByUid,
   issuedByEmail,
+  originTeacherEmail,
+  authorizedTeacherEmails,
   at,
 }) => ({
   schemaVersion: CLASS_POINTS_SCHEMA_VERSION,
@@ -245,7 +442,8 @@ export const buildReversalTransaction = ({
   requestId,
   isReversal: true,
   reversalOf: original.id,
-  authorizedTeacherEmails: original.authorizedTeacherEmails,
+  originTeacherEmail,
+  authorizedTeacherEmails,
   createdAt: at,
 });
 

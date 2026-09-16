@@ -1445,20 +1445,20 @@ exports.overrideStudentResponseGrade = onCall(async (request) => {
 // Class Points: a classroom participation reward currency, scoped to
 // studentId + classId. See functions/shared/classPoints.mjs for the domain
 // model. Both callables below are the ONLY writers of the ledger, the account
-// projection, and the public class announcement — a client Firestore write
+// projection, and the public class announcement -- a client Firestore write
 // can never touch any of the three (see firestore.rules).
+//
+// AUTHORIZATION ALWAYS RUNS BEFORE ANY DATA-RETURNING BRANCH, including an
+// idempotent replay. Both callables use the Admin SDK, so firestore.rules
+// does not protect their response -- the only thing standing between "a
+// caller who is not this student's teacher" and a transaction/account payload
+// is `authorizeClassPointsActor`, checked here before every `return`.
 // ---------------------------------------------------------------------------
 
 let classPointsModule = null;
 async function classPoints() {
   if (!classPointsModule) classPointsModule = await import("./shared/classPoints.mjs");
   return classPointsModule;
-}
-
-let authorizationContextModule = null;
-async function authorizationContext() {
-  if (!authorizationContextModule) authorizationContextModule = await import("./shared/authorizationContext.mjs");
-  return authorizationContextModule;
 }
 
 const CLASS_POINT_ACCOUNTS_COLLECTION = "classPointAccounts";
@@ -1484,12 +1484,29 @@ function translateClassPointsError(error) {
   return error;
 }
 
+/** `classRecord`/`studentRecord` shaped exactly as `authorizeClassPointsActor` expects. */
+async function loadClassPointsActors(transaction, db, { classId, studentId }) {
+  const classRef = db.collection("classes").doc(classId);
+  const gradeRef = db.collection("grades").doc(studentId);
+  const [classSnap, gradeSnap] = await Promise.all([
+    transaction.get(classRef),
+    transaction.get(gradeRef),
+  ]);
+  return {
+    classRef,
+    gradeRef,
+    classRecord: classSnap.exists ? { classId: classSnap.id, ...classSnap.data() } : null,
+    studentRecord: gradeSnap.exists ? gradeSnap.data() : null,
+  };
+}
+
 /**
  * Award Class Points to one student in one class. A teacher can never award
- * themselves through a client write (see the DIRECTORY_COLLECTION-style
- * server-only rules), the ledger this creates is append-only, and replaying
- * the same requestId returns the original transaction instead of creating a
- * second one.
+ * themselves through a client write (see firestore.rules), the ledger this
+ * creates is append-only, and replaying the same requestId with the same
+ * payload returns the original transaction instead of creating a second one.
+ * Reusing a requestId for a materially different award is rejected outright
+ * rather than silently satisfied from the first call's result.
  */
 exports.awardClassPoints = onCall(async (request) => {
   const teacherUid = await requireTeacher(request);
@@ -1502,7 +1519,6 @@ exports.awardClassPoints = onCall(async (request) => {
   }
 
   const points = await classPoints();
-  const authContext = await authorizationContext();
   let input;
   try {
     input = points.validateAwardInput(request.data);
@@ -1514,8 +1530,6 @@ exports.awardClassPoints = onCall(async (request) => {
   } = input;
 
   const db = getFirestore();
-  const classRef = db.collection("classes").doc(classId);
-  const gradeRef = db.collection("grades").doc(studentId);
   const accountRef = db
     .collection(CLASS_POINT_ACCOUNTS_COLLECTION)
     .doc(points.accountId(studentId, classId));
@@ -1523,21 +1537,44 @@ exports.awardClassPoints = onCall(async (request) => {
     .collection(CLASS_POINT_IDEMPOTENCY_COLLECTION)
     .doc(classPointIdempotencyKey({ classId, studentId, requestId }));
   const nowIso = new Date().toISOString();
+  const isRootAdmin = authLib.isRootAdminEmail(teacherEmail);
+  const payloadFingerprint = points.awardPayloadFingerprint(input);
 
   return db.runTransaction(async (transaction) => {
-    const [classSnap, gradeSnap, accountSnap, idempotencySnap] = await Promise.all([
-      transaction.get(classRef),
-      transaction.get(gradeRef),
+    const { classRef, classRecord, studentRecord } = await loadClassPointsActors(
+      transaction, db, { classId, studentId },
+    );
+    const [accountSnap, idempotencySnap] = await Promise.all([
       transaction.get(accountRef),
       transaction.get(idempotencyRef),
     ]);
 
+    // Authorization is checked BEFORE any branch that could return data --
+    // including the idempotent-replay branch just below -- so a caller who is
+    // not this student's currently-authoritative teacher of record can never
+    // obtain a transaction or account payload, whether or not they also
+    // happen to know (or reuse) a valid requestId.
+    const decision = points.authorizeClassPointsActor({
+      isRootAdmin, teacherEmail, classRecord, studentRecord, requestedClassId: classId,
+    });
+    if (!decision.authorized) throw new HttpsError(decision.reason, decision.message);
+
     // Idempotent replay: a network retry of the same award must return the
-    // original result rather than create a second transaction.
+    // original result rather than create a second transaction. A requestId
+    // reused for a DIFFERENT award (different amount/reason/announce) is not
+    // "the same request retried" and must never be silently satisfied from
+    // the first call's cached result.
     if (idempotencySnap.exists) {
+      const existing = idempotencySnap.data() || {};
+      if (existing.payloadFingerprint !== payloadFingerprint) {
+        throw new HttpsError(
+          "failed-precondition",
+          "This requestId was already used for a different Class Points award.",
+        );
+      }
       const existingTransactionRef = db
         .collection(CLASS_POINT_TRANSACTIONS_COLLECTION)
-        .doc(String(idempotencySnap.data().transactionId));
+        .doc(String(existing.transactionId));
       const existingTransactionSnap = await transaction.get(existingTransactionRef);
       return {
         transactionId: existingTransactionRef.id,
@@ -1547,27 +1584,10 @@ exports.awardClassPoints = onCall(async (request) => {
       };
     }
 
-    if (!classSnap.exists) throw new HttpsError("not-found", "That class was not found.");
-    if (!gradeSnap.exists) throw new HttpsError("not-found", "That student was not found.");
-
-    const gradeData = gradeSnap.data() || {};
-    // Authorization reuses the same roster field firestore.rules reads
-    // (`assignedTeacherEmail`) rather than introducing a second, weaker
-    // notion of "this teacher's class" — see teachesStudent() in the rules.
-    if (!authLib.isRootAdminEmail(teacherEmail) && gradeData.assignedTeacherEmail !== teacherEmail) {
-      throw new HttpsError(
-        "permission-denied",
-        "Only this student's teacher of record may award Class Points.",
-      );
-    }
-    if (String(gradeData.classId || "") !== classId) {
-      throw new HttpsError(
-        "failed-precondition",
-        "This student does not currently belong to that class.",
-      );
-    }
-
-    const authorization = authContext.buildAuthorizationContext({ studentId, student: gradeData });
+    const existingAccount = accountSnap.exists ? accountSnap.data() : null;
+    const authorization = points.classPointsAuthorizationContext({
+      classRecord, existingRecord: existingAccount,
+    });
 
     const transactionRef = db.collection(CLASS_POINT_TRANSACTIONS_COLLECTION).doc();
     const transactionData = points.buildAwardTransaction({
@@ -1579,36 +1599,38 @@ exports.awardClassPoints = onCall(async (request) => {
       requestId,
       issuedByUid: teacherUid,
       issuedByEmail: teacherEmail,
+      originTeacherEmail: authorization.originTeacherEmail,
       authorizedTeacherEmails: authorization.authorizedTeacherEmails,
       at: nowIso,
     });
 
-    const existingAccount = accountSnap.exists
-      ? accountSnap.data()
-      : points.emptyAccount({
-        studentId,
-        classId,
-        authorizedTeacherEmails: authorization.authorizedTeacherEmails,
-      });
-
+    const baseAccount = existingAccount || points.emptyAccount({ studentId, classId });
     let nextAccount;
     try {
-      nextAccount = points.applyTransaction(existingAccount, transactionData);
+      nextAccount = points.applyTransaction(baseAccount, transactionData);
     } catch (error) {
       throw translateClassPointsError(error);
     }
-    nextAccount = { ...nextAccount, authorizedTeacherEmails: authorization.authorizedTeacherEmails };
+    nextAccount = {
+      ...nextAccount,
+      originTeacherEmail: authorization.originTeacherEmail,
+      authorizedTeacherEmails: authorization.authorizedTeacherEmails,
+    };
 
     transaction.set(transactionRef, transactionData);
     transaction.set(accountRef, nextAccount);
-    transaction.set(idempotencyRef, { transactionId: transactionRef.id, createdAt: nowIso });
+    transaction.set(idempotencyRef, {
+      transactionId: transactionRef.id,
+      payloadFingerprint,
+      createdAt: nowIso,
+    });
 
     let announcementId = null;
     if (announce) {
       const announcementRef = classRef.collection(CLASS_POINT_ANNOUNCEMENTS_COLLECTION).doc();
       const announcement = points.buildAnnouncement({
         classId,
-        publicStudentLabel: points.publicStudentLabel(gradeData),
+        publicStudentLabel: points.publicStudentLabel(studentRecord),
         amount,
         reasonLabel,
         awardTransactionId: transactionRef.id,
@@ -1632,8 +1654,9 @@ exports.awardClassPoints = onCall(async (request) => {
  * Reverse a previously-issued Class Points award with a compensating,
  * immutable transaction. The reversal lives at a deterministic id derived
  * from the original transaction id, so a second reversal attempt collides
- * with the first rather than needing a query to discover it — the same award
- * can never be reversed twice.
+ * with the first rather than needing a query to discover it -- the same award
+ * can never be reversed twice. Only a live, un-reversed `teacherAward` may be
+ * targeted; see `isReversibleAward`.
  */
 exports.reverseClassPointAward = onCall(async (request) => {
   const teacherUid = await requireTeacher(request);
@@ -1660,23 +1683,47 @@ exports.reverseClassPointAward = onCall(async (request) => {
     .collection(CLASS_POINT_TRANSACTIONS_COLLECTION)
     .doc(points.reversalTransactionId(transactionId));
   const nowIso = new Date().toISOString();
+  const isRootAdmin = authLib.isRootAdminEmail(teacherEmail);
 
   return db.runTransaction(async (transaction) => {
-    const [originalSnap, reversalSnap] = await Promise.all([
-      transaction.get(originalRef),
-      transaction.get(reversalRef),
-    ]);
-
+    const originalSnap = await transaction.get(originalRef);
     if (!originalSnap.exists) throw new HttpsError("not-found", "That Class Points award was not found.");
     const originalData = { id: originalSnap.id, ...originalSnap.data() };
+
+    const { classRecord, studentRecord } = await loadClassPointsActors(
+      transaction,
+      db,
+      { classId: String(originalData.classId || ""), studentId: String(originalData.studentId || "") },
+    );
+    const accountRef = db
+      .collection(CLASS_POINT_ACCOUNTS_COLLECTION)
+      .doc(points.accountId(originalData.studentId, originalData.classId));
+    const [reversalSnap, accountSnap] = await Promise.all([
+      transaction.get(reversalRef),
+      transaction.get(accountRef),
+    ]);
+
+    // Authorization is checked BEFORE any branch that could return data --
+    // including the idempotent-replay branch below -- for the same reason as
+    // in awardClassPoints: this callable runs on the Admin SDK, so nothing
+    // else stands between an unauthorized caller and this transaction's
+    // account/history payload.
+    const decision = points.authorizeClassPointsActor({
+      isRootAdmin, teacherEmail, classRecord, studentRecord, requestedClassId: originalData.classId,
+    });
+    if (!decision.authorized) throw new HttpsError(decision.reason, decision.message);
+
+    // A reversal may only target a live, un-reversed teacher award -- never a
+    // reversal, and never a future rewardRedemption/liveChallengeAchievement
+    // transaction, which must not inherit teacher-award reversal semantics by
+    // accident.
+    if (!points.isReversibleAward(originalData)) {
+      throw new HttpsError("failed-precondition", "Only a teacher award can be reversed.");
+    }
 
     if (reversalSnap.exists) {
       const existing = reversalSnap.data();
       if (existing.requestId === requestId) {
-        const accountSnap = await transaction.get(
-          db.collection(CLASS_POINT_ACCOUNTS_COLLECTION)
-            .doc(points.accountId(originalData.studentId, originalData.classId)),
-        );
         return {
           transactionId: reversalRef.id,
           account: accountSnap.exists ? accountSnap.data() : null,
@@ -1687,43 +1734,21 @@ exports.reverseClassPointAward = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "This award has already been reversed.");
     }
 
-    if (originalData.isReversal) {
-      throw new HttpsError("failed-precondition", "A reversal cannot itself be reversed.");
-    }
-
-    const gradeRef = db.collection("grades").doc(String(originalData.studentId));
-    const accountRef = db
-      .collection(CLASS_POINT_ACCOUNTS_COLLECTION)
-      .doc(points.accountId(originalData.studentId, originalData.classId));
-    const [gradeSnap, accountSnap] = await Promise.all([
-      transaction.get(gradeRef),
-      transaction.get(accountRef),
-    ]);
-
-    if (!gradeSnap.exists) throw new HttpsError("not-found", "That student was not found.");
-    const gradeData = gradeSnap.data() || {};
-    if (!authLib.isRootAdminEmail(teacherEmail) && gradeData.assignedTeacherEmail !== teacherEmail) {
-      throw new HttpsError(
-        "permission-denied",
-        "Only this student's current teacher of record may reverse this award.",
-      );
-    }
-    if (String(gradeData.classId || "") !== String(originalData.classId || "")) {
-      throw new HttpsError(
-        "failed-precondition",
-        "This student does not currently belong to that class.",
-      );
-    }
     if (!accountSnap.exists) {
       throw new HttpsError("failed-precondition", "There is no Class Points account to reverse against.");
     }
 
+    const authorization = points.classPointsAuthorizationContext({
+      classRecord, existingRecord: accountSnap.data(),
+    });
     const reversalData = points.buildReversalTransaction({
       original: originalData,
       reason,
       requestId,
       issuedByUid: teacherUid,
       issuedByEmail: teacherEmail,
+      originTeacherEmail: authorization.originTeacherEmail,
+      authorizedTeacherEmails: authorization.authorizedTeacherEmails,
       at: nowIso,
     });
 
@@ -1733,6 +1758,11 @@ exports.reverseClassPointAward = onCall(async (request) => {
     } catch (error) {
       throw translateClassPointsError(error);
     }
+    nextAccount = {
+      ...nextAccount,
+      originTeacherEmail: authorization.originTeacherEmail,
+      authorizedTeacherEmails: authorization.authorizedTeacherEmails,
+    };
 
     transaction.set(reversalRef, reversalData);
     transaction.set(accountRef, nextAccount);
@@ -1985,16 +2015,17 @@ async function loadStudentClass(db, studentData) {
  */
 async function reauthorizeStudentRecords(db, studentId, classRecord) {
   const auth = await authorizationContext();
+  const points = await classPoints();
   const counts = {};
 
-  const apply = async (ref, docs) => {
+  const apply = async (docs, computeChange) => {
     let updated = 0;
     for (let index = 0; index < docs.length; index += 400) {
       const chunk = docs.slice(index, index + 400);
       const batch = db.batch();
       let queued = 0;
       chunk.forEach((entry) => {
-        const change = auth.reauthorizeContext(entry.data() || {}, { classRecord });
+        const change = computeChange(entry);
         if (!change) return;
         batch.set(entry.ref, change, { merge: true });
         queued += 1;
@@ -2007,12 +2038,14 @@ async function reauthorizeStudentRecords(db, studentId, classRecord) {
     }
     return updated;
   };
+  const reauthorizeChange = (entry) => auth.reauthorizeContext(entry.data() || {}, { classRecord });
+  const classPointsChange = (entry) => points.reauthorizeClassPointsRecord(entry.data() || {}, { classRecord });
 
   for (const collectionSpec of AUTHORIZED_CHILD_COLLECTIONS) {
     // eslint-disable-next-line no-await-in-loop
     const snapshot = await db.collection(collectionSpec.path(studentId)).get();
     // eslint-disable-next-line no-await-in-loop
-    counts[collectionSpec.label] = await apply(null, snapshot.docs);
+    counts[collectionSpec.label] = await apply(snapshot.docs, reauthorizeChange);
   }
 
   // Support/intervention history and archived live-session summaries are
@@ -2022,7 +2055,42 @@ async function reauthorizeStudentRecords(db, studentId, classRecord) {
     // eslint-disable-next-line no-await-in-loop
     const snapshot = await db.collection(collectionName).where("studentId", "==", studentId).get();
     // eslint-disable-next-line no-await-in-loop
-    counts[collectionName] = await apply(null, snapshot.docs);
+    counts[collectionName] = await apply(snapshot.docs, reauthorizeChange);
+  }
+
+  // Class Points accounts and transactions are scoped to studentId + classId
+  // and must never migrate between classes -- a wallet the student earned in
+  // a class they have since left stays exactly where it is, readable only by
+  // whoever taught them there. Only records for THIS class (whether the call
+  // is "the same class got a new teacher of record" or "the student moved
+  // here") are ever touched, and `reauthorizeClassPointsRecord` re-checks that
+  // itself as a second guard against ever rewriting a record's classId. See
+  // functions/shared/classPoints.mjs.
+  if (classRecord?.classId) {
+    // The account lives at a deterministic id, so it is a direct get() rather
+    // than a query -- no composite index needed for the common case.
+    const accountRef = db.collection("classPointAccounts").doc(points.accountId(studentId, classRecord.classId));
+    const accountSnapshot = await accountRef.get();
+    if (accountSnapshot.exists) {
+      const change = classPointsChange(accountSnapshot);
+      if (change) await accountRef.set(change, { merge: true });
+      counts.classPointAccounts = change ? 1 : 0;
+    } else {
+      counts.classPointAccounts = 0;
+    }
+
+    // A student can accumulate many transactions for one class over a school
+    // year, so this is a real query -- covered by the existing
+    // studentId+classId+createdAt composite index (this is a valid prefix of
+    // it) without needing an index of its own.
+    const transactionsSnapshot = await db.collection("classPointTransactions")
+      .where("studentId", "==", studentId)
+      .where("classId", "==", classRecord.classId)
+      .get();
+    counts.classPointTransactions = await apply(transactionsSnapshot.docs, classPointsChange);
+  } else {
+    counts.classPointAccounts = 0;
+    counts.classPointTransactions = 0;
   }
 
   // A temporary personal Path recommendation belongs to the current teacher /

@@ -7,6 +7,7 @@ import {
 import {
   collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where,
 } from 'firebase/firestore';
+import { accountId as classPointsAccountId } from '../../functions/shared/classPoints.mjs';
 
 // Authenticated requests, through the real Security Rules, in the Firestore
 // emulator.
@@ -25,6 +26,7 @@ const ROOT_ADMIN = 'matthew.hawkins@desotoisd.org';
 const TEACHER_A = 'teacher.a@desotoisd.org';
 const TEACHER_B = 'teacher.b@desotoisd.org';
 const TEACHER_LEGACY = 'teacher.legacy@desotoisd.org';
+const CLASS_POINTS_ACCOUNT_A = classPointsAccountId('STUDENT_A', 'class-a');
 
 let env;
 
@@ -89,13 +91,14 @@ before(async () => {
       expiresAt: Date.now() + 86400000,
     });
     // What awardClassPoints would have written for one $2 participation award.
-    await setDoc(doc(db, 'classPointAccounts/STUDENT_A__class-a'), {
+    await setDoc(doc(db, `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`), {
       schemaVersion: 1,
       studentId: 'STUDENT_A',
       classId: 'class-a',
       balance: 2,
       lifetimeEarned: 2,
       lifetimeSpent: 0,
+      originTeacherEmail: TEACHER_A,
       authorizedTeacherEmails: [TEACHER_A],
       updatedAt: '2026-09-01T12:00:00.000Z',
     });
@@ -112,6 +115,7 @@ before(async () => {
       requestId: 'req-1',
       isReversal: false,
       reversalOf: null,
+      originTeacherEmail: TEACHER_A,
       authorizedTeacherEmails: [TEACHER_A],
       createdAt: '2026-09-01T12:00:00.000Z',
     });
@@ -965,8 +969,8 @@ test('response inspection evidence is server-only and cannot be forged or read d
 // grades/evidence/support history already are.
 
 test('a teacher reads Class Points for their own roster, never another teacher\'s', async () => {
-  await assertSucceeds(getDoc(doc(teacherA(), 'classPointAccounts/STUDENT_A__class-a')));
-  await assertFails(getDoc(doc(teacherB(), 'classPointAccounts/STUDENT_A__class-a')));
+  await assertSucceeds(getDoc(doc(teacherA(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`)));
+  await assertFails(getDoc(doc(teacherB(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`)));
   await assertSucceeds(getDoc(doc(teacherA(), 'classPointTransactions/cp-tx-1')));
   await assertFails(getDoc(doc(teacherB(), 'classPointTransactions/cp-tx-1')));
 
@@ -974,25 +978,25 @@ test('a teacher reads Class Points for their own roster, never another teacher\'
     collection(teacherA(), 'classPointAccounts'),
     where('authorizedTeacherEmails', 'array-contains', TEACHER_A),
   )));
-  assert.equal(mineAccounts.docs.some((entry) => entry.id === 'STUDENT_A__class-a'), true);
+  assert.equal(mineAccounts.docs.some((entry) => entry.id === CLASS_POINTS_ACCOUNT_A), true);
 });
 
 test('the root administrator reads any Class Points account or transaction', async () => {
-  await assertSucceeds(getDoc(doc(admin(), 'classPointAccounts/STUDENT_A__class-a')));
+  await assertSucceeds(getDoc(doc(admin(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`)));
   await assertSucceeds(getDoc(doc(admin(), 'classPointTransactions/cp-tx-1')));
 });
 
 test('a student reads their own Class Points wallet and history, never another student\'s', async () => {
-  await assertSucceeds(getDoc(doc(studentA(), 'classPointAccounts/STUDENT_A__class-a')));
-  await assertFails(getDoc(doc(studentB(), 'classPointAccounts/STUDENT_A__class-a')));
+  await assertSucceeds(getDoc(doc(studentA(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`)));
+  await assertFails(getDoc(doc(studentB(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`)));
   await assertSucceeds(getDoc(doc(studentA(), 'classPointTransactions/cp-tx-1')));
   await assertFails(getDoc(doc(studentB(), 'classPointTransactions/cp-tx-1')));
 });
 
 test('no client can write a Class Points account, forged or otherwise — not even the root administrator', async () => {
-  await assertFails(setDoc(doc(studentA(), 'classPointAccounts/STUDENT_A__class-a'), { balance: 999 }, { merge: true }));
-  await assertFails(setDoc(doc(teacherA(), 'classPointAccounts/STUDENT_A__class-a'), { balance: 999 }, { merge: true }));
-  await assertFails(setDoc(doc(admin(), 'classPointAccounts/STUDENT_A__class-a'), { balance: 999 }, { merge: true }));
+  await assertFails(setDoc(doc(studentA(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`), { balance: 999 }, { merge: true }));
+  await assertFails(setDoc(doc(teacherA(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`), { balance: 999 }, { merge: true }));
+  await assertFails(setDoc(doc(admin(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`), { balance: 999 }, { merge: true }));
   // A student cannot even mint a brand-new account for themselves.
   await assertFails(setDoc(doc(studentA(), 'classPointAccounts/STUDENT_A__forged'), {
     schemaVersion: 1, studentId: 'STUDENT_A', classId: 'class-a', balance: 100000,
