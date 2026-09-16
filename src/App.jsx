@@ -260,6 +260,11 @@ import { preflightTestCycleCandidate } from './services/testCycleService.js';
 import { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
 import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
 import StudentIdentityBar, { STUDENT_IDENTITY_STACK_OFFSET } from './components/student/StudentIdentityBar.jsx';
+import {
+  emptyClassPointAccount,
+  subscribeToClassPointAnnouncements,
+  subscribeToStudentClassPoints,
+} from './platform/classPointsClient.js';
 
 import {
   buildStudentGradeCenter,
@@ -585,8 +590,43 @@ function App() {
   // the auth layer says is signed in.
   const { toastSuccess, toastError, toastInfo, toastWarning, confirm: confirmAction } = useToast();
   const [user, setUser] = useState(null);
+  const [studentClassPoints, setStudentClassPoints] = useState({
+    account: emptyClassPointAccount(), transactions: [], announcements: [], unavailable: true,
+  });
   const [sessionHydrating, setSessionHydrating] = useState(false);
   const [sessionHydrationError, setSessionHydrationError] = useState(null);
+
+  useEffect(() => {
+    // Teacher Preview and synthetic student views can never cross this role gate.
+    // A student without canonical class membership also creates no query.
+    if (user?.role !== 'student' || !user.id || !user.classId) {
+      setStudentClassPoints({ account: emptyClassPointAccount(), transactions: [], announcements: [], unavailable: true });
+      return undefined;
+    }
+    setStudentClassPoints({ account: emptyClassPointAccount(), transactions: [], announcements: [], unavailable: true });
+    let walletFailed = false;
+    const unavailable = (error) => {
+      walletFailed = true;
+      console.warn('Class Points are temporarily unavailable:', error);
+      setStudentClassPoints((current) => ({ ...current, unavailable: true }));
+    };
+    const unsubscribeWallet = subscribeToStudentClassPoints({
+      db,
+      studentId: user.id,
+      classId: user.classId,
+      onAccount: (account) => setStudentClassPoints((current) => ({ ...current, account, unavailable: walletFailed })),
+      onHistory: (transactions) => setStudentClassPoints((current) => ({ ...current, transactions })),
+      onError: unavailable,
+    });
+    const unsubscribeAnnouncements = subscribeToClassPointAnnouncements({
+      db,
+      classId: user.classId,
+      onAnnouncements: (announcements) => setStudentClassPoints((current) => ({ ...current, announcements })),
+      // A public celebration feed failure must not hide an otherwise healthy private wallet.
+      onError: (error) => console.warn('Class celebrations are temporarily unavailable:', error),
+    });
+    return () => { unsubscribeWallet(); unsubscribeAnnouncements(); };
+  }, [user?.role, user?.id, user?.classId]);
 
   // Google Classroom launches preserve the server-verified publication and
   // section identity all the way into the browser. Legacy whole-assignment
@@ -8667,6 +8707,7 @@ function App() {
       <StudentIdentityBar
         preview={preview}
         student={preview ? null : { ...studentRecord, ...user }}
+        classPointsBalance={preview || studentClassPoints.unavailable ? null : studentClassPoints.account.balance}
         onLogout={preview ? null : handleLogout}
       />
       {!preview && studentSpotlightRequest?.status === SPOTLIGHT_STATUS.REQUESTED && (
@@ -9796,6 +9837,7 @@ function App() {
         liveChallengeInvite={liveChallengeInvite}
         onOpenLiveChallenge={() => setStudentDashboardMode('liveChallenge')}
         onLogout={handleLogout}
+        classPoints={studentClassPoints}
         recommended={{
           student: studentRecord,
           assignments: studentPathAssignments,

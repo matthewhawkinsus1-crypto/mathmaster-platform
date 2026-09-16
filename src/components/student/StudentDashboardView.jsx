@@ -10,6 +10,8 @@ import { BUCKET_LABEL, BUCKET_OPEN_BY_DEFAULT, BUCKET_ORDER } from '../../studen
 import DOLCountdown from './DOLCountdown.jsx';
 import { formatDateTime, formatRemainingTime } from '../../assignmentLifecycle';
 import { describeClassroomReceipt } from '../../platform/classroom/classroomReceiptPresentation.js';
+import ClassPointsWallet from './ClassPointsWallet.jsx';
+import ClassPointsCelebrations from './ClassPointsCelebrations.jsx';
 
 // The student's assignment dashboard, as a component.
 //
@@ -64,6 +66,7 @@ export default function StudentDashboardView({
   classroomSyncStatusByAssignment = {},
   // Everything Recommended for You needs, passed through rather than rebuilt.
   recommended = {},
+  classPoints = null,
 }) {
   const {
     visibleAssignments, resumeAssignment, resumeQuestionIndex, resumeLifecycle,
@@ -173,6 +176,9 @@ export default function StudentDashboardView({
             dense
           />
         </header>
+
+        {classPoints && <ClassPointsWallet account={classPoints.account} transactions={classPoints.transactions} unavailable={classPoints.unavailable} />}
+        {classPoints && <ClassPointsCelebrations announcements={classPoints.announcements} />}
 
         {liveChallengeInvite && ['invited', 'joined', 'running'].includes(liveChallengeInvite.status) && (
           <section style={{ marginBottom: '18px', padding: '20px 24px', borderRadius: '16px', background: '#e8f0fe', border: '3px solid #1a73e8', color: '#174ea6', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>

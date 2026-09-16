@@ -1,6 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
 import {
-  collection, limit as fsLimit, onSnapshot, orderBy, query, where,
+  collection, doc, limit as fsLimit, onSnapshot, orderBy, query, where,
 } from 'firebase/firestore';
 import { functions } from '../firebase.js';
 
@@ -271,4 +271,127 @@ export const classPointsTimestampMillis = (value) => {
   if (typeof value.seconds === 'number') return value.seconds * 1000;
   const parsed = new Date(value).getTime();
   return Number.isFinite(parsed) ? parsed : null;
+};
+
+
+// ---------------------------------------------------------------------------
+// STUDENT WALLET / CELEBRATIONS (read-only)
+//
+// These helpers share the Class Points domain seam with the teacher controls
+// above, but they never call award/reversal callables and never write any
+// Class Points collection. Student reads are always constrained to the
+// authenticated student's canonical studentId + classId.
+// ---------------------------------------------------------------------------
+
+export const STUDENT_CLASS_POINTS_HISTORY_LIMIT = 10;
+export const CLASS_POINTS_ANNOUNCEMENT_LIMIT = 10;
+
+export const classPointAccountId = (studentId, classId) => {
+  const student = cleanText(studentId, 64);
+  const cls = cleanText(classId, 120);
+  return `${student.length}:${student}:${cls}`;
+};
+
+export const emptyClassPointAccount = () => ({
+  balance: 0,
+  lifetimeEarned: 0,
+  lifetimeSpent: 0,
+});
+
+export const normalizeClassPointAccount = (value) => ({
+  balance: Number(value?.balance) || 0,
+  lifetimeEarned: Number(value?.lifetimeEarned) || 0,
+  lifetimeSpent: Number(value?.lifetimeSpent) || 0,
+});
+
+export const activeClassPointAnnouncements = (announcements, now = Date.now()) => (
+  (announcements || []).filter(
+    (announcement) => (classPointsTimestampMillis(announcement?.expiresAt) || 0) > now,
+  )
+);
+
+export const describeClassPointTransaction = (transaction = {}) => {
+  const amount = Number(transaction.amount) || 0;
+  const kind = transaction.sourceType === 'teacherReversal' || transaction.isReversal
+    ? 'correction'
+    : transaction.sourceType === 'rewardRedemption'
+      ? 'spent'
+      : transaction.sourceType === 'liveChallengeAchievement'
+        ? 'challenge'
+        : 'earned';
+  return {
+    amount,
+    amountLabel: `${amount >= 0 ? '+' : '−'}${Math.abs(amount)}`,
+    kind,
+    kindLabel: kind === 'correction' ? 'Teacher correction'
+      : kind === 'spent' ? 'Reward used'
+        : kind === 'challenge' ? 'Live Challenge reward'
+          : 'Earned',
+    reasonLabel: String(transaction.reasonLabel || '').trim(),
+  };
+};
+
+/**
+ * Subscribe only to one authenticated student's wallet in one real class.
+ * Missing canonical identity is a no-op: never fall back to a broad query.
+ */
+export const subscribeToStudentClassPoints = ({
+  db, studentId, classId, onAccount, onHistory, onError,
+}) => {
+  const currentStudentId = cleanText(studentId, 64);
+  const currentClassId = cleanText(classId, 120);
+  if (!db || !currentStudentId || !currentClassId) return () => {};
+
+  const accountRef = doc(
+    db,
+    CLASS_POINT_ACCOUNTS_COLLECTION,
+    classPointAccountId(currentStudentId, currentClassId),
+  );
+  const historyQuery = query(
+    collection(db, CLASS_POINT_TRANSACTIONS_COLLECTION),
+    where('studentId', '==', currentStudentId),
+    where('classId', '==', currentClassId),
+    orderBy('createdAt', 'desc'),
+    fsLimit(STUDENT_CLASS_POINTS_HISTORY_LIMIT),
+  );
+
+  const unsubAccount = onSnapshot(
+    accountRef,
+    (snapshot) => onAccount(
+      snapshot.exists() ? normalizeClassPointAccount(snapshot.data()) : emptyClassPointAccount(),
+    ),
+    onError,
+  );
+  const unsubHistory = onSnapshot(
+    historyQuery,
+    (snapshot) => onHistory(snapshot.docs.map((entry) => entry.data())),
+    onError,
+  );
+  return () => {
+    unsubAccount();
+    unsubHistory();
+  };
+};
+
+export const subscribeToClassPointAnnouncements = ({
+  db, classId, onAnnouncements, onError,
+}) => {
+  const currentClassId = cleanText(classId, 120);
+  if (!db || !currentClassId) return () => {};
+
+  const announcementsQuery = query(
+    collection(db, 'classes', currentClassId, 'classPointAnnouncements'),
+    orderBy('createdAt', 'desc'),
+    fsLimit(CLASS_POINTS_ANNOUNCEMENT_LIMIT),
+  );
+
+  return onSnapshot(
+    announcementsQuery,
+    (snapshot) => {
+      // Render the server's privacy-safe publicStudentLabel as stored. Never
+      // join these public events back to a private student roster.
+      onAnnouncements(activeClassPointAnnouncements(snapshot.docs.map((entry) => entry.data())));
+    },
+    onError,
+  );
 };
