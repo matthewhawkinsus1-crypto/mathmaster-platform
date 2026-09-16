@@ -2953,7 +2953,9 @@ function App() {
     // every current-content question exactly as authored.
     const included = studentAssignmentIndicesWithPracticePass({
       assignment: activeAssignmentData,
-      hasPracticePass: !isTeacherPreview && hasPracticePassFor(activeAssignmentId),
+      hasPracticePass: !isTeacherPreview
+        && !isPracticeMode
+        && hasPracticePassFor(activeAssignmentId),
     });
     if (!included.length) return;
     if (!included.includes(currentQuestionIndex)) {
@@ -2963,7 +2965,14 @@ function App() {
       // just not one this student may be required into) -- never land there.
       setCurrentQuestionIndex(resolved !== null && included.includes(resolved) ? resolved : included[0]);
     }
-  }, [activeAssignmentData, activeAssignmentId, currentQuestionIndex, isTeacherPreview]);
+  }, [
+    activeAssignmentData,
+    activeAssignmentId,
+    currentQuestionIndex,
+    isTeacherPreview,
+    isPracticeMode,
+    studentClassPoints.redemptionsByAssignment,
+  ]);
 
   // A question change should feel like changing pages, not like loading the
   // next page at the old scroll position. This matters most on phones where
@@ -3049,7 +3058,7 @@ function App() {
     // above), so a granted Practice Pass for this assignment always applies.
     const included = studentAssignmentIndicesWithPracticePass({
       assignment: activeAssignmentData,
-      hasPracticePass: hasPracticePassFor(activeAssignmentId),
+      hasPracticePass: !isPracticeMode && hasPracticePassFor(activeAssignmentId),
     });
     if (liveSessionAttemptBaselineRef.current.assignmentId !== activeAssignmentId) {
       liveSessionAttemptBaselineRef.current = {
@@ -4017,7 +4026,9 @@ function App() {
      * Practice -- voluntary post-deadline practice is a completely separate
      * tracker this never touches.
      */
-    const hasPracticePass = !cycleStage && hasPracticePassFor(assignmentId);
+    const hasPracticePass = !cycleStage
+      && !lifecycle.isPracticeOnly
+      && hasPracticePassFor(assignmentId);
     if (scopedSectionKey === 'practice' && hasPracticePass) {
       toastInfo('Practice excused', 'Practice is already excused with your Practice Pass.');
       return;
