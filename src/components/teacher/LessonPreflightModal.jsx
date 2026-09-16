@@ -20,6 +20,7 @@ import {
   buildHonorsDepthAiRepairRequest,
   honorsMissingLabels,
   nonCcmrHonorsMissing,
+  nonCcmrHonorsReady,
   separateHonorsDepthAiRepair,
 } from '../../platform/contract/honorsDepthAiRepair.js';
 import {
@@ -465,9 +466,9 @@ export const LessonPreflightModal = ({
     }
 
     const candidateReport = inspectHonorsRigor(candidateModel.questions, { allowNarrowCheckpoint: true });
-    const unresolved = nonCcmrHonorsMissing(candidateReport);
-    if (unresolved.length) {
-      throw new Error(`${sourceLabel} could not safely resolve: ${honorsMissingLabels(unresolved).join(', ')}. The original assignment was kept unchanged.`);
+    if (!nonCcmrHonorsReady(candidateReport)) {
+      const unresolved = nonCcmrHonorsMissing(candidateReport);
+      throw new Error(`${sourceLabel} could not safely resolve enough Honors depth: ${honorsMissingLabels(unresolved).join(', ')}. Honors requires Core TEKS, DOK 3+ reasoning, and at least three of the four depth dimensions. The original assignment was kept unchanged.`);
     }
 
     const separated = separateHonorsDepthAiRepair(effectiveAssignmentV5, candidateModel.assignmentV5);
@@ -575,9 +576,9 @@ export const LessonPreflightModal = ({
         [...sourceRigorQuestions, localQuestion],
         { allowNarrowCheckpoint: true },
       );
-      const unresolved = nonCcmrHonorsMissing(localReport);
-      if (unresolved.length) {
-        throw new Error(`The no-AI extension cannot safely resolve: ${honorsMissingLabels(unresolved).join(', ')}. Use the outside-AI import option instead.`);
+      if (!nonCcmrHonorsReady(localReport)) {
+        const unresolved = nonCcmrHonorsMissing(localReport);
+        throw new Error(`The no-AI extension cannot safely resolve enough Honors depth: ${honorsMissingLabels(unresolved).join(', ')}. Use the outside-AI import option instead.`);
       }
       setHonorsEnrichmentQuestion(localQuestion);
       setHonorsAiMessage('No-AI MathMaster Honors extension added. It supplies the missing multiple-representation, justification, modeling/application, and DOK depth supported by this lesson. Audited CCMR Practice will still be sourced at publish.');

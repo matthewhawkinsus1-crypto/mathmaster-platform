@@ -126,6 +126,52 @@ const searchableQuestionText = (question = {}) => [
 
 const hasAnyToken = (value, tokens) => tokens.some((token) => value.includes(token));
 
+const representationKinds = (question = {}) => {
+  const kinds = new Set(
+    (Array.isArray(question.representations) ? question.representations : [])
+      .map((value) => String(value || '').trim().toLowerCase())
+      .filter(Boolean),
+  );
+  const type = String(question.type || question.toolId || '').trim().toLowerCase();
+  const workflow = Array.isArray(question.workflow) ? question.workflow : [];
+  const workflowKinds = workflow.map((stage) => String(stage?.kind || '').trim().toLowerCase());
+
+  if (
+    question.table
+    || workflowKinds.some((kind) => ['tableinput', 'table', 'sequencetable'].includes(kind))
+  ) kinds.add('table');
+
+  if (
+    question.graph
+    || question.visual?.graph
+    || ['graphing', 'functiongraph', 'graphanalysis', 'graphcomparison', 'graphstory', 'functioninvestigation', 'functioninvestigation2'].includes(type)
+    || workflowKinds.some((kind) => ['functiongraph', 'coordinateplot', 'graphconstruction', 'graphchoice'].includes(kind))
+  ) kinds.add('graph');
+
+  if (
+    ['relationmapping', 'mapping'].includes(type)
+    || workflowKinds.some((kind) => ['mapping', 'mappingdiagram', 'relationmapping'].includes(kind))
+  ) kinds.add('mapping');
+
+  const responseFields = [
+    ...(Array.isArray(question.answerFields) ? question.answerFields : []),
+    ...(Array.isArray(question.responseFields) ? question.responseFields : []),
+  ];
+  const hasStructuredSymbolicResponse = responseFields.some((field) => (
+    ['equation', 'expression', 'orderedpair', 'inequality', 'interval', 'set']
+      .includes(String(field?.inputProfile || field?.answerFormat || field?.type || '').trim().toLowerCase())
+  ));
+
+  if (
+    question.equation
+    || question.mathDisplay
+    || hasStructuredSymbolicResponse
+    || workflowKinds.some((kind) => ['equationinput', 'expressioninput', 'domaininput', 'rangeinput'].includes(kind))
+  ) kinds.add('symbolic');
+
+  return kinds;
+};
+
 export const isNarrowHonorsCheckpoint = (questions = []) => {
   const included = (Array.isArray(questions) ? questions : []).filter((question) => question?.teacherExcluded !== true);
   return included.length > 0 && included.length <= 3 && included.every((question) => (
@@ -143,7 +189,7 @@ export const inspectHonorsRigor = (
     higherOrderReasoning: included.some((question) => questionDok(question) >= 3),
     multipleRepresentations: included.some((question) => (
       ['relationshipModel', 'graphComparison', 'graphStory', 'functionInvestigation', 'functionInvestigation2'].includes(question.type || question.toolId)
-      || (Array.isArray(question.representations) && question.representations.length >= 2)
+      || representationKinds(question).size >= 2
     )),
     justification: included.some((question) => (
       ['graphStory', 'dataModelingLab', 'modelingLab'].includes(question.type || question.toolId)

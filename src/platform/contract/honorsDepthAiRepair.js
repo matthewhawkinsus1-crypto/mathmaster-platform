@@ -1,4 +1,5 @@
 import { CONTRACT_SLICES, buildContractSlice } from './authoringContract.js';
+import { compileAuthoringIntentV5 } from './authoringIntentV5.js';
 const clean = (value) => String(value ?? '').trim();
 
 const MISSING_LABELS = Object.freeze({
@@ -31,18 +32,105 @@ const stableValue = (value) => {
   return value;
 };
 
-const protectedQuestionContent = (question = {}) => {
-  const keys = [
-    'type', 'toolId', 'prompt', 'scenario', 'title', 'equation',
-    'choices', 'responseFields', 'answerFields', 'responses', 'generator',
-    'data', 'graphSpec', 'functionSpec', 'workflow', 'analysisRequests',
-    'dok', 'dokLevel', 'difficultyBand', 'calculatorPolicy', 'representations',
-  ];
-  return JSON.stringify(stableValue(Object.fromEntries(
-    keys.filter((key) => Object.prototype.hasOwnProperty.call(question, key))
-      .map((key) => [key, question[key]]),
-  )));
+const PROTECTED_QUESTION_KEYS = Object.freeze([
+  'type', 'toolId', 'prompt', 'scenario', 'title', 'equation',
+  'choices', 'responseFields', 'answerFields', 'responses', 'generator',
+  'data', 'graph', 'graphSpec', 'function', 'functionSpec', 'workflow', 'analysisRequests',
+  'studentActions', 'dok', 'dokLevel', 'difficultyBand', 'calculatorPolicy',
+  'representation', 'representations',
+]);
+
+const protectedQuestionChanged = (source = {}, candidate = {}) => (
+  PROTECTED_QUESTION_KEYS.some((key) => (
+    Object.prototype.hasOwnProperty.call(candidate, key)
+    && JSON.stringify(stableValue(candidate[key])) !== JSON.stringify(stableValue(source[key]))
+  ))
+);
+
+const ALIGNMENT_KEYS = Object.freeze([
+  'standard',
+  'primaryStandard',
+  'secondaryStandards',
+  'prerequisiteStandards',
+  'alignments',
+]);
+
+const alignmentPatch = (candidate = {}) => Object.fromEntries(
+  ALIGNMENT_KEYS
+    .filter((key) => Object.prototype.hasOwnProperty.call(candidate, key))
+    .map((key) => [key, candidate[key]]),
+);
+
+const extensionIntentOnly = (question = {}) => {
+  const next = { ...question };
+  [
+    'type', 'toolId', 'questionId', 'id', 'sectionId', 'activityRole',
+    'functionSpec', 'analysisRequests', 'workflow', 'workflowProvenance',
+  ].forEach((key) => delete next[key]);
+  return next;
 };
+
+const compileHonorsExtension = ({
+  question,
+  courseId,
+  sectionRole,
+  sectionId,
+  sectionTitle,
+} = {}) => {
+  if (!question || typeof question !== 'object' || Array.isArray(question)) {
+    throw new Error('The Honors extension question is missing.');
+  }
+
+  const actions = Array.isArray(question.studentActions)
+    ? question.studentActions.filter((action) => clean(action))
+    : [];
+
+  // Legacy/canonical providers may still return a ready runtime question. Keep
+  // supporting that shape, but all modern V5 intent with studentActions goes
+  // through the authoring compiler so outside AI never has to guess type/toolId.
+  if (!actions.length) {
+    if (!clean(question.type || question.toolId)) {
+      throw new Error('The Honors extension needs studentActions so MathMaster can choose the correct interaction.');
+    }
+    return {
+      ...question,
+      activityRole: question.activityRole || sectionRole,
+      sectionId: question.sectionId || sectionId,
+    };
+  }
+
+  const compiled = compileAuthoringIntentV5({
+    schemaVersion: 5,
+    assignment: {
+      title: 'Honors extension compiler',
+      courseId,
+      instructionalPurpose: 'lesson',
+      gradingPurpose: 'classwork',
+    },
+    sections: [{
+      id: sectionId || 'honors-extension',
+      role: sectionRole,
+      title: sectionTitle || 'Honors Extension',
+      questions: [extensionIntentOnly(question)],
+    }],
+  }).package.sections[0]?.questions?.[0];
+
+  if (!compiled) {
+    throw new Error('MathMaster could not compile the Honors extension into a student interaction.');
+  }
+
+  return {
+    ...compiled,
+    activityRole: sectionRole,
+    sectionId: sectionId || null,
+  };
+};
+
+export const nonCcmrHonorsReady = (honorsReport = {}) => Boolean(
+  honorsReport?.checks?.coreTeks
+  && honorsReport?.checks?.higherOrderReasoning
+  && Number(honorsReport?.depthCount || 0) >= 3
+);
 
 export const honorsMissingLabels = (missing = []) => (
   (Array.isArray(missing) ? missing : [])
@@ -85,7 +173,7 @@ export const applyHonorsDepthAiSections = (currentAssignment = {}, aiAssignment 
   }
 
   let addedQuestions = 0;
-  sourceSections.forEach((sourceSection, sectionIndex) => {
+  const guardedSections = sourceSections.map((sourceSection, sectionIndex) => {
     const nextSection = nextSections[sectionIndex] || {};
     const sourceRole = clean(sourceSection.role).toLowerCase();
     const nextRole = clean(nextSection.role).toLowerCase();
@@ -106,20 +194,44 @@ export const applyHonorsDepthAiSections = (currentAssignment = {}, aiAssignment 
     }
     addedQuestions += growth;
 
-    before.forEach((sourceQuestion, questionIndex) => {
+    const repairedExisting = before.map((sourceQuestion, questionIndex) => {
       const nextQuestion = after[questionIndex] || {};
+      const sourceIdValue = clean(sourceQuestion.questionId || sourceQuestion.id);
+      const nextIdValue = clean(nextQuestion.questionId || nextQuestion.id);
+      if (sourceIdValue && nextIdValue && sourceIdValue !== nextIdValue) {
+        throw new Error('MathMaster AI changed an existing question identity; the repair was rejected.');
+      }
+
       const sourceStem = visibleStem(sourceQuestion);
       const nextStem = visibleStem(nextQuestion);
-      if (sourceStem && nextStem !== sourceStem) {
+      if (sourceStem && nextStem && nextStem !== sourceStem) {
         throw new Error('MathMaster AI rewrote an existing question instead of repairing its Honors metadata; the repair was rejected.');
       }
-      if (clean(sourceQuestion.type || sourceQuestion.toolId) !== clean(nextQuestion.type || nextQuestion.toolId)) {
-        throw new Error('MathMaster AI changed an existing question interaction type; the repair was rejected.');
-      }
-      if (protectedQuestionContent(sourceQuestion) !== protectedQuestionContent(nextQuestion)) {
+      if (protectedQuestionChanged(sourceQuestion, nextQuestion)) {
         throw new Error('MathMaster AI changed existing question mathematics, grading, or rigor metadata; the repair was rejected.');
       }
+
+      // Existing mathematics stays byte-for-byte owned by MathMaster. The AI
+      // contributes only alignment metadata, so harmless omissions or section
+      // serialization differences cannot break an otherwise good repair.
+      return {
+        ...sourceQuestion,
+        ...alignmentPatch(nextQuestion),
+      };
     });
+
+    const additions = after.slice(before.length).map((question) => compileHonorsExtension({
+      question,
+      courseId: sourceCourse,
+      sectionRole: sourceRole,
+      sectionId: sourceId || nextId || `section-${sectionIndex + 1}`,
+      sectionTitle: sourceSection.title || nextSection.title,
+    }));
+
+    return {
+      ...sourceSection,
+      questions: [...repairedExisting, ...additions],
+    };
   });
 
   if (addedQuestions > 1) {
@@ -128,12 +240,12 @@ export const applyHonorsDepthAiSections = (currentAssignment = {}, aiAssignment 
 
   return {
     ...currentAssignment,
-    // Assignment metadata, delivery, grading, supports, outputs and evidence
-    // stay owned by the reviewed source. AI is allowed to repair only content.
-    sections: nextSections,
+    // Assignment metadata, section policy, delivery, grading, supports, outputs
+    // and evidence stay owned by the reviewed source. AI may repair only TEKS
+    // metadata on existing questions plus one compiled Honors extension.
+    sections: guardedSections,
   };
 };
-
 export const separateHonorsDepthAiRepair = (currentAssignment = {}, guardedCandidate = {}) => {
   const sourceSections = Array.isArray(currentAssignment?.sections) ? currentAssignment.sections : [];
   const candidateSections = Array.isArray(guardedCandidate?.sections) ? guardedCandidate.sections : [];
@@ -235,6 +347,8 @@ export const buildHonorsDepthAiRepairRequest = ({
     '- If alignment is uncertain, leave it unresolved.',
     '- You may add AT MOST ONE new Honors extension question, and only to Classwork or Practice, if needed to supply missing higher-order depth.',
     '- A new extension must stay on the same lesson TEKS and require genuine reasoning through multiple representations, explanation/justification, or modeling/application as needed. Keep DOK and difficulty distinct.',
+    '- Author a NEW extension as V5 mathematical intent: include studentActions and the mathematical data those actions need. Do NOT add type, toolId, questionId, functionSpec, analysisRequests, workflow, or renderer plumbing to the new extension; MathMaster compiles it locally.',
+    '- Honors readiness requires Core TEKS, DOK 3+ reasoning, and at least three of the four depth dimensions (multiple representations, justification, modeling/application, higher-order reasoning). Do not force an unrelated fourth dimension just to satisfy a checklist.',
     '- Do not fabricate SAT, ACT, TSIA2, or ASVAB provenance. Audited CCMR Practice is sourced separately from MathMaster Fidelity V2.1 at publish time.',
     '- Do not add assignment-level delivery, grading, support, evidence, PDF, Classroom, or publication settings. MathMaster keeps those from the reviewed source.',
     // This packet carries a whole lesson to somebody else's chat window. Every
