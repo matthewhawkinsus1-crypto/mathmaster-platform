@@ -47,6 +47,17 @@ test('CCMR is deliberately excluded from the embedded Honors repair target', () 
   );
 });
 
+test('non-CCMR Honors readiness follows the platform 3-of-4 depth contract', () => {
+  assert.equal(nonCcmrHonorsReady({
+    checks: { coreTeks: true, higherOrderReasoning: true },
+    depthCount: 3,
+  }), true);
+  assert.equal(nonCcmrHonorsReady({
+    checks: { coreTeks: true, higherOrderReasoning: true },
+    depthCount: 2,
+  }), false);
+});
+
 test('Honors AI repair prompt tells the provider to repair TEKS/depth without fabricating CCMR', () => {
   const prompt = buildHonorsDepthAiRepairRequest({
     assignmentV5: base(),
