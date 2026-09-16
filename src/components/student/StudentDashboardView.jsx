@@ -67,6 +67,11 @@ export default function StudentDashboardView({
   // Everything Recommended for You needs, passed through rather than rebuilt.
   recommended = {},
   classPoints = null,
+  // Practice Pass (Phase 5A): a best-effort UX list this screen never computes
+  // itself, and the one handler that may ask the server to spend points.
+  practicePassEligibleAssignments = [],
+  onRedeemPracticePass = null,
+  redeemingPracticePass = false,
 }) {
   const {
     visibleAssignments, resumeAssignment, resumeQuestionIndex, resumeLifecycle,
@@ -177,7 +182,16 @@ export default function StudentDashboardView({
           />
         </header>
 
-        {classPoints && <ClassPointsWallet account={classPoints.account} transactions={classPoints.transactions} unavailable={classPoints.unavailable} />}
+        {classPoints && (
+          <ClassPointsWallet
+            account={classPoints.account}
+            transactions={classPoints.transactions}
+            unavailable={classPoints.unavailable}
+            eligibleAssignments={practicePassEligibleAssignments}
+            onRedeemPracticePass={onRedeemPracticePass}
+            redeeming={redeemingPracticePass}
+          />
+        )}
         {classPoints && <ClassPointsCelebrations announcements={classPoints.announcements} />}
 
         {liveChallengeInvite && ['invited', 'joined', 'running'].includes(liveChallengeInvite.status) && (

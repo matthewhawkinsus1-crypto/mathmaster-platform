@@ -1,4 +1,3 @@
-
 let liveChallengeClassPointsModule = null;
 async function liveChallengeClassPoints() {
   if (!liveChallengeClassPointsModule) {
@@ -723,6 +722,50 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
     }
 
     const assignmentId = envelope.assignmentId;
+
+    /*
+     * A REDEEMED PRACTICE PASS RETIRES A CREDIT-BEARING PRACTICE RESPONSE.
+     *
+     * The stale-tab/offline race: a student has a Practice response open or
+     * queued locally, redeems a Practice Pass before that response becomes a
+     * canonical attempt, and the queued response arrives after the waiver
+     * already exists. `decideSubmissionIngestion` above has no way to know
+     * about a reward redemption -- it is a Class Points concern, not a
+     * submission-lifecycle one -- so this checks it directly, AFTER the
+     * ordinary decision already says ACCEPTED and BEFORE any canonical write.
+     * Only Practice is affected: Warm-Up/Classwork/DOL responses are never
+     * touched by a Practice Pass and never reach this branch.
+     */
+    if (question?.activityRole === "practice" && classId) {
+      const rewards = await classPointRewards();
+      const redemptionSnap = await transaction.get(
+        db.collection(CLASS_POINT_REWARD_REDEMPTIONS_COLLECTION).doc(rewards.practicePassRedemptionId({
+          studentId, classId, assignmentId, rewardCode: rewards.PRACTICE_PASS_REWARD_CODE,
+        })),
+      );
+      if (redemptionSnap.exists) {
+        // A proven, permanent fact -- Practice is excused for this assignment
+        // -- so the outbox may retire this action instead of retrying it
+        // forever. No grade, no evidence, no attempt is ever written for it.
+        transaction.set(receiptRef, {
+          studentId,
+          actionId: envelope.actionId,
+          assignmentId,
+          questionIndex: envelope.questionIndex,
+          disposition: dispositions.SUBMISSION_DISPOSITION.PERMANENTLY_INVALID,
+          reason: "practice-pass-redeemed",
+          capturedAt: envelope.capturedAt ? new Date(envelope.capturedAt) : null,
+          issuedAt: FieldValue.serverTimestamp(),
+        });
+        return {
+          actionId: envelope.actionId,
+          disposition: dispositions.SUBMISSION_DISPOSITION.PERMANENTLY_INVALID,
+          reason: "practice-pass-redeemed",
+          receiptId: receiptRef.id,
+        };
+      }
+    }
+
     const classworkIndices = runtimeIncludedQuestionIndicesForSection(assignment, "classwork");
     const dolIndices = runtimeIncludedQuestionIndicesForSection(assignment, "dol");
     const built = ingestion.buildIngestedAttempt({
@@ -1475,6 +1518,13 @@ const CLASS_POINT_ACCOUNTS_COLLECTION = "classPointAccounts";
 const CLASS_POINT_TRANSACTIONS_COLLECTION = "classPointTransactions";
 const CLASS_POINT_IDEMPOTENCY_COLLECTION = "classPointIdempotencyKeys";
 const CLASS_POINT_ANNOUNCEMENTS_COLLECTION = "classPointAnnouncements";
+const CLASS_POINT_REWARD_REDEMPTIONS_COLLECTION = "classPointRewardRedemptions";
+
+let classPointRewardsModule = null;
+async function classPointRewards() {
+  if (!classPointRewardsModule) classPointRewardsModule = await import("./shared/classPointRewards.mjs");
+  return classPointRewardsModule;
+}
 
 function translateClassPointsError(error) {
   if (error?.name === "ClassPointsInputError") {
@@ -1770,6 +1820,199 @@ exports.reverseClassPointAward = onCall(async (request) => {
       transactionId: reversalRef.id,
       account: nextAccount,
       transaction: reversalData,
+      replay: false,
+    };
+  });
+});
+
+/**
+ * Redeem a Practice Pass: spend 100 Class Points to excuse the Practice
+ * section of one eligible assignment for the calling student. This is a
+ * waiver, never academic credit -- see functions/shared/classPointRewards.mjs
+ * for the full eligibility algorithm and the ledger/redemption shapes this
+ * writes.
+ *
+ * IDEMPOTENCY IS THE DOCUMENT ID, NOT A CLIENT REQUESTID. The redemption id is
+ * a deterministic function of (studentId, classId, assignmentId, rewardCode),
+ * so a double click, a callable timeout, or a browser retry after an
+ * uncertain response all resolve to the SAME document: this transaction reads
+ * it first and, if it already exists, returns that original result instead of
+ * spending another 100 points. That is also the entire "one Practice Pass per
+ * assignment" rule -- a second real attempt is not a new document, it is a
+ * write to one that is already there.
+ *
+ * Every fact this callable trusts is re-read here, from the verified token and
+ * from Firestore, never from the browser: studentId and classId come from the
+ * caller's custom claims and their own grade record, the assignment is read
+ * fresh, and Practice's current-content indices come from
+ * runtimeIncludedQuestionIndicesForSection -- the SAME projection the
+ * classwork/DOL denominators already use server-side.
+ */
+exports.redeemPracticePass = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+
+  const rewards = await classPointRewards();
+  let input;
+  try {
+    input = rewards.validateRedeemPracticePassInput(request.data);
+  } catch (error) {
+    if (error?.name === "PracticePassInputError") {
+      throw new HttpsError("invalid-argument", error.message);
+    }
+    throw error;
+  }
+  const { assignmentId } = input;
+
+  const db = getFirestore();
+  const gradeRef = db.collection("grades").doc(studentId);
+  const assignmentRef = db.collection("assignments").doc(assignmentId);
+
+  return db.runTransaction(async (transaction) => {
+    const [gradeSnap, assignmentSnap] = await Promise.all([
+      transaction.get(gradeRef),
+      transaction.get(assignmentRef),
+    ]);
+    if (!gradeSnap.exists) {
+      throw new HttpsError("not-found", "Your student record was not found.");
+    }
+    const gradeData = gradeSnap.data() || {};
+    const classId = authoritativeStudentClassId(gradeData);
+    if (!classId) {
+      throw new HttpsError("failed-precondition", "You are not currently placed in a class.");
+    }
+    if (!assignmentSnap.exists) {
+      throw new HttpsError("not-found", "That assignment was not found.");
+    }
+    const assignment = { id: assignmentSnap.id, ...assignmentSnap.data() };
+
+    const redemptionId = rewards.practicePassRedemptionId({
+      studentId, classId, assignmentId, rewardCode: rewards.PRACTICE_PASS_REWARD_CODE,
+    });
+    const redemptionRef = db.collection(CLASS_POINT_REWARD_REDEMPTIONS_COLLECTION).doc(redemptionId);
+    const points = await classPoints();
+    const accountRef = db.collection(CLASS_POINT_ACCOUNTS_COLLECTION).doc(points.accountId(studentId, classId));
+    const classRef = db.collection("classes").doc(classId);
+    const [redemptionSnap, accountSnap, classSnap] = await Promise.all([
+      transaction.get(redemptionRef),
+      transaction.get(accountRef),
+      transaction.get(classRef),
+    ]);
+
+    // Idempotent replay: the deterministic redemption id IS the retry key.
+    if (redemptionSnap.exists) {
+      const existing = redemptionSnap.data();
+      const existingTransactionSnap = await transaction.get(
+        db.collection(CLASS_POINT_TRANSACTIONS_COLLECTION).doc(String(existing.transactionId)),
+      );
+      return {
+        redemptionId,
+        redemption: existing,
+        account: accountSnap.exists ? accountSnap.data() : null,
+        transaction: existingTransactionSnap.exists ? existingTransactionSnap.data() : null,
+        replay: true,
+      };
+    }
+
+    const classRecord = classSnap.exists ? { classId: classSnap.id, ...classSnap.data() } : null;
+
+    /*
+     * THE CLASS/ROSTER MUST BE INTERNALLY CONSISTENT BEFORE A NEW REDEMPTION.
+     *
+     * This reuses `authorizeClassPointsActor` -- the exact same consistency
+     * rule `awardClassPoints`/`reverseClassPointAward` already enforce -- but
+     * for a different purpose: there is no teacher actor here, so the class's
+     * OWN `teacherOfRecord` is passed as the "actor", which makes the
+     * teacher-identity check in that function a no-op (it always agrees with
+     * itself) while still requiring: the class exists, is not archived, the
+     * student's own grade record currently names this same class, the class
+     * has a `teacherOfRecord` at all, and the roster's `assignedTeacherEmail`
+     * agrees with it. Any of those failing means the roster is not in a state
+     * a redemption should spend real points against.
+     */
+    const consistency = points.authorizeClassPointsActor({
+      isRootAdmin: false,
+      teacherEmail: classRecord?.teacherOfRecord,
+      classRecord,
+      studentRecord: gradeData,
+      requestedClassId: classId,
+    });
+    if (!consistency.authorized) throw new HttpsError(consistency.reason, consistency.message);
+
+    const assignedToClass = studentMatchesAssignmentAudience({ assignment, classId });
+    const isTestCycleAssignment = secureAssignmentMode(assignment) || assignment.secure === true;
+    const practiceIndices = runtimeIncludedQuestionIndicesForSection(assignment, "practice");
+
+    const { normalizeQuestionRecord } = await import("./shared/attemptPolicy.mjs");
+    const tracker = gradeData?.gradesByAssignment?.[assignmentId] || {};
+    // Authoritative evidence only -- never the existence of a local draft. A
+    // student who never submitted a Practice response may still redeem even
+    // if a browser has an unfinished draft sitting in studentWorkspaceDrafts.
+    const hasCreditBearingAttempt = practiceIndices.some((index) => {
+      const record = normalizeQuestionRecord(tracker?.[String(index)] ?? tracker?.[index]);
+      return Number(record.totalAttempts) > 0;
+    });
+
+    const account = accountSnap.exists ? accountSnap.data() : points.emptyAccount({ studentId, classId });
+
+    const decision = rewards.evaluatePracticePassEligibility({
+      assignment,
+      assignedToClass,
+      isTestCycleAssignment,
+      practiceIndices,
+      hasCreditBearingAttempt,
+      alreadyRedeemed: false,
+      balance: account.balance,
+      nowValue: Date.now(),
+    });
+    if (!decision.eligible) {
+      throw new HttpsError("failed-precondition", decision.message);
+    }
+
+    const authorization = points.classPointsAuthorizationContext({
+      classRecord, existingRecord: accountSnap.exists ? account : null,
+    });
+
+    const nowIso = new Date().toISOString();
+    const assignmentTitle = rewards.safeAssignmentTitle(assignment);
+    const transactionRef = db.collection(CLASS_POINT_TRANSACTIONS_COLLECTION).doc();
+    const ledgerTransaction = rewards.buildPracticePassLedgerTransaction({
+      studentId,
+      classId,
+      assignmentId,
+      assignmentTitle,
+      redemptionId,
+      issuedByUid: request.auth.uid,
+      issuedByEmail: callerEmail(request),
+      originTeacherEmail: authorization.originTeacherEmail,
+      authorizedTeacherEmails: authorization.authorizedTeacherEmails,
+      at: nowIso,
+    });
+
+    let nextAccount;
+    try {
+      nextAccount = points.applyTransaction(account, ledgerTransaction);
+    } catch (error) {
+      throw translateClassPointsError(error);
+    }
+    nextAccount = {
+      ...nextAccount,
+      originTeacherEmail: authorization.originTeacherEmail,
+      authorizedTeacherEmails: authorization.authorizedTeacherEmails,
+    };
+
+    const redemption = rewards.buildPracticePassRedemption({
+      redemptionId, studentId, classId, assignmentId, assignmentTitle, transactionId: transactionRef.id, at: nowIso,
+    });
+
+    transaction.set(transactionRef, ledgerTransaction);
+    transaction.set(accountRef, nextAccount);
+    transaction.set(redemptionRef, redemption);
+
+    return {
+      redemptionId,
+      redemption,
+      account: nextAccount,
+      transaction: ledgerTransaction,
       replay: false,
     };
   });
@@ -4720,8 +4963,9 @@ exports.lockPreproductionResetForProduction = onCall(async (request) => {
 /**
  * Erase the complete Class Points footprint for a permanently-deleted
  * student: every account, every transaction across every class they were
- * ever in, every idempotency record those awards produced, and every public
- * announcement those awards triggered.
+ * ever in, every idempotency record those awards produced, every public
+ * announcement those awards triggered, and every reward redemption (Practice
+ * Pass and any future reward) they hold.
  *
  * This is the one Class Points lifecycle event that does NOT preserve
  * history. Removing a student from a class, disabling their account, and
@@ -4796,6 +5040,21 @@ async function deleteStudentClassPointsFootprint(db, studentId, deleted) {
     accountsDeleted += 1;
   }
   if (accountsDeleted) deleted.classPointAccounts = accountsDeleted;
+
+  // Reward redemptions (Practice Pass and any future reward) are queryable
+  // directly by studentId -- they need no transaction-derived id list the way
+  // the announcement/idempotency cleanup above does.
+  const redemptionsSnapshot = await db
+    .collection(CLASS_POINT_REWARD_REDEMPTIONS_COLLECTION)
+    .where("studentId", "==", studentId)
+    .get();
+  let redemptionsDeleted = 0;
+  for (const redemptionDoc of redemptionsSnapshot.docs) {
+    // eslint-disable-next-line no-await-in-loop
+    await redemptionDoc.ref.delete();
+    redemptionsDeleted += 1;
+  }
+  if (redemptionsDeleted) deleted.classPointRewardRedemptions = redemptionsDeleted;
 }
 
 /**
@@ -7465,7 +7724,43 @@ exports.syncGradeToClassroom = onDocumentWritten(
       if (isTestCycleAssignment && !testCycleProjection) continue;
       if (isTestCycleAssignment && testCycleProjection.recordedGrade == null) continue;
 
-      const questionIndices = runtimeIncludedQuestionIndices(assignment);
+      let questionIndices = runtimeIncludedQuestionIndices(assignment);
+      /*
+       * A REDEEMED PRACTICE PASS REMOVES PRACTICE FROM THIS SAME DENOMINATOR.
+       *
+       * Google Classroom must receive the legitimate MathMaster grade with
+       * Practice excluded, never a fabricated 100 for it and never the
+       * assignment marked complete on Practice's account. The redemption
+       * document (functions/shared/classPointRewards.mjs) is the
+       * authoritative waiver: its deterministic id is checked directly, the
+       * same way the redemption callable itself checks it for idempotency.
+       */
+      if (!isTestCycleAssignment) {
+        const practiceIndices = runtimeIncludedQuestionIndicesForSection(assignment, "practice");
+        if (practiceIndices.length) {
+          const rewards = await classPointRewards();
+          const redemptionClassId = authoritativeStudentClassId(afterData);
+          if (redemptionClassId) {
+            const redemptionId = rewards.practicePassRedemptionId({
+              studentId: event.params.studentId,
+              classId: redemptionClassId,
+              assignmentId,
+              rewardCode: rewards.PRACTICE_PASS_REWARD_CODE,
+            });
+            // eslint-disable-next-line no-await-in-loop
+            const redemptionSnap = await db
+              .collection(CLASS_POINT_REWARD_REDEMPTIONS_COLLECTION)
+              .doc(redemptionId)
+              .get();
+            if (redemptionSnap.exists) {
+              questionIndices = rewards.excludeWaivedIndices(
+                questionIndices,
+                rewards.waivedPracticeIndices({ hasRedemption: true, practiceIndices }),
+              );
+            }
+          }
+        }
+      }
       if (!isTestCycleAssignment && !questionIndices.length) continue;
 
       const assignmentTracker = afterByAssignment[assignmentId] || {};
@@ -8998,12 +9293,8 @@ async function finishLiveChallengeRoom({ db, roomRef, privateRef, room, status }
   }
 
   // CLASS POINTS ACHIEVEMENTS ARE DERIVED WHILE PRIVATE CHALLENGE STATE STILL EXISTS.
-  //
-  // A durable job is staged before private cleanup, then awards are attempted
-  // immediately. If staging itself cannot be made durable (for example during
-  // a Firestore outage), preserve the private state and mark the already-finished
-  // room for the scheduled recovery job instead of deleting the only facts from
-  // which the achievement plan can be reconstructed.
+  // A durable job is staged before private cleanup. If staging itself fails,
+  // preserve the private state and flag the finished room for automatic retry.
   let classPointsPlanDurable = true;
   try {
     const challengeRules = await liveChallengeRules();
@@ -16010,8 +16301,6 @@ exports.retryLiveChallengeAchievementJobs = onSchedule({
   const db = getFirestore();
   const rewards = await liveChallengeClassPoints();
 
-  // Normal path: the durable job exists and only missing deterministic awards
-  // need another attempt.
   try {
     await rewards.retryPendingLiveChallengeAchievementJobs(db);
   } catch (error) {
@@ -16020,10 +16309,6 @@ exports.retryLiveChallengeAchievementJobs = onSchedule({
     });
   }
 
-  // Backstop for the narrower failure window where the room finished but the
-  // durable achievement job itself could not be staged. Those rooms retain
-  // their private state and carry this explicit flag, so the scheduler can
-  // reconstruct the plan without scanning every historical Challenge.
   const challengeRules = await liveChallengeRules();
   const recoveryRooms = await db.collection(LIVE_CHALLENGE_ROOMS)
     .where("classPointsRecoveryPending", "==", true)
@@ -16033,8 +16318,6 @@ exports.retryLiveChallengeAchievementJobs = onSchedule({
   for (const roomDoc of recoveryRooms.docs) {
     const room = roomDoc.data() || {};
     if (room.status !== challengeRules.LIVE_CHALLENGE_STATUS.FINISHED) {
-      // Only normally finished Challenges earn automatic Class Points.
-      // A stale flag on any other status is cleared rather than rewarded.
       // eslint-disable-next-line no-await-in-loop
       await roomDoc.ref.set({
         classPointsRecoveryPending: false,
@@ -16047,10 +16330,7 @@ exports.retryLiveChallengeAchievementJobs = onSchedule({
     // eslint-disable-next-line no-await-in-loop
     const privateSnapshot = await privateRef.get();
     if (!privateSnapshot.exists) {
-      logger.error("liveChallenge.classPoints.recoveryMissingPrivateState", {
-        roomId: roomDoc.id,
-      });
-      // Nothing can be reconstructed now; stop retrying this room forever.
+      logger.error("liveChallenge.classPoints.recoveryMissingPrivateState", { roomId: roomDoc.id });
       // eslint-disable-next-line no-await-in-loop
       await roomDoc.ref.set({
         classPointsRecoveryPending: false,
@@ -16071,8 +16351,6 @@ exports.retryLiveChallengeAchievementJobs = onSchedule({
         privateSnapshot.data() || {},
         room.status,
       );
-      // The durable plan now exists; pending individual ledger writes can be
-      // retried from that job without private Challenge state.
       // eslint-disable-next-line no-await-in-loop
       await deletePrivateChallengeState(db, privateRef, players);
       // eslint-disable-next-line no-await-in-loop
@@ -16085,7 +16363,6 @@ exports.retryLiveChallengeAchievementJobs = onSchedule({
         roomId: roomDoc.id,
         message: error?.message || String(error),
       });
-      // Keep the flag and private state for the next scheduled attempt.
     }
   }
 });

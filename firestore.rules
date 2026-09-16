@@ -282,6 +282,22 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Reward redemptions (Practice Pass, and any future reward) are the
+    // server-written record of a spend already reflected in
+    // classPointTransactions/classPointAccounts above. A student may read
+    // only their own; the teacher of record for the redemption's own class
+    // may read it for visibility into their roster. Nobody may create,
+    // modify, or delete one from the client -- only the redemption callable
+    // (Admin SDK, functions/index.js `redeemPracticePass`) may grant a
+    // waiver.
+    match /classPointRewardRedemptions/{redemptionId} {
+      allow read: if rootAdmin()
+        || ownsStudent(resource.data.studentId)
+        || (teacher()
+          && get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.teacherOfRecord == request.auth.token.email);
+      allow create, update, delete: if false;
+    }
+
     // Live class monitoring. Ephemeral by design: a student's client writes
     // its own document on a heartbeat and deletes it on leaving, and nothing
     // reads it outside the teacher's live grid. It carries no response text —

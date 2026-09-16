@@ -291,6 +291,17 @@ export const buildStudentGradeCenter = ({
   classworkGradesByAssignment = {},
   gradingPeriodSettings = null,
   classroomSyncStatusByAssignment = {},
+  /*
+   * PRACTICE PASS REDEMPTIONS, READ AND NEVER RECOMPUTED.
+   *
+   * `classPointRewardRedemptions/{redemptionId}` is server-written the moment
+   * a Practice Pass is granted (functions/index.js `redeemPracticePass`), and
+   * IS the authoritative waiver -- this model only asks "does one exist for
+   * this assignment?" the same way it asks for testCycleGrades. Keyed by
+   * assignmentId because a student can hold at most one Practice Pass per
+   * assignment (see PRACTICE_PASS_INELIGIBLE_CODES.ALREADY_REDEEMED).
+   */
+  practicePassRedemptionsByAssignment = {},
   providers = {},
 } = {}) => {
   const {
@@ -307,9 +318,10 @@ export const buildStudentGradeCenter = ({
   const buildEntry = (assignment) => {
     const assignmentTracker = tracker?.[assignment.id] || null;
     const lifecycle = getAssignmentLifecycle(assignment, nowValue);
-    const overall = splitGrade({ tracker: assignmentTracker, assignment });
-    const sections = splitGradesBySection({ tracker: assignmentTracker, assignment });
-    const weights = gradeWeightTotals({ tracker: assignmentTracker, assignment });
+    const practicePassRedeemed = Boolean(practicePassRedemptionsByAssignment?.[assignment.id]);
+    const overall = splitGrade({ tracker: assignmentTracker, assignment, practicePassRedeemed });
+    const sections = splitGradesBySection({ tracker: assignmentTracker, assignment, practicePassRedeemed });
+    const weights = gradeWeightTotals({ tracker: assignmentTracker, assignment, practicePassRedeemed });
     const excused = assignmentIsExcusedForStudent(assignment, studentId);
     const reopened = assignmentIsReopenedForStudent(assignment, studentId);
     const feedbackHeld = !lifecycle.isPracticeOnly && assignmentHasHeldTeacherFeedback(assignment) === true;
@@ -395,6 +407,7 @@ export const buildStudentGradeCenter = ({
       // Null on every ordinary assignment, so nothing else changes shape.
       testCycle,
       isTestCycle: Boolean(testCycle),
+      practicePassRedeemed,
       status,
       statusLabel: GRADE_STATUS_LABEL[status],
       countsTowardPeriodGrade: counts,

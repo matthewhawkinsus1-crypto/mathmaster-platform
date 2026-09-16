@@ -45,6 +45,41 @@ export const getCurrentContentQuestionIndices = (assignment = {}) => (
   projectCurrentAssignmentContent(assignment).entries.map((entry) => entry.storageIndex)
 );
 
+/**
+ * The current-content Practice indices a granted Practice Pass would waive,
+ * from the SAME projection every other current-content reader here uses.
+ * Empty when the assignment has no Practice section — nothing to waive.
+ */
+export const practicePassWaivedIndices = (assignment = {}) => (
+  projectCurrentAssignmentContent(assignment).entries
+    .filter((entry) => entry.logicalRole === 'practice')
+    .map((entry) => entry.storageIndex)
+);
+
+/**
+ * THE ONE REUSABLE PROJECTION OF "WHAT IS REQUIRED RIGHT NOW" FOR A REAL
+ * STUDENT, GIVEN WHETHER THEY HOLD A PRACTICE PASS FOR THIS ASSIGNMENT.
+ *
+ * Every student-runtime consumer that currently reads
+ * `getCurrentContentQuestionIndices` for REQUIRED navigation/completion —
+ * `startAssignment`, the active-question-index correction effect, live
+ * presence, the question counter — must read THIS instead once a redemption
+ * exists, so "what counts as waived" cannot drift between them. Warm-Up,
+ * Classwork, and DOL are never touched; only Practice's own current-content
+ * indices are removed, and only when `hasPracticePass` is true.
+ *
+ * Teacher Preview and live teaching never pass `hasPracticePass: true` (they
+ * have no student redemption to read), and post-deadline voluntary Practice
+ * Mode is a completely separate tracker this function never touches — see
+ * src/platform/student/studentGradeCenterModel.js's own isolation note.
+ */
+export const studentAssignmentIndicesWithPracticePass = ({ assignment = {}, hasPracticePass = false } = {}) => {
+  const included = getCurrentContentQuestionIndices(assignment);
+  if (!hasPracticePass) return included;
+  const waived = new Set(practicePassWaivedIndices(assignment));
+  return included.filter((index) => !waived.has(index));
+};
+
 export const DEFAULT_CLASS_SCHEDULE = SHARED_DEFAULT_CLASS_SCHEDULE;
 
 const parseLocalDateTime = (value, endOfDay = false) => {
