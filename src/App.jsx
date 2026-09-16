@@ -176,6 +176,12 @@ import {
   resolveQuestionActivityRole,
 } from './platform/policies/activityPolicies';
 import { SMART_VIEWS, matchesSmartView } from './assignmentSmartViews';
+import {
+  advanceLiveTeachingSession,
+  endLiveTeachingSession,
+  startLiveTeachingSession,
+} from './platform/teacher/liveTeachingSession.js';
+import { describeClassworkPace } from './platform/teacher/classworkModel.js';
 import { assignmentFolderMatches, normalizeFolderPath, normalizeFolderPaths, renameFolderPath, titleOrFolderMatches } from './assignmentFolders';
 import {
   assertPublishable, buildDestinationGroups, destinationAssignmentKey,
@@ -627,6 +633,10 @@ function App() {
   // screens and unmigrated student records still address work by period.
   const [activeClass, setActiveClass] = useState({ classId: null, classPeriod: null });
   const [homeNavigationPeriod, setHomeNavigationPeriod] = useState(null);
+  // Teacher-only Live Teaching session (Classroom Live, Phase 2). Holds only
+  // where the teacher's exemplar currently is, never student response data.
+  // See platform/teacher/liveTeachingSession.js.
+  const [liveTeachingSession, setLiveTeachingSession] = useState(null);
   const [assignments, setAssignments] = useState([]);
   const [allStudents, setAllStudents] = useState([]);
   // Live presence for the teacher home grid, keyed by student id. Never stored
@@ -2595,6 +2605,20 @@ function App() {
     isDOL: activeDOLState.enabled && currentQuestionIndex === activeDOLState.questionIndex,
   });
   const activeActivityPolicy = getEffectiveActivityPolicy(isPracticeMode ? 'practice' : activeQuestionRole);
+
+  // As the teacher moves through the exemplar with real student navigation,
+  // keep the Live Teaching session's position in sync so the room's pace
+  // reference is the teacher's ACTUAL position, never a stale one.
+  useEffect(() => {
+    if (!isTeacherPreview || !liveTeachingSession?.active) return;
+    if (String(liveTeachingSession.assignmentId) !== String(activeAssignmentId)) return;
+    setLiveTeachingSession((session) => advanceLiveTeachingSession(session, {
+      assignment: activeAssignmentData,
+      storageQuestionIndex: currentQuestionIndex,
+      activityRole: activeQuestionRole,
+    }));
+  }, [isTeacherPreview, liveTeachingSession?.active, liveTeachingSession?.assignmentId, activeAssignmentId, activeAssignmentData, currentQuestionIndex, activeQuestionRole]);
+
   useEffect(() => {
     if (user?.role !== 'student' || !user.id || !activeAssignmentId) {
       setCheckpointOutcomes({});
@@ -3146,8 +3170,6 @@ function App() {
     });
   }, [studentSpotlightRequest?.id, studentSpotlightRequest?.status, studentSpotlightRequest?.expiresAt, stopStudentSpotlight]);
 
-  // Navigating away from the requested assignment ends consent rather than
-  // silently carrying it to unrelated work.
   useEffect(() => {
     if (studentSpotlightRequest?.status !== SPOTLIGHT_STATUS.ACCEPTED) return;
     if (activeView === 'assignment' && activeAssignmentId === studentSpotlightRequest.assignmentId) return;
@@ -3996,6 +4018,58 @@ function App() {
     setPreviewTracker(createEmptyAssignmentTracker(assignmentQuestions));
     setPreviewScratchpads({});
     setActiveView('teacherPreview');
+  };
+
+  /*
+   * LIVE TEACHING (Classroom Live, Phase 2).
+   *
+   * Teaching happens from the SAME preview runtime as "View as Student" — no
+   * second renderer, no fake teacher-only responses, same preview isolation.
+   * The only addition is a small, separate Live Teaching session record of
+   * where the teacher's exemplar actually is, so the room's pace reference
+   * can be the teacher's real position instead of a disconnected manual
+   * counter. See platform/teacher/liveTeachingSession.js.
+   */
+  const teachAssignmentLive = (assignmentId) => {
+    const classId = activeClass?.classId || null;
+    if (!classId || !assignmentId) return;
+    const assignmentData = assignments.find((assignment) => assignment.id === assignmentId);
+    if (!assignmentData) return;
+    const startIndex = getCurrentContentQuestionIndices(assignmentData)[0] ?? 0;
+    const startRole = resolveQuestionActivityRole({
+      question: getStoredAssignmentQuestions(assignmentData)[startIndex],
+      assignment: assignmentData,
+    });
+    // Reuses the exact preview entry point: same fresh tracker, same cleared
+    // preview-only drafts, same teacher-preview isolation. "Restart Fresh"
+    // is this same call again on the assignment already being taught.
+    startTeacherPreview(assignmentId);
+    setLiveTeachingSession(startLiveTeachingSession({
+      classId,
+      assignmentId,
+      assignment: assignmentData,
+      storageQuestionIndex: startIndex,
+      activityRole: startRole,
+      nowValue: Date.now(),
+    }));
+  };
+
+  // Re-enters the exemplar at the teacher's last real position without
+  // resetting previewTracker/previewScratchpads/previewSessionId, which are
+  // untouched by simply switching activeView away and back.
+  const resumeLiveTeaching = () => {
+    if (!liveTeachingSession?.active || !liveTeachingSession.assignmentId) return;
+    const assignmentData = assignments.find((assignment) => assignment.id === liveTeachingSession.assignmentId);
+    if (!assignmentData) return;
+    setActiveAssignmentId(liveTeachingSession.assignmentId);
+    setCurrentQuestionIndex(liveTeachingSession.storageQuestionIndex);
+    setAssignmentNavigationCollapsed(false);
+    setAssignmentOverviewExpanded(false);
+    setActiveView('teacherPreview');
+  };
+
+  const endLiveTeaching = () => {
+    setLiveTeachingSession(endLiveTeachingSession());
   };
 
   const getScratchpadDocumentId = (assignmentId, questionIndex) =>
@@ -8050,9 +8124,14 @@ function App() {
         : studentDashboardMode === 'grades'
           ? 'Back to Grades'
           : 'Back to Dashboard';
+    const isLiveTeachingThisAssignment = preview
+      && liveTeachingSession?.active
+      && String(liveTeachingSession.assignmentId) === String(assignment.id);
     const leaveAssignment = () => {
       if (preview) {
-        setTeacherTab('assignments');
+        // Live Teaching returns to Live Classroom, where Resume/Restart/End
+        // live; a plain "View as Student" preview still exits to Assignments.
+        setTeacherTab(isLiveTeachingThisAssignment ? 'home' : 'assignments');
       } else {
         flushAssignmentActivity(activeAssignmentId).catch(() => {});
         if (returnsToAssignmentResult) {
@@ -8125,6 +8204,31 @@ function App() {
         )}
         {!preview && !supportPresentation.disableIdleTimer && renderIdleOverlay()}
         <div className="mathmaster-assignment-shell" style={{ maxWidth: '1120px', margin: '0 auto' }}>
+          {isLiveTeachingThisAssignment && (
+            <section
+              role="status"
+              aria-label="Live Teaching"
+              style={{ marginBottom: '16px', padding: '10px 16px', borderRadius: '10px', background: '#137333', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', fontWeight: 800, fontSize: '13px' }}
+            >
+              <span>🔴 LIVE TEACHING · Teacher exemplar — {describeClassworkPace({ assignment, classworkQuestionPosition: liveTeachingSession?.classworkQuestionPosition ?? null })}. No student data is affected.</span>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => teachAssignmentLive(assignment.id)}
+                  style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #fff', background: 'transparent', color: '#fff', fontWeight: 900, cursor: 'pointer', fontSize: 12 }}
+                >
+                  Restart Fresh
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { leaveAssignment(); endLiveTeaching(); }}
+                  style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #fff', background: '#fff', color: '#137333', fontWeight: 900, cursor: 'pointer', fontSize: 12 }}
+                >
+                  End Teaching
+                </button>
+              </div>
+            </section>
+          )}
           {!preview && shouldShowChallengeHandoffBanner({ invite: liveChallengeInvite, warmupDecision: warmupChallengeDecision }) && (
             <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: '#e8f0fe', border: '3px solid #1a73e8', color: '#174ea6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', textAlign: 'left' }}>
               <div><strong style={{ display: 'block', fontSize: '20px' }}>⚡ Live Challenge has started</strong><span>{liveChallengeInvite.title || 'Your class challenge'} is live now. Your assignment work is saved when you switch.</span></div>
@@ -8165,7 +8269,7 @@ function App() {
                 >
                   &larr; {preview ? 'Back to Instructor Dashboard' : studentAssignmentBackLabel}
                 </button>
-                {preview && (
+                {preview && !isLiveTeachingThisAssignment && (
                   <button
                     type="button"
                     onClick={() => startTeacherPreview(assignment.id)}
@@ -9241,8 +9345,8 @@ function App() {
                 learningProfilesByStudentId={teacherLearningProfiles}
                 activeClassId={activeClass.classId}
                 classes={classes}
-                teacherEmail={user.email || ''}
                 teacherUid={auth.session?.uid || user.uid || ''}
+                teacherEmail={user.email || ''}
                 teacherLabel={user.displayName || user.name || user.email || 'Your teacher'}
                 isRootAdmin={user.isRootAdmin === true}
                 studentSupportEvents={studentSupportEvents}
@@ -9262,6 +9366,10 @@ function App() {
                 // throw the teacher into the Gradebook, losing whatever they
                 // were doing on Home.
                 onOpenStudent={setProfileDrawerStudentId}
+                liveTeachingSession={liveTeachingSession}
+                onTeachAssignment={teachAssignmentLive}
+                onResumeTeaching={resumeLiveTeaching}
+                onEndLiveTeaching={endLiveTeaching}
               />
             )}
 
