@@ -32,28 +32,7 @@ export const JOBS_COLLECTION = 'liveChallengeAchievementJobs';
 export const ACHIEVEMENT_SOURCE_TYPE = SOURCE_TYPES?.LIVE_CHALLENGE_ACHIEVEMENT || 'liveChallengeAchievement';
 export const ACHIEVEMENT_REASON_CODE = 'liveChallengeAchievement';
 
-/**
- * Pure policy calculator using authoritative Challenge private state.
- * No speed, streak, rank, or total score determination.
- *
- * @param {Object} params
- * @param {Object} params.player - Authoritative private player state
- * @param {number} params.scheduledRoundCount - Total original scheduled rounds
- * @param {Object} [params.secondChanceOf] - Map: replayRoundIndex -> originalRoundIndex
- */
-export function calculateStudentChallengeAchievements(paramsOrPlayer, maybeScheduledRoundCount, maybeSecondChanceOf) {
-  let player, scheduledRoundCount, secondChanceOf;
-  if (paramsOrPlayer && typeof paramsOrPlayer === 'object' && ('player' in paramsOrPlayer || 'scheduledRoundCount' in paramsOrPlayer)) {
-    player = paramsOrPlayer.player;
-    scheduledRoundCount = paramsOrPlayer.scheduledRoundCount;
-    secondChanceOf = paramsOrPlayer.secondChanceOf;
-  } else {
-    player = paramsOrPlayer;
-    scheduledRoundCount = maybeScheduledRoundCount;
-    secondChanceOf = maybeSecondChanceOf;
-  }
-
-  // 1. Must have actually joined
+export function calculateStudentChallengeAchievements({ player, scheduledRoundCount, secondChanceOf }) {
   if (!player || player.joined !== true) {
     return [];
   }
@@ -61,22 +40,17 @@ export function calculateStudentChallengeAchievements(paramsOrPlayer, maybeSched
   const roundCount = typeof scheduledRoundCount === 'number' ? scheduledRoundCount : 0;
   const earned = [];
 
-  // Receipts from private state
   const rawReceipts = player.submissionReceipts;
   const receipts = rawReceipts
     ? (Array.isArray(rawReceipts) ? rawReceipts : Object.values(rawReceipts))
     : [];
 
-  // -------------------------------------------------------------
   // 1. Challenge Finisher (+2 Points)
-  // -------------------------------------------------------------
   const joinedAt = typeof player.joinedAtRound === 'number' ? Math.max(0, player.joinedAtRound) : 0;
   const availableScheduledRounds = Math.max(0, roundCount - joinedAt);
 
   if (availableScheduledRounds >= 2) {
     const answeredList = Array.isArray(player.answeredRounds) ? player.answeredRounds : [];
-    // Only count scheduled round indexes: joinedAt <= idx < scheduledRoundCount
-    // Replay rounds (index >= scheduledRoundCount) are excluded from numerator and denominator
     const uniqueAnsweredOriginal = new Set(
       answeredList.filter((idx) => typeof idx === 'number' && Number.isInteger(idx) && idx >= joinedAt && idx < roundCount)
     );
@@ -91,11 +65,7 @@ export function calculateStudentChallengeAchievements(paramsOrPlayer, maybeSched
     }
   }
 
-  // -------------------------------------------------------------
   // 2. Strong Accuracy (+3 Points)
-  // -------------------------------------------------------------
-  // Use original scheduled round indexes only: 0 .. scheduledRoundCount - 1
-  // Use serverConfirmed receipts; replays excluded
   const originalReceiptsByRound = new Map();
   for (const r of receipts) {
     if (!r || r.serverConfirmed !== true) continue;
@@ -128,10 +98,7 @@ export function calculateStudentChallengeAchievements(paramsOrPlayer, maybeSched
     }
   }
 
-  // -------------------------------------------------------------
   // 3. Comeback (+2 Points)
-  // -------------------------------------------------------------
-  // Round 0 is a valid original round index. Use explicit numeric validation.
   let comebackEarned = false;
   const missedSet = new Set(
     Array.isArray(player.missedRounds)
@@ -154,7 +121,7 @@ export function calculateStudentChallengeAchievements(paramsOrPlayer, maybeSched
         );
         if (replayReceipt && replayReceipt.isCorrect === true) {
           comebackEarned = true;
-          break; // Earned at most once per challenge
+          break;
         }
       }
     }
@@ -171,9 +138,6 @@ export function calculateStudentChallengeAchievements(paramsOrPlayer, maybeSched
   return earned;
 }
 
-/**
- * Deterministic safe document ID using sha256 hash.
- */
 export function buildAchievementTransactionId(roomId, studentId, achievementCode) {
   const hash = crypto
     .createHash('sha256')
@@ -182,9 +146,6 @@ export function buildAchievementTransactionId(roomId, studentId, achievementCode
   return `lca_${hash.slice(0, 32)}`;
 }
 
-/**
- * Stages achievement awards durably into liveChallengeAchievementJobs/{roomId}.
- */
 export async function stageLiveChallengeAchievements(db, roomId, roomData, players = [], privateState = {}) {
   if (!roomData || !roomData.classId) {
     return { status: 'skipped', reason: 'missing_class_id', awardsCount: 0 };
@@ -213,22 +174,14 @@ export async function stageLiveChallengeAchievements(db, roomId, roomData, playe
     const studentId = player.studentId || player.id || player.userId;
     if (!studentId) continue;
 
-    // Roster Authority: Validate against grades/{studentId}
     const gradeSnap = await db.collection('grades').doc(studentId).get();
-    if (!gradeSnap.exists) {
-      console.warn(`[LiveChallengeClassPoints] Student ${studentId} missing grade document. Skipping.`);
-      continue;
-    }
+    if (!gradeSnap.exists) continue;
 
     const gradeData = gradeSnap.data() || {};
-    if (gradeData.classId !== classId) {
-      console.warn(`[LiveChallengeClassPoints] Student ${studentId} grade.classId !== classId. Skipping.`);
-      continue;
-    }
+    if (gradeData.classId !== classId) continue;
 
     const teacherOfRecord = classRecord.teacherOfRecord;
     if (teacherOfRecord && gradeData.assignedTeacherEmail && gradeData.assignedTeacherEmail !== teacherOfRecord) {
-      console.warn(`[LiveChallengeClassPoints] Student ${studentId} assignedTeacherEmail mismatch. Skipping.`);
       continue;
     }
 
@@ -270,9 +223,6 @@ export async function stageLiveChallengeAchievements(db, roomId, roomData, playe
   return { status: 'staged', awards: plannedAwards };
 }
 
-/**
- * Atomically executes awards from the durable job record into top-level collections.
- */
 export async function executeLiveChallengeAchievementAwards(db, roomId) {
   const jobRef = db.collection(JOBS_COLLECTION).doc(roomId);
   const jobSnap = await jobRef.get();
@@ -309,7 +259,7 @@ export async function executeLiveChallengeAchievementAwards(db, roomId) {
     try {
       await db.runTransaction(async (transaction) => {
         const existingTx = await transaction.get(ledgerTxRef);
-        if (existingTx.exists) return; // Idempotent skip
+        if (existingTx.exists) return;
 
         const accountSnap = await transaction.get(accountRef);
         const existingAccount = accountSnap.exists ? accountSnap.data() : null;
@@ -365,8 +315,7 @@ export async function executeLiveChallengeAchievementAwards(db, roomId) {
   }
 
   const remaining = awards.filter((a) => !a.processed).length;
-  const isDone = remaining === 0;
-  const finalStatus = isDone ? 'completed' : 'partially_failed';
+  const finalStatus = remaining === 0 ? 'completed' : 'partially_failed';
 
   await jobRef.update({
     awards,
@@ -377,9 +326,6 @@ export async function executeLiveChallengeAchievementAwards(db, roomId) {
   return { status: finalStatus, awardsProcessed: processedCount, unprocessedCount: remaining };
 }
 
-/**
- * Main finish orchestrator. Returns honest completed vs partially_failed status.
- */
 export async function processLiveChallengeClassPoints(db, roomId, roomData, players = [], privateState = {}, status) {
   const isFinished = (status === 'finished') ||
     (typeof FINISHED !== 'undefined' && status === FINISHED) ||
@@ -390,24 +336,19 @@ export async function processLiveChallengeClassPoints(db, roomId, roomData, play
   }
 
   const stageResult = await stageLiveChallengeAchievements(db, roomId, roomData, players, privateState);
-  if (stageResult.status === 'skipped') {
-    return stageResult;
-  }
+  if (stageResult.status === 'skipped') return stageResult;
   if (!stageResult.awards || stageResult.awards.length === 0) {
     return { status: 'completed', awardsCount: 0 };
   }
 
   const execResult = await executeLiveChallengeAchievementAwards(db, roomId);
-  if (execResult.status === 'completed') {
-    return { status: 'completed', awardsCount: stageResult.awards.length, awardsProcessed: execResult.awardsProcessed };
-  }
-
-  return { status: 'partially_failed', awardsCount: stageResult.awards.length, unprocessedCount: execResult.unprocessedCount };
+  return {
+    status: execResult.status,
+    awardsCount: stageResult.awards.length,
+    awardsProcessed: execResult.awardsProcessed,
+  };
 }
 
-/**
- * Background retry reconciler for scheduled jobs.
- */
 export async function retryPendingLiveChallengeAchievementJobs(db) {
   const pendingSnap = await db
     .collection(JOBS_COLLECTION)
@@ -420,9 +361,6 @@ export async function retryPendingLiveChallengeAchievementJobs(db) {
   }
 }
 
-/**
- * Permanent student deletion lifecycle hook: removes target student identity only.
- */
 export async function cleanupStudentLiveChallengeAchievements(db, studentId) {
   if (!db || !studentId) return;
   const jobsSnap = await db.collection(JOBS_COLLECTION).get();
@@ -455,7 +393,5 @@ export async function cleanupStudentLiveChallengeAchievements(db, studentId) {
     }
   }
 
-  if (ops > 0) {
-    await batch.commit();
-  }
+  if (ops > 0) await batch.commit();
 }
