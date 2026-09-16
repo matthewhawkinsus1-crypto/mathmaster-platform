@@ -1,4 +1,5 @@
 import { INSTRUCTIONAL_BAND } from '../profile/studentLearningProfile.js';
+import { formatStudentName } from '../studentName.js';
 import { academicFindingsFor } from './needsAttention.js';
 
 /*
@@ -141,7 +142,7 @@ export const buildInstructionalGroups = ({
 } = {}) => {
   const placements = (Array.isArray(students) ? students : []).map((student) => groupForStudent({
     studentId: student.id,
-    studentName: student.displayName || student.name || String(student.id),
+    studentName: formatStudentName(student, { lastFirst: false }),
     profile: profilesByStudentId[student.id] || null,
     classId: student.classId || null,
   }));

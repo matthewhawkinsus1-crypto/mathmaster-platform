@@ -4,6 +4,7 @@ import RecommendedSkills from './RecommendedSkills.jsx';
 import AssignmentGroup from './AssignmentGroup.jsx';
 import WhatShouldIDoNow from './WhatShouldIDoNow.jsx';
 import StudentGlobalNav, { STUDENT_DESTINATION } from './StudentGlobalNav.jsx';
+import { formatStudentName } from '../../platform/studentName.js';
 import BuildStamp from './BuildStamp.jsx';
 import { BUCKET_LABEL, BUCKET_OPEN_BY_DEFAULT, BUCKET_ORDER } from '../../studentDashboardModel.js';
 import DOLCountdown from './DOLCountdown.jsx';
@@ -159,7 +160,7 @@ export default function StudentDashboardView({
     <div className={`${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`} style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: supportPresentation.highContrast ? '#fff' : '#f0f2f5', minHeight: '100vh', padding: '34px 20px', fontSize: supportPresentation.largeText ? '120%' : undefined }}>
       <div style={{ maxWidth: '920px', margin: '0 auto' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '20px 30px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: '24px', gap: '20px', flexWrap: 'wrap' }}>
-          <div style={{ textAlign: 'left' }}><h1 style={{ margin: 0, color: '#1a73e8', fontSize: '25px' }}>Welcome, {student.displayName || student.id}</h1><p style={{ margin: '4px 0 0', color: '#5f6368' }}>{student.classPeriod}{student.inclusionStatus ? ' · Inclusion supports active' : ''}</p></div>
+          <div style={{ textAlign: 'left' }}><h1 style={{ margin: 0, color: '#1a73e8', fontSize: '25px' }}>Welcome, {formatStudentName(student, { lastFirst: false })}</h1><p style={{ margin: '4px 0 0', color: '#5f6368' }}>{student.classPeriod}{student.inclusionStatus ? ' · Inclusion supports active' : ''}</p></div>
           {/*
             One navigation, shared with Assignments, Grades and My Math Path.
             These were four independently written buttons, which is how My Math

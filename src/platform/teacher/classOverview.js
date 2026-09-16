@@ -1,4 +1,5 @@
 import { BAND_LABEL, INSTRUCTIONAL_BAND } from '../profile/studentLearningProfile.js';
+import { formatStudentName } from '../studentName.js';
 
 /*
  * WHAT IS TRUE ABOUT THIS CLASS, IN ONE PARAGRAPH.
@@ -56,7 +57,7 @@ export const bandDistribution = (students = [], profilesByStudentId = {}) => {
   };
   list(students).forEach((student) => {
     const profile = profilesByStudentId[student.id] || null;
-    const name = student.displayName || student.name || String(student.id);
+    const name = formatStudentName(student, { lastFirst: false });
     const entry = { studentId: student.id, studentName: name };
     if (!profile?.baseline?.established) { buckets.unclassified.push(entry); return; }
     const band = profile.instructionalBand;
@@ -90,7 +91,7 @@ export const strugglingStandards = (students = [], masteryProfilesByStudentId = 
       if (score < atRiskScore) {
         entry.atRisk.push({
           studentId: student.id,
-          studentName: student.displayName || student.name || String(student.id),
+          studentName: formatStudentName(student, { lastFirst: false }),
           score,
         });
       }

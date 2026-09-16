@@ -1,4 +1,5 @@
 import { ENGAGEMENT, INSTRUCTIONAL_BAND } from '../profile/studentLearningProfile.js';
+import { formatStudentName } from '../studentName.js';
 
 /*
  * ONE QUEUE, AND A HIGH BAR FOR ENTERING IT.
@@ -272,7 +273,7 @@ export const systemFindings = ({
       'unplaceableStudents',
       URGENCY.TODAY,
       `${unplaceable.length} student${unplaceable.length === 1 ? '' : 's'} on no class roster`,
-      `${unplaceable.map((student) => student.displayName || student.id).slice(0, 6).join(', ')}${unplaceable.length > 6 ? ` and ${unplaceable.length - 6} more` : ''}. Their class period is used by more than one class, so MathMaster cannot tell which one they belong to.`,
+      `${unplaceable.map((student) => formatStudentName(student, { lastFirst: false })).slice(0, 6).join(', ')}${unplaceable.length > 6 ? ` and ${unplaceable.length - 6} more` : ''}. Their class period is used by more than one class, so MathMaster cannot tell which one they belong to.`,
     );
   }
 
@@ -351,7 +352,7 @@ export const buildNeedsAttentionQueue = ({
   list(students).forEach((student) => {
     const shared = {
       studentId: student.id,
-      studentName: student.displayName || student.name || String(student.id),
+      studentName: formatStudentName(student, { lastFirst: false }),
       profile: profilesByStudentId[student.id] || null,
       classId: student.classId || null,
     };

@@ -19,6 +19,7 @@ export const studentNameParts = (student = {}) => {
   return splitLegacyDisplayName(
     record.displayName
       || record.name
+      || record.studentName
       || record.googleName
       || record.profile?.displayName
       || record.profile?.name
@@ -27,7 +28,7 @@ export const studentNameParts = (student = {}) => {
   );
 };
 
-export const formatStudentName = (student = {}, { lastFirst = true, fallbackToId = true } = {}) => {
+export const formatStudentName = (student = {}, { lastFirst = true, fallbackToId = false, fallbackToNeutral = true } = {}) => {
   const record = asStudentRecord(student);
   const { firstName, lastName } = studentNameParts(record);
   if (lastFirst && lastName) return firstName ? `${lastName}, ${firstName}` : lastName;
@@ -36,14 +37,37 @@ export const formatStudentName = (student = {}, { lastFirst = true, fallbackToId
   const displayName = cleanName(
     record.displayName
       || record.name
+      || record.studentName
       || record.googleName
       || record.profile?.displayName
       || record.profile?.name
       || record.profile?.googleName,
   );
   if (displayName) return displayName;
-  if (!fallbackToId) return '';
-  return String(record.studentId || record.id || 'Student');
+  if (fallbackToId) return String(record.studentId || record.id || 'Student');
+  if (!fallbackToNeutral) return '';
+  return 'Student';
+};
+
+export const resolveStudentDisplayName = ({ rosterStudent = {}, sessionDisplayName = '' } = {}) => {
+  const rosterName = formatStudentName(rosterStudent, {
+    lastFirst: false,
+    fallbackToId: false,
+    fallbackToNeutral: false,
+  });
+  return rosterName || cleanName(sessionDisplayName) || 'Student';
+};
+
+export const resolveRosterStudentName = ({ studentId = null, students = [], historicalName = '' } = {}) => {
+  const id = String(studentId || '').trim();
+  const rosterStudent = (Array.isArray(students) ? students : []).find((student) => (
+    String(student?.id || student?.studentId || '').trim() === id
+  ));
+  if (rosterStudent) return formatStudentName(rosterStudent, { lastFirst: false });
+  const historical = cleanName(historicalName);
+  if (!historical || historical === id) return 'Student';
+  const storedName = formatStudentName({ displayName: historical }, { lastFirst: false });
+  return storedName === 'Student' ? 'Student' : storedName;
 };
 
 export const compareStudentsByName = (a = {}, b = {}) => {
@@ -70,6 +94,8 @@ export const studentSearchText = (student = {}) => {
     firstName,
     lastName,
     record.displayName,
+    record.name,
+    record.studentName,
     record.googleName,
     record.profile?.displayName,
     record.profile?.name,

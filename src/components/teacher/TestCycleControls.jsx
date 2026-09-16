@@ -6,6 +6,7 @@ import {
   preflightTestCycleAssignment,
   teacherTestCycleAction,
 } from '../../services/testCycleService.js';
+import { resolveRosterStudentName } from '../../platform/studentName.js';
 
 /*
  * THE TEACHER'S VIEW OF A TEST CYCLE.
@@ -38,7 +39,7 @@ const button = (tone) => ({
 
 const percent = (value) => (value === null || value === undefined ? '—' : `${value}%`);
 
-export const TestCycleControls = ({ assignment, classId = null }) => {
+export const TestCycleControls = ({ assignment, classId = null, students = [] }) => {
   const assignmentId = assignment?.id || null;
   const [rows, setRows] = useState([]);
   const [preflight, setPreflight] = useState(null);
@@ -137,7 +138,7 @@ export const TestCycleControls = ({ assignment, classId = null }) => {
           <tbody>
             {rows.map((row) => (
               <tr key={row.studentId}>
-                <td style={cell}>{row.studentId}</td>
+                <td style={cell}>{resolveRosterStudentName({ studentId: row.studentId, students, historicalName: row.studentName })}</td>
                 <td style={cell}>{row.statusLabel || row.stage || '—'}</td>
                 <td style={cell}>{percent(row.originalTestGrade)}</td>
                 <td style={cell}>{percent(row.rawRetestGrade)}</td>
@@ -170,7 +171,7 @@ export const TestCycleControls = ({ assignment, classId = null }) => {
                         style={button()}
                         onClick={() => run(
                           () => teacherTestCycleAction({ assignmentId, studentId: row.studentId, action, stage }),
-                          `${label} applied for ${row.studentId}.`,
+                          `${label} applied for ${resolveRosterStudentName({ studentId: row.studentId, students, historicalName: row.studentName })}.`,
                         )}
                       >
                         {label}
@@ -202,7 +203,7 @@ export const TestCycleControls = ({ assignment, classId = null }) => {
           "the algorithm decided". */}
       {plans && (
         <div style={{ marginTop: 18, padding: 14, borderRadius: 10, background: '#f8f9fa', border: '1px solid #e3e6ea' }}>
-          <h3 style={{ marginTop: 0, fontSize: 15 }}>Generated plans · {plans.studentId}</h3>
+          <h3 style={{ marginTop: 0, fontSize: 15 }}>Generated plans · {resolveRosterStudentName({ studentId: plans.studentId, students, historicalName: plans.studentName })}</h3>
           {plans.corrections ? (
             <>
               <h4 style={{ marginBottom: 4, fontSize: 13 }}>Corrections, mapped to the failed Test evidence</h4>

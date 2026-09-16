@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
   compareStudentsByName,
   formatStudentName,
+  resolveRosterStudentName,
+  resolveStudentDisplayName,
   splitLegacyDisplayName,
   studentNameParts,
   studentSearchText,
@@ -16,6 +18,40 @@ test('legacy displayName remains compatible', () => {
   assert.deepEqual(splitLegacyDisplayName('Matthew Hawkins'), { firstName: 'Matthew', lastName: 'Hawkins' });
   assert.deepEqual(studentNameParts({ displayName: 'Matthew Hawkins' }), { firstName: 'Matthew', lastName: 'Hawkins' });
   assert.equal(formatStudentName({ displayName: 'Matthew Hawkins', id: '67' }), 'Hawkins, Matthew');
+});
+
+test('natural instructional names and neutral unresolved identities are canonical', () => {
+  assert.equal(
+    formatStudentName({ firstName: 'Matthew', lastName: 'Hawkins' }, { lastFirst: false }),
+    'Matthew Hawkins',
+  );
+  assert.equal(formatStudentName({ studentName: 'Ana Rivera' }, { lastFirst: false }), 'Ana Rivera');
+  assert.equal(formatStudentName({ id: 'long-internal-uid-123' }), 'Student');
+  assert.equal(formatStudentName({ id: 'support-id' }, { fallbackToId: true }), 'support-id');
+});
+
+test('student display name hydration prefers roster, then session, then neutral fallback', () => {
+  assert.equal(resolveStudentDisplayName({
+    rosterStudent: { id: 'S123', firstName: 'Jordan', lastName: 'Smith' },
+    sessionDisplayName: 'Different Google Name',
+  }), 'Jordan Smith');
+  assert.equal(resolveStudentDisplayName({
+    rosterStudent: { id: 'S123' },
+    sessionDisplayName: 'Jordan Smith',
+  }), 'Jordan Smith');
+  assert.equal(resolveStudentDisplayName({
+    rosterStudent: { id: 'S123' },
+    sessionDisplayName: '',
+  }), 'Student');
+  assert.equal(resolveStudentDisplayName({
+    rosterStudent: { id: 'long-internal-student-id' },
+  }), 'Student');
+  assert.equal(
+    formatStudentName({ id: 'long-internal-student-id' }, { fallbackToNeutral: false }),
+    '',
+    'callers may explicitly defer the neutral fallback while trying another human-name source',
+  );
+  assert.equal(formatStudentName({ id: 'long-internal-student-id' }), 'Student');
 });
 
 test('students sort by last name, then first name, then ID', () => {
@@ -32,4 +68,13 @@ test('search includes structured and legacy names', () => {
   assert.match(text, /matthew/);
   assert.match(text, /hawkins/);
   assert.match(text, /period 1/);
+});
+
+test('persisted student ids resolve through the current roster before historical or neutral names', () => {
+  const students = [{ id: 'S123', firstName: 'Jordan', lastName: 'Smith' }];
+  assert.equal(resolveRosterStudentName({ studentId: 'S123', students }), 'Jordan Smith');
+  assert.equal(resolveRosterStudentName({ studentId: 'S123', students, historicalName: 'Old Name' }), 'Jordan Smith');
+  assert.equal(resolveRosterStudentName({ studentId: 'gone', students, historicalName: 'Avery Jones' }), 'Avery Jones');
+  assert.equal(resolveRosterStudentName({ studentId: 'long-unknown-uid', students }), 'Student');
+  assert.equal(resolveRosterStudentName({ studentId: 'long-unknown-uid', students, historicalName: 'long-unknown-uid' }), 'Student');
 });

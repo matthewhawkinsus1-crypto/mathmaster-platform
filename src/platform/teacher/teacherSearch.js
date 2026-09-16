@@ -1,3 +1,5 @@
+import { formatStudentName, studentSearchText } from '../studentName.js';
+
 /*
  * ONE BOX THAT FINDS THE THING.
  *
@@ -94,8 +96,8 @@ export const searchTeacherWorkspace = ({
   const results = [];
 
   list(students).forEach((student) => {
-    const name = student.displayName || student.name || String(student.id);
-    const score = scoreMatch(needle, `${name} ${student.classPeriod || ''}`, [student.id]);
+    const name = formatStudentName(student, { lastFirst: false });
+    const score = scoreMatch(needle, studentSearchText(student), [student.id]);
     if (!score) return;
     results.push({
       kind: RESULT_KIND.STUDENT,

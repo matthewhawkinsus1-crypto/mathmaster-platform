@@ -3,6 +3,7 @@ import DistrictAnalyticsView from './DistrictAnalyticsView.jsx';
 import { calculateMultiStakeholderAnalytics, USER_ROLES } from '../../platform/analytics/multiStakeholderAnalytics.js';
 import { buildInstructionalGroups, GROUP } from '../../platform/teacher/instructionalGroups.js';
 import StudentNameLink from '../common/StudentNameLink.jsx';
+import { formatStudentName } from '../../platform/studentName.js';
 
 /*
  * Class analytics, and the groups a teacher would actually teach from.
@@ -42,7 +43,7 @@ export const TeacherAnalyticsDashboard = ({
     const mastery = masteryProfilesByStudentId[student.id] || {};
     return {
       studentId: student.id,
-      studentName: student.displayName || student.id,
+      studentName: formatStudentName(student, { lastFirst: false }),
       profile: student.profile || {},
       programEligibility: student.programEligibility,
       teks: mastery.teks || {},

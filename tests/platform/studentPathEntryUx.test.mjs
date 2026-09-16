@@ -1,18 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { region } from './helpers/sourceContract.mjs';
 
 const appSource = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const dashboardSource = readFileSync(new URL('../../src/components/student/StudentDashboardView.jsx', import.meta.url), 'utf8');
 const pathSource = readFileSync(new URL('../../src/components/student/MyMathPathApp.jsx', import.meta.url), 'utf8');
 const recommendationsSource = readFileSync(new URL('../../src/components/student/RecommendedSkills.jsx', import.meta.url), 'utf8');
 
-test('student dashboard greets the roster student by name before falling back to ID', () => {
-  assert.match(appSource, /const rosterDisplayName = formatStudentName\(/);
-  assert.match(appSource, /lastFirst: false, fallbackToId: false/);
-  assert.match(appSource, /displayName: rosterDisplayName \|\| session\.displayName \|\| studentId/);
-  assert.match(appSource, /student=\{\{ id: user\.id, displayName: user\.displayName/);
-  assert.match(dashboardSource, /Welcome, \{student\.displayName \|\| student\.id\}/);
+test('student dashboard hydrates identity from roster name, then session name, then neutral fallback', () => {
+  assert.match(
+    appSource,
+    /import \{[^}]*resolveStudentDisplayName[^}]*\} from ['"]\.\/platform\/studentName['"]/,
+    'App must import the resolver it calls so JSX cannot ship a free-identifier runtime error',
+  );
+  const hydration = region(
+    appSource,
+    'const studentDisplayName = resolveStudentDisplayName(',
+    'const repairedStudentGrades =',
+    'student identity hydration',
+  );
+  assert.match(hydration, /rosterStudent: \{ \.\.\.studentData, id: studentId \}/);
+  assert.match(hydration, /sessionDisplayName: session\.displayName/);
+  assert.match(hydration, /displayName: studentDisplayName/);
+  const dashboardCall = region(appSource, '<StudentDashboardView', '/>', 'student dashboard call');
+  assert.match(dashboardCall, /student=\{\{ \.\.\.studentRecord, \.\.\.user,/);
+  assert.match(dashboardSource, /Welcome, \{formatStudentName\(student, \{ lastFirst: false \}\)\}/);
 });
 
 test('recommended skill launch waits for secure coverage and then opens the selected TEKS', () => {
