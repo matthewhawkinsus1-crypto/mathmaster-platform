@@ -35,7 +35,7 @@ test('student transaction query is bounded and constrained by both private ident
   assert.match(walletSubscription, /where\('studentId', '==', currentStudentId\)/);
   assert.match(walletSubscription, /where\('classId', '==', currentClassId\)/);
   assert.match(walletSubscription, /orderBy\('createdAt', 'desc'\)/);
-  assert.match(walletSubscription, /limit\(CLASS_POINTS_HISTORY_LIMIT\)/);
+  assert.match(walletSubscription, /fsLimit\(STUDENT_CLASS_POINTS_HISTORY_LIMIT\)/);
   assert.doesNotMatch(walletSubscription, /collectionGroup|authorizedTeacherEmails/);
 });
 
