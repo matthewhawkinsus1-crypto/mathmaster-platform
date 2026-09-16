@@ -330,6 +330,8 @@ service cloud.firestore {
         && request.resource.data.teacherUid == request.auth.uid
         && request.resource.data.teacherEmail == request.auth.token.email
         && request.resource.data.status == 'requested'
+        && request.resource.data.assignmentId is string
+        && request.resource.data.assignmentId.size() > 0
         && request.resource.data.requestedAt == request.time
         && request.resource.data.expiresAt > request.time
         && request.resource.data.expiresAt <= request.time + duration.value(5, 'm')
@@ -372,9 +374,24 @@ service cloud.firestore {
         )
       );
       allow create, update: if ownsStudent(request.resource.data.studentId)
+        && request.resource.data.keys().hasOnly([
+          'schemaVersion', 'requestId', 'studentId', 'assignmentId',
+          'assignmentTitle', 'questionIndex', 'studentLabel', 'question',
+          'work', 'truncated', 'updatedAtMs', 'updatedAt', 'expiresAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'schemaVersion', 'requestId', 'studentId', 'assignmentId',
+          'assignmentTitle', 'questionIndex', 'studentLabel', 'question',
+          'work', 'updatedAtMs', 'updatedAt', 'expiresAt'
+        ])
+        && request.resource.data.schemaVersion == 1
         && request.resource.data.requestId == requestId
         && request.resource.data.studentId
           == get(/databases/$(database)/documents/liveSpotlightRequests/$(requestId)).data.studentId
+        && request.resource.data.assignmentId
+          == get(/databases/$(database)/documents/liveSpotlightRequests/$(requestId)).data.assignmentId
+        && request.resource.data.expiresAt
+          == get(/databases/$(database)/documents/liveSpotlightRequests/$(requestId)).data.expiresAt
         && activeSpotlightRequest(requestId)
         && request.resource.data.updatedAt == request.time;
       // Content is removed at either party's stop path. The request remains as

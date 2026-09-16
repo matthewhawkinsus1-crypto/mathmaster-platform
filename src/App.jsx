@@ -14,6 +14,7 @@ import {
   runTransaction,
   setDoc,
   serverTimestamp,
+  Timestamp,
   updateDoc,
   where,
   writeBatch,
@@ -3058,7 +3059,12 @@ function App() {
       return undefined;
     }
     return onSnapshot(
-      query(collection(db, SPOTLIGHT_REQUEST_COLLECTION), where('studentId', '==', user.id)),
+      query(
+        collection(db, SPOTLIGHT_REQUEST_COLLECTION),
+        where('studentId', '==', user.id),
+        where('status', 'in', [SPOTLIGHT_STATUS.REQUESTED, SPOTLIGHT_STATUS.ACCEPTED]),
+        where('expiresAt', '>', Timestamp.now()),
+      ),
       (snapshot) => {
         const current = snapshot.docs
           .map((entry) => ({ id: entry.id, ...entry.data() }))
@@ -3081,6 +3087,7 @@ function App() {
         ...frame,
         requestId: studentSpotlightRequest.id,
         studentId: user.id,
+        expiresAt: studentSpotlightRequest.expiresAt,
         updatedAt: serverTimestamp(),
       }).catch(() => setStudentSpotlightMessage('Presentation connection interrupted. Keep working normally while MathMaster reconnects.')),
     });

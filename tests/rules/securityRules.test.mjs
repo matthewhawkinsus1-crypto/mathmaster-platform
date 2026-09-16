@@ -381,16 +381,41 @@ test('Spotlight requires fresh affirmative consent and isolates the active frame
 
   await assertSucceeds(updateDoc(doc(studentA(), requestPath), { status: 'accepted', respondedAt: serverTimestamp() }));
   await assertSucceeds(setDoc(doc(studentA(), framePath), {
-    requestId, studentId: 'STUDENT_A', assignmentId: 'A1', work: { response: '2x + 3' }, updatedAt: serverTimestamp(),
+    schemaVersion: 1, requestId, studentId: 'STUDENT_A', assignmentId: 'A1', assignmentTitle: 'Assignment 1',
+    questionIndex: 0, studentLabel: 'Student A.', question: { prompt: 'Solve' }, work: { response: '2x + 3' },
+    updatedAtMs: Date.now(), updatedAt: serverTimestamp(), expiresAt,
   }));
   await assertSucceeds(getDoc(doc(teacherA(), framePath)));
   await assertFails(getDoc(doc(teacherB(), framePath)));
   await assertFails(getDoc(doc(studentB(), framePath)));
+  await assertFails(setDoc(doc(studentA(), framePath), {
+    schemaVersion: 1, requestId, studentId: 'STUDENT_A', assignmentId: 'A2', assignmentTitle: 'Assignment 2',
+    questionIndex: 1, studentLabel: 'Student A.', question: { prompt: 'Other work' }, work: { response: 'private A2' },
+    updatedAtMs: Date.now(), updatedAt: serverTimestamp(), expiresAt,
+  }));
+  await assertFails(setDoc(doc(studentA(), framePath), {
+    schemaVersion: 1, requestId, studentId: 'STUDENT_A', assignmentId: 'A1', assignmentTitle: 'Assignment 1',
+    questionIndex: 0, studentLabel: 'Student A.', question: { prompt: 'Solve' }, work: { response: '2x + 3' },
+    grade: 100, browserHistory: ['private'], updatedAtMs: Date.now(), updatedAt: serverTimestamp(), expiresAt,
+  }));
 
   await assertSucceeds(deleteDoc(doc(studentA(), framePath)));
   await assertSucceeds(updateDoc(doc(studentA(), requestPath), { status: 'stopped', stoppedAt: serverTimestamp(), stoppedBy: 'student' }));
   await assertFails(setDoc(doc(studentA(), framePath), {
     requestId, studentId: 'STUDENT_A', work: { response: 'must not return' }, updatedAt: serverTimestamp(),
+  }));
+
+  const nextRequestId = `${requestId}-new-session`;
+  await assertSucceeds(setDoc(doc(teacherA(), `liveSpotlightRequests/${nextRequestId}`), {
+    schemaVersion: 1, requestId: nextRequestId, classId: 'class-a', studentId: 'STUDENT_A',
+    studentLabel: 'Student A.', teacherUid: 'uid-a', teacherEmail: TEACHER_A,
+    teacherLabel: 'Ms. A', status: 'requested', assignmentId: 'A1', questionIndex: 0,
+    requestedAt: serverTimestamp(), expiresAt: Timestamp.fromMillis(Date.now() + 120000),
+  }));
+  await assertFails(setDoc(doc(studentA(), `liveSpotlightFrames/${nextRequestId}`), {
+    schemaVersion: 1, requestId: nextRequestId, studentId: 'STUDENT_A', assignmentId: 'A1', assignmentTitle: 'Assignment 1',
+    questionIndex: 0, studentLabel: 'Student A.', question: { prompt: 'Solve' }, work: { response: 'old consent cannot carry' },
+    updatedAtMs: Date.now(), updatedAt: serverTimestamp(), expiresAt: Timestamp.fromMillis(Date.now() + 120000),
   }));
 });
 

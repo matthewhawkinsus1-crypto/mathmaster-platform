@@ -16,6 +16,8 @@ const STUDENT_QUERY_COLLECTIONS = Object.freeze([
   "studentSupportEvents",
   "studentSessionSummaries",
   "studentPathInterventionAudit",
+  "liveSpotlightRequests",
+  "liveSpotlightFrames",
 ]);
 
 const STUDENT_DIRECT_COLLECTIONS = Object.freeze([
@@ -39,6 +41,8 @@ const PREPRODUCTION_RESET_COLLECTIONS = Object.freeze([
   "liveChallengeRooms",
   "liveChallengeTeacherActive",
   "liveChallengePrivate",
+  "liveSpotlightRequests",
+  "liveSpotlightFrames",
   "pathHistory",
   "classroomLinks",
   "classroomRosterLinks",

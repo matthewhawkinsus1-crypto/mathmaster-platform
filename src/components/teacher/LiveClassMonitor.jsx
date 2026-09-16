@@ -7,6 +7,7 @@ import {
   LIVE_FLAGS, LIVE_SEVERITY, QUESTION_STATE_CHARS, summarizeLiveClass,
 } from '../../livePresence';
 import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
+import StudentSpotlightView from './StudentSpotlightView.jsx';
 import DOLCountdown from '../student/DOLCountdown.jsx';
 import { formatStudentName } from '../../platform/studentName';
 import {
@@ -366,16 +367,25 @@ export default function LiveClassMonitor({
   const [spotlightMessage, setSpotlightMessage] = useState('');
 
   useEffect(() => {
-    if (!teacherEmail) return undefined;
+    setSpotlightRequests([]);
+    setSpotlightFrame(null);
+    if (!teacherEmail || !activeClassId) return undefined;
     return onSnapshot(
-      query(collection(db, SPOTLIGHT_REQUEST_COLLECTION), where('teacherEmail', '==', teacherEmail)),
+      query(
+        collection(db, SPOTLIGHT_REQUEST_COLLECTION),
+        where('teacherEmail', '==', teacherEmail),
+        where('classId', '==', activeClassId),
+        where('status', 'in', [SPOTLIGHT_STATUS.REQUESTED, SPOTLIGHT_STATUS.ACCEPTED]),
+        where('expiresAt', '>', Timestamp.now()),
+      ),
       (snapshot) => setSpotlightRequests(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }))),
       () => setSpotlightMessage('Spotlight connection is unavailable. Student work is unaffected.'),
     );
-  }, [teacherEmail]);
+  }, [teacherEmail, activeClassId]);
 
   const activeSpotlight = useMemo(() => spotlightRequests
     .filter((entry) => [SPOTLIGHT_STATUS.REQUESTED, SPOTLIGHT_STATUS.ACCEPTED].includes(entry.status))
+    .filter((entry) => entry.classId === activeClassId)
     .filter((entry) => (entry.expiresAt?.toMillis?.() || 0) > Date.now())
     .sort((a, b) => (b.requestedAt?.toMillis?.() || 0) - (a.requestedAt?.toMillis?.() || 0))[0] || null, [spotlightRequests]);
 
@@ -388,6 +398,10 @@ export default function LiveClassMonitor({
   }, [activeSpotlight?.id, activeSpotlight?.status]);
 
   const requestSpotlight = async (row) => {
+    if (!row.live?.assignmentId) {
+      setSpotlightMessage('Student must have a MathMaster assignment open to present.');
+      return;
+    }
     if (!activeClassId || !teacherEmail || !teacherUid) {
       setSpotlightMessage('Choose an authoritative class before requesting Spotlight.');
       return;
@@ -405,7 +419,7 @@ export default function LiveClassMonitor({
         teacherEmail,
         teacherLabel: String(teacherLabel || 'Your teacher').slice(0, 80),
         status: SPOTLIGHT_STATUS.REQUESTED,
-        assignmentId: row.live?.assignmentId || null,
+        assignmentId: row.live.assignmentId,
         questionIndex: Number(row.live?.questionIndex) || 0,
         requestedAt: serverTimestamp(),
         expiresAt: Timestamp.fromMillis(Date.now() + SPOTLIGHT_REQUEST_TTL_MS),
@@ -614,15 +628,7 @@ export default function LiveClassMonitor({
 
   return (
     <section style={{ marginBottom: 28 }}>
-      {activeSpotlight?.status === SPOTLIGHT_STATUS.ACCEPTED && (
-        <section aria-label="Student Spotlight projector view" style={{ marginBottom: 16, padding: 24, borderRadius: 16, background: '#17131f', color: '#fff', minHeight: 260 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'start' }}>
-            <div><div style={{ color: '#d7b9ff', fontSize: 12, fontWeight: 900, letterSpacing: '.1em' }}>STUDENT SPOTLIGHT · PRESENTING WITH CONSENT</div><h2 style={{ margin: '6px 0 2px', fontSize: 30 }}>{activeSpotlight.studentLabel || 'Student'}</h2><div style={{ color: '#d8d2df' }}>{spotlightFrame?.assignmentTitle || 'Waiting for current MathMaster work…'}</div></div>
-            <button type="button" onClick={stopSpotlight} style={{ ...smallButtonStyle, padding: '9px 13px', borderColor: '#f28b82', color: '#b3261e' }}>Stop Spotlight</button>
-          </div>
-          {spotlightFrame ? <div style={{ marginTop: 24, display: 'grid', gap: 16 }}><div style={{ padding: 18, borderRadius: 12, background: '#fff', color: '#202124', fontSize: 21, lineHeight: 1.45 }}>{spotlightFrame.question?.prompt || 'Current question'}</div><div style={{ padding: 18, borderRadius: 12, background: '#2b2435' }}><strong>Current student work</strong><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', font: 'inherit', marginBottom: 0 }}>{JSON.stringify(spotlightFrame.work, null, 2)}</pre></div></div> : <div style={{ marginTop: 28, color: '#d8d2df' }}>Connecting to the student&apos;s current MathMaster question…</div>}
-        </section>
-      )}
+      {activeSpotlight?.status === SPOTLIGHT_STATUS.ACCEPTED && <StudentSpotlightView request={activeSpotlight} frame={spotlightFrame} onStop={stopSpotlight} />}
       {activeSpotlight?.status === SPOTLIGHT_STATUS.REQUESTED && <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 9, background: '#f8f0fc', color: '#4a126b' }}>Waiting for {activeSpotlight.studentLabel || 'the student'} to choose <strong>Present Now</strong>. No work is visible.</div>}
       {spotlightMessage && <div role="status" style={{ marginBottom: 10, fontSize: 12, color: '#5f6368' }}>{spotlightMessage}</div>}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 12 }}>

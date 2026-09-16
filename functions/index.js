@@ -47,6 +47,7 @@ const {
   publicationMarker,
 } = require("./lib/publication");
 const authLib = require("./lib/auth");
+const liveSpotlight = require("./lib/liveSpotlight");
 const {
   assignmentUsesTeacherReleasePolicy,
   assignmentFeedbackWasReleased,
@@ -13596,6 +13597,17 @@ exports.expireStaleStudentPresence = onSchedule({
       cutoff,
     });
   }
+});
+
+// Client stop paths erase frames immediately. This sweep is the backstop for
+// killed tabs, closed Chromebooks and lost networks: expired response-bearing
+// presentation content is physically removed rather than retained as history.
+exports.deleteExpiredStudentSpotlightFrames = onSchedule({
+  schedule: "every 5 minutes",
+  invoker: "private",
+}, async () => {
+  const result = await liveSpotlight.deleteExpiredSpotlightFrames(getFirestore());
+  if (result.deleted) logger.info("Deleted expired Student Spotlight frames", result);
 });
 
 exports.hydrateAssignmentCcmr = onCall({

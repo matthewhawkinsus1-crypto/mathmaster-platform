@@ -85,12 +85,25 @@ test('student erasure policy spans every server-owned Phase 5/6 student data fam
     'studentSupportEvents',
     'studentSessionSummaries',
     'studentPathInterventionAudit',
+    'liveSpotlightRequests',
+    'liveSpotlightFrames',
   ]) {
     assert.equal(queried.has(collectionName), true, `${collectionName} must be erased by studentId`);
   }
   assert.equal(direct.has('studentMasteryProfiles'), true);
   assert.equal(direct.has('studentRetentionSchedules'), true);
   assert.equal(direct.has('studentPathInterventions'), true);
+});
+
+test('permanent deletion erases only the selected student Spotlight records', () => {
+  const queried = new Set(admin.STUDENT_QUERY_COLLECTIONS);
+  assert.equal(queried.has('liveSpotlightRequests'), true);
+  assert.equal(queried.has('liveSpotlightFrames'), true);
+  const loopStart = functionsSource.indexOf('for (const collectionName of adminPolicy.STUDENT_QUERY_COLLECTIONS)');
+  const loop = functionsSource.slice(loopStart, loopStart + 500);
+  assert.match(loop, /where\("studentId", "==", studentId\)/);
+  assert.match(loop, /recursiveDeleteQuery/);
+  assert.doesNotMatch(loop, /\.collection\(collectionName\)\.get\(\)/);
 });
 
 test('teacher grants and permanent student erasure are root-admin callables, not ordinary-teacher actions', () => {
