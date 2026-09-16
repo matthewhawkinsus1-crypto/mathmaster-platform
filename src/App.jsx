@@ -3124,6 +3124,8 @@ function App() {
       setClassroomSyncStatusByAssignment({});
       setTestCycleGrades({});
       setTeacherGradeOverridesByAssignment({});
+      setDolGradesByAssignment({});
+      setClassworkGradesByAssignment({});
       classroomSyncNoticeRef.current = {};
       return undefined;
     }
@@ -3138,6 +3140,8 @@ function App() {
         // student's card and Grade Center have to follow without a reload.
         setTestCycleGrades(snapshot.data()?.testCycleGrades || {});
         setTeacherGradeOverridesByAssignment(snapshot.data()?.teacherGradeOverridesByAssignment || {});
+        setDolGradesByAssignment(snapshot.data()?.dolGradesByAssignment || {});
+        setClassworkGradesByAssignment(snapshot.data()?.classworkGradesByAssignment || {});
 
         Object.entries(next).forEach(([assignmentId, receipt]) => {
           const notificationId = receipt?.notificationId;
