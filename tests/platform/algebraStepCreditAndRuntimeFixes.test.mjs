@@ -193,7 +193,11 @@ test('closed DOL gradebook display recalculates from saved question records inst
 
   // The section scores come from the canonical tracker split, so they re-derive
   // from saved question records every render.
-  assert.match(row, /const grades = student\.gradesByAssignment\?\.\[selectedAssignment\.id\]/);
+  assert.match(
+    row,
+    /const grades = projectTeacherOverridesForDisplay\(student\.gradesByAssignment \|\| \{\}, student\.teacherGradeOverridesByAssignment \|\| \{\}\)\?\.\[selectedAssignment\.id\]/,
+    'the teacher row should recalculate from saved question records with any still-valid server-owned teacher override projected on top',
+  );
   assert.match(row, /splitGradesBySection\(\{\s*tracker:\s*grades,\s*assignment:\s*selectedAssignment\s*\}\)/);
   assert.match(row, /sectionGrades\.dol\.score/);
 

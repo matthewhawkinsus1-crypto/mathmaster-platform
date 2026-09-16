@@ -186,6 +186,7 @@ async function responseCheckpointFinalizer() {
 }
 
 const CHECKPOINT_COLLECTION = "studentResponseCheckpoints";
+const RESPONSE_INSPECTION_EVIDENCE_COLLECTION = "responseInspectionEvidence";
 // The one status in the finalizer's working set. Named here so the recovery
 // sweep and the scheduler cannot drift apart on what "outstanding" means.
 const CHECKPOINT_STATUS_ACTIVE = "active";
@@ -319,10 +320,12 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
     // question list is this side's projection of which questions are classwork
     // and which are DOL; the RULE that turns them into a completion score is
     // shared with the browser.
-    const { getQuestionCredit, dolSectionProjection } = await responseCheckpointFinalizer();
+    const { dolSectionProjection } = await responseCheckpointFinalizer();
     const classworkIndices = runtimeIncludedQuestionIndicesForSection(assignment, "classwork");
     const dolIndices = runtimeIncludedQuestionIndicesForSection(assignment, "dol");
     const assignmentId = String(checkpoint.assignmentId);
+    const authoritativeOverrides =
+      gradeData?.teacherGradeOverridesByAssignment?.[assignmentId] || {};
     const finalization = buildCheckpointFinalization({
       checkpoint, assignment, question, decision,
       gradeDocument: gradeData, classworkIndices, dolIndices,
@@ -339,7 +342,10 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
         tracker: finalization.assignmentTracker,
         questions: runtimeQuestionsFromAssignment(assignment),
         indices: dolIndices,
-        creditForRecord: getQuestionCredit,
+        creditForRecord: (candidate, index) => getQuestionCredit(
+          candidate,
+          authoritativeOverrides?.[String(index)] ?? authoritativeOverrides?.[index] ?? null,
+        ),
       });
       finalization.dolGrade = dolSectionProjection({
         existing: gradeData?.dolGradesByAssignment?.[assignmentId] || null,
@@ -374,6 +380,27 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
       );
     }
     transaction.update(gradeRef, ...gradeUpdates);
+    if (finalization.gradingEvidence && finalization.gradingEvidenceDocumentId) {
+      transaction.set(
+        gradeRef.collection(RESPONSE_INSPECTION_EVIDENCE_COLLECTION)
+          .doc(String(finalization.gradingEvidenceDocumentId)),
+        {
+          schemaVersion: Number(finalization.gradingEvidence.schemaVersion) || 1,
+          assignmentId,
+          questionIndex: Number(checkpoint.questionIndex),
+          questionId: question?.questionId || question?.id || null,
+          submissionId: String(finalization.record.lastSubmissionId || ""),
+          variantIndex: Number(finalization.record.variantIndex ?? 0),
+          totalAttempts: Number(
+            finalization.record.totalAttempts ?? finalization.record.attemptCount ?? 0
+          ),
+          evidence: finalization.gradingEvidence,
+          academicOccurredAt: new Date(finalization.academicAt),
+          writtenAt: FieldValue.serverTimestamp(),
+          source: "deadline-auto-submit",
+        },
+      );
+    }
     if (finalization.evidenceEvent?.eventKey) {
       // The event key is deterministic for this exact attempt, so a retry after
       // a partial failure repeats the same write rather than appending a second
@@ -712,12 +739,17 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
     }
 
     if (envelope.activityRole === "dol" && dolIndices.length) {
-      const { getQuestionCredit, dolSectionProjection } = ingestion;
+      const { dolSectionProjection } = ingestion;
+      const authoritativeOverrides =
+        gradeData?.teacherGradeOverridesByAssignment?.[assignmentId] || {};
       const totals = weightedQuestionTotals({
         tracker: built.assignmentTracker,
         questions: runtimeQuestionsFromAssignment(assignment),
         indices: dolIndices,
-        creditForRecord: getQuestionCredit,
+        creditForRecord: (candidate, index) => getQuestionCredit(
+          candidate,
+          authoritativeOverrides?.[String(index)] ?? authoritativeOverrides?.[index] ?? null,
+        ),
       });
       built.dolGrade = dolSectionProjection({
         existing: gradeData?.dolGradesByAssignment?.[assignmentId] || null,
@@ -746,6 +778,26 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
       updates.push(new FieldPath("dolGradesByAssignment", assignmentId, built.dolDateKey), built.dolGrade);
     }
     transaction.update(gradeRef, ...updates);
+
+    if (built.gradingEvidence && built.gradingEvidenceDocumentId) {
+      transaction.set(
+        gradeRef.collection(RESPONSE_INSPECTION_EVIDENCE_COLLECTION)
+          .doc(String(built.gradingEvidenceDocumentId)),
+        {
+          schemaVersion: Number(built.gradingEvidence.schemaVersion) || 1,
+          assignmentId,
+          questionIndex: Number(envelope.questionIndex),
+          questionId: question?.questionId || question?.id || null,
+          submissionId: String(built.record.lastSubmissionId || ""),
+          variantIndex: Number(built.record.variantIndex ?? 0),
+          totalAttempts: Number(built.record.totalAttempts ?? built.record.attemptCount ?? 0),
+          evidence: built.gradingEvidence,
+          academicOccurredAt: new Date(built.academicAt),
+          writtenAt: FieldValue.serverTimestamp(),
+          source: "server-ingestion",
+        },
+      );
+    }
 
     if (built.evidenceEvent?.eventKey) {
       // Deterministic for this exact attempt, so a retry after a partial
@@ -913,8 +965,40 @@ function storedAlgebraStepPartialCredit(record) {
   return possible > 0 ? Math.min(90, clampPercent(Math.round((earned / possible) * 100))) : 0;
 }
 
-function getQuestionCredit(record) {
+function teacherOverrideAppliesToRecord(record, authoritativeOverride = null) {
+  if (
+    !record
+    || authoritativeOverride?.active !== true
+    || !Number.isFinite(Number(authoritativeOverride.score))
+  ) return false;
+
+  const recordAttempts = Number(record.totalAttempts ?? record.attemptCount ?? 0);
+  const overrideAttempts = Number(authoritativeOverride.totalAttempts);
+  if (!Number.isFinite(overrideAttempts) || overrideAttempts !== recordAttempts) return false;
+
+  const recordVariant = Number(record.variantIndex ?? 0);
+  const overrideVariant = Number(authoritativeOverride.variantIndex);
+  if (!Number.isFinite(overrideVariant) || overrideVariant !== recordVariant) return false;
+
+  const overrideSubmissionId = String(authoritativeOverride.submissionId || "");
+  if (overrideSubmissionId) {
+    return overrideSubmissionId === String(record.lastSubmissionId || "");
+  }
+  const overrideLastAttemptAt = String(authoritativeOverride.lastAttemptAt || "");
+  return Boolean(overrideLastAttemptAt)
+    && overrideLastAttemptAt === String(record.lastAttemptAt || record.academicOccurredAt || "");
+}
+
+function getQuestionCredit(record, authoritativeOverride = null) {
   if (!record) return 0;
+  // IMPORTANT: never trust record.gradeOverride here. gradesByAssignment is
+  // client-writable for legacy workflows. Only the separately rule-protected
+  // teacherGradeOverridesByAssignment projection may affect an authoritative
+  // server grade, and that override is valid only for the exact attempt it was
+  // issued against.
+  if (teacherOverrideAppliesToRecord(record, authoritativeOverride)) {
+    return clampPercent(authoritativeOverride.score) / 100;
+  }
   if (record.status === "correct") return 1;
   const stored = clampPercent(record.bestPartialCredit ?? record.partialCredit ?? 0);
   const derived = storedAlgebraStepPartialCredit(record);
@@ -933,19 +1017,32 @@ function questionWasAttempted(record) {
   return clampPercent(record.bestPartialCredit ?? record.partialCredit ?? 0) > 0;
 }
 
-function calculateAssignmentGrade(assignmentTracker, questionIndices, questions = []) {
+function calculateAssignmentGrade(
+  assignmentTracker,
+  questionIndices,
+  questions = [],
+  authoritativeOverrides = {},
+) {
   const indices = Array.isArray(questionIndices) ? questionIndices : [];
   if (!indices.length) return 0;
   const weighted = weightedQuestionTotals({
     tracker: assignmentTracker,
     questions,
     indices,
-    creditForRecord: getQuestionCredit,
+    creditForRecord: (record, index) => getQuestionCredit(
+      record,
+      authoritativeOverrides?.[String(index)] ?? authoritativeOverrides?.[index] ?? null,
+    ),
   });
   return weighted.score ?? 0;
 }
 
-function assignmentGradeProgress(assignmentTracker, questionIndices, questions = []) {
+function assignmentGradeProgress(
+  assignmentTracker,
+  questionIndices,
+  questions = [],
+  authoritativeOverrides = {},
+) {
   const indices = Array.isArray(questionIndices) ? questionIndices : [];
   const attempted = indices.filter((index) => questionWasAttempted(assignmentTracker?.[index])).length;
   const terminal = indices.filter((index) => isQuestionTerminal(assignmentTracker?.[index])).length;
@@ -953,7 +1050,10 @@ function assignmentGradeProgress(assignmentTracker, questionIndices, questions =
     tracker: assignmentTracker,
     questions,
     indices,
-    creditForRecord: getQuestionCredit,
+    creditForRecord: (record, index) => getQuestionCredit(
+      record,
+      authoritativeOverrides?.[String(index)] ?? authoritativeOverrides?.[index] ?? null,
+    ),
     attemptedForRecord: questionWasAttempted,
   });
   const minimumProgressQuestions = indices.length
@@ -969,6 +1069,397 @@ function assignmentGradeProgress(assignmentTracker, questionIndices, questions =
     meaningfulProgress: attempted >= minimumProgressQuestions,
     minimumProgressQuestions,
   };
+}
+
+/**
+ * Teacher-only response inspection. This reads the canonical attempt, the
+ * server-backed graded workspace from Universal Persistence, and the
+ * rule-protected teacher override projection. Expected answers are returned
+ * only when the exact delivered question is authoritative.
+ */
+exports.inspectStudentResponse = onCall(async (request) => {
+  await requireTeacher(request);
+  const teacherEmail = callerEmail(request);
+  const studentId = String(request.data?.studentId || "").trim();
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const questionIndex = Number(request.data?.questionIndex);
+  if (!studentId || !assignmentId || !Number.isInteger(questionIndex) || questionIndex < 0) {
+    throw new HttpsError("invalid-argument", "Student, assignment, and question are required.");
+  }
+
+  const db = getFirestore();
+  const gradeRef = db.collection("grades").doc(studentId);
+  const assignmentRef = db.collection("assignments").doc(assignmentId);
+  const [studentSnap, assignmentSnap] = await Promise.all([
+    gradeRef.get(),
+    assignmentRef.get(),
+  ]);
+  if (!studentSnap.exists || !assignmentSnap.exists) {
+    throw new HttpsError("not-found", "The student or assignment was not found.");
+  }
+
+  const student = studentSnap.data() || {};
+  const classSnap = student.classId
+    ? await db.collection("classes").doc(String(student.classId)).get()
+    : null;
+  const ownsClass = classSnap?.exists
+    && String(classSnap.data()?.teacherOfRecord || "").trim().toLowerCase() === teacherEmail;
+  if (!authLib.isRootAdminEmail(teacherEmail) && !ownsClass) {
+    throw new HttpsError(
+      "permission-denied",
+      "Only this student's teacher of record may inspect responses.",
+    );
+  }
+
+  const assignment = { id: assignmentSnap.id, ...assignmentSnap.data() };
+  if (String(assignment?.assessmentPolicy?.mode || "") === "testCycle") {
+    throw new HttpsError(
+      "failed-precondition",
+      "Secure Test Cycle results use the dedicated assessment correction workflow.",
+    );
+  }
+  if (
+    !authLib.isRootAdminEmail(teacherEmail)
+    && !studentMatchesAssignmentAudience({ assignment, classId: student.classId || null })
+  ) {
+    throw new HttpsError(
+      "permission-denied",
+      "This assignment is not assigned to the student's current class.",
+    );
+  }
+
+  const questions = runtimeQuestionsFromAssignment(assignment);
+  const question = questions[questionIndex];
+  if (!question) throw new HttpsError("not-found", "The question was not found.");
+
+  const tracker = student.gradesByAssignment?.[assignmentId] || {};
+  const record = tracker[String(questionIndex)] || tracker[questionIndex] || null;
+  if (!record || !questionWasAttempted(record)) {
+    throw new HttpsError(
+      "failed-precondition",
+      "There is no submitted attempt to inspect.",
+    );
+  }
+  const override = student.teacherGradeOverridesByAssignment?.[assignmentId]?.[String(questionIndex)]
+    ?? student.teacherGradeOverridesByAssignment?.[assignmentId]?.[questionIndex]
+    ?? null;
+  const section = (Array.isArray(assignment.sections) ? assignment.sections : []).find((candidate) => (
+    Array.isArray(candidate?.questions)
+    && candidate.questions.some((entry) => entry?.questionId === question.questionId)
+  )) || null;
+
+  const inspector = await import("./shared/responseInspector.mjs");
+  const { workspaceDraftDocumentId } = await import("./shared/workspaceDraftSchema.mjs");
+  const inspectionEvidenceRef = gradeRef
+    .collection(RESPONSE_INSPECTION_EVIDENCE_COLLECTION)
+    .doc(inspector.responseInspectionEvidenceDocumentId({ assignmentId, questionIndex }));
+  const [workspaceSnapshot, auditSnapshot, inspectionEvidenceSnapshot] = await Promise.all([
+    db.collection(WORKSPACE_DRAFT_COLLECTION)
+      .doc(workspaceDraftDocumentId({ studentId, assignmentId }))
+      .get(),
+    gradeRef.collection("gradeOverrideAudits")
+      .where("assignmentId", "==", assignmentId)
+      .limit(100)
+      .get(),
+    inspectionEvidenceRef.get(),
+  ]);
+  const gradingEvidence = trustedResponseInspectionEvidence(
+    inspectionEvidenceSnapshot,
+    { assignmentId, questionIndex, record },
+  );
+  const workspace = inspector.resolveGradedWorkspace({
+    document: workspaceSnapshot.exists ? workspaceSnapshot.data() : null,
+    questionIndex,
+    variantIndex: record?.variantIndex || 0,
+    submittedAt: gradingEvidence?.submittedAt || record?.lastAttemptAt || null,
+  });
+  const auditHistory = auditSnapshot.docs
+    .map((snapshot) => snapshot.data() || {})
+    .filter((entry) => Number(entry.questionIndex) === questionIndex)
+    .sort((left, right) => String(left.at || "").localeCompare(String(right.at || "")))
+    .slice(-50);
+
+  return inspector.buildInspectorModel({
+    assignment,
+    question,
+    section,
+    student: {
+      id: studentId,
+      displayName: student.displayName || student.name || studentId,
+    },
+    record,
+    workspace,
+    override,
+    gradingEvidence,
+    auditHistory,
+  });
+});
+
+/**
+ * Teacher grade correction. The active override lives in the rule-protected
+ * top-level teacherGradeOverridesByAssignment map, never in the client-writable
+ * question record. The original automatic attempt stays untouched.
+ */
+exports.overrideStudentResponseGrade = onCall(async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const teacherEmail = callerEmail(request);
+  const studentId = String(request.data?.studentId || "").trim();
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const questionIndex = Number(request.data?.questionIndex);
+  const action = String(request.data?.action || "");
+  const reason = String(request.data?.reason || "");
+
+  if (!studentId || !assignmentId || !Number.isInteger(questionIndex) || questionIndex < 0) {
+    throw new HttpsError("invalid-argument", "Student, assignment, and question are required.");
+  }
+
+  const db = getFirestore();
+  const gradeRef = db.collection("grades").doc(studentId);
+  const assignmentRef = db.collection("assignments").doc(assignmentId);
+  const inspector = await import("./shared/responseInspector.mjs");
+  const projections = await import("./shared/assignmentProjections.mjs");
+  const calendar = await import("./shared/instructionalCalendar.mjs");
+  const deadline = await import("./shared/sectionDeadline.mjs");
+  const nowIso = new Date().toISOString();
+
+  const inspectionEvidenceRef = gradeRef
+    .collection(RESPONSE_INSPECTION_EVIDENCE_COLLECTION)
+    .doc(inspector.responseInspectionEvidenceDocumentId({ assignmentId, questionIndex }));
+
+  const result = await db.runTransaction(async (transaction) => {
+    const [gradeSnap, assignmentSnap, inspectionEvidenceSnapshot] = await Promise.all([
+      transaction.get(gradeRef),
+      transaction.get(assignmentRef),
+      transaction.get(inspectionEvidenceRef),
+    ]);
+    if (!gradeSnap.exists || !assignmentSnap.exists) {
+      throw new HttpsError("not-found", "The student or assignment was not found.");
+    }
+
+    const gradeData = gradeSnap.data() || {};
+    const classSnap = gradeData.classId
+      ? await transaction.get(db.collection("classes").doc(String(gradeData.classId)))
+      : null;
+    const ownsClass = classSnap?.exists
+      && String(classSnap.data()?.teacherOfRecord || "").trim().toLowerCase() === teacherEmail;
+    if (!authLib.isRootAdminEmail(teacherEmail) && !ownsClass) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only this student's teacher of record may change this grade.",
+      );
+    }
+
+    const assignment = { id: assignmentSnap.id, ...assignmentSnap.data() };
+    if (String(assignment?.assessmentPolicy?.mode || "") === "testCycle") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Secure Test Cycle results use the dedicated assessment correction workflow.",
+      );
+    }
+    if (
+      !authLib.isRootAdminEmail(teacherEmail)
+      && !studentMatchesAssignmentAudience({ assignment, classId: gradeData.classId || null })
+    ) {
+      throw new HttpsError(
+        "permission-denied",
+        "This assignment is not assigned to the student's current class.",
+      );
+    }
+
+    const questions = runtimeQuestionsFromAssignment(assignment);
+    const question = questions[questionIndex];
+    if (!question) throw new HttpsError("not-found", "The question was not found.");
+
+    const tracker = { ...(gradeData.gradesByAssignment?.[assignmentId] || {}) };
+    const record = tracker[String(questionIndex)] || tracker[questionIndex];
+    if (!record || !questionWasAttempted(record)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "There is no submitted attempt to correct.",
+      );
+    }
+    const gradingEvidence = trustedResponseInspectionEvidence(
+      inspectionEvidenceSnapshot,
+      { assignmentId, questionIndex, record },
+    );
+
+    const assignmentOverrides = {
+      ...(gradeData.teacherGradeOverridesByAssignment?.[assignmentId] || {}),
+    };
+    const previousOverride = assignmentOverrides[String(questionIndex)]
+      ?? assignmentOverrides[questionIndex]
+      ?? null;
+    const actor = {
+      uid: teacherUid,
+      email: teacherEmail,
+      name: request.auth?.token?.name || null,
+    };
+
+    let correction;
+    try {
+      if (action === "restoreAutomatic") {
+        correction = inspector.restoreAutomaticScore({
+          record,
+          previousOverride,
+          actor,
+          reason,
+          note: request.data?.note,
+          at: nowIso,
+        });
+      } else {
+        let score = request.data?.score;
+        if (action === "grantFullCredit") score = 100;
+        if (action === "applyReplay") {
+          const replay = inspector.replayStoredResponse({
+            question,
+            record,
+            gradingEvidence,
+          });
+          if (!replay.available) throw new Error(replay.reason);
+          score = replay.currentScore;
+        }
+        correction = inspector.buildGradeOverride({
+          record,
+          previousOverride,
+          score,
+          fieldId: action === "grantPartCredit"
+            ? String(request.data?.fieldId || "")
+            : null,
+          reason,
+          note: request.data?.note,
+          actor,
+          at: nowIso,
+          source: action || "teacher-override",
+        });
+      }
+    } catch (error) {
+      throw new HttpsError("invalid-argument", error.message);
+    }
+
+    if (correction.override) {
+      assignmentOverrides[String(questionIndex)] = correction.override;
+    } else {
+      delete assignmentOverrides[String(questionIndex)];
+      delete assignmentOverrides[questionIndex];
+    }
+
+    const updates = [
+      new FieldPath(
+        "teacherGradeOverridesByAssignment",
+        assignmentId,
+        String(questionIndex),
+      ),
+      correction.override || FieldValue.delete(),
+      new FieldPath("classroomReleaseSignals", assignmentId),
+      {
+        requestedAt: nowIso,
+        reason: "manual-retry",
+        source: "teacher-grade-override",
+      },
+    ];
+
+    const classworkIndices = runtimeIncludedQuestionIndicesForSection(assignment, "classwork");
+    if (classworkIndices.includes(questionIndex)) {
+      const completion = projections.evaluateClassworkCompletionRule({
+        classworkIndices,
+        assignmentTracker: tracker,
+        totalTimeSeconds: Number(
+          gradeData.assignmentActivity?.[assignmentId]?.totalTimeSeconds,
+        ) || 0,
+        completionRule: assignment.completionRule || {},
+      });
+      const classworkGrade = projections.classworkGradeProjection({
+        completion,
+        existingGrade: gradeData.classworkGradesByAssignment?.[assignmentId] || null,
+        recordedAt: nowIso,
+      });
+      if (classworkGrade) {
+        updates.push(
+          new FieldPath("classworkGradesByAssignment", assignmentId),
+          classworkGrade,
+        );
+      }
+    }
+
+    const dolIndices = runtimeIncludedQuestionIndicesForSection(assignment, "dol");
+    if (dolIndices.includes(questionIndex)) {
+      const totals = weightedQuestionTotals({
+        tracker,
+        questions,
+        indices: dolIndices,
+        creditForRecord: (candidate, index) => getQuestionCredit(
+          candidate,
+          assignmentOverrides?.[String(index)] ?? assignmentOverrides?.[index] ?? null,
+        ),
+      });
+      const existingDol = gradeData.dolGradesByAssignment?.[assignmentId] || {};
+      const occurrence = Date.parse(String(
+        record.academicOccurredAt || record.lastAttemptAt || "",
+      ));
+      const occurrenceDateKey = Number.isFinite(occurrence)
+        ? calendar.zonedDateKey(occurrence, deadline.SCHOOL_TIME_ZONE)
+        : null;
+      const dateKey = (
+        occurrenceDateKey && existingDol[occurrenceDateKey]
+          ? occurrenceDateKey
+          : null
+      ) || Object.keys(existingDol).sort().at(-1)
+        || calendar.zonedDateKey(Date.now(), deadline.SCHOOL_TIME_ZONE);
+      const corrected = inspector.correctedDolProjection({
+        existingByDate: existingDol,
+        dateKey,
+        score: totals.score ?? 0,
+        questionIndices: dolIndices,
+        correctedAt: nowIso,
+      });
+      updates.push(
+        new FieldPath("dolGradesByAssignment", assignmentId, dateKey),
+        corrected,
+      );
+    }
+
+    transaction.update(gradeRef, ...updates);
+
+    const auditRef = gradeRef.collection("gradeOverrideAudits").doc();
+    transaction.set(auditRef, {
+      ...correction.audit,
+      assignmentId,
+      questionIndex,
+      questionId: question.questionId || question.id || null,
+      automaticStatus: record.status || null,
+      automaticScore: inspector.automaticQuestionScore(record),
+      overrideActiveAfter: Boolean(correction.override),
+    });
+
+    return {
+      authoritativeScore: inspector.effectiveQuestionScore(record, correction.override),
+      automaticScore: inspector.automaticQuestionScore(record),
+      override: correction.override,
+    };
+  });
+
+  return result;
+});
+
+function trustedResponseInspectionEvidence(snapshot, {
+  assignmentId,
+  questionIndex,
+  record,
+} = {}) {
+  if (!snapshot?.exists || !record || typeof record !== "object") return null;
+  const data = snapshot.data() || {};
+  if (String(data.assignmentId || "") !== String(assignmentId || "")) return null;
+  if (Number(data.questionIndex) !== Number(questionIndex)) return null;
+
+  const submissionId = String(record.lastSubmissionId || "");
+  if (!submissionId || String(data.submissionId || "") !== submissionId) return null;
+  if (Number(data.variantIndex ?? 0) !== Number(record.variantIndex ?? 0)) return null;
+  if (
+    Number(data.totalAttempts ?? 0)
+    !== Number(record.totalAttempts ?? record.attemptCount ?? 0)
+  ) return null;
+
+  return data.evidence && typeof data.evidence === "object" ? data.evidence : null;
 }
 
 function releaseSignalReason(signal) {
@@ -6423,6 +6914,16 @@ exports.syncGradeToClassroom = onDocumentWritten(
         JSON.stringify(afterByAssignment[assignmentId]) !==
         JSON.stringify(beforeByAssignment[assignmentId])
     );
+    const afterTeacherOverrides = afterData.teacherGradeOverridesByAssignment || {};
+    const beforeTeacherOverrides = beforeData.teacherGradeOverridesByAssignment || {};
+    const overrideChangedAssignmentIds = [...new Set([
+      ...Object.keys(afterTeacherOverrides),
+      ...Object.keys(beforeTeacherOverrides),
+    ])].filter(
+      (assignmentId) =>
+        JSON.stringify(afterTeacherOverrides[assignmentId] || {}) !==
+        JSON.stringify(beforeTeacherOverrides[assignmentId] || {})
+    );
     // A Test Cycle's recorded grade is not a tracker; it is the canonical
     // record's projection, written by the secure release path. It has to wake
     // this trigger on its own or a released Test would never reach Classroom.
@@ -6443,6 +6944,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
     const releaseSignalSet = new Set(releaseSignaledAssignmentIds);
     const changedAssignmentIds = [...new Set([
       ...gradeChangedAssignmentIds,
+      ...overrideChangedAssignmentIds,
       ...testCycleChangedAssignmentIds,
       ...releaseSignaledAssignmentIds,
     ])];
@@ -6479,6 +6981,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
       if (!isTestCycleAssignment && !questionIndices.length) continue;
 
       const assignmentTracker = afterByAssignment[assignmentId] || {};
+      const authoritativeOverrides = afterTeacherOverrides[assignmentId] || {};
       const questions = runtimeQuestionsFromAssignment(assignment);
       const releaseSignal = releaseSignalSet.has(assignmentId)
         ? afterReleaseSignals[assignmentId]
@@ -6496,7 +6999,12 @@ exports.syncGradeToClassroom = onDocumentWritten(
           meaningfulProgress: true,
           minimumProgressQuestions: 1,
         }
-        : assignmentGradeProgress(assignmentTracker, questionIndices, questions);
+        : assignmentGradeProgress(
+          assignmentTracker,
+          questionIndices,
+          questions,
+          authoritativeOverrides,
+        );
       const stage = isTestCycleAssignment
         ? (testCycleProjection.recordedGradeSource === "retest" ? "testcycle-retest" : "testcycle-test")
         : resolveClassroomGradeStage({

@@ -25,7 +25,7 @@ function weightedQuestionTotals({
   (Array.isArray(indices) ? indices : []).forEach((index) => {
     const question = questions?.[index] || {};
     const weight = normalizeQuestionWeight(question);
-    const credit = Math.max(0, Math.min(1, Number(creditForRecord?.(tracker?.[index])) || 0));
+    const credit = Math.max(0, Math.min(1, Number(creditForRecord?.(tracker?.[index], index)) || 0));
     possibleWeight += weight;
     earnedWeight += credit * weight;
     if (attemptedForRecord?.(tracker?.[index])) {

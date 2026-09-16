@@ -37,6 +37,10 @@ import {
   FORBIDDEN_CHECKPOINT_FIELDS,
   RESPONSE_CHECKPOINT_SCHEMA_VERSION,
 } from './responseCheckpointSchema.mjs';
+import {
+  captureAutomaticGradingEvidence,
+  responseInspectionEvidenceDocumentId,
+} from './responseInspector.mjs';
 
 const text = (value) => String(value ?? '').trim();
 const list = (value) => (Array.isArray(value) ? value : []);
@@ -340,6 +344,19 @@ export const buildCheckpointFinalization = ({
     recoveredLate: runAt - academicAt > 60_000 ? true : null,
   };
 
+  const gradingEvidence = captureAutomaticGradingEvidence({
+    response: checkpoint?.response || null,
+    grading: {
+      ...decision.grading,
+      isCorrect: record.status === 'correct',
+      parts: record.partGrades,
+    },
+    question,
+    submittedAt: new Date(academicAt).toISOString(),
+    source: 'deadline-auto-submit',
+    gradingAuthority: 'server',
+  });
+
   const evidenceEvent = question?.type === 'modelingLab' ? null : buildAttemptEvidenceEvent({
     studentId: text(checkpoint.studentId),
     assignment,
@@ -405,6 +422,11 @@ export const buildCheckpointFinalization = ({
   return {
     record,
     result: outcome.result,
+    gradingEvidence,
+    gradingEvidenceDocumentId: responseInspectionEvidenceDocumentId({
+      assignmentId,
+      questionIndex: checkpoint.questionIndex,
+    }),
     evidenceEvent,
     assignmentTracker,
     classworkGrade,

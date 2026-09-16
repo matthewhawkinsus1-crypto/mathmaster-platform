@@ -57,6 +57,10 @@ import {
   classifyCapturedSubmission,
   sectionWasOpenAtCapture,
 } from './studentSubmissionDisposition.mjs';
+import {
+  captureAutomaticGradingEvidence,
+  responseInspectionEvidenceDocumentId,
+} from './responseInspector.mjs';
 
 export const SUBMISSION_ENVELOPE_SCHEMA_VERSION = 1;
 
@@ -384,6 +388,17 @@ export const decideSubmissionIngestion = ({
  */
 const ATTEMPT_STATUSES = new Set(['unattempted', 'attempted', 'correct', 'expired']);
 
+const stripNonCanonicalInspectionFields = (record = {}) => {
+  const {
+    gradeOverride: _gradeOverride,
+    gradeAuditHistory: _gradeAuditHistory,
+    teacherGradeOverrideDisplay: _teacherGradeOverrideDisplay,
+    gradingEvidence: _gradingEvidence,
+    ...clean
+  } = record;
+  return clean;
+};
+
 /*
  * A REPLACEMENT QUESTION IS ALLOWED TO RESET THE ATTEMPT HISTORY.
  *
@@ -407,8 +422,8 @@ const replacementResetIsAuthorized = ({ envelope, canonical, claimed }) => (
 );
 
 export const sanitizeClientAttemptRecord = ({ envelope, canonicalRecord, maximumAttempts }) => {
-  const canonical = normalizeQuestionRecord(canonicalRecord);
-  const claimed = normalizeQuestionRecord(envelope.record);
+  const canonical = stripNonCanonicalInspectionFields(normalizeQuestionRecord(canonicalRecord));
+  const claimed = stripNonCanonicalInspectionFields(normalizeQuestionRecord(envelope.record));
   const resetting = replacementResetIsAuthorized({ envelope, canonical, claimed });
 
   if (resetting) {
@@ -493,7 +508,7 @@ export const buildIngestedAttempt = ({
   ingestedAt = Date.now(),
   timeZone = SCHOOL_TIME_ZONE,
 } = {}) => {
-  const canonical = normalizeQuestionRecord(canonicalRecord);
+  const canonical = stripNonCanonicalInspectionFields(normalizeQuestionRecord(canonicalRecord));
   const academicAt = occurredAt === null || occurredAt === undefined
     ? resolveAcademicOccurrenceAt({ envelope, assignment, ingestedAt })
     : finite(occurredAt, ingestedAt);
@@ -540,8 +555,22 @@ export const buildIngestedAttempt = ({
     gradedBy = 'client';
   }
 
+  const cleanRecord = stripNonCanonicalInspectionFields(record);
+  const gradingEvidence = envelope.response
+    ? captureAutomaticGradingEvidence({
+      response: envelope.response,
+      grading: { ...result, isCorrect: cleanRecord.status === 'correct', parts: cleanRecord.partGrades },
+      question,
+      submittedAt: new Date(academicAt).toISOString(),
+      source: envelope.kind,
+      gradingAuthority: gradedBy === 'server' ? 'server' : 'client-record-sanitized',
+      graderVersion: gradedBy === 'server' ? 'ordinary-response-v3' : 'client-attempt-record-v1',
+      automaticScore: Math.round(getQuestionCredit(cleanRecord) * 100),
+    })
+    : null;
+
   const stamped = {
-    ...record,
+    ...cleanRecord,
     lastSubmissionId: envelope.actionId,
     submissionOrigin: 'server-ingestion',
     gradedBy,
@@ -612,6 +641,11 @@ export const buildIngestedAttempt = ({
     record: stamped,
     result,
     gradedBy,
+    gradingEvidence,
+    gradingEvidenceDocumentId: responseInspectionEvidenceDocumentId({
+      assignmentId,
+      questionIndex: envelope.questionIndex,
+    }),
     evidenceEvent,
     assignmentTracker,
     classworkGrade,
