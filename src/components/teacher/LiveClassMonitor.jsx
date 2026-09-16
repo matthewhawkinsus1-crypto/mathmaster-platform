@@ -504,8 +504,8 @@ export default function LiveClassMonitor({
 
   const { rows, classStats, counts } = useMemo(() => summarizeLiveClass(monitoredRoster, {
     nowValue,
-    assignmentId: assignmentId === 'all' ? null : assignmentId,
-  }), [monitoredRoster, nowValue, assignmentId]);
+    assignmentId: displayAssignmentId === 'all' ? null : displayAssignmentId,
+  }), [monitoredRoster, nowValue, displayAssignmentId]);
 
   const absentCount = Math.max(0, roster.length - monitoredRoster.length);
   const visibleRows = mode === 'attention' ? rows.filter((row) => row.severity !== LIVE_SEVERITY.OK) : rows;
