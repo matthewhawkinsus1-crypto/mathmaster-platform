@@ -568,6 +568,7 @@ export const restoreAutomaticScore = ({
 } = {}) => {
   if (!OVERRIDE_REASONS.includes(reason)) throw new Error('A valid override reason is required.');
   if (!actor?.uid) throw new Error('An authenticated teacher identity is required.');
+  if (previousOverride?.active !== true) throw new Error('There is no active teacher override to restore.');
   const automaticScore = automaticQuestionScore(record);
   return {
     override: null,
