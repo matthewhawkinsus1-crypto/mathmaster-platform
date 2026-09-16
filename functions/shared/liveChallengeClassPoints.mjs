@@ -176,7 +176,7 @@ export function calculateStudentChallengeAchievements(paramsOrPlayer, maybeSched
 export function buildAchievementTransactionId(roomId, studentId, achievementCode) {
   const hash = crypto
     .createHash('sha256')
-    .update(`${roomId}:${studentId}:${achievementCode}`)
+    .update(`${roomId}\u0000${studentId}\u0000${achievementCode}`)
     .digest('hex');
   return `lca_${hash.slice(0, 32)}`;
 }
@@ -292,6 +292,7 @@ export async function stageLiveChallengeAchievements(db, roomId, roomData, playe
       scheduledRoundCount,
       awardsCount: plannedAwards.length,
       awards: plannedAwards,
+      studentIds: [...new Set(plannedAwards.map((award) => award.studentId))],
       status: plannedAwards.length === 0 ? 'completed' : 'pending',
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
@@ -362,6 +363,8 @@ export async function executeLiveChallengeAchievementAwards(db, roomId) {
           sourceType: ACHIEVEMENT_SOURCE_TYPE,
           isReversal: false,
           reversalOf: null,
+          issuedByUid: null,
+          issuedByEmail: null,
           originTeacherEmail: authContext.originTeacherEmail || '',
           authorizedTeacherEmails: authContext.authorizedTeacherEmails || [],
           roomId,
@@ -415,10 +418,7 @@ export async function executeLiveChallengeAchievementAwards(db, roomId) {
  * Main coordinator called from finishLiveChallengeRoom.
  */
 export async function processLiveChallengeClassPoints(db, roomId, roomData, players = [], privateState = {}, status) {
-  const isFinished = (status === 'finished') ||
-    (typeof LIVE_CHALLENGE_STATUS !== 'undefined' && status === LIVE_CHALLENGE_STATUS.FINISHED);
-
-  if (!isFinished) {
+  if (status !== 'finished') {
     return { status: 'skipped', reason: 'not_finished', awardsCount: 0 };
   }
 
@@ -449,48 +449,66 @@ export async function retryPendingLiveChallengeAchievementJobs(db) {
     .limit(20)
     .get();
 
+  let completed = 0;
+  let failed = 0;
   for (const doc of pendingSnap.docs) {
-    await executeLiveChallengeAchievementAwards(db, doc.id);
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const result = await executeLiveChallengeAchievementAwards(db, doc.id);
+      if (result.status === 'completed') completed += 1;
+      else failed += 1;
+    } catch (error) {
+      failed += 1;
+      console.error(`[LiveChallengeClassPoints] Retry failed for job ${doc.id}:`, error);
+    }
   }
+  return { scanned: pendingSnap.size, completed, failed };
 }
 
 /**
  * Permanent student deletion lifecycle hook with safe batch renewal.
  */
 export async function cleanupStudentLiveChallengeAchievements(db, studentId) {
-  if (!db || !studentId) return;
-  const jobsSnap = await db.collection(JOBS_COLLECTION).get();
-  if (jobsSnap.empty) return;
+  if (!db || !studentId) return { jobsUpdated: 0, jobsDeleted: 0 };
+
+  const jobsSnap = await db.collection(JOBS_COLLECTION)
+    .where('studentIds', 'array-contains', studentId)
+    .get();
+  if (jobsSnap.empty) return { jobsUpdated: 0, jobsDeleted: 0 };
 
   let batch = db.batch();
   let ops = 0;
+  let jobsUpdated = 0;
+  let jobsDeleted = 0;
 
   for (const doc of jobsSnap.docs) {
     const data = doc.data() || {};
-    const awards = data.awards || [];
-    if (!Array.isArray(awards) || awards.length === 0) continue;
+    const awards = Array.isArray(data.awards) ? data.awards : [];
+    const filtered = awards.filter((award) => award.studentId !== studentId);
+    if (filtered.length === awards.length) continue;
 
-    const filtered = awards.filter((a) => a.studentId !== studentId);
-    if (filtered.length !== awards.length) {
-      if (filtered.length === 0 && data.status === 'completed') {
-        batch.delete(doc.ref);
-      } else {
-        batch.update(doc.ref, {
-          awards: filtered,
-          awardsCount: filtered.length,
-          updatedAt: FieldValue.serverTimestamp(),
-        });
-      }
-      ops++;
-      if (ops >= 450) {
-        await batch.commit();
-        batch = db.batch(); // Create brand-new batch after commit
-        ops = 0;
-      }
+    if (filtered.length === 0) {
+      batch.delete(doc.ref);
+      jobsDeleted += 1;
+    } else {
+      batch.update(doc.ref, {
+        awards: filtered,
+        awardsCount: filtered.length,
+        studentIds: [...new Set(filtered.map((award) => award.studentId).filter(Boolean))],
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      jobsUpdated += 1;
+    }
+
+    ops += 1;
+    if (ops >= 450) {
+      // eslint-disable-next-line no-await-in-loop
+      await batch.commit();
+      batch = db.batch();
+      ops = 0;
     }
   }
 
-  if (ops > 0) {
-    await batch.commit();
-  }
+  if (ops > 0) await batch.commit();
+  return { jobsUpdated, jobsDeleted };
 }
