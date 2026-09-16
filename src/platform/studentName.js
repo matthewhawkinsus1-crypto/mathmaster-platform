@@ -48,6 +48,18 @@ export const formatStudentName = (student = {}, { lastFirst = true, fallbackToId
   return 'Student';
 };
 
+export const resolveRosterStudentName = ({ studentId = null, students = [], historicalName = '' } = {}) => {
+  const id = String(studentId || '').trim();
+  const rosterStudent = (Array.isArray(students) ? students : []).find((student) => (
+    String(student?.id || student?.studentId || '').trim() === id
+  ));
+  if (rosterStudent) return formatStudentName(rosterStudent, { lastFirst: false });
+  const historical = cleanName(historicalName);
+  if (!historical || historical === id) return 'Student';
+  const storedName = formatStudentName({ displayName: historical }, { lastFirst: false });
+  return storedName === 'Student' ? 'Student' : storedName;
+};
+
 export const compareStudentsByName = (a = {}, b = {}) => {
   const aRecord = asStudentRecord(a);
   const bRecord = asStudentRecord(b);

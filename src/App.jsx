@@ -242,7 +242,7 @@ import { isTestCycleAssignment } from './platform/assessment/testCycle.js';
 import { preflightTestCycleCandidate } from './services/testCycleService.js';
 import { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
 import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
-import StudentIdentityBar from './components/student/StudentIdentityBar.jsx';
+import StudentIdentityBar, { STUDENT_IDENTITY_STACK_OFFSET } from './components/student/StudentIdentityBar.jsx';
 
 import {
   buildStudentGradeCenter,
@@ -7079,7 +7079,7 @@ function App() {
         aria-live="assertive"
         style={{
           position: 'fixed',
-          top: 0,
+          top: `var(${STUDENT_IDENTITY_STACK_OFFSET}, 38px)`,
           left: 0,
           right: 0,
           zIndex: 20000,
@@ -7141,7 +7141,7 @@ function App() {
         aria-live="polite"
         style={{
           position: 'sticky',
-          top: 0,
+          top: `var(${STUDENT_IDENTITY_STACK_OFFSET}, 38px)`,
           zIndex: 19000,
           background: '#fff4ce',
           color: '#5f4400',
@@ -8686,6 +8686,7 @@ function App() {
 
         <ClassroomSyncReview
           proposal={classroomSyncProposal}
+          students={allStudents}
           onClose={() => setClassroomSyncProposal(null)}
         />
 

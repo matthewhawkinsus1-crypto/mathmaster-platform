@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { resolveRosterStudentName } from '../../platform/studentName.js';
 
 /*
  * WHAT WOULD BE SENT, BEFORE ANYTHING IS SENT.
@@ -25,7 +26,7 @@ const SHEET = {
   boxShadow: '0 24px 60px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
 };
 
-export default function ClassroomSyncReview({ proposal = null, onClose = null }) {
+export default function ClassroomSyncReview({ proposal = null, students = [], onClose = null }) {
   const closeRef = useRef(null);
 
   useEffect(() => {
@@ -91,7 +92,7 @@ export default function ClassroomSyncReview({ proposal = null, onClose = null })
             <tbody>
               {proposal.grades.map((grade) => (
                 <tr key={grade.studentId} style={{ borderTop: '1px solid #eef0f2' }}>
-                  <td style={{ padding: '9px 22px' }}>{grade.studentId}</td>
+                  <td style={{ padding: '9px 22px' }}>{resolveRosterStudentName({ studentId: grade.studentId, students, historicalName: grade.studentName })}</td>
                   <td style={{ padding: '9px 12px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#5f6368' }}>
                     {grade.completed} / {grade.required}
                   </td>

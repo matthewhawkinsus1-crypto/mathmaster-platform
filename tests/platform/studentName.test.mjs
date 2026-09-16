@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   compareStudentsByName,
   formatStudentName,
+  resolveRosterStudentName,
   splitLegacyDisplayName,
   studentNameParts,
   studentSearchText,
@@ -42,4 +43,13 @@ test('search includes structured and legacy names', () => {
   assert.match(text, /matthew/);
   assert.match(text, /hawkins/);
   assert.match(text, /period 1/);
+});
+
+test('persisted student ids resolve through the current roster before historical or neutral names', () => {
+  const students = [{ id: 'S123', firstName: 'Jordan', lastName: 'Smith' }];
+  assert.equal(resolveRosterStudentName({ studentId: 'S123', students }), 'Jordan Smith');
+  assert.equal(resolveRosterStudentName({ studentId: 'S123', students, historicalName: 'Old Name' }), 'Jordan Smith');
+  assert.equal(resolveRosterStudentName({ studentId: 'gone', students, historicalName: 'Avery Jones' }), 'Avery Jones');
+  assert.equal(resolveRosterStudentName({ studentId: 'long-unknown-uid', students }), 'Student');
+  assert.equal(resolveRosterStudentName({ studentId: 'long-unknown-uid', students, historicalName: 'long-unknown-uid' }), 'Student');
 });

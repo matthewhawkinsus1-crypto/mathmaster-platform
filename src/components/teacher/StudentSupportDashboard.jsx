@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { summarizeLiveClass } from '../../livePresence.js';
-import { compareStudentsByName, formatStudentName } from '../../platform/studentName.js';
+import { compareStudentsByName, formatStudentName, resolveRosterStudentName } from '../../platform/studentName.js';
 import {
   SUPPORT_EVENT_KIND,
   SUPPORT_EVENT_LABEL,
@@ -71,6 +71,25 @@ export default function StudentSupportDashboard({
     classId ? summary.classId === classId : classPeriod ? summary.classPeriod === classPeriod : true
   )), [sessionSummaries, classId, classPeriod]);
 
+  // Historical support rows predate stored human names. Resolve their stable
+  // studentId against today's roster before using the historical snapshot;
+  // never turn an unresolved identifier into the primary classroom label.
+  const resolveName = (studentId, historicalName = '') => resolveRosterStudentName({
+    studentId, students, historicalName,
+  });
+  const namedClassEvents = useMemo(() => classEvents.map((event) => ({
+    ...event,
+    studentName: resolveRosterStudentName({
+      studentId: event.studentId, students, historicalName: event.studentName,
+    }),
+  })), [classEvents, students]);
+  const namedClassSessions = useMemo(() => classSessions.map((summary) => ({
+    ...summary,
+    studentName: resolveRosterStudentName({
+      studentId: summary.studentId, students, historicalName: summary.studentName,
+    }),
+  })), [classSessions, students]);
+
   const classAlerts = useMemo(() => needsAttention.filter((alert) => (
     !classId || !alert.classId || alert.classId === classId
   )), [needsAttention, classId]);
@@ -78,10 +97,10 @@ export default function StudentSupportDashboard({
   const watchList = useMemo(() => buildWatchPracticeList({
     rows,
     profilesByStudentId,
-    supportEvents: classEvents,
+    supportEvents: namedClassEvents,
     nowValue,
     maxStudents: 6,
-  }), [rows, profilesByStudentId, classEvents, nowValue]);
+  }), [rows, profilesByStudentId, namedClassEvents, nowValue]);
 
   const groups = useMemo(
     () => buildSuggestedSmallGroups({ needsAttention: classAlerts, maxGroups: 4 }),
@@ -90,22 +109,22 @@ export default function StudentSupportDashboard({
 
   const parents = useMemo(() => buildParentFollowUpCandidates({
     needsAttention: classAlerts,
-    supportEvents: classEvents,
-    sessionSummaries: classSessions,
+    supportEvents: namedClassEvents,
+    sessionSummaries: namedClassSessions,
     nowValue,
-  }), [classAlerts, classEvents, classSessions, nowValue]);
+  }), [classAlerts, namedClassEvents, namedClassSessions, nowValue]);
 
-  const productivityReviews = useMemo(() => classSessions
+  const productivityReviews = useMemo(() => namedClassSessions
     .map((summary) => ({
       summary,
-      signal: sessionProductivitySignal(summary, { peerSummaries: classSessions }),
+      signal: sessionProductivitySignal(summary, { peerSummaries: namedClassSessions }),
     }))
     .filter((entry) => entry.signal)
     .filter((entry) => {
       const endedAt = Number(entry.summary.endedAt) || 0;
       if (!(endedAt > 0 && nowValue - endedAt <= 7 * 86400000)) return false;
       return !hasDismissedSignal({
-        supportEvents: classEvents,
+        supportEvents: namedClassEvents,
         studentId: entry.summary.studentId,
         assignmentId: entry.summary.assignmentId || null,
         sessionKey: entry.summary.sessionKey || null,
@@ -113,12 +132,12 @@ export default function StudentSupportDashboard({
       });
     })
     .sort((a, b) => Number(b.summary.endedAt || 0) - Number(a.summary.endedAt || 0))
-    .slice(0, 8), [classSessions, classEvents, nowValue]);
+    .slice(0, 8), [namedClassSessions, namedClassEvents, nowValue]);
 
   const integrity = useMemo(() => {
     const liveEntries = rows
       .filter((row) => !hasDismissedSignal({
-        supportEvents: classEvents,
+        supportEvents: namedClassEvents,
         studentId: row.id,
         assignmentId: row.live?.assignmentId || null,
         sessionKey: supportSessionKey({ studentId: row.id, assignmentId: row.live?.assignmentId, startedAt: row.live?.startedAt }),
@@ -141,14 +160,14 @@ export default function StudentSupportDashboard({
       .filter((entry) => entry.signal);
 
     const liveSessionKeys = new Set(liveEntries.map((entry) => entry.sessionKey).filter(Boolean));
-    const archivedEntries = classSessions
+    const archivedEntries = namedClassSessions
       .filter((summary) => {
         const endedAt = Number(summary.endedAt) || 0;
         return endedAt > 0 && nowValue - endedAt <= 7 * 86400000;
       })
       .filter((summary) => !liveSessionKeys.has(summary.sessionKey))
       .filter((summary) => !hasDismissedSignal({
-        supportEvents: classEvents,
+        supportEvents: namedClassEvents,
         studentId: summary.studentId,
         assignmentId: summary.assignmentId || null,
         sessionKey: summary.sessionKey || null,
@@ -157,7 +176,7 @@ export default function StudentSupportDashboard({
       .map((summary) => ({
         key: `archive:${summary.id || summary.sessionKey}`,
         studentId: summary.studentId,
-        studentName: summary.studentName || 'Student',
+        studentName: summary.studentName,
         assignmentId: summary.assignmentId || null,
         assignmentTitle: summary.assignmentTitle || null,
         sessionKey: summary.sessionKey || null,
@@ -170,9 +189,9 @@ export default function StudentSupportDashboard({
     return [...liveEntries, ...archivedEntries]
       .sort((a, b) => Number(b.startedAt || 0) - Number(a.startedAt || 0))
       .slice(0, 8);
-  }, [rows, profilesByStudentId, classEvents, classSessions, nowValue]);
+  }, [rows, profilesByStudentId, namedClassEvents, namedClassSessions, nowValue]);
 
-  const recent = classEvents.slice(0, 8);
+  const recent = namedClassEvents.slice(0, 8);
 
   const record = (event) => onRecordEvent?.({
     classId,
@@ -355,7 +374,7 @@ export default function StudentSupportDashboard({
             return (
               <div key={summary.id} style={{ borderTop: '1px solid #eef0f2', padding: '8px 0' }}>
                 <button type="button" onClick={() => onOpenStudent?.(summary.studentId)} style={{ border: 0, padding: 0, background: 'transparent', fontWeight: 900, cursor: 'pointer', textAlign: 'left' }}>
-                  {summary.studentName || 'Student'}
+                  {summary.studentName}
                 </button>
                 <div style={{ fontSize: 11.5, color: '#5f6368', marginTop: 2 }}>
                   {summary.assignmentTitle || 'Assignment'} · {Math.round(active)} active min of {Math.round(elapsed)} elapsed · {summary.answered || 0} answered
@@ -366,7 +385,7 @@ export default function StudentSupportDashboard({
                     kind: SUPPORT_EVENT_KIND.OFF_TASK_CONCERN,
                     stage: SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED,
                     studentId: summary.studentId,
-                    studentName: summary.studentName,
+                    studentName: resolveName(summary.studentId, summary.studentName),
                     assignmentId: summary.assignmentId || null,
                     assignmentTitle: summary.assignmentTitle || null,
                     sessionKey: summary.sessionKey || null,
@@ -377,7 +396,7 @@ export default function StudentSupportDashboard({
                     kind: SUPPORT_EVENT_KIND.SIGNAL_DISMISSED,
                     stage: SUPPORT_EVENT_STAGE.DISMISSED,
                     studentId: summary.studentId,
-                    studentName: summary.studentName,
+                    studentName: resolveName(summary.studentId, summary.studentName),
                     assignmentId: summary.assignmentId || null,
                     assignmentTitle: summary.assignmentTitle || null,
                     sessionKey: summary.sessionKey || null,
@@ -434,7 +453,7 @@ export default function StudentSupportDashboard({
           {recent.length ? recent.map((event) => (
             <div key={event.id} style={{ padding: '8px 9px', borderRadius: 8, background: '#f8f9fa' }}>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-                <strong>{event.studentName || 'Student'}</strong>
+                <strong>{event.studentName}</strong>
                 <span style={{ fontSize: 11, color: '#80868b' }}>{fmt(event.createdAt)}</span>
               </div>
               <div style={{ marginTop: 2, fontSize: 11.5 }}>
