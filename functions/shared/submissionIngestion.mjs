@@ -565,6 +565,7 @@ export const buildIngestedAttempt = ({
       source: envelope.kind,
       gradingAuthority: gradedBy === 'server' ? 'server' : 'client-record-sanitized',
       graderVersion: gradedBy === 'server' ? 'ordinary-response-v3' : 'client-attempt-record-v1',
+      automaticScore: Math.round(getQuestionCredit(cleanRecord) * 100),
     })
     : null;
 
