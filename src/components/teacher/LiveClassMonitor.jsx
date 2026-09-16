@@ -8,6 +8,9 @@ import {
 } from '../../livePresence';
 import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 import StudentSpotlightView from './StudentSpotlightView.jsx';
+import ClassPointsAwardDialog from './ClassPointsAwardDialog.jsx';
+import ClassPointsHistoryPanel from './ClassPointsHistoryPanel.jsx';
+import { classPointsBalanceFor, watchClassPointAccounts } from '../../platform/classPointsClient.js';
 import DOLCountdown from '../student/DOLCountdown.jsx';
 import { formatStudentName } from '../../platform/studentName';
 import {
@@ -112,6 +115,30 @@ function ProgressStrip({ questionStates, questionIndex }) {
 const smallButtonStyle = { padding: '5px 8px', borderRadius: 7, border: '1px solid #9aa0a6', background: '#fff', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' };
 const controlStyle = { padding: '8px 10px', borderRadius: 8, border: '1px solid #dadce0', background: '#fff', color: '#202124', fontSize: 14 };
 
+// Compact, teacher-only Class Points control shown on a student tile. The
+// balance shown is always the authoritative account projection handed down
+// from LiveClassMonitor's live subscription — it is never computed here by
+// summing history, and a read failure shows "—" rather than inventing 0.
+function ClassPointsMiniControl({ balance, unavailable, onAward }) {
+  return (
+    <div
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+      style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}
+    >
+      <span
+        title={unavailable ? 'Class Points balance is unavailable right now' : `${balance} Class Points`}
+        style={{ fontSize: 11.5, fontWeight: 900, color: '#7a4f00', background: '#fff4ce', border: '1px solid #f3d675', borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap' }}
+      >
+        ⭐ {unavailable ? '—' : balance} pts
+      </span>
+      {onAward && (
+        <button type="button" onClick={onAward} style={{ ...smallButtonStyle, padding: '3px 7px', borderColor: '#7a4f00', background: '#fff', color: '#7a4f00' }}>+ Points</button>
+      )}
+    </div>
+  );
+}
+
 function StudentTile({
   row,
   onOpenStudent,
@@ -124,6 +151,7 @@ function StudentTile({
   onRecommendPath = null,
   pathInterventionBusy = false,
   onSpotlight = null,
+  classPoints = null,
 }) {
   const style = SEVERITY_STYLE[row.severity] || SEVERITY_STYLE[LIVE_SEVERITY.OK];
   const live = row.live;
@@ -153,6 +181,14 @@ function StudentTile({
       <div style={{ marginTop: 5 }}>
         <StudentPerformanceBadge profile={profile} size="small" showEngagement={false} studentName={row.name} />
       </div>
+
+      {classPoints && (
+        <ClassPointsMiniControl
+          balance={classPoints.balance}
+          unavailable={classPoints.unavailable}
+          onAward={classPoints.onAward ? () => classPoints.onAward(row) : null}
+        />
+      )}
 
       {live?.assignmentId ? (
         <>
@@ -239,7 +275,7 @@ function withClassworkStates(roster, selectedAssignment, progressPositions) {
   });
 }
 
-function WalkthroughCard({ row, onChecked, onOpenStudent }) {
+function WalkthroughCard({ row, onChecked, onOpenStudent, classPoints = null }) {
   const style = WALKTHROUGH_STYLE[row.status] || WALKTHROUGH_STYLE[WALKTHROUGH_STATUS.ELSEWHERE];
   const attendanceMark = normalizeLiveAttendance(row.attendance).mark;
   return (
@@ -251,6 +287,13 @@ function WalkthroughCard({ row, onChecked, onOpenStudent }) {
           <span style={{ fontSize: 11, fontWeight: 900, color: style.color }}>{style.label}</span>
         </div>
       </div>
+      {classPoints && (
+        <ClassPointsMiniControl
+          balance={classPoints.balance}
+          unavailable={classPoints.unavailable}
+          onAward={classPoints.onAward ? () => classPoints.onAward(row) : null}
+        />
+      )}
       <div style={{ fontSize: 12.5, fontWeight: 800, color: style.color }}>{row.reason}</div>
       {row.live?.assignmentId && (
         <div style={{ fontSize: 11.5, color: '#5f6368' }}>
@@ -424,6 +467,28 @@ export default function LiveClassMonitor({
   const [spotlightFrame, setSpotlightFrame] = useState(null);
   const [spotlightMessage, setSpotlightMessage] = useState('');
   const [spotlightClock, setSpotlightClock] = useState(() => Date.now());
+
+  // Class Points: a live projection of the authoritative classPointAccounts
+  // balances for THIS class, scoped by the same authorizedTeacherEmails +
+  // classId shape the Firestore rules and index already use (see
+  // classPointsClient.js). A read failure never breaks Live Classroom — it
+  // just marks balances unavailable rather than throwing.
+  const [classPointBalances, setClassPointBalances] = useState({});
+  const [classPointsUnavailable, setClassPointsUnavailable] = useState(false);
+  const [showClassPoints, setShowClassPoints] = useState(false);
+  const [awardDialogStudent, setAwardDialogStudent] = useState(null);
+
+  useEffect(() => {
+    setClassPointBalances({});
+    setClassPointsUnavailable(false);
+    if (!teacherEmail || !activeClassId) return undefined;
+    return watchClassPointAccounts(
+      db,
+      { teacherEmail, classId: activeClassId },
+      (balances) => { setClassPointsUnavailable(false); setClassPointBalances(balances); },
+      () => setClassPointsUnavailable(true),
+    );
+  }, [teacherEmail, activeClassId]);
 
   useEffect(() => {
     setSpotlightRequests([]);
@@ -721,6 +786,16 @@ export default function LiveClassMonitor({
     });
   };
 
+  // Class Points only appears against an authoritative active class — the
+  // same scope the account/history subscriptions above are keyed to — never
+  // against the legacy period-only view where no classId exists to award or
+  // read against.
+  const classPointsForRow = (row) => (activeClassId ? {
+    balance: classPointsBalanceFor(classPointBalances, row.id),
+    unavailable: classPointsUnavailable,
+    onAward: (studentRow) => setAwardDialogStudent({ id: studentRow.id, name: studentRow.name }),
+  } : null);
+
   const switchMode = (nextMode) => {
     setMode(nextMode);
     if (nextMode === 'walkthrough' && assignmentId === 'all' && assignments.length) {
@@ -804,6 +879,11 @@ export default function LiveClassMonitor({
         <button type="button" onClick={() => setShowAttendance((current) => !current)} aria-expanded={showAttendance} style={{ ...controlStyle, cursor: 'pointer', fontWeight: 800, background: showAttendance ? '#fff4ce' : '#fff', borderColor: showAttendance ? '#d9a400' : '#dadce0', color: showAttendance ? '#6b4c00' : '#202124' }}>
           Attendance{absentCount > 0 ? ` · ${absentCount} absent` : ''}
         </button>
+        {activeClassId && (
+          <button type="button" onClick={() => setShowClassPoints((current) => !current)} aria-expanded={showClassPoints} style={{ ...controlStyle, cursor: 'pointer', fontWeight: 800, background: showClassPoints ? '#fff4ce' : '#fff', borderColor: showClassPoints ? '#d9a400' : '#dadce0', color: showClassPoints ? '#6b4c00' : '#202124' }}>
+            ⭐ Class Points
+          </button>
+        )}
       </div>
 
       {showAttendance && (
@@ -813,6 +893,10 @@ export default function LiveClassMonitor({
           onMark={handleAttendanceMark}
           busyStudentId={attendanceBusyStudentId}
         />
+      )}
+
+      {showClassPoints && activeClassId && (
+        <ClassPointsHistoryPanel classId={activeClassId} teacherEmail={teacherEmail} roster={roster} />
       )}
 
       {activeSectionTimers.length > 0 && (
@@ -893,7 +977,7 @@ export default function LiveClassMonitor({
               <div style={{ padding: 18, border: '1px dashed #dadce0', borderRadius: 12, color: '#5f6368' }}>Nobody is in this group right now.</div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 10 }}>
-                {walkRows.map((row) => <WalkthroughCard key={row.id} row={row} onChecked={(studentId) => setCheckedStudentIds((ids) => ids.includes(studentId) ? ids : [...ids, studentId])} onOpenStudent={onOpenStudent} />)}
+                {walkRows.map((row) => <WalkthroughCard key={row.id} row={row} onChecked={(studentId) => setCheckedStudentIds((ids) => ids.includes(studentId) ? ids : [...ids, studentId])} onOpenStudent={onOpenStudent} classPoints={classPointsForRow(row)} />)}
               </div>
             )}
           </div>
@@ -918,9 +1002,19 @@ export default function LiveClassMonitor({
               pathInterventionBusy={pathInterventionBusyStudentId === row.id}
               onAdjustPath={onOpenWeeklyPath ? () => onOpenWeeklyPath(row.id) : null}
               onSpotlight={activeClassId && !activeSpotlight ? requestSpotlight : null}
+              classPoints={classPointsForRow(row)}
             />
           ))}
         </div>
+      )}
+
+      {awardDialogStudent && activeClassId && (
+        <ClassPointsAwardDialog
+          student={awardDialogStudent}
+          classId={activeClassId}
+          teacherEmail={teacherEmail}
+          onClose={() => setAwardDialogStudent(null)}
+        />
       )}
     </section>
   );
