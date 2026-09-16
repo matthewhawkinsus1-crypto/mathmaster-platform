@@ -186,6 +186,7 @@ async function responseCheckpointFinalizer() {
 }
 
 const CHECKPOINT_COLLECTION = "studentResponseCheckpoints";
+const RESPONSE_INSPECTION_EVIDENCE_COLLECTION = "responseInspectionEvidence";
 // The one status in the finalizer's working set. Named here so the recovery
 // sweep and the scheduler cannot drift apart on what "outstanding" means.
 const CHECKPOINT_STATUS_ACTIVE = "active";
@@ -379,6 +380,27 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
       );
     }
     transaction.update(gradeRef, ...gradeUpdates);
+    if (finalization.gradingEvidence && finalization.gradingEvidenceDocumentId) {
+      transaction.set(
+        gradeRef.collection(RESPONSE_INSPECTION_EVIDENCE_COLLECTION)
+          .doc(String(finalization.gradingEvidenceDocumentId)),
+        {
+          schemaVersion: Number(finalization.gradingEvidence.schemaVersion) || 1,
+          assignmentId,
+          questionIndex: Number(checkpoint.questionIndex),
+          questionId: question?.questionId || question?.id || null,
+          submissionId: String(finalization.record.lastSubmissionId || ""),
+          variantIndex: Number(finalization.record.variantIndex ?? 0),
+          totalAttempts: Number(
+            finalization.record.totalAttempts ?? finalization.record.attemptCount ?? 0
+          ),
+          evidence: finalization.gradingEvidence,
+          academicOccurredAt: new Date(finalization.academicAt),
+          writtenAt: FieldValue.serverTimestamp(),
+          source: "deadline-auto-submit",
+        },
+      );
+    }
     if (finalization.evidenceEvent?.eventKey) {
       // The event key is deterministic for this exact attempt, so a retry after
       // a partial failure repeats the same write rather than appending a second
@@ -757,6 +779,26 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
     }
     transaction.update(gradeRef, ...updates);
 
+    if (built.gradingEvidence && built.gradingEvidenceDocumentId) {
+      transaction.set(
+        gradeRef.collection(RESPONSE_INSPECTION_EVIDENCE_COLLECTION)
+          .doc(String(built.gradingEvidenceDocumentId)),
+        {
+          schemaVersion: Number(built.gradingEvidence.schemaVersion) || 1,
+          assignmentId,
+          questionIndex: Number(envelope.questionIndex),
+          questionId: question?.questionId || question?.id || null,
+          submissionId: String(built.record.lastSubmissionId || ""),
+          variantIndex: Number(built.record.variantIndex ?? 0),
+          totalAttempts: Number(built.record.totalAttempts ?? built.record.attemptCount ?? 0),
+          evidence: built.gradingEvidence,
+          academicOccurredAt: new Date(built.academicAt),
+          writtenAt: FieldValue.serverTimestamp(),
+          source: "server-ingestion",
+        },
+      );
+    }
+
     if (built.evidenceEvent?.eventKey) {
       // Deterministic for this exact attempt, so a retry after a partial
       // failure repeats the same write rather than appending a second record.
@@ -923,16 +965,38 @@ function storedAlgebraStepPartialCredit(record) {
   return possible > 0 ? Math.min(90, clampPercent(Math.round((earned / possible) * 100))) : 0;
 }
 
+function teacherOverrideAppliesToRecord(record, authoritativeOverride = null) {
+  if (
+    !record
+    || authoritativeOverride?.active !== true
+    || !Number.isFinite(Number(authoritativeOverride.score))
+  ) return false;
+
+  const recordAttempts = Number(record.totalAttempts ?? record.attemptCount ?? 0);
+  const overrideAttempts = Number(authoritativeOverride.totalAttempts);
+  if (!Number.isFinite(overrideAttempts) || overrideAttempts !== recordAttempts) return false;
+
+  const recordVariant = Number(record.variantIndex ?? 0);
+  const overrideVariant = Number(authoritativeOverride.variantIndex);
+  if (!Number.isFinite(overrideVariant) || overrideVariant !== recordVariant) return false;
+
+  const overrideSubmissionId = String(authoritativeOverride.submissionId || "");
+  if (overrideSubmissionId) {
+    return overrideSubmissionId === String(record.lastSubmissionId || "");
+  }
+  const overrideLastAttemptAt = String(authoritativeOverride.lastAttemptAt || "");
+  return Boolean(overrideLastAttemptAt)
+    && overrideLastAttemptAt === String(record.lastAttemptAt || record.academicOccurredAt || "");
+}
+
 function getQuestionCredit(record, authoritativeOverride = null) {
   if (!record) return 0;
   // IMPORTANT: never trust record.gradeOverride here. gradesByAssignment is
   // client-writable for legacy workflows. Only the separately rule-protected
   // teacherGradeOverridesByAssignment projection may affect an authoritative
-  // server grade.
-  if (
-    authoritativeOverride?.active === true
-    && Number.isFinite(Number(authoritativeOverride.score))
-  ) {
+  // server grade, and that override is valid only for the exact attempt it was
+  // issued against.
+  if (teacherOverrideAppliesToRecord(record, authoritativeOverride)) {
     return clampPercent(authoritativeOverride.score) / 100;
   }
   if (record.status === "correct") return 1;
@@ -1054,12 +1118,28 @@ exports.inspectStudentResponse = onCall(async (request) => {
       "Secure Test Cycle results use the dedicated assessment correction workflow.",
     );
   }
+  if (
+    !authLib.isRootAdminEmail(teacherEmail)
+    && !studentMatchesAssignmentAudience({ assignment, classId: student.classId || null })
+  ) {
+    throw new HttpsError(
+      "permission-denied",
+      "This assignment is not assigned to the student's current class.",
+    );
+  }
+
   const questions = runtimeQuestionsFromAssignment(assignment);
   const question = questions[questionIndex];
   if (!question) throw new HttpsError("not-found", "The question was not found.");
 
   const tracker = student.gradesByAssignment?.[assignmentId] || {};
   const record = tracker[String(questionIndex)] || tracker[questionIndex] || null;
+  if (!record || !questionWasAttempted(record)) {
+    throw new HttpsError(
+      "failed-precondition",
+      "There is no submitted attempt to inspect.",
+    );
+  }
   const override = student.teacherGradeOverridesByAssignment?.[assignmentId]?.[String(questionIndex)]
     ?? student.teacherGradeOverridesByAssignment?.[assignmentId]?.[questionIndex]
     ?? null;
@@ -1070,7 +1150,10 @@ exports.inspectStudentResponse = onCall(async (request) => {
 
   const inspector = await import("./shared/responseInspector.mjs");
   const { workspaceDraftDocumentId } = await import("./shared/workspaceDraftSchema.mjs");
-  const [workspaceSnapshot, auditSnapshot] = await Promise.all([
+  const inspectionEvidenceRef = gradeRef
+    .collection(RESPONSE_INSPECTION_EVIDENCE_COLLECTION)
+    .doc(inspector.responseInspectionEvidenceDocumentId({ assignmentId, questionIndex }));
+  const [workspaceSnapshot, auditSnapshot, inspectionEvidenceSnapshot] = await Promise.all([
     db.collection(WORKSPACE_DRAFT_COLLECTION)
       .doc(workspaceDraftDocumentId({ studentId, assignmentId }))
       .get(),
@@ -1078,12 +1161,17 @@ exports.inspectStudentResponse = onCall(async (request) => {
       .where("assignmentId", "==", assignmentId)
       .limit(100)
       .get(),
+    inspectionEvidenceRef.get(),
   ]);
+  const gradingEvidence = trustedResponseInspectionEvidence(
+    inspectionEvidenceSnapshot,
+    { assignmentId, questionIndex, record },
+  );
   const workspace = inspector.resolveGradedWorkspace({
     document: workspaceSnapshot.exists ? workspaceSnapshot.data() : null,
     questionIndex,
     variantIndex: record?.variantIndex || 0,
-    submittedAt: record?.gradingEvidence?.submittedAt || record?.lastAttemptAt || null,
+    submittedAt: gradingEvidence?.submittedAt || record?.lastAttemptAt || null,
   });
   const auditHistory = auditSnapshot.docs
     .map((snapshot) => snapshot.data() || {})
@@ -1102,6 +1190,7 @@ exports.inspectStudentResponse = onCall(async (request) => {
     record,
     workspace,
     override,
+    gradingEvidence,
     auditHistory,
   });
 });
@@ -1133,10 +1222,15 @@ exports.overrideStudentResponseGrade = onCall(async (request) => {
   const deadline = await import("./shared/sectionDeadline.mjs");
   const nowIso = new Date().toISOString();
 
+  const inspectionEvidenceRef = gradeRef
+    .collection(RESPONSE_INSPECTION_EVIDENCE_COLLECTION)
+    .doc(inspector.responseInspectionEvidenceDocumentId({ assignmentId, questionIndex }));
+
   const result = await db.runTransaction(async (transaction) => {
-    const [gradeSnap, assignmentSnap] = await Promise.all([
+    const [gradeSnap, assignmentSnap, inspectionEvidenceSnapshot] = await Promise.all([
       transaction.get(gradeRef),
       transaction.get(assignmentRef),
+      transaction.get(inspectionEvidenceRef),
     ]);
     if (!gradeSnap.exists || !assignmentSnap.exists) {
       throw new HttpsError("not-found", "The student or assignment was not found.");
@@ -1162,18 +1256,32 @@ exports.overrideStudentResponseGrade = onCall(async (request) => {
         "Secure Test Cycle results use the dedicated assessment correction workflow.",
       );
     }
+    if (
+      !authLib.isRootAdminEmail(teacherEmail)
+      && !studentMatchesAssignmentAudience({ assignment, classId: gradeData.classId || null })
+    ) {
+      throw new HttpsError(
+        "permission-denied",
+        "This assignment is not assigned to the student's current class.",
+      );
+    }
+
     const questions = runtimeQuestionsFromAssignment(assignment);
     const question = questions[questionIndex];
     if (!question) throw new HttpsError("not-found", "The question was not found.");
 
     const tracker = { ...(gradeData.gradesByAssignment?.[assignmentId] || {}) };
     const record = tracker[String(questionIndex)] || tracker[questionIndex];
-    if (!record) {
+    if (!record || !questionWasAttempted(record)) {
       throw new HttpsError(
         "failed-precondition",
         "There is no submitted attempt to correct.",
       );
     }
+    const gradingEvidence = trustedResponseInspectionEvidence(
+      inspectionEvidenceSnapshot,
+      { assignmentId, questionIndex, record },
+    );
 
     const assignmentOverrides = {
       ...(gradeData.teacherGradeOverridesByAssignment?.[assignmentId] || {}),
@@ -1202,7 +1310,11 @@ exports.overrideStudentResponseGrade = onCall(async (request) => {
         let score = request.data?.score;
         if (action === "grantFullCredit") score = 100;
         if (action === "applyReplay") {
-          const replay = inspector.replayStoredResponse({ question, record });
+          const replay = inspector.replayStoredResponse({
+            question,
+            record,
+            gradingEvidence,
+          });
           if (!replay.available) throw new Error(replay.reason);
           score = replay.currentScore;
         }
@@ -1328,6 +1440,27 @@ exports.overrideStudentResponseGrade = onCall(async (request) => {
 
   return result;
 });
+
+function trustedResponseInspectionEvidence(snapshot, {
+  assignmentId,
+  questionIndex,
+  record,
+} = {}) {
+  if (!snapshot?.exists || !record || typeof record !== "object") return null;
+  const data = snapshot.data() || {};
+  if (String(data.assignmentId || "") !== String(assignmentId || "")) return null;
+  if (Number(data.questionIndex) !== Number(questionIndex)) return null;
+
+  const submissionId = String(record.lastSubmissionId || "");
+  if (!submissionId || String(data.submissionId || "") !== submissionId) return null;
+  if (Number(data.variantIndex ?? 0) !== Number(record.variantIndex ?? 0)) return null;
+  if (
+    Number(data.totalAttempts ?? 0)
+    !== Number(record.totalAttempts ?? record.attemptCount ?? 0)
+  ) return null;
+
+  return data.evidence && typeof data.evidence === "object" ? data.evidence : null;
+}
 
 function releaseSignalReason(signal) {
   if (!signal) return null;
