@@ -1060,8 +1060,7 @@ exports.inspectStudentResponse = onCall(async (request) => {
       .get(),
     gradeRef.collection("gradeOverrideAudits")
       .where("assignmentId", "==", assignmentId)
-      .where("questionIndex", "==", questionIndex)
-      .limit(50)
+      .limit(100)
       .get(),
   ]);
   const workspace = inspector.resolveGradedWorkspace({
@@ -1072,7 +1071,9 @@ exports.inspectStudentResponse = onCall(async (request) => {
   });
   const auditHistory = auditSnapshot.docs
     .map((snapshot) => snapshot.data() || {})
-    .sort((left, right) => String(left.at || "").localeCompare(String(right.at || "")));
+    .filter((entry) => Number(entry.questionIndex) === questionIndex)
+    .sort((left, right) => String(left.at || "").localeCompare(String(right.at || "")))
+    .slice(-50);
 
   return inspector.buildInspectorModel({
     assignment,
