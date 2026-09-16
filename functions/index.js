@@ -1466,17 +1466,6 @@ const CLASS_POINT_TRANSACTIONS_COLLECTION = "classPointTransactions";
 const CLASS_POINT_IDEMPOTENCY_COLLECTION = "classPointIdempotencyKeys";
 const CLASS_POINT_ANNOUNCEMENTS_COLLECTION = "classPointAnnouncements";
 
-// requestId is caller-supplied and may contain characters Firestore document
-// ids reject, so the idempotency record lives at a hash of it rather than the
-// raw value. Scoping the hash to classId+studentId means a requestId reused
-// by accident across two different students never collides.
-function classPointIdempotencyKey({ classId, studentId, requestId }) {
-  return crypto
-    .createHash("sha256")
-    .update(`${classId} ${studentId} ${requestId}`)
-    .digest("hex");
-}
-
 function translateClassPointsError(error) {
   if (error?.name === "ClassPointsInputError") {
     return new HttpsError("invalid-argument", error.message);
@@ -1535,7 +1524,7 @@ exports.awardClassPoints = onCall(async (request) => {
     .doc(points.accountId(studentId, classId));
   const idempotencyRef = db
     .collection(CLASS_POINT_IDEMPOTENCY_COLLECTION)
-    .doc(classPointIdempotencyKey({ classId, studentId, requestId }));
+    .doc(points.classPointIdempotencyKey({ classId, studentId, requestId }));
   const nowIso = new Date().toISOString();
   const isRootAdmin = authLib.isRootAdminEmail(teacherEmail);
   const payloadFingerprint = points.awardPayloadFingerprint(input);
@@ -4508,10 +4497,21 @@ async function preproductionResetControl(db) {
   };
 }
 
+/**
+ * `classPointAnnouncements` lives nested under the preserved `classes/{classId}`
+ * documents, so it is never a flat entry in PREPRODUCTION_RESET_COLLECTIONS --
+ * a collection-group read/delete is what reaches every class's subcollection
+ * without touching the class documents themselves.
+ */
+function classPointAnnouncementsGroup(db) {
+  return db.collectionGroup(CLASS_POINT_ANNOUNCEMENTS_COLLECTION);
+}
+
 async function preproductionResetPreview(db) {
-  const [gradesSnapshot, authStudents, ...collectionSnapshots] = await Promise.all([
+  const [gradesSnapshot, authStudents, classPointAnnouncementsSnapshot, ...collectionSnapshots] = await Promise.all([
     db.collection("grades").get(),
     preproductionStudentAuthUsers(db),
+    classPointAnnouncementsGroup(db).get(),
     ...adminPolicy.PREPRODUCTION_RESET_COLLECTIONS.map((collectionName) => (
       db.collection(collectionName).get()
     )),
@@ -4520,6 +4520,7 @@ async function preproductionResetPreview(db) {
   adminPolicy.PREPRODUCTION_RESET_COLLECTIONS.forEach((collectionName, index) => {
     collections[collectionName] = collectionSnapshots[index].size;
   });
+  collections[CLASS_POINT_ANNOUNCEMENTS_COLLECTION] = classPointAnnouncementsSnapshot.size;
   const control = await preproductionResetControl(db);
   return {
     studentRosterRecords: gradesSnapshot.docs.filter((entry) => entry.id !== "test_connection").length,
@@ -4639,6 +4640,14 @@ exports.resetPreproductionTestData = onCall(async (request) => {
     await clearPreproductionCollection(db, collectionName, deleted);
   }
 
+  // classPointAnnouncements is nested under classes/{classId}, and classes is
+  // preserved configuration -- never reset -- so this reaches every class's
+  // subcollection with a collection-group delete instead of putting `classes`
+  // in PREPRODUCTION_RESET_COLLECTIONS. Each announcement is a leaf document,
+  // so deleting it directly (not the class it lives under) is exactly what
+  // recursiveDeleteQuery already does.
+  await recursiveDeleteQuery(db, classPointAnnouncementsGroup(db), deleted, CLASS_POINT_ANNOUNCEMENTS_COLLECTION);
+
   // The audit survives intentionally. It contains aggregate counts only, never
   // the deleted student IDs/emails.
   await writeAdminAudit(db, actor, "preproduction_test_data_reset", "preproduction-test-data", {
@@ -4697,6 +4706,87 @@ exports.lockPreproductionResetForProduction = onCall(async (request) => {
 
   return { success: true, alreadyLocked: false, locked: true };
 });
+
+/**
+ * Erase the complete Class Points footprint for a permanently-deleted
+ * student: every account, every transaction across every class they were
+ * ever in, every idempotency record those awards produced, and every public
+ * announcement those awards triggered.
+ *
+ * This is the one Class Points lifecycle event that does NOT preserve
+ * history. Removing a student from a class, disabling their account, and
+ * moving them to a different class all go through `reauthorizeStudentRecords`
+ * instead, which never deletes a wallet or a transaction -- see
+ * `reauthorizeClassPointsRecord` in functions/shared/classPoints.mjs. Only
+ * permanent erasure reaches this function.
+ *
+ * ORDER MATTERS FOR RETRY SAFETY. Every relationship this needs -- which
+ * classes, which transaction ids, which idempotency keys, which announcements
+ * reference them -- is gathered from the student's account/transaction
+ * records BEFORE any of those records are deleted. Transactions and accounts
+ * are deleted LAST. If this function is interrupted partway through and
+ * called again, the still-surviving transactions let it recompute the exact
+ * same plan and finish the remainder; nothing here errors on a record that
+ * turns out to already be gone.
+ *
+ * Announcements deliberately carry no studentId (see `buildAnnouncement` --
+ * classmates must never learn a real identity from one), so they cannot be
+ * found by querying for the student directly. They ARE found by
+ * `awardTransactionId`, which is why the transaction ids are gathered first
+ * and used to look the announcements up.
+ */
+async function deleteStudentClassPointsFootprint(db, studentId, deleted) {
+  const points = await classPoints();
+
+  const [accountsSnapshot, transactionsSnapshot] = await Promise.all([
+    db.collection(CLASS_POINT_ACCOUNTS_COLLECTION).where("studentId", "==", studentId).get(),
+    db.collection(CLASS_POINT_TRANSACTIONS_COLLECTION).where("studentId", "==", studentId).get(),
+  ]);
+
+  const plan = points.planStudentClassPointsDeletion({
+    accounts: accountsSnapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })),
+    transactions: transactionsSnapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })),
+  });
+
+  let announcementsDeleted = 0;
+  for (const { classId, transactionIds } of plan.transactionIdsByClass) {
+    const announcementsRef = db.collection("classes").doc(classId).collection(CLASS_POINT_ANNOUNCEMENTS_COLLECTION);
+    for (const idChunk of points.chunkList(transactionIds, points.FIRESTORE_IN_QUERY_LIMIT)) {
+      // eslint-disable-next-line no-await-in-loop
+      const matches = await announcementsRef.where("awardTransactionId", "in", idChunk).get();
+      for (const match of matches.docs) {
+        // eslint-disable-next-line no-await-in-loop
+        await match.ref.delete();
+        announcementsDeleted += 1;
+      }
+    }
+  }
+  if (announcementsDeleted) deleted.classPointAnnouncements = announcementsDeleted;
+
+  let idempotencyDeleted = 0;
+  for (const key of plan.idempotencyKeys) {
+    // eslint-disable-next-line no-await-in-loop
+    await db.collection(CLASS_POINT_IDEMPOTENCY_COLLECTION).doc(key).delete();
+    idempotencyDeleted += 1;
+  }
+  if (idempotencyDeleted) deleted.classPointIdempotencyKeys = idempotencyDeleted;
+
+  let transactionsDeleted = 0;
+  for (const id of plan.transactionIds) {
+    // eslint-disable-next-line no-await-in-loop
+    await db.collection(CLASS_POINT_TRANSACTIONS_COLLECTION).doc(id).delete();
+    transactionsDeleted += 1;
+  }
+  if (transactionsDeleted) deleted.classPointTransactions = transactionsDeleted;
+
+  let accountsDeleted = 0;
+  for (const id of plan.accountIds) {
+    // eslint-disable-next-line no-await-in-loop
+    await db.collection(CLASS_POINT_ACCOUNTS_COLLECTION).doc(id).delete();
+    accountsDeleted += 1;
+  }
+  if (accountsDeleted) deleted.classPointAccounts = accountsDeleted;
+}
 
 /**
  * Root-admin-only permanent student erasure.
@@ -4825,6 +4915,8 @@ exports.permanentlyDeleteStudent = onCall(async (request) => {
       collectionName,
     );
   }
+
+  await deleteStudentClassPointsFootprint(db, studentId, deleted);
 
   // Preserve accountability without retaining the deleted student's ID in the
   // audit collection. The short irreversible digest is only a deletion receipt.

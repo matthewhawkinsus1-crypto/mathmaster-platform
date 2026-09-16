@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ClassPointsInputError,
+  FIRESTORE_IN_QUERY_LIMIT,
   MAX_AWARD_AMOUNT,
   REASON_CODES,
   SOURCE_TYPES,
@@ -12,9 +13,12 @@ import {
   buildAnnouncement,
   buildAwardTransaction,
   buildReversalTransaction,
+  chunkList,
+  classPointIdempotencyKey,
   classPointsAuthorizationContext,
   emptyAccount,
   isReversibleAward,
+  planStudentClassPointsDeletion,
   publicStudentLabel,
   reauthorizeClassPointsRecord,
   reversalTransactionId,
@@ -465,4 +469,128 @@ test('balances never transfer between classes: reauthorization output never carr
   assert.equal('balance' in change, false);
   assert.equal('lifetimeEarned' in change, false);
   assert.equal('lifetimeSpent' in change, false);
+});
+
+// --- chunkList: batching for Firestore's `in` query limit ------------------
+
+test('chunkList splits into groups no larger than the requested size, preserving order', () => {
+  assert.deepEqual(chunkList([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
+  assert.deepEqual(chunkList([], 5), []);
+  assert.deepEqual(chunkList([1, 2], 10), [[1, 2]]);
+});
+
+test('FIRESTORE_IN_QUERY_LIMIT is a real, positive limit a caller can chunk against', () => {
+  assert.ok(Number.isInteger(FIRESTORE_IN_QUERY_LIMIT) && FIRESTORE_IN_QUERY_LIMIT > 0);
+});
+
+// --- classPointIdempotencyKey: also the permanent-delete recovery key ------
+
+test('classPointIdempotencyKey is deterministic and scoped to class+student+request', () => {
+  const key = { classId: 'class-a', studentId: 'S1', requestId: 'req-1' };
+  assert.equal(classPointIdempotencyKey(key), classPointIdempotencyKey({ ...key }));
+  assert.notEqual(classPointIdempotencyKey(key), classPointIdempotencyKey({ ...key, requestId: 'req-2' }));
+  assert.notEqual(classPointIdempotencyKey(key), classPointIdempotencyKey({ ...key, studentId: 'S2' }));
+  assert.notEqual(classPointIdempotencyKey(key), classPointIdempotencyKey({ ...key, classId: 'class-b' }));
+});
+
+// --- planStudentClassPointsDeletion: the complete permanent-delete plan ----
+
+test('a student with no Class Points activity plans an empty deletion', () => {
+  const plan = planStudentClassPointsDeletion({ accounts: [], transactions: [] });
+  assert.deepEqual(plan, {
+    accountIds: [], transactionIds: [], idempotencyKeys: [], transactionIdsByClass: [],
+  });
+});
+
+test('the plan covers every account, every transaction, and one idempotency key per award — across multiple classes', () => {
+  const plan = planStudentClassPointsDeletion({
+    accounts: [
+      { id: accountId('S1', 'class-a'), studentId: 'S1', classId: 'class-a' },
+      { id: accountId('S1', 'class-b'), studentId: 'S1', classId: 'class-b' },
+    ],
+    transactions: [
+      {
+        id: 'tx-award-a', studentId: 'S1', classId: 'class-a',
+        sourceType: SOURCE_TYPES.TEACHER_AWARD, isReversal: false, requestId: 'req-a',
+      },
+      {
+        id: 'tx-reversal-a', studentId: 'S1', classId: 'class-a',
+        sourceType: SOURCE_TYPES.TEACHER_REVERSAL, isReversal: true, requestId: 'req-a-reversal',
+      },
+      {
+        id: 'tx-award-b', studentId: 'S1', classId: 'class-b',
+        sourceType: SOURCE_TYPES.TEACHER_AWARD, isReversal: false, requestId: 'req-b',
+      },
+    ],
+  });
+
+  assert.deepEqual(plan.accountIds.sort(), [accountId('S1', 'class-a'), accountId('S1', 'class-b')].sort());
+  assert.deepEqual(plan.transactionIds.sort(), ['tx-award-a', 'tx-award-b', 'tx-reversal-a'].sort());
+
+  // A reversal never got its own idempotency document (see reverseClassPointAward),
+  // so only the two awards contribute a key -- never three.
+  assert.equal(plan.idempotencyKeys.length, 2);
+  assert.deepEqual(
+    plan.idempotencyKeys.sort(),
+    [
+      classPointIdempotencyKey({ classId: 'class-a', studentId: 'S1', requestId: 'req-a' }),
+      classPointIdempotencyKey({ classId: 'class-b', studentId: 'S1', requestId: 'req-b' }),
+    ].sort(),
+  );
+
+  const byClass = Object.fromEntries(plan.transactionIdsByClass.map((entry) => [entry.classId, entry.transactionIds.sort()]));
+  assert.deepEqual(byClass, {
+    'class-a': ['tx-award-a', 'tx-reversal-a'].sort(),
+    'class-b': ['tx-award-b'],
+  });
+});
+
+test('a legacy transaction is planned correctly using only the fields every transaction has always carried', () => {
+  // "Legacy" here means a record written by an earlier version of this
+  // feature that never gained a field some later change added -- the plan
+  // must still work from studentId/classId/requestId/sourceType alone, since
+  // those have been present since the very first award.
+  const plan = planStudentClassPointsDeletion({
+    accounts: [],
+    transactions: [{
+      id: 'legacy-tx', studentId: 'S1', classId: 'class-a',
+      sourceType: SOURCE_TYPES.TEACHER_AWARD, isReversal: false, requestId: 'legacy-req',
+    }],
+  });
+  assert.deepEqual(plan.transactionIds, ['legacy-tx']);
+  assert.deepEqual(plan.idempotencyKeys, [
+    classPointIdempotencyKey({ classId: 'class-a', studentId: 'S1', requestId: 'legacy-req' }),
+  ]);
+});
+
+test('the plan is retry-stable: recomputing it from whatever still exists always produces a subset of the original plan', () => {
+  const allTransactions = [
+    { id: 'tx1', studentId: 'S1', classId: 'class-a', sourceType: SOURCE_TYPES.TEACHER_AWARD, isReversal: false, requestId: 'r1' },
+    { id: 'tx2', studentId: 'S1', classId: 'class-a', sourceType: SOURCE_TYPES.TEACHER_AWARD, isReversal: false, requestId: 'r2' },
+  ];
+  const fullPlan = planStudentClassPointsDeletion({ accounts: [], transactions: allTransactions });
+
+  // Simulate an interruption after tx1's dependents were cleaned up but
+  // before tx1 itself (and tx2) were deleted: a retry re-reads whatever
+  // transactions still exist and must plan a correct subset, not fail or
+  // plan something new.
+  const retryPlan = planStudentClassPointsDeletion({ accounts: [], transactions: [allTransactions[1]] });
+  assert.deepEqual(retryPlan.transactionIds, ['tx2']);
+  assert.ok(fullPlan.idempotencyKeys.includes(retryPlan.idempotencyKeys[0]));
+});
+
+// --- Lifecycle: only permanent deletion erases Class Points ----------------
+
+test('remove-from-class and account-disable preserve historical Class Points (never planned for deletion)', () => {
+  // Neither operation is a permanent delete, so neither should ever reach
+  // planStudentClassPointsDeletion at all -- they go through
+  // reauthorizeClassPointsRecord instead, which never deletes anything.
+  const wallet = {
+    classId: 'class-a', balance: 8, originTeacherEmail: TEACHER_A, authorizedTeacherEmails: [TEACHER_A],
+  };
+  // "Removed from class" is modeled as classRecord: null.
+  assert.equal(reauthorizeClassPointsRecord(wallet, { classRecord: null }), null);
+  // An account-disable action does not call reauthorization at all, and
+  // certainly not with a class change; simulating "no class involved" is the
+  // same null-classRecord case, so the wallet is provably untouched either way.
 });

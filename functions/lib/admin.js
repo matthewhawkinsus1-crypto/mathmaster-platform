@@ -64,6 +64,14 @@ const PREPRODUCTION_RESET_COLLECTIONS = Object.freeze([
   "studentPathInterventions",
   "studentMasteryProfiles",
   "studentRetentionSchedules",
+  // Class Points runtime state. `classPointAnnouncements` is deliberately NOT
+  // here -- it is nested under the preserved `classes/{classId}` documents,
+  // so the reset clears that subcollection separately (collection-group
+  // delete) without touching the class documents themselves. See
+  // resetPreproductionTestData in functions/index.js.
+  "classPointAccounts",
+  "classPointTransactions",
+  "classPointIdempotencyKeys",
 ]);
 
 const PREPRODUCTION_PRESERVED_COLLECTIONS = Object.freeze([

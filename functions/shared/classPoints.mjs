@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 // Class Points: a classroom participation reward currency, scoped to
 // studentId + classId. This is deliberately NOT assignment credit, mastery,
 // Live Challenge score, or evidence of mathematical proficiency — it is a
@@ -117,6 +119,27 @@ export const accountId = (studentId, classId) => {
   const cls = cleanText(classId, 120);
   return `${student.length}:${student}:${cls}`;
 };
+
+/**
+ * The `classPointIdempotencyKeys` document id for one award request.
+ *
+ * `requestId` is caller-supplied and may contain characters Firestore
+ * document ids reject, so the record lives at a hash of it rather than the
+ * raw value. Scoping the hash to classId+studentId means a requestId reused
+ * by accident across two different students never collides.
+ *
+ * This is also the whole cleanup mechanism for permanent student deletion:
+ * because the key is a pure, deterministic function of fields every award
+ * transaction already stores on itself (`classId`, `studentId`, `requestId`),
+ * a deleted student's idempotency records can always be recomputed from their
+ * surviving transactions rather than requiring the idempotency document to
+ * carry its own studentId/classId copy — and this works identically for a
+ * transaction written before this comment existed, since nothing about the
+ * recompute depends on when the transaction was created.
+ */
+export const classPointIdempotencyKey = ({ classId, studentId, requestId }) => createHash('sha256')
+  .update(`${classId}\u0000${studentId}\u0000${requestId}`)
+  .digest('hex');
 
 /**
  * Validate and normalize an `awardClassPoints` call. Throws
@@ -500,3 +523,91 @@ export const buildAnnouncement = ({
   createdAt: at,
   expiresAt: new Date(new Date(at).getTime() + displayWindowMs).toISOString(),
 });
+
+// ---------------------------------------------------------------------------
+// PERMANENT DELETION.
+//
+// A permanent account deletion must erase the complete Class Points
+// footprint: the account projection(s), every transaction, every related
+// idempotency record, and every public announcement the deleted student's
+// awards produced. This is the one lifecycle event Class Points do NOT
+// survive — removal from a class, disabling an account, and moving to a
+// different class all preserve the wallet/history (see
+// `reauthorizeClassPointsRecord` above), because those are roster facts, not
+// account erasure.
+//
+// Announcements deliberately carry no studentId (see `buildAnnouncement`), so
+// they cannot be found by querying for the student directly. They CAN be
+// found by `awardTransactionId`, which is exactly why the caller must gather
+// every relationship — which classes, which transaction ids, which
+// idempotency keys — from the student's own account/transaction records
+// BEFORE deleting any of those records: deleting a transaction first would
+// destroy the only thread back to its announcement.
+// ---------------------------------------------------------------------------
+
+/** Split `list` into chunks no larger than `size`, preserving order. */
+export const chunkList = (list, size) => {
+  const source = Array.isArray(list) ? list : [];
+  const chunks = [];
+  for (let index = 0; index < source.length; index += size) {
+    chunks.push(source.slice(index, index + size));
+  }
+  return chunks;
+};
+
+/** Firestore's current limit on the number of values in an `in` filter. */
+export const FIRESTORE_IN_QUERY_LIMIT = 30;
+
+/**
+ * Plan the complete Class Points cleanup for a permanently-deleted student,
+ * from everything already fetched about them.
+ *
+ * Pure and deterministic: the plan is entirely a function of the account and
+ * transaction records that exist right now, not of when the deletion happens
+ * to run. That is what makes a partially-completed deletion safe to retry —
+ * as long as the caller deletes transactions and accounts LAST (after using
+ * this plan to find and delete their dependent announcements and idempotency
+ * records), a retry simply recomputes the same plan from whatever still
+ * survives and finishes the remainder. It also means a legacy transaction
+ * written before any particular field existed is still cleaned up correctly,
+ * since the plan only ever reads fields transactions have always carried.
+ *
+ * `accounts` and `transactions` are plain objects shaped like a Firestore
+ * document snapshot flattened with its id: `{ id, ...data() }`.
+ */
+export const planStudentClassPointsDeletion = ({ accounts = [], transactions = [] } = {}) => {
+  const accountIds = (accounts || []).map((entry) => entry?.id).filter(Boolean);
+
+  const transactionIdsByClass = new Map();
+  const idempotencyKeys = new Set();
+  const transactionIds = [];
+
+  (transactions || []).forEach((entry) => {
+    const transactionId = entry?.id;
+    const classId = entry?.classId;
+    if (!transactionId || !classId) return;
+    transactionIds.push(transactionId);
+
+    if (!transactionIdsByClass.has(classId)) transactionIdsByClass.set(classId, []);
+    transactionIdsByClass.get(classId).push(transactionId);
+
+    // Only an original award ever gets an idempotency companion document — a
+    // reversal is addressed deterministically by `reversalTransactionId`
+    // instead (see `reverseClassPointAward`) and never writes one.
+    if (entry.sourceType === SOURCE_TYPES.TEACHER_AWARD && entry.requestId) {
+      idempotencyKeys.add(classPointIdempotencyKey({
+        classId, studentId: entry.studentId, requestId: entry.requestId,
+      }));
+    }
+  });
+
+  return {
+    accountIds,
+    transactionIds,
+    idempotencyKeys: [...idempotencyKeys],
+    transactionIdsByClass: [...transactionIdsByClass.entries()].map(([classId, ids]) => ({
+      classId,
+      transactionIds: ids,
+    })),
+  };
+};

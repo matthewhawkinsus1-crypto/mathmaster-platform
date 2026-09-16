@@ -80,6 +80,22 @@ test('reset collection policy deletes test/runtime state but explicitly preserve
   }
 });
 
+test('the reset also clears Class Points runtime state, without putting classes in the deletion list', () => {
+  const deleted = new Set(admin.PREPRODUCTION_RESET_COLLECTIONS);
+
+  for (const name of ['classPointAccounts', 'classPointTransactions', 'classPointIdempotencyKeys']) {
+    assert.equal(deleted.has(name), true, `${name} should be cleared by the pre-production reset`);
+  }
+
+  // classPointAnnouncements lives nested under classes/{classId}, which is
+  // preserved configuration. It must never appear as a flat top-level entry
+  // here -- doing so would either no-op (there is no top-level
+  // classPointAnnouncements collection) or, worse, invite someone to "fix"
+  // that by adding `classes` itself to the reset list.
+  assert.equal(deleted.has('classPointAnnouncements'), false);
+  assert.equal(deleted.has('classes'), false);
+});
+
 
 
 test('production lock is root-admin only, one-way in the app, and reset refuses destructive execution after locking', () => {
@@ -197,6 +213,81 @@ test('reset panel requires exact phrases, disables bulk reset after locking, and
   assert.match(panel, /does not delete coursework/);
   assert.match(panel, /Google Classroom/);
   assert.doesNotMatch(panel, /deleteDoc\(|collection\(db/);
+});
+
+test('reset preview and reset execution both account for classPointAnnouncements via a collection-group, never a flat collection read', () => {
+  const previewStart = functionsSource.indexOf('async function preproductionResetPreview');
+  const previewEnd = functionsSource.indexOf('async function clearPreproductionCollection', previewStart);
+  assert.ok(previewStart >= 0 && previewEnd > previewStart);
+  const previewBlock = functionsSource.slice(previewStart, previewEnd);
+  assert.match(previewBlock, /classPointAnnouncementsGroup\(db\)/);
+  assert.match(previewBlock, /collections\[CLASS_POINT_ANNOUNCEMENTS_COLLECTION\]/);
+
+  const resetStart = functionsSource.indexOf('exports.resetPreproductionTestData');
+  const resetEnd = functionsSource.indexOf('exports.lockPreproductionResetForProduction', resetStart);
+  assert.ok(resetStart >= 0 && resetEnd > resetStart);
+  const resetBlock = functionsSource.slice(resetStart, resetEnd);
+  assert.match(resetBlock, /recursiveDeleteQuery\(db, classPointAnnouncementsGroup\(db\), deleted, CLASS_POINT_ANNOUNCEMENTS_COLLECTION\)/);
+
+  const groupHelperStart = functionsSource.indexOf('function classPointAnnouncementsGroup');
+  const groupHelperEnd = functionsSource.indexOf('\n}', groupHelperStart) + 2;
+  const groupHelperBlock = functionsSource.slice(groupHelperStart, groupHelperEnd);
+  assert.match(groupHelperBlock, /db\.collectionGroup\(CLASS_POINT_ANNOUNCEMENTS_COLLECTION\)/);
+});
+
+test('permanent student deletion erases the complete Class Points footprint, gathered before anything it depends on is deleted', () => {
+  const helperStart = functionsSource.indexOf('async function deleteStudentClassPointsFootprint');
+  const helperEnd = functionsSource.indexOf('exports.permanentlyDeleteStudent', helperStart);
+  assert.ok(helperStart >= 0 && helperEnd > helperStart);
+  const helperBlock = functionsSource.slice(helperStart, helperEnd);
+
+  const planCall = helperBlock.indexOf('planStudentClassPointsDeletion(');
+  const announcementDelete = helperBlock.indexOf('match.ref.delete()');
+  const idempotencyDelete = helperBlock.indexOf('CLASS_POINT_IDEMPOTENCY_COLLECTION).doc(key).delete()');
+  const transactionDelete = helperBlock.indexOf('CLASS_POINT_TRANSACTIONS_COLLECTION).doc(id).delete()');
+  const accountDelete = helperBlock.indexOf('CLASS_POINT_ACCOUNTS_COLLECTION).doc(id).delete()');
+
+  assert.ok(planCall >= 0, 'must gather the deletion plan from planStudentClassPointsDeletion');
+  assert.ok(
+    [announcementDelete, idempotencyDelete, transactionDelete, accountDelete].every((index) => index > planCall),
+    'every deletion must happen after the plan is gathered, never before',
+  );
+  assert.ok(
+    announcementDelete < transactionDelete,
+    'announcements (found via transaction ids) must be deleted before the transactions that identify them',
+  );
+  assert.ok(
+    idempotencyDelete < transactionDelete,
+    'idempotency records (recomputed from transaction fields) must be deleted before the transactions that identify them',
+  );
+  assert.ok(
+    transactionDelete < accountDelete,
+    'transactions are deleted before accounts, so a mid-flight failure always leaves the ledger (not just the projection) as the source of truth for a retry',
+  );
+
+  // The callable itself must actually invoke the helper.
+  const callableStart = functionsSource.indexOf('exports.permanentlyDeleteStudent');
+  const callableEnd = functionsSource.indexOf('exports.getGoogleAuthUrl', callableStart);
+  const callableBlock = functionsSource.slice(callableStart, callableEnd);
+  assert.match(callableBlock, /await deleteStudentClassPointsFootprint\(db, studentId, deleted\)/);
+});
+
+test('account disable never touches Class Points -- history survives deactivation', () => {
+  const start = functionsSource.indexOf('exports.setStudentAccountStatus');
+  const end = functionsSource.indexOf('\n});', start) + 4;
+  assert.ok(start >= 0 && end > start);
+  const block = functionsSource.slice(start, end);
+  assert.doesNotMatch(block, /classPoint|ClassPoints/i);
+});
+
+test('a roster class change (move or remove) never calls the permanent Class Points erasure path', () => {
+  const start = functionsSource.indexOf('exports.setStudentClass');
+  const end = functionsSource.indexOf('\n});', start) + 4;
+  assert.ok(start >= 0 && end > start);
+  const block = functionsSource.slice(start, end);
+  assert.doesNotMatch(block, /deleteStudentClassPointsFootprint/);
+  // It does reauthorize (teacher-of-record propagation), never erase.
+  assert.match(block, /reauthorizeStudentRecords/);
 });
 
 test('Firebase Functions source remains syntactically valid after destructive callable changes', () => {
