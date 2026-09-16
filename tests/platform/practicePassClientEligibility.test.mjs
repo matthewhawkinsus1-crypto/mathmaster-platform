@@ -39,6 +39,19 @@ test('a quiz-shaped assignment is filtered out', () => {
   assert.equal(practicePassLooksEligible({ assignment, classId: 'class-a' }), false);
 });
 
+test('an explicit true override still cannot make a quiz or test selectable', () => {
+  const quiz = lesson({
+    rewardPolicy: { practicePassEligible: true },
+    sections: [...lesson().sections, { role: 'quiz', questions: [{}] }],
+  });
+  const testAssignment = lesson({
+    rewardPolicy: { practicePassEligible: true },
+    sections: [...lesson().sections, { role: 'test', questions: [{}] }],
+  });
+  assert.equal(practicePassLooksEligible({ assignment: quiz, classId: 'class-a' }), false);
+  assert.equal(practicePassLooksEligible({ assignment: testAssignment, classId: 'class-a' }), false);
+});
+
 test('an assignment with no Practice section is filtered out', () => {
   const assignment = lesson({ sections: [{ role: 'classwork', questions: [{}] }] });
   assert.equal(practicePassLooksEligible({ assignment, classId: 'class-a' }), false);
