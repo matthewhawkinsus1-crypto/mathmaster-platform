@@ -778,3 +778,115 @@ test('a device persistence report is readable by its own student and writable by
     studentId: 'STUDENT_A', deviceId: 'own', queued: 0,
   }));
 });
+
+
+// --- Teacher grade overrides are server-authoritative -----------------------
+
+test('no client can forge, change, or remove a teacher grade override projection', async () => {
+  const authoritative = {
+    'assignment-override-test': {
+      0: {
+        active: true,
+        score: 80,
+        reason: 'Partial credit awarded',
+        actor: { uid: 'server-teacher', email: TEACHER_A },
+      },
+    },
+  };
+
+  await env.withSecurityRulesDisabled(async (context) => {
+    await updateDoc(doc(context.firestore(), 'grades/STUDENT_A'), {
+      teacherGradeOverridesByAssignment: authoritative,
+    });
+  });
+
+  const forged = {
+    'assignment-override-test': {
+      0: {
+        active: true,
+        score: 100,
+        reason: 'forged',
+        actor: { uid: 'student' },
+      },
+    },
+  };
+
+  await assertFails(updateDoc(doc(studentA(), 'grades/STUDENT_A'), {
+    teacherGradeOverridesByAssignment: forged,
+  }));
+  await assertFails(updateDoc(doc(teacherA(), 'grades/STUDENT_A'), {
+    teacherGradeOverridesByAssignment: forged,
+  }));
+  await assertFails(updateDoc(doc(admin(), 'grades/STUDENT_A'), {
+    teacherGradeOverridesByAssignment: forged,
+  }));
+
+  await assertFails(updateDoc(doc(studentA(), 'grades/STUDENT_A'), {
+    teacherGradeOverridesByAssignment: {},
+  }));
+
+  // Existing legitimate client-writable work remains writable so the new
+  // protection does not break the ordinary assignment persistence contract.
+  await assertSucceeds(updateDoc(doc(studentA(), 'grades/STUDENT_A'), {
+    gradesByAssignment: {
+      'assignment-ordinary-write': {
+        0: { status: 'attempted', attemptCount: 1, totalAttempts: 1 },
+      },
+    },
+  }));
+
+  const snapshot = await getDoc(doc(studentA(), 'grades/STUDENT_A'));
+  assert.deepEqual(snapshot.data().teacherGradeOverridesByAssignment, authoritative);
+});
+
+test('clients cannot create a grades row that already contains teacher overrides', async () => {
+  const studentNew = () => env.authenticatedContext(
+    'uid-new-override',
+    { role: 'student', studentId: 'STUDENT_OVERRIDE_NEW' },
+  ).firestore();
+  const roster = {
+    displayName: 'Student Override New',
+    classId: 'class-a',
+    classPeriod: 'Period 1',
+    assignedTeacherEmail: TEACHER_A,
+    status: 'active',
+    gradesByAssignment: {},
+  };
+  const forgedOverrides = {
+    assignment: {
+      0: { active: true, score: 100 },
+    },
+  };
+
+  await assertFails(setDoc(doc(studentNew(), 'grades/STUDENT_OVERRIDE_NEW'), {
+    ...roster,
+    teacherGradeOverridesByAssignment: forgedOverrides,
+  }));
+  await assertFails(setDoc(doc(teacherA(), 'grades/STUDENT_OVERRIDE_TEACHER_CREATE'), {
+    ...roster,
+    teacherGradeOverridesByAssignment: forgedOverrides,
+  }));
+
+  await assertSucceeds(setDoc(doc(studentNew(), 'grades/STUDENT_OVERRIDE_NEW'), roster));
+});
+
+test('grade override audit history is server-only and cannot be forged or read directly', async () => {
+  const path = 'grades/STUDENT_A/gradeOverrideAudits/audit-1';
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), path), {
+      assignmentId: 'assignment-override-test',
+      questionIndex: 0,
+      previousScore: 50,
+      newScore: 100,
+      actor: { uid: 'server-teacher', email: TEACHER_A },
+    });
+  });
+
+  await assertFails(getDoc(doc(studentA(), path)));
+  await assertFails(getDoc(doc(teacherA(), path)));
+  await assertFails(getDoc(doc(admin(), path)));
+
+  await assertFails(setDoc(doc(studentA(), path), { newScore: 100 }));
+  await assertFails(setDoc(doc(teacherA(), path), { newScore: 100 }));
+  await assertFails(setDoc(doc(admin(), path), { newScore: 100 }));
+});
