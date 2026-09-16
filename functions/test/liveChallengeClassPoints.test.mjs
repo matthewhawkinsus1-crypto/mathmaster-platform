@@ -288,6 +288,15 @@ describe('Live Challenge Achievements → Class Points (Phase 5B Real State)', (
     });
   });
 
+  describe('Deterministic Achievement IDs', () => {
+    it('uses an unambiguous safe hash identity for room, student, and achievement', () => {
+      const first = buildAchievementTransactionId('room:a', 'student', 'strongAccuracy');
+      const second = buildAchievementTransactionId('room', 'a:student', 'strongAccuracy');
+      expect(first).to.not.equal(second);
+      expect(first).to.match(/^lca_[0-9a-f]{32}$/);
+    });
+  });
+
   describe('Roster Authority and Authorization Context', () => {
     it('rejects archived class (status === "archived")', async () => {
       const db = {
@@ -382,9 +391,11 @@ describe('Live Challenge Achievements → Class Points (Phase 5B Real State)', (
 
       const mockDb = {
         collection: () => ({
-          get: async () => ({
-            empty: false,
-            docs,
+          where: () => ({
+            get: async () => ({
+              empty: false,
+              docs,
+            }),
           }),
         }),
         batch: () => {
@@ -417,8 +428,19 @@ describe('Live Challenge Achievements → Class Points (Phase 5B Real State)', (
       expect(indexSource).to.not.include('admin.firestore');
     });
 
-    it('scheduled retry export exists in functions/index.js', () => {
+    it('scheduled retry export exists and handles the unstaged-finish recovery window', () => {
       expect(indexSource).to.include('exports.retryLiveChallengeAchievementJobs = onSchedule');
+      expect(indexSource).to.include('classPointsRecoveryPending');
+      expect(indexSource).to.include('retryPendingLiveChallengeAchievementJobs');
+    });
+
+    it('finish awaits private cleanup only after Class Points staging is durable', () => {
+      expect(indexSource).to.include('classPointsPlanDurable');
+      expect(indexSource).to.include('await deletePrivateChallengeState(db, privateRef, players)');
+    });
+
+    it('permanent student deletion removes Live Challenge achievement job references', () => {
+      expect(indexSource).to.include('cleanupStudentLiveChallengeAchievements(db, studentId)');
     });
 
     it('preproduction reset in functions/lib/admin.js contains liveChallengeAchievementJobs', () => {
