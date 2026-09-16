@@ -180,7 +180,10 @@ export default function ClassPointsAwardDialog({ student, classId, teacherEmail,
                 type="checkbox"
                 checked={announce}
                 disabled={submitting}
-                onChange={(event) => setAnnounce(event.target.checked)}
+                onChange={(event) => {
+                  setAnnounce(event.target.checked);
+                  if (!submitting) requestControllerRef.current.reset();
+                }}
               />
               Celebrate with class
             </label>
