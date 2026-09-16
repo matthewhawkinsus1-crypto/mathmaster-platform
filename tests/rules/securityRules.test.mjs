@@ -890,3 +890,30 @@ test('grade override audit history is server-only and cannot be forged or read d
   await assertFails(setDoc(doc(teacherA(), path), { newScore: 100 }));
   await assertFails(setDoc(doc(admin(), path), { newScore: 100 }));
 });
+
+
+test('response inspection evidence is server-only and cannot be forged or read directly', async () => {
+  const path = 'grades/STUDENT_A/responseInspectionEvidence/assignment-override-test__q0';
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), path), {
+      assignmentId: 'assignment-override-test',
+      questionIndex: 0,
+      submissionId: 'submission-1',
+      variantIndex: 0,
+      totalAttempts: 1,
+      evidence: {
+        schemaVersion: 3,
+        submittedResponse: { kind: 'value', value: '42' },
+        gradingAuthority: 'server',
+      },
+    });
+  });
+
+  await assertFails(getDoc(doc(studentA(), path)));
+  await assertFails(getDoc(doc(teacherA(), path)));
+  await assertFails(getDoc(doc(admin(), path)));
+
+  await assertFails(setDoc(doc(studentA(), path), { evidence: { automaticScore: 100 } }));
+  await assertFails(setDoc(doc(teacherA(), path), { evidence: { automaticScore: 100 } }));
+  await assertFails(setDoc(doc(admin(), path), { evidence: { automaticScore: 100 } }));
+});
