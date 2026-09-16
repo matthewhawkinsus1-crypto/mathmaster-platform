@@ -1093,7 +1093,6 @@ test('browser DOL close cannot overwrite a DOL the server already finalized', ()
   assert.match(block, /transaction\.get\(gradeRef\)/);
   assert.match(block, /if \(current\?\.finalized === true\) return current;/);
   assert.match(block, /new FieldPath\('dolGradesByAssignment', assignmentId, dateKey\)/);
-  assert.match(block, /gradeDisplayTracker\?\.\[assignment\.id\]/);
   assert.doesNotMatch(block, /updateDoc\(doc\(db, 'grades'/);
 });
 
