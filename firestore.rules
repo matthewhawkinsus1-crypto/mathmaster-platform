@@ -96,6 +96,24 @@ service cloud.firestore {
       return request.resource.data.get('testCycleGrades', {}) == {};
     }
 
+    /*
+     * TEACHER GRADE OVERRIDES ARE SERVER-AUTHORITATIVE.
+     *
+     * Ordinary grade documents remain client-writable for existing student and
+     * teacher workflows, so an override cannot live inside a question record
+     * that a browser may rewrite. The server stores the active override in this
+     * top-level map and every client update must preserve it byte-for-byte.
+     * Admin SDK callables bypass rules and are the only writers.
+     */
+    function teacherGradeOverridesUnchanged() {
+      return request.resource.data.get('teacherGradeOverridesByAssignment', {})
+        == resource.data.get('teacherGradeOverridesByAssignment', {});
+    }
+
+    function teacherGradeOverridesAbsentOnCreate() {
+      return request.resource.data.get('teacherGradeOverridesByAssignment', {}) == {};
+    }
+
     function rosterAuthorizationUnchanged() {
       return request.resource.data.get('classId', null) == resource.data.get('classId', null)
         && request.resource.data.get('classPeriod', null) == resource.data.get('classPeriod', null)
@@ -112,15 +130,26 @@ service cloud.firestore {
       allow read: if rootAdmin() || ownsStudent(studentId) || teachesStudent();
       allow update: if (rootAdmin() || ownsStudent(studentId) || teachesStudent())
         && rosterAuthorizationUnchanged()
-        && testCycleGradesUnchanged();
+        && testCycleGradesUnchanged()
+        && teacherGradeOverridesUnchanged();
       // Creation stays open to any teacher: a roster row may be written before
       // the student has been placed in a class, and it carries no work yet.
       // "No work yet" is enforced, not assumed, for the one field that is
       // server-derived — otherwise the update rule's guarantee lasts only until
       // someone deletes and recreates the row, or creates it for the first time.
       allow create: if (teacher() || ownsStudent(studentId))
-        && testCycleGradesAbsentOnCreate();
+        && testCycleGradesAbsentOnCreate()
+        && teacherGradeOverridesAbsentOnCreate();
       allow delete: if false;
+
+      /*
+       * Immutable teacher correction audit. The inspector reads it through the
+       * authenticated callable, so no browser needs direct access and no client
+       * can forge, edit, or delete an audit entry.
+       */
+      match /gradeOverrideAudits/{auditId} {
+        allow read, write: if false;
+      }
 
       match /scratchpads/{scratchpadId} {
         allow read: if rootAdmin() || ownsStudent(studentId) || authorizedTeacher();
