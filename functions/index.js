@@ -913,8 +913,18 @@ function storedAlgebraStepPartialCredit(record) {
   return possible > 0 ? Math.min(90, clampPercent(Math.round((earned / possible) * 100))) : 0;
 }
 
-function getQuestionCredit(record) {
+function getQuestionCredit(record, authoritativeOverride = null) {
   if (!record) return 0;
+  // IMPORTANT: never trust record.gradeOverride here. gradesByAssignment is
+  // client-writable for legacy workflows. Only the separately rule-protected
+  // teacherGradeOverridesByAssignment projection may affect an authoritative
+  // server grade.
+  if (
+    authoritativeOverride?.active === true
+    && Number.isFinite(Number(authoritativeOverride.score))
+  ) {
+    return clampPercent(authoritativeOverride.score) / 100;
+  }
   if (record.status === "correct") return 1;
   const stored = clampPercent(record.bestPartialCredit ?? record.partialCredit ?? 0);
   const derived = storedAlgebraStepPartialCredit(record);
@@ -933,19 +943,32 @@ function questionWasAttempted(record) {
   return clampPercent(record.bestPartialCredit ?? record.partialCredit ?? 0) > 0;
 }
 
-function calculateAssignmentGrade(assignmentTracker, questionIndices, questions = []) {
+function calculateAssignmentGrade(
+  assignmentTracker,
+  questionIndices,
+  questions = [],
+  authoritativeOverrides = {},
+) {
   const indices = Array.isArray(questionIndices) ? questionIndices : [];
   if (!indices.length) return 0;
   const weighted = weightedQuestionTotals({
     tracker: assignmentTracker,
     questions,
     indices,
-    creditForRecord: getQuestionCredit,
+    creditForRecord: (record, index) => getQuestionCredit(
+      record,
+      authoritativeOverrides?.[String(index)] ?? authoritativeOverrides?.[index] ?? null,
+    ),
   });
   return weighted.score ?? 0;
 }
 
-function assignmentGradeProgress(assignmentTracker, questionIndices, questions = []) {
+function assignmentGradeProgress(
+  assignmentTracker,
+  questionIndices,
+  questions = [],
+  authoritativeOverrides = {},
+) {
   const indices = Array.isArray(questionIndices) ? questionIndices : [];
   const attempted = indices.filter((index) => questionWasAttempted(assignmentTracker?.[index])).length;
   const terminal = indices.filter((index) => isQuestionTerminal(assignmentTracker?.[index])).length;
@@ -953,7 +976,10 @@ function assignmentGradeProgress(assignmentTracker, questionIndices, questions =
     tracker: assignmentTracker,
     questions,
     indices,
-    creditForRecord: getQuestionCredit,
+    creditForRecord: (record, index) => getQuestionCredit(
+      record,
+      authoritativeOverrides?.[String(index)] ?? authoritativeOverrides?.[index] ?? null,
+    ),
     attemptedForRecord: questionWasAttempted,
   });
   const minimumProgressQuestions = indices.length
