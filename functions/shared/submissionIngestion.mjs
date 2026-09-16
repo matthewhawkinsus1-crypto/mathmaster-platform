@@ -57,7 +57,10 @@ import {
   classifyCapturedSubmission,
   sectionWasOpenAtCapture,
 } from './studentSubmissionDisposition.mjs';
-import { captureAutomaticGradingEvidence } from './responseInspector.mjs';
+import {
+  captureAutomaticGradingEvidence,
+  responseInspectionEvidenceDocumentId,
+} from './responseInspector.mjs';
 
 export const SUBMISSION_ENVELOPE_SCHEMA_VERSION = 1;
 
@@ -385,6 +388,17 @@ export const decideSubmissionIngestion = ({
  */
 const ATTEMPT_STATUSES = new Set(['unattempted', 'attempted', 'correct', 'expired']);
 
+const stripNonCanonicalInspectionFields = (record = {}) => {
+  const {
+    gradeOverride: _gradeOverride,
+    gradeAuditHistory: _gradeAuditHistory,
+    teacherGradeOverrideDisplay: _teacherGradeOverrideDisplay,
+    gradingEvidence: _gradingEvidence,
+    ...clean
+  } = record;
+  return clean;
+};
+
 /*
  * A REPLACEMENT QUESTION IS ALLOWED TO RESET THE ATTEMPT HISTORY.
  *
@@ -408,22 +422,8 @@ const replacementResetIsAuthorized = ({ envelope, canonical, claimed }) => (
 );
 
 export const sanitizeClientAttemptRecord = ({ envelope, canonicalRecord, maximumAttempts }) => {
-  const stripOverrideFields = (record = {}) => {
-    const {
-      gradeOverride: _gradeOverride,
-      gradeAuditHistory: _gradeAuditHistory,
-      teacherGradeOverrideDisplay: _teacherGradeOverrideDisplay,
-      ...clean
-    } = record;
-    return clean;
-  };
-  const canonical = stripOverrideFields(normalizeQuestionRecord(canonicalRecord));
-  const claimedNormalized = normalizeQuestionRecord(envelope.record);
-  const {
-    gradingEvidence: _claimedGradingEvidence,
-    ...claimedWithoutEvidence
-  } = claimedNormalized;
-  const claimed = stripOverrideFields(claimedWithoutEvidence);
+  const canonical = stripNonCanonicalInspectionFields(normalizeQuestionRecord(canonicalRecord));
+  const claimed = stripNonCanonicalInspectionFields(normalizeQuestionRecord(envelope.record));
   const resetting = replacementResetIsAuthorized({ envelope, canonical, claimed });
 
   if (resetting) {
@@ -508,7 +508,7 @@ export const buildIngestedAttempt = ({
   ingestedAt = Date.now(),
   timeZone = SCHOOL_TIME_ZONE,
 } = {}) => {
-  const canonical = normalizeQuestionRecord(canonicalRecord);
+  const canonical = stripNonCanonicalInspectionFields(normalizeQuestionRecord(canonicalRecord));
   const academicAt = occurredAt === null || occurredAt === undefined
     ? resolveAcademicOccurrenceAt({ envelope, assignment, ingestedAt })
     : finite(occurredAt, ingestedAt);
@@ -555,8 +555,21 @@ export const buildIngestedAttempt = ({
     gradedBy = 'client';
   }
 
+  const cleanRecord = stripNonCanonicalInspectionFields(record);
+  const gradingEvidence = envelope.response
+    ? captureAutomaticGradingEvidence({
+      response: envelope.response,
+      grading: { ...result, isCorrect: cleanRecord.status === 'correct', parts: cleanRecord.partGrades },
+      question,
+      submittedAt: new Date(academicAt).toISOString(),
+      source: envelope.kind,
+      gradingAuthority: gradedBy === 'server' ? 'server' : 'client-record-sanitized',
+      graderVersion: gradedBy === 'server' ? 'ordinary-response-v3' : 'client-attempt-record-v1',
+    })
+    : null;
+
   const stamped = {
-    ...record,
+    ...cleanRecord,
     lastSubmissionId: envelope.actionId,
     submissionOrigin: 'server-ingestion',
     gradedBy,
@@ -566,18 +579,6 @@ export const buildIngestedAttempt = ({
     academicOccurredAt: new Date(academicAt).toISOString(),
     ingestedAt: new Date(finite(ingestedAt, Date.now())).toISOString(),
     recoveredLate: finite(ingestedAt, Date.now()) - academicAt > 60_000 ? true : null,
-    // Grading evidence is server-authored only. A client-carried record may
-    // contain arbitrary unknown fields, so never retain a claimed evidence
-    // object when there is no raw response to capture on the server.
-    gradingEvidence: envelope.response
-      ? captureAutomaticGradingEvidence({
-        response: envelope.response,
-        grading: { ...result, isCorrect: record.status === 'correct', parts: record.partGrades },
-        question,
-        submittedAt: new Date(academicAt).toISOString(),
-        source: envelope.kind,
-      })
-      : null,
   };
 
   const assignmentId = trimmed(envelope.assignmentId);
@@ -639,6 +640,11 @@ export const buildIngestedAttempt = ({
     record: stamped,
     result,
     gradedBy,
+    gradingEvidence,
+    gradingEvidenceDocumentId: responseInspectionEvidenceDocumentId({
+      assignmentId,
+      questionIndex: envelope.questionIndex,
+    }),
     evidenceEvent,
     assignmentTracker,
     classworkGrade,
