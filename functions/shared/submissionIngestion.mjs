@@ -408,8 +408,22 @@ const replacementResetIsAuthorized = ({ envelope, canonical, claimed }) => (
 );
 
 export const sanitizeClientAttemptRecord = ({ envelope, canonicalRecord, maximumAttempts }) => {
-  const canonical = normalizeQuestionRecord(canonicalRecord);
-  const claimed = normalizeQuestionRecord(envelope.record);
+  const stripOverrideFields = (record = {}) => {
+    const {
+      gradeOverride: _gradeOverride,
+      gradeAuditHistory: _gradeAuditHistory,
+      teacherGradeOverrideDisplay: _teacherGradeOverrideDisplay,
+      ...clean
+    } = record;
+    return clean;
+  };
+  const canonical = stripOverrideFields(normalizeQuestionRecord(canonicalRecord));
+  const claimedNormalized = normalizeQuestionRecord(envelope.record);
+  const {
+    gradingEvidence: _claimedGradingEvidence,
+    ...claimedWithoutEvidence
+  } = claimedNormalized;
+  const claimed = stripOverrideFields(claimedWithoutEvidence);
   const resetting = replacementResetIsAuthorized({ envelope, canonical, claimed });
 
   if (resetting) {
@@ -552,6 +566,9 @@ export const buildIngestedAttempt = ({
     academicOccurredAt: new Date(academicAt).toISOString(),
     ingestedAt: new Date(finite(ingestedAt, Date.now())).toISOString(),
     recoveredLate: finite(ingestedAt, Date.now()) - academicAt > 60_000 ? true : null,
+    // Grading evidence is server-authored only. A client-carried record may
+    // contain arbitrary unknown fields, so never retain a claimed evidence
+    // object when there is no raw response to capture on the server.
     gradingEvidence: envelope.response
       ? captureAutomaticGradingEvidence({
         response: envelope.response,
@@ -560,7 +577,7 @@ export const buildIngestedAttempt = ({
         submittedAt: new Date(academicAt).toISOString(),
         source: envelope.kind,
       })
-      : (record.gradingEvidence || null),
+      : null,
   };
 
   const assignmentId = trimmed(envelope.assignmentId);
