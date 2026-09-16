@@ -5,7 +5,18 @@ import { dolSectionProjection } from './assignmentProjections.mjs';
 import { readWorkspaceDraftEntries } from './workspaceDraftSchema.mjs';
 
 export const GRADER_VERSION = 'ordinary-response-v3';
-export const GRADING_EVIDENCE_VERSION = 2;
+export const GRADING_EVIDENCE_VERSION = 3;
+export const RESPONSE_INSPECTION_EVIDENCE_COLLECTION = 'responseInspectionEvidence';
+
+export const responseInspectionEvidenceDocumentId = ({ assignmentId, questionIndex } = {}) => {
+  const assignment = encodeURIComponent(String(assignmentId ?? '').trim());
+  const index = Number(questionIndex);
+  if (!assignment || !Number.isInteger(index) || index < 0) {
+    throw new Error('Response inspection evidence requires assignment and question identity.');
+  }
+  return `${assignment}__q${index}`.slice(0, 1400);
+};
+
 export const NORMALIZED_UNAVAILABLE = 'Unavailable — grader does not expose normalized representation';
 export const EXPECTED_UNAVAILABLE = 'Unavailable — authoritative delivered question instance was not retained.';
 export const OVERRIDE_REASONS = Object.freeze([
@@ -91,6 +102,8 @@ export const captureAutomaticGradingEvidence = ({
   submittedAt,
   source = 'manual-submit',
   deliveredInstanceAuthority = null,
+  gradingAuthority = 'server',
+  graderVersion = GRADER_VERSION,
 } = {}) => ({
   schemaVersion: GRADING_EVIDENCE_VERSION,
   submittedResponse: structuredClone(response ?? null),
@@ -111,7 +124,8 @@ export const captureAutomaticGradingEvidence = ({
   automaticScore: scoreGradingResult(grading),
   submittedAt: submittedAt || new Date().toISOString(),
   source,
-  graderVersion: GRADER_VERSION,
+  gradingAuthority,
+  graderVersion,
   contentVersion: question?.contentVersion ?? question?.version ?? null,
   answerKeyVersion: question?.answerKeyVersion ?? question?.version ?? null,
   deliveredInstanceAuthority: deliveredInstanceAuthority?.authoritative === true
@@ -186,15 +200,33 @@ export const automaticQuestionScore = (record) => Math.round(
   getQuestionCredit({ ...normalizeQuestionRecord(record), gradeOverride: null }) * 100,
 );
 
+export const overrideAppliesToRecord = (record, override = null) => {
+  if (override?.active !== true || !Number.isFinite(Number(override.score))) return false;
+  const recordAttempts = Number(record?.totalAttempts ?? record?.attemptCount ?? 0);
+  const overrideAttempts = Number(override?.totalAttempts);
+  if (!Number.isFinite(overrideAttempts) || overrideAttempts !== recordAttempts) return false;
+  const recordVariant = Number(record?.variantIndex ?? 0);
+  const overrideVariant = Number(override?.variantIndex);
+  if (!Number.isFinite(overrideVariant) || overrideVariant !== recordVariant) return false;
+
+  const overrideSubmissionId = String(override?.submissionId || '');
+  if (overrideSubmissionId) {
+    return overrideSubmissionId === String(record?.lastSubmissionId || '');
+  }
+  const overrideLastAttemptAt = String(override?.lastAttemptAt || '');
+  return Boolean(overrideLastAttemptAt)
+    && overrideLastAttemptAt === String(record?.lastAttemptAt || record?.academicOccurredAt || '');
+};
+
 export const effectiveQuestionScore = (record, override = null) => (
-  override?.active === true && Number.isFinite(Number(override.score))
+  overrideAppliesToRecord(record, override)
     ? clamp(override.score)
     : automaticQuestionScore(record)
 );
 
 export const effectiveGradeStatus = (record, override = null) => {
   const score = effectiveQuestionScore(record, override);
-  const overridden = override?.active === true;
+  const overridden = overrideAppliesToRecord(record, override);
   return {
     score,
     overridden,
@@ -239,7 +271,7 @@ export const authoritativeQuestionForInspection = ({ question, evidence } = {}) 
 };
 
 export const replayResponse = ({ question, attemptRecord, gradingEvidence } = {}) => {
-  const evidence = gradingEvidence || attemptRecord?.gradingEvidence;
+  const evidence = gradingEvidence || null;
   if (!evidence?.submittedResponse) {
     return {
       available: false,
@@ -305,9 +337,10 @@ export const replayResponse = ({ question, attemptRecord, gradingEvidence } = {}
   };
 };
 
-export const replayStoredResponse = ({ question, record } = {}) => replayResponse({
+export const replayStoredResponse = ({ question, record, gradingEvidence = null } = {}) => replayResponse({
   question,
   attemptRecord: record,
+  gradingEvidence,
 });
 
 const submittedFieldMap = (submitted) => {
@@ -363,8 +396,13 @@ const comparableWorkspaceResponse = (workspace, submitted) => {
   return { comparable: false, equal: null };
 };
 
-export const diagnoseResponse = ({ record, workspace = null, replay = null } = {}) => {
-  const evidence = record?.gradingEvidence;
+export const diagnoseResponse = ({
+  record,
+  workspace = null,
+  replay = null,
+  gradingEvidence = null,
+} = {}) => {
+  const evidence = gradingEvidence;
   const submitted = evidence?.submittedResponse;
   if (!submitted) {
     return legacyRecordedResponse(record)
@@ -458,11 +496,12 @@ export const buildInspectorModel = ({
   record,
   workspace = null,
   override = null,
+  gradingEvidence = null,
   auditHistory = [],
 } = {}) => {
-  const evidence = record?.gradingEvidence || null;
+  const evidence = gradingEvidence || null;
   const authority = authoritativeQuestionForInspection({ question, evidence });
-  const replay = replayStoredResponse({ question, record });
+  const replay = replayStoredResponse({ question, record, gradingEvidence: evidence });
   const legacy = evidence?.submittedResponse ? null : legacyRecordedResponse(record);
   const teacherTrace = evidence?.submittedResponse && authority.authoritative
     ? buildGradingTrace({
@@ -494,7 +533,7 @@ export const buildInspectorModel = ({
     automaticScore: evidence?.automaticScore ?? automaticQuestionScore(record),
     assignedScore: effectiveQuestionScore(record, override),
     effectiveStatus: effectiveGradeStatus(record, override),
-    override: override?.active ? override : null,
+    override: overrideAppliesToRecord(record, override) ? override : null,
     states: {
       rawInput: null,
       workspace,
@@ -523,17 +562,13 @@ export const buildInspectorModel = ({
       grader: evidence?.graderVersion ?? null,
     },
     replay,
-    diagnosis: diagnoseResponse({ record, workspace, replay }),
+    diagnosis: diagnoseResponse({ record, workspace, replay, gradingEvidence: evidence }),
     auditHistory: list(auditHistory),
   };
 };
 
 export const scoreWithFieldOverride = (record, overrides) => {
-  const parts = (
-    list(record?.gradingEvidence?.automaticResult?.parts).length
-      ? record.gradingEvidence.automaticResult.parts
-      : list(record?.partGrades)
-  ).filter((part) => part?.graded !== false);
+  const parts = list(record?.partGrades).filter((part) => part?.graded !== false);
   if (!parts.length) throw new Error('Part-level credit is unavailable for this historical attempt.');
   let earned = 0;
   let possible = 0;
@@ -571,14 +606,11 @@ export const buildGradeOverride = ({
   if (!Number.isFinite(requested) || requested < 0 || requested > 100) {
     throw new Error('Score must be between 0 and 100.');
   }
+  const previousApplies = overrideAppliesToRecord(record, previousOverride);
   const previousScore = effectiveQuestionScore(record, previousOverride);
-  const fieldOverrides = { ...(previousOverride?.fieldOverrides || {}) };
+  const fieldOverrides = { ...(previousApplies ? previousOverride?.fieldOverrides : {}) };
   if (fieldId) {
-    const parts = (
-      list(record?.gradingEvidence?.automaticResult?.parts).length
-        ? record.gradingEvidence.automaticResult.parts
-        : list(record?.partGrades)
-    ).filter((part) => part?.graded !== false);
+    const parts = list(record?.partGrades).filter((part) => part?.graded !== false);
     if (!parts.some((part) => String(part?.id) === String(fieldId))) {
       throw new Error('That response part is not available for a part-level override.');
     }
@@ -613,6 +645,10 @@ export const buildGradeOverride = ({
       updatedAt: at,
       source,
       automaticScore: automaticQuestionScore(record),
+      submissionId: record?.lastSubmissionId ? String(record.lastSubmissionId) : null,
+      lastAttemptAt: record?.lastAttemptAt || record?.academicOccurredAt || null,
+      variantIndex: Number(record?.variantIndex ?? 0),
+      totalAttempts: Number(record?.totalAttempts ?? record?.attemptCount ?? 0),
     },
     audit,
   };
@@ -628,7 +664,9 @@ export const restoreAutomaticScore = ({
 } = {}) => {
   if (!OVERRIDE_REASONS.includes(reason)) throw new Error('A valid override reason is required.');
   if (!actor?.uid) throw new Error('An authenticated teacher identity is required.');
-  if (previousOverride?.active !== true) throw new Error('There is no active teacher override to restore.');
+  if (!overrideAppliesToRecord(record, previousOverride)) {
+    throw new Error('There is no active teacher override for this submitted attempt to restore.');
+  }
   const automaticScore = automaticQuestionScore(record);
   return {
     override: null,
