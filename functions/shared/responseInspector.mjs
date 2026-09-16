@@ -122,7 +122,9 @@ export const captureAutomaticGradingEvidence = ({
     };
   })(),
   automaticResult: structuredClone(grading ?? null),
-  automaticScore: Number.isFinite(Number(automaticScore))
+  automaticScore: automaticScore !== null
+    && automaticScore !== undefined
+    && Number.isFinite(Number(automaticScore))
     ? clamp(automaticScore)
     : scoreGradingResult(grading),
   submittedAt: submittedAt || new Date().toISOString(),
