@@ -42,6 +42,11 @@ export const GRADE_SHAPE = Object.freeze({
   NOT_STARTED: 'notStarted',
   INCOMPLETE: 'incomplete',
   COMPLETE: 'complete',
+  // A Practice Pass waiver, never a score. See splitGradesBySection: the
+  // waived section is removed from the grade denominator entirely (it is not
+  // "complete" and it is not "0 of N attempted") and shown here only so a
+  // screen can say plainly that it was excused, not skipped.
+  EXCUSED: 'excused',
 });
 
 export const SECTION_GRADE_KEYS = Object.freeze([
@@ -59,6 +64,28 @@ const emptyGradeSplit = () => ({
   creditOnAttempted: null,
   shape: GRADE_SHAPE.NOT_STARTED,
 });
+
+/**
+ * A Practice Pass waiver's split. `total` keeps the real question count (so a
+ * screen can still say "3 questions excused") but `score`/`attempted` stay at
+ * their unearned defaults -- a waiver is never rewritten into a 100, into
+ * attempts, or into evidence. See STRICT ACADEMIC BOUNDARIES in the Phase 5A
+ * spec this implements.
+ */
+const excusedGradeSplit = (total) => ({
+  score: null,
+  attempted: 0,
+  total,
+  unanswered: 0,
+  creditOnAttempted: null,
+  shape: GRADE_SHAPE.EXCUSED,
+  excused: true,
+});
+
+/** The Practice section's current-content storage indices, from the projection every caller here already builds. */
+const practiceIndicesOf = (projection) => projection.entries
+  .filter((entry) => entry.logicalRole === 'practice')
+  .map((entry) => entry.storageIndex);
 
 // The one place question credit and question weight are combined. Both
 // splitGrade() and gradeWeightTotals() go through it, so a grade and the raw
@@ -102,9 +129,18 @@ const splitGradeForIndices = ({ tracker = null, questions = [], indices = [] } =
  * `score` is exactly what the gradebook has always shown — unchanged, and
  * deliberately so. Everything else is context around it.
  */
-export const splitGrade = ({ tracker = null, assignment = null } = {}) => {
+/**
+ * `practicePassRedeemed` removes Practice's current-content indices from the
+ * denominator entirely -- the ONE thing a granted Practice Pass may do to a
+ * grade. It never adds a score, an attempt, or evidence; see
+ * splitGradesBySection for where the waiver is actually shown.
+ */
+export const splitGrade = ({ tracker = null, assignment = null, practicePassRedeemed = false } = {}) => {
   const projection = projectCurrentAssignmentContent(assignment);
-  const included = projection.entries.map((entry) => entry.storageIndex);
+  const waived = practicePassRedeemed ? new Set(practiceIndicesOf(projection)) : null;
+  const included = projection.entries
+    .map((entry) => entry.storageIndex)
+    .filter((index) => !waived || !waived.has(index));
   const questions = getStoredAssignmentQuestions(assignment);
   return splitGradeForIndices({ tracker, questions, indices: included });
 };
@@ -124,9 +160,12 @@ export const splitGrade = ({ tracker = null, assignment = null } = {}) => {
  * split is what the teacher gradebook renders, and nothing about one
  * assignment's own grade needs raw weights.
  */
-export const gradeWeightTotals = ({ tracker = null, assignment = null } = {}) => {
+export const gradeWeightTotals = ({ tracker = null, assignment = null, practicePassRedeemed = false } = {}) => {
   const projection = projectCurrentAssignmentContent(assignment);
-  const indices = projection.entries.map((entry) => entry.storageIndex);
+  const waived = practicePassRedeemed ? new Set(practiceIndicesOf(projection)) : null;
+  const indices = projection.entries
+    .map((entry) => entry.storageIndex)
+    .filter((index) => !waived || !waived.has(index));
   const weighted = gradeWeightsForIndices({
     tracker,
     questions: getStoredAssignmentQuestions(assignment),
@@ -150,20 +189,19 @@ export const gradeWeightTotals = ({ tracker = null, assignment = null } = {}) =>
  * section partitioning. A missing section stays empty rather than borrowing a
  * score from another section.
  */
-export const splitGradesBySection = ({ tracker = null, assignment = null } = {}) => {
+export const splitGradesBySection = ({ tracker = null, assignment = null, practicePassRedeemed = false } = {}) => {
   const projection = projectCurrentAssignmentContent(assignment);
   const questions = getStoredAssignmentQuestions(assignment);
 
-  return Object.fromEntries(SECTION_GRADE_KEYS.map((sectionKey) => [
-    sectionKey,
-    splitGradeForIndices({
-      tracker,
-      questions,
-      indices: projection.entries
-        .filter((entry) => entry.logicalRole === sectionKey)
-        .map((entry) => entry.storageIndex),
-    }),
-  ]));
+  return Object.fromEntries(SECTION_GRADE_KEYS.map((sectionKey) => {
+    const indices = projection.entries
+      .filter((entry) => entry.logicalRole === sectionKey)
+      .map((entry) => entry.storageIndex);
+    if (sectionKey === 'practice' && practicePassRedeemed && indices.length) {
+      return [sectionKey, excusedGradeSplit(indices.length)];
+    }
+    return [sectionKey, splitGradeForIndices({ tracker, questions, indices })];
+  }));
 };
 
 /**
@@ -177,6 +215,7 @@ export const splitGradesBySection = ({ tracker = null, assignment = null } = {})
 export const explainGrade = (split) => {
   if (!split || split.total === 0) return null;
   if (split.shape === GRADE_SHAPE.COMPLETE) return null;
+  if (split.shape === GRADE_SHAPE.EXCUSED) return null;
   if (split.shape === GRADE_SHAPE.NOT_STARTED) {
     return `Not attempted. This is a ${split.total}-question assignment with no answers recorded — a completion gap, not a performance one.`;
   }

@@ -104,6 +104,7 @@ import {
   getCurrentContentQuestionIndices,
   getIncludedQuestionIndices,
   questionIsIncluded,
+  studentAssignmentIndicesWithPracticePass,
 } from './assignmentLifecycle';
 import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
 import {
@@ -262,9 +263,12 @@ import StudentAssignmentResult from './components/student/StudentAssignmentResul
 import StudentIdentityBar, { STUDENT_IDENTITY_STACK_OFFSET } from './components/student/StudentIdentityBar.jsx';
 import {
   emptyClassPointAccount,
+  redeemPracticePass as redeemPracticePassCallable,
   subscribeToClassPointAnnouncements,
+  subscribeToPracticePassRedemptions,
   subscribeToStudentClassPoints,
 } from './platform/classPointsClient.js';
+import { practicePassEligibleAssignments } from './platform/rewards/practicePassClientEligibility.js';
 
 import {
   buildStudentGradeCenter,
@@ -590,9 +594,11 @@ function App() {
   // the auth layer says is signed in.
   const { toastSuccess, toastError, toastInfo, toastWarning, confirm: confirmAction } = useToast();
   const [user, setUser] = useState(null);
-  const [studentClassPoints, setStudentClassPoints] = useState({
-    account: emptyClassPointAccount(), transactions: [], announcements: [], unavailable: true,
+  const emptyStudentClassPoints = () => ({
+    account: emptyClassPointAccount(), transactions: [], announcements: [], redemptionsByAssignment: {}, unavailable: true,
   });
+  const [studentClassPoints, setStudentClassPoints] = useState(emptyStudentClassPoints());
+  const [redeemingPracticePass, setRedeemingPracticePass] = useState(false);
   const [sessionHydrating, setSessionHydrating] = useState(false);
   const [sessionHydrationError, setSessionHydrationError] = useState(null);
 
@@ -600,10 +606,10 @@ function App() {
     // Teacher Preview and synthetic student views can never cross this role gate.
     // A student without canonical class membership also creates no query.
     if (user?.role !== 'student' || !user.id || !user.classId) {
-      setStudentClassPoints({ account: emptyClassPointAccount(), transactions: [], announcements: [], unavailable: true });
+      setStudentClassPoints(emptyStudentClassPoints());
       return undefined;
     }
-    setStudentClassPoints({ account: emptyClassPointAccount(), transactions: [], announcements: [], unavailable: true });
+    setStudentClassPoints(emptyStudentClassPoints());
     let walletFailed = false;
     const unavailable = (error) => {
       walletFailed = true;
@@ -625,8 +631,41 @@ function App() {
       // A public celebration feed failure must not hide an otherwise healthy private wallet.
       onError: (error) => console.warn('Class celebrations are temporarily unavailable:', error),
     });
-    return () => { unsubscribeWallet(); unsubscribeAnnouncements(); };
+    // The authoritative Practice Pass waiver projection for this student+class.
+    // Read-only here -- redeeming one goes only through redeemPracticePassCallable.
+    const unsubscribeRedemptions = subscribeToPracticePassRedemptions({
+      db,
+      studentId: user.id,
+      classId: user.classId,
+      onRedemptions: (redemptionsByAssignment) => setStudentClassPoints((current) => ({ ...current, redemptionsByAssignment })),
+      onError: (error) => console.warn('Practice Pass redemptions are temporarily unavailable:', error),
+    });
+    return () => { unsubscribeWallet(); unsubscribeAnnouncements(); unsubscribeRedemptions(); };
   }, [user?.role, user?.id, user?.classId]);
+
+  const handleRedeemPracticePass = async (assignmentId) => {
+    setRedeemingPracticePass(true);
+    try {
+      await redeemPracticePassCallable({ assignmentId });
+    } finally {
+      setRedeemingPracticePass(false);
+    }
+  };
+
+  /*
+   * THE ONE PLACE THE STUDENT RUNTIME ASKS "IS PRACTICE EXCUSED HERE?"
+   *
+   * Reads the authoritative subscription only -- never Teacher Preview, which
+   * has no student redemption to read and must keep showing every current-
+   * content question exactly as authored. Every required-navigation/
+   * completion site in the student runtime (startAssignment, the active-
+   * question correction effect, live presence, the workspace question count)
+   * calls this rather than re-reading `studentClassPoints` itself, so the
+   * "which assignment" and "which student" scoping cannot drift between them.
+   */
+  const hasPracticePassFor = (assignmentId) => (
+    user?.role === 'student' && Boolean(studentClassPoints.redemptionsByAssignment?.[assignmentId])
+  );
 
   // Google Classroom launches preserve the server-verified publication and
   // section identity all the way into the browser. Legacy whole-assignment
@@ -988,9 +1027,37 @@ function App() {
       classworkGradesByAssignment,
       gradingPeriodSettings,
       classroomSyncStatusByAssignment,
+      practicePassRedemptionsByAssignment: studentClassPoints.redemptionsByAssignment,
       providers: { assignmentHasHeldTeacherFeedback, prerequisiteAccess },
     });
-  }, [user, assignments, now, gradeDisplayTracker, testCycleGrades, classworkGradesByAssignment, gradingPeriodSettings, classroomSyncStatusByAssignment]);
+  }, [
+    user, assignments, now, gradeDisplayTracker, testCycleGrades, classworkGradesByAssignment,
+    gradingPeriodSettings, classroomSyncStatusByAssignment, studentClassPoints.redemptionsByAssignment,
+  ]);
+
+  /*
+   * WHICH ASSIGNMENTS THE WALLET OFFERS, AND THE ONE DOOR THAT SPENDS POINTS.
+   *
+   * `practicePassEligibleAssignments` is a best-effort UX filter over data this
+   * component already holds for the dashboard (`assignments`,
+   * `gradeDisplayTracker`) -- it never decides eligibility. `redeemPracticePass`
+   * (functions/index.js) independently re-verifies everything before it ever
+   * spends a point; a refusal surfaces through the wallet's own inline error
+   * state, and the balance shown never moves until the authoritative account
+   * subscription above updates it.
+   */
+  const studentPracticePassEligibleAssignments = useMemo(() => (
+    user?.role === 'student' && user.id && user.classId
+      ? practicePassEligibleAssignments({
+        assignments,
+        classId: user.classId,
+        classPeriod: user.classPeriod,
+        tracker: gradeDisplayTracker,
+        redemptionsByAssignment: studentClassPoints.redemptionsByAssignment,
+        nowValue: now,
+      })
+      : []
+  ), [user, assignments, gradeDisplayTracker, studentClassPoints.redemptionsByAssignment, now]);
 
   // The signed-in student's own Student Learning Profile, built from the same
   // evidence their teacher's roster reads. Assignment adaptation needs the DOK
@@ -2506,12 +2573,12 @@ function App() {
     return splitGrade({ tracker: assignmentTracker, assignment: assignmentData }).score ?? 0;
   };
 
-  const calculatePracticeProgress = (assignmentTracker, assignmentData) => {
+  const calculatePracticeProgress = (assignmentTracker, assignmentData, { hasPracticePass = false } = {}) => {
     if (!assignmentTracker || !getStoredAssignmentQuestions(assignmentData).length) {
       return { attempted: 0, correct: 0, total: 0 };
     }
 
-    const included = getCurrentContentQuestionIndices(assignmentData);
+    const included = studentAssignmentIndicesWithPracticePass({ assignment: assignmentData, hasPracticePass });
     let attempted = 0;
     let correct = 0;
     included.forEach((index) => {
@@ -2882,12 +2949,30 @@ function App() {
 
   useEffect(() => {
     if (!activeQuestions.length) return;
-    const included = getCurrentContentQuestionIndices(activeAssignmentData);
+    // Teacher Preview has no student redemption to read and must keep seeing
+    // every current-content question exactly as authored.
+    const included = studentAssignmentIndicesWithPracticePass({
+      assignment: activeAssignmentData,
+      hasPracticePass: !isTeacherPreview
+        && !isPracticeMode
+        && hasPracticePassFor(activeAssignmentId),
+    });
     if (!included.length) return;
     if (!included.includes(currentQuestionIndex)) {
-      setCurrentQuestionIndex(resolveCurrentContentStorageIndex(activeAssignmentData, currentQuestionIndex) ?? included[0]);
+      const resolved = resolveCurrentContentStorageIndex(activeAssignmentData, currentQuestionIndex);
+      // `resolved` is resolved against the FULL current-content projection and
+      // can itself be a waived Practice index (a real current-content question,
+      // just not one this student may be required into) -- never land there.
+      setCurrentQuestionIndex(resolved !== null && included.includes(resolved) ? resolved : included[0]);
     }
-  }, [activeAssignmentData, currentQuestionIndex]);
+  }, [
+    activeAssignmentData,
+    activeAssignmentId,
+    currentQuestionIndex,
+    isTeacherPreview,
+    isPracticeMode,
+    studentClassPoints.redemptionsByAssignment,
+  ]);
 
   // A question change should feel like changing pages, not like loading the
   // next page at the old scroll position. This matters most on phones where
@@ -2969,7 +3054,12 @@ function App() {
       liveSessionActiveSecondsRef.current = { assignmentId: activeAssignmentId, seconds: 0 };
     }
 
-    const included = getCurrentContentQuestionIndices(activeAssignmentData);
+    // This effect already runs only for a real signed-in student (guarded
+    // above), so a granted Practice Pass for this assignment always applies.
+    const included = studentAssignmentIndicesWithPracticePass({
+      assignment: activeAssignmentData,
+      hasPracticePass: !isPracticeMode && hasPracticePassFor(activeAssignmentId),
+    });
     if (liveSessionAttemptBaselineRef.current.assignmentId !== activeAssignmentId) {
       liveSessionAttemptBaselineRef.current = {
         assignmentId: activeAssignmentId,
@@ -3053,6 +3143,7 @@ function App() {
   }, [
     user, isStudentAssignment, activeAssignmentId, activeAssignmentData,
     currentQuestionIndex, activeWorkingTracker, activeQuestionRole,
+    studentClassPoints.redemptionsByAssignment,
   ]);
 
   useEffect(() => {
@@ -3919,23 +4010,54 @@ function App() {
     }
 
     const currentContent = projectCurrentAssignmentContent(assignmentData);
-    // A Test Cycle stage sees only its own questions. Nothing filters this for
-    // an ordinary assignment, which keeps every existing assignment identical.
+    const requestedSectionKey = String(options?.sectionKey || '').trim().toLowerCase();
+    const scopedSectionKey = ['warmup', 'classwork', 'practice', 'dol'].includes(requestedSectionKey)
+      ? requestedSectionKey
+      : null;
+
+    /*
+     * A GRANTED PRACTICE PASS EXCUSES PRACTICE FROM REQUIRED NAVIGATION.
+     *
+     * A Test Cycle assignment can never carry a Practice Pass (it is not
+     * eligible for one -- see classPointRewards.mjs), so `cycleStage` and
+     * `hasPracticePass` are mutually exclusive in practice; the `!cycleStage`
+     * guard just keeps that explicit. Explicitly asking to open Practice as
+     * required graded work is refused outright, never reopened as graded
+     * Practice -- voluntary post-deadline practice is a completely separate
+     * tracker this never touches.
+     */
+    const hasPracticePass = !cycleStage
+      && !lifecycle.isPracticeOnly
+      && hasPracticePassFor(assignmentId);
+    if (scopedSectionKey === 'practice' && hasPracticePass) {
+      toastInfo('Practice excused', 'Practice is already excused with your Practice Pass.');
+      return;
+    }
+
+    // A Test Cycle stage sees only its own questions. A granted Practice Pass
+    // removes Practice's own current-content questions the same way. Neither
+    // filter applies to Teacher Preview or an ordinary un-redeemed assignment,
+    // which keeps every existing assignment identical.
     const stageEntries = cycleStage
       ? currentContent.entries.filter((entry) => entry.logicalRole === cycleStage)
-      : currentContent.entries;
+      : hasPracticePass
+        ? currentContent.entries.filter((entry) => entry.logicalRole !== 'practice')
+        : currentContent.entries;
     const includedQuestionIndices = stageEntries.map((entry) => entry.storageIndex);
     if (!includedQuestionIndices.length) {
       toastWarning('Nothing to show yet', 'This assignment does not currently contain any included questions.');
       return;
     }
     const requested = Number(requestedQuestionIndex) || 0;
-    const safeQuestionIndex = resolveCurrentContentStorageIndex(assignmentData, requested)
+    let safeQuestionIndex = resolveCurrentContentStorageIndex(assignmentData, requested)
       ?? includedQuestionIndices[0];
-    const requestedSectionKey = String(options?.sectionKey || '').trim().toLowerCase();
-    const scopedSectionKey = ['warmup', 'classwork', 'practice', 'dol'].includes(requestedSectionKey)
-      ? requestedSectionKey
-      : null;
+    // A requested index resolved against the FULL projection could still land
+    // on a waived Practice question (e.g. resuming exactly where a Classroom
+    // link or the Grade Center last left off) even when no section was
+    // explicitly requested. Never open one for a real student who holds the pass.
+    if (hasPracticePass && !includedQuestionIndices.includes(safeQuestionIndex)) {
+      safeQuestionIndex = includedQuestionIndices[0];
+    }
     setActiveClassroomSectionKey(scopedSectionKey);
     // When Practice/Review was launched from Assignment Result, preserve that
     // route so the visible in-app Back control returns to the result instead of
@@ -7948,11 +8070,22 @@ function App() {
 
     const questions = getStoredAssignmentQuestions(assignment);
     const currentContent = projectCurrentAssignmentContent(assignment);
+    const lifecycle = getAssignmentLifecycle(assignment, now);
+    /*
+     * A GRANTED PRACTICE PASS EXCUSES PRACTICE FROM THIS RUNTIME.
+     *
+     * Never for Teacher Preview (no student redemption to read), and never
+     * once the assignment has moved into post-deadline voluntary Practice
+     * Mode -- that already runs against a completely separate, already-
+     * non-credit tracker (`workingTracker` below), and must remain unchanged.
+     */
+    const hasPracticePass = !preview && !lifecycle.isPracticeOnly && hasPracticePassFor(assignment.id);
     const projectedEntries = activeClassroomSectionKey
       ? currentContent.entries.filter((entry) => entry.logicalRole === activeClassroomSectionKey)
-      : currentContent.entries;
+      : hasPracticePass
+        ? currentContent.entries.filter((entry) => entry.logicalRole !== 'practice')
+        : currentContent.entries;
     const includedQuestionIndices = projectedEntries.map((entry) => entry.storageIndex);
-    const lifecycle = getAssignmentLifecycle(assignment, now);
     const recordedTracker = tracker[activeAssignmentId] || {};
     const workingTracker = preview
       ? previewTracker
@@ -7969,7 +8102,7 @@ function App() {
       ? Number(classroomReceipt.grade)
       : null;
     const classroomReceiptCurrent = classroomReceiptGrade != null && classroomReceiptGrade === recordedGrade;
-    const progress = calculatePracticeProgress(workingTracker, assignment);
+    const progress = calculatePracticeProgress(workingTracker, assignment, { hasPracticePass });
     const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
     const warmupState = getWarmupState({ assignment, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
     // A teacher previewing an assignment is never handed into a live game.
@@ -9683,6 +9816,7 @@ function App() {
       classworkGradesByAssignment,
       classSchedule,
       resumeAction,
+      practicePassRedemptionsByAssignment: studentClassPoints.redemptionsByAssignment,
       providers: {
         assignmentIsForStudent,
         getAssignmentLifecycle,
@@ -9838,6 +9972,9 @@ function App() {
         onOpenLiveChallenge={() => setStudentDashboardMode('liveChallenge')}
         onLogout={handleLogout}
         classPoints={studentClassPoints}
+        practicePassEligibleAssignments={studentPracticePassEligibleAssignments}
+        onRedeemPracticePass={handleRedeemPracticePass}
+        redeemingPracticePass={redeemingPracticePass}
         recommended={{
           student: studentRecord,
           assignments: studentPathAssignments,

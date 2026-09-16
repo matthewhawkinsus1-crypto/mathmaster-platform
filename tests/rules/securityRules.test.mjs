@@ -133,6 +133,20 @@ before(async () => {
       createdAt: '2026-09-01T12:00:00.000Z',
       expiresAt: '2099-01-01T00:00:00.000Z',
     });
+    // What redeemPracticePass would have written for one granted Practice Pass.
+    await setDoc(doc(db, 'classPointRewardRedemptions/redemption-a'), {
+      schemaVersion: 1,
+      redemptionId: 'redemption-a',
+      rewardCode: 'practicePass',
+      studentId: 'STUDENT_A',
+      classId: 'class-a',
+      assignmentId: 'A1',
+      assignmentTitle: 'Solving Equations',
+      cost: 100,
+      transactionId: 'cp-tx-practice-pass-1',
+      redeemedAt: '2026-09-01T12:00:00.000Z',
+      status: 'redeemed',
+    });
   });
 });
 
@@ -1220,4 +1234,42 @@ test('Class Points collections never touch academic grades or evidence', async (
   await assertSucceeds(getDoc(doc(studentA(), 'grades/STUDENT_A')));
   await assertSucceeds(getDoc(doc(teacherA(), 'grades/STUDENT_A')));
   await assertFails(getDoc(doc(teacherB(), 'grades/STUDENT_A')));
+});
+
+// --- Practice Pass reward redemptions (Phase 5A) ----------------------------
+//
+// Only `redeemPracticePass` (Admin SDK) ever writes one of these. What these
+// rules have to prove is the read boundary: a student reads only their own,
+// the teacher of record for the redemption's own class reads it for roster
+// visibility, and nobody — student, teacher, or root administrator — can
+// create, edit, or delete one from a client.
+
+test('a student reads their own Practice Pass redemption, never another student\'s', async () => {
+  await assertSucceeds(getDoc(doc(studentA(), 'classPointRewardRedemptions/redemption-a')));
+  await assertFails(getDoc(doc(studentB(), 'classPointRewardRedemptions/redemption-a')));
+});
+
+test('the teacher of record for the redemption\'s class reads it, another teacher cannot', async () => {
+  await assertSucceeds(getDoc(doc(teacherA(), 'classPointRewardRedemptions/redemption-a')));
+  await assertFails(getDoc(doc(teacherB(), 'classPointRewardRedemptions/redemption-a')));
+});
+
+test('the root administrator reads any Practice Pass redemption', async () => {
+  await assertSucceeds(getDoc(doc(admin(), 'classPointRewardRedemptions/redemption-a')));
+});
+
+test('no client can create, edit, or delete a Practice Pass redemption — not even the root administrator', async () => {
+  const forged = {
+    schemaVersion: 1, redemptionId: 'forged', rewardCode: 'practicePass',
+    studentId: 'STUDENT_A', classId: 'class-a', assignmentId: 'A9',
+    assignmentTitle: 'forged', cost: 100, transactionId: 'forged',
+    redeemedAt: '2026-09-01T12:00:00.000Z', status: 'redeemed',
+  };
+  await assertFails(setDoc(doc(studentA(), 'classPointRewardRedemptions/forged'), forged));
+  await assertFails(setDoc(doc(teacherA(), 'classPointRewardRedemptions/forged'), forged));
+  await assertFails(setDoc(doc(admin(), 'classPointRewardRedemptions/forged'), forged));
+  await assertFails(updateDoc(doc(studentA(), 'classPointRewardRedemptions/redemption-a'), { cost: 0 }));
+  await assertFails(updateDoc(doc(admin(), 'classPointRewardRedemptions/redemption-a'), { cost: 0 }));
+  await assertFails(deleteDoc(doc(studentA(), 'classPointRewardRedemptions/redemption-a')));
+  await assertFails(deleteDoc(doc(admin(), 'classPointRewardRedemptions/redemption-a')));
 });
