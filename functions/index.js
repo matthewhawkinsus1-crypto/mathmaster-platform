@@ -8990,26 +8990,7 @@ async function finishLiveChallengeRoom({ db, roomRef, privateRef, room, status }
   }
 
   
-    // Class Points Phase 5B: Stage and process achievements before private state deletion
-    try {
-      if (typeof status !== 'undefined') {
-        const isFin = status === 'finished' || (typeof FINISHED !== 'undefined' && status === FINISHED);
-        if (isFin) {
-          const rId = (typeof roomId !== 'undefined') ? roomId : (typeof roomRef !== 'undefined' ? roomRef.id : null);
-          const activeDb = (typeof db !== 'undefined') ? db : getFirestore();
-          if (rId) {
-            const pSnap = await activeDb.collection('liveChallengeRooms').doc(rId).collection('privatePlayers').get();
-            const pPlayers = pSnap.docs.map(d => ({ id: d.id, studentId: d.id, ...d.data() }));
-            const rData = (typeof room !== 'undefined') ? room : (typeof roomData !== 'undefined' ? roomData : (await activeDb.collection('liveChallengeRooms').doc(rId).get()).data());
-            await processLiveChallengeClassPoints(activeDb, rId, rData, pPlayers, status);
-          }
-        }
-      }
-    } catch (cpErr) {
-      console.error('[LiveChallengeClassPoints] Award error:', cpErr);
-    }
-
-    await deletePrivateChallengeState(db, privateRef, players);
+    deletePrivateChallengeState(db, privateRef, players);
   return { roomId: roomRef.id, status, roundCount: room.roundCount || 0 };
 }
 
@@ -15964,17 +15945,6 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
 });
 
 
-exports.onLiveChallengeAchievementJobWrite = functions.firestore
-  .document("liveChallengeAchievementJobs/{roomId}")
-  .onWrite(async (change, context) => {
-    if (!change.after.exists) return null;
-    const jobData = change.after.data() || {};
-    if (jobData.status === "completed") return null;
-
-    const awards = jobData.awards || [];
-    if (!awards.some((a) => !a.processed)) {
-      if (jobData.status !== "completed") {
-        await change.after.ref.update({ status: "completed", updatedAt: admin.firestore.FieldValue.serverTimestamp() });
       }
       return null;
     }
@@ -15983,3 +15953,12 @@ exports.onLiveChallengeAchievementJobWrite = functions.firestore
     await executeLiveChallengeAchievementAwards(admin.firestore(), context.params.roomId);
     return null;
   });
+
+
+exports.retryLiveChallengeAchievementJobs = onSchedule({
+  schedule: "every 15 minutes",
+  invoker: "private",
+}, async () => {
+  const rewards = await liveChallengeClassPoints();
+  await rewards.retryPendingLiveChallengeAchievementJobs(getFirestore());
+});

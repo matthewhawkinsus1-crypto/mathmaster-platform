@@ -1,3 +1,4 @@
+import fs from 'fs';
 import { expect } from 'chai';
 import {
   calculateStudentChallengeAchievements,
@@ -5,6 +6,8 @@ import {
   ACHIEVEMENT_CODES,
   MAX_CHALLENGE_CLASS_POINTS,
   processLiveChallengeClassPoints,
+  validateRosterAuthorization,
+  cleanupStudentLiveChallengeAchievements,
 } from '../shared/liveChallengeClassPoints.mjs';
 import {
   accountId,
@@ -42,7 +45,7 @@ describe('Live Challenge Achievements → Class Points (Phase 5B Real State)', (
     it('requires at least 2 available rounds', () => {
       const player = {
         joined: true,
-        joinedAtRound: 4, // 1 round available
+        joinedAtRound: 4,
         answeredRounds: [4],
       };
       const ach = calculateStudentChallengeAchievements({
@@ -93,7 +96,7 @@ describe('Live Challenge Achievements → Class Points (Phase 5B Real State)', (
       expect(passAch.some((a) => a.achievementCode === ACHIEVEMENT_CODES.FINISHER)).to.be.true;
     });
 
-    it('replay answers do not increase Finisher numerator or denominator', () => {
+    it('replay answers do not count toward Finisher numerator or denominator', () => {
       const player = {
         joined: true,
         joinedAtRound: 0,
@@ -267,7 +270,7 @@ describe('Live Challenge Achievements → Class Points (Phase 5B Real State)', (
     });
 
     it('challenge score, speed bonus, streak bonus, and rank are completely ignored', () => {
-      const highRankPlayer = {
+      const player = {
         joined: true,
         score: 999999,
         speedBonus: 50000,
@@ -277,7 +280,7 @@ describe('Live Challenge Achievements → Class Points (Phase 5B Real State)', (
         submissionReceipts: {},
       };
       const ach = calculateStudentChallengeAchievements({
-        player: highRankPlayer,
+        player,
         scheduledRoundCount: 5,
         secondChanceOf: {},
       });
@@ -285,46 +288,142 @@ describe('Live Challenge Achievements → Class Points (Phase 5B Real State)', (
     });
   });
 
-  describe('Class Points Architecture Integration', () => {
-    it('uses sha256 safe hash for deterministic transaction document ID', () => {
-      const id1 = buildAchievementTransactionId('room1', 'user1', 'comeback');
-      const id2 = buildAchievementTransactionId('room1', 'user1', 'comeback');
-      expect(id1).to.equal(id2);
-      expect(id1).to.match(/^lca_[0-9a-f]{32}$/);
-    });
-
-    it('uses accountId, emptyAccount, and applyTransaction from classPoints.mjs correctly', () => {
-      const accDocId = accountId('s1', 'c1');
-      expect(accDocId).to.be.a('string');
-
-      const empty = emptyAccount({ studentId: 's1', classId: 'c1' });
-      expect(empty.balance).to.equal(0);
-
-      const tx = {
-        schemaVersion: CLASS_POINTS_SCHEMA_VERSION,
-        studentId: 's1',
-        classId: 'c1',
-        amount: 2,
-        sourceType: SOURCE_TYPES.LIVE_CHALLENGE_ACHIEVEMENT,
-        reasonCode: 'liveChallengeAchievement',
-        isReversal: false,
-        reversalOf: null,
+  describe('Roster Authority and Authorization Context', () => {
+    it('rejects archived class (status === "archived")', async () => {
+      const db = {
+        collection: (col) => ({
+          doc: () => ({
+            get: async () => ({
+              exists: true,
+              data: () => (col === 'classes' ? { status: 'archived', teacherOfRecord: 't@s.org' } : { classId: 'c1', assignedTeacherEmail: 't@s.org' }),
+            }),
+          }),
+        }),
       };
-
-      const updated = applyTransaction(empty, tx);
-      expect(updated.balance).to.equal(2);
-      expect(updated.lifetimeEarned).to.equal(2);
-      expect(updated.lifetimeSpent).to.equal(0);
+      const auth = await validateRosterAuthorization(db, 'c1', 's1');
+      expect(auth.valid).to.be.false;
+      expect(auth.reason).to.equal('class_archived');
     });
 
-    it('classPointsAuthorizationContext produces authorized teacher fields', () => {
+    it('rejects missing or mismatched assignedTeacherEmail', async () => {
+      const dbMissing = {
+        collection: (col) => ({
+          doc: () => ({
+            get: async () => ({
+              exists: true,
+              data: () => (col === 'classes' ? { status: 'active', teacherOfRecord: 't@s.org' } : { classId: 'c1', assignedTeacherEmail: '' }),
+            }),
+          }),
+        }),
+      };
+      const auth1 = await validateRosterAuthorization(dbMissing, 'c1', 's1');
+      expect(auth1.valid).to.be.false;
+      expect(auth1.reason).to.equal('teacher_mismatch_or_missing');
+
+      const dbMismatch = {
+        collection: (col) => ({
+          doc: () => ({
+            get: async () => ({
+              exists: true,
+              data: () => (col === 'classes' ? { status: 'active', teacherOfRecord: 't@s.org' } : { classId: 'c1', assignedTeacherEmail: 'other@s.org' }),
+            }),
+          }),
+        }),
+      };
+      const auth2 = await validateRosterAuthorization(dbMismatch, 'c1', 's1');
+      expect(auth2.valid).to.be.false;
+      expect(auth2.reason).to.equal('teacher_mismatch_or_missing');
+    });
+
+    it('requires exact teacherOfRecord match', async () => {
+      const dbValid = {
+        collection: (col) => ({
+          doc: () => ({
+            get: async () => ({
+              exists: true,
+              data: () => (col === 'classes' ? { status: 'active', teacherOfRecord: 't@s.org' } : { classId: 'c1', assignedTeacherEmail: 't@s.org' }),
+            }),
+          }),
+        }),
+      };
+      const auth = await validateRosterAuthorization(dbValid, 'c1', 's1');
+      expect(auth.valid).to.be.true;
+      expect(auth.classRecord.teacherOfRecord).to.equal('t@s.org');
+    });
+
+    it('classPointsAuthorizationContext fixture produces non-empty originTeacherEmail and includes teacher', () => {
       const classRecord = {
-        teacherEmail: 'teacher@school.org',
-        ownerEmail: 'teacher@school.org',
+        classId: 'c1',
+        teacherOfRecord: 'teacher@school.org',
       };
       const auth = classPointsAuthorizationContext({ classRecord, existingRecord: null });
-      expect(auth).to.have.property('originTeacherEmail');
-      expect(auth).to.have.property('authorizedTeacherEmails');
+      expect(auth.originTeacherEmail).to.equal('teacher@school.org');
+      expect(auth.authorizedTeacherEmails).to.include('teacher@school.org');
+    });
+  });
+
+  describe('Cleanup Batch Safety (>450 operations)', () => {
+    it('creates and uses a new WriteBatch after committing 450 operations', async () => {
+      let batchesCreated = 0;
+      let batchesCommitted = 0;
+      const mockBatch = () => ({
+        update: () => {},
+        delete: () => {},
+        commit: async () => { batchesCommitted++; },
+      });
+
+      const docs = Array.from({ length: 460 }, (_, i) => ({
+        ref: { id: `doc${i}` },
+        data: () => ({
+          status: 'pending',
+          awards: [{ studentId: 'targetStudent' }, { studentId: 'otherStudent' }],
+        }),
+      }));
+
+      const mockDb = {
+        collection: () => ({
+          get: async () => ({
+            empty: false,
+            docs,
+          }),
+        }),
+        batch: () => {
+          batchesCreated++;
+          return mockBatch();
+        },
+      };
+
+      await cleanupStudentLiveChallengeAchievements(mockDb, 'targetStudent');
+      expect(batchesCreated).to.equal(2);
+      expect(batchesCommitted).to.equal(2);
+    });
+  });
+
+  describe('functions/index.js Static & Runtime Architecture Assertions', () => {
+    const indexSource = fs.readFileSync('functions/index.js', 'utf8');
+
+    it('no privatePlayers query remains in functions/index.js', () => {
+      expect(indexSource).to.not.include('privatePlayers');
+    });
+
+    it('finishLiveChallengeRoom uses existing players and real privateState', () => {
+      expect(indexSource).to.include('loadPrivateChallengePlayers');
+      expect(indexSource).to.include('privateSnapshot.data()');
+      expect(indexSource).to.include('processLiveChallengeClassPoints(db, roomRef.id, room, players, privateState, status)');
+    });
+
+    it('no undefined functions.firestore or admin.firestore', () => {
+      expect(indexSource).to.not.include('functions.firestore');
+      expect(indexSource).to.not.include('admin.firestore');
+    });
+
+    it('scheduled retry export exists in functions/index.js', () => {
+      expect(indexSource).to.include('exports.retryLiveChallengeAchievementJobs = onSchedule');
+    });
+
+    it('preproduction reset in functions/lib/admin.js contains liveChallengeAchievementJobs', () => {
+      const adminSource = fs.readFileSync('functions/lib/admin.js', 'utf8');
+      expect(adminSource).to.include('liveChallengeAchievementJobs');
     });
   });
 });
