@@ -39,7 +39,9 @@
     "test:draft-persistence": "node scripts/run-draft-persistence-certification.mjs",
     "verify:persistence-production": "node scripts/verify-persistence-production.mjs",
     "verify:persistence-indexes": "node scripts/check-persistence-indexes.mjs",
-    "deploy:persistence": "bash scripts/deploy-persistence.sh"
+    "deploy:persistence": "bash scripts/deploy-persistence.sh",
+    "verify:response-inspector-production": "node scripts/verify-response-inspector-production.mjs",
+    "deploy:response-inspector": "bash scripts/deploy-response-inspector.sh"
   },
   "dependencies": {
     "firebase": "^12.17.1",
