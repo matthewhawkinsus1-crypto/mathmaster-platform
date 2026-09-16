@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   LIVE_FLAGS, LIVE_SEVERITY, QUESTION_STATE_CHARS, summarizeLiveClass,
 } from '../../livePresence';
@@ -8,12 +8,10 @@ import { formatStudentName } from '../../platform/studentName';
 import {
   assignmentIsForStudent,
   getDOLState,
-  getIncludedQuestionIndices,
   getWarmupState,
 } from '../../assignmentLifecycle.js';
-import { getStoredAssignmentQuestions } from '../../platform/contract/storedAssignmentV5.js';
-import { resolveQuestionActivityRole } from '../../platform/policies/activityPolicies.js';
 import { buildWalkthroughMonitor, WALKTHROUGH_STATUS } from '../../platform/teacher/walkthroughMonitor.js';
+import { classworkModel, describeClassworkPace } from '../../platform/teacher/classworkModel.js';
 import {
   LIVE_ATTENDANCE_MARK,
   attendanceByStudentForDay,
@@ -212,19 +210,6 @@ function StudentTile({
   );
 }
 
-function classworkModel(assignment) {
-  if (!assignment) return { questions: [], progressPositions: [] };
-  const questions = getStoredAssignmentQuestions(assignment);
-  const included = getIncludedQuestionIndices(assignment);
-  const entries = included
-    .map((questionIndex, progressPosition) => ({ questionIndex, progressPosition, question: questions[questionIndex] }))
-    .filter(({ question }) => resolveQuestionActivityRole({ question, assignment }) === 'classwork');
-  return {
-    questions: entries.map(({ question, questionIndex }) => ({ question, questionIndex })),
-    progressPositions: entries.map(({ progressPosition }) => progressPosition),
-  };
-}
-
 function withClassworkStates(roster, selectedAssignment, progressPositions) {
   if (!selectedAssignment) return roster;
   return roster.map((student) => {
@@ -262,6 +247,72 @@ function WalkthroughCard({ row, onChecked, onOpenStudent }) {
           <button type="button" onClick={() => onChecked(row.id)} style={{ ...smallButtonStyle, borderColor: '#188038', background: '#e6f4ea', color: '#137333' }}>Checked</button>
         )}
       </div>
+    </div>
+  );
+}
+
+// Phase 2 of Classroom Live: teach the actual assignment from the existing
+// student-preview runtime, and let the teacher's real position there become
+// the room's pace reference. This panel only ever shows lessons assigned to
+// the active class and never a library assignment the class was not given.
+function LiveTeachingPanel({
+  activeClassId,
+  teachableAssignments,
+  liveTeachingActive,
+  liveTeachingAssignmentId,
+  teachingAssignmentTitle,
+  classworkPositionLabel,
+  onTeach,
+  onResume,
+  onEndTeaching,
+}) {
+  const [choiceId, setChoiceId] = useState('');
+
+  if (!activeClassId) {
+    return (
+      <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '1px dashed #c9ced6', color: '#5f6368', fontSize: 12.5 }}>
+        Choose an active class above to teach a lesson live.
+      </div>
+    );
+  }
+
+  if (liveTeachingActive) {
+    return (
+      <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '2px solid #188038', background: '#e6f4ea', display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ fontWeight: 900, color: '#137333' }}>Teaching: {teachingAssignmentTitle || 'Untitled'}</div>
+          <div style={{ marginTop: 2, fontSize: 12.5, color: '#1c4a2e' }}>Teacher exemplar: {classworkPositionLabel}</div>
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <button type="button" onClick={onResume} style={{ ...smallButtonStyle, borderColor: '#188038', background: '#fff', color: '#137333' }}>Resume Teaching</button>
+          <button type="button" onClick={() => onTeach(liveTeachingAssignmentId)} style={smallButtonStyle}>Restart Fresh</button>
+          <button type="button" onClick={onEndTeaching} style={{ ...smallButtonStyle, borderColor: '#d93025', background: '#fff', color: '#b3261e' }}>End Teaching</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '1px solid #c5d5ef', background: '#f8fbff', display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ fontWeight: 900, color: '#174ea6' }}>Live Teaching</div>
+      {teachableAssignments.length === 0 ? (
+        <span style={{ fontSize: 12.5, color: '#5f6368' }}>No lessons are assigned to this class yet.</span>
+      ) : (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <select value={choiceId} onChange={(event) => setChoiceId(event.target.value)} style={controlStyle} aria-label="Lesson to teach">
+            <option value="">Choose a lesson…</option>
+            {teachableAssignments.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.title || 'Untitled'}</option>)}
+          </select>
+          <button
+            type="button"
+            disabled={!choiceId}
+            onClick={() => onTeach(choiceId)}
+            style={{ ...smallButtonStyle, borderColor: '#1a73e8', background: choiceId ? '#e8f0fe' : '#f1f3f4', color: '#174ea6', cursor: choiceId ? 'pointer' : 'not-allowed' }}
+          >
+            Teach This Lesson
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -332,6 +383,10 @@ export default function LiveClassMonitor({
   pathInterventionBusyStudentId = null,
   onOpenWeeklyPath = null,
   attendanceByStudentId = {},
+  liveTeachingSession = null,
+  onTeachAssignment = null,
+  onResumeTeaching = null,
+  onEndLiveTeaching = null,
 }) {
   const [classPeriod, setClassPeriod] = useState(initialClassPeriod || 'all');
   const [assignmentId, setAssignmentId] = useState('all');
@@ -349,8 +404,42 @@ export default function LiveClassMonitor({
     return students.filter((student) => classPeriod === 'all' || (student?.classPeriod || student?.profile?.classPeriod) === classPeriod);
   }, [students, classes, activeClassId, classPeriod]);
 
-  const selectedAssignment = useMemo(() => assignments.find((assignment) => String(assignment.id) === String(assignmentId)) || null, [assignments, assignmentId]);
+  // A lesson only ever appears here when it is actually assigned to the
+  // active class — the same membership check the assignment lifecycle uses
+  // everywhere else, so a library item that merely exists never shows up.
+  const teachableAssignments = useMemo(() => {
+    if (!activeClassId) return [];
+    return assignments.filter((assignment) => assignmentIsForStudent(assignment, { classId: activeClassId }));
+  }, [assignments, activeClassId]);
+
+  // Pace must follow the teacher's REAL exemplar position while Live
+  // Teaching is active for this class, not a disconnected manual counter.
+  const liveTeachingActiveForClass = Boolean(liveTeachingSession?.active)
+    && String(liveTeachingSession.classId || '') === String(activeClassId || '');
+
+  const displayAssignmentId = liveTeachingActiveForClass ? liveTeachingSession.assignmentId : assignmentId;
+  const selectedAssignment = useMemo(() => assignments.find((assignment) => String(assignment.id) === String(displayAssignmentId)) || null, [assignments, displayAssignmentId]);
   const selectedClasswork = useMemo(() => classworkModel(selectedAssignment), [selectedAssignment]);
+
+  const effectiveTeacherQuestionIndex = liveTeachingActiveForClass && liveTeachingSession.classworkQuestionPosition !== null
+    ? liveTeachingSession.classworkQuestionPosition
+    : teacherQuestionIndex;
+
+  // Jump the room into Walkthrough, once per session (a fresh start or a
+  // restart), so the exemplar the teacher just opened is what the room sees.
+  // After that a teacher is free to switch to Room/Attention without being
+  // fought back into Walkthrough on every render.
+  const liveTeachingSessionKey = liveTeachingActiveForClass
+    ? `${liveTeachingSession.classId}:${liveTeachingSession.assignmentId}:${liveTeachingSession.startedAt}`
+    : null;
+  const seenLiveTeachingSessionKey = useRef(null);
+  useEffect(() => {
+    if (liveTeachingSessionKey && liveTeachingSessionKey !== seenLiveTeachingSessionKey.current) {
+      setMode('walkthrough');
+      setCheckedStudentIds([]);
+    }
+    seenLiveTeachingSessionKey.current = liveTeachingSessionKey;
+  }, [liveTeachingSessionKey]);
   const attendanceDateKey = useMemo(() => localAttendanceDateKey(nowValue), [nowValue]);
   const activeClassRecord = useMemo(() => (
     activeClassId ? classes.find((entry) => String(entry?.classId || '') === String(activeClassId)) || null : null
@@ -386,11 +475,11 @@ export default function LiveClassMonitor({
   const walkthrough = useMemo(() => buildWalkthroughMonitor({
     students: walkthroughRoster,
     assignmentId: selectedAssignment?.id || null,
-    teacherQuestionIndex,
+    teacherQuestionIndex: effectiveTeacherQuestionIndex,
     checkedStudentIds,
     attendanceByStudentId: effectiveAttendance,
     nowValue,
-  }), [walkthroughRoster, selectedAssignment, teacherQuestionIndex, checkedStudentIds, effectiveAttendance, nowValue]);
+  }), [walkthroughRoster, selectedAssignment, effectiveTeacherQuestionIndex, checkedStudentIds, effectiveAttendance, nowValue]);
 
   const { rows, classStats, counts } = useMemo(() => summarizeLiveClass(monitoredRoster, {
     nowValue,
@@ -522,7 +611,7 @@ export default function LiveClassMonitor({
     setCheckedStudentIds([]);
   };
 
-  const currentQuestion = selectedClasswork.questions[teacherQuestionIndex]?.question || null;
+  const currentQuestion = selectedClasswork.questions[effectiveTeacherQuestionIndex]?.question || null;
   const bottleneck = walkthrough.bottlenecks.find((entry) => entry.count >= 3) || null;
   const walkRows = walkthroughFilter === 'needsCheck' ? walkthrough.needsCheck
     : walkthroughFilter === 'onQuestion' ? walkthrough.onQuestion
@@ -551,6 +640,18 @@ export default function LiveClassMonitor({
         ))}
       </div>
 
+      <LiveTeachingPanel
+        activeClassId={activeClassId}
+        teachableAssignments={teachableAssignments}
+        liveTeachingActive={liveTeachingActiveForClass}
+        liveTeachingAssignmentId={liveTeachingSession?.assignmentId || null}
+        teachingAssignmentTitle={selectedAssignment?.title}
+        classworkPositionLabel={liveTeachingActiveForClass ? describeClassworkPace({ assignment: selectedAssignment, classworkQuestionPosition: liveTeachingSession?.classworkQuestionPosition ?? null }) : ''}
+        onTeach={onTeachAssignment}
+        onResume={onResumeTeaching}
+        onEndTeaching={onEndLiveTeaching}
+      />
+
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 14 }}>
         {!activeClassId && (
           <select value={classPeriod} onChange={(event) => setClassPeriod(event.target.value)} style={controlStyle} aria-label="Class period">
@@ -558,7 +659,14 @@ export default function LiveClassMonitor({
             {classPeriods.map((period) => <option key={period} value={period}>{period}</option>)}
           </select>
         )}
-        <select value={assignmentId} onChange={(event) => changeAssignment(event.target.value)} style={controlStyle} aria-label="Assignment">
+        <select
+          value={displayAssignmentId}
+          disabled={liveTeachingActiveForClass}
+          onChange={(event) => changeAssignment(event.target.value)}
+          style={{ ...controlStyle, opacity: liveTeachingActiveForClass ? 0.7 : 1 }}
+          aria-label="Assignment"
+          title={liveTeachingActiveForClass ? 'Following the Live Teaching exemplar assignment' : undefined}
+        >
           <option value="all">Any assignment</option>
           {assignments.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.title || 'Untitled'}</option>)}
         </select>
@@ -597,13 +705,17 @@ export default function LiveClassMonitor({
             <div style={{ border: '1px solid #c5d5ef', background: '#f8fbff', borderRadius: 14, padding: '12px 14px', display: 'grid', gap: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                 <div>
-                  <strong style={{ color: '#174ea6' }}>Teacher is on Classwork Q{teacherQuestionIndex + 1} of {selectedClasswork.questions.length}</strong>
+                  <strong style={{ color: '#174ea6' }}>Teacher is on Classwork Q{effectiveTeacherQuestionIndex + 1} of {selectedClasswork.questions.length}</strong>
                   <div style={{ marginTop: 4, maxWidth: 760, color: '#3c4043', fontSize: 13, lineHeight: 1.45 }}>{String(currentQuestion?.prompt || currentQuestion?.question || 'Current classwork question').slice(0, 220)}</div>
                 </div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button type="button" disabled={teacherQuestionIndex === 0} onClick={() => setTeacherQuestionIndex((value) => Math.max(0, value - 1))} style={smallButtonStyle}>← Previous</button>
-                  <button type="button" disabled={teacherQuestionIndex >= selectedClasswork.questions.length - 1} onClick={() => setTeacherQuestionIndex((value) => Math.min(selectedClasswork.questions.length - 1, value + 1))} style={{ ...smallButtonStyle, borderColor: '#1a73e8', background: '#e8f0fe', color: '#174ea6' }}>Next →</button>
-                </div>
+                {liveTeachingActiveForClass ? (
+                  <span style={{ fontSize: 11.5, fontWeight: 800, color: '#137333', background: '#e6f4ea', padding: '5px 9px', borderRadius: 999 }}>Following the live teaching exemplar</span>
+                ) : (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button type="button" disabled={teacherQuestionIndex === 0} onClick={() => setTeacherQuestionIndex((value) => Math.max(0, value - 1))} style={smallButtonStyle}>← Previous</button>
+                    <button type="button" disabled={teacherQuestionIndex >= selectedClasswork.questions.length - 1} onClick={() => setTeacherQuestionIndex((value) => Math.min(selectedClasswork.questions.length - 1, value + 1))} style={{ ...smallButtonStyle, borderColor: '#1a73e8', background: '#e8f0fe', color: '#174ea6' }}>Next →</button>
+                  </div>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', fontSize: 12, fontWeight: 800 }}>
                 <span>{walkthrough.counts.present} present students monitored</span>
