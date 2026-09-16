@@ -1,4 +1,12 @@
-import { processLiveChallengeClassPoints } from './shared/liveChallengeClassPoints.mjs';
+
+let liveChallengeClassPointsModule = null;
+async function liveChallengeClassPoints() {
+  if (!liveChallengeClassPointsModule) {
+    liveChallengeClassPointsModule = await import("./shared/liveChallengeClassPoints.mjs");
+  }
+  return liveChallengeClassPointsModule;
+}
+
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
@@ -15954,3 +15962,24 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
   logger.info("Workspace draft recovery committed", { assignmentId, classId, by: email, applied: applied.length });
   return { assignmentId, classId, committed: true, proposalCount: proposals.length, applied };
 });
+
+
+exports.onLiveChallengeAchievementJobWrite = functions.firestore
+  .document("liveChallengeAchievementJobs/{roomId}")
+  .onWrite(async (change, context) => {
+    if (!change.after.exists) return null;
+    const jobData = change.after.data() || {};
+    if (jobData.status === "completed") return null;
+
+    const awards = jobData.awards || [];
+    if (!awards.some((a) => !a.processed)) {
+      if (jobData.status !== "completed") {
+        await change.after.ref.update({ status: "completed", updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+      }
+      return null;
+    }
+
+    const { executeLiveChallengeAchievementAwards } = await liveChallengeClassPoints();
+    await executeLiveChallengeAchievementAwards(admin.firestore(), context.params.roomId);
+    return null;
+  });
