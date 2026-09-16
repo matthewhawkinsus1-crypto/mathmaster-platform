@@ -163,6 +163,7 @@ export default function QuestionEngine({
   //   { pathToolId, submit(rawWork, supportUsage, meta) -> feedback }
   serverGrading = null,
   onResponseCheckpoint = null,
+  onSpotlightFrame = null,
 }) {
   useRenderPerformance('QuestionEngine', String(question?.toolId || question?.type || 'question'));
   const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
@@ -246,6 +247,10 @@ export default function QuestionEngine({
    */
   const canonicalAnswerSavedAt = Date.parse(record.lastAttemptAt || '') || 0;
   const [answerState, setAnswerState] = useState(EMPTY_ANSWER_STATE);
+
+  useEffect(() => {
+    onSpotlightFrame?.({ question: processedQuestion, answerState });
+  }, [answerState, processedQuestion, onSpotlightFrame]);
   const [feedback, setFeedback] = useState(null);
   const [lastSubmittedResponseKey, setLastSubmittedResponseKey] = useState('');
   const [submitting, setSubmitting] = useState(false);

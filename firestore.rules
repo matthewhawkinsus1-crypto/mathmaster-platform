@@ -62,6 +62,13 @@ service cloud.firestore {
           == request.auth.token.email;
     }
 
+    function presenceCarriesNoResponse(data) {
+      return !data.keys().hasAny([
+        'response', 'responses', 'rawResponse', 'answer', 'answerState',
+        'keystrokes', 'screenshot', 'screen', 'url', 'browserHistory'
+      ]);
+    }
+
     // Roster membership is authorization, not ordinary grade/profile data.
     // Client updates may change student work fields, but moving a student or
     // changing their teacher must go through the audited Admin SDK callables.
@@ -281,7 +288,121 @@ service cloud.firestore {
       // A teacher observes presence; only the student owns the heartbeat. This
       // prevents one teacher client from fabricating or clearing another
       // student's live telemetry.
-      allow create, update, delete: if ownsStudent(studentId);
+      allow create, update: if ownsStudent(studentId)
+        && presenceCarriesNoResponse(request.resource.data);
+      allow delete: if ownsStudent(studentId);
+    }
+
+    /*
+     * Student Spotlight is deliberately separate from presence and private
+     * workspace recovery. A request contains authorization/consent only; the
+     * answer-bearing frame cannot exist until that request is affirmatively
+     * accepted, and becomes unreadable as soon as it stops or expires.
+     */
+    function spotlightClassTeacher(classId) {
+      return teacher()
+        && get(/databases/$(database)/documents/classes/$(classId)).data.teacherOfRecord
+          == request.auth.token.email;
+    }
+
+    function spotlightStudentInClass(studentId, classId) {
+      return get(/databases/$(database)/documents/grades/$(studentId)).data.classId == classId;
+    }
+
+    function spotlightRequestTeacherCurrent(data) {
+      return get(/databases/$(database)/documents/classes/$(data.classId)).data.teacherOfRecord
+        == data.teacherEmail;
+    }
+
+    function activeSpotlightRequest(requestId) {
+      let spotlight = get(/databases/$(database)/documents/liveSpotlightRequests/$(requestId)).data;
+      return spotlight.status == 'accepted'
+        && spotlight.expiresAt > request.time
+        && spotlightRequestTeacherCurrent(spotlight)
+        && spotlightStudentInClass(spotlight.studentId, spotlight.classId);
+    }
+
+    match /liveSpotlightRequests/{requestId} {
+      allow create: if rootAdmin() || (
+        spotlightClassTeacher(request.resource.data.classId)
+        && spotlightStudentInClass(request.resource.data.studentId, request.resource.data.classId)
+        && request.resource.data.requestId == requestId
+        && request.resource.data.teacherUid == request.auth.uid
+        && request.resource.data.teacherEmail == request.auth.token.email
+        && request.resource.data.status == 'requested'
+        && request.resource.data.assignmentId is string
+        && request.resource.data.assignmentId.size() > 0
+        && request.resource.data.requestedAt == request.time
+        && request.resource.data.expiresAt > request.time
+        && request.resource.data.expiresAt <= request.time + duration.value(5, 'm')
+      );
+      allow read: if rootAdmin()
+        || ownsStudent(resource.data.studentId)
+        || (spotlightClassTeacher(resource.data.classId)
+          && resource.data.teacherEmail == request.auth.token.email
+          && spotlightStudentInClass(resource.data.studentId, resource.data.classId));
+      allow update: if rootAdmin()
+        || (ownsStudent(resource.data.studentId)
+          && resource.data.status == 'requested'
+          && resource.data.expiresAt > request.time
+          && spotlightRequestTeacherCurrent(resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'respondedAt'])
+          && request.resource.data.status in ['accepted', 'declined']
+          && request.resource.data.respondedAt == request.time)
+        || (ownsStudent(resource.data.studentId)
+          && resource.data.status == 'accepted'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'stoppedAt', 'stoppedBy'])
+          && request.resource.data.status == 'stopped'
+          && request.resource.data.stoppedAt == request.time
+          && request.resource.data.stoppedBy == 'student')
+        || (spotlightClassTeacher(resource.data.classId)
+          && resource.data.teacherEmail == request.auth.token.email
+          && spotlightStudentInClass(resource.data.studentId, resource.data.classId)
+          && resource.data.status in ['requested', 'accepted']
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'stoppedAt', 'stoppedBy'])
+          && request.resource.data.status == 'stopped'
+          && request.resource.data.stoppedAt == request.time
+          && request.resource.data.stoppedBy == 'teacher');
+      allow delete: if false;
+    }
+
+    match /liveSpotlightFrames/{requestId} {
+      allow read: if rootAdmin() || (
+        activeSpotlightRequest(requestId)
+        && spotlightClassTeacher(
+          get(/databases/$(database)/documents/liveSpotlightRequests/$(requestId)).data.classId
+        )
+      );
+      allow create, update: if ownsStudent(request.resource.data.studentId)
+        && request.resource.data.keys().hasOnly([
+          'schemaVersion', 'requestId', 'studentId', 'assignmentId',
+          'assignmentTitle', 'questionIndex', 'studentLabel', 'question',
+          'work', 'truncated', 'updatedAtMs', 'updatedAt', 'expiresAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'schemaVersion', 'requestId', 'studentId', 'assignmentId',
+          'assignmentTitle', 'questionIndex', 'studentLabel', 'question',
+          'work', 'updatedAtMs', 'updatedAt', 'expiresAt'
+        ])
+        && request.resource.data.schemaVersion == 1
+        && request.resource.data.requestId == requestId
+        && request.resource.data.studentId
+          == get(/databases/$(database)/documents/liveSpotlightRequests/$(requestId)).data.studentId
+        && request.resource.data.assignmentId
+          == get(/databases/$(database)/documents/liveSpotlightRequests/$(requestId)).data.assignmentId
+        && request.resource.data.expiresAt
+          == get(/databases/$(database)/documents/liveSpotlightRequests/$(requestId)).data.expiresAt
+        && activeSpotlightRequest(requestId)
+        && request.resource.data.updatedAt == request.time;
+      // Content is removed at either party's stop path. The request remains as
+      // a content-free session receipt, but an inactive request never grants a
+      // frame read or write.
+      allow delete: if ownsStudent(resource.data.studentId)
+        || rootAdmin()
+        || spotlightClassTeacher(
+          get(/databases/$(database)/documents/liveSpotlightRequests/$(requestId)).data.classId
+        ) && get(/databases/$(database)/documents/liveSpotlightRequests/$(requestId)).data.teacherEmail
+          == request.auth.token.email;
     }
 
     // Live Challenge. All writes go through Cloud Functions so a student can

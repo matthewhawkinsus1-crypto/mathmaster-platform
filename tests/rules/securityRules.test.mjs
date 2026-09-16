@@ -5,9 +5,13 @@ import {
   assertFails, assertSucceeds, initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
-  collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where,
+  Timestamp, collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where,
 } from 'firebase/firestore';
 import { accountId as classPointsAccountId } from '../../functions/shared/classPoints.mjs';
+import {
+  activeStudentSpotlightQuery,
+  activeTeacherSpotlightQuery,
+} from '../../src/platform/liveSpotlightQueries.js';
 
 // Authenticated requests, through the real Security Rules, in the Firestore
 // emulator.
@@ -345,6 +349,163 @@ test('live presence is scoped to the teacher roster and owned by the student hea
   await assertFails(setDoc(doc(teacherA(), 'presence/STUDENT_A'), {
     assignmentId: 'forged-by-teacher',
   }, { merge: true }));
+});
+
+test('Spotlight requires fresh affirmative consent and isolates the active frame', async () => {
+  const requestId = `spotlight-consent-${Date.now()}`;
+  const requestPath = `liveSpotlightRequests/${requestId}`;
+  const framePath = `liveSpotlightFrames/${requestId}`;
+  const expiresAt = Timestamp.fromMillis(Date.now() + 120000);
+
+  await assertSucceeds(setDoc(doc(teacherA(), requestPath), {
+    schemaVersion: 1, requestId, classId: 'class-a', studentId: 'STUDENT_A',
+    studentLabel: 'Student A.', teacherUid: 'uid-a', teacherEmail: TEACHER_A,
+    teacherLabel: 'Ms. A', status: 'requested', assignmentId: 'A1', questionIndex: 0,
+    requestedAt: serverTimestamp(), expiresAt,
+  }));
+  await assertFails(setDoc(doc(teacherB(), `liveSpotlightRequests/${requestId}-wrong-teacher`), {
+    schemaVersion: 1, requestId: `${requestId}-wrong-teacher`, classId: 'class-a', studentId: 'STUDENT_A',
+    teacherUid: 'uid-b', teacherEmail: TEACHER_B, status: 'requested',
+    requestedAt: serverTimestamp(), expiresAt,
+  }));
+  await assertFails(setDoc(doc(studentA(), `liveSpotlightRequests/${requestId}-student-forged`), {
+    schemaVersion: 1, requestId: `${requestId}-student-forged`, classId: 'class-a', studentId: 'STUDENT_A',
+    teacherUid: 'uid-a', teacherEmail: TEACHER_A, status: 'requested',
+    requestedAt: serverTimestamp(), expiresAt,
+  }));
+  await assertSucceeds(getDoc(doc(studentA(), requestPath)));
+  await assertFails(getDoc(doc(studentB(), requestPath)));
+  await assertFails(getDoc(doc(teacherB(), requestPath)));
+
+  // A request alone is not consent and cannot authorize answer-bearing work.
+  await assertFails(setDoc(doc(studentA(), framePath), {
+    requestId, studentId: 'STUDENT_A', work: { response: 'private' }, updatedAt: serverTimestamp(),
+  }));
+  await assertFails(getDoc(doc(teacherA(), framePath)));
+
+  await assertSucceeds(updateDoc(doc(studentA(), requestPath), { status: 'accepted', respondedAt: serverTimestamp() }));
+  await assertSucceeds(setDoc(doc(studentA(), framePath), {
+    schemaVersion: 1, requestId, studentId: 'STUDENT_A', assignmentId: 'A1', assignmentTitle: 'Assignment 1',
+    questionIndex: 0, studentLabel: 'Student A.', question: { prompt: 'Solve' }, work: { response: '2x + 3' },
+    updatedAtMs: Date.now(), updatedAt: serverTimestamp(), expiresAt,
+  }));
+  await assertSucceeds(getDoc(doc(teacherA(), framePath)));
+  await assertFails(getDoc(doc(teacherB(), framePath)));
+  await assertFails(getDoc(doc(studentB(), framePath)));
+  await assertFails(setDoc(doc(studentA(), framePath), {
+    schemaVersion: 1, requestId, studentId: 'STUDENT_A', assignmentId: 'A2', assignmentTitle: 'Assignment 2',
+    questionIndex: 1, studentLabel: 'Student A.', question: { prompt: 'Other work' }, work: { response: 'private A2' },
+    updatedAtMs: Date.now(), updatedAt: serverTimestamp(), expiresAt,
+  }));
+  await assertFails(setDoc(doc(studentA(), framePath), {
+    schemaVersion: 1, requestId, studentId: 'STUDENT_A', assignmentId: 'A1', assignmentTitle: 'Assignment 1',
+    questionIndex: 0, studentLabel: 'Student A.', question: { prompt: 'Solve' }, work: { response: '2x + 3' },
+    grade: 100, browserHistory: ['private'], updatedAtMs: Date.now(), updatedAt: serverTimestamp(), expiresAt,
+  }));
+
+  await assertSucceeds(deleteDoc(doc(studentA(), framePath)));
+  await assertSucceeds(updateDoc(doc(studentA(), requestPath), { status: 'stopped', stoppedAt: serverTimestamp(), stoppedBy: 'student' }));
+  await assertFails(setDoc(doc(studentA(), framePath), {
+    requestId, studentId: 'STUDENT_A', work: { response: 'must not return' }, updatedAt: serverTimestamp(),
+  }));
+
+  const nextRequestId = `${requestId}-new-session`;
+  await assertSucceeds(setDoc(doc(teacherA(), `liveSpotlightRequests/${nextRequestId}`), {
+    schemaVersion: 1, requestId: nextRequestId, classId: 'class-a', studentId: 'STUDENT_A',
+    studentLabel: 'Student A.', teacherUid: 'uid-a', teacherEmail: TEACHER_A,
+    teacherLabel: 'Ms. A', status: 'requested', assignmentId: 'A1', questionIndex: 0,
+    requestedAt: serverTimestamp(), expiresAt: Timestamp.fromMillis(Date.now() + 120000),
+  }));
+  await assertFails(setDoc(doc(studentA(), `liveSpotlightFrames/${nextRequestId}`), {
+    schemaVersion: 1, requestId: nextRequestId, studentId: 'STUDENT_A', assignmentId: 'A1', assignmentTitle: 'Assignment 1',
+    questionIndex: 0, studentLabel: 'Student A.', question: { prompt: 'Solve' }, work: { response: 'old consent cannot carry' },
+    updatedAtMs: Date.now(), updatedAt: serverTimestamp(), expiresAt: Timestamp.fromMillis(Date.now() + 120000),
+  }));
+});
+
+test('Spotlight decline, expiry, teacher stop, and teacher-of-record changes reveal nothing', async () => {
+  const seedRequest = async (id, expiresAt, status = 'requested') => env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), `liveSpotlightRequests/${id}`), {
+      schemaVersion: 1, requestId: id, classId: 'class-a', studentId: 'STUDENT_A', studentLabel: 'Student A.',
+      teacherUid: 'uid-a', teacherEmail: TEACHER_A, teacherLabel: 'Ms. A', status,
+      assignmentId: 'A1', questionIndex: 0, requestedAt: Timestamp.fromMillis(Date.now() - 1000), expiresAt,
+    });
+    if (status === 'accepted') await setDoc(doc(context.firestore(), `liveSpotlightFrames/${id}`), { requestId: id, studentId: 'STUDENT_A', work: { response: 'frame' }, updatedAt: Timestamp.now() });
+  });
+
+  const declined = `spotlight-declined-${Date.now()}`;
+  await seedRequest(declined, Timestamp.fromMillis(Date.now() + 120000));
+  await assertSucceeds(updateDoc(doc(studentA(), `liveSpotlightRequests/${declined}`), { status: 'declined', respondedAt: serverTimestamp() }));
+  await assertFails(getDoc(doc(teacherA(), `liveSpotlightFrames/${declined}`)));
+
+  const expired = `spotlight-expired-${Date.now()}`;
+  await seedRequest(expired, Timestamp.fromMillis(Date.now() - 1000), 'accepted');
+  await assertFails(getDoc(doc(teacherA(), `liveSpotlightFrames/${expired}`)));
+  await assertFails(setDoc(doc(studentA(), `liveSpotlightFrames/${expired}`), { requestId: expired, studentId: 'STUDENT_A', updatedAt: serverTimestamp() }));
+
+  const stopped = `spotlight-teacher-stop-${Date.now()}`;
+  await seedRequest(stopped, Timestamp.fromMillis(Date.now() + 120000), 'accepted');
+  await assertSucceeds(updateDoc(doc(teacherA(), `liveSpotlightRequests/${stopped}`), { status: 'stopped', stoppedAt: serverTimestamp(), stoppedBy: 'teacher' }));
+  await assertFails(getDoc(doc(teacherA(), `liveSpotlightFrames/${stopped}`)));
+
+  const moved = `spotlight-moved-${Date.now()}`;
+  await seedRequest(moved, Timestamp.fromMillis(Date.now() + 120000), 'accepted');
+  await env.withSecurityRulesDisabled(async (context) => updateDoc(doc(context.firestore(), 'classes/class-a'), { teacherOfRecord: TEACHER_B }));
+  await assertFails(getDoc(doc(teacherA(), `liveSpotlightFrames/${moved}`)));
+  await env.withSecurityRulesDisabled(async (context) => updateDoc(doc(context.firestore(), 'classes/class-a'), { teacherOfRecord: TEACHER_A }));
+});
+
+test('production Spotlight collection queries preserve teacher, class, roster, and student boundaries', async () => {
+  const now = Timestamp.now();
+  const expiresAt = Timestamp.fromMillis(now.toMillis() + 120000);
+  await env.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'liveSpotlightRequests/query-a'), {
+      schemaVersion: 1, requestId: 'query-a', classId: 'class-a', studentId: 'STUDENT_A',
+      teacherUid: 'uid-a', teacherEmail: TEACHER_A, status: 'requested', assignmentId: 'A1',
+      requestedAt: now, expiresAt,
+    });
+    await setDoc(doc(db, 'liveSpotlightRequests/query-b'), {
+      schemaVersion: 1, requestId: 'query-b', classId: 'class-b', studentId: 'STUDENT_B',
+      teacherUid: 'uid-b', teacherEmail: TEACHER_B, status: 'requested', assignmentId: 'A2',
+      requestedAt: now, expiresAt,
+    });
+  });
+
+  const teacherResults = await assertSucceeds(getDocs(activeTeacherSpotlightQuery(teacherA(), {
+    teacherEmail: TEACHER_A, classId: 'class-a', now,
+  })));
+  assert.deepEqual(teacherResults.docs.map((entry) => entry.id), ['query-a']);
+  await assertFails(getDocs(activeTeacherSpotlightQuery(teacherB(), {
+    teacherEmail: TEACHER_A, classId: 'class-a', now,
+  })));
+  await assertFails(getDocs(activeTeacherSpotlightQuery(teacherA(), {
+    teacherEmail: TEACHER_B, classId: 'class-b', now,
+  })));
+
+  const studentResults = await assertSucceeds(getDocs(activeStudentSpotlightQuery(studentA(), {
+    studentId: 'STUDENT_A', now,
+  })));
+  assert.deepEqual(studentResults.docs.map((entry) => entry.id), ['query-a']);
+  await assertFails(getDocs(activeStudentSpotlightQuery(studentB(), {
+    studentId: 'STUDENT_A', now,
+  })));
+
+  // Rules do not filter query results. One malformed request whose student is
+  // not in the constrained class must make the teacher query fail closed.
+  await env.withSecurityRulesDisabled(async (context) => setDoc(doc(context.firestore(), 'liveSpotlightRequests/query-invalid-roster'), {
+    schemaVersion: 1, requestId: 'query-invalid-roster', classId: 'class-a', studentId: 'STUDENT_B',
+    teacherUid: 'uid-a', teacherEmail: TEACHER_A, status: 'requested', assignmentId: 'A1',
+    requestedAt: now, expiresAt,
+  }));
+  await assertFails(getDocs(activeTeacherSpotlightQuery(teacherA(), {
+    teacherEmail: TEACHER_A, classId: 'class-a', now,
+  })));
+});
+
+test('Spotlight does not widen workspace drafts or presence response content', async () => {
+  await assertFails(getDoc(doc(teacherA(), 'studentWorkspaceDrafts/STUDENT_A__A1')));
+  await assertFails(updateDoc(doc(studentA(), 'presence/STUDENT_A'), { response: 'must stay private' }));
 });
 
 test('personal Path intervention is student-readable, roster-scoped, and server-write-only', async () => {

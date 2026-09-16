@@ -19,6 +19,8 @@ const labelForCollection = (name) => ({
   liveChallengeRooms: 'Live Challenge rooms',
   liveChallengeTeacherActive: 'Live Challenge active pointers',
   liveChallengePrivate: 'Live Challenge private state',
+  liveSpotlightRequests: 'Student Spotlight consent requests',
+  liveSpotlightFrames: 'Student Spotlight presentation frames',
   pathHistory: 'Path routing history',
   classroomLinks: 'Classroom publication links',
   classroomRosterLinks: 'Classroom roster links',

@@ -106,6 +106,17 @@ import {
   questionIsIncluded,
 } from './assignmentLifecycle';
 import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
+import {
+  SPOTLIGHT_FRAME_COLLECTION,
+  SPOTLIGHT_REQUEST_COLLECTION,
+  SPOTLIGHT_STATUS,
+  buildSpotlightFrame,
+  createSpotlightPublisher,
+  isActiveSpotlightRequest,
+  publicStudentLabel,
+  scheduleSpotlightExpiry,
+} from './platform/liveSpotlight.js';
+import { activeStudentSpotlightQuery } from './platform/liveSpotlightQueries.js';
 import { getQuestionRepresentation } from './platform/contract/questionTypeCatalog';
 import { getQuestionPrimaryTeksCodes } from './questionMetadata.js';
 import {
@@ -1235,6 +1246,9 @@ function App() {
   // tearing down the presence document (and therefore without creating an
   // archive-trigger invocation on every answer/question change).
   const livePresencePayloadRef = useRef(null);
+  const spotlightPublisherRef = useRef(null);
+  const [studentSpotlightRequest, setStudentSpotlightRequest] = useState(null);
+  const [studentSpotlightMessage, setStudentSpotlightMessage] = useState('');
   // Session-only active time for the live monitor/archive. Assignment question
   // timers are cumulative across resumes, and assignment-activity pending time
   // is periodically flushed/reset, so neither is a valid class-session clock.
@@ -2403,6 +2417,7 @@ function App() {
   }, [auth.status, auth.session?.uid]);
 
   const handleLogout = async () => {
+    await stopStudentSpotlight?.();
     setUser(null);
     setActiveView('dashboard');
     setTeacherTab('home');
@@ -3060,6 +3075,106 @@ function App() {
     activeAssignmentId,
     activeAssignmentData?.id,
   ]);
+
+  // Spotlight consent is its own short-lived channel. Merely opening an
+  // assignment or publishing presence never creates a frame.
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.id) {
+      setStudentSpotlightRequest(null);
+      return undefined;
+    }
+    return onSnapshot(
+      activeStudentSpotlightQuery(db, { studentId: user.id }),
+      (snapshot) => {
+        const current = snapshot.docs
+          .map((entry) => ({ id: entry.id, ...entry.data() }))
+          .filter((entry) => [SPOTLIGHT_STATUS.REQUESTED, SPOTLIGHT_STATUS.ACCEPTED].includes(entry.status))
+          .filter((entry) => (entry.expiresAt?.toMillis?.() || 0) > Date.now())
+          .sort((left, right) => (right.requestedAt?.toMillis?.() || 0) - (left.requestedAt?.toMillis?.() || 0))[0] || null;
+        setStudentSpotlightRequest(current);
+      },
+      () => setStudentSpotlightMessage('Presentation connection unavailable. Your MathMaster work is still safe and usable.'),
+    );
+  }, [user?.role, user?.id]);
+
+  useEffect(() => {
+    spotlightPublisherRef.current?.stop();
+    spotlightPublisherRef.current = null;
+    if (!studentSpotlightRequest || !isActiveSpotlightRequest(studentSpotlightRequest)) return undefined;
+    const frameRef = doc(db, SPOTLIGHT_FRAME_COLLECTION, studentSpotlightRequest.id);
+    spotlightPublisherRef.current = createSpotlightPublisher({
+      publish: (frame) => setDoc(frameRef, {
+        ...frame,
+        requestId: studentSpotlightRequest.id,
+        studentId: user.id,
+        expiresAt: studentSpotlightRequest.expiresAt,
+        updatedAt: serverTimestamp(),
+      }).catch(() => setStudentSpotlightMessage('Presentation connection interrupted. Keep working normally while MathMaster reconnects.')),
+    });
+    return () => {
+      spotlightPublisherRef.current?.stop();
+      spotlightPublisherRef.current = null;
+    };
+  }, [studentSpotlightRequest?.id, studentSpotlightRequest?.status, user?.id]);
+
+  const respondToSpotlight = useCallback(async (accepted) => {
+    if (!studentSpotlightRequest || studentSpotlightRequest.status !== SPOTLIGHT_STATUS.REQUESTED) return;
+    try {
+      await updateDoc(doc(db, SPOTLIGHT_REQUEST_COLLECTION, studentSpotlightRequest.id), {
+        status: accepted ? SPOTLIGHT_STATUS.ACCEPTED : SPOTLIGHT_STATUS.DECLINED,
+        respondedAt: serverTimestamp(),
+      });
+      setStudentSpotlightMessage(accepted ? '' : 'You chose Not Now. No work was shared.');
+    } catch {
+      setStudentSpotlightMessage('Could not send your choice. Nothing will be shared unless Present Now succeeds.');
+    }
+  }, [studentSpotlightRequest]);
+
+  const stopStudentSpotlight = useCallback(async () => {
+    const request = studentSpotlightRequest;
+    spotlightPublisherRef.current?.stop();
+    spotlightPublisherRef.current = null;
+    if (!request) return;
+    await deleteDoc(doc(db, SPOTLIGHT_FRAME_COLLECTION, request.id)).catch(() => {});
+    if (request.status === SPOTLIGHT_STATUS.ACCEPTED) {
+      await updateDoc(doc(db, SPOTLIGHT_REQUEST_COLLECTION, request.id), {
+        status: SPOTLIGHT_STATUS.STOPPED,
+        stoppedAt: serverTimestamp(),
+        stoppedBy: 'student',
+      }).catch(() => setStudentSpotlightMessage('The projector connection could not be confirmed stopped. It will expire automatically.'));
+    }
+  }, [studentSpotlightRequest]);
+
+  const publishSpotlightWork = useCallback(({ question, answerState }) => {
+    if (!spotlightPublisherRef.current || !studentSpotlightRequest || !isActiveSpotlightRequest(studentSpotlightRequest)) return;
+    spotlightPublisherRef.current.schedule(buildSpotlightFrame({
+      assignmentId: activeAssignmentId,
+      assignmentTitle: activeAssignmentData?.title,
+      questionIndex: currentQuestionIndex,
+      question,
+      answerState,
+      studentLabel: publicStudentLabel({ ...studentRecord, ...user }),
+    }));
+  }, [studentSpotlightRequest, activeAssignmentId, activeAssignmentData?.title, currentQuestionIndex, studentRecord, user]);
+
+  useEffect(() => {
+    if (!studentSpotlightRequest) return undefined;
+    return scheduleSpotlightExpiry({
+      request: studentSpotlightRequest,
+      onExpire: () => {
+        setStudentSpotlightRequest(null);
+        if (studentSpotlightRequest.status === SPOTLIGHT_STATUS.ACCEPTED) stopStudentSpotlight();
+      },
+      setTimer: window.setTimeout,
+      clearTimer: window.clearTimeout,
+    });
+  }, [studentSpotlightRequest?.id, studentSpotlightRequest?.status, studentSpotlightRequest?.expiresAt, stopStudentSpotlight]);
+
+  useEffect(() => {
+    if (studentSpotlightRequest?.status !== SPOTLIGHT_STATUS.ACCEPTED) return;
+    if (activeView === 'assignment' && activeAssignmentId === studentSpotlightRequest.assignmentId) return;
+    stopStudentSpotlight();
+  }, [studentSpotlightRequest?.status, studentSpotlightRequest?.assignmentId, activeView, activeAssignmentId, stopStudentSpotlight]);
 
   // Persistent support/intervention history is teacher-authorized and
   // append-only. It is loaded independently of the live presence stream.
@@ -8447,6 +8562,7 @@ function App() {
               adaptation={currentAdaptation}
               onGrade={handleGradeSubmit}
               onResponseCheckpoint={preview ? null : handleResponseCheckpoint}
+              onSpotlightFrame={preview ? null : publishSpotlightWork}
               onStepGrade={handleStepGrade}
               onRequestNewQuestion={handleRequestNewQuestion}
               onLoadScratchpad={handleLoadScratchpad}
@@ -8553,6 +8669,17 @@ function App() {
         student={preview ? null : { ...studentRecord, ...user }}
         onLogout={preview ? null : handleLogout}
       />
+      {!preview && studentSpotlightRequest?.status === SPOTLIGHT_STATUS.REQUESTED && (
+        <section role="dialog" aria-label="Student Spotlight request" style={{ margin: '12px auto', maxWidth: 760, padding: '16px 18px', borderRadius: 12, border: '2px solid #681da8', background: '#f8f0fc', color: '#3b0f55' }}>
+          <strong style={{ display: 'block', fontSize: 18 }}>{studentSpotlightRequest.teacherLabel || 'Your teacher'} would like to show your current MathMaster work to the class.</strong>
+          <div style={{ marginTop: 5, fontSize: 13 }}>Nothing is visible unless you choose Present Now. This does not share your Chromebook screen.</div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}><button type="button" onClick={() => respondToSpotlight(true)} style={{ padding: '9px 14px', border: 0, borderRadius: 8, background: '#681da8', color: '#fff', fontWeight: 900 }}>Present Now</button><button type="button" onClick={() => respondToSpotlight(false)} style={{ padding: '9px 14px', border: '1px solid #681da8', borderRadius: 8, background: '#fff', color: '#681da8', fontWeight: 900 }}>Not Now</button></div>
+        </section>
+      )}
+      {!preview && studentSpotlightRequest?.status === SPOTLIGHT_STATUS.ACCEPTED && (
+        <section role="status" style={{ margin: '10px auto', maxWidth: 760, padding: '10px 14px', borderRadius: 10, background: '#681da8', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}><strong>Presenting to class</strong><button type="button" onClick={stopStudentSpotlight} style={{ padding: '7px 11px', border: '1px solid #fff', borderRadius: 7, background: '#fff', color: '#681da8', fontWeight: 900 }}>Stop Presenting</button></section>
+      )}
+      {!preview && studentSpotlightMessage && <div role="status" style={{ margin: '8px auto', maxWidth: 760, padding: '8px 12px', color: '#5f6368', fontSize: 12 }}>{studentSpotlightMessage}</div>}
       {content}
     </div>
   );
@@ -9218,7 +9345,9 @@ function App() {
                 learningProfilesByStudentId={teacherLearningProfiles}
                 activeClassId={activeClass.classId}
                 classes={classes}
+                teacherUid={auth.session?.uid || user.uid || ''}
                 teacherEmail={user.email || ''}
+                teacherLabel={user.displayName || user.name || user.email || 'Your teacher'}
                 isRootAdmin={user.isRootAdmin === true}
                 studentSupportEvents={studentSupportEvents}
                 studentSessionSummaries={studentSessionSummaries}
