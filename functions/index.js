@@ -6758,6 +6758,16 @@ exports.syncGradeToClassroom = onDocumentWritten(
         JSON.stringify(afterByAssignment[assignmentId]) !==
         JSON.stringify(beforeByAssignment[assignmentId])
     );
+    const afterTeacherOverrides = afterData.teacherGradeOverridesByAssignment || {};
+    const beforeTeacherOverrides = beforeData.teacherGradeOverridesByAssignment || {};
+    const overrideChangedAssignmentIds = [...new Set([
+      ...Object.keys(afterTeacherOverrides),
+      ...Object.keys(beforeTeacherOverrides),
+    ])].filter(
+      (assignmentId) =>
+        JSON.stringify(afterTeacherOverrides[assignmentId] || {}) !==
+        JSON.stringify(beforeTeacherOverrides[assignmentId] || {})
+    );
     // A Test Cycle's recorded grade is not a tracker; it is the canonical
     // record's projection, written by the secure release path. It has to wake
     // this trigger on its own or a released Test would never reach Classroom.
@@ -6778,6 +6788,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
     const releaseSignalSet = new Set(releaseSignaledAssignmentIds);
     const changedAssignmentIds = [...new Set([
       ...gradeChangedAssignmentIds,
+      ...overrideChangedAssignmentIds,
       ...testCycleChangedAssignmentIds,
       ...releaseSignaledAssignmentIds,
     ])];
@@ -6814,6 +6825,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
       if (!isTestCycleAssignment && !questionIndices.length) continue;
 
       const assignmentTracker = afterByAssignment[assignmentId] || {};
+      const authoritativeOverrides = afterTeacherOverrides[assignmentId] || {};
       const questions = runtimeQuestionsFromAssignment(assignment);
       const releaseSignal = releaseSignalSet.has(assignmentId)
         ? afterReleaseSignals[assignmentId]
@@ -6831,7 +6843,12 @@ exports.syncGradeToClassroom = onDocumentWritten(
           meaningfulProgress: true,
           minimumProgressQuestions: 1,
         }
-        : assignmentGradeProgress(assignmentTracker, questionIndices, questions);
+        : assignmentGradeProgress(
+          assignmentTracker,
+          questionIndices,
+          questions,
+          authoritativeOverrides,
+        );
       const stage = isTestCycleAssignment
         ? (testCycleProjection.recordedGradeSource === "retest" ? "testcycle-retest" : "testcycle-test")
         : resolveClassroomGradeStage({
