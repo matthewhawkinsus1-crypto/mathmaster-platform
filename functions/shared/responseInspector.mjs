@@ -532,13 +532,14 @@ export const buildGradeOverride = ({
     fieldId: fieldId ? String(fieldId) : null,
   };
   return {
+    // This projection lives on the student-readable grades document because
+    // the normal Grade Center must be able to show the assigned score. Keep it
+    // deliberately free of teacher identity and private notes; those belong
+    // only in the server-only gradeOverrideAudits subcollection.
     override: {
       active: true,
       score: nextScore,
       fieldOverrides,
-      reason,
-      note: audit.note,
-      actor: audit.actor,
       updatedAt: at,
       source,
       automaticScore: automaticQuestionScore(record),
