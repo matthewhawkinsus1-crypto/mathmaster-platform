@@ -416,6 +416,21 @@ test('override endpoint uses protected projection and does not append mastery ev
   assert.doesNotMatch(region, /gradeOverride\?\.active/);
 });
 
+test('later DOL ingestion and deadline finalization preserve authoritative teacher overrides', () => {
+  const source = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const ingestionStart = source.indexOf('async function ingestOneSubmission');
+  const ingestionEnd = source.indexOf('exports.ingestStudentSubmissions', ingestionStart);
+  const ingestionRegion = source.slice(ingestionStart, ingestionEnd);
+  assert.match(ingestionRegion, /teacherGradeOverridesByAssignment/);
+  assert.match(ingestionRegion, /creditForRecord:\s*\(candidate, index\) => getQuestionCredit/);
+
+  const finalizerStart = source.indexOf('async function finalizeOneResponseCheckpoint');
+  const finalizerEnd = source.indexOf('exports.finalizeStudentResponseCheckpoints', finalizerStart);
+  const finalizerRegion = source.slice(finalizerStart, finalizerEnd);
+  assert.match(finalizerRegion, /teacherGradeOverridesByAssignment/);
+  assert.match(finalizerRegion, /creditForRecord:\s*\(candidate, index\) => getQuestionCredit/);
+});
+
 test('Classroom passback wakes on authoritative override changes and applies them by question index', () => {
   const source = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
   const start = source.indexOf('exports.syncGradeToClassroom');
