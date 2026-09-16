@@ -200,6 +200,12 @@ test('the award dialog guards submission against a rapid double click and disabl
   assert.match(awardDialogSource, /disabled=\{submitting\}[\s\S]{0,80}onClick=\{submit\}/, 'the submit button must be disabled while a request is in flight');
 });
 
+test('changing Celebrate with class resets the pending requestId because announce changes the callable payload fingerprint', () => {
+  const announceControl = region(awardDialogSource, 'checked={announce}', 'Celebrate with class', 'announce control');
+  assert.match(announceControl, /setAnnounce\(event\.target\.checked\)/);
+  assert.match(announceControl, /requestControllerRef\.current\.reset\(\)/);
+});
+
 test('a failed award does NOT clear the requestId controller, but a successful one does', () => {
   const submitBody = region(awardDialogSource, 'const submit = async () =>', 'return (\n    <div', 'award submit handler');
   const tryBlock = region(submitBody, 'setSubmitting(true);', 'finally', 'award try/catch');
