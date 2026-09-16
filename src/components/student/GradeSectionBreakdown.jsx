@@ -40,21 +40,25 @@ export default function GradeSectionBreakdown({ sections = {}, hidden = false, c
       {present.map(({ key, split }) => {
         // Attempted nothing is not zero percent. The section says so in words.
         const noEvidence = Number(split.attempted) === 0;
+        // A Practice Pass waiver is not a completion and not "not attempted" --
+        // it is an excusal, and the label must never read like a correct
+        // answer or a 100%. See functions/shared/classPointRewards.mjs.
+        const excused = split.excused === true;
         return (
           <li
             key={key}
             style={{
-              padding: '8px 10px', borderRadius: 10, background: '#f8f9fa',
-              border: '1px solid #e4e7ec', minWidth: 0,
+              padding: '8px 10px', borderRadius: 10, background: excused ? '#f3e8fd' : '#f8f9fa',
+              border: excused ? '1px solid #d6b8f5' : '1px solid #e4e7ec', minWidth: 0,
             }}
           >
             <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.04em', textTransform: 'uppercase', color: '#5f6368' }}>
               {SECTION_LABEL[key]}
             </div>
-            <div style={{ marginTop: 2, fontSize: noEvidence || hidden ? 13 : 18, fontWeight: 900, color: noEvidence ? '#5f6368' : '#202124', overflowWrap: 'anywhere' }}>
-              {hidden ? '••' : noEvidence ? 'Not attempted' : `${split.score}%`}
+            <div style={{ marginTop: 2, fontSize: excused || noEvidence || hidden ? 13 : 18, fontWeight: 900, color: excused ? '#6a1b9a' : noEvidence ? '#5f6368' : '#202124', overflowWrap: 'anywhere' }}>
+              {hidden ? '••' : excused ? '✓ Excused (Practice Pass)' : noEvidence ? 'Not attempted' : `${split.score}%`}
             </div>
-            {!hidden && !noEvidence && Number(split.unanswered) > 0 && (
+            {!hidden && !noEvidence && !excused && Number(split.unanswered) > 0 && (
               <div style={{ marginTop: 2, fontSize: 11, color: '#5f6368' }}>
                 {split.attempted} of {split.total} answered
               </div>

@@ -1466,6 +1466,13 @@ const CLASS_POINT_ACCOUNTS_COLLECTION = "classPointAccounts";
 const CLASS_POINT_TRANSACTIONS_COLLECTION = "classPointTransactions";
 const CLASS_POINT_IDEMPOTENCY_COLLECTION = "classPointIdempotencyKeys";
 const CLASS_POINT_ANNOUNCEMENTS_COLLECTION = "classPointAnnouncements";
+const CLASS_POINT_REWARD_REDEMPTIONS_COLLECTION = "classPointRewardRedemptions";
+
+let classPointRewardsModule = null;
+async function classPointRewards() {
+  if (!classPointRewardsModule) classPointRewardsModule = await import("./shared/classPointRewards.mjs");
+  return classPointRewardsModule;
+}
 
 function translateClassPointsError(error) {
   if (error?.name === "ClassPointsInputError") {
@@ -1761,6 +1768,175 @@ exports.reverseClassPointAward = onCall(async (request) => {
       transactionId: reversalRef.id,
       account: nextAccount,
       transaction: reversalData,
+      replay: false,
+    };
+  });
+});
+
+/**
+ * Redeem a Practice Pass: spend 100 Class Points to excuse the Practice
+ * section of one eligible assignment for the calling student. This is a
+ * waiver, never academic credit -- see functions/shared/classPointRewards.mjs
+ * for the full eligibility algorithm and the ledger/redemption shapes this
+ * writes.
+ *
+ * IDEMPOTENCY IS THE DOCUMENT ID, NOT A CLIENT REQUESTID. The redemption id is
+ * a deterministic function of (studentId, classId, assignmentId, rewardCode),
+ * so a double click, a callable timeout, or a browser retry after an
+ * uncertain response all resolve to the SAME document: this transaction reads
+ * it first and, if it already exists, returns that original result instead of
+ * spending another 100 points. That is also the entire "one Practice Pass per
+ * assignment" rule -- a second real attempt is not a new document, it is a
+ * write to one that is already there.
+ *
+ * Every fact this callable trusts is re-read here, from the verified token and
+ * from Firestore, never from the browser: studentId and classId come from the
+ * caller's custom claims and their own grade record, the assignment is read
+ * fresh, and Practice's current-content indices come from
+ * runtimeIncludedQuestionIndicesForSection -- the SAME projection the
+ * classwork/DOL denominators already use server-side.
+ */
+exports.redeemPracticePass = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+
+  const rewards = await classPointRewards();
+  let input;
+  try {
+    input = rewards.validateRedeemPracticePassInput(request.data);
+  } catch (error) {
+    if (error?.name === "PracticePassInputError") {
+      throw new HttpsError("invalid-argument", error.message);
+    }
+    throw error;
+  }
+  const { assignmentId } = input;
+
+  const db = getFirestore();
+  const gradeRef = db.collection("grades").doc(studentId);
+  const assignmentRef = db.collection("assignments").doc(assignmentId);
+
+  return db.runTransaction(async (transaction) => {
+    const [gradeSnap, assignmentSnap] = await Promise.all([
+      transaction.get(gradeRef),
+      transaction.get(assignmentRef),
+    ]);
+    if (!gradeSnap.exists) {
+      throw new HttpsError("not-found", "Your student record was not found.");
+    }
+    const gradeData = gradeSnap.data() || {};
+    const classId = authoritativeStudentClassId(gradeData);
+    if (!classId) {
+      throw new HttpsError("failed-precondition", "You are not currently placed in a class.");
+    }
+    if (!assignmentSnap.exists) {
+      throw new HttpsError("not-found", "That assignment was not found.");
+    }
+    const assignment = { id: assignmentSnap.id, ...assignmentSnap.data() };
+
+    const redemptionId = rewards.practicePassRedemptionId({
+      studentId, classId, assignmentId, rewardCode: rewards.PRACTICE_PASS_REWARD_CODE,
+    });
+    const redemptionRef = db.collection(CLASS_POINT_REWARD_REDEMPTIONS_COLLECTION).doc(redemptionId);
+    const points = await classPoints();
+    const accountRef = db.collection(CLASS_POINT_ACCOUNTS_COLLECTION).doc(points.accountId(studentId, classId));
+    const classRef = db.collection("classes").doc(classId);
+    const [redemptionSnap, accountSnap, classSnap] = await Promise.all([
+      transaction.get(redemptionRef),
+      transaction.get(accountRef),
+      transaction.get(classRef),
+    ]);
+
+    // Idempotent replay: the deterministic redemption id IS the retry key.
+    if (redemptionSnap.exists) {
+      const existing = redemptionSnap.data();
+      const existingTransactionSnap = await transaction.get(
+        db.collection(CLASS_POINT_TRANSACTIONS_COLLECTION).doc(String(existing.transactionId)),
+      );
+      return {
+        redemptionId,
+        redemption: existing,
+        account: accountSnap.exists ? accountSnap.data() : null,
+        transaction: existingTransactionSnap.exists ? existingTransactionSnap.data() : null,
+        replay: true,
+      };
+    }
+
+    const assignedToClass = studentMatchesAssignmentAudience({ assignment, classId });
+    const isTestCycleAssignment = secureAssignmentMode(assignment) || assignment.secure === true;
+    const practiceIndices = runtimeIncludedQuestionIndicesForSection(assignment, "practice");
+
+    const { normalizeQuestionRecord } = await import("./shared/attemptPolicy.mjs");
+    const tracker = gradeData?.gradesByAssignment?.[assignmentId] || {};
+    // Authoritative evidence only -- never the existence of a local draft. A
+    // student who never submitted a Practice response may still redeem even
+    // if a browser has an unfinished draft sitting in studentWorkspaceDrafts.
+    const hasCreditBearingAttempt = practiceIndices.some((index) => {
+      const record = normalizeQuestionRecord(tracker?.[String(index)] ?? tracker?.[index]);
+      return Number(record.totalAttempts) > 0;
+    });
+
+    const account = accountSnap.exists ? accountSnap.data() : points.emptyAccount({ studentId, classId });
+
+    const decision = rewards.evaluatePracticePassEligibility({
+      assignment,
+      assignedToClass,
+      isTestCycleAssignment,
+      practiceIndices,
+      hasCreditBearingAttempt,
+      alreadyRedeemed: false,
+      balance: account.balance,
+      nowValue: Date.now(),
+    });
+    if (!decision.eligible) {
+      throw new HttpsError("failed-precondition", decision.message);
+    }
+
+    const classRecord = classSnap.exists ? { classId: classSnap.id, ...classSnap.data() } : null;
+    const authorization = points.classPointsAuthorizationContext({
+      classRecord, existingRecord: accountSnap.exists ? account : null,
+    });
+
+    const nowIso = new Date().toISOString();
+    const assignmentTitle = rewards.safeAssignmentTitle(assignment);
+    const transactionRef = db.collection(CLASS_POINT_TRANSACTIONS_COLLECTION).doc();
+    const ledgerTransaction = rewards.buildPracticePassLedgerTransaction({
+      studentId,
+      classId,
+      assignmentId,
+      assignmentTitle,
+      redemptionId,
+      issuedByUid: request.auth.uid,
+      issuedByEmail: callerEmail(request),
+      originTeacherEmail: authorization.originTeacherEmail,
+      authorizedTeacherEmails: authorization.authorizedTeacherEmails,
+      at: nowIso,
+    });
+
+    let nextAccount;
+    try {
+      nextAccount = points.applyTransaction(account, ledgerTransaction);
+    } catch (error) {
+      throw translateClassPointsError(error);
+    }
+    nextAccount = {
+      ...nextAccount,
+      originTeacherEmail: authorization.originTeacherEmail,
+      authorizedTeacherEmails: authorization.authorizedTeacherEmails,
+    };
+
+    const redemption = rewards.buildPracticePassRedemption({
+      redemptionId, studentId, classId, assignmentId, assignmentTitle, transactionId: transactionRef.id, at: nowIso,
+    });
+
+    transaction.set(transactionRef, ledgerTransaction);
+    transaction.set(accountRef, nextAccount);
+    transaction.set(redemptionRef, redemption);
+
+    return {
+      redemptionId,
+      redemption,
+      account: nextAccount,
+      transaction: ledgerTransaction,
       replay: false,
     };
   });
@@ -4711,8 +4887,9 @@ exports.lockPreproductionResetForProduction = onCall(async (request) => {
 /**
  * Erase the complete Class Points footprint for a permanently-deleted
  * student: every account, every transaction across every class they were
- * ever in, every idempotency record those awards produced, and every public
- * announcement those awards triggered.
+ * ever in, every idempotency record those awards produced, every public
+ * announcement those awards triggered, and every reward redemption (Practice
+ * Pass and any future reward) they hold.
  *
  * This is the one Class Points lifecycle event that does NOT preserve
  * history. Removing a student from a class, disabling their account, and
@@ -4787,6 +4964,21 @@ async function deleteStudentClassPointsFootprint(db, studentId, deleted) {
     accountsDeleted += 1;
   }
   if (accountsDeleted) deleted.classPointAccounts = accountsDeleted;
+
+  // Reward redemptions (Practice Pass and any future reward) are queryable
+  // directly by studentId -- they need no transaction-derived id list the way
+  // the announcement/idempotency cleanup above does.
+  const redemptionsSnapshot = await db
+    .collection(CLASS_POINT_REWARD_REDEMPTIONS_COLLECTION)
+    .where("studentId", "==", studentId)
+    .get();
+  let redemptionsDeleted = 0;
+  for (const redemptionDoc of redemptionsSnapshot.docs) {
+    // eslint-disable-next-line no-await-in-loop
+    await redemptionDoc.ref.delete();
+    redemptionsDeleted += 1;
+  }
+  if (redemptionsDeleted) deleted.classPointRewardRedemptions = redemptionsDeleted;
 }
 
 /**
@@ -7448,7 +7640,43 @@ exports.syncGradeToClassroom = onDocumentWritten(
       if (isTestCycleAssignment && !testCycleProjection) continue;
       if (isTestCycleAssignment && testCycleProjection.recordedGrade == null) continue;
 
-      const questionIndices = runtimeIncludedQuestionIndices(assignment);
+      let questionIndices = runtimeIncludedQuestionIndices(assignment);
+      /*
+       * A REDEEMED PRACTICE PASS REMOVES PRACTICE FROM THIS SAME DENOMINATOR.
+       *
+       * Google Classroom must receive the legitimate MathMaster grade with
+       * Practice excluded, never a fabricated 100 for it and never the
+       * assignment marked complete on Practice's account. The redemption
+       * document (functions/shared/classPointRewards.mjs) is the
+       * authoritative waiver: its deterministic id is checked directly, the
+       * same way the redemption callable itself checks it for idempotency.
+       */
+      if (!isTestCycleAssignment) {
+        const practiceIndices = runtimeIncludedQuestionIndicesForSection(assignment, "practice");
+        if (practiceIndices.length) {
+          const rewards = await classPointRewards();
+          const redemptionClassId = authoritativeStudentClassId(afterData);
+          if (redemptionClassId) {
+            const redemptionId = rewards.practicePassRedemptionId({
+              studentId: event.params.studentId,
+              classId: redemptionClassId,
+              assignmentId,
+              rewardCode: rewards.PRACTICE_PASS_REWARD_CODE,
+            });
+            // eslint-disable-next-line no-await-in-loop
+            const redemptionSnap = await db
+              .collection(CLASS_POINT_REWARD_REDEMPTIONS_COLLECTION)
+              .doc(redemptionId)
+              .get();
+            if (redemptionSnap.exists) {
+              questionIndices = rewards.excludeWaivedIndices(
+                questionIndices,
+                rewards.waivedPracticeIndices({ hasRedemption: true, practiceIndices }),
+              );
+            }
+          }
+        }
+      }
       if (!isTestCycleAssignment && !questionIndices.length) continue;
 
       const assignmentTracker = afterByAssignment[assignmentId] || {};

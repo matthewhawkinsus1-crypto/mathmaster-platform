@@ -262,9 +262,12 @@ import StudentAssignmentResult from './components/student/StudentAssignmentResul
 import StudentIdentityBar, { STUDENT_IDENTITY_STACK_OFFSET } from './components/student/StudentIdentityBar.jsx';
 import {
   emptyClassPointAccount,
+  redeemPracticePass as redeemPracticePassCallable,
   subscribeToClassPointAnnouncements,
+  subscribeToPracticePassRedemptions,
   subscribeToStudentClassPoints,
 } from './platform/classPointsClient.js';
+import { practicePassEligibleAssignments } from './platform/rewards/practicePassClientEligibility.js';
 
 import {
   buildStudentGradeCenter,
@@ -590,9 +593,11 @@ function App() {
   // the auth layer says is signed in.
   const { toastSuccess, toastError, toastInfo, toastWarning, confirm: confirmAction } = useToast();
   const [user, setUser] = useState(null);
-  const [studentClassPoints, setStudentClassPoints] = useState({
-    account: emptyClassPointAccount(), transactions: [], announcements: [], unavailable: true,
+  const emptyStudentClassPoints = () => ({
+    account: emptyClassPointAccount(), transactions: [], announcements: [], redemptionsByAssignment: {}, unavailable: true,
   });
+  const [studentClassPoints, setStudentClassPoints] = useState(emptyStudentClassPoints());
+  const [redeemingPracticePass, setRedeemingPracticePass] = useState(false);
   const [sessionHydrating, setSessionHydrating] = useState(false);
   const [sessionHydrationError, setSessionHydrationError] = useState(null);
 
@@ -600,10 +605,10 @@ function App() {
     // Teacher Preview and synthetic student views can never cross this role gate.
     // A student without canonical class membership also creates no query.
     if (user?.role !== 'student' || !user.id || !user.classId) {
-      setStudentClassPoints({ account: emptyClassPointAccount(), transactions: [], announcements: [], unavailable: true });
+      setStudentClassPoints(emptyStudentClassPoints());
       return undefined;
     }
-    setStudentClassPoints({ account: emptyClassPointAccount(), transactions: [], announcements: [], unavailable: true });
+    setStudentClassPoints(emptyStudentClassPoints());
     let walletFailed = false;
     const unavailable = (error) => {
       walletFailed = true;
@@ -625,8 +630,26 @@ function App() {
       // A public celebration feed failure must not hide an otherwise healthy private wallet.
       onError: (error) => console.warn('Class celebrations are temporarily unavailable:', error),
     });
-    return () => { unsubscribeWallet(); unsubscribeAnnouncements(); };
+    // The authoritative Practice Pass waiver projection for this student+class.
+    // Read-only here -- redeeming one goes only through redeemPracticePassCallable.
+    const unsubscribeRedemptions = subscribeToPracticePassRedemptions({
+      db,
+      studentId: user.id,
+      classId: user.classId,
+      onRedemptions: (redemptionsByAssignment) => setStudentClassPoints((current) => ({ ...current, redemptionsByAssignment })),
+      onError: (error) => console.warn('Practice Pass redemptions are temporarily unavailable:', error),
+    });
+    return () => { unsubscribeWallet(); unsubscribeAnnouncements(); unsubscribeRedemptions(); };
   }, [user?.role, user?.id, user?.classId]);
+
+  const handleRedeemPracticePass = async (assignmentId) => {
+    setRedeemingPracticePass(true);
+    try {
+      await redeemPracticePassCallable({ assignmentId });
+    } finally {
+      setRedeemingPracticePass(false);
+    }
+  };
 
   // Google Classroom launches preserve the server-verified publication and
   // section identity all the way into the browser. Legacy whole-assignment
@@ -988,9 +1011,37 @@ function App() {
       classworkGradesByAssignment,
       gradingPeriodSettings,
       classroomSyncStatusByAssignment,
+      practicePassRedemptionsByAssignment: studentClassPoints.redemptionsByAssignment,
       providers: { assignmentHasHeldTeacherFeedback, prerequisiteAccess },
     });
-  }, [user, assignments, now, gradeDisplayTracker, testCycleGrades, classworkGradesByAssignment, gradingPeriodSettings, classroomSyncStatusByAssignment]);
+  }, [
+    user, assignments, now, gradeDisplayTracker, testCycleGrades, classworkGradesByAssignment,
+    gradingPeriodSettings, classroomSyncStatusByAssignment, studentClassPoints.redemptionsByAssignment,
+  ]);
+
+  /*
+   * WHICH ASSIGNMENTS THE WALLET OFFERS, AND THE ONE DOOR THAT SPENDS POINTS.
+   *
+   * `practicePassEligibleAssignments` is a best-effort UX filter over data this
+   * component already holds for the dashboard (`assignments`,
+   * `gradeDisplayTracker`) -- it never decides eligibility. `redeemPracticePass`
+   * (functions/index.js) independently re-verifies everything before it ever
+   * spends a point; a refusal surfaces through the wallet's own inline error
+   * state, and the balance shown never moves until the authoritative account
+   * subscription above updates it.
+   */
+  const studentPracticePassEligibleAssignments = useMemo(() => (
+    user?.role === 'student' && user.id && user.classId
+      ? practicePassEligibleAssignments({
+        assignments,
+        classId: user.classId,
+        classPeriod: user.classPeriod,
+        tracker: gradeDisplayTracker,
+        redemptionsByAssignment: studentClassPoints.redemptionsByAssignment,
+        nowValue: now,
+      })
+      : []
+  ), [user, assignments, gradeDisplayTracker, studentClassPoints.redemptionsByAssignment, now]);
 
   // The signed-in student's own Student Learning Profile, built from the same
   // evidence their teacher's roster reads. Assignment adaptation needs the DOK
@@ -9838,6 +9889,9 @@ function App() {
         onOpenLiveChallenge={() => setStudentDashboardMode('liveChallenge')}
         onLogout={handleLogout}
         classPoints={studentClassPoints}
+        practicePassEligibleAssignments={studentPracticePassEligibleAssignments}
+        onRedeemPracticePass={handleRedeemPracticePass}
+        redeemingPracticePass={redeemingPracticePass}
         recommended={{
           student: studentRecord,
           assignments: studentPathAssignments,

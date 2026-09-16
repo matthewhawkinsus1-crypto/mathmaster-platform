@@ -148,6 +148,7 @@ const call = (name) => {
 
 export const awardClassPoints = call('awardClassPoints');
 export const reverseClassPointAward = call('reverseClassPointAward');
+export const redeemPracticePass = call('redeemPracticePass');
 
 /** The bounded, indexed query a teacher's own class-scoped balances live at (see firestore.indexes.json). */
 export const classPointAccountsQuery = (firestore, { teacherEmail, classId }) => query(
@@ -371,6 +372,74 @@ export const subscribeToStudentClassPoints = ({
     unsubAccount();
     unsubHistory();
   };
+};
+
+// ---------------------------------------------------------------------------
+// PRACTICE PASS (Phase 5A) -- the first spendable Class Points reward.
+//
+// PRACTICE_PASS_REWARD_CODE/COST are duplicated from functions/shared/
+// classPointRewards.mjs for the same reason MAX_AWARD_AMOUNT is duplicated
+// above: that module pulls in node:crypto for the redemption id and cannot
+// be bundled for the browser. The ELIGIBILITY DECISION itself is never
+// duplicated -- it lives only in classPointRewards.mjs, is enforced only by
+// the `redeemPracticePass` callable, and this file never guesses it. The
+// student picks from assignments the caller already knows are open/graded
+// (ordinary assignment list state the app already holds); the server is the
+// only one that grants or refuses a redemption.
+// ---------------------------------------------------------------------------
+
+export const PRACTICE_PASS_REWARD_CODE = 'practicePass';
+export const PRACTICE_PASS_COST = 100;
+
+const CLASS_POINT_REWARD_REDEMPTIONS_COLLECTION = 'classPointRewardRedemptions';
+
+/** Exact required confirmation copy, kept in one place so it cannot drift screen to screen. */
+export const practicePassConfirmationCopy = (assignmentTitle) => ({
+  question: `Use 100 Class Points to excuse the Practice section of ${assignmentTitle}?`,
+  reassurance: 'Warm-Up, Classwork, and DOL are still required. The Practice section will be marked Excused, not 100%.',
+});
+
+export const PRACTICE_PASS_SUCCESS_MESSAGE = 'Practice Pass used. Practice is excused for this assignment.';
+export const PRACTICE_PASS_EXPLANATION = 'Excuse the Practice section of one eligible assignment. A Practice Pass does not count as a skill you have shown, or as a correct answer.';
+
+/** How much more a student needs, for the "You need N more Class Points." copy. */
+export const practicePassPointsNeeded = (balance) => Math.max(0, PRACTICE_PASS_COST - (Number(balance) || 0));
+
+/**
+ * Subscribe to this student's own Practice Pass (and any future reward)
+ * redemptions in one class. Bounded and identity-scoped exactly like
+ * `subscribeToStudentClassPoints` above -- a missing canonical identity is a
+ * no-op, never a broad query.
+ */
+export const subscribeToPracticePassRedemptions = ({
+  db, studentId, classId, onRedemptions, onError,
+}) => {
+  const currentStudentId = cleanText(studentId, 64);
+  const currentClassId = cleanText(classId, 120);
+  if (!db || !currentStudentId || !currentClassId) {
+    onRedemptions({});
+    return () => {};
+  }
+
+  const redemptionsQuery = query(
+    collection(db, CLASS_POINT_REWARD_REDEMPTIONS_COLLECTION),
+    where('studentId', '==', currentStudentId),
+    where('classId', '==', currentClassId),
+  );
+
+  return onSnapshot(
+    redemptionsQuery,
+    (snapshot) => {
+      const byAssignmentId = {};
+      snapshot.docs.forEach((entry) => {
+        const data = entry.data();
+        const assignmentId = cleanText(data?.assignmentId, 200);
+        if (assignmentId) byAssignmentId[assignmentId] = data;
+      });
+      onRedemptions(byAssignmentId);
+    },
+    onError,
+  );
 };
 
 export const subscribeToClassPointAnnouncements = ({

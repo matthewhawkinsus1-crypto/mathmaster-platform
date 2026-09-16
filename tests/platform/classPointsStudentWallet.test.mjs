@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { executableSource } from './helpers/sourceContract.mjs';
 import {
   activeClassPointAnnouncements,
   classPointAccountId,
@@ -61,7 +62,30 @@ test('wallet exposes teacher reason text but no internal ledger metadata', async
   const source = await read('src/components/student/ClassPointsWallet.jsx');
   assert.match(source, /item\.reasonLabel/);
   assert.doesNotMatch(source, /requestId|issuedByUid|authorizedTeacherEmails|transaction\.id|accountId/);
-  assert.doesNotMatch(source, /Redeem/);
+});
+
+// Phase 5A adds the first spendable reward. The wallet may now offer a real
+// redemption, but it must still never decide eligibility, never subtract
+// points itself, and never write Firestore directly for it -- the callable
+// (functions/index.js `redeemPracticePass`) and the authoritative account
+// subscription remain the only things that can move the balance shown here.
+test('the Practice Pass card never optimistically spends points and never writes Firestore', async () => {
+  const source = await read('src/components/student/ClassPointsWallet.jsx');
+  assert.match(source, /onRedeemPracticePass/);
+  assert.doesNotMatch(source, /addDoc|setDoc|updateDoc|deleteDoc|writeBatch|runTransaction/);
+  // The balance shown always comes from the `account` prop (the authoritative
+  // subscription), never from local component state.
+  assert.doesNotMatch(source, /setBalance|balance\s*[-+]=|totals\.balance\s*[-+]/);
+});
+
+test('the Practice Pass card never computes its own eligibility list', async () => {
+  const source = await read('src/components/student/ClassPointsWallet.jsx');
+  // `eligibleAssignments` arrives as a prop; this file must not IMPORT the
+  // client eligibility filter or the assignment lifecycle and recompute it
+  // itself -- a code fact, so it is checked against executable source only;
+  // a comment explaining that boundary (as this one does) is not a violation.
+  assert.doesNotMatch(executableSource(source), /practicePassClientEligibility|assignmentLifecycle|currentContentProjection/);
+  assert.match(source, /eligibleAssignments/);
 });
 
 test('teacher preview is isolated before subscriptions and identity points rendering', async () => {
@@ -93,7 +117,7 @@ test('celebrations use only stored public labels, stay bounded, and never become
   assert.match(component, /announcement\.reasonLabel/);
   assert.doesNotMatch(component, /studentId|balance|fullName|displayName|rank|leaderboard|top points/i);
   assert.match(client, /collection\(db, 'classes', currentClassId, 'classPointAnnouncements'\)/);
-  assert.match(client, /limit\(CLASS_POINTS_ANNOUNCEMENT_LIMIT\)/);
+  assert.match(client, /fsLimit\(CLASS_POINTS_ANNOUNCEMENT_LIMIT\)/);
 });
 
 test('celebration component re-filters expiry at render time so stale announcements cannot linger', async () => {
