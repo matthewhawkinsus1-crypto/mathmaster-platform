@@ -513,7 +513,17 @@ export const buildGradeOverride = ({
   }
   const previousScore = effectiveQuestionScore(record, previousOverride);
   const fieldOverrides = { ...(previousOverride?.fieldOverrides || {}) };
-  if (fieldId) fieldOverrides[String(fieldId)] = requested;
+  if (fieldId) {
+    const parts = (
+      list(record?.gradingEvidence?.automaticResult?.parts).length
+        ? record.gradingEvidence.automaticResult.parts
+        : list(record?.partGrades)
+    ).filter((part) => part?.graded !== false);
+    if (!parts.some((part) => String(part?.id) === String(fieldId))) {
+      throw new Error('That response part is not available for a part-level override.');
+    }
+    fieldOverrides[String(fieldId)] = requested;
+  }
   const nextScore = fieldId
     ? scoreWithFieldOverride(record, fieldOverrides)
     : requested;
