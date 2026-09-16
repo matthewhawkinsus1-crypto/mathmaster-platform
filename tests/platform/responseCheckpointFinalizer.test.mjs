@@ -1085,11 +1085,15 @@ test('valid pre-cutoff checkpoint corrects an earlier browser-finalized DOL with
 test('browser DOL close cannot overwrite a DOL the server already finalized', () => {
   const marker = appSource.indexOf('CLIENT DOL CLOSE IS IMMEDIATE FEEDBACK, NOT NEWER AUTHORITY');
   assert.ok(marker >= 0, 'browser/server DOL race guard is documented in the close effect');
-  const block = appSource.slice(marker, appSource.indexOf('}, [now, user, assignments, classSchedule, tracker, dolGradesByAssignment]);', marker));
+  const block = appSource.slice(
+    marker,
+    appSource.indexOf('}, [now, user, assignments, classSchedule, gradeDisplayTracker, dolGradesByAssignment]);', marker),
+  );
   assert.match(block, /runTransaction\(db, async \(transaction\) => \{/);
   assert.match(block, /transaction\.get\(gradeRef\)/);
   assert.match(block, /if \(current\?\.finalized === true\) return current;/);
   assert.match(block, /new FieldPath\('dolGradesByAssignment', assignmentId, dateKey\)/);
+  assert.match(block, /gradeDisplayTracker\?\.\[assignment\.id\]/);
   assert.doesNotMatch(block, /updateDoc\(doc\(db, 'grades'/);
 });
 
