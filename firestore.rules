@@ -235,6 +235,42 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Class Points: a classroom participation reward currency, scoped to
+    // studentId + classId. It is NOT assignment credit, mastery, Live
+    // Challenge score, or evidence of proficiency, and it never touches any
+    // of those. See functions/shared/classPoints.mjs for the domain model.
+    //
+    // Every balance-changing write goes through awardClassPoints/
+    // reverseClassPointAward on the Admin SDK, which bypasses these rules —
+    // what the rules guarantee is the other direction: no client, not even
+    // the root administrator, may write the ledger, the account projection,
+    // or the idempotency record directly. A client that could write the
+    // account could award itself points; a client that could write the
+    // ledger could forge or erase the history behind it.
+    //
+    // Reads reuse `authorizedTeacherEmails`, the exact field
+    // functions/shared/authorizationContext.mjs already uses for evidence and
+    // support history, so a teacher's access here rises and falls with the
+    // same roster reassignment logic instead of a second, parallel notion of
+    // "this teacher's student."
+    match /classPointAccounts/{accountId} {
+      allow read: if rootAdmin() || ownsStudent(resource.data.studentId) || authorizedTeacher();
+      allow create, update, delete: if false;
+    }
+
+    match /classPointTransactions/{transactionId} {
+      allow read: if rootAdmin() || ownsStudent(resource.data.studentId) || authorizedTeacher();
+      allow create, update, delete: if false;
+    }
+
+    // Idempotency records map a caller-supplied requestId to the transaction
+    // it produced. They carry no student-facing information and exist purely
+    // so a retried award cannot double-write; no client ever needs to read
+    // one directly.
+    match /classPointIdempotencyKeys/{idempotencyKey} {
+      allow read, write: if false;
+    }
+
     // Live class monitoring. Ephemeral by design: a student's client writes
     // its own document on a heartbeat and deletes it on leaving, and nothing
     // reads it outside the teacher's live grid. It carries no response text —
@@ -603,6 +639,25 @@ service cloud.firestore {
     match /classes/{classId} {
       allow read: if signedIn();
       allow create, update, delete: if false;
+
+      // Public Class Points announcements, nested under the class rather
+      // than filtered by a `classId` field, so a student's own roster
+      // membership is checked ONCE for the whole list instead of once per
+      // matched document — the same cost shape `liveChallengeRooms/players`
+      // already relies on below. They carry only a safe "First L." label,
+      // never a studentId, so a classmate can never resolve one back to a
+      // full identity or a private balance. Server-only: a client that could
+      // write one could manufacture a fake announcement or leak another
+      // class's activity into this one.
+      match /classPointAnnouncements/{announcementId} {
+        allow read: if rootAdmin()
+          || (teacher()
+            && get(/databases/$(database)/documents/classes/$(classId)).data.teacherOfRecord == request.auth.token.email)
+          || (signedIn()
+            && request.auth.token.role == 'student'
+            && get(/databases/$(database)/documents/grades/$(request.auth.token.studentId)).data.classId == classId);
+        allow create, update, delete: if false;
+      }
     }
 
     match /pathQuestionBank/{questionId} {

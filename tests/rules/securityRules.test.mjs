@@ -7,6 +7,7 @@ import {
 import {
   collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where,
 } from 'firebase/firestore';
+import { accountId as classPointsAccountId } from '../../functions/shared/classPoints.mjs';
 
 // Authenticated requests, through the real Security Rules, in the Firestore
 // emulator.
@@ -25,6 +26,7 @@ const ROOT_ADMIN = 'matthew.hawkins@desotoisd.org';
 const TEACHER_A = 'teacher.a@desotoisd.org';
 const TEACHER_B = 'teacher.b@desotoisd.org';
 const TEACHER_LEGACY = 'teacher.legacy@desotoisd.org';
+const CLASS_POINTS_ACCOUNT_A = classPointsAccountId('STUDENT_A', 'class-a');
 
 let env;
 
@@ -87,6 +89,45 @@ before(async () => {
       teksCode: 'A.5A',
       action: 'recommend',
       expiresAt: Date.now() + 86400000,
+    });
+    // What awardClassPoints would have written for one $2 participation award.
+    await setDoc(doc(db, `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`), {
+      schemaVersion: 1,
+      studentId: 'STUDENT_A',
+      classId: 'class-a',
+      balance: 2,
+      lifetimeEarned: 2,
+      lifetimeSpent: 0,
+      originTeacherEmail: TEACHER_A,
+      authorizedTeacherEmails: [TEACHER_A],
+      updatedAt: '2026-09-01T12:00:00.000Z',
+    });
+    await setDoc(doc(db, 'classPointTransactions/cp-tx-1'), {
+      schemaVersion: 1,
+      studentId: 'STUDENT_A',
+      classId: 'class-a',
+      amount: 2,
+      reasonCode: 'participation',
+      reasonLabel: 'Participation',
+      sourceType: 'teacherAward',
+      issuedByUid: 'uid-a',
+      issuedByEmail: TEACHER_A,
+      requestId: 'req-1',
+      isReversal: false,
+      reversalOf: null,
+      originTeacherEmail: TEACHER_A,
+      authorizedTeacherEmails: [TEACHER_A],
+      createdAt: '2026-09-01T12:00:00.000Z',
+    });
+    await setDoc(doc(db, 'classes/class-a/classPointAnnouncements/ann-1'), {
+      schemaVersion: 1,
+      classId: 'class-a',
+      publicStudentLabel: 'Student A.',
+      amount: 2,
+      reasonLabel: 'Participation',
+      awardTransactionId: 'cp-tx-1',
+      createdAt: '2026-09-01T12:00:00.000Z',
+      expiresAt: '2099-01-01T00:00:00.000Z',
     });
   });
 });
@@ -916,4 +957,106 @@ test('response inspection evidence is server-only and cannot be forged or read d
   await assertFails(setDoc(doc(studentA(), path), { evidence: { automaticScore: 100 } }));
   await assertFails(setDoc(doc(teacherA(), path), { evidence: { automaticScore: 100 } }));
   await assertFails(setDoc(doc(admin(), path), { evidence: { automaticScore: 100 } }));
+});
+
+// --- Class Points: a server-authoritative reward ledger ----------------------
+//
+// Every balance-changing write happens in awardClassPoints/reverseClassPointAward
+// on the Admin SDK, which bypasses these rules entirely. What these rules have
+// to prove is the other direction: nobody — not the student, not any teacher,
+// not even the root administrator — can write an account, a transaction, or an
+// idempotency record from a client, and reads stay scoped exactly the way
+// grades/evidence/support history already are.
+
+test('a teacher reads Class Points for their own roster, never another teacher\'s', async () => {
+  await assertSucceeds(getDoc(doc(teacherA(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`)));
+  await assertFails(getDoc(doc(teacherB(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`)));
+  await assertSucceeds(getDoc(doc(teacherA(), 'classPointTransactions/cp-tx-1')));
+  await assertFails(getDoc(doc(teacherB(), 'classPointTransactions/cp-tx-1')));
+
+  const mineAccounts = await assertSucceeds(getDocs(query(
+    collection(teacherA(), 'classPointAccounts'),
+    where('authorizedTeacherEmails', 'array-contains', TEACHER_A),
+  )));
+  assert.equal(mineAccounts.docs.some((entry) => entry.id === CLASS_POINTS_ACCOUNT_A), true);
+});
+
+test('the root administrator reads any Class Points account or transaction', async () => {
+  await assertSucceeds(getDoc(doc(admin(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`)));
+  await assertSucceeds(getDoc(doc(admin(), 'classPointTransactions/cp-tx-1')));
+});
+
+test('a student reads their own Class Points wallet and history, never another student\'s', async () => {
+  await assertSucceeds(getDoc(doc(studentA(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`)));
+  await assertFails(getDoc(doc(studentB(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`)));
+  await assertSucceeds(getDoc(doc(studentA(), 'classPointTransactions/cp-tx-1')));
+  await assertFails(getDoc(doc(studentB(), 'classPointTransactions/cp-tx-1')));
+});
+
+test('no client can write a Class Points account, forged or otherwise — not even the root administrator', async () => {
+  await assertFails(setDoc(doc(studentA(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`), { balance: 999 }, { merge: true }));
+  await assertFails(setDoc(doc(teacherA(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`), { balance: 999 }, { merge: true }));
+  await assertFails(setDoc(doc(admin(), `classPointAccounts/${CLASS_POINTS_ACCOUNT_A}`), { balance: 999 }, { merge: true }));
+  // A student cannot even mint a brand-new account for themselves.
+  await assertFails(setDoc(doc(studentA(), 'classPointAccounts/STUDENT_A__forged'), {
+    schemaVersion: 1, studentId: 'STUDENT_A', classId: 'class-a', balance: 100000,
+    lifetimeEarned: 100000, lifetimeSpent: 0, authorizedTeacherEmails: [TEACHER_A],
+  }));
+});
+
+test('no client can write, forge, or edit a Class Points transaction', async () => {
+  const forged = {
+    schemaVersion: 1, studentId: 'STUDENT_A', classId: 'class-a', amount: 999,
+    reasonCode: 'teacherBonus', reasonLabel: 'forged', sourceType: 'teacherAward',
+    issuedByUid: 'forged', issuedByEmail: 'nobody@desotoisd.org', requestId: 'forged',
+    isReversal: false, reversalOf: null, authorizedTeacherEmails: [TEACHER_A],
+  };
+  await assertFails(setDoc(doc(studentA(), 'classPointTransactions/forged'), forged));
+  await assertFails(setDoc(doc(teacherA(), 'classPointTransactions/forged'), forged));
+  await assertFails(setDoc(doc(admin(), 'classPointTransactions/forged'), forged));
+  // The ledger is append-only even to the identities it names.
+  await assertFails(updateDoc(doc(teacherA(), 'classPointTransactions/cp-tx-1'), { amount: 999 }));
+  await assertFails(updateDoc(doc(admin(), 'classPointTransactions/cp-tx-1'), { amount: 999 }));
+});
+
+test('the idempotency ledger is unreachable from any client', async () => {
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'classPointIdempotencyKeys/key-1'), { transactionId: 'cp-tx-1', createdAt: '2026-09-01T12:00:00.000Z' });
+  });
+  await assertFails(getDoc(doc(admin(), 'classPointIdempotencyKeys/key-1')));
+  await assertFails(getDoc(doc(teacherA(), 'classPointIdempotencyKeys/key-1')));
+  await assertFails(getDoc(doc(studentA(), 'classPointIdempotencyKeys/key-1')));
+  await assertFails(setDoc(doc(teacherA(), 'classPointIdempotencyKeys/forged'), { transactionId: 'x' }));
+});
+
+test('a student reads the public Class Points announcement for their own class', async () => {
+  await assertSucceeds(getDoc(doc(studentA(), 'classes/class-a/classPointAnnouncements/ann-1')));
+  await assertSucceeds(getDoc(doc(teacherA(), 'classes/class-a/classPointAnnouncements/ann-1')));
+});
+
+test('a student or teacher from another class cannot read the announcement', async () => {
+  await assertFails(getDoc(doc(studentB(), 'classes/class-a/classPointAnnouncements/ann-1')));
+  await assertFails(getDoc(doc(teacherB(), 'classes/class-a/classPointAnnouncements/ann-1')));
+});
+
+test('a Class Points announcement never carries a studentId, only a safe public label', async () => {
+  const snapshot = await assertSucceeds(getDoc(doc(studentA(), 'classes/class-a/classPointAnnouncements/ann-1')));
+  assert.equal(snapshot.data().studentId, undefined);
+  assert.equal(snapshot.data().publicStudentLabel, 'Student A.');
+});
+
+test('a student cannot manufacture a Class Points announcement', async () => {
+  const forged = { classId: 'class-a', publicStudentLabel: 'Nobody R.', amount: 999, reasonLabel: 'forged' };
+  await assertFails(setDoc(doc(studentA(), 'classes/class-a/classPointAnnouncements/forged'), forged));
+  await assertFails(setDoc(doc(teacherA(), 'classes/class-a/classPointAnnouncements/forged'), forged));
+  await assertFails(setDoc(doc(admin(), 'classes/class-a/classPointAnnouncements/forged'), forged));
+});
+
+test('Class Points collections never touch academic grades or evidence', async () => {
+  // The ordinary grade document and its evidence subcollection keep exactly
+  // the access shape asserted earlier in this file — nothing about Class
+  // Points widens or narrows it.
+  await assertSucceeds(getDoc(doc(studentA(), 'grades/STUDENT_A')));
+  await assertSucceeds(getDoc(doc(teacherA(), 'grades/STUDENT_A')));
+  await assertFails(getDoc(doc(teacherB(), 'grades/STUDENT_A')));
 });
