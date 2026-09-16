@@ -1,3 +1,4 @@
+import { processLiveChallengeClassPoints } from './shared/liveChallengeClassPoints.mjs';
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
@@ -8980,7 +8981,27 @@ async function finishLiveChallengeRoom({ db, roomRef, privateRef, room, status }
     logger.error("liveChallenge.evidence.failed", { roomId: roomRef.id, message: error?.message });
   }
 
-  await deletePrivateChallengeState(db, privateRef, players);
+  
+    // Class Points Phase 5B: Stage and process achievements before private state deletion
+    try {
+      if (typeof status !== 'undefined') {
+        const isFin = status === 'finished' || (typeof FINISHED !== 'undefined' && status === FINISHED);
+        if (isFin) {
+          const rId = (typeof roomId !== 'undefined') ? roomId : (typeof roomRef !== 'undefined' ? roomRef.id : null);
+          const activeDb = (typeof db !== 'undefined') ? db : getFirestore();
+          if (rId) {
+            const pSnap = await activeDb.collection('liveChallengeRooms').doc(rId).collection('privatePlayers').get();
+            const pPlayers = pSnap.docs.map(d => ({ id: d.id, studentId: d.id, ...d.data() }));
+            const rData = (typeof room !== 'undefined') ? room : (typeof roomData !== 'undefined' ? roomData : (await activeDb.collection('liveChallengeRooms').doc(rId).get()).data());
+            await processLiveChallengeClassPoints(activeDb, rId, rData, pPlayers, status);
+          }
+        }
+      }
+    } catch (cpErr) {
+      console.error('[LiveChallengeClassPoints] Award error:', cpErr);
+    }
+
+    await deletePrivateChallengeState(db, privateRef, players);
   return { roomId: roomRef.id, status, roundCount: room.roundCount || 0 };
 }
 
