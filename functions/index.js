@@ -1078,7 +1078,7 @@ function assignmentGradeProgress(
  * only when the exact delivered question is authoritative.
  */
 exports.inspectStudentResponse = onCall(async (request) => {
-  const teacherUid = await requireTeacher(request);
+  await requireTeacher(request);
   const teacherEmail = callerEmail(request);
   const studentId = String(request.data?.studentId || "").trim();
   const assignmentId = String(request.data?.assignmentId || "").trim();
