@@ -781,7 +781,6 @@ export const CONTRACT_SLICES = Object.freeze({
     'Common studentActions',
     'Honors + CCMR Practice',
     'Instructional scope and lesson depth',
-    'Source task fidelity',
     'Course TEKS',
   ]),
   gradingReview: Object.freeze([
