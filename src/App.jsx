@@ -127,6 +127,7 @@ import ClassroomSyncReview from './components/teacher/ClassroomSyncReview.jsx';
 import TeacherQuickSearch from './components/teacher/TeacherQuickSearch.jsx';
 import StudentProfileDrawer from './components/teacher/StudentProfileDrawer.jsx';
 import StudentNameLink from './components/common/StudentNameLink.jsx';
+import StudentResponseInspector from './components/teacher/StudentResponseInspector.jsx';
 
 import DOLCountdown from './components/student/DOLCountdown.jsx';
 
@@ -503,6 +504,39 @@ const calculateDOLSectionScore = (assignmentTracker = {}, questionIndices = [], 
 // Every other lifecycle status is internal bookkeeping.
 const DISPLAYED_CHECKPOINT_OUTCOMES = ['auto-submitted', 'incomplete-at-close', 'explicitly-submitted'];
 
+/*
+ * TEACHER OVERRIDES ARE A PRESENTATION LAYER OVER THE AUTOMATIC ATTEMPT.
+ *
+ * The canonical student attempt stays untouched so persistence, attempt counts,
+ * recovery, and mastery continue to describe what the student actually did.
+ * The server-owned override map is folded in only for grade presentation.
+ */
+const projectTeacherOverridesForDisplay = (
+  gradesByAssignment = {},
+  overridesByAssignment = {},
+) => Object.fromEntries(Object.entries(gradesByAssignment || {}).map(
+  ([assignmentId, assignmentTracker]) => {
+    const overrides = overridesByAssignment?.[assignmentId] || {};
+    const nextTracker = { ...(assignmentTracker || {}) };
+    Object.entries(nextTracker).forEach(([questionIndex, record]) => {
+      if (!record || typeof record !== 'object') return;
+      const override = overrides?.[questionIndex];
+      if (override?.active !== true || !Number.isFinite(Number(override.score))) return;
+      const score = Math.max(0, Math.min(100, Number(override.score)));
+      nextTracker[questionIndex] = {
+        ...record,
+        status: score >= 100
+          ? 'correct'
+          : (record.status === 'correct' || record.status === 'expired' ? 'expired' : 'attempted'),
+        partialCredit: score,
+        bestPartialCredit: score,
+        teacherGradeOverrideDisplay: override,
+      };
+    });
+    return [assignmentId, nextTracker];
+  },
+));
+
 function App() {
   const auth = useAuth();
   // Identity is owned entirely by <AuthProvider>. `user` below is the
@@ -645,6 +679,7 @@ function App() {
   const [previewSessionId, setPreviewSessionId] = useState(0);
   const [teacherScratchpadDialog, setTeacherScratchpadDialog] = useState(null);
   const [teacherScratchpadLoading, setTeacherScratchpadLoading] = useState(false);
+  const [responseInspectorTarget, setResponseInspectorTarget] = useState(null);
   const [teacherWorksheetDialog, setTeacherWorksheetDialog] = useState(null);
   const [teacherWorksheetBusy, setTeacherWorksheetBusy] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -669,6 +704,7 @@ function App() {
    * grade is a device that can pass a test it did not take.
    */
   const [testCycleGrades, setTestCycleGrades] = useState({});
+  const [teacherGradeOverridesByAssignment, setTeacherGradeOverridesByAssignment] = useState({});
   const [editingAssignmentId, setEditingAssignmentId] = useState(null);
   const [editingAssignmentDates, setEditingAssignmentDates] = useState({ dueAt: '', lateDueAt: '', assignedClassPeriods: [], assignedClassIds: [] });
   const [questionEditorAssignment, setQuestionEditorAssignment] = useState(null);
@@ -840,6 +876,11 @@ function App() {
     });
   }, [user, tracker, supportUsageByAssignment, assignments]);
 
+  const gradeDisplayTracker = useMemo(
+    () => projectTeacherOverridesForDisplay(tracker, teacherGradeOverridesByAssignment),
+    [tracker, teacherGradeOverridesByAssignment],
+  );
+
   /*
    * THE STUDENT GRADE CENTER, BUILT FROM THE CANONICAL TRACKER.
    *
@@ -858,14 +899,14 @@ function App() {
       studentId: user.id,
       courseLabel: user.className || user.classPeriod || '',
       nowValue: now,
-      tracker,
+      tracker: gradeDisplayTracker,
       testCycleGrades,
       classworkGradesByAssignment,
       gradingPeriodSettings,
       classroomSyncStatusByAssignment,
       providers: { assignmentHasHeldTeacherFeedback, prerequisiteAccess },
     });
-  }, [user, assignments, now, tracker, testCycleGrades, classworkGradesByAssignment, gradingPeriodSettings, classroomSyncStatusByAssignment]);
+  }, [user, assignments, now, gradeDisplayTracker, testCycleGrades, classworkGradesByAssignment, gradingPeriodSettings, classroomSyncStatusByAssignment]);
 
   // The signed-in student's own Student Learning Profile, built from the same
   // evidence their teacher's roster reads. Assignment adaptation needs the DOK
@@ -2266,6 +2307,7 @@ function App() {
           });
         }
         setTracker(repairedStudentGrades.gradesByAssignment || {});
+        setTeacherGradeOverridesByAssignment(studentData.teacherGradeOverridesByAssignment || {});
         setAssignmentActivity(studentData.assignmentActivity || {});
         setDolGradesByAssignment(studentData.dolGradesByAssignment || {});
         setClassworkGradesByAssignment(studentData.classworkGradesByAssignment || {});
@@ -3081,6 +3123,7 @@ function App() {
     if (user?.role !== 'student' || !user.id) {
       setClassroomSyncStatusByAssignment({});
       setTestCycleGrades({});
+      setTeacherGradeOverridesByAssignment({});
       classroomSyncNoticeRef.current = {};
       return undefined;
     }
@@ -3094,6 +3137,7 @@ function App() {
         // A teacher releasing a secure Test or Retest changes this map, and the
         // student's card and Grade Center have to follow without a reload.
         setTestCycleGrades(snapshot.data()?.testCycleGrades || {});
+        setTeacherGradeOverridesByAssignment(snapshot.data()?.teacherGradeOverridesByAssignment || {});
 
         Object.entries(next).forEach(([assignmentId, receipt]) => {
           const notificationId = receipt?.notificationId;
@@ -9182,7 +9226,7 @@ function App() {
                 )}
 
                 {selectedGradebookPeriod && selectedAssignment && !gradebookFilter.student && (
-                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '12px' }}>Student</th><th>Overall</th><th>Warm-Up</th><th>Classwork</th><th>Practice</th><th>DOL</th><th>Instructional condition</th><th>Activity</th><th></th></tr></thead><tbody>{selectedClassStudents.map((student) => { const grades = student.gradesByAssignment?.[selectedAssignment.id]; const score = grades ? calculateGrade(grades, selectedAssignment) : null; const sectionGrades = splitGradesBySection({ tracker: grades, assignment: selectedAssignment }); const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <tr key={student.id} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? '#6f2da8' : score >= 70 ? '#188038' : '#202124' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8', fontWeight: 900, fontSize: '11px' }}>MOD</span>}
+                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '12px' }}>Student</th><th>Overall</th><th>Warm-Up</th><th>Classwork</th><th>Practice</th><th>DOL</th><th>Instructional condition</th><th>Activity</th><th></th></tr></thead><tbody>{selectedClassStudents.map((student) => { const grades = projectTeacherOverridesForDisplay(student.gradesByAssignment || {}, student.teacherGradeOverridesByAssignment || {})?.[selectedAssignment.id]; const score = grades ? calculateGrade(grades, selectedAssignment) : null; const sectionGrades = splitGradesBySection({ tracker: grades, assignment: selectedAssignment }); const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <tr key={student.id} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? '#6f2da8' : score >= 70 ? '#188038' : '#202124' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8', fontWeight: 900, fontSize: '11px' }}>MOD</span>}
                     {/*
                       COMPLETION AND PERFORMANCE, VISUALLY APART.
                       The grade above is unchanged. These two lines are what a
@@ -9207,10 +9251,18 @@ function App() {
                     {gradeExplanation && <div style={{ marginTop: 4, fontSize: 11, color: '#5f6368', lineHeight: 1.4, maxWidth: 280 }}>{gradeExplanation}</div>}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.warmup.attempted ? `${sectionGrades.warmup.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.classwork.attempted ? `${sectionGrades.classwork.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.practice.attempted ? `${sectionGrades.practice.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.dol.attempted ? `${sectionGrades.dol.score}%` : '—'}</td><td style={{ fontSize: '12px' }}>{modified ? `Modified: ${(usage.modifications || []).join(', ')}` : (usage.accommodations || []).length ? `Accommodated: ${usage.accommodations.join(', ')}` : 'Standard'}</td><td style={{ fontSize: '12px', lineHeight: 1.45 }}>Total {formatTime(activity.totalTimeSeconds || 0)}<br />On time {formatTime(activity.onTimeSeconds || 0)} · Late {formatTime(activity.lateSeconds || 0)}<br />Last on-time: {formatTimeStamp(activity.lastActiveBeforeDue)}<br />Last late: {formatTimeStamp(activity.lastActiveLate)}</td><td><button onClick={() => setGradebookFilter((current) => ({ ...current, student }))} disabled={!grades} style={{ padding: '8px 12px', border: 0, borderRadius: '6px', background: grades ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Details</button></td></tr>; })}</tbody></table></div>
                 )}
 
-                {gradebookFilter.student && selectedAssignment && (() => { const student = gradebookFilter.student; const studentGrades = student.gradesByAssignment?.[selectedAssignment.id] || {}; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{calculateGrade(studentGrades, selectedAssignment)}%</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div>{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: '#fff', border: '1px solid #d8dde6' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: '#202124' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{getStoredAssignmentQuestions(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type} · Grade ×{normalizeQuestionWeight(question)}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button></article>; })}</div></div>; })()}
+                {gradebookFilter.student && selectedAssignment && (() => { const student = gradebookFilter.student; const studentGrades = projectTeacherOverridesForDisplay(student.gradesByAssignment || {}, student.teacherGradeOverridesByAssignment || {})?.[selectedAssignment.id] || {}; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{calculateGrade(studentGrades, selectedAssignment)}%</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div>{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: '#fff', border: '1px solid #d8dde6' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: '#202124' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{getStoredAssignmentQuestions(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type} · Grade ×{normalizeQuestionWeight(question)}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button><button type="button" onClick={() => setResponseInspectorTarget({ studentId: student.id, assignmentId: selectedAssignment.id, questionIndex: index })} style={{ marginTop: '8px', marginLeft: '8px', padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#e8f0fe', color: '#174ea6', fontWeight: 'bold' }}>Inspect Response / Override Grade</button></article>; })}</div></div>; })()}
               </div>
             )}
 
+
+            {responseInspectorTarget && (
+              <StudentResponseInspector
+                {...responseInspectorTarget}
+                onClose={() => setResponseInspectorTarget(null)}
+                onChanged={() => fetchStudents().catch((error) => console.error('Could not refresh student grades after override:', error))}
+              />
+            )}
             {teacherTab === 'standards' && (
               <TexasStandardsDashboard
                 // Scoped by the class bar. A mastery picture averaged across
@@ -9293,7 +9345,7 @@ function App() {
       classId: user.classId || null,
       classPeriod: user.classPeriod,
       nowValue: now,
-      tracker,
+      tracker: gradeDisplayTracker,
       assignmentActivity,
       classworkGradesByAssignment,
       classSchedule,
