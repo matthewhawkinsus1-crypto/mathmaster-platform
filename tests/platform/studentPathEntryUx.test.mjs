@@ -8,10 +8,21 @@ const dashboardSource = readFileSync(new URL('../../src/components/student/Stude
 const pathSource = readFileSync(new URL('../../src/components/student/MyMathPathApp.jsx', import.meta.url), 'utf8');
 const recommendationsSource = readFileSync(new URL('../../src/components/student/RecommendedSkills.jsx', import.meta.url), 'utf8');
 
-test('student dashboard greets the roster student by canonical name with a neutral fallback', () => {
-  assert.match(appSource, /const rosterDisplayName = formatStudentName\(/);
-  assert.match(appSource, /lastFirst: false, fallbackToId: false/);
-  assert.match(appSource, /displayName: rosterDisplayName \|\| session\.displayName \|\| 'Student'/);
+test('student dashboard hydrates identity from roster name, then session name, then neutral fallback', () => {
+  assert.match(
+    appSource,
+    /import \{[^}]*resolveStudentDisplayName[^}]*\} from ['"]\.\/platform\/studentName['"]/,
+    'App must import the resolver it calls so JSX cannot ship a free-identifier runtime error',
+  );
+  const hydration = region(
+    appSource,
+    'const studentDisplayName = resolveStudentDisplayName(',
+    'const repairedStudentGrades =',
+    'student identity hydration',
+  );
+  assert.match(hydration, /rosterStudent: \{ \.\.\.studentData, id: studentId \}/);
+  assert.match(hydration, /sessionDisplayName: session\.displayName/);
+  assert.match(hydration, /displayName: studentDisplayName/);
   const dashboardCall = region(appSource, '<StudentDashboardView', '/>', 'student dashboard call');
   assert.match(dashboardCall, /student=\{\{ \.\.\.studentRecord, \.\.\.user,/);
   assert.match(dashboardSource, /Welcome, \{formatStudentName\(student, \{ lastFirst: false \}\)\}/);

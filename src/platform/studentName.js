@@ -28,7 +28,7 @@ export const studentNameParts = (student = {}) => {
   );
 };
 
-export const formatStudentName = (student = {}, { lastFirst = true, fallbackToId = false } = {}) => {
+export const formatStudentName = (student = {}, { lastFirst = true, fallbackToId = false, fallbackToNeutral = true } = {}) => {
   const record = asStudentRecord(student);
   const { firstName, lastName } = studentNameParts(record);
   if (lastFirst && lastName) return firstName ? `${lastName}, ${firstName}` : lastName;
@@ -45,7 +45,17 @@ export const formatStudentName = (student = {}, { lastFirst = true, fallbackToId
   );
   if (displayName) return displayName;
   if (fallbackToId) return String(record.studentId || record.id || 'Student');
+  if (!fallbackToNeutral) return '';
   return 'Student';
+};
+
+export const resolveStudentDisplayName = ({ rosterStudent = {}, sessionDisplayName = '' } = {}) => {
+  const rosterName = formatStudentName(rosterStudent, {
+    lastFirst: false,
+    fallbackToId: false,
+    fallbackToNeutral: false,
+  });
+  return rosterName || cleanName(sessionDisplayName) || 'Student';
 };
 
 export const resolveRosterStudentName = ({ studentId = null, students = [], historicalName = '' } = {}) => {

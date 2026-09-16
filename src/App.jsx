@@ -229,7 +229,7 @@ import {
 } from './platform/student/browserHistory.js';
 import { questionAssessmentFramework } from './platform/student/questionAlignmentInfo.js';
 import { FRAMEWORK_LABELS } from './platform/ccmr/assessmentCrosswalk.js';
-import { compareStudentsByName, formatStudentName } from './platform/studentName';
+import { compareStudentsByName, formatStudentName, resolveStudentDisplayName } from './platform/studentName';
 import { evidenceRowsToEvents } from './platform/profile/legacyEvidenceAdapter.js';
 import { buildStudentLearningProfile } from './platform/profile/studentLearningProfile.js';
 import { resolveDeliveredQuestionMetadata } from './platform/assignments/assignmentAdaptation.js';
@@ -2297,10 +2297,10 @@ function App() {
           classesById: Object.fromEntries(loadedClasses.map((entry) => [entry.classId, entry])),
           courseProfiles: loadedCourseProfiles,
         });
-        const rosterDisplayName = formatStudentName(
-          { ...studentData, id: studentId },
-          { lastFirst: false, fallbackToId: false },
-        );
+        const studentDisplayName = resolveStudentDisplayName({
+          rosterStudent: { ...studentData, id: studentId },
+          sessionDisplayName: session.displayName,
+        });
         setUser({
           id: studentId,
           uid: session.uid,
@@ -2309,7 +2309,7 @@ function App() {
           // Student-facing screens should greet the person, not the SIS ID.
           // The roster is authoritative because student passcode sessions do
           // not necessarily carry a useful Firebase Auth displayName.
-          displayName: rosterDisplayName || session.displayName || 'Student',
+          displayName: studentDisplayName,
           classId: studentData.classId || null,
           className: courseContext.className,
           classPeriod: courseContext.classPeriod,

@@ -4,6 +4,7 @@ import {
   compareStudentsByName,
   formatStudentName,
   resolveRosterStudentName,
+  resolveStudentDisplayName,
   splitLegacyDisplayName,
   studentNameParts,
   studentSearchText,
@@ -27,6 +28,30 @@ test('natural instructional names and neutral unresolved identities are canonica
   assert.equal(formatStudentName({ studentName: 'Ana Rivera' }, { lastFirst: false }), 'Ana Rivera');
   assert.equal(formatStudentName({ id: 'long-internal-uid-123' }), 'Student');
   assert.equal(formatStudentName({ id: 'support-id' }, { fallbackToId: true }), 'support-id');
+});
+
+test('student display name hydration prefers roster, then session, then neutral fallback', () => {
+  assert.equal(resolveStudentDisplayName({
+    rosterStudent: { id: 'S123', firstName: 'Jordan', lastName: 'Smith' },
+    sessionDisplayName: 'Different Google Name',
+  }), 'Jordan Smith');
+  assert.equal(resolveStudentDisplayName({
+    rosterStudent: { id: 'S123' },
+    sessionDisplayName: 'Jordan Smith',
+  }), 'Jordan Smith');
+  assert.equal(resolveStudentDisplayName({
+    rosterStudent: { id: 'S123' },
+    sessionDisplayName: '',
+  }), 'Student');
+  assert.equal(resolveStudentDisplayName({
+    rosterStudent: { id: 'long-internal-student-id' },
+  }), 'Student');
+  assert.equal(
+    formatStudentName({ id: 'long-internal-student-id' }, { fallbackToNeutral: false }),
+    '',
+    'callers may explicitly defer the neutral fallback while trying another human-name source',
+  );
+  assert.equal(formatStudentName({ id: 'long-internal-student-id' }), 'Student');
 });
 
 test('students sort by last name, then first name, then ID', () => {
