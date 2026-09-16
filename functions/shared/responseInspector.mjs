@@ -104,6 +104,7 @@ export const captureAutomaticGradingEvidence = ({
   deliveredInstanceAuthority = null,
   gradingAuthority = 'server',
   graderVersion = GRADER_VERSION,
+  automaticScore = null,
 } = {}) => ({
   schemaVersion: GRADING_EVIDENCE_VERSION,
   submittedResponse: structuredClone(response ?? null),
@@ -121,7 +122,9 @@ export const captureAutomaticGradingEvidence = ({
     };
   })(),
   automaticResult: structuredClone(grading ?? null),
-  automaticScore: scoreGradingResult(grading),
+  automaticScore: Number.isFinite(Number(automaticScore))
+    ? clamp(automaticScore)
+    : scoreGradingResult(grading),
   submittedAt: submittedAt || new Date().toISOString(),
   source,
   gradingAuthority,
