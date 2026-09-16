@@ -4828,6 +4828,15 @@ exports.permanentlyDeleteStudent = onCall(async (request) => {
     throw new HttpsError("not-found", "That student account is not present in MathMaster.");
   }
 
+  // Class Points must be erased while the student's ordinary identity records
+  // still exist. If this cleanup fails midway, the roster/directory/alias
+  // records remain available so the administrator can safely retry the same
+  // permanent-delete request. Once this succeeds, later deletion stages may
+  // continue without any Class Points data being stranded behind a now-missing
+  // student identity.
+  const deleted = {};
+  await deleteStudentClassPointsFootprint(db, studentId, deleted);
+
   // Resolve every Firebase Auth identity attached to this MathMaster student.
   // A teacher/root identity is never deleted even if bad legacy data linked it
   // to a student record.
@@ -4877,8 +4886,6 @@ exports.permanentlyDeleteStudent = onCall(async (request) => {
     }
   }
 
-  const deleted = {};
-
   // Parent deletion is recursive: scratchpads and immutable evidence events
   // disappear with the grade/roster document.
   await recursiveDeleteDocument(db, rosterRef, deleted, "gradesWithSubcollections");
@@ -4915,8 +4922,6 @@ exports.permanentlyDeleteStudent = onCall(async (request) => {
       collectionName,
     );
   }
-
-  await deleteStudentClassPointsFootprint(db, studentId, deleted);
 
   // Preserve accountability without retaining the deleted student's ID in the
   // audit collection. The short irreversible digest is only a deletion receipt.

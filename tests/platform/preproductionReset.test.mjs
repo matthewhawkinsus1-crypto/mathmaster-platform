@@ -265,11 +265,22 @@ test('permanent student deletion erases the complete Class Points footprint, gat
     'transactions are deleted before accounts, so a mid-flight failure always leaves the ledger (not just the projection) as the source of truth for a retry',
   );
 
-  // The callable itself must actually invoke the helper.
+  // The callable itself must actually invoke the helper while the student's
+  // ordinary identity records still exist. If Class Points cleanup fails,
+  // retry must not be blocked by the initial "student account not present"
+  // guard because roster/directory/alias were already erased.
   const callableStart = functionsSource.indexOf('exports.permanentlyDeleteStudent');
   const callableEnd = functionsSource.indexOf('exports.getGoogleAuthUrl', callableStart);
   const callableBlock = functionsSource.slice(callableStart, callableEnd);
-  assert.match(callableBlock, /await deleteStudentClassPointsFootprint\(db, studentId, deleted\)/);
+  const classPointsCleanup = callableBlock.indexOf('await deleteStudentClassPointsFootprint(db, studentId, deleted)');
+  const rosterDelete = callableBlock.indexOf('await recursiveDeleteDocument(db, rosterRef');
+  const directoryDelete = callableBlock.indexOf('db.collection(authLib.DIRECTORY_COLLECTION).where("studentId", "==", studentId)');
+  assert.ok(classPointsCleanup >= 0, 'permanent delete must invoke Class Points cleanup');
+  assert.ok(rosterDelete > classPointsCleanup, 'Class Points cleanup must finish before the roster identity is erased');
+  assert.ok(
+    directoryDelete === -1 || classPointsCleanup < directoryDelete,
+    'Class Points cleanup must run while directory identity is still available for a retry',
+  );
 });
 
 test('account disable never touches Class Points -- history survives deactivation', () => {
