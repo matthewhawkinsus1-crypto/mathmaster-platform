@@ -47,9 +47,10 @@ test('startAssignment removes Practice from required navigation for a real redee
   assert.match(startAssignmentBody, /!includedQuestionIndices\.includes\(safeQuestionIndex\)/);
 });
 
-test('startAssignment never applies the Practice Pass filter to a Test Cycle stage', () => {
+test('startAssignment never applies the Practice Pass filter to a Test Cycle stage or post-deadline voluntary Practice Mode', () => {
   const cycleStageFilterIndex = startAssignmentBody.indexOf("cycleStage\n      ? currentContent.entries.filter((entry) => entry.logicalRole === cycleStage)");
   assert.ok(cycleStageFilterIndex >= 0, 'expected the cycleStage branch to remain the first branch of the stageEntries ternary');
+  assert.match(startAssignmentBody, /!lifecycle\.isPracticeOnly\s*&&\s*hasPracticePassFor\(assignmentId\)/);
 });
 
 test('Teacher Preview and live teaching entry points never read a student Practice Pass redemption', () => {
@@ -78,13 +79,14 @@ test('live presence and the active-question correction effect read the practice-
     'const payload = {',
     'live presence effect',
   ));
-  assert.match(presenceRegion, /studentAssignmentIndicesWithPracticePass\(\{\s*\n\s*assignment: activeAssignmentData,\s*\n\s*hasPracticePass: hasPracticePassFor\(activeAssignmentId\),/);
+  assert.match(presenceRegion, /studentAssignmentIndicesWithPracticePass\(\{\s*\n\s*assignment: activeAssignmentData,\s*\n\s*hasPracticePass: !isPracticeMode && hasPracticePassFor\(activeAssignmentId\),/);
 
   const correctionRegion = executableSource(region(
     source,
     'useEffect(() => {\n    if (!activeQuestions.length) return;',
-    "}, [activeAssignmentData, activeAssignmentId, currentQuestionIndex, isTeacherPreview]);",
+    "studentClassPoints.redemptionsByAssignment,",
     'active-question correction effect',
   ));
-  assert.match(correctionRegion, /hasPracticePass: !isTeacherPreview && hasPracticePassFor\(activeAssignmentId\)/);
+  assert.match(correctionRegion, /hasPracticePass: !isTeacherPreview\s*\n\s*&& !isPracticeMode\s*\n\s*&& hasPracticePassFor\(activeAssignmentId\)/);
+  assert.match(correctionRegion, /studentClassPoints\.redemptionsByAssignment/);
 });
