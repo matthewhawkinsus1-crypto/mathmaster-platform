@@ -563,13 +563,20 @@ test('PR250 universal draft-persistence certification and tool cache cleanup rem
   assert.match(app, /Inspect Response \/ Override Grade/);
 });
 
-test('response inspector deploy surface contains exactly the two browser callables', () => {
+test('response inspector deploy surface includes every backend that participates in correction/replay', () => {
   assert.deepEqual(browserCallableServiceIds().sort(), [
+    'ingeststudentsubmissions',
     'inspectstudentresponse',
     'overridestudentresponsegrade',
   ]);
   assert.equal(
     firebaseFunctionTargets(),
-    'functions:inspectStudentResponse,functions:overrideStudentResponseGrade',
+    [
+      'functions:inspectStudentResponse',
+      'functions:overrideStudentResponseGrade',
+      'functions:ingestStudentSubmissions',
+      'functions:finalizeStudentResponseCheckpoints',
+      'functions:syncGradeToClassroom',
+    ].join(','),
   );
 });
