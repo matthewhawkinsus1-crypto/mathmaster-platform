@@ -78,6 +78,15 @@ test('the Practice Pass card never optimistically spends points and never writes
   assert.doesNotMatch(source, /setBalance|balance\s*[-+]=|totals\.balance\s*[-+]/);
 });
 
+test('the wallet footer distinguishes earning Class Points from spending a reward on them', async () => {
+  // A redeemed Practice Pass DOES intentionally change the grade denominator
+  // by excusing Practice, so the footer must not claim rewards never touch
+  // the grade -- only that EARNING points does not.
+  const source = await read('src/components/student/ClassPointsWallet.jsx');
+  assert.match(source, /Earning Class Points does not change your grade or mastery/);
+  assert.doesNotMatch(source, /Class Points are classroom rewards\. They do not change your MathMaster grade or mastery\./);
+});
+
 test('the Practice Pass card never computes its own eligibility list', async () => {
   const source = await read('src/components/student/ClassPointsWallet.jsx');
   // `eligibleAssignments` arrives as a prop; this file must not IMPORT the

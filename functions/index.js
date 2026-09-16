@@ -714,6 +714,50 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
     }
 
     const assignmentId = envelope.assignmentId;
+
+    /*
+     * A REDEEMED PRACTICE PASS RETIRES A CREDIT-BEARING PRACTICE RESPONSE.
+     *
+     * The stale-tab/offline race: a student has a Practice response open or
+     * queued locally, redeems a Practice Pass before that response becomes a
+     * canonical attempt, and the queued response arrives after the waiver
+     * already exists. `decideSubmissionIngestion` above has no way to know
+     * about a reward redemption -- it is a Class Points concern, not a
+     * submission-lifecycle one -- so this checks it directly, AFTER the
+     * ordinary decision already says ACCEPTED and BEFORE any canonical write.
+     * Only Practice is affected: Warm-Up/Classwork/DOL responses are never
+     * touched by a Practice Pass and never reach this branch.
+     */
+    if (question?.activityRole === "practice" && classId) {
+      const rewards = await classPointRewards();
+      const redemptionSnap = await transaction.get(
+        db.collection(CLASS_POINT_REWARD_REDEMPTIONS_COLLECTION).doc(rewards.practicePassRedemptionId({
+          studentId, classId, assignmentId, rewardCode: rewards.PRACTICE_PASS_REWARD_CODE,
+        })),
+      );
+      if (redemptionSnap.exists) {
+        // A proven, permanent fact -- Practice is excused for this assignment
+        // -- so the outbox may retire this action instead of retrying it
+        // forever. No grade, no evidence, no attempt is ever written for it.
+        transaction.set(receiptRef, {
+          studentId,
+          actionId: envelope.actionId,
+          assignmentId,
+          questionIndex: envelope.questionIndex,
+          disposition: dispositions.SUBMISSION_DISPOSITION.PERMANENTLY_INVALID,
+          reason: "practice-pass-redeemed",
+          capturedAt: envelope.capturedAt ? new Date(envelope.capturedAt) : null,
+          issuedAt: FieldValue.serverTimestamp(),
+        });
+        return {
+          actionId: envelope.actionId,
+          disposition: dispositions.SUBMISSION_DISPOSITION.PERMANENTLY_INVALID,
+          reason: "practice-pass-redeemed",
+          receiptId: receiptRef.id,
+        };
+      }
+    }
+
     const classworkIndices = runtimeIncludedQuestionIndicesForSection(assignment, "classwork");
     const dolIndices = runtimeIncludedQuestionIndicesForSection(assignment, "dol");
     const built = ingestion.buildIngestedAttempt({
@@ -1861,6 +1905,31 @@ exports.redeemPracticePass = onCall(async (request) => {
       };
     }
 
+    const classRecord = classSnap.exists ? { classId: classSnap.id, ...classSnap.data() } : null;
+
+    /*
+     * THE CLASS/ROSTER MUST BE INTERNALLY CONSISTENT BEFORE A NEW REDEMPTION.
+     *
+     * This reuses `authorizeClassPointsActor` -- the exact same consistency
+     * rule `awardClassPoints`/`reverseClassPointAward` already enforce -- but
+     * for a different purpose: there is no teacher actor here, so the class's
+     * OWN `teacherOfRecord` is passed as the "actor", which makes the
+     * teacher-identity check in that function a no-op (it always agrees with
+     * itself) while still requiring: the class exists, is not archived, the
+     * student's own grade record currently names this same class, the class
+     * has a `teacherOfRecord` at all, and the roster's `assignedTeacherEmail`
+     * agrees with it. Any of those failing means the roster is not in a state
+     * a redemption should spend real points against.
+     */
+    const consistency = points.authorizeClassPointsActor({
+      isRootAdmin: false,
+      teacherEmail: classRecord?.teacherOfRecord,
+      classRecord,
+      studentRecord: gradeData,
+      requestedClassId: classId,
+    });
+    if (!consistency.authorized) throw new HttpsError(consistency.reason, consistency.message);
+
     const assignedToClass = studentMatchesAssignmentAudience({ assignment, classId });
     const isTestCycleAssignment = secureAssignmentMode(assignment) || assignment.secure === true;
     const practiceIndices = runtimeIncludedQuestionIndicesForSection(assignment, "practice");
@@ -1891,7 +1960,6 @@ exports.redeemPracticePass = onCall(async (request) => {
       throw new HttpsError("failed-precondition", decision.message);
     }
 
-    const classRecord = classSnap.exists ? { classId: classSnap.id, ...classSnap.data() } : null;
     const authorization = points.classPointsAuthorizationContext({
       classRecord, existingRecord: accountSnap.exists ? account : null,
     });

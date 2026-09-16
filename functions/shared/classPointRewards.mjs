@@ -233,17 +233,17 @@ export const evaluatePracticePassEligibility = ({
     );
   }
 
-  // An explicit `true` override is a teacher deliberately widening eligibility
-  // past the ordinary-lesson default — it still cannot reach past Test Cycle
-  // (above) or past the lifecycle/attempt/balance safety rules (below).
-  if (override !== true) {
-    const { hasQuiz, hasTest } = assignmentHasAssessmentSection(assignment);
-    if (hasQuiz) {
-      return fail(PRACTICE_PASS_INELIGIBLE_CODES.QUIZ_ASSIGNMENT, 'A Practice Pass cannot be used on a quiz.');
-    }
-    if (hasTest) {
-      return fail(PRACTICE_PASS_INELIGIBLE_CODES.TEST_ASSIGNMENT, 'A Practice Pass cannot be used on a test.');
-    }
+  // Assessment boundaries are ABSOLUTE. An explicit `true` override only ever
+  // opts an ordinary Practice section IN when nothing else here would have
+  // blocked it (e.g. a lesson whose classification is otherwise ambiguous) --
+  // it can never reach past a quiz, a test, a secure assessment, or a Test
+  // Cycle (checked above). There is no override for these, ever.
+  const { hasQuiz, hasTest } = assignmentHasAssessmentSection(assignment);
+  if (hasQuiz) {
+    return fail(PRACTICE_PASS_INELIGIBLE_CODES.QUIZ_ASSIGNMENT, 'A Practice Pass cannot be used on a quiz.');
+  }
+  if (hasTest) {
+    return fail(PRACTICE_PASS_INELIGIBLE_CODES.TEST_ASSIGNMENT, 'A Practice Pass cannot be used on a test.');
   }
 
   const lifecycle = assignmentCreditLifecycle(assignment, nowValue);

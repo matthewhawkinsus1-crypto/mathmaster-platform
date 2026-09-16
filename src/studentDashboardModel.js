@@ -101,6 +101,19 @@ export const buildStudentDashboardModel = ({
   classworkGradesByAssignment = {},
   classSchedule = null,
   resumeAction = null,
+  /*
+   * PRACTICE PASS REDEMPTIONS, READ AND NEVER RECOMPUTED.
+   *
+   * `classPointRewardRedemptions/{redemptionId}` is server-written the moment
+   * a Practice Pass is granted; this model only asks "does one exist for this
+   * assignment?" — the same read-only role testCycleGrades already plays for
+   * studentGradeCenterModel.js. A waived Practice question is removed from
+   * REQUIRED completion/resume here (Home must never say "Finish what you
+   * started" or "In Progress" about a section a student paid to excuse), but
+   * this manufactures no completion record for Practice itself and never
+   * touches Warm-Up/Classwork/DOL.
+   */
+  practicePassRedemptionsByAssignment = {},
   providers = {},
 } = {}) => {
   const {
@@ -119,6 +132,25 @@ export const buildStudentDashboardModel = ({
 
   const visible = list(assignments).filter((assignment) => assignmentIsForStudent(assignment, { classId, classPeriod }));
 
+  const hasPracticePassFor = (assignmentId) => Boolean(practicePassRedemptionsByAssignment?.[assignmentId]);
+
+  /*
+   * THE ONE PLACE THIS MODEL ASKS "WHAT IS REQUIRED, GIVEN A PRACTICE PASS?"
+   *
+   * `getIncludedQuestionIndices` is this file's own (pre-existing, simpler)
+   * inclusion definition — a raw `teacherExcluded` filter over stored
+   * questions, not the current-content replacement projection gradeEvidence.js
+   * uses. Extending that SAME definition with the SAME per-question role
+   * resolver `activeWarmups`/`activeDols` already use below keeps one
+   * inclusion rule in this file rather than introducing a second projection.
+   */
+  const requiredIndicesFor = (assignment) => {
+    const included = getIncludedQuestionIndices(assignment);
+    if (!hasPracticePassFor(assignment?.id)) return included;
+    const questions = getStoredAssignmentQuestions(assignment);
+    return included.filter((index) => resolveQuestionActivityRole({ question: questions[index], assignment }) !== 'practice');
+  };
+
   const canResume = (assignment) => {
     const lifecycle = getAssignmentLifecycle(assignment, nowValue);
     if (lifecycle.isPracticeOnly) return false;
@@ -131,16 +163,22 @@ export const buildStudentDashboardModel = ({
     if (!canResume(assignment)) return false;
     const assignmentTracker = tracker[assignment.id];
     if (!assignmentTracker) return false;
+    // A student is never "resumed" into an assignment purely because its
+    // waived Practice sits unfinished -- that is excused, not outstanding.
+    const required = new Set(requiredIndicesFor(assignment));
     return getStoredAssignmentQuestions(assignment).some((question, index) => questionIsIncluded(question)
+      && required.has(index)
       && !['correct', 'expired'].includes(normalizeQuestionRecord(assignmentTracker[index]).status));
   });
   const resumeAssignment = savedResume || fallbackResume || null;
 
+  const resumeRequired = resumeAssignment ? new Set(requiredIndicesFor(resumeAssignment)) : new Set();
   const fallbackQuestionIndex = getStoredAssignmentQuestions(resumeAssignment)
     .findIndex((question, index) => questionIsIncluded(question)
+      && resumeRequired.has(index)
       && !['correct', 'expired'].includes(normalizeQuestionRecord(tracker[resumeAssignment?.id]?.[index]).status));
-  const savedResumeIncluded = savedResume ? getIncludedQuestionIndices(savedResume) : [];
-  const resumeIncluded = resumeAssignment ? getIncludedQuestionIndices(resumeAssignment) : [];
+  const savedResumeIncluded = savedResume ? requiredIndicesFor(savedResume) : [];
+  const resumeIncluded = resumeAssignment ? requiredIndicesFor(resumeAssignment) : [];
   const resumeTracker = resumeAssignment ? tracker?.[resumeAssignment.id] || {} : {};
   const resumeQuestionsAttempted = resumeIncluded.filter((index) => {
     const record = normalizeQuestionRecord(resumeTracker?.[index]);
@@ -203,8 +241,18 @@ export const buildStudentDashboardModel = ({
     if (getStoredAssignmentTypeProjection(assignment) === 'notesClasswork') {
       return classworkGradesByAssignment[assignment.id]?.score === 100 || lifecycle.isClosed;
     }
-    const included = getIncludedQuestionIndices(assignment);
-    const fullyTerminal = included.length > 0 && assignmentTracker
+    const included = requiredIndicesFor(assignment);
+    if (!included.length) {
+      // A Practice Pass that waived every remaining requirement (an
+      // assignment whose only content was Practice) leaves nothing else
+      // required -- that is complete, not "never started". An assignment
+      // with genuinely no content falls back to the lifecycle exactly as
+      // before.
+      return hasPracticePassFor(assignment?.id)
+        ? getIncludedQuestionIndices(assignment).length > 0
+        : lifecycle.isClosed;
+    }
+    const fullyTerminal = Boolean(assignmentTracker)
       && included.every((index) => ['correct', 'expired'].includes(normalizeQuestionRecord(assignmentTracker[index]).status));
     return fullyTerminal || lifecycle.isClosed;
   };
@@ -240,7 +288,7 @@ export const buildStudentDashboardModel = ({
       // "How much is left" was invisible until a student opened the
       // assignment, so a 1-question and a 12-question assignment looked
       // identical on the dashboard.
-      const includedIndices = getIncludedQuestionIndices(assignment);
+      const includedIndices = requiredIndicesFor(assignment);
       const questionsTotal = includedIndices.length;
       const questionsDone = assignmentTracker
         ? includedIndices.filter((index) => ['correct', 'expired'].includes(normalizeQuestionRecord(assignmentTracker[index]).status)).length

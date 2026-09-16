@@ -166,7 +166,7 @@ export default function ClassPointsWallet({
           redeeming={redeeming}
         />
       )}
-      <p style={{ margin: '16px 0 0', paddingTop: 12, borderTop: '1px solid #eee', color: '#5f6368', fontSize: 13 }}>Class Points are classroom rewards. They do not change your MathMaster grade or mastery.</p>
+      <p style={{ margin: '16px 0 0', paddingTop: 12, borderTop: '1px solid #eee', color: '#5f6368', fontSize: 13 }}>Earning Class Points does not change your grade or mastery. Rewards such as a Practice Pass may excuse eligible Practice without counting as a correct answer or mastery.</p>
     </section>
   );
 }

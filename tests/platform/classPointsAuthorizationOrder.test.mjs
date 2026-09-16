@@ -113,3 +113,58 @@ test('both callables derive authorization from the shared helper, not a re-imple
   assert.doesNotMatch(awardBody, /assignedTeacherEmail\s*!==\s*teacherEmail/);
   assert.doesNotMatch(reversalBody, /assignedTeacherEmail\s*!==\s*teacherEmail/);
 });
+
+// --- redeemPracticePass: the class/roster must be consistent before a spend -
+//
+// This callable has no teacher actor to authorize -- the caller is always the
+// spending student -- so it reuses `authorizeClassPointsActor` for a
+// different purpose: verifying the class/roster are internally consistent
+// (exists, not archived, the student's own grade record still names this
+// class, the class has a teacherOfRecord, and the roster's
+// assignedTeacherEmail agrees with it) before any point is spent. A replay of
+// an ALREADY-completed redemption is exempt -- it returns the original
+// receipt from before, never a fresh spend -- so the consistency check only
+// has to run, and only has to be enforced, for a genuinely new redemption.
+
+const redeemBody = executableSource(region(
+  source,
+  'exports.redeemPracticePass = onCall(',
+  'function trustedResponseInspectionEvidence(',
+  'redeemPracticePass',
+));
+
+test('redeemPracticePass verifies class/roster consistency before spending, not merely after', () => {
+  const idempotencyBranch = firstIndexOf(redeemBody, 'redemptionSnap.exists', 'the idempotent-replay check');
+  const consistencyCall = firstIndexOf(redeemBody, 'authorizeClassPointsActor(', 'the class/roster consistency check');
+  const consistencyThrow = firstIndexOf(redeemBody, 'if (!consistency.authorized) throw', 'the consistency-failure throw');
+  const eligibilityCall = firstIndexOf(redeemBody, 'evaluatePracticePassEligibility(', 'the eligibility decision');
+  const firstWrite = firstIndexOf(redeemBody, 'transaction.set(', 'the first transactional write');
+
+  assert.ok(
+    idempotencyBranch < consistencyCall,
+    'an idempotent replay of an already-completed redemption must return before the consistency '
+    + 'check runs -- it is re-verifying a spend that already happened, not authorizing a new one.',
+  );
+  assert.ok(
+    consistencyCall < eligibilityCall,
+    'class/roster consistency must be verified before the eligibility decision, so an inconsistent '
+    + 'roster can never reach a spend through an otherwise-eligible assignment.',
+  );
+  assert.ok(consistencyThrow < eligibilityCall, 'the consistency decision must be enforced (thrown on), not merely computed.');
+  assert.ok(consistencyCall < firstWrite, 'consistency must be verified before any transactional write.');
+});
+
+test('redeemPracticePass reuses the shared authorization helper rather than a hand-rolled roster check', () => {
+  assert.match(redeemBody, /points\.authorizeClassPointsActor\(/);
+  assert.doesNotMatch(redeemBody, /assignedTeacherEmail\s*!==\s*teacherEmail/);
+});
+
+test('redeemPracticePass never builds ledger authorization from an empty teacherOfRecord', () => {
+  // classPointsAuthorizationContext is only reached after the consistency
+  // check above has already required classRecord.teacherOfRecord to be
+  // non-empty and to agree with the roster -- so a redemption can never write
+  // an account/transaction with empty originTeacherEmail/authorizedTeacherEmails.
+  const consistencyCall = firstIndexOf(redeemBody, 'authorizeClassPointsActor(', 'the class/roster consistency check');
+  const authorizationContextCall = firstIndexOf(redeemBody, 'classPointsAuthorizationContext(', 'the authorization-context builder');
+  assert.ok(consistencyCall < authorizationContextCall);
+});

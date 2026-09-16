@@ -4,6 +4,8 @@ import {
   practicePassEligibleAssignments,
   practicePassLooksEligible,
 } from '../../src/platform/rewards/practicePassClientEligibility.js';
+import { normalizeQuestionRecord as clientNormalizeQuestionRecord } from '../../src/attemptPolicy.js';
+import { normalizeQuestionRecord as serverNormalizeQuestionRecord } from '../../functions/shared/attemptPolicy.mjs';
 
 // This module is a UX-only filter for the wallet's assignment picker -- it
 // never spends a point and never grants a waiver. The authoritative decision
@@ -67,6 +69,41 @@ test('a recorded Practice attempt filters the assignment out, but a fresh tracke
   assert.equal(
     practicePassLooksEligible({ assignment, classId: 'class-a', assignmentTracker: {} }),
     true,
+  );
+});
+
+// --- Server/client credit-bearing-attempt parity (item 10) -----------------
+// src/attemptPolicy.js is a straight re-export of
+// functions/shared/attemptPolicy.mjs -- proving that here means a future
+// accidental fork of one file cannot silently reintroduce a mismatch.
+
+test('the client and server normalizeQuestionRecord are the exact same function', () => {
+  assert.equal(clientNormalizeQuestionRecord, serverNormalizeQuestionRecord);
+});
+
+test('a mere draft (no totalAttempts, no canonical status) never blocks a redemption on either side', () => {
+  const draftOnly = { draft: true };
+  assert.equal(Number(clientNormalizeQuestionRecord(draftOnly).totalAttempts) > 0, false);
+  assert.equal(
+    practicePassLooksEligible({
+      assignment: lesson(),
+      classId: 'class-a',
+      assignmentTracker: { 1: draftOnly },
+    }),
+    true,
+  );
+});
+
+test('a canonical attempted response (totalAttempts > 0) blocks a redemption on both sides identically', () => {
+  const attempted = { status: 'attempted', totalAttempts: 1 };
+  assert.equal(Number(serverNormalizeQuestionRecord(attempted).totalAttempts) > 0, true);
+  assert.equal(
+    practicePassLooksEligible({
+      assignment: lesson(),
+      classId: 'class-a',
+      assignmentTracker: { 1: attempted },
+    }),
+    false,
   );
 });
 

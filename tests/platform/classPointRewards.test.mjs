@@ -129,6 +129,45 @@ test('explicit rewardPolicy.practicePassEligible=true still enforces the safety 
   assert.equal(decision.code, PRACTICE_PASS_INELIGIBLE_CODES.INSUFFICIENT_BALANCE);
 });
 
+// --- Assessment boundaries are ABSOLUTE: no authoring override reaches past --
+// them. `rewardPolicy.practicePassEligible: true` may only opt an ordinary,
+// non-assessment Practice section IN; it may never turn a quiz, a test, a
+// secure assessment, or a Test Cycle into something a Practice Pass can touch.
+
+test('explicit true + a quiz section is still rejected', () => {
+  const assignment = ordinaryLesson({
+    rewardPolicy: { practicePassEligible: true },
+    sections: [...ordinaryLesson().sections, { role: 'quiz', questions: [{}] }],
+  });
+  const decision = evaluatePracticePassEligibility(baseArgs({ assignment }));
+  assert.equal(decision.code, PRACTICE_PASS_INELIGIBLE_CODES.QUIZ_ASSIGNMENT);
+});
+
+test('explicit true + a test section is still rejected', () => {
+  const assignment = ordinaryLesson({
+    rewardPolicy: { practicePassEligible: true },
+    sections: [...ordinaryLesson().sections, { role: 'test', questions: [{}] }],
+  });
+  const decision = evaluatePracticePassEligibility(baseArgs({ assignment }));
+  assert.equal(decision.code, PRACTICE_PASS_INELIGIBLE_CODES.TEST_ASSIGNMENT);
+});
+
+test('explicit true + a secure assessment is still rejected', () => {
+  // A secure assessment (assignment.secure === true, or Test Cycle mode) is
+  // resolved by the caller into `isTestCycleAssignment` before this pure
+  // function ever runs -- see functions/index.js `redeemPracticePass`, which
+  // computes `secureAssignmentMode(assignment) || assignment.secure === true`.
+  const assignment = ordinaryLesson({ rewardPolicy: { practicePassEligible: true }, secure: true });
+  const decision = evaluatePracticePassEligibility(baseArgs({ assignment, isTestCycleAssignment: true }));
+  assert.equal(decision.code, PRACTICE_PASS_INELIGIBLE_CODES.TEST_CYCLE_ASSIGNMENT);
+});
+
+test('explicit true + a Test Cycle assessment is still rejected', () => {
+  const assignment = ordinaryLesson({ rewardPolicy: { practicePassEligible: true } });
+  const decision = evaluatePracticePassEligibility(baseArgs({ assignment, isTestCycleAssignment: true }));
+  assert.equal(decision.code, PRACTICE_PASS_INELIGIBLE_CODES.TEST_CYCLE_ASSIGNMENT);
+});
+
 test('an authoritative credit-bearing Practice attempt rejects redemption', () => {
   const decision = evaluatePracticePassEligibility(baseArgs({ hasCreditBearingAttempt: true }));
   assert.equal(decision.code, PRACTICE_PASS_INELIGIBLE_CODES.ALREADY_ATTEMPTED);

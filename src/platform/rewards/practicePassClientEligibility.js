@@ -25,8 +25,19 @@ const hasAssessmentSection = (assignment = {}) => {
   return roles.includes('quiz') || roles.includes('test');
 };
 
+/*
+ * SAME DEFINITION THE SERVER USES, ON PURPOSE.
+ *
+ * functions/index.js `redeemPracticePass` blocks on
+ * `normalizeQuestionRecord(...).totalAttempts > 0` -- never on the mere
+ * existence of a local draft. Using a different threshold here (e.g.
+ * `status !== 'unattempted'`) would let the wallet offer, or refuse, an
+ * assignment the server would decide the opposite way about. `attemptPolicy.js`
+ * is a straight re-export of functions/shared/attemptPolicy.mjs, so this is
+ * the identical function, not a parallel implementation of it.
+ */
 const hasCreditBearingPracticeAttempt = (assignmentTracker, practiceIndices) => (
-  practiceIndices.some((index) => normalizeQuestionRecord(assignmentTracker?.[index]).status !== 'unattempted')
+  practiceIndices.some((index) => Number(normalizeQuestionRecord(assignmentTracker?.[index]).totalAttempts) > 0)
 );
 
 export const practicePassLooksEligible = ({
