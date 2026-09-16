@@ -16,7 +16,9 @@ import {
   effectiveQuestionScore,
   expectedAnswers,
   legacyRecordedResponse,
+  overrideAppliesToRecord,
   replayResponse,
+  responseInspectionEvidenceDocumentId,
   resolveGradedWorkspace,
   restoreAutomaticScore,
   scoreWithFieldOverride,
@@ -66,7 +68,8 @@ const baseRecord = {
   partialCredit: 100,
   bestPartialCredit: 100,
   partGrades: grading.parts,
-  gradingEvidence: evidence,
+  lastSubmissionId: 'submission-1',
+  lastAttemptAt: '2026-09-15T12:00:00Z',
 };
 const actor = { uid: 'teacher-1', email: 'teacher@example.edu', name: 'Teacher' };
 const reason = OVERRIDE_REASONS[0];
@@ -170,6 +173,7 @@ test('saved multiAnswer workspace is compared by field values instead of incompa
     record: baseRecord,
     workspace: sameWorkspace,
     replay: { available: true, discrepancy: false, currentResult: grading },
+    gradingEvidence: evidence,
   });
   assert.equal(same.code, 'correct');
 
@@ -181,6 +185,7 @@ test('saved multiAnswer workspace is compared by field values instead of incompa
     record: baseRecord,
     workspace: differentWorkspace,
     replay: { available: true, discrepancy: false, currentResult: grading },
+    gradingEvidence: evidence,
   });
   assert.equal(different.code, 'workspace-submission-divergence');
   assert.match(different.explanation, /older than the submission/i);
@@ -303,14 +308,29 @@ test('weighted question totals can apply a server-owned override by question ind
 });
 
 test('replay is read-only and detects a prior-vs-current grader discrepancy', () => {
-  const historical = structuredClone(baseRecord);
-  historical.status = 'expired';
-  historical.bestPartialCredit = 50;
-  historical.gradingEvidence.automaticScore = 50;
-  historical.gradingEvidence.automaticResult.isCorrect = false;
-  historical.gradingEvidence.automaticResult.parts[1].isCorrect = false;
+  const historical = {
+    ...structuredClone(baseRecord),
+    status: 'expired',
+    partialCredit: 50,
+    bestPartialCredit: 50,
+  };
+  const historicalEvidence = {
+    ...structuredClone(evidence),
+    automaticScore: 50,
+    automaticResult: {
+      ...structuredClone(evidence.automaticResult),
+      isCorrect: false,
+      parts: evidence.automaticResult.parts.map((part, index) => (
+        index === 1 ? { ...part, isCorrect: false, credit: 0 } : part
+      )),
+    },
+  };
   const before = structuredClone(historical);
-  const replay = replayResponse({ question, attemptRecord: historical });
+  const replay = replayResponse({
+    question,
+    attemptRecord: historical,
+    gradingEvidence: historicalEvidence,
+  });
   assert.equal(replay.available, true);
   assert.equal(replay.currentScore, 100);
   assert.equal(replay.discrepancy, true);
@@ -330,7 +350,8 @@ test('generated/personalized template answers are withheld without an authoritat
   assert.equal(expected.value, null);
   const replay = replayResponse({
     question: generated,
-    attemptRecord: { gradingEvidence: evidence },
+    attemptRecord: baseRecord,
+    gradingEvidence: evidence,
   });
   assert.equal(replay.available, false);
   assert.match(replay.reason, /authoritative delivered question instance/i);
@@ -364,7 +385,12 @@ test('authoritative delivered instance permits expected-answer inspection', () =
 });
 
 test('restoreAutomaticScore returns a correction instruction without changing the original record', () => {
-  const previousOverride = { active: true, score: 100, fieldOverrides: {} };
+  const previousOverride = buildGradeOverride({
+    record: baseRecord,
+    score: 100,
+    reason,
+    actor,
+  }).override;
   const before = structuredClone(baseRecord);
   const restored = restoreAutomaticScore({
     record: baseRecord,
@@ -385,26 +411,89 @@ test('inspector model keeps automatic result and server-owned assigned result se
     status: 'expired',
     partialCredit: 50,
     bestPartialCredit: 50,
-    gradingEvidence: {
-      ...structuredClone(evidence),
-      automaticScore: 50,
-      automaticResult: {
-        ...structuredClone(evidence.automaticResult),
-        isCorrect: false,
-      },
+  };
+  const wrongEvidence = {
+    ...structuredClone(evidence),
+    automaticScore: 50,
+    automaticResult: {
+      ...structuredClone(evidence.automaticResult),
+      isCorrect: false,
     },
   };
+  const override = buildGradeOverride({
+    record: automaticWrong,
+    score: 100,
+    reason,
+    actor,
+  }).override;
   const model = buildInspectorModel({
     assignment: { id: 'a1', title: 'A1' },
     question,
     student: { id: 's1', name: 'Student' },
     record: automaticWrong,
-    override: { active: true, score: 100 },
+    override,
+    gradingEvidence: wrongEvidence,
   });
   assert.equal(model.automaticScore, 50);
   assert.equal(model.assignedScore, 100);
   assert.equal(model.effectiveStatus.status, 'correct');
   assert.equal(model.effectiveStatus.automaticStatus, 'expired');
+});
+
+test('teacher override applies only to the exact attempt it corrected', () => {
+  const override = buildGradeOverride({
+    record: baseRecord,
+    score: 80,
+    reason,
+    actor,
+  }).override;
+  assert.equal(overrideAppliesToRecord(baseRecord, override), true);
+  assert.equal(effectiveQuestionScore(baseRecord, override), 80);
+
+  const newerAttempt = {
+    ...baseRecord,
+    totalAttempts: 2,
+    attemptCount: 2,
+    lastSubmissionId: 'submission-2',
+    lastAttemptAt: '2026-09-15T12:05:00Z',
+    status: 'correct',
+  };
+  assert.equal(overrideAppliesToRecord(newerAttempt, override), false);
+  assert.equal(effectiveQuestionScore(newerAttempt, override), 100);
+});
+
+test('inline client-writable gradingEvidence is ignored for replay', () => {
+  const forgedRecord = {
+    ...baseRecord,
+    gradingEvidence: evidence,
+  };
+  const replay = replayResponse({ question, attemptRecord: forgedRecord });
+  assert.equal(replay.available, false);
+  assert.match(replay.reason, /snapshot is unavailable/i);
+});
+
+test('response inspection evidence id is deterministic by assignment and question', () => {
+  assert.equal(
+    responseInspectionEvidenceDocumentId({ assignmentId: 'assignment-1', questionIndex: 4 }),
+    'assignment-1__q4',
+  );
+});
+
+test('server writes and reads response inspection evidence outside the client-writable attempt record', () => {
+  const source = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  assert.match(source, /RESPONSE_INSPECTION_EVIDENCE_COLLECTION = "responseInspectionEvidence"/);
+  assert.match(source, /built\.gradingEvidenceDocumentId/);
+  assert.match(source, /finalization\.gradingEvidenceDocumentId/);
+  assert.match(source, /trustedResponseInspectionEvidence/);
+  assert.match(source, /There is no submitted attempt to inspect/);
+  assert.match(source, /This assignment is not assigned to the student's current class/);
+
+  const ingestion = fs.readFileSync(
+    new URL('../../functions/shared/submissionIngestion.mjs', import.meta.url),
+    'utf8',
+  );
+  assert.match(ingestion, /gradingEvidenceDocumentId/);
+  assert.doesNotMatch(ingestion, /\.\.\.record,[\s\S]{0,1200}gradingEvidence:/);
 });
 
 test('generic response correction refuses Secure Test Cycle assignments', () => {
@@ -425,6 +514,8 @@ test('override endpoint uses protected projection and does not append mastery ev
   assert.match(region, /teacherGradeOverridesByAssignment/);
   assert.match(region, /gradeOverrideAudits/);
   assert.match(region, /correctedDolProjection/);
+  assert.match(region, /gradingEvidence/);
+  assert.match(region, /replayStoredResponse\([\s\S]*gradingEvidence/);
   assert.doesNotMatch(region, /collection\("evidenceEvents"\)/);
   assert.doesNotMatch(region, /gradeOverride\?\.active/);
 });
@@ -455,11 +546,12 @@ test('Classroom passback wakes on authoritative override changes and applies the
   assert.match(region, /assignmentGradeProgress\([\s\S]*authoritativeOverrides/);
 });
 
-test('Firestore rules pin teacher override projection and default-deny override audits', () => {
+test('Firestore rules pin teacher override projection and default-deny private inspection evidence', () => {
   const source = fs.readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
   assert.match(source, /teacherGradeOverridesUnchanged/);
   assert.match(source, /teacherGradeOverridesAbsentOnCreate/);
   assert.match(source, /match \/gradeOverrideAudits\/\{auditId\}[\s\S]*allow read, write: if false/);
+  assert.match(source, /match \/responseInspectionEvidence\/\{evidenceId\}[\s\S]*allow read, write: if false/);
 });
 
 test('PR250 universal draft-persistence certification and tool cache cleanup remain wired', () => {
