@@ -56,7 +56,10 @@ export const practicePassLooksEligible = ({
     : null;
   if (override === false) return false;
   if (isTestCycleAssignment(assignment)) return false;
-  if (override !== true && hasAssessmentSection(assignment)) return false;
+  // Assessment boundaries are absolute on the server; keep the wallet picker
+  // in parity so an explicit authoring override never dangles a Quiz/Test the
+  // callable is guaranteed to refuse.
+  if (hasAssessmentSection(assignment)) return false;
 
   const projection = projectCurrentAssignmentContent(assignment);
   const practiceIndices = projection.entries
