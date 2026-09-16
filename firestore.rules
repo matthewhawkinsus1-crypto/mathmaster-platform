@@ -151,6 +151,13 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
+      // Exact submitted-response/grader snapshots are Admin-SDK evidence.
+      // Keeping them off the client-readable grade document prevents a student
+      // from forging the evidence a teacher later uses for replay or diagnosis.
+      match /responseInspectionEvidence/{evidenceId} {
+        allow read, write: if false;
+      }
+
       match /scratchpads/{scratchpadId} {
         allow read: if rootAdmin() || ownsStudent(studentId) || authorizedTeacher();
         allow create, update: if rootAdmin() || ownsStudent(studentId) || authorizedTeacher();
