@@ -96,6 +96,12 @@ test('celebrations use only stored public labels, stay bounded, and never become
   assert.match(client, /limit\(CLASS_POINTS_ANNOUNCEMENT_LIMIT\)/);
 });
 
+test('celebration component re-filters expiry at render time so stale announcements cannot linger', async () => {
+  const source = await read('src/components/student/ClassPointsCelebrations.jsx');
+  assert.match(source, /activeClassPointAnnouncements\(announcements, nowValue\)/);
+  assert.match(source, /visibleAnnouncements\.map/);
+});
+
 test('expired announcements are filtered without altering privacy-safe labels', () => {
   const current = { publicStudentLabel: 'Jordan H.', expiresAt: { toMillis: () => 2_000 } };
   const expired = { publicStudentLabel: 'Sam R.', expiresAt: { toMillis: () => 999 } };
