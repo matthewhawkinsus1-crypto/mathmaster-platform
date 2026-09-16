@@ -1,0 +1,49 @@
+import React from 'react';
+import { formatStudentName } from '../../platform/studentName.js';
+
+const periodLabel = (value) => {
+  const period = String(value || '').trim();
+  if (!period) return '';
+  return /^period\b/i.test(period) ? period : `Period ${period}`;
+};
+
+/**
+ * Persistent account-integrity marker for every authenticated student surface.
+ * This bar deliberately owns no grade, assignment, or evidence behavior.
+ */
+export default function StudentIdentityBar({ student = null, preview = false, onLogout = null }) {
+  const name = preview
+    ? 'Teacher Preview'
+    : formatStudentName(student, { lastFirst: false });
+  const context = preview ? 'Student View' : periodLabel(student?.classPeriod);
+
+  return (
+    <aside
+      aria-label={preview ? 'Teacher preview identity' : 'Signed-in student identity'}
+      data-student-identity={preview ? 'preview' : 'authenticated'}
+      style={{
+        position: 'sticky', top: 0, zIndex: 10010, boxSizing: 'border-box', width: '100%',
+        minHeight: 38, padding: '7px clamp(10px, 3vw, 22px)', background: preview ? '#fef7e0' : '#17365d',
+        color: preview ? '#6b4c00' : '#fff', borderBottom: preview ? '1px solid #f9ab00' : '1px solid #0d2948',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+        fontFamily: '"Segoe UI", sans-serif', fontSize: 13, lineHeight: 1.25,
+      }}
+    >
+      <strong style={{ minWidth: 0, overflowWrap: 'anywhere', fontSize: 14 }}>
+        {name}{context ? ` • ${context}` : ''}
+      </strong>
+      {!preview && onLogout && (
+        <span style={{ flexShrink: 0 }}>
+          <span className="mm-identity-not-you">Not you? </span>
+          <button
+            type="button"
+            onClick={onLogout}
+            style={{ padding: 0, border: 0, background: 'transparent', color: '#fff', font: 'inherit', fontWeight: 900, textDecoration: 'underline', cursor: 'pointer' }}
+          >
+            Log Out
+          </button>
+        </span>
+      )}
+    </aside>
+  );
+}

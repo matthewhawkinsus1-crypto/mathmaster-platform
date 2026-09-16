@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { summarizeLiveClass } from '../../livePresence.js';
+import { compareStudentsByName, formatStudentName } from '../../platform/studentName.js';
 import {
   SUPPORT_EVENT_KIND,
   SUPPORT_EVENT_LABEL,
@@ -156,7 +157,7 @@ export default function StudentSupportDashboard({
       .map((summary) => ({
         key: `archive:${summary.id || summary.sessionKey}`,
         studentId: summary.studentId,
-        studentName: summary.studentName || summary.studentId,
+        studentName: summary.studentName || 'Student',
         assignmentId: summary.assignmentId || null,
         assignmentTitle: summary.assignmentTitle || null,
         sessionKey: summary.sessionKey || null,
@@ -197,7 +198,7 @@ export default function StudentSupportDashboard({
         kind: noteKind,
         stage,
         studentId: student.id,
-        studentName: student.name || student.displayName || student.id,
+        studentName: formatStudentName(student, { lastFirst: false }),
         summary: noteKind === SUPPORT_EVENT_KIND.TEACHER_INTERVENTION
           ? 'Teacher added an intervention/check-in note.'
           : 'Teacher added a reviewed support concern/follow-up note.',
@@ -354,7 +355,7 @@ export default function StudentSupportDashboard({
             return (
               <div key={summary.id} style={{ borderTop: '1px solid #eef0f2', padding: '8px 0' }}>
                 <button type="button" onClick={() => onOpenStudent?.(summary.studentId)} style={{ border: 0, padding: 0, background: 'transparent', fontWeight: 900, cursor: 'pointer', textAlign: 'left' }}>
-                  {summary.studentName || summary.studentId}
+                  {summary.studentName || 'Student'}
                 </button>
                 <div style={{ fontSize: 11.5, color: '#5f6368', marginTop: 2 }}>
                   {summary.assignmentTitle || 'Assignment'} · {Math.round(active)} active min of {Math.round(elapsed)} elapsed · {summary.answered || 0} answered
@@ -399,8 +400,8 @@ export default function StudentSupportDashboard({
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1fr) minmax(180px, 1fr)', gap: 8 }}>
             <select value={noteStudentId} onChange={(event) => setNoteStudentId(event.target.value)} style={{ minHeight: 38, padding: '7px 8px', border: '1px solid #c9ced6', borderRadius: 7, background: '#fff' }}>
               <option value="">Choose student…</option>
-              {[...students].sort((a, b) => String(a.name || a.displayName || a.id).localeCompare(String(b.name || b.displayName || b.id))).map((student) => (
-                <option key={student.id} value={student.id}>{student.name || student.displayName || student.id}</option>
+              {[...students].sort(compareStudentsByName).map((student) => (
+                <option key={student.id} value={student.id}>{formatStudentName(student, { lastFirst: false })}</option>
               ))}
             </select>
             <select value={noteKind} onChange={(event) => setNoteKind(event.target.value)} style={{ minHeight: 38, padding: '7px 8px', border: '1px solid #c9ced6', borderRadius: 7, background: '#fff' }}>
@@ -433,7 +434,7 @@ export default function StudentSupportDashboard({
           {recent.length ? recent.map((event) => (
             <div key={event.id} style={{ padding: '8px 9px', borderRadius: 8, background: '#f8f9fa' }}>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-                <strong>{event.studentName || event.studentId}</strong>
+                <strong>{event.studentName || 'Student'}</strong>
                 <span style={{ fontSize: 11, color: '#80868b' }}>{fmt(event.createdAt)}</span>
               </div>
               <div style={{ marginTop: 2, fontSize: 11.5 }}>

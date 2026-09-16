@@ -18,6 +18,16 @@ test('legacy displayName remains compatible', () => {
   assert.equal(formatStudentName({ displayName: 'Matthew Hawkins', id: '67' }), 'Hawkins, Matthew');
 });
 
+test('natural instructional names and neutral unresolved identities are canonical', () => {
+  assert.equal(
+    formatStudentName({ firstName: 'Matthew', lastName: 'Hawkins' }, { lastFirst: false }),
+    'Matthew Hawkins',
+  );
+  assert.equal(formatStudentName({ studentName: 'Ana Rivera' }, { lastFirst: false }), 'Ana Rivera');
+  assert.equal(formatStudentName({ id: 'long-internal-uid-123' }), 'Student');
+  assert.equal(formatStudentName({ id: 'support-id' }, { fallbackToId: true }), 'support-id');
+});
+
 test('students sort by last name, then first name, then ID', () => {
   const students = [
     { id: '30', firstName: 'Zoey', lastName: 'Adams' },

@@ -1,3 +1,5 @@
+import { formatStudentName } from '../studentName.js';
+
 export const WALKTHROUGH_STATUS = Object.freeze({
   NEEDS_CHECK: 'needsCheck',
   ON_QUESTION: 'onQuestion',
@@ -19,10 +21,6 @@ const toMillis = (value) => {
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? null : parsed;
 };
-
-const studentName = (student) => String(
-  student?.displayName || student?.name || student?.studentName || student?.id || 'Student',
-);
 
 const normalizeAttendance = (entry) => {
   if (typeof entry === 'string') return { mark: entry, arrivedAt: null };
@@ -108,7 +106,7 @@ export function buildWalkthroughMonitor({
 
     const row = {
       id,
-      name: studentName(student),
+      name: formatStudentName(student, { lastFirst: false }),
       student,
       live,
       attendance,

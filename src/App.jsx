@@ -242,6 +242,7 @@ import { isTestCycleAssignment } from './platform/assessment/testCycle.js';
 import { preflightTestCycleCandidate } from './services/testCycleService.js';
 import { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
 import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
+import StudentIdentityBar from './components/student/StudentIdentityBar.jsx';
 
 import {
   buildStudentGradeCenter,
@@ -2308,7 +2309,7 @@ function App() {
           // Student-facing screens should greet the person, not the SIS ID.
           // The roster is authoritative because student passcode sessions do
           // not necessarily carry a useful Firebase Auth displayName.
-          displayName: rosterDisplayName || session.displayName || studentId,
+          displayName: rosterDisplayName || session.displayName || 'Student',
           classId: studentData.classId || null,
           className: courseContext.className,
           classPeriod: courseContext.classPeriod,
@@ -2937,7 +2938,7 @@ function App() {
     const currentTeksCode = getQuestionPrimaryTeksCodes(question || {})[0] || null;
     const payload = {
       studentId: user.id,
-      name: user.name || user.id,
+      name: formatStudentName(user, { lastFirst: false }),
       classId: user.classId || null,
       classPeriod: user.classPeriod || '',
       currentTeksCode,
@@ -3614,7 +3615,7 @@ function App() {
 
     const model = buildAssignmentWorksheetModel({
       assignment: assignmentData,
-      student: { displayName: user.displayName || user.id, classPeriod: user.classPeriod },
+      student: { displayName: formatStudentName(user, { lastFirst: false }), classPeriod: user.classPeriod },
       entries: printableEntries,
     });
     if (!model.sections.some((section) => section.questions.length)) {
@@ -5740,7 +5741,7 @@ function App() {
     const weeklyByStudentId = !weeklyLoaded ? {} : Object.fromEntries(buildTeacherWeeklyView(
       teacherWeeklyRoster.map((student) => ({
         studentId: student.id,
-        studentName: student.name || student.id,
+        studentName: formatStudentName(student, { lastFirst: false }),
         goal: teacherWeeklyGoalsByStudent[student.id] || null,
         completions: weeklyPathCompletionsByStudent[student.id] || [],
       })).filter((entry) => entry.goal),
@@ -7631,7 +7632,7 @@ function App() {
                 Student Scratchpad
               </h2>
               <div style={{ color: '#5f6368', marginTop: '5px', fontSize: '14px' }}>
-                {teacherScratchpadDialog.studentId} · Question{' '}
+                {formatStudentName(allStudents.find((student) => student.id === teacherScratchpadDialog.studentId), { lastFirst: false })} · Question{' '}
                 {teacherScratchpadDialog.questionIndex + 1}
               </div>
             </div>
@@ -8436,6 +8437,20 @@ function App() {
     );
   };
 
+  // This is the authenticated-student shell boundary. Keeping identity here,
+  // outside every destination, makes it survive Focus View, compact/mobile
+  // assignment controls, Live Challenge, and screens that omit global nav.
+  const renderStudentIdentityShell = (content, { preview = false } = {}) => (
+    <div data-authenticated-student-shell={preview ? 'teacher-preview' : 'student'} style={{ minHeight: '100vh' }}>
+      <StudentIdentityBar
+        preview={preview}
+        student={preview ? null : { ...studentRecord, ...user }}
+        onLogout={preview ? null : handleLogout}
+      />
+      {content}
+    </div>
+  );
+
   if (!user) {
     if (auth.status === 'signedOut' || auth.status === 'linking') return <LoginScreen launchAssignment={launchAssignment} />;
     if (sessionHydrationError) {
@@ -8453,7 +8468,7 @@ function App() {
   }
 
   if (isTeacherPreview) {
-    return renderAssignmentWorkspace(true);
+    return renderStudentIdentityShell(renderAssignmentWorkspace(true), { preview: true });
   }
 
   if (user.role === 'teacher') {
@@ -9405,7 +9420,7 @@ function App() {
 
   if (user.role === 'student' && activeView === 'dashboard') {
     if (studentDashboardMode === 'liveChallenge') {
-      return (
+      return renderStudentIdentityShell(
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
@@ -9416,17 +9431,17 @@ function App() {
             onExit={() => setStudentDashboardMode('assignments')}
           />
           </Suspense>
-        </>
+        </>,
       );
     }
     if (studentDashboardMode === 'mathPath') {
-      return (
+      return renderStudentIdentityShell(
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
           <MyMathPathApp
           studentId={user.id}
-          studentName={user.displayName || user.id}
+          studentName={formatStudentName({ ...studentRecord, ...user }, { lastFirst: false })}
           studentProfile={adaptiveStudentProfile || user.profile}
           assignments={studentPathAssignments}
           launchTeksCode={pathLaunchTeks}
@@ -9437,11 +9452,11 @@ function App() {
           onNavigate={navigateStudent}
           onExit={() => { setPathLaunchTeks(null); setStudentDashboardMode('assignments'); }}
           />
-        </>
+        </>,
       );
     }
     if (studentDashboardMode === 'assignmentsCenter') {
-      return (
+      return renderStudentIdentityShell(
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
@@ -9456,11 +9471,11 @@ function App() {
             onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'assignments' })}
             onPractice={(assignmentId) => startAssignment(assignmentId)}
           />
-        </>
+        </>,
       );
     }
     if (studentDashboardMode === 'grades') {
-      return (
+      return renderStudentIdentityShell(
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
@@ -9473,11 +9488,11 @@ function App() {
             onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'grades' })}
             onPractice={(assignmentId) => startAssignment(assignmentId)}
           />
-        </>
+        </>,
       );
     }
     if (studentDashboardMode === 'testCycle' && activeTestCycleAssignmentId) {
-      return (
+      return renderStudentIdentityShell(
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
@@ -9491,11 +9506,11 @@ function App() {
               onExit={openStudentAssignmentsCenter}
             />
           </main>
-        </>
+        </>,
       );
     }
     if (studentDashboardMode === 'secureExams') {
-      return (
+      return renderStudentIdentityShell(
         <>
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
@@ -9506,7 +9521,7 @@ function App() {
           // is the only thing that knows which stage is open.
           onOpenCourseTest={(assignmentId) => startAssignment(assignmentId)}
           />
-        </>
+        </>,
       );
     }
 
@@ -9522,13 +9537,13 @@ function App() {
       dashboard,
       weeklyProgress: studentWeeklyPathProgress,
     });
-    return (
+    return renderStudentIdentityShell(
       <>
         {renderStudentPackUpBanner()}
         {renderStudentWarmupBanner()}
         <StudentDashboardView
         dashboard={dashboard}
-        student={{ id: user.id, displayName: user.displayName, classPeriod: user.classPeriod, inclusionStatus: user.profile?.inclusionStatus }}
+        student={{ ...studentRecord, ...user, inclusionStatus: user.profile?.inclusionStatus }}
         supportPresentation={supportPresentation}
         classroomSyncStatusByAssignment={classroomSyncStatusByAssignment}
         onStartAssignment={startAssignment}
@@ -9550,7 +9565,7 @@ function App() {
           onChooseSkill: handleChooseSkill,
         }}
         />
-      </>
+      </>,
     );
   }
 
@@ -9569,7 +9584,7 @@ function App() {
     const resultSectionLabel = assignmentResultRoute.sectionKey && assignmentResultRoute.sectionKey !== 'whole'
       ? assignmentResultRoute.sectionLabel || assignmentResultRoute.sectionKey
       : null;
-    return (
+    return renderStudentIdentityShell(
       <>
         {renderStudentPackUpBanner()}
         {renderStudentWarmupBanner()}
@@ -9590,12 +9605,12 @@ function App() {
           origin={assignmentResultRoute.origin || 'assignments'}
           onBackToHome={() => openStudentDashboardMode('assignments')}
         />
-      </>
+      </>,
     );
   }
 
   if (isStudentAssignment) {
-    return renderAssignmentWorkspace(false);
+    return renderStudentIdentityShell(renderAssignmentWorkspace(false));
   }
 
   return null;

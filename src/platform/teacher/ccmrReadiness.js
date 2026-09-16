@@ -1,4 +1,5 @@
 import { INSTRUCTIONAL_BAND } from '../profile/studentLearningProfile.js';
+import { formatStudentName } from '../studentName.js';
 
 /*
  * COURSE MASTERY IS NOT TRANSFER, AND THE GAP BETWEEN THEM IS THE WHOLE POINT.
@@ -169,7 +170,7 @@ export const buildCcmrView = ({
 } = {}) => {
   const rows = list(students).map((student) => ccmrForStudent({
     studentId: student.id,
-    studentName: student.displayName || student.name || String(student.id),
+    studentName: formatStudentName(student, { lastFirst: false }),
     profile: profilesByStudentId[student.id] || null,
     courseLevel: courseLevelByStudentId[student.id] || 'standard',
     framework,

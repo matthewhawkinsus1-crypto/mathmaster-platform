@@ -5,6 +5,7 @@ import {
 } from '../../platform/path/weeklyPathGoal.js';
 import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 import StudentNameLink from '../common/StudentNameLink.jsx';
+import { formatStudentName } from '../../platform/studentName.js';
 
 // The teacher's weekly Path controls, and the class table beside them.
 //
@@ -94,7 +95,7 @@ export default function WeeklyPathControls({
   const rows = useMemo(() => buildTeacherWeeklyView(
     studentsInClass.map((student) => ({
       studentId: student.id,
-      studentName: student.name || student.id,
+      studentName: formatStudentName(student, { lastFirst: false }),
       goal: goalsByStudentId[student.id]
         // A student whose plan has not been built yet still needs a row, so the
         // teacher sees "not started" rather than a student who has vanished.

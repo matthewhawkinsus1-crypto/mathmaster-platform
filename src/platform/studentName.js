@@ -19,6 +19,7 @@ export const studentNameParts = (student = {}) => {
   return splitLegacyDisplayName(
     record.displayName
       || record.name
+      || record.studentName
       || record.googleName
       || record.profile?.displayName
       || record.profile?.name
@@ -27,7 +28,7 @@ export const studentNameParts = (student = {}) => {
   );
 };
 
-export const formatStudentName = (student = {}, { lastFirst = true, fallbackToId = true } = {}) => {
+export const formatStudentName = (student = {}, { lastFirst = true, fallbackToId = false } = {}) => {
   const record = asStudentRecord(student);
   const { firstName, lastName } = studentNameParts(record);
   if (lastFirst && lastName) return firstName ? `${lastName}, ${firstName}` : lastName;
@@ -36,14 +37,15 @@ export const formatStudentName = (student = {}, { lastFirst = true, fallbackToId
   const displayName = cleanName(
     record.displayName
       || record.name
+      || record.studentName
       || record.googleName
       || record.profile?.displayName
       || record.profile?.name
       || record.profile?.googleName,
   );
   if (displayName) return displayName;
-  if (!fallbackToId) return '';
-  return String(record.studentId || record.id || 'Student');
+  if (fallbackToId) return String(record.studentId || record.id || 'Student');
+  return 'Student';
 };
 
 export const compareStudentsByName = (a = {}, b = {}) => {
@@ -70,6 +72,8 @@ export const studentSearchText = (student = {}) => {
     firstName,
     lastName,
     record.displayName,
+    record.name,
+    record.studentName,
     record.googleName,
     record.profile?.displayName,
     record.profile?.name,

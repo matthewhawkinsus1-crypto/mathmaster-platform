@@ -1,12 +1,6 @@
 import { useMemo, useState } from 'react';
 import { PRINT_OUTPUT_MODES } from '../../platform/resources/assignmentWorksheetPdfModel.js';
-
-const studentName = (student) => {
-  const direct = String(student?.displayName || student?.name || '').trim();
-  if (direct) return direct;
-  return [student?.firstName, student?.lastName].map((value) => String(value || '').trim()).filter(Boolean).join(' ')
-    || String(student?.id || 'Student');
-};
+import { compareStudentsByName, formatStudentName } from '../../platform/studentName.js';
 
 const MODE_OPTIONS = [
   {
@@ -34,9 +28,7 @@ export default function TeacherAssignmentPdfDialog({
   onCancel,
   onExport,
 }) {
-  const sortedStudents = useMemo(() => [...students].sort((left, right) => (
-    studentName(left).localeCompare(studentName(right))
-  )), [students]);
+  const sortedStudents = useMemo(() => [...students].sort(compareStudentsByName), [students]);
   const [selectedStudentId, setSelectedStudentId] = useState(requiresStudent ? (sortedStudents[0]?.id || '') : '');
   const [outputMode, setOutputMode] = useState(PRINT_OUTPUT_MODES.STUDENT);
   const selectedStudent = sortedStudents.find((student) => student.id === selectedStudentId) || null;
@@ -106,7 +98,7 @@ export default function TeacherAssignmentPdfDialog({
               {!requiresStudent && <option value="">Shared version / blank student fields</option>}
               {sortedStudents.map((student) => (
                 <option key={student.id} value={student.id}>
-                  {studentName(student)}{student.classPeriod ? ' · ' + student.classPeriod : ''}
+                  {formatStudentName(student)}{student.classPeriod ? ' · ' + student.classPeriod : ''}
                 </option>
               ))}
             </select>
