@@ -336,6 +336,19 @@ test('generated/personalized template answers are withheld without an authoritat
   assert.match(replay.reason, /authoritative delivered question instance/i);
 });
 
+test('legacy generated families and auto-differentiated band profiles also require delivered authority', () => {
+  for (const personalized of [
+    { type: 'algebra', answer: 7 },
+    { type: 'fraction', answer: '1/2' },
+    { type: 'numberLine', answer: 'x>2' },
+    { ...question, differentiation: { mode: 'auto', bandProfiles: { 2: { answerFields: [{ id: 'r2', answer: 0.36 }] } } } },
+  ]) {
+    const expected = expectedAnswers({ question: personalized, evidence: {} });
+    assert.equal(expected.available, false);
+    assert.equal(expected.reason, EXPECTED_UNAVAILABLE);
+  }
+});
+
 test('authoritative delivered instance permits expected-answer inspection', () => {
   const generated = { ...question, generator: { parameters: {} } };
   const authoritativeEvidence = {
