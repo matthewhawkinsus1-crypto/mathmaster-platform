@@ -12,6 +12,7 @@ import {
   buildInspectorModel,
   captureAutomaticGradingEvidence,
   correctedDolProjection,
+  diagnoseResponse,
   effectiveQuestionScore,
   expectedAnswers,
   legacyRecordedResponse,
@@ -157,6 +158,32 @@ test('workspace timing uses the matching question entry, not a later update else
   assert.equal(workspace.savedAt, 1000);
   assert.equal(workspace.documentUpdatedAt, 9000);
   assert.equal(workspace.relationToSubmission, 'older');
+});
+
+test('saved multiAnswer workspace is compared by field values instead of incompatible container shapes', () => {
+  const sameWorkspace = {
+    available: true,
+    relationToSubmission: 'older',
+    entries: [{ value: { r2: '0.49', percent: '49' }, savedAt: 1000 }],
+  };
+  const same = diagnoseResponse({
+    record: baseRecord,
+    workspace: sameWorkspace,
+    replay: { available: true, discrepancy: false, currentResult: grading },
+  });
+  assert.equal(same.code, 'correct');
+
+  const differentWorkspace = {
+    ...sameWorkspace,
+    entries: [{ value: { r2: '0.49', percent: '36' }, savedAt: 1000 }],
+  };
+  const different = diagnoseResponse({
+    record: baseRecord,
+    workspace: differentWorkspace,
+    replay: { available: true, discrepancy: false, currentResult: grading },
+  });
+  assert.equal(different.code, 'workspace-submission-divergence');
+  assert.match(different.explanation, /older than the submission/i);
 });
 
 test('Practice Mode and a different variant never masquerade as the graded workspace', () => {
@@ -365,6 +392,15 @@ test('inspector model keeps automatic result and server-owned assigned result se
   assert.equal(model.assignedScore, 100);
   assert.equal(model.effectiveStatus.status, 'correct');
   assert.equal(model.effectiveStatus.automaticStatus, 'expired');
+});
+
+test('generic response correction refuses Secure Test Cycle assignments', () => {
+  const source = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const start = source.indexOf('exports.inspectStudentResponse');
+  const end = source.indexOf('function releaseSignalReason', start);
+  const region = source.slice(start, end);
+  assert.match(region, /assessmentPolicy\?\.mode[\s\S]*testCycle/);
+  assert.match(region, /dedicated assessment correction workflow/);
 });
 
 test('override endpoint uses protected projection and does not append mastery evidence', () => {
