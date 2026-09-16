@@ -310,6 +310,59 @@ export const replayStoredResponse = ({ question, record } = {}) => replayRespons
   attemptRecord: record,
 });
 
+const submittedFieldMap = (submitted) => {
+  if (submitted?.kind !== 'fields') return null;
+  return Object.fromEntries(
+    list(submitted.fields)
+      .filter((field) => field?.id)
+      .map((field) => [String(field.id), field.value]),
+  );
+};
+
+const comparableWorkspaceResponse = (workspace, submitted) => {
+  if (!workspace?.available) return { comparable: false, equal: null };
+  const submittedFields = submittedFieldMap(submitted);
+  if (submittedFields) {
+    const ids = Object.keys(submittedFields);
+    for (const entry of workspace.entries || []) {
+      const candidates = [
+        entry?.value,
+        entry?.value?.answers,
+        entry?.value?.responses,
+        entry?.value?.fields,
+      ];
+      for (const candidate of candidates) {
+        if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) continue;
+        if (!ids.some((id) => Object.prototype.hasOwnProperty.call(candidate, id))) continue;
+        const comparable = Object.fromEntries(ids.map((id) => [id, candidate[id] ?? '']));
+        return {
+          comparable: true,
+          equal: json(comparable) === json(submittedFields),
+          workspaceValue: comparable,
+          submittedValue: submittedFields,
+        };
+      }
+    }
+    return { comparable: false, equal: null };
+  }
+
+  if ((workspace.entries || []).length === 1 && submitted?.value !== undefined) {
+    const workspaceValue = workspace.entries[0]?.value;
+    if (
+      workspaceValue === null
+      || ['string', 'number', 'boolean'].includes(typeof workspaceValue)
+    ) {
+      return {
+        comparable: true,
+        equal: json(workspaceValue) === json(submitted.value),
+        workspaceValue,
+        submittedValue: submitted.value,
+      };
+    }
+  }
+  return { comparable: false, equal: null };
+};
+
 export const diagnoseResponse = ({ record, workspace = null, replay = null } = {}) => {
   const evidence = record?.gradingEvidence;
   const submitted = evidence?.submittedResponse;
@@ -324,11 +377,11 @@ export const diagnoseResponse = ({ record, workspace = null, replay = null } = {
         explanation: 'Insufficient historical data to determine the cause. The submitted response snapshot is unavailable.',
       };
   }
-  if (workspace?.available && json(workspace.entries.map((entry) => entry.value)) !== json(submitted)) {
+  if (replay?.discrepancy) {
     return {
-      code: 'workspace-submission-divergence',
-      explanation: `The server-backed saved workspace is ${workspace.relationToSubmission} relative to submission and differs from the response that was submitted and graded.`,
-      values: { workspace, submitted },
+      code: 'grader-version-discrepancy',
+      explanation: 'The current grader result differs from the original grader result.',
+      values: { original: replay.originalResult, current: replay.currentResult },
     };
   }
   if (submitted.kind === 'fields'
@@ -345,11 +398,18 @@ export const diagnoseResponse = ({ record, workspace = null, replay = null } = {
       explanation: 'The response was not persisted before the assignment closed.',
     };
   }
-  if (replay?.discrepancy) {
+  const workspaceComparison = comparableWorkspaceResponse(workspace, submitted);
+  if (workspaceComparison.comparable && !workspaceComparison.equal) {
+    const timing = workspace?.relationToSubmission || 'unknown';
+    const explanation = timing === 'older'
+      ? 'The saved workspace differs from the submitted response, but the workspace is older than the submission. The submitted snapshot is the response that was graded.'
+      : timing === 'newer'
+        ? 'The saved workspace differs from the submitted response and was saved after submission. This may represent later editing; the submitted snapshot remains the response that was graded.'
+        : 'The saved workspace differs from the submitted response. The submitted snapshot is the response that was graded.';
     return {
-      code: 'grader-version-discrepancy',
-      explanation: 'The current grader result differs from the original grader result.',
-      values: { original: replay.originalResult, current: replay.currentResult },
+      code: 'workspace-submission-divergence',
+      explanation,
+      values: workspaceComparison,
     };
   }
   const result = replay?.currentResult || evidence.automaticResult;
