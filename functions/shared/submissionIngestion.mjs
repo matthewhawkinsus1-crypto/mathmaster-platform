@@ -57,6 +57,7 @@ import {
   classifyCapturedSubmission,
   sectionWasOpenAtCapture,
 } from './studentSubmissionDisposition.mjs';
+import { captureAutomaticGradingEvidence } from './responseInspector.mjs';
 
 export const SUBMISSION_ENVELOPE_SCHEMA_VERSION = 1;
 
@@ -551,6 +552,15 @@ export const buildIngestedAttempt = ({
     academicOccurredAt: new Date(academicAt).toISOString(),
     ingestedAt: new Date(finite(ingestedAt, Date.now())).toISOString(),
     recoveredLate: finite(ingestedAt, Date.now()) - academicAt > 60_000 ? true : null,
+    gradingEvidence: envelope.response
+      ? captureAutomaticGradingEvidence({
+        response: envelope.response,
+        grading: { ...result, isCorrect: record.status === 'correct', parts: record.partGrades },
+        question,
+        submittedAt: new Date(academicAt).toISOString(),
+        source: envelope.kind,
+      })
+      : (record.gradingEvidence || null),
   };
 
   const assignmentId = trimmed(envelope.assignmentId);
