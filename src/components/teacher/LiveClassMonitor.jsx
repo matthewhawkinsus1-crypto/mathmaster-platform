@@ -387,7 +387,7 @@ export default function LiveClassMonitor({
     .filter((entry) => [SPOTLIGHT_STATUS.REQUESTED, SPOTLIGHT_STATUS.ACCEPTED].includes(entry.status))
     .filter((entry) => entry.classId === activeClassId)
     .filter((entry) => (entry.expiresAt?.toMillis?.() || 0) > Date.now())
-    .sort((a, b) => (b.requestedAt?.toMillis?.() || 0) - (a.requestedAt?.toMillis?.() || 0))[0] || null, [spotlightRequests]);
+    .sort((a, b) => (b.requestedAt?.toMillis?.() || 0) - (a.requestedAt?.toMillis?.() || 0))[0] || null, [spotlightRequests, activeClassId]);
 
   useEffect(() => {
     setSpotlightFrame(null);
