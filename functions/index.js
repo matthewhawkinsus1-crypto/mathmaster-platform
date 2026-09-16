@@ -997,6 +997,315 @@ function assignmentGradeProgress(
   };
 }
 
+/**
+ * Teacher-only response inspection. This reads the canonical attempt, the
+ * server-backed graded workspace from Universal Persistence, and the
+ * rule-protected teacher override projection. Expected answers are returned
+ * only when the exact delivered question is authoritative.
+ */
+exports.inspectStudentResponse = onCall(async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const teacherEmail = callerEmail(request);
+  const studentId = String(request.data?.studentId || "").trim();
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const questionIndex = Number(request.data?.questionIndex);
+  if (!studentId || !assignmentId || !Number.isInteger(questionIndex) || questionIndex < 0) {
+    throw new HttpsError("invalid-argument", "Student, assignment, and question are required.");
+  }
+
+  const db = getFirestore();
+  const gradeRef = db.collection("grades").doc(studentId);
+  const assignmentRef = db.collection("assignments").doc(assignmentId);
+  const [studentSnap, assignmentSnap] = await Promise.all([
+    gradeRef.get(),
+    assignmentRef.get(),
+  ]);
+  if (!studentSnap.exists || !assignmentSnap.exists) {
+    throw new HttpsError("not-found", "The student or assignment was not found.");
+  }
+
+  const student = studentSnap.data() || {};
+  const classSnap = student.classId
+    ? await db.collection("classes").doc(String(student.classId)).get()
+    : null;
+  const ownsClass = classSnap?.exists
+    && String(classSnap.data()?.teacherOfRecord || "").trim().toLowerCase() === teacherEmail;
+  if (!authLib.isRootAdminEmail(teacherEmail) && !ownsClass) {
+    throw new HttpsError(
+      "permission-denied",
+      "Only this student's teacher of record may inspect responses.",
+    );
+  }
+
+  const assignment = { id: assignmentSnap.id, ...assignmentSnap.data() };
+  const questions = runtimeQuestionsFromAssignment(assignment);
+  const question = questions[questionIndex];
+  if (!question) throw new HttpsError("not-found", "The question was not found.");
+
+  const tracker = student.gradesByAssignment?.[assignmentId] || {};
+  const record = tracker[String(questionIndex)] || tracker[questionIndex] || null;
+  const override = student.teacherGradeOverridesByAssignment?.[assignmentId]?.[String(questionIndex)]
+    ?? student.teacherGradeOverridesByAssignment?.[assignmentId]?.[questionIndex]
+    ?? null;
+  const section = (Array.isArray(assignment.sections) ? assignment.sections : []).find((candidate) => (
+    Array.isArray(candidate?.questions)
+    && candidate.questions.some((entry) => entry?.questionId === question.questionId)
+  )) || null;
+
+  const inspector = await import("./shared/responseInspector.mjs");
+  const { workspaceDraftDocumentId } = await import("./shared/workspaceDraftSchema.mjs");
+  const [workspaceSnapshot, auditSnapshot] = await Promise.all([
+    db.collection(WORKSPACE_DRAFT_COLLECTION)
+      .doc(workspaceDraftDocumentId({ studentId, assignmentId }))
+      .get(),
+    gradeRef.collection("gradeOverrideAudits")
+      .where("assignmentId", "==", assignmentId)
+      .where("questionIndex", "==", questionIndex)
+      .limit(50)
+      .get(),
+  ]);
+  const workspace = inspector.resolveGradedWorkspace({
+    document: workspaceSnapshot.exists ? workspaceSnapshot.data() : null,
+    questionIndex,
+    variantIndex: record?.variantIndex || 0,
+    submittedAt: record?.gradingEvidence?.submittedAt || record?.lastAttemptAt || null,
+  });
+  const auditHistory = auditSnapshot.docs
+    .map((snapshot) => snapshot.data() || {})
+    .sort((left, right) => String(left.at || "").localeCompare(String(right.at || "")));
+
+  return inspector.buildInspectorModel({
+    assignment,
+    question,
+    section,
+    student: {
+      id: studentId,
+      displayName: student.displayName || student.name || studentId,
+    },
+    record,
+    workspace,
+    override,
+    auditHistory,
+  });
+});
+
+/**
+ * Teacher grade correction. The active override lives in the rule-protected
+ * top-level teacherGradeOverridesByAssignment map, never in the client-writable
+ * question record. The original automatic attempt stays untouched.
+ */
+exports.overrideStudentResponseGrade = onCall(async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const teacherEmail = callerEmail(request);
+  const studentId = String(request.data?.studentId || "").trim();
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const questionIndex = Number(request.data?.questionIndex);
+  const action = String(request.data?.action || "");
+  const reason = String(request.data?.reason || "");
+
+  if (!studentId || !assignmentId || !Number.isInteger(questionIndex) || questionIndex < 0) {
+    throw new HttpsError("invalid-argument", "Student, assignment, and question are required.");
+  }
+
+  const db = getFirestore();
+  const gradeRef = db.collection("grades").doc(studentId);
+  const assignmentRef = db.collection("assignments").doc(assignmentId);
+  const inspector = await import("./shared/responseInspector.mjs");
+  const projections = await import("./shared/assignmentProjections.mjs");
+  const calendar = await import("./shared/instructionalCalendar.mjs");
+  const deadline = await import("./shared/sectionDeadline.mjs");
+  const nowIso = new Date().toISOString();
+
+  const result = await db.runTransaction(async (transaction) => {
+    const [gradeSnap, assignmentSnap] = await Promise.all([
+      transaction.get(gradeRef),
+      transaction.get(assignmentRef),
+    ]);
+    if (!gradeSnap.exists || !assignmentSnap.exists) {
+      throw new HttpsError("not-found", "The student or assignment was not found.");
+    }
+
+    const gradeData = gradeSnap.data() || {};
+    const classSnap = gradeData.classId
+      ? await transaction.get(db.collection("classes").doc(String(gradeData.classId)))
+      : null;
+    const ownsClass = classSnap?.exists
+      && String(classSnap.data()?.teacherOfRecord || "").trim().toLowerCase() === teacherEmail;
+    if (!authLib.isRootAdminEmail(teacherEmail) && !ownsClass) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only this student's teacher of record may change this grade.",
+      );
+    }
+
+    const assignment = { id: assignmentSnap.id, ...assignmentSnap.data() };
+    const questions = runtimeQuestionsFromAssignment(assignment);
+    const question = questions[questionIndex];
+    if (!question) throw new HttpsError("not-found", "The question was not found.");
+
+    const tracker = { ...(gradeData.gradesByAssignment?.[assignmentId] || {}) };
+    const record = tracker[String(questionIndex)] || tracker[questionIndex];
+    if (!record) {
+      throw new HttpsError(
+        "failed-precondition",
+        "There is no submitted attempt to correct.",
+      );
+    }
+
+    const assignmentOverrides = {
+      ...(gradeData.teacherGradeOverridesByAssignment?.[assignmentId] || {}),
+    };
+    const previousOverride = assignmentOverrides[String(questionIndex)]
+      ?? assignmentOverrides[questionIndex]
+      ?? null;
+    const actor = {
+      uid: teacherUid,
+      email: teacherEmail,
+      name: request.auth?.token?.name || null,
+    };
+
+    let correction;
+    try {
+      if (action === "restoreAutomatic") {
+        correction = inspector.restoreAutomaticScore({
+          record,
+          previousOverride,
+          actor,
+          reason,
+          note: request.data?.note,
+          at: nowIso,
+        });
+      } else {
+        let score = request.data?.score;
+        if (action === "grantFullCredit") score = 100;
+        if (action === "applyReplay") {
+          const replay = inspector.replayStoredResponse({ question, record });
+          if (!replay.available) throw new Error(replay.reason);
+          score = replay.currentScore;
+        }
+        correction = inspector.buildGradeOverride({
+          record,
+          previousOverride,
+          score,
+          fieldId: action === "grantPartCredit"
+            ? String(request.data?.fieldId || "")
+            : null,
+          reason,
+          note: request.data?.note,
+          actor,
+          at: nowIso,
+          source: action || "teacher-override",
+        });
+      }
+    } catch (error) {
+      throw new HttpsError("invalid-argument", error.message);
+    }
+
+    if (correction.override) {
+      assignmentOverrides[String(questionIndex)] = correction.override;
+    } else {
+      delete assignmentOverrides[String(questionIndex)];
+      delete assignmentOverrides[questionIndex];
+    }
+
+    const updates = [
+      new FieldPath(
+        "teacherGradeOverridesByAssignment",
+        assignmentId,
+        String(questionIndex),
+      ),
+      correction.override || FieldValue.delete(),
+      new FieldPath("classroomReleaseSignals", assignmentId),
+      {
+        requestedAt: nowIso,
+        reason: "manual-retry",
+        source: "teacher-grade-override",
+      },
+    ];
+
+    const classworkIndices = runtimeIncludedQuestionIndicesForSection(assignment, "classwork");
+    if (classworkIndices.includes(questionIndex)) {
+      const completion = projections.evaluateClassworkCompletionRule({
+        classworkIndices,
+        assignmentTracker: tracker,
+        totalTimeSeconds: Number(
+          gradeData.assignmentActivity?.[assignmentId]?.totalTimeSeconds,
+        ) || 0,
+        completionRule: assignment.completionRule || {},
+      });
+      const classworkGrade = projections.classworkGradeProjection({
+        completion,
+        existingGrade: gradeData.classworkGradesByAssignment?.[assignmentId] || null,
+        recordedAt: nowIso,
+      });
+      if (classworkGrade) {
+        updates.push(
+          new FieldPath("classworkGradesByAssignment", assignmentId),
+          classworkGrade,
+        );
+      }
+    }
+
+    const dolIndices = runtimeIncludedQuestionIndicesForSection(assignment, "dol");
+    if (dolIndices.includes(questionIndex)) {
+      const totals = weightedQuestionTotals({
+        tracker,
+        questions,
+        indices: dolIndices,
+        creditForRecord: (candidate, index) => getQuestionCredit(
+          candidate,
+          assignmentOverrides?.[String(index)] ?? assignmentOverrides?.[index] ?? null,
+        ),
+      });
+      const existingDol = gradeData.dolGradesByAssignment?.[assignmentId] || {};
+      const occurrence = Date.parse(String(
+        record.academicOccurredAt || record.lastAttemptAt || "",
+      ));
+      const occurrenceDateKey = Number.isFinite(occurrence)
+        ? calendar.zonedDateKey(occurrence, deadline.SCHOOL_TIME_ZONE)
+        : null;
+      const dateKey = (
+        occurrenceDateKey && existingDol[occurrenceDateKey]
+          ? occurrenceDateKey
+          : null
+      ) || Object.keys(existingDol).sort().at(-1)
+        || calendar.zonedDateKey(Date.now(), deadline.SCHOOL_TIME_ZONE);
+      const corrected = inspector.correctedDolProjection({
+        existingByDate: existingDol,
+        dateKey,
+        score: totals.score ?? 0,
+        questionIndices: dolIndices,
+        correctedAt: nowIso,
+      });
+      updates.push(
+        new FieldPath("dolGradesByAssignment", assignmentId, dateKey),
+        corrected,
+      );
+    }
+
+    transaction.update(gradeRef, ...updates);
+
+    const auditRef = gradeRef.collection("gradeOverrideAudits").doc();
+    transaction.set(auditRef, {
+      ...correction.audit,
+      assignmentId,
+      questionIndex,
+      questionId: question.questionId || question.id || null,
+      automaticStatus: record.status || null,
+      automaticScore: inspector.automaticQuestionScore(record),
+      overrideActiveAfter: Boolean(correction.override),
+    });
+
+    return {
+      authoritativeScore: inspector.effectiveQuestionScore(record, correction.override),
+      automaticScore: inspector.automaticQuestionScore(record),
+      override: correction.override,
+    };
+  });
+
+  return result;
+});
+
 function releaseSignalReason(signal) {
   if (!signal) return null;
   if (typeof signal === "string") return "manual-retry";
