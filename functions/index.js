@@ -319,10 +319,12 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
     // question list is this side's projection of which questions are classwork
     // and which are DOL; the RULE that turns them into a completion score is
     // shared with the browser.
-    const { getQuestionCredit, dolSectionProjection } = await responseCheckpointFinalizer();
+    const { dolSectionProjection } = await responseCheckpointFinalizer();
     const classworkIndices = runtimeIncludedQuestionIndicesForSection(assignment, "classwork");
     const dolIndices = runtimeIncludedQuestionIndicesForSection(assignment, "dol");
     const assignmentId = String(checkpoint.assignmentId);
+    const authoritativeOverrides =
+      gradeData?.teacherGradeOverridesByAssignment?.[assignmentId] || {};
     const finalization = buildCheckpointFinalization({
       checkpoint, assignment, question, decision,
       gradeDocument: gradeData, classworkIndices, dolIndices,
@@ -339,7 +341,10 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
         tracker: finalization.assignmentTracker,
         questions: runtimeQuestionsFromAssignment(assignment),
         indices: dolIndices,
-        creditForRecord: getQuestionCredit,
+        creditForRecord: (candidate, index) => getQuestionCredit(
+          candidate,
+          authoritativeOverrides?.[String(index)] ?? authoritativeOverrides?.[index] ?? null,
+        ),
       });
       finalization.dolGrade = dolSectionProjection({
         existing: gradeData?.dolGradesByAssignment?.[assignmentId] || null,
@@ -712,12 +717,17 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
     }
 
     if (envelope.activityRole === "dol" && dolIndices.length) {
-      const { getQuestionCredit, dolSectionProjection } = ingestion;
+      const { dolSectionProjection } = ingestion;
+      const authoritativeOverrides =
+        gradeData?.teacherGradeOverridesByAssignment?.[assignmentId] || {};
       const totals = weightedQuestionTotals({
         tracker: built.assignmentTracker,
         questions: runtimeQuestionsFromAssignment(assignment),
         indices: dolIndices,
-        creditForRecord: getQuestionCredit,
+        creditForRecord: (candidate, index) => getQuestionCredit(
+          candidate,
+          authoritativeOverrides?.[String(index)] ?? authoritativeOverrides?.[index] ?? null,
+        ),
       });
       built.dolGrade = dolSectionProjection({
         existing: gradeData?.dolGradesByAssignment?.[assignmentId] || null,
