@@ -1038,6 +1038,12 @@ exports.inspectStudentResponse = onCall(async (request) => {
   }
 
   const assignment = { id: assignmentSnap.id, ...assignmentSnap.data() };
+  if (String(assignment?.assessmentPolicy?.mode || "") === "testCycle") {
+    throw new HttpsError(
+      "failed-precondition",
+      "Secure Test Cycle results use the dedicated assessment correction workflow.",
+    );
+  }
   const questions = runtimeQuestionsFromAssignment(assignment);
   const question = questions[questionIndex];
   if (!question) throw new HttpsError("not-found", "The question was not found.");
@@ -1140,6 +1146,12 @@ exports.overrideStudentResponseGrade = onCall(async (request) => {
     }
 
     const assignment = { id: assignmentSnap.id, ...assignmentSnap.data() };
+    if (String(assignment?.assessmentPolicy?.mode || "") === "testCycle") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Secure Test Cycle results use the dedicated assessment correction workflow.",
+      );
+    }
     const questions = runtimeQuestionsFromAssignment(assignment);
     const question = questions[questionIndex];
     if (!question) throw new HttpsError("not-found", "The question was not found.");
