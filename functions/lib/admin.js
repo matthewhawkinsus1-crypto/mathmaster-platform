@@ -75,6 +75,7 @@ const PREPRODUCTION_RESET_COLLECTIONS = Object.freeze([
   // resetPreproductionTestData in functions/index.js.
   "classPointAccounts",
   "classPointTransactions",
+  "liveChallengeAchievementJobs",
   "classPointIdempotencyKeys",
 ]);
 

@@ -1,3 +1,11 @@
+let liveChallengeClassPointsModule = null;
+async function liveChallengeClassPoints() {
+  if (!liveChallengeClassPointsModule) {
+    liveChallengeClassPointsModule = await import("./shared/liveChallengeClassPoints.mjs");
+  }
+  return liveChallengeClassPointsModule;
+}
+
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
@@ -5097,6 +5105,14 @@ exports.permanentlyDeleteStudent = onCall(async (request) => {
   // student identity.
   const deleted = {};
   await deleteStudentClassPointsFootprint(db, studentId, deleted);
+  const challengeRewards = await liveChallengeClassPoints();
+  const challengeCleanup = await challengeRewards.cleanupStudentLiveChallengeAchievements(db, studentId);
+  if (Number(challengeCleanup?.jobsUpdated) > 0) {
+    deleted.liveChallengeAchievementJobsUpdated = Number(challengeCleanup.jobsUpdated);
+  }
+  if (Number(challengeCleanup?.jobsDeleted) > 0) {
+    deleted.liveChallengeAchievementJobsDeleted = Number(challengeCleanup.jobsDeleted);
+  }
 
   // Resolve every Firebase Auth identity attached to this MathMaster student.
   // A teacher/root identity is never deleted even if bad legacy data linked it
@@ -9276,7 +9292,54 @@ async function finishLiveChallengeRoom({ db, roomRef, privateRef, room, status }
     logger.error("liveChallenge.evidence.failed", { roomId: roomRef.id, message: error?.message });
   }
 
-  await deletePrivateChallengeState(db, privateRef, players);
+  // CLASS POINTS ACHIEVEMENTS ARE DERIVED WHILE PRIVATE CHALLENGE STATE STILL EXISTS.
+  // A durable job is staged before private cleanup. If staging itself fails,
+  // preserve the private state and flag the finished room for automatic retry.
+  let classPointsPlanDurable = true;
+  try {
+    const challengeRules = await liveChallengeRules();
+    if (status === challengeRules.LIVE_CHALLENGE_STATUS.FINISHED) {
+      const privateSnapshot = await privateRef.get();
+      const privateState = privateSnapshot.exists ? (privateSnapshot.data() || {}) : {};
+      const rewards = await liveChallengeClassPoints();
+      await rewards.processLiveChallengeClassPoints(
+        db,
+        roomRef.id,
+        room,
+        players,
+        privateState,
+        status,
+      );
+      await roomRef.set({
+        classPointsRecoveryPending: false,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+  } catch (error) {
+    classPointsPlanDurable = false;
+    logger.error("liveChallenge.classPoints.stage.failed", {
+      roomId: roomRef.id,
+      message: error?.message || String(error),
+    });
+    await roomRef.set({
+      classPointsRecoveryPending: true,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true }).catch((markError) => {
+      logger.error("liveChallenge.classPoints.recoveryFlag.failed", {
+        roomId: roomRef.id,
+        message: markError?.message || String(markError),
+      });
+    });
+  }
+
+  if (classPointsPlanDurable) {
+    await deletePrivateChallengeState(db, privateRef, players);
+  } else {
+    logger.warn("liveChallenge.classPoints.privateStatePreserved", {
+      roomId: roomRef.id,
+      reason: "achievement-plan-not-durable",
+    });
+  }
   return { roomId: roomRef.id, status, roundCount: room.roundCount || 0 };
 }
 
@@ -16228,4 +16291,78 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
   }
   logger.info("Workspace draft recovery committed", { assignmentId, classId, by: email, applied: applied.length });
   return { assignmentId, classId, committed: true, proposalCount: proposals.length, applied };
+});
+
+
+exports.retryLiveChallengeAchievementJobs = onSchedule({
+  schedule: "every 15 minutes",
+  invoker: "private",
+}, async () => {
+  const db = getFirestore();
+  const rewards = await liveChallengeClassPoints();
+
+  try {
+    await rewards.retryPendingLiveChallengeAchievementJobs(db);
+  } catch (error) {
+    logger.error("liveChallenge.classPoints.retryJobs.failed", {
+      message: error?.message || String(error),
+    });
+  }
+
+  const challengeRules = await liveChallengeRules();
+  const recoveryRooms = await db.collection(LIVE_CHALLENGE_ROOMS)
+    .where("classPointsRecoveryPending", "==", true)
+    .limit(20)
+    .get();
+
+  for (const roomDoc of recoveryRooms.docs) {
+    const room = roomDoc.data() || {};
+    if (room.status !== challengeRules.LIVE_CHALLENGE_STATUS.FINISHED) {
+      // eslint-disable-next-line no-await-in-loop
+      await roomDoc.ref.set({
+        classPointsRecoveryPending: false,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      continue;
+    }
+
+    const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomDoc.id);
+    // eslint-disable-next-line no-await-in-loop
+    const privateSnapshot = await privateRef.get();
+    if (!privateSnapshot.exists) {
+      logger.error("liveChallenge.classPoints.recoveryMissingPrivateState", { roomId: roomDoc.id });
+      // eslint-disable-next-line no-await-in-loop
+      await roomDoc.ref.set({
+        classPointsRecoveryPending: false,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      continue;
+    }
+
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const players = await loadPrivateChallengePlayers(privateRef);
+      // eslint-disable-next-line no-await-in-loop
+      await rewards.processLiveChallengeClassPoints(
+        db,
+        roomDoc.id,
+        room,
+        players,
+        privateSnapshot.data() || {},
+        room.status,
+      );
+      // eslint-disable-next-line no-await-in-loop
+      await deletePrivateChallengeState(db, privateRef, players);
+      // eslint-disable-next-line no-await-in-loop
+      await roomDoc.ref.set({
+        classPointsRecoveryPending: false,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    } catch (error) {
+      logger.error("liveChallenge.classPoints.recoveryRoom.failed", {
+        roomId: roomDoc.id,
+        message: error?.message || String(error),
+      });
+    }
+  }
 });
