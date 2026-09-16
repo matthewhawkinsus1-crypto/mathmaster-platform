@@ -1,4 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Timestamp, collection, deleteDoc, doc, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where,
+} from 'firebase/firestore';
+import { db } from '../../firebase.js';
 import {
   LIVE_FLAGS, LIVE_SEVERITY, QUESTION_STATE_CHARS, summarizeLiveClass,
 } from '../../livePresence';
@@ -24,6 +28,13 @@ import {
 } from '../../platform/teacher/liveAttendance.js';
 import { studentsInClass } from '../../../functions/shared/classModel.mjs';
 import { suggestMovesForClass } from '../../platform/teacher/liveCoaching.js';
+import {
+  SPOTLIGHT_FRAME_COLLECTION,
+  SPOTLIGHT_REQUEST_COLLECTION,
+  SPOTLIGHT_REQUEST_TTL_MS,
+  SPOTLIGHT_STATUS,
+  publicStudentLabel,
+} from '../../platform/liveSpotlight.js';
 import {
   SUPPORT_EVENT_KIND,
   SUPPORT_EVENT_STAGE,
@@ -111,6 +122,7 @@ function StudentTile({
   onAdjustPath = null,
   onRecommendPath = null,
   pathInterventionBusy = false,
+  onSpotlight = null,
 }) {
   const style = SEVERITY_STYLE[row.severity] || SEVERITY_STYLE[LIVE_SEVERITY.OK];
   const live = row.live;
@@ -207,6 +219,9 @@ function StudentTile({
             </>
           )}
         </div>
+      )}
+      {onSpotlight && live?.assignmentId && (
+        <button type="button" onClick={(event) => { event.stopPropagation(); onSpotlight(row); }} style={{ ...smallButtonStyle, marginTop: 8, borderColor: '#681da8', background: '#f8f0fc', color: '#681da8' }}>Ask to Present</button>
       )}
     </div>
   );
@@ -332,6 +347,9 @@ export default function LiveClassMonitor({
   pathInterventionBusyStudentId = null,
   onOpenWeeklyPath = null,
   attendanceByStudentId = {},
+  teacherUid = '',
+  teacherEmail = '',
+  teacherLabel = 'Your teacher',
 }) {
   const [classPeriod, setClassPeriod] = useState(initialClassPeriod || 'all');
   const [assignmentId, setAssignmentId] = useState('all');
@@ -343,6 +361,71 @@ export default function LiveClassMonitor({
   const [showAttendance, setShowAttendance] = useState(false);
   const [attendanceOverrides, setAttendanceOverrides] = useState({});
   const [attendanceBusyStudentId, setAttendanceBusyStudentId] = useState(null);
+  const [spotlightRequests, setSpotlightRequests] = useState([]);
+  const [spotlightFrame, setSpotlightFrame] = useState(null);
+  const [spotlightMessage, setSpotlightMessage] = useState('');
+
+  useEffect(() => {
+    if (!teacherEmail) return undefined;
+    return onSnapshot(
+      query(collection(db, SPOTLIGHT_REQUEST_COLLECTION), where('teacherEmail', '==', teacherEmail)),
+      (snapshot) => setSpotlightRequests(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }))),
+      () => setSpotlightMessage('Spotlight connection is unavailable. Student work is unaffected.'),
+    );
+  }, [teacherEmail]);
+
+  const activeSpotlight = useMemo(() => spotlightRequests
+    .filter((entry) => [SPOTLIGHT_STATUS.REQUESTED, SPOTLIGHT_STATUS.ACCEPTED].includes(entry.status))
+    .filter((entry) => (entry.expiresAt?.toMillis?.() || 0) > Date.now())
+    .sort((a, b) => (b.requestedAt?.toMillis?.() || 0) - (a.requestedAt?.toMillis?.() || 0))[0] || null, [spotlightRequests]);
+
+  useEffect(() => {
+    setSpotlightFrame(null);
+    if (activeSpotlight?.status !== SPOTLIGHT_STATUS.ACCEPTED) return undefined;
+    return onSnapshot(doc(db, SPOTLIGHT_FRAME_COLLECTION, activeSpotlight.id), (snapshot) => {
+      setSpotlightFrame(snapshot.exists() ? snapshot.data() : null);
+    }, () => setSpotlightMessage('Spotlight connection is unavailable. Student work is unaffected.'));
+  }, [activeSpotlight?.id, activeSpotlight?.status]);
+
+  const requestSpotlight = async (row) => {
+    if (!activeClassId || !teacherEmail || !teacherUid) {
+      setSpotlightMessage('Choose an authoritative class before requesting Spotlight.');
+      return;
+    }
+    const requestRef = doc(collection(db, SPOTLIGHT_REQUEST_COLLECTION));
+    const student = roster.find((entry) => String(entry.id || entry.studentId) === String(row.id)) || row;
+    try {
+      await setDoc(requestRef, {
+        schemaVersion: 1,
+        requestId: requestRef.id,
+        classId: activeClassId,
+        studentId: row.id,
+        studentLabel: publicStudentLabel(student),
+        teacherUid,
+        teacherEmail,
+        teacherLabel: String(teacherLabel || 'Your teacher').slice(0, 80),
+        status: SPOTLIGHT_STATUS.REQUESTED,
+        assignmentId: row.live?.assignmentId || null,
+        questionIndex: Number(row.live?.questionIndex) || 0,
+        requestedAt: serverTimestamp(),
+        expiresAt: Timestamp.fromMillis(Date.now() + SPOTLIGHT_REQUEST_TTL_MS),
+      });
+      setSpotlightMessage('Request sent. Nothing is visible until the student chooses Present Now.');
+    } catch {
+      setSpotlightMessage('Could not send the Spotlight request. Student work remains private.');
+    }
+  };
+
+  const stopSpotlight = async () => {
+    if (!activeSpotlight) return;
+    try {
+      await deleteDoc(doc(db, SPOTLIGHT_FRAME_COLLECTION, activeSpotlight.id)).catch(() => {});
+      await updateDoc(doc(db, SPOTLIGHT_REQUEST_COLLECTION, activeSpotlight.id), { status: SPOTLIGHT_STATUS.STOPPED, stoppedAt: serverTimestamp(), stoppedBy: 'teacher' });
+      setSpotlightFrame(null);
+    } catch {
+      setSpotlightMessage('Could not stop Spotlight yet. The short-lived session will expire automatically.');
+    }
+  };
 
   const roster = useMemo(() => {
     if (activeClassId) return studentsInClass({ students, classes, classId: activeClassId });
@@ -531,6 +614,17 @@ export default function LiveClassMonitor({
 
   return (
     <section style={{ marginBottom: 28 }}>
+      {activeSpotlight?.status === SPOTLIGHT_STATUS.ACCEPTED && (
+        <section aria-label="Student Spotlight projector view" style={{ marginBottom: 16, padding: 24, borderRadius: 16, background: '#17131f', color: '#fff', minHeight: 260 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'start' }}>
+            <div><div style={{ color: '#d7b9ff', fontSize: 12, fontWeight: 900, letterSpacing: '.1em' }}>STUDENT SPOTLIGHT · PRESENTING WITH CONSENT</div><h2 style={{ margin: '6px 0 2px', fontSize: 30 }}>{activeSpotlight.studentLabel || 'Student'}</h2><div style={{ color: '#d8d2df' }}>{spotlightFrame?.assignmentTitle || 'Waiting for current MathMaster work…'}</div></div>
+            <button type="button" onClick={stopSpotlight} style={{ ...smallButtonStyle, padding: '9px 13px', borderColor: '#f28b82', color: '#b3261e' }}>Stop Spotlight</button>
+          </div>
+          {spotlightFrame ? <div style={{ marginTop: 24, display: 'grid', gap: 16 }}><div style={{ padding: 18, borderRadius: 12, background: '#fff', color: '#202124', fontSize: 21, lineHeight: 1.45 }}>{spotlightFrame.question?.prompt || 'Current question'}</div><div style={{ padding: 18, borderRadius: 12, background: '#2b2435' }}><strong>Current student work</strong><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', font: 'inherit', marginBottom: 0 }}>{JSON.stringify(spotlightFrame.work, null, 2)}</pre></div></div> : <div style={{ marginTop: 28, color: '#d8d2df' }}>Connecting to the student&apos;s current MathMaster question…</div>}
+        </section>
+      )}
+      {activeSpotlight?.status === SPOTLIGHT_STATUS.REQUESTED && <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 9, background: '#f8f0fc', color: '#4a126b' }}>Waiting for {activeSpotlight.studentLabel || 'the student'} to choose <strong>Present Now</strong>. No work is visible.</div>}
+      {spotlightMessage && <div role="status" style={{ marginBottom: 10, fontSize: 12, color: '#5f6368' }}>{spotlightMessage}</div>}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 12 }}>
         <h2 style={{ margin: 0, fontSize: 20, color: '#202124' }}>Live Class</h2>
         <span style={{ fontSize: 13, color: '#5f6368' }}>
@@ -668,6 +762,7 @@ export default function LiveClassMonitor({
               onRecommendPath={onRecommendPersonalPath ? (teksCode) => onRecommendPersonalPath({ studentId: row.id, studentName: row.name, teksCode, classId: activeClassId || row.live?.classId || null, classPeriod: row.classPeriod || row.live?.classPeriod || null, assignmentId: row.live?.assignmentId || null, assignmentTitle: row.live?.assignmentTitle || null }) : null}
               pathInterventionBusy={pathInterventionBusyStudentId === row.id}
               onAdjustPath={onOpenWeeklyPath ? () => onOpenWeeklyPath(row.id) : null}
+              onSpotlight={activeClassId && !activeSpotlight ? requestSpotlight : null}
             />
           ))}
         </div>

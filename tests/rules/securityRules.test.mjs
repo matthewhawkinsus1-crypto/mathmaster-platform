@@ -5,7 +5,7 @@ import {
   assertFails, assertSucceeds, initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
-  collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where,
+  Timestamp, collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where,
 } from 'firebase/firestore';
 import { accountId as classPointsAccountId } from '../../functions/shared/classPoints.mjs';
 
@@ -345,6 +345,90 @@ test('live presence is scoped to the teacher roster and owned by the student hea
   await assertFails(setDoc(doc(teacherA(), 'presence/STUDENT_A'), {
     assignmentId: 'forged-by-teacher',
   }, { merge: true }));
+});
+
+test('Spotlight requires fresh affirmative consent and isolates the active frame', async () => {
+  const requestId = `spotlight-consent-${Date.now()}`;
+  const requestPath = `liveSpotlightRequests/${requestId}`;
+  const framePath = `liveSpotlightFrames/${requestId}`;
+  const expiresAt = Timestamp.fromMillis(Date.now() + 120000);
+
+  await assertSucceeds(setDoc(doc(teacherA(), requestPath), {
+    schemaVersion: 1, requestId, classId: 'class-a', studentId: 'STUDENT_A',
+    studentLabel: 'Student A.', teacherUid: 'uid-a', teacherEmail: TEACHER_A,
+    teacherLabel: 'Ms. A', status: 'requested', assignmentId: 'A1', questionIndex: 0,
+    requestedAt: serverTimestamp(), expiresAt,
+  }));
+  await assertFails(setDoc(doc(teacherB(), `liveSpotlightRequests/${requestId}-wrong-teacher`), {
+    schemaVersion: 1, requestId: `${requestId}-wrong-teacher`, classId: 'class-a', studentId: 'STUDENT_A',
+    teacherUid: 'uid-b', teacherEmail: TEACHER_B, status: 'requested',
+    requestedAt: serverTimestamp(), expiresAt,
+  }));
+  await assertFails(setDoc(doc(studentA(), `liveSpotlightRequests/${requestId}-student-forged`), {
+    schemaVersion: 1, requestId: `${requestId}-student-forged`, classId: 'class-a', studentId: 'STUDENT_A',
+    teacherUid: 'uid-a', teacherEmail: TEACHER_A, status: 'requested',
+    requestedAt: serverTimestamp(), expiresAt,
+  }));
+  await assertSucceeds(getDoc(doc(studentA(), requestPath)));
+  await assertFails(getDoc(doc(studentB(), requestPath)));
+  await assertFails(getDoc(doc(teacherB(), requestPath)));
+
+  // A request alone is not consent and cannot authorize answer-bearing work.
+  await assertFails(setDoc(doc(studentA(), framePath), {
+    requestId, studentId: 'STUDENT_A', work: { response: 'private' }, updatedAt: serverTimestamp(),
+  }));
+  await assertFails(getDoc(doc(teacherA(), framePath)));
+
+  await assertSucceeds(updateDoc(doc(studentA(), requestPath), { status: 'accepted', respondedAt: serverTimestamp() }));
+  await assertSucceeds(setDoc(doc(studentA(), framePath), {
+    requestId, studentId: 'STUDENT_A', assignmentId: 'A1', work: { response: '2x + 3' }, updatedAt: serverTimestamp(),
+  }));
+  await assertSucceeds(getDoc(doc(teacherA(), framePath)));
+  await assertFails(getDoc(doc(teacherB(), framePath)));
+  await assertFails(getDoc(doc(studentB(), framePath)));
+
+  await assertSucceeds(deleteDoc(doc(studentA(), framePath)));
+  await assertSucceeds(updateDoc(doc(studentA(), requestPath), { status: 'stopped', stoppedAt: serverTimestamp(), stoppedBy: 'student' }));
+  await assertFails(setDoc(doc(studentA(), framePath), {
+    requestId, studentId: 'STUDENT_A', work: { response: 'must not return' }, updatedAt: serverTimestamp(),
+  }));
+});
+
+test('Spotlight decline, expiry, teacher stop, and teacher-of-record changes reveal nothing', async () => {
+  const seedRequest = async (id, expiresAt, status = 'requested') => env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), `liveSpotlightRequests/${id}`), {
+      schemaVersion: 1, requestId: id, classId: 'class-a', studentId: 'STUDENT_A', studentLabel: 'Student A.',
+      teacherUid: 'uid-a', teacherEmail: TEACHER_A, teacherLabel: 'Ms. A', status,
+      assignmentId: 'A1', questionIndex: 0, requestedAt: Timestamp.fromMillis(Date.now() - 1000), expiresAt,
+    });
+    if (status === 'accepted') await setDoc(doc(context.firestore(), `liveSpotlightFrames/${id}`), { requestId: id, studentId: 'STUDENT_A', work: { response: 'frame' }, updatedAt: Timestamp.now() });
+  });
+
+  const declined = `spotlight-declined-${Date.now()}`;
+  await seedRequest(declined, Timestamp.fromMillis(Date.now() + 120000));
+  await assertSucceeds(updateDoc(doc(studentA(), `liveSpotlightRequests/${declined}`), { status: 'declined', respondedAt: serverTimestamp() }));
+  await assertFails(getDoc(doc(teacherA(), `liveSpotlightFrames/${declined}`)));
+
+  const expired = `spotlight-expired-${Date.now()}`;
+  await seedRequest(expired, Timestamp.fromMillis(Date.now() - 1000), 'accepted');
+  await assertFails(getDoc(doc(teacherA(), `liveSpotlightFrames/${expired}`)));
+  await assertFails(setDoc(doc(studentA(), `liveSpotlightFrames/${expired}`), { requestId: expired, studentId: 'STUDENT_A', updatedAt: serverTimestamp() }));
+
+  const stopped = `spotlight-teacher-stop-${Date.now()}`;
+  await seedRequest(stopped, Timestamp.fromMillis(Date.now() + 120000), 'accepted');
+  await assertSucceeds(updateDoc(doc(teacherA(), `liveSpotlightRequests/${stopped}`), { status: 'stopped', stoppedAt: serverTimestamp(), stoppedBy: 'teacher' }));
+  await assertFails(getDoc(doc(teacherA(), `liveSpotlightFrames/${stopped}`)));
+
+  const moved = `spotlight-moved-${Date.now()}`;
+  await seedRequest(moved, Timestamp.fromMillis(Date.now() + 120000), 'accepted');
+  await env.withSecurityRulesDisabled(async (context) => updateDoc(doc(context.firestore(), 'classes/class-a'), { teacherOfRecord: TEACHER_B }));
+  await assertFails(getDoc(doc(teacherA(), `liveSpotlightFrames/${moved}`)));
+  await env.withSecurityRulesDisabled(async (context) => updateDoc(doc(context.firestore(), 'classes/class-a'), { teacherOfRecord: TEACHER_A }));
+});
+
+test('Spotlight does not widen workspace drafts or presence response content', async () => {
+  await assertFails(getDoc(doc(teacherA(), 'studentWorkspaceDrafts/STUDENT_A__A1')));
+  await assertFails(updateDoc(doc(studentA(), 'presence/STUDENT_A'), { response: 'must stay private' }));
 });
 
 test('personal Path intervention is student-readable, roster-scoped, and server-write-only', async () => {
