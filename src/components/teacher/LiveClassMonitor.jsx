@@ -421,8 +421,15 @@ export default function LiveClassMonitor({
   const selectedAssignment = useMemo(() => assignments.find((assignment) => String(assignment.id) === String(displayAssignmentId)) || null, [assignments, displayAssignmentId]);
   const selectedClasswork = useMemo(() => classworkModel(selectedAssignment), [selectedAssignment]);
 
-  const effectiveTeacherQuestionIndex = liveTeachingActiveForClass && liveTeachingSession.classworkQuestionPosition !== null
-    ? liveTeachingSession.classworkQuestionPosition
+  // A Live Teaching session has NO Classwork pace until the teacher actually
+  // reaches Classwork. Do not let the legacy manual counter silently become
+  // the room's pace reference during an opening Warm-Up.
+  const liveTeachingPaceReady = !liveTeachingActiveForClass
+    || Number.isInteger(liveTeachingSession?.classworkQuestionPosition);
+  const effectiveTeacherQuestionIndex = liveTeachingActiveForClass
+    ? (Number.isInteger(liveTeachingSession?.classworkQuestionPosition)
+      ? liveTeachingSession.classworkQuestionPosition
+      : null)
     : teacherQuestionIndex;
 
   // Jump the room into Walkthrough, once per session (a fresh start or a
@@ -472,14 +479,28 @@ export default function LiveClassMonitor({
 
   const walkthroughRoster = useMemo(() => withClassworkStates(monitoredRoster, selectedAssignment, selectedClasswork.progressPositions), [monitoredRoster, selectedAssignment, selectedClasswork]);
 
-  const walkthrough = useMemo(() => buildWalkthroughMonitor({
-    students: walkthroughRoster,
-    assignmentId: selectedAssignment?.id || null,
-    teacherQuestionIndex: effectiveTeacherQuestionIndex,
-    checkedStudentIds,
-    attendanceByStudentId: effectiveAttendance,
-    nowValue,
-  }), [walkthroughRoster, selectedAssignment, effectiveTeacherQuestionIndex, checkedStudentIds, effectiveAttendance, nowValue]);
+  const walkthrough = useMemo(() => {
+    if (!liveTeachingPaceReady) {
+      return {
+        all: [],
+        needsCheck: [],
+        onQuestion: [],
+        aheadDone: [],
+        elsewhere: [],
+        visitNext: null,
+        bottlenecks: [],
+        counts: { present: 0, needsCheck: 0, onQuestion: 0, aheadDone: 0, helpRequests: 0 },
+      };
+    }
+    return buildWalkthroughMonitor({
+      students: walkthroughRoster,
+      assignmentId: selectedAssignment?.id || null,
+      teacherQuestionIndex: effectiveTeacherQuestionIndex,
+      checkedStudentIds,
+      attendanceByStudentId: effectiveAttendance,
+      nowValue,
+    });
+  }, [walkthroughRoster, selectedAssignment, effectiveTeacherQuestionIndex, liveTeachingPaceReady, checkedStudentIds, effectiveAttendance, nowValue]);
 
   const { rows, classStats, counts } = useMemo(() => summarizeLiveClass(monitoredRoster, {
     nowValue,
@@ -611,7 +632,9 @@ export default function LiveClassMonitor({
     setCheckedStudentIds([]);
   };
 
-  const currentQuestion = selectedClasswork.questions[effectiveTeacherQuestionIndex]?.question || null;
+  const currentQuestion = liveTeachingPaceReady
+    ? selectedClasswork.questions[effectiveTeacherQuestionIndex]?.question || null
+    : null;
   const bottleneck = walkthrough.bottlenecks.find((entry) => entry.count >= 3) || null;
   const walkRows = walkthroughFilter === 'needsCheck' ? walkthrough.needsCheck
     : walkthroughFilter === 'onQuestion' ? walkthrough.onQuestion
@@ -700,6 +723,13 @@ export default function LiveClassMonitor({
           <div style={{ padding: 20, border: '1px dashed #dadce0', borderRadius: 12, color: '#5f6368' }}>Choose the classwork assignment you are walking through.</div>
         ) : selectedClasswork.questions.length === 0 ? (
           <div style={{ padding: 20, border: '1px dashed #dadce0', borderRadius: 12, color: '#5f6368' }}>This assignment has no Classwork questions to walk through.</div>
+        ) : liveTeachingActiveForClass && !liveTeachingPaceReady ? (
+          <div style={{ padding: 20, border: '1px dashed #c5d5ef', borderRadius: 12, background: '#f8fbff', color: '#3c4043' }}>
+            <strong style={{ color: '#174ea6' }}>Classwork pace has not started yet.</strong>
+            <div style={{ marginTop: 5, fontSize: 13 }}>
+              The teacher exemplar is currently in {String(liveTeachingSession?.activityRole || 'another section').replace(/^./, (letter) => letter.toUpperCase())}. Pace monitoring will begin when the teacher enters the first Classwork question.
+            </div>
+          </div>
         ) : (
           <div style={{ display: 'grid', gap: 12 }}>
             <div style={{ border: '1px solid #c5d5ef', background: '#f8fbff', borderRadius: 14, padding: '12px 14px', display: 'grid', gap: 10 }}>

@@ -47,6 +47,25 @@ test('starting a session records only where the teacher is, nothing about studen
   });
 });
 
+test('starting in Warm-Up has no Classwork pace until the teacher actually enters Classwork', () => {
+  const session = startLiveTeachingSession({
+    classId: 'c1',
+    assignmentId: 'a1',
+    assignment,
+    storageQuestionIndex: 0,
+    activityRole: 'warmup',
+  });
+  assert.equal(session.classworkQuestionPosition, null);
+  assert.equal(session.activityRole, 'warmup');
+
+  const firstClasswork = advanceLiveTeachingSession(session, {
+    assignment,
+    storageQuestionIndex: 1,
+    activityRole: 'classwork',
+  });
+  assert.equal(firstClasswork.classworkQuestionPosition, 0);
+});
+
 test('a fresh start does not inherit a prior position — Restart Fresh really starts over', () => {
   // A teacher who was on Classwork Q3 restarts the same lesson; the fresh
   // session must begin at whatever storage index Restart Fresh opens on,

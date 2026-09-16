@@ -100,13 +100,21 @@ test('Live Classroom UI names the exemplar assignment and its Classwork pace, an
   assert.match(monitor, /End Teaching/);
 });
 
-test('Walkthrough pace follows the Live Teaching session\'s real Classwork position while active, not the disconnected manual counter', () => {
-  const region_ = region(monitor, 'const effectiveTeacherQuestionIndex = ', 'const liveTeachingSessionKey', 'effectiveTeacherQuestionIndex');
-  assert.match(region_, /liveTeachingActiveForClass && liveTeachingSession\.classworkQuestionPosition !== null/);
-  assert.match(region_, /\? liveTeachingSession\.classworkQuestionPosition\s*\n\s*: teacherQuestionIndex;/);
+test('Walkthrough pace follows the Live Teaching session only after the teacher actually reaches Classwork', () => {
+  const region_ = region(monitor, 'const liveTeachingPaceReady = ', 'const liveTeachingSessionKey', 'live teaching pace selection');
+  assert.match(region_, /Number\.isInteger\(liveTeachingSession\?\.classworkQuestionPosition\)/);
+  assert.match(region_, /const effectiveTeacherQuestionIndex = liveTeachingActiveForClass/);
+  assert.match(region_, /: teacherQuestionIndex;/);
+  assert.doesNotMatch(
+    region_,
+    /liveTeachingActiveForClass && liveTeachingSession\.classworkQuestionPosition !== null[\s\S]*: teacherQuestionIndex/,
+    'the manual counter must never become the fallback pace for an active exemplar that has not reached Classwork',
+  );
 
-  const walkthroughCall = region(monitor, 'const walkthrough = useMemo(() => buildWalkthroughMonitor(', '}), [walkthroughRoster', 'buildWalkthroughMonitor call');
+  const walkthroughCall = region(monitor, 'const walkthrough = useMemo(() => {', 'const { rows, classStats, counts }', 'buildWalkthroughMonitor call');
+  assert.match(walkthroughCall, /if \(!liveTeachingPaceReady\)/);
   assert.match(walkthroughCall, /teacherQuestionIndex: effectiveTeacherQuestionIndex,/);
+  assert.match(monitor, /Classwork pace has not started yet\./);
 });
 
 test('the assignment being walked through follows the Live Teaching session while active, and the manual dropdown is locked', () => {
