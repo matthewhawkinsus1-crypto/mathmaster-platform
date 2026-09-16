@@ -241,13 +241,15 @@ export const effectiveGradeStatus = (record, override = null) => {
 };
 
 const questionNeedsDeliveredAuthority = (question = {}) => Boolean(
-  question?.generator
+  ['algebra', 'fraction', 'numberLine'].includes(String(question?.type || ''))
+  || question?.generator
   || question?.variantGenerator
-  || question?.variants
+  || (Array.isArray(question?.variants) && question.variants.length)
   || question?.personalized
   || question?.autoDifferentiation
   || question?.adaptation
-  || question?.differentiation,
+  || question?.differentiation?.mode === 'auto'
+  || question?.differentiation?.bandProfiles,
 );
 
 export const authoritativeQuestionForInspection = ({ question, evidence } = {}) => {
