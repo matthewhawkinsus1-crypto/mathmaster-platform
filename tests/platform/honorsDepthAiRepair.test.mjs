@@ -5,8 +5,10 @@ import {
   applyHonorsDepthAiSections,
   buildHonorsDepthAiRepairRequest,
   nonCcmrHonorsMissing,
+  nonCcmrHonorsReady,
   separateHonorsDepthAiRepair,
 } from '../../src/platform/contract/honorsDepthAiRepair.js';
+import { inspectHonorsRigor } from '../../src/platform/rigor/courseRigor.js';
 
 const base = () => ({
   schemaVersion: 5,
@@ -57,6 +59,9 @@ test('Honors AI repair prompt tells the provider to repair TEKS/depth without fa
   assert.match(prompt, /Do not change mathematics to force a standard/);
   assert.match(prompt, /MathMaster Assignment V5/);
   assert.match(prompt, /Compact repair contract/);
+  assert.match(prompt, /## Common studentActions/);
+  assert.match(prompt, /## Course TEKS/);
+  assert.match(prompt, /Do NOT add type, toolId, questionId/);
   assert.doesNotMatch(prompt, /Current MathMaster authoring contract/);
 });
 
@@ -115,6 +120,69 @@ test('accepted Honors AI repair may add TEKS metadata and one extension without 
     ai.sections[0].questions[0].alignments,
     'safe TEKS metadata repair remains on the shared source question',
   );
+});
+
+test('intent-only Honors extension is compiled locally and passes the non-CCMR rigor contract', () => {
+  const source = base();
+  const ai = structuredClone(source);
+  ai.sections[0].questions[0].standard = 'A.5A';
+  ai.sections[1].questions[0].standard = 'A.5A';
+
+  ai.sections[1].questions.push({
+    prompt: 'A reservoir is being drained at a constant rate. Use the table and graph to build and justify a linear model, then use the model to predict the amount remaining after 10 minutes.',
+    scenario: 'At 3 minutes, 84 gallons remain, and at 7 minutes, 60 gallons remain.',
+    studentActions: ['readGraph', 'multipleResponses'],
+    standard: 'A.2B',
+    secondaryStandards: ['A.3A', 'A.3B'],
+    table: {
+      columns: [
+        { key: 'x', label: 'Time (minutes)' },
+        { key: 'y', label: 'Water remaining (gallons)' },
+      ],
+      rows: [
+        { x: 3, y: 84 },
+        { x: 7, y: 60 },
+      ],
+    },
+    function: { family: 'linear', m: -6, b: 102 },
+    answerFields: [
+      { id: 'slope', label: 'Slope / rate of change', answer: -6, inputProfile: 'number' },
+      { id: 'equation', label: 'Point-slope model using (3, 84)', acceptedAnswers: ['y-84=-6(x-3)'], inputProfile: 'equation' },
+      { id: 'prediction', label: 'Water remaining after 10 minutes', answer: 42, inputProfile: 'number' },
+      {
+        id: 'justification',
+        label: 'Which statement best justifies that your model matches both representations?',
+        type: 'choice',
+        options: [
+          'Both representations show a decrease of 6 gallons per minute and the model passes through (3, 84).',
+          'The two representations have different rates.',
+          'Any equation containing (3, 84) represents the same line.',
+          '84 is the y-intercept.',
+        ],
+        answer: 'Both representations show a decrease of 6 gallons per minute and the model passes through (3, 84).',
+        inputProfile: 'choice',
+      },
+    ],
+    dok: 3,
+    difficultyBand: 4,
+  });
+
+  const merged = applyHonorsDepthAiSections(source, ai);
+  const extension = merged.sections[1].questions.at(-1);
+
+  assert.equal(extension.type, 'multiAnswer', 'MathMaster should compile intent to a runtime interaction');
+  assert.ok(extension.graph, 'the authored linear function should become the visible graph');
+  assert.ok(extension.table, 'the authored table must stay visible');
+  assert.equal(extension.questionId?.length > 0, true, 'MathMaster assigns the new extension identity');
+
+  const report = inspectHonorsRigor(
+    merged.sections.flatMap((section) => section.questions),
+    { allowNarrowCheckpoint: true, ccmrTargetRequired: false },
+  );
+  assert.equal(report.checks.multipleRepresentations, true, 'table + graph must count as multiple representations');
+  assert.equal(report.checks.justification, true);
+  assert.equal(report.checks.modelingApplication, true);
+  assert.equal(nonCcmrHonorsReady(report), true, 'Core TEKS + DOK 3 + three depth dimensions should pass');
 });
 
 test('Honors AI repair rejects assignment rewrites, deletions, course changes, and excessive additions', () => {
