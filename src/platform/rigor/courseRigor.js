@@ -153,11 +153,19 @@ const representationKinds = (question = {}) => {
     || workflowKinds.some((kind) => ['mapping', 'mappingdiagram', 'relationmapping'].includes(kind))
   ) kinds.add('mapping');
 
+  const responseFields = [
+    ...(Array.isArray(question.answerFields) ? question.answerFields : []),
+    ...(Array.isArray(question.responseFields) ? question.responseFields : []),
+  ];
+  const hasStructuredSymbolicResponse = responseFields.some((field) => (
+    ['equation', 'expression', 'orderedpair', 'inequality', 'interval', 'set']
+      .includes(String(field?.inputProfile || field?.answerFormat || field?.type || '').trim().toLowerCase())
+  ));
+
   if (
     question.equation
     || question.mathDisplay
-    || (Array.isArray(question.answerFields) && question.answerFields.length > 0)
-    || (Array.isArray(question.responseFields) && question.responseFields.length > 0)
+    || hasStructuredSymbolicResponse
     || workflowKinds.some((kind) => ['equationinput', 'expressioninput', 'domaininput', 'rangeinput'].includes(kind))
   ) kinds.add('symbolic');
 
