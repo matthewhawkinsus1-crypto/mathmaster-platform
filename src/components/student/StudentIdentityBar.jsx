@@ -14,7 +14,7 @@ const periodLabel = (value) => {
  * Persistent account-integrity marker for every authenticated student surface.
  * This bar deliberately owns no grade, assignment, or evidence behavior.
  */
-export default function StudentIdentityBar({ student = null, preview = false, onLogout = null }) {
+export default function StudentIdentityBar({ student = null, preview = false, classPointsBalance = null, onLogout = null }) {
   const barRef = useRef(null);
   const name = preview
     ? 'Teacher Preview'
@@ -49,9 +49,12 @@ export default function StudentIdentityBar({ student = null, preview = false, on
         fontFamily: '"Segoe UI", sans-serif', fontSize: 13, lineHeight: 1.25,
       }}
     >
-      <strong style={{ minWidth: 0, overflowWrap: 'anywhere', fontSize: 14 }}>
-        {name}{context ? ` • ${context}` : ''}
-      </strong>
+      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <strong style={{ minWidth: 0, overflowWrap: 'anywhere', fontSize: 15 }}>
+          {name}{context ? ` • ${context}` : ''}
+        </strong>
+        {!preview && Number.isFinite(classPointsBalance) && <span aria-label={`${classPointsBalance} Class Points`} style={{ flexShrink: 0, padding: '3px 8px', borderRadius: 999, background: '#fff3c4', color: '#5f4400', fontSize: 12, fontWeight: 800 }}>⭐ {classPointsBalance} Class Points</span>}
+      </div>
       {!preview && onLogout && (
         <span style={{ flexShrink: 0 }}>
           <span className="mm-identity-not-you">Not you? </span>
