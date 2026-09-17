@@ -46,8 +46,8 @@ export const projectTeacherOverridesForDisplay = (gradesByAssignment = {}, overr
  * Canonical grade presentation shared by the teacher gradebook and TEAMS.
  * Test Cycles read their released secure scores from testCycleGrades; ordinary
  * assignments use the same teacher-override and Practice Pass projection as
- * the Grade Center. This function must never manufacture a zero for missing
- * evidence: null means there is not yet a canonical grade to export.
+ * the Grade Center. Missing evidence stays null unless a server-authoritative
+ * assignment-level teacher override explicitly supplies the canonical grade.
  */
 export const canonicalPresentedAssignmentGrade = ({ student, assignment, practicePassRedeemed = false }) => {
   const assignmentOverride = assignmentGradeOverrideFor(student, assignment?.id);
