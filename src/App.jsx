@@ -337,6 +337,8 @@ import { localDateKeyOf } from './platform/attendance/classMeetings.js';
 import { buildNonInstructionalSet } from './platform/path/curriculumCalendar.js';
 import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolYear2026-2027.js';
 import AttendanceHistoryPanel from './components/teacher/AttendanceHistoryPanel.jsx';
+import ParentContactCenter from './components/teacher/ParentContactCenter.jsx';
+import { recordParentContact, subscribeParentContacts } from './platform/teacher/parentContactStore.js';
 import {
   buildStudentExtensionPatch,
   reconcileAssignmentExtensionsForCorrection,
@@ -689,6 +691,7 @@ function App() {
   // Persistent teacher-reviewed support history. Unlike presence, these are the
   // small set of concerns, dismissals and interventions worth keeping.
   const [studentSupportEvents, setStudentSupportEvents] = useState([]);
+  const [parentContacts, setParentContacts] = useState([]);
   const [studentSessionSummaries, setStudentSessionSummaries] = useState([]);
   // Curriculum pacing and per-class skill overrides. Teacher-owned inputs to
   // the adaptive path engine, read by the student's Path, Recommended for You
@@ -3290,6 +3293,13 @@ function App() {
       onChange: setStudentSupportEvents,
       onError: (error) => console.error('Student support history failed:', error),
     });
+  }, [user?.role, user?.email]);
+
+  // One teacher-scoped stream spans the whole roster. Firestore rules verify
+  // teacher-of-record again for every appended contact; students have no access.
+  useEffect(() => {
+    if (user?.role !== 'teacher' || !user.email) { setParentContacts([]); return undefined; }
+    return subscribeParentContacts({ db, teacherEmail: user.email, onChange: setParentContacts, onError: (error) => console.error('Parent contact history failed:', error) });
   }, [user?.role, user?.email]);
 
   useEffect(() => {
@@ -9337,7 +9347,7 @@ function App() {
               // it is the class the teacher is working in, and it has to survive
               // the walk to another tab and back.
               setHomeNavigationPeriod(null);
-              if (['students', 'grades', 'gradeTransfer', 'standards', 'analytics', 'exams'].includes(tab)) fetchStudents().catch((error) => console.error('Could not refresh student data:', error));
+              if (['students', 'grades', 'gradeTransfer', 'parentContacts', 'standards', 'analytics', 'exams'].includes(tab)) fetchStudents().catch((error) => console.error('Could not refresh student data:', error));
             }}
             collapsed={sidebarCollapsed}
             onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
@@ -9758,6 +9768,22 @@ function App() {
                 onKeepExtension={handleKeepAttendanceExtension}
                 onApplyShorterExtension={handleApplyShorterAttendanceExtension}
                 initialClassId={activeClass.classId}
+              />
+            )}
+
+            {teacherTab === 'parentContacts' && (
+              <ParentContactCenter
+                students={allStudents}
+                classes={classes}
+                assignments={assignments}
+                contacts={parentContacts}
+                supportEvents={studentSupportEvents}
+                sessionSummaries={studentSessionSummaries}
+                masteryProfilesByStudentId={teacherMasteryProfilesByStudentId}
+                classSchedule={classSchedule}
+                nonInstructionalKeys={SCHOOL_NON_INSTRUCTIONAL_KEYS}
+                nowValue={now}
+                onRecordContact={(contact) => recordParentContact({ db, teacherEmail: user.email, contact })}
               />
             )}
 

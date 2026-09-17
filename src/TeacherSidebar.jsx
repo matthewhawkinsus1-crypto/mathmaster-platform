@@ -26,6 +26,7 @@ const TAB_LABELS = {
   students: 'Students',
   classesWorkspace: 'Classes',
   attendanceHistory: 'Attendance History',
+  parentContacts: 'Parent Contacts',
   classes: 'Class & Bell Schedule',
   pacing: 'Curriculum Pacing',
   weeklyPath: 'Weekly Path',
@@ -49,6 +50,7 @@ const TAB_ICONS = {
   students: '👥',
   classesWorkspace: '🏫',
   attendanceHistory: '📋',
+  parentContacts: '☎️',
   classes: '🕘',
   pacing: '📐',
   weeklyPath: '🗓️',
@@ -89,7 +91,8 @@ const TAB_ICONS = {
  */
 const TAB_GROUPS = [
   { id: 'teach', label: 'Teach', tabs: ['home', 'assignments', 'library'] },
-  { id: 'people', label: 'Classes', tabs: ['classesWorkspace', 'students', 'attendanceHistory', 'weeklyPath', 'pacing'] },
+  { id: 'people', label: 'Classes', tabs: ['classesWorkspace', 'students', 'weeklyPath', 'pacing'] },
+  { id: 'support', label: 'Student Support', tabs: ['attendanceHistory', 'parentContacts'] },
   { id: 'insight', label: 'Evidence', tabs: ['grades', 'gradeTransfer', 'standards', 'analytics', 'exams'] },
   { id: 'explore', label: 'Explore', tabs: ['liveChallenge', 'mathTools', 'simulator', 'demo'] },
   { id: 'admin', label: 'Setup', tabs: ['classes', 'classroom', 'access'] },

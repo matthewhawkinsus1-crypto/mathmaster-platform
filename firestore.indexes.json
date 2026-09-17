@@ -371,6 +371,14 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "parentContactLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "authorizedTeacherEmails", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "occurredAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
