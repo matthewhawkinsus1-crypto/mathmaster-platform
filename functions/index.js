@@ -1046,6 +1046,21 @@ function teacherOverrideAppliesToRecord(record, authoritativeOverride = null) {
     && overrideLastAttemptAt === String(record.lastAttemptAt || record.academicOccurredAt || "");
 }
 
+const ASSIGNMENT_GRADE_OVERRIDE_KEY = "__assignment";
+const ASSIGNMENT_ZERO_REASONS = Object.freeze({
+  cellPhoneUse: "Cell phone use",
+  academicDishonesty: "Academic dishonesty",
+});
+
+function activeAssignmentGradeOverride(authoritativeOverrides = {}) {
+  const override = authoritativeOverrides?.[ASSIGNMENT_GRADE_OVERRIDE_KEY] || null;
+  if (override?.active !== true || !Number.isFinite(Number(override.score))) return null;
+  return {
+    ...override,
+    score: Math.max(0, Math.min(100, Number(override.score))),
+  };
+}
+
 function getQuestionCredit(record, authoritativeOverride = null) {
   if (!record) return 0;
   // IMPORTANT: never trust record.gradeOverride here. gradesByAssignment is
@@ -1496,6 +1511,123 @@ exports.overrideStudentResponseGrade = onCall(async (request) => {
   });
 
   return result;
+});
+
+/**
+ * Teacher assignment-level grade action. This deliberately reuses the same
+ * rule-protected teacherGradeOverridesByAssignment map as question corrections.
+ * Browsers cannot forge this value; only this Admin SDK callable writes it.
+ */
+exports.overrideStudentAssignmentGrade = onCall(async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const teacherEmail = callerEmail(request);
+  const studentId = String(request.data?.studentId || "").trim();
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const action = String(request.data?.action || "").trim();
+  const reasonCode = String(request.data?.reasonCode || "").trim();
+  const note = String(request.data?.note || "").trim().slice(0, 500);
+
+  if (!studentId || !assignmentId || !["issueZero", "restoreAutomatic"].includes(action)) {
+    throw new HttpsError("invalid-argument", "Student, assignment, and a supported grade action are required.");
+  }
+  if (action === "issueZero" && !ASSIGNMENT_ZERO_REASONS[reasonCode]) {
+    throw new HttpsError("invalid-argument", "Choose a supported reason for the zero.");
+  }
+
+  const db = getFirestore();
+  const gradeRef = db.collection("grades").doc(studentId);
+  const assignmentRef = db.collection("assignments").doc(assignmentId);
+  const nowIso = new Date().toISOString();
+
+  return db.runTransaction(async (transaction) => {
+    const [gradeSnap, assignmentSnap] = await Promise.all([
+      transaction.get(gradeRef),
+      transaction.get(assignmentRef),
+    ]);
+    if (!gradeSnap.exists || !assignmentSnap.exists) {
+      throw new HttpsError("not-found", "The student or assignment was not found.");
+    }
+
+    const gradeData = gradeSnap.data() || {};
+    const classSnap = gradeData.classId
+      ? await transaction.get(db.collection("classes").doc(String(gradeData.classId)))
+      : null;
+    const ownsClass = classSnap?.exists
+      && String(classSnap.data()?.teacherOfRecord || "").trim().toLowerCase() === teacherEmail;
+    if (!authLib.isRootAdminEmail(teacherEmail) && !ownsClass) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only this student's teacher of record may change this assignment grade.",
+      );
+    }
+
+    const assignment = { id: assignmentSnap.id, ...assignmentSnap.data() };
+    if (
+      !authLib.isRootAdminEmail(teacherEmail)
+      && !studentMatchesAssignmentAudience({ assignment, classId: gradeData.classId || null })
+    ) {
+      throw new HttpsError(
+        "permission-denied",
+        "This assignment is not assigned to the student's current class.",
+      );
+    }
+
+    const assignmentOverrides = gradeData.teacherGradeOverridesByAssignment?.[assignmentId] || {};
+    const previousOverride = activeAssignmentGradeOverride(assignmentOverrides);
+    const actor = {
+      uid: teacherUid,
+      email: teacherEmail,
+      name: request.auth?.token?.name || null,
+    };
+    const nextOverride = action === "issueZero"
+      ? {
+        active: true,
+        score: 0,
+        reasonCode,
+        reason: ASSIGNMENT_ZERO_REASONS[reasonCode],
+        note: note || null,
+        source: "teacher-assignment-zero",
+        actor,
+        at: nowIso,
+      }
+      : null;
+
+    transaction.update(
+      gradeRef,
+      new FieldPath(
+        "teacherGradeOverridesByAssignment",
+        assignmentId,
+        ASSIGNMENT_GRADE_OVERRIDE_KEY,
+      ),
+      nextOverride || FieldValue.delete(),
+      new FieldPath("classroomReleaseSignals", assignmentId),
+      {
+        requestedAt: nowIso,
+        reason: "manual-retry",
+        source: "teacher-assignment-grade-override",
+      },
+    );
+
+    const auditRef = gradeRef.collection("gradeOverrideAudits").doc();
+    transaction.set(auditRef, {
+      scope: "assignment",
+      assignmentId,
+      questionIndex: null,
+      action,
+      reasonCode: action === "issueZero" ? reasonCode : previousOverride?.reasonCode || null,
+      reason: action === "issueZero"
+        ? ASSIGNMENT_ZERO_REASONS[reasonCode]
+        : "Restore automatic grade",
+      note: note || null,
+      actor,
+      at: nowIso,
+      previousOverride: previousOverride || null,
+      newOverride: nextOverride,
+      overrideActiveAfter: Boolean(nextOverride),
+    });
+
+    return { override: nextOverride };
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -7888,8 +8020,10 @@ exports.syncGradeToClassroom = onDocumentWritten(
        */
       const testCycleProjection = afterData.testCycleGrades?.[assignmentId] || null;
       const isTestCycleAssignment = String(assignment?.assessmentPolicy?.mode || "") === "testCycle";
-      if (isTestCycleAssignment && !testCycleProjection) continue;
-      if (isTestCycleAssignment && testCycleProjection.recordedGrade == null) continue;
+      const authoritativeOverrides = afterTeacherOverrides[assignmentId] || {};
+      const assignmentGradeOverride = activeAssignmentGradeOverride(authoritativeOverrides);
+      if (isTestCycleAssignment && !testCycleProjection && !assignmentGradeOverride) continue;
+      if (isTestCycleAssignment && testCycleProjection?.recordedGrade == null && !assignmentGradeOverride) continue;
 
       let questionIndices = runtimeIncludedQuestionIndices(assignment);
       /*
@@ -7931,22 +8065,21 @@ exports.syncGradeToClassroom = onDocumentWritten(
       if (!isTestCycleAssignment && !questionIndices.length) continue;
 
       const assignmentTracker = afterByAssignment[assignmentId] || {};
-      const authoritativeOverrides = afterTeacherOverrides[assignmentId] || {};
       const questions = runtimeQuestionsFromAssignment(assignment);
       const releaseSignal = releaseSignalSet.has(assignmentId)
         ? afterReleaseSignals[assignmentId]
         : null;
-      const progress = isTestCycleAssignment
+      let progress = isTestCycleAssignment
         ? {
           total: 1,
-          attempted: 1,
-          terminal: 1,
-          grade: Number(testCycleProjection.recordedGrade),
+          attempted: testCycleProjection?.recordedGrade == null ? 0 : 1,
+          terminal: testCycleProjection?.recordedGrade == null ? 0 : 1,
+          grade: Number(testCycleProjection?.recordedGrade ?? 0),
           creditOnAttempted: null,
           // A recorded Test Cycle grade only exists after a teacher released
           // a secure result, so it is finished evidence by construction.
-          complete: true,
-          meaningfulProgress: true,
+          complete: testCycleProjection?.recordedGrade != null,
+          meaningfulProgress: testCycleProjection?.recordedGrade != null,
           minimumProgressQuestions: 1,
         }
         : assignmentGradeProgress(
@@ -7955,8 +8088,20 @@ exports.syncGradeToClassroom = onDocumentWritten(
           questions,
           authoritativeOverrides,
         );
+      if (assignmentGradeOverride) {
+        progress = {
+          ...progress,
+          total: Math.max(1, Number(progress.total) || 0),
+          attempted: Math.max(1, Number(progress.attempted) || 0),
+          terminal: Math.max(1, Number(progress.terminal) || 0),
+          grade: assignmentGradeOverride.score,
+          complete: true,
+          meaningfulProgress: true,
+          minimumProgressQuestions: 1,
+        };
+      }
       const stage = isTestCycleAssignment
-        ? (testCycleProjection.recordedGradeSource === "retest" ? "testcycle-retest" : "testcycle-test")
+        ? (testCycleProjection?.recordedGradeSource === "retest" ? "testcycle-retest" : "testcycle-test")
         : resolveClassroomGradeStage({
           assignment,
           progress,
@@ -8087,7 +8232,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
          * pays for it is a real student's posted grade, and a refusal that
          * writes an audit row is recoverable where an overwrite is not.
          */
-        if (isTestCycleAssignment && priorAudit.status === "synced") {
+        if (isTestCycleAssignment && priorAudit.status === "synced" && !assignmentGradeOverride) {
           // eslint-disable-next-line no-await-in-loop
           const passback = (await testCycleLib.shared()).grade.testCycleClassroomPassback({
             recordedGrade: grade,
