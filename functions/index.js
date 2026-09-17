@@ -1028,6 +1028,10 @@ function teacherOverrideAppliesToRecord(record, authoritativeOverride = null) {
     || authoritativeOverride?.active !== true
     || !Number.isFinite(Number(authoritativeOverride.score))
   ) return false;
+  if (
+    authoritativeOverride.persistent === true
+    && authoritativeOverride.source === "academic-integrity"
+  ) return true;
 
   const recordAttempts = Number(record.totalAttempts ?? record.attemptCount ?? 0);
   const overrideAttempts = Number(authoritativeOverride.totalAttempts);
