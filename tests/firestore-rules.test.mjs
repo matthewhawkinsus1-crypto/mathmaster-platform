@@ -40,6 +40,11 @@ const check = async (label, promise) => {
   }
 };
 
+// Keep every assignment assertion below on its declared create/update path.
+// `cleanup()` only closes this process's clients; it does not clear an emulator
+// that was already running or populated by an earlier command.
+await testEnv.clearFirestore();
+
 // Seed data with rules bypassed.
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const db = ctx.firestore();
