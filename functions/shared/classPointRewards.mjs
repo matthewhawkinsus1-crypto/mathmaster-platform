@@ -106,12 +106,17 @@ const toInstant = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-export const assignmentCreditLifecycle = (assignment = {}, nowValue = Date.now()) => {
+export const assignmentCreditLifecycle = (assignment = {}, nowValue = Date.now(), studentId = null) => {
   const now = Number(nowValue instanceof Date ? nowValue.getTime() : nowValue) || Date.now();
   const releaseAt = toInstant(assignment?.releaseAt || assignment?.releaseDate);
   const dueAt = toInstant(assignment?.dueAt || assignment?.dueDate);
+  // Same per-student final-cutoff fallback as src/assignmentLifecycle.js and
+  // functions/shared/sectionDeadline.mjs — an attendance extension must not
+  // be invisible to Practice Pass eligibility either.
+  const override = studentId ? assignment?.studentOverrides?.[studentId] : null;
   const lateDueAt = toInstant(
-    assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate,
+    override?.lateDueAt || override?.dueAt
+      || assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate,
   );
 
   let status = 'onTime';
@@ -192,6 +197,7 @@ export const evaluatePracticePassEligibility = ({
   alreadyRedeemed = false,
   balance = 0,
   nowValue = Date.now(),
+  studentId = null,
 } = {}) => {
   const fail = (code, message) => ({ eligible: false, code, message });
 
@@ -246,7 +252,7 @@ export const evaluatePracticePassEligibility = ({
     return fail(PRACTICE_PASS_INELIGIBLE_CODES.TEST_ASSIGNMENT, 'A Practice Pass cannot be used on a test.');
   }
 
-  const lifecycle = assignmentCreditLifecycle(assignment, nowValue);
+  const lifecycle = assignmentCreditLifecycle(assignment, nowValue, studentId);
   if (lifecycle.isScheduled) {
     return fail(
       PRACTICE_PASS_INELIGIBLE_CODES.ASSIGNMENT_SCHEDULED,

@@ -10,8 +10,12 @@ import { region } from './helpers/sourceContract.mjs';
 const read = (path) => fs.readFileSync(path, 'utf8');
 
 const assertPracticeGuardHonorsReopen = (source, guardName, capturedAtName) => {
+  // getAssignmentLifecycle optionally takes a third `{ studentId }` argument
+  // (an attendance-driven per-student extension) — that addition changes
+  // nothing about the reopened-Warm-Up bypass this test protects, so the
+  // pattern tolerates it without pinning its exact shape.
   const pattern = new RegExp(
-    `getAssignmentLifecycle\\(localAssignment, ${capturedAtName}\\)\\.isPracticeOnly && !${guardName}`,
+    `getAssignmentLifecycle\\(localAssignment, ${capturedAtName}(?:, \\{[^)]*\\})?\\)\\.isPracticeOnly && !${guardName}`,
   );
   assert.match(source, pattern);
   const mutant = source.replace(` && !${guardName}`, '');

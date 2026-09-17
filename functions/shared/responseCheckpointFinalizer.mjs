@@ -196,6 +196,11 @@ export const decideCheckpointFinalization = ({
     classPeriod: classPeriod ?? checkpoint.finalizationContext?.classPeriod ?? null,
     nowValue: now,
     timeZone,
+    // Same authoritative student-specific final cutoff the client already
+    // reads (assignmentLifecycle.js) and Attendance History already writes
+    // (assignment.studentOverrides[studentId].lateDueAt) — a checkpoint
+    // captured within an authorized extension finalizes for credit here too.
+    studentId: text(checkpoint.studentId),
   });
   if (!close.closesAtMs) return { action: 'hold', status: 'no-authoritative-close', reason: 'no-authoritative-close' };
   // The close moved later — a teacher extension or reopen. Come back then.

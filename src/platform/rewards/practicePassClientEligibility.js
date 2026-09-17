@@ -47,6 +47,7 @@ export const practicePassLooksEligible = ({
   assignmentTracker = null,
   alreadyRedeemed = false,
   nowValue = Date.now(),
+  studentId = null,
 } = {}) => {
   if (!assignmentIsForStudent(assignment, { classId, classPeriod })) return false;
   if (alreadyRedeemed) return false;
@@ -67,7 +68,7 @@ export const practicePassLooksEligible = ({
     .map((entry) => entry.storageIndex);
   if (!practiceIndices.length) return false;
 
-  const lifecycle = getAssignmentLifecycle(assignment, nowValue);
+  const lifecycle = getAssignmentLifecycle(assignment, nowValue, { studentId });
   if (lifecycle.isScheduled || lifecycle.isPracticeOnly || !lifecycle.creditEligible) return false;
 
   if (hasCreditBearingPracticeAttempt(assignmentTracker, practiceIndices)) return false;
@@ -83,6 +84,7 @@ export const practicePassEligibleAssignments = ({
   tracker = {},
   redemptionsByAssignment = {},
   nowValue = Date.now(),
+  studentId = null,
 } = {}) => (
   (Array.isArray(assignments) ? assignments : [])
     .filter((assignment) => practicePassLooksEligible({
@@ -92,6 +94,7 @@ export const practicePassEligibleAssignments = ({
       assignmentTracker: tracker?.[assignment.id] || null,
       alreadyRedeemed: Boolean(redemptionsByAssignment?.[assignment.id]),
       nowValue,
+      studentId,
     }))
     .map((assignment) => ({
       assignmentId: assignment.id,

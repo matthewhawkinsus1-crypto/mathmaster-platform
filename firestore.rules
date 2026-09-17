@@ -510,9 +510,24 @@ service cloud.firestore {
 
     // Shared instructional content is readable after sign-in. Only teachers
     // can mutate assignments, schedules, and the secure path question bank.
+    //
+    // `studentOverrides` is the one field a client update may never touch,
+    // whatever else it changes. It carries per-student attendance-extension
+    // final cutoffs (src/platform/attendance/extensionReconciliation.js) and
+    // the existing excused/reopened flags, and — like the Class Points
+    // ledger below — is written only by the `applyStudentAttendanceExtension`
+    // Cloud Function, which runs with Admin SDK credentials and independently
+    // re-verifies the caller is this student's own class's teacher of record
+    // AND that the proposed cutoff never shortens one already on file
+    // (functions/shared/attendanceExtensionAuthorization.mjs). A blanket
+    // `teacher()` rule has no roster/class scoping at all, so allowing this
+    // field through it would let any teacher move any other class's
+    // student's deadline.
     match /assignments/{assignmentId} {
       allow read: if signedIn();
-      allow create, update, delete: if teacher();
+      allow create, delete: if teacher();
+      allow update: if teacher()
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['studentOverrides']);
     }
 
     /*

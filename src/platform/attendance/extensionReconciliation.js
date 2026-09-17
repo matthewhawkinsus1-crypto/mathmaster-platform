@@ -1,5 +1,5 @@
 /*
- * TURNING A MARKED ABSENCE INTO A STUDENT-SPECIFIC DEADLINE.
+ * TURNING A MARKED ABSENCE INTO A STUDENT-SPECIFIC FINAL CUTOFF.
  *
  * `absencePolicy.js` knows how many meetings of extension an absence earns.
  * `classMeetings.js` knows which actual date that lands on. Neither one
@@ -8,16 +8,34 @@
  * `assignmentLifecycle.js` already reads for every student-facing lifecycle
  * decision (see the comment there). There is no second deadline store.
  *
+ * AN ABSENCE EXTENDS THE FINAL/CREDIT CUTOFF, NOT THE ORDINARY DUE DATE.
+ *
+ * A class typically has two dates: an ordinary due date (on-time vs late) and
+ * a final/late cutoff (credit-eligible vs closed). The ordinary due date
+ * keeps deciding on-time-vs-late for every student, extended or not — that is
+ * a pacing signal, not an opportunity. What an absence buys back is time
+ * against the FINAL cutoff, so the extension is computed from
+ * `assignment.lateDueAt || lateDueDate || dueAt || dueDate` (the class's own
+ * authoritative final cutoff) and written to `studentOverrides[id].lateDueAt`
+ * ONLY. Never `dueAt`: writing a per-student `dueAt` would make
+ * `assignmentLifecycle.js`'s late-cutoff fallback (`override.lateDueAt ||
+ * override.dueAt || ...`) pick up a date computed from the wrong baseline,
+ * which is exactly the bug this rule prevents — a "due Sept 18, late Sept 25"
+ * assignment with a one-meeting absence extended from Sept 18 would land the
+ * final cutoff on Sept 21, SHORTENING the eight days of credit-eligibility
+ * every other student already has.
+ *
  * THE SAFETY RULE. Attendance is corrected in both directions: a teacher
  * fixes a mistaken Absent to Present, or adds a Present student they missed.
  * Extending is always safe — the student was not relying on a SHORTER
  * deadline. Shortening one a student may already have used is not: this
- * module never writes a due date earlier than the one already on file. When
- * a correction implies a shorter extension than what is stored, it reports
- * `reviewNeeded: true` with both dates instead of writing, so a teacher makes
- * that call explicitly.
+ * module never writes a final cutoff earlier than the one already on file
+ * (which, by construction, is never earlier than the class's own final
+ * cutoff either). When a correction implies a shorter extension than what is
+ * stored, it reports `reviewNeeded: true` with both dates instead of writing,
+ * so a teacher makes that call explicitly.
  *
- * The extension is always computed from the assignment's ORIGINAL due date,
+ * The extension is always computed from the class's ORIGINAL final cutoff,
  * never from a previously-extended one — otherwise re-running reconciliation
  * after every correction would compound extensions instead of recomputing
  * the one the student has actually earned.
@@ -27,8 +45,12 @@ import { extendDueByClassMeetings, localDateKeyOf } from './classMeetings.js';
 import { extensionMeetingsFor, summarizeAssignmentAbsences } from './absencePolicy.js';
 import { attendanceMarksForStudentRange } from './attendanceHistory.js';
 import { assignmentIsForStudent } from '../../assignmentLifecycle.js';
+import { attendanceCorrectionReviewIsResolved } from './returnCheckIn.js';
 
-const originalDueAt = (assignment) => assignment?.originalDueAt || assignment?.dueAt || assignment?.dueDate || null;
+/** The class's own authoritative final/credit cutoff — never the ordinary due date. */
+const originalFinalCutoff = (assignment) => (
+  assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate || null
+);
 
 /**
  * What the extension SHOULD be for one student on one assignment, given their
@@ -44,15 +66,18 @@ export const resolveStudentExtension = ({
   nonInstructionalKeys = null,
   policy = null,
 } = {}) => {
-  const dueAt = originalDueAt(assignment);
+  const finalCutoff = originalFinalCutoff(assignment);
+  // Which absences "bear on" this assignment is still about the ordinary
+  // instructional window (release through the ordinary due date) — the late
+  // window is makeup time, not more instruction to be absent from.
   const fromDateKey = localDateKeyOf(assignment?.releaseAt || assignment?.releaseDate) || null;
-  const toDateKey = localDateKeyOf(dueAt);
+  const toDateKey = localDateKeyOf(assignment?.dueAt || assignment?.dueDate) || localDateKeyOf(finalCutoff);
   const absences = summarizeAssignmentAbsences({ marks, fromDateKey, toDateKey });
   const extensionMeetings = extensionMeetingsFor({ absences, policy });
 
   const existing = assignment?.studentOverrides?.[studentId]?.extension || null;
 
-  if (!dueAt || !classPeriod || extensionMeetings === 0) {
+  if (!finalCutoff || !classPeriod || extensionMeetings === 0) {
     return {
       changed: false, reviewNeeded: false, reason: 'no_extension_earned',
       absences, extensionMeetings: 0, proposed: null, existing,
@@ -60,7 +85,7 @@ export const resolveStudentExtension = ({
   }
 
   const extended = extendDueByClassMeetings({
-    schedule, classPeriod, dueAt, classMeetings: extensionMeetings, nonInstructionalKeys,
+    schedule, classPeriod, dueAt: finalCutoff, classMeetings: extensionMeetings, nonInstructionalKeys,
   });
 
   const proposed = {
@@ -118,7 +143,10 @@ export const buildStudentExtensionPatch = ({
       ...currentOverrides,
       [studentId]: {
         ...currentEntry,
-        dueAt: resolution.proposed.dueAt,
+        // Only the FINAL cutoff moves. The ordinary `dueAt` is never
+        // overridden here, so on-time-vs-late status is unaffected — see the
+        // module header for why writing `dueAt` would be the bug.
+        lateDueAt: resolution.proposed.dueAt,
         extension: {
           dateKey: resolution.proposed.dateKey,
           meetingsGranted: resolution.proposed.meetingsGranted,
@@ -178,6 +206,52 @@ export const reconcileAssignmentExtensionsForCorrection = ({
       return { assignment, resolution };
     })
     .filter(({ resolution }) => resolution.changed || resolution.reviewNeeded)
+);
+
+/**
+ * Every OPEN attendance-correction review for one student right now —
+ * derived fresh from current attendance history and every assignment
+ * assigned to their class, the same way `resolveReturnCheckIns` derives open
+ * return check-ins. "Open" means `resolveStudentExtension` still says
+ * `reviewNeeded` AND no teacher has recorded a resolution for that exact
+ * existing/proposed cutoff pair yet (`attendanceCorrectionReviewIsResolved`,
+ * returnCheckIn.js) — so this never drifts out of sync with a later
+ * correction the way a separately-maintained "open" flag could.
+ */
+export const openAttendanceCorrectionReviewsForStudent = ({
+  assignments = [],
+  studentId = null,
+  classId = null,
+  classPeriod = null,
+  schedule = null,
+  nonInstructionalKeys = null,
+  supportEvents = [],
+  policy = null,
+} = {}) => (
+  (Array.isArray(assignments) ? assignments : [])
+    .filter((assignment) => assignmentIsForStudent(assignment, { classId }))
+    .map((assignment) => {
+      const marks = attendanceMarksForStudentRange({
+        supportEvents,
+        studentId,
+        classId,
+        classPeriod,
+        schedule,
+        fromDateKey: localDateKeyOf(assignment?.releaseAt || assignment?.releaseDate),
+        toDateKey: localDateKeyOf(assignment?.dueAt || assignment?.dueDate),
+        nonInstructionalKeys,
+      });
+      const resolution = resolveStudentExtension({
+        assignment, studentId, marks, schedule, classPeriod, nonInstructionalKeys, policy,
+      });
+      return { assignment, resolution };
+    })
+    .filter(({ assignment, resolution }) => (
+      resolution.reviewNeeded
+      && !attendanceCorrectionReviewIsResolved({
+        supportEvents, studentId, assignmentId: assignment.id, existingDateKey: resolution.existing?.dateKey,
+      })
+    ))
 );
 
 export default resolveStudentExtension;

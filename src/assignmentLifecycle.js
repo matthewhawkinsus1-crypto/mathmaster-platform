@@ -230,10 +230,12 @@ const SECTION_ACCESS_STATES = new Set(['open', 'closed']);
 // After the final grading cutoff the whole assignment becomes voluntary
 // Practice Mode. At that point teacher section locks no longer hide content —
 // students may revisit everything, but none of it writes grades/evidence.
-export const getSectionAccessState = ({ assignment, activityRole, classId = null, classPeriod: _classPeriod, nowValue = Date.now() }) => {
+export const getSectionAccessState = ({
+  assignment, activityRole, classId = null, classPeriod: _classPeriod, nowValue = Date.now(), studentId = null,
+}) => {
   const role = String(activityRole || '').trim().toLowerCase();
   const exists = projectCurrentAssignmentContent(assignment).entries.some((entry) => entry.logicalRole === role);
-  const lifecycle = getAssignmentLifecycle(assignment, nowValue);
+  const lifecycle = getAssignmentLifecycle(assignment, nowValue, { studentId });
 
   if (!MANUALLY_CONTROLLABLE_SECTION_ROLES.includes(role) || !exists) {
     return { role, enabled: false, status: 'unavailable', isOpen: true, defaultState: 'open', override: null, lifecycle };
@@ -578,10 +580,12 @@ export const normalizeAssignmentActivity = (activity) => ({
   finalLateActiveAt: activity?.finalLateActiveAt || null,
 });
 
-export const recordAssignmentActivity = ({ activity, assignment, seconds = 0, nowValue = Date.now() }) => {
+export const recordAssignmentActivity = ({
+  activity, assignment, seconds = 0, nowValue = Date.now(), studentId = null,
+}) => {
   const current = normalizeAssignmentActivity(activity);
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
-  const lifecycle = getAssignmentLifecycle(assignment, now);
+  const lifecycle = getAssignmentLifecycle(assignment, now, { studentId });
   const delta = Math.max(0, Math.floor(Number(seconds) || 0));
   const next = {
     ...current,

@@ -676,7 +676,11 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
       ?? gradeData?.gradesByAssignment?.[envelope.assignmentId]?.[envelope.questionIndex]
       ?? null;
 
-    const finalCloseAtMs = assignment ? assignmentFinalCloseAt(assignment) : null;
+    // A per-student attendance extension (assignment.studentOverrides
+    // [studentId].lateDueAt) is the same authoritative final cutoff the
+    // client and the checkpoint finalizer both read — ingestion must not be
+    // the one path that ignores it.
+    const finalCloseAtMs = assignment ? assignmentFinalCloseAt(assignment, null, studentId) : null;
     const decision = ingestion.decideSubmissionIngestion({
       envelope,
       assignmentExists: assignmentSnapshot.exists,
@@ -1963,6 +1967,7 @@ exports.redeemPracticePass = onCall(async (request) => {
       alreadyRedeemed: false,
       balance: account.balance,
       nowValue: Date.now(),
+      studentId,
     });
     if (!decision.eligible) {
       throw new HttpsError("failed-precondition", decision.message);
@@ -2018,6 +2023,140 @@ exports.redeemPracticePass = onCall(async (request) => {
   });
 });
 
+/*
+ * THE ONLY WAY A PER-STUDENT ATTENDANCE EXTENSION IS WRITTEN.
+ *
+ * `firestore.rules` blocks any client write that touches
+ * `assignments/{id}.studentOverrides` (see that rule's own comment) exactly
+ * so this callable — running with Admin SDK credentials, not the caller's —
+ * is the one path that can grant one. The teacher's browser still computes
+ * WHICH extension is earned (src/platform/attendance/
+ * extensionReconciliation.js already re-derives that from attendance history
+ * every time, so nothing here needs to trust a client-supplied "how many
+ * meetings" number) and sends the resulting proposed cutoff and its display
+ * metadata; this callable independently re-verifies, inside one transaction:
+ *
+ *   WHO   — the caller is this class's teacher of record (or root admin),
+ *           this student currently belongs to that class, and this
+ *           assignment is actually assigned to it
+ *           (attendanceExtensionAuthorization.mjs, mirroring
+ *           classPoints.mjs's authorizeClassPointsActor).
+ *   WHAT  — the proposed final cutoff is never earlier than whatever is
+ *           already authoritative for this student
+ *           (validateProposedFinalCutoff, independent of whatever the
+ *           client believes it already checked).
+ *
+ * The write itself is a narrow, dotted-path `transaction.update`, never a
+ * whole-document read-modify-write of `studentOverrides` — see
+ * `storeLessonNotesPdf` above for the same pattern against a different
+ * nested assignment field.
+ */
+exports.applyStudentAttendanceExtension = onCall(async (request) => {
+  await requireTeacher(request);
+  const teacherEmail = callerEmail(request);
+  if (!teacherEmail) throw new HttpsError("permission-denied", "A verified teacher email is required.");
+  const isRootAdmin = authLib.isRootAdminEmail(teacherEmail);
+
+  const data = request.data || {};
+  const classId = String(data.classId || "").trim();
+  const studentId = String(data.studentId || "").trim();
+  const assignmentId = String(data.assignmentId || "").trim();
+  const proposedLateDueAtMs = Number(data.proposedLateDueAtMs);
+  const extension = data.extension && typeof data.extension === "object" && !Array.isArray(data.extension)
+    ? data.extension
+    : {};
+  // ONLY set by the Attendance History "Apply Shorter Extension" review
+  // action — see the never-shorten re-check below, which independently
+  // verifies a matching teacher-authored review resolution actually exists
+  // rather than trusting this flag on its own.
+  const allowShorten = data.allowShorten === true;
+  const existingDateKey = String(data.existingDateKey || "").trim();
+  const proposedDateKey = String(data.proposedDateKey || "").trim();
+  if (!classId || !studentId || !assignmentId) {
+    throw new HttpsError("invalid-argument", "classId, studentId and assignmentId are required.");
+  }
+
+  const db = getFirestore();
+  const gradeRef = db.collection("grades").doc(studentId);
+  const classRef = db.collection(CLASS_COLLECTION).doc(classId);
+  const assignmentRef = db.collection("assignments").doc(assignmentId);
+
+  /*
+   * THE ONE ESCAPE HATCH FROM "NEVER SHORTEN", AND WHY IT IS STILL SAFE.
+   *
+   * A correction can genuinely mean a student is no longer owed as much
+   * relief as they were first granted. `extensionReconciliation.js` refuses
+   * to write that automatically — it surfaces an open
+   * `attendanceCorrectionReview` instead (see
+   * `openAttendanceCorrectionReviewsForStudent`) — so the ONLY way a
+   * shortened cutoff reaches this callable is a teacher explicitly choosing
+   * "Apply Shorter Extension" in Attendance History, which records a
+   * `studentSupportEvents` doc (`kind: attendanceCorrectionReview, evidence.
+   * resolution: 'shortened'`) BEFORE calling here. That doc's own create
+   * rule already requires the writer to be this student's authorized
+   * teacher — so finding one with the exact existing/proposed cutoff pair
+   * is proof a real teacher action already happened, independent of
+   * whatever this request claims about itself.
+   */
+  if (allowShorten) {
+    if (!existingDateKey || !proposedDateKey) {
+      throw new HttpsError("invalid-argument", "A shortened extension requires the existing and proposed cutoff dates.");
+    }
+    const reviewKey = `${studentId}|${assignmentId}|${existingDateKey}`;
+    const reviewSnap = await db.collection("studentSupportEvents")
+      .where("kind", "==", "attendanceCorrectionReview")
+      .where("evidence.reviewKey", "==", reviewKey)
+      .where("evidence.resolution", "==", "shortened")
+      .where("evidence.proposedDateKey", "==", proposedDateKey)
+      .limit(1)
+      .get();
+    if (reviewSnap.empty) {
+      throw new HttpsError(
+        "failed-precondition",
+        "A recorded teacher review choosing to shorten this exact extension is required first.",
+      );
+    }
+  }
+
+  return db.runTransaction(async (transaction) => {
+    const [gradeSnap, classSnap, assignmentSnap] = await Promise.all([
+      transaction.get(gradeRef),
+      transaction.get(classRef),
+      transaction.get(assignmentRef),
+    ]);
+    const studentRecord = gradeSnap.exists ? gradeSnap.data() : null;
+    const classRecord = classSnap.exists ? { classId: classSnap.id, ...classSnap.data() } : null;
+    const assignment = assignmentSnap.exists ? { id: assignmentSnap.id, ...assignmentSnap.data() } : null;
+
+    const { authorizeAttendanceExtensionActor, validateProposedFinalCutoff } =
+      await import("./shared/attendanceExtensionAuthorization.mjs");
+    const authorization = authorizeAttendanceExtensionActor({
+      isRootAdmin, teacherEmail, classRecord, studentRecord, assignment, requestedClassId: classId,
+    });
+    if (!authorization.authorized) throw new HttpsError(authorization.reason, authorization.message);
+
+    // Read fresh, inside this transaction — never trust a snapshot the
+    // caller's browser might have held onto while another change landed.
+    const { assignmentFinalCloseAt } = await import("./shared/sectionDeadline.mjs");
+    const currentEffectiveCutoffMs = assignmentFinalCloseAt(assignment, null, studentId);
+    const validity = validateProposedFinalCutoff({ proposedLateDueAtMs, currentEffectiveCutoffMs });
+    if (!validity.valid && !allowShorten) throw new HttpsError(validity.reason, validity.message);
+
+    const lateDueAtIso = new Date(proposedLateDueAtMs).toISOString();
+    transaction.update(
+      assignmentRef,
+      new FieldPath("studentOverrides", studentId, "lateDueAt"), lateDueAtIso,
+      new FieldPath("studentOverrides", studentId, "extension"), {
+        ...extension,
+        grantedByEmail: teacherEmail,
+        grantedAt: Date.now(),
+      },
+    );
+
+    return { assignmentId, studentId, lateDueAt: lateDueAtIso };
+  });
+});
+
 function trustedResponseInspectionEvidence(snapshot, {
   assignmentId,
   questionIndex,
@@ -2060,7 +2199,24 @@ function progressCheckpointStage(progress, { late = false } = {}) {
   return `${late ? "late-progress" : "progress"}-${checkpoint}`;
 }
 
-function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowValue = Date.now() }) {
+// The per-student final cutoff, MIRRORING src/assignmentLifecycle.js's
+// getAssignmentDate(assignment, 'late', studentId) and functions/shared/
+// sectionDeadline.mjs's assignmentFinalCloseAt exactly (same fallback order,
+// same field names). Classroom grade passback must never call a student
+// "final" earlier than the deadline the student's own dashboard and the
+// server's own submission finalizer already honor for them — see
+// assignment.studentOverrides[studentId].lateDueAt, written by an
+// attendance-driven extension (src/platform/attendance/
+// extensionReconciliation.js) and never earlier than the class's own cutoff.
+function studentLateDueAt(assignment, studentId) {
+  const override = studentId ? assignment?.studentOverrides?.[studentId] : null;
+  return toDate(
+    override?.lateDueAt || override?.dueAt
+      || assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate
+  );
+}
+
+function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowValue = Date.now(), studentId = null }) {
   const reason = releaseSignalReason(releaseSignal);
   if (reason === "final-deadline") return "final-deadline";
   if (reason === "due-checkpoint") return "due-checkpoint";
@@ -2068,9 +2224,7 @@ function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowVa
 
   const now = Number(nowValue) || Date.now();
   const dueAt = toDate(assignment?.dueAt || assignment?.dueDate);
-  const lateDueAt = toDate(
-    assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate
-  );
+  const lateDueAt = studentLateDueAt(assignment, studentId);
 
   if (progress.complete) return "final-complete";
   if (lateDueAt && now >= lateDueAt.getTime()) return "final-deadline";
@@ -7795,6 +7949,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           progress,
           releaseSignal,
           nowValue: Date.now(),
+          studentId: event.params.studentId,
         });
       if (!stage) continue;
 
@@ -15075,6 +15230,7 @@ async function readPersistencePending({
   const recoverableDrafts = draftSnapshot.exists
     ? await countRecoverableWorkspaceDrafts({
       db,
+      studentId,
       draft: draftSnapshot.data() || {},
       draftSavedAtMs: millisOf(draftSnapshot.data()?.updatedAt),
       assignment,
@@ -15106,7 +15262,7 @@ async function readPersistencePending({
  * recoverable, so it is not a reason to withhold a grade forever.
  */
 async function countRecoverableWorkspaceDrafts({
-  db, draft, draftSavedAtMs, assignment, assignmentId, gradeData,
+  db, studentId = null, draft, draftSavedAtMs, assignment, assignmentId, gradeData,
 }) {
   if (!assignment) return 0;
   const recovery = await workspaceDraftRecovery();
@@ -15133,6 +15289,7 @@ async function countRecoverableWorkspaceDrafts({
       classPeriod,
       // Measured against the day the draft was SAVED, never today.
       nowValue: draftSavedAtMs || Date.now(),
+      studentId,
     }).closesAtMs,
   });
   return Number(assessment?.recoverable?.length) || 0;
@@ -15855,6 +16012,7 @@ async function buildStudentRecoveryRow({
         // The close is resolved against the day the draft was SAVED, not today,
         // or a Monday draft would be measured against this week's bell.
         nowValue: draftDocument.updatedAtMs || Date.now(),
+        studentId,
       }).closesAtMs,
     })
     : null;
@@ -16192,6 +16350,7 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
         classId,
         classPeriod,
         nowValue: savedAtMs || Date.now(),
+        studentId,
       }).closesAtMs,
     });
 

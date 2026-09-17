@@ -208,6 +208,24 @@ await check('student CANNOT move an assignment between marking periods', assertF
   { gradingPeriod: { id: '2026-mp1', label: 'Marking Period 1', order: 1 } },
   { merge: true },
 )));
+// A per-student attendance-extension final cutoff is written only by the
+// applyStudentAttendanceExtension Cloud Function (Admin SDK), never by a
+// direct client update — see firestore.rules' own comment on this field.
+await check('teacher CANNOT write studentOverrides directly, even on their own assignment', assertFails(setDoc(
+  doc(teacher, 'assignments/A1'),
+  { studentOverrides: { S1042: { lateDueAt: '2026-10-02T23:59:59.000Z' } } },
+  { merge: true },
+)));
+await check('root admin CANNOT bypass the callable and write studentOverrides directly either', assertFails(setDoc(
+  doc(rootAdmin, 'assignments/A1'),
+  { studentOverrides: { S1042: { lateDueAt: '2026-10-02T23:59:59.000Z' } } },
+  { merge: true },
+)));
+await check('teacher can still update an assignment normally when studentOverrides is untouched', assertSucceeds(setDoc(
+  doc(teacher, 'assignments/A1'),
+  { title: 'Unit 1, revised' },
+  { merge: true },
+)));
 await check('teacher deletes assignments', assertSucceeds(deleteDoc(doc(teacher, 'assignments/A2'))));
 await check('teacher reads live presence only for own roster', assertSucceeds(getDoc(doc(teacher, 'presence/S1042'))));
 await check('teacher CANNOT read another teacher live presence', assertFails(getDoc(doc(teacher, 'presence/S2000'))));

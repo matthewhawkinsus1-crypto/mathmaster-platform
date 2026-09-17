@@ -49,6 +49,7 @@ export function classroomLaunchTarget({
   assignment,
   launch,
   nowValue = Date.now(),
+  studentId = null,
 } = {}) {
   if (!launch?.assignmentId) {
     throw new TypeError('Classroom launch assignmentId is required.');
@@ -76,7 +77,7 @@ export function classroomLaunchTarget({
     throw new TypeError(`This Classroom link has no included ${label} questions.`);
   }
 
-  const lifecycle = getAssignmentLifecycle(assignment, nowValue);
+  const lifecycle = getAssignmentLifecycle(assignment, nowValue, { studentId });
   const originIsSectionLaunch = sectionKey !== 'whole';
 
   /*

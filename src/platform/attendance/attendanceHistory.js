@@ -15,12 +15,12 @@
  * history correction — is the effective mark. Older events are never edited
  * or deleted; they stay in the array as the audit trail.
  *
- * A live "Absent" quick-mark carries no excused/unexcused opinion. Until a
- * teacher classifies it in Attendance History, it is treated as unexcused for
- * arithmetic (the default absence policy extends deadlines for both kinds
- * equally, so this never shortchanges a student), but is tagged
- * `markSource: 'liveQuickMark'` so a screen can show it as unclassified
- * rather than asserting a fact nobody confirmed.
+ * A live "Absent" quick-mark carries no excused/unexcused opinion. It is
+ * never treated as unexcused — `absencePolicy.js`'s `ABSENT_UNCLASSIFIED`
+ * mark is a real third state, not a stand-in for one of the other two: it
+ * earns the deadline extension and counts for the return-to-class reminder
+ * exactly like every other absence, but can never trigger an unexcused point
+ * penalty until a teacher actually classifies it in Attendance History.
  */
 
 import { ATTENDANCE_MARK } from './absencePolicy.js';
@@ -34,10 +34,16 @@ export const ATTENDANCE_HISTORY_MARK = Object.freeze({
   LATE: 'late',
   EXCUSED: ATTENDANCE_MARK.EXCUSED,
   UNEXCUSED: ATTENDANCE_MARK.UNEXCUSED,
+  ABSENT_UNCLASSIFIED: ATTENDANCE_MARK.ABSENT_UNCLASSIFIED,
 });
 
+// A teacher never explicitly picks ABSENT_UNCLASSIFIED in Attendance History
+// (see AttendanceHistoryPanel.jsx's MARK_OPTIONS) — it only ever arrives from
+// a live quick-mark, and stays a distinct state until a teacher classifies it.
 const HISTORY_MARKS = new Set(Object.values(ATTENDANCE_HISTORY_MARK));
-const ABSENT_HISTORY_MARKS = new Set([ATTENDANCE_HISTORY_MARK.EXCUSED, ATTENDANCE_HISTORY_MARK.UNEXCUSED]);
+const ABSENT_HISTORY_MARKS = new Set([
+  ATTENDANCE_HISTORY_MARK.EXCUSED, ATTENDANCE_HISTORY_MARK.UNEXCUSED, ATTENDANCE_HISTORY_MARK.ABSENT_UNCLASSIFIED,
+]);
 
 const clean = (value) => String(value ?? '').trim();
 const list = (value) => (Array.isArray(value) ? value : []);
@@ -75,8 +81,9 @@ const normalizeAttendanceEvent = (event) => {
   if (kind === LIVE_ATTENDANCE_EVENT_KIND) {
     const rawMark = clean(event?.evidence?.attendanceMark).toLowerCase();
     if (!rawMark) return null;
-    // A bare live "absent" carries no excused/unexcused opinion yet.
-    const mark = rawMark === 'absent' ? ATTENDANCE_HISTORY_MARK.UNEXCUSED : rawMark;
+    // A bare live "absent" carries no excused/unexcused opinion yet — it is
+    // its own real state, never assumed to be unexcused.
+    const mark = rawMark === 'absent' ? ATTENDANCE_HISTORY_MARK.ABSENT_UNCLASSIFIED : rawMark;
     if (!HISTORY_MARKS.has(mark)) return null;
     return {
       mark,
@@ -188,6 +195,7 @@ export const buildAttendanceHistoryEvent = ({
   const resolvedPeriod = clean(classPeriod || student?.classPeriod || student?.profile?.classPeriod) || null;
   const label = normalizedMark === ATTENDANCE_HISTORY_MARK.EXCUSED ? 'Excused absence'
     : normalizedMark === ATTENDANCE_HISTORY_MARK.UNEXCUSED ? 'Unexcused absence'
+    : normalizedMark === ATTENDANCE_HISTORY_MARK.ABSENT_UNCLASSIFIED ? 'Absent (not yet classified)'
     : normalizedMark === ATTENDANCE_HISTORY_MARK.LATE ? 'Late' : 'Present';
 
   return {
@@ -202,6 +210,9 @@ export const buildAttendanceHistoryEvent = ({
     source: 'attendanceHistory',
     summary: `${label} for ${dateKey}${priorMark ? ` (was ${priorMark})` : ''}.`,
     note: clean(reason),
+    // Top-level, alongside evidence.dateKey — see the identical comment in
+    // liveAttendance.js's buildLiveAttendanceEvent.
+    dateKey: clean(dateKey),
     evidence: {
       dateKey: clean(dateKey),
       mark: normalizedMark,

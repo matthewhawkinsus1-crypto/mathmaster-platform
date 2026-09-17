@@ -64,11 +64,27 @@ export const resolveDolInstructionDateKey = ({ assignment, classId = null, class
   sectionInstructionDateKey({ assignment, section: 'dol', classId, classPeriod, timeZone })
 );
 
-/** The assignment's own final grading cutoff: the late window when there is one. */
-export const assignmentFinalCloseAt = (assignment, timeZone = null) => parseInstant(
-  assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate,
-  { endOfDay: true, timeZone },
-);
+/**
+ * The assignment's own final grading cutoff: the late window when there is
+ * one, or a per-student attendance extension of it when `studentId` names
+ * one (`assignment.studentOverrides[studentId].lateDueAt`).
+ *
+ * MIRRORS src/assignmentLifecycle.js's `getAssignmentDate(assignment, 'late',
+ * studentId)` EXACTLY — same fallback order, same field names. Cloud
+ * Functions deploy only `functions/` (see AGENTS.md), so this cannot import
+ * that client module; it is re-derived here instead, on purpose, so both
+ * sides can only ever answer "when does this student's credit eligibility
+ * actually end" the same way. If that resolver's fallback chain changes,
+ * change it here too.
+ */
+export const assignmentFinalCloseAt = (assignment, timeZone = null, studentId = null) => {
+  const override = studentId ? assignment?.studentOverrides?.[studentId] : null;
+  return parseInstant(
+    override?.lateDueAt || override?.dueAt
+      || assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate,
+    { endOfDay: true, timeZone },
+  );
+};
 
 /**
  * A teacher's live Warm-Up controls for one class.
@@ -175,9 +191,10 @@ export const resolveAuthoritativeClose = ({
   classPeriod = null,
   nowValue = Date.now(),
   timeZone = SCHOOL_TIME_ZONE,
+  studentId = null,
 } = {}) => {
   const role = String(activityRole || '').trim().toLowerCase();
-  const finalCloseAtMs = assignmentFinalCloseAt(assignment, timeZone);
+  const finalCloseAtMs = assignmentFinalCloseAt(assignment, timeZone, studentId);
   const todayKey = zonedDateKey(nowValue, timeZone);
 
   if (role === 'warmup' || role === 'dol') {

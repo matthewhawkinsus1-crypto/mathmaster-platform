@@ -313,6 +313,24 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "studentSupportEvents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "authorizedTeacherEmails",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "classId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dateKey",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

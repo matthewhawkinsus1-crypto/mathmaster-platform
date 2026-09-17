@@ -104,7 +104,7 @@ test('the old event remains in the audit trail after a correction', () => {
   const trail = attendanceEventsForStudentDay({ supportEvents: events, studentId: 's1', classId: 'c1', dateKey: '2026-09-02' });
   assert.equal(trail.length, 2);
   assert.equal(trail[0].mark, 'excused');
-  assert.equal(trail[1].mark, 'unexcused'); // the original live "absent" quick-mark, unclassified
+  assert.equal(trail[1].mark, 'absent'); // the original live quick-mark, unclassified — never assumed unexcused
   assert.equal(trail[1].markSource, 'liveQuickMark');
 });
 
