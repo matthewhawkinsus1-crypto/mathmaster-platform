@@ -3,6 +3,7 @@ import { splitGrade } from '../teacher/gradeEvidence.js';
 
 const overrideApplies = (record, override) => {
   if (!record || override?.active !== true || !Number.isFinite(Number(override.score))) return false;
+  if (override.persistent === true && override.source === 'academic-integrity') return true;
   if (Number(override.totalAttempts) !== Number(record.totalAttempts ?? record.attemptCount ?? 0)) return false;
   if (Number(override.variantIndex) !== Number(record.variantIndex ?? 0)) return false;
   if (String(override.submissionId || '')) return String(override.submissionId) === String(record.lastSubmissionId || '');
