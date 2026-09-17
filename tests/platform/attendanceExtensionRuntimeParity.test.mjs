@@ -106,3 +106,31 @@ test('dashboard Smart View bucketing (matchesSmartView) recognizes an extended s
   assert.equal(activeForExtended, true);
   assert.equal(closedForEveryoneElse, true);
 });
+
+test('a legacy student dueAt override cannot shorten a later class-wide final cutoff', () => {
+  const assignment = {
+    ...extended,
+    studentOverrides: {
+      s1: { dueAt: new Date(2026, 8, 20, 23, 59).toISOString() },
+    },
+  };
+
+  const lifecycle = getAssignmentLifecycle(assignment, new Date(2026, 8, 23), { studentId: 's1' });
+  assert.equal(lifecycle.status, 'late');
+  assert.equal(lifecycle.creditEligible, true);
+  assert.equal(lifecycle.isPracticeOnly, false);
+});
+
+test('a later legacy student dueAt override still extends the class-wide final cutoff', () => {
+  const assignment = {
+    ...extended,
+    studentOverrides: {
+      s1: { dueAt: new Date(2026, 9, 2, 23, 59).toISOString() },
+    },
+  };
+
+  const lifecycle = getAssignmentLifecycle(assignment, AFTER_CLASS_CUTOFF, { studentId: 's1' });
+  assert.equal(lifecycle.status, 'late');
+  assert.equal(lifecycle.creditEligible, true);
+  assert.equal(lifecycle.isPracticeOnly, false);
+});
