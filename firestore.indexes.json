@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "gradeTransferSnapshots",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "classId", "order": "ASCENDING" },
+        { "fieldPath": "teacherUid", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "studentResponseCheckpoints",
       "queryScope": "COLLECTION",
       "fields": [

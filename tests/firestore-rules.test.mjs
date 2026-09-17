@@ -48,6 +48,8 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(db, 'grades/S1042/scratchpads/a__question_0'), { dataUrl: 'x', authorizedTeacherEmails: [TEACHER_EMAIL] });
   await setDoc(doc(db, 'grades/S1042/scratchpads/a__question_delete'), { dataUrl: 'delete-me', authorizedTeacherEmails: [TEACHER_EMAIL] });
   await setDoc(doc(db, 'assignments/A1'), { title: 'Unit 1' });
+  await setDoc(doc(db, 'classes/class-1'), { teacherOfRecord: TEACHER_EMAIL, period: 'Period 1' });
+  await setDoc(doc(db, 'classes/class-2'), { teacherOfRecord: OTHER_TEACHER_EMAIL, period: 'Period 2' });
   await setDoc(doc(db, 'studentResponseCheckpoints/other-checkpoint'), { studentId: 'S2000', assignmentId: 'A1', questionIndex: 0, status: 'active' });
   await setDoc(doc(db, 'studentWorkspaceDrafts/S2000__A1'), { documentId: 'S2000__A1', schemaVersion: 1, studentId: 'S2000', assignmentId: 'A1', revision: 1, secure: false, entries: [] });
   await setDoc(doc(db, 'settings/classSchedule'), { periods: {} });
@@ -191,6 +193,39 @@ await check('teacher updates assigned student', assertSucceeds(setDoc(doc(teache
 await check('teacher CANNOT update another teacher student', assertFails(setDoc(doc(teacher, 'grades/S2000'), { classPeriod: 'Period 3' }, { merge: true })));
 await check('teacher CANNOT directly delete a student record', assertFails(deleteDoc(doc(teacher, 'grades/S2000'))));
 await check('root admin CANNOT bypass audited callable with direct student deletion', assertFails(deleteDoc(doc(rootAdmin, 'grades/S2000'))));
+
+// --- Grade Transfer snapshots ---------------------------------------------
+const transferSnapshot = {
+  transferId: 'transfer-1', teacherUid: 'teacher-uid', teacherEmail: TEACHER_EMAIL,
+  classId: 'class-1', assignmentId: 'A1', assignmentTitle: 'Unit 1',
+  exportKind: 'initial', createdAt: serverTimestamp(),
+  rows: [{ studentId: 'S1042', sisStudentId: 'S1042', grade: 92, gradeVersion: 'v1' }],
+  withheld: [], fileName: 'P1_Unit1.csv', packageId: 'package-1', schemaVersion: 1,
+};
+await check('teacher creates own class transfer snapshot', assertSucceeds(setDoc(doc(teacher, 'gradeTransferSnapshots/transfer-1'), transferSnapshot)));
+await check('teacher CANNOT forge transfer creation time', assertFails(setDoc(doc(teacher, 'gradeTransferSnapshots/forged-time'), {
+  ...transferSnapshot, transferId: 'forged-time', createdAt: '2020-01-01T00:00:00.000Z',
+})));
+await check('teacher reads own class transfer snapshot', assertSucceeds(getDoc(doc(teacher, 'gradeTransferSnapshots/transfer-1'))));
+await check('student CANNOT read transfer snapshot', assertFails(getDoc(doc(student, 'gradeTransferSnapshots/transfer-1'))));
+await check('student CANNOT create transfer snapshot', assertFails(setDoc(doc(student, 'gradeTransferSnapshots/student-forged'), { ...transferSnapshot, transferId: 'student-forged', teacherUid: 'student:S1042' })));
+await check('unrelated teacher CANNOT read transfer snapshot', assertFails(getDoc(doc(otherTeacher, 'gradeTransferSnapshots/transfer-1'))));
+await check('teacher CANNOT rewrite immutable transfer rows', assertFails(setDoc(doc(teacher, 'gradeTransferSnapshots/transfer-1'), { rows: [{ studentId: 'S1042', sisStudentId: 'S1042', grade: 100 }] }, { merge: true })));
+await check('teacher confirms upload without rewriting snapshot', assertSucceeds(setDoc(doc(teacher, 'gradeTransferSnapshots/transfer-1'), {
+  uploadConfirmedAt: serverTimestamp(), uploadConfirmedByUid: 'teacher-uid', uploadConfirmedByEmail: TEACHER_EMAIL,
+}, { merge: true })));
+await check('teacher CANNOT replace immutable upload confirmation evidence', assertFails(setDoc(doc(teacher, 'gradeTransferSnapshots/transfer-1'), {
+  uploadConfirmedAt: serverTimestamp(), uploadConfirmedByUid: 'teacher-uid', uploadConfirmedByEmail: TEACHER_EMAIL,
+}, { merge: true })));
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  await setDoc(doc(ctx.firestore(), 'classes/class-1'), { teacherOfRecord: OTHER_TEACHER_EMAIL, period: 'Period 1' });
+});
+await check('former teacher CANNOT read transfer evidence after class reassignment', assertFails(getDoc(doc(teacher, 'gradeTransferSnapshots/transfer-1'))));
+await check('new teacher CANNOT inherit former teacher transfer evidence', assertFails(getDoc(doc(otherTeacher, 'gradeTransferSnapshots/transfer-1'))));
+await check('root admin retains read-only transfer evidence visibility', assertSucceeds(getDoc(doc(rootAdmin, 'gradeTransferSnapshots/transfer-1'))));
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  await setDoc(doc(ctx.firestore(), 'classes/class-1'), { teacherOfRecord: TEACHER_EMAIL, period: 'Period 1' });
+});
 await check('teacher reads authorized scratchpad', assertSucceeds(getDoc(doc(teacher, 'grades/S1042/scratchpads/a__question_0'))));
 await check('teacher writes assignments', assertSucceeds(setDoc(doc(teacher, 'assignments/A2'), { title: 'Unit 2' })));
 await check('teacher writes settings', assertSucceeds(setDoc(doc(teacher, 'settings/assignmentFolders'), { paths: [] })));

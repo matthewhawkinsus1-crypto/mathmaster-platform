@@ -84,7 +84,7 @@ test('live presence and the active-question correction effect read the practice-
   const correctionRegion = executableSource(region(
     source,
     'useEffect(() => {\n    if (!activeQuestions.length) return;',
-    '// A question change should feel like changing pages',
+    '  ]);\n\n  // A question change should feel like changing pages',
     'active-question correction effect',
   ));
   assert.match(correctionRegion, /hasPracticePass: !isTeacherPreview\s*\n\s*&& !isPracticeMode\s*\n\s*&& hasPracticePassFor\(activeAssignmentId\)/);
