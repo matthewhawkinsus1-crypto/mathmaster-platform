@@ -1683,6 +1683,13 @@ exports.applyAcademicIntegrityGradeOverride = onCall(async (request) => {
       return { incidentId, action: "apply", replay: true };
     }
 
+    if (data.teacherConfirmed !== true) {
+      throw new HttpsError(
+        "failed-precondition",
+        "The teacher must personally confirm the academic-integrity incident before applying a grade consequence.",
+      );
+    }
+
     const scope = String(data.scope || "").trim();
     const sectionRole = String(data.sectionRole || "").trim().toLowerCase();
     const incidentType = String(data.incidentType || "").trim();
