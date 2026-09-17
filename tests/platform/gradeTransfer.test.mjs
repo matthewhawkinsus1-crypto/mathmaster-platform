@@ -198,3 +198,74 @@ test('identical export retries use the same snapshot identity', () => {
   assert.equal(transferSnapshotId(unit), transferSnapshotId(structuredClone(unit)));
   assert.notEqual(transferSnapshotId(unit), transferSnapshotId({ ...unit, rows: [{ ...unit.rows[0], grade: 93 }] }));
 });
+
+
+test('assignment-level teacher zero overrides the automatic canonical grade and TEAMS export', () => {
+  const gradeAssignment = {
+    id: 'a1',
+    lateDueAt: '2026-09-16T23:00:00Z',
+    sections: [{ id: 'core', role: 'classwork', questions: [{ id: 'q1', activityRole: 'classwork' }] }],
+  };
+  const disciplined = {
+    id: '1500123',
+    displayName: 'Ada Lovelace',
+    gradesByAssignment: {
+      a1: { 0: { status: 'correct', totalAttempts: 1, variantIndex: 0, lastSubmissionId: 's1' } },
+    },
+    teacherGradeOverridesByAssignment: {
+      a1: {
+        __assignment: {
+          active: true,
+          score: 0,
+          reasonCode: 'cellPhoneUse',
+          reason: 'Cell phone use',
+          source: 'teacher-assignment-zero',
+        },
+      },
+    },
+  };
+  assert.equal(canonicalPresentedAssignmentGrade({ student: disciplined, assignment: gradeAssignment }), 0);
+  const unit = buildTransferUnit({
+    classRecord: klass,
+    assignment: gradeAssignment,
+    students: [disciplined],
+    now: Date.parse('2026-09-17T00:00:00Z'),
+    projectCanonicalGrade: canonicalPresentedAssignmentGrade,
+  });
+  assert.deepEqual(unit.rows.map((row) => [row.sisStudentId, row.grade]), [['1500123', 0]]);
+});
+
+test('assignment-level teacher zero is canonical even when no automatic tracker exists', () => {
+  const gradeAssignment = { id: 'a1', sections: [{ id: 'core', role: 'classwork', questions: [{ id: 'q1', activityRole: 'classwork' }] }] };
+  const disciplined = {
+    id: '1500123',
+    gradesByAssignment: {},
+    teacherGradeOverridesByAssignment: {
+      a1: {
+        __assignment: {
+          active: true,
+          score: 0,
+          reasonCode: 'academicDishonesty',
+          reason: 'Academic dishonesty',
+          source: 'teacher-assignment-zero',
+        },
+      },
+    },
+  };
+  assert.equal(canonicalPresentedAssignmentGrade({ student: disciplined, assignment: gradeAssignment }), 0);
+});
+
+test('inactive assignment-level override never changes the canonical grade', () => {
+  const gradeAssignment = {
+    id: 'a1',
+    sections: [{ id: 'core', role: 'classwork', questions: [{ id: 'q1', activityRole: 'classwork' }] }],
+  };
+  const ordinary = {
+    id: '1500123',
+    gradesByAssignment: { a1: { 0: { status: 'correct', totalAttempts: 1, variantIndex: 0, lastSubmissionId: 's1' } } },
+    teacherGradeOverridesByAssignment: {
+      a1: { __assignment: { active: false, score: 0, reasonCode: 'cellPhoneUse' } },
+    },
+  };
+  assert.equal(canonicalPresentedAssignmentGrade({ student: ordinary, assignment: gradeAssignment }), 100);
+});
