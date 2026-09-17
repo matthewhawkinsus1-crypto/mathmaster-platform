@@ -173,6 +173,59 @@ export const nextClassMeetings = ({
   return { meetings, undetermined, exhausted: meetings.length < wanted };
 };
 
+/**
+ * The `count` most recent dates this class sat, going BACKWARD from the day
+ * BEFORE `fromDateKey` — the mirror image of `nextClassMeetings`.
+ *
+ * This is what "the previous actual meeting of this class" means: not
+ * yesterday, not the previous calendar weekday, but the most recent date the
+ * calendar, the rotation and the period all agreed the class sat. An
+ * undesignated date encountered on the way back is skipped rather than
+ * guessed, exactly as `nextClassMeetings` skips one going forward — so
+ * uncertainty here can only push "the previous meeting" further into the
+ * past, never invent one that may not have happened.
+ *
+ * `meetings` is returned oldest-first (chronological order), matching
+ * `nextClassMeetings`, even though the walk itself runs backward.
+ */
+export const previousClassMeetings = ({
+  schedule = null,
+  classPeriod = null,
+  fromDateKey = null,
+  count = 1,
+  nonInstructionalKeys = null,
+  maxLookbackDays = 120,
+} = {}) => {
+  const wanted = Math.max(0, Math.trunc(Number(count) || 0));
+  const empty = { meetings: [], undetermined: [], exhausted: false };
+  if (!isDateKey(fromDateKey) || !classPeriod || wanted === 0) return empty;
+
+  const meetings = [];
+  const undetermined = [];
+  let cursor = fromDateKey;
+
+  for (let step = 0; step < Math.max(1, maxLookbackDays) && meetings.length < wanted; step += 1) {
+    cursor = shiftDateKey(cursor, -1);
+    if (!cursor) break;
+    const day = classifySchoolDay({ schedule, classPeriod, dateKey: cursor, nonInstructionalKeys });
+    if (day.status === MEETING_STATUS.MEETS) meetings.unshift(cursor);
+    else if (day.status === MEETING_STATUS.UNDETERMINED) undetermined.unshift(cursor);
+  }
+
+  return { meetings, undetermined, exhausted: meetings.length < wanted };
+};
+
+/** The single previous actual meeting date before `fromDateKey`, or null. */
+export const previousActualMeetingDateKey = ({
+  schedule = null,
+  classPeriod = null,
+  fromDateKey = null,
+  nonInstructionalKeys = null,
+} = {}) => {
+  const found = previousClassMeetings({ schedule, classPeriod, fromDateKey, count: 1, nonInstructionalKeys });
+  return found.meetings[0] || null;
+};
+
 /** Local end-of-day, matching how a date-only due date is already parsed. */
 export const endOfLocalDay = (dateKey) => {
   const match = String(dateKey || '').match(KEY);

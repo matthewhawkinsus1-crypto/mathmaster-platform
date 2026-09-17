@@ -317,7 +317,7 @@ export const buildStudentGradeCenter = ({
 
   const buildEntry = (assignment) => {
     const assignmentTracker = tracker?.[assignment.id] || null;
-    const lifecycle = getAssignmentLifecycle(assignment, nowValue);
+    const lifecycle = getAssignmentLifecycle(assignment, nowValue, { studentId });
     const practicePassRedeemed = Boolean(practicePassRedemptionsByAssignment?.[assignment.id]);
     const overall = splitGrade({ tracker: assignmentTracker, assignment, practicePassRedeemed });
     const sections = splitGradesBySection({ tracker: assignmentTracker, assignment, practicePassRedeemed });

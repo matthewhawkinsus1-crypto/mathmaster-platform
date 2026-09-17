@@ -9,6 +9,11 @@ export const SUPPORT_EVENT_KIND = Object.freeze({
   INTEGRITY_REVIEW: 'integrityReview',
   SIGNAL_DISMISSED: 'signalDismissed',
   RESOLVED: 'resolved',
+  // Absence recovery. See src/platform/attendance/returnCheckIn.js — these
+  // live in the same append-only studentSupportEvents stream as every other
+  // kind here, not a second task/action-item collection.
+  RETURN_FROM_ABSENCE: 'returnFromAbsence',
+  ATTENDANCE_CORRECTION_REVIEW: 'attendanceCorrectionReview',
 });
 
 export const SUPPORT_EVENT_STAGE = Object.freeze({
@@ -614,6 +619,8 @@ export const SUPPORT_EVENT_LABEL = Object.freeze({
   [SUPPORT_EVENT_KIND.INTEGRITY_REVIEW]: 'Integrity Review',
   [SUPPORT_EVENT_KIND.SIGNAL_DISMISSED]: 'Signal Dismissed',
   [SUPPORT_EVENT_KIND.RESOLVED]: 'Resolved',
+  [SUPPORT_EVENT_KIND.RETURN_FROM_ABSENCE]: 'Return From Absence',
+  [SUPPORT_EVENT_KIND.ATTENDANCE_CORRECTION_REVIEW]: 'Attendance Correction Review',
 });
 
 export const liveRowNeedsAttention = (row = {}) => (

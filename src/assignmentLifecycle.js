@@ -87,19 +87,45 @@ const parseLocalDateTime = (value, endOfDay = false) => {
   return instant === null ? null : new Date(instant);
 };
 
-export const getAssignmentDate = (assignment, field) => {
+/*
+ * A STUDENT-SPECIFIC EXTENSION IS READ HERE, NOT IN A SECOND DEADLINE SYSTEM.
+ *
+ * `assignment.studentOverrides[studentId]` already carries the per-student
+ * `excused`/`reopened` flags the Grade Center reads (see
+ * studentGradeCenterModel.js). An absence-driven extension
+ * (src/platform/attendance/extensionReconciliation.js) is stored the same
+ * way, under `.dueAt` / `.lateDueAt`, so every caller of
+ * `getAssignmentLifecycle` — Grade Center, Live Classroom, and any future
+ * Grade Transfer withholding check — sees the same resolved deadline for that
+ * student without a parallel due-date store to drift out of sync.
+ */
+const studentOverrideDates = (assignment, studentId) => {
+  const id = String(studentId || '').trim();
+  if (!id) return null;
+  const overrides = assignment?.studentOverrides;
+  const entry = overrides && typeof overrides === 'object' ? overrides[id] : null;
+  return entry && typeof entry === 'object' ? entry : null;
+};
+
+export const getAssignmentDate = (assignment, field, studentId = null) => {
   if (!assignment) return null;
-  if (field === 'due') return parseLocalDateTime(assignment.dueAt || assignment.dueDate, true);
-  if (field === 'late') return parseLocalDateTime(assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate, true);
+  const override = studentId ? studentOverrideDates(assignment, studentId) : null;
+  if (field === 'due') return parseLocalDateTime(override?.dueAt || assignment.dueAt || assignment.dueDate, true);
+  if (field === 'late') {
+    return parseLocalDateTime(
+      override?.lateDueAt || override?.dueAt || assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate,
+      true,
+    );
+  }
   if (field === 'release') return parseLocalDateTime(assignment.releaseAt || assignment.releaseDate, false);
   return null;
 };
 
-export const getAssignmentLifecycle = (assignment, nowValue = Date.now()) => {
+export const getAssignmentLifecycle = (assignment, nowValue = Date.now(), { studentId = null } = {}) => {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
-  const releaseAt = getAssignmentDate(assignment, 'release');
-  const dueAt = getAssignmentDate(assignment, 'due');
-  const lateDueAt = getAssignmentDate(assignment, 'late');
+  const releaseAt = getAssignmentDate(assignment, 'release', studentId);
+  const dueAt = getAssignmentDate(assignment, 'due', studentId);
+  const lateDueAt = getAssignmentDate(assignment, 'late', studentId);
   let status = 'onTime';
   if (releaseAt && now < releaseAt) status = 'scheduled';
   else if (lateDueAt && now > lateDueAt) status = 'closed';

@@ -330,6 +330,13 @@ import {
   subscribeStudentSessionSummaries,
   subscribeStudentSupportEvents,
 } from './platform/teacher/studentSupportStore.js';
+import { buildNonInstructionalSet } from './platform/path/curriculumCalendar.js';
+import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolYear2026-2027.js';
+import AttendanceHistoryPanel from './components/teacher/AttendanceHistoryPanel.jsx';
+import {
+  buildStudentExtensionPatch,
+  reconcileAssignmentExtensionsForCorrection,
+} from './platform/attendance/extensionReconciliation.js';
 import {
   buildHonorsEnrichmentQuestion,
   defaultCourseProfiles,
@@ -349,6 +356,11 @@ import {
 // The administrator identity comes from the same module the callables enforce,
 // so the browser can never believe in a different administrator than the server.
 import { isRootAdminEmail } from '../functions/shared/rolePolicy.mjs';
+
+// Built once: the district instructional calendar is static reference data,
+// not per-render or per-teacher state (see the identical constant in
+// LiveClassMonitor.jsx, which needs the same calendar for the same reason).
+const SCHOOL_NON_INSTRUCTIONAL_KEYS = buildNonInstructionalSet(schoolYearNonInstructionalRanges());
 
 const ClassroomManagerV2 = lazy(() => import('./ClassroomManagerV2.jsx'));
 const AssignmentQuestionEditor = lazy(() => import('./AssignmentQuestionEditor.jsx'));
@@ -3356,6 +3368,54 @@ function App() {
     } catch (error) {
       console.error(error);
       toastError('Could not save support note', error.message);
+      return null;
+    }
+  };
+
+  /*
+   * A HISTORICAL ATTENDANCE CORRECTION AND ITS RECONCILIATION ARE ONE ACTION.
+   *
+   * Recording the (append-only) correction event and recomputing any
+   * assignment extension it touches happen together, so a teacher never sees
+   * a corrected mark on the Attendance History screen that has not yet been
+   * reflected in the student's deadline — see extensionReconciliation.js for
+   * the safety rule that keeps this from ever silently shortening one.
+   */
+  const handleRecordAttendanceCorrection = async (event) => {
+    if (user?.role !== 'teacher' || !user.email) return null;
+    try {
+      const record = await recordStudentSupportEvent({ db, teacherEmail: user.email, event });
+      const classPeriod = classes.find((entry) => entry.classId === event.classId)?.period || null;
+      const results = reconcileAssignmentExtensionsForCorrection({
+        assignments,
+        studentId: event.studentId,
+        classId: event.classId,
+        classPeriod,
+        schedule: classSchedule,
+        nonInstructionalKeys: SCHOOL_NON_INSTRUCTIONAL_KEYS,
+        supportEvents: [...studentSupportEvents, record],
+        correctionDateKey: event.evidence?.dateKey,
+      });
+
+      let reviewCount = 0;
+      await Promise.all(results.map(async ({ assignment, resolution }) => {
+        if (resolution.reviewNeeded) { reviewCount += 1; return; }
+        const patch = buildStudentExtensionPatch({
+          assignment, studentId: event.studentId, resolution, actorEmail: user.email,
+        });
+        if (patch) await updateDoc(doc(db, 'assignments', assignment.id), patch);
+      }));
+
+      toastSuccess(
+        'Attendance correction saved',
+        reviewCount > 0
+          ? `${reviewCount} extension${reviewCount === 1 ? '' : 's'} would have shortened — review before changing.`
+          : 'The prior mark stays in the record; any earned extension was reconciled.',
+      );
+      return record;
+    } catch (error) {
+      console.error(error);
+      toastError('Could not save the attendance correction', error.message);
       return null;
     }
   };
@@ -9544,6 +9604,20 @@ function App() {
                 onTeachAssignment={teachAssignmentLive}
                 onResumeTeaching={resumeLiveTeaching}
                 onEndLiveTeaching={endLiveTeaching}
+              />
+            )}
+
+            {teacherTab === 'attendanceHistory' && (
+              <AttendanceHistoryPanel
+                classes={classes}
+                allStudents={allStudents}
+                supportEvents={studentSupportEvents}
+                classSchedule={classSchedule}
+                nonInstructionalKeys={SCHOOL_NON_INSTRUCTIONAL_KEYS}
+                teacherEmail={user.email || ''}
+                nowValue={now}
+                onRecordCorrection={handleRecordAttendanceCorrection}
+                initialClassId={activeClass.classId}
               />
             )}
 
