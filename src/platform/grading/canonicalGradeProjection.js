@@ -1,3 +1,4 @@
+import { buildTestCycleGradeState, isTestCycleAssignment } from '../assessment/testCycle.js';
 import { splitGrade } from '../teacher/gradeEvidence.js';
 
 const overrideApplies = (record, override) => {
@@ -32,15 +33,26 @@ export const projectTeacherOverridesForDisplay = (gradesByAssignment = {}, overr
 
 /**
  * Canonical grade presentation shared by the teacher gradebook and TEAMS.
- * splitGrade owns the same Practice Pass denominator projection used by the
- * student Grade Center; the caller may only pass a server-written redemption.
+ * Test Cycles read their released secure scores from testCycleGrades; ordinary
+ * assignments use the same teacher-override and Practice Pass projection as
+ * the Grade Center. This function must never manufacture a zero for missing
+ * evidence: null means there is not yet a canonical grade to export.
  */
 export const canonicalPresentedAssignmentGrade = ({ student, assignment, practicePassRedeemed = false }) => {
+  if (isTestCycleAssignment(assignment)) {
+    const cycle = student?.testCycleGrades?.[assignment?.id] || {};
+    return buildTestCycleGradeState({
+      originalTestGrade: cycle.originalTestGrade ?? null,
+      rawRetestGrade: cycle.rawRetestGrade ?? null,
+      policy: assignment?.assessmentPolicy || null,
+    }).recordedGrade;
+  }
+
   const projected = projectTeacherOverridesForDisplay(
     student?.gradesByAssignment || {},
     student?.teacherGradeOverridesByAssignment || {},
   );
-  const tracker = projected?.[assignment.id];
+  const tracker = projected?.[assignment?.id];
   if (!tracker) return null;
-  return splitGrade({ tracker, assignment, practicePassRedeemed }).score ?? 0;
+  return splitGrade({ tracker, assignment, practicePassRedeemed }).score ?? null;
 };
