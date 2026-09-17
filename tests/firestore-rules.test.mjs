@@ -214,6 +214,9 @@ await check('teacher CANNOT rewrite immutable transfer rows', assertFails(setDoc
 await check('teacher confirms upload without rewriting snapshot', assertSucceeds(setDoc(doc(teacher, 'gradeTransferSnapshots/transfer-1'), {
   uploadConfirmedAt: serverTimestamp(), uploadConfirmedByUid: 'teacher-uid', uploadConfirmedByEmail: TEACHER_EMAIL,
 }, { merge: true })));
+await check('teacher CANNOT replace immutable upload confirmation evidence', assertFails(setDoc(doc(teacher, 'gradeTransferSnapshots/transfer-1'), {
+  uploadConfirmedAt: serverTimestamp(), uploadConfirmedByUid: 'teacher-uid', uploadConfirmedByEmail: TEACHER_EMAIL,
+}, { merge: true })));
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(ctx.firestore(), 'classes/class-1'), { teacherOfRecord: OTHER_TEACHER_EMAIL, period: 'Period 1' });
 });
