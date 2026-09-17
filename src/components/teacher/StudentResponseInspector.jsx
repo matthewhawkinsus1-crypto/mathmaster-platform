@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { inspectStudentResponse, overrideStudentResponseGrade } from '../../services/responseInspectorService.js';
+import { applyAcademicIntegrityGradeOverride, inspectStudentResponse, overrideStudentResponseGrade } from '../../services/responseInspectorService.js';
 
 const show = (value) => value === null || value === undefined ? 'Unavailable' : typeof value === 'string' ? value || 'Unavailable' : JSON.stringify(value);
 const reasons = ['Correct response was incorrectly graded', 'Equivalent answer accepted by teacher', 'Partial credit awarded', 'Platform/grader issue', 'Other'];
@@ -15,9 +15,49 @@ const workspaceValue = (workspace, fieldId) => {
 export default function StudentResponseInspector({ studentId, assignmentId, questionIndex, onClose, onChanged }) {
   const [model, setModel] = useState(null); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
   const [reason, setReason] = useState(reasons[0]); const [note, setNote] = useState(''); const [manualScore, setManualScore] = useState('');
+  const [integrityType, setIntegrityType] = useState('prohibitedCellphoneUse');
+  const [integrityScope, setIntegrityScope] = useState('section');
+  const [integrityParticipantRole, setIntegrityParticipantRole] = useState('direct');
+  const [integrityNote, setIntegrityNote] = useState('');
+  const [integrityConfirmed, setIntegrityConfirmed] = useState(false);
+  const [integrityRequestId, setIntegrityRequestId] = useState(() => crypto.randomUUID());
   const load = async () => { setBusy(true); setError(''); try { setModel(await inspectStudentResponse({ studentId, assignmentId, questionIndex })); } catch (cause) { setError(cause?.message || 'Response inspection failed.'); } finally { setBusy(false); } };
   useEffect(() => { load(); }, [studentId, assignmentId, questionIndex]);
   const act = async (action, extra = {}) => { setBusy(true); setError(''); try { await overrideStudentResponseGrade({ studentId, assignmentId, questionIndex, action, reason, note, ...extra }); await load(); onChanged?.(); } catch (cause) { setError(cause?.message || 'The grade could not be changed.'); setBusy(false); } };
+  const integrityAct = async (action) => {
+    setBusy(true);
+    setError('');
+    try {
+      if (action === 'restore') {
+        await applyAcademicIntegrityGradeOverride({
+          studentId,
+          assignmentId,
+          action: 'restore',
+          incidentId: model?.override?.incidentId,
+        });
+      } else {
+        await applyAcademicIntegrityGradeOverride({
+          studentId,
+          assignmentId,
+          action: 'apply',
+          requestId: integrityRequestId,
+          scope: integrityScope,
+          sectionRole: integrityScope === 'section' ? model?.section?.role : null,
+          incidentType: integrityType,
+          participantRole: integrityParticipantRole,
+          note: integrityNote,
+        });
+        setIntegrityConfirmed(false);
+        setIntegrityNote('');
+        setIntegrityRequestId(crypto.randomUUID());
+      }
+      await load();
+      onChanged?.();
+    } catch (cause) {
+      setError(cause?.message || 'The academic-integrity consequence could not be changed.');
+      setBusy(false);
+    }
+  };
   const parts = model?.automaticResult?.parts || [];
   const submitted = fieldMap(model?.states?.submitted); const legacy = fieldMap(model?.states?.legacyRecorded);
   const traces = new Map((model?.states?.gradingTrace?.fields || []).map((field) => [String(field.id), field]));
@@ -34,6 +74,52 @@ export default function StudentResponseInspector({ studentId, assignmentId, ques
         <section><h3>Why was this marked wrong?</h3><p>{model.diagnosis.explanation}</p><details><summary>Underlying values and technical details</summary><pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify({ states: model.states, expected: model.expected, expectedAvailable: model.expectedAvailable, expectedUnavailableReason: model.expectedUnavailableReason, result: model.automaticResult, timestamps: model.timestamps, versions: model.versions }, null, 2)}</pre></details></section>
         <section><h3>Replay Grading</h3>{model.replay.available ? <><p>Adapter: {model.replay.adapter} · Original: {show(model.replay.originalScore)}% · Current replay: {model.replay.currentScore}%</p>{model.replay.discrepancy ? <p style={{ color: '#b3261e', fontWeight: 900 }}>Grading discrepancy detected</p> : <p>No grading discrepancy detected.</p>}<button disabled={busy} onClick={() => act('applyReplay')}>Apply Corrected Grade</button></> : <p>{model.replay.reason}</p>}</section>
         <section><h3>Grading Actions</h3><label>Required reason <select value={reason} onChange={(event) => setReason(event.target.value)}>{reasons.map((item) => <option key={item}>{item}</option>)}</select></label><label style={{ marginLeft: 12 }}>Optional note <input value={note} onChange={(event) => setNote(event.target.value)} /></label><div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}><button disabled={busy} onClick={() => act('grantFullCredit')}>Grant Full Credit</button>{parts.filter((part) => part.graded !== false).map((part) => <button key={part.id} disabled={busy} onClick={() => act('grantPartCredit', { fieldId: part.id, score: 100 })}>Grant Credit for {part.label || part.id}</button>)}<input aria-label="Manual score" type="number" min="0" max="100" value={manualScore} onChange={(event) => setManualScore(event.target.value)} /><button disabled={busy || manualScore === '' || !Number.isFinite(Number(manualScore)) || Number(manualScore) < 0 || Number(manualScore) > 100} onClick={() => act('setScore', { score: Number(manualScore) })}>Set Score</button><button disabled={busy || !model.override} onClick={() => act('restoreAutomatic')}>Restore Automatic Score</button></div></section>
+        <section style={{ marginTop: 18, padding: 16, border: '2px solid #b3261e', borderRadius: 10, background: '#fff8f7' }}>
+          <h3 style={{ marginTop: 0 }}>Academic Integrity Consequence</h3>
+          <p style={{ color: '#5f6368' }}>Use only for an incident you personally confirmed. MathMaster signals never assign this consequence. The student's original calculated work stays preserved underneath and can be restored later.</p>
+          {model.override?.source === 'academic-integrity' && model.override?.persistent === true ? (
+            <div>
+              <p style={{ fontWeight: 800, color: '#b3261e' }}>A 0% academic-integrity consequence is active for this question through incident {model.override.incidentId || 'Unavailable'}.</p>
+              <button type="button" disabled={busy} onClick={() => {
+                if (window.confirm('Restore the grade that existed before this academic-integrity consequence?')) integrityAct('restore');
+              }}>Restore grade before integrity consequence</button>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: 10 }}>
+              <label>Confirmed incident
+                <select value={integrityType} onChange={(event) => setIntegrityType(event.target.value)} style={{ marginLeft: 8 }}>
+                  <option value="prohibitedCellphoneUse">Prohibited cellphone use</option>
+                  <option value="unauthorizedAssistance">Unauthorized assistance / cheating</option>
+                  <option value="accountSwitching">Account or laptop switching</option>
+                </select>
+              </label>
+              <label>Student role
+                <select value={integrityParticipantRole} onChange={(event) => setIntegrityParticipantRole(event.target.value)} style={{ marginLeft: 8 }}>
+                  <option value="direct">Directly involved</option>
+                  <option value="received">Received unauthorized assistance</option>
+                  <option value="supplied">Supplied unauthorized assistance</option>
+                </select>
+              </label>
+              <label>Grade consequence scope
+                <select value={integrityScope} onChange={(event) => setIntegrityScope(event.target.value)} style={{ marginLeft: 8 }}>
+                  <option value="section">This section</option>
+                  <option value="assignment">Whole assignment</option>
+                </select>
+              </label>
+              <label>Teacher note (optional)
+                <input value={integrityNote} onChange={(event) => setIntegrityNote(event.target.value)} maxLength={1000} style={{ marginLeft: 8, minWidth: 320 }} />
+              </label>
+              <label style={{ fontWeight: 800 }}>
+                <input type="checkbox" checked={integrityConfirmed} onChange={(event) => setIntegrityConfirmed(event.target.checked)} /> I personally confirm this incident
+              </label>
+              <div>
+                <button type="button" disabled={busy || !integrityConfirmed} onClick={() => integrityAct('apply')} style={{ background: '#b3261e', color: '#fff', border: 0, borderRadius: 6, padding: '9px 12px', fontWeight: 800 }}>
+                  Apply 0% Integrity Consequence
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
         <section><h3>Audit History</h3>{model.auditHistory.length ? <ol>{model.auditHistory.map((event, index) => <li key={`${event.at}-${index}`}>{show(event.at)} · {event.actor?.name || event.actor?.email || event.actor?.uid || 'Unavailable'} · {event.previousScore}% → {event.newScore}% · {event.reason}{event.note ? ` — ${event.note}` : ''}</li>)}</ol> : <p>Unavailable</p>}</section>
       </>}
     </main>
