@@ -198,3 +198,50 @@ test('identical export retries use the same snapshot identity', () => {
   assert.equal(transferSnapshotId(unit), transferSnapshotId(structuredClone(unit)));
   assert.notEqual(transferSnapshotId(unit), transferSnapshotId({ ...unit, rows: [{ ...unit.rows[0], grade: 93 }] }));
 });
+
+
+test('teacher-confirmed academic-integrity zero stays canonical after later attempts and becomes a TEAMS delta', () => {
+  const gradeAssignment = {
+    id: 'a1',
+    title: 'Integrity fixture',
+    lateDueAt: '2026-09-16T23:00:00Z',
+    sections: [
+      { id: 'core', role: 'classwork', questions: [{ id: 'q1', activityRole: 'classwork' }] },
+    ],
+  };
+  const current = {
+    id: '1500123',
+    displayName: 'Ada Lovelace',
+    gradesByAssignment: { a1: {
+      0: { status: 'correct', totalAttempts: 2, variantIndex: 1, lastSubmissionId: 'later-submit' },
+    } },
+    teacherGradeOverridesByAssignment: { a1: {
+      0: {
+        active: true,
+        score: 0,
+        persistent: true,
+        source: 'academic-integrity',
+        incidentId: 'incident-1',
+        totalAttempts: 1,
+        variantIndex: 0,
+        submissionId: 'earlier-submit',
+      },
+    } },
+  };
+
+  assert.equal(canonicalPresentedAssignmentGrade({ student: current, assignment: gradeAssignment }), 0);
+
+  const prior = {
+    rows: [{ studentId: current.id, sisStudentId: current.id, grade: 100, gradeVersion: 'before-integrity' }],
+  };
+  const unit = buildTransferUnit({
+    classRecord: klass,
+    assignment: gradeAssignment,
+    students: [current],
+    now: Date.parse('2026-09-17T00:00:00Z'),
+    projectCanonicalGrade: canonicalPresentedAssignmentGrade,
+    confirmedSnapshot: prior,
+  });
+  assert.equal(unit.state, TRANSFER_STATE.UPDATE_REQUIRED);
+  assert.deepEqual(unit.rows.map((row) => [row.studentId, row.grade]), [[current.id, 0]]);
+});
