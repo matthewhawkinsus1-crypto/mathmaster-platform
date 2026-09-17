@@ -77,10 +77,39 @@ export const resolveStudentExtension = ({
 
   const existing = assignment?.studentOverrides?.[studentId]?.extension || null;
 
-  if (!finalCutoff || !classPeriod || extensionMeetings === 0) {
+  if (!finalCutoff || !classPeriod) {
     return {
       changed: false, reviewNeeded: false, reason: 'no_extension_earned',
       absences, extensionMeetings: 0, proposed: null, existing,
+    };
+  }
+
+  // Correcting the last qualifying absence to Present earns zero additional
+  // meetings, but it does not make an already-granted extension disappear.
+  // The proposed shorter value is the class's original final cutoff, and it
+  // must go through the same explicit teacher review as every other
+  // shortening.  Returning early as `no_extension_earned` here would leave a
+  // stale extension on file with no review teachers could act on.
+  if (extensionMeetings === 0) {
+    const classDateKey = localDateKeyOf(finalCutoff);
+    const proposed = {
+      dueAt: finalCutoff,
+      dateKey: classDateKey,
+      meetingsGranted: 0,
+      meetingsRequested: 0,
+      undetermined: [],
+      resolved: [],
+      sourceAbsenceDates: [],
+    };
+    if (existing?.dateKey && classDateKey && classDateKey < existing.dateKey) {
+      return {
+        changed: false, reviewNeeded: true, reason: 'would_shorten_existing_extension',
+        absences, extensionMeetings, proposed, existing,
+      };
+    }
+    return {
+      changed: false, reviewNeeded: false, reason: 'no_extension_earned',
+      absences, extensionMeetings, proposed: null, existing,
     };
   }
 
@@ -95,7 +124,14 @@ export const resolveStudentExtension = ({
     meetingsRequested: extended.meetingsRequested,
     undetermined: extended.undetermined,
     resolved: extended.resolved,
-    sourceAbsenceDates: [...absences.dates.excused, ...absences.dates.unexcused].sort(),
+    // A same-day Live Classroom "Absent" is intentionally unclassified: it
+    // restores opportunity without imposing the unexcused penalty. It is
+    // still source evidence for the extension and must remain auditable.
+    sourceAbsenceDates: [
+      ...absences.dates.excused,
+      ...absences.dates.unexcused,
+      ...absences.dates.unclassified,
+    ].sort(),
   };
 
   // Nothing on file yet: grant it.

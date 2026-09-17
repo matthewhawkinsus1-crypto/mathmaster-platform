@@ -2108,9 +2108,15 @@ exports.applyStudentAttendanceExtension = onCall(async (request) => {
       .where("evidence.reviewKey", "==", reviewKey)
       .where("evidence.resolution", "==", "shortened")
       .where("evidence.proposedDateKey", "==", proposedDateKey)
-      .limit(1)
+      .limit(20)
       .get();
-    if (reviewSnap.empty) {
+    const matchingReview = reviewSnap.docs.find((entry) => {
+      const review = entry.data() || {};
+      return String(review.studentId || "") === studentId
+        && String(review.classId || "") === classId
+        && String(review.createdByEmail || "").trim().toLowerCase() === teacherEmail;
+    });
+    if (!matchingReview) {
       throw new HttpsError(
         "failed-precondition",
         "A recorded teacher review choosing to shorten this exact extension is required first.",
@@ -2140,7 +2146,11 @@ exports.applyStudentAttendanceExtension = onCall(async (request) => {
     const { assignmentFinalCloseAt } = await import("./shared/sectionDeadline.mjs");
     const currentEffectiveCutoffMs = assignmentFinalCloseAt(assignment, null, studentId);
     const validity = validateProposedFinalCutoff({ proposedLateDueAtMs, currentEffectiveCutoffMs });
-    if (!validity.valid && !allowShorten) throw new HttpsError(validity.reason, validity.message);
+    // `allowShorten` bypasses only the expected monotonicity precondition.
+    // It can never turn NaN, infinity, or another malformed cutoff into a
+    // valid Date (which would otherwise throw after authorization).
+    const reviewedShortening = allowShorten && validity.reason === "failed-precondition";
+    if (!validity.valid && !reviewedShortening) throw new HttpsError(validity.reason, validity.message);
 
     const lateDueAtIso = new Date(proposedLateDueAtMs).toISOString();
     transaction.update(

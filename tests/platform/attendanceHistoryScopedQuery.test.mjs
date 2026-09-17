@@ -4,6 +4,7 @@ import fs from 'node:fs';
 
 import {
   fetchAttendanceForClassDate,
+  fetchAttendanceForClassDateRange,
   subscribeAttendanceForClassDate,
 } from '../../src/platform/teacher/studentSupportStore.js';
 

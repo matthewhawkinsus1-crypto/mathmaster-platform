@@ -259,3 +259,37 @@ test('no absences means no extension and no write', () => {
   assert.equal(resolution.changed, false);
   assert.equal(resolution.extensionMeetings, 0);
 });
+
+test('removing the final absence proposes the class cutoff and requires explicit shortening review', () => {
+  const alreadyExtended = {
+    ...baseAssignment,
+    studentOverrides: { s1: { extension: { dateKey: '2026-09-09', meetingsGranted: 1 } } },
+  };
+  const resolution = resolveStudentExtension({
+    assignment: alreadyExtended,
+    studentId: 's1',
+    marks: [{ dateKey: '2026-08-31', mark: ATTENDANCE_MARK.PRESENT, classMet: true }],
+    schedule,
+    classPeriod: 'Period 3',
+    nonInstructionalKeys: CLOSED,
+  });
+  assert.equal(resolution.changed, false);
+  assert.equal(resolution.reviewNeeded, true);
+  assert.equal(resolution.reason, 'would_shorten_existing_extension');
+  assert.equal(resolution.proposed.dateKey, '2026-08-31');
+  assert.equal(resolution.proposed.meetingsGranted, 0);
+});
+
+test('unclassified Live Classroom absence remains in extension audit evidence', () => {
+  const resolution = resolveStudentExtension({
+    assignment: baseAssignment,
+    studentId: 's1',
+    marks: [{ dateKey: '2026-08-31', mark: ATTENDANCE_MARK.ABSENT_UNCLASSIFIED, classMet: true }],
+    schedule,
+    classPeriod: 'Period 3',
+    nonInstructionalKeys: CLOSED,
+  });
+  assert.equal(resolution.changed, true);
+  assert.deepEqual(resolution.proposed.sourceAbsenceDates, ['2026-08-31']);
+  assert.deepEqual(resolution.absences.dates.unclassified, ['2026-08-31']);
+});
