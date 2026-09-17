@@ -19,6 +19,11 @@ export const RESPONSE_INSPECTOR_FUNCTIONS = Object.freeze([
     why: 'Applies/restores the server-authoritative teacher correction.',
   }),
   Object.freeze({
+    name: 'applyAcademicIntegrityGradeOverride',
+    browserCallable: true,
+    why: 'Applies/restores a teacher-confirmed persistent academic-integrity consequence.',
+  }),
+  Object.freeze({
     name: 'ingestStudentSubmissions',
     browserCallable: true,
     why: 'Persists future submitted-response inspection evidence during ordinary assignment ingestion.',
