@@ -116,6 +116,12 @@ export const buildLiveAttendanceEvent = ({
     assignmentTitle: null,
     source: 'liveAttendance',
     summary: `${label} for ${dateKey}.`,
+    // Top-level, alongside evidence.dateKey: Attendance History queries a
+    // whole class/date directly (studentSupportStore.js's
+    // subscribeAttendanceForClassDate) rather than relying on the
+    // teacher-wide bounded recent-event feed, and Firestore range/equality
+    // queries need a real indexed top-level field, not a nested one.
+    dateKey,
     evidence: {
       dateKey,
       attendanceMark: normalizedMark,

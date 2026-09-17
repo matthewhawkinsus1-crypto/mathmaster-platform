@@ -85,6 +85,10 @@ export const recordStudentSupportEvent = async ({
     note: clean(event.note).slice(0, 1200),
     source: clean(event.source) || 'teacher',
     confidence: clean(event.confidence) || null,
+    // Attendance queries and extension reconciliation must not depend on the
+    // newest-750 teacher feed. Both attendance builders put this key at the
+    // top level so the class/date composite index can cover the full window.
+    dateKey: clean(event.dateKey || event.evidence?.dateKey) || null,
     evidence: compactEvidence(event.evidence),
     relatedEventId: clean(event.relatedEventId) || null,
     createdByEmail: email,
@@ -131,6 +135,87 @@ export const subscribeStudentSupportEvents = ({
       if (typeof onError === 'function') onError(error);
     },
   );
+};
+
+/**
+ * Attendance History cannot be "whatever fits in the newest 750 support
+ * events across a teacher's whole roster" — with multiple daily classes that
+ * window can be a few days, which would make an older class day look as if
+ * nothing was ever recorded. This queries `studentSupportEvents` directly for
+ * one class and one instructional date (both `liveAttendance` and
+ * `attendanceHistory` kinds land in the same collection — see
+ * src/platform/attendance/attendanceHistory.js), using the top-level
+ * `dateKey` both event builders write specifically so this query does not
+ * need to reach into a nested field. See firestore.indexes.json for the
+ * matching composite index.
+ */
+export const subscribeAttendanceForClassDate = ({
+  db,
+  teacherEmail,
+  classId,
+  dateKey,
+  onChange,
+  onError = null,
+} = {}) => {
+  const email = clean(teacherEmail).toLowerCase();
+  const scopedClassId = clean(classId);
+  const scopedDateKey = clean(dateKey);
+  if (!db || !email || !scopedClassId || !scopedDateKey || typeof onChange !== 'function') return () => {};
+
+  const q = query(
+    collection(db, STUDENT_SUPPORT_COLLECTION),
+    where('authorizedTeacherEmails', 'array-contains', email),
+    where('classId', '==', scopedClassId),
+    where('dateKey', '==', scopedDateKey),
+  );
+
+  return onSnapshot(
+    q,
+    (snapshot) => onChange(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }))),
+    (error) => {
+      if (typeof onError === 'function') onError(error);
+    },
+  );
+};
+
+/**
+ * A one-shot version of the above, for a screen that fetches on selection
+ * change rather than holding a live subscription open per class/date pair.
+ */
+export const fetchAttendanceForClassDate = async ({ db, teacherEmail, classId, dateKey } = {}) => {
+  const email = clean(teacherEmail).toLowerCase();
+  const scopedClassId = clean(classId);
+  const scopedDateKey = clean(dateKey);
+  if (!db || !email || !scopedClassId || !scopedDateKey) return [];
+
+  const snapshot = await getDocs(query(
+    collection(db, STUDENT_SUPPORT_COLLECTION),
+    where('authorizedTeacherEmails', 'array-contains', email),
+    where('classId', '==', scopedClassId),
+    where('dateKey', '==', scopedDateKey),
+  ));
+  return snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
+};
+
+/** Fetch the complete attendance evidence for an assignment window. */
+export const fetchAttendanceForClassDateRange = async ({
+  db, teacherEmail, classId, fromDateKey, toDateKey,
+} = {}) => {
+  const email = clean(teacherEmail).toLowerCase();
+  const scopedClassId = clean(classId);
+  const from = clean(fromDateKey);
+  const to = clean(toDateKey);
+  if (!db || !email || !scopedClassId || !from || !to || from > to) return [];
+
+  const snapshot = await getDocs(query(
+    collection(db, STUDENT_SUPPORT_COLLECTION),
+    where('authorizedTeacherEmails', 'array-contains', email),
+    where('classId', '==', scopedClassId),
+    where('dateKey', '>=', from),
+    where('dateKey', '<=', to),
+    orderBy('dateKey', 'asc'),
+  ));
+  return snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
 };
 
 export const subscribeStudentSessionSummaries = ({

@@ -54,6 +54,13 @@ before(async () => {
     },
   });
 
+  // `npm run test:rules` runs tests/firestore-rules.test.mjs against this same
+  // emulator before starting the node:test files. TestEnvironment#cleanup only
+  // closes clients; it does not remove documents left by that earlier process.
+  // Start this suite from its declared fixture so an assignment created here
+  // cannot accidentally become an update of an assignment from another suite.
+  await env.clearFirestore();
+
   // The world the admin callables would have created: two classes, two
   // teachers of record, one student each.
   await env.withSecurityRulesDisabled(async (context) => {
@@ -487,34 +494,44 @@ test('production Spotlight collection queries preserve teacher, class, roster, a
   });
 
   const teacherResults = await assertSucceeds(getDocs(activeTeacherSpotlightQuery(teacherA(), {
-    teacherEmail: TEACHER_A, classId: 'class-a', now,
+    teacherEmail: TEACHER_A, classId: 'class-a', studentIds: ['STUDENT_A'], now,
   })));
-  assert.deepEqual(teacherResults.docs.map((entry) => entry.id), ['query-a']);
+  assert.equal(teacherResults.docs.some((entry) => entry.id === 'query-a'), true);
+  assert.equal(teacherResults.docs.every((entry) => {
+    const data = entry.data();
+    return data.teacherEmail === TEACHER_A && data.classId === 'class-a';
+  }), true);
   await assertFails(getDocs(activeTeacherSpotlightQuery(teacherB(), {
-    teacherEmail: TEACHER_A, classId: 'class-a', now,
+    teacherEmail: TEACHER_A, classId: 'class-a', studentIds: ['STUDENT_A'], now,
   })));
   await assertFails(getDocs(activeTeacherSpotlightQuery(teacherA(), {
-    teacherEmail: TEACHER_B, classId: 'class-b', now,
+    teacherEmail: TEACHER_B, classId: 'class-b', studentIds: ['STUDENT_B'], now,
+  })));
+  await assertFails(getDocs(activeTeacherSpotlightQuery(teacherA(), {
+    teacherEmail: TEACHER_A, classId: 'class-a', studentIds: ['STUDENT_A', 'STUDENT_B'], now,
   })));
 
   const studentResults = await assertSucceeds(getDocs(activeStudentSpotlightQuery(studentA(), {
     studentId: 'STUDENT_A', now,
   })));
-  assert.deepEqual(studentResults.docs.map((entry) => entry.id), ['query-a']);
+  assert.equal(studentResults.docs.some((entry) => entry.id === 'query-a'), true);
+  assert.equal(studentResults.docs.every((entry) => entry.data().studentId === 'STUDENT_A'), true);
   await assertFails(getDocs(activeStudentSpotlightQuery(studentB(), {
     studentId: 'STUDENT_A', now,
   })));
 
-  // Rules do not filter query results. One malformed request whose student is
-  // not in the constrained class must make the teacher query fail closed.
+  // Rules are not filters, so the production query itself is roster-scoped.
+  // Even a malformed Admin-SDK row for another student is outside the query's
+  // potential result set and therefore cannot leak into the teacher snapshot.
   await env.withSecurityRulesDisabled(async (context) => setDoc(doc(context.firestore(), 'liveSpotlightRequests/query-invalid-roster'), {
     schemaVersion: 1, requestId: 'query-invalid-roster', classId: 'class-a', studentId: 'STUDENT_B',
     teacherUid: 'uid-a', teacherEmail: TEACHER_A, status: 'requested', assignmentId: 'A1',
     requestedAt: now, expiresAt,
   }));
-  await assertFails(getDocs(activeTeacherSpotlightQuery(teacherA(), {
-    teacherEmail: TEACHER_A, classId: 'class-a', now,
+  const boundedTeacherResults = await assertSucceeds(getDocs(activeTeacherSpotlightQuery(teacherA(), {
+    teacherEmail: TEACHER_A, classId: 'class-a', studentIds: ['STUDENT_A'], now,
   })));
+  assert.equal(boundedTeacherResults.docs.some((entry) => entry.id === 'query-invalid-roster'), false);
 });
 
 test('Spotlight does not widen workspace drafts or presence response content', async () => {
@@ -997,7 +1014,6 @@ test('a device persistence report is readable by its own student and writable by
 
 
 // --- Teacher grade overrides are server-authoritative -----------------------
-
 test('no client can forge, change, or remove a teacher grade override projection', async () => {
   const authoritative = {
     'assignment-override-test': {

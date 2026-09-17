@@ -38,7 +38,7 @@ import {
   publicStudentLabel,
   scheduleSpotlightExpiry,
 } from '../../platform/liveSpotlight.js';
-import { activeTeacherSpotlightQuery } from '../../platform/liveSpotlightQueries.js';
+import { activeTeacherSpotlightQueries } from '../../platform/liveSpotlightQueries.js';
 import {
   SUPPORT_EVENT_KIND,
   SUPPORT_EVENT_STAGE,
@@ -46,6 +46,15 @@ import {
   hasDismissedSignal,
   supportSessionKey,
 } from '../../platform/teacher/studentSupportSignals.js';
+import { buildNonInstructionalSet } from '../../platform/path/curriculumCalendar.js';
+import { schoolYearNonInstructionalRanges } from '../../curriculum/calendars/schoolYear2026-2027.js';
+import { classMeetsToday, buildReturnCheckInEvent, resolveReturnCheckIns } from '../../platform/attendance/returnCheckIn.js';
+
+// The district instructional calendar does not change per class or per
+// render, so it is built once at module load rather than recomputed on every
+// tick — the same reason `formatStudentName`/`ATTENDANCE_LABEL` above are
+// module-level constants.
+const SCHOOL_NON_INSTRUCTIONAL_KEYS = buildNonInstructionalSet(schoolYearNonInstructionalRanges());
 
 const SEVERITY_STYLE = {
   [LIVE_SEVERITY.ALERT]: { border: '#d93025', background: '#fff5f4', chip: '#d93025' },
@@ -426,6 +435,58 @@ function AttendancePanel({ roster, attendanceByStudentId, onMark, busyStudentId 
   );
 }
 
+// A prominent-but-compact "welcome back" banner. It lives here, not behind a
+// settings toggle, because the whole point is that a teacher taking
+// attendance sees it at the moment the student is standing in front of them.
+function ReturnCheckInPanel({ candidates, onCheckIn, onCheckInAll, onOpenStudent, busyKey }) {
+  const open = candidates.filter((candidate) => candidate.status === 'open');
+  if (!open.length) return null;
+
+  return (
+    <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '2px solid #1a73e8', background: '#eef6ff' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+        <div style={{ fontWeight: 900, color: '#174ea6' }}>Welcome back · {open.length} returning today</div>
+        {open.length > 1 && <button type="button" onClick={onCheckInAll} style={{ ...smallButtonStyle, borderColor: '#1a73e8', background: '#fff', color: '#174ea6' }}>Check in all</button>}
+      </div>
+      <div style={{ display: 'grid', gap: 8 }}>
+        {open.map((candidate) => {
+          const missedLabel = candidate.missedWork.length
+            ? candidate.missedWork.map((entry) => entry.title).join(', ')
+            : 'No MathMaster lesson/assignment linked to this meeting';
+          const extensionLabel = candidate.extensions[0]
+            ? `Extension through ${candidate.extensions[0].dateKey}`
+            : null;
+          const busy = busyKey === candidate.key;
+          return (
+            <div key={candidate.key} style={{ background: '#fff', border: '1px solid #c5d5ef', borderRadius: 9, padding: '9px 11px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div>
+                <strong style={{ fontSize: 13 }}>{candidate.studentName} is back today</strong>
+                <div style={{ fontSize: 11.5, color: '#5f6368', marginTop: 2 }}>
+                  {candidate.meetingsMissed > 1 ? `Back after ${candidate.meetingsMissed} missed class meetings` : 'Absent last class'}
+                  {' · '}Missed: {missedLabel}
+                  {candidate.missedWork.length > 0 && ` · ${candidate.missedWork.length} assignment${candidate.missedWork.length === 1 ? '' : 's'} affected`}
+                  {extensionLabel && ` · ${extensionLabel}`}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {onOpenStudent && candidate.missedWork.length > 0 && (
+                  <button type="button" onClick={() => onOpenStudent(candidate.studentId)} style={smallButtonStyle}>View Missed Work</button>
+                )}
+                {onOpenStudent && extensionLabel && (
+                  <button type="button" onClick={() => onOpenStudent(candidate.studentId)} style={smallButtonStyle}>Review Extension</button>
+                )}
+                <button type="button" disabled={busy} onClick={() => onCheckIn(candidate)} style={{ ...smallButtonStyle, borderColor: '#188038', background: '#e6f4ea', color: '#137333', opacity: busy ? 0.6 : 1 }}>
+                  {busy ? 'Checking in…' : 'Check In'}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function LiveClassMonitor({
   students = [],
   assignments = [],
@@ -462,6 +523,7 @@ export default function LiveClassMonitor({
   const [showAttendance, setShowAttendance] = useState(false);
   const [attendanceOverrides, setAttendanceOverrides] = useState({});
   const [attendanceBusyStudentId, setAttendanceBusyStudentId] = useState(null);
+  const [returnCheckInBusyKey, setReturnCheckInBusyKey] = useState(null);
 
   const [spotlightRequests, setSpotlightRequests] = useState([]);
   const [spotlightFrame, setSpotlightFrame] = useState(null);
@@ -490,19 +552,36 @@ export default function LiveClassMonitor({
     );
   }, [teacherEmail, activeClassId]);
 
+  const spotlightStudentIds = useMemo(() => {
+    if (!activeClassId) return [];
+    return [...new Set(studentsInClass({ students, classes, classId: activeClassId })
+      .map((student) => String(student?.id || student?.studentId || '').trim())
+      .filter(Boolean))];
+  }, [students, classes, activeClassId]);
+
   useEffect(() => {
     setSpotlightRequests([]);
     setSpotlightFrame(null);
-    if (!teacherEmail || !activeClassId) return undefined;
-    return onSnapshot(
-      activeTeacherSpotlightQuery(db, { teacherEmail, classId: activeClassId }),
+    if (!teacherEmail || !activeClassId || spotlightStudentIds.length === 0) return undefined;
+
+    const requestsByQuery = new Map();
+    const unsubscribers = activeTeacherSpotlightQueries(db, {
+      teacherEmail, classId: activeClassId, studentIds: spotlightStudentIds,
+    }).map((spotlightQuery, index) => onSnapshot(
+      spotlightQuery,
       (snapshot) => {
+        requestsByQuery.set(index, snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })));
+        const merged = new Map(
+          [...requestsByQuery.values()].flat().map((entry) => [entry.id, entry]),
+        );
         setSpotlightClock(Date.now());
-        setSpotlightRequests(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })));
+        setSpotlightRequests([...merged.values()]);
       },
       () => setSpotlightMessage('Spotlight connection is unavailable. Student work is unaffected.'),
-    );
-  }, [teacherEmail, activeClassId]);
+    ));
+
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+  }, [teacherEmail, activeClassId, spotlightStudentIds]);
 
   const activeSpotlight = useMemo(() => spotlightRequests
     .filter((entry) => [SPOTLIGHT_STATUS.REQUESTED, SPOTLIGHT_STATUS.ACCEPTED].includes(entry.status))
@@ -640,6 +719,52 @@ export default function LiveClassMonitor({
     Object.assign(result, attendanceByStudentId || {}, eventAttendance, attendanceOverrides);
     return result;
   }, [attendanceByStudentId, attendanceOverrides, eventAttendance, roster]);
+
+  // Missed-instruction linking must be able to see a lesson that has since
+  // CLOSED — a student back after two missed meetings needs to see what
+  // those meetings covered even though the assignment's deadline has passed.
+  // `assignments` here is already filtered to "currently open"; `timerAssignments`
+  // is the unfiltered list (see activeSectionTimers below for the same pattern).
+  const returnCheckInSourceAssignments = Array.isArray(timerAssignments) ? timerAssignments : assignments;
+
+  const todayClassMeets = useMemo(() => (
+    Boolean(attendanceClassPeriod) && classMeetsToday({
+      schedule: classSchedule, classPeriod: attendanceClassPeriod, dateKey: attendanceDateKey, nonInstructionalKeys: SCHOOL_NON_INSTRUCTIONAL_KEYS,
+    })
+  ), [classSchedule, attendanceClassPeriod, attendanceDateKey]);
+
+  const returnCheckIns = useMemo(() => {
+    if (!todayClassMeets) return [];
+    return resolveReturnCheckIns({
+      roster,
+      supportEvents,
+      assignments: returnCheckInSourceAssignments,
+      classId: activeClassId || null,
+      classPeriod: attendanceClassPeriod,
+      schedule: classSchedule,
+      nonInstructionalKeys: SCHOOL_NON_INSTRUCTIONAL_KEYS,
+      todayDateKey: attendanceDateKey,
+    });
+  }, [todayClassMeets, roster, supportEvents, returnCheckInSourceAssignments, activeClassId, attendanceClassPeriod, classSchedule, attendanceDateKey]);
+
+  const handleReturnCheckIn = async (candidate, { dismissed = false } = {}) => {
+    if (!onRecordSupportEvent) return;
+    setReturnCheckInBusyKey(candidate.key);
+    try {
+      await onRecordSupportEvent(buildReturnCheckInEvent({ candidate, actorEmail: teacherEmail, nowValue, dismissed }));
+    } catch (error) {
+      console.error('Could not record the return check-in:', error);
+    } finally {
+      setReturnCheckInBusyKey(null);
+    }
+  };
+
+  // Sequential rather than Promise.all: each write reuses the same
+  // optimistic busy-key state handleReturnCheckIn manages one at a time.
+  const handleCheckInAllReturns = async () => {
+    const open = returnCheckIns.filter((candidate) => candidate.status === 'open');
+    await open.reduce((chain, candidate) => chain.then(() => handleReturnCheckIn(candidate)), Promise.resolve());
+  };
 
   const monitoredRoster = useMemo(() => roster.filter((student) => {
     const id = String(student?.id || student?.studentId || '');
@@ -885,6 +1010,14 @@ export default function LiveClassMonitor({
           </button>
         )}
       </div>
+
+      <ReturnCheckInPanel
+        candidates={returnCheckIns}
+        onCheckIn={handleReturnCheckIn}
+        onCheckInAll={handleCheckInAllReturns}
+        onOpenStudent={onOpenStudent}
+        busyKey={returnCheckInBusyKey}
+      />
 
       {showAttendance && (
         <AttendancePanel

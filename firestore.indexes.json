@@ -4,8 +4,14 @@
       "collectionGroup": "gradeTransferSnapshots",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "classId", "order": "ASCENDING" },
-        { "fieldPath": "teacherUid", "order": "ASCENDING" }
+        {
+          "fieldPath": "classId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "teacherUid",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
@@ -309,6 +315,14 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "teacherEmail",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "classId",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "studentId",
           "order": "ASCENDING"
         },
@@ -318,6 +332,42 @@
         },
         {
           "fieldPath": "expiresAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "liveSpotlightRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "studentId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expiresAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "studentSupportEvents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "authorizedTeacherEmails",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "classId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dateKey",
           "order": "ASCENDING"
         }
       ]

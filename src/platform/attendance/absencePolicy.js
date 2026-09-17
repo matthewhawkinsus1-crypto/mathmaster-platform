@@ -36,10 +36,25 @@ export const ATTENDANCE_MARK = Object.freeze({
   PRESENT: 'present',
   EXCUSED: 'excused',
   UNEXCUSED: 'unexcused',
+  // A teacher's quick "Absent" (e.g. Live Classroom's same-day mark) states
+  // only that the student was not in the room — it is not a claim about
+  // WHY. Treating it as unexcused before a teacher ever says so would let a
+  // point penalty fire on a classification nobody made. It behaves exactly
+  // like EXCUSED for the two things that don't depend on a reason (the
+  // deadline extension and the return-to-class reminder) and never like
+  // UNEXCUSED for the one thing that does (the point penalty), until a
+  // teacher classifies it one way or the other.
+  // Deliberately the same lowercase token Live Classroom's own quick-mark
+  // already uses (`LIVE_ATTENDANCE_MARK.ABSENT` in liveAttendance.js) — every
+  // mark constant in this module is compared case-insensitively via
+  // `.toLowerCase()`, so this value must already be lowercase.
+  ABSENT_UNCLASSIFIED: 'absent',
   UNMARKED: 'unmarked',
 });
 
-export const ABSENT_MARKS = Object.freeze([ATTENDANCE_MARK.EXCUSED, ATTENDANCE_MARK.UNEXCUSED]);
+export const ABSENT_MARKS = Object.freeze([
+  ATTENDANCE_MARK.EXCUSED, ATTENDANCE_MARK.UNEXCUSED, ATTENDANCE_MARK.ABSENT_UNCLASSIFIED,
+]);
 
 export const DEFAULT_ABSENCE_POLICY = Object.freeze({
   // Deadline relief. On by default: it can only ever help a student, and it is
@@ -112,12 +127,17 @@ export const summarizeAssignmentAbsences = ({ marks = [], fromDateKey = null, to
   const of = (mark) => inWindow.filter((entry) => entry?.mark === mark);
   const excused = of(ATTENDANCE_MARK.EXCUSED);
   const unexcused = of(ATTENDANCE_MARK.UNEXCUSED);
+  const unclassified = of(ATTENDANCE_MARK.ABSENT_UNCLASSIFIED);
   const unmarked = of(ATTENDANCE_MARK.UNMARKED);
 
   return {
     excused: excused.length,
     unexcused: unexcused.length,
-    absent: excused.length + unexcused.length,
+    // Not yet classified excused-or-unexcused. Counted in `absent` (the
+    // student was not in the room either way) but broken out separately so a
+    // caller never has to guess which classified bucket it belongs to.
+    unclassified: unclassified.length,
+    absent: excused.length + unexcused.length + unclassified.length,
     unmarked: unmarked.length,
     // The teacher has not finished reconciling this window. Callers that write
     // to a family-visible gradebook should wait rather than publish a number
@@ -126,6 +146,7 @@ export const summarizeAssignmentAbsences = ({ marks = [], fromDateKey = null, to
     dates: {
       excused: excused.map((entry) => entry.dateKey),
       unexcused: unexcused.map((entry) => entry.dateKey),
+      unclassified: unclassified.map((entry) => entry.dateKey),
       unmarked: unmarked.map((entry) => entry.dateKey),
     },
   };
@@ -135,7 +156,11 @@ export const summarizeAssignmentAbsences = ({ marks = [], fromDateKey = null, to
 export const extensionMeetingsFor = ({ absences = null, policy = null } = {}) => {
   const rules = normalizeAbsencePolicy(policy);
   if (!rules.extensionEnabled) return 0;
+  // Excused and not-yet-classified absences always count — the extension is
+  // about opportunity, not about a classification that may not exist yet.
+  // Unexcused is the only bucket a teacher can opt out of extending.
   const counted = (absences?.excused || 0)
+    + (absences?.unclassified || 0)
     + (rules.extendForUnexcused ? (absences?.unexcused || 0) : 0);
   return Math.min(rules.maxExtensionMeetings, counted * rules.meetingsPerMissedMeeting);
 };

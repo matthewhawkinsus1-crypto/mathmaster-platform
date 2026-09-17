@@ -327,10 +327,22 @@ import {
 } from './platform/teacher/studentSupportSignals.js';
 import {
   fetchStudentSupportHistory,
+  fetchAttendanceForClassDateRange,
   recordStudentSupportEvent,
   subscribeStudentSessionSummaries,
   subscribeStudentSupportEvents,
 } from './platform/teacher/studentSupportStore.js';
+import { localDateKeyOf } from './platform/attendance/classMeetings.js';
+import { buildNonInstructionalSet } from './platform/path/curriculumCalendar.js';
+import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolYear2026-2027.js';
+import AttendanceHistoryPanel from './components/teacher/AttendanceHistoryPanel.jsx';
+import {
+  buildStudentExtensionPatch,
+  reconcileAssignmentExtensionsForCorrection,
+} from './platform/attendance/extensionReconciliation.js';
+import { LIVE_ATTENDANCE_EVENT_KIND } from './platform/teacher/liveAttendance.js';
+import { ATTENDANCE_HISTORY_EVENT_KIND } from './platform/attendance/attendanceHistory.js';
+import { applyStudentAttendanceExtension } from './platform/attendance/extensionClient.js';
 import {
   buildHonorsEnrichmentQuestion,
   defaultCourseProfiles,
@@ -350,6 +362,11 @@ import {
 // The administrator identity comes from the same module the callables enforce,
 // so the browser can never believe in a different administrator than the server.
 import { isRootAdminEmail } from '../functions/shared/rolePolicy.mjs';
+
+// Built once: the district instructional calendar is static reference data,
+// not per-render or per-teacher state (see the identical constant in
+// LiveClassMonitor.jsx, which needs the same calendar for the same reason).
+const SCHOOL_NON_INSTRUCTIONAL_KEYS = buildNonInstructionalSet(schoolYearNonInstructionalRanges());
 
 const ClassroomManagerV2 = lazy(() => import('./ClassroomManagerV2.jsx'));
 const AssignmentQuestionEditor = lazy(() => import('./AssignmentQuestionEditor.jsx'));
@@ -1002,6 +1019,7 @@ function App() {
         tracker: gradeDisplayTracker,
         redemptionsByAssignment: studentClassPoints.redemptionsByAssignment,
         nowValue: now,
+        studentId: user.id,
       })
       : []
   ), [user, assignments, gradeDisplayTracker, studentClassPoints.redemptionsByAssignment, now]);
@@ -1235,6 +1253,7 @@ function App() {
         assignment: targetAssignment,
         launch: pendingClassroomLaunch,
         nowValue: Date.now(),
+        studentId: user.id,
       });
 
       // A permanently closed post is an official grade/result link first —
@@ -2446,7 +2465,7 @@ function App() {
                 questionNumber: (Number(serverResume.questionIndex) || 0) + 1,
                 dueDate: assignment.dueAt || assignment.dueDate || '',
                 lateDueDate: assignment.lateDueAt || assignment.lateDueDate || '',
-                lifecycleStatus: getAssignmentLifecycle(assignment, Date.now()).status,
+                lifecycleStatus: getAssignmentLifecycle(assignment, Date.now(), { studentId }).status,
                 restoredFrom: 'server',
               });
             })
@@ -2547,7 +2566,7 @@ function App() {
     if (user?.role !== 'student' || !assignmentId) return null;
     const assignment = assignments.find((item) => item.id === assignmentId);
     if (!assignment) return null;
-    if (getAssignmentLifecycle(assignment, Date.now()).isPracticeOnly) {
+    if (getAssignmentLifecycle(assignment, Date.now(), { studentId: user.id }).isPracticeOnly) {
       // Post-deadline practice is intentionally invisible to the gradebook,
       // engagement analytics, mastery engine, and teacher reports.
       pendingAssignmentSecondsRef.current = 0;
@@ -2561,6 +2580,7 @@ function App() {
       assignment,
       seconds: pendingSeconds,
       nowValue: Date.now(),
+      studentId: user.id,
     });
     const updatedActivity = { ...assignmentActivity, [assignmentId]: nextRecord };
     setAssignmentActivity(updatedActivity);
@@ -2647,7 +2667,9 @@ function App() {
       'This assignment was corrected by your teacher. Your previous work was preserved.',
     );
   }, [user?.role, activeView, activeAssignmentId, rawActiveAssignmentData?.contentUpgrade, toastInfo]);
-  const activeLifecycle = getAssignmentLifecycle(activeAssignmentData, now);
+  const activeLifecycle = getAssignmentLifecycle(activeAssignmentData, now, {
+    studentId: user?.role === 'student' ? user.id : undefined,
+  });
   const isTeacherPreview = user?.role === 'teacher' && activeView === 'teacherPreview';
   const isStudentAssignment = user?.role === 'student' && activeView === 'assignment';
   const isPracticeMode = isStudentAssignment && activeLifecycle.isPracticeOnly;
@@ -3285,14 +3307,227 @@ function App() {
     });
   }, [user?.role, user?.email, classes]);
 
+  /*
+   * A per-student extension is never written as a client-side whole-map
+   * replace, for two reasons at once: (1) two teachers (or two tabs)
+   * granting extensions to two different students of the same assignment
+   * from the same stale snapshot must not let the second write erase the
+   * first, and (2) firestore.rules blocks a direct client write to
+   * `studentOverrides` entirely (see that rule's comment) — only the
+   * `applyStudentAttendanceExtension` Cloud Function may write it, because
+   * only it can independently re-verify the caller is this student's own
+   * teacher of record and that the write never shortens a cutoff already on
+   * file. This function's job is just to shape the browser's already-computed
+   * proposal for that callable.
+   */
+  const applyStudentOverridePatch = async ({ assignmentId, studentId, classId, patch }) => {
+    const entry = patch?.studentOverrides?.[studentId];
+    if (!entry?.lateDueAt) return;
+    const proposedLateDueAtMs = entry.lateDueAt instanceof Date
+      ? entry.lateDueAt.getTime()
+      : new Date(entry.lateDueAt).getTime();
+    await applyStudentAttendanceExtension({
+      classId, studentId, assignmentId, proposedLateDueAtMs, extension: entry.extension || {},
+    });
+  };
+
+  /*
+   * ONE RECONCILIATION PATH FOR EVERY ATTENDANCE EVENT.
+   *
+   * Live Classroom's same-day quick-mark and an Attendance History
+   * correction are both, underneath, "a teacher just recorded an attendance
+   * mark" — so both go through this same function rather than two separate
+   * ones that could drift apart. A Present/Late correction runs through here
+   * too: it may remove an absence an earlier extension was based on, which
+   * is exactly the "would shorten" case extensionReconciliation.js has to
+   * catch. Recording the (append-only) event and reconciling any extension it
+   * touches happen together, so a teacher never sees a corrected mark that
+   * has not yet been reflected in the student's deadline.
+   */
+  const reconcileAttendanceExtensions = async (event, record) => {
+    const classPeriod = classes.find((entry) => entry.classId === event.classId)?.period || null;
+    const affectedAssignments = assignments
+      .filter((assignment) => assignmentIsForStudent(assignment, { classId: event.classId }))
+      .filter((assignment) => {
+        const release = localDateKeyOf(assignment?.releaseAt || assignment?.releaseDate) || '0000-00-00';
+        const due = localDateKeyOf(assignment?.dueAt || assignment?.dueDate);
+        return due && event.evidence?.dateKey >= release && event.evidence?.dateKey <= due;
+      });
+    const windowStarts = affectedAssignments
+      .map((assignment) => localDateKeyOf(assignment?.releaseAt || assignment?.releaseDate))
+      .filter(Boolean);
+    const windowEnds = affectedAssignments
+      .map((assignment) => localDateKeyOf(assignment?.dueAt || assignment?.dueDate))
+      .filter(Boolean);
+    const attendanceHistory = affectedAssignments.length
+      ? await fetchAttendanceForClassDateRange({
+        db,
+        teacherEmail: user.email,
+        classId: event.classId,
+        fromDateKey: windowStarts.sort()[0] || event.evidence?.dateKey,
+        toDateKey: windowEnds.sort().at(-1) || event.evidence?.dateKey,
+      })
+      : [];
+    const results = reconcileAssignmentExtensionsForCorrection({
+      assignments: affectedAssignments,
+      studentId: event.studentId,
+      classId: event.classId,
+      classPeriod,
+      schedule: classSchedule,
+      nonInstructionalKeys: SCHOOL_NON_INSTRUCTIONAL_KEYS,
+      // The generic support subscription is capped at 750 records. Extension
+      // decisions use the complete indexed attendance range instead.
+      supportEvents: attendanceHistory.some((entry) => entry.id === record.id)
+        ? attendanceHistory : [...attendanceHistory, record],
+      correctionDateKey: event.evidence?.dateKey,
+    });
+
+    let reviewCount = 0;
+    await Promise.all(results.map(async ({ assignment, resolution }) => {
+      if (resolution.reviewNeeded) { reviewCount += 1; return; }
+      const patch = buildStudentExtensionPatch({
+        assignment, studentId: event.studentId, resolution, actorEmail: user.email,
+      });
+      if (patch) await applyStudentOverridePatch({ assignmentId: assignment.id, studentId: event.studentId, classId: event.classId, patch });
+    }));
+    return reviewCount;
+  };
+
+  const [attendanceReviewBusyKey, setAttendanceReviewBusyKey] = useState(null);
+
+  /*
+   * "KEEP CURRENT EXTENSION" — the review is resolved, nothing is written to
+   * the assignment. Recording the resolution is what makes the open item on
+   * Attendance History disappear (openAttendanceCorrectionReviewsForStudent
+   * checks for exactly this event).
+   */
+  const handleKeepAttendanceExtension = async ({ student, assignment, resolution, classId, classPeriod, reviewKey }) => {
+    if (user?.role !== 'teacher' || !user.email) return;
+    setAttendanceReviewBusyKey(reviewKey);
+    try {
+      await recordStudentSupportEvent({
+        db, teacherEmail: user.email,
+        event: buildAttendanceCorrectionReviewEvent({
+          studentId: student.id || student.studentId, studentName: student.displayName || student.name,
+          assignmentId: assignment.id, assignmentTitle: assignment.title, classId, classPeriod,
+          existing: resolution.existing, proposed: resolution.proposed, resolution: 'kept', actorEmail: user.email,
+        }),
+      });
+      toastSuccess('Extension kept', 'The existing extension stays in place; the review is resolved.');
+    } catch (error) {
+      console.error(error);
+      toastError('Could not resolve the review', error.message);
+    } finally {
+      setAttendanceReviewBusyKey(null);
+    }
+  };
+
+  /*
+   * "APPLY SHORTER EXTENSION" — the one deliberate exception to "never
+   * shorten automatically". The review-resolution event is recorded FIRST
+   * (audited, teacher-authorized), and the callable independently re-checks
+   * that exact record exists before it will accept a shortened cutoff — see
+   * applyStudentAttendanceExtension's own comment in functions/index.js.
+   */
+  const handleApplyShorterAttendanceExtension = async ({ student, assignment, resolution, classId, classPeriod, reviewKey }) => {
+    if (user?.role !== 'teacher' || !user.email) return;
+    const studentId = student.id || student.studentId;
+    setAttendanceReviewBusyKey(reviewKey);
+    try {
+      await recordStudentSupportEvent({
+        db, teacherEmail: user.email,
+        event: buildAttendanceCorrectionReviewEvent({
+          studentId, studentName: student.displayName || student.name,
+          assignmentId: assignment.id, assignmentTitle: assignment.title, classId, classPeriod,
+          existing: resolution.existing, proposed: resolution.proposed, resolution: 'shortened', actorEmail: user.email,
+        }),
+      });
+      await applyStudentAttendanceExtension({
+        classId, studentId, assignmentId: assignment.id,
+        proposedLateDueAtMs: resolution.proposed.dueAt instanceof Date
+          ? resolution.proposed.dueAt.getTime() : new Date(resolution.proposed.dueAt).getTime(),
+        extension: {
+          dateKey: resolution.proposed.dateKey,
+          meetingsGranted: resolution.proposed.meetingsGranted,
+          meetingsRequested: resolution.proposed.meetingsRequested,
+          undetermined: resolution.proposed.undetermined,
+          resolved: resolution.proposed.resolved,
+          sourceAbsenceDates: resolution.proposed.sourceAbsenceDates,
+        },
+        allowShorten: true,
+        existingDateKey: resolution.existing?.dateKey,
+        proposedDateKey: resolution.proposed?.dateKey,
+      });
+      toastSuccess('Extension shortened', 'The student’s extension now matches the corrected attendance.');
+    } catch (error) {
+      console.error(error);
+      toastError('Could not apply the shorter extension', error.message);
+    } finally {
+      setAttendanceReviewBusyKey(null);
+    }
+  };
+
+  const ATTENDANCE_EVENT_KINDS = [LIVE_ATTENDANCE_EVENT_KIND, ATTENDANCE_HISTORY_EVENT_KIND];
+
   const handleRecordStudentSupportEvent = async (event) => {
     if (user?.role !== 'teacher' || !user.email) return null;
+    const isAttendanceEvent = ATTENDANCE_EVENT_KINDS.includes(event?.kind);
     try {
       const record = await recordStudentSupportEvent({
         db,
         teacherEmail: user.email,
         event,
       });
+
+      if (isAttendanceEvent) {
+        let reviewCount;
+        try {
+          reviewCount = await reconcileAttendanceExtensions(event, record);
+        } catch (reconciliationError) {
+          console.error('Attendance extension reconciliation is pending:', reconciliationError);
+          // The attendance fact is already safely append-only. Persist a
+          // second append-only audit/retry record containing everything a
+          // worker or teacher retry needs; never delete the attendance fact.
+          try {
+            await recordStudentSupportEvent({
+              db,
+              teacherEmail: user.email,
+              event: {
+                kind: SUPPORT_EVENT_KIND.ATTENDANCE_EXTENSION_RECONCILIATION_PENDING,
+                stage: SUPPORT_EVENT_STAGE.SYSTEM_SIGNAL,
+                studentId: event.studentId,
+                studentName: event.studentName,
+                classId: event.classId,
+                classPeriod: event.classPeriod,
+                dateKey: event.evidence?.dateKey,
+                relatedEventId: record.id,
+                summary: 'Attendance saved; deadline reconciliation needs retry.',
+                evidence: {
+                  dateKey: event.evidence?.dateKey,
+                  attendanceEventId: record.id,
+                  retryable: true,
+                  error: String(reconciliationError?.message || reconciliationError).slice(0, 300),
+                },
+              },
+            });
+          } catch (auditError) {
+            console.error('Could not persist attendance reconciliation retry audit:', auditError);
+          }
+          toastError(
+            'Attendance saved; extension update pending',
+            'The attendance record is safe. Deadline reconciliation needs a retry and was added to the support audit trail.',
+          );
+          return record;
+        }
+        toastSuccess(
+          event.kind === ATTENDANCE_HISTORY_EVENT_KIND ? 'Attendance correction saved' : 'Attendance recorded',
+          reviewCount > 0
+            ? `${reviewCount} extension${reviewCount === 1 ? '' : 's'} would have shortened — review before changing.`
+            : 'The prior mark stays in the record; any earned extension was reconciled.',
+        );
+        return record;
+      }
+
       const label = event?.kind === SUPPORT_EVENT_KIND.PARENT_FOLLOW_UP
         ? 'Parent follow-up recorded'
         : event?.stage === SUPPORT_EVENT_STAGE.DISMISSED
@@ -3302,7 +3537,7 @@ function App() {
       return record;
     } catch (error) {
       console.error(error);
-      toastError('Could not save support note', error.message);
+      toastError(isAttendanceEvent ? 'Could not save the attendance record' : 'Could not save support note', error.message);
       return null;
     }
   };
@@ -3594,7 +3829,7 @@ function App() {
     if (user?.role !== 'student' || activeView !== 'assignment' || !activeAssignmentId) return;
     const assignment = assignments.find((item) => item.id === activeAssignmentId);
     if (!assignment) return;
-    if (getAssignmentLifecycle(assignment, Date.now()).isPracticeOnly) {
+    if (getAssignmentLifecycle(assignment, Date.now(), { studentId: user.id }).isPracticeOnly) {
       clearResumeAction(user.id);
       setResumeAction(null);
       return;
@@ -3606,7 +3841,7 @@ function App() {
       questionNumber: currentQuestionIndex + 1,
       dueDate: assignment.dueAt || assignment.dueDate || '',
       lateDueDate: assignment.lateDueAt || assignment.lateDueDate || '',
-      lifecycleStatus: getAssignmentLifecycle(assignment, Date.now()).status,
+      lifecycleStatus: getAssignmentLifecycle(assignment, Date.now(), { studentId: user.id }).status,
     };
     saveResumeAction(user.id, action);
     // Server-backed too: the browser copy cannot follow a student to a
@@ -3700,12 +3935,12 @@ function App() {
     if (!assignment) return;
 
     const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: Date.now() });
-    if (!getAssignmentLifecycle(assignment, Date.now()).isClosed && (dolState.questionIndices || [dolState.questionIndex]).includes(newIndex) && dolState.enabled && !['active', 'ended'].includes(dolState.status)) {
+    if (!getAssignmentLifecycle(assignment, Date.now(), { studentId: user.id }).isClosed && (dolState.questionIndices || [dolState.questionIndex]).includes(newIndex) && dolState.enabled && !['active', 'ended'].includes(dolState.status)) {
       toastInfo('DOL not open yet', 'The DOL section opens during the final minutes of this class period. Keep working until the DOL banner appears.');
       return;
     }
 
-    if (getAssignmentLifecycle(assignment, Date.now()).isPracticeOnly) {
+    if (getAssignmentLifecycle(assignment, Date.now(), { studentId: user.id }).isPracticeOnly) {
       setCurrentQuestionIndex(newIndex);
       return;
     }
@@ -3768,7 +4003,7 @@ function App() {
     }
 
     const now = Date.now();
-    const lifecycle = getAssignmentLifecycle(assignmentData, now);
+    const lifecycle = getAssignmentLifecycle(assignmentData, now, { studentId: user.id });
     const access = prerequisiteAccess({ assignment: assignmentData, classworkGradesByAssignment, nowValue: now });
     const assignmentLocked = (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') || !access.open;
     if (assignmentLocked) {
@@ -3796,7 +4031,7 @@ function App() {
       if (!lifecycle.isPracticeOnly) {
         if (sectionRole === 'warmup' && warmupState.enabled && !warmupCanBeViewed) available = false;
         if (timedDol && !lifecycle.isClosed && !['active', 'ended'].includes(dolState.status)) available = false;
-        const manualState = getSectionAccessState({ assignment: assignmentData, activityRole: sectionRole, classId, classPeriod, nowValue: now });
+        const manualState = getSectionAccessState({ assignment: assignmentData, activityRole: sectionRole, classId, classPeriod, nowValue: now, studentId: user.id });
         if (manualState.enabled && !manualState.isOpen) available = false;
       }
       if (!available) continue;
@@ -3950,7 +4185,9 @@ function App() {
       toastInfo('Finish the prerequisite first', `Complete ${prerequisiteTitle} first. This practice assignment also opens automatically at its scheduled release time.`);
       return;
     }
-    const lifecycle = getAssignmentLifecycle(assignmentData, Date.now());
+    const lifecycle = getAssignmentLifecycle(assignmentData, Date.now(), {
+      studentId: user?.role === 'student' ? user.id : undefined,
+    });
     if (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') {
       toastInfo('Not open yet', `This assignment opens ${formatDateTime(assignmentData.releaseAt)}.`);
       return;
@@ -4223,7 +4460,9 @@ function App() {
       return loadScratchpadRecord(async (id) => previewScratchpads[id] || null, scratchpadId);
     }
 
-    if (getAssignmentLifecycle(scratchpadAssignment, Date.now()).isPracticeOnly) {
+    if (getAssignmentLifecycle(scratchpadAssignment, Date.now(), {
+      studentId: user?.role === 'student' ? user.id : undefined,
+    }).isPracticeOnly) {
       return loadScratchpadRecord(async (id) => practiceScratchpads[id] || null, scratchpadId);
     }
 
@@ -4250,7 +4489,9 @@ function App() {
     const scratchpadAssignment = assignments.find(
       (assignment) => assignment.id === activeAssignmentId,
     );
-    const practiceOnly = getAssignmentLifecycle(scratchpadAssignment, Date.now()).isPracticeOnly;
+    const practiceOnly = getAssignmentLifecycle(scratchpadAssignment, Date.now(), {
+      studentId: user?.role === 'student' ? user.id : undefined,
+    }).isPracticeOnly;
     const currentScratchpadTracker = isTeacherPreview
       ? previewTracker
       : practiceOnly
@@ -4494,7 +4735,7 @@ function App() {
     const teacherReopenedWarmupIsActive = activeQuestionRole === 'warmup'
       && warmupCaptureWasActive(timedSectionAccess, submissionCapturedAt)
       && timedSectionAccess?.teacherTimerScheduled === true;
-    if (getAssignmentLifecycle(localAssignment, submissionCapturedAt).isPracticeOnly && !teacherReopenedWarmupIsActive) {
+    if (getAssignmentLifecycle(localAssignment, submissionCapturedAt, { studentId: user.id }).isPracticeOnly && !teacherReopenedWarmupIsActive) {
       const currentPractice = practiceTracker[activeAssignmentId]
         || createPracticeAssignmentTracker(getStoredAssignmentQuestions(localAssignment), tracker[activeAssignmentId] || {});
       const outcome = applyAttempt(currentPractice[currentQuestionIndex]);
@@ -4598,6 +4839,7 @@ function App() {
         classId: user.classId || null,
         classPeriod: user.classPeriod,
         nowValue: submissionCapturedAt,
+        studentId: user.id,
       }),
       capturedAt: submissionCapturedAt,
     });
@@ -4725,7 +4967,7 @@ function App() {
     const teacherReopenedWarmupStepIsActive = activeQuestionRole === 'warmup'
       && warmupCaptureWasActive(stepTimedSectionAccess, stepCapturedAt)
       && stepTimedSectionAccess?.teacherTimerScheduled === true;
-    if (getAssignmentLifecycle(localAssignment, stepCapturedAt).isPracticeOnly && !teacherReopenedWarmupStepIsActive) {
+    if (getAssignmentLifecycle(localAssignment, stepCapturedAt, { studentId: user.id }).isPracticeOnly && !teacherReopenedWarmupStepIsActive) {
       const currentPractice = practiceTracker[activeAssignmentId]
         || createPracticeAssignmentTracker(getStoredAssignmentQuestions(localAssignment), tracker[activeAssignmentId] || {});
       const outcome = applyStep(currentPractice[currentQuestionIndex]);
@@ -4771,6 +5013,7 @@ function App() {
               classId: user.classId || null,
               classPeriod: user.classPeriod,
               nowValue: stepCapturedAt,
+              studentId: user.id,
             }),
             capturedAt: stepCapturedAt,
           }),
@@ -4827,7 +5070,7 @@ function App() {
 
     if (user?.role !== 'student') return;
     const localAssignment = assignments.find((item) => item.id === activeAssignmentId);
-    if (getAssignmentLifecycle(localAssignment, Date.now()).isPracticeOnly) {
+    if (getAssignmentLifecycle(localAssignment, Date.now(), { studentId: user.id }).isPracticeOnly) {
       const currentPractice = practiceTracker[activeAssignmentId]
         || createPracticeAssignmentTracker(getStoredAssignmentQuestions(localAssignment), tracker[activeAssignmentId] || {});
       const replacement = requestReplacementQuestion(currentPractice[currentQuestionIndex], options);
@@ -8017,7 +8260,9 @@ function App() {
 
     const questions = getStoredAssignmentQuestions(assignment);
     const currentContent = projectCurrentAssignmentContent(assignment);
-    const lifecycle = getAssignmentLifecycle(assignment, now);
+    const lifecycle = getAssignmentLifecycle(assignment, now, {
+      studentId: !preview && user?.role === 'student' ? user.id : undefined,
+    });
     /*
      * A GRANTED PRACTICE PASS EXCUSES PRACTICE FROM THIS RUNTIME.
      *
@@ -8069,6 +8314,7 @@ function App() {
       classId: user?.classId || null,
       classPeriod: user?.classPeriod,
       nowValue: now,
+      studentId: !preview && user?.role === 'student' ? user.id : undefined,
     });
     const currentSectionManuallyLocked = !preview
       && !lifecycle.isPracticeOnly
@@ -8191,6 +8437,7 @@ function App() {
         classId: user?.classId || null,
         classPeriod: user?.classPeriod,
         nowValue: now,
+        studentId: user?.role === 'student' ? user.id : undefined,
       });
       if (manualState.enabled && !manualState.isOpen) return false;
       return true;
@@ -8631,7 +8878,7 @@ function App() {
                         : storedCardState;
                       const dolUnavailable = isTimedDOLQuestion && !preview && !lifecycle.isClosed && !['active', 'ended'].includes(dolState.status);
                       const warmupUnavailable = cardRole === 'warmup' && warmupState.enabled && !preview && !lifecycle.isPracticeOnly && !warmupCanBeViewed;
-                      const manualSectionState = getSectionAccessState({ assignment, activityRole: cardRole, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
+                      const manualSectionState = getSectionAccessState({ assignment, activityRole: cardRole, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now, studentId: !preview && user?.role === 'student' ? user.id : undefined });
                       const manualSectionUnavailable = !preview && !lifecycle.isPracticeOnly && manualSectionState.enabled && !manualSectionState.isOpen;
                       const sectionUnavailable = dolUnavailable || warmupUnavailable || manualSectionUnavailable;
                       const lockedLabel = warmupUnavailable
@@ -9494,6 +9741,25 @@ function App() {
               />
             )}
 
+            {teacherTab === 'attendanceHistory' && (
+              <AttendanceHistoryPanel
+                db={db}
+                classes={classes}
+                allStudents={allStudents}
+                assignments={assignments}
+                classSchedule={classSchedule}
+                nonInstructionalKeys={SCHOOL_NON_INSTRUCTIONAL_KEYS}
+                teacherEmail={user.email || ''}
+                nowValue={now}
+                onRecordCorrection={handleRecordStudentSupportEvent}
+                recentSupportEvents={studentSupportEvents}
+                reviewBusyKey={attendanceReviewBusyKey}
+                onKeepExtension={handleKeepAttendanceExtension}
+                onApplyShorterExtension={handleApplyShorterAttendanceExtension}
+                initialClassId={activeClass.classId}
+              />
+            )}
+
             {teacherTab === 'classesWorkspace' && (
               <ClassesWorkspace
                 classes={classes}
@@ -9777,7 +10043,12 @@ function App() {
       practicePassRedemptionsByAssignment: studentClassPoints.redemptionsByAssignment,
       providers: {
         assignmentIsForStudent,
-        getAssignmentLifecycle,
+        // Wrapped so the dashboard's own lifecycle bucketing (Do Now / In
+        // Progress / Practice Only) sees this signed-in student's extension,
+        // without changing the generic module's signature — the Path
+        // Simulator's synthetic-student caller passes its own `providers` and
+        // is unaffected.
+        getAssignmentLifecycle: (assignment, nowValue) => getAssignmentLifecycle(assignment, nowValue, { studentId: user.id }),
         prerequisiteAccess,
         calculateGrade,
         getDOLState,
@@ -9786,7 +10057,8 @@ function App() {
         normalizeQuestionRecord,
         questionIsIncluded,
         assignmentHasHeldTeacherFeedback,
-        matchesSmartView,
+        // Same wrap as getAssignmentLifecycle above, and for the same reason.
+        matchesSmartView: (assignment, viewId, options) => matchesSmartView(assignment, viewId, { ...options, studentId: user.id }),
       },
     })
     : null;

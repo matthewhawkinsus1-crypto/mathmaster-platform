@@ -87,19 +87,51 @@ const parseLocalDateTime = (value, endOfDay = false) => {
   return instant === null ? null : new Date(instant);
 };
 
-export const getAssignmentDate = (assignment, field) => {
+/*
+ * A STUDENT-SPECIFIC EXTENSION IS READ HERE, NOT IN A SECOND DEADLINE SYSTEM.
+ *
+ * `assignment.studentOverrides[studentId]` already carries the per-student
+ * `excused`/`reopened` flags the Grade Center reads (see
+ * studentGradeCenterModel.js). An absence-driven extension
+ * (src/platform/attendance/extensionReconciliation.js) is stored the same
+ * way, under `.dueAt` / `.lateDueAt`, so every caller of
+ * `getAssignmentLifecycle` — Grade Center, Live Classroom, and any future
+ * Grade Transfer withholding check — sees the same resolved deadline for that
+ * student without a parallel due-date store to drift out of sync.
+ */
+const studentOverrideDates = (assignment, studentId) => {
+  const id = String(studentId || '').trim();
+  if (!id) return null;
+  const overrides = assignment?.studentOverrides;
+  const entry = overrides && typeof overrides === 'object' ? overrides[id] : null;
+  return entry && typeof entry === 'object' ? entry : null;
+};
+
+export const getAssignmentDate = (assignment, field, studentId = null) => {
   if (!assignment) return null;
+  const override = studentId ? studentOverrideDates(assignment, studentId) : null;
+  // Student overrides grant additional credit opportunity; they do not move
+  // the class pacing checkpoint that distinguishes on-time from late work.
   if (field === 'due') return parseLocalDateTime(assignment.dueAt || assignment.dueDate, true);
-  if (field === 'late') return parseLocalDateTime(assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate, true);
+  if (field === 'late') {
+    const classFinal = parseLocalDateTime(
+      assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate,
+      true,
+    );
+    const studentFinal = parseLocalDateTime(override?.lateDueAt || override?.dueAt, true);
+    if (!classFinal) return studentFinal;
+    if (!studentFinal) return classFinal;
+    return studentFinal.getTime() > classFinal.getTime() ? studentFinal : classFinal;
+  }
   if (field === 'release') return parseLocalDateTime(assignment.releaseAt || assignment.releaseDate, false);
   return null;
 };
 
-export const getAssignmentLifecycle = (assignment, nowValue = Date.now()) => {
+export const getAssignmentLifecycle = (assignment, nowValue = Date.now(), { studentId = null } = {}) => {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
-  const releaseAt = getAssignmentDate(assignment, 'release');
-  const dueAt = getAssignmentDate(assignment, 'due');
-  const lateDueAt = getAssignmentDate(assignment, 'late');
+  const releaseAt = getAssignmentDate(assignment, 'release', studentId);
+  const dueAt = getAssignmentDate(assignment, 'due', studentId);
+  const lateDueAt = getAssignmentDate(assignment, 'late', studentId);
   let status = 'onTime';
   if (releaseAt && now < releaseAt) status = 'scheduled';
   else if (lateDueAt && now > lateDueAt) status = 'closed';
@@ -204,10 +236,12 @@ const SECTION_ACCESS_STATES = new Set(['open', 'closed']);
 // After the final grading cutoff the whole assignment becomes voluntary
 // Practice Mode. At that point teacher section locks no longer hide content —
 // students may revisit everything, but none of it writes grades/evidence.
-export const getSectionAccessState = ({ assignment, activityRole, classId = null, classPeriod: _classPeriod, nowValue = Date.now() }) => {
+export const getSectionAccessState = ({
+  assignment, activityRole, classId = null, classPeriod: _classPeriod, nowValue = Date.now(), studentId = null,
+}) => {
   const role = String(activityRole || '').trim().toLowerCase();
   const exists = projectCurrentAssignmentContent(assignment).entries.some((entry) => entry.logicalRole === role);
-  const lifecycle = getAssignmentLifecycle(assignment, nowValue);
+  const lifecycle = getAssignmentLifecycle(assignment, nowValue, { studentId });
 
   if (!MANUALLY_CONTROLLABLE_SECTION_ROLES.includes(role) || !exists) {
     return { role, enabled: false, status: 'unavailable', isOpen: true, defaultState: 'open', override: null, lifecycle };
@@ -552,10 +586,12 @@ export const normalizeAssignmentActivity = (activity) => ({
   finalLateActiveAt: activity?.finalLateActiveAt || null,
 });
 
-export const recordAssignmentActivity = ({ activity, assignment, seconds = 0, nowValue = Date.now() }) => {
+export const recordAssignmentActivity = ({
+  activity, assignment, seconds = 0, nowValue = Date.now(), studentId = null,
+}) => {
   const current = normalizeAssignmentActivity(activity);
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
-  const lifecycle = getAssignmentLifecycle(assignment, now);
+  const lifecycle = getAssignmentLifecycle(assignment, now, { studentId });
   const delta = Math.max(0, Math.floor(Number(seconds) || 0));
   const next = {
     ...current,

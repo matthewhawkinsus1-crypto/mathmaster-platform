@@ -60,11 +60,13 @@ const hasDolWindowToday = (assignment, classSchedule, nowValue, classes = []) =>
 // Archived assignments are hidden from every view except "Archived" itself
 // — including the default/"All" view — so archiving actually declutters the
 // list rather than just adding another badge to look past.
-export const matchesSmartView = (assignment, viewId, { nowValue = Date.now(), classSchedule, classes = [] } = {}) => {
+export const matchesSmartView = (assignment, viewId, {
+  nowValue = Date.now(), classSchedule, classes = [], studentId = null,
+} = {}) => {
   if (viewId === 'archived') return isArchived(assignment);
   if (isArchived(assignment)) return false;
   if (!viewId) return true;
-  const lifecycle = getAssignmentLifecycle(assignment, nowValue);
+  const lifecycle = getAssignmentLifecycle(assignment, nowValue, { studentId });
   const todayKey = localDateKey(nowValue);
   switch (viewId) {
     case 'today':
