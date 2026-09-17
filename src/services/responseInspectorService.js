@@ -10,3 +10,9 @@ export const overrideStudentResponseGrade = async (request) => {
   const result = await httpsCallable(functions, 'overrideStudentResponseGrade')(request);
   return result.data;
 };
+
+
+export const applyAcademicIntegrityGradeOverride = async (request) => {
+  const result = await httpsCallable(functions, 'applyAcademicIntegrityGradeOverride')(request);
+  return result.data;
+};
