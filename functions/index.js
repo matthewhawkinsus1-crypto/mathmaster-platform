@@ -1502,6 +1502,336 @@ exports.overrideStudentResponseGrade = onCall(async (request) => {
   return result;
 });
 
+
+/**
+ * Teacher-confirmed academic-integrity consequence.
+ *
+ * This is deliberately NOT connected to MathMaster's automated Integrity
+ * Review signals. A persistent zero can be created only by an authenticated
+ * teacher action after the teacher checks the explicit confirmation control.
+ * The student's automatic tracker remains untouched underneath the protected
+ * teacherGradeOverridesByAssignment projection, so reversing the incident can
+ * restore exactly what existed before it.
+ */
+exports.applyAcademicIntegrityGradeOverride = onCall(async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const teacherEmail = callerEmail(request);
+  if (!teacherEmail) {
+    throw new HttpsError("permission-denied", "A verified teacher email is required.");
+  }
+
+  const data = request.data || {};
+  const studentId = String(data.studentId || "").trim();
+  const assignmentId = String(data.assignmentId || "").trim();
+  const action = String(data.action || "apply").trim();
+  if (!studentId || !assignmentId || !["apply", "restore"].includes(action)) {
+    throw new HttpsError("invalid-argument", "Student, assignment, and a valid action are required.");
+  }
+
+  const db = getFirestore();
+  const gradeRef = db.collection("grades").doc(studentId);
+  const assignmentRef = db.collection("assignments").doc(assignmentId);
+  const nowIso = new Date().toISOString();
+  const actor = {
+    uid: teacherUid,
+    email: teacherEmail,
+    name: request.auth?.token?.name || null,
+  };
+
+  const requestId = String(data.requestId || "").trim();
+  const requestedIncidentId = String(data.incidentId || "").trim();
+  if (action === "apply" && !/^[A-Za-z0-9_-]{8,120}$/.test(requestId)) {
+    throw new HttpsError("invalid-argument", "A stable integrity request ID is required.");
+  }
+  if (action === "restore" && !/^[A-Za-z0-9_-]{8,160}$/.test(requestedIncidentId)) {
+    throw new HttpsError("invalid-argument", "The integrity incident to restore is required.");
+  }
+
+  const incidentId = action === "apply" ? `integrity_${requestId}` : requestedIncidentId;
+  const applyAuditRef = gradeRef.collection("gradeOverrideAudits").doc(`${incidentId}__apply`);
+  const restoreAuditRef = gradeRef.collection("gradeOverrideAudits").doc(`${incidentId}__restore`);
+  const incidentEventRef = db.collection("studentSupportEvents").doc(`${incidentId}__incident`);
+  const parentFollowUpRef = db.collection("studentSupportEvents").doc(`${incidentId}__parent`);
+  const resolutionEventRef = db.collection("studentSupportEvents").doc(`${incidentId}__resolved`);
+
+  return db.runTransaction(async (transaction) => {
+    const [gradeSnap, assignmentSnap] = await Promise.all([
+      transaction.get(gradeRef),
+      transaction.get(assignmentRef),
+    ]);
+    if (!gradeSnap.exists || !assignmentSnap.exists) {
+      throw new HttpsError("not-found", "The student or assignment was not found.");
+    }
+
+    const gradeData = gradeSnap.data() || {};
+    const assignment = { id: assignmentSnap.id, ...assignmentSnap.data() };
+    const classId = String(gradeData.classId || "").trim();
+    const classRef = classId ? db.collection("classes").doc(classId) : null;
+    const classSnap = classRef ? await transaction.get(classRef) : null;
+    const classData = classSnap?.exists ? classSnap.data() || {} : {};
+    const teacherOfRecord = String(classData.teacherOfRecord || "").trim().toLowerCase();
+    const ownsClass = Boolean(classSnap?.exists) && teacherOfRecord === teacherEmail;
+    if (!authLib.isRootAdminEmail(teacherEmail) && !ownsClass) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only this student's teacher of record may apply an academic-integrity consequence.",
+      );
+    }
+    if (String(assignment?.assessmentPolicy?.mode || "") === "testCycle") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Secure Test Cycle results use the dedicated assessment correction workflow.",
+      );
+    }
+    if (
+      !authLib.isRootAdminEmail(teacherEmail)
+      && !studentMatchesAssignmentAudience({ assignment, classId: classId || null })
+    ) {
+      throw new HttpsError(
+        "permission-denied",
+        "This assignment is not assigned to the student's current class.",
+      );
+    }
+
+    const applyAuditSnap = await transaction.get(applyAuditRef);
+    const restoreAuditSnap = await transaction.get(restoreAuditRef);
+
+    if (action === "restore") {
+      if (!applyAuditSnap.exists) {
+        throw new HttpsError("not-found", "The academic-integrity incident was not found.");
+      }
+      const applied = applyAuditSnap.data() || {};
+      if (
+        String(applied.studentId || "") !== studentId
+        || String(applied.assignmentId || "") !== assignmentId
+      ) {
+        throw new HttpsError("permission-denied", "That incident does not belong to this student and assignment.");
+      }
+      if (restoreAuditSnap.exists) {
+        return { incidentId, action: "restore", replay: true };
+      }
+
+      const previousOverridesByQuestion =
+        applied.previousOverridesByQuestion && typeof applied.previousOverridesByQuestion === "object"
+          ? applied.previousOverridesByQuestion
+          : {};
+      const targetQuestionIndices = Array.isArray(applied.targetQuestionIndices)
+        ? applied.targetQuestionIndices.map(Number).filter(Number.isInteger)
+        : [];
+      if (!targetQuestionIndices.length) {
+        throw new HttpsError("failed-precondition", "The incident has no restorable grade targets.");
+      }
+
+      const updates = [];
+      targetQuestionIndices.forEach((index) => {
+        const key = String(index);
+        const previous = previousOverridesByQuestion[key];
+        updates.push(
+          new FieldPath("teacherGradeOverridesByAssignment", assignmentId, key),
+          previous || FieldValue.delete(),
+        );
+      });
+      updates.push(
+        new FieldPath("classroomReleaseSignals", assignmentId),
+        {
+          requestedAt: nowIso,
+          reason: "manual-retry",
+          source: "academic-integrity-restore",
+        },
+      );
+      transaction.update(gradeRef, ...updates);
+
+      transaction.set(restoreAuditRef, {
+        type: "academic-integrity-restore",
+        incidentId,
+        studentId,
+        assignmentId,
+        targetQuestionIndices,
+        actor,
+        at: nowIso,
+        previousOverridesByQuestion,
+      });
+
+      transaction.set(resolutionEventRef, {
+        schemaVersion: 1,
+        kind: "academicIntegrityIncident",
+        stage: "resolved",
+        studentId,
+        studentName: String(gradeData.displayName || gradeData.name || studentId),
+        classId: classId || null,
+        classPeriod: String(gradeData.classPeriod || classData.period || "") || null,
+        originClassId: classId || null,
+        originTeacherEmail: teacherOfRecord || teacherEmail,
+        assignmentId,
+        assignmentTitle: String(assignment.title || "Assignment").slice(0, 180),
+        signalKey: `${incidentId}:resolved`,
+        summary: "Teacher reversed the academic-integrity grade consequence. Original calculated work remains preserved.",
+        note: "",
+        source: "academicIntegrity",
+        evidence: { incidentId, resolution: "restored" },
+        relatedEventId: incidentEventRef.id,
+        createdByEmail: teacherEmail,
+        authorizedTeacherEmails: [...new Set([teacherOfRecord, teacherEmail].filter(Boolean))],
+        createdAt: nowIso,
+        createdAtServer: FieldValue.serverTimestamp(),
+      });
+
+      return { incidentId, action: "restore", replay: false };
+    }
+
+    if (applyAuditSnap.exists) {
+      return { incidentId, action: "apply", replay: true };
+    }
+
+    const scope = String(data.scope || "").trim();
+    const sectionRole = String(data.sectionRole || "").trim().toLowerCase();
+    const incidentType = String(data.incidentType || "").trim();
+    const participantRole = String(data.participantRole || "direct").trim();
+    const note = String(data.note || "").trim().slice(0, 1000);
+    if (!["assignment", "section"].includes(scope)) {
+      throw new HttpsError("invalid-argument", "Choose the whole assignment or this section.");
+    }
+    if (scope === "section" && !["warmup", "classwork", "practice", "dol"].includes(sectionRole)) {
+      throw new HttpsError("invalid-argument", "A valid assignment section is required.");
+    }
+    if (!["prohibitedCellphoneUse", "unauthorizedAssistance", "accountSwitching"].includes(incidentType)) {
+      throw new HttpsError("invalid-argument", "Choose a valid confirmed academic-integrity incident.");
+    }
+    if (!["direct", "received", "supplied"].includes(participantRole)) {
+      throw new HttpsError("invalid-argument", "Choose the student's role in the confirmed incident.");
+    }
+
+    const targetQuestionIndices = scope === "assignment"
+      ? runtimeIncludedQuestionIndices(assignment)
+      : runtimeIncludedQuestionIndicesForSection(assignment, sectionRole);
+    if (!targetQuestionIndices.length) {
+      throw new HttpsError("failed-precondition", "That integrity consequence has no current grade-bearing questions.");
+    }
+
+    const currentOverrides = gradeData.teacherGradeOverridesByAssignment?.[assignmentId] || {};
+    const conflictingIncident = targetQuestionIndices
+      .map((index) => currentOverrides[String(index)] ?? currentOverrides[index] ?? null)
+      .find((override) => (
+        override?.active === true
+        && override?.persistent === true
+        && override?.source === "academic-integrity"
+        && String(override?.incidentId || "") !== incidentId
+      ));
+    if (conflictingIncident) {
+      throw new HttpsError(
+        "failed-precondition",
+        "A different academic-integrity consequence is already active in this scope. Restore it before applying another.",
+      );
+    }
+
+    const previousOverridesByQuestion = {};
+    targetQuestionIndices.forEach((index) => {
+      const key = String(index);
+      const previous = currentOverrides[key] ?? currentOverrides[index] ?? null;
+      if (previous) previousOverridesByQuestion[key] = previous;
+    });
+
+    const updates = [];
+    targetQuestionIndices.forEach((index) => {
+      const key = String(index);
+      updates.push(
+        new FieldPath("teacherGradeOverridesByAssignment", assignmentId, key),
+        {
+          active: true,
+          score: 0,
+          fieldOverrides: {},
+          updatedAt: nowIso,
+          source: "academic-integrity",
+          persistent: true,
+          incidentId,
+          scope,
+          sectionRole: scope === "section" ? sectionRole : null,
+        },
+      );
+    });
+    updates.push(
+      new FieldPath("classroomReleaseSignals", assignmentId),
+      {
+        requestedAt: nowIso,
+        reason: "manual-retry",
+        source: "academic-integrity",
+      },
+    );
+    transaction.update(gradeRef, ...updates);
+
+    transaction.set(applyAuditRef, {
+      type: "academic-integrity-apply",
+      incidentId,
+      studentId,
+      assignmentId,
+      scope,
+      sectionRole: scope === "section" ? sectionRole : null,
+      targetQuestionIndices,
+      previousOverridesByQuestion,
+      incidentType,
+      participantRole,
+      note,
+      actor,
+      at: nowIso,
+    });
+
+    const eventBase = {
+      schemaVersion: 1,
+      studentId,
+      studentName: String(gradeData.displayName || gradeData.name || studentId),
+      classId: classId || null,
+      classPeriod: String(gradeData.classPeriod || classData.period || "") || null,
+      originClassId: classId || null,
+      originTeacherEmail: teacherOfRecord || teacherEmail,
+      assignmentId,
+      assignmentTitle: String(assignment.title || "Assignment").slice(0, 180),
+      createdByEmail: teacherEmail,
+      authorizedTeacherEmails: [...new Set([teacherOfRecord, teacherEmail].filter(Boolean))],
+      createdAt: nowIso,
+      createdAtServer: FieldValue.serverTimestamp(),
+      source: "academicIntegrity",
+    };
+    const evidence = {
+      incidentId,
+      incidentType,
+      participantRole,
+      scope,
+      sectionRole: scope === "section" ? sectionRole : null,
+      targetQuestionIndices,
+    };
+
+    transaction.set(incidentEventRef, {
+      ...eventBase,
+      kind: "academicIntegrityIncident",
+      stage: "teacherConfirmed",
+      signalKey: `${incidentId}:incident`,
+      summary: "Teacher confirmed an academic-integrity incident and applied a 0% grade consequence.",
+      note,
+      evidence,
+      relatedEventId: null,
+    });
+    transaction.set(parentFollowUpRef, {
+      ...eventBase,
+      kind: "parentFollowUp",
+      stage: "teacherConfirmed",
+      signalKey: `${incidentId}:parentFollowUp`,
+      summary: "Parent/guardian follow-up is needed after a teacher-confirmed academic-integrity consequence.",
+      note: "",
+      evidence: { ...evidence, followUpReason: "academic-integrity" },
+      relatedEventId: incidentEventRef.id,
+    });
+
+    return {
+      incidentId,
+      action: "apply",
+      replay: false,
+      scope,
+      sectionRole: scope === "section" ? sectionRole : null,
+      targetQuestionIndices,
+    };
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Class Points: a classroom participation reward currency, scoped to
 // studentId + classId. See functions/shared/classPoints.mjs for the domain
