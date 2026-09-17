@@ -239,11 +239,16 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
           'schemaVersion', 'studentId', 'studentName', 'classId', 'classPeriod',
           'occurredAt', 'method', 'category', 'notes', 'outcome', 'followUpDate',
-          'followUpCompleted', 'createdByEmail', 'authorizedTeacherEmails',
+          'recordType', 'parentContactId', 'createdByEmail', 'originTeacherEmail',
+          'originClassId', 'authorizedTeacherEmails',
           'createdAt', 'createdAtServer'
         ])
         && request.resource.data.studentId is string
+        && request.resource.data.recordType in ['contact', 'followUpResolution']
+        && (request.resource.data.recordType == 'contact' || request.resource.data.parentContactId is string)
         && request.resource.data.createdByEmail == request.auth.token.email
+        && request.resource.data.originTeacherEmail == request.auth.token.email
+        && request.resource.data.originClassId == request.resource.data.classId
         && request.resource.data.authorizedTeacherEmails == [request.auth.token.email]
         && request.resource.data.method in ['phone', 'email', 'text', 'conference', 'voicemail', 'other']
         && request.resource.data.category in ['academics', 'missingWork', 'attendance', 'behavior', 'academicIntegrity', 'cellphone', 'positiveContact', 'other']

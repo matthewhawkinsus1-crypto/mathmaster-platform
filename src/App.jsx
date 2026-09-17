@@ -338,7 +338,7 @@ import { buildNonInstructionalSet } from './platform/path/curriculumCalendar.js'
 import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolYear2026-2027.js';
 import AttendanceHistoryPanel from './components/teacher/AttendanceHistoryPanel.jsx';
 import ParentContactCenter from './components/teacher/ParentContactCenter.jsx';
-import { recordParentContact, subscribeParentContacts } from './platform/teacher/parentContactStore.js';
+import { fetchAllParentContactsForExport, recordParentContact, recordParentContactResolution, subscribeParentContacts } from './platform/teacher/parentContactStore.js';
 import {
   buildStudentExtensionPatch,
   reconcileAssignmentExtensionsForCorrection,
@@ -9784,6 +9784,8 @@ function App() {
                 nonInstructionalKeys={SCHOOL_NON_INSTRUCTIONAL_KEYS}
                 nowValue={now}
                 onRecordContact={(contact) => recordParentContact({ db, teacherEmail: user.email, contact })}
+                onCompleteFollowUp={(contact) => recordParentContactResolution({ db, teacherEmail: user.email, contact })}
+                onExportContacts={() => fetchAllParentContactsForExport({ db, teacherEmail: user.email })}
               />
             )}
 

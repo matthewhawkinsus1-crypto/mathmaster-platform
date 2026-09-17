@@ -1310,8 +1310,8 @@ test('parent contact logs are private, append-only, teacher-of-record records wi
   const contact = {
     schemaVersion: 1, studentId: 'STUDENT_A', studentName: 'Student A', classId: 'class-a', classPeriod: 'Period 1',
     occurredAt: '2026-09-17T14:00:00.000Z', method: 'phone', category: 'academics', notes: 'Discussed progress',
-    outcome: 'Guardian reached', followUpDate: null, followUpCompleted: false, createdByEmail: TEACHER_A,
-    authorizedTeacherEmails: [TEACHER_A], createdAt: '2026-09-17T14:01:00.000Z', createdAtServer: serverTimestamp(),
+    outcome: 'Guardian reached', followUpDate: null, recordType: 'contact', parentContactId: null, createdByEmail: TEACHER_A,
+    originTeacherEmail: TEACHER_A, originClassId: 'class-a', authorizedTeacherEmails: [TEACHER_A], createdAt: '2026-09-17T14:01:00.000Z', createdAtServer: serverTimestamp(),
   };
   await assertSucceeds(setDoc(doc(teacherA(), 'parentContactLogs/contact-a'), contact));
   await assertSucceeds(getDoc(doc(teacherA(), 'parentContactLogs/contact-a')));
@@ -1319,6 +1319,7 @@ test('parent contact logs are private, append-only, teacher-of-record records wi
   await assertFails(getDoc(doc(teacherB(), 'parentContactLogs/contact-a')));
   await assertFails(setDoc(doc(teacherB(), 'parentContactLogs/forged'), contact));
   await assertFails(setDoc(doc(teacherA(), 'parentContactLogs/answer-leak'), { ...contact, answerContent: 'sensitive response' }));
+  await assertSucceeds(setDoc(doc(teacherA(), 'parentContactLogs/resolution-a'), { ...contact, recordType: 'followUpResolution', parentContactId: 'contact-a', method: 'other', category: 'other', notes: '', outcome: 'Follow-up completed', followUpDate: null }));
   await assertFails(updateDoc(doc(teacherA(), 'parentContactLogs/contact-a'), { notes: 'rewritten' }));
   await assertFails(deleteDoc(doc(teacherA(), 'parentContactLogs/contact-a')));
 });

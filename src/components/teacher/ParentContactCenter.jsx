@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { formatStudentName } from '../../platform/studentName.js';
 import {
-  CONTACT_CATEGORIES, CONTACT_METHODS, buildStudentProgressBrief, contactsCsv, groupContactsByStudent, progressBriefText, validateContactDraft,
+  CONTACT_CATEGORIES, CONTACT_METHODS, buildStudentProgressBrief, contactsCsv, groupContactsByStudent, progressBriefText, projectProgressBriefGrades, validateContactDraft,
 } from '../../platform/teacher/parentContactCenter.js';
 import { resolveReturnCheckIns } from '../../platform/attendance/returnCheckIn.js';
 import { localDateKeyOf } from '../../platform/attendance/classMeetings.js';
@@ -11,7 +11,7 @@ const label = (value) => labels[value] || value.charAt(0).toUpperCase() + value.
 const localNow = () => { const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); };
 const button = { padding: '9px 12px', border: '1px solid #c7ccd4', borderRadius: 8, background: '#fff', fontWeight: 800, cursor: 'pointer' };
 
-export default function ParentContactCenter({ students = [], classes = [], assignments = [], contacts = [], supportEvents = [], sessionSummaries = [], masteryProfilesByStudentId = {}, classSchedule = null, nonInstructionalKeys = null, nowValue = Date.now(), onRecordContact }) {
+export default function ParentContactCenter({ students = [], classes = [], assignments = [], contacts = [], supportEvents = [], sessionSummaries = [], masteryProfilesByStudentId = {}, classSchedule = null, nonInstructionalKeys = null, nowValue = Date.now(), onRecordContact, onCompleteFollowUp, onExportContacts }) {
   const [studentId, setStudentId] = useState('');
   const [draft, setDraft] = useState({ occurredAt: localNow(), method: 'phone', category: 'academics', notes: '', outcome: '', followUpDate: '' });
   const [error, setError] = useState('');
@@ -37,11 +37,7 @@ export default function ParentContactCenter({ students = [], classes = [], assig
   const buildBrief = () => {
     if (!student) return setError('Choose a student first.');
     const gradeMap = student.gradesByAssignment || {};
-    const gradeEntries = assignments.filter((assignment) => Object.hasOwn(gradeMap, assignment.id)).map((assignment) => {
-      const record = gradeMap[assignment.id] || {};
-      const grade = typeof record === 'number' ? record : Number.isFinite(record.grade) ? record.grade : record.gradeEvidence?.overallGrade;
-      return { assignmentId: assignment.id, title: assignment.title, grade, status: record.status || record.gradeEvidence?.status || (Number.isFinite(grade) ? 'complete' : null), attempts: record.attemptCount, completedAt: record.completedAt, late: record.late === true, sectionGrades: record.gradeEvidence?.sections };
-    });
+    const gradeEntries = projectProgressBriefGrades({ student, assignments });
     const mine = (rows) => rows.filter((entry) => String(entry.studentId) === studentId);
     const brief = buildStudentProgressBrief({
       student, gradeEntries, attendance: mine(supportEvents).filter((event) => /Attendance/i.test(event.kind)),
@@ -53,8 +49,11 @@ export default function ParentContactCenter({ students = [], classes = [], assig
     setBriefText(progressBriefText(brief));
   };
 
-  const exportAll = () => {
-    const blob = new Blob([contactsCsv({ contacts, students, classes })], { type: 'text/csv;charset=utf-8' });
+  const exportAll = async () => {
+    setError('');
+    let completeHistory;
+    try { completeHistory = await onExportContacts(); } catch (reason) { setError(reason.message); return; }
+    const blob = new Blob([contactsCsv({ contacts: completeHistory, students, classes })], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob); const anchor = document.createElement('a');
     anchor.href = url; anchor.download = `parent-contact-history-${new Date().toISOString().slice(0, 10)}.csv`; anchor.click(); URL.revokeObjectURL(url);
   };
@@ -73,7 +72,7 @@ export default function ParentContactCenter({ students = [], classes = [], assig
         <label>Optional follow-up date<input type="date" value={draft.followUpDate} onChange={(e) => setDraft({ ...draft, followUpDate: e.target.value })} style={{ display: 'block', width: '100%', padding: 8 }} /></label>
         {error && <p role="alert" style={{ color: '#b3261e' }}>{error}</p>}<div style={{ display: 'flex', gap: 8, marginTop: 12 }}><button style={{ ...button, background: '#1a73e8', color: '#fff' }}>Save contact</button><button type="button" style={button} onClick={buildBrief}>Generate progress brief</button></div>
       </form>
-      <div><h3 style={{ marginTop: 0 }}>History by student</h3>{!groups.length && <p>No contacts recorded yet.</p>}{groups.map((group) => <details key={group.studentId} open={group.studentId === studentId} style={{ borderBottom: '1px solid #e8eaed', padding: 10 }}><summary><strong>{group.studentName}</strong> · {group.contacts.length} contact{group.contacts.length === 1 ? '' : 's'}</summary>{group.contacts.map((entry) => <article key={entry.id || `${entry.occurredAt}:${entry.method}`} style={{ margin: '10px 0', paddingLeft: 12, borderLeft: '3px solid #d2e3fc' }}><strong>{new Date(entry.occurredAt).toLocaleString()} · {label(entry.method)} · {label(entry.category)}</strong><div>{entry.outcome}</div>{entry.notes && <div>{entry.notes}</div>}{entry.followUpDate && <div>Follow up: {entry.followUpDate}</div>}</article>)}</details>)}</div>
+      <div><h3 style={{ marginTop: 0 }}>History by student</h3>{!groups.length && <p>No contacts recorded yet.</p>}{groups.map((group) => <details key={group.studentId} open={group.studentId === studentId} style={{ borderBottom: '1px solid #e8eaed', padding: 10 }}><summary><strong>{group.studentName}</strong> · {group.contacts.length} contact{group.contacts.length === 1 ? '' : 's'}</summary>{group.contacts.map((entry) => <article key={entry.id || `${entry.occurredAt}:${entry.method}`} style={{ margin: '10px 0', paddingLeft: 12, borderLeft: '3px solid #d2e3fc' }}><strong>{new Date(entry.occurredAt).toLocaleString()} · {label(entry.method)} · {label(entry.category)}</strong><div>{entry.outcome}</div>{entry.notes && <div>{entry.notes}</div>}{entry.followUpDate && <div>Follow up: {entry.followUpDate} {entry.followUpCompleted ? '· Completed' : <button type="button" style={button} onClick={() => onCompleteFollowUp(entry)}>Mark complete</button>}</div>}</article>)}</details>)}</div>
     </div>
     {briefText && <div style={{ marginTop: 20 }}><h3>Student Progress Brief</h3><p style={{ color: '#5f6368' }}>Clear factual context for the teacher to review or copy into a drafting tool.</p><textarea readOnly value={briefText} aria-label="Student progress brief" style={{ width: '100%', minHeight: 260, padding: 12, boxSizing: 'border-box' }} /><button type="button" style={button} onClick={() => navigator.clipboard.writeText(briefText)}>Copy brief</button></div>}
   </section>;

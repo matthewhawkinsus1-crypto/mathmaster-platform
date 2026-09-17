@@ -1,3 +1,6 @@
+import { canonicalPresentedAssignmentGrade, projectTeacherOverridesForDisplay } from '../grading/canonicalGradeProjection.js';
+import { splitGrade, splitGradesBySection } from './gradeEvidence.js';
+
 export const CONTACT_METHODS = Object.freeze(['phone', 'email', 'text', 'conference', 'voicemail', 'other']);
 export const CONTACT_CATEGORIES = Object.freeze([
   'academics', 'missingWork', 'attendance', 'behavior', 'academicIntegrity', 'cellphone', 'positiveContact', 'other',
@@ -7,6 +10,27 @@ const clean = (value) => String(value ?? '').trim();
 const list = (value) => (Array.isArray(value) ? value : []);
 const csv = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
 const time = (value) => Date.parse(value || '') || 0;
+
+/** Build the same override-aware assignment rows the production Grade Center displays. */
+export const projectProgressBriefGrades = ({ student = {}, assignments = [] } = {}) => {
+  const projected = projectTeacherOverridesForDisplay(student.gradesByAssignment || {}, student.teacherGradeOverridesByAssignment || {});
+  return list(assignments).map((assignment) => {
+    const tracker = projected[assignment.id];
+    const grade = canonicalPresentedAssignmentGrade({ student, assignment });
+    if (!tracker && grade == null) return null;
+    const split = tracker ? splitGrade({ tracker, assignment }) : null;
+    const records = tracker ? Object.values(tracker).filter((entry) => entry && typeof entry === 'object') : [];
+    const attempts = records.reduce((sum, entry) => sum + (Number(entry.totalAttempts ?? entry.attemptCount) || 0), 0);
+    const updated = records.map((entry) => entry.completedAt || entry.lastAttemptAt || entry.academicOccurredAt).filter(Boolean).sort().at(-1) || null;
+    return {
+      assignmentId: assignment.id, title: assignment.title, grade,
+      status: grade != null && (split?.shape === 'complete' || !tracker) ? 'complete' : (split?.shape || 'incomplete'),
+      attempts, completedAt: updated, updatedAt: updated,
+      late: records.some((entry) => entry.late === true),
+      sectionGrades: tracker ? splitGradesBySection({ tracker, assignment }) : null,
+    };
+  }).filter(Boolean);
+};
 
 export const validateContactDraft = (draft = {}) => {
   const errors = [];
@@ -77,7 +101,7 @@ export const buildStudentProgressBrief = ({ student, gradeEntries = [], classGra
     missingAssignments: missing,
     timeliness: { onTime: completed.length - late.length, late: late.length },
     attempts: entries.reduce((sum, entry) => sum + (Number(entry.attempts) || 0), 0),
-    engagementMinutes: Math.round(list(sessionSummaries).reduce((sum, entry) => sum + Math.max(0, (Number(entry.endedAt) - Number(entry.startedAt)) / 60000 || 0), 0)),
+    engagementMinutes: Math.round(list(sessionSummaries).reduce((sum, entry) => sum + Math.max(0, Number(entry.activeSeconds) || 0), 0) / 60),
     sectionPerformance: entries.map((entry) => ({ assignment: entry.title || entry.assignmentTitle, sections: entry.sectionGrades || entry.sections || null })).filter((entry) => entry.sections),
     masteryEvidence: list(masteryEvidence), attendance: list(attendance), extensions: list(extensions), overrideActions: list(overrideActions),
     supportHistory: list(supportHistory), priorContacts: list(contacts), outstandingFollowUps: list(contacts).filter((entry) => entry.followUpDate && entry.followUpCompleted !== true),

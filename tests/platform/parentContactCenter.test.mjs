@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { buildStudentProgressBrief, contactsCsv, groupContactsByStudent, progressBriefText, validateContactDraft } from '../../src/platform/teacher/parentContactCenter.js';
+import { buildStudentProgressBrief, contactsCsv, groupContactsByStudent, progressBriefText, projectProgressBriefGrades, validateContactDraft } from '../../src/platform/teacher/parentContactCenter.js';
+import { resolveContactEvents } from '../../src/platform/teacher/parentContactStore.js';
 
 test('contact history groups canonical student IDs and always resolves the current roster name', () => {
   const contacts = [
@@ -33,7 +34,7 @@ test('progress brief presents canonical grades and facts without calculating a r
       { title: 'Lesson 3', status: 'missing' },
     ],
     classGradeValues: [60, 70, 80, 90, 100], contacts: [{ followUpDate: '2026-09-20' }],
-    returnCheckIns: [{ studentId: 'S1', status: 'open' }], sessionSummaries: [{ startedAt: 0, endedAt: 600000 }],
+    returnCheckIns: [{ studentId: 'S1', status: 'open' }], sessionSummaries: [{ startedAt: 0, endedAt: 3600000, activeSeconds: 600 }],
   });
   assert.deepEqual(brief.recentGradeTrend.map((entry) => entry.grade), [80, 70]);
   assert.equal(brief.completion.rate, 2 / 3);
@@ -41,13 +42,33 @@ test('progress brief presents canonical grades and facts without calculating a r
   assert.equal(brief.outstandingFollowUps.length, 1);
   assert.equal(brief.returnFromAbsenceFollowUps.length, 1);
   assert.equal(brief.neutralClassContext.comparison, 'near the class median');
+  assert.equal(brief.engagementMinutes, 10, 'parent-facing engagement uses active time, not elapsed wall-clock time');
   assert.doesNotMatch(progressBriefText(brief), /rank/i);
+});
+
+test('progress brief projects question trackers through canonical Grade Center overrides', () => {
+  const assignment = { id: 'a1', title: 'Canonical lesson', schemaVersion: 5, assignment: { title: 'Canonical lesson' }, sections: [{ id: 'practice', role: 'practice', questions: [{ id: 'q1', type: 'algebra' }, { id: 'q2', type: 'algebra' }] }], variantPolicy: { mode: 'shared', sectionModes: { practice: 'shared' } } };
+  const student = {
+    id: 'S1', gradesByAssignment: { a1: { 0: { status: 'correct', attemptCount: 1 }, 1: { status: 'expired', bestPartialCredit: 50, attemptCount: 2 } } },
+    teacherGradeOverridesByAssignment: { a1: { __assignment: { active: true, score: 92 } } },
+  };
+  const [entry] = projectProgressBriefGrades({ student, assignments: [assignment] });
+  assert.equal(entry.grade, 92, 'the authoritative assignment override is the final grade');
+  assert.equal(entry.status, 'complete');
+  assert.equal(entry.attempts, 3);
+  assert.equal(entry.sectionGrades.practice.total, 2);
+});
+
+test('append-only resolution events clear linked outstanding follow-ups without rewriting contacts', () => {
+  const contact = { id: 'contact-1', recordType: 'contact', studentId: 'S1', followUpDate: '2026-09-20' };
+  const resolution = { id: 'resolution-1', recordType: 'followUpResolution', parentContactId: 'contact-1', studentId: 'S1' };
+  assert.deepEqual(resolveContactEvents([contact, resolution]), [{ ...contact, followUpCompleted: true }]);
 });
 
 test('runtime wiring imports the contact center and store next to their calls', async () => {
   const app = await readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8');
   assert.match(app, /import ParentContactCenter from '.\/components\/teacher\/ParentContactCenter\.jsx'/);
-  assert.match(app, /import \{ recordParentContact, subscribeParentContacts \} from '.\/platform\/teacher\/parentContactStore\.js'/);
+  assert.match(app, /import \{ fetchAllParentContactsForExport, recordParentContact, recordParentContactResolution, subscribeParentContacts \} from '.\/platform\/teacher\/parentContactStore\.js'/);
   assert.match(app, /teacherTab === 'parentContacts'[\s\S]{0,500}<ParentContactCenter/);
 });
 
@@ -56,4 +77,7 @@ test('contact persistence is allow-listed and never serializes answer content', 
   const payload = store.slice(store.indexOf('const payload = {'), store.indexOf('const ref = await addDoc'));
   assert.doesNotMatch(payload, /answer|response|evidence|tracker/i);
   assert.match(payload, /studentId: clean\(contact\.studentId\)/);
+  assert.match(payload, /originTeacherEmail: email/);
+  assert.match(store, /getDocs\(query\(collection\(db, PARENT_CONTACT_COLLECTION\)[\s\S]*orderBy\('occurredAt', 'desc'\)\)\)/);
+  assert.doesNotMatch(store.slice(store.indexOf('fetchAllParentContactsForExport')), /limit\(/);
 });
