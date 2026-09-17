@@ -207,6 +207,7 @@ export const automaticQuestionScore = (record) => Math.round(
 
 export const overrideAppliesToRecord = (record, override = null) => {
   if (override?.active !== true || !Number.isFinite(Number(override.score))) return false;
+  if (override.persistent === true && override.source === 'academic-integrity') return true;
   const recordAttempts = Number(record?.totalAttempts ?? record?.attemptCount ?? 0);
   const overrideAttempts = Number(override?.totalAttempts);
   if (!Number.isFinite(overrideAttempts) || overrideAttempts !== recordAttempts) return false;
