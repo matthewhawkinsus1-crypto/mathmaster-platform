@@ -5,6 +5,7 @@ import { buildTransferUnit, createExportSnapshot, packageManifest, teamsCsv, TRA
 import { buildGradebookZip } from '../../src/platform/gradeTransfer/gradeTransferPackage.js';
 import { canonicalPresentedAssignmentGrade } from '../../src/platform/grading/canonicalGradeProjection.js';
 import { assignmentIsForStudent } from '../../src/assignmentLifecycle.js';
+import { authorizedGradeTransferClasses, gradeTransferRoster } from '../../src/platform/gradeTransfer/gradeTransferScope.js';
 
 const assignment = { id: 'a1', title: 'Linear Correlation', lateDueAt: '2026-09-16T23:00:00Z' };
 const klass = { classId: 'c1', name: 'Algebra 1', period: 'P1' };
@@ -91,6 +92,30 @@ test('V5 assignment audience uses assignedClassIds and never same-period identit
   assert.equal(assignmentIsForStudent({ ...assignment, classPeriod: 'P1' }, { classId: 'class-b', classPeriod: 'P1' }), false);
 });
 
+test('Grade Transfer class scope follows teacher-of-record and root-admin policy', () => {
+  const classes = [
+    { classId: 'class-a', period: 'Period 3', teacherOfRecord: 'a@school.org' },
+    { classId: 'class-b', period: 'Period 3', teacherOfRecord: 'b@school.org' },
+    { classId: 'archived', period: 'Period 4', teacherOfRecord: 'a@school.org', status: 'archived' },
+  ];
+  assert.deepEqual(authorizedGradeTransferClasses({ classes, teacherEmail: 'A@school.org' }).map((entry) => entry.classId), ['class-a']);
+  assert.deepEqual(authorizedGradeTransferClasses({ classes, teacherEmail: 'a@school.org', isRootAdmin: true }).map((entry) => entry.classId), ['class-a', 'class-b']);
+});
+
+test('Grade Transfer roster requires canonical classId even when periods match', () => {
+  const classes = [
+    { classId: 'class-a', period: 'Period 3' },
+    { classId: 'class-b', period: 'Period 3' },
+  ];
+  const students = [
+    { id: 'a', classId: 'class-a', classPeriod: 'Period 3' },
+    { id: 'b', classId: 'class-b', classPeriod: 'Period 3' },
+    { id: 'legacy', classPeriod: 'Period 3' },
+  ];
+  assert.deepEqual(gradeTransferRoster({ students, classes, classId: 'class-a' }).map((entry) => entry.id), ['a']);
+  assert.deepEqual(gradeTransferRoster({ students, classes, classId: 'class-b' }).map((entry) => entry.id), ['b']);
+});
+
 test('Grade Transfer Center delegates audience decisions to the canonical helper', () => {
   const source = readFileSync(new URL('../../src/components/teacher/GradeTransferCenter.jsx', import.meta.url), 'utf8');
   assert.match(source, /\.filter\(\(assignment\) => assignmentIsForStudent\(assignment, \{ classId: classRecord\.classId, classPeriod: classRecord\.period \}\)\)/);
@@ -126,6 +151,14 @@ test('Grade Transfer loads server-written Practice Passes in class batches, neve
   assert.match(source, /where\('classId', '==', classId\)/);
   assert.match(source, /value\.rewardCode === 'practicePass' && value\.status === 'redeemed'/);
   assert.doesNotMatch(source, /where\('studentId'/);
+});
+
+test('snapshot reads are bounded by current authorized class ids', () => {
+  const source = readFileSync(new URL('../../src/platform/gradeTransfer/gradeTransferStore.js', import.meta.url), 'utf8');
+  assert.match(source, /classIds\.filter\(Boolean\)/);
+  assert.match(source, /where\('classId', '==', classId\)/);
+  assert.match(source, /where\('teacherUid', '==', teacherUid\)/);
+  assert.doesNotMatch(source, /where\('teacherUid', '==', teacherUid\)\)\);/);
 });
 
 test('missing SIS id blocks only that row and names remain teacher-facing', () => {

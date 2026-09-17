@@ -9675,6 +9675,7 @@ function App() {
                 students={allStudents}
                 teacherUid={auth.session?.uid || user.uid || ''}
                 teacherEmail={user.email || ''}
+                isRootAdmin={user.isRootAdmin === true}
               />
             )}
 

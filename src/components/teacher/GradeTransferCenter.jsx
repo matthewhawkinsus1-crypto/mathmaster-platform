@@ -6,6 +6,7 @@ import { listTeacherPracticePassRedemptions } from '../../platform/gradeTransfer
 import { assignmentIsForStudent } from '../../assignmentLifecycle.js';
 import { canonicalPresentedAssignmentGrade } from '../../platform/grading/canonicalGradeProjection.js';
 import { noStudentSpecificFinalDeadline } from '../../platform/gradeTransfer/studentDeadlineResolver.js';
+import { authorizedGradeTransferClasses, gradeTransferRoster } from '../../platform/gradeTransfer/gradeTransferScope.js';
 
 const downloadable = new Set([TRANSFER_STATE.READY_TO_EXPORT, TRANSFER_STATE.UPDATE_REQUIRED, TRANSFER_STATE.ROSTER_ID_PROBLEM]);
 const download = (bytes, fileName, type) => {
@@ -17,18 +18,20 @@ const id = (prefix) => `${prefix}_${Date.now().toString(36)}_${crypto.randomUUID
 const snapshotTime = (value) => typeof value?.toMillis === 'function' ? value.toMillis() : new Date(value || 0).getTime();
 const newestFirst = (left, right) => snapshotTime(right.createdAt) - snapshotTime(left.createdAt);
 
-export default function GradeTransferCenter({ classes, assignments, students, teacherUid, teacherEmail, resolveStudentFinalDeadline = noStudentSpecificFinalDeadline }) {
+export default function GradeTransferCenter({ classes, assignments, students, teacherUid, teacherEmail, isRootAdmin = false, resolveStudentFinalDeadline = noStudentSpecificFinalDeadline }) {
   const [snapshots, setSnapshots] = useState([]);
   const [selected, setSelected] = useState(new Set());
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [practicePasses, setPracticePasses] = useState(new Set());
-  useEffect(() => { listTeacherTransferSnapshots(teacherUid).then(setSnapshots).catch((error) => setMessage(error.message)); }, [teacherUid]);
-  useEffect(() => { listTeacherPracticePassRedemptions((classes || []).map((entry) => entry.classId)).then(setPracticePasses).catch((error) => setMessage(error.message)); }, [classes]);
-  const units = useMemo(() => (classes || []).flatMap((classRecord) => (assignments || [])
+  const authorizedClasses = useMemo(() => authorizedGradeTransferClasses({ classes, teacherEmail, isRootAdmin }), [classes, teacherEmail, isRootAdmin]);
+  const authorizedClassIds = useMemo(() => authorizedClasses.map((entry) => entry.classId), [authorizedClasses]);
+  useEffect(() => { listTeacherTransferSnapshots({ teacherUid, classIds: authorizedClassIds, isRootAdmin }).then(setSnapshots).catch((error) => setMessage(error.message)); }, [teacherUid, authorizedClassIds, isRootAdmin]);
+  useEffect(() => { listTeacherPracticePassRedemptions(authorizedClassIds).then(setPracticePasses).catch((error) => setMessage(error.message)); }, [authorizedClassIds]);
+  const units = useMemo(() => authorizedClasses.flatMap((classRecord) => (assignments || [])
     .filter((assignment) => assignmentIsForStudent(assignment, { classId: classRecord.classId, classPeriod: classRecord.period }))
     .map((assignment) => {
-      const eligible = (students || []).filter((student) => student.classId === classRecord.classId || (!student.classId && student.classPeriod === classRecord.period));
+      const eligible = gradeTransferRoster({ students, classes: authorizedClasses, classId: classRecord.classId });
       const history = snapshots.filter((item) => item.classId === classRecord.classId && item.assignmentId === assignment.id).sort(newestFirst);
       return buildTransferUnit({
         classRecord, assignment, students: eligible,
@@ -37,7 +40,7 @@ export default function GradeTransferCenter({ classes, assignments, students, te
         resolveStudentFinalDeadline,
         confirmedSnapshot: history.find((item) => item.uploadConfirmedAt), latestExport: history[0],
       });
-    })), [classes, assignments, students, snapshots, practicePasses, resolveStudentFinalDeadline]);
+    })), [authorizedClasses, assignments, students, snapshots, practicePasses, resolveStudentFinalDeadline]);
 
   const prepare = async (chosen) => {
     const ready = chosen.filter((unit) => unit.rows.length && downloadable.has(unit.state));
@@ -50,7 +53,7 @@ export default function GradeTransferCenter({ classes, assignments, students, te
         await persistTransferSnapshot(snapshot);
       }
       download(buildGradebookZip(ready), `${packageId}.zip`, 'application/zip');
-      setSnapshots(await listTeacherTransferSnapshots(teacherUid)); setSelected(new Set());
+      setSnapshots(await listTeacherTransferSnapshots({ teacherUid, classIds: authorizedClassIds, isRootAdmin })); setSelected(new Set());
       setMessage('Package downloaded. Upload is not recorded until you mark each export uploaded.');
     } catch (error) { setMessage(error.message); } finally { setBusy(false); }
   };
@@ -70,7 +73,7 @@ export default function GradeTransferCenter({ classes, assignments, students, te
         <td><input type="checkbox" aria-label={`Select ${unit.assignmentTitle} for ${unit.classLabel}`} checked={selected.has(unit.key)} disabled={!unit.rows.length || !downloadable.has(unit.state)} onChange={(event) => setSelected((current) => { const next = new Set(current); if (event.target.checked) next.add(unit.key); else next.delete(unit.key); return next; })} /></td>
         <td style={{ padding: 10 }}><strong>{unit.assignmentTitle}</strong>{(unit.withheld.length || unit.problems.length) > 0 && <details><summary>Inspect withheld/problem students</summary>{[...unit.withheld, ...unit.problems].map((item) => <div key={`${item.studentId}-${item.reason}`}>{item.name}: {item.reason}</div>)}</details>}</td>
         <td>{unit.classLabel}</td><td>{unit.ordinaryDeadline ? new Date(unit.ordinaryDeadline).toLocaleString() : 'Needs review'}</td><td>{unit.finalizedCount}</td><td>{unit.extensionCount}</td><td><strong>{unit.state.replaceAll('_', ' ')}</strong></td><td>{unit.changedCount}</td>
-        <td style={{ padding: 8 }}><button type="button" disabled={busy || !unit.rows.length || !downloadable.has(unit.state)} onClick={() => prepare([unit])}>Individual export</button>{latest && !latest.uploadConfirmedAt && <button type="button" disabled={busy} onClick={async () => { setBusy(true); try { await confirmTransferUploaded({ transferId: latest.transferId || latest.id, actorUid: teacherUid, actorEmail: teacherEmail }); setSnapshots(await listTeacherTransferSnapshots(teacherUid)); } catch (error) { setMessage(error.message); } finally { setBusy(false); } }}>Mark Uploaded to TEAMS</button>}</td>
+        <td style={{ padding: 8 }}><button type="button" disabled={busy || !unit.rows.length || !downloadable.has(unit.state)} onClick={() => prepare([unit])}>Individual export</button>{latest && !latest.uploadConfirmedAt && <button type="button" disabled={busy} onClick={async () => { setBusy(true); try { await confirmTransferUploaded({ transferId: latest.transferId || latest.id, actorUid: teacherUid, actorEmail: teacherEmail }); setSnapshots(await listTeacherTransferSnapshots({ teacherUid, classIds: authorizedClassIds, isRootAdmin })); } catch (error) { setMessage(error.message); } finally { setBusy(false); } }}>Mark Uploaded to TEAMS</button>}</td>
       </tr>; })}
     </tbody></table></div>
     <p style={{ color: '#5f6368', fontSize: 12 }}>TEAMS files contain only SIS Student ID and grade. Student names appear here for review but never in the CSV.</p>

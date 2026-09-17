@@ -1,9 +1,15 @@
 import { collection, doc, getDocs, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '../../firebase.js';
 
-export const listTeacherTransferSnapshots = async (teacherUid) => {
-  const result = await getDocs(query(collection(db, 'gradeTransferSnapshots'), where('teacherUid', '==', teacherUid)));
-  return result.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
+export const listTeacherTransferSnapshots = async ({ teacherUid, classIds = [], isRootAdmin = false }) => {
+  const snapshots = await Promise.all([...new Set(classIds.filter(Boolean))].map((classId) => getDocs(query(
+    collection(db, 'gradeTransferSnapshots'),
+    where('classId', '==', classId),
+    ...(isRootAdmin ? [] : [where('teacherUid', '==', teacherUid)]),
+  ))));
+  const byId = new Map();
+  snapshots.flatMap((snapshot) => snapshot.docs).forEach((entry) => byId.set(entry.id, { id: entry.id, ...entry.data() }));
+  return [...byId.values()];
 };
 
 export const persistTransferSnapshot = async (snapshot) => {
