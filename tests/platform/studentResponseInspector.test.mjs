@@ -606,3 +606,42 @@ test('academic-integrity zero is persistent across later attempts until the teac
   assert.equal(overrideAppliesToRecord(laterAttempt, integrityOverride), true);
   assert.equal(effectiveQuestionScore(laterAttempt, integrityOverride), 0);
 });
+
+
+test('academic-integrity callable is teacher-confirmed, audited, reversible, and creates parent follow-up', () => {
+  const source = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const start = source.indexOf('exports.applyAcademicIntegrityGradeOverride');
+  const end = source.indexOf('// ---------------------------------------------------------------------------\n// Class Points', start);
+  assert.ok(start >= 0 && end > start);
+  const region = source.slice(start, end);
+  assert.match(region, /requireTeacher/);
+  assert.match(region, /teacherGradeOverridesByAssignment/);
+  assert.match(region, /persistent:\s*true/);
+  assert.match(region, /source:\s*["']academic-integrity["']/);
+  assert.match(region, /gradeOverrideAudits/);
+  assert.match(region, /previousOverridesByQuestion/);
+  assert.match(region, /classroomReleaseSignals/);
+  assert.match(region, /kind:\s*["']academicIntegrityIncident["']/);
+  assert.match(region, /kind:\s*["']parentFollowUp["']/);
+  assert.match(region, /stage:\s*["']teacherConfirmed["']/);
+  assert.match(region, /action === ["']restore["']/);
+  assert.doesNotMatch(region, /buildIntegrityReviewSignal|SYSTEM_SIGNAL/);
+});
+
+test('response inspector exposes deliberate academic-integrity consequence controls and deployment surface', () => {
+  const component = fs.readFileSync(new URL('../../src/components/teacher/StudentResponseInspector.jsx', import.meta.url), 'utf8');
+  const service = fs.readFileSync(new URL('../../src/services/responseInspectorService.js', import.meta.url), 'utf8');
+  const deploy = fs.readFileSync(new URL('../../scripts/response-inspector-deploy-surface.mjs', import.meta.url), 'utf8');
+
+  assert.match(service, /applyAcademicIntegrityGradeOverride/);
+  assert.match(component, /Academic Integrity Consequence/);
+  assert.match(component, /Prohibited cellphone use/);
+  assert.match(component, /Unauthorized assistance \/ cheating/);
+  assert.match(component, /Account or laptop switching/);
+  assert.match(component, /Whole assignment/);
+  assert.match(component, /This section/);
+  assert.match(component, /I personally confirm this incident/);
+  assert.match(component, /Apply 0% Integrity Consequence/);
+  assert.match(component, /Restore grade before integrity consequence/);
+  assert.match(deploy, /applyAcademicIntegrityGradeOverride/);
+});
