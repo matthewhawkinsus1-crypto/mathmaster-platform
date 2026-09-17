@@ -56,6 +56,38 @@ test('Grade Transfer keeps a cumulative baseline across confirmed initial and de
   assert.deepEqual(unit.rows, []);
 });
 
+test('an explicitly reopened student is withheld after the ordinary final cutoff', () => {
+  const reopened = student('1500123', 92);
+  const unit = buildTransferUnit({
+    classRecord: klass,
+    assignment,
+    students: [reopened],
+    now,
+    projectCanonicalGrade: score,
+    resolveStudentFinalDeadline: () => ({ deadline: null, reopened: true }),
+  });
+
+  assert.equal(unit.state, TRANSFER_STATE.WAITING_ON_EXTENDED_STUDENTS);
+  assert.equal(unit.rows.length, 0);
+  assert.equal(unit.withheld.length, 1);
+  assert.match(unit.withheld[0].reason, /reopen/i);
+});
+
+test('a stale student override can never shorten the ordinary class final cutoff', () => {
+  const laterAssignment = { ...assignment, lateDueAt: '2026-09-20T00:00:00Z' };
+  const unit = buildTransferUnit({
+    classRecord: klass,
+    assignment: laterAssignment,
+    students: [student('1500123', 92)],
+    now: Date.parse('2026-09-19T00:00:00Z'),
+    projectCanonicalGrade: score,
+    resolveStudentFinalDeadline: () => ({ deadline: '2026-09-18T00:00:00Z', reopened: false }),
+  });
+
+  assert.equal(unit.state, TRANSFER_STATE.WAITING_FOR_FINALIZATION);
+  assert.equal(unit.rows.length, 0);
+});
+
 test('Grade Transfer production wiring consumes assignment student override deadlines and reopen state', () => {
   const resolverSource = readFileSync(new URL('../../src/platform/gradeTransfer/studentDeadlineResolver.js', import.meta.url), 'utf8');
   const centerSource = readFileSync(new URL('../../src/components/teacher/GradeTransferCenter.jsx', import.meta.url), 'utf8');
