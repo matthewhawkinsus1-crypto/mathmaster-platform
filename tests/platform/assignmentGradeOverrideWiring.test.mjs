@@ -58,3 +58,45 @@ test('Classroom passback uses the assignment zero and bypasses test-cycle anti-l
   assert.match(functions, /grade: assignmentGradeOverride\.score/);
   assert.match(functions, /isTestCycleAssignment && priorAudit\.status === "synced" && !assignmentGradeOverride/);
 });
+
+
+test('integrity controls cover section scope, confirmed roles, third reason, and deliberate teacher confirmation', () => {
+  const controls = readFileSync(new URL('../../src/components/teacher/AssignmentGradeOverrideControls.jsx', import.meta.url), 'utf8');
+  assert.match(controls, /accountSwitching/);
+  assert.match(controls, /Prohibited cellphone use/);
+  assert.match(controls, /Unauthorized assistance \/ cheating/);
+  assert.match(controls, /Account or laptop switching/);
+  assert.match(controls, /received/);
+  assert.match(controls, /supplied/);
+  assert.match(controls, /Whole assignment/);
+  assert.match(controls, /This section/);
+  assert.match(controls, /I personally confirm this incident/);
+  assert.match(controls, /Apply 0% Integrity Consequence/);
+  assert.match(controls, /restoreSectionZero/);
+});
+
+test('server enforces confirmed section zeros, preserves prior corrections, updates DOL, and creates parent follow-up', () => {
+  const functions = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const start = functions.indexOf('exports.overrideStudentAssignmentGrade = onCall');
+  const end = functions.indexOf('// ---------------------------------------------------------------------------\n// Class Points:', start);
+  assert.ok(start >= 0 && end > start);
+  const block = functions.slice(start, end);
+  assert.match(block, /teacherConfirmed/);
+  assert.match(block, /runtimeIncludedQuestionIndicesForSection/);
+  assert.match(block, /previousOverridesByQuestion/);
+  assert.match(block, /persistent:\s*true/);
+  assert.match(block, /source:\s*["']teacher-section-zero["']/);
+  assert.match(block, /correctedDolProjection/);
+  assert.match(block, /kind:\s*["']academicIntegrityIncident["']/);
+  assert.match(block, /kind:\s*["']parentFollowUp["']/);
+  assert.match(block, /stage:\s*["']teacherConfirmed["']/);
+  assert.match(block, /accountSwitching/);
+  assert.match(block, /participantRole/);
+  assert.doesNotMatch(block, /buildIntegrityReviewSignal|SYSTEM_SIGNAL/);
+});
+
+test('teacher support history labels confirmed academic-integrity incidents separately from automated review signals', () => {
+  const support = readFileSync(new URL('../../src/platform/teacher/studentSupportSignals.js', import.meta.url), 'utf8');
+  assert.match(support, /ACADEMIC_INTEGRITY_INCIDENT:\s*['"]academicIntegrityIncident['"]/);
+  assert.match(support, /Academic Integrity Incident/);
+});
