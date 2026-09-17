@@ -45,6 +45,7 @@ export default function StudentResponseInspector({ studentId, assignmentId, ques
           sectionRole: integrityScope === 'section' ? model?.section?.role : null,
           incidentType: integrityType,
           participantRole: integrityParticipantRole,
+          teacherConfirmed: true,
           note: integrityNote,
         });
         setIntegrityConfirmed(false);
