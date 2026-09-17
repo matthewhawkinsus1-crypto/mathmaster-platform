@@ -17,6 +17,33 @@ const time = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const resolvedStudentFinal = (value) => {
+  if (value && typeof value === 'object' && typeof value?.toMillis !== 'function' && !(value instanceof Date)) {
+    return {
+      deadline: time(value.deadline ?? value.lateDueAt ?? value.dueAt ?? null),
+      reopened: value.reopened === true,
+    };
+  }
+  return { deadline: time(value), reopened: false };
+};
+
+const snapshotMoment = (snapshot) => (
+  time(snapshot?.uploadConfirmedAt) ?? time(snapshot?.createdAt) ?? 0
+);
+
+const confirmedHistory = ({ confirmedSnapshots, confirmedSnapshot }) => {
+  const history = Array.isArray(confirmedSnapshots) ? confirmedSnapshots.filter(Boolean) : [];
+  if (confirmedSnapshot && !history.includes(confirmedSnapshot)) history.push(confirmedSnapshot);
+  return history.sort((left, right) => {
+    const byTime = snapshotMoment(left) - snapshotMoment(right);
+    if (byTime) return byTime;
+    if (left?.exportKind === right?.exportKind) return 0;
+    if (left?.exportKind === 'initial') return -1;
+    if (right?.exportKind === 'initial') return 1;
+    return 0;
+  });
+};
+
 export const validSisStudentId = (value) => /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/.test(text(value));
 
 // The roster document id is MathMaster's existing Student ID. An explicitly
@@ -34,7 +61,7 @@ export const buildTransferUnit = ({
   classRecord, assignment, students, now = Date.now(), projectCanonicalGrade,
   hasAuthoritativePracticePass = () => false,
   resolveStudentFinalDeadline = () => null,
-  confirmedSnapshot = null, latestExport = null,
+  confirmedSnapshots = null, confirmedSnapshot = null, latestExport = null,
 }) => {
   const ordinaryDeadline = time(assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate);
   const ordinaryFinal = ordinaryDeadline !== null && now >= ordinaryDeadline;
@@ -42,45 +69,66 @@ export const buildTransferUnit = ({
   const withheld = [];
   const problems = [];
   const finalizedStudentIds = new Set();
-  const baseline = new Map((confirmedSnapshot?.rows || []).map((row) => [text(row.studentId), row]));
+  const history = confirmedHistory({ confirmedSnapshots, confirmedSnapshot });
+  const hasConfirmedBaseline = history.length > 0;
+  const baseline = new Map();
+  history.forEach((snapshot) => {
+    (snapshot?.rows || []).forEach((row) => baseline.set(text(row.studentId), row));
+  });
 
   for (const student of students || []) {
-    const tracker = student?.gradesByAssignment?.[assignment.id];
-    const overrideDeadline = time(resolveStudentFinalDeadline({ student, assignment, classRecord }));
-    const extensionActive = ordinaryFinal && overrideDeadline !== null && now < overrideDeadline;
-    if (extensionActive) {
-      withheld.push({ studentId: text(student.id), name: text(student.displayName || student.name || student.id), reason: 'Active individual extension', deadline: new Date(overrideDeadline).toISOString() });
+    const studentFinal = resolvedStudentFinal(resolveStudentFinalDeadline({ student, assignment, classRecord }));
+    const individualDeadline = studentFinal.deadline;
+    // A student-specific cutoff may extend the class cutoff, but a stale or
+    // legacy override is never allowed to make a student's grade final sooner.
+    const effectiveDeadline = ordinaryDeadline === null
+      ? individualDeadline
+      : individualDeadline === null ? ordinaryDeadline : Math.max(ordinaryDeadline, individualDeadline);
+    const reopenedActive = studentFinal.reopened && (ordinaryDeadline === null || ordinaryFinal);
+    const extensionActive = ordinaryFinal && individualDeadline !== null && effectiveDeadline !== null && now < effectiveDeadline;
+
+    if (reopenedActive || extensionActive) {
+      withheld.push({
+        studentId: text(student.id),
+        name: text(student.displayName || student.name || student.id),
+        reason: reopenedActive ? 'Student explicitly reopened' : 'Active individual extension',
+        deadline: effectiveDeadline !== null ? new Date(effectiveDeadline).toISOString() : null,
+      });
       continue;
     }
-    if (!ordinaryFinal && !(overrideDeadline !== null && now >= overrideDeadline)) continue;
-    if (!tracker) {
-      problems.push({ studentId: text(student.id), name: text(student.displayName || student.name || student.id), reason: 'No finalized canonical grade' });
-      continue;
-    }
-    finalizedStudentIds.add(text(student.id));
-    const sisStudentId = authoritativeSisStudentId(student);
-    if (!validSisStudentId(sisStudentId)) {
-      problems.push({ studentId: text(student.id), name: text(student.displayName || student.name || student.id), reason: 'Missing or invalid SIS Student ID' });
-      continue;
-    }
-    const grade = Math.max(0, Math.min(100, Math.round(Number(projectCanonicalGrade({
+    if (effectiveDeadline === null || now < effectiveDeadline) continue;
+
+    const projectedGrade = projectCanonicalGrade({
       student,
       assignment,
       practicePassRedeemed: hasAuthoritativePracticePass({ student, assignment, classRecord }),
-    })))));
-    if (!Number.isFinite(grade)) {
+    });
+    if (projectedGrade === null || projectedGrade === undefined || projectedGrade === '') {
+      problems.push({ studentId: text(student.id), name: text(student.displayName || student.name || student.id), reason: 'No finalized canonical grade' });
+      continue;
+    }
+    const numericGrade = Number(projectedGrade);
+    if (!Number.isFinite(numericGrade)) {
       problems.push({ studentId: text(student.id), name: text(student.displayName || student.name || student.id), reason: 'Canonical grade needs review' });
+      continue;
+    }
+    const grade = Math.max(0, Math.min(100, Math.round(numericGrade)));
+    finalizedStudentIds.add(text(student.id));
+
+    const sisStudentId = authoritativeSisStudentId(student);
+    if (!validSisStudentId(sisStudentId)) {
+      problems.push({ studentId: text(student.id), name: text(student.displayName || student.name || student.id), reason: 'Missing or invalid SIS Student ID' });
       continue;
     }
     const row = { studentId: text(student.id), sisStudentId, grade, gradeVersion: canonicalGradeVersion({ student, assignmentId: assignment.id, grade }) };
     const previous = baseline.get(row.studentId);
     // Provenance is retained in every snapshot for audit, but a harmless
     // canonical rewrite that leaves the TEAMS value unchanged is not a delta.
-    if (!confirmedSnapshot || !previous || previous.grade !== row.grade || previous.sisStudentId !== row.sisStudentId) rows.push(row);
+    if (!hasConfirmedBaseline || !previous || previous.grade !== row.grade || previous.sisStudentId !== row.sisStudentId) rows.push(row);
   }
 
   let state = ordinaryFinal ? TRANSFER_STATE.READY_TO_EXPORT : TRANSFER_STATE.WAITING_FOR_FINALIZATION;
-  if (confirmedSnapshot) state = rows.length
+  if (hasConfirmedBaseline) state = rows.length
     ? TRANSFER_STATE.UPDATE_REQUIRED
     : withheld.length ? TRANSFER_STATE.WAITING_ON_EXTENDED_STUDENTS : TRANSFER_STATE.UPLOAD_CONFIRMED;
   else if (latestExport) state = TRANSFER_STATE.EXPORTED;
@@ -94,9 +142,9 @@ export const buildTransferUnit = ({
     classLabel: classRecord.name || classRecord.period || classRecord.classId,
     classPeriod: classRecord.period || '', assignmentId: assignment.id,
     assignmentTitle: assignment.title || 'Untitled assignment', ordinaryDeadline,
-    exportKind: confirmedSnapshot ? 'delta' : 'initial', state, rows, withheld, problems,
+    exportKind: hasConfirmedBaseline ? 'delta' : 'initial', state, rows, withheld, problems,
     finalizedCount: finalizedStudentIds.size,
-    extensionCount: withheld.length, changedCount: confirmedSnapshot ? rows.length : 0,
+    extensionCount: withheld.length, changedCount: hasConfirmedBaseline ? rows.length : 0,
   };
 };
 
