@@ -1053,6 +1053,22 @@ test('no client can forge, change, or remove a teacher grade override projection
     teacherGradeOverridesByAssignment: forged,
   }));
 
+  const forgedAssignmentZero = {
+    active: true,
+    score: 0,
+    reasonCode: 'academicDishonesty',
+    source: 'forged-client-write',
+  };
+  await assertFails(updateDoc(doc(studentA(), 'grades/STUDENT_A'), {
+    'teacherGradeOverridesByAssignment.assignment-override-test.__assignment': forgedAssignmentZero,
+  }));
+  await assertFails(updateDoc(doc(teacherA(), 'grades/STUDENT_A'), {
+    'teacherGradeOverridesByAssignment.assignment-override-test.__assignment': forgedAssignmentZero,
+  }));
+  await assertFails(updateDoc(doc(admin(), 'grades/STUDENT_A'), {
+    'teacherGradeOverridesByAssignment.assignment-override-test.__assignment': forgedAssignmentZero,
+  }));
+
   await assertFails(updateDoc(doc(studentA(), 'grades/STUDENT_A'), {
     teacherGradeOverridesByAssignment: {},
   }));
