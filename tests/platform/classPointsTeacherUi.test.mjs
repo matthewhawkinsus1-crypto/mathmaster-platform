@@ -319,7 +319,7 @@ test('Class Points writes go through exactly the two existing PR #253 callables 
 // --- 12: Live Teaching and Student Spotlight wiring remain intact ---
 
 test('Live Teaching and Student Spotlight wiring survive the Class Points changes', () => {
-  assert.match(monitorSource, /activeTeacherSpotlightQuery\(db, \{ teacherEmail, classId: activeClassId \}\)/);
+  assert.match(monitorSource, /activeTeacherSpotlightQueries\(db, \{[\s\S]*teacherEmail, classId: activeClassId, studentIds: spotlightStudentIds/);
   assert.match(monitorSource, /function LiveTeachingPanel\(/);
   assert.match(monitorSource, /onSpotlight=\{activeClassId && !activeSpotlight \? requestSpotlight : null\}/);
   assert.match(monitorSource, /liveTeachingActiveForClass/);
