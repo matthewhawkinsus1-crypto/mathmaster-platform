@@ -127,6 +127,7 @@ test('practicePassEligibleAssignments returns a picklist shape sorted by due dat
   const list = practicePassEligibleAssignments({
     assignments: [older, newer, closed],
     classId: 'class-a',
+    nowValue: Date.parse('2026-09-01T00:00:00.000Z'),
   });
   assert.deepEqual(list.map((entry) => entry.assignmentId), ['a2', 'a1']);
   assert.deepEqual(Object.keys(list[0]).sort(), ['assignmentId', 'dueAt', 'title'].sort());

@@ -85,6 +85,10 @@ export const recordStudentSupportEvent = async ({
     note: clean(event.note).slice(0, 1200),
     source: clean(event.source) || 'teacher',
     confidence: clean(event.confidence) || null,
+    // Attendance queries and extension reconciliation must not depend on the
+    // newest-750 teacher feed. Both attendance builders put this key at the
+    // top level so the class/date composite index can cover the full window.
+    dateKey: clean(event.dateKey || event.evidence?.dateKey) || null,
     evidence: compactEvidence(event.evidence),
     relatedEventId: clean(event.relatedEventId) || null,
     createdByEmail: email,
@@ -189,6 +193,27 @@ export const fetchAttendanceForClassDate = async ({ db, teacherEmail, classId, d
     where('authorizedTeacherEmails', 'array-contains', email),
     where('classId', '==', scopedClassId),
     where('dateKey', '==', scopedDateKey),
+  ));
+  return snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
+};
+
+/** Fetch the complete attendance evidence for an assignment window. */
+export const fetchAttendanceForClassDateRange = async ({
+  db, teacherEmail, classId, fromDateKey, toDateKey,
+} = {}) => {
+  const email = clean(teacherEmail).toLowerCase();
+  const scopedClassId = clean(classId);
+  const from = clean(fromDateKey);
+  const to = clean(toDateKey);
+  if (!db || !email || !scopedClassId || !from || !to || from > to) return [];
+
+  const snapshot = await getDocs(query(
+    collection(db, STUDENT_SUPPORT_COLLECTION),
+    where('authorizedTeacherEmails', 'array-contains', email),
+    where('classId', '==', scopedClassId),
+    where('dateKey', '>=', from),
+    where('dateKey', '<=', to),
+    orderBy('dateKey', 'asc'),
   ));
   return snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
 };

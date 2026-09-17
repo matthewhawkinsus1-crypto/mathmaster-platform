@@ -26,7 +26,33 @@ test('both attendance surfaces are wired to the same App.jsx handler', () => {
 test('the shared handler recognizes both attendance event kinds and reconciles extensions for both', () => {
   assert.match(appSource, /const ATTENDANCE_EVENT_KINDS = \[LIVE_ATTENDANCE_EVENT_KIND, ATTENDANCE_HISTORY_EVENT_KIND\];/);
   assert.match(appSource, /const isAttendanceEvent = ATTENDANCE_EVENT_KINDS\.includes\(event\?\.kind\);/);
-  assert.match(appSource, /if \(isAttendanceEvent\) \{\s*\n\s*const reviewCount = await reconcileAttendanceExtensions\(event, record\);/);
+  const handler = appSource.slice(
+    appSource.indexOf('const handleRecordStudentSupportEvent'),
+    appSource.indexOf('// Teachers stream presence'),
+  );
+  assert.match(handler, /if \(isAttendanceEvent\) \{/);
+  assert.match(handler, /reviewCount = await reconcileAttendanceExtensions\(event, record\);/);
+});
+
+test('reconciliation reads indexed class/date attendance history instead of the capped support feed', () => {
+  const region = appSource.slice(
+    appSource.indexOf('const reconcileAttendanceExtensions'),
+    appSource.indexOf('const [attendanceReviewBusyKey'),
+  );
+  assert.match(region, /fetchAttendanceForClassDateRange\(\{/);
+  assert.match(region, /supportEvents: attendanceHistory/);
+  assert.doesNotMatch(region, /supportEvents: \[\.\.\.studentSupportEvents, record\]/);
+});
+
+test('a saved attendance record reports and persists a retry audit when reconciliation fails', () => {
+  const region = appSource.slice(
+    appSource.indexOf('const handleRecordStudentSupportEvent'),
+    appSource.indexOf('// Teachers stream presence'),
+  );
+  assert.match(region, /ATTENDANCE_EXTENSION_RECONCILIATION_PENDING/);
+  assert.match(region, /retryable: true/);
+  assert.match(region, /Attendance saved; extension update pending/);
+  assert.match(region, /return record;/);
 });
 
 test('there is exactly one function that calls reconcileAssignmentExtensionsForCorrection', () => {

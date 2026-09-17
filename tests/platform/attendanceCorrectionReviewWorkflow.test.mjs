@@ -57,6 +57,10 @@ test('the callable never trusts allowShorten alone — it independently re-verif
   assert.match(region, /where\("kind", "==", "attendanceCorrectionReview"\)/);
   assert.match(region, /where\("evidence\.resolution", "==", "shortened"\)/);
   assert.match(region, /where\("evidence\.proposedDateKey", "==", proposedDateKey\)/);
-  assert.match(region, /if \(reviewSnap\.empty\)/);
-  assert.match(region, /if \(!validity\.valid && !allowShorten\) throw new HttpsError/);
+  assert.match(region, /const matchingReview = reviewSnap\.docs\.find/);
+  assert.match(region, /String\(review\.studentId \|\| ""\) === studentId/);
+  assert.match(region, /String\(review\.classId \|\| ""\) === classId/);
+  assert.match(region, /if \(!matchingReview\)/);
+  assert.match(region, /allowShorten && validity\.reason === "failed-precondition"/);
+  assert.match(region, /if \(!validity\.valid && !reviewedShortening\) throw new HttpsError/);
 });

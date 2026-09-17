@@ -326,10 +326,12 @@ import {
 } from './platform/teacher/studentSupportSignals.js';
 import {
   fetchStudentSupportHistory,
+  fetchAttendanceForClassDateRange,
   recordStudentSupportEvent,
   subscribeStudentSessionSummaries,
   subscribeStudentSupportEvents,
 } from './platform/teacher/studentSupportStore.js';
+import { localDateKeyOf } from './platform/attendance/classMeetings.js';
 import { buildNonInstructionalSet } from './platform/path/curriculumCalendar.js';
 import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolYear2026-2027.js';
 import AttendanceHistoryPanel from './components/teacher/AttendanceHistoryPanel.jsx';
@@ -3397,14 +3399,39 @@ function App() {
    */
   const reconcileAttendanceExtensions = async (event, record) => {
     const classPeriod = classes.find((entry) => entry.classId === event.classId)?.period || null;
+    const affectedAssignments = assignments
+      .filter((assignment) => assignmentIsForStudent(assignment, { classId: event.classId }))
+      .filter((assignment) => {
+        const release = localDateKeyOf(assignment?.releaseAt || assignment?.releaseDate) || '0000-00-00';
+        const due = localDateKeyOf(assignment?.dueAt || assignment?.dueDate);
+        return due && event.evidence?.dateKey >= release && event.evidence?.dateKey <= due;
+      });
+    const windowStarts = affectedAssignments
+      .map((assignment) => localDateKeyOf(assignment?.releaseAt || assignment?.releaseDate))
+      .filter(Boolean);
+    const windowEnds = affectedAssignments
+      .map((assignment) => localDateKeyOf(assignment?.dueAt || assignment?.dueDate))
+      .filter(Boolean);
+    const attendanceHistory = affectedAssignments.length
+      ? await fetchAttendanceForClassDateRange({
+        db,
+        teacherEmail: user.email,
+        classId: event.classId,
+        fromDateKey: windowStarts.sort()[0] || event.evidence?.dateKey,
+        toDateKey: windowEnds.sort().at(-1) || event.evidence?.dateKey,
+      })
+      : [];
     const results = reconcileAssignmentExtensionsForCorrection({
-      assignments,
+      assignments: affectedAssignments,
       studentId: event.studentId,
       classId: event.classId,
       classPeriod,
       schedule: classSchedule,
       nonInstructionalKeys: SCHOOL_NON_INSTRUCTIONAL_KEYS,
-      supportEvents: [...studentSupportEvents, record],
+      // The generic support subscription is capped at 750 records. Extension
+      // decisions use the complete indexed attendance range instead.
+      supportEvents: attendanceHistory.some((entry) => entry.id === record.id)
+        ? attendanceHistory : [...attendanceHistory, record],
       correctionDateKey: event.evidence?.dateKey,
     });
 
@@ -3506,7 +3533,45 @@ function App() {
       });
 
       if (isAttendanceEvent) {
-        const reviewCount = await reconcileAttendanceExtensions(event, record);
+        let reviewCount;
+        try {
+          reviewCount = await reconcileAttendanceExtensions(event, record);
+        } catch (reconciliationError) {
+          console.error('Attendance extension reconciliation is pending:', reconciliationError);
+          // The attendance fact is already safely append-only. Persist a
+          // second append-only audit/retry record containing everything a
+          // worker or teacher retry needs; never delete the attendance fact.
+          try {
+            await recordStudentSupportEvent({
+              db,
+              teacherEmail: user.email,
+              event: {
+                kind: SUPPORT_EVENT_KIND.ATTENDANCE_EXTENSION_RECONCILIATION_PENDING,
+                stage: SUPPORT_EVENT_STAGE.SYSTEM_SIGNAL,
+                studentId: event.studentId,
+                studentName: event.studentName,
+                classId: event.classId,
+                classPeriod: event.classPeriod,
+                dateKey: event.evidence?.dateKey,
+                relatedEventId: record.id,
+                summary: 'Attendance saved; deadline reconciliation needs retry.',
+                evidence: {
+                  dateKey: event.evidence?.dateKey,
+                  attendanceEventId: record.id,
+                  retryable: true,
+                  error: String(reconciliationError?.message || reconciliationError).slice(0, 300),
+                },
+              },
+            });
+          } catch (auditError) {
+            console.error('Could not persist attendance reconciliation retry audit:', auditError);
+          }
+          toastError(
+            'Attendance saved; extension update pending',
+            'The attendance record is safe. Deadline reconciliation needs a retry and was added to the support audit trail.',
+          );
+          return record;
+        }
         toastSuccess(
           event.kind === ATTENDANCE_HISTORY_EVENT_KIND ? 'Attendance correction saved' : 'Attendance recorded',
           reviewCount > 0

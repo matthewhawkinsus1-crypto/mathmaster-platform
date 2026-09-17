@@ -14,6 +14,7 @@ export const SUPPORT_EVENT_KIND = Object.freeze({
   // kind here, not a second task/action-item collection.
   RETURN_FROM_ABSENCE: 'returnFromAbsence',
   ATTENDANCE_CORRECTION_REVIEW: 'attendanceCorrectionReview',
+  ATTENDANCE_EXTENSION_RECONCILIATION_PENDING: 'attendanceExtensionReconciliationPending',
 });
 
 export const SUPPORT_EVENT_STAGE = Object.freeze({
