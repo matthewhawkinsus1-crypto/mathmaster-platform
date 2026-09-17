@@ -494,7 +494,7 @@ test('production Spotlight collection queries preserve teacher, class, roster, a
   });
 
   const teacherResults = await assertSucceeds(getDocs(activeTeacherSpotlightQuery(teacherA(), {
-    teacherEmail: TEACHER_A, classId: 'class-a', now,
+    teacherEmail: TEACHER_A, classId: 'class-a', studentIds: ['STUDENT_A'], now,
   })));
   assert.equal(teacherResults.docs.some((entry) => entry.id === 'query-a'), true);
   assert.equal(teacherResults.docs.every((entry) => {
@@ -502,10 +502,13 @@ test('production Spotlight collection queries preserve teacher, class, roster, a
     return data.teacherEmail === TEACHER_A && data.classId === 'class-a';
   }), true);
   await assertFails(getDocs(activeTeacherSpotlightQuery(teacherB(), {
-    teacherEmail: TEACHER_A, classId: 'class-a', now,
+    teacherEmail: TEACHER_A, classId: 'class-a', studentIds: ['STUDENT_A'], now,
   })));
   await assertFails(getDocs(activeTeacherSpotlightQuery(teacherA(), {
-    teacherEmail: TEACHER_B, classId: 'class-b', now,
+    teacherEmail: TEACHER_B, classId: 'class-b', studentIds: ['STUDENT_B'], now,
+  })));
+  await assertFails(getDocs(activeTeacherSpotlightQuery(teacherA(), {
+    teacherEmail: TEACHER_A, classId: 'class-a', studentIds: ['STUDENT_A', 'STUDENT_B'], now,
   })));
 
   const studentResults = await assertSucceeds(getDocs(activeStudentSpotlightQuery(studentA(), {
@@ -517,16 +520,18 @@ test('production Spotlight collection queries preserve teacher, class, roster, a
     studentId: 'STUDENT_A', now,
   })));
 
-  // Rules do not filter query results. One malformed request whose student is
-  // not in the constrained class must make the teacher query fail closed.
+  // Rules are not filters, so the production query itself is roster-scoped.
+  // Even a malformed Admin-SDK row for another student is outside the query's
+  // potential result set and therefore cannot leak into the teacher snapshot.
   await env.withSecurityRulesDisabled(async (context) => setDoc(doc(context.firestore(), 'liveSpotlightRequests/query-invalid-roster'), {
     schemaVersion: 1, requestId: 'query-invalid-roster', classId: 'class-a', studentId: 'STUDENT_B',
     teacherUid: 'uid-a', teacherEmail: TEACHER_A, status: 'requested', assignmentId: 'A1',
     requestedAt: now, expiresAt,
   }));
-  await assertFails(getDocs(activeTeacherSpotlightQuery(teacherA(), {
-    teacherEmail: TEACHER_A, classId: 'class-a', now,
+  const boundedTeacherResults = await assertSucceeds(getDocs(activeTeacherSpotlightQuery(teacherA(), {
+    teacherEmail: TEACHER_A, classId: 'class-a', studentIds: ['STUDENT_A'], now,
   })));
+  assert.equal(boundedTeacherResults.docs.some((entry) => entry.id === 'query-invalid-roster'), false);
 });
 
 test('Spotlight does not widen workspace drafts or presence response content', async () => {
