@@ -1,6 +1,17 @@
 import { buildTestCycleGradeState, isTestCycleAssignment } from '../assessment/testCycle.js';
 import { splitGrade } from '../teacher/gradeEvidence.js';
 
+export const ASSIGNMENT_GRADE_OVERRIDE_KEY = '__assignment';
+
+export const assignmentGradeOverrideFor = (student, assignmentId) => {
+  const override = student?.teacherGradeOverridesByAssignment?.[assignmentId]?.[ASSIGNMENT_GRADE_OVERRIDE_KEY] || null;
+  if (override?.active !== true || !Number.isFinite(Number(override.score))) return null;
+  return {
+    ...override,
+    score: Math.max(0, Math.min(100, Number(override.score))),
+  };
+};
+
 const overrideApplies = (record, override) => {
   if (!record || override?.active !== true || !Number.isFinite(Number(override.score))) return false;
   if (Number(override.totalAttempts) !== Number(record.totalAttempts ?? record.attemptCount ?? 0)) return false;
@@ -39,6 +50,9 @@ export const projectTeacherOverridesForDisplay = (gradesByAssignment = {}, overr
  * evidence: null means there is not yet a canonical grade to export.
  */
 export const canonicalPresentedAssignmentGrade = ({ student, assignment, practicePassRedeemed = false }) => {
+  const assignmentOverride = assignmentGradeOverrideFor(student, assignment?.id);
+  if (assignmentOverride) return assignmentOverride.score;
+
   if (isTestCycleAssignment(assignment)) {
     const cycle = student?.testCycleGrades?.[assignment?.id] || {};
     return buildTestCycleGradeState({
