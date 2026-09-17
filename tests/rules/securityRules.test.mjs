@@ -54,6 +54,13 @@ before(async () => {
     },
   });
 
+  // `npm run test:rules` runs tests/firestore-rules.test.mjs against this same
+  // emulator before starting the node:test files. TestEnvironment#cleanup only
+  // closes clients; it does not remove documents left by that earlier process.
+  // Start this suite from its declared fixture so an assignment created here
+  // cannot accidentally become an update of an assignment from another suite.
+  await env.clearFirestore();
+
   // The world the admin callables would have created: two classes, two
   // teachers of record, one student each.
   await env.withSecurityRulesDisabled(async (context) => {
