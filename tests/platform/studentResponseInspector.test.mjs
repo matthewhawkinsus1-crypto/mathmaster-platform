@@ -623,6 +623,8 @@ test('academic-integrity callable is teacher-confirmed, audited, reversible, and
   assert.match(region, /gradeOverrideAudits/);
   assert.match(region, /previousOverridesByQuestion/);
   assert.match(region, /classroomReleaseSignals/);
+  assert.match(region, /correctedDolProjection/);
+  assert.match(region, /weightedQuestionTotals/);
   assert.match(region, /kind:\s*["']academicIntegrityIncident["']/);
   assert.match(region, /kind:\s*["']parentFollowUp["']/);
   assert.match(region, /stage:\s*["']teacherConfirmed["']/);
