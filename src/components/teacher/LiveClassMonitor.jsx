@@ -38,7 +38,7 @@ import {
   publicStudentLabel,
   scheduleSpotlightExpiry,
 } from '../../platform/liveSpotlight.js';
-import { activeTeacherSpotlightQuery } from '../../platform/liveSpotlightQueries.js';
+import { activeTeacherSpotlightQueries } from '../../platform/liveSpotlightQueries.js';
 import {
   SUPPORT_EVENT_KIND,
   SUPPORT_EVENT_STAGE,
@@ -552,19 +552,36 @@ export default function LiveClassMonitor({
     );
   }, [teacherEmail, activeClassId]);
 
+  const spotlightStudentIds = useMemo(() => {
+    if (!activeClassId) return [];
+    return [...new Set(studentsInClass({ students, classes, classId: activeClassId })
+      .map((student) => String(student?.id || student?.studentId || '').trim())
+      .filter(Boolean))];
+  }, [students, classes, activeClassId]);
+
   useEffect(() => {
     setSpotlightRequests([]);
     setSpotlightFrame(null);
-    if (!teacherEmail || !activeClassId) return undefined;
-    return onSnapshot(
-      activeTeacherSpotlightQuery(db, { teacherEmail, classId: activeClassId }),
+    if (!teacherEmail || !activeClassId || spotlightStudentIds.length === 0) return undefined;
+
+    const requestsByQuery = new Map();
+    const unsubscribers = activeTeacherSpotlightQueries(db, {
+      teacherEmail, classId: activeClassId, studentIds: spotlightStudentIds,
+    }).map((spotlightQuery, index) => onSnapshot(
+      spotlightQuery,
       (snapshot) => {
+        requestsByQuery.set(index, snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })));
+        const merged = new Map(
+          [...requestsByQuery.values()].flat().map((entry) => [entry.id, entry]),
+        );
         setSpotlightClock(Date.now());
-        setSpotlightRequests(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })));
+        setSpotlightRequests([...merged.values()]);
       },
       () => setSpotlightMessage('Spotlight connection is unavailable. Student work is unaffected.'),
-    );
-  }, [teacherEmail, activeClassId]);
+    ));
+
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+  }, [teacherEmail, activeClassId, spotlightStudentIds]);
 
   const activeSpotlight = useMemo(() => spotlightRequests
     .filter((entry) => [SPOTLIGHT_STATUS.REQUESTED, SPOTLIGHT_STATUS.ACCEPTED].includes(entry.status))
