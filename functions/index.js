@@ -1553,6 +1553,7 @@ exports.applyAcademicIntegrityGradeOverride = onCall(async (request) => {
   const incidentEventRef = db.collection("studentSupportEvents").doc(`${incidentId}__incident`);
   const parentFollowUpRef = db.collection("studentSupportEvents").doc(`${incidentId}__parent`);
   const resolutionEventRef = db.collection("studentSupportEvents").doc(`${incidentId}__resolved`);
+  const inspector = await import("./shared/responseInspector.mjs");
 
   return db.runTransaction(async (transaction) => {
     const [gradeSnap, assignmentSnap] = await Promise.all([
@@ -1595,6 +1596,47 @@ exports.applyAcademicIntegrityGradeOverride = onCall(async (request) => {
 
     const applyAuditSnap = await transaction.get(applyAuditRef);
     const restoreAuditSnap = await transaction.get(restoreAuditRef);
+    const questions = runtimeQuestionsFromAssignment(assignment);
+    const tracker = { ...(gradeData.gradesByAssignment?.[assignmentId] || {}) };
+    const currentOverrides = {
+      ...(gradeData.teacherGradeOverridesByAssignment?.[assignmentId] || {}),
+    };
+    const existingDolByDate = gradeData.dolGradesByAssignment?.[assignmentId] || {};
+    const dolIndices = runtimeIncludedQuestionIndicesForSection(assignment, "dol");
+
+    const appendCorrectedDolProjection = (updates, effectiveOverrides, targetQuestionIndices) => {
+      const targeted = new Set(targetQuestionIndices.map(Number));
+      if (!dolIndices.some((index) => targeted.has(index))) return;
+
+      Object.entries(existingDolByDate).forEach(([dateKey, existingRecord]) => {
+        const storedIndices = Array.isArray(existingRecord?.questionIndices)
+          ? existingRecord.questionIndices.map(Number).filter(Number.isInteger)
+          : dolIndices;
+        const recordIndices = storedIndices.filter((index) => dolIndices.includes(index));
+        if (!recordIndices.length || !recordIndices.some((index) => targeted.has(index))) return;
+
+        const totals = weightedQuestionTotals({
+          tracker,
+          questions,
+          indices: recordIndices,
+          creditForRecord: (candidate, index) => getQuestionCredit(
+            candidate,
+            effectiveOverrides[String(index)] ?? effectiveOverrides[index] ?? null,
+          ),
+        });
+        const corrected = inspector.correctedDolProjection({
+          existingByDate: existingDolByDate,
+          dateKey,
+          score: totals.score ?? 0,
+          questionIndices: recordIndices,
+          correctedAt: nowIso,
+        });
+        updates.push(
+          new FieldPath("dolGradesByAssignment", assignmentId, dateKey),
+          corrected,
+        );
+      });
+    };
 
     if (action === "restore") {
       if (!applyAuditSnap.exists) {
@@ -1623,14 +1665,18 @@ exports.applyAcademicIntegrityGradeOverride = onCall(async (request) => {
       }
 
       const updates = [];
+      const effectiveOverrides = { ...currentOverrides };
       targetQuestionIndices.forEach((index) => {
         const key = String(index);
         const previous = previousOverridesByQuestion[key];
+        if (previous) effectiveOverrides[key] = previous;
+        else delete effectiveOverrides[key];
         updates.push(
           new FieldPath("teacherGradeOverridesByAssignment", assignmentId, key),
           previous || FieldValue.delete(),
         );
       });
+      appendCorrectedDolProjection(updates, effectiveOverrides, targetQuestionIndices);
       updates.push(
         new FieldPath("classroomReleaseSignals", assignmentId),
         {
@@ -1715,7 +1761,6 @@ exports.applyAcademicIntegrityGradeOverride = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "That integrity consequence has no current grade-bearing questions.");
     }
 
-    const currentOverrides = gradeData.teacherGradeOverridesByAssignment?.[assignmentId] || {};
     const conflictingIncident = targetQuestionIndices
       .map((index) => currentOverrides[String(index)] ?? currentOverrides[index] ?? null)
       .find((override) => (
@@ -1739,23 +1784,27 @@ exports.applyAcademicIntegrityGradeOverride = onCall(async (request) => {
     });
 
     const updates = [];
+    const effectiveOverrides = { ...currentOverrides };
     targetQuestionIndices.forEach((index) => {
       const key = String(index);
+      const integrityOverride = {
+        active: true,
+        score: 0,
+        fieldOverrides: {},
+        updatedAt: nowIso,
+        source: "academic-integrity",
+        persistent: true,
+        incidentId,
+        scope,
+        sectionRole: scope === "section" ? sectionRole : null,
+      };
+      effectiveOverrides[key] = integrityOverride;
       updates.push(
         new FieldPath("teacherGradeOverridesByAssignment", assignmentId, key),
-        {
-          active: true,
-          score: 0,
-          fieldOverrides: {},
-          updatedAt: nowIso,
-          source: "academic-integrity",
-          persistent: true,
-          incidentId,
-          scope,
-          sectionRole: scope === "section" ? sectionRole : null,
-        },
+        integrityOverride,
       );
     });
+    appendCorrectedDolProjection(updates, effectiveOverrides, targetQuestionIndices);
     updates.push(
       new FieldPath("classroomReleaseSignals", assignmentId),
       {
