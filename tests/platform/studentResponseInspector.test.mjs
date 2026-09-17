@@ -565,6 +565,7 @@ test('PR250 universal draft-persistence certification and tool cache cleanup rem
 
 test('response inspector deploy surface includes every backend that participates in correction/replay', () => {
   assert.deepEqual(browserCallableServiceIds().sort(), [
+    'applyacademicintegritygradeoverride',
     'ingeststudentsubmissions',
     'inspectstudentresponse',
     'overridestudentresponsegrade',
@@ -574,6 +575,7 @@ test('response inspector deploy surface includes every backend that participates
     [
       'functions:inspectStudentResponse',
       'functions:overrideStudentResponseGrade',
+      'functions:applyAcademicIntegrityGradeOverride',
       'functions:ingestStudentSubmissions',
       'functions:finalizeStudentResponseCheckpoints',
       'functions:syncGradeToClassroom',
