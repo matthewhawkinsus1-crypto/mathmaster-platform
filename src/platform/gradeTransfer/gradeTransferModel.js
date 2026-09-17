@@ -30,14 +30,10 @@ export const canonicalGradeVersion = ({ student, assignmentId, grade }) => text(
   || `${assignmentId}:${grade}`,
 );
 
-export const studentFinalDeadline = (student, assignmentId) => time(
-  student?.finalDeadlinesByAssignment?.[assignmentId]
-  || student?.assignmentDeadlineOverrides?.[assignmentId]?.finalDeadline
-  || student?.assignmentDeadlineOverrides?.[assignmentId]?.lateDueAt,
-);
-
 export const buildTransferUnit = ({
-  classRecord, assignment, students, now = Date.now(), calculateCanonicalGrade,
+  classRecord, assignment, students, now = Date.now(), projectCanonicalGrade,
+  hasAuthoritativePracticePass = () => false,
+  resolveStudentFinalDeadline = () => null,
   confirmedSnapshot = null, latestExport = null,
 }) => {
   const ordinaryDeadline = time(assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate);
@@ -45,11 +41,12 @@ export const buildTransferUnit = ({
   const rows = [];
   const withheld = [];
   const problems = [];
+  const finalizedStudentIds = new Set();
   const baseline = new Map((confirmedSnapshot?.rows || []).map((row) => [text(row.studentId), row]));
 
   for (const student of students || []) {
     const tracker = student?.gradesByAssignment?.[assignment.id];
-    const overrideDeadline = studentFinalDeadline(student, assignment.id);
+    const overrideDeadline = time(resolveStudentFinalDeadline({ student, assignment, classRecord }));
     const extensionActive = ordinaryFinal && overrideDeadline !== null && now < overrideDeadline;
     if (extensionActive) {
       withheld.push({ studentId: text(student.id), name: text(student.displayName || student.name || student.id), reason: 'Active individual extension', deadline: new Date(overrideDeadline).toISOString() });
@@ -60,12 +57,17 @@ export const buildTransferUnit = ({
       problems.push({ studentId: text(student.id), name: text(student.displayName || student.name || student.id), reason: 'No finalized canonical grade' });
       continue;
     }
+    finalizedStudentIds.add(text(student.id));
     const sisStudentId = authoritativeSisStudentId(student);
     if (!validSisStudentId(sisStudentId)) {
       problems.push({ studentId: text(student.id), name: text(student.displayName || student.name || student.id), reason: 'Missing or invalid SIS Student ID' });
       continue;
     }
-    const grade = Math.max(0, Math.min(100, Math.round(Number(calculateCanonicalGrade(tracker, assignment)))));
+    const grade = Math.max(0, Math.min(100, Math.round(Number(projectCanonicalGrade({
+      student,
+      assignment,
+      practicePassRedeemed: hasAuthoritativePracticePass({ student, assignment, classRecord }),
+    })))));
     if (!Number.isFinite(grade)) {
       problems.push({ studentId: text(student.id), name: text(student.displayName || student.name || student.id), reason: 'Canonical grade needs review' });
       continue;
@@ -78,7 +80,9 @@ export const buildTransferUnit = ({
   }
 
   let state = ordinaryFinal ? TRANSFER_STATE.READY_TO_EXPORT : TRANSFER_STATE.WAITING_FOR_FINALIZATION;
-  if (confirmedSnapshot) state = rows.length ? TRANSFER_STATE.UPDATE_REQUIRED : TRANSFER_STATE.UPLOAD_CONFIRMED;
+  if (confirmedSnapshot) state = rows.length
+    ? TRANSFER_STATE.UPDATE_REQUIRED
+    : withheld.length ? TRANSFER_STATE.WAITING_ON_EXTENDED_STUDENTS : TRANSFER_STATE.UPLOAD_CONFIRMED;
   else if (latestExport) state = TRANSFER_STATE.EXPORTED;
   else if (withheld.length && !rows.length) state = TRANSFER_STATE.WAITING_ON_EXTENDED_STUDENTS;
   if (problems.some((item) => item.reason.includes('SIS Student ID'))) state = TRANSFER_STATE.ROSTER_ID_PROBLEM;
@@ -91,7 +95,7 @@ export const buildTransferUnit = ({
     classPeriod: classRecord.period || '', assignmentId: assignment.id,
     assignmentTitle: assignment.title || 'Untitled assignment', ordinaryDeadline,
     exportKind: confirmedSnapshot ? 'delta' : 'initial', state, rows, withheld, problems,
-    finalizedCount: rows.length + (confirmedSnapshot?.rows?.length || 0),
+    finalizedCount: finalizedStudentIds.size,
     extensionCount: withheld.length, changedCount: confirmedSnapshot ? rows.length : 0,
   };
 };
@@ -102,7 +106,21 @@ export const teamsCsv = (rows) => (rows || []).map((row) => {
 }).join('\r\n') + ((rows || []).length ? '\r\n' : '');
 
 const safeName = (value) => text(value).replace(/[^A-Za-z0-9_-]+/g, '').slice(0, 64) || 'GradeExport';
-export const transferFileName = (unit) => `${safeName(unit.classPeriod || unit.classLabel)}_${safeName(unit.assignmentTitle)}${unit.exportKind === 'delta' ? '_UPDATE' : ''}.csv`;
+const shortIdentity = (value) => {
+  let hash = 2166136261;
+  for (const character of text(value)) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
+  return `${safeName(value).slice(0, 12)}-${(hash >>> 0).toString(16).padStart(8, '0').slice(0, 6)}`;
+};
+export const transferSnapshotId = (unit) => `transfer_${shortIdentity([
+  unit.classId,
+  unit.assignmentId,
+  unit.exportKind,
+  ...(unit.rows || []).map((row) => `${row.studentId}:${row.sisStudentId}:${row.grade}:${row.gradeVersion}`),
+].join('|'))}`;
+export const transferFileName = (unit) => {
+  const deadline = unit.ordinaryDeadline ? new Date(unit.ordinaryDeadline).toISOString().slice(0, 10) : 'no-date';
+  return `${safeName(unit.classPeriod || unit.classLabel)}_${safeName(unit.assignmentTitle)}_${deadline}_${shortIdentity(unit.assignmentId)}${unit.exportKind === 'delta' ? '_UPDATE' : ''}.csv`;
+};
 
 export const packageManifest = (units) => ['MathMaster Gradebook Package', '', ...(units || []).flatMap((unit) => [
   `Class/period: ${unit.classLabel}`,
@@ -115,9 +133,9 @@ export const packageManifest = (units) => ['MathMaster Gradebook Package', '', .
   '',
 ])].join('\n');
 
-export const createExportSnapshot = ({ unit, transferId, teacherUid, teacherEmail, packageId, createdAt = new Date().toISOString() }) => ({
+export const createExportSnapshot = ({ unit, transferId, teacherUid, teacherEmail, packageId }) => ({
   transferId, teacherUid, teacherEmail, classId: unit.classId, assignmentId: unit.assignmentId,
-  assignmentTitle: unit.assignmentTitle, exportKind: unit.exportKind, createdAt,
+  assignmentTitle: unit.assignmentTitle, exportKind: unit.exportKind,
   rows: unit.rows.map((row) => ({ ...row })), withheld: unit.withheld.map((row) => ({ ...row })),
   fileName: transferFileName(unit), packageId, schemaVersion: 1,
 });

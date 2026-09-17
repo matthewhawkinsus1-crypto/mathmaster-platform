@@ -238,6 +238,7 @@ import { teksCodeFromSkillId } from './platform/path/skillGraph.js';
 import { buildStudentPathOptions } from './platform/path/studentPathOptions.js';
 import { fetchStudentEvidenceEvents } from './platform/history/evidencePersistence.js';
 import { COMPARABILITY, describeDeliveredRigor, explainGrade, rigorComparability, splitGrade, splitGradesBySection } from './platform/teacher/gradeEvidence.js';
+import { projectTeacherOverridesForDisplay } from './platform/grading/canonicalGradeProjection.js';
 import { classroomLaunchTarget, parseClassroomLaunchSearch } from './platform/classroom/classroomLaunchRoute.js';
 import { buildStudentDashboardModel, resolveNextAction } from './studentDashboardModel.js';
 import {
@@ -531,61 +532,6 @@ const calculateDOLSectionScore = (assignmentTracker = {}, questionIndices = [], 
 // Statuses that mean something to a student who has come back after the close.
 // Every other lifecycle status is internal bookkeeping.
 const DISPLAYED_CHECKPOINT_OUTCOMES = ['auto-submitted', 'incomplete-at-close', 'explicitly-submitted'];
-
-/*
- * TEACHER OVERRIDES ARE A PRESENTATION LAYER OVER THE AUTOMATIC ATTEMPT.
- *
- * The canonical student attempt stays untouched so persistence, attempt counts,
- * recovery, and mastery continue to describe what the student actually did.
- * The server-owned override map is folded in only for grade presentation.
- */
-const teacherOverrideAppliesForDisplay = (record, override) => {
-  if (
-    !record
-    || override?.active !== true
-    || !Number.isFinite(Number(override.score))
-  ) return false;
-
-  const recordAttempts = Number(record.totalAttempts ?? record.attemptCount ?? 0);
-  const overrideAttempts = Number(override.totalAttempts);
-  if (!Number.isFinite(overrideAttempts) || overrideAttempts !== recordAttempts) return false;
-
-  const recordVariant = Number(record.variantIndex ?? 0);
-  const overrideVariant = Number(override.variantIndex);
-  if (!Number.isFinite(overrideVariant) || overrideVariant !== recordVariant) return false;
-
-  const submissionId = String(override.submissionId || '');
-  if (submissionId) return submissionId === String(record.lastSubmissionId || '');
-  const lastAttemptAt = String(override.lastAttemptAt || '');
-  return Boolean(lastAttemptAt)
-    && lastAttemptAt === String(record.lastAttemptAt || record.academicOccurredAt || '');
-};
-
-const projectTeacherOverridesForDisplay = (
-  gradesByAssignment = {},
-  overridesByAssignment = {},
-) => Object.fromEntries(Object.entries(gradesByAssignment || {}).map(
-  ([assignmentId, assignmentTracker]) => {
-    const overrides = overridesByAssignment?.[assignmentId] || {};
-    const nextTracker = { ...(assignmentTracker || {}) };
-    Object.entries(nextTracker).forEach(([questionIndex, record]) => {
-      if (!record || typeof record !== 'object') return;
-      const override = overrides?.[questionIndex];
-      if (!teacherOverrideAppliesForDisplay(record, override)) return;
-      const score = Math.max(0, Math.min(100, Number(override.score)));
-      nextTracker[questionIndex] = {
-        ...record,
-        status: score >= 100
-          ? 'correct'
-          : (record.status === 'correct' || record.status === 'expired' ? 'expired' : 'attempted'),
-        partialCredit: score,
-        bestPartialCredit: score,
-        teacherGradeOverrideDisplay: override,
-      };
-    });
-    return [assignmentId, nextTracker];
-  },
-));
 
 function App() {
   const auth = useAuth();
@@ -9729,7 +9675,6 @@ function App() {
                 students={allStudents}
                 teacherUid={auth.session?.uid || user.uid || ''}
                 teacherEmail={user.email || ''}
-                calculateCanonicalGrade={calculateGrade}
               />
             )}
 

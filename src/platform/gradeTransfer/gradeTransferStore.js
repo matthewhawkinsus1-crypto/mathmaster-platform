@@ -14,9 +14,24 @@ export const persistTransferSnapshot = async (snapshot) => {
       if (JSON.stringify(existing.data().rows) !== JSON.stringify(snapshot.rows)) throw new Error('Transfer id already belongs to a different immutable snapshot.');
       return;
     }
-    transaction.set(ref, snapshot);
+    transaction.set(ref, { ...snapshot, createdAt: serverTimestamp() });
   });
   return snapshot.transferId;
+};
+
+/** One bounded query per authorized class, never one read per roster row. */
+export const listTeacherPracticePassRedemptions = async (classIds = []) => {
+  const snapshots = await Promise.all([...new Set(classIds.filter(Boolean))].map((classId) => getDocs(query(
+    collection(db, 'classPointRewardRedemptions'), where('classId', '==', classId),
+  ))));
+  const result = new Set();
+  snapshots.flatMap((snapshot) => snapshot.docs).forEach((entry) => {
+    const value = entry.data();
+    if (value.rewardCode === 'practicePass' && value.status === 'redeemed') {
+      result.add(`${value.studentId}__${value.classId}__${value.assignmentId}`);
+    }
+  });
+  return result;
 };
 
 export const confirmTransferUploaded = async ({ transferId, actorUid, actorEmail }) => {

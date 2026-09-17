@@ -198,11 +198,14 @@ await check('root admin CANNOT bypass audited callable with direct student delet
 const transferSnapshot = {
   transferId: 'transfer-1', teacherUid: 'teacher-uid', teacherEmail: TEACHER_EMAIL,
   classId: 'class-1', assignmentId: 'A1', assignmentTitle: 'Unit 1',
-  exportKind: 'initial', createdAt: '2026-09-17T12:00:00.000Z',
+  exportKind: 'initial', createdAt: serverTimestamp(),
   rows: [{ studentId: 'S1042', sisStudentId: 'S1042', grade: 92, gradeVersion: 'v1' }],
   withheld: [], fileName: 'P1_Unit1.csv', packageId: 'package-1', schemaVersion: 1,
 };
 await check('teacher creates own class transfer snapshot', assertSucceeds(setDoc(doc(teacher, 'gradeTransferSnapshots/transfer-1'), transferSnapshot)));
+await check('teacher CANNOT forge transfer creation time', assertFails(setDoc(doc(teacher, 'gradeTransferSnapshots/forged-time'), {
+  ...transferSnapshot, transferId: 'forged-time', createdAt: '2020-01-01T00:00:00.000Z',
+})));
 await check('teacher reads own class transfer snapshot', assertSucceeds(getDoc(doc(teacher, 'gradeTransferSnapshots/transfer-1'))));
 await check('student CANNOT read transfer snapshot', assertFails(getDoc(doc(student, 'gradeTransferSnapshots/transfer-1'))));
 await check('student CANNOT create transfer snapshot', assertFails(setDoc(doc(student, 'gradeTransferSnapshots/student-forged'), { ...transferSnapshot, transferId: 'student-forged', teacherUid: 'student:S1042' })));
