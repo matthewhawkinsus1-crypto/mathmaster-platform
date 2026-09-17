@@ -251,10 +251,21 @@ await check('teacher CANNOT write studentOverrides directly, even on their own a
   { studentOverrides: { S1042: { lateDueAt: '2026-10-02T23:59:59.000Z' } } },
   { merge: true },
 )));
+await check('teacher CANNOT seed studentOverrides while creating an assignment', assertFails(setDoc(
+  doc(teacher, 'assignments/A-with-forged-overrides'),
+  {
+    title: 'Forged extension at creation',
+    studentOverrides: { S1042: { lateDueAt: '2026-10-02T23:59:59.000Z' } },
+  },
+)));
 await check('root admin CANNOT bypass the callable and write studentOverrides directly either', assertFails(setDoc(
   doc(rootAdmin, 'assignments/A1'),
   { studentOverrides: { S1042: { lateDueAt: '2026-10-02T23:59:59.000Z' } } },
   { merge: true },
+)));
+await check('teacher can still create an assignment without studentOverrides', assertSucceeds(setDoc(
+  doc(teacher, 'assignments/A-without-overrides'),
+  { title: 'Ordinary assignment' },
 )));
 await check('teacher can still update an assignment normally when studentOverrides is untouched', assertSucceeds(setDoc(
   doc(teacher, 'assignments/A1'),

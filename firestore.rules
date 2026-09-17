@@ -525,7 +525,9 @@ service cloud.firestore {
     // student's deadline.
     match /assignments/{assignmentId} {
       allow read: if signedIn();
-      allow create, delete: if teacher();
+      allow create: if teacher()
+        && !request.resource.data.keys().hasAny(['studentOverrides']);
+      allow delete: if teacher();
       allow update: if teacher()
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['studentOverrides']);
     }

@@ -41,10 +41,11 @@ test('there is only one studentSupportEvents rule block — no second, looser on
 test('the assignments collection stays teacher-only for write, so a student cannot grant themselves an extension', () => {
   const match = rules.match(/match \/assignments\/\{assignmentId\} \{([\s\S]*?)\n {4}\}/);
   assert.ok(match);
-  assert.match(match[1], /allow create, delete: if teacher\(\);/);
+  assert.match(match[1], /allow create: if teacher\(\)[\s\S]*?request\.resource\.data\.keys\(\)\.hasAny\(\['studentOverrides'\]\)/);
+  assert.match(match[1], /allow delete: if teacher\(\);/);
   assert.match(match[1], /allow update: if teacher\(\)/);
-  // studentOverrides (the per-student extension field) is carved out of even
-  // the teacher's own update rule — see attendanceHistoryScopedQuery/
+  // studentOverrides (the per-student extension field) is carved out of both
+  // assignment creation and the teacher's own update rule — see attendanceHistoryScopedQuery/
   // attendanceReconciliationUnifiedPath tests for the full callable-only story.
   assert.match(match[1], /affectedKeys\(\)\.hasAny\(\['studentOverrides'\]\)/);
   assert.doesNotMatch(match[1], /ownsStudent/);
