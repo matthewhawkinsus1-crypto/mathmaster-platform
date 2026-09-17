@@ -29,6 +29,7 @@ const TAB_LABELS = {
   pacing: 'Curriculum Pacing',
   weeklyPath: 'Weekly Path',
   grades: 'Grades',
+  gradeTransfer: 'Grade Transfer',
   standards: 'TEKS & Mastery',
   analytics: 'Analytics',
   exams: 'Secure Exams',
@@ -50,6 +51,7 @@ const TAB_ICONS = {
   pacing: '📐',
   weeklyPath: '🗓️',
   grades: '📊',
+  gradeTransfer: '📤',
   standards: '🎯',
   analytics: '📈',
   exams: '🔒',
@@ -86,7 +88,7 @@ const TAB_ICONS = {
 const TAB_GROUPS = [
   { id: 'teach', label: 'Teach', tabs: ['home', 'assignments', 'library'] },
   { id: 'people', label: 'Classes', tabs: ['classesWorkspace', 'students', 'weeklyPath', 'pacing'] },
-  { id: 'insight', label: 'Evidence', tabs: ['grades', 'standards', 'analytics', 'exams'] },
+  { id: 'insight', label: 'Evidence', tabs: ['grades', 'gradeTransfer', 'standards', 'analytics', 'exams'] },
   { id: 'explore', label: 'Explore', tabs: ['liveChallenge', 'mathTools', 'simulator', 'demo'] },
   { id: 'admin', label: 'Setup', tabs: ['classes', 'classroom', 'access'] },
 ];

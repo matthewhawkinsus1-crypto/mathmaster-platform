@@ -874,6 +874,30 @@ service cloud.firestore {
       allow write: if rootAdmin() || authorizedTeacher();
     }
 
+    /*
+     * Immutable SIS transfer evidence. A teacher can create a snapshot only
+     * for a class they own and can subsequently add only upload-confirmation
+     * fields. Downloading never writes those fields. Students have no access.
+     */
+    match /gradeTransferSnapshots/{transferId} {
+      allow read: if rootAdmin() || (teacher()
+        && resource.data.teacherUid == request.auth.uid
+        && get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.teacherOfRecord == request.auth.token.email);
+      allow create: if teacher()
+        && request.resource.data.transferId == transferId
+        && request.resource.data.teacherUid == request.auth.uid
+        && request.resource.data.teacherEmail == request.auth.token.email
+        && get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.teacherOfRecord == request.auth.token.email
+        && request.resource.data.keys().hasAll(['classId', 'assignmentId', 'assignmentTitle', 'exportKind', 'createdAt', 'rows', 'withheld', 'fileName', 'packageId']);
+      allow update: if teacher()
+        && resource.data.teacherUid == request.auth.uid
+        && get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.teacherOfRecord == request.auth.token.email
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uploadConfirmedAt', 'uploadConfirmedByUid', 'uploadConfirmedByEmail'])
+        && request.resource.data.uploadConfirmedByUid == request.auth.uid
+        && request.resource.data.uploadConfirmedByEmail == request.auth.token.email;
+      allow delete: if false;
+    }
+
     // Authentication internals, Classroom integration, My Math Path sessions,
     // idempotency records, and mastery-application markers are server-only.
     match /teacherIntegrations/{docId} { allow read, write: if false; }
