@@ -580,3 +580,29 @@ test('response inspector deploy surface includes every backend that participates
     ].join(','),
   );
 });
+
+
+test('academic-integrity zero is persistent across later attempts until the teacher reverses it', () => {
+  const integrityOverride = {
+    active: true,
+    score: 0,
+    persistent: true,
+    source: 'academic-integrity',
+    incidentId: 'incident-1',
+    totalAttempts: 1,
+    variantIndex: 0,
+    submissionId: 'submission-1',
+  };
+  const laterAttempt = {
+    ...baseRecord,
+    totalAttempts: 2,
+    attemptCount: 2,
+    variantIndex: 1,
+    lastSubmissionId: 'submission-2',
+    lastAttemptAt: '2026-09-15T12:05:00Z',
+    status: 'correct',
+  };
+
+  assert.equal(overrideAppliesToRecord(laterAttempt, integrityOverride), true);
+  assert.equal(effectiveQuestionScore(laterAttempt, integrityOverride), 0);
+});
