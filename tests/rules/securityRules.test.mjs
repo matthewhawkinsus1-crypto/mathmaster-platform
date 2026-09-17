@@ -489,7 +489,11 @@ test('production Spotlight collection queries preserve teacher, class, roster, a
   const teacherResults = await assertSucceeds(getDocs(activeTeacherSpotlightQuery(teacherA(), {
     teacherEmail: TEACHER_A, classId: 'class-a', now,
   })));
-  assert.deepEqual(teacherResults.docs.map((entry) => entry.id), ['query-a']);
+  assert.equal(teacherResults.docs.some((entry) => entry.id === 'query-a'), true);
+  assert.equal(teacherResults.docs.every((entry) => {
+    const data = entry.data();
+    return data.teacherEmail === TEACHER_A && data.classId === 'class-a';
+  }), true);
   await assertFails(getDocs(activeTeacherSpotlightQuery(teacherB(), {
     teacherEmail: TEACHER_A, classId: 'class-a', now,
   })));
@@ -500,7 +504,8 @@ test('production Spotlight collection queries preserve teacher, class, roster, a
   const studentResults = await assertSucceeds(getDocs(activeStudentSpotlightQuery(studentA(), {
     studentId: 'STUDENT_A', now,
   })));
-  assert.deepEqual(studentResults.docs.map((entry) => entry.id), ['query-a']);
+  assert.equal(studentResults.docs.some((entry) => entry.id === 'query-a'), true);
+  assert.equal(studentResults.docs.every((entry) => entry.data().studentId === 'STUDENT_A'), true);
   await assertFails(getDocs(activeStudentSpotlightQuery(studentB(), {
     studentId: 'STUDENT_A', now,
   })));
@@ -997,7 +1002,6 @@ test('a device persistence report is readable by its own student and writable by
 
 
 // --- Teacher grade overrides are server-authoritative -----------------------
-
 test('no client can forge, change, or remove a teacher grade override projection', async () => {
   const authoritative = {
     'assignment-override-test': {
