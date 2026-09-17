@@ -130,7 +130,7 @@ test('Spotlight wiring remains separate from presence, drafts, grades, attempts,
   assert.match(rules, /match \/liveSpotlightFrames\/\{requestId\}/);
   assert.match(rules, /match \/studentWorkspaceDrafts\/\{draftId\}[\s\S]*allow read: if rootAdmin\(\) \|\| ownsStudent/);
   assert.doesNotMatch(app.slice(app.indexOf('publishSpotlightWork'), app.indexOf('// Persistent support/intervention')), /gradesByAssignment|assignmentActivity|evidence|passback|attemptCount/);
-  assert.match(monitor, /activeTeacherSpotlightQuery\(db, \{ teacherEmail, classId: activeClassId \}\)/);
+  assert.match(monitor, /activeTeacherSpotlightQueries\(db, \{[\s\S]*teacherEmail, classId: activeClassId, studentIds: spotlightStudentIds/);
   assert.match(monitor, /entry\.classId === activeClassId/);
   assert.match(monitor, /!row\.live\?\.assignmentId/);
   assert.doesNotMatch(viewer, /JSON\.stringify|QuestionEngine/);
@@ -156,6 +156,6 @@ test('Spotlight subscriptions have the required bounded-query indexes', async ()
   const indexes = JSON.parse(await readFile(new URL('../../firestore.indexes.json', import.meta.url), 'utf8'));
   const spotlight = indexes.indexes.filter((entry) => entry.collectionGroup === 'liveSpotlightRequests');
   const signatures = spotlight.map((entry) => entry.fields.map((field) => field.fieldPath).join(','));
-  assert.ok(signatures.includes('teacherEmail,classId,status,expiresAt'));
+  assert.ok(signatures.includes('teacherEmail,classId,studentId,status,expiresAt'));
   assert.ok(signatures.includes('studentId,status,expiresAt'));
 });
