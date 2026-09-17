@@ -114,10 +114,15 @@ export const assignmentCreditLifecycle = (assignment = {}, nowValue = Date.now()
   // functions/shared/sectionDeadline.mjs — an attendance extension must not
   // be invisible to Practice Pass eligibility either.
   const override = studentId ? assignment?.studentOverrides?.[studentId] : null;
-  const lateDueAt = toInstant(
-    override?.lateDueAt || override?.dueAt
-      || assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate,
+  const classLateDueAt = toInstant(
+    assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate,
   );
+  const studentLateDueAt = toInstant(override?.lateDueAt || override?.dueAt);
+  const lateDueAt = classLateDueAt === null
+    ? studentLateDueAt
+    : studentLateDueAt === null
+      ? classLateDueAt
+      : Math.max(classLateDueAt, studentLateDueAt);
 
   let status = 'onTime';
   if (releaseAt && now < releaseAt) status = 'scheduled';

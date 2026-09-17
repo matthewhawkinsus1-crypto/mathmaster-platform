@@ -79,11 +79,17 @@ export const resolveDolInstructionDateKey = ({ assignment, classId = null, class
  */
 export const assignmentFinalCloseAt = (assignment, timeZone = null, studentId = null) => {
   const override = studentId ? assignment?.studentOverrides?.[studentId] : null;
-  return parseInstant(
-    override?.lateDueAt || override?.dueAt
-      || assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate,
+  const classFinalCloseAt = parseInstant(
+    assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate,
     { endOfDay: true, timeZone },
   );
+  const studentFinalCloseAt = parseInstant(
+    override?.lateDueAt || override?.dueAt,
+    { endOfDay: true, timeZone },
+  );
+  if (classFinalCloseAt === null) return studentFinalCloseAt;
+  if (studentFinalCloseAt === null) return classFinalCloseAt;
+  return Math.max(classFinalCloseAt, studentFinalCloseAt);
 };
 
 /**

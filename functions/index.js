@@ -2210,10 +2210,13 @@ function progressCheckpointStage(progress, { late = false } = {}) {
 // extensionReconciliation.js) and never earlier than the class's own cutoff.
 function studentLateDueAt(assignment, studentId) {
   const override = studentId ? assignment?.studentOverrides?.[studentId] : null;
-  return toDate(
-    override?.lateDueAt || override?.dueAt
-      || assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate
+  const classFinal = toDate(
+    assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate
   );
+  const studentFinal = toDate(override?.lateDueAt || override?.dueAt);
+  if (!classFinal) return studentFinal;
+  if (!studentFinal) return classFinal;
+  return studentFinal.getTime() > classFinal.getTime() ? studentFinal : classFinal;
 }
 
 function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowValue = Date.now(), studentId = null }) {

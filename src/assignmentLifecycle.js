@@ -110,12 +110,18 @@ const studentOverrideDates = (assignment, studentId) => {
 export const getAssignmentDate = (assignment, field, studentId = null) => {
   if (!assignment) return null;
   const override = studentId ? studentOverrideDates(assignment, studentId) : null;
-  if (field === 'due') return parseLocalDateTime(override?.dueAt || assignment.dueAt || assignment.dueDate, true);
+  // Student overrides grant additional credit opportunity; they do not move
+  // the class pacing checkpoint that distinguishes on-time from late work.
+  if (field === 'due') return parseLocalDateTime(assignment.dueAt || assignment.dueDate, true);
   if (field === 'late') {
-    return parseLocalDateTime(
-      override?.lateDueAt || override?.dueAt || assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate,
+    const classFinal = parseLocalDateTime(
+      assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate,
       true,
     );
+    const studentFinal = parseLocalDateTime(override?.lateDueAt || override?.dueAt, true);
+    if (!classFinal) return studentFinal;
+    if (!studentFinal) return classFinal;
+    return studentFinal.getTime() > classFinal.getTime() ? studentFinal : classFinal;
   }
   if (field === 'release') return parseLocalDateTime(assignment.releaseAt || assignment.releaseDate, false);
   return null;
