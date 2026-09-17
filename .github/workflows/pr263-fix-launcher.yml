@@ -1,0 +1,27 @@
+name: Repair PR263 integration workflow
+
+on:
+  push:
+    branches:
+      - claude/nifty-shannon-t9a7s3
+    paths:
+      - .github/workflows/pr263-fix-launcher.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix integration workflow YAML and retrigger it
+        shell: bash
+        run: |
+          git config user.name 'ChatGPT PR263 Integration'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          sed -i "/^    if: github.event.head_commit.message/d" .github/workflows/pr263-integrate-main.yml
+          git rm .github/workflows/pr263-fix-launcher.yml
+          git add .github/workflows/pr263-integrate-main.yml
+          git commit -m 'chore: fix PR263 integration workflow syntax'
+          git push origin HEAD:claude/nifty-shannon-t9a7s3
