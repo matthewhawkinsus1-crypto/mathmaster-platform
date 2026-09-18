@@ -10035,6 +10035,48 @@ exports.reportLiveChallengeProgress = onCall(async (request) => {
   return { recorded: true, provisionalPoints };
 });
 
+async function maybeCompressLiveChallengeRoundAfterThreshold(db, { roomRef, roundIndex, roundVersion }) {
+  const playersSnapshot = await roomRef.collection("players").get();
+  const joinedPlayers = playersSnapshot.docs.filter((snapshot) => snapshot.data()?.joined === true);
+  if (!joinedPlayers.length) return { compressed: false };
+
+  const answeredCount = joinedPlayers.filter(
+    (snapshot) => Number(snapshot.data()?.answeredRound) === Number(roundIndex),
+  ).length;
+  const thresholdCount = Math.ceil(joinedPlayers.length * 0.8);
+  if (answeredCount < thresholdCount) {
+    return { compressed: false, answeredCount, joinedCount: joinedPlayers.length, thresholdCount };
+  }
+
+  const targetEndsAtMs = Date.now() + 5000;
+  let compressed = false;
+  await db.runTransaction(async (transaction) => {
+    const latestRoomSnapshot = await transaction.get(roomRef);
+    if (!latestRoomSnapshot.exists) return;
+    const latestRoom = latestRoomSnapshot.data() || {};
+    if (
+      latestRoom.status !== "running"
+      || Number(latestRoom.currentRound) !== Number(roundIndex)
+      || Number(latestRoom.roundVersion || 0) !== Number(roundVersion || 0)
+    ) return;
+
+    const currentEndsAtMs = toDate(latestRoom.endsAt || latestRoom.roundEndsAt)?.getTime() || 0;
+    if (!currentEndsAtMs || currentEndsAtMs <= targetEndsAtMs) return;
+
+    const shortenedEndsAt = new Date(targetEndsAtMs);
+    transaction.set(roomRef, {
+      endsAt: shortenedEndsAt,
+      roundEndsAt: shortenedEndsAt,
+      roundCompressionReason: "eighty-percent-answered",
+      roundCompressedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    compressed = true;
+  });
+
+  return { compressed, answeredCount, joinedCount: joinedPlayers.length, thresholdCount };
+}
+
 exports.submitLiveChallengeResponse = onCall(async (request) => {
   const requestArrivedAt = Date.now();
   const { studentId } = requireStudent(request);
@@ -10239,6 +10281,20 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   });
 
   if (duplicateReceipt) return { ...duplicateReceipt, duplicate: true };
+
+  // Classroom pacing: once 80% of the students who actually joined this round
+  // have answered, any longer remaining timer is compressed to five seconds.
+  // This happens after the authoritative score write, and failures here never
+  // invalidate a student's accepted answer.
+  await maybeCompressLiveChallengeRoundAfterThreshold(db, {
+    roomRef,
+    roundIndex: submittedRound,
+    roundVersion: submittedVersion,
+  }).catch((error) => logger.error("liveChallenge.roundCompression.failed", {
+    roomId,
+    roundIndex: submittedRound,
+    message: error?.message || String(error),
+  }));
 
   return {
     isCorrect: grading?.isCorrect === true,
