@@ -11,6 +11,16 @@ const kindLabels = {
   [TEACHER_ACTION_KIND.RETEST_RECOVERY]: 'Retest / recovery',
 };
 const button = { padding: '7px 10px', border: '1px solid #bdc1c6', borderRadius: 7, background: '#fff', fontWeight: 800, cursor: 'pointer' };
+const displayActionDate = (value) => {
+  if (!value) return '—';
+  const raw = String(value);
+  const dateKey = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateKey) {
+    const [, year, month, day] = dateKey;
+    return new Date(Number(year), Number(month) - 1, Number(day)).toLocaleDateString();
+  }
+  return new Date(value).toLocaleDateString();
+};
 
 export default function TeacherActionCenter({ students = [], classes = [], assignments = [], supportEvents = [], parentContacts = [], gradeTransferUnits = [], retestRecoveryActions = [], projectedItems = null, classSchedule = null, nonInstructionalKeys = null, nowValue = Date.now(), onResolveReturnCheckIn, onOpenWorkflow, onOpenCountChange }) {
   const [classId, setClassId] = useState('');
@@ -40,7 +50,7 @@ export default function TeacherActionCenter({ students = [], classes = [], assig
       <tbody>{visible.map((item) => <tr key={item.id} style={{ borderTop: '1px solid #dadce0' }}>
         <td style={{ padding: 10 }}><strong>{item.studentName || 'Class-wide'}</strong></td><td>{item.classLabel || '—'}</td>
         <td><strong>{item.title}</strong><div style={{ color: '#5f6368', fontSize: 12 }}>{item.summary}</div>{item.context?.map((entry) => <div key={entry} style={{ fontSize: 12, color: '#b06000' }}>{entry}</div>)}</td>
-        <td>{item.dueAt || item.createdAt ? new Date(item.dueAt || item.createdAt).toLocaleDateString() : '—'}</td><td>{item.status}</td>
+        <td>{displayActionDate(item.dueAt || item.createdAt)}</td><td>{item.status}</td>
         <td style={{ padding: 8 }}><button type="button" style={button} onClick={() => onOpenWorkflow?.(item)}>{item.kind === TEACHER_ACTION_KIND.GRADE_UPLOAD ? 'Open Grade Transfer' : item.kind === TEACHER_ACTION_KIND.RETURN_FROM_ABSENCE || item.kind === TEACHER_ACTION_KIND.EXTENSION_RECONCILIATION ? 'Open Attendance' : item.kind === TEACHER_ACTION_KIND.RETEST_RECOVERY ? 'Open retest workflow' : 'Open Parent Contacts'}</button>{item.availableActions.includes('resolveReturnCheckIn') && <button type="button" style={{ ...button, marginLeft: 6, background: '#e6f4ea' }} onClick={() => onResolveReturnCheckIn?.(returnCheckIns.find((candidate) => candidate.key === item.sourceId))}>Resolve check-in</button>}</td>
       </tr>)}</tbody>
     </table></div>}
