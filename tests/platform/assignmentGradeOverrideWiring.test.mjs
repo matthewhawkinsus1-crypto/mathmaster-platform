@@ -82,6 +82,16 @@ test('integrity controls cover section scope, confirmed roles, third reason, and
   assert.match(submission, /academicIntegrityConsequence,/);
 });
 
+test('assignment and section integrity actions are accepted only for their matching scope', () => {
+  const functions = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const start = functions.indexOf('exports.overrideStudentAssignmentGrade = onCall');
+  const end = functions.indexOf('// ---------------------------------------------------------------------------\n// Class Points:', start);
+  assert.ok(start >= 0 && end > start);
+  const block = functions.slice(start, end);
+  assert.match(block, /const actionMatchesScope = scope === "section"[\s\S]*\["issueZero", "restoreSectionZero"\]\.includes\(action\)[\s\S]*\["issueZero", "restoreAutomatic"\]\.includes\(action\)/);
+  assert.match(block, /if \(!actionMatchesScope\)/);
+});
+
 test('server enforces confirmed section zeros, preserves prior corrections, updates DOL, and creates parent follow-up', () => {
   const functions = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
   const start = functions.indexOf('exports.overrideStudentAssignmentGrade = onCall');
