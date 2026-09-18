@@ -326,6 +326,28 @@ const canonicalFactorKey = (text) => {
   try { return simplifyExpression(text); } catch { return String(text).trim(); }
 };
 
+const stripUnaryNegativeFactor = (expression) => {
+  try {
+    let node = parse(String(expression));
+    while (node?.type === 'ParenthesisNode') node = node.content;
+    if (node?.type === 'OperatorNode' && node.fn === 'unaryMinus' && node.args?.length === 1) {
+      return node.args[0].toString({ parenthesis: 'keep', implicit: 'hide' });
+    }
+  } catch {
+    return null;
+  }
+  return null;
+};
+
+const isNegativeOneFactor = (expression) => {
+  try {
+    if (symbolsIn(expression).length) return false;
+    return nearlyEqual(Number(evaluate(String(expression))), -1);
+  } catch {
+    return false;
+  }
+};
+
 const structuralCancellation = (expression) => {
   const factors = splitMultiplicativeFactors(expression);
   if (factors?.numerator?.length && factors?.denominator?.length) {
@@ -333,18 +355,54 @@ const structuralCancellation = (expression) => {
     const pairs = [];
     factors.numerator.forEach((numeratorFactor, numeratorIndex) => {
       const numeratorKey = canonicalFactorKey(numeratorFactor.text);
-      const denominatorIndex = factors.denominator.findIndex((denominatorFactor, index) => (
+      let denominatorIndex = factors.denominator.findIndex((denominatorFactor, index) => (
         !usedDenominator.has(index) && canonicalFactorKey(denominatorFactor.text) === numeratorKey
       ));
+
+      if (denominatorIndex >= 0) {
+        usedDenominator.add(denominatorIndex);
+        pairs.push({ numeratorIndex, denominatorIndex, key: numeratorKey, mode: 'factor' });
+        return;
+      }
+
+      // A visible unary minus is the factor -1 multiplying the whole numerator.
+      // Keep the visible factor list unchanged (other algebra workspaces depend
+      // on those token indices), but let Step Algebra cancel the sign against a
+      // denominator -1. Example: (-x)/(-1) -> x.
+      const positiveNumerator = stripUnaryNegativeFactor(numeratorFactor.text);
+      if (!positiveNumerator) return;
+      denominatorIndex = factors.denominator.findIndex((denominatorFactor, index) => (
+        !usedDenominator.has(index) && isNegativeOneFactor(denominatorFactor.text)
+      ));
       if (denominatorIndex < 0) return;
+
       usedDenominator.add(denominatorIndex);
-      pairs.push({ numeratorIndex, denominatorIndex, key: numeratorKey });
+      pairs.push({
+        numeratorIndex,
+        denominatorIndex,
+        key: '-1',
+        mode: 'sign',
+        positiveNumerator,
+      });
     });
 
     if (pairs.length) {
-      const cancelledNumerators = new Set(pairs.map((pair) => pair.numeratorIndex));
+      const cancelledNumerators = new Set(
+        pairs.filter((pair) => pair.mode !== 'sign').map((pair) => pair.numeratorIndex),
+      );
+      const signReplacements = new Map(
+        pairs
+          .filter((pair) => pair.mode === 'sign')
+          .map((pair) => [pair.numeratorIndex, pair.positiveNumerator]),
+      );
       const cancelledDenominators = new Set(pairs.map((pair) => pair.denominatorIndex));
-      const remainingNumerator = factors.numerator.filter((_, index) => !cancelledNumerators.has(index));
+      const remainingNumerator = factors.numerator.flatMap((factor, index) => {
+        if (cancelledNumerators.has(index)) return [];
+        if (signReplacements.has(index)) {
+          return [{ ...factor, text: signReplacements.get(index) }];
+        }
+        return [factor];
+      });
       const remainingDenominator = factors.denominator.filter((_, index) => !cancelledDenominators.has(index));
 
       const multiply = (items) => {

@@ -14,11 +14,19 @@ test('choosing an operation explicitly focuses the compact operand composer', ()
   assert.match(inputSource, /mfRef\.current\?\.focus/);
 });
 
-test('operation placement is staged on both sides before the algebra engine applies it', () => {
-  assert.match(stepSource, /stageOperationPlacement\(\{ placedSides: placedOperationSides, side \}\)/);
+test('operation placement uses the latest side synchronously before the algebra engine applies it', () => {
+  assert.match(stepSource, /const placedOperationSidesRef = useRef\(\[\]\)/);
+  assert.match(stepSource, /stageOperationPlacement\(\{ placedSides: placedOperationSidesRef\.current, side \}\)/);
+  assert.match(stepSource, /placedOperationSidesRef\.current = result\.placedSides/);
+  assert.match(stepSource, /placedOperationPositionsRef\.current = nextPositions/);
   assert.match(stepSource, /if \(!result\.ready\)/);
   assert.match(stepSource, /await attemptMove\(armedTile\.operation/);
   assert.match(stepSource, /Balance not restored/);
+});
+
+test('equivalent MathLive operand re-emissions do not erase a staged side', () => {
+  assert.match(stepSource, /operationOperandIdentity\(value\) !== operationOperandIdentity\(operand\)/);
+  assert.match(stepSource, /if \(operandChanged && placedOperationSidesRef\.current\.length\)/);
 });
 
 test('balance is one connected panel rather than two bordered white drop cards', () => {

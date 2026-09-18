@@ -28,6 +28,13 @@ test('opposite-side placement completes the balance requirement', () => {
   assert.deepEqual(result.placedSides, ['left', 'right']);
 });
 
+test('right-first placement also completes when the left side follows', () => {
+  const first = stageOperationPlacement({ placedSides: [], side: 'right' });
+  const second = stageOperationPlacement({ placedSides: first.placedSides, side: 'left' });
+  assert.equal(second.ready, true);
+  assert.deepEqual(second.placedSides, ['right', 'left']);
+});
+
 test('invalid placement does not mutate progress', () => {
   const result = stageOperationPlacement({ placedSides: ['right'], side: 'middle' });
   assert.equal(result.accepted, false);
