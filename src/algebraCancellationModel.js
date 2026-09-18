@@ -18,8 +18,20 @@ const fractionResultExpression = (numerator, denominator, pairs) => {
   const numeratorCount = numerator.length;
   const cancelledNumerator = new Set();
   const cancelledDenominator = new Set();
+  const signReplacements = new Map();
 
   (pairs || []).forEach((pair) => {
+    if (
+      pair?.mode === 'sign'
+      && Number.isInteger(pair.numeratorIndex)
+      && Number.isInteger(pair.denominatorIndex)
+      && String(pair.positiveNumerator || '').trim()
+    ) {
+      signReplacements.set(pair.numeratorIndex, pair.positiveNumerator);
+      cancelledDenominator.add(pair.denominatorIndex);
+      return;
+    }
+
     const [first, second] = pair.indices || [];
     [first, second].forEach((index) => {
       if (!Number.isInteger(index)) return;
@@ -28,7 +40,13 @@ const fractionResultExpression = (numerator, denominator, pairs) => {
     });
   });
 
-  const remainingNumerator = numerator.filter((_, index) => !cancelledNumerator.has(index));
+  const remainingNumerator = numerator.flatMap((factor, index) => {
+    if (cancelledNumerator.has(index)) return [];
+    if (signReplacements.has(index)) {
+      return [{ ...factor, text: signReplacements.get(index) }];
+    }
+    return [factor];
+  });
   const remainingDenominator = denominator.filter((_, index) => !cancelledDenominator.has(index));
 
   const multiply = (items) => {
@@ -58,6 +76,10 @@ export const buildCancellationModel = (
       .map((pair, index) => ({
         id: `factor-${index}`,
         indices: [pair.numeratorIndex, numerator.length + pair.denominatorIndex],
+        mode: pair.mode || 'factor',
+        numeratorIndex: pair.numeratorIndex,
+        denominatorIndex: pair.denominatorIndex,
+        positiveNumerator: pair.positiveNumerator || null,
       }));
 
     if (structuralFactorPairs.length) {
