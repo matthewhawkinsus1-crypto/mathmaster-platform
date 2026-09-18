@@ -10005,10 +10005,10 @@ exports.cancelLiveChallenge = onCall(async (request) => {
  * student per round, and Firestore's sustained write limit is per document.
  * Twenty-four students each writing their own doc is twenty-four documents.
  *
- * What it writes is NOT score. It is clamped, it is display only, it is ignored
- * by grading, by the report, by the export and by mastery evidence, and it is
- * dropped the moment the round it belongs to is answered or moves on. A student
- * who forged it would push a number around a leaderboard and earn nothing.
+ * The client-visible provisional number remains display-only. Solver Race may
+ * additionally attach raw algebra work. That work is re-instantiated and
+ * graded here from the server-held question before a productive milestone can
+ * become an authoritative receipt; the browser never supplies depth or points.
  */
 exports.reportLiveChallengeProgress = onCall(async (request) => {
   const { studentId } = requireStudent(request);
@@ -10021,18 +10021,28 @@ exports.reportLiveChallengeProgress = onCall(async (request) => {
   }
 
   const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId);
-  const privatePlayerRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId).collection("players").doc(studentId);
+  const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
+  const privatePlayerRef = privateRef.collection("players").doc(studentId);
   const inviteRef = db.collection(LIVE_CHALLENGE_INVITES).doc(studentId);
-  const [roomSnapshot, playerSnapshot, inviteSnapshot] = await Promise.all([
-    roomRef.get(), privatePlayerRef.get(), inviteRef.get(),
+  const [roomSnapshot, privateSnapshot, playerSnapshot, inviteSnapshot] = await Promise.all([
+    roomRef.get(), privateRef.get(), privatePlayerRef.get(), inviteRef.get(),
   ]);
-  if (!roomSnapshot.exists || !playerSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge is no longer available.");
+  if (!roomSnapshot.exists || !privateSnapshot.exists || !playerSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge is no longer available.");
   if (!inviteSnapshot.exists || inviteSnapshot.data()?.roomId !== roomId) {
     throw new HttpsError("permission-denied", "This Live Challenge was not assigned to you.");
   }
   const room = roomSnapshot.data() || {};
+  const privateState = privateSnapshot.data() || {};
   const player = playerSnapshot.data() || {};
-  if (room.status !== challenge.LIVE_CHALLENGE_STATUS.RUNNING || Number(room.currentRound) !== roundIndex) {
+  const requestedVersion = Number(request.data?.roundVersion);
+  const requestedToken = String(request.data?.roundToken || "").trim();
+  if (
+    room.status !== challenge.LIVE_CHALLENGE_STATUS.RUNNING
+    || Number(room.currentRound) !== roundIndex
+    || !Number.isInteger(requestedVersion)
+    || Number(room.roundVersion || 0) !== requestedVersion
+    || String(room.roundToken || "") !== requestedToken
+  ) {
     // Not an error worth surfacing: the student simply moved on, or the teacher
     // advanced while a debounced report was in flight. Report nothing, quietly.
     return { recorded: false };
@@ -10046,13 +10056,94 @@ exports.reportLiveChallengeProgress = onCall(async (request) => {
     0,
     Math.min(challenge.LIVE_PROVISIONAL_MAX_POINTS, Math.round(Number(request.data?.provisionalPoints) || 0)),
   );
-  await roomRef.collection("players").doc(String(player.playerKey)).set({
-    provisionalPoints,
-    provisionalRound: roundIndex,
-    provisionalAt: FieldValue.serverTimestamp(),
-  }, { merge: true });
+  const rawProgress = request.data?.responsePayload?.raw;
+  let secureMilestone = null;
+  const secondChance = Object.prototype.hasOwnProperty.call(privateState.secondChanceOf || {}, String(roundIndex));
+  if (rawProgress && room.challengeMode === "solverRace" && !secondChance) {
+    const questionId = privateState.questionIds?.[roundIndex];
+    const privateAuthored = privateState.roundQuestions?.[roundIndex] || null;
+    const questionSnapshot = !privateAuthored && questionId ? await db.collection("pathQuestionBank").doc(questionId).get() : null;
+    if (privateAuthored || questionSnapshot?.exists) {
+      const authored = privateAuthored || questionSnapshot.data() || {};
+      const instantiated = await mathPath.instantiateQuestion(authored, `challenge|${roomId}|${roundIndex}|${questionId}`);
+      const plan = instantiated.question ? await mathPath.buildIssuePlan(instantiated.question) : null;
+      if (plan?.issuable && plan.privateGrading?.pathToolId === "stepAlgebra") {
+        const grading = await mathPath.gradePathToolResponse(plan.privateGrading, { raw: rawProgress });
+        if (!grading?.rejected) {
+          const expectedDepth = Math.max(1, Number(authored.solutionDepth) || 1);
+          const productiveDepth = Math.max(0, Math.min(expectedDepth,
+            Number(grading?.productiveDepth) || challenge.productiveDepthFromSecureGrade({
+              gradeScore: grading?.score,
+              expectedDepth,
+              isCorrect: grading?.isCorrect === true,
+            })));
+          const normalizedState = String(rawProgress.finalRelation || rawProgress.finalEquation || "")
+            .trim().replace(/\s+/g, " ");
+          const stateHash = normalizedState
+            ? crypto.createHash("sha256").update(normalizedState).digest("hex")
+            : "";
+          const startsAtMs = toDate(room.startsAt || room.roundStartedAt)?.getTime() || Date.now();
+          const totalMs = challenge.normalizeRoundSeconds(room.activeRoundSeconds || room.roundSeconds) * 1000;
+          secureMilestone = {
+            productiveDepth, expectedDepth, stateHash,
+            elapsedMs: Math.min(totalMs, Math.max(0, Date.now() - startsAtMs)), totalMs,
+            validated: productiveDepth > 0,
+          };
+        }
+      }
+    }
+  }
 
-  return { recorded: true, provisionalPoints };
+  const publicPlayerRef = roomRef.collection("players").doc(String(player.playerKey));
+  const outcome = await db.runTransaction(async (transaction) => {
+    const [latestRoomSnapshot, latestPlayerSnapshot] = await Promise.all([
+      transaction.get(roomRef), transaction.get(privatePlayerRef),
+    ]);
+    if (!latestRoomSnapshot.exists || !latestPlayerSnapshot.exists) return { recorded: false, milestoneSpeedPoints: 0 };
+    const latestRoom = latestRoomSnapshot.data() || {};
+    const latestPlayer = latestPlayerSnapshot.data() || {};
+    if (
+      latestRoom.status !== challenge.LIVE_CHALLENGE_STATUS.RUNNING
+      || Number(latestRoom.currentRound) !== roundIndex
+      || Number(latestRoom.roundVersion || 0) !== requestedVersion
+      || String(latestRoom.roundToken || "") !== requestedToken
+      || Number(latestPlayer.answeredRound) === roundIndex
+    ) return { recorded: false, milestoneSpeedPoints: 0 };
+
+    const milestone = challenge.applyProductiveMilestoneAward({
+      player: latestPlayer,
+      roundIndex,
+      roundVersion: requestedVersion,
+      secureMilestone,
+      secondChance,
+    });
+
+    transaction.set(privatePlayerRef, {
+      ...(milestone.accepted ? {
+        challengeMilestoneProgress: milestone.challengeMilestoneProgress,
+        submissionReceipts: milestone.submissionReceipts,
+        score: milestone.totalScore,
+      } : {}),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    transaction.set(publicPlayerRef, {
+      provisionalPoints,
+      provisionalRound: roundIndex,
+      ...(milestone.accepted ? { score: milestone.totalScore } : {}),
+      provisionalAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return {
+      recorded: true,
+      provisionalPoints,
+      milestoneAccepted: milestone.accepted,
+      milestoneSpeedPoints: milestone.speedPoints,
+      productiveDepth: milestone.productiveDepth || 0,
+      totalScore: milestone.accepted ? milestone.totalScore : Math.max(0, Number(latestPlayer.score) || 0),
+      duplicate: milestone.duplicate,
+    };
+  });
+
+  return outcome;
 });
 
 async function maybeCompressLiveChallengeRoundAfterThreshold(db, { roomRef, roundIndex, roundVersion }) {
@@ -10245,6 +10336,17 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
       secondChance: isSecondChance,
       missedOriginally,
     });
+    const bankedMilestoneSpeed = isSecondChance ? 0 : challenge.milestoneSpeedTotalForRound(
+      player.submissionReceipts || {}, submittedRound, submittedVersion,
+    );
+    if (!isSecondChance && bankedMilestoneSpeed > 0 && finalScore.speedBonus > 0) {
+      const adjustedSpeedBonus = Math.max(0, finalScore.speedBonus - bankedMilestoneSpeed);
+      finalScore = {
+        ...finalScore,
+        speedBonus: adjustedSpeedBonus,
+        pointsAwarded: finalScore.pointsAwarded - (finalScore.speedBonus - adjustedSpeedBonus),
+      };
+    }
     const answeredCorrectly = grading?.isCorrect === true;
     const receipt = {
       isCorrect: grading?.isCorrect === true,

@@ -147,6 +147,7 @@ export function ChallengeRound({
   const pendingRef = useRef(pending);
   const resultRef = useRef(result);
   const latestRawResponseRef = useRef(null);
+  const [progressRawResponse, setProgressRawResponse] = useState(null);
   const wasExpiredRef = useRef(false);
   const [submitError, setSubmitError] = useState('');
   const [stepRecord, setStepRecord] = useState(() => emptyQuestionRecord());
@@ -176,6 +177,7 @@ export function ChallengeRound({
     stepRecordRef.current = fresh;
     setStepRecord(fresh);
     latestRawResponseRef.current = null;
+    setProgressRawResponse(null);
     wasExpiredRef.current = false;
     submissionLockRef.current = Boolean(pendingRef.current);
     // The origin is intentionally not recalculated when wall-clock calibration
@@ -183,16 +185,24 @@ export function ChallengeRound({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roundIndex, question?.questionInstanceId, pendingKey]);
 
-  const reportedRef = useRef(-1);
+  const reportedRef = useRef('');
   useEffect(() => {
     if (result || expired || !room?.roomId) return undefined;
-    if (workingPoints === reportedRef.current) return undefined;
+    const signature = `${workingPoints}:${JSON.stringify(progressRawResponse || null)}`;
+    if (signature === reportedRef.current) return undefined;
     const timer = window.setTimeout(() => {
-      reportedRef.current = workingPoints;
-      Promise.resolve(reportProgress({ roomId: room.roomId, roundIndex, provisionalPoints: workingPoints })).catch(() => {});
+      reportedRef.current = signature;
+      Promise.resolve(reportProgress({
+        roomId: room.roomId,
+        roundIndex,
+        roundVersion: Number(room.roundVersion) || 0,
+        roundToken: room.roundToken || '',
+        provisionalPoints: workingPoints,
+        ...(progressRawResponse ? { responsePayload: { raw: progressRawResponse } } : {}),
+      })).catch(() => {});
     }, 900);
     return () => window.clearTimeout(timer);
-  }, [workingPoints, result, expired, room?.roomId, roundIndex, reportProgress]);
+  }, [workingPoints, progressRawResponse, result, expired, room?.roomId, room?.roundVersion, room?.roundToken, roundIndex, reportProgress]);
 
   const submit = async (responsePayload, { atRoundEnd = false } = {}) => {
     if (resultRef.current || pendingRef.current || submissionLockRef.current || (!atRoundEnd && expired) || !roundStarted) return null;
@@ -382,7 +392,10 @@ export function ChallengeRound({
               pathToolId: question.pathToolId,
               submit: async (rawWork) => submit({ raw: rawWork }),
             }}
-            onResponseStateChange={(rawWork) => { latestRawResponseRef.current = rawWork; }}
+            onResponseStateChange={(rawWork) => {
+              latestRawResponseRef.current = rawWork;
+              setProgressRawResponse(rawWork);
+            }}
             onStepGrade={async ({ stepGrade, statePatch, supportUsage = null }) => {
               const outcome = recordQuestionStep({
                 record: stepRecordRef.current,

@@ -229,9 +229,102 @@ export const recordValidatedSpeedMilestone = ({
   return { accepted: true, milestones: [...current, milestone], milestone, speedPoints };
 };
 
+// Secure Path grading returns a server-derived fraction of the authored
+// solution depth for validated intermediate solver states. Converting that
+// fraction back to a depth here means the browser can report raw work but can
+// never claim how far along that work is.
+export const productiveDepthFromSecureGrade = ({ gradeScore = 0, expectedDepth = 1, isCorrect = false } = {}) => {
+  const expected = Math.max(1, Math.floor(Number(expectedDepth) || 1));
+  if (isCorrect) return expected;
+  const score = clamp(Number(gradeScore) || 0, 0, 1);
+  return Math.max(0, Math.min(expected - 1, Math.floor((score * expected) + 1e-9)));
+};
+
 export const authoritativeReceiptTotal = (submissionReceipts = {}) => Object.values(submissionReceipts || {})
   .filter((receipt) => receipt?.serverConfirmed === true)
   .reduce((sum, receipt) => sum + Math.max(0, Math.round(Number(receipt?.pointsAwarded) || 0)), 0);
+
+export const milestoneSpeedTotalForRound = (submissionReceipts = {}, roundIndex = -1, roundVersion = -1) => Object.values(submissionReceipts || {})
+  .filter((receipt) => receipt?.serverConfirmed === true
+    && receipt?.receiptKind === 'productiveSpeedMilestone'
+    && Number(receipt?.roundIndex) === Number(roundIndex)
+    && Number(receipt?.roundVersion) === Number(roundVersion))
+  .reduce((sum, receipt) => sum + Math.max(0, Math.round(Number(receipt?.speedBonus) || 0)), 0);
+
+export const applyProductiveMilestoneAward = ({
+  player = {}, roundIndex = 0, roundVersion = 0, secureMilestone = null, secondChance = false,
+} = {}) => {
+  const progressKey = `${Number(roundIndex)}:${Number(roundVersion)}`;
+  const priorProgress = player?.challengeMilestoneProgress?.[progressKey] || {};
+  if (secondChance || !secureMilestone?.validated) {
+    return { accepted: false, duplicate: false, speedPoints: 0, totalScore: authoritativeReceiptTotal(player?.submissionReceipts) };
+  }
+  const targetDepth = Math.max(0, Math.min(
+    Math.floor(Number(secureMilestone.expectedDepth) || 1),
+    Math.floor(Number(secureMilestone.productiveDepth) || 0),
+  ));
+  const priorMilestones = Array.isArray(priorProgress.milestones) ? priorProgress.milestones : [];
+  const priorDepth = priorMilestones.reduce((max, entry) => Math.max(max, Number(entry?.productiveDepth) || 0), 0);
+  if (targetDepth <= priorDepth) {
+    return {
+      accepted: false, duplicate: true, speedPoints: 0,
+      productiveDepth: targetDepth,
+      totalScore: authoritativeReceiptTotal(player.submissionReceipts),
+    };
+  }
+  let milestones = priorMilestones;
+  let speedPoints = 0;
+  const receipts = { ...(player.submissionReceipts || {}) };
+  const receiptIds = [];
+  for (let depth = priorDepth + 1; depth <= targetDepth; depth += 1) {
+    const milestone = recordValidatedSpeedMilestone({
+      milestones,
+      ...secureMilestone,
+      productiveDepth: depth,
+      stateHash: `${secureMilestone.stateHash}:depth:${depth}`,
+    });
+    if (!milestone.accepted) continue;
+    milestones = milestone.milestones;
+    speedPoints += milestone.speedPoints;
+    const receiptId = `milestone:${Number(roundVersion)}:${depth}`;
+    receiptIds.push(receiptId);
+    receipts[receiptId] = {
+      submissionId: receiptId,
+      roundIndex: Number(roundIndex),
+      roundVersion: Number(roundVersion),
+      receiptKind: 'productiveSpeedMilestone',
+      productiveDepth: depth,
+      stateHash: milestone.milestone.stateHash,
+      speedBonus: milestone.speedPoints,
+      pointsAwarded: milestone.speedPoints,
+      serverConfirmed: true,
+    };
+  }
+  if (!receiptIds.length) return { accepted: false, duplicate: false, speedPoints: 0, productiveDepth: targetDepth, totalScore: authoritativeReceiptTotal(receipts) };
+  const totalScore = authoritativeReceiptTotal(receipts);
+  let runningTotal = totalScore - speedPoints;
+  receiptIds.forEach((receiptId) => {
+    runningTotal += receipts[receiptId].pointsAwarded;
+    receipts[receiptId] = { ...receipts[receiptId], totalScore: runningTotal };
+  });
+  return {
+    accepted: true,
+    duplicate: false,
+    speedPoints,
+    productiveDepth: targetDepth,
+    totalScore,
+    receiptIds,
+    submissionReceipts: receipts,
+    challengeMilestoneProgress: {
+      ...(player.challengeMilestoneProgress || {}),
+      [progressKey]: {
+        roundIndex: Number(roundIndex),
+        roundVersion: Number(roundVersion),
+        milestones,
+      },
+    },
+  };
+};
 
 export const planSecondChanceRounds = ({
   roundMisses = {},
