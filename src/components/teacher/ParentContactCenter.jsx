@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { formatStudentName } from '../../platform/studentName.js';
 import {
   CONTACT_CATEGORIES, CONTACT_METHODS, buildStudentProgressBrief, contactsCsv, groupContactsByStudent, progressBriefText, projectProgressBriefGrades, validateContactDraft,
@@ -11,13 +11,23 @@ const label = (value) => labels[value] || value.charAt(0).toUpperCase() + value.
 const localNow = () => { const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); };
 const button = { padding: '9px 12px', border: '1px solid #c7ccd4', borderRadius: 8, background: '#fff', fontWeight: 800, cursor: 'pointer' };
 
-export default function ParentContactCenter({ students = [], classes = [], assignments = [], contacts = [], supportEvents = [], sessionSummaries = [], masteryProfilesByStudentId = {}, classSchedule = null, nonInstructionalKeys = null, nowValue = Date.now(), onRecordContact, onCompleteFollowUp, onExportContacts }) {
+export default function ParentContactCenter({ students = [], classes = [], assignments = [], contacts = [], supportEvents = [], sessionSummaries = [], masteryProfilesByStudentId = {}, classSchedule = null, nonInstructionalKeys = null, nowValue = Date.now(), sourceAction = null, onRecordContact, onCompleteFollowUp, onExportContacts }) {
   const [studentId, setStudentId] = useState('');
   const [draft, setDraft] = useState({ occurredAt: localNow(), method: 'phone', category: 'academics', notes: '', outcome: '', followUpDate: '' });
   const [error, setError] = useState('');
   const [briefText, setBriefText] = useState('');
   const groups = useMemo(() => groupContactsByStudent({ contacts, students }), [contacts, students]);
   const student = students.find((entry) => String(entry.id || entry.studentId) === studentId) || null;
+  useEffect(() => {
+    if (!sourceAction?.studentId) return;
+    setStudentId(String(sourceAction.studentId));
+    const integrityFollowUp = sourceAction.context?.includes('Confirmed academic-integrity incident');
+    setDraft((current) => ({
+      ...current,
+      category: integrityFollowUp ? 'academicIntegrity' : current.category,
+      outcome: current.outcome || 'Parent contact completed.',
+    }));
+  }, [sourceAction]);
   // This is the PR 263 attendance authority, not a second reminder engine.
   const returnCheckIns = useMemo(() => classes.flatMap((classRecord) => resolveReturnCheckIns({
     roster: students.filter((entry) => entry.classId === (classRecord.classId || classRecord.id)), supportEvents, assignments,
@@ -27,7 +37,7 @@ export default function ParentContactCenter({ students = [], classes = [], assig
 
   const save = async (event) => {
     event.preventDefault();
-    const payload = { ...draft, studentId, studentName: student ? formatStudentName(student) : '', classId: student?.classId || null, classPeriod: student?.classPeriod || null };
+    const payload = { ...draft, studentId, studentName: student ? formatStudentName(student) : '', classId: student?.classId || null, classPeriod: student?.classPeriod || null, sourceEventId: sourceAction?.sourceId || null };
     const errors = validateContactDraft(payload);
     if (errors.length) return setError(errors.join(' '));
     setError('');

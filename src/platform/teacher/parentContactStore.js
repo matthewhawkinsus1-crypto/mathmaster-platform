@@ -10,6 +10,8 @@ export const recordParentContact = async ({ db, teacherEmail, contact = {} } = {
   if (!db || !email) throw new Error('A signed-in teacher and Firestore are required.');
   if (errors.length) throw new Error(errors.join(' '));
   // Explicit allow-list: answer text/evidence can never hitch a ride in this record.
+  // sourceEventId is intentionally transient; App uses the caller's contact
+  // object to append the linked support resolution only after this write succeeds.
   const payload = {
     schemaVersion: 1, studentId: clean(contact.studentId), studentName: clean(contact.studentName),
     classId: clean(contact.classId) || null, classPeriod: clean(contact.classPeriod) || null,

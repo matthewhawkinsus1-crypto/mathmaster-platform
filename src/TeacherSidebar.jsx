@@ -27,6 +27,7 @@ const TAB_LABELS = {
   classesWorkspace: 'Classes',
   attendanceHistory: 'Attendance History',
   parentContacts: 'Parent Contacts',
+  actionCenter: 'Action Center',
   classes: 'Class & Bell Schedule',
   pacing: 'Curriculum Pacing',
   weeklyPath: 'Weekly Path',
@@ -51,6 +52,7 @@ const TAB_ICONS = {
   classesWorkspace: '🏫',
   attendanceHistory: '📋',
   parentContacts: '☎️',
+  actionCenter: '✅',
   classes: '🕘',
   pacing: '📐',
   weeklyPath: '🗓️',
@@ -92,7 +94,7 @@ const TAB_ICONS = {
 const TAB_GROUPS = [
   { id: 'teach', label: 'Teach', tabs: ['home', 'assignments', 'library'] },
   { id: 'people', label: 'Classes', tabs: ['classesWorkspace', 'students', 'weeklyPath', 'pacing'] },
-  { id: 'support', label: 'Student Support', tabs: ['attendanceHistory', 'parentContacts'] },
+  { id: 'support', label: 'Student Support', tabs: ['actionCenter', 'attendanceHistory', 'parentContacts'] },
   { id: 'insight', label: 'Evidence', tabs: ['grades', 'gradeTransfer', 'standards', 'analytics', 'exams'] },
   { id: 'explore', label: 'Explore', tabs: ['liveChallenge', 'mathTools', 'simulator', 'demo'] },
   { id: 'admin', label: 'Setup', tabs: ['classes', 'classroom', 'access'] },
@@ -103,7 +105,7 @@ const TAB_GROUPS = [
 // responsible for any side effects (like resetting the gradebook filter)
 // that should run when the active tab changes; this component only reports
 // which tab was clicked.
-export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onToggleCollapsed, isRootAdmin = false }) {
+export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onToggleCollapsed, isRootAdmin = false, actionCount = 0 }) {
   const labelFor = (tab) => (tab === 'access' && isRootAdmin ? 'Administration' : TAB_LABELS[tab]);
   const buildStamp = formatBuildStamp();
 
@@ -212,7 +214,7 @@ export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onTo
                 >
                   {TAB_ICONS[tab] || '•'}
                 </span>
-                {!collapsed && <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>}
+                {!collapsed && <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}{tab === 'actionCenter' && actionCount > 0 ? ` (${actionCount})` : ''}</span>}
               </button>
             );
           })}

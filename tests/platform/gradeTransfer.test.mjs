@@ -118,8 +118,10 @@ test('Grade Transfer roster requires canonical classId even when periods match',
 
 test('Grade Transfer Center delegates audience decisions to the canonical helper', () => {
   const source = readFileSync(new URL('../../src/components/teacher/GradeTransferCenter.jsx', import.meta.url), 'utf8');
-  assert.match(source, /\.filter\(\(assignment\) => assignmentIsForStudent\(assignment, \{ classId: classRecord\.classId, classPeriod: classRecord\.period \}\)\)/);
-  assert.doesNotMatch(source, /assignment\.classIds|assignment\.classPeriod\s*===/);
+  const projection = readFileSync(new URL('../../src/platform/gradeTransfer/gradeTransferProjection.js', import.meta.url), 'utf8');
+  assert.match(source, /projectGradeTransferUnits\(\{ classes, assignments, students/);
+  assert.match(projection, /\.filter\(\(assignment\) => assignmentIsForStudent\(assignment, \{ classId: classRecord\.classId, classPeriod: classRecord\.period \}\)\)/);
+  assert.doesNotMatch(projection, /assignment\.classIds|assignment\.classPeriod\s*===/);
 });
 
 test('teacher override and Practice Pass share the legitimate platform grade projection', () => {
