@@ -1556,7 +1556,10 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
       || consequence.incidentReason !== reasonCode || !INTEGRITY_PARTICIPANT_ROLES.has(participantRole)) {
     throw new HttpsError("invalid-argument", "Choose a supported scope, reason, and participant role.");
   }
-  if ((scope === "section") !== ["issueZero", "restoreSectionZero"].includes(action)) {
+  const actionMatchesScope = scope === "section"
+    ? ["issueZero", "restoreSectionZero"].includes(action)
+    : ["issueZero", "restoreAutomatic"].includes(action);
+  if (!actionMatchesScope) {
     throw new HttpsError("invalid-argument", "The action does not match the integrity consequence scope.");
   }
 
