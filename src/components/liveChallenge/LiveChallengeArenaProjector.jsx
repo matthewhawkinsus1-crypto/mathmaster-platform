@@ -214,7 +214,7 @@ function FinalPodium({ leaderboard = [] }) {
   );
 }
 
-function LobbyView({ room, leaderboard, joinedCount }) {
+function LobbyView({ room, leaderboard, joinedCount, busy, onStart }) {
   const eligible = Math.max(0, Number(room?.eligibleCount) || 0);
   const players = finalStandingRows(leaderboard).slice(0, 14);
   return (
@@ -230,6 +230,11 @@ function LobbyView({ room, leaderboard, joinedCount }) {
           <div style={{ marginTop: 28, display: 'inline-flex', alignItems: 'center', gap: 9, padding: '10px 14px', borderRadius: 999, background: 'rgba(99,226,255,.1)', border: '1px solid rgba(99,226,255,.28)', color: '#c8f6ff', fontWeight: 900 }}>
             <span className="mm-arena-pulse" /> Waiting for teacher to start
           </div>
+          {typeof onStart === 'function' && <div style={{ marginTop: 24 }}>
+            <button type="button" disabled={joinedCount < 1 || busy === 'start'} onClick={onStart} style={{ ...arenaButton, padding: '15px 28px', fontSize: 18, background: 'linear-gradient(135deg, #536dfe, #8c52ff)', opacity: joinedCount < 1 || busy === 'start' ? .5 : 1 }}>
+              {busy === 'start' ? 'Starting Challenge…' : 'Start Challenge'}
+            </button>
+          </div>}
         </div>
       </section>
 
@@ -249,7 +254,7 @@ function LobbyView({ room, leaderboard, joinedCount }) {
   );
 }
 
-function RunningView({ room, leaderboard, joinedCount, remainingMs }) {
+function RunningView({ room, leaderboard, joinedCount, remainingMs, canAdvance, busy, onAdvance }) {
   const round = projectorCurrentRound(room);
   const roundCount = projectorRoundCount(room);
   const answered = projectorAnsweredCount(leaderboard, Number(room?.currentRound) || 0);
@@ -257,6 +262,9 @@ function RunningView({ room, leaderboard, joinedCount, remainingMs }) {
   const difficulty = projectorDifficultyLabel(room);
   const accent = familyAccent(room);
   const lowTime = Number(remainingMs) <= 10000;
+  const roundComplete = Number(remainingMs) <= 0;
+  const advanceAvailable = roundComplete || canAdvance;
+  const finalRound = Number(room?.currentRound) + 1 >= projectorRoundCount(room);
 
   return (
     <div style={{ display: 'grid', gap: 18 }}>
@@ -287,7 +295,7 @@ function RunningView({ room, leaderboard, joinedCount, remainingMs }) {
                 background: lowTime ? 'rgba(255,87,120,.13)' : 'rgba(95,145,255,.12)',
                 border: `1px solid ${lowTime ? 'rgba(255,105,135,.46)' : 'rgba(130,165,255,.36)'}`,
               }}>
-                <div style={{ ...labelStyle, color: lowTime ? '#ff9bb0' : '#a8c2ff' }}>Time Left</div>
+                <div style={{ ...labelStyle, color: lowTime ? '#ff9bb0' : '#a8c2ff' }}>{roundComplete ? 'Round Complete' : 'Time Left'}</div>
                 <div style={{ marginTop: 3, fontSize: 'clamp(45px, 6vw, 78px)', fontWeight: 1000, lineHeight: 1, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.05em' }}>
                   {formatArenaClock(remainingMs)}
                 </div>
@@ -315,6 +323,13 @@ function RunningView({ room, leaderboard, joinedCount, remainingMs }) {
           <ArenaLeaderboard rows={leaderboard} limit={8} />
         </section>
       </div>
+      {advanceAvailable && typeof onAdvance === 'function' && (
+        <section aria-label="Round controls" style={{ ...glassPanel, padding: 18, display: 'flex', justifyContent: 'center' }}>
+          <button type="button" disabled={busy === 'advance'} onClick={onAdvance} style={{ ...arenaButton, padding: '16px 30px', fontSize: 19, background: 'linear-gradient(135deg, #536dfe, #8c52ff)', boxShadow: '0 0 28px rgba(112,104,255,.3)', opacity: busy === 'advance' ? .55 : 1 }}>
+            {busy === 'advance' ? 'Loading Next Round…' : finalRound ? 'Finish & Show Final Standings' : 'Next Round'}
+          </button>
+        </section>
+      )}
     </div>
   );
 }
@@ -331,6 +346,13 @@ export default function LiveChallengeArenaProjector({
   leaderboard = [],
   joinedCount = 0,
   remainingMs = 0,
+  canAdvance = false,
+  busy = '',
+  error = '',
+  audioReady = false,
+  onEnableAudio,
+  onStart,
+  onAdvance,
   onExit,
 }) {
   const gameLabel = projectorGameLabel(room);
@@ -444,11 +466,15 @@ export default function LiveChallengeArenaProjector({
             </div>
             <h1 style={{ margin: '5px 0 0', fontSize: 'clamp(27px, 3.4vw, 46px)', lineHeight: 1.03, letterSpacing: '-.025em', overflowWrap: 'anywhere' }}>{title}</h1>
           </div>
-          <button type="button" onClick={onExit} style={arenaButton}>Exit Projector View</button>
+          <div style={{ display: 'flex', gap: 9 }}>
+            {!audioReady && typeof onEnableAudio === 'function' && <button type="button" onClick={onEnableAudio} style={arenaButton}>Enable Audio</button>}
+            <button type="button" onClick={onExit} style={arenaButton}>Exit Projector View</button>
+          </div>
         </header>
 
-        {room?.status === 'lobby' && <LobbyView room={room} leaderboard={leaderboard} joinedCount={joinedCount} />}
-        {room?.status === 'running' && <RunningView room={room} leaderboard={leaderboard} joinedCount={joinedCount} remainingMs={remainingMs} />}
+        {error && <div role="alert" style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(255,87,120,.16)', border: '1px solid rgba(255,105,135,.5)', color: '#ffd9e1', fontWeight: 800 }}>{error}</div>}
+        {room?.status === 'lobby' && <LobbyView room={room} leaderboard={leaderboard} joinedCount={joinedCount} busy={busy} onStart={onStart} />}
+        {room?.status === 'running' && <RunningView room={room} leaderboard={leaderboard} joinedCount={joinedCount} remainingMs={remainingMs} canAdvance={canAdvance} busy={busy} onAdvance={onAdvance} />}
         {room?.status === 'finished' && <FinalPodium leaderboard={leaderboard} />}
       </div>
     </div>

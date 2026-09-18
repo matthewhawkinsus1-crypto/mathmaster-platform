@@ -390,6 +390,12 @@ export default function LiveChallengeTeacher({
   };
 
   const control = async (key, action) => run(key, () => action({ roomId }));
+  const startFromProjector = async () => {
+    // The click is also the browser gesture that unlocks host audio. Starting
+    // still uses the same authorized callable as the normal teacher control.
+    try { await enableAudio(); } catch { /* the game can start without audio */ }
+    return control('start', startLiveChallenge);
+  };
 
   if (!roomId || !room) {
     if (dryRunOpen) {
@@ -547,7 +553,20 @@ export default function LiveChallengeTeacher({
   }
 
   if (projector && ['lobby', 'running', 'finished'].includes(room.status)) {
-    return <ChallengeProjector room={room} leaderboard={leaderboard} joinedCount={joinedCount} remainingMs={remainingMs} onExit={() => setProjector(false)} />;
+    return <ChallengeProjector
+      room={room}
+      leaderboard={leaderboard}
+      joinedCount={joinedCount}
+      remainingMs={remainingMs}
+      canAdvance={canAdvance}
+      busy={busy}
+      error={message}
+      audioReady={audioReady}
+      onEnableAudio={enableAudio}
+      onStart={startFromProjector}
+      onAdvance={() => control('advance', advanceLiveChallenge)}
+      onExit={() => setProjector(false)}
+    />;
   }
 
   return (

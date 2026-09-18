@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { region } from './helpers/sourceContract.mjs';
 
 import {
   CHALLENGE_QUESTION_STYLES,
@@ -162,7 +163,9 @@ test('the whole student shell is themed, not just one bar', () => {
 test('the question card itself stays light so the math tools keep their contrast', () => {
   // Recolouring a coordinate plane or a solver to match a dark theme trades a
   // game feel for a legibility problem in the one place that cannot afford it.
-  assert.match(student, /<section style=\{\{ background: '#fff', borderRadius: 14, border: '1px solid #d8dde6', overflow: 'hidden' \}\}>/);
+  const questionCard = region(student, '<section style={{ background:', '<QuestionEngine', 'student question card');
+  assert.match(questionCard, /background: '#fff'/);
+  assert.match(questionCard, /colorScheme: 'light'/);
 });
 
 test('a student can see where they stand without waiting for the round to end', () => {

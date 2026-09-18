@@ -62,11 +62,12 @@ export const crossfadeVolumesAt = ({
   };
 };
 
-export const challengeMusicState = (room = {}) => {
+export const challengeMusicState = (room = {}, remainingMs = null) => {
   const status = String(room?.status || '');
   if (status === 'lobby') return 'lobby';
   if (status === 'finished') return 'victory';
   if (status !== 'running') return null;
+  if (remainingMs != null && Number(remainingMs) <= 0) return null;
   const currentRound = Math.max(0, Math.floor(Number(room.currentRound) || 0));
   const scheduled = Math.max(0, Math.floor(Number(room.scheduledRoundCount ?? room.roundCount) || 0));
   return scheduled > 0 && currentRound === scheduled - 1 ? 'finalRound' : 'round';
@@ -115,6 +116,7 @@ export class LiveChallengeAudioDirector {
     this.leaderHold = {};
     this.cooldowns = new Map();
     this.lastCountdownSecond = null;
+    this.endedRoundKey = null;
     this.duckTimer = null;
   }
 
@@ -256,11 +258,18 @@ export class LiveChallengeAudioDirector {
 
   sync({ room = null, leaderboard = [], remainingMs = null, nowMs = this.now() } = {}) {
     if (!room) return;
-    this.switchMusic(challengeMusicState(room));
+    const roundKey = `${room.currentRound ?? ''}:${room.roundEndsAt?.seconds ?? room.roundEndsAt?._seconds ?? room.roundEndsAt ?? ''}`;
+    const roundEnded = room.status === 'running' && Number.isFinite(Number(remainingMs)) && Number(remainingMs) <= 0;
+    this.switchMusic(challengeMusicState(room, remainingMs));
+    if (roundEnded && this.endedRoundKey !== roundKey) {
+      this.endedRoundKey = roundKey;
+      this.playSfx('questionLockIn');
+    }
     const previousRoom = this.previous?.room || null;
     const previousBoard = this.previous?.leaderboard || [];
     const roundChanged = Number(previousRoom?.currentRound) !== Number(room.currentRound);
-    if (room.status === 'running' && (previousRoom?.status !== 'running' || roundChanged)) {
+    const activeRound = room.status === 'running' && (remainingMs == null || Number(remainingMs) > 0);
+    if (activeRound && (previousRoom?.status !== 'running' || roundChanged)) {
       this.playSfx('roundStart');
       const scheduled = Math.max(0, Number(room.scheduledRoundCount ?? room.roundCount) || 0);
       if (scheduled && Number(room.currentRound) === scheduled - 1) { this.playSfx('finalRoundAlarm'); this.announce('finalRound'); }
