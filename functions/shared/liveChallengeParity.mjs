@@ -43,9 +43,19 @@ export function challengeSpeedTier(elapsedMs, totalMs) {
   const elapsed = Math.max(0, Number(elapsedMs) || 0);
   const total = Math.max(1, Number(totalMs) || 1);
   if (elapsed >= total) return Object.freeze({ tier: 'expired', multiplier: 0, elapsedRatio: elapsed / total });
+
   const elapsedRatio = elapsed / total;
   const band = SPEED_TIERS.find((candidate) => elapsedRatio <= candidate.maximumElapsedRatio) || SPEED_TIERS.at(-1);
-  return Object.freeze({ ...band, elapsedRatio });
+
+  // Keep the named bands for presentation, but score speed continuously in
+  // one-second buckets so students who finish a second apart do not receive
+  // the exact same bonus. A correct answer can still earn at most 100 speed
+  // points, and the bonus falls smoothly toward zero as the deadline approaches.
+  const totalSeconds = Math.max(1, Math.ceil(total / 1000));
+  const elapsedSecond = Math.max(0, Math.floor(elapsed / 1000));
+  const multiplier = Math.max(0, Math.min(1, (totalSeconds - elapsedSecond) / totalSeconds));
+
+  return Object.freeze({ ...band, multiplier, elapsedRatio, elapsedSecond, totalSeconds });
 }
 
 export function acceptChallengeSnapshot(current, incoming) {
