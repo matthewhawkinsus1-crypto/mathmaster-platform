@@ -338,6 +338,8 @@ import { buildNonInstructionalSet } from './platform/path/curriculumCalendar.js'
 import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolYear2026-2027.js';
 import AttendanceHistoryPanel from './components/teacher/AttendanceHistoryPanel.jsx';
 import ParentContactCenter from './components/teacher/ParentContactCenter.jsx';
+import TeacherActionCenter from './components/teacher/TeacherActionCenter.jsx';
+import { buildReturnCheckInEvent } from './platform/attendance/returnCheckIn.js';
 import { fetchAllParentContactsForExport, recordParentContact, recordParentContactResolution, subscribeParentContacts } from './platform/teacher/parentContactStore.js';
 import {
   buildStudentExtensionPatch,
@@ -9768,6 +9770,21 @@ function App() {
                 onKeepExtension={handleKeepAttendanceExtension}
                 onApplyShorterExtension={handleApplyShorterAttendanceExtension}
                 initialClassId={activeClass.classId}
+              />
+            )}
+
+            {teacherTab === 'actionCenter' && (
+              <TeacherActionCenter
+                students={allStudents}
+                classes={classes}
+                assignments={assignments}
+                supportEvents={studentSupportEvents}
+                parentContacts={parentContacts}
+                classSchedule={classSchedule}
+                nonInstructionalKeys={SCHOOL_NON_INSTRUCTIONAL_KEYS}
+                nowValue={now}
+                onResolveReturnCheckIn={(candidate) => candidate && handleRecordStudentSupportEvent(buildReturnCheckInEvent({ candidate, actorEmail: user.email }))}
+                onOpenWorkflow={(item) => setTeacherTab(item.sourceType === 'gradeTransfer' ? 'gradeTransfer' : item.sourceType === 'returnCheckIn' ? 'attendanceHistory' : item.sourceType === 'testCycle' ? 'exams' : 'parentContacts')}
               />
             )}
 
