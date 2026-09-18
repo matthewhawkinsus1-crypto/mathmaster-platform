@@ -4,6 +4,7 @@ import fs from 'node:fs';
 
 import {
   applyBalancedOperation,
+  expressionsEquivalent,
   latexToExpression,
   parseEquationInput,
   parseOperationOperand,
@@ -21,6 +22,7 @@ import {
   getQuestionCredit,
   normalizeQuestionRecord,
 } from '../../src/attemptPolicy.js';
+import { resolveEquationAfterMove } from '../../src/algebraSupportLevels.js';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
@@ -45,6 +47,50 @@ test('a grouped symbolic divisor such as (1/2)(b+c) is accepted and can isolate 
     operand: '(1/2)(b+c)',
   });
   assert.equal(move.solved, true);
+});
+
+test('subtracting 2r from both sides of T = 2r + 2s is a valid balanced symbolic move', () => {
+  const equation = parseEquationInput({
+    equation: 'T = 2*r + 2*s',
+    solveFor: 's',
+  });
+  const move = applyBalancedOperation({
+    equationState: equation,
+    operation: 'subtract',
+    operand: '2r',
+    placementBySide: {
+      left: { kind: 'under', termIndex: 0 },
+      right: { kind: 'under', termIndex: 0 },
+    },
+  });
+
+  assert.equal(move.preservesSolution, true);
+  assert.equal(move.requiredCancellationSides.includes('right'), true);
+  const rightTarget = move.cancellationTargets.find((target) => target.side === 'right');
+  assert.equal(rightTarget?.canCancel, true);
+  assert.equal(expressionsEquivalent(rightTarget.cancellationResultExpression, '2*s', 's'), true);
+});
+
+test('dividing a lone negative variable by -1 exposes exactly one sign cancellation', () => {
+  const equation = parseEquationInput({
+    equation: '-x = 8',
+    solveFor: 'x',
+  });
+  const move = applyBalancedOperation({
+    equationState: equation,
+    operation: 'divide',
+    operand: '-1',
+  });
+
+  const leftTarget = move.cancellationTargets.find((target) => target.side === 'left');
+  assert.equal(leftTarget?.canCancel, true);
+  assert.equal(leftTarget?.cancellationPairs?.length, 1);
+  assert.equal(move.requiredCancellationSides.includes('left'), true);
+  assert.equal(expressionsEquivalent(leftTarget.cancellationResultExpression, 'x', 'x'), true);
+
+  const resolved = resolveEquationAfterMove(move, 3, ['left']);
+  assert.equal(expressionsEquivalent(resolved.left, 'x', 'x'), true);
+  assert.equal(String(resolved.left).replace(/\s+/g, ''), 'x');
 });
 
 test('subtracting p from both absolute-value branches preserves the negative branch sign', () => {
