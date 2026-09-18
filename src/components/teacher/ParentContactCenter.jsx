@@ -21,7 +21,12 @@ export default function ParentContactCenter({ students = [], classes = [], assig
   useEffect(() => {
     if (!sourceAction?.studentId) return;
     setStudentId(String(sourceAction.studentId));
-    setDraft((current) => ({ ...current, category: 'academicIntegrity', outcome: current.outcome || 'Parent contact completed.' }));
+    const integrityFollowUp = sourceAction.context?.includes('Confirmed academic-integrity incident');
+    setDraft((current) => ({
+      ...current,
+      category: integrityFollowUp ? 'academicIntegrity' : current.category,
+      outcome: current.outcome || 'Parent contact completed.',
+    }));
   }, [sourceAction]);
   // This is the PR 263 attendance authority, not a second reminder engine.
   const returnCheckIns = useMemo(() => classes.flatMap((classRecord) => resolveReturnCheckIns({
