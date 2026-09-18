@@ -137,6 +137,9 @@ const sameInequalityBranch = (left, right) => (
 );
 
 export const gradeSolverRaceRelation = ({ family, expected, variable = 'x', actual }) => {
+  if (family === 'linearEquation') {
+    return sameNumericSet(equationSolutions(actual, variable), equationSolutions(expected, variable));
+  }
   if (family === 'literalEquation') {
     return isolatedFor(actual, variable) && sameLiteralIsolation(actual, expected, variable);
   }

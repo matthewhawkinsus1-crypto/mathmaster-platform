@@ -72,7 +72,7 @@ function useNow(active = true) {
   return now;
 }
 
-export default function ChallengeDryRun({ courseId, standardCode, questionStyle = 'any', challengeMode = 'standard', solverRaceFocus = 'mixed', roundCount, roundSeconds, title, onClose }) {
+export default function ChallengeDryRun({ courseId, standardCode, questionStyle = 'any', challengeMode = 'standard', solverRaceFocus = 'mixed', solverRaceDifficulty = 'ramp', roundCount, roundSeconds, title, onClose }) {
   const [dryRun, setDryRun] = useState(null);
   const [roundIndex, setRoundIndex] = useState(0);
   const [busy, setBusy] = useState('');
@@ -87,7 +87,7 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
     let cancelled = false;
     setBusy('create');
     setError('');
-    createChallengeDryRun({ courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, roundCount, roundSeconds })
+    createChallengeDryRun({ courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, solverRaceDifficulty, roundCount, roundSeconds })
       .then((result) => {
         if (cancelled) return;
         setDryRun(result);
@@ -99,7 +99,7 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
       })
       .finally(() => { if (!cancelled) setBusy(''); });
     return () => { cancelled = true; };
-  }, [courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, roundCount, roundSeconds]);
+  }, [courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, solverRaceDifficulty, roundCount, roundSeconds]);
 
   // Leaving without discarding would leave the rehearsal's question list behind.
   const close = useCallback(() => {

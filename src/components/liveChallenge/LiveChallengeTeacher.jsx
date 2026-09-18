@@ -150,7 +150,7 @@ export function ChallengeProjector({ room, leaderboard = [], joinedCount = 0, re
       {room.status === 'running' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(280px,.8fr)', gap: 24, alignItems: 'start' }}>
           <section>
-            <div style={{ fontSize: 20, fontWeight: 900, color: '#aecbfa' }}>Round {(room.currentRound || 0) + 1} of {room.roundCount} · {room.currentQuestion?.teksCode || 'Mixed review'}</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: '#aecbfa' }}>Round {(room.currentRound || 0) + 1} of {room.roundCount} · {room.currentQuestion?.tool?.challengeFamily || room.currentQuestion?.teksCode || 'Mixed review'}{room.currentQuestion?.tool?.difficultyBand ? ` · ${room.currentQuestion.tool.difficultyBand}` : ''}</div>
             <div style={{ fontSize: 64, fontWeight: 1000, margin: '10px 0' }}>{formatClock(remainingMs)}</div>
             <MathText as="div" style={{ whiteSpace: 'pre-wrap', fontSize: 28, lineHeight: 1.45 }}>{room.currentQuestion?.prompt}</MathText>
           </section>
@@ -215,6 +215,7 @@ export default function LiveChallengeTeacher({
   const [questionStyle, setQuestionStyle] = useState('any');
   const [challengeMode, setChallengeMode] = useState('standard');
   const [solverRaceFocus, setSolverRaceFocus] = useState('mixed');
+  const [solverRaceDifficulty, setSolverRaceDifficulty] = useState('ramp');
   const [roundCount, setRoundCount] = useState(10);
   const [roundSeconds, setRoundSeconds] = useState(45);
   const [title, setTitle] = useState('');
@@ -247,7 +248,7 @@ export default function LiveChallengeTeacher({
     setCourseId(resolved);
     setStandardCode('mixed');
   }, [classId, classPeriod, selectedClass, courseProfiles]);
-  useEffect(() => { setDryRunOpen(false); }, [classId, courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, roundCount, roundSeconds, speedInfluencePercent, playerDisplayMode]);
+  useEffect(() => { setDryRunOpen(false); }, [classId, courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, solverRaceDifficulty, roundCount, roundSeconds, speedInfluencePercent, playerDisplayMode]);
   useEffect(() => {
     const selected = assignments.find((assignment) => String(assignment.id) === String(warmupAssignmentId));
     const configured = selected?.warmup?.liveChallenge?.deliveryMode;
@@ -385,6 +386,7 @@ export default function LiveChallengeTeacher({
         questionStyle,
         challengeMode,
         solverRaceFocus,
+        solverRaceDifficulty,
         roundCount,
         roundSeconds,
         assignmentId: warmupAssignmentId || null,
@@ -422,6 +424,7 @@ export default function LiveChallengeTeacher({
             questionStyle={questionStyle}
             challengeMode={challengeMode}
             solverRaceFocus={solverRaceFocus}
+            solverRaceDifficulty={solverRaceDifficulty}
             roundCount={roundCount}
             roundSeconds={roundSeconds}
             speedInfluencePercent={speedInfluencePercent}
@@ -486,12 +489,22 @@ export default function LiveChallengeTeacher({
               {challengeMode === 'solverRace' && <label style={{ fontWeight: 800 }}>Race focus
                 <select value={solverRaceFocus} onChange={(event) => setSolverRaceFocus(event.target.value)} style={field}>
                   <option value="mixed">Mixed Solver Race</option>
+                  <option value="linearEquation">Linear Equations</option>
                   <option value="literalEquation">Literal Equations</option>
                   <option value="linearInequality">Linear Inequalities</option>
                   <option value="absoluteValueEquation">Absolute Value Equations</option>
                   <option value="absoluteValueInequality">Absolute Value Inequalities</option>
                 </select>
-                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: '#5f6368' }}>Literal Equations → Linear Inequalities → Absolute Value Equations → Absolute Value Inequalities. Difficulty rises automatically.</span>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: '#5f6368' }}>Linear Equations → Literal Equations → Linear Inequalities → Absolute Value Equations → Absolute Value Inequalities.</span>
+              </label>}
+              {challengeMode === 'solverRace' && <label style={{ fontWeight: 800 }}>Difficulty
+                <select value={solverRaceDifficulty} onChange={(event) => setSolverRaceDifficulty(event.target.value)} style={field}>
+                  <option value="ramp">Ramp Up</option>
+                  <option value="foundation">Foundation</option>
+                  <option value="developing">Developing</option>
+                  <option value="advanced">Advanced</option>
+                  <option value="challenge">Challenge</option>
+                </select>
               </label>}
               {challengeMode === 'standard' && <>
               <label style={{ fontWeight: 800 }}>Skill set
