@@ -93,7 +93,10 @@ export const buildTeacherActionItems = ({
     const incidentId = isIncident
       ? text(source?.id || source?.relatedEventId)
       : text(source?.linkedIncidentId || source?.incidentId || source?.evidence?.incidentId);
-    const obligation = incidentId || text(source?.followUpKey || source?.evidence?.followUpKey)
+    const explicitFollowUpKey = text(source?.followUpKey || source?.evidence?.followUpKey);
+    // Only collapse records when an explicit linkage proves they describe the
+    // same obligation. Independent same-day follow-ups remain separate.
+    const obligation = incidentId || explicitFollowUpKey || sourceId
       || `${studentIdOf(source)}|${classIdOf(source)}|${day(source.dueAt || source.followUpDate || source.createdAt)}`;
     const existing = parentByObligation.get(obligation);
     const item = existing || {
