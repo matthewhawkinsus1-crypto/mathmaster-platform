@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const teacher = read('../../src/components/liveChallenge/LiveChallengeTeacher.jsx');
+const arenaProjector = read('../../src/components/liveChallenge/LiveChallengeArenaProjector.jsx');
 const dryRun = read('../../src/components/liveChallenge/ChallengeDryRun.jsx');
 const student = read('../../src/components/liveChallenge/LiveChallengeStudent.jsx');
 const service = read('../../src/platform/liveChallenge/liveChallengeService.js');
