@@ -97,3 +97,12 @@ test('teacher pacing changes are server-owned and closing is irreversible', () =
   assert.match(compression, /if \(latestRoom\.closingStartedAt\) return/);
   assert.match(compression, /currentEndsAtMs <= targetEndsAtMs/);
 });
+
+
+test('Live Challenge lobby creation has enough memory for the secure planner', () => {
+  const server = read('../../functions/index.js');
+  assert.match(
+    server,
+    /exports\.createLiveChallenge = onCall\(\{ memory: "512MiB" \}, async \(request\) => \{/,
+  );
+});
