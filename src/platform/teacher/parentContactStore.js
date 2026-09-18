@@ -10,6 +10,8 @@ export const recordParentContact = async ({ db, teacherEmail, contact = {} } = {
   if (!db || !email) throw new Error('A signed-in teacher and Firestore are required.');
   if (errors.length) throw new Error(errors.join(' '));
   // Explicit allow-list: answer text/evidence can never hitch a ride in this record.
+  // sourceEventId is intentionally transient; App uses the caller's contact
+  // object to append the linked support resolution only after this write succeeds.
   const payload = {
     schemaVersion: 1, studentId: clean(contact.studentId), studentName: clean(contact.studentName),
     classId: clean(contact.classId) || null, classPeriod: clean(contact.classPeriod) || null,
@@ -17,9 +19,6 @@ export const recordParentContact = async ({ db, teacherEmail, contact = {} } = {
     category: CONTACT_CATEGORIES.includes(contact.category) ? contact.category : 'other', notes: clean(contact.notes).slice(0, 2000),
     outcome: clean(contact.outcome).slice(0, 1000), followUpDate: clean(contact.followUpDate) || null,
     recordType: 'contact', parentContactId: null,
-    // sourceEventId is intentionally transient. App uses the caller's contact
-    // object to append the linked support resolution after this write succeeds;
-    // parentContactLogs keeps the fixed PR #271 Firestore schema.
     createdByEmail: email, originTeacherEmail: email, originClassId: clean(contact.classId) || null,
     authorizedTeacherEmails: [email], createdAt: new Date().toISOString(), createdAtServer: serverTimestamp(),
   };
