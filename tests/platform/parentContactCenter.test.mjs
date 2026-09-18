@@ -78,6 +78,7 @@ test('contact persistence is allow-listed and never serializes answer content', 
   assert.doesNotMatch(payload, /answer|response|evidence|tracker/i);
   assert.match(payload, /studentId: clean\(contact\.studentId\)/);
   assert.match(payload, /originTeacherEmail: email/);
+  assert.doesNotMatch(payload, /sourceEventId/, 'Action Center support linkage must stay transient so parentContactLogs still satisfies the PR #271 Firestore allow-list');
   assert.match(store, /getDocs\(query\(collection\(db, PARENT_CONTACT_COLLECTION\)[\s\S]*orderBy\('occurredAt', 'desc'\)\)\)/);
   assert.doesNotMatch(store.slice(store.indexOf('fetchAllParentContactsForExport')), /limit\(/);
 });
