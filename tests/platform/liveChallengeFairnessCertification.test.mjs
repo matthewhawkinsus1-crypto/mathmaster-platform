@@ -35,15 +35,16 @@ test('multi-sample clock calibration resists a spike and classifies unstable lin
   assert.equal(unstable.quality, 'delayed');
 });
 
-test('speed tier boundaries are broad, deterministic bands', () => {
+test('speed labels retain deterministic bands while points use one-second granularity', () => {
   const total = 10_000;
   assert.equal(challengeSpeedTier(0, total).multiplier, 1);
   assert.equal(challengeSpeedTier(2_000, total).tier, 'instant');
-  assert.equal(challengeSpeedTier(2_001, total).multiplier, .8);
-  assert.equal(challengeSpeedTier(4_001, total).multiplier, .6);
-  assert.equal(challengeSpeedTier(6_001, total).multiplier, .4);
-  assert.equal(challengeSpeedTier(8_001, total).multiplier, .2);
-  assert.equal(challengeSpeedTier(9_999, total).multiplier, .2);
+  assert.equal(challengeSpeedTier(2_001, total).tier, 'fast');
+  assert.equal(challengeSpeedTier(4_001, total).tier, 'steady');
+  assert.equal(challengeSpeedTier(6_001, total).tier, 'careful');
+  assert.equal(challengeSpeedTier(8_001, total).tier, 'deadline');
+  assert.ok(challengeSpeedTier(2_001, total).multiplier > challengeSpeedTier(4_001, total).multiplier);
+  assert.ok(challengeSpeedTier(8_001, total).multiplier > challengeSpeedTier(9_999, total).multiplier);
   assert.equal(challengeSpeedTier(10_000, total).tier, 'expired');
   assert.equal(challengeSpeedTier(10_001, total).tier, 'expired');
 });

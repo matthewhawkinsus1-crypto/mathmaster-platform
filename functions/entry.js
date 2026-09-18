@@ -126,7 +126,7 @@ exports.configureLiveChallengeExperience = onCall(async (request) => {
  * and the Firestore retry/fallback trigger. The round marker means either path
  * may win the race without ever double-paying speed.
  */
-const applyExperienceSpeedAdjustment = async ({ db, roomId, studentId, answeredRound, originalSpeedBonus }) => {
+const applyExperienceSpeedAdjustment = async ({ db, roomId, studentId, answeredRound, originalSpeedBonus, submissionId = null }) => {
   const [config, privateRoomSnapshot] = await Promise.all([
     readExperience(db, roomId),
     db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId).get(),
@@ -161,6 +161,26 @@ const applyExperienceSpeedAdjustment = async ({ db, roomId, studentId, answeredR
     const publicRef = playerKey ? db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId).collection('players').doc(playerKey) : null;
     const publicSnapshot = publicRef ? await transaction.get(publicRef) : null;
     const nextScore = Math.max(0, Math.round(Number(current.score) || 0) + requestedAdjustment);
+    const receiptId = submissionId || Object.entries(current.submissionReceipts || {})
+      .find(([, candidate]) => Number(candidate?.roundIndex) === Number(answeredRound))?.[0] || null;
+    const receipt = receiptId ? current.submissionReceipts?.[receiptId] : null;
+    const reconciledReceipt = receipt ? {
+      ...receipt,
+      speedBonus: Math.max(0, Math.round(Number(receipt.speedBonus) || 0) + requestedAdjustment),
+      pointsAwarded: Math.max(0, Math.round(Number(receipt.pointsAwarded) || 0) + requestedAdjustment),
+      totalScore: nextScore,
+    } : null;
+    const reconciledReceipts = { ...(current.submissionReceipts || {}) };
+    if (reconciledReceipt) {
+      reconciledReceipts[receiptId] = reconciledReceipt;
+      let runningTotal = 0;
+      Object.entries(reconciledReceipts)
+        .sort((left, right) => Number(left[1]?.roundIndex) - Number(right[1]?.roundIndex))
+        .forEach(([id, item]) => {
+          if (item?.serverConfirmed === true) runningTotal += Math.max(0, Math.round(Number(item.pointsAwarded) || 0));
+          reconciledReceipts[id] = { ...item, totalScore: runningTotal };
+        });
+    }
 
     // All reads are complete before these writes; Firestore transactions reject
     // a read performed after the first write.
@@ -168,6 +188,7 @@ const applyExperienceSpeedAdjustment = async ({ db, roomId, studentId, answeredR
       score: nextScore,
       experienceSpeedAdjustedRound: Number(answeredRound),
       experienceSpeedAdjustment: requestedAdjustment,
+      ...(reconciledReceipt ? { submissionReceipts: reconciledReceipts } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
     if (publicRef && publicSnapshot?.exists) {
@@ -196,6 +217,7 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   try {
     const applied = await applyExperienceSpeedAdjustment({
       db: getFirestore(), roomId, studentId, answeredRound, originalSpeedBonus: Number(result.speedBonus) || 0,
+      submissionId: String(request.data?.submissionId || '').trim() || null,
     });
     const adjustment = Math.round(Number(applied.adjustment) || 0);
     return {

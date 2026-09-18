@@ -132,6 +132,7 @@ export default function QuestionEngine({
   adaptation = null,
   questionRecord,
   maximumAttempts = null,
+  attemptsDoNotExpire = false,
   draftKey = null,
   studentProfile = null,
   guidedMode = false,
@@ -883,6 +884,7 @@ export default function QuestionEngine({
               workspaceActions={workspaceActions}
               questionRecord={record}
               onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
+              attemptsDoNotExpire={attemptsDoNotExpire}
             />
           );
         }
@@ -893,6 +895,7 @@ export default function QuestionEngine({
             questionRecord={record}
             onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
             maximumAttempts={resolvedMaximumAttempts}
+            attemptsDoNotExpire={attemptsDoNotExpire}
           />
         );
       case 'algebra':
@@ -906,6 +909,7 @@ export default function QuestionEngine({
             questionRecord={record}
             onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
             maximumAttempts={resolvedMaximumAttempts}
+            attemptsDoNotExpire={attemptsDoNotExpire}
           />
         );
       case 'numberLine':
@@ -938,6 +942,7 @@ export default function QuestionEngine({
             questionRecord={record}
             onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
             maximumAttempts={resolvedMaximumAttempts}
+            attemptsDoNotExpire={attemptsDoNotExpire}
           />
         );
       }

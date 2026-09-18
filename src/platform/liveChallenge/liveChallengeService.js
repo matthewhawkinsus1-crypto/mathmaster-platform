@@ -16,6 +16,7 @@ export const cancelLiveChallenge = call('cancelLiveChallenge');
 export const submitLiveChallengeResponse = call('submitLiveChallengeResponse');
 export const calibrateLiveChallengeClock = call('calibrateLiveChallengeClock');
 export const reportLiveChallengeProgress = call('reportLiveChallengeProgress');
+export const updateLiveChallengePacing = call('updateLiveChallengePacing');
 
 // Option B room experience. These remain server-authoritative: the browser
 // chooses a policy, but the server owns public aliases and speed-score scaling.

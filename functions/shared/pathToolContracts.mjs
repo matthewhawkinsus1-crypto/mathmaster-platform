@@ -70,6 +70,7 @@ import {
 } from './pathRegressionCalculatorGrading.mjs';
 import {
   gradeSolverRaceRelation,
+  solverRaceProductiveDepth,
   solverRaceProgressScore,
   solverRaceRelationChanged,
 } from './solverRaceEquivalence.mjs';
@@ -885,7 +886,16 @@ const CONTRACTS = {
           actual,
         });
         const result = graded(isCorrect, [{ id: 'algebra-objective', isCorrect }]);
-        return { ...result, score: solverRaceProgressScore({
+        const score = solverRaceProgressScore({
+          family: definition.solverGrader,
+          initial: definition.initialRelation,
+          expected: definition.expectedFinalRelation,
+          actual,
+          variable: definition.variable,
+          solutionDepth: definition.solutionDepth,
+          isCorrect,
+        });
+        return { ...result, score, productiveDepth: solverRaceProductiveDepth({
           family: definition.solverGrader,
           initial: definition.initialRelation,
           expected: definition.expectedFinalRelation,
@@ -1392,5 +1402,12 @@ export const gradePathResponse = ({ privateGrading, raw }) => {
   }
   const result = contract.gradeStudentResponse(privateGrading.definition, raw);
   // Belt and braces: whatever the client claimed, the verdict is this one.
-  return { isCorrect: result.isCorrect === true, score: result.score, parts: result.parts, rejected: false, reason: null };
+  return {
+    isCorrect: result.isCorrect === true,
+    score: result.score,
+    parts: result.parts,
+    ...(Number.isFinite(Number(result.productiveDepth)) ? { productiveDepth: Number(result.productiveDepth) } : {}),
+    rejected: false,
+    reason: null,
+  };
 };

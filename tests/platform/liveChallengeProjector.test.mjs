@@ -117,8 +117,9 @@ test('projector presents gated lobby and round controls without owning server lo
   assert.match(lobby, /Starting Challenge…/);
 
   const running = region(arena, 'function RunningView(', '\nexport const formatArenaClock', 'running projector');
-  assert.match(running, /const roundComplete = Number\(remainingMs\) <= 0/);
-  assert.match(running, /const advanceAvailable = roundComplete \|\| canAdvance/);
+  assert.match(running, /const paceOpen = room\?\.timingMode === 'pace'/);
+  assert.match(running, /const roundComplete = !paceOpen && Number\(remainingMs\) <= 0/);
+  assert.match(running, /const advanceAvailable = canAdvance/);
   assert.match(running, /\{advanceAvailable && typeof onAdvance === 'function' && \(/, 'Next is absent during active solving unless early advancement is authorized');
   assert.match(running, /onClick=\{onAdvance\}/);
   assert.match(running, /Finish & Show Final Standings/);

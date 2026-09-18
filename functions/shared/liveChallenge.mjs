@@ -19,6 +19,48 @@ export const MAX_ROUND_COUNT = 20;
 export const DEFAULT_ROUND_SECONDS = 45;
 export const MIN_ROUND_SECONDS = 15;
 export const MAX_ROUND_SECONDS = 120;
+export const ROUND_CLOSING_THRESHOLD_OPTIONS = Object.freeze([null, 60, 70, 80, 90, 100]);
+export const DEFAULT_ROUND_CLOSING_THRESHOLD = 70;
+export const ROUND_CLOSING_SECONDS = 5;
+export const CHALLENGE_TIMING_MODES = Object.freeze(['timed', 'pace']);
+
+export const normalizeRoundClosingThreshold = (value) => {
+  if (value === null || value === false || String(value).toLowerCase() === 'off') return null;
+  const numeric = Math.round(Number(value));
+  return ROUND_CLOSING_THRESHOLD_OPTIONS.includes(numeric) ? numeric : DEFAULT_ROUND_CLOSING_THRESHOLD;
+};
+
+export const normalizeChallengeTimingMode = (value) => (
+  CHALLENGE_TIMING_MODES.includes(String(value)) ? String(value) : 'timed'
+);
+
+export const roundClosingDecision = ({ joinedCount = 0, answeredCount = 0, threshold = DEFAULT_ROUND_CLOSING_THRESHOLD } = {}) => {
+  const normalized = normalizeRoundClosingThreshold(threshold);
+  const joined = Math.max(0, Math.floor(Number(joinedCount) || 0));
+  const answered = Math.max(0, Math.floor(Number(answeredCount) || 0));
+  const thresholdCount = normalized == null || !joined ? null : Math.ceil(joined * normalized / 100);
+  return {
+    shouldClose: thresholdCount != null && answered >= thresholdCount,
+    threshold: normalized,
+    thresholdCount,
+    joinedCount: joined,
+    answeredCount: answered,
+  };
+};
+
+// The teacher's selection is a baseline. The secure authored question decides
+// the actual duration, so a literal/absolute-value race is not forced into the
+// same window as a one-step foundation question.
+export const complexityAdjustedRoundSeconds = ({ baselineSeconds = DEFAULT_ROUND_SECONDS, question = {} } = {}) => {
+  const baseline = normalizeRoundSeconds(baselineSeconds);
+  const depth = Math.max(1, Math.floor(Number(question?.solutionDepth || question?.expectedProductiveStepCount) || 1));
+  const family = String(question?.challengeFamily || question?.pathToolId || '').toLowerCase();
+  const difficulty = String(question?.difficultyBand || question?.difficulty || '').toLowerCase();
+  let reference = depth <= 1 ? 25 : depth === 2 ? 35 : depth === 3 ? 45 : 55 + Math.min(15, (depth - 4) * 5);
+  if (/literal|absolute/.test(family)) reference = Math.max(reference, 55);
+  if (/advanced|challenge/.test(difficulty)) reference += 5;
+  return normalizeRoundSeconds(Math.round(reference * (baseline / DEFAULT_ROUND_SECONDS)));
+};
 
 /*
  * PERSEVERANCE POINTS.
@@ -153,6 +195,134 @@ export const scoreChallengeRound = ({
     newStreak,
     secondChance: false,
     speedTier: speedTier.tier,
+  };
+};
+
+/**
+ * Server-side architecture for progressive speed credit. Callers persist the
+ * returned milestone records with the private player. Only a strictly deeper,
+ * server-validated productive state is accepted; repeated hashes, undo and
+ * restart cycles therefore cannot farm points.
+ */
+export const recordValidatedSpeedMilestone = ({
+  milestones = [], stateHash = '', productiveDepth = 0, expectedDepth = 1,
+  elapsedMs = 0, totalMs = DEFAULT_ROUND_SECONDS * 1000, validated = false,
+} = {}) => {
+  const current = Array.isArray(milestones) ? milestones : [];
+  const depth = Math.max(0, Math.floor(Number(productiveDepth) || 0));
+  const expected = Math.max(1, Math.floor(Number(expectedDepth) || 1));
+  const hash = String(stateHash || '').trim();
+  const highestDepth = current.reduce((max, item) => Math.max(max, Number(item?.productiveDepth) || 0), 0);
+  if (!validated || !hash || depth <= highestDepth || current.some((item) => item?.stateHash === hash)) {
+    return { accepted: false, milestones: current, speedPoints: 0 };
+  }
+  const perMilestoneCap = 100 / expected;
+  const multiplier = challengeSpeedTier(elapsedMs, totalMs).multiplier;
+  const speedPoints = Math.max(0, Math.round(perMilestoneCap * multiplier));
+  const milestone = Object.freeze({
+    stateHash: hash,
+    productiveDepth: depth,
+    elapsedMs: Math.max(0, Math.round(Number(elapsedMs) || 0)),
+    speedPoints,
+    validated: true,
+  });
+  return { accepted: true, milestones: [...current, milestone], milestone, speedPoints };
+};
+
+// Secure Path grading returns a server-derived fraction of the authored
+// solution depth for validated intermediate solver states. Converting that
+// fraction back to a depth here means the browser can report raw work but can
+// never claim how far along that work is.
+export const productiveDepthFromSecureGrade = ({ gradeScore = 0, expectedDepth = 1, isCorrect = false } = {}) => {
+  const expected = Math.max(1, Math.floor(Number(expectedDepth) || 1));
+  if (isCorrect) return expected;
+  const score = clamp(Number(gradeScore) || 0, 0, 1);
+  return Math.max(0, Math.min(expected - 1, Math.floor((score * expected) + 1e-9)));
+};
+
+export const authoritativeReceiptTotal = (submissionReceipts = {}) => Object.values(submissionReceipts || {})
+  .filter((receipt) => receipt?.serverConfirmed === true)
+  .reduce((sum, receipt) => sum + Math.max(0, Math.round(Number(receipt?.pointsAwarded) || 0)), 0);
+
+export const milestoneSpeedTotalForRound = (submissionReceipts = {}, roundIndex = -1, roundVersion = -1) => Object.values(submissionReceipts || {})
+  .filter((receipt) => receipt?.serverConfirmed === true
+    && receipt?.receiptKind === 'productiveSpeedMilestone'
+    && Number(receipt?.roundIndex) === Number(roundIndex)
+    && Number(receipt?.roundVersion) === Number(roundVersion))
+  .reduce((sum, receipt) => sum + Math.max(0, Math.round(Number(receipt?.speedBonus) || 0)), 0);
+
+export const applyProductiveMilestoneAward = ({
+  player = {}, roundIndex = 0, roundVersion = 0, secureMilestone = null, secondChance = false,
+} = {}) => {
+  const progressKey = `${Number(roundIndex)}:${Number(roundVersion)}`;
+  const priorProgress = player?.challengeMilestoneProgress?.[progressKey] || {};
+  if (secondChance || !secureMilestone?.validated) {
+    return { accepted: false, duplicate: false, speedPoints: 0, totalScore: authoritativeReceiptTotal(player?.submissionReceipts) };
+  }
+  const targetDepth = Math.max(0, Math.min(
+    Math.floor(Number(secureMilestone.expectedDepth) || 1),
+    Math.floor(Number(secureMilestone.productiveDepth) || 0),
+  ));
+  const priorMilestones = Array.isArray(priorProgress.milestones) ? priorProgress.milestones : [];
+  const priorDepth = priorMilestones.reduce((max, entry) => Math.max(max, Number(entry?.productiveDepth) || 0), 0);
+  if (targetDepth <= priorDepth) {
+    return {
+      accepted: false, duplicate: true, speedPoints: 0,
+      productiveDepth: targetDepth,
+      totalScore: authoritativeReceiptTotal(player.submissionReceipts),
+    };
+  }
+  let milestones = priorMilestones;
+  let speedPoints = 0;
+  const receipts = { ...(player.submissionReceipts || {}) };
+  const receiptIds = [];
+  for (let depth = priorDepth + 1; depth <= targetDepth; depth += 1) {
+    const milestone = recordValidatedSpeedMilestone({
+      milestones,
+      ...secureMilestone,
+      productiveDepth: depth,
+      stateHash: `${secureMilestone.stateHash}:depth:${depth}`,
+    });
+    if (!milestone.accepted) continue;
+    milestones = milestone.milestones;
+    speedPoints += milestone.speedPoints;
+    const receiptId = `milestone:${Number(roundVersion)}:${depth}`;
+    receiptIds.push(receiptId);
+    receipts[receiptId] = {
+      submissionId: receiptId,
+      roundIndex: Number(roundIndex),
+      roundVersion: Number(roundVersion),
+      receiptKind: 'productiveSpeedMilestone',
+      productiveDepth: depth,
+      stateHash: milestone.milestone.stateHash,
+      speedBonus: milestone.speedPoints,
+      pointsAwarded: milestone.speedPoints,
+      serverConfirmed: true,
+    };
+  }
+  if (!receiptIds.length) return { accepted: false, duplicate: false, speedPoints: 0, productiveDepth: targetDepth, totalScore: authoritativeReceiptTotal(receipts) };
+  const totalScore = authoritativeReceiptTotal(receipts);
+  let runningTotal = totalScore - speedPoints;
+  receiptIds.forEach((receiptId) => {
+    runningTotal += receipts[receiptId].pointsAwarded;
+    receipts[receiptId] = { ...receipts[receiptId], totalScore: runningTotal };
+  });
+  return {
+    accepted: true,
+    duplicate: false,
+    speedPoints,
+    productiveDepth: targetDepth,
+    totalScore,
+    receiptIds,
+    submissionReceipts: receipts,
+    challengeMilestoneProgress: {
+      ...(player.challengeMilestoneProgress || {}),
+      [progressKey]: {
+        roundIndex: Number(roundIndex),
+        roundVersion: Number(roundVersion),
+        milestones,
+      },
+    },
   };
 };
 
@@ -376,10 +546,15 @@ export const joinedPlayerCount = (players = {}) => (Array.isArray(players) ? pla
 export const currentAnsweredCount = (players = {}, roundIndex = null) => (Array.isArray(players) ? players : Object.values(players || {}))
   .filter((player) => player?.joined !== false && (roundIndex == null ? player?.answeredCurrent === true : Number(player?.answeredRound) === Number(roundIndex))).length;
 
-export const challengeCanAdvance = ({ joinedCount = 0, answeredCount = 0, roundEndsAtMs = 0, nowMs = Date.now() } = {}) => (
-  Number(joinedCount) > 0
-  && (Number(answeredCount) >= Number(joinedCount) || Number(nowMs) >= Number(roundEndsAtMs || 0))
-);
+export const challengeCanAdvance = ({ joinedCount = 0, answeredCount = 0, roundEndsAtMs = 0, nowMs = Date.now() } = {}) => {
+  const joined = Math.max(0, Number(joinedCount) || 0);
+  const answered = Math.max(0, Number(answeredCount) || 0);
+  const deadline = Number(roundEndsAtMs) || 0;
+  return joined > 0 && (
+    answered >= joined
+    || (deadline > 0 && Number(nowMs) >= deadline)
+  );
+};
 
 export const deriveRoundTallies = ({
   players = [],

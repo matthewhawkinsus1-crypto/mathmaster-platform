@@ -74,15 +74,17 @@ test('the finished standings can never include work in progress', () => {
 
 /* ---------- the write is not the hot document ---------- */
 
-test('progress is written to the player document, never the room document', () => {
+test('progress writes only player documents and milestone score is receipt-derived', () => {
   const start = functionsIndex.indexOf('exports.reportLiveChallengeProgress');
-  const end = functionsIndex.indexOf('exports.submitLiveChallengeResponse');
+  const end = functionsIndex.indexOf('async function maybeCompressLiveChallengeRoundAfterThreshold', start);
   assert.ok(start > 0 && end > start);
   const block = functionsIndex.slice(start, end);
-  assert.match(block, /roomRef\.collection\("players"\)\.doc\(String\(player\.playerKey\)\)\.set\(/);
+  assert.match(block, /publicPlayerRef = roomRef\.collection\("players"\)\.doc\(String\(player\.playerKey\)\)/);
+  assert.match(block, /transaction\.set\(publicPlayerRef/);
   // A write straight to roomRef would be the contended document all over again.
   assert.ok(!/roomRef\.set\(|roomRef\.update\(/.test(block), 'must not write the room document');
-  assert.ok(!block.includes('score:'), 'must never write the real score');
+  assert.match(block, /submissionReceipts: milestone\.submissionReceipts/);
+  assert.match(block, /score: milestone\.totalScore/);
   assert.match(block, /LIVE_PROVISIONAL_MAX_POINTS/, 'must clamp what the browser claims');
 });
 
@@ -90,8 +92,8 @@ test('a report for a round that has moved on is ignored, not an error', () => {
   // A debounced report can land after the teacher advances. Throwing there would
   // surface a scary message to a student who did nothing wrong.
   const start = functionsIndex.indexOf('exports.reportLiveChallengeProgress');
-  const block = functionsIndex.slice(start, functionsIndex.indexOf('exports.submitLiveChallengeResponse'));
-  assert.match(block, /Number\(room\.currentRound\) !== roundIndex[\s\S]{0,300}return \{ recorded: false \}/);
+  const block = functionsIndex.slice(start, functionsIndex.indexOf('async function maybeCompressLiveChallengeRoundAfterThreshold', start));
+  assert.match(block, /Number\(room\.currentRound\) !== roundIndex[\s\S]{0,650}return \{ recorded: false \}/);
 });
 
 /* ---------- the client side of the leash ---------- */
@@ -105,11 +107,15 @@ test('the running total reuses the solver step credit, it does not re-derive it'
 });
 
 test('progress reporting is debounced and never fires after an answer', () => {
-  assert.match(student, /if \(result \|\| expired \|\| !room\?\.roomId\) return undefined;/);
-  assert.match(student, /if \(workingPoints === reportedRef\.current\) return undefined;/);
-  assert.match(student, /setTimeout\([\s\S]{0,320}\}, 900\)/);
+  const start = student.indexOf("const reportedRef = useRef('');");
+  const end = student.indexOf('const submit = async', start);
+  const block = student.slice(start, end);
+  assert.match(block, /if \(result \|\| expired \|\| !room\?\.roomId\) return undefined;/);
+  assert.match(block, /const signature = `\$\{workingPoints\}:\$\{JSON\.stringify\(progressRawResponse \|\| null\)\}`/);
+  assert.match(block, /if \(signature === reportedRef\.current\) return undefined;/);
+  assert.match(block, /\}, 900\);/);
 });
 
 test('a dropped progress report cannot interrupt a student mid-round', () => {
-  assert.match(student, /reportProgress\(\{ roomId: room\.roomId, roundIndex, provisionalPoints: workingPoints \}\)\)\.catch\(\(\) => \{\}\)/);
+  assert.match(student, /Promise\.resolve\(reportProgress\(\{[\s\S]{0,500}provisionalPoints: workingPoints[\s\S]{0,250}\}\)\)\.catch\(\(\) => \{\}\)/);
 });

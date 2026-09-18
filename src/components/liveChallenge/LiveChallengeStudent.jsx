@@ -133,6 +133,7 @@ export function ChallengeRound({
   const roundStarted = startsInMs <= 0;
   const elapsedMs = Math.max(0, monotonicNow - roundOriginMonoRef.current);
   const remainingMs = Math.max(0, (endsAtMs - startsAtMs) - elapsedMs);
+  const paceMode = room.timingMode === 'pace';
   const expired = endsAtMs > 0 && remainingMs <= 0;
   const urgent = !expired && remainingMs <= 10000;
   const [result, setResult] = useState(null);
@@ -146,6 +147,7 @@ export function ChallengeRound({
   const pendingRef = useRef(pending);
   const resultRef = useRef(result);
   const latestRawResponseRef = useRef(null);
+  const [progressRawResponse, setProgressRawResponse] = useState(null);
   const wasExpiredRef = useRef(false);
   const [submitError, setSubmitError] = useState('');
   const [stepRecord, setStepRecord] = useState(() => emptyQuestionRecord());
@@ -175,6 +177,7 @@ export function ChallengeRound({
     stepRecordRef.current = fresh;
     setStepRecord(fresh);
     latestRawResponseRef.current = null;
+    setProgressRawResponse(null);
     wasExpiredRef.current = false;
     submissionLockRef.current = Boolean(pendingRef.current);
     // The origin is intentionally not recalculated when wall-clock calibration
@@ -182,16 +185,24 @@ export function ChallengeRound({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roundIndex, question?.questionInstanceId, pendingKey]);
 
-  const reportedRef = useRef(-1);
+  const reportedRef = useRef('');
   useEffect(() => {
     if (result || expired || !room?.roomId) return undefined;
-    if (workingPoints === reportedRef.current) return undefined;
+    const signature = `${workingPoints}:${JSON.stringify(progressRawResponse || null)}`;
+    if (signature === reportedRef.current) return undefined;
     const timer = window.setTimeout(() => {
-      reportedRef.current = workingPoints;
-      Promise.resolve(reportProgress({ roomId: room.roomId, roundIndex, provisionalPoints: workingPoints })).catch(() => {});
+      reportedRef.current = signature;
+      Promise.resolve(reportProgress({
+        roomId: room.roomId,
+        roundIndex,
+        roundVersion: Number(room.roundVersion) || 0,
+        roundToken: room.roundToken || '',
+        provisionalPoints: workingPoints,
+        ...(progressRawResponse ? { responsePayload: { raw: progressRawResponse } } : {}),
+      })).catch(() => {});
     }, 900);
     return () => window.clearTimeout(timer);
-  }, [workingPoints, result, expired, room?.roomId, roundIndex, reportProgress]);
+  }, [workingPoints, progressRawResponse, result, expired, room?.roomId, room?.roundVersion, room?.roundToken, roundIndex, reportProgress]);
 
   const submit = async (responsePayload, { atRoundEnd = false } = {}) => {
     if (resultRef.current || pendingRef.current || submissionLockRef.current || (!atRoundEnd && expired) || !roundStarted) return null;
@@ -323,7 +334,7 @@ export function ChallengeRound({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,.18)', fontWeight: 900, fontSize: 13 }}>{alias}</span>
-            <span style={{ fontWeight: 900, fontSize: 15 }}>Round {roundIndex + 1} of {room.roundCount}</span>
+            <span style={{ fontWeight: 900, fontSize: 15 }}>{room.secondChanceOf != null ? `FINAL ROUND ${roundIndex - Number(room.scheduledRoundCount || room.roundCount) + 1}` : `Round ${roundIndex + 1} of ${room.roundCount}`}</span>
             <span style={{ opacity: .82, fontSize: 13 }}>{question?.teksCode || 'Mixed review'}</span>
           </div>
           <div
@@ -336,9 +347,10 @@ export function ChallengeRound({
               animation: urgent ? 'challengePulse .9s ease-in-out infinite' : 'none',
             }}
           >
-            {roundStarted ? formatClock(remainingMs) : `Starts in ${Math.ceil(startsInMs / 1000)}`}
+            {roundStarted ? (paceMode ? `Elapsed: ${formatClock(elapsedMs)}` : formatClock(remainingMs)) : `Starts in ${Math.ceil(startsInMs / 1000)}`}
           </div>
         </div>
+        {paceMode && endsAtMs > 0 && <div style={{ fontWeight: 900 }}>Round closes in {formatClock(remainingMs)}</div>}
 
         <div style={{ display: 'flex', gap: 5 }} aria-hidden="true">
           {Array.from({ length: Math.max(1, Number(room.roundCount) || 1) }).map((_, pip) => (
@@ -371,7 +383,7 @@ export function ChallengeRound({
             question={secureQuestion}
             questionRecord={{ status: result?.isCorrect ? 'correct' : result ? 'attempted' : 'unattempted', attemptCount: result ? 1 : 0 }}
             studentProfile={studentProfile}
-            maximumAttempts={1}
+            attemptsDoNotExpire
             activityRole="practice"
             assignmentLocked={Boolean(result) || Boolean(pending) || expired || !roundStarted}
             assignmentLockedMessage={!roundStarted ? 'The synchronized round is about to start.' : expired && !result ? 'Time is up for this Live Challenge round.' : 'Your answer is locked in for this round.'}
@@ -380,8 +392,11 @@ export function ChallengeRound({
               pathToolId: question.pathToolId,
               submit: async (rawWork) => submit({ raw: rawWork }),
             }}
-            onResponseStateChange={(rawWork) => { latestRawResponseRef.current = rawWork; }}
-            onStepGrade={async ({ stepGrade, countsAttempt, statePatch, supportUsage = null }) => {
+            onResponseStateChange={(rawWork) => {
+              latestRawResponseRef.current = rawWork;
+              setProgressRawResponse(rawWork);
+            }}
+            onStepGrade={async ({ stepGrade, statePatch, supportUsage = null }) => {
               const outcome = recordQuestionStep({
                 record: stepRecordRef.current,
                 stepGrade,
@@ -391,7 +406,7 @@ export function ChallengeRound({
                 countsAttempt: false,
                 statePatch,
                 supportUsage,
-                maximumAttempts: 1,
+                maximumAttempts: Number.MAX_SAFE_INTEGER,
               });
               stepRecordRef.current = outcome.record;
               setStepRecord(outcome.record);

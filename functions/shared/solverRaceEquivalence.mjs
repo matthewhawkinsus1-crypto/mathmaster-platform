@@ -413,3 +413,26 @@ export const solverRaceProgressScore = ({
 
   return verified ? Math.min(.9, 1 / Math.max(1, Number(solutionDepth) || 1)) : 0;
 };
+
+const relationOperationComplexity = (value) => {
+  const text = normalizeAlgebraicText(String(value ?? ''));
+  const binaryOperators = (text.match(/[+*/]/g) || []).length
+    + (text.match(/-(?!\d+(?:\.\d+)?(?:\b|$))/g) || []).length;
+  const branches = (text.match(/\b(?:AND|OR)\b/gi) || []).length;
+  const absoluteConstraints = Math.floor((text.match(/\|/g) || []).length / 2);
+  return binaryOperators + branches + absoluteConstraints;
+};
+
+/** Server-derived progress depth for a relation already proven equivalent. */
+export const solverRaceProductiveDepth = ({
+  family, initial, expected, actual, variable = 'x', solutionDepth = 1, isCorrect = false,
+}) => {
+  const expectedDepth = Math.max(1, Math.floor(Number(solutionDepth) || 1));
+  if (isCorrect) return expectedDepth;
+  const score = solverRaceProgressScore({ family, initial, expected, actual, variable, solutionDepth, isCorrect });
+  if (!(score > 0) || expectedDepth <= 1) return 0;
+  const initialComplexity = relationOperationComplexity(initial);
+  const currentComplexity = relationOperationComplexity(actual);
+  const reducedOperations = Math.max(0, initialComplexity - currentComplexity);
+  return Math.min(expectedDepth - 1, Math.max(1, reducedOperations));
+};

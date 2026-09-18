@@ -70,7 +70,7 @@ export const challengeMusicState = (room = {}, remainingMs = null) => {
   if (remainingMs != null && Number(remainingMs) <= 0) return null;
   const currentRound = Math.max(0, Math.floor(Number(room.currentRound) || 0));
   const scheduled = Math.max(0, Math.floor(Number(room.scheduledRoundCount ?? room.roundCount) || 0));
-  return scheduled > 0 && currentRound === scheduled - 1 ? 'finalRound' : 'round';
+  return room?.secondChanceOf != null || (scheduled > 0 && currentRound === scheduled - 1) ? 'finalRound' : 'round';
 };
 
 export const cooldownReady = ({ lastPlayedAt = 0, nowMs = Date.now(), cooldownMs = 0 } = {}) => (
@@ -272,14 +272,19 @@ export class LiveChallengeAudioDirector {
     if (activeRound && (previousRoom?.status !== 'running' || roundChanged)) {
       this.playSfx('roundStart');
       const scheduled = Math.max(0, Number(room.scheduledRoundCount ?? room.roundCount) || 0);
-      if (scheduled && Number(room.currentRound) === scheduled - 1) { this.playSfx('finalRoundAlarm'); this.announce('finalRound'); }
+      if (room.secondChanceOf != null || (scheduled && Number(room.currentRound) === scheduled - 1)) { this.playSfx('finalRoundAlarm'); this.announce('finalRound'); }
       else if (Number(room.currentRound) > 0) this.announce('nextQuestion');
     }
     if (room.status === 'finished' && previousRoom?.status !== 'finished') { this.playSfx('victorySparkle'); this.announce('complete'); }
 
     const leaderKey = leaderboard?.[0]?.playerKey || leaderboard?.[0]?.alias || null;
-    this.leaderHold = nextLeaderHoldState(this.leaderHold, leaderKey, nowMs, Number(this.manifest?.announcer?.newLeaderHoldMs) || 2000);
-    if (this.leaderHold.announce && previousBoard.length) {
+    // Leader changes are evaluated only after solving closes. Announcing a
+    // transient lead while classmates are still working is distracting and can
+    // produce several announcements in one round.
+    this.leaderHold = roundEnded
+      ? nextLeaderHoldState(this.leaderHold, leaderKey, nowMs, 0)
+      : { ...this.leaderHold, candidateLeaderKey: leaderKey, candidateSinceMs: nowMs, announce: false };
+    if (roundEnded && this.leaderHold.announce && previousBoard.length) {
       const stinger = this.manifest?.music?.tracks?.newLeader || FALLBACK_MANIFEST.music.tracks.newLeader;
       this.#play(this.#makeAudio(stinger?.file, this.mix.effects));
       this.playSfx('newLeaderBurst'); this.announce('newLeader');
