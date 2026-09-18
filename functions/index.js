@@ -2592,11 +2592,27 @@ async function reauthorizeStudentRecords(db, studentId, classRecord) {
   // Support/intervention history and archived live-session summaries are
   // top-level collections keyed by event/session, so reauthorization queries by
   // studentId. The historical origin stays frozen; only the access list moves.
-  for (const collectionName of ["studentSupportEvents", "studentSessionSummaries"]) {
+  for (const collectionName of ["studentSupportEvents", "studentSessionSummaries", "parentContactLogs"]) {
     // eslint-disable-next-line no-await-in-loop
     const snapshot = await db.collection(collectionName).where("studentId", "==", studentId).get();
     // eslint-disable-next-line no-await-in-loop
-    counts[collectionName] = await apply(snapshot.docs, reauthorizeChange);
+    counts[collectionName] = await apply(snapshot.docs, (entry) => {
+      if (collectionName !== "parentContactLogs") return reauthorizeChange(entry);
+      const existing = entry.data() || {};
+      // Contacts created before this policy carried createdByEmail/classId;
+      // promote those immutable facts to origin metadata during reassignment.
+      const withOrigin = {
+        ...existing,
+        originTeacherEmail: existing.originTeacherEmail || existing.createdByEmail || null,
+        originClassId: existing.originClassId ?? existing.classId ?? null,
+      };
+      const change = auth.reauthorizeContext(withOrigin, { classRecord });
+      return change ? {
+        ...change,
+        originTeacherEmail: withOrigin.originTeacherEmail,
+        originClassId: withOrigin.originClassId,
+      } : null;
+    });
   }
 
   // Class Points accounts and transactions are scoped to studentId + classId

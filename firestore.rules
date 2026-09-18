@@ -229,6 +229,35 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Private parent-contact records. They are deliberately separate from the
+    // student-readable grade tree and append-only. The fixed schema prevents
+    // response/grader evidence from being copied into this human contact log.
+    match /parentContactLogs/{contactId} {
+      allow read: if rootAdmin() || authorizedTeacher();
+      allow create: if rootAdmin() || (
+        teacher()
+        && request.resource.data.keys().hasOnly([
+          'schemaVersion', 'studentId', 'studentName', 'classId', 'classPeriod',
+          'occurredAt', 'method', 'category', 'notes', 'outcome', 'followUpDate',
+          'recordType', 'parentContactId', 'createdByEmail', 'originTeacherEmail',
+          'originClassId', 'authorizedTeacherEmails',
+          'createdAt', 'createdAtServer'
+        ])
+        && request.resource.data.studentId is string
+        && request.resource.data.recordType in ['contact', 'followUpResolution']
+        && (request.resource.data.recordType == 'contact' || request.resource.data.parentContactId is string)
+        && request.resource.data.createdByEmail == request.auth.token.email
+        && request.resource.data.originTeacherEmail == request.auth.token.email
+        && request.resource.data.originClassId == request.resource.data.classId
+        && request.resource.data.authorizedTeacherEmails == [request.auth.token.email]
+        && request.resource.data.method in ['phone', 'email', 'text', 'conference', 'voicemail', 'other']
+        && request.resource.data.category in ['academics', 'missingWork', 'attendance', 'behavior', 'academicIntegrity', 'cellphone', 'positiveContact', 'other']
+        && get(/databases/$(database)/documents/grades/$(request.resource.data.studentId)).data.get('assignedTeacherEmail', null) == request.auth.token.email
+        && request.resource.data.get('classId', null) == get(/databases/$(database)/documents/grades/$(request.resource.data.studentId)).data.get('classId', null)
+      );
+      allow update, delete: if false;
+    }
+
     // One temporary student-facing Path recommendation created only through
     // the audited teacher callable. Students may read their own instructional
     // recommendation; teachers may read only their current roster. Private

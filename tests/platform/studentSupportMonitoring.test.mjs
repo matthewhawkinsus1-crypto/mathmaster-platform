@@ -150,7 +150,7 @@ test('the teacher subscribes to persistent support history and archived session 
 
 test('student reassignment carries support and session history to the new teacher without rewriting origin', () => {
   const functionsIndex = read('functions/index.js');
-  assert.match(functionsIndex, /\["studentSupportEvents", "studentSessionSummaries"\]/);
+  assert.match(functionsIndex, /\["studentSupportEvents", "studentSessionSummaries", "parentContactLogs"\]/);
   assert.match(functionsIndex, /reauthorizeContext\(entry\.data\(\).*classRecord/s);
   const store = read('src/platform/teacher/studentSupportStore.js');
   assert.match(store, /originClassId/);

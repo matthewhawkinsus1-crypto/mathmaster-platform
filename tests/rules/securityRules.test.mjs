@@ -1305,3 +1305,21 @@ test('no client can create, edit, or delete a Practice Pass redemption — not e
   await assertFails(deleteDoc(doc(studentA(), 'classPointRewardRedemptions/redemption-a')));
   await assertFails(deleteDoc(doc(admin(), 'classPointRewardRedemptions/redemption-a')));
 });
+
+test('parent contact logs are private, append-only, teacher-of-record records with a fixed safe schema', async () => {
+  const contact = {
+    schemaVersion: 1, studentId: 'STUDENT_A', studentName: 'Student A', classId: 'class-a', classPeriod: 'Period 1',
+    occurredAt: '2026-09-17T14:00:00.000Z', method: 'phone', category: 'academics', notes: 'Discussed progress',
+    outcome: 'Guardian reached', followUpDate: null, recordType: 'contact', parentContactId: null, createdByEmail: TEACHER_A,
+    originTeacherEmail: TEACHER_A, originClassId: 'class-a', authorizedTeacherEmails: [TEACHER_A], createdAt: '2026-09-17T14:01:00.000Z', createdAtServer: serverTimestamp(),
+  };
+  await assertSucceeds(setDoc(doc(teacherA(), 'parentContactLogs/contact-a'), contact));
+  await assertSucceeds(getDoc(doc(teacherA(), 'parentContactLogs/contact-a')));
+  await assertFails(getDoc(doc(studentA(), 'parentContactLogs/contact-a')));
+  await assertFails(getDoc(doc(teacherB(), 'parentContactLogs/contact-a')));
+  await assertFails(setDoc(doc(teacherB(), 'parentContactLogs/forged'), contact));
+  await assertFails(setDoc(doc(teacherA(), 'parentContactLogs/answer-leak'), { ...contact, answerContent: 'sensitive response' }));
+  await assertSucceeds(setDoc(doc(teacherA(), 'parentContactLogs/resolution-a'), { ...contact, recordType: 'followUpResolution', parentContactId: 'contact-a', method: 'other', category: 'other', notes: '', outcome: 'Follow-up completed', followUpDate: null }));
+  await assertFails(updateDoc(doc(teacherA(), 'parentContactLogs/contact-a'), { notes: 'rewritten' }));
+  await assertFails(deleteDoc(doc(teacherA(), 'parentContactLogs/contact-a')));
+});
