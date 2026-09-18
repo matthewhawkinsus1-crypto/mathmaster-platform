@@ -237,6 +237,12 @@ test('a game nobody missed ends instead of replaying', async () => {
     scheduledRoundCount: 1, questionIds: [authored.id],
     roundStandards: { 0: 'texas:A.3(C)' }, secondChanceOf: {},
   });
+  await cleanRef.collection('players').doc('clean-player').set({
+    joined: true,
+    answeredRound: 0,
+    playerKey: 'clean-player',
+    score: 1000,
+  });
   const result = await functionsIndex.advanceLiveChallenge.run(teacherRequest({ roomId: cleanRoom }));
   assert.equal(result.status, 'finished', 'a question nobody missed never comes back');
 });
