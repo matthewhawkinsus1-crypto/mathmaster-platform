@@ -16,13 +16,22 @@ test('aggregates authorized actions across classes and uses canonical roster nam
 
 test('deduplicates a confirmed incident and its linked parent follow-up', () => {
   const items = buildTeacherActionItems({ students, classes, supportEvents: [
-    { ...parent({ id: 'i1', kind: SUPPORT_EVENT_KIND.ACADEMIC_INTEGRITY_INCIDENT }), incidentId: 'incident-1' },
-    { ...parent({ id: 'p1' }), evidence: { incidentId: 'incident-1', forbiddenAnswerText: 'must not escape' } },
+    // Exact linkage emitted by functions/index.js: both records carry the
+    // incident ref as relatedEventId; only the follow-up evidence has incidentId.
+    { ...parent({ id: 'incident-1', kind: SUPPORT_EVENT_KIND.ACADEMIC_INTEGRITY_INCIDENT }), relatedEventId: 'incident-1', evidence: { scope: 'assignment' } },
+    { ...parent({ id: 'p1' }), relatedEventId: 'incident-1', evidence: { incidentId: 'incident-1', forbiddenAnswerText: 'must not escape' } },
   ] });
   assert.equal(items.length, 1);
   assert.equal(items[0].priority, 'high');
   assert.deepEqual(items[0].context, ['Confirmed academic-integrity incident']);
   assert.equal(JSON.stringify(items).includes('forbiddenAnswerText'), false);
+});
+
+test('school-local date key controls today/overdue at the UTC boundary', () => {
+  const items = buildTeacherActionItems({ students, classes, now: Date.parse('2026-09-19T01:00:00Z'), todayDateKey: '2026-09-18', supportEvents: [
+    parent({ id: 'today-local', dueAt: '2026-09-18' }), parent({ id: 'tomorrow-local', dueAt: '2026-09-19' }),
+  ] });
+  assert.deepEqual(items.map((item) => item.sourceId), ['today-local', 'tomorrow-local']);
 });
 
 test('completed support and contact follow-ups leave Open but remain in Completed', () => {

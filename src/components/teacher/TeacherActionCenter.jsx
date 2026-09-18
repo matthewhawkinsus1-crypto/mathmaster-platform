@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { buildTeacherActionItems, resolveTeacherActionState, TEACHER_ACTION_KIND } from '../../platform/teacher/teacherActionCenter.js';
+import { useEffect, useMemo, useState } from 'react';
+import { buildTeacherActionItems, openTeacherActionCount, resolveTeacherActionState, TEACHER_ACTION_KIND } from '../../platform/teacher/teacherActionCenter.js';
 import { resolveReturnCheckIns } from '../../platform/attendance/returnCheckIn.js';
 import { localDateKeyOf } from '../../platform/attendance/classMeetings.js';
 
@@ -12,7 +12,7 @@ const kindLabels = {
 };
 const button = { padding: '7px 10px', border: '1px solid #bdc1c6', borderRadius: 7, background: '#fff', fontWeight: 800, cursor: 'pointer' };
 
-export default function TeacherActionCenter({ students = [], classes = [], assignments = [], supportEvents = [], parentContacts = [], gradeTransferUnits = [], retestRecoveryActions = [], classSchedule = null, nonInstructionalKeys = null, nowValue = Date.now(), onResolveReturnCheckIn, onOpenWorkflow }) {
+export default function TeacherActionCenter({ students = [], classes = [], assignments = [], supportEvents = [], parentContacts = [], gradeTransferUnits = [], retestRecoveryActions = [], projectedItems = null, classSchedule = null, nonInstructionalKeys = null, nowValue = Date.now(), onResolveReturnCheckIn, onOpenWorkflow, onOpenCountChange }) {
   const [classId, setClassId] = useState('');
   const [kind, setKind] = useState('');
   const [status, setStatus] = useState('open');
@@ -21,7 +21,10 @@ export default function TeacherActionCenter({ students = [], classes = [], assig
     classId: classRecord.classId || classRecord.id, classPeriod: classRecord.period || classRecord.classPeriod,
     schedule: classSchedule, nonInstructionalKeys, todayDateKey: localDateKeyOf(nowValue),
   })), [classes, students, supportEvents, assignments, classSchedule, nonInstructionalKeys, nowValue]);
-  const items = useMemo(() => buildTeacherActionItems({ students, classes, supportEvents, parentContacts, returnCheckIns, gradeTransferUnits, retestRecoveryActions, now: nowValue }), [students, classes, supportEvents, parentContacts, returnCheckIns, gradeTransferUnits, retestRecoveryActions, nowValue]);
+  const todayDateKey = localDateKeyOf(nowValue);
+  const derivedItems = useMemo(() => buildTeacherActionItems({ students, classes, supportEvents, parentContacts, returnCheckIns, gradeTransferUnits, retestRecoveryActions, now: nowValue, todayDateKey }), [students, classes, supportEvents, parentContacts, returnCheckIns, gradeTransferUnits, retestRecoveryActions, nowValue, todayDateKey]);
+  const items = projectedItems || derivedItems;
+  useEffect(() => { onOpenCountChange?.(openTeacherActionCount(items)); }, [items, onOpenCountChange]);
   const visible = resolveTeacherActionState(items, { classId, kind, status });
 
   return <section aria-labelledby="teacher-action-heading" style={{ padding: 22 }}>

@@ -340,7 +340,13 @@ import AttendanceHistoryPanel from './components/teacher/AttendanceHistoryPanel.
 import ParentContactCenter from './components/teacher/ParentContactCenter.jsx';
 import TeacherActionCenter from './components/teacher/TeacherActionCenter.jsx';
 import { buildReturnCheckInEvent } from './platform/attendance/returnCheckIn.js';
+import { resolveReturnCheckIns } from './platform/attendance/returnCheckIn.js';
+import { buildTeacherActionItems, openTeacherActionCount } from './platform/teacher/teacherActionCenter.js';
 import { fetchAllParentContactsForExport, recordParentContact, recordParentContactResolution, subscribeParentContacts } from './platform/teacher/parentContactStore.js';
+import { listTeacherPracticePassRedemptions, listTeacherTransferSnapshots } from './platform/gradeTransfer/gradeTransferStore.js';
+import { projectGradeTransferUnits } from './platform/gradeTransfer/gradeTransferProjection.js';
+import { listTeacherTestCycleRecords } from './services/testCycleService.js';
+import { projectTestCycleTeacherActions } from './platform/teacher/testCycleActionProjection.js';
 import {
   buildStudentExtensionPatch,
   reconcileAssignmentExtensionsForCorrection,
@@ -694,6 +700,10 @@ function App() {
   // small set of concerns, dismissals and interventions worth keeping.
   const [studentSupportEvents, setStudentSupportEvents] = useState([]);
   const [parentContacts, setParentContacts] = useState([]);
+  const [actionGradeSnapshots, setActionGradeSnapshots] = useState([]);
+  const [actionPracticePasses, setActionPracticePasses] = useState(new Set());
+  const [retestRecoveryActions, setRetestRecoveryActions] = useState([]);
+  const [parentContactSourceAction, setParentContactSourceAction] = useState(null);
   const [studentSessionSummaries, setStudentSessionSummaries] = useState([]);
   // Curriculum pacing and per-class skill overrides. Teacher-owned inputs to
   // the adaptive path engine, read by the student's Path, Recommended for You
@@ -3303,6 +3313,44 @@ function App() {
     if (user?.role !== 'teacher' || !user.email) { setParentContacts([]); return undefined; }
     return subscribeParentContacts({ db, teacherEmail: user.email, onChange: setParentContacts, onError: (error) => console.error('Parent contact history failed:', error) });
   }, [user?.role, user?.email]);
+
+  const actionGradeScope = useMemo(() => projectGradeTransferUnits({
+    classes, assignments, students: allStudents, teacherEmail: user?.email || '', isRootAdmin: user?.isRootAdmin === true,
+    snapshots: actionGradeSnapshots, practicePasses: actionPracticePasses,
+  }), [classes, assignments, allStudents, user?.email, user?.isRootAdmin, actionGradeSnapshots, actionPracticePasses]);
+  const actionReturnCheckIns = useMemo(() => classes.flatMap((classRecord) => resolveReturnCheckIns({
+    roster: allStudents.filter((student) => student.classId === (classRecord.classId || classRecord.id)),
+    supportEvents: studentSupportEvents, assignments, classId: classRecord.classId || classRecord.id,
+    classPeriod: classRecord.period || classRecord.classPeriod, schedule: classSchedule,
+    nonInstructionalKeys: SCHOOL_NON_INSTRUCTIONAL_KEYS, todayDateKey: localDateKeyOf(now),
+  })), [classes, allStudents, studentSupportEvents, assignments, classSchedule, now]);
+  const teacherActionItems = useMemo(() => buildTeacherActionItems({
+    students: allStudents, classes, supportEvents: studentSupportEvents, parentContacts,
+    returnCheckIns: actionReturnCheckIns, gradeTransferUnits: actionGradeScope.units,
+    retestRecoveryActions, now, todayDateKey: localDateKeyOf(now),
+  }), [allStudents, classes, studentSupportEvents, parentContacts, actionReturnCheckIns, actionGradeScope.units, retestRecoveryActions, now]);
+  const teacherActionOpenCount = openTeacherActionCount(teacherActionItems);
+
+  useEffect(() => {
+    const classIds = actionGradeScope.authorizedClassIds;
+    if (user?.role !== 'teacher' || !classIds.length) { setActionGradeSnapshots([]); setActionPracticePasses(new Set()); return; }
+    Promise.all([
+      listTeacherTransferSnapshots({ teacherUid: auth.session?.uid || user.uid || '', classIds, isRootAdmin: user.isRootAdmin === true }),
+      listTeacherPracticePassRedemptions(classIds),
+    ]).then(([snapshots, passes]) => { setActionGradeSnapshots(snapshots); setActionPracticePasses(passes); })
+      .catch((error) => console.error('Action Center grade-transfer projection failed:', error));
+  }, [user?.role, user?.uid, user?.isRootAdmin, auth.session?.uid, actionGradeScope.authorizedClassIds.join('|')]);
+
+  useEffect(() => {
+    if (user?.role !== 'teacher') { setRetestRecoveryActions([]); return; }
+    let cancelled = false;
+    Promise.all(assignments.filter(isTestCycleAssignment).map(async (assignment) => {
+      const response = await listTeacherTestCycleRecords({ assignmentId: assignment.id });
+      return projectTestCycleTeacherActions({ records: response.rows || [], assignment });
+    })).then((groups) => { if (!cancelled) setRetestRecoveryActions(groups.flat()); })
+      .catch((error) => console.error('Action Center Test Cycle projection failed:', error));
+    return () => { cancelled = true; };
+  }, [user?.role, assignments]);
 
   useEffect(() => {
     if (user?.role !== 'teacher' || !user.email) {
@@ -9333,6 +9381,7 @@ function App() {
         <div className="mm-dashboard-shell" style={{ maxWidth: '1360px', margin: '0 auto', background: '#fff', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'stretch' }}>
           <TeacherSidebar
             activeTab={teacherTab}
+            actionCount={teacherActionOpenCount}
             onSelectTab={(tab) => {
               setTeacherTab(tab);
               // The Gradebook inherits the workspace class rather than starting
@@ -9775,16 +9824,22 @@ function App() {
 
             {teacherTab === 'actionCenter' && (
               <TeacherActionCenter
+                projectedItems={teacherActionItems}
                 students={allStudents}
                 classes={classes}
                 assignments={assignments}
                 supportEvents={studentSupportEvents}
                 parentContacts={parentContacts}
+                gradeTransferUnits={actionGradeScope.units}
+                retestRecoveryActions={retestRecoveryActions}
                 classSchedule={classSchedule}
                 nonInstructionalKeys={SCHOOL_NON_INSTRUCTIONAL_KEYS}
                 nowValue={now}
                 onResolveReturnCheckIn={(candidate) => candidate && handleRecordStudentSupportEvent(buildReturnCheckInEvent({ candidate, actorEmail: user.email }))}
-                onOpenWorkflow={(item) => setTeacherTab(item.sourceType === 'gradeTransfer' ? 'gradeTransfer' : item.sourceType === 'returnCheckIn' ? 'attendanceHistory' : item.sourceType === 'testCycle' ? 'exams' : 'parentContacts')}
+                onOpenWorkflow={(item) => {
+                  if (item.sourceType === 'studentSupportEvent') setParentContactSourceAction(item);
+                  setTeacherTab(item.sourceType === 'gradeTransfer' ? 'gradeTransfer' : item.sourceType === 'returnCheckIn' ? 'attendanceHistory' : item.sourceType === 'testCycle' ? 'exams' : 'parentContacts');
+                }}
               />
             )}
 
@@ -9800,7 +9855,21 @@ function App() {
                 classSchedule={classSchedule}
                 nonInstructionalKeys={SCHOOL_NON_INSTRUCTIONAL_KEYS}
                 nowValue={now}
-                onRecordContact={(contact) => recordParentContact({ db, teacherEmail: user.email, contact })}
+                sourceAction={parentContactSourceAction}
+                onRecordContact={async (contact) => {
+                  const recorded = await recordParentContact({ db, teacherEmail: user.email, contact });
+                  if (contact.sourceEventId) {
+                    await handleRecordStudentSupportEvent({
+                      kind: SUPPORT_EVENT_KIND.RESOLVED, stage: SUPPORT_EVENT_STAGE.RESOLVED,
+                      studentId: contact.studentId, studentName: contact.studentName,
+                      classId: contact.classId, classPeriod: contact.classPeriod,
+                      sourceEventId: contact.sourceEventId, resolvesEventId: contact.sourceEventId,
+                      summary: 'Parent follow-up completed by recorded parent contact.',
+                    });
+                    setParentContactSourceAction(null);
+                  }
+                  return recorded;
+                }}
                 onCompleteFollowUp={(contact) => recordParentContactResolution({ db, teacherEmail: user.email, contact })}
                 onExportContacts={() => fetchAllParentContactsForExport({ db, teacherEmail: user.email })}
               />

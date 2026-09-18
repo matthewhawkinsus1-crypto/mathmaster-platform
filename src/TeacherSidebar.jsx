@@ -105,7 +105,7 @@ const TAB_GROUPS = [
 // responsible for any side effects (like resetting the gradebook filter)
 // that should run when the active tab changes; this component only reports
 // which tab was clicked.
-export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onToggleCollapsed, isRootAdmin = false }) {
+export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onToggleCollapsed, isRootAdmin = false, actionCount = 0 }) {
   const labelFor = (tab) => (tab === 'access' && isRootAdmin ? 'Administration' : TAB_LABELS[tab]);
   const buildStamp = formatBuildStamp();
 
@@ -214,7 +214,7 @@ export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onTo
                 >
                   {TAB_ICONS[tab] || '•'}
                 </span>
-                {!collapsed && <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>}
+                {!collapsed && <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}{tab === 'actionCenter' && actionCount > 0 ? ` (${actionCount})` : ''}</span>}
               </button>
             );
           })}

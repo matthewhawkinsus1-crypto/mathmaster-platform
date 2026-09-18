@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { buildTransferUnit, createExportSnapshot, teamsCsv, TRANSFER_STATE, transferFileName, transferSnapshotId } from '../../platform/gradeTransfer/gradeTransferModel.js';
+import { createExportSnapshot, teamsCsv, TRANSFER_STATE, transferFileName, transferSnapshotId } from '../../platform/gradeTransfer/gradeTransferModel.js';
 import { buildGradebookZip } from '../../platform/gradeTransfer/gradeTransferPackage.js';
 import { confirmTransferUploaded, listTeacherTransferSnapshots, persistTransferSnapshot } from '../../platform/gradeTransfer/gradeTransferStore.js';
 import { listTeacherPracticePassRedemptions } from '../../platform/gradeTransfer/gradeTransferStore.js';
-import { assignmentIsForStudent } from '../../assignmentLifecycle.js';
-import { canonicalPresentedAssignmentGrade } from '../../platform/grading/canonicalGradeProjection.js';
 import { resolveStudentFinalDeadlineFromAssignment } from '../../platform/gradeTransfer/studentDeadlineResolver.js';
-import { authorizedGradeTransferClasses, gradeTransferRoster } from '../../platform/gradeTransfer/gradeTransferScope.js';
+import { newestFirst, projectGradeTransferUnits } from '../../platform/gradeTransfer/gradeTransferProjection.js';
 
 const downloadable = new Set([TRANSFER_STATE.READY_TO_EXPORT, TRANSFER_STATE.UPDATE_REQUIRED, TRANSFER_STATE.ROSTER_ID_PROBLEM]);
 const download = (bytes, fileName, type) => {
@@ -15,8 +13,6 @@ const download = (bytes, fileName, type) => {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 const id = (prefix) => `${prefix}_${Date.now().toString(36)}_${crypto.randomUUID()}`;
-const snapshotTime = (value) => typeof value?.toMillis === 'function' ? value.toMillis() : new Date(value || 0).getTime();
-const newestFirst = (left, right) => snapshotTime(right.createdAt) - snapshotTime(left.createdAt);
 
 export default function GradeTransferCenter({ classes, assignments, students, teacherUid, teacherEmail, isRootAdmin = false, resolveStudentFinalDeadline = resolveStudentFinalDeadlineFromAssignment }) {
   const [snapshots, setSnapshots] = useState([]);
@@ -24,23 +20,12 @@ export default function GradeTransferCenter({ classes, assignments, students, te
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [practicePasses, setPracticePasses] = useState(new Set());
-  const authorizedClasses = useMemo(() => authorizedGradeTransferClasses({ classes, teacherEmail, isRootAdmin }), [classes, teacherEmail, isRootAdmin]);
+  const authorizedClasses = useMemo(() => projectGradeTransferUnits({ classes, teacherEmail, isRootAdmin }).authorizedClasses, [classes, teacherEmail, isRootAdmin]);
   const authorizedClassIds = useMemo(() => authorizedClasses.map((entry) => entry.classId), [authorizedClasses]);
   useEffect(() => { listTeacherTransferSnapshots({ teacherUid, classIds: authorizedClassIds, isRootAdmin }).then(setSnapshots).catch((error) => setMessage(error.message)); }, [teacherUid, authorizedClassIds, isRootAdmin]);
   useEffect(() => { listTeacherPracticePassRedemptions(authorizedClassIds).then(setPracticePasses).catch((error) => setMessage(error.message)); }, [authorizedClassIds]);
-  const units = useMemo(() => authorizedClasses.flatMap((classRecord) => (assignments || [])
-    .filter((assignment) => assignmentIsForStudent(assignment, { classId: classRecord.classId, classPeriod: classRecord.period }))
-    .map((assignment) => {
-      const eligible = gradeTransferRoster({ students, classes: authorizedClasses, classId: classRecord.classId });
-      const history = snapshots.filter((item) => item.classId === classRecord.classId && item.assignmentId === assignment.id).sort(newestFirst);
-      return buildTransferUnit({
-        classRecord, assignment, students: eligible,
-        projectCanonicalGrade: canonicalPresentedAssignmentGrade,
-        hasAuthoritativePracticePass: ({ student }) => practicePasses.has(`${student.id}__${classRecord.classId}__${assignment.id}`),
-        resolveStudentFinalDeadline,
-        confirmedSnapshots: history.filter((item) => item.uploadConfirmedAt), latestExport: history[0],
-      });
-    })), [authorizedClasses, assignments, students, snapshots, practicePasses, resolveStudentFinalDeadline]);
+  const units = useMemo(() => projectGradeTransferUnits({ classes, assignments, students, teacherEmail, isRootAdmin, snapshots, practicePasses, resolveStudentFinalDeadline }).units,
+    [classes, assignments, students, teacherEmail, isRootAdmin, snapshots, practicePasses, resolveStudentFinalDeadline]);
 
   const prepare = async (chosen) => {
     const ready = chosen.filter((unit) => unit.rows.length && downloadable.has(unit.state));

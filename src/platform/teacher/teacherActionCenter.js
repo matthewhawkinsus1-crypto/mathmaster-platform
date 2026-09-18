@@ -1,5 +1,6 @@
 import { SUPPORT_EVENT_KIND, SUPPORT_EVENT_STAGE } from './studentSupportSignals.js';
 import { TRANSFER_STATE } from '../gradeTransfer/gradeTransferModel.js';
+import { localDateKeyOf } from '../attendance/classMeetings.js';
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const text = (value) => String(value ?? '').trim();
@@ -36,16 +37,16 @@ const canonicalStudentName = (studentById, studentId, fallback = '') => {
   return text(student?.displayName || student?.name || student?.studentName || fallback || studentId);
 };
 
-const statusForDueDate = (dueAt, status, now) => {
+const statusForDueDate = (dueAt, status, todayDateKey) => {
   if (status === 'completed') return 90;
-  const due = instant(dueAt);
-  if (due && day(dueAt) < day(now)) return 0;
-  if (due && day(dueAt) === day(new Date(now).toISOString())) return 1;
+  const dueKey = /^\d{4}-\d{2}-\d{2}$/.test(text(dueAt)) ? text(dueAt) : localDateKeyOf(dueAt);
+  if (dueKey && dueKey < todayDateKey) return 0;
+  if (dueKey && dueKey === todayDateKey) return 1;
   return null;
 };
 
-const priorityRank = (item, now) => {
-  const dueRank = statusForDueDate(item.dueAt, item.status, now);
+const priorityRank = (item, todayDateKey) => {
+  const dueRank = statusForDueDate(item.dueAt, item.status, todayDateKey);
   if (dueRank !== null) return dueRank;
   if (item.priority === 'high') return 2;
   if (item.kind === TEACHER_ACTION_KIND.RETURN_FROM_ABSENCE || item.kind === TEACHER_ACTION_KIND.EXTENSION_RECONCILIATION) return 3;
@@ -63,6 +64,7 @@ export const buildTeacherActionItems = ({
   students = [], classes = [], supportEvents = [], parentContacts = [],
   returnCheckIns = [], gradeTransferUnits = [], retestRecoveryActions = [],
   now = Date.now(),
+  todayDateKey = localDateKeyOf(now),
 } = {}) => {
   const studentById = new Map(list(students).map((student) => [text(student.id || student.studentId), student]));
   const classById = new Map(list(classes).map((record) => [text(record.classId || record.id), record]));
@@ -84,11 +86,16 @@ export const buildTeacherActionItems = ({
   const addParent = (source, sourceType, completed = false) => {
     if (!authorized(source)) return;
     const sourceId = idOf(source);
-    const incidentId = text(source?.linkedIncidentId || source?.incidentId || source?.evidence?.incidentId);
+    // PR #270 gives the incident document its own id/relatedEventId and places
+    // that id in the linked follow-up's evidence. The incident does not have an
+    // `incidentId` field, so its document id is the obligation key.
+    const isIncident = source.kind === SUPPORT_EVENT_KIND.ACADEMIC_INTEGRITY_INCIDENT;
+    const incidentId = isIncident
+      ? text(source?.id || source?.relatedEventId)
+      : text(source?.linkedIncidentId || source?.incidentId || source?.evidence?.incidentId);
     const obligation = incidentId || text(source?.followUpKey || source?.evidence?.followUpKey)
       || `${studentIdOf(source)}|${classIdOf(source)}|${day(source.dueAt || source.followUpDate || source.createdAt)}`;
     const existing = parentByObligation.get(obligation);
-    const isIncident = source.kind === SUPPORT_EVENT_KIND.ACADEMIC_INTEGRITY_INCIDENT;
     const item = existing || {
       id: `parent:${obligation}`, kind: TEACHER_ACTION_KIND.PARENT_FOLLOW_UP,
       studentId: studentIdOf(source), classId: classIdOf(source) || null,
@@ -101,6 +108,10 @@ export const buildTeacherActionItems = ({
     item.studentName = canonicalStudentName(studentById, item.studentId, source.studentName);
     item.classLabel = text(classById.get(item.classId)?.name || classById.get(item.classId)?.period || source.classPeriod || item.classId);
     if (isIncident) { item.priority = 'high'; item.context = ['Confirmed academic-integrity incident']; }
+    if (!isIncident && source.kind === SUPPORT_EVENT_KIND.PARENT_FOLLOW_UP) {
+      item.sourceId = sourceId;
+      item.sourceType = 'studentSupportEvent';
+    }
     if (completed || completedIds.has(sourceId)) item.status = 'completed';
     if (sourceType === 'parentContact' && sourceId) item.availableActions = item.status === 'open' ? ['completeParentFollowUp', 'openParentContact'] : ['openParentContact'];
     parentByObligation.set(obligation, item);
@@ -150,7 +161,7 @@ export const buildTeacherActionItems = ({
     status: action.completed ? 'completed' : 'open', availableActions: ['openRetestWorkflow'],
   }));
 
-  return items.sort((left, right) => priorityRank(left, now) - priorityRank(right, now)
+  return items.sort((left, right) => priorityRank(left, todayDateKey) - priorityRank(right, todayDateKey)
     || instant(left.createdAt) - instant(right.createdAt) || left.id.localeCompare(right.id));
 };
 
