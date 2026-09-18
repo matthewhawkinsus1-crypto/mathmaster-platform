@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ChallengeDryRun from './ChallengeDryRun.jsx';
 import ChallengeQuestionLibrary from './ChallengeQuestionLibrary.jsx';
+import LiveChallengeArenaProjector from './LiveChallengeArenaProjector.jsx';
 import MathText from '../common/MathText.jsx';
 import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
 import { summarizeCoverage } from '../../../functions/shared/pathCoverage.mjs';
@@ -139,27 +140,8 @@ export function ChallengeLiveStatus({ room, remainingMs, answeredCount = 0, join
   );
 }
 
-export function ChallengeProjector({ room, leaderboard = [], joinedCount = 0, remainingMs = 0, onExit }) {
-  return (
-    <div style={{ minHeight: '70vh', background: '#202124', color: '#fff', borderRadius: 18, padding: 28, display: 'grid', gap: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div><div style={{ opacity: .72, textTransform: 'uppercase', fontWeight: 900 }}>MathMaster Live Challenge</div><h1 style={{ margin: '4px 0 0', fontSize: 38 }}>{room.title}</h1></div>
-        <button type="button" onClick={onExit} style={secondary}>Exit Projector View</button>
-      </div>
-      {room.status === 'lobby' && <div style={{ textAlign: 'center', padding: 30 }}><div style={{ fontSize: 80, fontWeight: 1000 }}>{joinedCount}</div><div style={{ fontSize: 24 }}>students joined · waiting for teacher</div></div>}
-      {room.status === 'running' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(280px,.8fr)', gap: 24, alignItems: 'start' }}>
-          <section>
-            <div style={{ fontSize: 20, fontWeight: 900, color: '#aecbfa' }}>Round {(room.currentRound || 0) + 1} of {room.roundCount} · {room.currentQuestion?.tool?.challengeFamily || room.currentQuestion?.teksCode || 'Mixed review'}{room.currentQuestion?.tool?.difficultyBand ? ` · ${room.currentQuestion.tool.difficultyBand}` : ''}</div>
-            <div style={{ fontSize: 64, fontWeight: 1000, margin: '10px 0' }}>{formatClock(remainingMs)}</div>
-            <MathText as="div" style={{ whiteSpace: 'pre-wrap', fontSize: 28, lineHeight: 1.45 }}>{room.currentQuestion?.prompt}</MathText>
-          </section>
-          <section><h2 style={{ marginTop: 0 }}>Leaderboard</h2><Leaderboard rows={leaderboard} limit={8} projector /></section>
-        </div>
-      )}
-      {room.status === 'finished' && <section><h2 style={{ textAlign: 'center', fontSize: 34 }}>Final Standings</h2><div style={{ maxWidth: 700, margin: '0 auto' }}><Leaderboard rows={leaderboard} limit={12} projector /></div></section>}
-    </div>
-  );
+export function ChallengeProjector(props) {
+  return <LiveChallengeArenaProjector {...props} />;
 }
 
 function ScoringCompetitionCard({ roundSeconds, speedInfluencePercent }) {
