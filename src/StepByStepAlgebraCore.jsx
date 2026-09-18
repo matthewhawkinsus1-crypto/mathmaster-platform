@@ -64,6 +64,14 @@ export const getInitialEquation = (question, record) => {
 
 const isFactorOperation = (operation) => operation === 'multiply' || operation === 'divide';
 
+const operationOperandIdentity = (value) => {
+  try {
+    return parseOperationOperand(value).expression.replace(/\s+/g, '');
+  } catch {
+    return String(value ?? '').replace(/\s+/g, '');
+  }
+};
+
 const pairForToken = (model, index) => model?.pairs?.find((pair) => pair.indices.includes(index)) || null;
 
 const factorNeedsDot = (left, right) => /^-?\d+(?:\.\d+)?$/.test(left?.text || '') && /^-?\d+(?:\.\d+)?$/.test(right?.text || '');
@@ -243,6 +251,13 @@ export default function StepByStepAlgebra({
   const mobileInteraction = useMobileInteractionMode();
   const [placedOperationSides, setPlacedOperationSides] = useState([]);
   const [placedOperationPositions, setPlacedOperationPositions] = useState({});
+  // React state updates are intentionally asynchronous. Operation placement is
+  // different: the second side can be dropped before React has rendered the
+  // first side's state update (especially on fast Chromebook pointer events).
+  // Keep a synchronous mirror so a right-then-left or left-then-right pair is
+  // evaluated against the latest placement, never a stale render closure.
+  const placedOperationSidesRef = useRef([]);
+  const placedOperationPositionsRef = useRef({});
   const [heldToken, setHeldToken] = useState(null); // { x, y, label }
   // Cues default to what the level says, and the student may still turn them
   // off. A level 4/5 workspace starts quiet rather than starting loud.
@@ -264,6 +279,14 @@ export default function StepByStepAlgebra({
   const rightRailRef = useRef(null);
   const leftExpressionRef = useRef(null);
   const rightExpressionRef = useRef(null);
+
+  useEffect(() => {
+    placedOperationSidesRef.current = placedOperationSides;
+  }, [placedOperationSides]);
+  useEffect(() => {
+    placedOperationPositionsRef.current = placedOperationPositions;
+  }, [placedOperationPositions]);
+
   const operationContextSymbols = useMemo(() => extractEquationSymbols(
     question?.equation,
     question?.formula,
@@ -769,6 +792,8 @@ export default function StepByStepAlgebra({
       return;
     }
     setArmedTile(null);
+    placedOperationSidesRef.current = [];
+    placedOperationPositionsRef.current = {};
     setPlacedOperationSides([]);
     setPlacedOperationPositions({});
     setPendingMove(move);
@@ -1217,14 +1242,21 @@ export default function StepByStepAlgebra({
 
   const stagePlacement = async (side, position = 'side') => {
     if (!armedTile || pendingMove || disabled || savingStep) return;
-    const result = stageOperationPlacement({ placedSides: placedOperationSides, side });
+
+    // Read the synchronous mirrors, not the render-time state values. Pointer
+    // up/click events for the second side can arrive before React commits the
+    // first placement render. Using the stale closure there made a legitimate
+    // "same move on both sides" look as though only one side had been changed.
+    const result = stageOperationPlacement({ placedSides: placedOperationSidesRef.current, side });
     if (result.duplicate) {
       setMessage({ tone: 'growth', text: `That operation is already on the ${side} side. Restore the balance by placing the same move on the ${result.missingSide} side.` });
       return;
     }
     if (!result.accepted) return;
 
-    const nextPositions = { ...placedOperationPositions, [side]: position };
+    const nextPositions = { ...placedOperationPositionsRef.current, [side]: position };
+    placedOperationSidesRef.current = result.placedSides;
+    placedOperationPositionsRef.current = nextPositions;
     setPlacedOperationSides(result.placedSides);
     setPlacedOperationPositions(nextPositions);
 
@@ -1285,8 +1317,10 @@ export default function StepByStepAlgebra({
     const switching = armedTile?.operation !== operation;
     setArmedTile({ operation, sourceSide });
     setTapPlacementArmed(false);
-    if (switching || placedOperationSides.length) {
+    if (switching || placedOperationSidesRef.current.length) {
       setOperand('');
+      placedOperationSidesRef.current = [];
+      placedOperationPositionsRef.current = {};
       setPlacedOperationSides([]);
       setPlacedOperationPositions({});
     }
@@ -1831,8 +1865,14 @@ export default function StepByStepAlgebra({
             <MathInput
               value={operand}
               onChange={(value) => {
+                // MathLive can re-emit an equivalent operand while focus/layout
+                // changes. Do not erase a side the student already placed unless
+                // the mathematical operand actually changed.
+                const operandChanged = operationOperandIdentity(value) !== operationOperandIdentity(operand);
                 setOperand(value);
-                if (placedOperationSides.length) {
+                if (operandChanged && placedOperationSidesRef.current.length) {
+                  placedOperationSidesRef.current = [];
+                  placedOperationPositionsRef.current = {};
                   setPlacedOperationSides([]);
                   setPlacedOperationPositions({});
                 }
@@ -1875,7 +1915,7 @@ export default function StepByStepAlgebra({
               Apply to both sides
             </button>
           )}
-          <button type="button" className="algebra-composer-cancel" onClick={() => { setOperand(''); setArmedTile(null); setPlacedOperationSides([]); setPlacedOperationPositions({}); setTapPlacementArmed(false); setMessage(null); }}>Cancel</button>
+          <button type="button" className="algebra-composer-cancel" onClick={() => { setOperand(''); setArmedTile(null); placedOperationSidesRef.current = []; placedOperationPositionsRef.current = {}; setPlacedOperationSides([]); setPlacedOperationPositions({}); setTapPlacementArmed(false); setMessage(null); }}>Cancel</button>
           <div className="algebra-placement-progress" aria-live="polite">
             {placedOperationSides.length === 0
               ? (mobileInteraction.isMobile
