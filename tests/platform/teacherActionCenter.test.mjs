@@ -34,6 +34,15 @@ test('school-local date key controls today/overdue at the UTC boundary', () => {
   assert.deepEqual(items.map((item) => item.sourceId), ['today-local', 'tomorrow-local']);
 });
 
+test('keeps independent same-day parent follow-ups as distinct obligations', () => {
+  const items = buildTeacherActionItems({ students, classes, supportEvents: [
+    parent({ id: 'assignment-follow-up', dueAt: '2026-09-18', assignmentId: 'a1', summary: 'Assignment follow-up' }),
+    parent({ id: 'behavior-follow-up', dueAt: '2026-09-18', assignmentId: null, summary: 'Behavior follow-up' }),
+  ] });
+  assert.equal(items.length, 2);
+  assert.deepEqual(items.map((item) => item.sourceId).sort(), ['assignment-follow-up', 'behavior-follow-up']);
+});
+
 test('completed support and contact follow-ups leave Open but remain in Completed', () => {
   const supportEvents = [parent(), { id: 'done', kind: SUPPORT_EVENT_KIND.RESOLVED, stage: SUPPORT_EVENT_STAGE.RESOLVED, evidence: { sourceEventId: 'p1' } }];
   const completedSupport = buildTeacherActionItems({ students, classes, supportEvents });
