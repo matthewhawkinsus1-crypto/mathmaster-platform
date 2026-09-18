@@ -1,6 +1,6 @@
 import { normalizeAlgebraicText, splitEquationSides } from './algebraicForm.mjs';
 import { sameLinearInequality } from './linearInequalityEquivalence.mjs';
-import { sameSimpleInequality, sameText, asNumber } from './answerEquivalence.mjs';
+import { sameSimpleInequality, asNumber } from './answerEquivalence.mjs';
 
 const clean = (value) => String(value ?? '').trim()
   .replace(/\s+(?:or|OR)\s+/g, ' OR ')
@@ -130,6 +130,12 @@ const sameNumericSet = (a, b, tolerance = 1e-6) => a && b && a.length === b.leng
 
 const inequalityBranches = (value) => clean(value).split(/\s+OR\s+/i).map((entry) => entry.trim());
 
+const isAllRealResponse = (value) => /^(?:all real numbers|all reals)$/i.test(clean(value));
+const isNoSolutionResponse = (value) => /^(?:no solution|none|empty set|∅)$/i.test(clean(value));
+const sameInequalityBranch = (left, right) => (
+  sameSimpleInequality(left, right) || sameLinearInequality(left, right)
+);
+
 export const gradeSolverRaceRelation = ({ family, expected, variable = 'x', actual }) => {
   if (family === 'literalEquation') {
     return isolatedFor(actual, variable) && sameLiteralIsolation(actual, expected, variable);
@@ -141,17 +147,14 @@ export const gradeSolverRaceRelation = ({ family, expected, variable = 'x', actu
     return sameNumericSet(equationSolutions(actual, variable), equationSolutions(expected, variable));
   }
   if (family === 'absoluteValueInequality') {
-    if (/^(?:all real numbers|all reals)$/i.test(expected) || /^(?:no solution|none|empty set|∅)$/i.test(expected)) {
-      return sameText(actual, expected)
-        || (/^all real/i.test(expected) && /^all real/i.test(actual))
-        || (/^(?:no solution|none|empty set|∅)$/i.test(expected) && /^(?:no solution|none|empty set|∅)$/i.test(actual));
-    }
+    if (isAllRealResponse(expected)) return isAllRealResponse(actual);
+    if (isNoSolutionResponse(expected)) return isNoSolutionResponse(actual);
     const left = inequalityBranches(actual);
     const right = inequalityBranches(expected);
     if (left.length !== right.length) return false;
     const remaining = [...right];
     const oneToOne = left.every((branch) => {
-      const index = remaining.findIndex((candidate) => sameSimpleInequality(branch, candidate));
+      const index = remaining.findIndex((candidate) => sameInequalityBranch(branch, candidate));
       if (index < 0) return false;
       remaining.splice(index, 1);
       return true;
