@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { scoreChallengeRound } from '../../functions/shared/liveChallenge.mjs';
+import { planSolverRace } from '../../functions/shared/solverRace.mjs';
 import {
   acceptChallengeSnapshot,
   authoritativeElapsed,
@@ -85,6 +86,29 @@ test('inbound delivery plus outbound latency preserve equal human tiers at every
       return challengeSpeedTier(official, totalMs).tier;
     });
     assert.equal(new Set(tiers).size, 1, `${humanElapsedMs}ms => ${tiers.join(',')}`);
+  }
+});
+
+test('Solver Race uses the certified authoritative timeline and transport compensation', () => {
+  const solverRound = planSolverRace({ roundCount: 10, focus: 'mixed', seed: 'fairness-certification' })[5];
+  assert.equal(solverRound.challengeFamily, 'linearInequality');
+  const totalMs = 45_000;
+  const deliveredAtMs = 2_000_000;
+  const startsAtMs = deliveredAtMs + ROUND_SYNC_LEAD_MS;
+  const latencies = [20, 75, 150, 300, 600];
+  for (const humanElapsedMs of [8_999, 9_000, 9_001, 17_999, 18_000, 18_001, 35_999, 36_000, 36_001]) {
+    const outcomes = latencies.map((latency) => {
+      assert.ok(deliveredAtMs + latency < startsAtMs, `${latency}ms question delivery precedes official start`);
+      const elapsedMs = authoritativeElapsed({
+        humanElapsedMs,
+        arrivedAtMs: startsAtMs + humanElapsedMs + latency,
+        startsAtMs,
+        totalMs,
+      });
+      return scoreChallengeRound({ gradeScore: 1, isCorrect: true, elapsedMs, totalMs });
+    });
+    assert.equal(new Set(outcomes.map(({ speedTier }) => speedTier)).size, 1, `${humanElapsedMs} tier`);
+    assert.equal(new Set(outcomes.map(({ speedBonus }) => speedBonus)).size, 1, `${humanElapsedMs} speed points`);
   }
 });
 

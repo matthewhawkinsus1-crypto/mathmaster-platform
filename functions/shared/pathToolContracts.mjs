@@ -332,6 +332,31 @@ export const hasSingleEquation = (question = {}) => {
     .some((value) => typeof value === 'string' && value.split('=').length === 2);
 };
 
+const SOLVER_RELATION_FAMILIES = new Set([
+  'literalEquation', 'linearInequality', 'absoluteValueEquation', 'absoluteValueInequality',
+]);
+
+/**
+ * Solver Race's explicit relation gate. This is deliberately not the ordinary
+ * Step Algebra gate: legacy balance questions still require one equals sign.
+ * A generated race relation is admitted only when its private grader names a
+ * supported family and its visible source has that family's relation shape.
+ */
+export const hasSupportedSolverRelation = (question = {}) => {
+  const family = String(question.solverGrader || '');
+  if (!SOLVER_RELATION_FAMILIES.has(family)) return false;
+  const source = [question.equation, question.equationAscii, question.initialEquation, question.equationLatex]
+    .find((value) => typeof value === 'string' && value.trim());
+  if (!source || source.length > 180) return false;
+  const normalized = source.replace(/\\leq?|≤/g, '<=').replace(/\\geq?|≥/g, '>=');
+  const equalsCount = (normalized.match(/(?<![<>])=(?!=)/g) || []).length;
+  const inequalityCount = (normalized.match(/<=|>=|<|>/g) || []).length;
+  if (family === 'literalEquation' || family === 'absoluteValueEquation') {
+    return equalsCount === 1 && inequalityCount === 0;
+  }
+  return equalsCount === 0 && inequalityCount >= 1 && inequalityCount <= 2;
+};
+
 /** Copy only the named fields, and only when they are actually present. */
 export const pick = (source, fields) => {
   const result = {};
@@ -833,6 +858,7 @@ const CONTRACTS = {
       // balance, and a question the tool cannot render is a question that must
       // not be issued — having an answer key is not enough.
       hasEquation: hasSingleEquation(question),
+      hasSupportedSolverRelation: hasSupportedSolverRelation(question),
       tolerance: Number(question.numericTolerance ?? 1e-6),
       solverGrader: String(question.solverGrader || ''),
       expectedFinalRelation: question.expectedFinalRelation ?? null,
@@ -1287,7 +1313,7 @@ export const hasGradableDefinition = (toolId, definition) => {
     case 'stepAlgebra':
       // Symbolic prompts need marking this server cannot do fairly.
       return definition.symbolicPrompts === 0
-        && definition.hasEquation
+        && (definition.solverGrader ? definition.hasSupportedSolverRelation : definition.hasEquation)
         && ((definition.solverGrader && definition.expectedFinalRelation != null)
           || definition.expected != null || definition.accepted.length > 0);
     case 'functionInvestigation':

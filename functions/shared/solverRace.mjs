@@ -91,9 +91,73 @@ export const difficultyPlan = (roundCount) => Array.from({ length: roundCount },
 
 const hash = (value) => [...String(value)].reduce((total, char) => ((total * 33) ^ char.charCodeAt(0)) >>> 0, 5381);
 
+const NUMERIC_VARIANTS = Object.freeze({
+  solverRace_linearInequality_one_add: [['x+7 < 15', 'x < 8'], ['x+3 < 12', 'x < 9']],
+  solverRace_linearInequality_one_subtract: [['x-6 >= 4', 'x >= 10'], ['x-8 >= -1', 'x >= 7']],
+  solverRace_linearInequality_positive_coefficient: [['4*x <= 28', 'x <= 7'], ['5*x <= 40', 'x <= 8']],
+  solverRace_linearInequality_two_step: [['3*x+2 > 17', 'x > 5'], ['4*x-3 > 21', 'x > 6']],
+  solverRace_linearInequality_negative_flip: [['-4*x+1 <= 21', 'x >= -5'], ['-2*x-3 <= 9', 'x >= -6']],
+  solverRace_linearInequality_both_sides: [['6*x-4 > 2*x+12', 'x > 4'], ['7*x+1 > 4*x+16', 'x > 5']],
+  solverRace_linearInequality_compound: [['-5 < 2*x+1 <= 11', '-3 < x <= 5'], ['-8 <= 3*x+1 < 10', '-3 <= x < 3']],
+  solverRace_linearInequality_fraction_negative: [['(3-x)/2 >= 5', 'x <= -7'], ['(4-x)/3 >= 4', 'x <= -8']],
+  solverRace_absoluteValueEquation_basic: [['|x| = 8', 'x = -8 OR x = 8'], ['|x| = 11', 'x = -11 OR x = 11']],
+  solverRace_absoluteValueEquation_translated: [['|x-4| = 6', 'x = -2 OR x = 10'], ['|x+2| = 5', 'x = -7 OR x = 3']],
+  solverRace_absoluteValueEquation_inside_coefficient: [['|3*x-2| = 10', 'x = -8/3 OR x = 4'], ['|2*x-3| = 9', 'x = -3 OR x = 6']],
+  solverRace_absoluteValueEquation_outside_coefficient: [['2*|x-3| = 10', 'x = -2 OR x = 8'], ['4*|x+1| = 20', 'x = -6 OR x = 4']],
+  solverRace_absoluteValueEquation_isolate_first: [['3*|x-2|+1 = 16', 'x = -3 OR x = 7'], ['2*|x+3|-2 = 12', 'x = -10 OR x = 4']],
+  solverRace_absoluteValueEquation_negative_inside: [['|5-2*x| = 11', 'x = -3 OR x = 8'], ['|4-3*x| = 10', 'x = -2 OR x = 14/3']],
+  solverRace_absoluteValueEquation_fraction: [['|(x+2)/3| = 4', 'x = -14 OR x = 10'], ['|(x-3)/2| = 5', 'x = -7 OR x = 13']],
+  solverRace_absoluteValueEquation_no_solution: [['3*|x-1|+2 = -4', 'no solution'], ['|2*x+5| = -1', 'no solution']],
+  solverRace_absoluteValueInequality_and_open: [['|x| < 7', '-7 < x < 7'], ['|x| < 9', '-9 < x < 9']],
+  solverRace_absoluteValueInequality_and_closed: [['|x-3| <= 5', '-2 <= x <= 8'], ['|x+2| <= 6', '-8 <= x <= 4']],
+  solverRace_absoluteValueInequality_or_open: [['|x-2| > 4', 'x < -2 OR x > 6'], ['|x+3| > 5', 'x < -8 OR x > 2']],
+  solverRace_absoluteValueInequality_or_closed: [['|2*x+1| >= 7', 'x <= -4 OR x >= 3'], ['|3*x-2| >= 10', 'x <= -8/3 OR x >= 4']],
+  solverRace_absoluteValueInequality_isolate_and: [['2*|x-1|+3 < 13', '-4 < x < 6'], ['3*|x+2|-1 < 11', '-6 < x < 2']],
+  solverRace_absoluteValueInequality_isolate_or: [['2*|x-3|-1 >= 9', 'x <= -2 OR x >= 8'], ['4*|x+1|+2 >= 18', 'x <= -5 OR x >= 3']],
+  solverRace_absoluteValueInequality_all_real: [['|x+6| >= -1', 'all real numbers'], ['2*|x-1| >= -8', 'all real numbers']],
+  solverRace_absoluteValueInequality_none: [['|3*x-2| < -1', 'no solution'], ['2*|x+4| <= -3', 'no solution']],
+});
+
+const varyQuestion = (question, seedKey) => {
+  const choice = hash(seedKey);
+  const variants = NUMERIC_VARIANTS[question.id];
+  if (variants?.length) {
+    const [equation, expectedFinalRelation] = variants[choice % variants.length];
+    return { ...question, equation, equationLatex: equation, expectedFinalRelation };
+  }
+  if (question.challengeFamily === 'literalEquation' && choice % 2 === 1) {
+    const names = { x: 'n', y: 'q', a: 'k', b: 'd', c: 'm', P: 'T', L: 'r', W: 's' };
+    const rename = (value) => String(value).replace(/[A-Za-z]+/g, (token) => names[token] || token);
+    const solveFor = names[question.solveFor] || question.solveFor;
+    return {
+      ...question, equation: rename(question.equation), equationLatex: rename(question.equationLatex),
+      expectedFinalRelation: rename(question.expectedFinalRelation), solveFor, variable: solveFor,
+      prompt: `Solve for ${solveFor} using the algebra workspace.`,
+      objective: { ...question.objective, variable: solveFor },
+    };
+  }
+  return question;
+};
+
+const compressedSequence = (pool, count) => Array.from({ length: count }, (_, index) => {
+  if (count === 1) return pool[pool.length - 1];
+  return pool[Math.round(index * (pool.length - 1) / (count - 1))];
+});
+
 export const planSolverRace = ({ roundCount = 10, focus = 'mixed', seed = '' } = {}) => {
   const families = solverRaceFamilyPlan(roundCount, focus);
   const bands = difficultyPlan(families.length);
+  const selectedFocus = canonicalSolverRaceFocus(focus);
+  if (selectedFocus !== 'mixed') {
+    const ordered = SOLVER_RACE_CATALOG.filter((entry) => entry.challengeFamily === selectedFocus);
+    const sequence = families.length === ordered.length
+      ? ordered
+      : compressedSequence(ordered, families.length);
+    return sequence.map((entry, roundIndex) => {
+      const question = varyQuestion(entry, `${seed}|${entry.id}|${roundIndex}`);
+      return { ...question, id: `${entry.id}_r${roundIndex + 1}`, solverRaceRound: roundIndex, solverRaceStage: question.difficultyBand };
+    });
+  }
   const used = new Map();
   return families.map((family, roundIndex) => {
     const desired = bands[roundIndex];
@@ -102,7 +166,8 @@ export const planSolverRace = ({ roundCount = 10, focus = 'mixed', seed = '' } =
     const pool = exact.length ? exact : familyPool;
     const occurrence = used.get(family) || 0;
     used.set(family, occurrence + 1);
-    const question = pool[(hash(`${seed}|${family}|${roundIndex}`) + occurrence) % pool.length];
+    const selected = pool[(hash(`${seed}|${family}|${roundIndex}`) + occurrence) % pool.length];
+    const question = varyQuestion(selected, `${seed}|${selected.id}|${roundIndex}`);
     return { ...question, id: `${question.id}_r${roundIndex + 1}`, solverRaceRound: roundIndex, solverRaceStage: desired };
   });
 };

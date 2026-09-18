@@ -8849,6 +8849,24 @@ async function loadChallengeCandidates(db, { courseId, standardCode, questionSty
   return planned.filter((entry) => entry.plan.issuable);
 }
 
+async function securelyPlanSolverRace(questions) {
+  const planned = await Promise.all(questions.map(async (question, roundIndex) => ({
+    question,
+    roundIndex,
+    plan: await mathPath.buildIssuePlan(question),
+  })));
+  const failed = planned.find((entry) => !entry.plan.issuable);
+  if (failed) {
+    const family = String(failed.question.challengeFamily || 'unknown family');
+    const stage = String(failed.question.difficultyBand || failed.question.solverRaceStage || 'unknown stage');
+    throw new HttpsError(
+      "failed-precondition",
+      `Solver Race round ${failed.roundIndex + 1} cannot be securely issued: ${family} · ${stage} (${failed.plan.reason || "secure grader unavailable"}).`,
+    );
+  }
+  return planned;
+}
+
 function selectChallengeQuestions(entries, requestedCount) {
   // Prefer one question from each family before a second question from the same
   // family. This keeps a ten-round mixed game from feeling like ten cosmetic
@@ -9015,7 +9033,7 @@ exports.createLiveChallenge = onCall(async (request) => {
     ? solverRace.planSolverRace({ roundCount: requestedRoundCount, focus: solverRaceFocus, seed: `${teacherEmail}|${Date.now()}` })
     : null;
   const candidates = solverQuestions
-    ? solverQuestions.map((question) => ({ question, plan: { issuable: true } }))
+    ? await securelyPlanSolverRace(solverQuestions)
     : await loadChallengeCandidates(db, { courseId, standardCode, questionStyle });
   if (candidates.length < challenge.MIN_ROUND_COUNT) {
     throw new HttpsError(
@@ -9245,7 +9263,7 @@ exports.createChallengeDryRun = onCall(async (request) => {
     ? solverRace.planSolverRace({ roundCount: requestedRoundCount, focus: solverRaceFocus, seed: `${teacherEmail}|dry|${Date.now()}` })
     : null;
   const candidates = solverQuestions
-    ? solverQuestions.map((question) => ({ question, plan: { issuable: true } }))
+    ? await securelyPlanSolverRace(solverQuestions)
     : await loadChallengeCandidates(db, { courseId, standardCode, questionStyle });
   if (candidates.length < challenge.MIN_ROUND_COUNT) {
     throw new HttpsError(
