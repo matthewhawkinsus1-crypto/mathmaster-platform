@@ -286,6 +286,25 @@ export const splitAdditiveTerms = (expression) => {
 const flattenMultiplicativeChain = (node, inDenominator, factors) => {
   if (node?.type === 'ParenthesisNode') {
     flattenMultiplicativeChain(node.content, inDenominator, factors);
+  } else if (node?.type === 'OperatorNode' && node.fn === 'unaryMinus' && node.args?.length === 1) {
+    /*
+     * A leading minus is a real multiplicative factor: -x = (-1)x.
+     *
+     * Keeping unary minus opaque made (-x)/(-1) look like two unrelated
+     * factors ("-x" and "-1"), so the workspace could not expose the -1
+     * cancellation the student had just created. The pending move then
+     * committed in its unsimplified form and a later render could appear to
+     * have manufactured an extra negative. Normalize only at the factor
+     * boundary; the stored/displayed expression remains student-authored.
+     *
+     * Do not recurse into the magnitude when it is 1 or -1 itself would become
+     * (-1)(1), leaving a fake denominator 1 after cancellation.
+     */
+    factors.push({ node: parse('-1'), denominator: inDenominator });
+    const magnitude = node.args[0];
+    const magnitudeIsOne = magnitude?.type === 'ConstantNode'
+      && nearlyEqual(Number(magnitude.value), 1);
+    if (!magnitudeIsOne) flattenMultiplicativeChain(magnitude, inDenominator, factors);
   } else if (node?.type === 'OperatorNode' && node.fn === 'multiply' && Array.isArray(node.args)) {
     node.args.forEach((arg) => flattenMultiplicativeChain(arg, inDenominator, factors));
   } else if (node?.type === 'OperatorNode' && node.fn === 'divide' && node.args?.length === 2) {
