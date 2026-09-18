@@ -7,6 +7,7 @@ export const SUPPORT_EVENT_KIND = Object.freeze({
   TEACHER_INTERVENTION: 'teacherIntervention',
   OFF_TASK_CONCERN: 'offTaskConcern',
   INTEGRITY_REVIEW: 'integrityReview',
+  ACADEMIC_INTEGRITY_INCIDENT: 'academicIntegrityIncident',
   SIGNAL_DISMISSED: 'signalDismissed',
   RESOLVED: 'resolved',
   // Absence recovery. See src/platform/attendance/returnCheckIn.js — these
@@ -618,6 +619,7 @@ export const SUPPORT_EVENT_LABEL = Object.freeze({
   [SUPPORT_EVENT_KIND.TEACHER_INTERVENTION]: 'Teacher Intervention',
   [SUPPORT_EVENT_KIND.OFF_TASK_CONCERN]: 'Productivity / Off-Task Concern',
   [SUPPORT_EVENT_KIND.INTEGRITY_REVIEW]: 'Integrity Review',
+  [SUPPORT_EVENT_KIND.ACADEMIC_INTEGRITY_INCIDENT]: 'Academic Integrity Incident',
   [SUPPORT_EVENT_KIND.SIGNAL_DISMISSED]: 'Signal Dismissed',
   [SUPPORT_EVENT_KIND.RESOLVED]: 'Resolved',
   [SUPPORT_EVENT_KIND.RETURN_FROM_ABSENCE]: 'Return From Absence',

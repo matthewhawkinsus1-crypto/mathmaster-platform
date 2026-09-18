@@ -14,6 +14,9 @@ export const assignmentGradeOverrideFor = (student, assignmentId) => {
 
 const overrideApplies = (record, override) => {
   if (!record || override?.active !== true || !Number.isFinite(Number(override.score))) return false;
+  // A confirmed section consequence is a server authority, not an attempt-bound
+  // correction. Later student attempts must not silently erase it.
+  if (override.persistent === true && override.source === 'teacher-section-zero') return true;
   if (Number(override.totalAttempts) !== Number(record.totalAttempts ?? record.attemptCount ?? 0)) return false;
   if (Number(override.variantIndex) !== Number(record.variantIndex ?? 0)) return false;
   if (String(override.submissionId || '')) return String(override.submissionId) === String(record.lastSubmissionId || '');

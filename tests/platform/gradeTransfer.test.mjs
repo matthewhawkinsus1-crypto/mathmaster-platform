@@ -3,7 +3,7 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { buildTransferUnit, createExportSnapshot, packageManifest, teamsCsv, TRANSFER_STATE, transferFileName, transferSnapshotId } from '../../src/platform/gradeTransfer/gradeTransferModel.js';
 import { buildGradebookZip } from '../../src/platform/gradeTransfer/gradeTransferPackage.js';
-import { canonicalPresentedAssignmentGrade } from '../../src/platform/grading/canonicalGradeProjection.js';
+import { canonicalPresentedAssignmentGrade, projectTeacherOverridesForDisplay } from '../../src/platform/grading/canonicalGradeProjection.js';
 import { assignmentIsForStudent } from '../../src/assignmentLifecycle.js';
 import { authorizedGradeTransferClasses, gradeTransferRoster } from '../../src/platform/gradeTransfer/gradeTransferScope.js';
 
@@ -268,4 +268,62 @@ test('inactive assignment-level override never changes the canonical grade', () 
     },
   };
   assert.equal(canonicalPresentedAssignmentGrade({ student: ordinary, assignment: gradeAssignment }), 100);
+});
+
+
+test('section integrity zero persists across later attempts and becomes a TEAMS delta', () => {
+  const gradeAssignment = {
+    id: 'section-zero-a1',
+    lateDueAt: '2026-09-16T23:00:00Z',
+    sections: [
+      { id: 'cw', role: 'classwork', questions: [{ id: 'q1', activityRole: 'classwork' }] },
+      { id: 'practice', role: 'practice', questions: [{ id: 'q2', activityRole: 'practice' }] },
+    ],
+  };
+  const current = {
+    id: '1500123',
+    displayName: 'Ada Lovelace',
+    gradesByAssignment: {
+      'section-zero-a1': {
+        0: { status: 'correct', totalAttempts: 2, variantIndex: 1, lastSubmissionId: 'later-cw' },
+        1: { status: 'correct', totalAttempts: 1, variantIndex: 0, lastSubmissionId: 'practice-1' },
+      },
+    },
+    teacherGradeOverridesByAssignment: {
+      'section-zero-a1': {
+        0: {
+          active: true,
+          score: 0,
+          persistent: true,
+          source: 'teacher-section-zero',
+          incidentId: 'integrity-section-1',
+          sectionRole: 'classwork',
+          totalAttempts: 1,
+          variantIndex: 0,
+          submissionId: 'earlier-cw',
+        },
+      },
+    },
+  };
+
+  const projected = projectTeacherOverridesForDisplay(
+    current.gradesByAssignment,
+    current.teacherGradeOverridesByAssignment,
+  );
+  assert.equal(projected['section-zero-a1'][0].partialCredit, 0);
+  assert.equal(canonicalPresentedAssignmentGrade({ student: current, assignment: gradeAssignment }), 50);
+
+  const prior = {
+    rows: [{ studentId: current.id, sisStudentId: current.id, grade: 100, gradeVersion: 'before-section-zero' }],
+  };
+  const unit = buildTransferUnit({
+    classRecord: klass,
+    assignment: gradeAssignment,
+    students: [current],
+    now: Date.parse('2026-09-17T00:00:00Z'),
+    projectCanonicalGrade: canonicalPresentedAssignmentGrade,
+    confirmedSnapshot: prior,
+  });
+  assert.equal(unit.state, TRANSFER_STATE.UPDATE_REQUIRED);
+  assert.deepEqual(unit.rows.map((row) => [row.studentId, row.grade]), [[current.id, 50]]);
 });
