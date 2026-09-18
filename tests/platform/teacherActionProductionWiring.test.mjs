@@ -26,6 +26,12 @@ test('parent-contact handoff records contact then appends support resolution', (
   assert.match(app, /recordParentContact\([\s\S]{0,700}SUPPORT_EVENT_KIND\.RESOLVED[\s\S]{0,300}resolvesEventId: contact\.sourceEventId/);
 });
 
+test('date-only action keys render as local calendar dates instead of UTC instants', () => {
+  const component = readFileSync(new URL('../../src/components/teacher/TeacherActionCenter.jsx', import.meta.url), 'utf8');
+  assert.match(component, /new Date\(Number\(year\), Number\(month\) - 1, Number\(day\)\)\.toLocaleDateString\(\)/);
+  assert.doesNotMatch(component, /new Date\(item\.dueAt \|\| item\.createdAt\)\.toLocaleDateString\(\)/);
+});
+
 test('sidebar badge is fed by the mounted Action Center projection, not another listener', () => {
   assert.match(app, /actionCount=\{teacherActionOpenCount\}/);
   assert.match(app, /const teacherActionOpenCount = openTeacherActionCount\(teacherActionItems\)/);
