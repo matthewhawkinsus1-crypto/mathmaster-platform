@@ -143,6 +143,17 @@ test('absolute inequality grading supports AND, OR, unbounded, all-real, and no-
   }
 });
 
+test('absolute inequality special answers reject malformed prefix text', () => {
+  const allReal = SOLVER_RACE_CATALOG.find((q) => q.id.endsWith('absoluteValueInequality_all_real'));
+  const none = SOLVER_RACE_CATALOG.find((q) => q.id.endsWith('absoluteValueInequality_none'));
+  assert.equal(grade(allReal, 'all real numbers').isCorrect, true);
+  assert.equal(grade(allReal, 'all reals').isCorrect, true);
+  assert.equal(grade(allReal, 'all real bananas').isCorrect, false);
+  assert.equal(grade(allReal, 'all real x').isCorrect, false);
+  assert.equal(grade(none, 'no solution').isCorrect, true);
+  assert.equal(grade(none, 'no solution maybe').isCorrect, false);
+});
+
 test('absolute inequality unions use one-to-one branch matching', () => {
   const question = SOLVER_RACE_CATALOG.find((q) => q.id.endsWith('absoluteValueInequality_or_open'));
   assert.equal(grade(question, 'x > 2 OR x < -4').isCorrect, true, 'reversed order');
@@ -151,6 +162,32 @@ test('absolute inequality unions use one-to-one branch matching', () => {
   assert.equal(grade(question, 'x < -4').isCorrect, false, 'missing branch');
   assert.equal(grade(question, 'x < -5 OR x > 2').isCorrect, false, 'wrong endpoint');
   assert.equal(grade(question, 'x <= -4 OR x > 2').isCorrect, false, 'open versus closed');
+});
+
+test('absolute inequality OR branches support fractional endpoints from seeded variants', async () => {
+  let variant = null;
+  for (let index = 0; index < 256 && !variant; index += 1) {
+    variant = planSolverRace({
+      roundCount: 8,
+      focus: 'absoluteValueInequality',
+      seed: `fraction-endpoint-${index}`,
+    }).find((question) => question.equation === '|3*x-2| >= 10');
+  }
+
+  assert.ok(variant, 'expected to encounter the fractional seeded OR variant');
+  assert.equal(variant.expectedFinalRelation, 'x <= -8/3 OR x >= 4');
+  assert.equal((await mathPath.buildIssuePlan(variant)).issuable, true, 'seeded variant remains securely issuable');
+
+  const publicPayload = buildPublicToolPayload(variant);
+  assert.ok(publicPayload);
+  assert.doesNotMatch(JSON.stringify(publicPayload), /expectedFinalRelation|solverGrader|-8\/3/);
+
+  assert.equal(grade(variant, 'x <= -8/3 OR x >= 4').isCorrect, true, 'authored order');
+  assert.equal(grade(variant, 'x >= 4 OR x <= -8/3').isCorrect, true, 'reversed branch order');
+  assert.equal(grade(variant, '-8/3 >= x OR 4 <= x').isCorrect, true, 'reversed inequality orientation');
+  assert.equal(grade(variant, 'x >= -8/3 OR x >= 4').isCorrect, false, 'wrong left branch direction');
+  assert.equal(grade(variant, 'x <= -8/3 OR x <= -8/3').isCorrect, false, 'duplicate branch');
+  assert.equal(grade(variant, 'x < -8/3 OR x >= 4').isCorrect, false, 'endpoint openness matters');
 });
 
 test('public payload omits private grading while relation-work sends raw mathematics', () => {
