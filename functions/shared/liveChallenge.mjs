@@ -546,10 +546,15 @@ export const joinedPlayerCount = (players = {}) => (Array.isArray(players) ? pla
 export const currentAnsweredCount = (players = {}, roundIndex = null) => (Array.isArray(players) ? players : Object.values(players || {}))
   .filter((player) => player?.joined !== false && (roundIndex == null ? player?.answeredCurrent === true : Number(player?.answeredRound) === Number(roundIndex))).length;
 
-export const challengeCanAdvance = ({ joinedCount = 0, answeredCount = 0, roundEndsAtMs = 0, nowMs = Date.now() } = {}) => (
-  Number(joinedCount) > 0
-  && (Number(answeredCount) >= Number(joinedCount) || Number(nowMs) >= Number(roundEndsAtMs || 0))
-);
+export const challengeCanAdvance = ({ joinedCount = 0, answeredCount = 0, roundEndsAtMs = 0, nowMs = Date.now() } = {}) => {
+  const joined = Math.max(0, Number(joinedCount) || 0);
+  const answered = Math.max(0, Number(answeredCount) || 0);
+  const deadline = Number(roundEndsAtMs) || 0;
+  return joined > 0 && (
+    answered >= joined
+    || (deadline > 0 && Number(nowMs) >= deadline)
+  );
+};
 
 export const deriveRoundTallies = ({
   players = [],
