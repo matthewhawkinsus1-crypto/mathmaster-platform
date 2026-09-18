@@ -360,21 +360,33 @@ export default function LiveChallengeTeacher({
         await onLinkWarmupChallenge(warmupAssignmentId, { roundCount, roundSeconds, standardCode });
         await setWarmupChallengeDelivery(warmupAssignmentId, { deliveryMode: warmupDeliveryMode, teacherDecision: 'challenge' });
       }
-      const created = await createLiveChallenge({
-        classId,
-        classPeriod,
-        courseId,
-        standardCode,
-        questionStyle,
-        challengeMode,
-        solverRaceFocus,
-        solverRaceDifficulty,
-        roundCount,
-        roundSeconds,
-        assignmentId: warmupAssignmentId || null,
-        title: title.trim() || `${selectedClass?.name || classPeriod || 'Class'} Live Challenge`,
-      });
+      let created;
+      try {
+        created = await createLiveChallenge({
+          classId,
+          classPeriod,
+          courseId,
+          standardCode,
+          questionStyle,
+          challengeMode,
+          solverRaceFocus,
+          solverRaceDifficulty,
+          roundCount,
+          roundSeconds,
+          assignmentId: warmupAssignmentId || null,
+          title: title.trim() || `${selectedClass?.name || classPeriod || 'Class'} Live Challenge`,
+        });
+      } catch (error) {
+        const activeRoomId = error?.details?.roomId;
+        if (String(error?.code || '').endsWith('failed-precondition') && activeRoomId) {
+          setRoomId(activeRoomId);
+          setMessage('You already have an active Live Challenge. It has been reopened.');
+          return { roomId: activeRoomId, resumed: true };
+        }
+        throw error;
+      }
       if (!created?.roomId) return created;
+      if (created.resumed) return created;
       try {
         await configureLiveChallengeExperience({ roomId: created.roomId, speedInfluencePercent, playerDisplayMode });
       } catch (configurationError) {
@@ -383,7 +395,7 @@ export default function LiveChallengeTeacher({
       }
       return created;
     });
-    if (result?.roomId) {
+    if (result?.roomId && !result.resumed) {
       setRoomId(result.roomId);
       if (result.trimmed) setMessage(`The secure bank had ${result.roundCount} unique usable questions for this selection, so MathMaster shortened the game from ${result.requestedRoundCount} rounds.`);
     }
@@ -573,7 +585,10 @@ export default function LiveChallengeTeacher({
     <div style={{ display: 'grid', gap: 18 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
         <div><h2 style={{ margin: 0 }}>{room.title}</h2><p style={{ margin: '6px 0 0', color: '#5f6368' }}>{room.classPeriod} · {courseLabel(room.courseId)} · {room.standardCode === 'mixed' ? 'Mixed review' : room.standardCode}</p></div>
-        <button type="button" onClick={() => setProjector(true)} style={secondary}>Projector View</button>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button type="button" onClick={() => setProjector(true)} style={primary}>Resume Session</button>
+          <button type="button" onClick={() => setProjector(true)} style={secondary}>Projector View</button>
+        </div>
       </div>
       <AudioMixer director={audioDirectorRef.current} mix={audioMix} onMixChange={updateAudioMix} onEnable={enableAudio} audioReady={audioReady} />
       {message && <div role="alert" style={{ padding: 12, borderRadius: 9, background: '#fff4ce', color: '#7a4f00' }}>{message}</div>}
@@ -591,7 +606,7 @@ export default function LiveChallengeTeacher({
           <section style={panel}><h3 style={{ marginTop: 0 }}>Players in lobby</h3><Leaderboard rows={leaderboard} /></section>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button type="button" disabled={joinedCount < 1 || busy === 'start'} onClick={() => { audioDirectorRef.current.prime().then(() => setAudioReady(true)).catch(() => {}); control('start', startLiveChallenge); }} style={{ ...primary, opacity: joinedCount < 1 || busy === 'start' ? .55 : 1 }}>{busy === 'start' ? 'Starting…' : 'Start Challenge'}</button>
-            <button type="button" disabled={busy === 'cancel'} onClick={() => control('cancel', cancelLiveChallenge)} style={{ ...secondary, color: '#a50e0e' }}>Cancel Lobby</button>
+            <button type="button" disabled={busy === 'cancel'} onClick={() => control('cancel', cancelLiveChallenge)} style={{ ...secondary, color: '#a50e0e' }}>Cancel Session</button>
           </div>
         </>
       )}
@@ -606,7 +621,7 @@ export default function LiveChallengeTeacher({
           <section style={panel}><h3 style={{ marginTop: 0 }}>Leaderboard</h3><Leaderboard rows={leaderboard} /></section>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button type="button" disabled={!canAdvance || busy === 'advance'} onClick={() => control('advance', advanceLiveChallenge)} style={{ ...primary, opacity: !canAdvance || busy === 'advance' ? .55 : 1 }}>{busy === 'advance' ? 'Loading next round…' : (room.currentRound + 1 >= room.roundCount ? 'Finish & Show Final Standings' : 'Next Round')}</button>
-            <button type="button" disabled={busy === 'finish'} onClick={() => control('finish', finishLiveChallenge)} style={{ ...secondary, color: '#a50e0e' }}>End Challenge Early</button>
+            <button type="button" disabled={busy === 'finish'} onClick={() => control('finish', finishLiveChallenge)} style={{ ...secondary, color: '#a50e0e' }}>End Session</button>
           </div>
           {!canAdvance && <p style={{ margin: 0, color: '#5f6368', fontSize: 13 }}>Next Round unlocks when everyone who joined has answered or the timer reaches zero.</p>}
         </>

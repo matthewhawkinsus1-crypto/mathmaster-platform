@@ -8930,6 +8930,87 @@ async function updateLiveChallengeInvites(db, playerIds, fields) {
   }
 }
 
+async function updateLiveChallengeInvitesByRoom(db, { roomId, teacherEmail, fields }) {
+  const snapshot = await db.collection(LIVE_CHALLENGE_INVITES).where("roomId", "==", roomId).get();
+  const ownedInvites = snapshot.docs.filter((invite) => invite.data()?.teacherEmail === teacherEmail);
+  for (let start = 0; start < ownedInvites.length; start += 450) {
+    const batch = db.batch();
+    ownedInvites.slice(start, start + 450).forEach((invite) => batch.set(invite.ref, fields, { merge: true }));
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+}
+
+const liveChallengePrivateStateIsRecoverable = (privateSnapshot, { roomId, teacherEmail }) => {
+  if (!privateSnapshot.exists) return false;
+  const privateState = privateSnapshot.data() || {};
+  return privateState.roomId === roomId
+    && privateState.teacherEmail === teacherEmail
+    && Array.isArray(privateState.questionIds)
+    && privateState.questionIds.length > 0;
+};
+
+async function recoverTeacherActiveChallenge(db, { teacherEmail, challenge }) {
+  const activePointerRef = db.collection(LIVE_CHALLENGE_TEACHER_ACTIVE).doc(teacherEmail);
+  const recovery = await db.runTransaction(async (transaction) => {
+    const activePointer = await transaction.get(activePointerRef);
+    const roomId = String(activePointer.data()?.roomId || "").trim();
+    if (!activePointer.exists || !roomId) {
+      if (activePointer.exists) transaction.delete(activePointerRef);
+      return { action: "clear" };
+    }
+
+    const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId);
+    const activeRoom = await transaction.get(roomRef);
+    if (!activeRoom.exists) {
+      transaction.delete(activePointerRef);
+      return { action: "clear", roomId };
+    }
+
+    const room = activeRoom.data() || {};
+    const isActive = [challenge.LIVE_CHALLENGE_STATUS.LOBBY, challenge.LIVE_CHALLENGE_STATUS.RUNNING].includes(room.status);
+    if (!isActive || room.teacherEmail !== teacherEmail) {
+      // A bad pointer must not grant authority over another teacher's room.
+      transaction.delete(activePointerRef);
+      return { action: "clear", roomId };
+    }
+
+    const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
+    const privateSnapshot = await transaction.get(privateRef);
+    if (liveChallengePrivateStateIsRecoverable(privateSnapshot, { roomId, teacherEmail })) {
+      return { action: "resume", roomId };
+    }
+
+    // The transaction observes the room, pointer and private document together.
+    // If any is repaired or replaced concurrently Firestore retries instead of
+    // allowing stale cleanup to cancel the repaired/current session.
+    transaction.set(roomRef, {
+      status: challenge.LIVE_CHALLENGE_STATUS.CANCELLED,
+      phase: "finished",
+      staleSession: true,
+      currentQuestion: null,
+      startsAt: null,
+      endsAt: null,
+      roundStartedAt: null,
+      roundEndsAt: null,
+      roundToken: null,
+      finishedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    transaction.delete(activePointerRef);
+    return { action: "retire", roomId };
+  });
+
+  if (recovery.action === "retire") {
+    await updateLiveChallengeInvitesByRoom(db, {
+      roomId: recovery.roomId,
+      teacherEmail,
+      fields: { status: challenge.LIVE_CHALLENGE_STATUS.CANCELLED, staleSession: true, updatedAt: FieldValue.serverTimestamp() },
+    }).catch((error) => logger.error("liveChallenge.staleInvites.failed", { roomId: recovery.roomId, message: error?.message }));
+  }
+  return recovery;
+}
+
 async function requireOwnedChallenge(db, request, roomId) {
   await requireTeacher(request);
   const teacherEmail = callerEmail(request);
@@ -9013,13 +9094,13 @@ exports.createLiveChallenge = onCall(async (request) => {
   // avoids reading completed challenge history every time the teacher opens
   // the dashboard.
   const activePointerRef = db.collection(LIVE_CHALLENGE_TEACHER_ACTIVE).doc(teacherEmail);
-  const activePointer = await activePointerRef.get();
-  if (activePointer.exists && activePointer.data()?.roomId) {
-    const activeRoom = await db.collection(LIVE_CHALLENGE_ROOMS).doc(activePointer.data().roomId).get();
-    if (activeRoom.exists && [challenge.LIVE_CHALLENGE_STATUS.LOBBY, challenge.LIVE_CHALLENGE_STATUS.RUNNING].includes(activeRoom.data()?.status)) {
-      throw new HttpsError("failed-precondition", "Finish or cancel your current Live Challenge before creating another one.", { roomId: activeRoom.id });
-    }
-    await activePointerRef.delete();
+  const activeRecovery = await recoverTeacherActiveChallenge(db, { teacherEmail, challenge });
+  if (activeRecovery.action === "resume") {
+    throw new HttpsError(
+      "failed-precondition",
+      "Finish or cancel your current Live Challenge before creating another one.",
+      { roomId: activeRecovery.roomId },
+    );
   }
 
   const roster = await loadChallengeRoster(db, teacherEmail, { classId, classPeriod });
@@ -9859,7 +9940,38 @@ exports.cancelLiveChallenge = onCall(async (request) => {
   const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
   const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
   const privateSnapshot = await privateRef.get();
-  if (!privateSnapshot.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
+  if (!privateSnapshot.exists) {
+    const activePointerRef = db.collection(LIVE_CHALLENGE_TEACHER_ACTIVE).doc(room.teacherEmail);
+    await db.runTransaction(async (transaction) => {
+      const [currentRoom, activePointer] = await Promise.all([
+        transaction.get(roomRef),
+        transaction.get(activePointerRef),
+      ]);
+      if (!currentRoom.exists || currentRoom.data()?.teacherEmail !== room.teacherEmail) {
+        throw new HttpsError("permission-denied", "Only the teacher who launched this challenge can control it.");
+      }
+      transaction.set(roomRef, {
+        status: challenge.LIVE_CHALLENGE_STATUS.CANCELLED,
+        phase: "finished",
+        staleSession: true,
+        currentQuestion: null,
+        startsAt: null,
+        endsAt: null,
+        roundStartedAt: null,
+        roundEndsAt: null,
+        roundToken: null,
+        finishedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      if (activePointer.data()?.roomId === roomId) transaction.delete(activePointerRef);
+    });
+    await updateLiveChallengeInvitesByRoom(db, {
+      roomId,
+      teacherEmail: room.teacherEmail,
+      fields: { status: challenge.LIVE_CHALLENGE_STATUS.CANCELLED, staleSession: true, updatedAt: FieldValue.serverTimestamp() },
+    }).catch((error) => logger.error("liveChallenge.cancelInvites.failed", { roomId, message: error?.message }));
+    return { roomId, status: challenge.LIVE_CHALLENGE_STATUS.CANCELLED };
+  }
   return finishLiveChallengeRoom({ db, roomRef, privateRef, room, status: challenge.LIVE_CHALLENGE_STATUS.CANCELLED });
 });
 
