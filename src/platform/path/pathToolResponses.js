@@ -94,6 +94,22 @@ export const buildRawPathResponse = ({ pathToolId, answerState }) => {
   });
 };
 
+/**
+ * Whether a canonical Path response contains anything the server can grade.
+ * This is only a client-side decision about whether to send an automatic
+ * submission; it is never a correctness or partial-credit decision.
+ */
+export const hasMeaningfulRawPathResponse = (raw) => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
+  const meaningful = (value) => {
+    if (typeof value === 'string') return value.trim() !== '';
+    if (typeof value === 'number' || typeof value === 'boolean') return true;
+    if (Array.isArray(value)) return value.some(meaningful);
+    return value && typeof value === 'object' && Object.values(value).some(meaningful);
+  };
+  return Object.values(raw).some(meaningful);
+};
+
 export const hasRawResponseBuilder = (pathToolId) => Boolean(BUILDERS[pathToolId]);
 
 /**

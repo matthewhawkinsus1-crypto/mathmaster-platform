@@ -68,7 +68,11 @@ import {
   sanitizeRegressionCalculatorPublicQuestion,
   validateRegressionCalculatorResponse,
 } from './pathRegressionCalculatorGrading.mjs';
-import { gradeSolverRaceRelation } from './solverRaceEquivalence.mjs';
+import {
+  gradeSolverRaceRelation,
+  solverRaceProgressScore,
+  solverRaceRelationChanged,
+} from './solverRaceEquivalence.mjs';
 import {
   buildGraphingPrivateDefinition,
   gradeGraphingResponse,
@@ -862,6 +866,8 @@ const CONTRACTS = {
       tolerance: Number(question.numericTolerance ?? 1e-6),
       solverGrader: String(question.solverGrader || ''),
       expectedFinalRelation: question.expectedFinalRelation ?? null,
+      initialRelation: question.equation ?? question.equationLatex ?? null,
+      solutionDepth: Math.max(1, Number(question.solutionDepth) || 1),
     }),
     validateStudentResponse: (raw) => {
       const hasEquation = typeof raw?.finalEquation === 'string' && raw.finalEquation.trim() !== '';
@@ -871,13 +877,23 @@ const CONTRACTS = {
     },
     gradeStudentResponse: (definition, raw) => {
       if (definition.solverGrader && definition.expectedFinalRelation != null) {
-        const isCorrect = gradeSolverRaceRelation({
+        const actual = raw.finalRelation || raw.finalEquation || '';
+        const isCorrect = solverRaceRelationChanged(actual, definition.initialRelation) && gradeSolverRaceRelation({
           family: definition.solverGrader,
           expected: definition.expectedFinalRelation,
           variable: definition.variable,
-          actual: raw.finalRelation || raw.finalEquation || '',
+          actual,
         });
-        return graded(isCorrect, [{ id: 'algebra-objective', isCorrect }]);
+        const result = graded(isCorrect, [{ id: 'algebra-objective', isCorrect }]);
+        return { ...result, score: solverRaceProgressScore({
+          family: definition.solverGrader,
+          initial: definition.initialRelation,
+          expected: definition.expectedFinalRelation,
+          actual,
+          variable: definition.variable,
+          solutionDepth: definition.solutionDepth,
+          isCorrect,
+        }) };
       }
       const isolated = isolatedValue(raw.finalEquation, definition.variable);
       const given = isolated ?? raw.value;
