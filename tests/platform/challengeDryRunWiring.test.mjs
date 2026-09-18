@@ -195,16 +195,16 @@ test('the live game renders those same components rather than inline copies', ()
 });
 
 test('a prompt on the wall is rendered as mathematics, not as raw LaTeX', () => {
-  // The student round was fixed for this earlier; the projector board and the
-  // teacher status panel were still interpolating the prompt as bare text, so
-  // an authored `$7(x-9)=63$` reached the screen in front of the class.
+  // The teacher status and the extracted projector are separate components now,
+  // but both still have to render authored math through MathText.
   assert.match(teacher, /import MathText from '\.\.\/common\/MathText\.jsx'/);
+  assert.match(arenaProjector, /import MathText from '\.\.\/common\/MathText\.jsx'/);
   assert.doesNotMatch(teacher, /\{room\.currentQuestion\?\.prompt\}<\/div>/);
-  assert.equal(
-    (teacher.match(/<MathText as="div"[\s\S]{0,200}currentQuestion\?\.prompt/g) || []).length,
-    2,
-    'both the control screen and the projector must render the prompt through MathText',
-  );
+  assert.doesNotMatch(arenaProjector, /\{room\?\.currentQuestion\?\.prompt\}<\/div>/);
+  const teacherMathPrompts = (teacher.match(/<MathText as="div"[\s\S]{0,220}currentQuestion\?\.prompt/g) || []).length;
+  const projectorMathPrompts = (arenaProjector.match(/<MathText[\s\S]{0,300}currentQuestion\?\.prompt/g) || []).length;
+  assert.equal(teacherMathPrompts, 1, 'the control screen must render the prompt through MathText');
+  assert.equal(projectorMathPrompts, 1, 'the projector must render the prompt through MathText');
 });
 
 test('the sample leaderboard cannot be mistaken for a real class', () => {
