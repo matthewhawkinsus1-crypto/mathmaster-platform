@@ -396,13 +396,13 @@ const structuralCancellation = (expression) => {
           .map((pair) => [pair.numeratorIndex, pair.positiveNumerator]),
       );
       const cancelledDenominators = new Set(pairs.map((pair) => pair.denominatorIndex));
-      const remainingNumerator = factors.numerator
-        .filter((_, index) => !cancelledNumerators.has(index))
-        .map((factor, index) => (
-          signReplacements.has(index)
-            ? { ...factor, text: signReplacements.get(index) }
-            : factor
-        ));
+      const remainingNumerator = factors.numerator.flatMap((factor, index) => {
+        if (cancelledNumerators.has(index)) return [];
+        if (signReplacements.has(index)) {
+          return [{ ...factor, text: signReplacements.get(index) }];
+        }
+        return [factor];
+      });
       const remainingDenominator = factors.denominator.filter((_, index) => !cancelledDenominators.has(index));
 
       const multiply = (items) => {
