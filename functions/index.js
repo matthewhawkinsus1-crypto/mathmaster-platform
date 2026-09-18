@@ -9025,7 +9025,7 @@ async function requireOwnedChallenge(db, request, roomId) {
   return { teacherEmail, roomRef, room };
 }
 
-exports.createLiveChallenge = onCall(async (request) => {
+exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   await requireTeacher(request);
   const teacherEmail = callerEmail(request);
   if (!teacherEmail) throw new HttpsError("permission-denied", "A verified teacher email is required for Live Challenge.");
