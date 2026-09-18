@@ -231,7 +231,13 @@ function AdditiveExpressionRegion({
     if (!placementMode) setPlacementTargetIndex(null);
   }, [placementMode]);
 
-  if (!terms?.length) {
+  if (!terms?.length || (terms.length === 1 && !placementMode)) {
+    // A single opaque expression should be rendered by the relation-aware
+    // renderer instead of the additive-term renderer. In particular, mathjs
+    // can encode (-3)/2 with a signed quotient shape that the term renderer
+    // displays as an extra visual minus even though the stored expression is
+    // still negative three-halves. Keep staging interactive, but use one
+    // canonical sign renderer once the balanced operation is committed.
     return (
       <span style={{ fontSize: 30, minWidth: 70, textAlign: 'center' }}>
         <MathDisplay value={relationExpressionToLatex(expression)} format="latex" inline />
