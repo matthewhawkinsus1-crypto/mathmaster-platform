@@ -68,6 +68,7 @@ import {
   sanitizeRegressionCalculatorPublicQuestion,
   validateRegressionCalculatorResponse,
 } from './pathRegressionCalculatorGrading.mjs';
+import { gradeSolverRaceRelation } from './solverRaceEquivalence.mjs';
 import {
   buildGraphingPrivateDefinition,
   gradeGraphingResponse,
@@ -329,6 +330,31 @@ export const hasSingleEquation = (question = {}) => {
   if (question.leftExpression && question.rightExpression) return true;
   return [question.equation, question.equationAscii, question.initialEquation, question.equationLatex]
     .some((value) => typeof value === 'string' && value.split('=').length === 2);
+};
+
+const SOLVER_RELATION_FAMILIES = new Set([
+  'literalEquation', 'linearInequality', 'absoluteValueEquation', 'absoluteValueInequality',
+]);
+
+/**
+ * Solver Race's explicit relation gate. This is deliberately not the ordinary
+ * Step Algebra gate: legacy balance questions still require one equals sign.
+ * A generated race relation is admitted only when its private grader names a
+ * supported family and its visible source has that family's relation shape.
+ */
+export const hasSupportedSolverRelation = (question = {}) => {
+  const family = String(question.solverGrader || '');
+  if (!SOLVER_RELATION_FAMILIES.has(family)) return false;
+  const source = [question.equation, question.equationAscii, question.initialEquation, question.equationLatex]
+    .find((value) => typeof value === 'string' && value.trim());
+  if (!source || source.length > 180) return false;
+  const normalized = source.replace(/\\leq?|≤/g, '<=').replace(/\\geq?|≥/g, '>=');
+  const equalsCount = (normalized.match(/(?<![<>])=(?!=)/g) || []).length;
+  const inequalityCount = (normalized.match(/<=|>=|<|>/g) || []).length;
+  if (family === 'literalEquation' || family === 'absoluteValueEquation') {
+    return equalsCount === 1 && inequalityCount === 0;
+  }
+  return equalsCount === 0 && inequalityCount >= 1 && inequalityCount <= 2;
 };
 
 /** Copy only the named fields, and only when they are actually present. */
@@ -815,11 +841,12 @@ const CONTRACTS = {
   // students for writing a correct answer a different way, so the question is
   // not path-eligible instead.
   stepAlgebra: {
-    serverGradingVersion: 1,
-    responseShape: 'finalEquation',
+    serverGradingVersion: 2,
+    responseShape: 'finalEquationOrRelation',
     sanitizePublicQuestion: (question) => pick(question, [
       'prompt', 'equationLatex', 'equation', 'variable', 'objective', 'targetForm',
       'workspaceDifficulty', 'supportLevel', 'allowedOperations', 'context', 'graph',
+      'challengeFamily', 'difficultyBand', 'solutionDepth', 'operationTags', 'complexityTags',
     ]),
     buildPrivateGradingDefinition: (question) => ({
       expected: question.answer ?? question.solution ?? question.expected ?? null,
@@ -831,14 +858,27 @@ const CONTRACTS = {
       // balance, and a question the tool cannot render is a question that must
       // not be issued — having an answer key is not enough.
       hasEquation: hasSingleEquation(question),
+      hasSupportedSolverRelation: hasSupportedSolverRelation(question),
       tolerance: Number(question.numericTolerance ?? 1e-6),
+      solverGrader: String(question.solverGrader || ''),
+      expectedFinalRelation: question.expectedFinalRelation ?? null,
     }),
     validateStudentResponse: (raw) => {
       const hasEquation = typeof raw?.finalEquation === 'string' && raw.finalEquation.trim() !== '';
+      const hasRelation = typeof raw?.finalRelation === 'string' && raw.finalRelation.trim() !== '';
       const hasValue = raw?.value !== undefined && String(raw.value).trim() !== '';
-      return hasEquation || hasValue ? valid() : invalid('A workspace response needs the equation the student finished with.');
+      return hasEquation || hasRelation || hasValue ? valid() : invalid('A workspace response needs the mathematical relation the student finished with.');
     },
     gradeStudentResponse: (definition, raw) => {
+      if (definition.solverGrader && definition.expectedFinalRelation != null) {
+        const isCorrect = gradeSolverRaceRelation({
+          family: definition.solverGrader,
+          expected: definition.expectedFinalRelation,
+          variable: definition.variable,
+          actual: raw.finalRelation || raw.finalEquation || '',
+        });
+        return graded(isCorrect, [{ id: 'algebra-objective', isCorrect }]);
+      }
       const isolated = isolatedValue(raw.finalEquation, definition.variable);
       const given = isolated ?? raw.value;
       const candidates = [definition.expected, ...definition.accepted]
@@ -1273,8 +1313,9 @@ export const hasGradableDefinition = (toolId, definition) => {
     case 'stepAlgebra':
       // Symbolic prompts need marking this server cannot do fairly.
       return definition.symbolicPrompts === 0
-        && definition.hasEquation
-        && (definition.expected != null || definition.accepted.length > 0);
+        && (definition.solverGrader ? definition.hasSupportedSolverRelation : definition.hasEquation)
+        && ((definition.solverGrader && definition.expectedFinalRelation != null)
+          || definition.expected != null || definition.accepted.length > 0);
     case 'functionInvestigation':
       // Something must have a declared expectation, or there is nothing to
       // mark — and every analysis part must be one the workspace can actually

@@ -145,7 +145,11 @@ test('the dry-run callables write nothing but the dry-run document', () => {
     assert.ok(!block.includes(forbidden), `a dry run must not reference ${forbidden}`);
   }
   const writes = block.match(/\.(set|update|add|create)\(/g) || [];
-  assert.equal(writes.length, 2, 'only the create and the swap may write');
+  // Solver Race has a separate swap branch because its generated definition
+  // lives in this private document rather than the bank. Count destinations,
+  // not source statements: every write must still target the owned dry-run ref.
+  assert.ok(writes.length >= 2, 'create and swap must persist their dry-run state');
+  assert.equal((block.match(/await ref\.set\(/g) || []).length, writes.length, 'every write must target only the dry-run document');
   assert.equal((block.match(/\.delete\(\)/g) || []).length, 1, 'only discard may delete');
 });
 

@@ -72,7 +72,7 @@ function useNow(active = true) {
   return now;
 }
 
-export default function ChallengeDryRun({ courseId, standardCode, questionStyle = 'any', roundCount, roundSeconds, title, onClose }) {
+export default function ChallengeDryRun({ courseId, standardCode, questionStyle = 'any', challengeMode = 'standard', solverRaceFocus = 'mixed', roundCount, roundSeconds, title, onClose }) {
   const [dryRun, setDryRun] = useState(null);
   const [roundIndex, setRoundIndex] = useState(0);
   const [busy, setBusy] = useState('');
@@ -87,7 +87,7 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
     let cancelled = false;
     setBusy('create');
     setError('');
-    createChallengeDryRun({ courseId, standardCode, questionStyle, roundCount, roundSeconds })
+    createChallengeDryRun({ courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, roundCount, roundSeconds })
       .then((result) => {
         if (cancelled) return;
         setDryRun(result);
@@ -99,7 +99,7 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
       })
       .finally(() => { if (!cancelled) setBusy(''); });
     return () => { cancelled = true; };
-  }, [courseId, standardCode, questionStyle, roundCount, roundSeconds]);
+  }, [courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, roundCount, roundSeconds]);
 
   // Leaving without discarding would leave the rehearsal's question list behind.
   const close = useCallback(() => {
@@ -168,6 +168,11 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <div>
           <strong style={{ display: 'block', fontSize: 17 }}>Dry run — no students are in this</strong>
+          {dryRun.challengeMode === 'solverRace' && (
+            <span style={{ display: 'block', color: '#174ea6', fontWeight: 800 }}>
+              Round {roundIndex + 1} of {dryRun.rounds.length} · {round?.question?.tool?.challengeFamily || 'Solver Race'} · {round?.question?.tool?.difficultyBand || ''}
+            </span>
+          )}
           <span style={{ color: '#5f4400' }}>
             Nothing here is invited, scored or recorded. Swap any round you would not want a class to see.
           </span>

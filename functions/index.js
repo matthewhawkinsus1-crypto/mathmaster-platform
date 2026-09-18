@@ -8742,6 +8742,11 @@ async function liveChallengeRules() {
   if (!liveChallengeModule) liveChallengeModule = await import("./shared/liveChallenge.mjs");
   return liveChallengeModule;
 }
+let solverRaceModule = null;
+async function solverRaceRules() {
+  if (!solverRaceModule) solverRaceModule = await import("./shared/solverRace.mjs");
+  return solverRaceModule;
+}
 
 let liveChallengeReportModule = null;
 async function liveChallengeReportRules() {
@@ -8844,6 +8849,24 @@ async function loadChallengeCandidates(db, { courseId, standardCode, questionSty
   return planned.filter((entry) => entry.plan.issuable);
 }
 
+async function securelyPlanSolverRace(questions) {
+  const planned = await Promise.all(questions.map(async (question, roundIndex) => ({
+    question,
+    roundIndex,
+    plan: await mathPath.buildIssuePlan(question),
+  })));
+  const failed = planned.find((entry) => !entry.plan.issuable);
+  if (failed) {
+    const family = String(failed.question.challengeFamily || 'unknown family');
+    const stage = String(failed.question.difficultyBand || failed.question.solverRaceStage || 'unknown stage');
+    throw new HttpsError(
+      "failed-precondition",
+      `Solver Race round ${failed.roundIndex + 1} cannot be securely issued: ${family} · ${stage} (${failed.plan.reason || "secure grader unavailable"}).`,
+    );
+  }
+  return planned;
+}
+
 function selectChallengeQuestions(entries, requestedCount) {
   // Prefer one question from each family before a second question from the same
   // family. This keeps a ten-round mixed game from feeling like ten cosmetic
@@ -8863,10 +8886,10 @@ function selectChallengeQuestions(entries, requestedCount) {
   return [...firstByFamily, ...repeats].slice(0, requestedCount);
 }
 
-async function buildLiveChallengePublicQuestion(db, { roomId, roundIndex, questionId }) {
-  const snapshot = await db.collection("pathQuestionBank").doc(questionId).get();
-  if (!snapshot.exists) throw new HttpsError("failed-precondition", "A Live Challenge question is no longer in the secure bank.");
-  const authored = snapshot.data() || {};
+async function buildLiveChallengePublicQuestion(db, { roomId, roundIndex, questionId, authoredQuestion = null }) {
+  const snapshot = authoredQuestion ? null : await db.collection("pathQuestionBank").doc(questionId).get();
+  if (!authoredQuestion && !snapshot.exists) throw new HttpsError("failed-precondition", "A Live Challenge question is no longer in the secure bank.");
+  const authored = authoredQuestion || snapshot.data() || {};
   // A bank record may be a generator template. Live Challenge must instantiate
   // it on the server exactly as My Math Path does; grading reconstructs the
   // same draw from this deterministic seed, so the browser never chooses the
@@ -9002,8 +9025,16 @@ exports.createLiveChallenge = onCall(async (request) => {
   const roster = await loadChallengeRoster(db, teacherEmail, { classId, classPeriod });
   if (!roster.length) throw new HttpsError("failed-precondition", `No students assigned to you were found in ${className || classPeriod}.`);
 
-  const questionStyle = challenge.canonicalQuestionStyle(request.data?.questionStyle);
-  const candidates = await loadChallengeCandidates(db, { courseId, standardCode, questionStyle });
+  const solverRace = await solverRaceRules();
+  const challengeMode = solverRace.canonicalChallengeMode(request.data?.challengeMode);
+  const solverRaceFocus = solverRace.canonicalSolverRaceFocus(request.data?.solverRaceFocus);
+  const questionStyle = challengeMode === "solverRace" ? "tools" : challenge.canonicalQuestionStyle(request.data?.questionStyle);
+  const solverQuestions = challengeMode === "solverRace"
+    ? solverRace.planSolverRace({ roundCount: requestedRoundCount, focus: solverRaceFocus, seed: `${teacherEmail}|${Date.now()}` })
+    : null;
+  const candidates = solverQuestions
+    ? await securelyPlanSolverRace(solverQuestions)
+    : await loadChallengeCandidates(db, { courseId, standardCode, questionStyle });
   if (candidates.length < challenge.MIN_ROUND_COUNT) {
     throw new HttpsError(
       "failed-precondition",
@@ -9012,7 +9043,7 @@ exports.createLiveChallenge = onCall(async (request) => {
         : `${standardCode} has only ${candidates.length} securely gradeable challenge question${candidates.length === 1 ? "" : "s"}${questionStyleLabel(questionStyle)}. At least ${challenge.MIN_ROUND_COUNT} are required.`,
     );
   }
-  const selected = selectChallengeQuestions(candidates, requestedRoundCount);
+  const selected = solverQuestions ? candidates : selectChallengeQuestions(candidates, requestedRoundCount);
   const actualRoundCount = selected.length;
 
   const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc();
@@ -9045,6 +9076,8 @@ exports.createLiveChallenge = onCall(async (request) => {
     courseId,
     standardCode,
     questionStyle,
+    challengeMode,
+    solverRaceFocus: challengeMode === "solverRace" ? solverRaceFocus : null,
     status: challenge.LIVE_CHALLENGE_STATUS.LOBBY,
     roundCount: actualRoundCount,
     requestedRoundCount,
@@ -9068,6 +9101,9 @@ exports.createLiveChallenge = onCall(async (request) => {
     roomId: roomRef.id,
     teacherEmail,
     questionIds: selected.map((entry) => entry.question.id),
+    // Generated solver definitions stay in the server-only challenge document.
+    // Public room payloads are produced by the normal Path sanitizer below.
+    roundQuestions: challengeMode === "solverRace" ? selected.map((entry) => entry.question) : null,
     // The standard each round is about, captured now. The report is assembled
     // after the room closes, and re-reading the bank then would give whatever
     // the question says today rather than what the class actually answered.
@@ -9219,8 +9255,16 @@ exports.createChallengeDryRun = onCall(async (request) => {
   const requestedRoundCount = challenge.normalizeRoundCount(request.data?.roundCount);
   const roundSeconds = challenge.normalizeRoundSeconds(request.data?.roundSeconds);
 
-  const questionStyle = challenge.canonicalQuestionStyle(request.data?.questionStyle);
-  const candidates = await loadChallengeCandidates(db, { courseId, standardCode, questionStyle });
+  const solverRace = await solverRaceRules();
+  const challengeMode = solverRace.canonicalChallengeMode(request.data?.challengeMode);
+  const solverRaceFocus = solverRace.canonicalSolverRaceFocus(request.data?.solverRaceFocus);
+  const questionStyle = challengeMode === "solverRace" ? "tools" : challenge.canonicalQuestionStyle(request.data?.questionStyle);
+  const solverQuestions = challengeMode === "solverRace"
+    ? solverRace.planSolverRace({ roundCount: requestedRoundCount, focus: solverRaceFocus, seed: `${teacherEmail}|dry|${Date.now()}` })
+    : null;
+  const candidates = solverQuestions
+    ? await securelyPlanSolverRace(solverQuestions)
+    : await loadChallengeCandidates(db, { courseId, standardCode, questionStyle });
   if (candidates.length < challenge.MIN_ROUND_COUNT) {
     throw new HttpsError(
       "failed-precondition",
@@ -9229,7 +9273,7 @@ exports.createChallengeDryRun = onCall(async (request) => {
       `That selection has only ${candidates.length} securely gradeable questions${questionStyleLabel(questionStyle)}. At least ${challenge.MIN_ROUND_COUNT} are required.`,
     );
   }
-  const selected = selectChallengeQuestions(candidates, requestedRoundCount);
+  const selected = solverQuestions ? candidates : selectChallengeQuestions(candidates, requestedRoundCount);
   const questionIds = selected.map((entry) => entry.question.id);
 
   const ref = db.collection(LIVE_CHALLENGE_DRY_RUNS).doc();
@@ -9239,6 +9283,9 @@ exports.createChallengeDryRun = onCall(async (request) => {
     courseId,
     standardCode,
     questionStyle,
+    challengeMode,
+    solverRaceFocus: challengeMode === "solverRace" ? solverRaceFocus : null,
+    roundQuestions: challengeMode === "solverRace" ? selected.map((entry) => entry.question) : null,
     roundSeconds,
     questionIds,
     createdAt: FieldValue.serverTimestamp(),
@@ -9247,10 +9294,12 @@ exports.createChallengeDryRun = onCall(async (request) => {
 
   const rounds = await Promise.all(questionIds.map(async (questionId, roundIndex) => ({
     roundIndex,
-    question: await buildLiveChallengePublicQuestion(db, { roomId: ref.id, roundIndex, questionId }),
+    question: await buildLiveChallengePublicQuestion(db, {
+      roomId: ref.id, roundIndex, questionId, authoredQuestion: solverQuestions?.[roundIndex] || null,
+    }),
   })));
 
-  return { dryRunId: ref.id, courseId, standardCode, questionStyle, roundSeconds, roundCount: rounds.length, rounds };
+  return { dryRunId: ref.id, courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, roundSeconds, roundCount: rounds.length, rounds };
 });
 
 exports.swapChallengeDryRunRound = onCall(async (request) => {
@@ -9261,6 +9310,29 @@ exports.swapChallengeDryRunRound = onCall(async (request) => {
 
   const questionIds = Array.isArray(dryRun.questionIds) ? [...dryRun.questionIds] : [];
   if (roundIndex >= questionIds.length) throw new HttpsError("invalid-argument", "That round is not part of this dry run.");
+
+  if (dryRun.challengeMode === "solverRace") {
+    const solverRace = await solverRaceRules();
+    const roundQuestions = Array.isArray(dryRun.roundQuestions) ? [...dryRun.roundQuestions] : [];
+    const current = roundQuestions[roundIndex];
+    const inUseFamilies = new Set(questionIds.map((id) => String(id).replace(/_r\d+$/, "")));
+    const alternate = solverRace.SOLVER_RACE_CATALOG.find((entry) => (
+      entry.challengeFamily === current?.challengeFamily
+      && entry.difficultyBand === current?.difficultyBand
+      && !inUseFamilies.has(entry.id)
+    )) || solverRace.SOLVER_RACE_CATALOG.find((entry) => entry.challengeFamily === current?.challengeFamily && entry.id !== current?.id);
+    if (!alternate) throw new HttpsError("failed-precondition", "There is no other Solver Race structure for this stage.");
+    const replacementQuestion = { ...alternate, id: `${alternate.id}_r${roundIndex + 1}`, solverRaceRound: roundIndex, solverRaceStage: current?.solverRaceStage };
+    questionIds[roundIndex] = replacementQuestion.id;
+    roundQuestions[roundIndex] = replacementQuestion;
+    await ref.set({ questionIds, roundQuestions, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    return {
+      roundIndex,
+      question: await buildLiveChallengePublicQuestion(db, {
+        roomId: ref.id, roundIndex, questionId: replacementQuestion.id, authoredQuestion: replacementQuestion,
+      }),
+    };
+  }
 
   // A fresh draw, then the first candidate this dry run is not already using.
   // Swapping a question for one already in the set would look like the button
@@ -9298,9 +9370,10 @@ exports.gradeChallengeDryRunResponse = onCall(async (request) => {
 
   // The same seed the public question was built from, so the teacher is graded
   // against the draw they were actually shown.
-  const snapshot = await db.collection("pathQuestionBank").doc(questionId).get();
-  if (!snapshot.exists) throw new HttpsError("failed-precondition", "That question is no longer in the secure bank.");
-  const instantiated = await mathPath.instantiateQuestion(snapshot.data() || {}, `challenge|${ref.id}|${roundIndex}|${questionId}`);
+  const authoredQuestion = dryRun.roundQuestions?.[roundIndex] || null;
+  const snapshot = authoredQuestion ? null : await db.collection("pathQuestionBank").doc(questionId).get();
+  if (!authoredQuestion && !snapshot.exists) throw new HttpsError("failed-precondition", "That question is no longer in the secure bank.");
+  const instantiated = await mathPath.instantiateQuestion(authoredQuestion || snapshot.data() || {}, `challenge|${ref.id}|${roundIndex}|${questionId}`);
   if (!instantiated.question) throw new HttpsError("failed-precondition", "That question could not be regenerated.");
   const plan = await mathPath.buildIssuePlan(instantiated.question);
   if (!plan.issuable) throw new HttpsError("failed-precondition", "That question can no longer be securely graded.");
@@ -9409,7 +9482,12 @@ async function openLiveChallengeRound({ db, roomRef, privateRef, room, privateSt
   const parity = await import("./shared/liveChallengeParity.mjs");
   const questionId = privateState.questionIds?.[roundIndex];
   if (!questionId) throw new HttpsError("failed-precondition", "That Live Challenge round has no question.");
-  const currentQuestion = await buildLiveChallengePublicQuestion(db, { roomId: roomRef.id, roundIndex, questionId });
+  const currentQuestion = await buildLiveChallengePublicQuestion(db, {
+    roomId: roomRef.id,
+    roundIndex,
+    questionId,
+    authoredQuestion: privateState.roundQuestions?.[roundIndex] || null,
+  });
   const nowMs = Date.now();
   const roundSeconds = challenge.normalizeRoundSeconds(room.roundSeconds);
   const roundVersion = Math.max(Number(room.roundVersion) || 0, roundIndex) + 1;
@@ -9729,14 +9807,17 @@ exports.advanceLiveChallenge = onCall(async (request) => {
     }
 
     const questionIds = [...(privateState.questionIds || [])];
+    const roundQuestions = Array.isArray(privateState.roundQuestions) ? [...privateState.roundQuestions] : null;
     const secondChanceOf = { ...privateState.secondChanceOf };
     replays.forEach((originalRound) => {
       secondChanceOf[String(questionIds.length)] = originalRound;
       questionIds.push(privateState.questionIds[originalRound]);
+      if (roundQuestions) roundQuestions.push(privateState.roundQuestions[originalRound]);
     });
 
     await privateRef.set({
       questionIds,
+      ...(roundQuestions ? { roundQuestions } : {}),
       secondChanceOf,
       scheduledRoundCount: scheduled,
       secondChancePlanned: true,
@@ -9747,7 +9828,7 @@ exports.advanceLiveChallenge = onCall(async (request) => {
       roomRef,
       privateRef,
       room,
-      privateState: { ...privateState, questionIds, secondChanceOf, scheduledRoundCount: scheduled, secondChancePlanned: true },
+      privateState: { ...privateState, questionIds, ...(roundQuestions ? { roundQuestions } : {}), secondChanceOf, scheduledRoundCount: scheduled, secondChancePlanned: true },
       roundIndex: nextRound,
     });
   }
@@ -9885,9 +9966,10 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   if (Number(currentPlayer.answeredRound) === submittedRound) throw new HttpsError("already-exists", "You already answered this round.");
 
   const questionId = privateState.questionIds?.[submittedRound];
-  const questionSnapshot = questionId ? await db.collection("pathQuestionBank").doc(questionId).get() : null;
-  if (!questionSnapshot?.exists) throw new HttpsError("failed-precondition", "This round's secure question is unavailable.");
-  const authored = questionSnapshot.data() || {};
+  const privateAuthored = privateState.roundQuestions?.[submittedRound] || null;
+  const questionSnapshot = !privateAuthored && questionId ? await db.collection("pathQuestionBank").doc(questionId).get() : null;
+  if (!privateAuthored && !questionSnapshot?.exists) throw new HttpsError("failed-precondition", "This round's secure question is unavailable.");
+  const authored = privateAuthored || questionSnapshot.data() || {};
   const seedKey = `challenge|${roomId}|${submittedRound}|${questionId}`;
   const instantiated = await mathPath.instantiateQuestion(authored, seedKey);
   if (!instantiated.question) throw new HttpsError("failed-precondition", "This round's question could not be regenerated securely.");
