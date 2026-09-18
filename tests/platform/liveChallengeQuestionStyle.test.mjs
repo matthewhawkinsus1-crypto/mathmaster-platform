@@ -121,7 +121,8 @@ test('the control exists and rehearses with the dry run', () => {
     deps[1].split(',').map((name) => name.trim()).includes('questionStyle'),
     'a style change must close a rehearsal drawn under the old style',
   );
-  assert.match(teacher, /courseId,\n        standardCode,\n        questionStyle,/, 'createLiveChallenge must send it');
+  const createCall = region(teacher, 'created = await createLiveChallenge({', '});', 'createLiveChallenge payload');
+  assert.match(createCall, /\bquestionStyle,/, 'createLiveChallenge must send the selected style');
 });
 
 /* ---------- the student round reads as a game ---------- */
