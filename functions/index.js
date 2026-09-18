@@ -9028,9 +9028,10 @@ exports.createLiveChallenge = onCall(async (request) => {
   const solverRace = await solverRaceRules();
   const challengeMode = solverRace.canonicalChallengeMode(request.data?.challengeMode);
   const solverRaceFocus = solverRace.canonicalSolverRaceFocus(request.data?.solverRaceFocus);
+  const solverRaceDifficulty = solverRace.canonicalSolverRaceDifficulty(request.data?.solverRaceDifficulty);
   const questionStyle = challengeMode === "solverRace" ? "tools" : challenge.canonicalQuestionStyle(request.data?.questionStyle);
   const solverQuestions = challengeMode === "solverRace"
-    ? solverRace.planSolverRace({ roundCount: requestedRoundCount, focus: solverRaceFocus, seed: `${teacherEmail}|${Date.now()}` })
+    ? solverRace.planSolverRace({ roundCount: requestedRoundCount, focus: solverRaceFocus, difficulty: solverRaceDifficulty, seed: `${teacherEmail}|${Date.now()}` })
     : null;
   const candidates = solverQuestions
     ? await securelyPlanSolverRace(solverQuestions)
@@ -9078,6 +9079,7 @@ exports.createLiveChallenge = onCall(async (request) => {
     questionStyle,
     challengeMode,
     solverRaceFocus: challengeMode === "solverRace" ? solverRaceFocus : null,
+    solverRaceDifficulty: challengeMode === "solverRace" ? solverRaceDifficulty : null,
     status: challenge.LIVE_CHALLENGE_STATUS.LOBBY,
     roundCount: actualRoundCount,
     requestedRoundCount,
@@ -9258,9 +9260,10 @@ exports.createChallengeDryRun = onCall(async (request) => {
   const solverRace = await solverRaceRules();
   const challengeMode = solverRace.canonicalChallengeMode(request.data?.challengeMode);
   const solverRaceFocus = solverRace.canonicalSolverRaceFocus(request.data?.solverRaceFocus);
+  const solverRaceDifficulty = solverRace.canonicalSolverRaceDifficulty(request.data?.solverRaceDifficulty);
   const questionStyle = challengeMode === "solverRace" ? "tools" : challenge.canonicalQuestionStyle(request.data?.questionStyle);
   const solverQuestions = challengeMode === "solverRace"
-    ? solverRace.planSolverRace({ roundCount: requestedRoundCount, focus: solverRaceFocus, seed: `${teacherEmail}|dry|${Date.now()}` })
+    ? solverRace.planSolverRace({ roundCount: requestedRoundCount, focus: solverRaceFocus, difficulty: solverRaceDifficulty, seed: `${teacherEmail}|dry|${Date.now()}` })
     : null;
   const candidates = solverQuestions
     ? await securelyPlanSolverRace(solverQuestions)
@@ -9285,6 +9288,7 @@ exports.createChallengeDryRun = onCall(async (request) => {
     questionStyle,
     challengeMode,
     solverRaceFocus: challengeMode === "solverRace" ? solverRaceFocus : null,
+    solverRaceDifficulty: challengeMode === "solverRace" ? solverRaceDifficulty : null,
     roundQuestions: challengeMode === "solverRace" ? selected.map((entry) => entry.question) : null,
     roundSeconds,
     questionIds,
@@ -9299,7 +9303,7 @@ exports.createChallengeDryRun = onCall(async (request) => {
     }),
   })));
 
-  return { dryRunId: ref.id, courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, roundSeconds, roundCount: rounds.length, rounds };
+  return { dryRunId: ref.id, courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, solverRaceDifficulty, roundSeconds, roundCount: rounds.length, rounds };
 });
 
 exports.swapChallengeDryRunRound = onCall(async (request) => {
@@ -9320,7 +9324,7 @@ exports.swapChallengeDryRunRound = onCall(async (request) => {
       entry.challengeFamily === current?.challengeFamily
       && entry.difficultyBand === current?.difficultyBand
       && !inUseFamilies.has(entry.id)
-    )) || solverRace.SOLVER_RACE_CATALOG.find((entry) => entry.challengeFamily === current?.challengeFamily && entry.id !== current?.id);
+    ));
     if (!alternate) throw new HttpsError("failed-precondition", "There is no other Solver Race structure for this stage.");
     const replacementQuestion = { ...alternate, id: `${alternate.id}_r${roundIndex + 1}`, solverRaceRound: roundIndex, solverRaceStage: current?.solverRaceStage };
     questionIds[roundIndex] = replacementQuestion.id;

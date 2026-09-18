@@ -91,7 +91,12 @@ test('a game that cannot be filled says which style emptied it', () => {
 });
 
 test('the choice is remembered on the room and on the dry run', () => {
-  assert.match(functionsIndex, /standardCode,\n    questionStyle,\n    challengeMode,\n    solverRaceFocus:[\s\S]{0,100}status: challenge\.LIVE_CHALLENGE_STATUS\.LOBBY/);
+  // Difficulty is durable room configuration beside focus; keep this assertion
+  // anchored to the room write rather than assuming the old frozen shape.
+  const roomWrite = functionsIndex.slice(functionsIndex.indexOf('rootBatch.set(roomRef'), functionsIndex.indexOf('rootBatch.set(privateRef'));
+  assert.match(roomWrite, /standardCode,\n    questionStyle,\n    challengeMode,/);
+  assert.match(roomWrite, /solverRaceFocus: challengeMode === "solverRace"/);
+  assert.match(roomWrite, /solverRaceDifficulty: challengeMode === "solverRace"/);
   const dryRunWrite = functionsIndex.slice(functionsIndex.indexOf('const ref = db.collection(LIVE_CHALLENGE_DRY_RUNS)'), functionsIndex.indexOf('const rounds = await Promise.all', functionsIndex.indexOf('const ref = db.collection(LIVE_CHALLENGE_DRY_RUNS)')));
   assert.match(dryRunWrite, /standardCode,\n    questionStyle,/);
   assert.match(dryRunWrite, /roundSeconds,\n    questionIds,/);

@@ -1,12 +1,14 @@
 export const SOLVER_RACE_FAMILIES = Object.freeze([
-  'literalEquation', 'linearInequality', 'absoluteValueEquation', 'absoluteValueInequality',
+  'linearEquation', 'literalEquation', 'linearInequality', 'absoluteValueEquation', 'absoluteValueInequality',
 ]);
 
 export const SOLVER_RACE_FOCUS = Object.freeze(['mixed', ...SOLVER_RACE_FAMILIES]);
 export const DIFFICULTY_BANDS = Object.freeze(['foundation', 'developing', 'advanced', 'challenge']);
+export const SOLVER_RACE_DIFFICULTIES = Object.freeze(['ramp', ...DIFFICULTY_BANDS]);
 
 export const canonicalChallengeMode = (value) => value === 'solverRace' ? 'solverRace' : 'standard';
 export const canonicalSolverRaceFocus = (value) => SOLVER_RACE_FOCUS.includes(value) ? value : 'mixed';
+export const canonicalSolverRaceDifficulty = (value) => SOLVER_RACE_DIFFICULTIES.includes(value) ? value : 'ramp';
 
 const q = (id, family, band, depth, equation, solveFor, expectedFinalRelation, operationTags, complexityTags = []) => ({
   id: `solverRace_${family}_${id}`,
@@ -23,6 +25,21 @@ const q = (id, family, band, depth, equation, solveFor, expectedFinalRelation, o
 // Eight genuinely different structures per family. Values are concrete because a whole
 // room must race on the same mathematics; selection rotates structures by a server seed.
 export const SOLVER_RACE_CATALOG = Object.freeze([
+  q('add','linearEquation','foundation',1,'x+7 = 12','x','x = 5',['subtract']),
+  q('subtract','linearEquation','foundation',1,'x-4 = 9','x','x = 13',['add']),
+  q('multiply','linearEquation','foundation',1,'3*x = 18','x','x = 6',['divide']),
+  q('divide','linearEquation','foundation',1,'x/4 = 3','x','x = 12',['multiply'],['fractionCoefficient']),
+  q('two_step','linearEquation','developing',2,'3*x+5 = 20','x','x = 5',['subtract','divide']),
+  q('negative_coefficient','linearEquation','developing',2,'-2*x+3 = 13','x','x = -5',['subtract','divide'],['negativeCoefficient']),
+  q('both_sides','linearEquation','developing',2,'5*x-4 = 2*x+11','x','x = 5',['subtract','add','divide'],['variablesBothSides']),
+  q('signed_both_sides','linearEquation','advanced',3,'7-3*x = 2*x-8','x','x = 3',['subtract','add','divide'],['variablesBothSides','negativeCoefficient']),
+  q('distribution','linearEquation','advanced',3,'3*(x-2)+4 = 19','x','x = 7',['distribute','subtract','divide'],['parentheses']),
+  q('negative_distribution','linearEquation','advanced',3,'-2*(x+3)+5 = 11','x','x = -6',['distribute','subtract','divide'],['parentheses','negativeCoefficient']),
+  q('fraction','linearEquation','advanced',3,'(x-3)/4+2 = 5','x','x = 15',['subtract','multiply'],['fractionCoefficient']),
+  q('multi_operation','linearEquation','challenge',4,'4*(2*x-3)+5 = 3*x+18','x','x = 5',['distribute','subtract','add','divide'],['variablesBothSides','parentheses']),
+  q('distributed_both_sides','linearEquation','challenge',4,'3*(x+4)-2 = 2*(x-1)+17','x','x = 5',['distribute','subtract','add'],['variablesBothSides','parentheses']),
+  q('fraction_both_sides','linearEquation','challenge',4,'(x+5)/3 = (x-1)/2','x','x = 13',['multiply','subtract','add'],['variablesBothSides','fractionCoefficient']),
+
   q('subtract_a','literalEquation','foundation',1,'y = x + a','x','x = y - a',['subtract']),
   q('add_a','literalEquation','foundation',1,'y = x - a','x','x = y + a',['add']),
   q('divide_a','literalEquation','foundation',1,'y = a*x','x','x = y/a',['divide']),
@@ -70,9 +87,10 @@ export const solverRaceFamilyPlan = (roundCount, focus = 'mixed') => {
   const count = Math.max(3, Math.min(20, Math.round(Number(roundCount) || 10)));
   const selected = canonicalSolverRaceFocus(focus);
   if (selected !== 'mixed') return Array(count).fill(selected);
-  // Largest-remainder distribution preserves the 3/3/2/2 ten-round intent.
-  const weights = [3, 3, 2, 2];
-  const raw = weights.map((weight) => count * weight / 10);
+  // Contiguous allocation preserves instructional family order, including for
+  // short races, while largest remainders keep the distribution balanced.
+  const weights = [1, 1, 1, 1, 1];
+  const raw = weights.map((weight) => count * weight / weights.length);
   const allocations = raw.map(Math.floor);
   while (allocations.reduce((a, b) => a + b, 0) < count) {
     const index = raw.map((value, i) => value - allocations[i]).reduce((best, value, i, all) => value > all[best] ? i : best, 0);
@@ -92,6 +110,20 @@ export const difficultyPlan = (roundCount) => Array.from({ length: roundCount },
 const hash = (value) => [...String(value)].reduce((total, char) => ((total * 33) ^ char.charCodeAt(0)) >>> 0, 5381);
 
 const NUMERIC_VARIANTS = Object.freeze({
+  solverRace_linearEquation_add: [['x+9 = 15', 'x = 6'], ['x+4 = 11', 'x = 7']],
+  solverRace_linearEquation_subtract: [['x-6 = 8', 'x = 14'], ['x-9 = 3', 'x = 12']],
+  solverRace_linearEquation_multiply: [['4*x = 28', 'x = 7'], ['5*x = 40', 'x = 8']],
+  solverRace_linearEquation_divide: [['x/3 = 5', 'x = 15'], ['x/6 = 4', 'x = 24']],
+  solverRace_linearEquation_two_step: [['4*x+3 = 27', 'x = 6'], ['2*x-5 = 9', 'x = 7']],
+  solverRace_linearEquation_negative_coefficient: [['-3*x+4 = 19', 'x = -5'], ['-4*x-2 = 18', 'x = -5']],
+  solverRace_linearEquation_both_sides: [['6*x-5 = 3*x+13', 'x = 6'], ['7*x+2 = 4*x+20', 'x = 6']],
+  solverRace_linearEquation_signed_both_sides: [['8-2*x = 3*x-7', 'x = 3'], ['10-4*x = x-10', 'x = 4']],
+  solverRace_linearEquation_distribution: [['2*(x-3)+5 = 17', 'x = 9'], ['4*(x+1)-3 = 25', 'x = 6']],
+  solverRace_linearEquation_negative_distribution: [['-3*(x+2)+4 = 16', 'x = -6'], ['-2*(x-4)-3 = 11', 'x = -3']],
+  solverRace_linearEquation_fraction: [['(x+1)/3+2 = 6', 'x = 11'], ['(x-2)/5-1 = 2', 'x = 17']],
+  solverRace_linearEquation_multi_operation: [['3*(2*x-1)+4 = 2*x+21', 'x = 5'], ['5*(x-2)+3 = 2*x+14', 'x = 7']],
+  solverRace_linearEquation_distributed_both_sides: [['4*(x+2)-3 = 2*(x-1)+15', 'x = 4'], ['5*(x-1)+2 = 3*(x+1)+6', 'x = 6']],
+  solverRace_linearEquation_fraction_both_sides: [['(x+4)/2 = (x+10)/3', 'x = 8'], ['(x-2)/3 = (x-8)/2', 'x = 20']],
   solverRace_linearInequality_one_add: [['x+7 < 15', 'x < 8'], ['x+3 < 12', 'x < 9']],
   solverRace_linearInequality_one_subtract: [['x-6 >= 4', 'x >= 10'], ['x-8 >= -1', 'x >= 7']],
   solverRace_linearInequality_positive_coefficient: [['4*x <= 28', 'x <= 7'], ['5*x <= 40', 'x <= 8']],
@@ -144,12 +176,18 @@ const compressedSequence = (pool, count) => Array.from({ length: count }, (_, in
   return pool[Math.round(index * (pool.length - 1) / (count - 1))];
 });
 
-export const planSolverRace = ({ roundCount = 10, focus = 'mixed', seed = '' } = {}) => {
+export const planSolverRace = ({ roundCount = 10, focus = 'mixed', difficulty = 'ramp', seed = '' } = {}) => {
   const families = solverRaceFamilyPlan(roundCount, focus);
-  const bands = difficultyPlan(families.length);
+  const selectedDifficulty = canonicalSolverRaceDifficulty(difficulty);
+  const bands = selectedDifficulty === 'ramp'
+    ? difficultyPlan(families.length)
+    : Array(families.length).fill(selectedDifficulty);
   const selectedFocus = canonicalSolverRaceFocus(focus);
   if (selectedFocus !== 'mixed') {
-    const ordered = SOLVER_RACE_CATALOG.filter((entry) => entry.challengeFamily === selectedFocus);
+    const familyCatalog = SOLVER_RACE_CATALOG.filter((entry) => entry.challengeFamily === selectedFocus);
+    const ordered = selectedDifficulty === 'ramp'
+      ? familyCatalog
+      : familyCatalog.filter((entry) => entry.difficultyBand === selectedDifficulty);
     const sequence = families.length === ordered.length
       ? ordered
       : compressedSequence(ordered, families.length);

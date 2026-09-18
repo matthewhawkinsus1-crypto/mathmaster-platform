@@ -12,6 +12,7 @@ import mathPath from '../../functions/lib/mathPath.js';
 
 test('catalog provides at least eight explicit structural families per solver family', () => {
   assert.deepEqual(solverRaceCatalogCounts(), {
+    linearEquation: 14,
     literalEquation: 10,
     linearInequality: 8,
     absoluteValueEquation: 8,
@@ -27,8 +28,9 @@ test('catalog provides at least eight explicit structural families per solver fa
 
 test('mixed ten-round race preserves the intended family progression', () => {
   assert.deepEqual(solverRaceFamilyPlan(10, 'mixed'), [
-    'literalEquation', 'literalEquation', 'literalEquation',
-    'linearInequality', 'linearInequality', 'linearInequality',
+    'linearEquation', 'linearEquation',
+    'literalEquation', 'literalEquation',
+    'linearInequality', 'linearInequality',
     'absoluteValueEquation', 'absoluteValueEquation',
     'absoluteValueInequality', 'absoluteValueInequality',
   ]);
@@ -71,15 +73,15 @@ test('room and dry-run planning cannot bypass real secure issuance', () => {
 });
 
 test('mixed and all focused dry-run plans securely build every round', async () => {
-  for (const [focus, count] of [['mixed', 10], ['literalEquation', 3], ['linearInequality', 3], ['absoluteValueEquation', 3], ['absoluteValueInequality', 3]]) {
+  for (const [focus, count] of [['mixed', 10], ['linearEquation', 3], ['literalEquation', 3], ['linearInequality', 3], ['absoluteValueEquation', 3], ['absoluteValueInequality', 3]]) {
     const race = planSolverRace({ roundCount: count, focus, seed: `dry-${focus}` });
     assert.equal(race.length, count);
     for (const question of race) assert.equal((await mathPath.buildIssuePlan(question)).issuable, true, `${focus}: ${question.id}`);
   }
 });
 
-test('all four families survive issue, sanitization, reconstruction, and workspace routing', async () => {
-  for (const family of ['literalEquation', 'linearInequality', 'absoluteValueEquation', 'absoluteValueInequality']) {
+test('all five families survive issue, sanitization, reconstruction, and workspace routing', async () => {
+  for (const family of ['linearEquation', 'literalEquation', 'linearInequality', 'absoluteValueEquation', 'absoluteValueInequality']) {
     const question = SOLVER_RACE_CATALOG.find((entry) => entry.challengeFamily === family);
     const plan = await mathPath.buildIssuePlan(question);
     const publicQuestion = mathPath.buildSanitizedQuestion(question, {
@@ -87,11 +89,40 @@ test('all four families survive issue, sanitization, reconstruction, and workspa
     });
     const renderable = questionFromToolPayload(publicQuestion);
     assert.equal(renderable.type, 'stepAlgebra');
-    assert.equal(needsMultiRelationWorkspace(renderable), family !== 'literalEquation');
+    assert.equal(needsMultiRelationWorkspace(renderable), !['linearEquation', 'literalEquation'].includes(family));
     assert.equal(renderable.responseFields, undefined, 'no typed-answer fallback');
     assert.equal(renderable.choices, undefined, 'no multiple-choice fallback');
     assert.doesNotMatch(JSON.stringify(publicQuestion), /expectedFinalRelation|solverGrader/);
   }
+});
+
+test('every linear-equation structure is securely graded and rejects a wrong solution', () => {
+  const structures = SOLVER_RACE_CATALOG.filter((entry) => entry.challengeFamily === 'linearEquation');
+  assert.ok(structures.length >= 10);
+  for (const question of structures) {
+    assert.equal(grade(question, question.expectedFinalRelation).isCorrect, true, question.id);
+    const answer = Number(question.expectedFinalRelation.split('=')[1]);
+    assert.equal(grade(question, `x = ${answer + 1}`).isCorrect, false, question.id);
+  }
+});
+
+test('difficulty can ramp or remain fixed while long races retain structural variety', () => {
+  const ramp = planSolverRace({ roundCount: 10, focus: 'linearEquation', difficulty: 'ramp', seed: 'room' });
+  assert.deepEqual([...new Set(ramp.map((question) => question.difficultyBand))], ['foundation', 'developing', 'advanced', 'challenge']);
+  for (const difficulty of ['foundation', 'developing', 'advanced', 'challenge']) {
+    const race = planSolverRace({ roundCount: 20, focus: 'linearEquation', difficulty, seed: 'room' });
+    assert.ok(race.every((question) => question.difficultyBand === difficulty));
+    assert.ok(new Set(race.map((question) => question.familyId)).size > 1, difficulty);
+  }
+});
+
+test('a room seed gives every student the same mathematics and different rooms vary', () => {
+  const options = { roundCount: 20, focus: 'linearEquation', difficulty: 'advanced', seed: 'room-a' };
+  assert.deepEqual(planSolverRace(options), planSolverRace(options));
+  assert.notDeepEqual(
+    planSolverRace(options).map((question) => question.equation),
+    planSolverRace({ ...options, seed: 'room-b' }).map((question) => question.equation),
+  );
 });
 
 const grade = (question, actual, clientClaims = {}) => gradePathResponse({

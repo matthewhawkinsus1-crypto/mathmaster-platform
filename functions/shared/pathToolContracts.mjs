@@ -333,7 +333,7 @@ export const hasSingleEquation = (question = {}) => {
 };
 
 const SOLVER_RELATION_FAMILIES = new Set([
-  'literalEquation', 'linearInequality', 'absoluteValueEquation', 'absoluteValueInequality',
+  'linearEquation', 'literalEquation', 'linearInequality', 'absoluteValueEquation', 'absoluteValueInequality',
 ]);
 
 /**
@@ -351,7 +351,7 @@ export const hasSupportedSolverRelation = (question = {}) => {
   const normalized = source.replace(/\\leq?|≤/g, '<=').replace(/\\geq?|≥/g, '>=');
   const equalsCount = (normalized.match(/(?<![<>])=(?!=)/g) || []).length;
   const inequalityCount = (normalized.match(/<=|>=|<|>/g) || []).length;
-  if (family === 'literalEquation' || family === 'absoluteValueEquation') {
+  if (family === 'linearEquation' || family === 'literalEquation' || family === 'absoluteValueEquation') {
     return equalsCount === 1 && inequalityCount === 0;
   }
   return equalsCount === 0 && inequalityCount >= 1 && inequalityCount <= 2;
