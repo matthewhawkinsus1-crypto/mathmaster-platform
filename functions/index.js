@@ -1029,6 +1029,11 @@ function teacherOverrideAppliesToRecord(record, authoritativeOverride = null) {
     || !Number.isFinite(Number(authoritativeOverride.score))
   ) return false;
 
+  if (
+    authoritativeOverride.persistent === true
+    && authoritativeOverride.source === "teacher-section-zero"
+  ) return true;
+
   const recordAttempts = Number(record.totalAttempts ?? record.attemptCount ?? 0);
   const overrideAttempts = Number(authoritativeOverride.totalAttempts);
   if (!Number.isFinite(overrideAttempts) || overrideAttempts !== recordAttempts) return false;
@@ -1048,9 +1053,12 @@ function teacherOverrideAppliesToRecord(record, authoritativeOverride = null) {
 
 const ASSIGNMENT_GRADE_OVERRIDE_KEY = "__assignment";
 const ASSIGNMENT_ZERO_REASONS = Object.freeze({
-  cellPhoneUse: "Cell phone use",
-  academicDishonesty: "Academic dishonesty",
+  cellPhoneUse: "Prohibited cellphone use",
+  academicDishonesty: "Unauthorized assistance / cheating",
+  accountSwitching: "Account or laptop switching",
 });
+const INTEGRITY_PARTICIPANT_ROLES = new Set(["individual", "received", "supplied"]);
+const SECTION_INTEGRITY_KEY_PREFIX = "__sectionIntegrity_";
 
 function activeAssignmentGradeOverride(authoritativeOverrides = {}) {
   const override = authoritativeOverrides?.[ASSIGNMENT_GRADE_OVERRIDE_KEY] || null;
@@ -1526,12 +1534,30 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
   const action = String(request.data?.action || "").trim();
   const reasonCode = String(request.data?.reasonCode || "").trim();
   const note = String(request.data?.note || "").trim().slice(0, 500);
+  const consequence = request.data?.academicIntegrityConsequence || null;
+  const scope = String(consequence?.scope || "assignment").trim();
+  const sectionRole = String(consequence?.sectionRole || "").trim().toLowerCase();
+  const participantRole = String(consequence?.participantRole || "").trim();
+  const teacherConfirmed = consequence?.teacherConfirmed === true;
+  const supportedActions = ["issueZero", "restoreAutomatic", "restoreSectionZero"];
 
-  if (!studentId || !assignmentId || !["issueZero", "restoreAutomatic"].includes(action)) {
+  if (!studentId || !assignmentId || !supportedActions.includes(action)) {
     throw new HttpsError("invalid-argument", "Student, assignment, and a supported grade action are required.");
   }
-  if (action === "issueZero" && !ASSIGNMENT_ZERO_REASONS[reasonCode]) {
-    throw new HttpsError("invalid-argument", "Choose a supported reason for the zero.");
+  // Automated INTEGRITY_REVIEW/SYSTEM_SIGNAL evidence may prompt review, but
+  // can never become a grade consequence without a deliberate teacher action.
+  if (consequence?.isSystemSignal === true || consequence?.triggerType === "SYSTEM_SIGNAL") {
+    throw new HttpsError("failed-precondition", "System signals cannot issue academic-integrity consequences.");
+  }
+  if (!consequence || !teacherConfirmed) {
+    throw new HttpsError("failed-precondition", "The teacher must explicitly confirm the incident.");
+  }
+  if (!["assignment", "section"].includes(scope) || !ASSIGNMENT_ZERO_REASONS[reasonCode]
+      || consequence.incidentReason !== reasonCode || !INTEGRITY_PARTICIPANT_ROLES.has(participantRole)) {
+    throw new HttpsError("invalid-argument", "Choose a supported scope, reason, and participant role.");
+  }
+  if ((scope === "section") !== ["issueZero", "restoreSectionZero"].includes(action)) {
+    throw new HttpsError("invalid-argument", "The action does not match the integrity consequence scope.");
   }
 
   const db = getFirestore();
@@ -1540,93 +1566,79 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
   const nowIso = new Date().toISOString();
 
   return db.runTransaction(async (transaction) => {
-    const [gradeSnap, assignmentSnap] = await Promise.all([
-      transaction.get(gradeRef),
-      transaction.get(assignmentRef),
-    ]);
-    if (!gradeSnap.exists || !assignmentSnap.exists) {
-      throw new HttpsError("not-found", "The student or assignment was not found.");
-    }
-
+    const [gradeSnap, assignmentSnap] = await Promise.all([transaction.get(gradeRef), transaction.get(assignmentRef)]);
+    if (!gradeSnap.exists || !assignmentSnap.exists) throw new HttpsError("not-found", "The student or assignment was not found.");
     const gradeData = gradeSnap.data() || {};
-    const classSnap = gradeData.classId
-      ? await transaction.get(db.collection("classes").doc(String(gradeData.classId)))
-      : null;
-    const ownsClass = classSnap?.exists
-      && String(classSnap.data()?.teacherOfRecord || "").trim().toLowerCase() === teacherEmail;
+    const classSnap = gradeData.classId ? await transaction.get(db.collection("classes").doc(String(gradeData.classId))) : null;
+    const ownsClass = classSnap?.exists && String(classSnap.data()?.teacherOfRecord || "").trim().toLowerCase() === teacherEmail;
     if (!authLib.isRootAdminEmail(teacherEmail) && !ownsClass) {
-      throw new HttpsError(
-        "permission-denied",
-        "Only this student's teacher of record may change this assignment grade.",
-      );
+      throw new HttpsError("permission-denied", "Only this student's teacher of record may change this assignment grade.");
     }
-
     const assignment = { id: assignmentSnap.id, ...assignmentSnap.data() };
-    if (
-      !authLib.isRootAdminEmail(teacherEmail)
-      && !studentMatchesAssignmentAudience({ assignment, classId: gradeData.classId || null })
-    ) {
-      throw new HttpsError(
-        "permission-denied",
-        "This assignment is not assigned to the student's current class.",
-      );
+    if (!authLib.isRootAdminEmail(teacherEmail) && !studentMatchesAssignmentAudience({ assignment, classId: gradeData.classId || null })) {
+      throw new HttpsError("permission-denied", "This assignment is not assigned to the student's current class.");
     }
 
-    const assignmentOverrides = gradeData.teacherGradeOverridesByAssignment?.[assignmentId] || {};
+    const assignmentOverrides = { ...(gradeData.teacherGradeOverridesByAssignment?.[assignmentId] || {}) };
     const previousOverride = activeAssignmentGradeOverride(assignmentOverrides);
-    const actor = {
-      uid: teacherUid,
-      email: teacherEmail,
-      name: request.auth?.token?.name || null,
-    };
-    const nextOverride = action === "issueZero"
-      ? {
-        active: true,
-        score: 0,
-        reasonCode,
-        reason: ASSIGNMENT_ZERO_REASONS[reasonCode],
-        note: note || null,
-        source: "teacher-assignment-zero",
-        actor,
-        at: nowIso,
+    const actor = { uid: teacherUid, email: teacherEmail, name: request.auth?.token?.name || null };
+    const incidentRef = db.collection("studentSupportEvents").doc();
+    const parentFollowUpRef = db.collection("studentSupportEvents").doc();
+    let nextOverride = null;
+
+    if (scope === "section") {
+      const included = runtimeIncludedQuestionIndicesForSection(assignment, sectionRole);
+      if (!included.length) throw new HttpsError("invalid-argument", "Choose a section that contains graded questions.");
+      const stateKey = `${SECTION_INTEGRITY_KEY_PREFIX}${sectionRole}`;
+      if (action === "issueZero") {
+        if (assignmentOverrides[stateKey]?.active === true) throw new HttpsError("already-exists", "This section already has an integrity consequence.");
+        const previousOverridesByQuestion = Object.fromEntries(included.map((index) => [String(index), assignmentOverrides[String(index)] || null]));
+        assignmentOverrides[stateKey] = { active: true, incidentId: incidentRef.id, sectionRole, previousOverridesByQuestion };
+        included.forEach((index) => { assignmentOverrides[String(index)] = {
+          active: true, score: 0, persistent: true, source: "teacher-section-zero", incidentId: incidentRef.id,
+          sectionRole, reasonCode, reason: ASSIGNMENT_ZERO_REASONS[reasonCode], participantRole, note: note || null, actor, at: nowIso,
+        }; });
+      } else {
+        const saved = assignmentOverrides[stateKey];
+        if (saved?.active !== true) throw new HttpsError("failed-precondition", "No section integrity consequence is active.");
+        Object.entries(saved.previousOverridesByQuestion || {}).forEach(([index, prior]) => {
+          if (prior) assignmentOverrides[index] = prior;
+          else delete assignmentOverrides[index];
+        });
+        delete assignmentOverrides[stateKey];
       }
-      : null;
+    } else {
+      nextOverride = action === "issueZero" ? {
+        active: true, score: 0, reasonCode, reason: ASSIGNMENT_ZERO_REASONS[reasonCode], note: note || null,
+        source: "teacher-assignment-zero", participantRole, incidentId: incidentRef.id, actor, at: nowIso,
+      } : null;
+      if (nextOverride) assignmentOverrides[ASSIGNMENT_GRADE_OVERRIDE_KEY] = nextOverride;
+      else delete assignmentOverrides[ASSIGNMENT_GRADE_OVERRIDE_KEY];
+    }
 
-    transaction.update(
-      gradeRef,
-      new FieldPath(
-        "teacherGradeOverridesByAssignment",
-        assignmentId,
-        ASSIGNMENT_GRADE_OVERRIDE_KEY,
-      ),
-      nextOverride || FieldValue.delete(),
-      new FieldPath("classroomReleaseSignals", assignmentId),
-      {
-        requestedAt: nowIso,
-        reason: "manual-retry",
-        source: "teacher-assignment-grade-override",
-      },
-    );
-
+    transaction.update(gradeRef,
+      new FieldPath("teacherGradeOverridesByAssignment", assignmentId), assignmentOverrides,
+      new FieldPath("classroomReleaseSignals", assignmentId), { requestedAt: nowIso, reason: "manual-retry", source: "teacher-assignment-grade-override" });
     const auditRef = gradeRef.collection("gradeOverrideAudits").doc();
-    transaction.set(auditRef, {
-      scope: "assignment",
-      assignmentId,
-      questionIndex: null,
-      action,
-      reasonCode: action === "issueZero" ? reasonCode : previousOverride?.reasonCode || null,
-      reason: action === "issueZero"
-        ? ASSIGNMENT_ZERO_REASONS[reasonCode]
-        : "Restore automatic grade",
-      note: note || null,
-      actor,
-      at: nowIso,
-      previousOverride: previousOverride || null,
-      newOverride: nextOverride,
-      overrideActiveAfter: Boolean(nextOverride),
-    });
+    transaction.set(auditRef, { scope, sectionRole: scope === "section" ? sectionRole : null, assignmentId, questionIndex: null,
+      action, reasonCode, reason: action === "issueZero" ? ASSIGNMENT_ZERO_REASONS[reasonCode] : "Restore integrity consequence",
+      participantRole, teacherConfirmed: true, note: note || null, actor, at: nowIso, previousOverride: previousOverride || null,
+      newOverride: nextOverride, overrideActiveAfter: action === "issueZero" });
 
-    return { override: nextOverride };
+    if (action === "issueZero") {
+      const commonEvent = { schemaVersion: 1, studentId, studentName: gradeData.displayName || studentId,
+        classId: gradeData.classId || null, assignmentId, assignmentTitle: assignment.title || null,
+        originClassId: gradeData.classId || null, originTeacherEmail: teacherEmail,
+        createdByEmail: teacherEmail, authorizedTeacherEmails: [teacherEmail], createdAt: nowIso, createdAtServer: FieldValue.serverTimestamp(),
+        source: "teacher", confidence: "confirmed", relatedEventId: incidentRef.id };
+      transaction.set(incidentRef, { ...commonEvent, kind: "academicIntegrityIncident", stage: "teacherConfirmed",
+        signalKey: `academicIntegrityIncident:${incidentRef.id}`, summary: ASSIGNMENT_ZERO_REASONS[reasonCode], note: note || "",
+        evidence: { scope, sectionRole: scope === "section" ? sectionRole : null, incidentReason: reasonCode, participantRole } });
+      transaction.set(parentFollowUpRef, { ...commonEvent, kind: "parentFollowUp", stage: "teacherConfirmed",
+        signalKey: `parentFollowUp:${parentFollowUpRef.id}`, summary: "Parent follow-up for confirmed academic-integrity incident", note: "",
+        evidence: { incidentId: incidentRef.id, scope, sectionRole: scope === "section" ? sectionRole : null } });
+    }
+    return { override: nextOverride, incidentId: action === "issueZero" ? incidentRef.id : null };
   });
 });
 

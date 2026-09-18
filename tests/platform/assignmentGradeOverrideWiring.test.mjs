@@ -6,6 +6,7 @@ import {
   ASSIGNMENT_GRADE_OVERRIDE_KEY,
   assignmentGradeOverrideFor,
 } from '../../src/platform/grading/canonicalGradeProjection.js';
+import { region } from './helpers/sourceContract.mjs';
 
 test('assignment override helper accepts only active numeric server projection', () => {
   const student = {
@@ -73,6 +74,12 @@ test('integrity controls cover section scope, confirmed roles, third reason, and
   assert.match(controls, /I personally confirm this incident/);
   assert.match(controls, /Apply 0% Integrity Consequence/);
   assert.match(controls, /restoreSectionZero/);
+  const submission = region(controls, 'const academicIntegrityConsequence = {', 'setOverride(', 'integrity submission');
+  assert.match(submission, /scope,/);
+  assert.match(submission, /sectionRole:/);
+  assert.match(submission, /participantRole,/);
+  assert.match(submission, /teacherConfirmed,/);
+  assert.match(submission, /academicIntegrityConsequence,/);
 });
 
 test('server enforces confirmed section zeros, preserves prior corrections, updates DOL, and creates parent follow-up', () => {
@@ -86,13 +93,13 @@ test('server enforces confirmed section zeros, preserves prior corrections, upda
   assert.match(block, /previousOverridesByQuestion/);
   assert.match(block, /persistent:\s*true/);
   assert.match(block, /source:\s*["']teacher-section-zero["']/);
-  assert.match(block, /correctedDolProjection/);
+  assert.match(block, /runtimeIncludedQuestionIndicesForSection\(assignment, sectionRole\)/);
   assert.match(block, /kind:\s*["']academicIntegrityIncident["']/);
   assert.match(block, /kind:\s*["']parentFollowUp["']/);
   assert.match(block, /stage:\s*["']teacherConfirmed["']/);
-  assert.match(block, /accountSwitching/);
+  assert.match(functions, /accountSwitching:\s*["']Account or laptop switching["']/);
   assert.match(block, /participantRole/);
-  assert.doesNotMatch(block, /buildIntegrityReviewSignal|SYSTEM_SIGNAL/);
+  assert.match(block, /triggerType === ["']SYSTEM_SIGNAL["'][\s\S]*throw new HttpsError/);
 });
 
 test('teacher support history labels confirmed academic-integrity incidents separately from automated review signals', () => {
