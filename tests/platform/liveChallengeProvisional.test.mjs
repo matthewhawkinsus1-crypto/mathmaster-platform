@@ -76,7 +76,7 @@ test('the finished standings can never include work in progress', () => {
 
 test('progress is written to the player document, never the room document', () => {
   const start = functionsIndex.indexOf('exports.reportLiveChallengeProgress');
-  const end = functionsIndex.indexOf('exports.submitLiveChallengeResponse');
+  const end = functionsIndex.indexOf('async function maybeCompressLiveChallengeRoundAfterThreshold', start);
   assert.ok(start > 0 && end > start);
   const block = functionsIndex.slice(start, end);
   assert.match(block, /roomRef\.collection\("players"\)\.doc\(String\(player\.playerKey\)\)\.set\(/);
@@ -90,7 +90,7 @@ test('a report for a round that has moved on is ignored, not an error', () => {
   // A debounced report can land after the teacher advances. Throwing there would
   // surface a scary message to a student who did nothing wrong.
   const start = functionsIndex.indexOf('exports.reportLiveChallengeProgress');
-  const block = functionsIndex.slice(start, functionsIndex.indexOf('exports.submitLiveChallengeResponse'));
+  const block = functionsIndex.slice(start, functionsIndex.indexOf('async function maybeCompressLiveChallengeRoundAfterThreshold', start));
   assert.match(block, /Number\(room\.currentRound\) !== roundIndex[\s\S]{0,300}return \{ recorded: false \}/);
 });
 

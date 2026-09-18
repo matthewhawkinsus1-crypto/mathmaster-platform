@@ -128,7 +128,8 @@ test('the control exists and rehearses with the dry run', () => {
 /* ---------- the student round reads as a game ---------- */
 
 test('the round bar shows standing, not just instructions', () => {
-  assert.match(student, /Round \{roundIndex \+ 1\} of \{room\.roundCount\}/);
+  assert.match(student, /room\.secondChanceOf != null \? `FINAL ROUND/);
+  assert.match(student, /`Round \$\{roundIndex \+ 1\} of \$\{room\.roundCount\}`/);
   assert.match(student, /Points banked this round/);
   assert.match(student, /const urgent = !expired && remainingMs <= 10000;/);
 });

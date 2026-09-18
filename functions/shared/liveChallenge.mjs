@@ -19,6 +19,48 @@ export const MAX_ROUND_COUNT = 20;
 export const DEFAULT_ROUND_SECONDS = 45;
 export const MIN_ROUND_SECONDS = 15;
 export const MAX_ROUND_SECONDS = 120;
+export const ROUND_CLOSING_THRESHOLD_OPTIONS = Object.freeze([null, 60, 70, 80, 90, 100]);
+export const DEFAULT_ROUND_CLOSING_THRESHOLD = 70;
+export const ROUND_CLOSING_SECONDS = 5;
+export const CHALLENGE_TIMING_MODES = Object.freeze(['timed', 'pace']);
+
+export const normalizeRoundClosingThreshold = (value) => {
+  if (value === null || value === false || String(value).toLowerCase() === 'off') return null;
+  const numeric = Math.round(Number(value));
+  return ROUND_CLOSING_THRESHOLD_OPTIONS.includes(numeric) ? numeric : DEFAULT_ROUND_CLOSING_THRESHOLD;
+};
+
+export const normalizeChallengeTimingMode = (value) => (
+  CHALLENGE_TIMING_MODES.includes(String(value)) ? String(value) : 'timed'
+);
+
+export const roundClosingDecision = ({ joinedCount = 0, answeredCount = 0, threshold = DEFAULT_ROUND_CLOSING_THRESHOLD } = {}) => {
+  const normalized = normalizeRoundClosingThreshold(threshold);
+  const joined = Math.max(0, Math.floor(Number(joinedCount) || 0));
+  const answered = Math.max(0, Math.floor(Number(answeredCount) || 0));
+  const thresholdCount = normalized == null || !joined ? null : Math.ceil(joined * normalized / 100);
+  return {
+    shouldClose: thresholdCount != null && answered >= thresholdCount,
+    threshold: normalized,
+    thresholdCount,
+    joinedCount: joined,
+    answeredCount: answered,
+  };
+};
+
+// The teacher's selection is a baseline. The secure authored question decides
+// the actual duration, so a literal/absolute-value race is not forced into the
+// same window as a one-step foundation question.
+export const complexityAdjustedRoundSeconds = ({ baselineSeconds = DEFAULT_ROUND_SECONDS, question = {} } = {}) => {
+  const baseline = normalizeRoundSeconds(baselineSeconds);
+  const depth = Math.max(1, Math.floor(Number(question?.solutionDepth || question?.expectedProductiveStepCount) || 1));
+  const family = String(question?.challengeFamily || question?.pathToolId || '').toLowerCase();
+  const difficulty = String(question?.difficultyBand || question?.difficulty || '').toLowerCase();
+  let reference = depth <= 1 ? 25 : depth === 2 ? 35 : depth === 3 ? 45 : 55 + Math.min(15, (depth - 4) * 5);
+  if (/literal|absolute/.test(family)) reference = Math.max(reference, 55);
+  if (/advanced|challenge/.test(difficulty)) reference += 5;
+  return normalizeRoundSeconds(Math.round(reference * (baseline / DEFAULT_ROUND_SECONDS)));
+};
 
 /*
  * PERSEVERANCE POINTS.
@@ -155,6 +197,41 @@ export const scoreChallengeRound = ({
     speedTier: speedTier.tier,
   };
 };
+
+/**
+ * Server-side architecture for progressive speed credit. Callers persist the
+ * returned milestone records with the private player. Only a strictly deeper,
+ * server-validated productive state is accepted; repeated hashes, undo and
+ * restart cycles therefore cannot farm points.
+ */
+export const recordValidatedSpeedMilestone = ({
+  milestones = [], stateHash = '', productiveDepth = 0, expectedDepth = 1,
+  elapsedMs = 0, totalMs = DEFAULT_ROUND_SECONDS * 1000, validated = false,
+} = {}) => {
+  const current = Array.isArray(milestones) ? milestones : [];
+  const depth = Math.max(0, Math.floor(Number(productiveDepth) || 0));
+  const expected = Math.max(1, Math.floor(Number(expectedDepth) || 1));
+  const hash = String(stateHash || '').trim();
+  const highestDepth = current.reduce((max, item) => Math.max(max, Number(item?.productiveDepth) || 0), 0);
+  if (!validated || !hash || depth <= highestDepth || current.some((item) => item?.stateHash === hash)) {
+    return { accepted: false, milestones: current, speedPoints: 0 };
+  }
+  const perMilestoneCap = 100 / expected;
+  const multiplier = challengeSpeedTier(elapsedMs, totalMs).multiplier;
+  const speedPoints = Math.max(0, Math.round(perMilestoneCap * multiplier));
+  const milestone = Object.freeze({
+    stateHash: hash,
+    productiveDepth: depth,
+    elapsedMs: Math.max(0, Math.round(Number(elapsedMs) || 0)),
+    speedPoints,
+    validated: true,
+  });
+  return { accepted: true, milestones: [...current, milestone], milestone, speedPoints };
+};
+
+export const authoritativeReceiptTotal = (submissionReceipts = {}) => Object.values(submissionReceipts || {})
+  .filter((receipt) => receipt?.serverConfirmed === true)
+  .reduce((sum, receipt) => sum + Math.max(0, Math.round(Number(receipt?.pointsAwarded) || 0)), 0);
 
 export const planSecondChanceRounds = ({
   roundMisses = {},

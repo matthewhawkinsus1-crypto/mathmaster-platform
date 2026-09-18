@@ -167,6 +167,7 @@ export default function StepByStepAlgebra({
   onUndoStateChange,
   disabled = false,
   maximumAttempts = 3,
+  attemptsDoNotExpire = false,
   draftKey = null,
 }) {
   const normalizedRecord = normalizeQuestionRecord(questionRecord);
@@ -815,13 +816,13 @@ export default function StepByStepAlgebra({
     // attempt, which is a pacing decision rather than a verdict on the maths.
     const verdict = evaluateMove(move, supportLevel);
     if (verdict.countsAttempt) {
-      const result = await saveStep({ move, earned: 1, possible: 2, countsAttempt: true, accepted: true });
+      const result = await saveStep({ move, earned: 1, possible: 2, countsAttempt: !attemptsDoNotExpire, accepted: true });
       if (result?.expired) {
         setPendingMove(null);
         setMessage({ tone: 'error', text: 'That used the final attempt on this version.' });
         return;
       }
-      setMessage({ tone: 'growth', text: `${verdict.message} ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} attempts remain at this level.` });
+      setMessage({ tone: 'growth', text: attemptsDoNotExpire ? verdict.message : `${verdict.message} ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} attempts remain at this level.` });
     }
 
     if (move.requiredCancellationSides.length === 0) {
@@ -1358,7 +1359,7 @@ export default function StepByStepAlgebra({
     stagePlacement(side, position);
   };
   const suggestedMove = getSuggestedMove(equation);
-  const attemptsRemaining = getAttemptsRemaining(normalizedRecord, maximumAttempts);
+  const attemptsRemaining = attemptsDoNotExpire ? null : getAttemptsRemaining(normalizedRecord, maximumAttempts);
   const stepCreditPercent = normalizedRecord.status === 'correct'
     ? 100
     : Math.round(Number(normalizedRecord.bestPartialCredit || 0));
@@ -1965,7 +1966,7 @@ export default function StepByStepAlgebra({
       <p style={{ color: '#5f6368', fontSize: '13px', marginTop: '12px' }}>
         {supportPolicy.description}
         {supportPolicy.inefficientMoveCostsAttempt
-          ? ` Attempts remaining: ${attemptsRemaining}. A longer route still counts as correct algebra, but it uses an attempt at this level.`
+          ? attemptsDoNotExpire ? ' Live Challenge work does not expire from intermediate moves.' : ` Attempts remaining: ${attemptsRemaining}. A longer route still counts as correct algebra, but it uses an attempt at this level.`
           : ' A longer route is still correct algebra here and costs nothing.'}
       </p>
 

@@ -22,15 +22,16 @@ test('meaningful solver work is finalized at timeout without requiring a locally
   assert.match(block, /submit\(\{ raw: rawWork \}, \{ atRoundEnd: true \}\)/);
 });
 
-test('80 percent answered compresses any longer timer to five seconds', () => {
+test('the configured joined-student threshold compresses any longer timer to five seconds', () => {
   const start = server.indexOf('async function maybeCompressLiveChallengeRoundAfterThreshold');
   const end = server.indexOf('exports.submitLiveChallengeResponse', start);
   const block = server.slice(start, end);
   assert.match(block, /count\(\)\.get\(\)/);
-  assert.match(block, /Math\.ceil\(joinedCount \* 0\.8\)/);
+  assert.match(block, /roundClosingDecision\(\{ joinedCount, answeredCount, threshold: roomAtCount\.roundClosingThreshold \}\)/);
   assert.match(block, /Date\.now\(\) \+ 5000/);
   assert.match(block, /currentEndsAtMs <= targetEndsAtMs/);
-  assert.match(block, /roundCompressionReason:\s*"eighty-percent-answered"/);
+  assert.match(block, /roundCompressionReason:\s*`\$\{decision\.threshold\}-percent-answered`/);
+  assert.match(block, /if \(latestRoom\.closingStartedAt\) return/);
 });
 
 test('round compression is best-effort after the authoritative score write', () => {

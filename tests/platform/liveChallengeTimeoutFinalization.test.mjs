@@ -22,7 +22,9 @@ test('deadline finalization shares the manual secure submit path and has a synch
   const region = student.slice(submitStart, retryStart);
   assert.match(region, /submissionLockRef\.current = true/);
   assert.match(region, /submit\(\{ raw: rawWork \}, \{ atRoundEnd: true \}\)/);
-  assert.match(region, /hasValidatedProgress[\s\S]*hasMeaningfulRawPathResponse/);
+  assert.match(region, /if \(!hasMeaningfulRawPathResponse\(rawWork\)\) return;/);
+  assert.doesNotMatch(region, /hasValidatedProgress|stepGrade\?\.isCorrect/,
+    'the secure server, not a locally recognized route, decides partial credit');
   assert.match(student, /serverGrading=\{\{[\s\S]*submit: async \(rawWork\) => submit\(\{ raw: rawWork \}\)/);
   assert.doesNotMatch(region, /workingPoints|provisionalPoints/,
     'display-only progress must not enter the authoritative envelope');

@@ -20,6 +20,7 @@ import {
   readChallengeReport,
   setWarmupChallengeDelivery,
   startLiveChallenge,
+  updateLiveChallengePacing,
   timestampMillis,
   watchLiveChallengePlayers,
   watchLiveChallengeDiagnostics,
@@ -200,6 +201,9 @@ export default function LiveChallengeTeacher({
   const [solverRaceDifficulty, setSolverRaceDifficulty] = useState('ramp');
   const [roundCount, setRoundCount] = useState(10);
   const [roundSeconds, setRoundSeconds] = useState(45);
+  const [timingMode, setTimingMode] = useState('timed');
+  const [roundClosingThreshold, setRoundClosingThreshold] = useState(70);
+  const [secondChanceMode, setSecondChanceMode] = useState('automatic');
   const [title, setTitle] = useState('');
   const [speedInfluencePercent, setSpeedInfluencePercent] = useState(20);
   const [playerDisplayMode, setPlayerDisplayMode] = useState('codeName');
@@ -373,6 +377,9 @@ export default function LiveChallengeTeacher({
           solverRaceDifficulty,
           roundCount,
           roundSeconds,
+          timingMode,
+          roundClosingThreshold,
+          secondChanceMode,
           assignmentId: warmupAssignmentId || null,
           title: title.trim() || `${selectedClass?.name || classPeriod || 'Class'} Live Challenge`,
         });
@@ -402,6 +409,11 @@ export default function LiveChallengeTeacher({
   };
 
   const control = async (key, action) => run(key, () => action({ roomId }));
+  const changeClosingThreshold = async (value) => {
+    const threshold = value === 'off' ? null : Number(value);
+    setRoundClosingThreshold(threshold);
+    if (roomId) await run('threshold', () => updateLiveChallengePacing({ roomId, roundClosingThreshold: threshold }));
+  };
   const startFromProjector = async () => {
     // The click is also the browser gesture that unlocks host audio. Starting
     // still uses the same authorized callable as the normal teacher control.
@@ -523,6 +535,23 @@ export default function LiveChallengeTeacher({
               </label>}
               <label style={{ fontWeight: 800 }}>Rounds<select value={roundCount} onChange={(event) => setRoundCount(Number(event.target.value))} style={field}>{[5, 8, 10, 12, 15, 20].map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
               <label style={{ fontWeight: 800 }}>Time per round<select value={roundSeconds} onChange={(event) => setRoundSeconds(Number(event.target.value))} style={field}>{[20, 30, 45, 60, 90].map((seconds) => <option key={seconds} value={seconds}>{seconds} seconds</option>)}</select></label>
+              <label style={{ fontWeight: 800 }}>Race clock
+                <select value={timingMode} onChange={(event) => setTimingMode(event.target.value)} style={field}>
+                  <option value="timed">Timed Race</option><option value="pace">Pace Race · unlimited solving time</option>
+                </select>
+              </label>
+              <label style={{ fontWeight: 800 }}>Round closing threshold
+                <select value={roundClosingThreshold ?? 'off'} onChange={(event) => changeClosingThreshold(event.target.value)} style={field}>
+                  <option value="off">Off</option>{[60, 70, 80, 90, 100].map((value) => <option key={value} value={value}>{value}%</option>)}
+                </select>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: '#5f6368' }}>When this percentage of joined students has submitted, the round enters its closing phase.</span>
+              </label>
+              <label style={{ fontWeight: 800 }}>Second Chance
+                <select value={secondChanceMode} onChange={(event) => setSecondChanceMode(event.target.value)} style={field}>
+                  <option value="off">Off</option><option value="automatic">Automatic</option>
+                </select>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: '#5f6368' }}>Automatic may add up to 3 replay Final Rounds based on the questions the class misses most.</span>
+              </label>
               <label style={{ fontWeight: 800 }}>Player display
                 <select value={playerDisplayMode} onChange={(event) => setPlayerDisplayMode(event.target.value)} style={field}>
                   <option value="codeName">Code Names (default)</option>
@@ -577,6 +606,7 @@ export default function LiveChallengeTeacher({
       onEnableAudio={enableAudio}
       onStart={startFromProjector}
       onAdvance={() => control('advance', advanceLiveChallenge)}
+      onThresholdChange={changeClosingThreshold}
       onExit={() => setProjector(false)}
     />;
   }
@@ -592,6 +622,14 @@ export default function LiveChallengeTeacher({
       </div>
       <AudioMixer director={audioDirectorRef.current} mix={audioMix} onMixChange={updateAudioMix} onEnable={enableAudio} audioReady={audioReady} />
       {message && <div role="alert" style={{ padding: 12, borderRadius: 9, background: '#fff4ce', color: '#7a4f00' }}>{message}</div>}
+      {['lobby', 'running'].includes(room.status) && <section style={{ ...panel, padding: 12, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+        <strong>{room.roundCount} scheduled rounds · {room.timingMode === 'pace' ? 'Pace Race' : 'Timed Race'} · Closing {room.roundClosingThreshold == null ? 'Off' : `at ${room.roundClosingThreshold}%`} · Second Chance {room.secondChanceMode === 'off' ? 'Off' : 'Automatic'}{room.solverRaceDifficulty === 'ramp' ? ' · Ramp difficulty' : ''}</strong>
+        <label style={{ marginLeft: 'auto', fontWeight: 800 }}>Round closing threshold
+          <select value={room.roundClosingThreshold ?? 'off'} disabled={busy === 'threshold'} onChange={(event) => changeClosingThreshold(event.target.value)} style={{ ...field, width: 'auto', display: 'inline-block', margin: '0 0 0 8px' }}>
+            <option value="off">Off</option>{[60, 70, 80, 90, 100].map((value) => <option key={value} value={value}>{value}%</option>)}
+          </select>
+        </label>
+      </section>}
 
       {room.status === 'lobby' && (
         <>
@@ -620,7 +658,7 @@ export default function LiveChallengeTeacher({
           <ChallengeLiveStatus room={room} remainingMs={remainingMs} answeredCount={answeredCount} joinedCount={joinedCount} />
           <section style={panel}><h3 style={{ marginTop: 0 }}>Leaderboard</h3><Leaderboard rows={leaderboard} /></section>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button type="button" disabled={!canAdvance || busy === 'advance'} onClick={() => control('advance', advanceLiveChallenge)} style={{ ...primary, opacity: !canAdvance || busy === 'advance' ? .55 : 1 }}>{busy === 'advance' ? 'Loading next round…' : (room.currentRound + 1 >= room.roundCount ? 'Finish & Show Final Standings' : 'Next Round')}</button>
+            <button type="button" disabled={!canAdvance || busy === 'advance'} onClick={() => control('advance', advanceLiveChallenge)} style={{ ...primary, opacity: !canAdvance || busy === 'advance' ? .55 : 1 }}>{busy === 'advance' ? 'Loading next round…' : room.secondChanceOf != null ? (room.hasAdditionalReplay ? 'Next Final Round' : 'Finish & Show Final Standings') : (room.currentRound + 1 >= room.roundCount ? 'Finish & Show Final Standings' : 'Next Round')}</button>
             <button type="button" disabled={busy === 'finish'} onClick={() => control('finish', finishLiveChallenge)} style={{ ...secondary, color: '#a50e0e' }}>End Session</button>
           </div>
           {!canAdvance && <p style={{ margin: 0, color: '#5f6368', fontSize: 13 }}>Next Round unlocks when everyone who joined has answered or the timer reaches zero.</p>}
