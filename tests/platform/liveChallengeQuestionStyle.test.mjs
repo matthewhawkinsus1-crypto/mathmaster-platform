@@ -78,7 +78,7 @@ test('every callable that draws questions honours the style', () => {
     // assert each callable reads it from the place that actually holds it.
     const source = name === 'exports.swapChallengeDryRunRound'
       ? /questionStyle: dryRun\.questionStyle/
-      : /const questionStyle = challenge\.canonicalQuestionStyle\(request\.data\?\.questionStyle\)/;
+      : /const questionStyle = challengeMode === "solverRace" \? "tools" : challenge\.canonicalQuestionStyle\(request\.data\?\.questionStyle\)/;
     assert.match(block, source, `${name} must read the real question style`);
     assert.match(block, /loadChallengeCandidates\(db, \{[\s\S]{0,200}questionStyle/, `${name} must pass it to the draw`);
   });
@@ -91,8 +91,10 @@ test('a game that cannot be filled says which style emptied it', () => {
 });
 
 test('the choice is remembered on the room and on the dry run', () => {
-  assert.match(functionsIndex, /standardCode,\n    questionStyle,\n    status: challenge\.LIVE_CHALLENGE_STATUS\.LOBBY/);
-  assert.match(functionsIndex, /standardCode,\n    questionStyle,\n    roundSeconds,/);
+  assert.match(functionsIndex, /standardCode,\n    questionStyle,\n    challengeMode,\n    solverRaceFocus:[\s\S]{0,100}status: challenge\.LIVE_CHALLENGE_STATUS\.LOBBY/);
+  const dryRunWrite = functionsIndex.slice(functionsIndex.indexOf('const ref = db.collection(LIVE_CHALLENGE_DRY_RUNS)'), functionsIndex.indexOf('const rounds = await Promise.all', functionsIndex.indexOf('const ref = db.collection(LIVE_CHALLENGE_DRY_RUNS)')));
+  assert.match(dryRunWrite, /standardCode,\n    questionStyle,/);
+  assert.match(dryRunWrite, /roundSeconds,\n    questionIds,/);
 });
 
 /* ---------- the teacher can actually reach it ---------- */

@@ -68,6 +68,7 @@ import {
   sanitizeRegressionCalculatorPublicQuestion,
   validateRegressionCalculatorResponse,
 } from './pathRegressionCalculatorGrading.mjs';
+import { gradeSolverRaceRelation } from './solverRaceEquivalence.mjs';
 import {
   buildGraphingPrivateDefinition,
   gradeGraphingResponse,
@@ -815,11 +816,12 @@ const CONTRACTS = {
   // students for writing a correct answer a different way, so the question is
   // not path-eligible instead.
   stepAlgebra: {
-    serverGradingVersion: 1,
-    responseShape: 'finalEquation',
+    serverGradingVersion: 2,
+    responseShape: 'finalEquationOrRelation',
     sanitizePublicQuestion: (question) => pick(question, [
       'prompt', 'equationLatex', 'equation', 'variable', 'objective', 'targetForm',
       'workspaceDifficulty', 'supportLevel', 'allowedOperations', 'context', 'graph',
+      'challengeFamily', 'difficultyBand', 'solutionDepth', 'operationTags', 'complexityTags',
     ]),
     buildPrivateGradingDefinition: (question) => ({
       expected: question.answer ?? question.solution ?? question.expected ?? null,
@@ -832,13 +834,25 @@ const CONTRACTS = {
       // not be issued — having an answer key is not enough.
       hasEquation: hasSingleEquation(question),
       tolerance: Number(question.numericTolerance ?? 1e-6),
+      solverGrader: String(question.solverGrader || ''),
+      expectedFinalRelation: question.expectedFinalRelation ?? null,
     }),
     validateStudentResponse: (raw) => {
       const hasEquation = typeof raw?.finalEquation === 'string' && raw.finalEquation.trim() !== '';
+      const hasRelation = typeof raw?.finalRelation === 'string' && raw.finalRelation.trim() !== '';
       const hasValue = raw?.value !== undefined && String(raw.value).trim() !== '';
-      return hasEquation || hasValue ? valid() : invalid('A workspace response needs the equation the student finished with.');
+      return hasEquation || hasRelation || hasValue ? valid() : invalid('A workspace response needs the mathematical relation the student finished with.');
     },
     gradeStudentResponse: (definition, raw) => {
+      if (definition.solverGrader && definition.expectedFinalRelation != null) {
+        const isCorrect = gradeSolverRaceRelation({
+          family: definition.solverGrader,
+          expected: definition.expectedFinalRelation,
+          variable: definition.variable,
+          actual: raw.finalRelation || raw.finalEquation || '',
+        });
+        return graded(isCorrect, [{ id: 'algebra-objective', isCorrect }]);
+      }
       const isolated = isolatedValue(raw.finalEquation, definition.variable);
       const given = isolated ?? raw.value;
       const candidates = [definition.expected, ...definition.accepted]
@@ -1274,7 +1288,8 @@ export const hasGradableDefinition = (toolId, definition) => {
       // Symbolic prompts need marking this server cannot do fairly.
       return definition.symbolicPrompts === 0
         && definition.hasEquation
-        && (definition.expected != null || definition.accepted.length > 0);
+        && ((definition.solverGrader && definition.expectedFinalRelation != null)
+          || definition.expected != null || definition.accepted.length > 0);
     case 'functionInvestigation':
       // Something must have a declared expectation, or there is nothing to
       // mark — and every analysis part must be one the workspace can actually

@@ -51,7 +51,15 @@ const BUILDERS = {
   },
 
   // The workspace ends on an equation, and that equation is the answer.
-  stepAlgebra: ({ parts }) => ({ finalEquation: String(responseOf(parts, 'algebra-objective') ?? '') }),
+  stepAlgebra: ({ parts }) => {
+    const relation = responseOf(parts, 'relation-work');
+    return relation !== undefined
+      ? {
+        finalRelation: String(relation ?? ''),
+        candidateVerification: String(responseOf(parts, 'candidate-verification') ?? ''),
+      }
+      : { finalEquation: String(responseOf(parts, 'algebra-objective') ?? '') };
+  },
 
   multiAnswer: ({ parts }) => ({
     responses: Object.fromEntries(parts.map((part) => [part.id, part.response ?? ''])),

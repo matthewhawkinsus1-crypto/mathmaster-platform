@@ -213,6 +213,8 @@ export default function LiveChallengeTeacher({
   const [coverage, setCoverage] = useState(null);
   const [standardCode, setStandardCode] = useState('mixed');
   const [questionStyle, setQuestionStyle] = useState('any');
+  const [challengeMode, setChallengeMode] = useState('standard');
+  const [solverRaceFocus, setSolverRaceFocus] = useState('mixed');
   const [roundCount, setRoundCount] = useState(10);
   const [roundSeconds, setRoundSeconds] = useState(45);
   const [title, setTitle] = useState('');
@@ -245,7 +247,7 @@ export default function LiveChallengeTeacher({
     setCourseId(resolved);
     setStandardCode('mixed');
   }, [classId, classPeriod, selectedClass, courseProfiles]);
-  useEffect(() => { setDryRunOpen(false); }, [classId, courseId, standardCode, questionStyle, roundCount, roundSeconds, speedInfluencePercent, playerDisplayMode]);
+  useEffect(() => { setDryRunOpen(false); }, [classId, courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, roundCount, roundSeconds, speedInfluencePercent, playerDisplayMode]);
   useEffect(() => {
     const selected = assignments.find((assignment) => String(assignment.id) === String(warmupAssignmentId));
     const configured = selected?.warmup?.liveChallenge?.deliveryMode;
@@ -381,6 +383,8 @@ export default function LiveChallengeTeacher({
         courseId,
         standardCode,
         questionStyle,
+        challengeMode,
+        solverRaceFocus,
         roundCount,
         roundSeconds,
         assignmentId: warmupAssignmentId || null,
@@ -416,6 +420,8 @@ export default function LiveChallengeTeacher({
             courseId={courseId}
             standardCode={standardCode}
             questionStyle={questionStyle}
+            challengeMode={challengeMode}
+            solverRaceFocus={solverRaceFocus}
             roundCount={roundCount}
             roundSeconds={roundSeconds}
             speedInfluencePercent={speedInfluencePercent}
@@ -471,19 +477,37 @@ export default function LiveChallengeTeacher({
                 </label>
               )}
               <label style={{ fontWeight: 800 }}>Course<input value={courseLabel(courseId)} readOnly style={{ ...field, background: '#f8f9fa', color: '#3c4043' }} /></label>
+              <label style={{ fontWeight: 800 }}>Game type
+                <select value={challengeMode} onChange={(event) => setChallengeMode(event.target.value)} style={field}>
+                  <option value="standard">Standard Challenge</option>
+                  <option value="solverRace">Solver Race</option>
+                </select>
+              </label>
+              {challengeMode === 'solverRace' && <label style={{ fontWeight: 800 }}>Race focus
+                <select value={solverRaceFocus} onChange={(event) => setSolverRaceFocus(event.target.value)} style={field}>
+                  <option value="mixed">Mixed Solver Race</option>
+                  <option value="literalEquation">Literal Equations</option>
+                  <option value="linearInequality">Linear Inequalities</option>
+                  <option value="absoluteValueEquation">Absolute Value Equations</option>
+                  <option value="absoluteValueInequality">Absolute Value Inequalities</option>
+                </select>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: '#5f6368' }}>Literal Equations → Linear Inequalities → Absolute Value Equations → Absolute Value Inequalities. Difficulty rises automatically.</span>
+              </label>}
+              {challengeMode === 'standard' && <>
               <label style={{ fontWeight: 800 }}>Skill set
                 <select value={standardCode} onChange={(event) => setStandardCode(event.target.value)} style={field}>
                   <option value="mixed">Mixed review — {courseLabel(courseId)}</option>
                   {coverageRows.map((row) => <option key={row.displayCode} value={row.displayCode}>{row.displayCode} · {row.issuableCount} usable families</option>)}
                 </select>
               </label>
-              <label style={{ fontWeight: 800 }}>Question style
+              </>}
+              {challengeMode === 'standard' && <label style={{ fontWeight: 800 }}>Question style
                 <select value={questionStyle} onChange={(event) => setQuestionStyle(event.target.value)} style={field}>
                   <option value="any">Any question</option>
                   <option value="tools">Interactive tools only</option>
                   <option value="noTools">Typed and chosen answers only</option>
                 </select>
-              </label>
+              </label>}
               <label style={{ fontWeight: 800 }}>Rounds<select value={roundCount} onChange={(event) => setRoundCount(Number(event.target.value))} style={field}>{[5, 8, 10, 12, 15, 20].map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
               <label style={{ fontWeight: 800 }}>Time per round<select value={roundSeconds} onChange={(event) => setRoundSeconds(Number(event.target.value))} style={field}>{[20, 30, 45, 60, 90].map((seconds) => <option key={seconds} value={seconds}>{seconds} seconds</option>)}</select></label>
               <label style={{ fontWeight: 800 }}>Player display
