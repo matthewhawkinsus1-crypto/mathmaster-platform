@@ -17,7 +17,9 @@ export const recordParentContact = async ({ db, teacherEmail, contact = {} } = {
     category: CONTACT_CATEGORIES.includes(contact.category) ? contact.category : 'other', notes: clean(contact.notes).slice(0, 2000),
     outcome: clean(contact.outcome).slice(0, 1000), followUpDate: clean(contact.followUpDate) || null,
     recordType: 'contact', parentContactId: null,
-    sourceEventId: clean(contact.sourceEventId) || null,
+    // sourceEventId is intentionally transient. App uses the caller's contact
+    // object to append the linked support resolution after this write succeeds;
+    // parentContactLogs keeps the fixed PR #271 Firestore schema.
     createdByEmail: email, originTeacherEmail: email, originClassId: clean(contact.classId) || null,
     authorizedTeacherEmails: [email], createdAt: new Date().toISOString(), createdAtServer: serverTimestamp(),
   };
