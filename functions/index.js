@@ -9089,7 +9089,7 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   );
   const timingMode = challenge.normalizeChallengeTimingMode(request.data?.timingMode);
   const roundClosingThreshold = challenge.normalizeRoundClosingThreshold(request.data?.roundClosingThreshold);
-  const secondChanceMode = request.data?.secondChanceMode === "off" ? "off" : "automatic";
+  const secondChanceMode = request.data?.secondChanceMode === "automatic" ? "automatic" : "off";
   const defaultTitle = `${className || classPeriod || "Class"} Live Challenge`;
   const title = String(request.data?.title || defaultTitle).trim().slice(0, 120) || defaultTitle;
 
@@ -9343,6 +9343,7 @@ exports.createChallengeDryRun = onCall(async (request) => {
   const standardCode = challenge.canonicalChallengeStandard(request.data?.standardCode || "mixed");
   const requestedRoundCount = challenge.normalizeRoundCount(request.data?.roundCount);
   const roundSeconds = challenge.normalizeRoundSeconds(request.data?.roundSeconds);
+  const timingMode = challenge.normalizeChallengeTimingMode(request.data?.timingMode);
 
   const solverRace = await solverRaceRules();
   const challengeMode = solverRace.canonicalChallengeMode(request.data?.challengeMode);
@@ -9378,6 +9379,7 @@ exports.createChallengeDryRun = onCall(async (request) => {
     solverRaceDifficulty: challengeMode === "solverRace" ? solverRaceDifficulty : null,
     roundQuestions: challengeMode === "solverRace" ? selected.map((entry) => entry.question) : null,
     roundSeconds,
+    timingMode,
     questionIds,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -9390,7 +9392,7 @@ exports.createChallengeDryRun = onCall(async (request) => {
     }),
   })));
 
-  return { dryRunId: ref.id, courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, solverRaceDifficulty, roundSeconds, roundCount: rounds.length, rounds };
+  return { dryRunId: ref.id, courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, solverRaceDifficulty, roundSeconds, timingMode, roundCount: rounds.length, rounds };
 });
 
 exports.swapChallengeDryRunRound = onCall(async (request) => {
