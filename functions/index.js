@@ -9623,7 +9623,7 @@ async function openLiveChallengeRound({ db, roomRef, privateRef, room, privateSt
     }, { merge: true }),
   ]);
 
-  return { currentQuestion, roundIndex, roundVersion, roundToken, phase: "countdown", startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() };
+  return { currentQuestion, roundIndex, roundVersion, roundToken, phase: "countdown", startsAt: startsAt.toISOString(), endsAt: endsAt ? endsAt.toISOString() : null };
 }
 
 // A deliberately tiny calibration endpoint. Calling it several times lets the
@@ -9877,6 +9877,21 @@ exports.advanceLiveChallenge = onCall(async (request) => {
   const challenge = await liveChallengeRules();
   const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
   if (room.status !== challenge.LIVE_CHALLENGE_STATUS.RUNNING) throw new HttpsError("failed-precondition", "The challenge is not running.");
+
+  // Advancing is authoritative on the server. In Pace Race, a null deadline means
+  // the round is still open; it must never be treated like an expired timestamp.
+  const [joinedAggregate, answeredAggregate] = await Promise.all([
+    roomRef.collection("players").where("joined", "==", true).count().get(),
+    roomRef.collection("players").where("joined", "==", true)
+      .where("answeredRound", "==", Number(room.currentRound)).count().get(),
+  ]);
+  const joinedCount = Number(joinedAggregate.data()?.count) || 0;
+  const answeredCount = Number(answeredAggregate.data()?.count) || 0;
+  const roundEndsAtMs = toDate(room.roundEndsAt || room.endsAt)?.getTime() || 0;
+  if (!challenge.challengeCanAdvance({ joinedCount, answeredCount, roundEndsAtMs, nowMs: Date.now() })) {
+    throw new HttpsError("failed-precondition", "This round is still in progress.");
+  }
+
   const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
   const privateSnapshot = await privateRef.get();
   if (!privateSnapshot.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
@@ -10315,19 +10330,22 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     const missedRounds = Array.isArray(player.missedRounds) ? player.missedRounds.map(Number) : [];
     const missedOriginally = isSecondChance && missedRounds.includes(Number(secondChanceOf));
 
+    const activeRoundMs = challenge.normalizeRoundSeconds(
+      latestRoom.activeRoundSeconds || latestRoom.roundSeconds,
+    ) * 1000;
     const officialElapsedMs = request.data?.autoFinalizedAtRoundEnd === true
-      ? challenge.normalizeRoundSeconds(latestRoom.roundSeconds) * 1000
+      ? activeRoundMs
       : parity.authoritativeElapsed({
       humanElapsedMs: request.data?.timingDegraded ? null : request.data?.humanElapsedMs,
       arrivedAtMs: requestArrivedAt,
       startsAtMs: latestStartsAtMs,
-      totalMs: challenge.normalizeRoundSeconds(latestRoom.roundSeconds) * 1000,
+      totalMs: activeRoundMs,
       });
     finalScore = challenge.scoreChallengeRound({
       gradeScore: grading?.score ?? (grading?.isCorrect ? 1 : 0),
       isCorrect: grading?.isCorrect === true,
       remainingMs: latestEndsAtMs ? Math.max(0, latestEndsAtMs - nowMs) : 0,
-      totalMs: challenge.normalizeRoundSeconds(latestRoom.roundSeconds) * 1000,
+      totalMs: activeRoundMs,
       elapsedMs: officialElapsedMs,
       previousStreak: player.streak || 0,
       // Tracked explicitly rather than inferred from a zero streak, which is
