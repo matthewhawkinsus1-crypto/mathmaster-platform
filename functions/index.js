@@ -10036,16 +10036,19 @@ exports.reportLiveChallengeProgress = onCall(async (request) => {
 });
 
 async function maybeCompressLiveChallengeRoundAfterThreshold(db, { roomRef, roundIndex, roundVersion }) {
-  const playersSnapshot = await roomRef.collection("players").get();
-  const joinedPlayers = playersSnapshot.docs.filter((snapshot) => snapshot.data()?.joined === true);
-  if (!joinedPlayers.length) return { compressed: false };
+  // Aggregation queries avoid re-reading every player document and avoid the
+  // shared per-answer counter hotspot that Live Challenge intentionally removed.
+  const [joinedAggregate, answeredAggregate] = await Promise.all([
+    roomRef.collection("players").where("joined", "==", true).count().get(),
+    roomRef.collection("players").where("answeredRound", "==", Number(roundIndex)).count().get(),
+  ]);
+  const joinedCount = Number(joinedAggregate.data()?.count) || 0;
+  const answeredCount = Number(answeredAggregate.data()?.count) || 0;
+  if (!joinedCount) return { compressed: false };
 
-  const answeredCount = joinedPlayers.filter(
-    (snapshot) => Number(snapshot.data()?.answeredRound) === Number(roundIndex),
-  ).length;
-  const thresholdCount = Math.ceil(joinedPlayers.length * 0.8);
+  const thresholdCount = Math.ceil(joinedCount * 0.8);
   if (answeredCount < thresholdCount) {
-    return { compressed: false, answeredCount, joinedCount: joinedPlayers.length, thresholdCount };
+    return { compressed: false, answeredCount, joinedCount, thresholdCount };
   }
 
   const targetEndsAtMs = Date.now() + 5000;
@@ -10074,7 +10077,7 @@ async function maybeCompressLiveChallengeRoundAfterThreshold(db, { roomRef, roun
     compressed = true;
   });
 
-  return { compressed, answeredCount, joinedCount: joinedPlayers.length, thresholdCount };
+  return { compressed, answeredCount, joinedCount, thresholdCount };
 }
 
 exports.submitLiveChallengeResponse = onCall(async (request) => {
