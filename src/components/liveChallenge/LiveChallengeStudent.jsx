@@ -250,8 +250,11 @@ export function ChallengeRound({
     wasExpiredRef.current = expired;
     if (!transitionedToExpired || !secureQuestion || resultRef.current || pendingRef.current || submissionInFlightRef.current) return;
     const rawWork = latestRawResponseRef.current;
-    const hasValidatedProgress = stepRecordRef.current.stepGrades.some((grade) => grade?.isCorrect === true);
-    if (!hasValidatedProgress || !hasMeaningfulRawPathResponse(rawWork)) return;
+    // Any meaningful solver state is worth sending at the buzzer. The secure
+    // server grader decides whether it earns 0%, partial credit, or full credit;
+    // requiring a locally flagged "correct" step here could silently discard
+    // mathematically valid progress that used a different route.
+    if (!hasMeaningfulRawPathResponse(rawWork)) return;
     void submit({ raw: rawWork }, { atRoundEnd: true });
     // `submit` is deliberately the same finalization path used by the button.
     // Refs provide the synchronous lock that wins a submit/deadline race.
@@ -382,7 +385,10 @@ export function ChallengeRound({
               const outcome = recordQuestionStep({
                 record: stepRecordRef.current,
                 stepGrade,
-                countsAttempt,
+                // Solver Race already penalizes inefficient work through time.
+                // Intermediate algebra moves therefore never consume an attempt;
+                // only the final locked response is graded authoritatively.
+                countsAttempt: false,
                 statePatch,
                 supportUsage,
                 maximumAttempts: 1,

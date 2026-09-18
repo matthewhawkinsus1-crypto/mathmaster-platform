@@ -10035,6 +10035,51 @@ exports.reportLiveChallengeProgress = onCall(async (request) => {
   return { recorded: true, provisionalPoints };
 });
 
+async function maybeCompressLiveChallengeRoundAfterThreshold(db, { roomRef, roundIndex, roundVersion }) {
+  // Aggregation queries avoid re-reading every player document and avoid the
+  // shared per-answer counter hotspot that Live Challenge intentionally removed.
+  const [joinedAggregate, answeredAggregate] = await Promise.all([
+    roomRef.collection("players").where("joined", "==", true).count().get(),
+    roomRef.collection("players").where("answeredRound", "==", Number(roundIndex)).count().get(),
+  ]);
+  const joinedCount = Number(joinedAggregate.data()?.count) || 0;
+  const answeredCount = Number(answeredAggregate.data()?.count) || 0;
+  if (!joinedCount) return { compressed: false };
+
+  const thresholdCount = Math.ceil(joinedCount * 0.8);
+  if (answeredCount < thresholdCount) {
+    return { compressed: false, answeredCount, joinedCount, thresholdCount };
+  }
+
+  const targetEndsAtMs = Date.now() + 5000;
+  let compressed = false;
+  await db.runTransaction(async (transaction) => {
+    const latestRoomSnapshot = await transaction.get(roomRef);
+    if (!latestRoomSnapshot.exists) return;
+    const latestRoom = latestRoomSnapshot.data() || {};
+    if (
+      latestRoom.status !== "running"
+      || Number(latestRoom.currentRound) !== Number(roundIndex)
+      || Number(latestRoom.roundVersion || 0) !== Number(roundVersion || 0)
+    ) return;
+
+    const currentEndsAtMs = toDate(latestRoom.endsAt || latestRoom.roundEndsAt)?.getTime() || 0;
+    if (!currentEndsAtMs || currentEndsAtMs <= targetEndsAtMs) return;
+
+    const shortenedEndsAt = new Date(targetEndsAtMs);
+    transaction.set(roomRef, {
+      endsAt: shortenedEndsAt,
+      roundEndsAt: shortenedEndsAt,
+      roundCompressionReason: "eighty-percent-answered",
+      roundCompressedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    compressed = true;
+  });
+
+  return { compressed, answeredCount, joinedCount, thresholdCount };
+}
+
 exports.submitLiveChallengeResponse = onCall(async (request) => {
   const requestArrivedAt = Date.now();
   const { studentId } = requireStudent(request);
@@ -10239,6 +10284,20 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   });
 
   if (duplicateReceipt) return { ...duplicateReceipt, duplicate: true };
+
+  // Classroom pacing: once 80% of the students who actually joined this round
+  // have answered, any longer remaining timer is compressed to five seconds.
+  // This happens after the authoritative score write, and failures here never
+  // invalidate a student's accepted answer.
+  await maybeCompressLiveChallengeRoundAfterThreshold(db, {
+    roomRef,
+    roundIndex: submittedRound,
+    roundVersion: submittedVersion,
+  }).catch((error) => logger.error("liveChallenge.roundCompression.failed", {
+    roomId,
+    roundIndex: submittedRound,
+    message: error?.message || String(error),
+  }));
 
   return {
     isCorrect: grading?.isCorrect === true,
