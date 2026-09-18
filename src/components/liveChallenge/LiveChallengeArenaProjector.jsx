@@ -255,16 +255,17 @@ function LobbyView({ room, leaderboard, joinedCount, busy, onStart }) {
   );
 }
 
-function RunningView({ room, leaderboard, joinedCount, remainingMs, canAdvance, busy, onAdvance }) {
+function RunningView({ room, leaderboard, joinedCount, remainingMs, elapsedMs, canAdvance, busy, onAdvance }) {
   const round = projectorCurrentRound(room);
   const roundCount = projectorRoundCount(room);
   const answered = projectorAnsweredCount(leaderboard, Number(room?.currentRound) || 0);
   const family = projectorFamilyLabel(room);
   const difficulty = projectorDifficultyLabel(room);
   const accent = familyAccent(room);
-  const lowTime = Number(remainingMs) <= 10000;
-  const roundComplete = Number(remainingMs) <= 0;
-  const advanceAvailable = roundComplete || canAdvance;
+  const paceOpen = room?.timingMode === 'pace' && !room?.roundEndsAt && !room?.endsAt;
+  const lowTime = !paceOpen && Number(remainingMs) <= 10000;
+  const roundComplete = !paceOpen && Number(remainingMs) <= 0;
+  const advanceAvailable = canAdvance;
   const finalRound = Number(room?.currentRound) + 1 >= projectorRoundCount(room);
   const replay = room?.secondChanceOf != null;
   const replayOrdinal = Math.max(1, Number(room?.finalRoundNumber) || 1);
@@ -299,9 +300,9 @@ function RunningView({ room, leaderboard, joinedCount, remainingMs, canAdvance, 
                 background: lowTime ? 'rgba(255,87,120,.13)' : 'rgba(95,145,255,.12)',
                 border: `1px solid ${lowTime ? 'rgba(255,105,135,.46)' : 'rgba(130,165,255,.36)'}`,
               }}>
-                <div style={{ ...labelStyle, color: lowTime ? '#ff9bb0' : '#a8c2ff' }}>{roundComplete ? 'Round Complete' : 'Time Left'}</div>
+                <div style={{ ...labelStyle, color: lowTime ? '#ff9bb0' : '#a8c2ff' }}>{paceOpen ? 'Elapsed' : roundComplete ? 'Round Complete' : room?.timingMode === 'pace' ? 'Round Closes In' : 'Time Left'}</div>
                 <div style={{ marginTop: 3, fontSize: 'clamp(45px, 6vw, 78px)', fontWeight: 1000, lineHeight: 1, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.05em' }}>
-                  {formatArenaClock(remainingMs)}
+                  {formatArenaClock(paceOpen ? elapsedMs : remainingMs)}
                 </div>
               </div>
             </div>
@@ -350,6 +351,7 @@ export default function LiveChallengeArenaProjector({
   leaderboard = [],
   joinedCount = 0,
   remainingMs = 0,
+  elapsedMs = 0,
   canAdvance = false,
   busy = '',
   error = '',
@@ -505,7 +507,7 @@ export default function LiveChallengeArenaProjector({
 
         {error && <div role="alert" style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(255,87,120,.16)', border: '1px solid rgba(255,105,135,.5)', color: '#ffd9e1', fontWeight: 800 }}>{error}</div>}
         {room?.status === 'lobby' && <LobbyView room={room} leaderboard={leaderboard} joinedCount={joinedCount} busy={busy} onStart={onStart} />}
-        {room?.status === 'running' && <RunningView room={room} leaderboard={leaderboard} joinedCount={joinedCount} remainingMs={remainingMs} canAdvance={canAdvance} busy={busy} onAdvance={onAdvance} />}
+        {room?.status === 'running' && <RunningView room={room} leaderboard={leaderboard} joinedCount={joinedCount} remainingMs={remainingMs} elapsedMs={elapsedMs} canAdvance={canAdvance} busy={busy} onAdvance={onAdvance} />}
         {room?.status === 'finished' && <FinalPodium leaderboard={leaderboard} />}
       </div>
     </div>
