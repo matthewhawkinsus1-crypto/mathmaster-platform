@@ -68,9 +68,11 @@ import {
   sanitizeRegressionCalculatorPublicQuestion,
   validateRegressionCalculatorResponse,
 } from './pathRegressionCalculatorGrading.mjs';
-import { gradeSolverRaceRelation } from './solverRaceEquivalence.mjs';
-import { normalizeAlgebraicText, parsePolynomial, splitEquationSides } from './algebraicForm.mjs';
-import { sameLinearInequality } from './linearInequalityEquivalence.mjs';
+import {
+  gradeSolverRaceRelation,
+  solverRaceProgressScore,
+  solverRaceRelationChanged,
+} from './solverRaceEquivalence.mjs';
 import {
   buildGraphingPrivateDefinition,
   gradeGraphingResponse,
@@ -403,50 +405,6 @@ const graded = (isCorrect, parts = [], detail = '') => ({
   parts,
   detail,
 });
-
-const polynomialDelta = (relation) => {
-  const sides = splitEquationSides(relation);
-  if (!sides) return null;
-  const left = parsePolynomial(sides.left);
-  const right = parsePolynomial(sides.right);
-  if (!left || !right) return null;
-  const delta = new Map(left);
-  for (const [key, value] of right) delta.set(key, (delta.get(key) || 0) - value);
-  for (const [key, value] of delta) if (Math.abs(value) < 1e-9) delta.delete(key);
-  return delta.size ? delta : null;
-};
-
-const proportionalPolynomialRelations = (left, right) => {
-  const a = polynomialDelta(left);
-  const b = polynomialDelta(right);
-  if (!a || !b) return false;
-  const keys = new Set([...a.keys(), ...b.keys()]);
-  let ratio = null;
-  for (const key of keys) {
-    const av = a.get(key) || 0;
-    const bv = b.get(key) || 0;
-    if (Math.abs(av) < 1e-9 && Math.abs(bv) < 1e-9) continue;
-    if (Math.abs(av) < 1e-9 || Math.abs(bv) < 1e-9) return false;
-    const next = bv / av;
-    if (!Number.isFinite(next) || Math.abs(next) < 1e-9) return false;
-    if (ratio == null) ratio = next;
-    else if (Math.abs(next - ratio) > 1e-7 * Math.max(1, Math.abs(ratio))) return false;
-  }
-  return ratio != null;
-};
-
-const secureSolverProgressScore = (definition, raw, isCorrect) => {
-  if (isCorrect) return 1;
-  const current = String(raw?.finalRelation || raw?.finalEquation || '').trim();
-  const initial = String(definition.initialRelation || '').trim();
-  if (!current || !initial || normalizeAlgebraicText(current) === normalizeAlgebraicText(initial)) return 0;
-  const equivalent = definition.solverGrader === 'linearInequality'
-    ? sameLinearInequality(current, initial)
-    : ['linearEquation', 'literalEquation'].includes(definition.solverGrader)
-      && proportionalPolynomialRelations(current, initial);
-  if (!equivalent) return 0;
-  return Math.min(.9, 1 / Math.max(1, Number(definition.solutionDepth) || 1));
-};
 
 const invalid = (reason) => ({ valid: false, reason });
 const valid = () => ({ valid: true, reason: null });
@@ -919,14 +877,23 @@ const CONTRACTS = {
     },
     gradeStudentResponse: (definition, raw) => {
       if (definition.solverGrader && definition.expectedFinalRelation != null) {
-        const isCorrect = gradeSolverRaceRelation({
+        const actual = raw.finalRelation || raw.finalEquation || '';
+        const isCorrect = solverRaceRelationChanged(actual, definition.initialRelation) && gradeSolverRaceRelation({
           family: definition.solverGrader,
           expected: definition.expectedFinalRelation,
           variable: definition.variable,
-          actual: raw.finalRelation || raw.finalEquation || '',
+          actual,
         });
         const result = graded(isCorrect, [{ id: 'algebra-objective', isCorrect }]);
-        return { ...result, score: secureSolverProgressScore(definition, raw, isCorrect) };
+        return { ...result, score: solverRaceProgressScore({
+          family: definition.solverGrader,
+          initial: definition.initialRelation,
+          expected: definition.expectedFinalRelation,
+          actual,
+          variable: definition.variable,
+          solutionDepth: definition.solutionDepth,
+          isCorrect,
+        }) };
       }
       const isolated = isolatedValue(raw.finalEquation, definition.variable);
       const given = isolated ?? raw.value;

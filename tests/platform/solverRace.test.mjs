@@ -106,13 +106,53 @@ test('every linear-equation structure is securely graded and rejects a wrong sol
   }
 });
 
-test('the secure grader awards conservative partial credit for a valid unfinished solver relation', () => {
-  const question = SOLVER_RACE_CATALOG.find((entry) => entry.id.endsWith('linearEquation_two_step'));
-  const partial = grade(question, '4*x = 20', { score: 1, provisionalPoints: 1000 });
-  assert.equal(partial.isCorrect, false);
-  assert.equal(partial.score, .5, 'one server-verified move in a depth-two solve earns half base credit');
-  assert.equal(grade(question, question.equation).score, 0, 'the untouched starting relation is not work');
-  assert.equal(grade(question, '4*x = 24', { score: 1 }).score, 0, 'a client claim cannot make invalid algebra worth credit');
+test('the secure grader awards unfinished credit across every Solver Race family', () => {
+  const cases = [
+    ['linearEquation_two_step', '3*x = 15'],
+    ['literalEquation_two_step', 'y-b = a*x'],
+    ['linearInequality_two_step', '2*x > 8'],
+    ['absoluteValueEquation_outside_coefficient', '|x-2| = 4'],
+    ['absoluteValueInequality_isolate_and', '|x-3| < 4'],
+  ];
+  for (const [suffix, unfinished] of cases) {
+    const question = SOLVER_RACE_CATALOG.find((entry) => entry.id.endsWith(suffix));
+    const partial = grade(question, unfinished, { score: 1, provisionalPoints: 1000 });
+    // Linear inequalities have always treated every equivalent inequality as
+    // a complete answer. Preserve that established full-answer contract; the
+    // other families remain unfinished until their required final form.
+    const establishedFullAnswer = question.challengeFamily === 'linearInequality';
+    assert.equal(partial.isCorrect, establishedFullAnswer, suffix);
+    assert.equal(partial.score, establishedFullAnswer ? 1 : 1 / question.solutionDepth,
+      `${suffix} authoritative score`);
+    assert.equal(grade(question, question.equation).score, 0, `${suffix} untouched`);
+    assert.equal(grade(question, question.expectedFinalRelation).score, 1, `${suffix} full answer`);
+  }
+});
+
+test('secure absolute-value progress accepts correct splits and negative-direction reversals', () => {
+  const equation = SOLVER_RACE_CATALOG.find((entry) => entry.id.endsWith('absoluteValueEquation_inside_coefficient'));
+  assert.equal(grade(equation, '2*x+1 = 7 OR 2*x+1 = -7').score, .5);
+
+  const between = SOLVER_RACE_CATALOG.find((entry) => entry.id.endsWith('absoluteValueInequality_isolate_and'));
+  assert.equal(grade(between, '-4 < x-3 < 4').score, 1 / 3);
+
+  const outside = SOLVER_RACE_CATALOG.find((entry) => entry.id.endsWith('absoluteValueInequality_or_closed'));
+  assert.equal(grade(outside, '2*x-1 <= -5 OR 2*x-1 >= 5').score, 1,
+    'the negative branch must reverse direction');
+});
+
+test('invalid transformations and branch structures earn zero despite client claims', () => {
+  const cases = [
+    ['linearEquation_two_step', '3*x = 14'],
+    ['literalEquation_two_step', 'y+b = a*x'],
+    ['linearInequality_negative_flip', 'x <= -4'],
+    ['absoluteValueEquation_inside_coefficient', '2*x+1 = 7 OR 2*x+1 = 7'],
+    ['absoluteValueInequality_or_closed', '2*x-1 >= -5 OR 2*x-1 >= 5'],
+  ];
+  for (const [suffix, invalid] of cases) {
+    const question = SOLVER_RACE_CATALOG.find((entry) => entry.id.endsWith(suffix));
+    assert.equal(grade(question, invalid, { score: 1, provisionalPoints: 1000 }).score, 0, suffix);
+  }
 });
 
 test('canonical response meaningfulness decides only whether there is work to send', () => {
