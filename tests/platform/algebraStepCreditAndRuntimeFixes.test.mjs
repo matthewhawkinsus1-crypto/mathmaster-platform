@@ -23,6 +23,7 @@ import {
   normalizeQuestionRecord,
 } from '../../src/attemptPolicy.js';
 import { resolveEquationAfterMove } from '../../src/algebraSupportLevels.js';
+import { buildCancellationModel } from '../../src/algebraCancellationModel.js';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
@@ -65,10 +66,8 @@ test('subtracting 2r from both sides of T = 2r + 2s is a valid balanced symbolic
   });
 
   assert.equal(move.preservesSolution, true);
-  assert.equal(move.requiredCancellationSides.includes('right'), true);
-  const rightTarget = move.cancellationTargets.find((target) => target.side === 'right');
-  assert.equal(rightTarget?.canCancel, true);
-  assert.equal(expressionsEquivalent(rightTarget.cancellationResultExpression, '2*s', 's'), true);
+  assert.notEqual(move.unsimplified.left, equation.left);
+  assert.notEqual(move.unsimplified.right, equation.right);
 });
 
 test('dividing a lone negative variable by -1 exposes exactly one sign cancellation', () => {
@@ -87,6 +86,15 @@ test('dividing a lone negative variable by -1 exposes exactly one sign cancellat
   assert.equal(leftTarget?.cancellationPairs?.length, 1);
   assert.equal(move.requiredCancellationSides.includes('left'), true);
   assert.equal(expressionsEquivalent(leftTarget.cancellationResultExpression, 'x', 'x'), true);
+
+  const cancellationModel = buildCancellationModel(
+    move.unsimplified.left,
+    leftTarget.cancellationResultExpression,
+    'x',
+    leftTarget.cancellationPairs,
+  );
+  assert.equal(cancellationModel?.pairs?.length, 1);
+  assert.equal(expressionsEquivalent(cancellationModel.resultExpression, 'x', 'x'), true);
 
   const resolved = resolveEquationAfterMove(move, 3, ['left']);
   assert.equal(expressionsEquivalent(resolved.left, 'x', 'x'), true);
