@@ -162,6 +162,7 @@ export default function QuestionEngine({
   // the result, and the tools are told not to show a verdict of their own.
   //   { pathToolId, submit(rawWork, supportUsage, meta) -> feedback }
   serverGrading = null,
+  onResponseStateChange = null,
   onResponseCheckpoint = null,
   onSpotlightFrame = null,
 }) {
@@ -514,6 +515,18 @@ export default function QuestionEngine({
     calculatorUsed: Boolean(calculatorUsed),
     isMathematicallyIndependent: !hintUsed && !scaffoldComplete,
   });
+
+  // Secure callers sometimes need to finalize the work already on screen
+  // (for example, at a synchronized round deadline). Publish only the same
+  // canonical raw payload manual Submit uses; no browser verdict or step score
+  // is included in this seam.
+  useEffect(() => {
+    if (!serverGrading || !onResponseStateChange) return;
+    onResponseStateChange(buildRawPathResponse({
+      pathToolId: serverGrading.pathToolId,
+      answerState,
+    }));
+  }, [answerState, onResponseStateChange, serverGrading]);
 
   // The one place a server-graded attempt is sent. Returns the server's
   // feedback, or a refusal — never a locally computed verdict.

@@ -3,7 +3,7 @@ import QuestionEngine from '../../QuestionEngine.jsx';
 import { publicLeaderboard, LIVE_PROVISIONAL_MAX_POINTS } from '../../../functions/shared/liveChallenge.mjs';
 import { acceptChallengeSnapshot, calibrateChallengeClock, challengePhaseAt, monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
 import { calculateStepPartialCredit, emptyQuestionRecord, recordQuestionStep } from '../../attemptPolicy.js';
-import { questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
+import { hasMeaningfulRawPathResponse, questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
 import LiveChallengeFieldQuestion from './LiveChallengeFieldQuestion.jsx';
 import {
   joinLiveChallenge,
@@ -142,6 +142,11 @@ export function ChallengeRound({
   });
   const recoveredPendingRef = useRef(Boolean(pending));
   const submissionInFlightRef = useRef(false);
+  const submissionLockRef = useRef(Boolean(pending));
+  const pendingRef = useRef(pending);
+  const resultRef = useRef(result);
+  const latestRawResponseRef = useRef(null);
+  const wasExpiredRef = useRef(false);
   const [submitError, setSubmitError] = useState('');
   const [stepRecord, setStepRecord] = useState(() => emptyQuestionRecord());
   const stepRecordRef = useRef(stepRecord);
@@ -155,6 +160,9 @@ export function ChallengeRound({
     [question?.questionInstanceId, question?.pathToolId],
   );
 
+  pendingRef.current = pending;
+  resultRef.current = result;
+
   useEffect(() => {
     setResult(null);
     setSubmitError('');
@@ -166,6 +174,9 @@ export function ChallengeRound({
     });
     stepRecordRef.current = fresh;
     setStepRecord(fresh);
+    latestRawResponseRef.current = null;
+    wasExpiredRef.current = false;
+    submissionLockRef.current = Boolean(pendingRef.current);
     // The origin is intentionally not recalculated when wall-clock calibration
     // refreshes; device clock changes during a round cannot alter elapsed time.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -182,8 +193,9 @@ export function ChallengeRound({
     return () => window.clearTimeout(timer);
   }, [workingPoints, result, expired, room?.roomId, roundIndex, reportProgress]);
 
-  const submit = async (responsePayload) => {
-    if (result || pending || expired || !roundStarted) return null;
+  const submit = async (responsePayload, { atRoundEnd = false } = {}) => {
+    if (resultRef.current || pendingRef.current || submissionLockRef.current || (!atRoundEnd && expired) || !roundStarted) return null;
+    submissionLockRef.current = true;
     setSubmitError('');
     const submissionId = globalThis.crypto?.randomUUID?.() || `submission-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const capture = {
@@ -193,19 +205,25 @@ export function ChallengeRound({
       roundToken: room.roundToken || '',
       submissionId,
       responsePayload,
-      humanElapsedMs: Math.max(0, performance.now() - roundOriginMonoRef.current),
+      humanElapsedMs: atRoundEnd
+        ? Math.max(0, endsAtMs - startsAtMs)
+        : Math.max(0, performance.now() - roundOriginMonoRef.current),
       connectionQuality: room.connectionQuality || 'unknown',
       timingDegraded: room.connectionQuality === 'degraded',
+      autoFinalizedAtRoundEnd: atRoundEnd,
     };
     // Lock and acknowledge before awaiting transport. The exact payload/id is
     // retained so a transient failure retries rather than creating an attempt.
     setPending(capture);
+    pendingRef.current = capture;
     window.localStorage.setItem(pendingKey, JSON.stringify(capture));
     submissionInFlightRef.current = true;
     try {
       const grading = await submitResponse(capture);
       setResult(grading);
+      resultRef.current = grading;
       setPending(null);
+      pendingRef.current = null;
       window.localStorage.removeItem(pendingKey);
       onResult?.(grading);
       return {
@@ -221,8 +239,24 @@ export function ChallengeRound({
     } catch (error) {
       setSubmitError(error?.message || 'Your answer could not be submitted.');
       return null;
-    } finally { submissionInFlightRef.current = false; }
+    } finally {
+      submissionInFlightRef.current = false;
+      submissionLockRef.current = Boolean(pendingRef.current || resultRef.current);
+    }
   };
+
+  useEffect(() => {
+    const transitionedToExpired = expired && !wasExpiredRef.current;
+    wasExpiredRef.current = expired;
+    if (!transitionedToExpired || !secureQuestion || resultRef.current || pendingRef.current || submissionInFlightRef.current) return;
+    const rawWork = latestRawResponseRef.current;
+    const hasValidatedProgress = stepRecordRef.current.stepGrades.some((grade) => grade?.isCorrect === true);
+    if (!hasValidatedProgress || !hasMeaningfulRawPathResponse(rawWork)) return;
+    void submit({ raw: rawWork }, { atRoundEnd: true });
+    // `submit` is deliberately the same finalization path used by the button.
+    // Refs provide the synchronous lock that wins a submit/deadline race.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expired, secureQuestion]);
 
   const retryPending = async () => {
     if (!pending || result || submissionInFlightRef.current) return;
@@ -231,17 +265,23 @@ export function ChallengeRound({
     try {
       const grading = await submitResponse(pending);
       setResult(grading);
+      resultRef.current = grading;
       setPending(null);
+      pendingRef.current = null;
       window.localStorage.removeItem(pendingKey);
       onResult?.(grading);
     } catch (error) {
       const code = String(error?.code || '');
       if (/failed-precondition|deadline-exceeded|not-found/.test(code)) {
         setPending(null);
+        pendingRef.current = null;
         window.localStorage.removeItem(pendingKey);
         setSubmitError('That round has closed. Your screen has caught up safely.');
       } else setSubmitError(error?.message || 'Still reconnecting. Your locked answer is safe.');
-    } finally { submissionInFlightRef.current = false; }
+    } finally {
+      submissionInFlightRef.current = false;
+      submissionLockRef.current = Boolean(pendingRef.current || resultRef.current);
+    }
   };
 
   useEffect(() => {
@@ -337,6 +377,7 @@ export function ChallengeRound({
               pathToolId: question.pathToolId,
               submit: async (rawWork) => submit({ raw: rawWork }),
             }}
+            onResponseStateChange={(rawWork) => { latestRawResponseRef.current = rawWork; }}
             onStepGrade={async ({ stepGrade, countsAttempt, statePatch, supportUsage = null }) => {
               const outcome = recordQuestionStep({
                 record: stepRecordRef.current,

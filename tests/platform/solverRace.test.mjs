@@ -5,7 +5,7 @@ import {
   SOLVER_RACE_CATALOG, planSolverRace, solverRaceCatalogCounts, solverRaceFamilyPlan,
 } from '../../functions/shared/solverRace.mjs';
 import { buildPrivateToolGrading, buildPublicToolPayload, gradePathResponse } from '../../functions/shared/pathToolContracts.mjs';
-import { buildRawPathResponse } from '../../src/platform/path/pathToolResponses.js';
+import { buildRawPathResponse, hasMeaningfulRawPathResponse } from '../../src/platform/path/pathToolResponses.js';
 import { questionFromToolPayload } from '../../src/platform/path/pathToolResponses.js';
 import { needsMultiRelationWorkspace } from '../../src/algebraRelationFoundation.js';
 import mathPath from '../../functions/lib/mathPath.js';
@@ -104,6 +104,21 @@ test('every linear-equation structure is securely graded and rejects a wrong sol
     const answer = Number(question.expectedFinalRelation.split('=')[1]);
     assert.equal(grade(question, `x = ${answer + 1}`).isCorrect, false, question.id);
   }
+});
+
+test('the secure grader awards conservative partial credit for a valid unfinished solver relation', () => {
+  const question = SOLVER_RACE_CATALOG.find((entry) => entry.id.endsWith('linearEquation_two_step'));
+  const partial = grade(question, '4*x = 20', { score: 1, provisionalPoints: 1000 });
+  assert.equal(partial.isCorrect, false);
+  assert.equal(partial.score, .5, 'one server-verified move in a depth-two solve earns half base credit');
+  assert.equal(grade(question, question.equation).score, 0, 'the untouched starting relation is not work');
+  assert.equal(grade(question, '4*x = 24', { score: 1 }).score, 0, 'a client claim cannot make invalid algebra worth credit');
+});
+
+test('canonical response meaningfulness decides only whether there is work to send', () => {
+  assert.equal(hasMeaningfulRawPathResponse({ finalRelation: '4*x = 20', candidateVerification: '' }), true);
+  assert.equal(hasMeaningfulRawPathResponse({ finalRelation: '   ', candidateVerification: '' }), false);
+  assert.equal(hasMeaningfulRawPathResponse(null), false);
 });
 
 test('difficulty can ramp or remain fixed while long races retain structural variety', () => {

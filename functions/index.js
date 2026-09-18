@@ -10019,12 +10019,14 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     const missedRounds = Array.isArray(player.missedRounds) ? player.missedRounds.map(Number) : [];
     const missedOriginally = isSecondChance && missedRounds.includes(Number(secondChanceOf));
 
-    const officialElapsedMs = parity.authoritativeElapsed({
+    const officialElapsedMs = request.data?.autoFinalizedAtRoundEnd === true
+      ? challenge.normalizeRoundSeconds(latestRoom.roundSeconds) * 1000
+      : parity.authoritativeElapsed({
       humanElapsedMs: request.data?.timingDegraded ? null : request.data?.humanElapsedMs,
       arrivedAtMs: requestArrivedAt,
       startsAtMs: latestStartsAtMs,
       totalMs: challenge.normalizeRoundSeconds(latestRoom.roundSeconds) * 1000,
-    });
+      });
     finalScore = challenge.scoreChallengeRound({
       gradeScore: grading?.score ?? (grading?.isCorrect ? 1 : 0),
       isCorrect: grading?.isCorrect === true,
