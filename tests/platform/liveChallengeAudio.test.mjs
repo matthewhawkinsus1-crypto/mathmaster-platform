@@ -16,8 +16,40 @@ test('game state selects lobby, battle, final-round and victory music', async ()
   assert.equal(challengeMusicState({ status: 'running', currentRound: 0, scheduledRoundCount: 10 }), 'round');
   assert.equal(challengeMusicState({ status: 'running', currentRound: 8, scheduledRoundCount: 10 }), 'round');
   assert.equal(challengeMusicState({ status: 'running', currentRound: 9, scheduledRoundCount: 10 }), 'finalRound');
+  assert.equal(challengeMusicState({ status: 'running', currentRound: 0, scheduledRoundCount: 10 }, 0), null);
   assert.equal(challengeMusicState({ status: 'finished' }), 'victory');
   assert.equal(challengeMusicState({ status: 'cancelled' }), null);
+});
+
+test('round end stops music, cues once, and the next synchronized round restarts its audio', async () => {
+  const created = [];
+  class FakeAudio {
+    constructor(src) { this.src = src; this.volume = 0; this.playCount = 0; created.push(this); }
+    addEventListener() {}
+    play() { this.playCount += 1; return Promise.resolve(); }
+    pause() {}
+  }
+  const { LiveChallengeAudioDirector } = await loadAudio();
+  const director = new LiveChallengeAudioDirector({
+    AudioClass: FakeAudio,
+    fetchImpl: async () => ({ ok: false }),
+  });
+  await director.prime();
+  const first = { status: 'running', currentRound: 0, roundCount: 3, roundEndsAt: { seconds: 10 } };
+
+  director.sync({ room: first, remainingMs: 5000 });
+  assert.equal(director.musicKey, 'round', 'active rounds play battle music');
+  director.sync({ room: first, remainingMs: 0 });
+  director.sync({ room: first, remainingMs: 0 });
+  assert.equal(director.musicKey, null, 'music remains stopped while the teacher discusses the completed round');
+  assert.equal(created.filter((audio) => audio.src.endsWith('/question_lock_in.wav')).length, 1, 'the round-end cue fires once per round');
+
+  const second = { status: 'running', currentRound: 1, roundCount: 3, roundEndsAt: { seconds: 20 } };
+  director.sync({ room: second, remainingMs: 5000 });
+  assert.equal(director.musicKey, 'round', 'music resumes only when the new round is open');
+  assert.equal(created.filter((audio) => audio.src.endsWith('/round_start.wav')).length, 2, 'roundStart remains active for the initial and next round');
+  assert.equal(created.filter((audio) => audio.src.endsWith('/next_question.wav')).length, 1, 'the next-question announcer still fires');
+  director.dispose();
 });
 
 test('music transitions use the approved 650ms crossfade envelope', async () => {
