@@ -62,11 +62,15 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
   complexPlaneLab: entry(['complexPlane/ComplexPlaneLab.jsx']),
   exponentialLogBridge: entry(['exponentialLog/ExponentialLogBridge.jsx']),
   transformationsLab: entry(['transformations/TransformationsLab.jsx']),
-  representationMatch: entry(['representationMatch/RepresentationMatch.jsx']),
+  representationMatch: entry(['representationMatch/RepresentationMatch.jsx'], {
+    activeLineSlot: 'Which line slot linearConnections cards are currently tapped into. Selection, not an answer.',
+  }),
   functionInvestigation2: entry(['functionInvestigation2/FunctionInvestigation2.jsx']),
   graphing2: entry(['graphing2/Graphing2.jsx']),
-  stepAlgebra2: entry(['stepAlgebra2/StepAlgebra2.jsx'], {
+  stepAlgebra2: entry(['stepAlgebra2/StepAlgebra2.jsx', 'stepAlgebra2/RewriteLinearForm.jsx'], {
     inputError: 'Why an operand was rejected. Error text, not a step.',
+    operationError: 'Why the last balanced operation was rejected. Error text, not a step.',
+    rewriteError: 'Why the last equivalent-rewrite check failed. Error text, not a step.',
   }),
   // Nothing here is answerable: it renders an attempt that has already been
   // graded. A draft would have nothing to hold.

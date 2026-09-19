@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
@@ -7,11 +7,16 @@ import { evaluateFunctionSpec } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
 import {
   buildDefaultRepresentationSets,
+  buildLinearConnectionCards,
   findTableMismatchIndexes,
+  LINEAR_CARD_KINDS,
   mixedRepresentationCards,
   mismatchedRepresentationKinds,
   representationById,
+  scoreLinearConnectionGrouping,
+  scoreLinearMismatchSelection,
   scoreRepresentationMatch,
+  shuffleLinearConnectionCards,
   tableRowsForFunction,
 } from './representationMath';
 
@@ -61,6 +66,7 @@ const MODE_TASKS = {
   findMismatch: 'Two of these three cards describe the same relationship. Find the one that does not.',
   tableAudit: 'Exactly one row of this table breaks the rule. Find it.',
   graphMatch: 'Choose the graph that matches the given equation.',
+  linearConnections: 'Group the cards that describe the same line together.',
 };
 
 const MODE_STEPS = {
@@ -68,6 +74,7 @@ const MODE_STEPS = {
   findMismatch: ['Pick a couple of input values.', 'Work out what each card predicts for those inputs.', 'The card that disagrees with the other two is the mismatch.'],
   tableAudit: ['Substitute each row’s x into the rule.', 'Compare the result with the y in that row.', 'Select the one row where they disagree.'],
   graphMatch: ['Find the key features of the equation: where it crosses the axes and how fast it grows.', 'Look for those same features in each graph.', 'Select the graph that has all of them.'],
+  linearConnections: ['Pick a line slot, then tap every card that describes that same line — a slope, an intercept, an equation in any form, or the graph.', 'Switch slots and repeat for the next line.', 'Compare the numbers each card gives you rather than how the card looks.'],
 };
 
 const MODE_HINTS = {
@@ -91,11 +98,22 @@ const MODE_HINTS = {
     'Then check the shape: a straight line, a U-shape and a curve that doubles all look different.',
     'Finally check a single specific point on the remaining candidates.',
   ],
+  linearConnections: [
+    'Turn every card into slope-intercept form in your head, or on scratch paper, before comparing it to another card.',
+    'A slope card and a point card together determine a whole line — check whether that line matches an equation card.',
+    'Two equations that look different can still be the same line; substitute a value for x and compare the y each one gives.',
+  ],
 };
 
 export default function RepresentationMatch({ questionData = {}, onAction }) {
   const mode = questionData.mode || 'completeSet';
-  const sets = useMemo(() => questionData.sets?.length ? questionData.sets : buildDefaultRepresentationSets(), [questionData.sets]);
+  // linearConnections questions must never fall back to the generic
+  // quadratic/exponential demo relationships — an authoring mistake there
+  // should surface as an empty board, not a silently wrong linear question.
+  const sets = useMemo(() => {
+    if (mode === 'linearConnections') return questionData.sets || [];
+    return questionData.sets?.length ? questionData.sets : buildDefaultRepresentationSets();
+  }, [questionData.sets, mode]);
   const targetId = questionData.targetId || sets[0]?.id;
   const graphMatchBounds = useMemo(() => graphMatchBoundsFor(sets, questionData.graphBounds), [sets, questionData.graphBounds]);
   const choices = useMemo(() => [...sets].reverse(), [sets]);
@@ -118,6 +136,52 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
   const [badRow, setBadRow] = usePersistentToolState('badRow', null);
   const [graphId, setGraphId] = usePersistentToolState('graphId', '');
   const { feedback, submit } = useToolSubmission(onAction);
+
+  // --- linearConnections ------------------------------------------------
+  const linearTask = questionData.task === 'findMismatch' ? 'findMismatch' : 'group';
+  const linearCardKinds = questionData.cardKinds?.length ? questionData.cardKinds : LINEAR_CARD_KINDS;
+  const linearGroupCards = useMemo(
+    () => (mode === 'linearConnections' && linearTask === 'group' ? shuffleLinearConnectionCards(buildLinearConnectionCards(sets, linearCardKinds)) : []),
+    [mode, linearTask, sets, linearCardKinds],
+  );
+  const mismatchSet = useMemo(() => sets.find((set) => set.id === questionData.mismatchSetId) || null, [sets, questionData.mismatchSetId]);
+  const linearMismatchCards = useMemo(
+    () => (mode === 'linearConnections' && linearTask === 'findMismatch' && mismatchSet
+      ? buildLinearConnectionCards([mismatchSet], ['slopeIntercept', 'pointSlope', 'standard'])
+      : []),
+    [mode, linearTask, mismatchSet],
+  );
+  const lineLabels = useMemo(() => sets.map((_, index) => String.fromCharCode(65 + index)), [sets]);
+  const [linearAssignments, setLinearAssignments] = usePersistentToolState('linearAssignments', {});
+  const [activeLineSlot, setActiveLineSlot] = useState(0);
+  const [mismatchSelection, setMismatchSelection] = usePersistentToolState('linearMismatchSelection', '');
+  const [correctionChoice, setCorrectionChoice] = usePersistentToolState('linearCorrectionChoice', '');
+
+  const toggleCardAssignment = (cardId) => {
+    setLinearAssignments((current) => {
+      const next = { ...current };
+      if (next[cardId] === activeLineSlot) delete next[cardId];
+      else next[cardId] = activeLineSlot;
+      return next;
+    });
+  };
+
+  const checkLinearGroup = () => {
+    const result = scoreLinearConnectionGrouping(linearGroupCards, linearAssignments);
+    submit({ isCorrect: result.isCorrect, score: result.score }, { assignments: linearAssignments }, { mode, task: 'group', correctPairs: result.correctPairs, totalPairs: result.totalPairs });
+  };
+
+  const checkLinearMismatch = () => {
+    const result = scoreLinearMismatchSelection(linearMismatchCards, mismatchSelection);
+    const correctionOptions = questionData.correctionOptions || [];
+    const correctionSatisfied = !correctionOptions.length || correctionChoice === questionData.correctionAnswerId;
+    const isCorrect = result.ok && correctionSatisfied;
+    submit(
+      { isCorrect, score: isCorrect ? 1 : result.ok ? 0.6 : 0 },
+      { selectedId: mismatchSelection, correctionChoice },
+      { mode, task: 'findMismatch', expectedId: result.expectedId },
+    );
+  };
 
   const checkCompleteSet = () => {
     const response = { equation, table, context };
@@ -192,15 +256,39 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
   const targetSet = representationById(sets, targetId);
   const cards = mixedRepresentationCards(sets, mixed);
 
+  const LINEAR_KIND_LABELS = {
+    slopeIntercept: 'Slope-intercept equation', pointSlope: 'Point-slope equation', standard: 'Standard-form equation',
+    graph: 'Graph', slope: 'Slope', point: 'Point', xIntercept: 'x-intercept', yIntercept: 'y-intercept', context: 'Context',
+  };
+  const renderLinearCardBody = (card) => {
+    if (card.kind === 'graph') {
+      const bounds = questionData.graphBounds || { xMin: -8, xMax: 8, yMin: -8, yMax: 8 };
+      return <CoordinatePlane enlargeable={false} width={220} height={140} {...bounds} functions={[(x) => evaluateFunctionSpec(card.value || {}, x)]} />;
+    }
+    if (['slopeIntercept', 'pointSlope', 'standard'].includes(card.kind)) {
+      return <MathDisplay value={String(card.value)} format="ascii-math" ariaLabel={`${LINEAR_KIND_LABELS[card.kind]}: ${card.value}`} />;
+    }
+    if (card.kind === 'slope') return <span>m = {card.value}</span>;
+    if (['point', 'xIntercept', 'yIntercept'].includes(card.kind)) return <span>({card.value[0]}, {card.value[1]})</span>;
+    return <span>{String(card.value)}</span>;
+  };
+
   const shellTitle = mode === 'graphMatch' ? 'Match the Graph'
     : mode === 'findMismatch' ? 'Find the Mismatch'
       : mode === 'tableAudit' ? 'Check the Table'
-        : 'Connect the Representations';
+        : mode === 'linearConnections' ? (linearTask === 'findMismatch' ? 'Find the Mismatched Line' : 'Connect the Line')
+          : 'Connect the Representations';
 
   return <ToolShell title={shellTitle} subtitle="Equations, tables, graphs and contexts are four ways of saying the same thing — make sure they agree." badge="Multiple representations">
     <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.completeSet} steps={MODE_STEPS[mode] || MODE_STEPS.completeSet} />
     <ToolGrid min={330}>
-      <Panel title={mode === 'completeSet' ? 'Build a consistent representation set' : mode === 'findMismatch' ? 'Find the broken link' : mode === 'tableAudit' ? 'Audit the table' : 'Match the graph'}>
+      <Panel title={
+        mode === 'completeSet' ? 'Build a consistent representation set'
+          : mode === 'findMismatch' ? 'Find the broken link'
+            : mode === 'tableAudit' ? 'Audit the table'
+              : mode === 'linearConnections' ? (linearTask === 'findMismatch' ? 'Find the broken link' : 'Group the cards by line')
+                : 'Match the graph'
+      }>
         {mode === 'completeSet' ? <>
           <p style={{ color: '#5f6b7a' }}>All three of your choices must describe the same <strong>{familyLabel(targetId)}</strong> relationship.</p>
           {selectRepresentation('Equation', equation, setEquation)}
@@ -227,16 +315,98 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
           <button type="button" onClick={checkGraph} disabled={!graphId} style={{ ...buttonStyle, marginTop: 12, opacity: graphId ? 1 : .55 }}>Check graph</button>
         </> : null}
 
+        {mode === 'linearConnections' && linearTask === 'group' ? <>
+          <p style={{ color: '#5f6b7a' }}>Pick a line below, then tap every card that describes that same line. Tap a card again to remove it from that line.</p>
+          <fieldset style={{ border: 0, padding: 0, margin: '0 0 12px' }}>
+            <legend style={{ fontWeight: 700, marginBottom: 7 }}>Which line are you building?</legend>
+            <div role="radiogroup" aria-label="Line to assign cards to" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {lineLabels.map((label, index) => (
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={activeLineSlot === index}
+                  key={label}
+                  onClick={() => setActiveLineSlot(index)}
+                  style={{
+                    padding: '9px 16px', minHeight: 44, borderRadius: 999, cursor: 'pointer', fontWeight: 800,
+                    border: activeLineSlot === index ? '2px solid #1a73e8' : '1px solid #cdd6e4',
+                    background: activeLineSlot === index ? '#eef4ff' : '#fff', color: '#202124',
+                  }}
+                >
+                  Line {label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+            {linearGroupCards.map((card) => {
+              const assignedSlot = linearAssignments[card.id];
+              const assignedLabel = assignedSlot != null ? `Line ${lineLabels[assignedSlot]}` : 'Unassigned';
+              return (
+                <button
+                  type="button"
+                  key={card.id}
+                  onClick={() => toggleCardAssignment(card.id)}
+                  aria-pressed={assignedSlot === activeLineSlot}
+                  aria-label={`${LINEAR_KIND_LABELS[card.kind]} card, currently ${assignedLabel}. Tap to ${assignedSlot === activeLineSlot ? 'remove from' : 'assign to'} Line ${lineLabels[activeLineSlot]}.`}
+                  style={{
+                    textAlign: 'left', padding: 10, borderRadius: 10, cursor: 'pointer', minHeight: 88,
+                    border: assignedSlot != null ? '2px solid #1a73e8' : '1px solid #d9e2f1',
+                    background: assignedSlot != null ? '#eef4ff' : '#fff',
+                  }}
+                >
+                  <div style={{ fontSize: 11, fontWeight: 800, color: '#5f6b7a', textTransform: 'uppercase', marginBottom: 4 }}>{LINEAR_KIND_LABELS[card.kind]}</div>
+                  {renderLinearCardBody(card)}
+                  <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: assignedSlot != null ? '#174ea6' : '#8a94a6' }}>{assignedLabel}</div>
+                </button>
+              );
+            })}
+          </div>
+          <button type="button" onClick={checkLinearGroup} style={{ ...buttonStyle, marginTop: 12 }}>Check groups</button>
+        </> : null}
+
+        {mode === 'linearConnections' && linearTask === 'findMismatch' ? <>
+          <p>These cards claim to describe the same line, but one of them does not. Select the card that does not belong.</p>
+          <div style={{ display: 'grid', gap: 10 }}>
+            {linearMismatchCards.map((card) => (
+              <button
+                type="button"
+                key={card.id}
+                onClick={() => setMismatchSelection(card.id)}
+                aria-pressed={mismatchSelection === card.id}
+                style={{ textAlign: 'left', padding: 12, borderRadius: 10, border: mismatchSelection === card.id ? '2px solid #1a73e8' : '1px solid #d9e2f1', background: mismatchSelection === card.id ? '#eef4ff' : '#fff', cursor: 'pointer' }}
+              >
+                <strong>{LINEAR_KIND_LABELS[card.kind]}</strong>
+                <div style={{ marginTop: 5, color: '#44536a' }}>{renderLinearCardBody(card)}</div>
+              </button>
+            ))}
+          </div>
+          {questionData.correctionOptions?.length ? (
+            <label style={{ display: 'block', marginTop: 12 }}>
+              What should that card say instead?
+              <select value={correctionChoice} onChange={(event) => setCorrectionChoice(event.target.value)} style={inputStyle}>
+                <option value="">Choose…</option>
+                {questionData.correctionOptions.map((option) => <option value={option.id} key={option.id}>{option.label}</option>)}
+              </select>
+            </label>
+          ) : null}
+          <button type="button" onClick={checkLinearMismatch} disabled={!mismatchSelection} style={{ ...buttonStyle, marginTop: 12, opacity: mismatchSelection ? 1 : .55 }}>Check answer</button>
+        </> : null}
+
         {feedback ? (() => {
           const message = feedback.isCorrect
-            ? 'Correct — these really are views of the same relationship.'
+            ? (mode === 'linearConnections' ? 'Correct — every card is grouped with the line it actually describes.' : 'Correct — these really are views of the same relationship.')
             : mode === 'completeSet'
               ? 'At least one of your three choices belongs to a different relationship. Test a single input value against each one.'
               : mode === 'findMismatch'
                 ? 'That is not the odd one out. Pick one input, get an output from each card, and find the card that disagrees with the other two.'
                 : mode === 'tableAudit'
                   ? 'That row actually fits the rule. Substitute each x back into the rule and compare with the printed y.'
-                  : 'That graph does not match. Check the y-intercept first, then the overall shape.';
+                  : mode === 'graphMatch'
+                    ? 'That graph does not match. Check the y-intercept first, then the overall shape.'
+                    : mode === 'linearConnections' && linearTask === 'group'
+                      ? `${feedback.metadata?.correctPairs ?? 0} of ${feedback.metadata?.totalPairs ?? 0} card pairings are correct so far. Convert each card to slope-intercept form and compare.`
+                      : 'That card is actually consistent with the others. Recheck each card’s slope and intercept against the others.';
           return <div style={{ marginTop: 14 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{ margin: '9px 0 0', color: '#3c4756', lineHeight: 1.55 }}>{message}</p></div>;
         })() : null}
         <HintPanel hints={MODE_HINTS[mode] || MODE_HINTS.completeSet} onHintUsed={() => onAction?.('HINT_USED')} />
