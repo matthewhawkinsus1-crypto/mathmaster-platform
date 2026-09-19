@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  SOLVER_RACE_CATALOG, planSolverRace, solverRaceCatalogCounts, solverRaceFamilyPlan,
+  SOLVER_RACE_CATALOG, generateSolverRaceQuestion, planSolverRace, solverRaceCatalogCounts, solverRaceFamilyPlan,
 } from '../../functions/shared/solverRace.mjs';
 import { buildPrivateToolGrading, buildPublicToolPayload, gradePathResponse } from '../../functions/shared/pathToolContracts.mjs';
 import { buildRawPathResponse, hasMeaningfulRawPathResponse } from '../../src/platform/path/pathToolResponses.js';
@@ -265,30 +265,64 @@ test('absolute inequality unions use one-to-one branch matching', () => {
   assert.equal(grade(question, 'x <= -4 OR x > 2').isCorrect, false, 'open versus closed');
 });
 
-test('absolute inequality OR branches support fractional endpoints from seeded variants', async () => {
-  let variant = null;
-  for (let index = 0; index < 256 && !variant; index += 1) {
-    variant = planSolverRace({
-      roundCount: 8,
-      focus: 'absoluteValueInequality',
-      seed: `fraction-endpoint-${index}`,
-    }).find((question) => question.equation === '|3*x-2| >= 10');
-  }
-
-  assert.ok(variant, 'expected to encounter the fractional seeded OR variant');
-  assert.equal(variant.expectedFinalRelation, 'x <= -8/3 OR x >= 4');
-  assert.equal((await mathPath.buildIssuePlan(variant)).issuable, true, 'seeded variant remains securely issuable');
-
+test('procedural OR branches derive both endpoints and keep them private', async () => {
+  const structure = SOLVER_RACE_CATALOG.find((question) => question.id.endsWith('absoluteValueInequality_or_closed'));
+  const variant = generateSolverRaceQuestion(structure, 'derived-or-branches');
+  assert.equal((await mathPath.buildIssuePlan(variant)).issuable, true);
+  assert.equal(grade(variant, variant.expectedFinalRelation).isCorrect, true);
+  const [left, right] = variant.expectedFinalRelation.split(' OR ');
+  assert.equal(grade(variant, `${right} OR ${left}`).isCorrect, true, 'branch order is irrelevant');
+  assert.equal(grade(variant, left).isCorrect, false, 'a branch cannot be omitted');
   const publicPayload = buildPublicToolPayload(variant);
   assert.ok(publicPayload);
-  assert.doesNotMatch(JSON.stringify(publicPayload), /expectedFinalRelation|solverGrader|-8\/3/);
+  assert.doesNotMatch(JSON.stringify(publicPayload), /expectedFinalRelation|solverGrader/);
+});
 
-  assert.equal(grade(variant, 'x <= -8/3 OR x >= 4').isCorrect, true, 'authored order');
-  assert.equal(grade(variant, 'x >= 4 OR x <= -8/3').isCorrect, true, 'reversed branch order');
-  assert.equal(grade(variant, '-8/3 >= x OR 4 <= x').isCorrect, true, 'reversed inequality orientation');
-  assert.equal(grade(variant, 'x >= -8/3 OR x >= 4').isCorrect, false, 'wrong left branch direction');
-  assert.equal(grade(variant, 'x <= -8/3 OR x <= -8/3').isCorrect, false, 'duplicate branch');
-  assert.equal(grade(variant, 'x < -8/3 OR x >= 4').isCorrect, false, 'endpoint openness matters');
+test('20 focused rounds have procedural diversity rather than a two-variant cycle', () => {
+  const race = planSolverRace({ roundCount: 20, focus: 'linearEquation', difficulty: 'foundation', seed: 'diversity-room' });
+  assert.ok(new Set(race.map((question) => question.equation)).size >= 15);
+  for (let index = 2; index < race.length; index += 1) {
+    assert.notEqual(race[index].equation, race[index % 2].equation, 'must not repeat the legacy two-question pattern');
+  }
+});
+
+test('30 deterministic samples of every structure issue and grade securely', async () => {
+  for (const structure of SOLVER_RACE_CATALOG) {
+    for (let sample = 0; sample < 30; sample += 1) {
+      const seed = `certify-${structure.id}-${sample}`;
+      const question = generateSolverRaceQuestion(structure, seed);
+      assert.deepEqual(question, generateSolverRaceQuestion(structure, seed), `${structure.id} deterministic`);
+      const issue = await mathPath.buildIssuePlan(question);
+      assert.equal(issue.issuable, true, `${structure.id} sample ${sample}: ${issue.reason}`);
+      assert.equal(grade(question, question.expectedFinalRelation).isCorrect, true, `${structure.id} sample ${sample}`);
+      assert.doesNotMatch(JSON.stringify(buildPublicToolPayload(question)), /expectedFinalRelation|solverGrader|generationParameters/);
+    }
+  }
+});
+
+test('negative inequalities always flip and positive coefficients never flip', () => {
+  const negative = SOLVER_RACE_CATALOG.find((question) => question.id.endsWith('linearInequality_negative_flip'));
+  const positive = SOLVER_RACE_CATALOG.find((question) => question.id.endsWith('linearInequality_positive_coefficient'));
+  for (let sample = 0; sample < 100; sample += 1) {
+    const flipped = generateSolverRaceQuestion(negative, `negative-${sample}`);
+    const notFlipped = generateSolverRaceQuestion(positive, `positive-${sample}`);
+    assert.equal(grade(flipped, flipped.expectedFinalRelation).isCorrect, true);
+    assert.equal(grade(notFlipped, notFlipped.expectedFinalRelation).isCorrect, true);
+    const wrongDirection = flipped.expectedFinalRelation.replace(/<=|>=|<|>/, (operator) => ({ '<': '>', '<=': '>=', '>': '<', '>=': '<=' })[operator]);
+    assert.equal(grade(flipped, wrongDirection).isCorrect, false);
+  }
+});
+
+test('generated nearby answers are rejected in every Solver Race family', () => {
+  for (const family of ['linearEquation', 'literalEquation', 'linearInequality', 'absoluteValueEquation', 'absoluteValueInequality']) {
+    const structure = SOLVER_RACE_CATALOG.find((question) => question.challengeFamily === family && !question.complexityTags.includes('noSolution') && !question.complexityTags.includes('allRealNumbers'));
+    const question = generateSolverRaceQuestion(structure, `nearby-${family}`);
+    let wrong;
+    if (family === 'literalEquation') wrong = `${question.expectedFinalRelation}+1`;
+    else if (family === 'absoluteValueEquation') wrong = `${question.expectedFinalRelation} OR x = 999`;
+    else wrong = question.expectedFinalRelation.replace(/-?\d+(?!.*\d)/, (value) => String(Number(value) + 1));
+    assert.equal(grade(question, wrong).isCorrect, false, `${family}: ${wrong}`);
+  }
 });
 
 test('public payload omits private grading while relation-work sends raw mathematics', () => {
