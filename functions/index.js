@@ -9114,8 +9114,11 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   const solverRaceFocus = solverRace.canonicalSolverRaceFocus(request.data?.solverRaceFocus);
   const solverRaceDifficulty = solverRace.canonicalSolverRaceDifficulty(request.data?.solverRaceDifficulty);
   const questionStyle = challengeMode === "solverRace" ? "tools" : challenge.canonicalQuestionStyle(request.data?.questionStyle);
+  // Never derive answer-bearing draws in the browser. This nonce is retained
+  // only in the private room record alongside the instantiated questions.
+  const solverRaceSeed = challengeMode === "solverRace" ? crypto.randomUUID() : null;
   const solverQuestions = challengeMode === "solverRace"
-    ? solverRace.planSolverRace({ roundCount: requestedRoundCount, focus: solverRaceFocus, difficulty: solverRaceDifficulty, seed: `${teacherEmail}|${Date.now()}` })
+    ? solverRace.planSolverRace({ roundCount: requestedRoundCount, focus: solverRaceFocus, difficulty: solverRaceDifficulty, seed: solverRaceSeed })
     : null;
   const candidates = solverQuestions
     ? await securelyPlanSolverRace(solverQuestions)
@@ -9189,6 +9192,7 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     schemaVersion: 2,
     roomId: roomRef.id,
     teacherEmail,
+    solverRaceSeed,
     questionIds: selected.map((entry) => entry.question.id),
     // Generated solver definitions stay in the server-only challenge document.
     // Public room payloads are produced by the normal Path sanitizer below.
@@ -9350,8 +9354,9 @@ exports.createChallengeDryRun = onCall(async (request) => {
   const solverRaceFocus = solverRace.canonicalSolverRaceFocus(request.data?.solverRaceFocus);
   const solverRaceDifficulty = solverRace.canonicalSolverRaceDifficulty(request.data?.solverRaceDifficulty);
   const questionStyle = challengeMode === "solverRace" ? "tools" : challenge.canonicalQuestionStyle(request.data?.questionStyle);
+  const solverRaceSeed = challengeMode === "solverRace" ? crypto.randomUUID() : null;
   const solverQuestions = challengeMode === "solverRace"
-    ? solverRace.planSolverRace({ roundCount: requestedRoundCount, focus: solverRaceFocus, difficulty: solverRaceDifficulty, seed: `${teacherEmail}|dry|${Date.now()}` })
+    ? solverRace.planSolverRace({ roundCount: requestedRoundCount, focus: solverRaceFocus, difficulty: solverRaceDifficulty, seed: solverRaceSeed })
     : null;
   const candidates = solverQuestions
     ? await securelyPlanSolverRace(solverQuestions)
@@ -9377,6 +9382,7 @@ exports.createChallengeDryRun = onCall(async (request) => {
     challengeMode,
     solverRaceFocus: challengeMode === "solverRace" ? solverRaceFocus : null,
     solverRaceDifficulty: challengeMode === "solverRace" ? solverRaceDifficulty : null,
+    solverRaceSeed,
     roundQuestions: challengeMode === "solverRace" ? selected.map((entry) => entry.question) : null,
     roundSeconds,
     timingMode,
@@ -9408,14 +9414,29 @@ exports.swapChallengeDryRunRound = onCall(async (request) => {
     const solverRace = await solverRaceRules();
     const roundQuestions = Array.isArray(dryRun.roundQuestions) ? [...dryRun.roundQuestions] : [];
     const current = roundQuestions[roundIndex];
-    const inUseFamilies = new Set(questionIds.map((id) => String(id).replace(/_r\d+$/, "")));
-    const alternate = solverRace.SOLVER_RACE_CATALOG.find((entry) => (
+    const stageStructures = solverRace.SOLVER_RACE_CATALOG.filter((entry) => (
       entry.challengeFamily === current?.challengeFamily
       && entry.difficultyBand === current?.difficultyBand
-      && !inUseFamilies.has(entry.id)
     ));
+    const alternatives = stageStructures.filter((entry) => entry.id !== current?.familyId);
+    const pool = alternatives.length ? alternatives : stageStructures;
+    const alternate = pool[solverRace.seededSolverRaceIndex(
+      `${dryRun.solverRaceSeed}|swap-structure|${roundIndex}|${current?.solverRaceSwap || 0}`,
+      pool.length,
+    )];
     if (!alternate) throw new HttpsError("failed-precondition", "There is no other Solver Race structure for this stage.");
-    const replacementQuestion = { ...alternate, id: `${alternate.id}_r${roundIndex + 1}`, solverRaceRound: roundIndex, solverRaceStage: current?.solverRaceStage };
+    const swapNumber = Math.max(1, Number(current?.solverRaceSwap) + 1 || 1);
+    const generated = solverRace.generateSolverRaceQuestion(
+      alternate,
+      `${dryRun.solverRaceSeed}|swap|${roundIndex}|${swapNumber}`,
+    );
+    const replacementQuestion = {
+      ...generated,
+      id: `${alternate.id}_r${roundIndex + 1}_swap${swapNumber}`,
+      solverRaceRound: roundIndex,
+      solverRaceStage: current?.solverRaceStage,
+      solverRaceSwap: swapNumber,
+    };
     questionIds[roundIndex] = replacementQuestion.id;
     roundQuestions[roundIndex] = replacementQuestion;
     await ref.set({ questionIds, roundQuestions, updatedAt: FieldValue.serverTimestamp() }, { merge: true });

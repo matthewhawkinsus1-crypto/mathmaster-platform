@@ -22,8 +22,9 @@ const q = (id, family, band, depth, equation, solveFor, expectedFinalRelation, o
   solverGrader: family,
 });
 
-// Eight genuinely different structures per family. Values are concrete because a whole
-// room must race on the same mathematics; selection rotates structures by a server seed.
+// These are instructional structures, not a question bank.  The concrete relation is a
+// readable exemplar used by authoring/tests; every issued race round is instantiated by
+// generateSolverRaceQuestion below from its server-owned seed.
 export const SOLVER_RACE_CATALOG = Object.freeze([
   q('add','linearEquation','foundation',1,'x+7 = 12','x','x = 5',['subtract']),
   q('subtract','linearEquation','foundation',1,'x-4 = 9','x','x = 13',['add']),
@@ -108,67 +109,156 @@ export const difficultyPlan = (roundCount) => Array.from({ length: roundCount },
 });
 
 const hash = (value) => [...String(value)].reduce((total, char) => ((total * 33) ^ char.charCodeAt(0)) >>> 0, 5381);
+export const seededSolverRaceIndex = (seed, length) => length > 0 ? hash(seed) % length : 0;
 
-const NUMERIC_VARIANTS = Object.freeze({
-  solverRace_linearEquation_add: [['x+9 = 15', 'x = 6'], ['x+4 = 11', 'x = 7']],
-  solverRace_linearEquation_subtract: [['x-6 = 8', 'x = 14'], ['x-9 = 3', 'x = 12']],
-  solverRace_linearEquation_multiply: [['4*x = 28', 'x = 7'], ['5*x = 40', 'x = 8']],
-  solverRace_linearEquation_divide: [['x/3 = 5', 'x = 15'], ['x/6 = 4', 'x = 24']],
-  solverRace_linearEquation_two_step: [['4*x+3 = 27', 'x = 6'], ['2*x-5 = 9', 'x = 7']],
-  solverRace_linearEquation_negative_coefficient: [['-3*x+4 = 19', 'x = -5'], ['-4*x-2 = 18', 'x = -5']],
-  solverRace_linearEquation_both_sides: [['6*x-5 = 3*x+13', 'x = 6'], ['7*x+2 = 4*x+20', 'x = 6']],
-  solverRace_linearEquation_signed_both_sides: [['8-2*x = 3*x-7', 'x = 3'], ['10-4*x = x-10', 'x = 4']],
-  solverRace_linearEquation_distribution: [['2*(x-3)+5 = 17', 'x = 9'], ['4*(x+1)-3 = 25', 'x = 6']],
-  solverRace_linearEquation_negative_distribution: [['-3*(x+2)+4 = 16', 'x = -6'], ['-2*(x-4)-3 = 11', 'x = -3']],
-  solverRace_linearEquation_fraction: [['(x+1)/3+2 = 6', 'x = 11'], ['(x-2)/5-1 = 2', 'x = 17']],
-  solverRace_linearEquation_multi_operation: [['3*(2*x-1)+4 = 2*x+21', 'x = 5'], ['5*(x-2)+3 = 2*x+14', 'x = 7']],
-  solverRace_linearEquation_distributed_both_sides: [['4*(x+2)-3 = 2*(x-1)+15', 'x = 4'], ['5*(x-1)+2 = 3*(x+1)+6', 'x = 6']],
-  solverRace_linearEquation_fraction_both_sides: [['(x+4)/2 = (x+10)/3', 'x = 8'], ['(x-2)/3 = (x-8)/2', 'x = 20']],
-  solverRace_linearInequality_one_add: [['x+7 < 15', 'x < 8'], ['x+3 < 12', 'x < 9']],
-  solverRace_linearInequality_one_subtract: [['x-6 >= 4', 'x >= 10'], ['x-8 >= -1', 'x >= 7']],
-  solverRace_linearInequality_positive_coefficient: [['4*x <= 28', 'x <= 7'], ['5*x <= 40', 'x <= 8']],
-  solverRace_linearInequality_two_step: [['3*x+2 > 17', 'x > 5'], ['4*x-3 > 21', 'x > 6']],
-  solverRace_linearInequality_negative_flip: [['-4*x+1 <= 21', 'x >= -5'], ['-2*x-3 <= 9', 'x >= -6']],
-  solverRace_linearInequality_both_sides: [['6*x-4 > 2*x+12', 'x > 4'], ['7*x+1 > 4*x+16', 'x > 5']],
-  solverRace_linearInequality_compound: [['-5 < 2*x+1 <= 11', '-3 < x <= 5'], ['-8 <= 3*x+1 < 10', '-3 <= x < 3']],
-  solverRace_linearInequality_fraction_negative: [['(3-x)/2 >= 5', 'x <= -7'], ['(4-x)/3 >= 4', 'x <= -8']],
-  solverRace_absoluteValueEquation_basic: [['|x| = 8', 'x = -8 OR x = 8'], ['|x| = 11', 'x = -11 OR x = 11']],
-  solverRace_absoluteValueEquation_translated: [['|x-4| = 6', 'x = -2 OR x = 10'], ['|x+2| = 5', 'x = -7 OR x = 3']],
-  solverRace_absoluteValueEquation_inside_coefficient: [['|3*x-2| = 10', 'x = -8/3 OR x = 4'], ['|2*x-3| = 9', 'x = -3 OR x = 6']],
-  solverRace_absoluteValueEquation_outside_coefficient: [['2*|x-3| = 10', 'x = -2 OR x = 8'], ['4*|x+1| = 20', 'x = -6 OR x = 4']],
-  solverRace_absoluteValueEquation_isolate_first: [['3*|x-2|+1 = 16', 'x = -3 OR x = 7'], ['2*|x+3|-2 = 12', 'x = -10 OR x = 4']],
-  solverRace_absoluteValueEquation_negative_inside: [['|5-2*x| = 11', 'x = -3 OR x = 8'], ['|4-3*x| = 10', 'x = -2 OR x = 14/3']],
-  solverRace_absoluteValueEquation_fraction: [['|(x+2)/3| = 4', 'x = -14 OR x = 10'], ['|(x-3)/2| = 5', 'x = -7 OR x = 13']],
-  solverRace_absoluteValueEquation_no_solution: [['3*|x-1|+2 = -4', 'no solution'], ['|2*x+5| = -1', 'no solution']],
-  solverRace_absoluteValueInequality_and_open: [['|x| < 7', '-7 < x < 7'], ['|x| < 9', '-9 < x < 9']],
-  solverRace_absoluteValueInequality_and_closed: [['|x-3| <= 5', '-2 <= x <= 8'], ['|x+2| <= 6', '-8 <= x <= 4']],
-  solverRace_absoluteValueInequality_or_open: [['|x-2| > 4', 'x < -2 OR x > 6'], ['|x+3| > 5', 'x < -8 OR x > 2']],
-  solverRace_absoluteValueInequality_or_closed: [['|2*x+1| >= 7', 'x <= -4 OR x >= 3'], ['|3*x-2| >= 10', 'x <= -8/3 OR x >= 4']],
-  solverRace_absoluteValueInequality_isolate_and: [['2*|x-1|+3 < 13', '-4 < x < 6'], ['3*|x+2|-1 < 11', '-6 < x < 2']],
-  solverRace_absoluteValueInequality_isolate_or: [['2*|x-3|-1 >= 9', 'x <= -2 OR x >= 8'], ['4*|x+1|+2 >= 18', 'x <= -5 OR x >= 3']],
-  solverRace_absoluteValueInequality_all_real: [['|x+6| >= -1', 'all real numbers'], ['2*|x-1| >= -8', 'all real numbers']],
-  solverRace_absoluteValueInequality_none: [['|3*x-2| < -1', 'no solution'], ['2*|x+4| <= -3', 'no solution']],
-});
+/* Retired in favour of construct-from-solution generation.  Keep generation in this
+ * server-shared module so issue, reconnect, grading, dry-run and replay cannot disagree. */
+const seededDraw = (seedKey) => {
+  let state = hash(seedKey) || 0x9e3779b9;
+  const next = () => {
+    state ^= state << 13; state ^= state >>> 17; state ^= state << 5;
+    return state >>> 0;
+  };
+  const int = (low, high) => low + (next() % (high - low + 1));
+  const pick = (values) => values[next() % values.length];
+  const signed = (magnitudeLow = 1, magnitudeHigh = 9) => pick([-1, 1]) * int(magnitudeLow, magnitudeHigh);
+  return { int, pick, signed };
+};
 
-const varyQuestion = (question, seedKey) => {
-  const choice = hash(seedKey);
-  const variants = NUMERIC_VARIANTS[question.id];
-  if (variants?.length) {
-    const [equation, expectedFinalRelation] = variants[choice % variants.length];
-    return { ...question, equation, equationLatex: equation, expectedFinalRelation };
+const add = (left, value) => `${left}${value < 0 ? '' : '+'}${value}`;
+const subCenter = (variable, center) => center < 0 ? `${variable}+${-center}` : `${variable}-${center}`;
+const relation = (variable, operator, value) => `${variable} ${operator} ${value}`;
+const reverseInequality = (operator) => ({ '<': '>', '<=': '>=', '>': '<', '>=': '<=' })[operator];
+
+const renameLiteral = (question, draw) => {
+  const sets = [
+    { x: 'n', y: 'q', a: 'k', b: 'd', c: 'm', P: 'T', L: 'r', W: 's' },
+    { x: 'u', y: 'v', a: 'p', b: 'h', c: 'j', P: 'C', L: 'd', W: 'w' },
+    { x: 'z', y: 't', a: 'g', b: 'r', c: 'f', P: 'K', L: 'm', W: 'n' },
+  ];
+  const names = draw.pick(sets);
+  const rename = (value) => String(value).replace(/[A-Za-z]+/g, (token) => names[token] || token);
+  const solveFor = names[question.solveFor] || question.solveFor;
+  return {
+    ...question, equation: rename(question.equation), equationLatex: rename(question.equationLatex),
+    expectedFinalRelation: rename(question.expectedFinalRelation), solveFor, variable: solveFor,
+    prompt: `Solve for ${solveFor} using the algebra workspace.`,
+    objective: { ...question.objective, variable: solveFor },
+  };
+};
+
+/** Deterministically instantiate one authored structure from a server-owned seed. */
+export const generateSolverRaceQuestion = (structure, seedKey) => {
+  const draw = seededDraw(`${seedKey}|procedural-v1`);
+  const key = structure.id.replace(`solverRace_${structure.challengeFamily}_`, '');
+  if (structure.challengeFamily === 'literalEquation') return renameLiteral(structure, draw);
+
+  const x = draw.signed(2, 12);
+  let equation;
+  let expectedFinalRelation;
+  const solved = () => { expectedFinalRelation = `x = ${x}`; };
+
+  if (structure.challengeFamily === 'linearEquation') {
+    solved();
+    if (key === 'add') { const c = draw.int(2, 12); equation = `x+${c} = ${x + c}`; }
+    if (key === 'subtract') { const c = draw.int(2, 12); equation = `x-${c} = ${x - c}`; }
+    if (key === 'multiply') { const a = draw.int(2, 9); equation = `${a}*x = ${a * x}`; }
+    if (key === 'divide') { const d = draw.int(2, 9); equation = `x/${d} = ${x}/${d}`; }
+    if (key === 'two_step') { const a = draw.int(2, 8), b = draw.signed(2, 10); equation = `${add(`${a}*x`, b)} = ${a * x + b}`; }
+    if (key === 'negative_coefficient') { const a = -draw.int(2, 8), b = draw.signed(2, 10); equation = `${add(`${a}*x`, b)} = ${a * x + b}`; }
+    if (key === 'both_sides') {
+      const b = draw.int(1, 5), a = b + draw.int(2, 6), c = draw.signed(2, 12), d = (a - b) * x + c;
+      equation = `${add(`${a}*x`, c)} = ${add(`${b}*x`, d)}`;
+    }
+    if (key === 'signed_both_sides') {
+      // Preserve the authored challenge: a visible negative variable term on
+      // one side and a positive variable term on the other. Neither side may
+      // collapse to 0*x, and the coefficients can never cancel each other.
+      const a = -draw.int(2, 7), b = draw.int(1, 5), c = draw.signed(2, 12), d = (a - b) * x + c;
+      equation = `${add(`${a}*x`, c)} = ${add(`${b}*x`, d)}`;
+    }
+    if (key === 'distribution' || key === 'negative_distribution') {
+      const a = (key === 'negative_distribution' ? -1 : 1) * draw.int(2, 6), h = draw.signed(2, 7), b = draw.signed(2, 9);
+      equation = `${add(`${a}*(${subCenter('x', h)})`, b)} = ${a * (x - h) + b}`;
+    }
+    if (key === 'fraction') { const h = draw.signed(1, 7), d = draw.int(2, 7), b = draw.signed(1, 6); equation = `(${subCenter('x', h)})/${d}${b < 0 ? '' : '+'}${b} = ${(x - h)}/${d}${b < 0 ? '' : '+'}${b}`; }
+    if (key === 'multi_operation') {
+      const outer = draw.int(2, 5), inner = draw.int(2, 4), h = draw.signed(1, 6), b = draw.signed(1, 7);
+      let right = draw.int(1, 5);
+      // If the distributed coefficient equals the right-side coefficient, the
+      // constructed equation becomes an identity instead of having one solution.
+      if (right === outer * inner) right = right === 5 ? 1 : right + 1;
+      const constant = outer * (inner * x - h) + b - right * x;
+      equation = `${add(`${outer}*(${add(`${inner}*x`, -h)})`, b)} = ${add(`${right}*x`, constant)}`;
+    }
+    if (key === 'distributed_both_sides') {
+      const a = draw.int(3, 6), b = draw.int(1, a - 1), h = draw.signed(1, 5), k = draw.signed(1, 5), c = draw.signed(1, 6);
+      const d = a * (x + h) + c - b * (x + k);
+      equation = `${add(`${a}*(x${h < 0 ? '' : '+'}${h})`, c)} = ${add(`${b}*(x${k < 0 ? '' : '+'}${k})`, d)}`;
+    }
+    if (key === 'fraction_both_sides') {
+      const p = draw.int(2, 6);
+      let q = draw.int(2, 6);
+      // Equal denominators with matching offsets reduce to an identity. Force
+      // distinct denominators before constructing the second numerator.
+      if (q === p) q = p === 6 ? 5 : p + 1;
+      const h = draw.signed(1, 7);
+      const k = q * (x + h) / p - x;
+      if (Number.isInteger(k)) equation = `(x${h < 0 ? '' : '+'}${h})/${p} = (x${k < 0 ? '' : '+'}${k})/${q}`;
+      else { const qq = p + 1; const kk = qq * (x + h) - p * x; equation = `(x${h < 0 ? '' : '+'}${h})/${p} = (${p}*x${kk < 0 ? '' : '+'}${kk})/${p * qq}`; }
+    }
   }
-  if (question.challengeFamily === 'literalEquation' && choice % 2 === 1) {
-    const names = { x: 'n', y: 'q', a: 'k', b: 'd', c: 'm', P: 'T', L: 'r', W: 's' };
-    const rename = (value) => String(value).replace(/[A-Za-z]+/g, (token) => names[token] || token);
-    const solveFor = names[question.solveFor] || question.solveFor;
-    return {
-      ...question, equation: rename(question.equation), equationLatex: rename(question.equationLatex),
-      expectedFinalRelation: rename(question.expectedFinalRelation), solveFor, variable: solveFor,
-      prompt: `Solve for ${solveFor} using the algebra workspace.`,
-      objective: { ...question.objective, variable: solveFor },
-    };
+
+  if (structure.challengeFamily === 'linearInequality') {
+    const op = draw.pick(['<', '<=', '>', '>=']);
+    if (key === 'one_add' || key === 'one_subtract') { const c = draw.int(2, 10) * (key === 'one_add' ? 1 : -1); equation = `${add('x', c)} ${op} ${x + c}`; expectedFinalRelation = relation('x', op, x); }
+    if (key === 'positive_coefficient' || key === 'two_step') { const a = draw.int(2, 7), b = key === 'two_step' ? draw.signed(2, 9) : 0; equation = `${add(`${a}*x`, b)} ${op} ${a * x + b}`; expectedFinalRelation = relation('x', op, x); }
+    if (key === 'negative_flip') { const a = -draw.int(2, 7), b = draw.signed(1, 9); equation = `${add(`${a}*x`, b)} ${op} ${a * x + b}`; expectedFinalRelation = relation('x', reverseInequality(op), x); }
+    if (key === 'both_sides') { const b = draw.int(1, 5), a = b + draw.int(2, 6), c = draw.signed(1, 8), d = (a - b) * x + c; equation = `${add(`${a}*x`, c)} ${op} ${add(`${b}*x`, d)}`; expectedFinalRelation = relation('x', op, x); }
+    if (key === 'compound') { const low = x - draw.int(2, 7), high = x + draw.int(2, 7), a = draw.int(2, 5), b = draw.signed(1, 6); equation = `${a * low + b} < ${add(`${a}*x`, b)} <= ${a * high + b}`; expectedFinalRelation = `${low} < x <= ${high}`; }
+    if (key === 'fraction_negative') {
+      const d = draw.int(2, 6), rhs = draw.signed(2, 8), c = x + d * rhs;
+      // Construct from an integer right-hand side so students never receive a
+      // binary floating-point tail such as 1.3333333333333333.
+      equation = `(${c}-x)/${d} >= ${rhs}`;
+      expectedFinalRelation = `x <= ${x}`;
+    }
   }
-  return question;
+
+  if (structure.challengeFamily === 'absoluteValueEquation' || structure.challengeFamily === 'absoluteValueInequality') {
+    // The catalog's basic absolute-value equation and open AND inequality are
+    // centered at zero. Other structures intentionally translate the center.
+    const center = ['basic', 'and_open'].includes(key) ? 0 : draw.signed(1, 9);
+    const radius = draw.int(2, 9), inner = draw.int(2, 5);
+    const innerText = `${inner}*x${-inner * center < 0 ? '' : '+'}${-inner * center}`;
+    const endpoints = [`${center - radius}`, `${center + radius}`];
+    const absolute = key === 'basic' || key === 'and_open' ? '|x|' : `|${key === 'negative_inside' ? `${inner * center}-${inner}*x` : (['inside_coefficient', 'or_closed', 'none'].includes(key) ? innerText : subCenter('x', center))}|`;
+    if (structure.challengeFamily === 'absoluteValueEquation') {
+      if (key === 'no_solution') { equation = `${draw.int(1, 4)}*|${subCenter('x', center)}|+${draw.int(1, 5)} = -${draw.int(1, 8)}`; expectedFinalRelation = 'no solution'; }
+      else {
+        const effectiveRadius = ['inside_coefficient', 'negative_inside'].includes(key) ? inner * radius : radius;
+        if (key === 'outside_coefficient') { const outside = draw.int(2, 5); equation = `${outside}*${absolute} = ${outside * radius}`; }
+        else if (key === 'isolate_first') { const outside = draw.int(2, 5), shift = draw.signed(1, 6); equation = `${add(`${outside}*${absolute}`, shift)} = ${outside * radius + shift}`; }
+        else if (key === 'fraction') equation = `|(${subCenter('x', center)})/${inner}| = ${radius}/${inner}`;
+        else equation = `${absolute} = ${effectiveRadius}`;
+        expectedFinalRelation = `x = ${endpoints[0]} OR x = ${endpoints[1]}`;
+      }
+    } else {
+      if (key === 'all_real') { equation = `${absolute} >= -${draw.int(1, 8)}`; expectedFinalRelation = 'all real numbers'; }
+      else if (key === 'none') { equation = `${absolute} < -${draw.int(1, 8)}`; expectedFinalRelation = 'no solution'; }
+      else {
+        const isAnd = ['and_open', 'and_closed', 'isolate_and'].includes(key);
+        const op = isAnd ? (key === 'and_closed' ? '<=' : '<') : (key === 'or_closed' || key === 'isolate_or' ? '>=' : '>');
+        const effectiveRadius = key === 'or_closed' ? inner * radius : radius;
+        if (key === 'isolate_and' || key === 'isolate_or') { const outside = draw.int(2, 5), shift = draw.signed(1, 6); equation = `${add(`${outside}*${absolute}`, shift)} ${op} ${outside * radius + shift}`; }
+        else equation = `${absolute} ${op} ${effectiveRadius}`;
+        const leftOp = isAnd ? op : reverseInequality(op);
+        expectedFinalRelation = isAnd ? `${endpoints[0]} ${leftOp} x ${op} ${endpoints[1]}` : `x ${leftOp} ${endpoints[0]} OR x ${op} ${endpoints[1]}`;
+      }
+    }
+  }
+  if (!equation || !expectedFinalRelation) throw new Error(`Unsupported Solver Race structure: ${structure.id}`);
+  return { ...structure, equation, equationLatex: equation, expectedFinalRelation };
 };
 
 const compressedSequence = (pool, count) => Array.from({ length: count }, (_, index) => {
@@ -192,7 +282,7 @@ export const planSolverRace = ({ roundCount = 10, focus = 'mixed', difficulty = 
       ? ordered
       : compressedSequence(ordered, families.length);
     return sequence.map((entry, roundIndex) => {
-      const question = varyQuestion(entry, `${seed}|${entry.id}|${roundIndex}`);
+      const question = generateSolverRaceQuestion(entry, `${seed}|${entry.id}|${roundIndex}`);
       return { ...question, id: `${entry.id}_r${roundIndex + 1}`, solverRaceRound: roundIndex, solverRaceStage: question.difficultyBand };
     });
   }
@@ -205,7 +295,7 @@ export const planSolverRace = ({ roundCount = 10, focus = 'mixed', difficulty = 
     const occurrence = used.get(family) || 0;
     used.set(family, occurrence + 1);
     const selected = pool[(hash(`${seed}|${family}|${roundIndex}`) + occurrence) % pool.length];
-    const question = varyQuestion(selected, `${seed}|${selected.id}|${roundIndex}`);
+    const question = generateSolverRaceQuestion(selected, `${seed}|${selected.id}|${roundIndex}`);
     return { ...question, id: `${question.id}_r${roundIndex + 1}`, solverRaceRound: roundIndex, solverRaceStage: desired };
   });
 };
