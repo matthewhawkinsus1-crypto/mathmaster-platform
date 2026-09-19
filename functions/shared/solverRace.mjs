@@ -166,9 +166,15 @@ export const generateSolverRaceQuestion = (structure, seedKey) => {
     if (key === 'divide') { const d = draw.int(2, 9); equation = `x/${d} = ${x}/${d}`; }
     if (key === 'two_step') { const a = draw.int(2, 8), b = draw.signed(2, 10); equation = `${add(`${a}*x`, b)} = ${a * x + b}`; }
     if (key === 'negative_coefficient') { const a = -draw.int(2, 8), b = draw.signed(2, 10); equation = `${add(`${a}*x`, b)} = ${a * x + b}`; }
-    if (key === 'both_sides' || key === 'signed_both_sides') {
-      const b = key === 'signed_both_sides' ? -draw.int(2, 7) : draw.int(4, 9);
-      const a = b + draw.int(2, 6), c = draw.signed(2, 12), d = (a - b) * x + c;
+    if (key === 'both_sides') {
+      const b = draw.int(1, 5), a = b + draw.int(2, 6), c = draw.signed(2, 12), d = (a - b) * x + c;
+      equation = `${add(`${a}*x`, c)} = ${add(`${b}*x`, d)}`;
+    }
+    if (key === 'signed_both_sides') {
+      // Preserve the authored challenge: a visible negative variable term on
+      // one side and a positive variable term on the other. Neither side may
+      // collapse to 0*x, and the coefficients can never cancel each other.
+      const a = -draw.int(2, 7), b = draw.int(1, 5), c = draw.signed(2, 12), d = (a - b) * x + c;
       equation = `${add(`${a}*x`, c)} = ${add(`${b}*x`, d)}`;
     }
     if (key === 'distribution' || key === 'negative_distribution') {
@@ -177,7 +183,11 @@ export const generateSolverRaceQuestion = (structure, seedKey) => {
     }
     if (key === 'fraction') { const h = draw.signed(1, 7), d = draw.int(2, 7), b = draw.signed(1, 6); equation = `(${subCenter('x', h)})/${d}${b < 0 ? '' : '+'}${b} = ${(x - h)}/${d}${b < 0 ? '' : '+'}${b}`; }
     if (key === 'multi_operation') {
-      const outer = draw.int(2, 5), inner = draw.int(2, 4), h = draw.signed(1, 6), b = draw.signed(1, 7), right = draw.int(1, 5);
+      const outer = draw.int(2, 5), inner = draw.int(2, 4), h = draw.signed(1, 6), b = draw.signed(1, 7);
+      let right = draw.int(1, 5);
+      // If the distributed coefficient equals the right-side coefficient, the
+      // constructed equation becomes an identity instead of having one solution.
+      if (right === outer * inner) right = right === 5 ? 1 : right + 1;
       const constant = outer * (inner * x - h) + b - right * x;
       equation = `${add(`${outer}*(${add(`${inner}*x`, -h)})`, b)} = ${add(`${right}*x`, constant)}`;
     }
@@ -187,7 +197,12 @@ export const generateSolverRaceQuestion = (structure, seedKey) => {
       equation = `${add(`${a}*(x${h < 0 ? '' : '+'}${h})`, c)} = ${add(`${b}*(x${k < 0 ? '' : '+'}${k})`, d)}`;
     }
     if (key === 'fraction_both_sides') {
-      const p = draw.int(2, 6), q = draw.int(2, 6) + (p === 6 ? -1 : 1), h = draw.signed(1, 7);
+      const p = draw.int(2, 6);
+      let q = draw.int(2, 6);
+      // Equal denominators with matching offsets reduce to an identity. Force
+      // distinct denominators before constructing the second numerator.
+      if (q === p) q = p === 6 ? 5 : p + 1;
+      const h = draw.signed(1, 7);
       const k = q * (x + h) / p - x;
       if (Number.isInteger(k)) equation = `(x${h < 0 ? '' : '+'}${h})/${p} = (x${k < 0 ? '' : '+'}${k})/${q}`;
       else { const qq = p + 1; const kk = qq * (x + h) - p * x; equation = `(x${h < 0 ? '' : '+'}${h})/${p} = (${p}*x${kk < 0 ? '' : '+'}${kk})/${p * qq}`; }
@@ -201,11 +216,20 @@ export const generateSolverRaceQuestion = (structure, seedKey) => {
     if (key === 'negative_flip') { const a = -draw.int(2, 7), b = draw.signed(1, 9); equation = `${add(`${a}*x`, b)} ${op} ${a * x + b}`; expectedFinalRelation = relation('x', reverseInequality(op), x); }
     if (key === 'both_sides') { const b = draw.int(1, 5), a = b + draw.int(2, 6), c = draw.signed(1, 8), d = (a - b) * x + c; equation = `${add(`${a}*x`, c)} ${op} ${add(`${b}*x`, d)}`; expectedFinalRelation = relation('x', op, x); }
     if (key === 'compound') { const low = x - draw.int(2, 7), high = x + draw.int(2, 7), a = draw.int(2, 5), b = draw.signed(1, 6); equation = `${a * low + b} < ${add(`${a}*x`, b)} <= ${a * high + b}`; expectedFinalRelation = `${low} < x <= ${high}`; }
-    if (key === 'fraction_negative') { const d = draw.int(2, 6), c = draw.signed(2, 9), rhs = (c - x) / d; equation = `(${c}-x)/${d} >= ${rhs}`; expectedFinalRelation = `x <= ${x}`; }
+    if (key === 'fraction_negative') {
+      const d = draw.int(2, 6), rhs = draw.signed(2, 8), c = x + d * rhs;
+      // Construct from an integer right-hand side so students never receive a
+      // binary floating-point tail such as 1.3333333333333333.
+      equation = `(${c}-x)/${d} >= ${rhs}`;
+      expectedFinalRelation = `x <= ${x}`;
+    }
   }
 
   if (structure.challengeFamily === 'absoluteValueEquation' || structure.challengeFamily === 'absoluteValueInequality') {
-    const center = draw.signed(1, 9), radius = draw.int(2, 9), inner = draw.int(2, 5);
+    // The catalog's basic absolute-value equation and open AND inequality are
+    // centered at zero. Other structures intentionally translate the center.
+    const center = ['basic', 'and_open'].includes(key) ? 0 : draw.signed(1, 9);
+    const radius = draw.int(2, 9), inner = draw.int(2, 5);
     const innerText = `${inner}*x${-inner * center < 0 ? '' : '+'}${-inner * center}`;
     const endpoints = [`${center - radius}`, `${center + radius}`];
     const absolute = key === 'basic' || key === 'and_open' ? '|x|' : `|${key === 'negative_inside' ? `${inner * center}-${inner}*x` : (['inside_coefficient', 'or_closed', 'none'].includes(key) ? innerText : subCenter('x', center))}|`;
