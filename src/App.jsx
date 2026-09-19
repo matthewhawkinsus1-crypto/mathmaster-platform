@@ -180,6 +180,9 @@ import {
 import { SMART_VIEWS, matchesSmartView } from './assignmentSmartViews';
 import {
   advanceLiveTeachingSession,
+  updateWalkthroughTimer,
+  walkthroughSessionId,
+  walkthroughTimerRemaining,
   endLiveTeachingSession,
   startLiveTeachingSession,
 } from './platform/teacher/liveTeachingSession.js';
@@ -691,6 +694,7 @@ function App() {
   // where the teacher's exemplar currently is, never student response data.
   // See platform/teacher/liveTeachingSession.js.
   const [liveTeachingSession, setLiveTeachingSession] = useState(null);
+  const walkthroughWriteRef = useRef(null);
   const [assignments, setAssignments] = useState([]);
   const [allStudents, setAllStudents] = useState([]);
   // Live presence for the teacher home grid, keyed by student id. Never stored
@@ -1325,6 +1329,10 @@ function App() {
 
   const [isIdle, setIsIdle] = useState(false);
   const lastActivityRef = useRef(Date.now());
+  // Academic interaction is deliberately separate from generic mouse/keyboard
+  // activity. Presence never records keys or response text; this timestamp is
+  // advanced only by meaningful assignment actions below.
+  const lastAcademicInteractionRef = useRef(Date.now());
   // When the currently open assignment was started, for the live class grid.
   const liveStartedAtRef = useRef({ assignmentId: null, at: Date.now() });
   // Count only page-visibility losses during the current assignment. We never
@@ -2711,6 +2719,31 @@ function App() {
     }));
   }, [isTeacherPreview, liveTeachingSession?.active, liveTeachingSession?.assignmentId, activeAssignmentId, activeAssignmentData, currentQuestionIndex, activeQuestionRole]);
 
+  // All teacher tabs observe the deterministic session document. Writes occur
+  // only for commands/navigation; timer seconds are derived from startedAt.
+  useEffect(() => {
+    if (user?.role !== 'teacher' || !liveTeachingSession?.sessionId) return undefined;
+    const sessionRef = doc(db, 'walkthroughSessions', liveTeachingSession.sessionId);
+    return onSnapshot(sessionRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+      const remote = snapshot.data();
+      if (Number(remote.updatedAt) > Number(walkthroughWriteRef.current || 0)) {
+        walkthroughWriteRef.current = Number(remote.updatedAt) || 0;
+        setLiveTeachingSession(remote);
+      }
+    });
+  }, [user?.role, liveTeachingSession?.sessionId]);
+
+  useEffect(() => {
+    if (user?.role !== 'teacher' || !liveTeachingSession?.sessionId) return;
+    const updatedAt = Number(liveTeachingSession.updatedAt) || Date.now();
+    if (updatedAt <= Number(walkthroughWriteRef.current || 0)) return;
+    walkthroughWriteRef.current = updatedAt;
+    setDoc(doc(db, 'walkthroughSessions', liveTeachingSession.sessionId), {
+      ...liveTeachingSession, updatedAt,
+    }).catch((error) => console.error('Could not synchronize Walkthrough:', error));
+  }, [user?.role, liveTeachingSession]);
+
   useEffect(() => {
     if (user?.role !== 'student' || !user.id || !activeAssignmentId) {
       setCheckpointOutcomes({});
@@ -3116,8 +3149,9 @@ function App() {
         rapidDeepCorrectCount: rapid.rapidDeepCorrect,
         timedIndependentCorrectCount: rapid.timedIndependentCorrect,
         sessionActiveSeconds: Math.max(0, Number(liveSessionActiveSecondsRef.current.seconds) || 0),
-        lastInteractionAt: lastActivityRef.current,
+        lastInteractionAt: lastAcademicInteractionRef.current,
         startedAt: liveStartedAtRef.current.at,
+        pageVisible: document.visibilityState === 'visible',
       }),
     };
 
@@ -3157,7 +3191,13 @@ function App() {
       if (cancelled) return;
       const payload = livePresencePayloadRef.current;
       if (!payload || payload.assignmentId !== sessionAssignmentId) return;
-      setDoc(presenceRef, payload).catch(() => {
+      // updatedAt is the connection heartbeat, not an interaction timestamp.
+      // Re-stamp it for every write while preserving lastInteractionAt.
+      setDoc(presenceRef, {
+        ...payload,
+        pageVisible: document.visibilityState === 'visible',
+        updatedAt: Date.now(),
+      }).catch(() => {
         /* a missed heartbeat self-heals on the next one */
       });
     };
@@ -3974,6 +4014,7 @@ function App() {
 
   const changeQuestion = async (newIndex) => {
     if (!activeAssignmentId || newIndex === currentQuestionIndex) return;
+    if (user?.role === 'student') lastAcademicInteractionRef.current = Date.now();
     setAssignmentOverviewExpanded(false);
     const localAssignment = assignments.find((item) => item.id === activeAssignmentId);
     const localQuestions = getStoredAssignmentQuestions(localAssignment);
@@ -4437,7 +4478,7 @@ function App() {
    * can be the teacher's real position instead of a disconnected manual
    * counter. See platform/teacher/liveTeachingSession.js.
    */
-  const teachAssignmentLive = (assignmentId) => {
+  const teachAssignmentLive = async (assignmentId, { forceRestart = false } = {}) => {
     const classId = activeClass?.classId || null;
     if (!classId || !assignmentId) return;
     const assignmentData = assignments.find((assignment) => assignment.id === assignmentId);
@@ -4447,6 +4488,17 @@ function App() {
       question: getStoredAssignmentQuestions(assignmentData)[startIndex],
       assignment: assignmentData,
     });
+    const sessionId = walkthroughSessionId({ teacherUid: user?.id || user?.email, classId, assignmentId });
+    const existing = await getDoc(doc(db, 'walkthroughSessions', sessionId));
+    if (!forceRestart && existing.exists() && existing.data()?.active) {
+      const resumed = existing.data();
+      walkthroughWriteRef.current = Number(resumed.updatedAt) || 0;
+      setLiveTeachingSession(resumed);
+      setActiveAssignmentId(assignmentId);
+      setCurrentQuestionIndex(Math.max(0, Number(resumed.storageQuestionIndex) || 0));
+      setActiveView('teacherPreview');
+      return;
+    }
     // Reuses the exact preview entry point: same fresh tracker, same cleared
     // preview-only drafts, same teacher-preview isolation. "Restart Fresh"
     // is this same call again on the assignment already being taught.
@@ -4458,6 +4510,9 @@ function App() {
       storageQuestionIndex: startIndex,
       activityRole: startRole,
       nowValue: Date.now(),
+      teacherUid: user?.id || null,
+      teacherEmail: user?.email || null,
+      suggestedWorkSeconds: getStoredAssignmentQuestions(assignmentData)[startIndex]?.suggestedWorkSeconds,
     }));
   };
 
@@ -4476,8 +4531,43 @@ function App() {
   };
 
   const endLiveTeaching = () => {
+    if (liveTeachingSession?.sessionId) {
+      setDoc(doc(db, 'walkthroughSessions', liveTeachingSession.sessionId), {
+        ...liveTeachingSession, active: false, updatedAt: Date.now(),
+      }).catch((error) => console.error('Could not end Walkthrough:', error));
+    }
     setLiveTeachingSession(endLiveTeachingSession());
   };
+
+  const controlWalkthroughTimer = (action, durationSeconds) => {
+    setLiveTeachingSession((session) => session ? {
+      ...session,
+      timer: updateWalkthroughTimer(session.timer, action, { nowValue: Date.now(), durationSeconds }),
+      updatedAt: Date.now(),
+    } : session);
+  };
+
+  useEffect(() => {
+    if (liveTeachingSession?.timer?.status !== 'running') return undefined;
+    const remaining = walkthroughTimerRemaining(liveTeachingSession.timer, Date.now());
+    const timeout = window.setTimeout(() => {
+      setLiveTeachingSession((session) => session ? {
+        ...session,
+        timer: updateWalkthroughTimer(session.timer, 'tick', { nowValue: Date.now() }),
+        projectorState: { ...session.projectorState, showReview: true },
+        updatedAt: Date.now(),
+      } : session);
+      // Audio is best-effort; the synchronized visual expired state remains.
+      try {
+        const audio = new window.AudioContext();
+        const oscillator = audio.createOscillator();
+        oscillator.connect(audio.destination);
+        oscillator.start();
+        oscillator.stop(audio.currentTime + 0.35);
+      } catch { /* autoplay may be blocked */ }
+    }, Math.max(0, remaining * 1000) + 50);
+    return () => window.clearTimeout(timeout);
+  }, [liveTeachingSession?.timer]);
 
   const getScratchpadDocumentId = (assignmentId, questionIndex) =>
     `${assignmentId}__question_${questionIndex}`;
@@ -4689,6 +4779,7 @@ function App() {
   const checkpointFingerprintRef = useRef(new Map());
 
   const handleResponseCheckpoint = useCallback(async (answerState) => {
+    lastAcademicInteractionRef.current = Date.now();
     if (!activeAssignmentId || user?.role !== 'student' || isTeacherPreview || !answerState) return;
     const assignment = assignments.find((item) => item.id === activeAssignmentId);
     if (!assignment || isTestCycleAssignment(assignment)) return;
@@ -4754,6 +4845,7 @@ function App() {
 
   const handleGradeSubmit = async (isCorrect, specificQuestionData, parts = [], supportUsage = null, responseKey = '', attemptMetadata = {}) => {
     if (!activeAssignmentId) return null;
+    if (!isTeacherPreview) lastAcademicInteractionRef.current = Date.now();
 
     const applyAttempt = (record) =>
       recordQuestionAttempt({
@@ -8639,10 +8731,29 @@ function App() {
               style={{ marginBottom: '16px', padding: '10px 16px', borderRadius: '10px', background: '#137333', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', fontWeight: 800, fontSize: '13px' }}
             >
               <span>🔴 LIVE TEACHING · Teacher exemplar — {describeClassworkPace({ assignment, classworkQuestionPosition: liveTeachingSession?.classworkQuestionPosition ?? null })}. No student data is affected.</span>
+              {questions[currentQuestionIndex]?.instructionalPhase && (
+                <strong>{({ iDo: 'I DO', weDo: 'WE DO', youDo: 'YOU DO' })[questions[currentQuestionIndex].instructionalPhase]}</strong>
+              )}
+              <strong aria-live="polite" style={{ color: liveTeachingSession?.timer?.status === 'expired' ? '#fdd663' : '#fff' }}>
+                {liveTeachingSession?.timer?.status === 'expired' ? 'TIME EXPIRED' : `${Math.floor(walkthroughTimerRemaining(liveTeachingSession?.timer, now) / 60)}:${String(walkthroughTimerRemaining(liveTeachingSession?.timer, now) % 60).padStart(2, '0')}`}
+              </strong>
+              {Number(liveTeachingSession?.timer?.durationSeconds || 0) > Number(questions[currentQuestionIndex]?.suggestedWorkSeconds || 0) && (
+                <strong
+                  aria-label="Live timer has been extended beyond the authored plan"
+                  style={{ padding: '3px 7px', borderRadius: 999, background: '#fdd663', color: '#5f4300', fontSize: 11 }}
+                >
+                  EXTENDED +{Math.floor((Number(liveTeachingSession.timer.durationSeconds) - Number(questions[currentQuestionIndex]?.suggestedWorkSeconds || 0)) / 60)}:{String((Number(liveTeachingSession.timer.durationSeconds) - Number(questions[currentQuestionIndex]?.suggestedWorkSeconds || 0)) % 60).padStart(2, '0')}
+                </strong>
+              )}
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button type="button" onClick={() => controlWalkthroughTimer(liveTeachingSession?.timer?.status === 'paused' ? 'resume' : 'start')} style={{ padding: '6px 10px' }}>{liveTeachingSession?.timer?.status === 'paused' ? 'Resume' : 'Start'}</button>
+                <button type="button" onClick={() => controlWalkthroughTimer('pause')} style={{ padding: '6px 10px' }}>Pause</button>
+                <button type="button" onClick={() => controlWalkthroughTimer('reset', questions[currentQuestionIndex]?.suggestedWorkSeconds)} style={{ padding: '6px 10px' }}>Reset</button>
+                <button type="button" onClick={() => controlWalkthroughTimer('extend', 30)} style={{ padding: '6px 10px' }}>+30 sec</button>
+                <button type="button" onClick={() => controlWalkthroughTimer('extend', 60)} style={{ padding: '6px 10px' }}>+1 min</button>
                 <button
                   type="button"
-                  onClick={() => teachAssignmentLive(assignment.id)}
+                  onClick={() => teachAssignmentLive(assignment.id, { forceRestart: true })}
                   style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #fff', background: 'transparent', color: '#fff', fontWeight: 900, cursor: 'pointer', fontSize: 12 }}
                 >
                   Restart Fresh
@@ -8982,6 +9093,9 @@ function App() {
           </div>
           )}
           <main ref={assignmentQuestionStageRef} className="mathmaster-question-stage" style={{ background: '#fff', borderRadius: '12px', padding: '10px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+            {questions[currentQuestionIndex]?.instructionalPhase
+              && (preview || assignment.showInstructionalPhaseLabelsToStudents === true)
+              && <div aria-label="Instructional phase" style={{ display: 'inline-block', margin: '6px 8px', padding: '5px 10px', borderRadius: 999, background: '#e8f0fe', color: '#174ea6', fontWeight: 950, letterSpacing: '0.08em' }}>{({ iDo: 'I DO', weDo: 'WE DO', youDo: 'YOU DO' })[questions[currentQuestionIndex].instructionalPhase]}</div>}
             <QuestionEngine
               key={`${activeAssignmentId}-${currentQuestionIndex}-${currentRecord.variantIndex}-${preview ? `preview-${previewSessionId}` : lifecycle.status}-draft${workspaceDraftGeneration}`}
               question={questions[currentQuestionIndex]}

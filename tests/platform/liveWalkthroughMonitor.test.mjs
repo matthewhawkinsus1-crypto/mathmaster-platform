@@ -76,11 +76,11 @@ test('late arrival context stays visible for a student who is behind but active'
   assert.match(row.reason, /^Late arrival · 3 behind · active$/);
 });
 
-test('offline is distinguished from inactivity', () => {
+test('disconnection and hidden-tab away are distinguished', () => {
   const result = buildWalkthroughMonitor({
     students: [
       student('Offline', live({ updatedAt: now - 80000, lastInteractionAt: now - 80000 })),
-      student('Idle', live({ updatedAt: now, lastInteractionAt: now - 200000 })),
+      student('Idle', live({ updatedAt: now, lastInteractionAt: now - 200000, pageVisible: false })),
     ],
     assignmentId: 'a1',
     teacherQuestionIndex: 2,

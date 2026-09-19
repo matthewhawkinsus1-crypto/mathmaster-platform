@@ -22,9 +22,16 @@ export const HEARTBEAT_INTERVAL_MS = 20000;
 // A tile goes grey when a heartbeat is this late — a closed laptop, a dropped
 // network, or a student who navigated away.
 export const OFFLINE_AFTER_MS = 75000;
-// "On task" is generous on purpose: reading a problem, working on paper, and
-// listening to the teacher are all legitimately quiet.
-export const IDLE_AFTER_MS = 180000;
+export const WORKING_AFTER_MS = 45000;
+export const RECENTLY_ACTIVE_AFTER_MS = 120000;
+// Kept as a compatibility alias. Activity is now classified independently
+// from connection; a current, visible heartbeat is Viewing rather than idle.
+export const IDLE_AFTER_MS = RECENTLY_ACTIVE_AFTER_MS;
+
+export const LIVE_ACTIVITY = Object.freeze({
+  WORKING: 'working', VIEWING: 'viewing', RECENT: 'recentlyActive',
+  AWAY: 'away', DISCONNECTED: 'disconnected', NOT_STARTED: 'notStarted',
+});
 
 export const LIVE_SEVERITY = Object.freeze({ OK: 'ok', WATCH: 'watch', ALERT: 'alert' });
 
@@ -91,6 +98,7 @@ export const buildLiveStatus = ({
   lastInteractionAt = null,
   startedAt = null,
   nowValue = Date.now(),
+  pageVisible = true,
 } = {}) => ({
   assignmentId: assignmentId || null,
   assignmentTitle: String(assignmentTitle || '').slice(0, 120),
@@ -123,8 +131,24 @@ export const buildLiveStatus = ({
   sessionActiveSeconds: clampInt(sessionActiveSeconds),
   lastInteractionAt: toMillis(lastInteractionAt) ?? nowValue,
   startedAt: toMillis(startedAt) ?? nowValue,
+  // Privacy-safe visibility only: never a URL, title, history, or screenshot.
+  pageVisible: pageVisible !== false,
   updatedAt: nowValue,
 });
+
+export const classifyLiveActivity = (live, nowValue = Date.now()) => {
+  if (!live?.assignmentId) return LIVE_ACTIVITY.NOT_STARTED;
+  const heartbeatAt = toMillis(live.updatedAt) ?? 0;
+  if (nowValue - heartbeatAt > OFFLINE_AFTER_MS) return LIVE_ACTIVITY.DISCONNECTED;
+  if (live.pageVisible === false) return LIVE_ACTIVITY.AWAY;
+  const interactionAt = toMillis(live.lastInteractionAt) ?? heartbeatAt;
+  const age = Math.max(0, nowValue - interactionAt);
+  if (age <= WORKING_AFTER_MS) return LIVE_ACTIVITY.WORKING;
+  if (age <= RECENTLY_ACTIVE_AFTER_MS) return LIVE_ACTIVITY.RECENT;
+  // A visible, heartbeating learner may be reading, thinking, or working on
+  // paper. Never infer inactivity from a lack of keystrokes.
+  return LIVE_ACTIVITY.VIEWING;
+};
 
 export const QUESTION_STATE_CHARS = Object.freeze({
   CORRECT: 'c', INCORRECT: 'x', ATTEMPTED: 'a', UNTOUCHED: '.',
@@ -197,6 +221,7 @@ export const classifyLiveStudent = (student, { classStats = null, nowValue = Dat
     return {
       ...base,
       isOnline: false,
+      activityState: LIVE_ACTIVITY.NOT_STARTED,
       counts: countQuestionStates(''),
       idleMs: null,
       flags: [LIVE_FLAGS.NOT_STARTED],
@@ -211,6 +236,7 @@ export const classifyLiveStudent = (student, { classStats = null, nowValue = Dat
   const idleMs = Math.max(0, nowValue - lastInteractionAt);
   const counts = countQuestionStates(live.questionStates);
   const flags = [];
+  const activityState = classifyLiveActivity(live, nowValue);
 
   const classwideQuiet = Boolean(
     classStats
@@ -219,7 +245,7 @@ export const classifyLiveStudent = (student, { classStats = null, nowValue = Dat
   );
 
   if (!isOnline) flags.push(LIVE_FLAGS.OFFLINE);
-  else if (idleMs >= IDLE_AFTER_MS && !classwideQuiet) flags.push(LIVE_FLAGS.IDLE);
+  else if (activityState === LIVE_ACTIVITY.AWAY && !classwideQuiet) flags.push(LIVE_FLAGS.IDLE);
 
   if (clampInt(live.currentAttempts) >= STUCK_ATTEMPTS) flags.push(LIVE_FLAGS.STUCK);
 
@@ -249,11 +275,12 @@ export const classifyLiveStudent = (student, { classStats = null, nowValue = Dat
   return {
     ...base,
     isOnline,
+    activityState,
     counts,
     idleMs,
     flags,
     severity,
-    headline: describeLiveStudent({ isOnline, idleMs, flags, counts, live }),
+    headline: describeLiveStudent({ isOnline, idleMs, flags, counts, live, activityState }),
   };
 };
 
@@ -263,13 +290,15 @@ const formatMinutes = (milliseconds) => {
   return `${minutes} min`;
 };
 
-export const describeLiveStudent = ({ isOnline, idleMs, flags, counts, live }) => {
-  if (!isOnline) return 'Offline';
-  if (flags.includes(LIVE_FLAGS.IDLE)) return `Idle ${formatMinutes(idleMs)}`;
+export const describeLiveStudent = ({ isOnline, idleMs, flags, counts, live, activityState }) => {
+  if (!isOnline || activityState === LIVE_ACTIVITY.DISCONNECTED) return 'Disconnected';
+  if (activityState === LIVE_ACTIVITY.AWAY) return `Away ${formatMinutes(idleMs)}`;
   if (flags.includes(LIVE_FLAGS.STUCK)) return `Stuck on Q${clampInt(live?.questionIndex) + 1}`;
   if (flags.includes(LIVE_FLAGS.BEHIND_PACE)) return `Behind — ${counts.answered} answered`;
   if (flags.includes(LIVE_FLAGS.STRUGGLING)) return `${counts.accuracy}% correct`;
-  return `On Q${clampInt(live?.questionIndex) + 1}`;
+  if (activityState === LIVE_ACTIVITY.WORKING) return `Working · Q${clampInt(live?.questionIndex) + 1}`;
+  if (activityState === LIVE_ACTIVITY.RECENT) return `Recently active · Q${clampInt(live?.questionIndex) + 1}`;
+  return `Viewing · Q${clampInt(live?.questionIndex) + 1}`;
 };
 
 /**

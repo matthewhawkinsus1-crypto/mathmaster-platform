@@ -72,7 +72,10 @@ test('the "Restart Preview Fresh" header control defers to the Live Teaching bar
 });
 
 test('App.jsx wires the Live Teaching session, actions, and pace helper through imports', () => {
-  assert.match(app, /import \{\s*\n\s*advanceLiveTeachingSession,\s*\n\s*endLiveTeachingSession,\s*\n\s*startLiveTeachingSession,\s*\n\} from '\.\/platform\/teacher\/liveTeachingSession\.js';/);
+  const sessionImport = region(app, "import {\n  advanceLiveTeachingSession,", "} from './platform/teacher/liveTeachingSession.js';", 'Live Teaching imports');
+  for (const capability of ['advanceLiveTeachingSession', 'endLiveTeachingSession', 'startLiveTeachingSession']) {
+    assert.match(sessionImport, new RegExp(`\\b${capability}\\b`));
+  }
   assert.match(app, /import \{ describeClassworkPace \} from '\.\/platform\/teacher\/classworkModel\.js';/);
 });
 

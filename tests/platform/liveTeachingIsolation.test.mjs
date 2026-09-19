@@ -60,7 +60,7 @@ test('a Live Teaching exemplar never appears in student live presence — presen
   // The heartbeat only ever writes/deletes presence/{user.id}; a teacher's
   // own presence document is never touched because the effect above it
   // returns before this point for any non-student role.
-  assert.match(heartbeatEffect, /setDoc\(presenceRef, payload\)/);
+  assert.match(heartbeatEffect, /setDoc\(presenceRef, \{[\s\S]*\.\.\.payload,[\s\S]*pageVisible:[\s\S]*updatedAt: Date\.now\(\)/);
 });
 
 test('the Live Teaching session record itself holds no student response data — only teacher position fields', () => {

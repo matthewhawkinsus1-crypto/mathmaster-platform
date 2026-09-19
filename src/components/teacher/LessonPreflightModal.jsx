@@ -8,6 +8,7 @@ import {
 } from '../../platform/authoring/lessonPublishingIntent.js';
 import { defaultAssignmentDateInputs } from '../../platform/assignments/assignmentDateDefaults.js';
 import { buildAssignmentV5PreflightModel } from '../../platform/preflight/assignmentV5PreflightModel.js';
+import { formatPlannedTime } from '../../platform/teacher/classworkPacing.js';
 import {
   buildTestCyclePhaseStatus,
   isTestCycleAssignment,
@@ -218,6 +219,7 @@ export const LessonPreflightModal = ({
     lessonResources: { notesPdf: effectiveAssignmentV5.outputProfiles?.lessonNotesPdf },
   }, effectiveAssignmentV5.assignment, []), [effectiveAssignmentV5]);
   const activities = preflightModel.sections;
+  const classworkPacing = preflightModel.classworkPacing || { totalSeconds: 0, maxSeconds: 1200, remainingSeconds: 1200, hasAuthoredTiming: false, isWithinBudget: true };
   const activityRoles = useMemo(() => [...new Set(activities.map((section) => section?.role).filter(Boolean))], [activities]);
   const hasAuthoredWarmup = activityRoles.includes('warmup');
   const hasAuthoredDOL = activityRoles.includes('dol');
@@ -1065,6 +1067,29 @@ export const LessonPreflightModal = ({
           {activityRoles.map((role) => <span key={role} style={{ padding: '5px 9px', borderRadius: 999, background: '#e8f0fe', color: '#174ea6', fontSize: 11, fontWeight: 900 }}>{humanRole(role)}</span>)}
         </div>
       </div>
+
+      {activityRoles.includes('classwork') && (
+        <div
+          role={classworkPacing.isWithinBudget ? 'status' : 'alert'}
+          style={{
+            padding: '12px 15px',
+            marginBottom: 14,
+            border: `1px solid ${classworkPacing.isWithinBudget ? '#b7d7c0' : '#f1a5a0'}`,
+            borderRadius: 10,
+            background: classworkPacing.isWithinBudget ? '#f4fbf6' : '#fce8e6',
+            color: classworkPacing.isWithinBudget ? '#1e5e31' : '#a50e0e',
+          }}
+        >
+          <strong>Classwork planned time: {formatPlannedTime(classworkPacing.totalSeconds)} / 20:00</strong>
+          <div style={{ marginTop: 4, fontSize: 12, lineHeight: 1.45 }}>
+            {classworkPacing.hasAuthoredTiming
+              ? (classworkPacing.isWithinBudget
+                ? `${formatPlannedTime(classworkPacing.remainingSeconds)} remains in the authored 20-minute Classwork budget. Live teacher extensions can go beyond this without changing the authored plan.`
+                : 'Reduce the authored Classwork question times before publishing. Live extensions are separate and remain available during instruction.')
+              : 'No Classwork question times are authored yet. This assignment is valid, but Walkthrough will have no planned pacing to preload.'}
+          </div>
+        </div>
+      )}
 
       <fieldset style={fieldsetStyle}>
         <legend style={legendStyle}>Question versions by section</legend>

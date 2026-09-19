@@ -4,7 +4,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../firebase.js';
 import {
-  LIVE_FLAGS, LIVE_SEVERITY, QUESTION_STATE_CHARS, summarizeLiveClass,
+  LIVE_ACTIVITY, LIVE_FLAGS, LIVE_SEVERITY, QUESTION_STATE_CHARS, summarizeLiveClass,
 } from '../../livePresence';
 import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 import StudentSpotlightView from './StudentSpotlightView.jsx';
@@ -308,7 +308,14 @@ function WalkthroughCard({ row, onChecked, onOpenStudent, classPoints = null }) 
         <div style={{ fontSize: 11.5, color: '#5f6368' }}>
           {String(row.live.activityRole || 'activity').toUpperCase()} Q{Number(row.live.sectionQuestionIndex ?? 0) + 1}
           {row.live.currentAttempts > 0 && ` · ${row.live.currentAttempts} attempt${row.live.currentAttempts === 1 ? '' : 's'}`}
-          {row.offline ? ' · connection inactive' : row.inactive ? ' · no recent app activity' : ' · active'}
+          {' · '}{({
+            [LIVE_ACTIVITY.WORKING]: 'Working',
+            [LIVE_ACTIVITY.VIEWING]: 'Viewing',
+            [LIVE_ACTIVITY.RECENT]: 'Recently active',
+            [LIVE_ACTIVITY.AWAY]: 'Away',
+            [LIVE_ACTIVITY.DISCONNECTED]: 'Disconnected',
+            [LIVE_ACTIVITY.NOT_STARTED]: 'Not started',
+          })[row.activityState] || 'Viewing'}
         </div>
       )}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

@@ -342,6 +342,32 @@ service cloud.firestore {
       allow delete: if ownsStudent(studentId);
     }
 
+    // One authoritative, teacher-owned pace/timer document per walkthrough.
+    // It contains no roster or answer data and is intentionally unreadable by
+    // students; projector output is an allow-listed client projection.
+    match /walkthroughSessions/{sessionId} {
+      allow read: if rootAdmin() || (teacher() && resource.data.ownerUid == request.auth.uid);
+      allow create: if rootAdmin() || (teacher()
+        && request.resource.data.sessionId == sessionId
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.teacherEmail == request.auth.token.email
+        && !request.resource.data.keys().hasAny([
+          'students', 'studentNames', 'grades', 'responses', 'answers',
+          'evidence', 'mastery', 'attemptHistory'
+        ]));
+      allow update: if rootAdmin() || (teacher()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.teacherEmail == resource.data.teacherEmail
+        && request.resource.data.classId == resource.data.classId
+        && request.resource.data.assignmentId == resource.data.assignmentId
+        && !request.resource.data.keys().hasAny([
+          'students', 'studentNames', 'grades', 'responses', 'answers',
+          'evidence', 'mastery', 'attemptHistory'
+        ]));
+      allow delete: if rootAdmin() || (teacher() && resource.data.ownerUid == request.auth.uid);
+    }
+
     /*
      * Student Spotlight is deliberately separate from presence and private
      * workspace recovery. A request contains authorization/consent only; the
