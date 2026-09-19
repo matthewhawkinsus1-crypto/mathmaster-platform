@@ -1,5 +1,8 @@
 import { validateSortQuestion } from './openSortBoard/openSortMath.js';
 import { validateConstraintBuilderQuestion } from './constraintFunctionBuilder/constraintFunctionMath.js';
+import { buildLinearConnectionCards, canonicalLineForSet, findLinearMismatch, LINEAR_CARD_KINDS } from './representationMatch/representationMath.js';
+import { SUPPORTED_TARGET_FORMS as REWRITE_LINEAR_FORM_TARGETS } from './stepAlgebra2/rewriteLinearFormMath.js';
+import { INTERCEPT_FEEDBACK_TIMINGS, resolveStandardCoefficients } from './stepAlgebra2/linearInterceptsMath.js';
 const TOOL_IDS = new Set([
   'dataModelingLab','regressionCalculator','inverseCompositionLab','functionOperationsLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
   'signSolutionAnalyzer','sequenceExplorer','complexPlaneLab','exponentialLogBridge','transformationsLab',
@@ -287,7 +290,7 @@ export const validateToolQuestion = (question = {}) => {
     }
   }
   if (toolId === 'representationMatch') {
-    const modes = ['completeSet','findMismatch','tableAudit','graphMatch'];
+    const modes = ['completeSet','findMismatch','tableAudit','graphMatch','linearConnections'];
     const mode = question.mode || 'completeSet';
     if (!modes.includes(mode)) errors.push(`Unsupported representationMatch mode: ${mode}.`);
     // Every mode reads `sets`. `findMismatch` builds its cards from them just
@@ -297,7 +300,11 @@ export const validateToolQuestion = (question = {}) => {
     if (['completeSet', 'findMismatch', 'graphMatch'].includes(mode) && (!Array.isArray(question.sets) || question.sets.length < 2)) {
       errors.push(`representationMatch ${mode} mode requires an explicit sets array with at least two relationships; do not rely on hidden fallback content.`);
     }
-    if (question.sets) {
+    // linearConnections has its own set-count rule below: its findMismatch
+    // task legitimately authors a single set (one line, several equation
+    // forms, one of them deliberately wrong), which this generic two-or-more
+    // rule would otherwise reject.
+    if (question.sets && mode !== 'linearConnections') {
       if (!Array.isArray(question.sets) || question.sets.length < 2) errors.push('representationMatch sets must contain at least two relationships.');
       else {
         const ids = question.sets.map((set) => set?.id);
@@ -322,6 +329,45 @@ export const validateToolQuestion = (question = {}) => {
     if (mode === 'graphMatch') {
       if (Array.isArray(question.sets) && question.sets.length >= 2) question.sets.forEach((set, index) => errors.push(...validateFunctionSpec(set.graphSpec || {}, `graphMatch set ${index + 1} graphSpec`)));
       if (!question.targetId) errors.push('graphMatch mode requires targetId.');
+    }
+    if (mode === 'linearConnections') {
+      const linearSets = Array.isArray(question.sets) ? question.sets : [];
+      const linearTask = question.task === 'findMismatch' ? 'findMismatch' : 'group';
+      // Explicit authored sets only — this mode must never silently fall back
+      // to the tool's generic quadratic/exponential demo relationships.
+      if (linearSets.length < (linearTask === 'group' ? 2 : 1)) {
+        errors.push(`representationMatch linearConnections ${linearTask} task requires an explicit sets array with at least ${linearTask === 'group' ? 'two lines' : 'one line'}.`);
+      } else {
+        const ids = linearSets.map((set) => set?.id);
+        if (ids.some((id) => !id) || new Set(ids).size !== ids.length) errors.push('representationMatch linearConnections set ids must be present and unique.');
+        linearSets.forEach((set, index) => {
+          if (!canonicalLineForSet(set)) errors.push(`representationMatch linearConnections set ${index + 1} (${set?.id || 'unnamed'}) does not supply enough explicit information to determine a line (an equation field, or a slope with a point, or a linear graphSpec).`);
+        });
+        if (question.cardKinds != null) {
+          if (!Array.isArray(question.cardKinds) || question.cardKinds.some((kind) => !LINEAR_CARD_KINDS.includes(kind))) errors.push(`representationMatch linearConnections cardKinds must only reference: ${LINEAR_CARD_KINDS.join(', ')}.`);
+        }
+      }
+      if (linearTask === 'findMismatch') {
+        const mismatchSet = linearSets.find((set) => set?.id === question.mismatchSetId);
+        if (!question.mismatchSetId || !mismatchSet) {
+          errors.push('representationMatch linearConnections findMismatch task requires mismatchSetId naming one of the provided sets.');
+        } else {
+          const equationCards = buildLinearConnectionCards([mismatchSet], ['slopeIntercept', 'pointSlope', 'standard']);
+          if (equationCards.length < 2) {
+            errors.push('representationMatch linearConnections findMismatch task requires the mismatch set to supply at least two of slopeIntercept, pointSlope, and standard.');
+          } else {
+            const { mismatchIndexes } = findLinearMismatch(equationCards);
+            if (mismatchIndexes.length !== 1) errors.push('representationMatch linearConnections findMismatch task requires exactly one of the mismatch set’s equation forms to be mathematically inconsistent with the others — author one form as the deliberate error.');
+          }
+        }
+        if (question.correctionOptions != null) {
+          if (!Array.isArray(question.correctionOptions) || question.correctionOptions.length < 2 || question.correctionOptions.some((option) => !option?.id || !option?.label)) {
+            errors.push('representationMatch linearConnections correctionOptions must be an array of at least two { id, label } choices.');
+          } else if (!question.correctionAnswerId || !question.correctionOptions.some((option) => option.id === question.correctionAnswerId)) {
+            errors.push('representationMatch linearConnections correctionAnswerId must reference one of correctionOptions.');
+          }
+        }
+      }
     }
   }
   if (toolId === 'functionInvestigation2') {
@@ -360,6 +406,13 @@ export const validateToolQuestion = (question = {}) => {
     if (mode === 'verticalHorizontal') {
       if (!['vertical','horizontal'].includes(question.orientation) || !Number.isFinite(Number(question.value))) errors.push('verticalHorizontal mode requires vertical/horizontal orientation and a finite value.');
     }
+    if (question.constructionPolicy != null) {
+      const policy = question.constructionPolicy;
+      if (!['equivalentLine', 'formAware'].includes(policy.strategy)) errors.push('graphing2 constructionPolicy.strategy must be equivalentLine or formAware.');
+      if (policy.requiredAnchor != null && !['auto', 'yIntercept', 'givenPoint', 'intercepts'].includes(policy.requiredAnchor)) errors.push('graphing2 constructionPolicy.requiredAnchor must be auto, yIntercept, givenPoint, or intercepts.');
+      if (policy.minimumPoints != null && ![2, 3].includes(Number(policy.minimumPoints))) errors.push('graphing2 constructionPolicy.minimumPoints must be 2 or 3.');
+      if (policy.strategy === 'formAware' && mode === 'pointSlope' && !isFinitePoint(question.point)) errors.push('graphing2 formAware pointSlope construction requires a finite point to use as the required anchor.');
+    }
   }
   if (toolId === 'openSortBoard') errors.push(...validateSortQuestion(question));
   if (toolId === 'constraintFunctionBuilder') errors.push(...validateConstraintBuilderQuestion(question));
@@ -371,7 +424,27 @@ export const validateToolQuestion = (question = {}) => {
       if (!Number.isFinite(Number(x)) || !Number.isFinite(Number(y))) errors.push(`relationMapping pair ${index + 1} must have finite x and y values.`);
     });
   }
-  if (toolId === 'stepAlgebra2' && Number(question.equation?.a ?? 1) === 0) errors.push('stepAlgebra2 linear coefficient a cannot be 0.');
+  if (toolId === 'stepAlgebra2') {
+    if (question.mode === 'rewriteLinearForm') {
+      const targetForm = question.targetForm || 'slopeIntercept';
+      if (!REWRITE_LINEAR_FORM_TARGETS.includes(targetForm)) errors.push(`stepAlgebra2 rewriteLinearForm targetForm must be one of: ${REWRITE_LINEAR_FORM_TARGETS.join(', ')}.`);
+      const hasEquationString = typeof question.equation === 'string' && question.equation.trim().split('=').length === 2;
+      const hasSplitExpressions = typeof question.leftExpression === 'string' && question.leftExpression.trim() && typeof question.rightExpression === 'string' && question.rightExpression.trim();
+      if (!hasEquationString && !hasSplitExpressions) errors.push('stepAlgebra2 rewriteLinearForm requires either a single "equation" string with exactly one = sign, or both leftExpression and rightExpression.');
+    } else if (question.mode === 'linearIntercepts') {
+      const standard = resolveStandardCoefficients(question);
+      if (!standard) {
+        errors.push('stepAlgebra2 linearIntercepts requires a valid two-variable linear equation, supplied as standard {A,B,C} or a parseable equation string.');
+      } else if (Math.abs(Number(standard.A)) <= 1e-12 || Math.abs(Number(standard.B)) <= 1e-12) {
+        errors.push('stepAlgebra2 linearIntercepts requires nonzero x- and y-coefficients; use the vertical/horizontal line workflow for one-variable lines.');
+      }
+      if (question.feedbackTiming != null && !INTERCEPT_FEEDBACK_TIMINGS.includes(String(question.feedbackTiming))) {
+        errors.push(`stepAlgebra2 linearIntercepts feedbackTiming must be one of: ${INTERCEPT_FEEDBACK_TIMINGS.join(', ')}.`);
+      }
+    } else if (Number(question.equation?.a ?? 1) === 0) {
+      errors.push('stepAlgebra2 linear coefficient a cannot be 0.');
+    }
+  }
 
   return { isValid: errors.length === 0, errors, warnings };
 };

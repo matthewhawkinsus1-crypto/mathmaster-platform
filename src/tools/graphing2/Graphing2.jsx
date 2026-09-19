@@ -7,7 +7,8 @@ import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
-import { constructionEvidence, formatLine, lineFromPoints, targetLineFromQuestion } from './graphingMath';
+import { formatLine, lineFromPoints, targetLineFromQuestion } from './graphingMath';
+import { evaluateConstruction, resolveConstructionPolicy } from './constructionPolicy';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const secondaryButton = { ...primaryButton, background: '#fff', color: '#174ea6', border: '1px solid #9bb8e8' };
@@ -25,13 +26,25 @@ const formatPoint = (point) => `(${point[0]}, ${point[1]})`;
 // What to do next, in one sentence. Used by the progress pill inside the tool
 // and registered as the Work View current instruction, so the enlarged view
 // says the same thing the embedded one does instead of inventing its own.
-const nextInstruction = (plottedCount) => (
+const nextInstruction = (plottedCount, requiredCount = 2) => (
   plottedCount === 0
     ? 'Click the grid to plot your first point.'
-    : plottedCount === 1
-      ? 'Now plot a second point on the same line.'
-      : 'Both points plotted — check your construction.'
+    : plottedCount < requiredCount
+      ? `Now plot point ${plottedCount + 1} of ${requiredCount} on the same line.`
+      : `All ${requiredCount} points plotted — check your construction.`
 );
+
+// What the form-aware policy needs to see, before any point is checked, so
+// the student is told what to demonstrate rather than left to guess from a
+// wrong-answer message after the fact. Never reveals the actual coordinate —
+// that stays hidden until the student supplies it and Check confirms it.
+const anchorInstruction = (mode, policy) => {
+  if (policy.strategy !== 'formAware') return null;
+  if (mode === 'slopeIntercept') return 'This question requires you to plot the y-intercept as one of your points.';
+  if (mode === 'pointSlope') return 'This question requires you to plot the given point yourself — the purple point alone does not count as your evidence.';
+  if (mode === 'standardForm') return 'This question requires you to plot the line’s intercept(s) as your evidence, not just any two points on the line.';
+  return null;
+};
 
 const targetPrompt = (questionData, target) => {
   const mode = questionData.mode || 'slopeIntercept';
@@ -107,6 +120,8 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const mode = questionData.mode || 'slopeIntercept';
   const normalizedQuestion = mode === 'slopeIntercept' && !questionData.line ? { ...questionData, line: { m: 1.5, b: -2 } } : questionData;
   const target = targetLineFromQuestion(normalizedQuestion);
+  const policy = resolveConstructionPolicy(questionData);
+  const requiredPointCount = policy.strategy === 'formAware' ? policy.minimumPoints : 2;
   const [points, setPoints] = usePersistentToolState('points', []);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
   const studentLine = useMemo(() => points.length >= 2 ? lineFromPoints(points[0], points[1]) : null, [points]);
@@ -114,18 +129,29 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const givenPoints = mode === 'throughPoints' ? (questionData.givenPoints || []) : mode === 'pointSlope' ? [questionData.point].filter(Array.isArray) : [];
   const snapStep = resolveSnapStep(questionData, target);
   const hints = hintsForMode(mode, target, questionData);
+  const anchorNote = anchorInstruction(mode, policy);
 
   const plot = (point) => {
     clearFeedback();
-    setPoints((current) => (current.length >= 2 ? [point] : [...current, point]));
+    setPoints((current) => (current.length >= requiredPointCount ? [point] : [...current, point]));
   };
 
   const check = () => {
-    const evidence = constructionEvidence(points, target, Number(questionData.tolerance ?? 0.12));
+    const evidence = evaluateConstruction(points, questionData, target, Number(questionData.tolerance ?? 0.12));
     submit(
       { isCorrect: evidence.isCorrect, score: evidence.score },
       { points, studentLine: evidence.studentLine },
-      { mode, target, pointChecks: evidence.pointChecks },
+      {
+        mode,
+        target,
+        pointChecks: evidence.pointChecks,
+        strategy: evidence.strategy,
+        requiredAnchor: evidence.requiredAnchor,
+        anchorSatisfied: evidence.anchorSatisfied,
+        slopeEvidenceSatisfied: evidence.slopeEvidenceSatisfied,
+        interceptEvidence: evidence.interceptEvidence,
+        category: evidence.category,
+      },
     );
   };
 
@@ -181,8 +207,22 @@ export default function Graphing2({ questionData = {}, onAction }) {
   // Name what actually went wrong instead of restating the task. "Both points
   // are on the line but you plotted the same spot twice" and "one of your two
   // points is off the line" need different fixes.
+  // Form-aware categories need their own wording: a mathematically correct
+  // line that skipped the required anchor point is a different mistake from
+  // one that never found the line at all, and conflating them would hide the
+  // one piece of feedback this policy exists to give.
+  const formAwareAnchorLabel = mode === 'pointSlope' ? 'given point' : mode === 'standardForm' ? 'intercept(s)' : 'y-intercept';
+  const formAwareFeedback = () => {
+    const category = feedback.metadata?.category;
+    if (category === 'duplicatePoint') return 'Two of your points landed on the same spot. Plot distinct points to show your construction.';
+    if (category === 'correctLineMissingAnchor') return `Your line is mathematically correct, but you must plot the ${formAwareAnchorLabel} yourself as part of your evidence — it is not enough to land on an equivalent line without it.`;
+    if (category === 'correctAnchorWrongSlope') return `You plotted the ${formAwareAnchorLabel} correctly, but the rest of your construction does not produce the correct line. Recheck your slope step.`;
+    return 'That construction does not match the target line yet. Start from the piece of information this form gives you directly.';
+  };
+
   const feedbackMessage = () => {
-    if (feedback.isCorrect) return 'Correct — your two points determine exactly the target line.';
+    if (feedback.isCorrect) return 'Correct — your construction determines exactly the target line.';
+    if (feedback.metadata?.strategy === 'formAware' && feedback.metadata?.category) return formAwareFeedback();
     const checks = feedback.metadata?.pointChecks || [];
     const onLine = checks.filter(Boolean).length;
     if (!studentLine) return 'Those two clicks landed on the same spot. Two different points are needed to determine a line.';
@@ -203,11 +243,11 @@ export default function Graphing2({ questionData = {}, onAction }) {
    * publishes them from inside, because it is the component that owns the camera
    * and converts every click.
    */
-  const constructionIncomplete = points.length < 2 || !studentLine;
+  const constructionIncomplete = points.length < requiredPointCount || !studentLine;
   const workspaceCapabilities = {
     undo: undoHistory.capability,
     equationInput: { label: studentLine ? `Your line: ${formatLine(studentLine)}` : 'Your line', studentState: true },
-    instruction: { text: nextInstruction(points.length) },
+    instruction: { text: nextInstruction(points.length, requiredPointCount) },
     task: { text: targetPrompt(normalizedQuestion, target) },
     help: { content: <HintPanel hints={hints} onHintUsed={() => onAction?.('HINT_USED')} /> },
     primaryActions: [{ id: 'check-construction', label: 'Check construction', onAction: check, disabled: constructionIncomplete }],
@@ -225,12 +265,17 @@ export default function Graphing2({ questionData = {}, onAction }) {
         task={targetPrompt(normalizedQuestion, target)}
         steps={[
           'Click the grid to plot a point. A crosshair shows the exact coordinate before you click.',
-          'Plot a second point on the same line — the line is drawn for you automatically.',
-          'Press Check construction when both points are where you want them.',
+          requiredPointCount > 2
+            ? `Plot ${requiredPointCount - 1} more points on the same line — the line is drawn for you automatically.`
+            : 'Plot a second point on the same line — the line is drawn for you automatically.',
+          `Press Check construction when all ${requiredPointCount} points are where you want them.`,
         ]}
-        note={snapStep === 1
-          ? 'Points snap to whole numbers, so you cannot land between the gridlines.'
-          : `This line passes between gridlines, so points snap to the nearest ${snapStep}.`}
+        note={[
+          snapStep === 1
+            ? 'Points snap to whole numbers, so you cannot land between the gridlines.'
+            : `This line passes between gridlines, so points snap to the nearest ${snapStep}.`,
+          anchorNote,
+        ].filter(Boolean).join(' ')}
       />
 
       <EnlargeableFigure
@@ -247,11 +292,11 @@ export default function Graphing2({ questionData = {}, onAction }) {
         <Panel title="Construct the line">
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, padding: '8px 12px',
-            borderRadius: 999, background: points.length >= 2 ? '#e6f4ea' : '#e8f0fe',
-            color: points.length >= 2 ? '#137333' : '#174ea6', fontWeight: 800, fontSize: 13,
+            borderRadius: 999, background: points.length >= requiredPointCount ? '#e6f4ea' : '#e8f0fe',
+            color: points.length >= requiredPointCount ? '#137333' : '#174ea6', fontWeight: 800, fontSize: 13,
           }}>
-            <span>{points.length >= 2 ? '✓' : `${points.length}/2`}</span>
-            <span>{nextInstruction(points.length)}</span>
+            <span>{points.length >= requiredPointCount ? '✓' : `${points.length}/${requiredPointCount}`}</span>
+            <span>{nextInstruction(points.length, requiredPointCount)}</span>
           </div>
           <CoordinatePlane
             {...bounds}
@@ -288,7 +333,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
           </dl>
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
-            <button type="button" onClick={check} disabled={points.length < 2 || !studentLine} style={{ ...primaryButton, opacity: points.length < 2 || !studentLine ? 0.5 : 1, cursor: points.length < 2 || !studentLine ? 'not-allowed' : 'pointer' }}>
+            <button type="button" onClick={check} disabled={constructionIncomplete} style={{ ...primaryButton, opacity: constructionIncomplete ? 0.5 : 1, cursor: constructionIncomplete ? 'not-allowed' : 'pointer' }}>
               Check construction
             </button>
             {/* "Undo last point" used to sit here. Universal Undo covers it
