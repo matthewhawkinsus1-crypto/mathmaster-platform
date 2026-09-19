@@ -300,6 +300,60 @@ test('30 deterministic samples of every structure issue and grade securely', asy
   }
 });
 
+test('procedural structures preserve their actual algebra, not just their private answer key', () => {
+  const basic = SOLVER_RACE_CATALOG.find((question) => question.id.endsWith('absoluteValueEquation_basic'));
+  const andOpen = SOLVER_RACE_CATALOG.find((question) => question.id.endsWith('absoluteValueInequality_and_open'));
+  const signedBoth = SOLVER_RACE_CATALOG.find((question) => question.id.endsWith('linearEquation_signed_both_sides'));
+  const multi = SOLVER_RACE_CATALOG.find((question) => question.id.endsWith('linearEquation_multi_operation'));
+  const fractionBoth = SOLVER_RACE_CATALOG.find((question) => question.id.endsWith('linearEquation_fraction_both_sides'));
+  const fractionNegative = SOLVER_RACE_CATALOG.find((question) => question.id.endsWith('linearInequality_fraction_negative'));
+
+  for (let sample = 0; sample < 400; sample += 1) {
+    const basicQuestion = generateSolverRaceQuestion(basic, `semantic-basic-${sample}`);
+    const basicRadius = Number(/^\|x\| = (\d+)$/.exec(basicQuestion.equation)?.[1]);
+    assert.ok(Number.isFinite(basicRadius), basicQuestion.equation);
+    assert.equal(basicQuestion.expectedFinalRelation, `x = ${-basicRadius} OR x = ${basicRadius}`);
+
+    const andQuestion = generateSolverRaceQuestion(andOpen, `semantic-and-${sample}`);
+    const andRadius = Number(/^\|x\| < (\d+)$/.exec(andQuestion.equation)?.[1]);
+    assert.ok(Number.isFinite(andRadius), andQuestion.equation);
+    assert.equal(andQuestion.expectedFinalRelation, `${-andRadius} < x < ${andRadius}`);
+
+    const signedQuestion = generateSolverRaceQuestion(signedBoth, `semantic-signed-${sample}`);
+    const signedMatch = /^(-\d+)\*x[+-]\d+ = (\d+)\*x[+-]\d+$/.exec(signedQuestion.equation);
+    assert.ok(signedMatch, `signed-both-sides must keep a nonzero variable term on both sides: ${signedQuestion.equation}`);
+
+    const multiQuestion = generateSolverRaceQuestion(multi, `semantic-multi-${sample}`);
+    const multiMatch = /^(\d+)\*\((\d+)\*x[+-]\d+\)[+-]\d+ = (\d+)\*x[+-]\d+$/.exec(multiQuestion.equation);
+    assert.ok(multiMatch, multiQuestion.equation);
+    assert.notEqual(
+      Number(multiMatch[1]) * Number(multiMatch[2]),
+      Number(multiMatch[3]),
+      `multi-operation equation must not collapse to an identity: ${multiQuestion.equation}`,
+    );
+
+    const fractionQuestion = generateSolverRaceQuestion(fractionBoth, `semantic-fraction-both-${sample}`);
+    const simpleFractionMatch = /^\(x[+-]\d+\)\/(\d+) = \(x[+-]\d+\)\/(\d+)$/.exec(fractionQuestion.equation);
+    if (simpleFractionMatch) {
+      assert.notEqual(
+        Number(simpleFractionMatch[1]),
+        Number(simpleFractionMatch[2]),
+        `fraction-both-sides equation must not have equal x coefficients: ${fractionQuestion.equation}`,
+      );
+    }
+
+    const negativeFraction = generateSolverRaceQuestion(fractionNegative, `semantic-fraction-negative-${sample}`);
+    const fractionMatch = /^\((-?\d+)-x\)\/(\d+) >= (-?\d+)$/.exec(negativeFraction.equation);
+    assert.ok(fractionMatch, `fraction-negative should use an integer RHS: ${negativeFraction.equation}`);
+    const expectedBound = Number(/x <= (-?\d+)/.exec(negativeFraction.expectedFinalRelation)?.[1]);
+    assert.equal(
+      Number(fractionMatch[1]) - Number(fractionMatch[2]) * Number(fractionMatch[3]),
+      expectedBound,
+      `fraction-negative equation and answer must be derived from the same bound: ${negativeFraction.equation}`,
+    );
+  }
+});
+
 test('negative inequalities always flip and positive coefficients never flip', () => {
   const negative = SOLVER_RACE_CATALOG.find((question) => question.id.endsWith('linearInequality_negative_flip'));
   const positive = SOLVER_RACE_CATALOG.find((question) => question.id.endsWith('linearInequality_positive_coefficient'));
