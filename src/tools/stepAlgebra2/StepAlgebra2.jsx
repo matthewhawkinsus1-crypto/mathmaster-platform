@@ -6,6 +6,7 @@ import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../
 import { nearlyEqual, round } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
 import RewriteLinearForm from './RewriteLinearForm';
+import LinearIntercepts from './LinearIntercepts';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const secondaryButton = { ...primaryButton, background: '#fff', color: '#174ea6', border: '1px solid #9bb8e8' };
@@ -49,6 +50,9 @@ export default function StepAlgebra2({ questionData = {}, onAction }) {
   // authored question, which has no `mode` field and defaults past this check.
   if (questionData.mode === 'rewriteLinearForm') {
     return <RewriteLinearForm questionData={questionData} onAction={onAction} />;
+  }
+  if (questionData.mode === 'linearIntercepts') {
+    return <LinearIntercepts questionData={questionData} onAction={onAction} />;
   }
 
   const original = questionData.equation || { a: 3, b: 6, c: 21 };
