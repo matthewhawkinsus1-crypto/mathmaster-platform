@@ -9,6 +9,7 @@ import { auditAssignmentWorksheetPrintability } from './worksheetPrintPreflight.
 import { auditAssignmentSupportDifferentiation } from './supportDifferentiationPreflight.js';
 import { buildPreflightDiagnostics } from './preflightDiagnostics.js';
 import { deriveAssignmentAuthoringState } from './assignmentAuthoringState.js';
+import { analyzeClassworkPlannedTime } from '../teacher/classworkPacing.js';
 import {
   findFirestoreUnsafeNestedArrays,
   repairKnownFirestoreNestedArrays,
@@ -110,6 +111,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   const interaction = validateAssignmentInteractionContracts(questions);
   const worksheetPrint = auditAssignmentWorksheetPrintability({ ...runtimeSource, sections }, questions);
   const supportDifferentiation = auditAssignmentSupportDifferentiation({ ...runtimeSource, sections }, questions);
+  const classworkPacing = analyzeClassworkPlannedTime({ ...runtimeSource, sections });
 
   const persistenceErrors = firestoreUnsafePaths.map((path) => (
     `Firestore cannot save an array directly inside another array (found at ${path}). MathMaster cannot safely auto-repair this structure because it is not a recognized coordinate-pair list.`
@@ -143,6 +145,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     { source: 'interaction', severity: 'blocking', messages: asMessages(interaction.errors) },
     { source: 'worksheetPrint', severity: 'blocking', messages: asMessages(worksheetPrint.errors) },
     { source: 'supportDifferentiation', severity: 'blocking', messages: asMessages(supportDifferentiation.errors) },
+    { source: 'classworkPacing', severity: 'blocking', messages: asMessages(classworkPacing.errors) },
     { source: 'alignment', severity: 'blocking', messages: alignmentErrors },
     { source: 'persistence', severity: 'warning', messages: persistenceWarnings },
     { source: 'structural', severity: 'warning', messages: asMessages(structural.warnings) },
@@ -182,6 +185,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     sections,
     questions,
     runtimeRepair,
+    classworkPacing,
     errors: uniqueErrors,
     warnings: uniqueWarnings,
     diagnostics,
