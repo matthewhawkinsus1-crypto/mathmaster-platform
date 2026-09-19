@@ -36,7 +36,12 @@ test('starting a session records only where the teacher is, nothing about studen
     activityRole: 'classwork',
     nowValue: 5000,
   });
+  // Session identity/timer/projector fields are the synchronization contract;
+  // they remain teacher-only and contain no student work.
   assert.deepEqual(session, {
+    sessionId: 'missing__class-1__a1',
+    ownerUid: null,
+    teacherEmail: null,
     active: true,
     classId: 'class-1',
     assignmentId: 'a1',
@@ -44,6 +49,10 @@ test('starting a session records only where the teacher is, nothing about studen
     activityRole: 'classwork',
     classworkQuestionPosition: 0,
     startedAt: 5000,
+    instructionalPhase: null,
+    timer: { durationSeconds: 0, remainingSeconds: 0, status: 'idle', startedAt: null },
+    projectorState: { showInstructionalPhase: true, showTimer: true, showReview: false },
+    updatedAt: 5000,
   });
 });
 

@@ -1,4 +1,5 @@
 import { formatStudentName } from '../studentName.js';
+import { classifyLiveActivity, LIVE_ACTIVITY } from '../../livePresence.js';
 
 export const WALKTHROUGH_STATUS = Object.freeze({
   NEEDS_CHECK: 'needsCheck',
@@ -10,8 +11,6 @@ export const WALKTHROUGH_STATUS = Object.freeze({
 
 const TERMINAL_STATES = new Set(['c', 'x']);
 const ABSENT_MARKS = new Set(['absent', 'excused', 'unexcused']);
-const OFFLINE_AFTER_MS = 75000;
-const IDLE_AFTER_MS = 180000;
 
 const toMillis = (value) => {
   if (!value) return null;
@@ -83,8 +82,9 @@ export function buildWalkthroughMonitor({
     // A late student cannot be "inactive for 40 minutes" thirty seconds after
     // arriving. Arrival becomes the earliest fair activity clock for that day.
     const effectiveInteractionAt = Math.max(rawInteractionAt, attendance.arrivedAt || 0);
-    const offline = Boolean(live?.assignmentId) && nowValue - updatedAt > OFFLINE_AFTER_MS;
-    const inactive = Boolean(live?.assignmentId) && !offline && nowValue - effectiveInteractionAt > IDLE_AFTER_MS;
+    const activityState = classifyLiveActivity({ ...live, lastInteractionAt: effectiveInteractionAt }, nowValue);
+    const offline = activityState === LIVE_ACTIVITY.DISCONNECTED;
+    const inactive = activityState === LIVE_ACTIVITY.AWAY;
     const sectionIndex = Math.max(0, Number(live?.sectionQuestionIndex) || 0);
 
     let status;
@@ -116,6 +116,7 @@ export function buildWalkthroughMonitor({
       behindBy,
       offline,
       inactive,
+      activityState,
       helpRequested: Boolean(live?.helpRequestedAt || live?.helpRequested),
       reason: '',
     };

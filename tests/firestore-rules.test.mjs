@@ -140,6 +140,14 @@ const student = testEnv.authenticatedContext('student:S1042', { role: 'student',
 const roleless = testEnv.authenticatedContext('random-uid', {}).firestore();
 const anon = testEnv.unauthenticatedContext().firestore();
 
+// --- Walkthrough sessions are private teacher control state ----------------
+const walkthroughPath = 'walkthroughSessions/teacher-uid__class-1__A1';
+const walkthrough = { sessionId: 'teacher-uid__class-1__A1', ownerUid: 'teacher-uid', teacherEmail: TEACHER_EMAIL, classId: 'class-1', assignmentId: 'A1', active: true, storageQuestionIndex: 0, timer: { status: 'idle' } };
+await check('owning teacher creates and reads walkthrough session', (async () => { await assertSucceeds(setDoc(doc(teacher, walkthroughPath), walkthrough)); await assertSucceeds(getDoc(doc(teacher, walkthroughPath))); })());
+await check('student CANNOT read walkthrough session', assertFails(getDoc(doc(student, walkthroughPath))));
+await check('unrelated teacher CANNOT read walkthrough session', assertFails(getDoc(doc(otherTeacher, walkthroughPath))));
+await check('walkthrough session CANNOT contain student answers', assertFails(setDoc(doc(teacher, walkthroughPath), { ...walkthrough, answers: { S1042: 'private' } })));
+
 // --- Live Challenge diagnostics are teacher-only server state --------------
 const diagnosticPath = 'liveChallengeRooms/room-diagnostics/diagnostics/player-1';
 await check('owning teacher reads Live Challenge diagnostics', assertSucceeds(getDoc(doc(teacher, diagnosticPath))));

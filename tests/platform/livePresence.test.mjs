@@ -29,26 +29,26 @@ test('a student with no live status reads as Not started', () => {
   assert.equal(row.isOnline, false);
 });
 
-test('a stale heartbeat reads as offline, not as idle', () => {
+test('a stale heartbeat reads as disconnected, not as away', () => {
   const row = classifyLiveStudent(
     student('s1', live({ questionStates: 'ccc.......' })),
     { nowValue: NOW + OFFLINE_AFTER_MS + 1000 },
   );
   assert.ok(row.flags.includes(LIVE_FLAGS.OFFLINE));
   assert.ok(!row.flags.includes(LIVE_FLAGS.IDLE), 'offline supersedes idle — one signal, not two');
-  assert.equal(row.headline, 'Offline');
+  assert.equal(row.headline, 'Disconnected');
 });
 
-test('a heartbeat with no interaction reads as idle', () => {
-  // Still sending heartbeats, but has not touched anything.
+test('a visible heartbeat with no interaction reads as viewing, not inactive', () => {
+  // Still connected and visible: the learner may be reading or working on paper.
   const at = NOW + IDLE_AFTER_MS + 60000;
   const row = classifyLiveStudent(
     student('s1', { ...live({ questionStates: 'c.........' }), updatedAt: at }),
     { nowValue: at },
   );
-  assert.ok(row.flags.includes(LIVE_FLAGS.IDLE));
-  assert.equal(row.severity, LIVE_SEVERITY.ALERT);
-  assert.match(row.headline, /^Idle \d+ min$/);
+  assert.ok(!row.flags.includes(LIVE_FLAGS.IDLE));
+  assert.equal(row.severity, LIVE_SEVERITY.OK);
+  assert.match(row.headline, /^Viewing/);
 });
 
 test('classwide quiet suppresses individual idle alarms during likely teacher talk or paper work', () => {
@@ -62,7 +62,7 @@ test('classwide quiet suppresses individual idle alarms during likely teacher ta
   assert.ok(rows.every((entry) => !entry.flags.includes(LIVE_FLAGS.IDLE)));
 });
 
-test('one quiet student is still flagged when the rest of the room is working', () => {
+test('one quiet visible student remains viewing when the rest of the room is working', () => {
   const roster = [
     student('idle', live({
       questionStates: 'c.........',
@@ -77,7 +77,9 @@ test('one quiet student is still flagged when the rest of the room is working', 
   ];
   const { rows, classStats } = summarizeLiveClass(roster, { nowValue: NOW, assignmentId: 'a1' });
   assert.ok(classStats.idleShare < 0.67);
-  assert.ok(rows.find((entry) => entry.id === 'idle').flags.includes(LIVE_FLAGS.IDLE));
+  const quiet = rows.find((entry) => entry.id === 'idle');
+  assert.ok(!quiet.flags.includes(LIVE_FLAGS.IDLE));
+  assert.equal(quiet.activityState, 'viewing');
 });
 
 test('repeated attempts on one question flag as stuck', () => {

@@ -1,5 +1,81 @@
 import { classworkPositionForStorageIndex } from './classworkModel.js';
 
+export const WALKTHROUGH_TIMER_STATUS = Object.freeze({
+  IDLE: 'idle', RUNNING: 'running', PAUSED: 'paused', EXPIRED: 'expired',
+});
+
+const cleanSeconds = (value, fallback = 0) => {
+  const number = Math.round(Number(value));
+  return Number.isFinite(number) ? Math.max(0, number) : fallback;
+};
+
+const questionAt = (assignment, index) => {
+  const questions = Array.isArray(assignment?.questions)
+    ? assignment.questions
+    : (Array.isArray(assignment?.sections) ? assignment.sections.flatMap((section) => section?.questions || []) : []);
+  return questions[index] || null;
+};
+
+export const walkthroughSessionId = ({ teacherUid, classId, assignmentId } = {}) => (
+  [teacherUid, classId, assignmentId]
+    .map((part) => encodeURIComponent(String(part || 'missing')))
+    .join('__')
+);
+
+export const createWalkthroughTimer = (durationSeconds = 0) => ({
+  durationSeconds: cleanSeconds(durationSeconds),
+  remainingSeconds: cleanSeconds(durationSeconds),
+  status: WALKTHROUGH_TIMER_STATUS.IDLE,
+  startedAt: null,
+});
+
+export function walkthroughTimerRemaining(timer, nowValue = Date.now()) {
+  if (!timer) return 0;
+  const remaining = cleanSeconds(timer.remainingSeconds, cleanSeconds(timer.durationSeconds));
+  if (timer.status !== WALKTHROUGH_TIMER_STATUS.RUNNING || !timer.startedAt) return remaining;
+  return Math.max(0, remaining - Math.floor((nowValue - Number(timer.startedAt)) / 1000));
+}
+
+export function updateWalkthroughTimer(timer, action, { nowValue = Date.now(), durationSeconds } = {}) {
+  const current = timer || createWalkthroughTimer(durationSeconds);
+  const remaining = walkthroughTimerRemaining(current, nowValue);
+  switch (action) {
+    case 'start':
+    case 'resume':
+      return remaining <= 0
+        ? { ...current, remainingSeconds: 0, startedAt: null, status: WALKTHROUGH_TIMER_STATUS.EXPIRED }
+        : { ...current, remainingSeconds: remaining, startedAt: nowValue, status: WALKTHROUGH_TIMER_STATUS.RUNNING };
+    case 'pause':
+      return { ...current, remainingSeconds: remaining, startedAt: null, status: remaining ? WALKTHROUGH_TIMER_STATUS.PAUSED : WALKTHROUGH_TIMER_STATUS.EXPIRED };
+    case 'tick':
+      return remaining ? current : { ...current, remainingSeconds: 0, startedAt: null, status: WALKTHROUGH_TIMER_STATUS.EXPIRED };
+    case 'extend': {
+      const added = cleanSeconds(durationSeconds);
+      const nextRemaining = remaining + added;
+      return { ...current, durationSeconds: cleanSeconds(current.durationSeconds) + added, remainingSeconds: nextRemaining,
+        startedAt: current.status === WALKTHROUGH_TIMER_STATUS.RUNNING ? nowValue : null,
+        status: current.status === WALKTHROUGH_TIMER_STATUS.EXPIRED ? WALKTHROUGH_TIMER_STATUS.PAUSED : current.status };
+    }
+    case 'reset': {
+      const resetDuration = durationSeconds == null ? cleanSeconds(current.durationSeconds) : cleanSeconds(durationSeconds);
+      return createWalkthroughTimer(resetDuration);
+    }
+    default: return current;
+  }
+}
+
+// Projectors receive only this allow-listed projection. Roster rows, names,
+// grades, support signals, and demo answers can never cross this boundary.
+export const buildProjectorState = (session) => ({
+  active: Boolean(session?.active),
+  storageQuestionIndex: Math.max(0, Number(session?.storageQuestionIndex) || 0),
+  activityRole: session?.activityRole || null,
+  classworkQuestionPosition: Number.isInteger(session?.classworkQuestionPosition) ? session.classworkQuestionPosition : null,
+  instructionalPhase: session?.projectorState?.showInstructionalPhase ? session?.instructionalPhase || null : null,
+  timer: session?.projectorState?.showTimer ? session?.timer || null : null,
+  reviewVisible: Boolean(session?.projectorState?.showReview),
+});
+
 /**
  * Teacher-only Live Teaching session state (Classroom Live, Phase 2).
  *
@@ -26,9 +102,16 @@ export function startLiveTeachingSession({
   storageQuestionIndex = 0,
   activityRole = null,
   nowValue = Date.now(),
+  teacherUid = null,
+  teacherEmail = null,
+  suggestedWorkSeconds = 0,
 } = {}) {
   const index = Math.max(0, Number(storageQuestionIndex) || 0);
+  const sessionId = walkthroughSessionId({ teacherUid: teacherUid || teacherEmail, classId, assignmentId });
   return {
+    sessionId,
+    ownerUid: teacherUid || null,
+    teacherEmail: teacherEmail || null,
     active: true,
     classId: classId || null,
     assignmentId: assignmentId || null,
@@ -36,6 +119,10 @@ export function startLiveTeachingSession({
     activityRole: activityRole || null,
     classworkQuestionPosition: classworkPositionForStorageIndex(assignment, index),
     startedAt: nowValue,
+    instructionalPhase: questionAt(assignment, index)?.instructionalPhase || null,
+    timer: createWalkthroughTimer(suggestedWorkSeconds || questionAt(assignment, index)?.suggestedWorkSeconds),
+    projectorState: { showInstructionalPhase: true, showTimer: true, showReview: false },
+    updatedAt: nowValue,
   };
 }
 
@@ -56,6 +143,8 @@ export function advanceLiveTeachingSession(session, { assignment = null, storage
     storageQuestionIndex: index,
     activityRole: activityRole || null,
     classworkQuestionPosition: classworkPosition === null ? session.classworkQuestionPosition : classworkPosition,
+    instructionalPhase: questionAt(assignment, index)?.instructionalPhase || null,
+    updatedAt: Date.now(),
   };
 }
 
