@@ -109,7 +109,7 @@ export const canonicalFromPointSlope = (point, slope) => {
 // samples; a fourth point confirms the equation really is linear (affine) in
 // x and y before the result is trusted, so a mistyped nonlinear "equation" is
 // rejected instead of silently canonicalized as a nearby line.
-export const canonicalFromEquationText = (text) => {
+export const standardCoefficientsFromEquationText = (text) => {
   try {
     const parts = String(text).split('=');
     if (parts.length !== 2) return null;
@@ -125,10 +125,16 @@ export const canonicalFromEquationText = (text) => {
     const B = f01 - f00;
     const sample = residual(3, -2);
     if (!Number.isFinite(sample) || Math.abs((A * 3 + B * -2 - C) - sample) > 1e-6) return null;
-    return canonicalFromStandard(A, B, C);
+    if (Math.abs(A) <= 1e-12 && Math.abs(B) <= 1e-12) return null;
+    return { A, B, C };
   } catch {
     return null;
   }
+};
+
+export const canonicalFromEquationText = (text) => {
+  const standard = standardCoefficientsFromEquationText(text);
+  return standard ? canonicalFromStandard(standard.A, standard.B, standard.C) : null;
 };
 
 export const canonicalFromPoints = (first, second, tolerance = 1e-9) => {
