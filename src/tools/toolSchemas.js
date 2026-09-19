@@ -2,6 +2,7 @@ import { validateSortQuestion } from './openSortBoard/openSortMath.js';
 import { validateConstraintBuilderQuestion } from './constraintFunctionBuilder/constraintFunctionMath.js';
 import { buildLinearConnectionCards, canonicalLineForSet, findLinearMismatch, LINEAR_CARD_KINDS } from './representationMatch/representationMath.js';
 import { SUPPORTED_TARGET_FORMS as REWRITE_LINEAR_FORM_TARGETS } from './stepAlgebra2/rewriteLinearFormMath.js';
+import { INTERCEPT_FEEDBACK_TIMINGS, resolveStandardCoefficients } from './stepAlgebra2/linearInterceptsMath.js';
 const TOOL_IDS = new Set([
   'dataModelingLab','regressionCalculator','inverseCompositionLab','functionOperationsLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
   'signSolutionAnalyzer','sequenceExplorer','complexPlaneLab','exponentialLogBridge','transformationsLab',
@@ -430,6 +431,16 @@ export const validateToolQuestion = (question = {}) => {
       const hasEquationString = typeof question.equation === 'string' && question.equation.trim().split('=').length === 2;
       const hasSplitExpressions = typeof question.leftExpression === 'string' && question.leftExpression.trim() && typeof question.rightExpression === 'string' && question.rightExpression.trim();
       if (!hasEquationString && !hasSplitExpressions) errors.push('stepAlgebra2 rewriteLinearForm requires either a single "equation" string with exactly one = sign, or both leftExpression and rightExpression.');
+    } else if (question.mode === 'linearIntercepts') {
+      const standard = resolveStandardCoefficients(question);
+      if (!standard) {
+        errors.push('stepAlgebra2 linearIntercepts requires a valid two-variable linear equation, supplied as standard {A,B,C} or a parseable equation string.');
+      } else if (Math.abs(Number(standard.A)) <= 1e-12 || Math.abs(Number(standard.B)) <= 1e-12) {
+        errors.push('stepAlgebra2 linearIntercepts requires nonzero x- and y-coefficients; use the vertical/horizontal line workflow for one-variable lines.');
+      }
+      if (question.feedbackTiming != null && !INTERCEPT_FEEDBACK_TIMINGS.includes(String(question.feedbackTiming))) {
+        errors.push(`stepAlgebra2 linearIntercepts feedbackTiming must be one of: ${INTERCEPT_FEEDBACK_TIMINGS.join(', ')}.`);
+      }
     } else if (Number(question.equation?.a ?? 1) === 0) {
       errors.push('stepAlgebra2 linear coefficient a cannot be 0.');
     }
