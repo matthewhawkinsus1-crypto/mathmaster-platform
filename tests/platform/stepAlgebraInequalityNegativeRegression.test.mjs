@@ -237,4 +237,10 @@ test('relation UI supports multi-branch negative sign flips and preserves signed
   assert.match(src, /const rawTermLatex = String\(term\.latex \|\| ''\)\.trim\(\)/);
   assert.match(src, /const visibleTermLatex = termNeedsLeadingPlus/);
   assert.match(src, /: rawTermLatex;/);
+
+  // Once a divide/multiply step is committed, a one-piece signed quotient must
+  // go through the relation-aware renderer. Otherwise the additive-term display
+  // can visually prepend a second minus to an already-negative numerator.
+  assert.match(src, /terms\.length === 1 && !placementMode/);
+  assert.match(src, /relationExpressionToLatex\(expression\)/);
 });

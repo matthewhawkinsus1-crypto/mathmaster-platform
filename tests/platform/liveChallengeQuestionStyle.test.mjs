@@ -100,7 +100,7 @@ test('the choice is remembered on the room and on the dry run', () => {
   assert.match(roomWrite, /solverRaceDifficulty: challengeMode === "solverRace"/);
   const dryRunWrite = functionsIndex.slice(functionsIndex.indexOf('const ref = db.collection(LIVE_CHALLENGE_DRY_RUNS)'), functionsIndex.indexOf('const rounds = await Promise.all', functionsIndex.indexOf('const ref = db.collection(LIVE_CHALLENGE_DRY_RUNS)')));
   assert.match(dryRunWrite, /standardCode,\n    questionStyle,/);
-  assert.match(dryRunWrite, /roundSeconds,\n    questionIds,/);
+  assert.match(dryRunWrite, /roundSeconds,\n    timingMode,\n    questionIds,/);
 });
 
 /* ---------- the teacher can actually reach it ---------- */

@@ -193,6 +193,21 @@ test('literal isolation is bounded symbolic grading, not exact authored steps or
   assert.equal(grade(perimeter, 'W=P/2+L', { isCorrect: true }).isCorrect, false, 'client correctness is ignored');
 });
 
+test('literal grading accepts MathLive implicit multiplication in rendered fractions', () => {
+  const question = SOLVER_RACE_CATALOG.find((q) => q.id.endsWith('literalEquation_fraction_group'));
+  assert.ok(question);
+  assert.equal(
+    grade(question, '\\frac{cy+b}{a}=x').isCorrect,
+    true,
+    'MathLive renders c*y as adjacent single-letter variables inside the fraction',
+  );
+  assert.equal(
+    grade(question, '\\frac{c y+b}{a}=x').isCorrect,
+    true,
+    'spacing from a rendered math field must not change the literal isolation',
+  );
+});
+
 test('every literal structure accepts its expected isolation and rejects a nearby wrong one', () => {
   const equivalents = {
     subtract_a: 'x=-a+y', add_a: 'x=a+y', divide_a: 'x=(1/a)*y', multiply_a: 'x=y*a',

@@ -72,7 +72,7 @@ function useNow(active = true) {
   return now;
 }
 
-export default function ChallengeDryRun({ courseId, standardCode, questionStyle = 'any', challengeMode = 'standard', solverRaceFocus = 'mixed', solverRaceDifficulty = 'ramp', roundCount, roundSeconds, title, onClose }) {
+export default function ChallengeDryRun({ courseId, standardCode, questionStyle = 'any', challengeMode = 'standard', solverRaceFocus = 'mixed', solverRaceDifficulty = 'ramp', roundCount, roundSeconds, timingMode = 'timed', title, onClose }) {
   const [dryRun, setDryRun] = useState(null);
   const [roundIndex, setRoundIndex] = useState(0);
   const [busy, setBusy] = useState('');
@@ -87,7 +87,7 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
     let cancelled = false;
     setBusy('create');
     setError('');
-    createChallengeDryRun({ courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, solverRaceDifficulty, roundCount, roundSeconds })
+    createChallengeDryRun({ courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, solverRaceDifficulty, roundCount, roundSeconds, timingMode })
       .then((result) => {
         if (cancelled) return;
         setDryRun(result);
@@ -99,7 +99,7 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
       })
       .finally(() => { if (!cancelled) setBusy(''); });
     return () => { cancelled = true; };
-  }, [courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, solverRaceDifficulty, roundCount, roundSeconds]);
+  }, [courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, solverRaceDifficulty, roundCount, roundSeconds, timingMode]);
 
   // Leaving without discarding would leave the rehearsal's question list behind.
   const close = useCallback(() => {
@@ -146,8 +146,10 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
 
   const round = dryRun.rounds[roundIndex];
   const isLast = roundIndex >= dryRun.rounds.length - 1;
-  const roundEndsAt = roundStartedAt + (dryRun.roundSeconds * 1000);
-  const remainingMs = Math.max(0, roundEndsAt - now);
+  const paceMode = (dryRun.timingMode || timingMode) === 'pace';
+  const roundEndsAt = paceMode ? null : roundStartedAt + (dryRun.roundSeconds * 1000);
+  const remainingMs = roundEndsAt == null ? 0 : Math.max(0, roundEndsAt - now);
+  const elapsedMs = Math.max(0, now - roundStartedAt);
 
   // One synthetic room, shared by all three views, so the student screen and the
   // teacher screen are demonstrably showing the same round.
@@ -161,6 +163,10 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
     roundCount: dryRun.rounds.length,
     currentRound: roundIndex,
     currentQuestion: round?.question || null,
+    timingMode: paceMode ? 'pace' : 'timed',
+    startsAt: roundStartedAt,
+    roundStartedAt,
+    endsAt: roundEndsAt,
     roundEndsAt,
   };
 
@@ -188,7 +194,7 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
               the way it runs out on a class answering it. Without this, an
               expired last round is a dead end. */}
           <button type="button" onClick={() => setRoundStartedAt(Date.now())} style={dryRunButton}>
-            Restart timer
+            {paceMode ? 'Restart clock' : 'Restart timer'}
           </button>
           <button type="button" onClick={advance} disabled={isLast} style={{ ...dryRunButton, opacity: isLast ? 0.5 : 1 }}>
             Next round
@@ -230,6 +236,7 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
           leaderboard={SAMPLE_PLAYERS}
           joinedCount={SAMPLE_PLAYERS.length}
           remainingMs={remainingMs}
+          elapsedMs={elapsedMs}
           onExit={() => setView('teacher')}
         />
       </div>
@@ -243,6 +250,7 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
         <ChallengeLiveStatus
           room={room}
           remainingMs={remainingMs}
+          elapsedMs={elapsedMs}
           answeredCount={3}
           joinedCount={SAMPLE_PLAYERS.length}
         />
@@ -260,8 +268,9 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
           <button type="button" onClick={close} style={{ ...dryRunButton, color: '#a50e0e' }}>End Challenge Early</button>
         </div>
         <p style={{ margin: 0, color: '#5f6368', fontSize: 13 }}>
-          In a real game Next Round stays locked until everyone who joined has answered or the timer
-          reaches zero. Here it is always available, because there is nobody to wait for.
+          {paceMode
+            ? 'In a real Pace Race, Next Round stays locked until everyone submits or the closing threshold starts and its countdown finishes. Here it is always available, because there is nobody to wait for.'
+            : 'In a real Timed Race, Next Round stays locked until everyone who joined has answered or the timer reaches zero. Here it is always available, because there is nobody to wait for.'}
         </p>
       </div>
     );

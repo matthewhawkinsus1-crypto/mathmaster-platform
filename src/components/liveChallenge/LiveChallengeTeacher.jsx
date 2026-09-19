@@ -205,7 +205,7 @@ export default function LiveChallengeTeacher({
   const [roundSeconds, setRoundSeconds] = useState(45);
   const [timingMode, setTimingMode] = useState('timed');
   const [roundClosingThreshold, setRoundClosingThreshold] = useState(70);
-  const [secondChanceMode, setSecondChanceMode] = useState('automatic');
+  const [secondChanceMode, setSecondChanceMode] = useState('off');
   const [title, setTitle] = useState('');
   const [speedInfluencePercent, setSpeedInfluencePercent] = useState(20);
   const [playerDisplayMode, setPlayerDisplayMode] = useState('codeName');
@@ -236,7 +236,7 @@ export default function LiveChallengeTeacher({
     setCourseId(resolved);
     setStandardCode('mixed');
   }, [classId, classPeriod, selectedClass, courseProfiles]);
-  useEffect(() => { setDryRunOpen(false); }, [classId, courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, solverRaceDifficulty, roundCount, roundSeconds, speedInfluencePercent, playerDisplayMode]);
+  useEffect(() => { setDryRunOpen(false); }, [classId, courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, solverRaceDifficulty, roundCount, roundSeconds, timingMode, speedInfluencePercent, playerDisplayMode]);
   useEffect(() => {
     const selected = assignments.find((assignment) => String(assignment.id) === String(warmupAssignmentId));
     const configured = selected?.warmup?.liveChallenge?.deliveryMode;
@@ -432,7 +432,7 @@ export default function LiveChallengeTeacher({
         <div style={{ display: 'grid', gap: 18 }}>
           <div>
             <h2 style={{ margin: 0 }}>Live Challenge dry run</h2>
-            <p style={{ color: '#5f6368', maxWidth: 820, lineHeight: 1.55 }}>{courseLabel(courseId)} · {standardCode === 'mixed' ? 'Mixed review' : standardCode} · {questionStyle === 'tools' ? 'Interactive tools only' : questionStyle === 'noTools' ? 'Typed and chosen answers only' : 'Any question'} · {roundCount} rounds · {roundSeconds}s each.</p>
+            <p style={{ color: '#5f6368', maxWidth: 820, lineHeight: 1.55 }}>{courseLabel(courseId)} · {standardCode === 'mixed' ? 'Mixed review' : standardCode} · {questionStyle === 'tools' ? 'Interactive tools only' : questionStyle === 'noTools' ? 'Typed and chosen answers only' : 'Any question'} · {roundCount} rounds · {timingMode === 'pace' ? 'Pace Race · unlimited solving time' : `${roundSeconds}s each`}.</p>
           </div>
           <ScoringCompetitionCard roundSeconds={roundSeconds} speedInfluencePercent={speedInfluencePercent} />
           <ChallengeDryRun
@@ -444,6 +444,7 @@ export default function LiveChallengeTeacher({
             solverRaceDifficulty={solverRaceDifficulty}
             roundCount={roundCount}
             roundSeconds={roundSeconds}
+            timingMode={timingMode}
             speedInfluencePercent={speedInfluencePercent}
             title={title.trim() || `${selectedClass?.name || classPeriod || 'Class'} Live Challenge`}
             onClose={() => setDryRunOpen(false)}
@@ -539,7 +540,18 @@ export default function LiveChallengeTeacher({
                 </select>
               </label>}
               <label style={{ fontWeight: 800 }}>Rounds<select value={roundCount} onChange={(event) => setRoundCount(Number(event.target.value))} style={field}>{[5, 8, 10, 12, 15, 20].map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
-              <label style={{ fontWeight: 800 }}>Time per round<select value={roundSeconds} onChange={(event) => setRoundSeconds(Number(event.target.value))} style={field}>{[20, 30, 45, 60, 90].map((seconds) => <option key={seconds} value={seconds}>{seconds} seconds</option>)}</select></label>
+              <label style={{ fontWeight: 800, opacity: timingMode === 'pace' ? 0.55 : 1 }}>Time per round
+                <select
+                  value={roundSeconds}
+                  disabled={timingMode === 'pace'}
+                  aria-disabled={timingMode === 'pace'}
+                  onChange={(event) => setRoundSeconds(Number(event.target.value))}
+                  style={{ ...field, cursor: timingMode === 'pace' ? 'not-allowed' : 'pointer' }}
+                >
+                  {[20, 30, 45, 60, 90].map((seconds) => <option key={seconds} value={seconds}>{seconds} seconds</option>)}
+                </select>
+                {timingMode === 'pace' && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: '#5f6368' }}>Disabled in Pace Race. Students have unlimited solving time until the closing threshold starts the separate closing countdown.</span>}
+              </label>
               <label style={{ fontWeight: 800 }}>Race clock
                 <select value={timingMode} onChange={(event) => setTimingMode(event.target.value)} style={field}>
                   <option value="timed">Timed Race</option><option value="pace">Pace Race · unlimited solving time</option>

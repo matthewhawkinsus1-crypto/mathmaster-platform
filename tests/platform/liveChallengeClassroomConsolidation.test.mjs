@@ -106,3 +106,22 @@ test('Live Challenge lobby creation has enough memory for the secure planner', (
     /exports\.createLiveChallenge = onCall\(\{ memory: "512MiB" \}, async \(request\) => \{/,
   );
 });
+
+test('Pace Race is mutually exclusive with the visible round timer and Second Chance is opt-in', () => {
+  const teacher = read('../../src/components/liveChallenge/LiveChallengeTeacher.jsx');
+  const dryRun = read('../../src/components/liveChallenge/ChallengeDryRun.jsx');
+  const server = read('../../functions/index.js');
+
+  assert.match(teacher, /const \[secondChanceMode, setSecondChanceMode\] = useState\('off'\)/);
+  assert.match(server, /secondChanceMode = request\.data\?\.secondChanceMode === "automatic" \? "automatic" : "off"/);
+  assert.match(teacher, /disabled=\{timingMode === 'pace'\}/);
+  assert.match(teacher, /Disabled in Pace Race/);
+  assert.match(teacher, /timingMode=\{timingMode\}/);
+
+  assert.match(dryRun, /timingMode = 'timed'/);
+  assert.match(dryRun, /paceMode = \(dryRun\.timingMode \|\| timingMode\) === 'pace'/);
+  assert.match(dryRun, /roundEndsAt = paceMode \? null/);
+  assert.match(dryRun, /timingMode: paceMode \? 'pace' : 'timed'/);
+  assert.match(server, /const timingMode = challenge\.normalizeChallengeTimingMode\(request\.data\?\.timingMode\)/);
+});
+

@@ -25,4 +25,5 @@ test('grouped polynomial quotient still renders as a fraction', () => {
 
 test('simple signed numeric fraction keeps its conventional display', () => {
   assert.equal(relationExpressionToLatex('-4/3'), '-\\frac{4}{3}');
+  assert.equal(relationExpressionToLatex('(-3)/(2)'), '-\\frac{3}{2}');
 });

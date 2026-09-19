@@ -17,10 +17,19 @@ const tokenizeRational = (value) => {
   if (!text || text.length > 120 || /[\^=<>|]/.test(text)) return null;
   const raw = text.match(/\d+(?:\.\d+)?|[A-Za-z][A-Za-z0-9_]*|[()+\-*/]/g);
   if (!raw || raw.join('') !== text.replace(/\s+/g, '') || raw.length > 80) return null;
+
+  // MathLive deliberately renders multiplication between single-letter
+  // variables without a dot: c*y becomes "cy" inside a rendered fraction.
+  // Solver Race literal equations use single-letter symbols, so split a
+  // letters-only run back into its factors before inserting multiplication.
+  // Identifiers containing digits or underscores remain intact.
+  const factors = raw.flatMap((token) => (
+    /^[A-Za-z]{2,}$/.test(token) ? [...token] : [token]
+  ));
   const tokens = [];
   const isValueEnd = (token) => token && (/^(?:\d|[A-Za-z]|\))/.test(token));
   const isValueStart = (token) => token && (/^(?:\d|[A-Za-z]|\()/.test(token));
-  raw.forEach((token) => {
+  factors.forEach((token) => {
     if (isValueEnd(tokens[tokens.length - 1]) && isValueStart(token)) tokens.push('*');
     tokens.push(token);
   });
