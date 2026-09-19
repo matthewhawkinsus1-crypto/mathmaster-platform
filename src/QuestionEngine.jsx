@@ -146,6 +146,7 @@ export default function QuestionEngine({
   feedbackReleased = false,
   assessmentContext = null,
   teacherCalculatorChoice = null,
+  assignmentCalculatorMode = null,
   assignmentId = null,
   executionScope = 'student',
   showStandardBadge = true,
@@ -491,8 +492,9 @@ export default function QuestionEngine({
     activityPolicy: resolvedActivityPolicy,
     studentSupportProfile: studentProfile,
     teacherCalculatorChoice,
+    assignmentCalculatorMode,
     assessmentContext,
-  }), [processedQuestion, resolvedActivityPolicy, studentProfile, teacherCalculatorChoice, assessmentContext]);
+  }), [processedQuestion, resolvedActivityPolicy, studentProfile, teacherCalculatorChoice, assignmentCalculatorMode, assessmentContext]);
   const calculatorUnavailableReason = calculatorPolicy?.reason || 'No calculator is allowed for this skill.';
   const handleCalculatorControl = () => {
     if (!calculatorPolicy?.available) {

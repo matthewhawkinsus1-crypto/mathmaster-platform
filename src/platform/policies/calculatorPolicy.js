@@ -115,6 +115,7 @@ export const resolveCalculatorPolicy = ({
   activityPolicy = {},
   studentSupportProfile = null,
   teacherCalculatorChoice = null,
+  assignmentCalculatorMode = null,
   assessmentContext = null,
 } = {}) => {
   const assessment = normalizeAssessmentContext(assessmentContext);
@@ -127,6 +128,10 @@ export const resolveCalculatorPolicy = ({
 
   const explicitQuestionMode = normalizeMode(questionSpec.calculatorPolicy) || CALCULATOR_MODES.INHERIT;
   const activityDefault = normalizeMode(activityPolicy.calculatorDefault) || 'questionSpecific';
+  const assignmentMode = normalizeMode(assignmentCalculatorMode);
+  const assignmentDefault = assignmentMode && assignmentMode !== CALCULATOR_MODES.NONE && CONCRETE_MODES.has(assignmentMode)
+    ? assignmentMode
+    : null;
   let basePolicy = explicitQuestionMode;
   let baseSource = 'questionDesign';
 
@@ -138,8 +143,12 @@ export const resolveCalculatorPolicy = ({
     || normalizeMode(questionSpec?.generator?.calculatorMode)
     || normalizeMode(questionSpec?.calculatorMode);
   if (basePolicy === 'questionSpecific') {
-    basePolicy = embeddedQuestionMode || defaultForQuestion(questionSpec);
-    baseSource = embeddedQuestionMode ? 'questionDesign' : 'platformDefault';
+    basePolicy = embeddedQuestionMode || assignmentDefault || defaultForQuestion(questionSpec);
+    baseSource = embeddedQuestionMode
+      ? 'questionDesign'
+      : assignmentDefault
+        ? 'assignmentToolPolicy'
+        : 'platformDefault';
   }
   if (basePolicy === CALCULATOR_MODES.TEACHER_CHOICE) {
     const teacherMode = normalizeMode(teacherCalculatorChoice);
