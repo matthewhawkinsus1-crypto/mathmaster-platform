@@ -67,10 +67,12 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
   }),
   functionInvestigation2: entry(['functionInvestigation2/FunctionInvestigation2.jsx']),
   graphing2: entry(['graphing2/Graphing2.jsx']),
-  stepAlgebra2: entry(['stepAlgebra2/StepAlgebra2.jsx', 'stepAlgebra2/RewriteLinearForm.jsx'], {
+  stepAlgebra2: entry(['stepAlgebra2/StepAlgebra2.jsx', 'stepAlgebra2/RewriteLinearForm.jsx', 'stepAlgebra2/LinearIntercepts.jsx'], {
     inputError: 'Why an operand was rejected. Error text, not a step.',
     operationError: 'Why the last balanced operation was rejected. Error text, not a step.',
     rewriteError: 'Why the last equivalent-rewrite check failed. Error text, not a step.',
+    localMessage: 'Why the current intercept path needs attention. Feedback text, not mathematical work.',
+    zeroArmed: 'Whether the movable zero token is selected. Interaction state, not an answer.',
   }),
   // Nothing here is answerable: it renders an attempt that has already been
   // graded. A draft would have nothing to hold.
