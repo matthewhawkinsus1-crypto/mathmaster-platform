@@ -746,8 +746,12 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
     const point = build[index]?.shadePoint;
     return Boolean(point) && satisfiesBoundary(workingConstraints[index], point[0], point[1]);
   };
-  const constraintComplete = (index) => boundaryCorrect(index) && styleCorrect(index) && shadeCorrect(index);
-  const allConstraintsComplete = constraintCount > 0 && Array.from({ length: constraintCount }, (_, i) => i).every(constraintComplete);
+  const constraintCorrect = (index) => boundaryCorrect(index) && styleCorrect(index) && shadeCorrect(index);
+  const boundaryVerified = (index) => !buildConfig.boundary || (build[index]?.boundaryAttempts > 0 && boundaryCorrect(index));
+  const styleVerified = (index) => !buildConfig.lineStyle || (build[index]?.styleAttempts > 0 && styleCorrect(index));
+  const shadeVerified = (index) => !buildConfig.shading || (build[index]?.shadeAttempts > 0 && shadeCorrect(index));
+  const constraintVerified = (index) => boundaryVerified(index) && styleVerified(index) && shadeVerified(index);
+  const allConstraintsComplete = constraintCount > 0 && Array.from({ length: constraintCount }, (_, i) => i).every(constraintVerified);
 
   const studentBoundaries = build.map((entry, index) => {
     const line = effectiveLines[index];
@@ -867,7 +871,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
       styleCorrect: buildConfig.lineStyle ? styleCorrect(index) : null,
       inclusionUnderstandingCorrect: buildConfig.lineStyle ? styleCorrect(index) : null,
       shadeCorrect: buildConfig.shading ? shadeCorrect(index) : null,
-      constraintCorrect: hasBuildSteps ? constraintComplete(index) : null,
+      constraintCorrect: hasBuildSteps ? constraintCorrect(index) : null,
     }));
     const modelingChecks = modeling ? modelingEntries.map((entry, index) => modelingEntryCorrect(entry, expectedConstraints[index])) : [];
     const classificationCorrect = !askClassification || regionClassification === workingClassification;
@@ -1068,9 +1072,9 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
                     </label>
                   </div>
                   <div style={{ display:'flex', gap:10, fontSize:12, fontWeight:800, marginBottom:10 }}>
-                    <span style={{ color: boundaryCorrect(index) ? '#137333' : '#5f6b7a' }}>Boundary {buildConfig.boundary ? (boundaryCorrect(index) ? '✓' : '…') : 'provided'}</span>
-                    <span style={{ color: styleCorrect(index) ? '#137333' : '#5f6b7a' }}>Line style {buildConfig.lineStyle ? (styleCorrect(index) ? '✓' : '…') : 'provided'}</span>
-                    <span style={{ color: shadeCorrect(index) ? '#137333' : '#5f6b7a' }}>Region {buildConfig.shading ? (shadeCorrect(index) ? '✓' : '…') : 'provided'}</span>
+                    <span style={{ color: boundaryVerified(index) ? '#137333' : '#5f6b7a' }}>Boundary {buildConfig.boundary ? (boundaryVerified(index) ? '✓' : '…') : 'provided'}</span>
+                    <span style={{ color: styleVerified(index) ? '#137333' : '#5f6b7a' }}>Line style {buildConfig.lineStyle ? (styleVerified(index) ? '✓' : '…') : 'provided'}</span>
+                    <span style={{ color: shadeVerified(index) ? '#137333' : '#5f6b7a' }}>Region {buildConfig.shading ? (shadeVerified(index) ? '✓' : '…') : 'provided'}</span>
                   </div>
                   {activeIndex === index ? (
                     <div style={{ display:'grid', gap:12 }}>
