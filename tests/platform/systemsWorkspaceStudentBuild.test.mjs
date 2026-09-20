@@ -138,6 +138,14 @@ test('contextual modeling graphs and reasons from the student-authored canonical
   assert.match(mode, /classifyFeasibleRegion\(workingConstraints\)/);
 });
 
+test('disabled reasoning/build capabilities do not create hidden required answers or false mastery evidence', () => {
+  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
+  assert.match(mode, /!boundaryProbeEnabled \|\| boundaryIndex < 0/);
+  assert.match(mode, /boundaryCorrect: buildConfig\.boundary \? boundaryCorrect\(index\) : null/);
+  assert.match(mode, /styleCorrect: buildConfig\.lineStyle \? styleCorrect\(index\) : null/);
+  assert.match(mode, /shadeCorrect: buildConfig\.shading \? shadeCorrect\(index\) : null/);
+});
+
 test('context modeling accepts mathematically equivalent scaled inequalities and lets students return to revise their model', () => {
   assert.match(executable, /const equivalentLinearInequality/);
   assert.match(executable, /flipInequalityRelation/);
