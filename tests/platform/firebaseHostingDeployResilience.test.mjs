@@ -7,8 +7,8 @@ const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8
 test('Hosting deploys are throttled and retry transient upload failures', async () => {
   const helper = await read('scripts/deploy-hosting-resilient.sh');
 
-  assert.match(helper, /FIREBASE_HOSTING_UPLOAD_CONCURRENCY:-8/);
-  assert.match(helper, /FIREBASE_HOSTING_DEPLOY_ATTEMPTS:-6/);
+  assert.match(helper, /FIREBASE_HOSTING_UPLOAD_CONCURRENCY:-4/);
+  assert.match(helper, /FIREBASE_HOSTING_DEPLOY_ATTEMPTS:-8/);
   assert.match(helper, /upload-firebasehosting\\\.googleapis\\\.com/);
   assert.match(helper, /ConnectTimeoutError/);
   assert.match(helper, /firebase deploy --only hosting --project/);
