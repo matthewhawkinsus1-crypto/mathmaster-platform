@@ -19,6 +19,7 @@ test('TEAMS CSV is exactly two columns, no header or names, with validation', ()
   assert.equal(csv, '1500123,92\r\n1500456,100\r\n');
   assert.doesNotMatch(csv, /Student|Ada|"/);
   assert.throws(() => teamsCsv([{ sisStudentId: 'bad,id', grade: 90 }]));
+  assert.throws(() => teamsCsv([{ sisStudentId: 'S1500123', grade: 90 }]));
   assert.throws(() => teamsCsv([{ sisStudentId: '123', grade: 101 }]));
 });
 
@@ -119,7 +120,8 @@ test('Grade Transfer roster requires canonical classId even when periods match',
 test('Grade Transfer Center delegates audience decisions to the canonical helper', () => {
   const source = readFileSync(new URL('../../src/components/teacher/GradeTransferCenter.jsx', import.meta.url), 'utf8');
   const projection = readFileSync(new URL('../../src/platform/gradeTransfer/gradeTransferProjection.js', import.meta.url), 'utf8');
-  assert.match(source, /projectGradeTransferUnits\(\{ classes, assignments, students/);
+  assert.match(source, /projectGradeTransferUnits\(\{/);
+  assert.match(source, /students: projectedStudents/);
   assert.match(projection, /\.filter\(\(assignment\) => assignmentIsForStudent\(assignment, \{ classId: classRecord\.classId, classPeriod: classRecord\.period \}\)\)/);
   assert.doesNotMatch(projection, /assignment\.classIds|assignment\.classPeriod\s*===/);
 });
@@ -148,25 +150,56 @@ test('teacher override and Practice Pass share the legitimate platform grade pro
   assert.equal(canonicalPresentedAssignmentGrade({ student: corrected, assignment: gradeAssignment, practicePassRedeemed: true }), 100);
 });
 
-test('Grade Transfer loads server-written Practice Passes in class batches, never per student', () => {
-  const source = readFileSync(new URL('../../src/platform/gradeTransfer/gradeTransferStore.js', import.meta.url), 'utf8');
-  assert.match(source, /where\('classId', '==', classId\)/);
-  assert.match(source, /value\.rewardCode === 'practicePass' && value\.status === 'redeemed'/);
-  assert.doesNotMatch(source, /where\('studentId'/);
+test('Grade Transfer state crosses the Firestore boundary through an authenticated callable', () => {
+  const store = readFileSync(new URL('../../src/platform/gradeTransfer/gradeTransferStore.js', import.meta.url), 'utf8');
+  const server = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  assert.match(store, /callable\('listGradeTransferState'\)/);
+  assert.doesNotMatch(store, /firebase\/firestore/);
+  assert.match(server, /exports\.listGradeTransferState = onCall/);
+  assert.match(server, /gradeTransferClassAuthority/);
+  assert.match(server, /collection\("gradeTransferSnapshots"\)\.where\("classId", "==", classId\)/);
+  assert.match(server, /collection\("classPointRewardRedemptions"\)\.where\("classId", "==", classId\)/);
+  assert.doesNotMatch(store, /where\('studentId'/);
 });
 
-test('snapshot reads are bounded by current authorized class ids', () => {
-  const source = readFileSync(new URL('../../src/platform/gradeTransfer/gradeTransferStore.js', import.meta.url), 'utf8');
-  assert.match(source, /classIds\.filter\(Boolean\)/);
-  assert.match(source, /where\('classId', '==', classId\)/);
-  assert.match(source, /where\('teacherUid', '==', teacherUid\)/);
-  assert.doesNotMatch(source, /where\('teacherUid', '==', teacherUid\)\)\);/);
+test('Grade Transfer writes and upload confirmation are server-authorized instead of client-rule dependent', () => {
+  const store = readFileSync(new URL('../../src/platform/gradeTransfer/gradeTransferStore.js', import.meta.url), 'utf8');
+  const server = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  assert.match(store, /callable\('persistGradeTransferSnapshot'\)/);
+  assert.match(store, /callable\('confirmGradeTransferUploaded'\)/);
+  assert.match(server, /exports\.persistGradeTransferSnapshot = onCall/);
+  assert.match(server, /exports\.confirmGradeTransferUploaded = onCall/);
+  assert.match(server, /teacherOfRecord/);
 });
 
-test('missing SIS id blocks only that row and names remain teacher-facing', () => {
-  const unit = buildTransferUnit({ classRecord: klass, assignment, students: [student(), student({ id: '', sisStudentId: '', displayName: 'Needs ID' })], now: Date.parse('2026-09-17'), projectCanonicalGrade: projectScore });
-  assert.equal(unit.state, TRANSFER_STATE.ROSTER_ID_PROBLEM); assert.equal(unit.rows.length, 1); assert.equal(unit.problems[0].name, 'Needs ID');
-  assert.doesNotMatch(teamsCsv(unit.rows), /Ada|Needs ID/);
+test('legacy email/alphanumeric account keys require a separate numeric SIS id for TEAMS', () => {
+  const legacy = student({ id: 'ada.school.account', sisStudentId: '', displayName: 'Needs ID' });
+  const unit = buildTransferUnit({ classRecord: klass, assignment, students: [student(), legacy], now: Date.parse('2026-09-17'), projectCanonicalGrade: projectScore });
+  assert.equal(unit.state, TRANSFER_STATE.ROSTER_ID_PROBLEM);
+  assert.equal(unit.rows.length, 1);
+  assert.equal(unit.problems[0].name, 'Needs ID');
+  assert.doesNotMatch(teamsCsv(unit.rows), /Ada|Needs ID|ada\.school/);
+
+  const repaired = buildTransferUnit({
+    classRecord: klass,
+    assignment,
+    students: [student({ id: 'ada.school.account', sisStudentId: '1500456' })],
+    now: Date.parse('2026-09-17'),
+    projectCanonicalGrade: projectScore,
+  });
+  assert.deepEqual(repaired.rows.map((row) => [row.studentId, row.sisStudentId]), [['ada.school.account', '1500456']]);
+});
+
+test('explicit SIS ids must be digits only even when the MathMaster account key is valid', () => {
+  const unit = buildTransferUnit({
+    classRecord: klass,
+    assignment,
+    students: [student({ sisStudentId: 'S1500123' })],
+    now: Date.parse('2026-09-17'),
+    projectCanonicalGrade: projectScore,
+  });
+  assert.equal(unit.state, TRANSFER_STATE.ROSTER_ID_PROBLEM);
+  assert.equal(unit.rows.length, 0);
 });
 
 test('manifest and package preserve one file per class-assignment', () => {

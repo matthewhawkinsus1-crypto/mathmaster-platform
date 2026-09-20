@@ -2898,7 +2898,22 @@ exports.linkGoogleAccount = onCall(async (request) => {
     throw new HttpsError("permission-denied", "That class code is not valid. Ask your teacher for the current one.");
   }
 
-  const studentId = await resolveCanonicalStudentId(db, key, typedId);
+  // Linking may attach Google identity to an EXISTING roster row, but it may
+  // never create the row. Resolve against the actual roster before writing an
+  // alias so a mistyped/made-up ID leaves no durable identity artifacts.
+  const roster = await db.collection("grades").select().get();
+  const rosterMatch = roster.docs.find((entry) => entry.id.trim().toUpperCase() === key);
+  if (!rosterMatch) {
+    throw new HttpsError(
+      "failed-precondition",
+      "That student ID is not on the MathMaster roster yet. Ask your teacher to add your district student ID before linking Google.",
+    );
+  }
+  const studentId = rosterMatch.id;
+  await db.collection(authLib.ALIAS_COLLECTION).doc(key).set(
+    { key, studentId, createdAt: FieldValue.serverTimestamp() },
+    { merge: true },
+  );
   const directoryRef = db.collection(authLib.DIRECTORY_COLLECTION).doc(email);
   const existingForStudent = await db
     .collection(authLib.DIRECTORY_COLLECTION)
@@ -2915,10 +2930,16 @@ exports.linkGoogleAccount = onCall(async (request) => {
 
   const joinMembership = await resolveJoinCodeMembership(db, joinCode);
   const rosterSnapshot = await db.collection("grades").doc(studentId).get();
-  if (rosterSnapshot.exists && !joinCodeMatchesRoster(rosterSnapshot.data() || {}, joinMembership)) {
+  if (!rosterSnapshot.exists) {
+    throw new HttpsError(
+      "failed-precondition",
+      "That student ID is not on the MathMaster roster yet. Ask your teacher to add your district student ID before linking Google.",
+    );
+  }
+  if (!joinCodeMatchesRoster(rosterSnapshot.data() || {}, joinMembership)) {
     throw new HttpsError("permission-denied", "That class code does not match the class assigned to this student ID.");
   }
-  const record = await ensureStudentRecord(db, studentId, joinMembership);
+  const record = rosterSnapshot.data() || {};
   await directoryRef.set(
     { email, studentId, linkedAt: FieldValue.serverTimestamp(), uid: request.auth.uid },
     { merge: true },
@@ -2998,7 +3019,13 @@ exports.studentSignIn = onCall(async (request) => {
     // compatibility path for roster rows that do not have a classId yet.
     const rosterSnapshot = await db.collection("grades").select("classPeriod", "classId").get();
     const existingRoster = rosterSnapshot.docs.find((entry) => entry.id.trim().toUpperCase() === key);
-    if (existingRoster && !joinCodeMatchesRoster(existingRoster.data() || {}, joinMembership)) {
+    if (!existingRoster) {
+      throw new HttpsError(
+        "failed-precondition",
+        "That student ID is not on the MathMaster roster yet. Ask your teacher to add your district student ID before first sign-in.",
+      );
+    }
+    if (!joinCodeMatchesRoster(existingRoster.data() || {}, joinMembership)) {
       await authLib.recordFailedAttempt(db, throttleKey);
       throw new HttpsError("permission-denied", "That class code does not match the class assigned to this student ID.");
     }
@@ -3028,11 +3055,17 @@ exports.studentSignIn = onCall(async (request) => {
   // anyone who kept a session or called the API directly.
   const model = await classModel();
   const existingRecord = await db.collection("grades").doc(studentId).get();
-  if (existingRecord.exists && existingRecord.data()?.status === model.ACCOUNT_STATUS.DISABLED) {
+  if (!existingRecord.exists) {
+    throw new HttpsError(
+      "failed-precondition",
+      "That student ID is not on the MathMaster roster. Ask your teacher to add the official district student ID before signing in.",
+    );
+  }
+  if (existingRecord.data()?.status === model.ACCOUNT_STATUS.DISABLED) {
     throw new HttpsError("permission-denied", "This MathMaster account is deactivated. Ask your teacher or campus administrator to reactivate it.");
   }
 
-  const record = await ensureStudentRecord(db, studentId, joinMembership || { classPeriod });
+  const record = existingRecord.data() || {};
 
   // One Firebase user per student ID, so grades survive across devices.
   const uid = `student:${key}`;
@@ -3335,6 +3368,12 @@ exports.createStudentAccount = onCall(async (request) => {
   if (studentId === "test_connection") {
     throw new HttpsError("failed-precondition", "The connection-test ID is reserved.");
   }
+  if (!/^\d{1,20}$/.test(studentId)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "New student accounts must use the district SIS student ID (digits only).",
+    );
+  }
 
   // MathMaster structured student names / class-centric account creation v1
   // New clients send structured names. Legacy callers that only send
@@ -3410,6 +3449,9 @@ exports.createStudentAccount = onCall(async (request) => {
     firstName: firstName || null,
     lastName: lastName || null,
     displayName: displayName || null,
+    sisStudentId: studentId,
+    sisStudentIdVerifiedAt: FieldValue.serverTimestamp(),
+    sisStudentIdVerifiedBy: actor.email,
     classId: membership.classId,
     classPeriod,
     status: model.ACCOUNT_STATUS.ACTIVE,
@@ -17090,6 +17132,216 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
   }
   logger.info("Workspace draft recovery committed", { assignmentId, classId, by: email, applied: applied.length });
   return { assignmentId, classId, committed: true, proposalCount: proposals.length, applied };
+});
+
+
+
+/**
+ * Grade Transfer / TEAMS boundary.
+ *
+ * Client-side Firestore rules are intentionally not used for this workflow.
+ * The server validates teacher-of-record access, freezes export snapshots, and
+ * returns only the small audit projection the Grade Transfer Center needs.
+ */
+function normalizeTeamsSisStudentId(value) {
+  const cleaned = String(value ?? "").trim();
+  if (!/^\d{1,20}$/.test(cleaned)) {
+    throw new HttpsError("invalid-argument", "SIS Student ID must contain digits only.");
+  }
+  return cleaned;
+}
+
+function serializableGradeTransferDate(value) {
+  if (!value) return null;
+  if (typeof value.toDate === "function") return value.toDate().toISOString();
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+}
+
+async function gradeTransferClassAuthority(db, request, classId) {
+  const cleanClassId = String(classId || "").trim();
+  if (!cleanClassId) throw new HttpsError("invalid-argument", "classId is required.");
+  const snapshot = await db.collection(CLASS_COLLECTION).doc(cleanClassId).get();
+  if (!snapshot.exists) throw new HttpsError("not-found", "That class no longer exists.");
+  const email = callerEmail(request);
+  const isRootAdmin = request.auth?.token?.rootAdmin === true && authLib.isRootAdminEmail(email);
+  const teacherOfRecord = String(snapshot.data()?.teacherOfRecord || "").trim().toLowerCase();
+  if (!isRootAdmin && (!email || teacherOfRecord !== email)) {
+    throw new HttpsError("permission-denied", "Only the teacher of record for this class can use Grade Transfer.");
+  }
+  return { classId: cleanClassId, email, isRootAdmin, classData: snapshot.data() || {} };
+}
+
+exports.listGradeTransferState = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const classIds = [...new Set(
+    (Array.isArray(request.data?.classIds) ? request.data.classIds : [])
+      .map((value) => String(value || "").trim())
+      .filter(Boolean),
+  )];
+  if (classIds.length > 20) throw new HttpsError("invalid-argument", "Too many classes requested at once.");
+
+  await Promise.all(classIds.map((classId) => gradeTransferClassAuthority(db, request, classId)));
+
+  const [snapshotGroups, redemptionGroups] = await Promise.all([
+    Promise.all(classIds.map((classId) => db.collection("gradeTransferSnapshots").where("classId", "==", classId).get())),
+    Promise.all(classIds.map((classId) => db.collection("classPointRewardRedemptions").where("classId", "==", classId).get())),
+  ]);
+
+  const snapshots = snapshotGroups.flatMap((group) => group.docs.map((entry) => {
+    const data = entry.data() || {};
+    return {
+      id: entry.id,
+      ...data,
+      createdAt: serializableGradeTransferDate(data.createdAt),
+      uploadConfirmedAt: serializableGradeTransferDate(data.uploadConfirmedAt),
+    };
+  }));
+  const practicePassKeys = [...new Set(redemptionGroups.flatMap((group) => group.docs
+    .map((entry) => entry.data() || {})
+    .filter((value) => value.rewardCode === "practicePass" && value.status === "redeemed")
+    .map((value) => `${String(value.studentId || "")}__${String(value.classId || "")}__${String(value.assignmentId || "")}`)
+    .filter((value) => !value.startsWith("__"))))];
+
+  return { snapshots, practicePassKeys };
+});
+
+exports.persistGradeTransferSnapshot = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const input = request.data?.snapshot || {};
+  const transferId = String(input.transferId || "").trim();
+  if (!/^transfer_[A-Za-z0-9_-]{1,120}$/.test(transferId)) {
+    throw new HttpsError("invalid-argument", "Invalid transfer snapshot id.");
+  }
+  const classId = String(input.classId || "").trim();
+  const assignmentId = String(input.assignmentId || "").trim();
+  if (!assignmentId) throw new HttpsError("invalid-argument", "assignmentId is required.");
+  const authority = await gradeTransferClassAuthority(db, request, classId);
+
+  const rows = (Array.isArray(input.rows) ? input.rows : []).map((row) => {
+    const grade = Number(row?.grade);
+    if (!Number.isInteger(grade) || grade < 0 || grade > 100) {
+      throw new HttpsError("invalid-argument", "Every TEAMS grade must be a whole number from 0 to 100.");
+    }
+    return {
+      studentId: String(row?.studentId || "").trim().slice(0, 320),
+      sisStudentId: normalizeTeamsSisStudentId(row?.sisStudentId),
+      grade,
+      gradeVersion: String(row?.gradeVersion || "").trim().slice(0, 240),
+    };
+  });
+  if (!rows.length) throw new HttpsError("failed-precondition", "There are no valid finalized rows to export.");
+
+  const withheld = (Array.isArray(input.withheld) ? input.withheld : []).slice(0, 500).map((row) => ({
+    studentId: String(row?.studentId || "").trim().slice(0, 320),
+    name: String(row?.name || "").trim().slice(0, 180),
+    reason: String(row?.reason || "").trim().slice(0, 180),
+    deadline: row?.deadline ? String(row.deadline).slice(0, 80) : null,
+  }));
+  const snapshot = {
+    transferId,
+    teacherUid: request.auth.uid,
+    teacherEmail: authority.email,
+    classId,
+    assignmentId,
+    assignmentTitle: String(input.assignmentTitle || "Untitled assignment").trim().slice(0, 240),
+    exportKind: input.exportKind === "delta" ? "delta" : "initial",
+    rows,
+    withheld,
+    fileName: String(input.fileName || "").trim().slice(0, 240),
+    packageId: String(input.packageId || "").trim().slice(0, 160),
+    schemaVersion: 1,
+  };
+
+  const ref = db.collection("gradeTransferSnapshots").doc(transferId);
+  await db.runTransaction(async (transaction) => {
+    const existing = await transaction.get(ref);
+    if (existing.exists) {
+      const data = existing.data() || {};
+      if (
+        data.classId !== classId
+        || data.assignmentId !== assignmentId
+        || JSON.stringify(data.rows || []) !== JSON.stringify(rows)
+      ) {
+        throw new HttpsError("already-exists", "Transfer id already belongs to a different immutable snapshot.");
+      }
+      return;
+    }
+    transaction.set(ref, { ...snapshot, createdAt: FieldValue.serverTimestamp() });
+  });
+  return { transferId };
+});
+
+exports.confirmGradeTransferUploaded = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const transferId = String(request.data?.transferId || "").trim();
+  if (!transferId) throw new HttpsError("invalid-argument", "transferId is required.");
+  const ref = db.collection("gradeTransferSnapshots").doc(transferId);
+  const existing = await ref.get();
+  if (!existing.exists) throw new HttpsError("not-found", "Export snapshot was not found.");
+  const data = existing.data() || {};
+  const authority = await gradeTransferClassAuthority(db, request, data.classId);
+
+  if (!data.uploadConfirmedAt) {
+    await ref.update({
+      uploadConfirmedAt: FieldValue.serverTimestamp(),
+      uploadConfirmedByUid: request.auth.uid,
+      uploadConfirmedByEmail: authority.email,
+    });
+  }
+  return { transferId, confirmed: true };
+});
+
+exports.setStudentSisId = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const studentId = String(request.data?.studentId || "").trim();
+  if (!studentId) throw new HttpsError("invalid-argument", "studentId is required.");
+  const sisStudentId = normalizeTeamsSisStudentId(request.data?.sisStudentId);
+  const studentRef = db.collection("grades").doc(studentId);
+  const studentSnapshot = await studentRef.get();
+  if (!studentSnapshot.exists) throw new HttpsError("not-found", "That student is not on the MathMaster roster.");
+
+  const email = callerEmail(request);
+  const isRootAdmin = request.auth?.token?.rootAdmin === true && authLib.isRootAdminEmail(email);
+  const student = studentSnapshot.data() || {};
+  let authorized = isRootAdmin
+    || String(student.assignedTeacherEmail || "").trim().toLowerCase() === email;
+  const classId = String(student.classId || "").trim();
+  if (!authorized && classId) {
+    const classSnapshot = await db.collection(CLASS_COLLECTION).doc(classId).get();
+    authorized = classSnapshot.exists
+      && String(classSnapshot.data()?.teacherOfRecord || "").trim().toLowerCase() === email;
+  }
+  if (!authorized) throw new HttpsError("permission-denied", "Only this student's teacher of record can set the SIS Student ID.");
+
+  const [sameField, sameDocument] = await Promise.all([
+    db.collection("grades").where("sisStudentId", "==", sisStudentId).limit(2).get(),
+    db.collection("grades").doc(sisStudentId).get(),
+  ]);
+  const conflictingField = sameField.docs.find((entry) => entry.id !== studentId);
+  const conflictingDocument = sameDocument.exists && sameDocument.id !== studentId ? sameDocument : null;
+  if (conflictingField || conflictingDocument) {
+    throw new HttpsError("already-exists", "That SIS Student ID is already assigned to another MathMaster student.");
+  }
+
+  await studentRef.set({
+    sisStudentId,
+    sisStudentIdVerifiedAt: FieldValue.serverTimestamp(),
+    sisStudentIdVerifiedBy: email,
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  await writeAdminAudit(
+    db,
+    { uid: request.auth?.uid || null, email },
+    "sis_student_id_set",
+    studentId,
+    { sisStudentId, classId: classId || null },
+  );
+  return { studentId, sisStudentId };
 });
 
 

@@ -8,7 +8,7 @@ const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 test('production Action Center receives shared authoritative grade-transfer and Test Cycle projections', () => {
   assert.match(app, /gradeTransferUnits=\{actionGradeScope\.units\}/);
   assert.match(app, /retestRecoveryActions=\{retestRecoveryActions\}/);
-  assert.match(app, /listTeacherTransferSnapshots[\s\S]*listTeacherPracticePassRedemptions/);
+  assert.match(app, /loadTeacherGradeTransferState/);
   assert.match(app, /listTeacherTestCycleRecords[\s\S]*projectTestCycleTeacherActions/);
 });
 

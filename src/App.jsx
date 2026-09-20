@@ -346,7 +346,7 @@ import { buildReturnCheckInEvent } from './platform/attendance/returnCheckIn.js'
 import { resolveReturnCheckIns } from './platform/attendance/returnCheckIn.js';
 import { buildTeacherActionItems, openTeacherActionCount } from './platform/teacher/teacherActionCenter.js';
 import { fetchAllParentContactsForExport, recordParentContact, recordParentContactResolution, subscribeParentContacts } from './platform/teacher/parentContactStore.js';
-import { listTeacherPracticePassRedemptions, listTeacherTransferSnapshots } from './platform/gradeTransfer/gradeTransferStore.js';
+import { loadTeacherGradeTransferState } from './platform/gradeTransfer/gradeTransferStore.js';
 import { projectGradeTransferUnits } from './platform/gradeTransfer/gradeTransferProjection.js';
 import { listTeacherTestCycleRecords } from './services/testCycleService.js';
 import { projectTestCycleTeacherActions } from './platform/teacher/testCycleActionProjection.js';
@@ -3374,10 +3374,11 @@ function App() {
   useEffect(() => {
     const classIds = actionGradeScope.authorizedClassIds;
     if (user?.role !== 'teacher' || !classIds.length) { setActionGradeSnapshots([]); setActionPracticePasses(new Set()); return; }
-    Promise.all([
-      listTeacherTransferSnapshots({ teacherUid: auth.session?.uid || user.uid || '', classIds, isRootAdmin: user.isRootAdmin === true }),
-      listTeacherPracticePassRedemptions(classIds),
-    ]).then(([snapshots, passes]) => { setActionGradeSnapshots(snapshots); setActionPracticePasses(passes); })
+    loadTeacherGradeTransferState({ classIds })
+      .then(({ snapshots, practicePasses }) => {
+        setActionGradeSnapshots(snapshots);
+        setActionPracticePasses(practicePasses);
+      })
       .catch((error) => console.error('Action Center grade-transfer projection failed:', error));
   }, [user?.role, user?.uid, user?.isRootAdmin, auth.session?.uid, actionGradeScope.authorizedClassIds.join('|')]);
 
