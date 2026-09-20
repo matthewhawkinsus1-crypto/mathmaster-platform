@@ -804,13 +804,15 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
     const perInequalityCorrect = response.perInequality.every((value, index) => (value === 'yes') === expectedMembership[index]);
     const overallCorrect = (response.overall === 'yes') === expectedMembership.every(Boolean);
     const boundaryIndex = onBoundaryIndex(point);
-    const boundaryProbeCorrect = boundaryIndex < 0 || (
+    const boundaryProbeCorrect = !boundaryProbeEnabled || boundaryIndex < 0 || (
       (response.onBoundary === 'yes') && (response.boundaryIncluded === 'yes') === expectedMembership.every(Boolean)
     );
     if (perInequalityCorrect && overallCorrect && boundaryProbeCorrect) { setFeedbackText('Correct — every part of your reasoning about this point checks out.'); return; }
     if (!perInequalityCorrect) { setFeedbackText('At least one individual inequality is misjudged. Substitute the point into that inequality by itself and see whether the statement is true.'); return; }
     if (!overallCorrect) { setFeedbackText('Your individual inequality answers are right, but the system verdict is not. A point solves the system only when it satisfies every inequality at once.'); return; }
-    setFeedbackText(boundaryIndex >= 0 ? 'Re-examine whether this exact boundary is drawn solid or dashed at this point.' : 'Not quite — recheck your reasoning.');
+    setFeedbackText(boundaryProbeEnabled && boundaryIndex >= 0
+      ? 'Re-examine whether this exact boundary is drawn solid or dashed at this point.'
+      : 'Not quite — recheck your reasoning.');
   };
 
   const vertexIncludedExpected = (vertex) => {
@@ -830,11 +832,11 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
 
   const finalCheck = () => {
     const perConstraint = Array.from({ length: constraintCount }, (_, index) => ({
-      boundaryCorrect: boundaryCorrect(index),
-      styleCorrect: styleCorrect(index),
-      inclusionUnderstandingCorrect: styleCorrect(index),
-      shadeCorrect: shadeCorrect(index),
-      constraintCorrect: constraintComplete(index),
+      boundaryCorrect: buildConfig.boundary ? boundaryCorrect(index) : null,
+      styleCorrect: buildConfig.lineStyle ? styleCorrect(index) : null,
+      inclusionUnderstandingCorrect: buildConfig.lineStyle ? styleCorrect(index) : null,
+      shadeCorrect: buildConfig.shading ? shadeCorrect(index) : null,
+      constraintCorrect: hasBuildSteps ? constraintComplete(index) : null,
     }));
     const modelingChecks = modeling ? modelingEntries.map((entry, index) => modelingEntryCorrect(entry, expectedConstraints[index])) : [];
     const classificationCorrect = !askClassification || regionClassification === workingClassification;
@@ -886,9 +888,9 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
           modelingCorrect: modeling ? modelingChecks : null,
           overlapClassificationCorrect: askClassification ? classificationCorrect : null,
           noSolutionCorrectlyRecognized: askClassification ? noSolutionRecognized : null,
-          testPointMembershipCorrect: teacherPointApplicable ? teacherOverallCorrect : null,
+          testPointMembershipCorrect: testPointReasoningEnabled && teacherPointApplicable ? teacherOverallCorrect : null,
           boundaryPointInclusionCorrect: teacherBoundaryApplicable ? teacherBoundaryCorrect : null,
-          studentTestPointMembershipCorrect: studentPointApplicable ? studentOverallCorrect : null,
+          studentTestPointMembershipCorrect: testPointReasoningEnabled && studentPointApplicable ? studentOverallCorrect : null,
           vertexResults: askVertices ? vertexResults : null,
           fullSystemCorrect: isCorrect,
         },
