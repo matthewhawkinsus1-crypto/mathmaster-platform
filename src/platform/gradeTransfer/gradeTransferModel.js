@@ -44,7 +44,7 @@ const confirmedHistory = ({ confirmedSnapshots, confirmedSnapshot }) => {
   });
 };
 
-export const validSisStudentId = (value) => /^\d{3,20}$/.test(text(value));
+export const validSisStudentId = (value) => /^\d{1,20}$/.test(text(value));
 
 // TEAMS requires the district/SIS number, not MathMaster's internal account key.
 // Existing all-digit roster document ids remain a safe compatibility fallback,
