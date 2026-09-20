@@ -14,6 +14,7 @@ import {
   solve2x2System,
   solve3x3System,
   solveLinearQuadratic,
+  normalizeSystemsWorkspaceInequalityConfig,
 } from './systemsMath';
 import {
   authoredBoundaryFromInequality,
@@ -134,7 +135,11 @@ function InequalityMode({ questionData, onAction }) {
   // continue working... New construction/reasoning modes should be opt-in").
   // Every existing authored question omits `studentBuild`, so it is untouched
   // and falls straight through to the code below exactly as before.
-  if (questionData.studentBuild) return <StudentBuildInequalityMode questionData={questionData} onAction={onAction} />;
+  const inequalityConfig = normalizeSystemsWorkspaceInequalityConfig(questionData);
+  const studentBuildEnabled = questionData.studentBuild === true
+    || Object.values(inequalityConfig.studentBuild).some(Boolean)
+    || Boolean(questionData.modeling);
+  if (studentBuildEnabled) return <StudentBuildInequalityMode questionData={questionData} onAction={onAction} />;
   const inequalities = questionData.inequalities || DEFAULT_INEQUALITIES;
   const bounds = questionData.graph || { xMin:-6, xMax:8, yMin:-4, yMax:10 };
   const ask = Array.isArray(questionData.ask) && questionData.ask.length
@@ -489,8 +494,10 @@ const modelingEntryCorrect = (entry, expected) => {
   const b = parseNumericAnswer(entry.coeffB);
   const c = parseNumericAnswer(entry.constant);
   if (a == null || b == null || c == null || !entry.relation) return false;
+  // Student-facing modeling uses A*x + B*y relation RHS. Convert that RHS
+  // into the canonical PR #293 form A*x + B*y + C relation 0.
   return Math.abs(a - expected.A) < 1e-6 && Math.abs(b - expected.B) < 1e-6
-    && Math.abs(c - expected.C) < 1e-6 && entry.relation === expected.relation;
+    && Math.abs((-c) - expected.C) < 1e-6 && entry.relation === expected.relation;
 };
 
 // First miss stays neutral — a nudge to re-examine the work, not the rule
@@ -580,6 +587,7 @@ function TestPointReasoning({ title, point, count, response, setResponse, onBoun
 }
 
 function StudentBuildInequalityMode({ questionData, onAction }) {
+  const inequalityConfig = normalizeSystemsWorkspaceInequalityConfig(questionData);
   const bounds = questionData.graph || { xMin:-6, xMax:8, yMin:-4, yMax:10 };
   const modeling = questionData.modeling || null;
   const variables = modeling?.variables?.length ? modeling.variables : [{ symbol:'x', label:'x' }, { symbol:'y', label:'y' }];
@@ -591,10 +599,14 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
   ), [modeling, rawInequalities]);
   const constraintCount = expectedConstraints.length;
   const authoredPolygon = useMemo(() => feasibleRegionPolygonGeneral(expectedConstraints, bounds), [expectedConstraints, bounds]);
-  const authoredClassification = useMemo(() => classifyFeasibleRegion(authoredPolygon, bounds), [authoredPolygon, bounds]);
+  const authoredClassification = useMemo(() => classifyFeasibleRegion(expectedConstraints), [expectedConstraints]);
   const authoredVertices = useMemo(() => feasibleRegionVertices(expectedConstraints), [expectedConstraints]);
-  const askClassification = questionData.askClassification !== false;
-  const askVertices = Boolean(questionData.askVertices);
+  const askClassification = questionData.askClassification != null
+    ? Boolean(questionData.askClassification)
+    : (questionData.studentBuild === true || inequalityConfig.reasoning.classifyRegion);
+  const askVertices = questionData.askVertices != null
+    ? Boolean(questionData.askVertices)
+    : inequalityConfig.reasoning.vertices;
   const teacherTestPoint = questionData.testPoint || null;
   const allowStudentTestPoint = Boolean(questionData.allowStudentTestPoint);
 
@@ -756,7 +768,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
     }));
     const modelingChecks = modeling ? modelingEntries.map((entry, index) => modelingEntryCorrect(entry, expectedConstraints[index])) : [];
     const classificationCorrect = !askClassification || regionClassification === authoredClassification;
-    const noSolutionRecognized = authoredClassification !== 'none' || regionClassification === 'none';
+    const noSolutionRecognized = authoredClassification !== 'empty' || regionClassification === 'empty';
     const teacherPointApplicable = Boolean(teacherTestPoint);
     const teacherMembership = teacherPointApplicable ? membership([teacherTestPoint.x, teacherTestPoint.y]) : [];
     const teacherPerInequalityCorrect = teacherPointApplicable && teacherPointResponse.perInequality.every((value, index) => (value === 'yes') === teacherMembership[index]);
@@ -987,7 +999,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
                       <option value="">Choose…</option>
                       <option value="bounded">Bounded region</option>
                       <option value="unbounded">Unbounded region</option>
-                      <option value="none">No solution</option>
+                      <option value="empty">No solution</option>
                     </select>
                   </Field>
                   <button type="button" onClick={()=>setRegionClassificationAttempts((n)=>n+1)} style={{ ...actionStyle, padding:'8px 14px', fontSize:13 }}>Check classification</button>
@@ -997,7 +1009,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
                         ? 'Correct classification.'
                         : staged(regionClassificationAttempts,
                           'Look at whether the shaded overlap keeps going forever in some direction, closes into a polygon, or never forms at all.',
-                          'A region that touches the edge of the graph in a direction none of the boundaries close off is unbounded. If no point satisfies every inequality at once, there is no solution.')}
+                          'A region is unbounded when the constraints leave a direction open forever. If no point satisfies every inequality at once, there is no solution.')}
                     </p>
                   ) : null}
                 </div>
