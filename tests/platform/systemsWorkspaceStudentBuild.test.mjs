@@ -138,6 +138,14 @@ test('contextual modeling graphs and reasons from the student-authored canonical
   assert.match(mode, /classifyFeasibleRegion\(workingConstraints\)/);
 });
 
+test('context modeling accepts mathematically equivalent scaled inequalities and lets students return to revise their model', () => {
+  assert.match(executable, /const equivalentLinearInequality/);
+  assert.match(executable, /flipInequalityRelation/);
+  assert.match(executable, /const modelingEntriesReady/);
+  assert.match(executable, /Edit constraints/);
+  assert.match(executable, /reopenModeling/);
+});
+
 test('the boundary adapter delegates math to the canonical PR #293 engine instead of maintaining a duplicate engine', () => {
   assert.match(adapterSource, /linearInequalityEngine/);
   assert.match(adapterSource, /classifyCanonicalFeasibleRegion/);
