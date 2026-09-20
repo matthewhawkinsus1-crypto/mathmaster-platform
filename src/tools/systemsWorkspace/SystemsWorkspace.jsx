@@ -445,6 +445,9 @@ const emptyModelingEntry = () => ({ coeffA: '', coeffB: '', relation: '>=', cons
 const emptyTestPointResponse = (count) => ({
   overall: '', perInequality: Array.from({ length: count }, () => ''), onBoundary: '', boundaryIncluded: '',
 });
+const explicitBooleanAnswerMatches = (answer, expected) => (
+  (answer === 'yes' || answer === 'no') && (answer === 'yes') === Boolean(expected)
+);
 
 // A student's constructed BOUNDARY LINE (ignoring style/shade), from whichever
 // of the several valid construction methods they used. Any of these that
@@ -829,11 +832,11 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
   const checkPointResponse = (point, response, setFeedbackText) => {
     if (!point) return;
     const expectedMembership = membership(point);
-    const perInequalityCorrect = response.perInequality.every((value, index) => (value === 'yes') === expectedMembership[index]);
-    const overallCorrect = (response.overall === 'yes') === expectedMembership.every(Boolean);
+    const perInequalityCorrect = response.perInequality.every((value, index) => explicitBooleanAnswerMatches(value, expectedMembership[index]));
+    const overallCorrect = explicitBooleanAnswerMatches(response.overall, expectedMembership.every(Boolean));
     const boundaryIndex = onBoundaryIndex(point);
     const boundaryProbeCorrect = !boundaryProbeEnabled || boundaryIndex < 0 || (
-      (response.onBoundary === 'yes') && (response.boundaryIncluded === 'yes') === expectedMembership.every(Boolean)
+      (response.onBoundary === 'yes') && explicitBooleanAnswerMatches(response.boundaryIncluded, expectedMembership.every(Boolean))
     );
     if (perInequalityCorrect && overallCorrect && boundaryProbeCorrect) { setFeedbackText('Correct — every part of your reasoning about this point checks out.'); return; }
     if (!perInequalityCorrect) { setFeedbackText('At least one individual inequality is misjudged. Substitute the point into that inequality by itself and see whether the statement is true.'); return; }
@@ -852,7 +855,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
     const vertex = vertices[index];
     const expected = vertexIncludedExpected(vertex);
     if (expected == null) { setVertexFeedback('That point does not look like a corner of this system yet. Try tapping exactly where two boundary lines cross.'); return; }
-    const correct = (vertex.includedAnswer === 'yes') === expected;
+    const correct = explicitBooleanAnswerMatches(vertex.includedAnswer, expected);
     setVertexFeedback(correct
       ? 'Correct — you identified whether this corner is actually part of the solution set.'
       : 'Look at the two boundaries meeting at that exact point. If either one is dashed there, the corner is excluded even though the lines still cross.');
@@ -871,20 +874,31 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
     const noSolutionRecognized = workingClassification !== 'empty' || regionClassification === 'empty';
     const teacherPointApplicable = Boolean(teacherTestPoint);
     const teacherMembership = teacherPointApplicable ? membership([teacherTestPoint.x, teacherTestPoint.y]) : [];
-    const teacherPerInequalityCorrect = teacherPointApplicable && teacherPointResponse.perInequality.every((value, index) => (value === 'yes') === teacherMembership[index]);
-    const teacherOverallCorrect = teacherPointApplicable && (teacherPointResponse.overall === 'yes') === teacherMembership.every(Boolean);
+    const teacherPerInequalityCorrect = teacherPointApplicable && teacherPointResponse.perInequality.every((value, index) => explicitBooleanAnswerMatches(value, teacherMembership[index]));
+    const teacherOverallCorrect = teacherPointApplicable && explicitBooleanAnswerMatches(teacherPointResponse.overall, teacherMembership.every(Boolean));
     const teacherBoundaryIndex = teacherPointApplicable ? onBoundaryIndex([teacherTestPoint.x, teacherTestPoint.y]) : -1;
     const teacherBoundaryApplicable = teacherPointApplicable && boundaryProbeEnabled && teacherBoundaryIndex >= 0;
     const teacherBoundaryCorrect = !teacherBoundaryApplicable
-      || (teacherPointResponse.onBoundary === 'yes' && (teacherPointResponse.boundaryIncluded === 'yes') === teacherMembership.every(Boolean));
+      || (teacherPointResponse.onBoundary === 'yes' && explicitBooleanAnswerMatches(teacherPointResponse.boundaryIncluded, teacherMembership.every(Boolean)));
     const studentPointApplicable = allowStudentTestPoint && Boolean(studentTestPoint);
     const studentMembership = studentPointApplicable ? membership(studentTestPoint) : [];
-    const studentPerInequalityCorrect = studentPointApplicable && studentPointResponse.perInequality.every((value, index) => (value === 'yes') === studentMembership[index]);
-    const studentOverallCorrect = studentPointApplicable && (studentPointResponse.overall === 'yes') === studentMembership.every(Boolean);
+    const studentPerInequalityCorrect = studentPointApplicable && studentPointResponse.perInequality.every((value, index) => explicitBooleanAnswerMatches(value, studentMembership[index]));
+    const studentOverallCorrect = studentPointApplicable && explicitBooleanAnswerMatches(studentPointResponse.overall, studentMembership.every(Boolean));
     const vertexResults = vertices.map((vertex) => {
       const expected = vertexIncludedExpected(vertex);
-      return { vertexCorrect: expected != null && (vertex.includedAnswer === 'yes') === expected, excludedBoundaryRecognized: expected === false ? vertex.includedAnswer === 'no' : null };
+      return {
+        vertexCorrect: expected != null && explicitBooleanAnswerMatches(vertex.includedAnswer, expected),
+        excludedBoundaryRecognized: expected === false ? vertex.includedAnswer === 'no' : null,
+      };
     });
+    const allExpectedVerticesFound = workingVertices.every((expected) => (
+      vertices.some((vertex) => Math.hypot(vertex.x - expected.x, vertex.y - expected.y) <= 0.15)
+    ));
+    const vertexCoverageCorrect = !askVertices || (
+      vertices.length === workingVertices.length
+      && allExpectedVerticesFound
+      && vertexResults.every((result) => result.vertexCorrect)
+    );
 
     const parts = [
       ...(hasBuildSteps ? perConstraint.map((entry) => entry.constraintCorrect) : []),
@@ -893,7 +907,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
       ...(testPointReasoningEnabled && teacherPointApplicable ? [teacherPerInequalityCorrect, teacherOverallCorrect] : []),
       ...(teacherBoundaryApplicable ? [teacherBoundaryCorrect] : []),
       ...(testPointReasoningEnabled && studentPointApplicable ? [studentPerInequalityCorrect, studentOverallCorrect] : []),
-      ...(askVertices ? vertexResults.map((v) => v.vertexCorrect) : []),
+      ...(askVertices ? [vertexCoverageCorrect] : []),
     ];
     const score = parts.length ? parts.filter(Boolean).length / parts.length : 0;
     const isCorrect = parts.length > 0 && parts.every(Boolean);
@@ -920,6 +934,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
           boundaryPointInclusionCorrect: teacherBoundaryApplicable ? teacherBoundaryCorrect : null,
           studentTestPointMembershipCorrect: testPointReasoningEnabled && studentPointApplicable ? studentOverallCorrect : null,
           vertexResults: askVertices ? vertexResults : null,
+          vertexCoverageCorrect: askVertices ? vertexCoverageCorrect : null,
           fullSystemCorrect: isCorrect,
         },
       },
