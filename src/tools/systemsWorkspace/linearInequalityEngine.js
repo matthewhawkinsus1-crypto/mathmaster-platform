@@ -219,17 +219,20 @@ export const analyzeInequalitySystem = (inequalities = [], options = {}) => {
   };
 };
 
-export const normalizeSystemsWorkspaceInequalityConfig = (question = {}) => ({
-  mode: question.mode || 'linear',
-  studentBuild: {
-    boundary: Boolean(question.studentBuild?.boundary),
-    lineStyle: Boolean(question.studentBuild?.lineStyle),
-    shading: Boolean(question.studentBuild?.shading),
-  },
-  reasoning: {
-    testPoint: Boolean(question.reasoning?.testPoint),
-    boundaryProbe: Boolean(question.reasoning?.boundaryProbe),
-    classifyRegion: Boolean(question.reasoning?.classifyRegion),
-    vertices: Boolean(question.reasoning?.vertices),
-  },
-});
+export const normalizeSystemsWorkspaceInequalityConfig = (question = {}) => {
+  const legacyAllOn = question.studentBuild === true;
+  return {
+    mode: question.mode || 'linear',
+    studentBuild: {
+      boundary: legacyAllOn || Boolean(question.studentBuild?.boundary),
+      lineStyle: legacyAllOn || Boolean(question.studentBuild?.lineStyle),
+      shading: legacyAllOn || Boolean(question.studentBuild?.shading),
+    },
+    reasoning: {
+      testPoint: Boolean(question.reasoning?.testPoint),
+      boundaryProbe: Boolean(question.reasoning?.boundaryProbe),
+      classifyRegion: legacyAllOn || Boolean(question.reasoning?.classifyRegion),
+      vertices: Boolean(question.reasoning?.vertices),
+    },
+  };
+};
