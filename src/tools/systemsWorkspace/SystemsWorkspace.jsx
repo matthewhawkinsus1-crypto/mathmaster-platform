@@ -138,6 +138,7 @@ function InequalityMode({ questionData, onAction }) {
   const inequalityConfig = normalizeSystemsWorkspaceInequalityConfig(questionData);
   const studentBuildEnabled = questionData.studentBuild === true
     || Object.values(inequalityConfig.studentBuild).some(Boolean)
+    || Object.values(inequalityConfig.reasoning).some(Boolean)
     || Boolean(questionData.modeling);
   if (studentBuildEnabled) return <StudentBuildInequalityMode questionData={questionData} onAction={onAction} />;
   const inequalities = questionData.inequalities || DEFAULT_INEQUALITIES;
@@ -488,16 +489,22 @@ const formatModelingConstraint = (entry, variables) => {
   return `${lhs || '0'} ${entry?.relation || '?'} ${rhs}`;
 };
 
-const modelingEntryCorrect = (entry, expected) => {
-  if (!entry || !expected) return false;
+const modelingEntryToCanonical = (entry) => {
+  if (!entry) return null;
   const a = parseNumericAnswer(entry.coeffA);
   const b = parseNumericAnswer(entry.coeffB);
-  const c = parseNumericAnswer(entry.constant);
-  if (a == null || b == null || c == null || !entry.relation) return false;
-  // Student-facing modeling uses A*x + B*y relation RHS. Convert that RHS
-  // into the canonical PR #293 form A*x + B*y + C relation 0.
-  return Math.abs(a - expected.A) < 1e-6 && Math.abs(b - expected.B) < 1e-6
-    && Math.abs((-c) - expected.C) < 1e-6 && entry.relation === expected.relation;
+  const rhs = parseNumericAnswer(entry.constant);
+  if (a == null || b == null || rhs == null || !entry.relation) return null;
+  if (Math.abs(a) <= 1e-12 && Math.abs(b) <= 1e-12) return null;
+  return { A:a, B:b, C:-rhs, relation:entry.relation };
+};
+
+const modelingEntryCorrect = (entry, expected) => {
+  if (!entry || !expected) return false;
+  const actual = modelingEntryToCanonical(entry);
+  if (!actual) return false;
+  return Math.abs(actual.A - expected.A) < 1e-6 && Math.abs(actual.B - expected.B) < 1e-6
+    && Math.abs(actual.C - expected.C) < 1e-6 && actual.relation === expected.relation;
 };
 
 // First miss stays neutral — a nudge to re-examine the work, not the rule
@@ -534,7 +541,7 @@ function ConstructionMethodFields({ entry, onChange }) {
   return <p style={{ margin:0, fontSize:13, color:'#5f6b7a' }}>Choose how you want to build this boundary.</p>;
 }
 
-function TestPointReasoning({ title, point, count, response, setResponse, onBoundaryIndex, inequalityLabels, feedback, onCheck }) {
+function TestPointReasoning({ title, point, count, response, setResponse, onBoundaryIndex, askBoundaryProbe = true, inequalityLabels, feedback, onCheck }) {
   if (!point) return null;
   const [x, y] = point;
   return (
@@ -561,7 +568,7 @@ function TestPointReasoning({ title, point, count, response, setResponse, onBoun
             <option value="no">No</option>
           </select>
         </Field>
-        {onBoundaryIndex >= 0 ? (
+        {askBoundaryProbe && onBoundaryIndex >= 0 ? (
           <>
             <Field label="Does this point lie exactly on one of the boundary lines?">
               <select value={response.onBoundary} onChange={(e)=>setResponse((current)=>({ ...current, onBoundary:e.target.value }))} style={inputStyle}>
@@ -588,6 +595,10 @@ function TestPointReasoning({ title, point, count, response, setResponse, onBoun
 
 function StudentBuildInequalityMode({ questionData, onAction }) {
   const inequalityConfig = normalizeSystemsWorkspaceInequalityConfig(questionData);
+  const buildConfig = inequalityConfig.studentBuild;
+  const reasoningConfig = inequalityConfig.reasoning;
+  const hasBuildSteps = Object.values(buildConfig).some(Boolean);
+  const legacyStudentBuild = questionData.studentBuild === true;
   const bounds = questionData.graph || { xMin:-6, xMax:8, yMin:-4, yMax:10 };
   const modeling = questionData.modeling || null;
   const variables = modeling?.variables?.length ? modeling.variables : [{ symbol:'x', label:'x' }, { symbol:'y', label:'y' }];
@@ -598,22 +609,36 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
       : rawInequalities.map(authoredBoundaryFromInequality)
   ), [modeling, rawInequalities]);
   const constraintCount = expectedConstraints.length;
-  const authoredClassification = useMemo(() => classifyFeasibleRegion(expectedConstraints), [expectedConstraints]);
-  const authoredVertices = useMemo(() => feasibleRegionVertices(expectedConstraints), [expectedConstraints]);
   const askClassification = questionData.askClassification != null
     ? Boolean(questionData.askClassification)
-    : (questionData.studentBuild === true || inequalityConfig.reasoning.classifyRegion);
+    : (legacyStudentBuild || reasoningConfig.classifyRegion);
   const askVertices = questionData.askVertices != null
     ? Boolean(questionData.askVertices)
-    : inequalityConfig.reasoning.vertices;
+    : reasoningConfig.vertices;
+  const boundaryProbeEnabled = legacyStudentBuild || reasoningConfig.boundaryProbe;
   const teacherTestPoint = questionData.testPoint || null;
-  const allowStudentTestPoint = Boolean(questionData.allowStudentTestPoint);
+  const testPointReasoningEnabled = legacyStudentBuild
+    ? Boolean(teacherTestPoint || questionData.allowStudentTestPoint)
+    : (reasoningConfig.testPoint || Boolean(teacherTestPoint) || Boolean(questionData.allowStudentTestPoint));
+  const allowStudentTestPoint = questionData.allowStudentTestPoint != null
+    ? Boolean(questionData.allowStudentTestPoint)
+    : (reasoningConfig.testPoint && !teacherTestPoint);
 
   const [modelingEntries, setModelingEntries] = usePersistentToolState('modelingEntries', () => (
     modeling ? Array.from({ length: constraintCount }, emptyModelingEntry) : []
   ));
   const [modelingSent, setModelingSent] = usePersistentToolState('modelingSent', !modeling);
   const [build, setBuild] = usePersistentToolState('build', () => Array.from({ length: constraintCount }, emptyBuildEntry));
+  const modeledConstraints = useMemo(() => (
+    modeling ? modelingEntries.map(modelingEntryToCanonical) : []
+  ), [modeling, modelingEntries]);
+  const workingConstraints = useMemo(() => (
+    modeling && modelingSent && modeledConstraints.every(Boolean)
+      ? modeledConstraints
+      : expectedConstraints
+  ), [modeling, modelingSent, modeledConstraints, expectedConstraints]);
+  const workingClassification = useMemo(() => classifyFeasibleRegion(workingConstraints), [workingConstraints]);
+  const workingVertices = useMemo(() => feasibleRegionVertices(workingConstraints), [workingConstraints]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [armed, setArmed] = useState(null);
   const [combined, setCombined] = usePersistentToolState('combined', false);
@@ -649,20 +674,36 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
   const updateModelingEntry = (index, key, value) => setModelingEntries((current) => current.map((entry, i) => (i === index ? { ...entry, [key]: value } : entry)));
 
   const studentLines = build.map(studentBoundaryLineFromEntry);
-  const boundaryCorrect = (index) => boundaryLinesMatch(studentLines[index], expectedConstraints[index], bounds);
-  const styleCorrect = (index) => build[index]?.style === (String(expectedConstraints[index]?.relation || '>=').includes('=') ? 'solid' : 'dashed');
+  const effectiveLines = build.map((entry, index) => (
+    buildConfig.boundary ? studentLines[index] : workingConstraints[index]
+  ));
+  const boundaryCorrect = (index) => !buildConfig.boundary || boundaryLinesMatch(studentLines[index], workingConstraints[index], bounds);
+  const styleCorrect = (index) => !buildConfig.lineStyle
+    || build[index]?.style === (String(workingConstraints[index]?.relation || '>=').includes('=') ? 'solid' : 'dashed');
   const shadeCorrect = (index) => {
+    if (!buildConfig.shading) return true;
     const point = build[index]?.shadePoint;
-    return Boolean(point) && satisfiesBoundary(expectedConstraints[index], point[0], point[1]);
+    return Boolean(point) && satisfiesBoundary(workingConstraints[index], point[0], point[1]);
   };
   const constraintComplete = (index) => boundaryCorrect(index) && styleCorrect(index) && shadeCorrect(index);
   const allConstraintsComplete = constraintCount > 0 && Array.from({ length: constraintCount }, (_, i) => i).every(constraintComplete);
 
-  const studentBoundaries = build.map(finalizedStudentBoundary);
+  const studentBoundaries = build.map((entry, index) => {
+    const line = effectiveLines[index];
+    if (!line) return null;
+    if (!buildConfig.shading) return workingConstraints[index];
+    if (!entry.shadePoint) return null;
+    const side = sideOfBoundaryLine(line, entry.shadePoint[0], entry.shadePoint[1]);
+    if (side === 0) return null;
+    const strict = buildConfig.lineStyle
+      ? entry.style === 'dashed'
+      : !String(workingConstraints[index]?.relation || '>=').includes('=');
+    return boundaryWithChosenSide(line, side, strict);
+  });
   const studentPolygon = combined && studentBoundaries.every(Boolean) ? feasibleRegionPolygonGeneral(studentBoundaries, bounds) : [];
 
-  const onBoundaryIndex = (point) => (point ? expectedConstraints.findIndex((b) => pointOnBoundaryLine(b, point[0], point[1], 0.12)) : -1);
-  const membership = (point) => expectedConstraints.map((b) => satisfiesBoundary(b, point[0], point[1]));
+  const onBoundaryIndex = (point) => (point ? workingConstraints.findIndex((b) => pointOnBoundaryLine(b, point[0], point[1], 0.12)) : -1);
+  const membership = (point) => workingConstraints.map((b) => satisfiesBoundary(b, point[0], point[1]));
 
   const armLabel = () => {
     if (!armed) return null;
@@ -684,7 +725,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
       const snapTolerance = Math.max(bounds.xMax - bounds.xMin, bounds.yMax - bounds.yMin) * 0.05;
       let best = null;
       let bestDistance = Infinity;
-      [...authoredVertices, ...feasibleRegionVertices(studentBoundaries.filter(Boolean))].forEach((v) => {
+      [...workingVertices, ...feasibleRegionVertices(studentBoundaries.filter(Boolean))].forEach((v) => {
         const distance = Math.hypot(v.x - px, v.y - py);
         if (distance < bestDistance) { bestDistance = distance; best = v; }
       });
@@ -743,7 +784,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
   };
 
   const vertexIncludedExpected = (vertex) => {
-    const match = authoredVertices.find((v) => Math.hypot(v.x - vertex.x, v.y - vertex.y) <= 0.15);
+    const match = workingVertices.find((v) => Math.hypot(v.x - vertex.x, v.y - vertex.y) <= 0.15);
     return match ? match.included : null;
   };
   const [vertexFeedback, setVertexFeedback] = useState('');
@@ -766,14 +807,16 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
       constraintCorrect: constraintComplete(index),
     }));
     const modelingChecks = modeling ? modelingEntries.map((entry, index) => modelingEntryCorrect(entry, expectedConstraints[index])) : [];
-    const classificationCorrect = !askClassification || regionClassification === authoredClassification;
-    const noSolutionRecognized = authoredClassification !== 'empty' || regionClassification === 'empty';
+    const classificationCorrect = !askClassification || regionClassification === workingClassification;
+    const noSolutionRecognized = workingClassification !== 'empty' || regionClassification === 'empty';
     const teacherPointApplicable = Boolean(teacherTestPoint);
     const teacherMembership = teacherPointApplicable ? membership([teacherTestPoint.x, teacherTestPoint.y]) : [];
     const teacherPerInequalityCorrect = teacherPointApplicable && teacherPointResponse.perInequality.every((value, index) => (value === 'yes') === teacherMembership[index]);
     const teacherOverallCorrect = teacherPointApplicable && (teacherPointResponse.overall === 'yes') === teacherMembership.every(Boolean);
     const teacherBoundaryIndex = teacherPointApplicable ? onBoundaryIndex([teacherTestPoint.x, teacherTestPoint.y]) : -1;
-    const teacherBoundaryCorrect = teacherBoundaryIndex < 0 || (teacherPointResponse.onBoundary === 'yes' && (teacherPointResponse.boundaryIncluded === 'yes') === teacherMembership.every(Boolean));
+    const teacherBoundaryApplicable = teacherPointApplicable && boundaryProbeEnabled && teacherBoundaryIndex >= 0;
+    const teacherBoundaryCorrect = !teacherBoundaryApplicable
+      || (teacherPointResponse.onBoundary === 'yes' && (teacherPointResponse.boundaryIncluded === 'yes') === teacherMembership.every(Boolean));
     const studentPointApplicable = allowStudentTestPoint && Boolean(studentTestPoint);
     const studentMembership = studentPointApplicable ? membership(studentTestPoint) : [];
     const studentPerInequalityCorrect = studentPointApplicable && studentPointResponse.perInequality.every((value, index) => (value === 'yes') === studentMembership[index]);
@@ -784,11 +827,12 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
     });
 
     const parts = [
-      ...perConstraint.map((entry) => entry.constraintCorrect),
+      ...(hasBuildSteps ? perConstraint.map((entry) => entry.constraintCorrect) : []),
       ...modelingChecks,
       ...(askClassification ? [classificationCorrect] : []),
-      ...(teacherPointApplicable ? [teacherPerInequalityCorrect, teacherOverallCorrect, teacherBoundaryCorrect] : []),
-      ...(studentPointApplicable ? [studentPerInequalityCorrect, studentOverallCorrect] : []),
+      ...(testPointReasoningEnabled && teacherPointApplicable ? [teacherPerInequalityCorrect, teacherOverallCorrect] : []),
+      ...(teacherBoundaryApplicable ? [teacherBoundaryCorrect] : []),
+      ...(testPointReasoningEnabled && studentPointApplicable ? [studentPerInequalityCorrect, studentOverallCorrect] : []),
       ...(askVertices ? vertexResults.map((v) => v.vertexCorrect) : []),
     ];
     const score = parts.length ? parts.filter(Boolean).length / parts.length : 0;
@@ -813,7 +857,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
           overlapClassificationCorrect: askClassification ? classificationCorrect : null,
           noSolutionCorrectlyRecognized: askClassification ? noSolutionRecognized : null,
           testPointMembershipCorrect: teacherPointApplicable ? teacherOverallCorrect : null,
-          boundaryPointInclusionCorrect: teacherPointApplicable ? teacherBoundaryCorrect : null,
+          boundaryPointInclusionCorrect: teacherBoundaryApplicable ? teacherBoundaryCorrect : null,
           studentTestPointMembershipCorrect: studentPointApplicable ? studentOverallCorrect : null,
           vertexResults: askVertices ? vertexResults : null,
           fullSystemCorrect: isCorrect,
@@ -834,7 +878,9 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
       equationInput: { label: modeling ? 'Constraints you write' : 'Every inequality', studentState: true },
       numericControls: { label: 'Boundary, style, shading and reasoning controls', studentState: true },
       pointEditing: { label: 'Boundary points, shading side, test points and vertices', studentState: true },
-      instruction: { text: 'Build each boundary, choose its style, shade its side, then combine and reason about the result.' },
+      instruction: { text: hasBuildSteps
+        ? 'Complete the enabled boundary, line-style, and shading steps, then combine and reason about the result.'
+        : 'Use the provided system to combine regions and complete the requested reasoning.' },
       primaryActions: [{ id: 'check-student-build', label: 'Check my work', onAction: finalCheck }],
     }}>
       <ToolSplit>
@@ -857,21 +903,24 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
                   <>
                     {build.map((entry, index) => {
                       if (entry.visible === false) return null;
-                      const line = studentLines[index];
+                      const line = effectiveLines[index];
                       if (!line) return null;
                       const [p1, p2] = lineSegmentForBounds(line, bounds);
                       const color = INEQUALITY_COLORS[index % INEQUALITY_COLORS.length];
+                      const renderedStyle = buildConfig.lineStyle
+                        ? entry.style
+                        : (String(workingConstraints[index]?.relation || '>=').includes('=') ? 'solid' : 'dashed');
                       return (
                         <line key={`line${index}`} x1={sx(p1[0])} y1={sy(p1[1])} x2={sx(p2[0])} y2={sy(p2[1])}
                           stroke={color} strokeWidth="3"
-                          strokeDasharray={entry.style === 'dashed' ? '10 6' : entry.style === 'solid' ? undefined : '3 5'}
-                          strokeOpacity={entry.style ? 1 : 0.55}
+                          strokeDasharray={renderedStyle === 'dashed' ? '10 6' : renderedStyle === 'solid' ? undefined : '3 5'}
+                          strokeOpacity={renderedStyle ? 1 : 0.55}
                         />
                       );
                     })}
                     {build.map((entry, index) => {
-                      if (entry.visible === false || !entry.shadePoint) return null;
-                      const line = studentLines[index];
+                      if (!buildConfig.shading || entry.visible === false || !entry.shadePoint) return null;
+                      const line = effectiveLines[index];
                       if (!line) return null;
                       const side = sideOfBoundaryLine(line, entry.shadePoint[0], entry.shadePoint[1]);
                       if (side === 0) return null;
@@ -888,7 +937,11 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
                   </>
                 )}
               </CoordinatePlane>
-              <p style={{ fontSize:13, color:'#5f6b7a' }}>Nothing here is drawn for you — every line, style, and shaded side is the one you built.</p>
+              <p style={{ fontSize:13, color:'#5f6b7a' }}>
+                {buildConfig.boundary && buildConfig.lineStyle && buildConfig.shading
+                  ? 'Nothing here is drawn for you — every line, style, and shaded side is the one you built.'
+                  : 'Only the construction steps this question asks you to complete are student-built; provided features are shown so you can focus on the assigned reasoning.'}
+              </p>
             </>
           )}
         </Panel>
@@ -933,12 +986,13 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
                     </label>
                   </div>
                   <div style={{ display:'flex', gap:10, fontSize:12, fontWeight:800, marginBottom:10 }}>
-                    <span style={{ color: boundaryCorrect(index) ? '#137333' : '#5f6b7a' }}>Boundary {boundaryCorrect(index) ? '✓' : '…'}</span>
-                    <span style={{ color: styleCorrect(index) ? '#137333' : '#5f6b7a' }}>Line style {styleCorrect(index) ? '✓' : '…'}</span>
-                    <span style={{ color: shadeCorrect(index) ? '#137333' : '#5f6b7a' }}>Region {shadeCorrect(index) ? '✓' : '…'}</span>
+                    <span style={{ color: boundaryCorrect(index) ? '#137333' : '#5f6b7a' }}>Boundary {buildConfig.boundary ? (boundaryCorrect(index) ? '✓' : '…') : 'provided'}</span>
+                    <span style={{ color: styleCorrect(index) ? '#137333' : '#5f6b7a' }}>Line style {buildConfig.lineStyle ? (styleCorrect(index) ? '✓' : '…') : 'provided'}</span>
+                    <span style={{ color: shadeCorrect(index) ? '#137333' : '#5f6b7a' }}>Region {buildConfig.shading ? (shadeCorrect(index) ? '✓' : '…') : 'provided'}</span>
                   </div>
                   {activeIndex === index ? (
                     <div style={{ display:'grid', gap:12 }}>
+                      {buildConfig.boundary ? (
                       <div>
                         <Field label="How will you build this boundary?">
                           <select value={entry.method} onChange={(e)=>updateBuildEntry(index, { method:e.target.value })} style={inputStyle}>
@@ -960,7 +1014,9 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
                         <button type="button" onClick={()=>updateBuildEntry(index, { boundaryAttempts: entry.boundaryAttempts + 1 })} style={{ ...actionStyle, padding:'8px 14px', fontSize:13 }}>Check boundary</button>
                         {boundaryMessage(index) ? <p style={{ margin:'6px 0 0', fontSize:13, color:'#3c4756' }}>{boundaryMessage(index)}</p> : null}
                       </div>
+                      ) : null}
 
+                      {buildConfig.lineStyle ? (
                       <div>
                         <Field label="Is this boundary solid or dashed?">
                           <div style={{ display:'flex', gap:8 }}>
@@ -971,13 +1027,16 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
                         <button type="button" onClick={()=>updateBuildEntry(index, { styleAttempts: entry.styleAttempts + 1 })} style={{ ...actionStyle, padding:'8px 14px', fontSize:13 }}>Check line style</button>
                         {styleMessage(index) ? <p style={{ margin:'6px 0 0', fontSize:13, color:'#3c4756' }}>{styleMessage(index)}</p> : null}
                       </div>
+                      ) : null}
 
+                      {buildConfig.shading ? (
                       <div>
                         <button type="button" onClick={()=>setArmed({ type:'shade', index })} style={{ ...actionStyle, marginTop:0 }}>Tap the side of the graph to shade</button>
                         {entry.shadePoint ? <p style={{ margin:'6px 0 0', fontSize:12, color:'#5f6b7a' }}>Shaded through ({round(entry.shadePoint[0],2)}, {round(entry.shadePoint[1],2)}).</p> : null}
                         <button type="button" onClick={()=>updateBuildEntry(index, { shadeAttempts: entry.shadeAttempts + 1 })} style={{ ...actionStyle, padding:'8px 14px', fontSize:13 }}>Check shading</button>
                         {shadeMessage(index) ? <p style={{ margin:'6px 0 0', fontSize:13, color:'#3c4756' }}>{shadeMessage(index)}</p> : null}
                       </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
@@ -1004,7 +1063,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
                   <button type="button" onClick={()=>setRegionClassificationAttempts((n)=>n+1)} style={{ ...actionStyle, padding:'8px 14px', fontSize:13 }}>Check classification</button>
                   {regionClassificationAttempts > 0 && regionClassification ? (
                     <p style={{ margin:'6px 0 0', fontSize:13, color:'#3c4756' }}>
-                      {regionClassification === authoredClassification
+                      {regionClassification === workingClassification
                         ? 'Correct classification.'
                         : staged(regionClassificationAttempts,
                           'Look at whether the shaded overlap keeps going forever in some direction, closes into a polygon, or never forms at all.',
@@ -1014,7 +1073,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
                 </div>
               ) : null}
 
-              {combined && (teacherTestPoint || allowStudentTestPoint) ? (
+              {combined && testPointReasoningEnabled && (teacherTestPoint || allowStudentTestPoint) ? (
                 <div>
                   <strong style={{ display:'block', marginBottom:6 }}>Test a point</strong>
                   {teacherTestPoint ? (
@@ -1022,6 +1081,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
                       title="Teacher point" point={[teacherTestPoint.x, teacherTestPoint.y]} count={constraintCount}
                       response={teacherPointResponse} setResponse={setTeacherPointResponse}
                       onBoundaryIndex={onBoundaryIndex([teacherTestPoint.x, teacherTestPoint.y])}
+                      askBoundaryProbe={boundaryProbeEnabled}
                       inequalityLabels={Array.from({ length: constraintCount }, (_, i) => inequalityLabel(i))}
                       feedback={teacherPointFeedback}
                       onCheck={()=>checkPointResponse([teacherTestPoint.x, teacherTestPoint.y], teacherPointResponse, setTeacherPointFeedback)}
@@ -1034,6 +1094,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
                         title="Your point" point={studentTestPoint} count={constraintCount}
                         response={studentPointResponse} setResponse={setStudentPointResponse}
                         onBoundaryIndex={studentTestPoint ? onBoundaryIndex(studentTestPoint) : -1}
+                        askBoundaryProbe={boundaryProbeEnabled}
                         inequalityLabels={Array.from({ length: constraintCount }, (_, i) => inequalityLabel(i))}
                         feedback={studentPointFeedback}
                         onCheck={()=>checkPointResponse(studentTestPoint, studentPointResponse, setStudentPointFeedback)}
