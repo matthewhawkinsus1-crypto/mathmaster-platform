@@ -88,7 +88,7 @@ export default function LinearInterceptsOrchestrator({
   const workDraftKey = draftKey ? `${draftKey}:linear-intercepts` : null;
   const [work, setWork] = useState(() => readQuestionDraft(workDraftKey, null) || initialWork());
   const [zeroArmed, setZeroArmed] = useState(false);
-  const [stageHistory, setStageHistory] = useState([]); // conceptual-stage undo, current kind only
+  const [stageHistory, setStageHistory] = useState(() => ({ kind: 'x', entries: [] })); // conceptual undo, scoped per intercept
   const [message, setMessage] = useState('');
 
   useEffect(() => {
@@ -96,15 +96,15 @@ export default function LinearInterceptsOrchestrator({
   }, [workDraftKey, work]);
 
   const kind = work.activeKind === 'y' ? 'y' : 'x';
-
-  // Conceptual undo belongs to one intercept at a time. When the x-intercept
-  // is completed and the orchestrator advances to y, old x-stage snapshots
-  // must not become undo candidates for the fresh y stage.
-  useEffect(() => {
-    setStageHistory([]);
-  }, [kind]);
-
   const stage = work[kind] || initialStage();
+
+  // Keep attempt/partial-credit history from the parent question, but never
+  // seed a new x/y sub-solve from the parent record's last algebra equation.
+  // Each intercept has its own draftKey and authored substitution equation.
+  const solverQuestionRecord = useMemo(
+    () => (questionRecord ? { ...questionRecord, algebraState: null } : null),
+    [questionRecord],
+  );
   const expectedPoint = useMemo(() => expectedInterceptPoint(standard, kind), [standard, kind]);
   // There is no per-move workHistory array on this side of the refactor — the
   // balanced-operation steps now live inside the mounted StepByStepAlgebraCore,
@@ -126,7 +126,10 @@ export default function LinearInterceptsOrchestrator({
     });
   };
 
-  const pushStageHistory = () => setStageHistory((current) => [...current.slice(-19), stage]);
+  const pushStageHistory = () => setStageHistory((current) => {
+    const entries = current.kind === kind ? current.entries : [];
+    return { kind, entries: [...entries.slice(-19), stage] };
+  });
 
   // Conceptual-stage undo. Once the substitution is committed, undo ownership
   // moves to the mounted StepByStepAlgebraCore (its own registration effect
@@ -134,16 +137,18 @@ export default function LinearInterceptsOrchestrator({
   // steps aside so the two never fight over one Undo button.
   useEffect(() => {
     if (stage.committed || !onUndoStateChange) return undefined;
-    const canUndo = stageHistory.length > 0;
+    const entries = stageHistory.kind === kind ? stageHistory.entries : [];
+    const canUndo = entries.length > 0;
     onUndoStateChange({
       canUndo,
       label: 'Undo the last substitution choice',
       onUndo: canUndo ? () => {
         setStageHistory((current) => {
-          if (!current.length) return current;
-          const previous = current[current.length - 1];
+          const currentEntries = current.kind === kind ? current.entries : [];
+          if (!currentEntries.length) return { kind, entries: [] };
+          const previous = currentEntries[currentEntries.length - 1];
           updateStage(previous);
-          return current.slice(0, -1);
+          return { kind, entries: currentEntries.slice(0, -1) };
         });
       } : null,
     });
@@ -383,7 +388,7 @@ export default function LinearInterceptsOrchestrator({
         <StepByStepAlgebraCore
           key={`${kind}-${stage.placedZeroVariable}`}
           question={subEquationQuestion}
-          questionRecord={questionRecord}
+          questionRecord={solverQuestionRecord}
           onStateChange={handleSubEquationStateChange}
           onStepGrade={onStepGrade}
           onUndoStateChange={onUndoStateChange}
