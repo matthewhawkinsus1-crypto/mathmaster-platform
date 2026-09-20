@@ -159,7 +159,7 @@ export const validateToolQuestion = (question = {}) => {
         }
       });
     }
-    if (mode === 'inequalities' && question.studentBuild) {
+    if (mode === 'inequalities' && (question.studentBuild || question.modeling)) {
       if (question.modeling) {
         const modeling = question.modeling;
         if (!Array.isArray(modeling.variables) || modeling.variables.length !== 2 || modeling.variables.some((v) => !v || typeof v.symbol !== 'string' || !v.symbol)) {
