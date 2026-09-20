@@ -150,8 +150,8 @@ export default function GradeTransferCenter({
 
   const saveSisId = async (studentId) => {
     const sisStudentId = String(sisDrafts[studentId] || '').trim();
-    if (!/^\d{3,20}$/.test(sisStudentId)) {
-      setMessage('SIS Student ID must be 3–20 digits with no letters, spaces, or punctuation.');
+    if (!/^\d{1,20}$/.test(sisStudentId)) {
+      setMessage('SIS Student ID must contain 1–20 digits with no letters, spaces, or punctuation.');
       return;
     }
     setBusy(true);
