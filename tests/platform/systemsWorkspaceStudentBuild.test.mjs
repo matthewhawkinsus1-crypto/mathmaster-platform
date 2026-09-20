@@ -112,6 +112,14 @@ test('the student-build workspace is wired into Work View with undo, point editi
   assert.match(mode, /primaryActions:\s*\[\{\s*id:\s*'check-student-build'/);
 });
 
+test('student-facing inequality labels support legacy slope-intercept, vertical/horizontal, and canonical standard form', () => {
+  assert.match(executable, /const displayRelation/);
+  assert.match(executable, /ineq\.orientation === 'vertical'/);
+  assert.match(executable, /ineq\.orientation === 'horizontal'/);
+  assert.match(executable, /\[ineq\.A, ineq\.B, ineq\.C\]/);
+  assert.match(executable, /formatLinearTerm/);
+});
+
 test('authored questions can express vertical and horizontal boundaries, which the old {m, b} shape could not', () => {
   assert.match(adapterSource, /orientation === 'vertical'/);
   assert.match(adapterSource, /orientation === 'horizontal'/);
