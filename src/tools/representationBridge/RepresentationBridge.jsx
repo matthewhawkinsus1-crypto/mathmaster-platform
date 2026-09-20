@@ -98,10 +98,15 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
   // concept, once their work for it is independently correct. Never the
   // hidden target — a wrong or empty value never gets "corrected" by a
   // highlight either, it just is not shown yet.
+  const stageRevealAllowed = (stage) => {
+    if (feedbackTiming === 'guided') return true;
+    if (feedbackTiming === 'checkpoint') return stageChecks[stage] === true;
+    return Boolean(feedback);
+  };
   const revealed = {
-    rate: liveResult.parts.rateEvidence === true,
-    start: liveResult.parts.generalForm === true,
-    zero: liveResult.parts.factoredForm === true,
+    rate: stageRevealAllowed('rateEvidence') && liveResult.parts.rateEvidence === true,
+    start: stageRevealAllowed('generalForm') && liveResult.parts.generalForm === true,
+    zero: stageRevealAllowed('factoredForm') && liveResult.parts.factoredForm === true,
   };
 
   // Staging Δx/Δy/rate values are draft-backed (they survive navigation and
@@ -301,8 +306,8 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8, marginBottom: 12 }}>
             {derived.rows.map((row, index) => {
               const selected = selectedRows.includes(index);
-              const startMatch = activeHighlight === 'start' && Math.abs(row.x) < 1e-9;
-              const zeroMatch = activeHighlight === 'zero' && Math.abs(row.y) < 1e-9;
+              const startMatch = activeHighlight === 'start' && revealed.start && Math.abs(row.x) < 1e-9;
+              const zeroMatch = activeHighlight === 'zero' && revealed.zero && Math.abs(row.y) < 1e-9;
               return (
                 <button
                   key={index}
@@ -407,20 +412,20 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 10 }}>
               <label>
                 <span style={{ fontWeight: 800, fontSize: 13, color: highlightBorder(true, activeHighlight === 'rate') ? '#b06000' : undefined }}>m</span>
-                <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'rate') || input.border }} inputMode="decimal" value={generalM} onChange={(event) => { setGeneralM(event.target.value); clearFeedback(); }} aria-label="Slope m in general form" />
+                <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'rate') || input.border }} inputMode="decimal" value={generalM} disabled={stageBlocked('generalForm')} onChange={(event) => { setGeneralM(event.target.value); clearFeedback(); }} aria-label="Slope m in general form" />
               </label>
               <label>
                 <span style={{ fontWeight: 800, fontSize: 13, color: highlightBorder(true, activeHighlight === 'start') ? '#b06000' : undefined }}>b {revealed.start && activeHighlight === 'start' ? `(= ${generalB})` : ''}</span>
-                <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'start') || input.border }} inputMode="decimal" value={generalB} onChange={(event) => { setGeneralB(event.target.value); clearFeedback(); }} aria-label="y-intercept b in general form" />
+                <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'start') || input.border }} inputMode="decimal" value={generalB} disabled={stageBlocked('generalForm')} onChange={(event) => { setGeneralB(event.target.value); clearFeedback(); }} aria-label="y-intercept b in general form" />
               </label>
               <label style={{ gridColumn: '1 / -1' }}>
                 <span style={{ fontWeight: 800, fontSize: 13 }}>Equation</span>
-                <input style={input} value={generalEquation} onChange={(event) => { setGeneralEquation(event.target.value); clearFeedback(); }} placeholder="y = mx + b" aria-label="Equation in general/slope-intercept form" />
+                <input style={input} value={generalEquation} disabled={stageBlocked('generalForm')} onChange={(event) => { setGeneralEquation(event.target.value); clearFeedback(); }} placeholder="y = mx + b" aria-label="Equation in general/slope-intercept form" />
               </label>
             </div>
             {feedbackTiming !== 'submitOnly' ? (
               <div style={{ marginTop: 10 }}>
-                <button type="button" onClick={() => checkStage('generalForm')} disabled={!requiredStages.includes('generalForm')} style={{ ...button }}>Check this stage</button>
+                <button type="button" onClick={() => checkStage('generalForm')} disabled={!requiredStages.includes('generalForm') || stageBlocked('generalForm')} style={{ ...button }}>Check this stage</button>
                 {stageChecks.generalForm != null ? <ResultPill ok={stageChecks.generalForm}>{stageChecks.generalForm ? 'General form correct' : 'Needs another look'}</ResultPill> : null}
               </div>
             ) : null}
@@ -433,20 +438,20 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 10 }}>
               <label>
                 <span style={{ fontWeight: 800, fontSize: 13, color: highlightBorder(true, activeHighlight === 'rate') ? '#b06000' : undefined }}>a</span>
-                <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'rate') || input.border }} inputMode="decimal" value={factoredA} onChange={(event) => { setFactoredA(event.target.value); clearFeedback(); }} aria-label="Coefficient a in factored form" />
+                <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'rate') || input.border }} inputMode="decimal" value={factoredA} disabled={stageBlocked('factoredForm')} onChange={(event) => { setFactoredA(event.target.value); clearFeedback(); }} aria-label="Coefficient a in factored form" />
               </label>
               <label>
                 <span style={{ fontWeight: 800, fontSize: 13, color: highlightBorder(true, activeHighlight === 'zero') ? '#b06000' : undefined }}>c {revealed.zero && activeHighlight === 'zero' ? `(= ${factoredC})` : ''}</span>
-                <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'zero') || input.border }} inputMode="decimal" value={factoredC} onChange={(event) => { setFactoredC(event.target.value); clearFeedback(); }} aria-label="Zero c in factored form" />
+                <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'zero') || input.border }} inputMode="decimal" value={factoredC} disabled={stageBlocked('factoredForm')} onChange={(event) => { setFactoredC(event.target.value); clearFeedback(); }} aria-label="Zero c in factored form" />
               </label>
               <label style={{ gridColumn: '1 / -1' }}>
                 <span style={{ fontWeight: 800, fontSize: 13 }}>Equation</span>
-                <input style={input} value={factoredEquation} onChange={(event) => { setFactoredEquation(event.target.value); clearFeedback(); }} placeholder="y = a(x - c)" aria-label="Equation in factored linear form" />
+                <input style={input} value={factoredEquation} disabled={stageBlocked('factoredForm')} onChange={(event) => { setFactoredEquation(event.target.value); clearFeedback(); }} placeholder="y = a(x - c)" aria-label="Equation in factored linear form" />
               </label>
             </div>
             {feedbackTiming !== 'submitOnly' ? (
               <div style={{ marginTop: 10 }}>
-                <button type="button" onClick={() => checkStage('factoredForm')} disabled={!requiredStages.includes('factoredForm')} style={{ ...button }}>Check this stage</button>
+                <button type="button" onClick={() => checkStage('factoredForm')} disabled={!requiredStages.includes('factoredForm') || stageBlocked('factoredForm')} style={{ ...button }}>Check this stage</button>
                 {stageChecks.factoredForm != null ? <ResultPill ok={stageChecks.factoredForm}>{stageChecks.factoredForm ? 'Factored form correct' : 'Needs another look'}</ResultPill> : null}
               </div>
             ) : null}
@@ -460,8 +465,8 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
           <p style={{ fontSize: 13, color: '#5f6b7a' }}>Plot the x-intercept from your factored form, then a second point using the slope. {activeHighlight === 'zero' ? 'Highlighted: the x-intercept is where the line crosses the x-axis.' : ''} {activeHighlight === 'start' ? 'Highlighted: the y-intercept is where the line crosses the y-axis.' : ''}</p>
           <CoordinatePlane
             {...graphBounds}
-            onPlot={plotPoint}
-            onMovePoint={moveGraphPoint}
+            onPlot={stageBlocked('graph') ? undefined : plotPoint}
+            onMovePoint={stageBlocked('graph') ? undefined : moveGraphPoint}
             viewResetKey={questionData?.id ?? questionData?.prompt ?? null}
             snapStep={Number.isInteger(derived.m) && Number.isInteger(derived.zero) ? 1 : 0.5}
             points={graphPoints.map((point, index) => ({ x: point[0], y: point[1], label: `P${index + 1}`, fill: '#1a73e8' }))}
@@ -473,7 +478,7 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
           <p style={{ margin: '8px 0 0', color: '#3c4756', fontWeight: 700 }}>Your line: {studentGraphLine ? formatLine(studentGraphLine) : 'Plot two different points'}</p>
           {feedbackTiming !== 'submitOnly' ? (
             <div style={{ marginTop: 10 }}>
-              <button type="button" onClick={() => checkStage('graph')} disabled={!requiredStages.includes('graph')} style={{ ...button }}>Check this stage</button>
+              <button type="button" onClick={() => checkStage('graph')} disabled={!requiredStages.includes('graph') || stageBlocked('graph')} style={{ ...button }}>Check this stage</button>
               {stageChecks.graph != null ? <ResultPill ok={stageChecks.graph}>{stageChecks.graph ? 'Graph correct' : 'Needs another look'}</ResultPill> : null}
             </div>
           ) : null}
@@ -491,6 +496,7 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
                   key={rowId}
                   type="button"
                   onClick={() => setActiveMeaningRow(rowId)}
+                  disabled={stageBlocked('meaning')}
                   aria-pressed={activeMeaningRow === rowId}
                   aria-label={`Edit the meaning of ${meaningRowLabel[rowId]}`}
                   style={{
@@ -518,6 +524,7 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
                         key={option}
                         type="button"
                         onClick={() => assignMeaning(activeMeaningRow, dimension, option)}
+                        disabled={stageBlocked('meaning')}
                         aria-pressed={selected}
                         style={{ ...button, minHeight: 44, background: selected ? '#1a73e8' : '#fff', color: selected ? '#fff' : '#172033' }}
                       >
@@ -531,7 +538,7 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
           })}
           {feedbackTiming !== 'submitOnly' ? (
             <div style={{ marginTop: 10 }}>
-              <button type="button" onClick={() => checkStage('meaning')} disabled={!requiredStages.includes('meaning') || !meaningComplete} style={{ ...button }}>Check this stage</button>
+              <button type="button" onClick={() => checkStage('meaning')} disabled={!requiredStages.includes('meaning') || !meaningComplete || stageBlocked('meaning')} style={{ ...button }}>Check this stage</button>
               {stageChecks.meaning != null ? <ResultPill ok={stageChecks.meaning}>{stageChecks.meaning ? 'Meaning connections correct' : 'Needs another look'}</ResultPill> : null}
             </div>
           ) : null}
