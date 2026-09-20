@@ -69,6 +69,35 @@ test('grading requires enough distinct, accurate evidence before rewarding class
   assert.equal(result.parts.evidenceAccuracy, true);
 });
 
+test('a nonlinear classification requires recorded evidence that actually shows a changing rate', () => {
+  const rows = [{ x: 0, y: 0 }, { x: 1, y: 2 }, { x: 2, y: 4 }, { x: 3, y: 9 }];
+  const question = { type: 'linearTableWorkbench', mode: 'constantRate', rows, requiredComparisons: 3 };
+  const cherryPicked = {
+    evidence: [
+      { i: 0, j: 1, dx: 1, dy: 2, rate: 2 },
+      { i: 1, j: 2, dx: 1, dy: 2, rate: 2 },
+      { i: 0, j: 2, dx: 2, dy: 4, rate: 2 },
+    ],
+    classification: 'nonlinear',
+  };
+  const weak = scoreLinearTableWorkbench(question, cherryPicked);
+  assert.equal(weak.parts.classification, true);
+  assert.equal(weak.parts.nonconstantRateEvidence, false);
+  assert.equal(weak.isCorrect, false);
+
+  const supported = {
+    ...cherryPicked,
+    evidence: [
+      cherryPicked.evidence[0],
+      cherryPicked.evidence[1],
+      { i: 2, j: 3, dx: 1, dy: 5, rate: 5 },
+    ],
+  };
+  const strong = scoreLinearTableWorkbench(question, supported);
+  assert.equal(strong.parts.nonconstantRateEvidence, true);
+  assert.equal(strong.isCorrect, true);
+});
+
 test('grading accepts fractional interval entries typed as a/b', () => {
   const question = { type: 'linearTableWorkbench', mode: 'constantRate', rows: fractionalRate, requiredComparisons: 2 };
   const response = {
