@@ -41,7 +41,7 @@ test('the orchestrator forwards grading, undo, record and attempt policy into th
   );
   assert.match(committedRegion, /onStepGrade=\{onStepGrade\}/);
   assert.match(committedRegion, /onUndoStateChange=\{onUndoStateChange\}/);
-  assert.match(committedRegion, /questionRecord=\{questionRecord\}/);
+  assert.match(committedRegion, /questionRecord=\{solverQuestionRecord\}/);
   assert.match(committedRegion, /maximumAttempts=\{maximumAttempts\}/);
   assert.match(committedRegion, /attemptsDoNotExpire=\{attemptsDoNotExpire\}/);
 });
@@ -55,8 +55,14 @@ test('QuestionEngine forwards the normal Step Algebra record and attempt policy 
   assert.match(region, /attemptsDoNotExpire=\{attemptsDoNotExpire\}/);
 });
 
-test('conceptual undo history is cleared when the active intercept changes', () => {
-  assert.match(orchestratorSource, /setStageHistory\(\[\]\);[\s\S]*?\}, \[kind\]\);/);
+test('conceptual undo history is scoped to the active intercept so x history cannot leak into y', () => {
+  assert.match(orchestratorSource, /current\.kind === kind \? current\.entries : \[\]/);
+  assert.match(orchestratorSource, /stageHistory\.kind === kind \? stageHistory\.entries : \[\]/);
+});
+
+test('the embedded solver keeps parent attempt history but never seeds from the parent algebraState equation', () => {
+  assert.match(orchestratorSource, /questionRecord \? \{ \.\.\.questionRecord, algebraState: null \} : null/);
+  assert.match(orchestratorSource, /questionRecord=\{solverQuestionRecord\}/);
 });
 
 test('committing the substitution keeps a meaningful wrong-path outcome available (mismatch + conceptual redirect)', () => {
