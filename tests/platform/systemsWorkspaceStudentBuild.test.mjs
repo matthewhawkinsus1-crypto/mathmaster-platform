@@ -119,8 +119,9 @@ test('authored questions can express vertical and horizontal boundaries, which t
   assert.match(schemaSource, /systemsWorkspace studentBuild requires at least one inequality/);
 });
 
-test('the boundary-math adapter is explicitly documented as temporary and names its rebase point', () => {
-  assert.match(adapterSource, /TEMPORARY ADAPTER/);
-  assert.match(adapterSource, /Codex/);
-  assert.match(adapterSource, /REBASE POINT/);
+test('the boundary adapter delegates math to the canonical PR #293 engine instead of maintaining a duplicate engine', () => {
+  assert.match(adapterSource, /linearInequalityEngine/);
+  assert.match(adapterSource, /classifyCanonicalFeasibleRegion/);
+  assert.match(adapterSource, /boundaryIntersections/);
+  assert.doesNotMatch(adapterSource, /TEMPORARY ADAPTER/);
 });
