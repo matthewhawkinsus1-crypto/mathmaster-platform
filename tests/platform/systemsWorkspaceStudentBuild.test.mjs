@@ -119,6 +119,11 @@ test('authored questions can express vertical and horizontal boundaries, which t
   assert.match(schemaSource, /systemsWorkspace studentBuild requires at least one inequality/);
 });
 
+test('authoring schema keeps legacy systems at two inequalities while allowing one-inequality student construction and requires a point for boundary probes', () => {
+  assert.match(schemaSource, /minimumInequalities = question\.studentBuild \|\| question\.modeling \? 1 : 2/);
+  assert.match(schemaSource, /reasoning\.boundaryProbe requires a finite teacher testPoint/);
+});
+
 test('canonical studentBuild and reasoning flags are honored independently instead of forcing every construction step on', () => {
   const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
   assert.match(mode, /const buildConfig = inequalityConfig\.studentBuild/);
