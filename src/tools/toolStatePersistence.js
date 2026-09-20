@@ -98,6 +98,13 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
   expressionMeaning: entry(['expressionMeaning/ExpressionMeaning.jsx'], {
     activeId: "Which expression's meaning row is open for editing. Selection, not an answer.",
   }),
+  representationBridge: entry(['representationBridge/RepresentationBridge.jsx'], {
+    selectedRows: 'Which table rows are currently picked up before a comparison is recorded. Selection, not committed evidence.',
+    activeHighlight: 'Which concept (rate/start/zero) is emphasized across every panel. UI emphasis, not an answer, and does not need to persist.',
+    activeMeaningRow: 'Which meaning row (m/b/c) is open for editing. Selection, not an answer.',
+    notice: 'Transient status line, regenerated from the action that raised it.',
+    redoDepth: 'Mirror of the redo stack depth, for enabling a button.',
+  }),
 });
 
 export const getToolStatePersistence = (toolId) => TOOL_STATE_PERSISTENCE[toolId] || null;

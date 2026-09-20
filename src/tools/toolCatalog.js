@@ -29,6 +29,7 @@ export const TOOL_CATALOG = Object.freeze({
   constraintFunctionBuilder: { label: 'Constraint-Based Function Builder', courses: ['Algebra I', 'Algebra II'] },
   linearTableWorkbench: { label: 'Linear Table Workbench', courses: ['Algebra I', 'Algebra II'] },
   expressionMeaning: { label: 'Expression Meaning', courses: ['Algebra I', 'Algebra II'] },
+  representationBridge: { label: 'Representation Bridge', courses: ['Algebra I', 'Algebra II'] },
 });
 
 export const TOOL_CATALOG_IDS = Object.freeze(Object.keys(TOOL_CATALOG));

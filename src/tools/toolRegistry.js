@@ -34,6 +34,7 @@ const TOOL_LOADERS = {
   constraintFunctionBuilder: () => import('./constraintFunctionBuilder/ConstraintFunctionBuilder.jsx'),
   linearTableWorkbench: () => import('./linearTableWorkbench/LinearTableWorkbench.jsx'),
   expressionMeaning: () => import('./expressionMeaning/ExpressionMeaning.jsx'),
+  representationBridge: () => import('./representationBridge/RepresentationBridge.jsx'),
 };
 
 const TOOL_COMPONENTS = Object.fromEntries(
