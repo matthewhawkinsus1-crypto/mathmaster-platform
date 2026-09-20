@@ -13,9 +13,8 @@ import {
 } from '../../src/algebraDistributionModel.js';
 
 const distributeAll = (detected) => {
-  let state = initDistributionState(detected);
+  let state = armFactor(initDistributionState(detected));
   detected.terms.forEach((_, index) => {
-    state = armFactor(state);
     state = placeOnTerm(state, index);
   });
   return state;
