@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { createExportSnapshot, teamsCsv, TRANSFER_STATE, transferFileName, transferSnapshotId } from '../../platform/gradeTransfer/gradeTransferModel.js';
+import {
+  authoritativeSisStudentId,
+  createExportSnapshot,
+  teamsCsv,
+  TRANSFER_STATE,
+  transferFileName,
+  transferSnapshotId,
+  validSisStudentId,
+} from '../../platform/gradeTransfer/gradeTransferModel.js';
 import { buildGradebookZip } from '../../platform/gradeTransfer/gradeTransferPackage.js';
 import {
   confirmTransferUploaded,
@@ -98,21 +106,16 @@ export default function GradeTransferCenter({
   );
 
   const sisProblems = useMemo(() => {
-    const byStudent = new Map();
-    units.forEach((unit) => {
-      unit.problems
-        .filter((problem) => String(problem.reason || '').includes('SIS Student ID'))
-        .forEach((problem) => {
-          if (!byStudent.has(problem.studentId)) {
-            byStudent.set(problem.studentId, {
-              studentId: problem.studentId,
-              name: problem.name,
-            });
-          }
-        });
-    });
-    return [...byStudent.values()];
-  }, [units]);
+    const authorized = new Set(authorizedClassIds);
+    return projectedStudents
+      .filter((student) => authorized.has(student.classId))
+      .filter((student) => !validSisStudentId(authoritativeSisStudentId(student)))
+      .map((student) => ({
+        studentId: student.id,
+        name: student.displayName || student.name || student.id,
+      }))
+      .sort((left, right) => String(left.name).localeCompare(String(right.name), undefined, { sensitivity: 'base', numeric: true }));
+  }, [authorizedClassIds, projectedStudents]);
 
   const prepare = async (chosen) => {
     const ready = chosen.filter((unit) => unit.rows.length && downloadable.has(unit.state));
