@@ -35,6 +35,8 @@ export const TOOL_CAPABILITIES = {
   constraintFunctionBuilder: { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: true, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: false },
   stepAlgebra2: { supportsAttempts: true, supportsSolutionReview: false, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
   solutionReview2: { supportsAttempts: false, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: false, supportsModifiedContent: false, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: false },
+  linearTableWorkbench: { supportsAttempts: true, supportsSolutionReview: false, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  expressionMeaning: { supportsAttempts: true, supportsSolutionReview: false, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
 };
 
 TOOL_CAPABILITIES.intervalNumberLine = { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true };

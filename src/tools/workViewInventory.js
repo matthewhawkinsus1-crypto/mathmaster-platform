@@ -22,6 +22,8 @@ export const WORK_VIEW_INVENTORY = Object.freeze({
   intervalNumberLine: { status: 'migrated', stage: '3D', capabilities: ['undo', 'pointEditing', 'numericControls', 'equationInput', 'instruction', 'task', 'help', 'primaryActions', 'secondaryActions'] },
   relationMapping: { status: 'migrated', stage: '3D', capabilities: ['undo', 'pointEditing', 'numericControls', 'tableData', 'instruction', 'task', 'help', 'primaryActions', 'secondaryActions'] },
   openSortBoard: { status: 'migrated', stage: '3D', capabilities: ['pointEditing', 'instruction', 'task', 'help'] },
+  linearTableWorkbench: { status: 'migrated', stage: '3D', capabilities: ['pointEditing', 'numericControls', 'tableData', 'instruction', 'task', 'help'] },
+  expressionMeaning: { status: 'migrated', stage: '3D', capabilities: ['pointEditing', 'tableData', 'instruction', 'task', 'help'] },
   solutionReview2: { status: 'exempt', stage: '3D', capabilities: [], reason: 'Read-only post-submission review; it has no editable mathematical workspace to enlarge or undo.' },
 });
 

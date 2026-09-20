@@ -27,6 +27,8 @@ export const TOOL_CATALOG = Object.freeze({
   relationMapping: { label: 'Mapping Diagram', courses: ['Algebra I', 'Algebra II'] },
   openSortBoard: { label: 'Open Sort Board', courses: ['Algebra I', 'Algebra II'] },
   constraintFunctionBuilder: { label: 'Constraint-Based Function Builder', courses: ['Algebra I', 'Algebra II'] },
+  linearTableWorkbench: { label: 'Linear Table Workbench', courses: ['Algebra I', 'Algebra II'] },
+  expressionMeaning: { label: 'Expression Meaning', courses: ['Algebra I', 'Algebra II'] },
 });
 
 export const TOOL_CATALOG_IDS = Object.freeze(Object.keys(TOOL_CATALOG));

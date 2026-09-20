@@ -32,6 +32,8 @@ const TOOL_LOADERS = {
   relationMapping: () => import('./relationMapping/RelationMapping.jsx'),
   openSortBoard: () => import('./openSortBoard/OpenSortBoard.jsx'),
   constraintFunctionBuilder: () => import('./constraintFunctionBuilder/ConstraintFunctionBuilder.jsx'),
+  linearTableWorkbench: () => import('./linearTableWorkbench/LinearTableWorkbench.jsx'),
+  expressionMeaning: () => import('./expressionMeaning/ExpressionMeaning.jsx'),
 };
 
 const TOOL_COMPONENTS = Object.fromEntries(
