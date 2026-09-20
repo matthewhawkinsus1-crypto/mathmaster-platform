@@ -598,7 +598,6 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
       : rawInequalities.map(authoredBoundaryFromInequality)
   ), [modeling, rawInequalities]);
   const constraintCount = expectedConstraints.length;
-  const authoredPolygon = useMemo(() => feasibleRegionPolygonGeneral(expectedConstraints, bounds), [expectedConstraints, bounds]);
   const authoredClassification = useMemo(() => classifyFeasibleRegion(expectedConstraints), [expectedConstraints]);
   const authoredVertices = useMemo(() => feasibleRegionVertices(expectedConstraints), [expectedConstraints]);
   const askClassification = questionData.askClassification != null
