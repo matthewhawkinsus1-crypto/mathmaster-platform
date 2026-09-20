@@ -27,7 +27,7 @@ import {
   simplifyExpression,
 } from '../../algebraAstEngine.js';
 
-export const SUPPORTED_TARGET_FORMS = ['slopeIntercept'];
+export const SUPPORTED_TARGET_FORMS = ['slopeIntercept', 'factoredLinear'];
 
 const symbolsOf = (expression) => {
   try {
@@ -43,6 +43,19 @@ const unwrapParens = (node) => {
   return current;
 };
 
+const containsVariableDenominator = (node) => {
+  if (!node) return false;
+  if (node.type === 'OperatorNode' && node.fn === 'divide') {
+    const denominatorSymbols = node.args[1].filter((child) => child.isSymbolNode).map((child) => child.name);
+    if (denominatorSymbols.some((name) => ['x', 'y'].includes(name))) return true;
+  }
+  return (node.args || []).some(containsVariableDenominator) || (node.content ? containsVariableDenominator(node.content) : false);
+};
+
+export const preservesLinearDomain = (expression) => {
+  try { return !containsVariableDenominator(parse(String(expression))); } catch { return false; }
+};
+
 // A "simple x term" is a bare x, a bare number, or a product/quotient of the
 // two (a rational coefficient on x) — never a factor that is itself still an
 // unresolved sum, which is what an un-distributed or un-combined term looks
@@ -56,6 +69,7 @@ const isSimpleXTerm = (node) => {
     return isSimpleXTerm(current.args[0]);
   }
   if (current.type === 'OperatorNode' && (current.fn === 'multiply' || current.fn === 'divide')) {
+    if (current.fn === 'divide' && current.args[1].filter((node) => node.isSymbolNode).some((node) => ['x', 'y'].includes(node.name))) return false;
     return current.args.every((arg) => {
       const inner = unwrapParens(arg);
       if (inner?.type === 'OperatorNode' && ['add', 'subtract'].includes(inner.fn)) return false;
@@ -63,6 +77,28 @@ const isSimpleXTerm = (node) => {
     });
   }
   return false;
+};
+
+const isNumericExpression = (node) => {
+  const current = unwrapParens(node);
+  if (!current || current.filter((child) => child.isSymbolNode).some((child) => child.name === 'x' || child.name === 'y')) return false;
+  try { return Number.isFinite(Number(current.evaluate({}))); } catch { return false; }
+};
+
+/** Structurally requires coefficient times a parenthesized (x +/- constant). */
+export const isFactoredLinearForm = (expression) => {
+  try {
+    const node = unwrapParens(parse(String(expression)));
+    if (!preservesLinearDomain(expression) || node.type !== 'OperatorNode' || node.fn !== 'multiply' || node.args.length !== 2) return false;
+    const pairs = [[node.args[0], node.args[1]], [node.args[1], node.args[0]]];
+    return pairs.some(([coefficient, factorNode]) => {
+      if (!isNumericExpression(coefficient) || Math.abs(Number(unwrapParens(coefficient).evaluate({}))) <= 1e-12) return false;
+      const factor = unwrapParens(factorNode);
+      if (factor?.type !== 'OperatorNode' || !['add', 'subtract'].includes(factor.fn) || factor.args.length !== 2) return false;
+      const [left, right] = factor.args.map(unwrapParens);
+      return left?.type === 'SymbolNode' && left.name === 'x' && isNumericExpression(right);
+    });
+  } catch { return false; }
 };
 
 /**
@@ -92,7 +128,7 @@ export const buildInitialEquationState = (questionData = {}) => {
     leftExpression: questionData.leftExpression,
     rightExpression: questionData.rightExpression,
     objective: {
-      kind: 'slopeIntercept',
+      kind: questionData.targetForm || 'slopeIntercept',
       variable: 'y',
       requireSimplifiedFinalForm: false,
     },
@@ -108,6 +144,7 @@ export const expressionsEquivalentInXY = (leftExpression, rightExpression) => {
   try {
     const left = latexToExpression(leftExpression);
     const right = latexToExpression(rightExpression);
+    if (!preservesLinearDomain(left) || !preservesLinearDomain(right)) return false;
     try {
       if (simplifyExpression(`(${left}) - (${right})`) === '0') return true;
     } catch {
@@ -151,6 +188,7 @@ export const checkSideRewrite = (equationState, scope, studentExpressions) => {
     } catch {
       return { ok: false, side, reason: 'invalid' };
     }
+    if (!preservesLinearDomain(parsedOperand.expression)) return { ok: false, side, reason: 'domainChange' };
     if (!expressionsEquivalentInXY(parsedOperand.expression, equationState[side])) {
       return { ok: false, side, reason: 'notEquivalent' };
     }
@@ -172,7 +210,10 @@ export const describeRewriteGap = (equationState) => {
   try { leftIsVariable = simplifyExpression(equationState.left) === variable; } catch { leftIsVariable = false; }
   if (!leftIsVariable) return 'isolateVariable';
   if (symbolsOf(equationState.right).includes(variable)) return 'variableOnBothSides';
-  if (!isSimplifiedSlopeInterceptForm(equationState.right)) return 'needsSimplification';
+  if (!preservesLinearDomain(equationState.right)) return 'domainChange';
+  if (equationState.objective?.kind === 'factoredLinear') {
+    if (!isFactoredLinearForm(equationState.right)) return 'needsFactoring';
+  } else if (!isSimplifiedSlopeInterceptForm(equationState.right)) return 'needsSimplification';
   return null;
 };
 

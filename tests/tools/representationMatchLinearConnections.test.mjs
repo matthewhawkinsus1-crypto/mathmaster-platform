@@ -141,3 +141,29 @@ test('existing representationMatch modes are unaffected by linearConnections', (
     assert.equal(result.isValid, true, `${mode}: ${JSON.stringify(result.errors)}`);
   });
 });
+
+test('factored linear cards canonicalize and participate in grouping', () => {
+  const general = canonicalLineForSet({ slopeIntercept: 'y = 5x - 20' });
+  const factored = canonicalLineForSet({ factoredLinear: 'y = 5(x - 4)' });
+  assert.deepEqual(factored, general);
+  const set = { id: 'same', slopeIntercept: 'y=5x-20', factoredLinear: 'y=5(x-4)', graphSpec: { type: 'linear', a: 5, h: 0, k: -20 }, slope: 5, point: [4, 0], xIntercept: [4, 0], yIntercept: [0, -20] };
+  assert.equal(validateToolQuestion({ toolId: 'representationMatch', mode: 'linearConnections', sets: [set, { ...LINE_B, id: 'other' }] }).isValid, true);
+  assert.ok(buildLinearConnectionCards([set]).some((card) => card.kind === 'factoredLinear'));
+});
+
+test('group preflight rejects contradictory scalar and point cards', () => {
+  const bad = { id: 'bad', slopeIntercept: 'y=x', slope: -5, point: [0, 0], xIntercept: [4, 0] };
+  const result = validateToolQuestion({ toolId: 'representationMatch', mode: 'linearConnections', sets: [bad, LINE_B] });
+  assert.equal(result.isValid, false);
+  assert.ok(result.errors.some((message) => message.includes('slope') && message.includes('xIntercept')));
+});
+
+test('findMismatch requires three cards, a strict majority, and detects a factored error', () => {
+  const two = { id: 'two', slopeIntercept: 'y=x', factoredLinear: 'y=2(x-1)' };
+  assert.equal(validateToolQuestion({ toolId: 'representationMatch', mode: 'linearConnections', task: 'findMismatch', mismatchSetId: 'two', sets: [two] }).isValid, false);
+  const three = { id: 'three', slopeIntercept: 'y=5x-20', standard: '5x-y=20', factoredLinear: 'y=5(x-3)' };
+  const valid = validateToolQuestion({ toolId: 'representationMatch', mode: 'linearConnections', task: 'findMismatch', mismatchSetId: 'three', sets: [three] });
+  assert.equal(valid.isValid, true, valid.errors.join('\n'));
+  const cards = buildLinearConnectionCards([three], ['slopeIntercept', 'factoredLinear', 'standard']);
+  assert.deepEqual(findLinearMismatch(cards).mismatchIds, ['three:factoredLinear']);
+});

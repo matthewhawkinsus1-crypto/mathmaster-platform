@@ -15,6 +15,7 @@ const secondaryButton = { ...primaryButton, background: '#fff', color: '#174ea6'
 
 const MODE_LABELS = {
   slopeIntercept: 'Slope-intercept form',
+  factoredLinear: 'Factored linear form',
   throughPoints: 'Line through two points',
   pointSlope: 'Point-slope form',
   standardForm: 'Standard form',
@@ -41,6 +42,7 @@ const nextInstruction = (plottedCount, requiredCount = 2) => (
 const anchorInstruction = (mode, policy) => {
   if (policy.strategy !== 'formAware') return null;
   if (mode === 'slopeIntercept') return 'This question requires you to plot the y-intercept as one of your points.';
+  if (mode === 'factoredLinear') return 'This question requires you to plot the x-intercept yourself, then use the slope for another point.';
   if (mode === 'pointSlope') return 'This question requires you to plot the given point yourself — the purple point alone does not count as your evidence.';
   if (mode === 'standardForm') return 'This question requires you to plot the line’s intercept(s) as your evidence, not just any two points on the line.';
   return null;
@@ -50,6 +52,7 @@ const targetPrompt = (questionData, target) => {
   const mode = questionData.mode || 'slopeIntercept';
   if (mode === 'throughPoints') return `Graph the line that passes through ${(questionData.givenPoints || []).map(formatPoint).join(' and ')}.`;
   if (mode === 'pointSlope') return `Graph the line through ${formatPoint(questionData.point || [0, 0])} with slope ${questionData.slope}.`;
+  if (mode === 'factoredLinear') return `Graph y = ${questionData.factored?.a}(x − ${questionData.factored?.c}).`;
   if (mode === 'standardForm') return `Graph ${questionData.standard?.A}x + ${questionData.standard?.B}y = ${questionData.standard?.C}.`;
   if (mode === 'verticalHorizontal') return `Graph ${questionData.orientation === 'vertical' ? 'x = ' : 'y = '}${questionData.value}.`;
   return `Graph ${formatLine(target)}.`;
@@ -104,6 +107,14 @@ const hintsForMode = (mode, target, questionData) => {
       'Standard form is easiest to graph with intercepts: set x = 0, then set y = 0.',
       'Set x = 0 and solve for y to get the y-intercept. Set y = 0 and solve for x to get the x-intercept.',
       'Plot both intercepts — those two points determine the line.',
+    ];
+  }
+  if (mode === 'factoredLinear') {
+    const a = Number(questionData.factored?.a); const c = Number(questionData.factored?.c);
+    return [
+      'In y = a(x − c), c identifies the zero/x-intercept and a is the slope.',
+      Number.isFinite(c) ? `Plot the x-intercept (${c}, 0) yourself first.` : 'Plot the x-intercept first.',
+      Number.isFinite(a) && Number.isFinite(c) ? `Then use slope ${a} to establish another valid point from (${c}, 0).` : common,
     ];
   }
   const m = target ? Number(target.m) : Number.NaN;
@@ -211,7 +222,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
   // line that skipped the required anchor point is a different mistake from
   // one that never found the line at all, and conflating them would hide the
   // one piece of feedback this policy exists to give.
-  const formAwareAnchorLabel = mode === 'pointSlope' ? 'given point' : mode === 'standardForm' ? 'intercept(s)' : 'y-intercept';
+  const formAwareAnchorLabel = mode === 'pointSlope' ? 'given point' : mode === 'factoredLinear' ? 'x-intercept' : mode === 'standardForm' ? 'intercept(s)' : 'y-intercept';
   const formAwareFeedback = () => {
     const category = feedback.metadata?.category;
     if (category === 'duplicatePoint') return 'Two of your points landed on the same spot. Plot distinct points to show your construction.';

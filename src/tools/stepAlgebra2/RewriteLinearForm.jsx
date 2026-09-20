@@ -30,9 +30,13 @@ const GAP_MESSAGES = {
   isolateVariable: 'y is not isolated on the left side yet. Use a balanced operation, then rewrite that side down to plain y.',
   variableOnBothSides: 'y still appears on the right side. It needs to end up only on the left.',
   needsSimplification: 'This is equivalent to the target line, but it is not yet written as y = mx + b. Combine like terms or simplify the rational coefficient.',
+  needsFactoring: 'This is equivalent, but the right side is not yet a coefficient times (x − c). Factor the linear expression.',
+  domainChange: 'That expression changes the domain by putting a variable in a denominator. Use a rewrite that is defined for every original input.',
 };
 
 export default function RewriteLinearForm({ questionData = {}, onAction }) {
+  const targetForm = questionData.targetForm || 'slopeIntercept';
+  const factoredTarget = targetForm === 'factoredLinear';
   const initialEquationState = useMemo(() => buildInitialEquationState(questionData), [questionData]);
   const [equationState, setEquationState] = usePersistentToolState('rewriteEquationState', initialEquationState);
   const [history, setHistory] = usePersistentToolState('rewriteHistory', []);
@@ -98,6 +102,8 @@ export default function RewriteLinearForm({ questionData = {}, onAction }) {
           ? 'Enter the equivalent expression first.'
           : result.reason === 'invalid'
             ? 'That is not a valid algebraic expression.'
+            : result.reason === 'domainChange'
+              ? 'That rewrite introduces a variable-dependent denominator and changes where the expression is defined.'
             : `That is not equivalent to the current ${result.side} side. Check your distribution and signs.`,
       );
       return;
@@ -126,12 +132,12 @@ export default function RewriteLinearForm({ questionData = {}, onAction }) {
   };
 
   const check = () => {
-    const score = complete ? 1 : gap === 'needsSimplification' ? 0.75 : gap === 'variableOnBothSides' ? 0.4 : history.length ? 0.15 : 0;
+    const score = complete ? 1 : ['needsSimplification', 'needsFactoring'].includes(gap) ? 0.75 : gap === 'variableOnBothSides' ? 0.4 : history.length ? 0.15 : 0;
     submit({ isCorrect: complete, score }, { equationState, history }, { mode: 'rewriteLinearForm', gap });
   };
 
   const feedbackMessage = () => {
-    if (feedback.isCorrect) return 'Correct — that is equivalent to the original equation and written in slope-intercept form.';
+    if (feedback.isCorrect) return `Correct — that is equivalent to the original equation and written in ${factoredTarget ? 'factored linear' : 'slope-intercept'} form.`;
     return GAP_MESSAGES[feedback.metadata?.gap] || 'Not yet — keep transforming the equation.';
   };
 
@@ -149,12 +155,12 @@ export default function RewriteLinearForm({ questionData = {}, onAction }) {
   const activity = (
     <ToolShell
       title="Rewriting a Linear Equation"
-      subtitle="Transform the equation one equivalence-preserving move at a time until y is isolated in slope-intercept form."
-      badge="Rewrite to slope-intercept form"
+      subtitle={`Transform the equation one equivalence-preserving move at a time until y is isolated in ${factoredTarget ? 'factored linear' : 'slope-intercept'} form.`}
+      badge={`Rewrite to ${factoredTarget ? 'factored linear' : 'slope-intercept'} form`}
     >
       <TaskCard
         question={questionData}
-        task="Rewrite the given equation in slope-intercept form (y = mx + b)."
+        task={`Rewrite the given equation in ${factoredTarget ? 'factored linear form (y = a(x − c))' : 'slope-intercept form (y = mx + b)'}.`}
         steps={[
           'Apply an operation to both sides, or rewrite a side into an equivalent expression (distribute, combine like terms, simplify).',
           'Repeat until y is alone on the left and the right side is simplified.',
@@ -168,7 +174,7 @@ export default function RewriteLinearForm({ questionData = {}, onAction }) {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
             {goalChip(leftIsolated, 'y isolated on the left')}
             {goalChip(noVariableOnRight, 'No y on the right')}
-            {goalChip(complete, 'Written as y = mx + b')}
+            {goalChip(complete, factoredTarget ? 'Written as y = a(x − c)' : 'Written as y = mx + b')}
           </div>
 
           <div style={{ padding: '20px 12px', background: '#fff', border: `2px solid ${complete ? '#a8dab5' : '#d9e2f1'}`, borderRadius: 12, textAlign: 'center' }}>
