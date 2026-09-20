@@ -118,6 +118,8 @@ test('checkpoint mode truly gates later stages and submitOnly does not reveal li
   assert.match(componentSource, /disabled=\{stageBlocked\('meaning'\)\}/);
   assert.match(componentSource, /if \(feedbackTiming === 'checkpoint'\) return stageChecks\[stage\] === true;/);
   assert.match(componentSource, /return Boolean\(feedback\);/);
+  assert.match(componentSource, /stageChecks\[entry\] !== true \|\| liveResult\.parts\[entry\] !== true/);
+  assert.match(componentSource, /stageChecks\[stage\] === true && liveResult\.parts\[stage\] === true/);
 });
 
 // -------------------------------------------------------------- platform wiring
