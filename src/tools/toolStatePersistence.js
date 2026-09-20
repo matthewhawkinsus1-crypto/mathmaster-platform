@@ -93,7 +93,6 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
   linearTableWorkbench: entry(['linearTableWorkbench/LinearTableWorkbench.jsx'], {
     selectedRows: 'Which rows are currently picked up before a comparison is recorded. Selection, not committed evidence.',
     notice: 'Transient status line, regenerated from the action that raised it.',
-    redoDepth: 'Mirror of the redo stack depth, for enabling a button.',
   }),
   expressionMeaning: entry(['expressionMeaning/ExpressionMeaning.jsx'], {
     activeId: "Which expression's meaning row is open for editing. Selection, not an answer.",

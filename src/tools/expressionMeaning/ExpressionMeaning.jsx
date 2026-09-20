@@ -19,7 +19,10 @@ export default function ExpressionMeaning({ questionData = {}, onAction }) {
 
   const mathematicalState = useMemo(() => ({ assignments }), [assignments]);
 
-  const undoHistory = useMathUndoHistory({
+  // Universal Undo lives on the platform's shared work-bar button
+  // (`useMathUndoHistory` registers with it automatically); this tool does
+  // not render a second, local Undo control for the same history.
+  useMathUndoHistory({
     label: 'Undo the last expression-meaning assignment',
     state: mathematicalState,
     resetKey: questionUndoResetKey(questionData),
@@ -151,7 +154,6 @@ export default function ExpressionMeaning({ questionData = {}, onAction }) {
       ) : null}
 
       <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <button type="button" onClick={() => undoHistory.undo()} disabled={!undoHistory.canUndo} style={{ ...button }} aria-label="Undo">↶ Undo</button>
         <button
           data-primary-answer-action="true"
           type="button"

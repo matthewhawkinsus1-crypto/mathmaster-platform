@@ -1,11 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   deterministicShuffle,
   orderedChoiceBank,
   scoreExpressionMeaning,
   validateExpressionMeaningQuestion,
 } from '../../src/tools/expressionMeaning/expressionMeaningMath.js';
+
+test('Universal Undo is published to the platform channel with no duplicate local button', () => {
+  const source = readFileSync(new URL('../../src/tools/expressionMeaning/ExpressionMeaning.jsx', import.meta.url), 'utf8');
+  assert.match(source, /useMathUndoHistory\(\{/);
+  assert.doesNotMatch(source, />\s*(?:↶\s*)?Undo\s*</);
+});
 
 const question = {
   type: 'expressionMeaning',

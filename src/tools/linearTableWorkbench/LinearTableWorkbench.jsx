@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
@@ -36,16 +36,12 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
   // Selection, not committed evidence, so it stays out of the draft/undo history.
   const [selectedRows, setSelectedRows] = useState([]);
   const [notice, setNotice] = useState('');
-  const [redoDepth, setRedoDepth] = useState(0);
-  const redoStackRef = useRef([]);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
   const mathematicalState = useMemo(
     () => ({ evidence, classification, repairRowIndex, repairedValue, m, b, equation }),
     [evidence, classification, repairRowIndex, repairedValue, m, b, equation],
   );
-  const mathematicalStateRef = useRef(mathematicalState);
-  mathematicalStateRef.current = mathematicalState;
 
   const applyState = (next) => {
     const value = next || emptyState;
@@ -58,46 +54,29 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
     setEquation(value.equation || '');
   };
 
-  const undoHistory = useMathUndoHistory({
+  // Universal Undo lives on the platform's shared work-bar button
+  // (`useMathUndoHistory` registers with it automatically); this tool does
+  // not render a second, local Undo control for the same history.
+  useMathUndoHistory({
     label: 'Undo the last Linear Table Workbench change',
     state: mathematicalState,
     resetKey: questionUndoResetKey(questionData),
     onRestore: (restored) => {
-      redoStackRef.current = [...redoStackRef.current, mathematicalStateRef.current].slice(-60);
-      setRedoDepth(redoStackRef.current.length);
       applyState(restored);
       setNotice('');
       clearFeedback();
     },
   });
 
-  const clearRedo = () => {
-    if (!redoStackRef.current.length) return;
-    redoStackRef.current = [];
-    setRedoDepth(0);
-  };
-
-  const undo = () => { if (undoHistory.undo()) setNotice(''); };
-  const redo = () => {
-    const restored = redoStackRef.current.at(-1);
-    if (!restored) return;
-    redoStackRef.current = redoStackRef.current.slice(0, -1);
-    setRedoDepth(redoStackRef.current.length);
-    applyState(restored);
-    setNotice('');
-    clearFeedback();
-  };
-
   const startOver = () => {
     const hasWork = evidence.length || classification || repairRowIndex != null || repairedValue || m || b || equation;
     if (!hasWork) return;
-    clearRedo();
     applyState(emptyState);
     setSelectedRows([]);
     setStagingDx('');
     setStagingDy('');
     setStagingRate('');
-    setNotice('Workspace cleared.');
+    setNotice('Workspace cleared. Use Undo to bring it back.');
     clearFeedback();
   };
 
@@ -117,7 +96,6 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
 
   const recordInterval = () => {
     if (!truth || alreadyRecorded) return;
-    clearRedo();
     setEvidence((current) => [...current, { i, j, dx: stagingDx, dy: stagingDy, rate: stagingRate }]);
     setStagingDx('');
     setStagingDy('');
@@ -128,7 +106,6 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
   };
 
   const removeEvidence = (index) => {
-    clearRedo();
     setEvidence((current) => current.filter((_, entryIndex) => entryIndex !== index));
     clearFeedback();
   };
@@ -309,8 +286,6 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
       ) : null}
 
       <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <button type="button" onClick={undo} disabled={!undoHistory.canUndo} style={{ ...button }} aria-label="Undo">↶ Undo</button>
-        <button type="button" onClick={redo} disabled={!redoDepth} style={{ ...button }} aria-label="Redo">↷ Redo</button>
         <button type="button" onClick={startOver} style={{ ...button }}>Start over</button>
         <button
           className="linear-table-workbench-submit"
@@ -324,7 +299,7 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
         </button>
         {feedback ? <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Needs another look'}</ResultPill> : null}
       </div>
-      {notice ? <p role="status" style={{ color: '#5f6b7a' }}>{notice} <button type="button" onClick={undo}>Restore</button></p> : null}
+      {notice ? <p role="status" style={{ color: '#5f6b7a' }}>{notice}</p> : null}
       {feedback && !feedback.isCorrect && firstWrong ? (
         <p style={{ color: '#5f6b7a', lineHeight: 1.55 }}>Check this part again: <strong>{firstWrong.label}</strong>. MathMaster will not tell you the correct value — recompute it from the table.</p>
       ) : null}

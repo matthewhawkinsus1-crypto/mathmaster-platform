@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   findTableRepair,
   intervalTruth,
@@ -8,6 +9,18 @@ import {
   tableClassification,
   validateLinearTableWorkbenchQuestion,
 } from '../../src/tools/linearTableWorkbench/linearTableWorkbenchMath.js';
+
+test('Universal Undo is published to the platform channel with no duplicate local button', () => {
+  // useMathUndoHistory registers with QuestionEngine's shared WorkViewUndoProvider
+  // automatically, which already renders a single UniversalUndoButton in the work
+  // bar for every question. A tool-local "Undo" button on top of that drives the
+  // same history from two controls at once (see stage 3B/3C/3D precedent, e.g.
+  // tests/platform/workViewStage3D.test.mjs's "no local Undo control" assertions
+  // for intervalNumberLine/relationMapping).
+  const source = readFileSync(new URL('../../src/tools/linearTableWorkbench/LinearTableWorkbench.jsx', import.meta.url), 'utf8');
+  assert.match(source, /useMathUndoHistory\(\{/);
+  assert.doesNotMatch(source, />\s*(?:↶\s*)?Undo\s*</);
+});
 
 const equalSpacing = [{ x: 0, y: 3 }, { x: 1, y: 5 }, { x: 2, y: 7 }, { x: 3, y: 9 }];
 const irregularSpacing = [{ x: -3, y: 16 }, { x: 1, y: 8 }, { x: 4, y: 2 }, { x: 9, y: -8 }];
