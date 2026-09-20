@@ -6,6 +6,7 @@ import { INTERCEPT_FEEDBACK_TIMINGS, resolveStandardCoefficients } from './stepA
 import { validateLinearTableWorkbenchQuestion } from './linearTableWorkbench/linearTableWorkbenchMath.js';
 import { validateExpressionMeaningQuestion } from './expressionMeaning/expressionMeaningMath.js';
 import { validateRepresentationBridgeQuestion } from './representationBridge/representationBridgeMath.js';
+import { normalizeLinearInequality } from './systemsWorkspace/linearInequalityEngine.js';
 const TOOL_IDS = new Set([
   'dataModelingLab','regressionCalculator','inverseCompositionLab','functionOperationsLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
   'signSolutionAnalyzer','sequenceExplorer','complexPlaneLab','exponentialLogBridge','transformationsLab',
@@ -125,6 +126,21 @@ export const validateToolQuestion = (question = {}) => {
     if (!modes.includes(mode)) errors.push(`Unsupported systemsWorkspace mode: ${mode}.`);
     if (mode === 'linear' && question.system?.m1 === question.system?.m2 && question.system?.b1 == null) warnings.push('Parallel/coincident system should explicitly provide both intercepts.');
     if (mode === 'inequalities' && question.inequalities && (!Array.isArray(question.inequalities) || question.inequalities.length < 2)) errors.push('Inequality mode requires at least two inequalities.');
+    if (mode === 'inequalities' && Array.isArray(question.inequalities)) {
+      question.inequalities.forEach((inequality, index) => {
+        try { normalizeLinearInequality(inequality); }
+        catch (error) { errors.push(`Inequality ${index + 1}: ${error.message}`); }
+      });
+      ['studentBuild', 'reasoning'].forEach((section) => {
+        if (question[section] != null && (!question[section] || typeof question[section] !== 'object' || Array.isArray(question[section]))) {
+          errors.push(`systemsWorkspace ${section} must be an object when supplied.`);
+        } else {
+          Object.entries(question[section] || {}).forEach(([key, value]) => {
+            if (typeof value !== 'boolean') errors.push(`systemsWorkspace ${section}.${key} must be boolean.`);
+          });
+        }
+      });
+    }
     if (mode === 'linearQuadratic' && Number(question.linearQuadratic?.quadratic?.a ?? 1) === 0) errors.push('linearQuadratic mode requires a nonzero quadratic coefficient.');
   }
   if (toolId === 'inverseCompositionLab') {
