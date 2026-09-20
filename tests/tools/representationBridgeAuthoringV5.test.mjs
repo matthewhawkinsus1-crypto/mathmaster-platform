@@ -109,6 +109,17 @@ test('validateToolQuestion rejects an unsupported source kind rather than faking
   assert.ok(result.errors.some((message) => /source\.kind "table"/.test(message)));
 });
 
+
+test('checkpoint mode truly gates later stages and submitOnly does not reveal live correctness', () => {
+  const componentSource = source('src/tools/representationBridge/RepresentationBridge.jsx');
+  assert.match(componentSource, /disabled=\{stageBlocked\('generalForm'\)\}/);
+  assert.match(componentSource, /disabled=\{stageBlocked\('factoredForm'\)\}/);
+  assert.match(componentSource, /onPlot=\{stageBlocked\('graph'\) \? undefined : plotPoint\}/);
+  assert.match(componentSource, /disabled=\{stageBlocked\('meaning'\)\}/);
+  assert.match(componentSource, /if \(feedbackTiming === 'checkpoint'\) return stageChecks\[stage\] === true;/);
+  assert.match(componentSource, /return Boolean\(feedback\);/);
+});
+
 // -------------------------------------------------------------- platform wiring
 test('representationBridge is registered in the Stage 3D Work View inventory', () => {
   assert.ok(TOOL_CATALOG_IDS.includes('representationBridge'));
