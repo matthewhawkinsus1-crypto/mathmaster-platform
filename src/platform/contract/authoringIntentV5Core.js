@@ -79,6 +79,9 @@ const ACTION_ALIASES = Object.freeze({
   transformfunction: 'analyzeTransformations', analyzetransformations: 'analyzeTransformations',
   graphline: 'constructLine', constructline: 'constructLine',
   interactivealgebra: 'stepAlgebra2', modelinglab: 'modelingLab',
+  provelinearrate: 'proveConstantRate', provelineartablerate: 'proveConstantRate', analyzelineartable: 'proveConstantRate',
+  determinelinearequation: 'proveConstantRate', repairlineartable: 'proveConstantRate',
+  interpretexpressionmeaning: 'interpretExpressionMeaning', mapexpressionmeaning: 'interpretExpressionMeaning', explainexpressionmeaning: 'interpretExpressionMeaning',
 });
 
 const normalizeActions = (question = {}) => {
@@ -1051,6 +1054,12 @@ const resolveIntentType = (q, actions) => {
   if (actions.includes('stateOrderedPair')) return 'orderedPair';
   if (actions.includes('multipleResponses') || q.responses || q.answerFields) return 'multiAnswer';
   if (actions.includes('fractionAnswer')) return 'fraction';
+  if (actions.includes('proveConstantRate') || (Array.isArray(q.rows) && q.rows.length >= 3 && ['constantRate', 'deriveEquation', 'repairValue'].includes(q.mode))) {
+    return 'linearTableWorkbench';
+  }
+  if (actions.includes('interpretExpressionMeaning') || (Array.isArray(q.expressions) && isObject(q.choiceBanks))) {
+    return 'expressionMeaning';
+  }
   // The legacy one-box Algebra renderer is retired. All ordinary equation
   // solving now uses the balance workspace so the student must actually solve.
   if (actions.includes('solveEquation') || q.equation) return 'stepAlgebra';
@@ -1701,6 +1710,24 @@ const compileOne = (q, index, repairs) => {
       });
       break;
     }
+    case 'linearTableWorkbench': {
+      out = copyCommon(q, {
+        type,
+        mode: q.mode || 'constantRate',
+        rows: q.rows,
+        requiredComparisons: q.requiredComparisons,
+        ...(isObject(q.repair) ? { repair: q.repair } : {}),
+      });
+      break;
+    }
+    case 'expressionMeaning': {
+      out = copyCommon(q, {
+        type,
+        expressions: q.expressions,
+        choiceBanks: q.choiceBanks,
+      });
+      break;
+    }
     case 'constraintFunctionBuilder': {
       const builder = q.builder || {};
       out = copyCommon(q, {
@@ -1828,4 +1855,5 @@ export const AUTHORING_INTENT_V5_ACTIONS = Object.freeze([
   'writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence','connectRepresentations','findRepresentationMismatch','sortIntoOwnGroups','sortIntoCategories','buildFunctionFromConstraints','analyzeData','fitDataModel','predictFromModel','calculateCorrelation',
   'findInverse','composeFunctions','analyzeParabolaGeometry','factorPolynomial','dividePolynomial','multiplyPolynomials','solveInequality','complexOperations','analyzeComplex',
   'exponentialLogBridge','solveExponential','solveLogarithmic','analyzeTransformations','constructLine','modelingLab',
+  'proveConstantRate','interpretExpressionMeaning',
 ]);

@@ -26,6 +26,8 @@ export const MOBILE_TOOL_PROFILES = Object.freeze({
   relationMapping: { interaction: 'tap-connect', overflow: 'stack', dragWithTapFallback: false },
   openSortBoard: { interaction: 'tap-select-place', overflow: 'stack', dragWithTapFallback: false },
   constraintFunctionBuilder: { interaction: 'tap-canvas', overflow: 'stack', dragWithTapFallback: false },
+  linearTableWorkbench: { interaction: 'tap-select', overflow: 'stack', dragWithTapFallback: false },
+  expressionMeaning: { interaction: 'tap-select', overflow: 'stack', dragWithTapFallback: false },
 });
 
 export const MOBILE_WORKFLOW_SURFACES = Object.freeze({

@@ -3,11 +3,14 @@ import { validateConstraintBuilderQuestion } from './constraintFunctionBuilder/c
 import { buildLinearConnectionCards, canonicalLineForSet, findLinearMismatch, inconsistentLinearCardKinds, LINEAR_CARD_KINDS } from './representationMatch/representationMath.js';
 import { SUPPORTED_TARGET_FORMS as REWRITE_LINEAR_FORM_TARGETS } from './stepAlgebra2/rewriteLinearFormMath.js';
 import { INTERCEPT_FEEDBACK_TIMINGS, resolveStandardCoefficients } from './stepAlgebra2/linearInterceptsMath.js';
+import { validateLinearTableWorkbenchQuestion } from './linearTableWorkbench/linearTableWorkbenchMath.js';
+import { validateExpressionMeaningQuestion } from './expressionMeaning/expressionMeaningMath.js';
 const TOOL_IDS = new Set([
   'dataModelingLab','regressionCalculator','inverseCompositionLab','functionOperationsLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
   'signSolutionAnalyzer','sequenceExplorer','complexPlaneLab','exponentialLogBridge','transformationsLab',
   'representationMatch','functionInvestigation2','graphing2','stepAlgebra2','solutionReview2',
   'intervalNumberLine','relationMapping','openSortBoard','constraintFunctionBuilder',
+  'linearTableWorkbench','expressionMeaning',
 ]);
 
 const isPositiveInteger = (value) => Number.isInteger(Number(value)) && Number(value) >= 1;
@@ -430,6 +433,8 @@ export const validateToolQuestion = (question = {}) => {
   }
   if (toolId === 'openSortBoard') errors.push(...validateSortQuestion(question));
   if (toolId === 'constraintFunctionBuilder') errors.push(...validateConstraintBuilderQuestion(question));
+  if (toolId === 'linearTableWorkbench') errors.push(...validateLinearTableWorkbenchQuestion(question));
+  if (toolId === 'expressionMeaning') errors.push(...validateExpressionMeaningQuestion(question));
   if (toolId === 'relationMapping') {
     if (!Array.isArray(question.pairs) || question.pairs.length < 1) errors.push('relationMapping requires at least one pair.');
     else question.pairs.forEach((pair, index) => {

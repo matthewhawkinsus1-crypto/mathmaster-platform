@@ -114,6 +114,14 @@ const candidateGraphsHaveGraph = (question = {}) => (
   && question.candidateGraphs.some((candidate) => isObject(candidate?.graph))
 );
 
+// linearTableWorkbench renders its authored rows as the student-visible
+// table directly (not nested under a `table.rows` field), so a prompt
+// referring to "the table below" is truthful even without that nesting.
+const linearTableWorkbenchHasTable = (question = {}) => (
+  String(question.toolId || question.type) === 'linearTableWorkbench'
+  && nonEmptyArray(question.rows)
+);
+
 const openSortBoardHasGraph = (question = {}) => (
   String(question.toolId || question.type) === 'openSortBoard'
   && Array.isArray(question.items)
@@ -173,7 +181,7 @@ const VISUAL_PROMISES = [
     satisfied: (question, composed) => (
       isObject(question.table) && nonEmptyArray(question.table.rows)
       && TYPES_THAT_RENDER_A_TABLE.has(String(question.toolId || question.type))
-    ) || composedHasStage(composed, ['tableInput']) || composedShowsTable(composed),
+    ) || linearTableWorkbenchHasTable(question) || composedHasStage(composed, ['tableInput']) || composedShowsTable(composed),
     remedy: `Add a \`table\` object with \`columns\` and \`rows\`, and use a type that displays one (${[...TYPES_THAT_RENDER_A_TABLE].join(', ')}), or reword the prompt.`,
   },
   {
