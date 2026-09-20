@@ -125,7 +125,12 @@ export const validateToolQuestion = (question = {}) => {
     const mode = question.mode || 'linear';
     if (!modes.includes(mode)) errors.push(`Unsupported systemsWorkspace mode: ${mode}.`);
     if (mode === 'linear' && question.system?.m1 === question.system?.m2 && question.system?.b1 == null) warnings.push('Parallel/coincident system should explicitly provide both intercepts.');
-    if (mode === 'inequalities' && question.inequalities && (!Array.isArray(question.inequalities) || question.inequalities.length < 2)) errors.push('Inequality mode requires at least two inequalities.');
+    if (mode === 'inequalities' && question.inequalities) {
+      const minimumInequalities = question.studentBuild || question.modeling ? 1 : 2;
+      if (!Array.isArray(question.inequalities) || question.inequalities.length < minimumInequalities) {
+        errors.push(`Inequality mode requires at least ${minimumInequalities} inequalit${minimumInequalities === 1 ? 'y' : 'ies'}.`);
+      }
+    }
     if (mode === 'inequalities' && Array.isArray(question.inequalities)) {
       question.inequalities.forEach((inequality, index) => {
         if (inequality?.orientation != null && !['vertical', 'horizontal'].includes(inequality.orientation)) {
@@ -158,6 +163,12 @@ export const validateToolQuestion = (question = {}) => {
           });
         }
       });
+      if (question.reasoning?.boundaryProbe) {
+        const point = question.testPoint;
+        if (!point || !Number.isFinite(Number(point.x)) || !Number.isFinite(Number(point.y))) {
+          errors.push('systemsWorkspace reasoning.boundaryProbe requires a finite teacher testPoint {x, y}.');
+        }
+      }
     }
     if (mode === 'inequalities' && (question.studentBuild || question.modeling)) {
       if (question.modeling) {
