@@ -224,7 +224,11 @@ export const scoreRepresentationBridge = (question = {}, response = {}) => {
     const structural = structurallyValidForm(g.equation, 'slopeIntercept');
     const equivalent = equationEquivalentToTrue(g.equation, derived.m, derived.b);
     parts.generalForm = mCorrect && bCorrect && structural && equivalent;
-    if (structural && equivalent) generalCanonical = canonicalFromEquationText(g.equation);
+    // Coherence compares the student's own parseable representations even
+    // when one is mathematically wrong. Otherwise a contradictory but
+    // well-formed entry disappears from the coherence check simply because it
+    // is not also the answer-key line.
+    generalCanonical = canonicalFromEquationText(g.equation);
     evidence.generalForm = { mCorrect, bCorrect, structural, equivalent };
   }
 
@@ -236,7 +240,7 @@ export const scoreRepresentationBridge = (question = {}, response = {}) => {
     const structural = structurallyValidForm(f.equation, 'factoredLinear');
     const equivalent = equationEquivalentToTrue(f.equation, derived.m, derived.b);
     parts.factoredForm = aCorrect && cCorrect && structural && equivalent;
-    if (structural && equivalent) factoredCanonical = canonicalFromEquationText(f.equation);
+    factoredCanonical = canonicalFromEquationText(f.equation);
     evidence.factoredForm = { aCorrect, cCorrect, structural, equivalent };
   }
 
