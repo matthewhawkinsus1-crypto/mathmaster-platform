@@ -45,6 +45,22 @@ test('the pointSlope help text no longer claims a purple point exists that does 
   assert.doesNotMatch(pointSlopeHelp, /purple point/i);
 });
 
+test('rational-slope hints use numerator/denominator movement that can land on the graph', () => {
+  assert.match(source, /const slopeStepForHint =/);
+  const hintsForModeStart = source.indexOf('const hintsForMode = ');
+  const pointSlopeStart = source.indexOf("if (mode === 'pointSlope') {", hintsForModeStart);
+  const standardFormStart = source.indexOf("if (mode === 'standardForm')", pointSlopeStart);
+  const pointSlopeHints = source.slice(pointSlopeStart, standardFormStart);
+  assert.match(pointSlopeHints, /use a run of/);
+  assert.match(pointSlopeHints, /a rise of/);
+  assert.doesNotMatch(pointSlopeHints, /move 1 right/);
+
+  const defaultHintsStart = source.indexOf('const m = target ? Number(target.m)', standardFormStart);
+  const defaultHintsEnd = source.indexOf('};', defaultHintsStart);
+  const defaultHints = source.slice(defaultHintsStart, defaultHintsEnd);
+  assert.match(defaultHints, /use a run of/);
+  assert.match(defaultHints, /a rise of/);
+});
 test('graphing hints format a rational slope as an exact fraction, not a repeating decimal', () => {
   assert.match(source, /formatSlopeForHint/);
   assert.match(source, /import \{ toFraction, formatFraction \} from '\.\.\/shared\/linearEquations\.js';/);
