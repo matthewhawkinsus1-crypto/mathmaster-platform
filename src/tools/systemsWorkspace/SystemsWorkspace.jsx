@@ -488,19 +488,6 @@ const boundaryLinesMatch = (candidate, authored, bounds) => {
   return pointOnBoundaryLine(candidate, p1[0], p1[1], 0.08) && pointOnBoundaryLine(candidate, p2[0], p2[1], 0.08);
 };
 
-// The full inequality the student has built for one constraint — their line,
-// their solid/dashed choice, and which side their shading click landed on.
-// Null until all three are present, which is also what keeps the "combine"
-// step honestly locked (an incomplete constraint cannot contribute a boundary
-// to a combined region).
-const finalizedStudentBoundary = (entry) => {
-  const line = studentBoundaryLineFromEntry(entry);
-  if (!line || !entry.style || !entry.shadePoint) return null;
-  const side = sideOfBoundaryLine(line, entry.shadePoint[0], entry.shadePoint[1]);
-  if (side === 0) return null;
-  return boundaryWithChosenSide(line, side, entry.style === 'dashed');
-};
-
 const modelingTermText = (coefficient, symbol, isFirst) => {
   if (coefficient == null || coefficient === 0) return '';
   const magnitude = Math.abs(coefficient) === 1 ? '' : String(Math.abs(coefficient));
