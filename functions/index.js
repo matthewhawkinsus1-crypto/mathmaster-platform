@@ -2898,7 +2898,22 @@ exports.linkGoogleAccount = onCall(async (request) => {
     throw new HttpsError("permission-denied", "That class code is not valid. Ask your teacher for the current one.");
   }
 
-  const studentId = await resolveCanonicalStudentId(db, key, typedId);
+  // Linking may attach Google identity to an EXISTING roster row, but it may
+  // never create the row. Resolve against the actual roster before writing an
+  // alias so a mistyped/made-up ID leaves no durable identity artifacts.
+  const roster = await db.collection("grades").select().get();
+  const rosterMatch = roster.docs.find((entry) => entry.id.trim().toUpperCase() === key);
+  if (!rosterMatch) {
+    throw new HttpsError(
+      "failed-precondition",
+      "That student ID is not on the MathMaster roster yet. Ask your teacher to add your district student ID before linking Google.",
+    );
+  }
+  const studentId = rosterMatch.id;
+  await db.collection(authLib.ALIAS_COLLECTION).doc(key).set(
+    { key, studentId, createdAt: FieldValue.serverTimestamp() },
+    { merge: true },
+  );
   const directoryRef = db.collection(authLib.DIRECTORY_COLLECTION).doc(email);
   const existingForStudent = await db
     .collection(authLib.DIRECTORY_COLLECTION)
@@ -3040,11 +3055,17 @@ exports.studentSignIn = onCall(async (request) => {
   // anyone who kept a session or called the API directly.
   const model = await classModel();
   const existingRecord = await db.collection("grades").doc(studentId).get();
-  if (existingRecord.exists && existingRecord.data()?.status === model.ACCOUNT_STATUS.DISABLED) {
+  if (!existingRecord.exists) {
+    throw new HttpsError(
+      "failed-precondition",
+      "That student ID is not on the MathMaster roster. Ask your teacher to add the official district student ID before signing in.",
+    );
+  }
+  if (existingRecord.data()?.status === model.ACCOUNT_STATUS.DISABLED) {
     throw new HttpsError("permission-denied", "This MathMaster account is deactivated. Ask your teacher or campus administrator to reactivate it.");
   }
 
-  const record = await ensureStudentRecord(db, studentId, joinMembership || { classPeriod });
+  const record = existingRecord.data() || {};
 
   // One Firebase user per student ID, so grades survive across devices.
   const uid = `student:${key}`;
