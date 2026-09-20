@@ -29,3 +29,29 @@ test('server creation is atomic and stores structured names', () => {
   assert.match(source, /await batch\.commit\(\)/);
   assert.match(source, /student_account_created/);
 });
+
+
+test('new student accounts require a numeric district SIS id before sign-in setup', () => {
+  const ui = read('src/SignInAccess.jsx');
+  const server = read('functions/index.js');
+  assert.match(ui, /District\/SIS Student ID/);
+  assert.match(ui, /inputMode="numeric"/);
+  assert.match(ui, /replace\(\/\\D\/g, ''\)/);
+  assert.match(server, /New student accounts must use the district SIS student ID \(digits only\)/);
+  assert.match(server, /sisStudentId: studentId/);
+});
+
+test('first-time student sign-in and Google linking cannot create an arbitrary roster identity', () => {
+  const server = read('functions/index.js');
+  assert.match(server, /That student ID is not on the MathMaster roster yet/);
+  assert.match(server, /before first sign-in/);
+  assert.match(server, /before linking Google/);
+});
+
+test('SIS identity fields are server-owned and cannot be changed by a client grade write', () => {
+  const rules = read('firestore.rules');
+  assert.match(rules, /function sisIdentityUnchanged\(\)/);
+  assert.match(rules, /function sisIdentityAbsentOnClientCreate\(\)/);
+  assert.match(rules, /&& sisIdentityUnchanged\(\)/);
+  assert.match(rules, /&& sisIdentityAbsentOnClientCreate\(\)/);
+});
