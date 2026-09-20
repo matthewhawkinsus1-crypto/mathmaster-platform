@@ -900,7 +900,10 @@ export default function QuestionEngine({
           return (
             <LinearInterceptsOrchestrator
               {...commonModuleProps}
+              questionRecord={record}
               onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
+              maximumAttempts={resolvedMaximumAttempts}
+              attemptsDoNotExpire={attemptsDoNotExpire}
             />
           );
         }
