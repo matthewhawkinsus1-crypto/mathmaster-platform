@@ -1054,15 +1054,15 @@ const resolveIntentType = (q, actions) => {
   if (actions.includes('stateOrderedPair')) return 'orderedPair';
   if (actions.includes('multipleResponses') || q.responses || q.answerFields) return 'multiAnswer';
   if (actions.includes('fractionAnswer')) return 'fraction';
-  // The legacy one-box Algebra renderer is retired. All ordinary equation
-  // solving now uses the balance workspace so the student must actually solve.
-  if (actions.includes('solveEquation') || q.equation) return 'stepAlgebra';
   if (actions.includes('proveConstantRate') || (Array.isArray(q.rows) && q.rows.length >= 3 && ['constantRate', 'deriveEquation', 'repairValue'].includes(q.mode))) {
     return 'linearTableWorkbench';
   }
   if (actions.includes('interpretExpressionMeaning') || (Array.isArray(q.expressions) && isObject(q.choiceBanks))) {
     return 'expressionMeaning';
   }
+  // The legacy one-box Algebra renderer is retired. All ordinary equation
+  // solving now uses the balance workspace so the student must actually solve.
+  if (actions.includes('solveEquation') || q.equation) return 'stepAlgebra';
   return null;
 };
 
@@ -1689,7 +1689,7 @@ const compileOne = (q, index, repairs) => {
     }
     case 'representationMatch': {
       const r = q.representations || {};
-      out = copyCommon(q, { type, mode: q.mode || r.mode || (actions.includes('findRepresentationMismatch') ? 'findMismatch' : 'completeSet'), targetId: q.targetId || r.targetId, sets: q.sets || r.sets, mixedSet: q.mixedSet || r.mixedSet, function: q.function ? toolFunctionSpec(q.function) : r.function, rows: q.rows || r.rows });
+      out = copyCommon(q, { type, mode: q.mode || r.mode || (actions.includes('findRepresentationMismatch') ? 'findMismatch' : 'completeSet'), task: q.task || r.task, targetId: q.targetId || r.targetId, sets: q.sets || r.sets, mixedSet: q.mixedSet || r.mixedSet, cardKinds: q.cardKinds || r.cardKinds, mismatchSetId: q.mismatchSetId || r.mismatchSetId, correctionOptions: q.correctionOptions || r.correctionOptions, correctionAnswerId: q.correctionAnswerId || r.correctionAnswerId, function: q.function ? toolFunctionSpec(q.function) : r.function, rows: q.rows || r.rows, graphBounds: q.graphBounds || r.graphBounds });
       break;
     }
     case 'openSortBoard': {
@@ -1744,11 +1744,11 @@ const compileOne = (q, index, repairs) => {
       const l = q.lineIntent || q.line || {};
       let mode = q.mode || l.mode;
       if (!mode) mode = q.givenPoints || l.givenPoints ? 'throughPoints' : q.point || l.point ? 'pointSlope' : q.standardForm || l.standard ? 'standardForm' : q.orientation || l.orientation ? 'verticalHorizontal' : 'slopeIntercept';
-      out = copyCommon(q, { type, mode, line: q.line || (mode === 'slopeIntercept' ? { m: q.m ?? l.m, b: q.b ?? l.b } : undefined), givenPoints: q.givenPoints || l.givenPoints, point: q.point || l.point, slope: q.slope ?? l.slope, standard: q.standardForm || l.standard, orientation: q.orientation || l.orientation, value: q.value ?? l.value });
+      out = copyCommon(q, { type, mode, line: q.line || (mode === 'slopeIntercept' ? { m: q.m ?? l.m, b: q.b ?? l.b } : undefined), factored: q.factored || l.factored, givenPoints: q.givenPoints || l.givenPoints, point: q.point || l.point, slope: q.slope ?? l.slope, standard: q.standardForm || l.standard, orientation: q.orientation || l.orientation, value: q.value ?? l.value, constructionPolicy: q.constructionPolicy || l.constructionPolicy, graphBounds: q.graphBounds || l.graphBounds, snapStep: q.snapStep ?? l.snapStep, tolerance: q.tolerance ?? l.tolerance });
       break;
     }
     case 'stepAlgebra2':
-      out = copyCommon(q, { type, equation: q.equationModel || q.equation, mode: q.mode, workspaceDifficulty: q.workspaceDifficulty });
+      out = copyCommon(q, { type, equation: q.equationModel || q.equation, equationLatex: q.equationLatex, leftExpression: q.leftExpression, rightExpression: q.rightExpression, mode: q.mode, targetForm: q.targetForm, workspaceDifficulty: q.workspaceDifficulty });
       break;
     default:
       throw new Error(`V5 question ${index + 1} selected unsupported destination ${type}.`);
