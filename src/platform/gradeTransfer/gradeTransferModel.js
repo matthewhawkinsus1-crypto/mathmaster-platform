@@ -44,11 +44,18 @@ const confirmedHistory = ({ confirmedSnapshots, confirmedSnapshot }) => {
   });
 };
 
-export const validSisStudentId = (value) => /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/.test(text(value));
+export const validSisStudentId = (value) => /^\d{3,20}$/.test(text(value));
 
-// The roster document id is MathMaster's existing Student ID. An explicitly
-// migrated sisStudentId wins, but names and email addresses are never keys.
-export const authoritativeSisStudentId = (student) => text(student?.sisStudentId || student?.studentId || student?.id);
+// TEAMS requires the district/SIS number, not MathMaster's internal account key.
+// Existing all-digit roster document ids remain a safe compatibility fallback,
+// while legacy email/alphanumeric account keys must be repaired by storing a
+// verified sisStudentId on the student record.
+export const authoritativeSisStudentId = (student) => {
+  const explicit = text(student?.sisStudentId);
+  if (explicit) return explicit;
+  const legacy = text(student?.studentId || student?.id);
+  return validSisStudentId(legacy) ? legacy : '';
+};
 
 export const canonicalGradeVersion = ({ student, assignmentId, grade }) => text(
   student?.canonicalGradeVersions?.[assignmentId]
