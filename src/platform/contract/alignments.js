@@ -29,6 +29,15 @@ export const DOMAIN_FRAMEWORKS = Object.freeze([
 
 export const ALIGNMENT_ROLES = Object.freeze(['primary', 'secondary', 'prerequisite']);
 
+// Legacy authored content used `role: "supporting"` before `secondary` was
+// named. Canonicalize it on import instead of blocking the whole assignment
+// with a validation error — newly authored content should emit `secondary`
+// directly, this exists only so old lessons stay importable unmodified.
+const LEGACY_ROLE_ALIASES = Object.freeze({ supporting: 'secondary' });
+export const canonicalizeAlignmentRole = (role) => (
+  role == null ? role : (LEGACY_ROLE_ALIASES[role] || role)
+);
+
 // How strongly an alignment counts as evidence.
 //  - assessed / practiced / introduced: the item genuinely measures this
 //    standard, and mastery may move.
@@ -78,7 +87,8 @@ const normalizeAlignmentEntry = (raw, fallbackRole = 'primary') => {
   const framework = String(raw.framework || ALIGNMENT_FRAMEWORKS.TEKS);
   if (!ALIGNMENT_FRAMEWORK_IDS.includes(framework)) return null;
 
-  const role = ALIGNMENT_ROLES.includes(raw.role) ? raw.role : fallbackRole;
+  const canonicalRole = canonicalizeAlignmentRole(raw.role);
+  const role = ALIGNMENT_ROLES.includes(canonicalRole) ? canonicalRole : fallbackRole;
 
   if (framework === ALIGNMENT_FRAMEWORKS.TEKS) {
     const code = normalizeTeksCode(raw.code || raw.teks || raw.standard);
@@ -279,7 +289,8 @@ export const validateAlignments = (question = {}, { label = 'question' } = {}) =
       errors.push(`${where} has unknown framework "${entry.framework}". Use one of: ${ALIGNMENT_FRAMEWORK_IDS.join(', ')}.`);
       return;
     }
-    if (entry.role != null && !ALIGNMENT_ROLES.includes(entry.role)) {
+    const canonicalRole = canonicalizeAlignmentRole(entry.role);
+    if (canonicalRole != null && !ALIGNMENT_ROLES.includes(canonicalRole)) {
       errors.push(`${where} has invalid role "${entry.role}". Use one of: ${ALIGNMENT_ROLES.join(', ')}.`);
     }
     if (entry.evidenceLevel != null && !EVIDENCE_LEVELS.includes(entry.evidenceLevel)) {

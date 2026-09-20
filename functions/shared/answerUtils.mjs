@@ -168,8 +168,27 @@ export const answerCandidatesForField = (field = {}) => {
   });
 };
 
+// A field whose semantic contract says "ordered pair" must be graded
+// coordinate-by-coordinate, not as generic normalized text. A multiAnswer
+// ordered-pair field (e.g. an encoded point or an intercept's answer) used
+// to fall through to `matchesAnyAnswer` here, which happened to catch most
+// delimiter-serialization mismatches by coincidence (both sides normalize to
+// the same text) but never compared coordinates numerically — so
+// mathematically-equal-but-differently-written pairs like (1/2, 3) and
+// (0.5, 3) were graded wrong.
+const isOrderedPairField = (field) => (
+  field?.answerFormat === 'orderedPair' || field?.inputContract?.format === 'orderedPair'
+);
+
 export const matchesFieldAnswer = (studentAnswer, field = {}) => {
   const acceptedAnswers = answerCandidatesForField(field);
+
+  if (isOrderedPairField(field)) {
+    return acceptedAnswers.some((acceptedAnswer) => {
+      const expectedPair = Array.isArray(acceptedAnswer) ? acceptedAnswer : parseOrderedPair(acceptedAnswer);
+      return expectedPair ? compareOrderedPair(studentAnswer, expectedPair) : false;
+    });
+  }
 
   if (field?.gradingMode === 'equivalentExpression') {
     return acceptedAnswers.some((acceptedAnswer) => sameEquivalentExpression(studentAnswer, acceptedAnswer));

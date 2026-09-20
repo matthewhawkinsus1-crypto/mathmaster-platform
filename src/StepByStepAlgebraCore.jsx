@@ -35,6 +35,16 @@ import {
   evaluateMove, getSupportPolicy, resolveEquationAfterKeepingMove, resolveEquationAfterMove,
   resolveEquationAfterStudentSimplification, resolveSupportLevel,
 } from './algebraSupportLevels';
+import {
+  armFactor as armDistributionFactorState,
+  commitDistribution,
+  detectDistributableGroup,
+  disarmFactor as disarmDistributionFactorState,
+  initDistributionState,
+  isDistributionComplete,
+  placeOnTerm as placeDistributionTermState,
+  undoLastPlacement as undoDistributionPlacement,
+} from './algebraDistributionModel';
 
 const OPERATIONS = [
   { id: 'add', symbol: '+', label: 'Add' },
@@ -206,6 +216,9 @@ export default function StepByStepAlgebra({
   // operation encouraged accidental moves and made symbolic literal equations
   // look numeric before the student had chosen anything.
   const [operand, setOperand] = useState(savedDraft?.operand ?? '');
+  // Partial distribution (factor placements not yet committed) persists
+  // across navigation, same as every other in-progress move.
+  const [distributionState, setDistributionState] = useState(savedDraft?.distributionState || null);
   const [pendingMove, setPendingMove] = useState(savedDraft?.pendingMove || null);
   const [crossedSides, setCrossedSides] = useState(savedDraft?.crossedSides || []);
   const [cancelledPairIds, setCancelledPairIds] = useState(savedDraft?.cancelledPairIds || {});
@@ -306,6 +319,7 @@ export default function StepByStepAlgebra({
     setEquation(getInitialEquation(question, normalizeQuestionRecord(questionRecord)).equation);
     setSupportLevel(resolveSupportLevel({ workspaceDifficulty: question.workspaceDifficulty ?? question.mode }));
     setOperand('');
+    setDistributionState(null);
     setPendingMove(null);
     setCrossedSides([]);
     setCancelledPairIds({});
@@ -356,6 +370,7 @@ export default function StepByStepAlgebra({
       equation,
       supportLevel,
       operand,
+      distributionState,
       armedTile,
       pendingMove,
       crossedSides,
@@ -364,7 +379,7 @@ export default function StepByStepAlgebra({
       simplificationAnswers,
       promptAnswers,
     });
-  }, [localDraftKey, equation, supportLevel, operand, armedTile, pendingMove, crossedSides, cancelledPairIds, selectedCancellationIndices, simplificationAnswers, promptAnswers]);
+  }, [localDraftKey, equation, supportLevel, operand, distributionState, armedTile, pendingMove, crossedSides, cancelledPairIds, selectedCancellationIndices, simplificationAnswers, promptAnswers]);
 
   useEffect(() => {
     const solved = isSolvedEquation(equation);
@@ -391,6 +406,8 @@ export default function StepByStepAlgebra({
     });
   }, [equation, question, promptAnswers, onStateChange]);
 
+  const hasDistributionProgress = Boolean(distributionState?.placedIndices?.length || distributionState?.armed);
+
   const hasTransientUndo = Boolean(
     pendingMove
     || crossedSides.length
@@ -403,6 +420,7 @@ export default function StepByStepAlgebra({
     || placedOperationSides.length
     || tapPlacementArmed
     || String(operand || '').trim()
+    || hasDistributionProgress
   );
 
   useEffect(() => {
@@ -444,6 +462,11 @@ export default function StepByStepAlgebra({
         } else if (hasRewriteEntry) {
           setRewriteOpen(false);
           setRewriteAnswers({ left: '', right: '' });
+        } else if (distributionState?.placedIndices?.length) {
+          // Before commit, undo removes the last factor placement.
+          setDistributionState((current) => undoDistributionPlacement(current));
+        } else if (distributionState?.armed) {
+          setDistributionState((current) => disarmDistributionFactorState(current));
         } else if (hasOperationStaging) {
           setArmedTile(null);
           setOperand('');
@@ -464,6 +487,7 @@ export default function StepByStepAlgebra({
             setRewriteAnswers({ left: '', right: '' });
             setArmedTile(null);
             setOperand('');
+            setDistributionState(null);
             setPlacedOperationSides([]);
             setPlacedOperationPositions({});
             setTapPlacementArmed(false);
@@ -485,6 +509,7 @@ export default function StepByStepAlgebra({
     cancelledPairIds,
     committedHistory,
     crossedSides,
+    distributionState,
     hasTransientUndo,
     onUndoStateChange,
     operand,
@@ -748,6 +773,78 @@ export default function StepByStepAlgebra({
     });
   };
 
+  // DISTRIBUTION: copy an outside factor to every signed term of an additive
+  // parenthetical group, e.g. `-(2/3)(x + 3)`. This is its own algebra step,
+  // separate from simplification: committing leaves the expanded products
+  // unsimplified (`(-2/3)(x) + (-2/3)(3)`), and the existing Rewrite/Simplify
+  // flow above is what evaluates them afterward. See algebraDistributionModel.js.
+  const distributable = useMemo(() => detectDistributableGroup(equation), [equation]);
+
+  const openDistributionTool = () => {
+    if (disabled || savingStep || cancelAnimating || pendingMove || !distributable) return;
+    setArmedTile(null);
+    setTapPlacementArmed(false);
+    setPlacedOperationSides([]);
+    setPlacedOperationPositions({});
+    setOperand('');
+    setRewriteOpen(false);
+    setDistributionState(initDistributionState(distributable));
+    setMessage(null);
+  };
+
+  const cancelDistribution = () => setDistributionState(null);
+
+  const armDistributionFactor = () => {
+    if (disabled) return;
+    setDistributionState((current) => armDistributionFactorState(current));
+  };
+
+  const placeDistributionFactor = (termIndex) => {
+    if (disabled) return;
+    setDistributionState((current) => placeDistributionTermState(current, termIndex));
+  };
+
+  const commitDistributionStep = async () => {
+    if (disabled || savingStep || cancelAnimating || !isDistributionComplete(distributionState)) return;
+    const nextEquation = commitDistribution(equation, distributionState);
+    if (!nextEquation) return;
+    if (onStepGrade) {
+      setSavingStep(true);
+      try {
+        await onStepGrade({
+          stepGrade: {
+            kind: 'distribution',
+            label: `Distribute ${distributionState.factorText} over (${distributionState.groupText})`,
+            supportLevel,
+            productive: true,
+            accepted: true,
+            earned: 1,
+            possible: 1,
+            equationBefore: equationToLatex(equation),
+            equationAfter: equationToLatex(nextEquation),
+            expectedTotalPoints: Number(question.expectedStepPoints || 6),
+          },
+          countsAttempt: false,
+          statePatch: {
+            algebraState: { equation: nextEquation, supportLevel, stepNumber: Number(normalizedRecord.algebraState?.stepNumber || 0) + 1 },
+            questionDetails: `Current equation: $${equationToLatex(nextEquation)}$`,
+          },
+        });
+      } finally {
+        setSavingStep(false);
+      }
+    }
+    pushCommittedEquation(equation);
+    setEquation(nextEquation);
+    setDistributionState(null);
+    setBalancePulse(true);
+    window.setTimeout(() => setBalancePulse(false), motionDuration(650, reducedMotion, { floor: 60 }));
+    setMessage({
+      tone: 'success',
+      text: 'Distribution complete. The products are not simplified yet — use Rewrite / Simplify to evaluate them, or continue solving.',
+    });
+  };
+
   const resetQuestionWork = () => {
     if (disabled || savingStep || !pristineEquation) return;
     const confirmed = typeof window === 'undefined' || window.confirm('Start this problem over? Your current workspace work will be cleared, but your attempt count will not change.');
@@ -756,6 +853,7 @@ export default function StepByStepAlgebra({
     setEquation(pristineEquation);
     setCommittedHistory([]);
     setOperand('');
+    setDistributionState(null);
     setPendingMove(null);
     setCrossedSides([]);
     setCancelledPairIds({});
@@ -1574,6 +1672,28 @@ export default function StepByStepAlgebra({
           >
             Rewrite / Simplify
           </button>
+          {(distributable || distributionState) && (
+            <button
+              type="button"
+              className="algebra-distribute-toggle"
+              onClick={distributionState ? cancelDistribution : openDistributionTool}
+              disabled={disabled || savingStep || cancelAnimating || Boolean(pendingMove) || (!distributionState && !distributable)}
+              aria-expanded={Boolean(distributionState)}
+              title="Copy an outside factor to every term in the parentheses"
+              style={{
+                minHeight: 40,
+                padding: '8px 14px',
+                borderRadius: 999,
+                border: distributionState ? '2px solid #174ea6' : '1px solid #b8c8e3',
+                background: distributionState ? '#e8f0fe' : '#fff',
+                color: '#174ea6',
+                fontWeight: 800,
+                cursor: disabled || savingStep || cancelAnimating ? 'not-allowed' : 'pointer',
+              }}
+            >
+              Distribute
+            </button>
+          )}
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontSize: '12px', fontWeight: 'bold', color: '#5f6368' }}>
             <input type="checkbox" checked={cancellationHintsEnabled} onChange={(event) => setCancellationHintsEnabled(event.target.checked)} style={{ width: '15px', height: '15px' }} />
             Cancellation hints
@@ -1581,6 +1701,99 @@ export default function StepByStepAlgebra({
           <button type="button" className="algebra-reset-work" onClick={resetQuestionWork} disabled={disabled || savingStep}>Reset work</button>
         </div>
       </div>
+
+      {distributionState && (
+        <div
+          className="algebra-distribution-tool"
+          style={{
+            margin: '0 0 8px', padding: '12px 14px', borderRadius: 10,
+            border: '1px solid #b8c8e3', background: '#f7faff',
+          }}
+        >
+          <p style={{ margin: '0 0 10px', fontWeight: 700, color: '#172033' }}>
+            Distribute to {distributionState.placedIndices.length} of {distributionState.terms.length} terms.
+            {' '}Pick up the factor, then select each term it multiplies.
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              draggable={!isDistributionComplete(distributionState)}
+              onDragStart={(event) => {
+                event.dataTransfer?.setData('text/plain', 'mathmaster-distribution-factor');
+                event.dataTransfer.effectAllowed = 'copy';
+              }}
+              onClick={armDistributionFactor}
+              disabled={disabled || isDistributionComplete(distributionState)}
+              aria-pressed={distributionState.armed}
+              aria-label={`Pick up the factor ${distributionState.factorText}`}
+              style={{
+                minWidth: 52, minHeight: 44, padding: '6px 12px', borderRadius: 10,
+                border: distributionState.armed ? '3px solid #174ea6' : '2px solid #9bb8e8',
+                background: distributionState.armed ? '#e8f0fe' : '#fff', color: '#174ea6',
+                fontWeight: 900, fontSize: 22, cursor: 'grab',
+              }}
+            >
+              <MathDisplay value={distributionState.factorLatex} format="latex" inline />
+            </button>
+            <span aria-hidden="true" style={{ color: '#5f6368' }}>&rarr;</span>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {distributionState.terms.map((term, index) => {
+                const placed = distributionState.placedIndices.includes(index);
+                return (
+                  <button
+                    key={`${index}-${term.text}`}
+                    type="button"
+                    onClick={() => placeDistributionFactor(index)}
+                    onDragOver={(event) => { if (!placed) event.preventDefault(); }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      if (!placed && event.dataTransfer?.getData('text/plain') === 'mathmaster-distribution-factor') {
+                        setDistributionState((current) => placeDistributionTermState(armDistributionFactorState(current), index));
+                      }
+                    }}
+                    disabled={disabled || placed || !distributionState.armed}
+                    aria-pressed={placed}
+                    aria-label={placed ? `Factor already applied to ${term.text}` : `Apply the factor to ${term.text}`}
+                    style={{
+                      minWidth: 44, minHeight: 44, padding: '6px 12px', borderRadius: 10, fontSize: 22, fontWeight: 800,
+                      border: placed ? '2px solid #137333' : distributionState.armed ? '2px dashed #7698cf' : '1px solid #d9e2f1',
+                      background: placed ? '#e6f4ea' : distributionState.armed ? '#f7faff' : '#fff',
+                      color: placed ? '#137333' : '#172033',
+                      cursor: disabled || placed || !distributionState.armed ? 'default' : 'pointer',
+                    }}
+                  >
+                    <MathDisplay
+                      value={placed
+                        ? `(${distributionState.factorLatex})(${term.sign < 0 ? '-' : ''}${term.magnitudeLatex})`
+                        : term.latex}
+                      format="latex"
+                      inline
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+            <button
+              type="button"
+              onClick={commitDistributionStep}
+              disabled={disabled || savingStep || cancelAnimating || !isDistributionComplete(distributionState)}
+              style={{
+                minHeight: 40, padding: '8px 16px', borderRadius: 999, border: 0,
+                background: isDistributionComplete(distributionState) ? '#1a73e8' : '#dadce0',
+                color: '#fff', fontWeight: 800,
+                cursor: isDistributionComplete(distributionState) ? 'pointer' : 'not-allowed',
+              }}
+            >
+              Commit distribution
+            </button>
+            <button type="button" onClick={cancelDistribution} disabled={disabled} style={{ minHeight: 40, padding: '8px 16px', borderRadius: 999, border: '1px solid #b8c8e3', background: '#fff', color: '#174ea6', fontWeight: 700 }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {rewriteOpen && (
         <div

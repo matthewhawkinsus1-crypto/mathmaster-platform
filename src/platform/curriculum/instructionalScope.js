@@ -117,7 +117,13 @@ const representationErrorsForQuestion = (question = {}, label, profile) => {
   if (actions.has('matchgraphstostories') && !nonEmptyArray(question.candidateGraphs || question.graphs)) {
     errors.push(`${label} violates representation fidelity: graph/story matching requires displayed candidate graphs.`);
   }
-  if (actions.has('interpretpointincontext') && !hasGraphSource(question)) {
+  // `interpretPointInContext` also covers a legitimate nonvisual case: reading
+  // an intercept's meaning from an equation/scenario, never from a displayed
+  // graph. ContextInterpretation/PointMeaningBuilder already renders that
+  // mode fully (no GraphDisplay at all) when the author sets
+  // `showGraph: false` — so only require a graph when that explicit
+  // nonvisual intent was not declared.
+  if (actions.has('interpretpointincontext') && question.showGraph !== false && !hasGraphSource(question)) {
     errors.push(`${label} violates representation fidelity: interpreting a point from a graph requires a displayed graph.`);
   }
 

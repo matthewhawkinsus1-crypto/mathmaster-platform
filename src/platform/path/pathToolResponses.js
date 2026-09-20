@@ -15,6 +15,8 @@
 // returns null and the caller must refuse to submit rather than send something
 // the server will grade as wrong.
 
+import { normalizeStructuralMathLive } from '../../../functions/shared/answerEquivalence.mjs';
+
 const responseOf = (parts, id) => parts.find((part) => part.id === id)?.response;
 
 const parseJson = (value) => {
@@ -26,8 +28,18 @@ const parseJson = (value) => {
   }
 };
 
+// MathLive can serialize a physically-typed `(` as `\left(` while the
+// on-screen keypad `(` button inserts a bare `(` — normalizing through the
+// same structural pass the server-side grader uses keeps both entry paths
+// parsing to the same pair, instead of NaN-ing out on the raw `\left(`.
 const parseOrderedPair = (value) => {
-  const text = String(value ?? '').trim().replace(/^[([]/, '').replace(/[)\]]$/, '');
+  const text = normalizeStructuralMathLive(value)
+    .trim()
+    .replace(/^\\?\(/, '')
+    .replace(/\\?\)$/, '')
+    .replace(/^\[/, '')
+    .replace(/\]$/, '')
+    .replace(/\\langle|\\rangle/g, '');
   const [left, right] = text.split(',');
   const x = Number(left);
   const y = Number(right);

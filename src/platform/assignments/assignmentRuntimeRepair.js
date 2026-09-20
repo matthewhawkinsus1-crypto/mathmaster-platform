@@ -3,10 +3,11 @@ const clean = (value) => String(value ?? '').trim();
 const lower = (value) => clean(value).toLowerCase();
 const asArray = (value) => Array.isArray(value) ? value : [];
 
-// Version 4 also recognizes the proven historical representation that copied
-// the same synthetic identity graph onto both the question and its continuity
-// stage. Previously the question-level copy was mistaken for authored evidence.
-export const ASSIGNMENT_RUNTIME_REPAIR_VERSION = 5;
+// Version 6 (issue #297) routes stored `stepAlgebra2` rewriteLinearForm/
+// linearIntercepts questions onto the mature Step Algebra engine at runtime,
+// so the existing lesson does not have to be republished to pick up the
+// consolidated experience.
+export const ASSIGNMENT_RUNTIME_REPAIR_VERSION = 6;
 
 export const RUNTIME_REPAIR_KEYS = Object.freeze({
   NO_SYNTHETIC_FUNCTION_MODELING_GRAPH: 'function-modeling-exact-ask-no-synthetic-graph-v1',
@@ -14,7 +15,52 @@ export const RUNTIME_REPAIR_KEYS = Object.freeze({
   ACTIVE_WORKFLOW_TASK: 'workflow-active-task-presentation-v1',
   AUTHORED_GRAPH_PERSISTENCE: 'workflow-authored-graph-persistence-v1',
   COLLAPSED_WORKFLOW: 'collapsed-generated-workflow-v1',
+  STEP_ALGEBRA_2_CONSOLIDATION: 'step-algebra-2-consolidation-v1',
 });
+
+// stepAlgebra2's rewriteLinearForm/linearIntercepts modes are now compiled
+// onto the mature `stepAlgebra` engine (see authoringIntentV5Core.js). A
+// question saved before this repair still carries `type: "stepAlgebra2"`;
+// flip only the type discriminator so it reaches the consolidated runtime —
+// every other authored field (equation, standard coefficients, targetForm,
+// feedbackTiming, ...) is exactly what the new runtime already reads for
+// freshly-compiled content in the same two modes, so nothing else needs to
+// change. factoredLinear rewrites and the plain (mode-less) numeric ax+b=c
+// solver are untouched: the mature engine does not support factored-form
+// objectives yet, and the mode-less solver was never part of this migration.
+const isStepAlgebra2ConsolidationCandidate = (question = {}) => {
+  if (lower(question?.type) !== 'stepalgebra2' && lower(question?.toolId) !== 'stepalgebra2') return false;
+  const mode = lower(question?.mode);
+  if (mode === 'linearintercepts') return true;
+  if (mode === 'rewritelinearform') return lower(question?.targetForm) !== 'factoredlinear';
+  return false;
+};
+
+const consolidateStepAlgebra2Question = (question = {}) => {
+  if (!isStepAlgebra2ConsolidationCandidate(question)) return { applies: false };
+  const migrated = { ...question, type: 'stepAlgebra' };
+  // toolId (not just type) is what the tool registry keys off first — leaving
+  // it as "stepAlgebra2" would route straight back to the registry shell
+  // regardless of the type change above, since "stepAlgebra" is not itself a
+  // registry entry (the mature engine is reached through QuestionEngine's
+  // own type switch, not the registry).
+  if (lower(question?.toolId) === 'stepalgebra2') delete migrated.toolId;
+  if (lower(question?.mode) === 'rewritelinearform') {
+    migrated.targetForm = 'slopeIntercept';
+    migrated.requireSimplifiedFinalForm = true;
+    delete migrated.mode;
+  }
+  return {
+    applies: true,
+    question: migrated,
+    changed: true,
+    // The stored record still authors the identical mathematical intent
+    // (equation/targetForm/standard/feedbackTiming); only the renderer
+    // discriminator changed, so this is safe to persist back permanently.
+    safeToPersist: true,
+    diagnostics: [],
+  };
+};
 
 const recipeName = (question = {}) => {
   if (typeof question?.recipe === 'string') return lower(question.recipe);
@@ -510,6 +556,17 @@ export const repairQuestionForCurrentRuntime = (question = {}, context = {}) => 
         repaired = graphRule.question;
         changed = true;
         changedSafely = changedSafely && graphRule.safeToPersist === true;
+      }
+    }
+
+    const consolidationRule = consolidateStepAlgebra2Question(repaired);
+    if (consolidationRule.applies) {
+      repairKeys.push(RUNTIME_REPAIR_KEYS.STEP_ALGEBRA_2_CONSOLIDATION);
+      diagnostics.push(...asArray(consolidationRule.diagnostics));
+      if (consolidationRule.changed) {
+        repaired = consolidationRule.question;
+        changed = true;
+        changedSafely = changedSafely && consolidationRule.safeToPersist === true;
       }
     }
   } catch (error) {

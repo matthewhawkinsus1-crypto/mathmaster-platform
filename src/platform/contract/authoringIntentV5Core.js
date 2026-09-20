@@ -1012,6 +1012,14 @@ const resolveIntentType = (q, actions) => {
   if (actions.includes('solveSystem') || q.equations) return 'system';
   if (actions.includes('solveLiteral') || (q.solveFor && !actions.includes('solveEquation') && !actions.includes('solveStepByStep'))) return 'literal';
   if (actions.includes('solveStepByStep')) return 'stepAlgebra';
+  // New V5 authoring for "rewrite this equation to slope-intercept form" and
+  // for "find both linear intercepts" must reach the SAME mature Step Algebra
+  // engine every other equation uses, not the narrower stepAlgebra2
+  // mini-solvers (see issue #297). factoredLinear rewrites are the one case
+  // the mature engine's objective model does not yet support, so those still
+  // compile to the stepAlgebra2 compatibility shell until it does.
+  if (actions.includes('stepAlgebra2') && q.mode === 'linearIntercepts') return 'stepAlgebra';
+  if (actions.includes('stepAlgebra2') && q.mode === 'rewriteLinearForm' && q.targetForm !== 'factoredLinear') return 'stepAlgebra';
   if (actions.includes('stepAlgebra2')) return 'stepAlgebra2';
   if (actions.includes('constructLine') || q.lineIntent) return 'graphing2';
   if (shouldCompileFunctionWorkflow(q, actions)) return 'functionWorkflow';
@@ -1324,13 +1332,21 @@ const compileOne = (q, index, repairs) => {
   // algebra workspace as the primary renderer, but preserve the
   // inequality and number-line contract instead of dropping it during
   // V5 intent compilation.
-  const equation = q.equation || q.inequalityText || q.inequality;
+  const equation = q.equationModel || q.equation || q.inequalityText || q.inequality;
   const intervals = asArray(q.intervals?.length ? q.intervals : q.intervalNumberLine?.intervals)
     .filter(isObject);
   const wantsIntervalGraph = actions.includes('constructInterval');
+  // "Rewrite to slope-intercept form" must land on the same objective model
+  // every stepAlgebra question uses (src/algebraAstEngine.js `parseEquationInput`)
+  // and must require the simplified final form, not just an isolated y — see
+  // issue #297 acceptance criterion 1.
+  const isRewriteToSlopeIntercept = q.mode === 'rewriteLinearForm' && q.targetForm !== 'factoredLinear';
   out = copyCommon(q, {
     type,
     equation,
+    equationLatex: q.equationLatex,
+    leftExpression: q.leftExpression,
+    rightExpression: q.rightExpression,
     inequalityText: q.inequalityText || q.inequality,
     intervals: wantsIntervalGraph && intervals.length ? intervals : undefined,
     intervalNumberLine: wantsIntervalGraph && intervals.length
@@ -1342,6 +1358,17 @@ const compileOne = (q, index, repairs) => {
     generator: q.generator,
     workspaceDifficulty: q.workspaceDifficulty,
     solveFor: q.solveFor || inferSingleEquationVariable(equation),
+    targetForm: isRewriteToSlopeIntercept ? 'slopeIntercept' : q.targetForm,
+    requireSimplifiedFinalForm: isRewriteToSlopeIntercept ? true : q.requireSimplifiedFinalForm,
+    objective: q.objective,
+    // linearIntercepts keeps its conceptual zero-substitution authoring shape
+    // (standard-form coefficients or equation text, feedback timing) — the
+    // stepAlgebra runtime routes mode: "linearIntercepts" to the intercept
+    // orchestrator instead of the plain balance workspace.
+    mode: q.mode === 'linearIntercepts' ? 'linearIntercepts' : undefined,
+    standard: q.mode === 'linearIntercepts' ? q.standard : undefined,
+    equationText: q.mode === 'linearIntercepts' ? (q.equationText || q.equation) : undefined,
+    feedbackTiming: q.mode === 'linearIntercepts' ? q.feedbackTiming : undefined,
   });
   break;
 }

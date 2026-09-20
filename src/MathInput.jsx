@@ -296,11 +296,15 @@ export default function MathInput({
     if (shouldSuppressNativeKeyboard) mathField.setAttribute('inputmode', 'none');
     else mathField.removeAttribute('inputmode');
     mathField.menuItems = [];
-    // Interval delimiters carry endpoint inclusion semantics. MathLive's smart
+    // Interval delimiters carry endpoint inclusion semantics, and an ordered
+    // pair's parentheses carry coordinate-pair semantics. MathLive's smart
     // fences can rewrite a physically typed delimiter differently from the
-    // identical MathMaster keypad button, so keep them literal for this one
-    // profile while retaining smart fences for equations and expressions.
-    mathField.smartFence = toolProfile !== 'interval';
+    // identical MathMaster keypad button — e.g. a typed `(` can serialize as
+    // `\left(` while the on-screen `(` key inserts a bare `(` — which used to
+    // let a visually-correct ordered pair fail grading. Keep fences literal
+    // for both structural profiles while retaining smart fences for
+    // equations and expressions, where fence style carries no meaning.
+    mathField.smartFence = toolProfile !== 'interval' && toolProfile !== 'orderedPair';
     mathField.smartSuperscript = true;
     mathField.placeholder = placeholder ? `\\text{${placeholder}}` : '';
     window.mathVirtualKeyboard?.hide?.();

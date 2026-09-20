@@ -5,6 +5,7 @@ import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workVie
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { HintPanel, Panel, ResultPill, TaskCard, ToolGrid } from '../shared/ToolShell.jsx';
 import useToolSubmission from '../shared/useToolSubmission.js';
+import { InteractiveStandardEquation } from './linearInterceptsConceptualUi.jsx';
 import {
   INTERCEPT_FEEDBACK_TIMINGS,
   applyInterceptOperation,
@@ -46,91 +47,6 @@ const operationDescription = (operation, operand) => {
   if (!spec || operand == null) return '';
   return `${spec.label} ${operand < 0 ? `(${operand})` : operand} ${spec.preposition} both sides`;
 };
-
-function VariableDropTarget({ variable, coefficient, placed, armed, disabled, onPlace }) {
-  const magnitude = Math.abs(Number(coefficient));
-  if (!Number.isFinite(magnitude) || magnitude <= 1e-12) return null;
-  const coefficientLabel = magnitude === 1 ? '' : String(magnitude);
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-      <span>{coefficientLabel}</span>
-      <button
-        type="button"
-        disabled={disabled}
-        aria-label={`${variable} variable substitution target`}
-        onDragOver={(event) => { if (!disabled) event.preventDefault(); }}
-        onDrop={(event) => {
-          if (disabled) return;
-          event.preventDefault();
-          if (event.dataTransfer?.getData('text/plain') === 'mathmaster-zero-token') onPlace(variable);
-        }}
-        onClick={() => { if (!disabled && armed) onPlace(variable); }}
-        style={{
-          minWidth: 44,
-          minHeight: 44,
-          padding: '5px 8px',
-          border: placed ? '2px solid #174ea6' : armed ? '2px dashed #7698cf' : '1px solid transparent',
-          borderRadius: 8,
-          background: placed ? '#e8f0fe' : armed ? '#f7faff' : 'transparent',
-          color: '#172033',
-          font: 'inherit',
-          fontWeight: 900,
-          cursor: disabled ? 'default' : armed ? 'copy' : 'default',
-        }}
-      >
-        {placed ? '(0)' : variable}
-      </button>
-    </span>
-  );
-}
-
-function InteractiveStandardEquation({ standard, placedVariable, zeroArmed, disabled, onPlace }) {
-  const A = Number(standard.A);
-  const B = Number(standard.B);
-  const firstNegative = A < 0;
-  const bNegative = B < 0;
-  return (
-    <div
-      aria-label={`Equation ${formatStandardEquation(standard)}`}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 5,
-        flexWrap: 'wrap',
-        minHeight: 78,
-        padding: '14px 10px',
-        borderRadius: 12,
-        border: '2px solid #d9e2f1',
-        background: '#fff',
-        color: '#172033',
-        fontSize: 28,
-        fontWeight: 850,
-      }}
-    >
-      {Math.abs(A) > 1e-12 && firstNegative ? <span>−</span> : null}
-      <VariableDropTarget
-        variable="x"
-        coefficient={A}
-        placed={placedVariable === 'x'}
-        armed={zeroArmed}
-        disabled={disabled}
-        onPlace={onPlace}
-      />
-      {Math.abs(B) > 1e-12 ? <span>{bNegative ? '−' : '+'}</span> : null}
-      <VariableDropTarget
-        variable="y"
-        coefficient={B}
-        placed={placedVariable === 'y'}
-        armed={zeroArmed}
-        disabled={disabled}
-        onPlace={onPlace}
-      />
-      <span>=</span>
-      <span>{standard.C}</span>
-    </div>
-  );
-}
 
 export default function LinearIntercepts({ questionData = {}, onAction }) {
   const standard = useMemo(() => resolveStandardCoefficients(questionData), [questionData]);
