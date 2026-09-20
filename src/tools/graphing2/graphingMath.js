@@ -28,6 +28,10 @@ export const targetLineFromQuestion = (question = {}) => {
     return { kind: 'slopeIntercept', m, b: round(Number(point[1]) - m * Number(point[0]), 8) };
   }
   if (mode === 'standardForm') return lineFromStandard(question.standard);
+  if (mode === 'factoredLinear') {
+    const a = Number(question.factored?.a); const c = Number(question.factored?.c);
+    return Number.isFinite(a) && Number.isFinite(c) ? { kind: 'slopeIntercept', m: a, b: round(-a * c, 8) } : null;
+  }
   if (mode === 'verticalHorizontal') {
     const value = Number(question.value);
     if (!Number.isFinite(value)) return null;

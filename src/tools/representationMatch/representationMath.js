@@ -3,6 +3,11 @@ import {
   canonicalFromEquationText,
   canonicalFromPointSlope,
   canonicalFromSlopeIntercept,
+  fractionToNumber,
+  pointOnCanonicalLine,
+  slopeOf,
+  xInterceptOf,
+  yInterceptOf,
   linesEquivalent as canonicalLinesEquivalent,
 } from '../shared/linearEquations.js';
 
@@ -47,7 +52,7 @@ export const mixedRepresentationCards = (sets = [], mixed = {}, kinds = ['equati
 // whatever surface form the author chose ("y=-2x+5", "y-1=-2(x-2)",
 // "2x+y=5") because canonicalFromEquationText resolves any of them to the
 // same line without needing to know which form it is looking at.
-export const LINEAR_CARD_KINDS = ['slopeIntercept', 'pointSlope', 'standard', 'graph', 'slope', 'point', 'xIntercept', 'yIntercept', 'context'];
+export const LINEAR_CARD_KINDS = ['slopeIntercept', 'factoredLinear', 'pointSlope', 'standard', 'graph', 'slope', 'point', 'xIntercept', 'yIntercept', 'context'];
 
 const linearCardValue = (set = {}, kind) => {
   if (kind === 'graph') return set.graphSpec ?? null;
@@ -68,6 +73,7 @@ const hasLinearCardValue = (value) => (
  * (there, the authored set membership itself is the ground truth). */
 export const canonicalLineForSet = (set = {}) => {
   if (set.slopeIntercept) { const line = canonicalFromEquationText(set.slopeIntercept); if (line) return line; }
+  if (set.factoredLinear) { const line = canonicalFromEquationText(set.factoredLinear); if (line) return line; }
   if (set.standard) { const line = canonicalFromEquationText(set.standard); if (line) return line; }
   if (set.pointSlope) { const line = canonicalFromEquationText(set.pointSlope); if (line) return line; }
   if (Number.isFinite(Number(set.slope)) && Array.isArray(set.point)) {
@@ -81,6 +87,31 @@ export const canonicalLineForSet = (set = {}) => {
     if ([a, h, k].every(Number.isFinite)) return canonicalFromSlopeIntercept(a, k - a * h);
   }
   return null;
+};
+
+/** Validate every mathematical card against a chosen canonical line. */
+export const inconsistentLinearCardKinds = (set = {}, line = canonicalLineForSet(set)) => {
+  if (!line) return [];
+  const inconsistent = [];
+  ['slopeIntercept', 'factoredLinear', 'pointSlope', 'standard'].forEach((kind) => {
+    if (hasLinearCardValue(set[kind]) && !canonicalLinesEquivalent(canonicalFromEquationText(set[kind]), line)) inconsistent.push(kind);
+  });
+  if (hasLinearCardValue(set.graphSpec)) {
+    const graphLine = set.graphSpec?.type === 'linear'
+      ? canonicalFromSlopeIntercept(Number(set.graphSpec.a ?? 1), Number(set.graphSpec.k ?? 0) - Number(set.graphSpec.a ?? 1) * Number(set.graphSpec.h ?? 0))
+      : null;
+    if (!canonicalLinesEquivalent(graphLine, line)) inconsistent.push('graph');
+  }
+  if (hasLinearCardValue(set.slope) && (line.vertical || Math.abs(Number(set.slope) - fractionToNumber(slopeOf(line))) > 1e-6)) inconsistent.push('slope');
+  if (hasLinearCardValue(set.point) && !pointOnCanonicalLine(line, set.point)) inconsistent.push('point');
+  const checkIntercept = (kind, actual, expected) => {
+    if (!hasLinearCardValue(actual)) return;
+    const coordinate = Array.isArray(actual) ? Number(actual[kind === 'xIntercept' ? 0 : 1]) : Number(actual);
+    if (!expected || !Number.isFinite(coordinate) || Math.abs(coordinate - fractionToNumber(expected)) > 1e-6) inconsistent.push(kind);
+  };
+  checkIntercept('xIntercept', set.xIntercept, xInterceptOf(line));
+  checkIntercept('yIntercept', set.yIntercept, yInterceptOf(line));
+  return inconsistent;
 };
 
 /** Build the shuffleable card deck for the "group the representations" task:
@@ -152,7 +183,8 @@ export const findLinearMismatch = (cards = []) => {
     if (group) group.indexes.push(index); else groups.push({ line, indexes: [index] });
   });
   groups.sort((a, b) => b.indexes.length - a.indexes.length);
-  const majority = groups[0] || null;
+  const candidate = groups[0] || null;
+  const majority = candidate && candidate.indexes.length > cards.length / 2 ? candidate : null;
   const mismatchIndexes = cards.map((_, index) => index).filter((index) => !majority?.indexes.includes(index));
   return { mismatchIndexes, majorityLine: majority?.line || null, mismatchIds: mismatchIndexes.map((index) => cards[index].id) };
 };
