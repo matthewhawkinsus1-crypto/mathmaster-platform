@@ -193,21 +193,21 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
 
       {adminMode && isRootAdmin && <section style={{ ...card, borderColor: '#aecbfa', background: '#f8fbff' }}>
         <h3 style={{ margin: '0 0 6px' }}>Create student account</h3>
-        <p style={{ margin: '0 0 14px', color: '#5f6368', fontSize: 14, lineHeight: 1.55 }}>Enter the student&apos;s first and last name exactly as you want it shown in teacher rosters and the gradebook, then place the student in a class. The class already carries its period and teacher of record, so those fields cannot drift apart.</p>
+        <p style={{ margin: '0 0 14px', color: '#5f6368', fontSize: 14, lineHeight: 1.55 }}>Use the student&apos;s official district/SIS student ID (digits only), then enter the first and last name and place the student in a class. Students can no longer create a new roster identity by typing an email or made-up ID during first sign-in.</p>
         <form onSubmit={(event) => {
           event.preventDefault();
-          if (!newStudent.studentId.trim() || !newStudent.firstName.trim() || !newStudent.lastName.trim() || !newStudent.classId) return;
+          if (!/^\d{1,20}$/.test(newStudent.studentId.trim()) || !newStudent.firstName.trim() || !newStudent.lastName.trim() || !newStudent.classId) return;
           runAction(
             'student:create',
             () => teacherAdmin.createStudentAccount(newStudent),
             (result) => `${formatStudentName(result)} · ${result.studentId} was created and is ready for sign-in setup.`,
           ).then((result) => { if (result) setNewStudent({ studentId: '', firstName: '', lastName: '', classId: '' }); });
         }} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))', gap: 10, alignItems: 'end' }}>
-          <label style={{ fontSize: 12, fontWeight: 900, color: '#3c4043' }}>Student ID<input required value={newStudent.studentId} onChange={(event) => setNewStudent((current) => ({ ...current, studentId: event.target.value }))} placeholder="S1042" style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', marginTop: 5 }} /></label>
+          <label style={{ fontSize: 12, fontWeight: 900, color: '#3c4043' }}>District/SIS Student ID<input required inputMode="numeric" pattern="[0-9]{1,20}" maxLength={20} value={newStudent.studentId} onChange={(event) => setNewStudent((current) => ({ ...current, studentId: event.target.value.replace(/\D/g, '').slice(0, 20) }))} placeholder="1500123" style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', marginTop: 5 }} /></label>
           <label style={{ fontSize: 12, fontWeight: 900, color: '#3c4043' }}>First name<input required value={newStudent.firstName} onChange={(event) => setNewStudent((current) => ({ ...current, firstName: event.target.value }))} placeholder="Matthew" style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', marginTop: 5 }} /></label>
           <label style={{ fontSize: 12, fontWeight: 900, color: '#3c4043' }}>Last name<input required value={newStudent.lastName} onChange={(event) => setNewStudent((current) => ({ ...current, lastName: event.target.value }))} placeholder="Hawkins" style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', marginTop: 5 }} /></label>
           <label style={{ fontSize: 12, fontWeight: 900, color: '#3c4043' }}>Class<select required value={newStudent.classId} onChange={(event) => setNewStudent((current) => ({ ...current, classId: event.target.value }))} style={{ ...inputStyle, width: '100%', marginTop: 5 }}><option value="">Choose a class…</option>{activeClasses.map((entry) => <option key={entry.classId} value={entry.classId}>{entry.name} · {entry.period}{entry.teacherOfRecord ? ` · ${entry.teacherOfRecord}` : ''}</option>)}</select></label>
-          <button type="submit" disabled={pendingAction === 'student:create' || !newStudent.studentId.trim() || !newStudent.firstName.trim() || !newStudent.lastName.trim() || !newStudent.classId} style={{ ...primaryButton, opacity: pendingAction === 'student:create' || !newStudent.studentId.trim() || !newStudent.firstName.trim() || !newStudent.lastName.trim() || !newStudent.classId ? 0.55 : 1 }}>{pendingAction === 'student:create' ? 'Creating…' : 'Create Student Account'}</button>
+          <button type="submit" disabled={pendingAction === 'student:create' || !/^\d{1,20}$/.test(newStudent.studentId.trim()) || !newStudent.firstName.trim() || !newStudent.lastName.trim() || !newStudent.classId} style={{ ...primaryButton, opacity: pendingAction === 'student:create' || !/^\d{1,20}$/.test(newStudent.studentId.trim()) || !newStudent.firstName.trim() || !newStudent.lastName.trim() || !newStudent.classId ? 0.55 : 1 }}>{pendingAction === 'student:create' ? 'Creating…' : 'Create Student Account'}</button>
         </form>
         {!activeClasses.length && <p style={{ margin: '12px 0 0', color: '#a15c00', fontSize: 13, fontWeight: 700 }}>Create an active class under Classes &amp; rosters before adding a student.</p>}
       </section>}
