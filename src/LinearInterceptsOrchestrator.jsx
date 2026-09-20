@@ -74,6 +74,9 @@ export default function LinearInterceptsOrchestrator({
   onStateChange,
   onStepGrade,
   onUndoStateChange,
+  questionRecord = null,
+  maximumAttempts = 3,
+  attemptsDoNotExpire = false,
   disabled = false,
   draftKey = null,
 }) {
@@ -93,6 +96,14 @@ export default function LinearInterceptsOrchestrator({
   }, [workDraftKey, work]);
 
   const kind = work.activeKind === 'y' ? 'y' : 'x';
+
+  // Conceptual undo belongs to one intercept at a time. When the x-intercept
+  // is completed and the orchestrator advances to y, old x-stage snapshots
+  // must not become undo candidates for the fresh y stage.
+  useEffect(() => {
+    setStageHistory([]);
+  }, [kind]);
+
   const stage = work[kind] || initialStage();
   const expectedPoint = useMemo(() => expectedInterceptPoint(standard, kind), [standard, kind]);
   // There is no per-move workHistory array on this side of the refactor — the
@@ -372,10 +383,12 @@ export default function LinearInterceptsOrchestrator({
         <StepByStepAlgebraCore
           key={`${kind}-${stage.placedZeroVariable}`}
           question={subEquationQuestion}
-          questionRecord={null}
+          questionRecord={questionRecord}
           onStateChange={handleSubEquationStateChange}
           onStepGrade={onStepGrade}
           onUndoStateChange={onUndoStateChange}
+          maximumAttempts={maximumAttempts}
+          attemptsDoNotExpire={attemptsDoNotExpire}
           disabled={disabled}
           draftKey={draftKey ? `${draftKey}:${kind}-intercept` : null}
         />
