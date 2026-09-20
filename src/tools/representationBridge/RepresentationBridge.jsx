@@ -243,9 +243,13 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
     if (feedbackTiming !== 'checkpoint') return false;
     const order = ['rateEvidence', 'generalForm', 'factoredForm', 'graph', 'meaning'];
     const priorRequired = order.slice(0, order.indexOf(stage)).filter((entry) => requiredStages.includes(entry));
-    return priorRequired.some((entry) => stageChecks[entry] !== true);
+    return priorRequired.some((entry) => stageChecks[entry] !== true || liveResult.parts[entry] !== true);
   };
-  const readyToSubmit = feedbackTiming !== 'checkpoint' || requiredStages.every((stage) => stageChecks[stage] === true);
+  // A checkpoint remains valid only while the current draft still passes it.
+  // If a student edits earlier work after checking it, downstream stages lock
+  // again and final Submit cannot rely on a stale green check.
+  const readyToSubmit = feedbackTiming !== 'checkpoint'
+    || requiredStages.every((stage) => stageChecks[stage] === true && liveResult.parts[stage] === true);
 
   const check = () => {
     submit(
@@ -399,7 +403,7 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
           {feedbackTiming !== 'submitOnly' ? (
             <div style={{ marginTop: 12 }}>
               <button type="button" onClick={() => checkStage('rateEvidence')} disabled={!requiredStages.includes('rateEvidence')} style={{ ...button }}>Check this stage</button>
-              {stageChecks.rateEvidence != null ? <ResultPill ok={stageChecks.rateEvidence}>{stageChecks.rateEvidence ? 'Rate evidence correct' : 'Needs another look'}</ResultPill> : null}
+              {stageChecks.rateEvidence != null ? <ResultPill ok={stageChecks.rateEvidence && liveResult.parts.rateEvidence}>{stageChecks.rateEvidence && liveResult.parts.rateEvidence ? 'Rate evidence correct' : 'Needs another look'}</ResultPill> : null}
             </div>
           ) : null}
         </Panel>
@@ -426,7 +430,7 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
             {feedbackTiming !== 'submitOnly' ? (
               <div style={{ marginTop: 10 }}>
                 <button type="button" onClick={() => checkStage('generalForm')} disabled={!requiredStages.includes('generalForm') || stageBlocked('generalForm')} style={{ ...button }}>Check this stage</button>
-                {stageChecks.generalForm != null ? <ResultPill ok={stageChecks.generalForm}>{stageChecks.generalForm ? 'General form correct' : 'Needs another look'}</ResultPill> : null}
+                {stageChecks.generalForm != null ? <ResultPill ok={stageChecks.generalForm && liveResult.parts.generalForm}>{stageChecks.generalForm && liveResult.parts.generalForm ? 'General form correct' : 'Needs another look'}</ResultPill> : null}
               </div>
             ) : null}
           </div>
@@ -452,7 +456,7 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
             {feedbackTiming !== 'submitOnly' ? (
               <div style={{ marginTop: 10 }}>
                 <button type="button" onClick={() => checkStage('factoredForm')} disabled={!requiredStages.includes('factoredForm') || stageBlocked('factoredForm')} style={{ ...button }}>Check this stage</button>
-                {stageChecks.factoredForm != null ? <ResultPill ok={stageChecks.factoredForm}>{stageChecks.factoredForm ? 'Factored form correct' : 'Needs another look'}</ResultPill> : null}
+                {stageChecks.factoredForm != null ? <ResultPill ok={stageChecks.factoredForm && liveResult.parts.factoredForm}>{stageChecks.factoredForm && liveResult.parts.factoredForm ? 'Factored form correct' : 'Needs another look'}</ResultPill> : null}
               </div>
             ) : null}
           </div>
@@ -479,7 +483,7 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
           {feedbackTiming !== 'submitOnly' ? (
             <div style={{ marginTop: 10 }}>
               <button type="button" onClick={() => checkStage('graph')} disabled={!requiredStages.includes('graph') || stageBlocked('graph')} style={{ ...button }}>Check this stage</button>
-              {stageChecks.graph != null ? <ResultPill ok={stageChecks.graph}>{stageChecks.graph ? 'Graph correct' : 'Needs another look'}</ResultPill> : null}
+              {stageChecks.graph != null ? <ResultPill ok={stageChecks.graph && liveResult.parts.graph}>{stageChecks.graph && liveResult.parts.graph ? 'Graph correct' : 'Needs another look'}</ResultPill> : null}
             </div>
           ) : null}
         </Panel>
@@ -539,7 +543,7 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
           {feedbackTiming !== 'submitOnly' ? (
             <div style={{ marginTop: 10 }}>
               <button type="button" onClick={() => checkStage('meaning')} disabled={!requiredStages.includes('meaning') || !meaningComplete || stageBlocked('meaning')} style={{ ...button }}>Check this stage</button>
-              {stageChecks.meaning != null ? <ResultPill ok={stageChecks.meaning}>{stageChecks.meaning ? 'Meaning connections correct' : 'Needs another look'}</ResultPill> : null}
+              {stageChecks.meaning != null ? <ResultPill ok={stageChecks.meaning && liveResult.parts.meaning}>{stageChecks.meaning && liveResult.parts.meaning ? 'Meaning connections correct' : 'Needs another look'}</ResultPill> : null}
             </div>
           ) : null}
         </Panel>
