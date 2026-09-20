@@ -227,9 +227,12 @@ test('meaning: one incorrect dimension gives partial evidence, not full completi
 });
 
 // -------------------------------------------------------------- coherence
-test('coherence: individually plausible but contradictory representations fail overall', () => {
+test('coherence: individually plausible but contradictory representations fail the coherence check itself', () => {
   const response = { ...goodResponse(), factoredForm: { a: 5, c: 3, equation: 'y = 5(x - 3)' } };
   const result = scoreRepresentationBridge(boothFeeQuestion, response);
+  assert.equal(result.parts.factoredForm, false);
+  assert.equal(result.parts.crossRepresentationConsistency, false);
+  assert.equal(result.evidence.crossRepresentationConsistency, false);
   assert.equal(result.isCorrect, false);
 });
 
