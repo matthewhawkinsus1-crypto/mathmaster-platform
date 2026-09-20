@@ -23,6 +23,18 @@ const formatSlopeForHint = (value) => {
   return fraction ? formatFraction(fraction) : String(number);
 };
 
+// Turn a simple exact rational slope into a lattice-point move the graph can
+// actually plot. A slope of -3/4 should teach "run 4, rise -3", not "run 1,
+// rise -3/4" when the coordinate plane cannot land on quarter-grid y-values.
+const slopeStepForHint = (value) => {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return null;
+  const fraction = toFraction(number);
+  if (!fraction || !Number.isFinite(fraction.n) || !Number.isFinite(fraction.d)) return null;
+  if (fraction.d < 1 || fraction.d > 12) return null;
+  return { rise: fraction.n, run: fraction.d };
+};
+
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const secondaryButton = { ...primaryButton, background: '#fff', color: '#174ea6', border: '1px solid #9bb8e8' };
 
@@ -109,10 +121,16 @@ const hintsForMode = (mode, target, questionData) => {
   if (mode === 'pointSlope') {
     const point = questionData.point || [0, 0];
     const slope = Number(questionData.slope);
+    const step = slopeStepForHint(questionData.slope);
+    const secondPoint = step
+      ? [Number(point[0]) + step.run, Number(point[1]) + step.rise]
+      : Number.isFinite(slope) ? [Number(point[0]) + 1, Number(point[1]) + slope] : null;
     return [
       `Start at the given point ${formatPoint(point)}. Slope tells you how to step to a second point.`,
-      `Slope ${formatSlopeForHint(questionData.slope)} means rise over run: from ${formatPoint(point)}, move 1 right and ${Number.isFinite(slope) ? formatSlopeForHint(slope) : '(slope)'} up.`,
-      Number.isFinite(slope) ? `Plot ${formatPoint(point)} and ${formatPoint([point[0] + 1, point[1] + slope])}.` : common,
+      step
+        ? `Slope ${formatSlopeForHint(questionData.slope)} means rise over run: use a run of ${step.run} and a rise of ${step.rise}.`
+        : `Slope ${formatSlopeForHint(questionData.slope)} tells you the vertical change for each horizontal step.`,
+      secondPoint ? `Plot ${formatPoint(point)} and ${formatPoint(secondPoint)}.` : common,
     ];
   }
   if (mode === 'standardForm') {
@@ -132,10 +150,15 @@ const hintsForMode = (mode, target, questionData) => {
   }
   const m = target ? Number(target.m) : Number.NaN;
   const b = target ? Number(target.b) : Number.NaN;
+  const step = slopeStepForHint(m);
   return [
     'In y = mx + b, the b is where the line crosses the y-axis. Start there.',
     Number.isFinite(b) ? `Plot the y-intercept at (0, ${b}) first.` : 'Plot the y-intercept first.',
-    Number.isFinite(m) && Number.isFinite(b) ? `From (0, ${b}), the slope ${formatSlopeForHint(m)} means move 1 right and ${formatSlopeForHint(m)} up, landing on ${formatPoint([1, b + m])}.` : common,
+    Number.isFinite(m) && Number.isFinite(b) && step
+      ? `From (0, ${b}), slope ${formatSlopeForHint(m)} means use a run of ${step.run} and a rise of ${step.rise}, landing on ${formatPoint([step.run, b + step.rise])}.`
+      : Number.isFinite(m) && Number.isFinite(b)
+        ? `Use the slope ${formatSlopeForHint(m)} to locate a second exact point on the line.`
+        : common,
   ];
 };
 
