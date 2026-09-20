@@ -49,7 +49,35 @@ const INEQUALITY_COLORS = ['#1a73e8', '#d93025', '#188038', '#9334e6', '#b06000'
 
 const Field = ({ label, children }) => <label style={{ display:'block', fontSize:13, fontWeight:700, color:'#465267' }}>{label}<div style={{marginTop:5}}>{children}</div></label>;
 const formatLine = (line) => `y = ${line.m}x ${Number(line.b)>=0?'+':'−'} ${Math.abs(Number(line.b))}`;
-const formatInequality = (ineq) => `y ${ineq.relation} ${ineq.m}x ${Number(ineq.b)>=0?'+':'−'} ${Math.abs(Number(ineq.b))}`;
+const displayRelation = (relation) => String(relation || '>=').replace('<=', '≤').replace('>=', '≥');
+const formatLinearTerm = (coefficient, variable, first = false) => {
+  const value = Number(coefficient);
+  if (!Number.isFinite(value) || Math.abs(value) <= 1e-12) return '';
+  const sign = value < 0 ? '−' : '+';
+  const magnitude = Math.abs(value);
+  const coefficientText = Math.abs(magnitude - 1) <= 1e-12 ? '' : String(magnitude);
+  if (first) return `${value < 0 ? '−' : ''}${coefficientText}${variable}`;
+  return ` ${sign} ${coefficientText}${variable}`;
+};
+const formatInequality = (ineq = {}) => {
+  const relation = displayRelation(ineq.relation);
+  if (ineq.orientation === 'vertical') return `x ${relation} ${ineq.x}`;
+  if (ineq.orientation === 'horizontal') return `y ${relation} ${ineq.y}`;
+  if (Number.isFinite(Number(ineq.m)) || Number.isFinite(Number(ineq.b))) {
+    const m = Number(ineq.m ?? 0);
+    const b = Number(ineq.b ?? 0);
+    return `y ${relation} ${m}x ${b >= 0 ? '+' : '−'} ${Math.abs(b)}`;
+  }
+  if ([ineq.A, ineq.B, ineq.C].some((value) => Number.isFinite(Number(value)))) {
+    const A = Number(ineq.A ?? 0);
+    const B = Number(ineq.B ?? 0);
+    const C = Number(ineq.C ?? 0);
+    const firstTerm = formatLinearTerm(A, 'x', true);
+    const secondTerm = formatLinearTerm(B, 'y', !firstTerm);
+    return `${(firstTerm + secondTerm).trim() || '0'} ${relation} ${-C}`;
+  }
+  return 'Linear inequality';
+};
 
 // Naming the curves beats "the blue one": the plane draws the first series
 // solid blue and the second dashed red, so the legend says exactly that.
