@@ -499,12 +499,29 @@ const modelingEntryToCanonical = (entry) => {
   return { A:a, B:b, C:-rhs, relation:entry.relation };
 };
 
+const flipInequalityRelation = (relation) => ({
+  '>':'<', '>=':'<=', '<':'>', '<=':'>=',
+}[relation] || relation);
+
+const equivalentLinearInequality = (actual, expected, tolerance = 1e-6) => {
+  if (!actual || !expected) return false;
+  const a = [Number(actual.A), Number(actual.B), Number(actual.C)];
+  const e = [Number(expected.A), Number(expected.B), Number(expected.C)];
+  const pivot = e.findIndex((value) => Math.abs(value) > tolerance);
+  if (pivot < 0 || a.some((value) => !Number.isFinite(value)) || e.some((value) => !Number.isFinite(value))) return false;
+  const scale = a[pivot] / e[pivot];
+  if (!Number.isFinite(scale) || Math.abs(scale) <= tolerance) return false;
+  const coefficientsMatch = a.every((value, index) => (
+    Math.abs(value - scale * e[index]) <= tolerance * Math.max(1, Math.abs(value), Math.abs(scale * e[index]))
+  ));
+  if (!coefficientsMatch) return false;
+  const expectedRelation = scale > 0 ? expected.relation : flipInequalityRelation(expected.relation);
+  return actual.relation === expectedRelation;
+};
+
 const modelingEntryCorrect = (entry, expected) => {
   if (!entry || !expected) return false;
-  const actual = modelingEntryToCanonical(entry);
-  if (!actual) return false;
-  return Math.abs(actual.A - expected.A) < 1e-6 && Math.abs(actual.B - expected.B) < 1e-6
-    && Math.abs(actual.C - expected.C) < 1e-6 && actual.relation === expected.relation;
+  return equivalentLinearInequality(modelingEntryToCanonical(entry), expected);
 };
 
 // First miss stays neutral — a nudge to re-examine the work, not the rule
@@ -639,6 +656,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
   ), [modeling, modelingSent, modeledConstraints, expectedConstraints]);
   const workingClassification = useMemo(() => classifyFeasibleRegion(workingConstraints), [workingConstraints]);
   const workingVertices = useMemo(() => feasibleRegionVertices(workingConstraints), [workingConstraints]);
+  const modelingEntriesReady = !modeling || modeledConstraints.length === constraintCount && modeledConstraints.every(Boolean);
   const [activeIndex, setActiveIndex] = useState(0);
   const [armed, setArmed] = useState(null);
   const [combined, setCombined] = usePersistentToolState('combined', false);
@@ -667,6 +685,18 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
     setVertices(value?.vertices || []);
   }, [constraintCount, modeling]);
   const undoHistory = useMathUndoHistory({ label: 'Undo the last student-build edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
+
+  const reopenModeling = () => {
+    if (!modeling) return;
+    setModelingSent(false);
+    setCombined(false);
+    setRegionClassification('');
+    setRegionClassificationAttempts(0);
+    setTeacherPointResponse(emptyTestPointResponse(constraintCount));
+    setStudentTestPoint(null);
+    setStudentPointResponse(emptyTestPointResponse(constraintCount));
+    setVertices([]);
+  };
 
   const inequalityLabel = (index) => (modeling ? formatModelingConstraint(modelingEntries[index], variables) : formatInequality(rawInequalities[index]));
 
@@ -887,7 +917,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
         <Panel title={modeling && !modelingSent ? 'Define your constraints' : 'Your graph'}>
           {modeling && !modelingSent ? (
             <p style={{ margin:'0 0 12px', fontSize:13, color:'#5f6b7a' }}>
-              Using {variables.map((v)=>`${v.symbol} = ${v.label}`).join(' and ')}, write each constraint below. Send them to the workspace once every constraint has a relation and constant.
+              Using {variables.map((v)=>`${v.symbol} = ${v.label}`).join(' and ')}, write each constraint below. Send them to the workspace once every constraint has valid variable coefficients, a relation, and a constant.
             </p>
           ) : (
             <>
@@ -967,14 +997,21 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
               <button
                 type="button"
                 onClick={()=>setModelingSent(true)}
-                disabled={modelingEntries.some((entry)=>entry.coeffA==='' || entry.coeffB==='' || entry.constant==='')}
-                style={{ ...actionStyle, opacity: modelingEntries.some((entry)=>entry.coeffA==='' || entry.coeffB==='' || entry.constant==='') ? 0.5 : 1 }}
+                disabled={!modelingEntriesReady}
+                style={{ ...actionStyle, opacity: modelingEntriesReady ? 1 : 0.5 }}
               >
                 Send constraints to Systems Workspace
               </button>
             </div>
           ) : (
             <div style={{ display:'grid', gap:14 }}>
+              {modeling ? (
+                <div style={{ display:'flex', justifyContent:'flex-end' }}>
+                  <button type="button" onClick={reopenModeling} style={{ ...actionStyle, marginTop:0, padding:'8px 12px', fontSize:12 }}>
+                    Edit constraints
+                  </button>
+                </div>
+              ) : null}
               {build.map((entry, index) => (
                 <div key={index} style={{ padding:12, border: activeIndex === index ? '2px solid #1a73e8' : '1px solid #dbe3ef', borderRadius:10, background:'#f8fbff' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginBottom:9 }}>
