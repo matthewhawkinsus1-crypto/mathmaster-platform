@@ -1,20 +1,20 @@
+import {
+  isPointInInequality,
+  normalizeLinearInequality,
+} from './linearInequalityEngine.js';
+
+export * from './linearInequalityEngine.js';
+
 const EPS = 1e-9;
 
-export const satisfiesLinearInequality = (inequality = {}, x, y, tolerance = 1e-8) => {
-  const lhs = Number(y);
-  const rhs = Number(inequality.m ?? 0) * Number(x) + Number(inequality.b ?? 0);
-  switch (inequality.relation || '>=') {
-    case '>': return lhs > rhs + tolerance;
-    case '>=': return lhs >= rhs - tolerance;
-    case '<': return lhs < rhs - tolerance;
-    case '<=': return lhs <= rhs + tolerance;
-    default: return false;
-  }
-};
+export const satisfiesLinearInequality = (inequality = {}, x, y, tolerance = 1e-8) => (
+  isPointInInequality(inequality, x, y, tolerance)
+);
 
 const signedBoundaryValue = (ineq, point) => {
   const [x, y] = point;
-  return y - (Number(ineq.m ?? 0) * x + Number(ineq.b ?? 0));
+  const { A, B, C } = normalizeLinearInequality(ineq);
+  return A * x + B * y + C;
 };
 
 const insideHalfPlane = (ineq, point) => {
