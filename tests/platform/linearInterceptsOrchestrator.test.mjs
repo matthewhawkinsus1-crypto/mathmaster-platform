@@ -34,13 +34,29 @@ test('the orchestrator mounts the mature StepByStepAlgebraCore for the actual so
   assert.doesNotMatch(orchestratorSource, /applyInterceptOperation/); // the retired numeric mini-solver
 });
 
-test('the orchestrator forwards the real onStepGrade/onUndoStateChange into the mounted solver, not a registry bridge', () => {
+test('the orchestrator forwards grading, undo, record and attempt policy into the mature solver', () => {
   const committedRegion = orchestratorSource.slice(
     orchestratorSource.indexOf('<StepByStepAlgebraCore'),
     orchestratorSource.indexOf('/>', orchestratorSource.indexOf('<StepByStepAlgebraCore')),
   );
   assert.match(committedRegion, /onStepGrade=\{onStepGrade\}/);
   assert.match(committedRegion, /onUndoStateChange=\{onUndoStateChange\}/);
+  assert.match(committedRegion, /questionRecord=\{questionRecord\}/);
+  assert.match(committedRegion, /maximumAttempts=\{maximumAttempts\}/);
+  assert.match(committedRegion, /attemptsDoNotExpire=\{attemptsDoNotExpire\}/);
+});
+
+test('QuestionEngine forwards the normal Step Algebra record and attempt policy into the intercept orchestrator', () => {
+  const start = questionEngineSource.indexOf('<LinearInterceptsOrchestrator');
+  const end = questionEngineSource.indexOf('/>', start);
+  const region = questionEngineSource.slice(start, end);
+  assert.match(region, /questionRecord=\{record\}/);
+  assert.match(region, /maximumAttempts=\{resolvedMaximumAttempts\}/);
+  assert.match(region, /attemptsDoNotExpire=\{attemptsDoNotExpire\}/);
+});
+
+test('conceptual undo history is cleared when the active intercept changes', () => {
+  assert.match(orchestratorSource, /setStageHistory\(\[\]\);[\s\S]*?\}, \[kind\]\);/);
 });
 
 test('committing the substitution keeps a meaningful wrong-path outcome available (mismatch + conceptual redirect)', () => {
