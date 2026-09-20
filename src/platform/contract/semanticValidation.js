@@ -140,6 +140,23 @@ const openSortBoardHasGraph = (question = {}) => (
   && question.items.some((item) => isObject(item?.graphSpec) || nonEmptyArray(item?.points))
 );
 
+// graphing2 always renders an interactive construction coordinate plane —
+// the student builds the line themselves, so a prompt that says "the graph
+// shown/below" is truthful even without a redundant static `graph` object.
+// Per mode, require the field(s) that mode actually needs to draw anything;
+// slopeIntercept (and any unrecognized mode) falls back to a demo line when
+// `question.line` is missing, so the workspace still draws either way.
+const graphing2HasGraph = (question = {}) => {
+  if (String(question.toolId || question.type) !== 'graphing2') return false;
+  const mode = String(question.mode || 'slopeIntercept');
+  if (mode === 'throughPoints') return nonEmptyArray(question.givenPoints);
+  if (mode === 'pointSlope') return Array.isArray(question.point) && question.point.length === 2 && has(question.slope);
+  if (mode === 'factoredLinear') return isObject(question.factored);
+  if (mode === 'standardForm') return isObject(question.standard);
+  if (mode === 'verticalHorizontal') return has(question.orientation) && has(question.value);
+  return true;
+};
+
 const composedStages = (composed) => (composed?.composed && Array.isArray(composed.workflow) ? composed.workflow : []);
 
 const composedDrawsFigureGraphs = (composed) => composedStages(composed).some((stage) => (
@@ -177,6 +194,7 @@ const VISUAL_PROMISES = [
       || candidateGraphsHaveGraph(question)
       || openSortBoardHasGraph(question)
       || transformationsLabHasGraph(question)
+      || graphing2HasGraph(question)
       || composedHasStage(composed, ['functionGraph', 'coordinatePlot', 'graphFeatureSelect'])
       // A matching step draws one plane per figure, and a choice step with
       // `previewOnGraph` draws one the options are plotted on. Both put a graph

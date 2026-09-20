@@ -11,6 +11,7 @@ import MultiAnswerGrader from './MultiAnswerGrader';
 import FunctionGraphBuilder from './FunctionGraphBuilder';
 import GraphAnalysis from './GraphAnalysis';
 import StepByStepAlgebra from './StepByStepAlgebra';
+import LinearInterceptsOrchestrator from './LinearInterceptsOrchestrator';
 import MultiRelationAlgebra from './MultiRelationAlgebra';
 import { needsMultiRelationWorkspace } from './algebraRelationFoundation.js';
 import ScratchpadOverlay from './ScratchpadOverlay';
@@ -885,6 +886,21 @@ export default function QuestionEngine({
               questionRecord={record}
               onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
               attemptsDoNotExpire={attemptsDoNotExpire}
+            />
+          );
+        }
+        // linearIntercepts keeps its own conceptual zero-substitution stage,
+        // but hands the actual one-variable solve to the SAME mature Step
+        // Algebra engine as every other stepAlgebra question — never a
+        // second, narrower mini-solver (issue #297). Old stored
+        // `stepAlgebra2` questions are runtime-migrated onto `type:
+        // "stepAlgebra"` (see assignmentRuntimeRepair.js), so they reach this
+        // branch too.
+        if (processedQuestion.mode === 'linearIntercepts') {
+          return (
+            <LinearInterceptsOrchestrator
+              {...commonModuleProps}
+              onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
             />
           );
         }

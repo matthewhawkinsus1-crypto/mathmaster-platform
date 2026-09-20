@@ -9,6 +9,19 @@ import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
 import { formatLine, lineFromPoints, targetLineFromQuestion } from './graphingMath';
 import { evaluateConstruction, resolveConstructionPolicy } from './constructionPolicy';
+import { toFraction, formatFraction } from '../shared/linearEquations.js';
+
+// Hints must never show a repeating decimal for a slope that was authored as
+// an exact rational (e.g. -4/3 stored/derived as -1.3333333333333333) — the
+// student needs the exact value MathDisplay can stack, not a rounded decimal
+// that also happens to be mathematically confusing mid-lesson.
+const formatSlopeForHint = (value) => {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return String(value);
+  if (Number.isInteger(number)) return String(number);
+  const fraction = toFraction(number);
+  return fraction ? formatFraction(fraction) : String(number);
+};
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const secondaryButton = { ...primaryButton, background: '#fff', color: '#174ea6', border: '1px solid #9bb8e8' };
@@ -43,7 +56,7 @@ const anchorInstruction = (mode, policy) => {
   if (policy.strategy !== 'formAware') return null;
   if (mode === 'slopeIntercept') return 'This question requires you to plot the y-intercept as one of your points.';
   if (mode === 'factoredLinear') return 'This question requires you to plot the x-intercept yourself, then use the slope for another point.';
-  if (mode === 'pointSlope') return 'This question requires you to plot the given point yourself — the purple point alone does not count as your evidence.';
+  if (mode === 'pointSlope') return 'This question requires you to plot the given point yourself — it is not already on the graph.';
   if (mode === 'standardForm') return 'This question requires you to plot the line’s intercept(s) as your evidence, not just any two points on the line.';
   return null;
 };
@@ -98,7 +111,7 @@ const hintsForMode = (mode, target, questionData) => {
     const slope = Number(questionData.slope);
     return [
       `Start at the given point ${formatPoint(point)}. Slope tells you how to step to a second point.`,
-      `Slope ${questionData.slope} means rise over run: from ${formatPoint(point)}, move 1 right and ${Number.isFinite(slope) ? slope : '(slope)'} up.`,
+      `Slope ${formatSlopeForHint(questionData.slope)} means rise over run: from ${formatPoint(point)}, move 1 right and ${Number.isFinite(slope) ? formatSlopeForHint(slope) : '(slope)'} up.`,
       Number.isFinite(slope) ? `Plot ${formatPoint(point)} and ${formatPoint([point[0] + 1, point[1] + slope])}.` : common,
     ];
   }
@@ -114,7 +127,7 @@ const hintsForMode = (mode, target, questionData) => {
     return [
       'In y = a(x − c), c identifies the zero/x-intercept and a is the slope.',
       Number.isFinite(c) ? `Plot the x-intercept (${c}, 0) yourself first.` : 'Plot the x-intercept first.',
-      Number.isFinite(a) && Number.isFinite(c) ? `Then use slope ${a} to establish another valid point from (${c}, 0).` : common,
+      Number.isFinite(a) && Number.isFinite(c) ? `Then use slope ${formatSlopeForHint(a)} to establish another valid point from (${c}, 0).` : common,
     ];
   }
   const m = target ? Number(target.m) : Number.NaN;
@@ -122,7 +135,7 @@ const hintsForMode = (mode, target, questionData) => {
   return [
     'In y = mx + b, the b is where the line crosses the y-axis. Start there.',
     Number.isFinite(b) ? `Plot the y-intercept at (0, ${b}) first.` : 'Plot the y-intercept first.',
-    Number.isFinite(m) && Number.isFinite(b) ? `From (0, ${b}), the slope ${m} means move 1 right and ${m} up, landing on ${formatPoint([1, b + m])}.` : common,
+    Number.isFinite(m) && Number.isFinite(b) ? `From (0, ${b}), the slope ${formatSlopeForHint(m)} means move 1 right and ${formatSlopeForHint(m)} up, landing on ${formatPoint([1, b + m])}.` : common,
   ];
 };
 
@@ -137,7 +150,12 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
   const studentLine = useMemo(() => points.length >= 2 ? lineFromPoints(points[0], points[1]) : null, [points]);
   const bounds = questionData.graphBounds || { xMin: -7, xMax: 7, yMin: -7, yMax: 7 };
-  const givenPoints = mode === 'throughPoints' ? (questionData.givenPoints || []) : mode === 'pointSlope' ? [questionData.point].filter(Array.isArray) : [];
+  // pointSlope's encoded point is given only in the prompt/equation, never
+  // preplotted: the student must place it themselves as their own (blue)
+  // construction evidence. Preplotting it here used to collide with that
+  // requirement — the student could not click exactly on top of an
+  // already-rendered purple point. throughPoints keeps its authored points.
+  const givenPoints = mode === 'throughPoints' ? (questionData.givenPoints || []) : [];
   const snapStep = resolveSnapStep(questionData, target);
   const hints = hintsForMode(mode, target, questionData);
   const anchorNote = anchorInstruction(mode, policy);
