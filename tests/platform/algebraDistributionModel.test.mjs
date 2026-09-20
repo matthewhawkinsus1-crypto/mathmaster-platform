@@ -60,6 +60,25 @@ test('symbolic factor used in a literal equation', () => {
   const state = distributeAll(detected);
   assert.equal(expandedGroupText(state).replace(/\s+/g, ''), '(a)(x)+(a)(y)');
 });
+test('composite outside factor distributes as one factor expression', () => {
+  // Step Algebra canonicalizes the visual 2L(x+w) product before this model sees it.
+  const detected = detectDistributableGroup({ left: 'P', right: '2 * L * (x + w)' });
+  assert.ok(detected);
+  assert.equal(detected.factorText.replace(/\s+/g, ''), '2*L');
+  const state = distributeAll(detected);
+  assert.equal(expandedGroupText(state).replace(/\s+/g, ''), '(2*L)(x)+(2*L)(w)');
+});
+
+test('one factor pick-up stays armed across terms until distribution is complete', () => {
+  const detected = detectDistributableGroup({ left: 'y', right: '3(x + 4)' });
+  let state = armFactor(initDistributionState(detected));
+  state = placeOnTerm(state, 0);
+  assert.equal(state.armed, true);
+  assert.deepEqual(state.placedIndices, [0]);
+  state = placeOnTerm(state, 1);
+  assert.equal(state.armed, false);
+  assert.equal(isDistributionComplete(state), true);
+});
 
 test('three-term group distributes to every term', () => {
   const detected = detectDistributableGroup({ left: 'y', right: '2(x + y - 3)' });
