@@ -147,7 +147,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
   const mismatchSet = useMemo(() => sets.find((set) => set.id === questionData.mismatchSetId) || null, [sets, questionData.mismatchSetId]);
   const linearMismatchCards = useMemo(
     () => (mode === 'linearConnections' && linearTask === 'findMismatch' && mismatchSet
-      ? buildLinearConnectionCards([mismatchSet], ['slopeIntercept', 'pointSlope', 'standard'])
+      ? buildLinearConnectionCards([mismatchSet], ['slopeIntercept', 'factoredLinear', 'pointSlope', 'standard'])
       : []),
     [mode, linearTask, mismatchSet],
   );
@@ -257,7 +257,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
   const cards = mixedRepresentationCards(sets, mixed);
 
   const LINEAR_KIND_LABELS = {
-    slopeIntercept: 'Slope-intercept equation', pointSlope: 'Point-slope equation', standard: 'Standard-form equation',
+    slopeIntercept: 'Slope-intercept equation', factoredLinear: 'Factored form', pointSlope: 'Point-slope equation', standard: 'Standard-form equation',
     graph: 'Graph', slope: 'Slope', point: 'Point', xIntercept: 'x-intercept', yIntercept: 'y-intercept', context: 'Context',
   };
   const renderLinearCardBody = (card) => {
@@ -265,11 +265,11 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
       const bounds = questionData.graphBounds || { xMin: -8, xMax: 8, yMin: -8, yMax: 8 };
       return <CoordinatePlane enlargeable={false} width={220} height={140} {...bounds} functions={[(x) => evaluateFunctionSpec(card.value || {}, x)]} />;
     }
-    if (['slopeIntercept', 'pointSlope', 'standard'].includes(card.kind)) {
+    if (['slopeIntercept', 'factoredLinear', 'pointSlope', 'standard'].includes(card.kind)) {
       return <MathDisplay value={String(card.value)} format="ascii-math" ariaLabel={`${LINEAR_KIND_LABELS[card.kind]}: ${card.value}`} />;
     }
     if (card.kind === 'slope') return <span>m = {card.value}</span>;
-    if (['point', 'xIntercept', 'yIntercept'].includes(card.kind)) return <span>({card.value[0]}, {card.value[1]})</span>;
+    if (['point', 'xIntercept', 'yIntercept'].includes(card.kind)) return <span>{Array.isArray(card.value) ? `(${card.value[0]}, ${card.value[1]})` : card.value}</span>;
     return <span>{String(card.value)}</span>;
   };
 

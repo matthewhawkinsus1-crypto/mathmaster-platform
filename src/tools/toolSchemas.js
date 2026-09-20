@@ -1,6 +1,6 @@
 import { validateSortQuestion } from './openSortBoard/openSortMath.js';
 import { validateConstraintBuilderQuestion } from './constraintFunctionBuilder/constraintFunctionMath.js';
-import { buildLinearConnectionCards, canonicalLineForSet, findLinearMismatch, LINEAR_CARD_KINDS } from './representationMatch/representationMath.js';
+import { buildLinearConnectionCards, canonicalLineForSet, findLinearMismatch, inconsistentLinearCardKinds, LINEAR_CARD_KINDS } from './representationMatch/representationMath.js';
 import { SUPPORTED_TARGET_FORMS as REWRITE_LINEAR_FORM_TARGETS } from './stepAlgebra2/rewriteLinearFormMath.js';
 import { INTERCEPT_FEEDBACK_TIMINGS, resolveStandardCoefficients } from './stepAlgebra2/linearInterceptsMath.js';
 const TOOL_IDS = new Set([
@@ -341,7 +341,12 @@ export const validateToolQuestion = (question = {}) => {
         const ids = linearSets.map((set) => set?.id);
         if (ids.some((id) => !id) || new Set(ids).size !== ids.length) errors.push('representationMatch linearConnections set ids must be present and unique.');
         linearSets.forEach((set, index) => {
-          if (!canonicalLineForSet(set)) errors.push(`representationMatch linearConnections set ${index + 1} (${set?.id || 'unnamed'}) does not supply enough explicit information to determine a line (an equation field, or a slope with a point, or a linear graphSpec).`);
+          const canonical = canonicalLineForSet(set);
+          if (!canonical) errors.push(`representationMatch linearConnections set ${index + 1} (${set?.id || 'unnamed'}) does not supply enough explicit information to determine a line (an equation field, or a slope with a point, or a linear graphSpec).`);
+          else if (linearTask === 'group') {
+            const inconsistent = inconsistentLinearCardKinds(set, canonical);
+            if (inconsistent.length) errors.push(`representationMatch linearConnections set ${index + 1} (${set?.id || 'unnamed'}) has cards inconsistent with its canonical line: ${inconsistent.join(', ')}.`);
+          }
         });
         if (question.cardKinds != null) {
           if (!Array.isArray(question.cardKinds) || question.cardKinds.some((kind) => !LINEAR_CARD_KINDS.includes(kind))) errors.push(`representationMatch linearConnections cardKinds must only reference: ${LINEAR_CARD_KINDS.join(', ')}.`);
@@ -352,12 +357,12 @@ export const validateToolQuestion = (question = {}) => {
         if (!question.mismatchSetId || !mismatchSet) {
           errors.push('representationMatch linearConnections findMismatch task requires mismatchSetId naming one of the provided sets.');
         } else {
-          const equationCards = buildLinearConnectionCards([mismatchSet], ['slopeIntercept', 'pointSlope', 'standard']);
-          if (equationCards.length < 2) {
-            errors.push('representationMatch linearConnections findMismatch task requires the mismatch set to supply at least two of slopeIntercept, pointSlope, and standard.');
+          const equationCards = buildLinearConnectionCards([mismatchSet], ['slopeIntercept', 'factoredLinear', 'pointSlope', 'standard']);
+          if (equationCards.length < 3) {
+            errors.push('representationMatch linearConnections findMismatch task requires at least three equation-form cards so one can be the deliberate error.');
           } else {
-            const { mismatchIndexes } = findLinearMismatch(equationCards);
-            if (mismatchIndexes.length !== 1) errors.push('representationMatch linearConnections findMismatch task requires exactly one of the mismatch set’s equation forms to be mathematically inconsistent with the others — author one form as the deliberate error.');
+            const { mismatchIndexes, majorityLine } = findLinearMismatch(equationCards);
+            if (!majorityLine || mismatchIndexes.length !== 1) errors.push('representationMatch linearConnections findMismatch task requires a strict majority line and exactly one inconsistent equation card as the deliberate error.');
           }
         }
         if (question.correctionOptions != null) {
@@ -385,12 +390,13 @@ export const validateToolQuestion = (question = {}) => {
     }
   }
   if (toolId === 'graphing2') {
-    const modes = ['slopeIntercept','throughPoints','pointSlope','standardForm','verticalHorizontal'];
+    const modes = ['slopeIntercept','factoredLinear','throughPoints','pointSlope','standardForm','verticalHorizontal'];
     const mode = question.mode || 'slopeIntercept';
     if (!modes.includes(mode)) errors.push(`Unsupported graphing2 mode: ${mode}.`);
     if (mode === 'slopeIntercept') {
       if (!question.line || !Number.isFinite(Number(question.line.m)) || !Number.isFinite(Number(question.line.b))) errors.push('slopeIntercept mode requires finite line m and b values.');
     }
+    if (mode === 'factoredLinear' && (!question.factored || !Number.isFinite(Number(question.factored.a)) || Math.abs(Number(question.factored.a)) <= 1e-12 || !Number.isFinite(Number(question.factored.c)))) errors.push('factoredLinear mode requires a nonzero finite a and finite c value.');
     if (mode === 'throughPoints') {
       if (!Array.isArray(question.givenPoints) || question.givenPoints.length !== 2 || question.givenPoints.some((point) => !isFinitePoint(point))) errors.push('throughPoints mode requires exactly two finite points.');
       else if (question.givenPoints[0][0] === question.givenPoints[1][0] && question.givenPoints[0][1] === question.givenPoints[1][1]) errors.push('throughPoints points must be distinct.');
@@ -409,9 +415,17 @@ export const validateToolQuestion = (question = {}) => {
     if (question.constructionPolicy != null) {
       const policy = question.constructionPolicy;
       if (!['equivalentLine', 'formAware'].includes(policy.strategy)) errors.push('graphing2 constructionPolicy.strategy must be equivalentLine or formAware.');
-      if (policy.requiredAnchor != null && !['auto', 'yIntercept', 'givenPoint', 'intercepts'].includes(policy.requiredAnchor)) errors.push('graphing2 constructionPolicy.requiredAnchor must be auto, yIntercept, givenPoint, or intercepts.');
+      if (policy.requiredAnchor != null && !['auto', 'yIntercept', 'xIntercept', 'givenPoint', 'intercepts'].includes(policy.requiredAnchor)) errors.push('graphing2 constructionPolicy.requiredAnchor must be auto, yIntercept, xIntercept, givenPoint, or intercepts.');
       if (policy.minimumPoints != null && ![2, 3].includes(Number(policy.minimumPoints))) errors.push('graphing2 constructionPolicy.minimumPoints must be 2 or 3.');
+      if (policy.strategy !== 'formAware' && policy.requiredAnchor != null && policy.requiredAnchor !== 'auto') errors.push('graphing2 requiredAnchor is only supported with strategy formAware.');
       if (policy.strategy === 'formAware' && mode === 'pointSlope' && !isFinitePoint(question.point)) errors.push('graphing2 formAware pointSlope construction requires a finite point to use as the required anchor.');
+      const supportedAnchors = {
+        slopeIntercept: ['auto', 'yIntercept'], factoredLinear: ['auto', 'xIntercept'], pointSlope: ['auto', 'givenPoint'],
+        standardForm: ['auto', 'intercepts', 'xIntercept', 'yIntercept'], throughPoints: ['auto'], verticalHorizontal: ['auto'],
+      };
+      if (policy.strategy === 'formAware' && policy.requiredAnchor != null && !supportedAnchors[mode]?.includes(policy.requiredAnchor)) errors.push(`graphing2 ${mode} does not support requiredAnchor ${policy.requiredAnchor}.`);
+      if (policy.strategy === 'formAware' && mode === 'standardForm' && policy.requiredAnchor === 'xIntercept' && Math.abs(Number(question.standard?.A)) <= 1e-9) errors.push('graphing2 horizontal standardForm has no unique x-intercept anchor.');
+      if (policy.strategy === 'formAware' && mode === 'standardForm' && policy.requiredAnchor === 'yIntercept' && Math.abs(Number(question.standard?.B)) <= 1e-9) errors.push('graphing2 vertical standardForm has no y-intercept anchor.');
     }
   }
   if (toolId === 'openSortBoard') errors.push(...validateSortQuestion(question));

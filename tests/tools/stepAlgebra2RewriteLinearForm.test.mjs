@@ -133,3 +133,27 @@ test('isSimplifiedSlopeInterceptForm rejects un-distributed and single-fraction 
   assert.equal(isSimplifiedSlopeInterceptForm('-(5/2)*x+3'), true);
   assert.equal(isSimplifiedSlopeInterceptForm('3 - (5/2)*x'), true);
 });
+
+test('general linear expressions can be rewritten to structurally factored linear form', () => {
+  for (const [equation, answer] of [['y=5x-20', '5(x-4)'], ['y=-3x-12', '-3(x+4)']]) {
+    let state = buildInitialEquationState({ equation, targetForm: 'factoredLinear' });
+    assert.equal(describeRewriteGap(state), 'needsFactoring');
+    state = commitRewrite(state, 'right', answer);
+    assert.equal(isRewriteComplete(state), true);
+  }
+});
+
+test('factored form expands to slope-intercept while bad or unfinished factoring is rejected', () => {
+  let state = buildInitialEquationState({ equation: 'y=6(x-3)', targetForm: 'slopeIntercept' });
+  state = commitRewrite(state, 'right', '6x-18');
+  assert.equal(isRewriteComplete(state), true);
+  const factoredState = buildInitialEquationState({ equation: 'y=5x-20', targetForm: 'factoredLinear' });
+  assert.equal(checkSideRewrite(factoredState, 'right', '5(x-3)').ok, false);
+  assert.equal(describeRewriteGap(factoredState), 'needsFactoring');
+});
+
+test('variable cancellation cannot exploit sampled equivalence or alter the domain', () => {
+  const state = buildInitialEquationState({ equation: 'y=x', targetForm: 'slopeIntercept' });
+  assert.equal(checkSideRewrite(state, 'right', 'x*x/x').ok, false);
+  assert.equal(checkSideRewrite(state, 'right', 'x/x').ok, false);
+});

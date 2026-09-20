@@ -16,7 +16,7 @@ import { constructionEvidence, lineFromPoints, linesEquivalent, pointOnLine } fr
 export const resolveConstructionPolicy = (question = {}) => {
   const policy = question.constructionPolicy || {};
   const strategy = policy.strategy === 'formAware' ? 'formAware' : 'equivalentLine';
-  const requiredAnchor = ['yIntercept', 'givenPoint', 'intercepts'].includes(policy.requiredAnchor)
+  const requiredAnchor = ['yIntercept', 'xIntercept', 'givenPoint', 'intercepts'].includes(policy.requiredAnchor)
     ? policy.requiredAnchor
     : 'auto';
   const minimumPoints = Number(policy.minimumPoints) === 3 ? 3 : 2;
@@ -41,6 +41,7 @@ const standardFormAnchors = (question = {}) => {
 };
 
 export const formAwareAnchorsForMode = (mode, question = {}, target) => {
+  const requested = resolveConstructionPolicy(question).requiredAnchor;
   if (mode === 'slopeIntercept') {
     if (!target || target.kind !== 'slopeIntercept') return { anchors: [], axis: null };
     return { anchors: [{ id: 'yIntercept', point: [0, target.b] }], axis: null };
@@ -49,7 +50,15 @@ export const formAwareAnchorsForMode = (mode, question = {}, target) => {
     const point = Array.isArray(question.point) && question.point.length === 2 ? question.point.map(Number) : null;
     return { anchors: point && point.every(Number.isFinite) ? [{ id: 'givenPoint', point }] : [], axis: null };
   }
-  if (mode === 'standardForm') return standardFormAnchors(question);
+  if (mode === 'factoredLinear') {
+    const c = Number(question.factored?.c);
+    return { anchors: Number.isFinite(c) ? [{ id: 'xIntercept', point: [c, 0] }] : [], axis: null };
+  }
+  if (mode === 'standardForm') {
+    const result = standardFormAnchors(question);
+    if (requested === 'xIntercept' || requested === 'yIntercept') result.anchors = result.anchors.filter((anchor) => anchor.id === requested);
+    return result;
+  }
   return { anchors: [], axis: null };
 };
 
@@ -140,7 +149,7 @@ export const evaluateConstruction = (points = [], question = {}, target, toleran
     else category = 'incorrectLine';
   }
 
-  const interceptEvidence = mode === 'standardForm'
+  const interceptEvidence = ['standardForm', 'factoredLinear'].includes(mode)
     ? Object.fromEntries(anchorMatches.map((anchor) => [anchor.id, { required: true, satisfied: anchor.satisfied, point: anchor.point }]))
     : null;
 
