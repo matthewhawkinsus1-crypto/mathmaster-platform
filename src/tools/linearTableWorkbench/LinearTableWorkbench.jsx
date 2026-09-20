@@ -127,6 +127,7 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
   const partLabel = (id) => ({
     evidenceCount: `At least ${requiredComparisons} distinct recorded intervals`,
     evidenceAccuracy: 'Δx, Δy, and rate for every recorded interval',
+    nonconstantRateEvidence: 'Recorded intervals show that the rate changes',
     classification: 'Linear vs. nonlinear classification',
     repairIndex: 'Identified offending row',
     repairValue: 'Corrected value',

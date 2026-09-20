@@ -111,3 +111,23 @@ test('formAware distinguishes a duplicated point from a wrong line', () => {
   assert.equal(duplicate.isCorrect, false);
   assert.equal(duplicate.category, 'duplicatePoint');
 });
+
+test('factoredLinear derives its line and requires deliberate x-intercept plus slope evidence', () => {
+  const question = { mode: 'factoredLinear', factored: { a: 5, c: 6 }, constructionPolicy: { strategy: 'formAware', requiredAnchor: 'xIntercept', minimumPoints: 2 } };
+  const target = targetLineFromQuestion(question);
+  assert.deepEqual(target, { kind: 'slopeIntercept', m: 5, b: -30 });
+  assert.equal(evaluateConstruction([[5, -5], [7, 5]], question, target).category, 'correctLineMissingAnchor');
+  assert.equal(evaluateConstruction([[6, 0], [7, 4]], question, target).category, 'correctAnchorWrongSlope');
+  assert.equal(evaluateConstruction([[6, 0], [7, 5]], question, target).isCorrect, true);
+});
+
+test('factoredLinear supports negative and rational values and minimumPoints 3', () => {
+  const cases = [
+    [{ a: -2, c: 3 }, [[3, 0], [4, -2], [5, -4]]],
+    [{ a: 0.5, c: -2 }, [[-2, 0], [0, 1], [2, 2]]],
+  ];
+  for (const [factored, points] of cases) {
+    const question = { mode: 'factoredLinear', factored, constructionPolicy: { strategy: 'formAware', requiredAnchor: 'xIntercept', minimumPoints: 3 } };
+    assert.equal(evaluateConstruction(points, question, targetLineFromQuestion(question)).isCorrect, true);
+  }
+});
