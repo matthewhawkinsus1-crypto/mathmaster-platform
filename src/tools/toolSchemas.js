@@ -126,6 +126,32 @@ export const validateToolQuestion = (question = {}) => {
     if (mode === 'linear' && question.system?.m1 === question.system?.m2 && question.system?.b1 == null) warnings.push('Parallel/coincident system should explicitly provide both intercepts.');
     if (mode === 'inequalities' && question.inequalities && (!Array.isArray(question.inequalities) || question.inequalities.length < 2)) errors.push('Inequality mode requires at least two inequalities.');
     if (mode === 'linearQuadratic' && Number(question.linearQuadratic?.quadratic?.a ?? 1) === 0) errors.push('linearQuadratic mode requires a nonzero quadratic coefficient.');
+    if (mode === 'inequalities' && Array.isArray(question.inequalities)) {
+      question.inequalities.forEach((ineq, index) => {
+        if (ineq?.orientation != null && !['vertical', 'horizontal'].includes(ineq.orientation)) {
+          errors.push(`systemsWorkspace inequality ${index + 1} has an unsupported orientation: ${ineq.orientation}.`);
+        } else if (ineq?.orientation === 'vertical' && !Number.isFinite(Number(ineq.x))) {
+          errors.push(`systemsWorkspace inequality ${index + 1} needs a finite x for a vertical orientation.`);
+        } else if (ineq?.orientation === 'horizontal' && !Number.isFinite(Number(ineq.y))) {
+          errors.push(`systemsWorkspace inequality ${index + 1} needs a finite y for a horizontal orientation.`);
+        }
+      });
+    }
+    if (mode === 'inequalities' && question.studentBuild) {
+      if (question.modeling) {
+        const modeling = question.modeling;
+        if (!Array.isArray(modeling.variables) || modeling.variables.length !== 2 || modeling.variables.some((v) => !v || typeof v.symbol !== 'string' || !v.symbol)) {
+          errors.push('systemsWorkspace modeling requires exactly two variables, each with a non-empty symbol.');
+        }
+        if (!Array.isArray(modeling.expectedConstraints) || modeling.expectedConstraints.length < 1) {
+          errors.push('systemsWorkspace modeling requires at least one expected constraint.');
+        } else if (modeling.expectedConstraints.some((c) => !c || !['A', 'B', 'C'].every((key) => Number.isFinite(Number(c[key]))) || !['>', '>=', '<', '<='].includes(c.relation))) {
+          errors.push('Each systemsWorkspace modeling expected constraint needs finite A, B, and C and a valid relation.');
+        }
+      } else if (!Array.isArray(question.inequalities) || question.inequalities.length < 1) {
+        errors.push('systemsWorkspace studentBuild requires at least one inequality, or a modeling config.');
+      }
+    }
   }
   if (toolId === 'inverseCompositionLab') {
     const modes = ['full','composition','inverse','restriction','deriveInverse'];
