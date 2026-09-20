@@ -48,6 +48,16 @@ test('the combined region is locked until every constraint is individually corre
   assert.match(mode, /allConstraintsComplete\s*=\s*constraintCount\s*>\s*0\s*&&/);
 });
 
+test('blank yes/no answers cannot earn accidental credit and requested vertex work requires full vertex coverage', () => {
+  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
+  assert.match(executable, /const explicitBooleanAnswerMatches/);
+  assert.match(mode, /explicitBooleanAnswerMatches\(response\.overall/);
+  assert.match(mode, /explicitBooleanAnswerMatches\(vertex\.includedAnswer/);
+  assert.match(mode, /const allExpectedVerticesFound/);
+  assert.match(mode, /vertices\.length === workingVertices\.length/);
+  assert.match(mode, /vertexCoverageCorrect/);
+});
+
 test('the test-point tool reasons per inequality, overall, and about boundary inclusion specifically', () => {
   assert.match(executable, /Does the point satisfy inequality/);
   assert.match(executable, /Is the point a solution to the entire system\?/);
