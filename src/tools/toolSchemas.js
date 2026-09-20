@@ -126,7 +126,7 @@ export const validateToolQuestion = (question = {}) => {
     if (!modes.includes(mode)) errors.push(`Unsupported systemsWorkspace mode: ${mode}.`);
     if (mode === 'linear' && question.system?.m1 === question.system?.m2 && question.system?.b1 == null) warnings.push('Parallel/coincident system should explicitly provide both intercepts.');
     if (mode === 'inequalities' && question.inequalities) {
-      const minimumInequalities = question.studentBuild || question.modeling ? 1 : 2;
+      const minimumInequalities = question.studentBuild || question.reasoning || question.modeling ? 1 : 2;
       if (!Array.isArray(question.inequalities) || question.inequalities.length < minimumInequalities) {
         errors.push(`Inequality mode requires at least ${minimumInequalities} inequalit${minimumInequalities === 1 ? 'y' : 'ies'}.`);
       }
@@ -153,6 +153,8 @@ export const validateToolQuestion = (question = {}) => {
         try { normalizeLinearInequality(canonicalInput); }
         catch (error) { errors.push(`Inequality ${index + 1}: ${error.message}`); }
       });
+    }
+    if (mode === 'inequalities') {
       ['studentBuild', 'reasoning'].forEach((section) => {
         if (section === 'studentBuild' && question[section] === true) return;
         if (question[section] != null && (!question[section] || typeof question[section] !== 'object' || Array.isArray(question[section]))) {
