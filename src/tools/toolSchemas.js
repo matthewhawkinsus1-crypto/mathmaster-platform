@@ -125,21 +125,74 @@ export const validateToolQuestion = (question = {}) => {
     const mode = question.mode || 'linear';
     if (!modes.includes(mode)) errors.push(`Unsupported systemsWorkspace mode: ${mode}.`);
     if (mode === 'linear' && question.system?.m1 === question.system?.m2 && question.system?.b1 == null) warnings.push('Parallel/coincident system should explicitly provide both intercepts.');
-    if (mode === 'inequalities' && question.inequalities && (!Array.isArray(question.inequalities) || question.inequalities.length < 2)) errors.push('Inequality mode requires at least two inequalities.');
+    if (mode === 'inequalities' && question.inequalities) {
+      const minimumInequalities = question.studentBuild || question.reasoning || question.modeling ? 1 : 2;
+      if (!Array.isArray(question.inequalities) || question.inequalities.length < minimumInequalities) {
+        errors.push(`Inequality mode requires at least ${minimumInequalities} inequalit${minimumInequalities === 1 ? 'y' : 'ies'}.`);
+      }
+    }
     if (mode === 'inequalities' && Array.isArray(question.inequalities)) {
       question.inequalities.forEach((inequality, index) => {
-        try { normalizeLinearInequality(inequality); }
+        if (inequality?.orientation != null && !['vertical', 'horizontal'].includes(inequality.orientation)) {
+          errors.push(`systemsWorkspace inequality ${index + 1} has an unsupported orientation: ${inequality.orientation}.`);
+          return;
+        }
+        if (inequality?.orientation === 'vertical' && !Number.isFinite(Number(inequality.x))) {
+          errors.push(`systemsWorkspace inequality ${index + 1} needs a finite x for a vertical orientation.`);
+          return;
+        }
+        if (inequality?.orientation === 'horizontal' && !Number.isFinite(Number(inequality.y))) {
+          errors.push(`systemsWorkspace inequality ${index + 1} needs a finite y for a horizontal orientation.`);
+          return;
+        }
+        const canonicalInput = inequality?.orientation === 'vertical'
+          ? { A: 1, B: 0, C: -Number(inequality.x), relation: inequality.relation }
+          : inequality?.orientation === 'horizontal'
+            ? { A: 0, B: 1, C: -Number(inequality.y), relation: inequality.relation }
+            : inequality;
+        try { normalizeLinearInequality(canonicalInput); }
         catch (error) { errors.push(`Inequality ${index + 1}: ${error.message}`); }
       });
+    }
+    if (mode === 'inequalities') {
       ['studentBuild', 'reasoning'].forEach((section) => {
+        if (section === 'studentBuild' && question[section] === true) return;
         if (question[section] != null && (!question[section] || typeof question[section] !== 'object' || Array.isArray(question[section]))) {
-          errors.push(`systemsWorkspace ${section} must be an object when supplied.`);
+          errors.push(`systemsWorkspace ${section} must be an object when supplied${section === 'studentBuild' ? ' (or true as a compatibility alias)' : ''}.`);
         } else {
           Object.entries(question[section] || {}).forEach(([key, value]) => {
             if (typeof value !== 'boolean') errors.push(`systemsWorkspace ${section}.${key} must be boolean.`);
           });
         }
       });
+      if (question.reasoning?.boundaryProbe) {
+        const point = question.testPoint;
+        if (!point || !Number.isFinite(Number(point.x)) || !Number.isFinite(Number(point.y))) {
+          errors.push('systemsWorkspace reasoning.boundaryProbe requires a finite teacher testPoint {x, y}.');
+        }
+      }
+    }
+    if (mode === 'inequalities' && (question.studentBuild || question.modeling)) {
+      if (question.modeling) {
+        const modeling = question.modeling;
+        if (!Array.isArray(modeling.variables) || modeling.variables.length !== 2 || modeling.variables.some((v) => !v || typeof v.symbol !== 'string' || !v.symbol)) {
+          errors.push('systemsWorkspace modeling requires exactly two variables, each with a non-empty symbol.');
+        }
+        if (!Array.isArray(modeling.expectedConstraints) || modeling.expectedConstraints.length < 1) {
+          errors.push('systemsWorkspace modeling requires at least one expected constraint.');
+        } else {
+          modeling.expectedConstraints.forEach((constraint, index) => {
+            if (!constraint || !['A', 'B', 'C'].every((key) => Number.isFinite(Number(constraint[key]))) || !['>', '>=', '<', '<='].includes(constraint.relation)) {
+              errors.push(`systemsWorkspace modeling constraint ${index + 1} needs finite A, B, and C and a valid relation.`);
+            } else {
+              try { normalizeLinearInequality(constraint); }
+              catch (error) { errors.push(`systemsWorkspace modeling constraint ${index + 1}: ${error.message}`); }
+            }
+          });
+        }
+      } else if (!Array.isArray(question.inequalities) || question.inequalities.length < 1) {
+        errors.push('systemsWorkspace studentBuild requires at least one inequality, or a modeling config.');
+      }
     }
     if (mode === 'linearQuadratic' && Number(question.linearQuadratic?.quadratic?.a ?? 1) === 0) errors.push('linearQuadratic mode requires a nonzero quadratic coefficient.');
   }

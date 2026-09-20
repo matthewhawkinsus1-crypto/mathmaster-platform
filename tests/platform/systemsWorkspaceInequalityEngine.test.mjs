@@ -133,6 +133,7 @@ test('new construction and reasoning schema is opt-in while legacy JSON defaults
     inequalities: [{ A: 1, B: 0, C: -1, relation: '<' }, { m: 1, b: 2, relation: '>=' }],
     studentBuild: { boundary: true, lineStyle: true, shading: true },
     reasoning: { testPoint: true, boundaryProbe: true, classifyRegion: true, vertices: true },
+    testPoint: { x: 1, y: 3 },
   };
   assert.deepEqual(validateToolQuestion(question).errors, []);
 });
