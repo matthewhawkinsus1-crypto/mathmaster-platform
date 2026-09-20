@@ -41,6 +41,15 @@ test('solid/dashed and shading feedback stays neutral on the first miss, per the
   assert.match(executable, /Use a test point or compare the inequality to its boundary\./);
 });
 
+test('progress checkmarks and Combine remain locked until the student explicitly checks each enabled construction step', () => {
+  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
+  assert.match(mode, /const boundaryVerified = .*boundaryAttempts > 0/);
+  assert.match(mode, /const styleVerified = .*styleAttempts > 0/);
+  assert.match(mode, /const shadeVerified = .*shadeAttempts > 0/);
+  assert.match(mode, /every\(constraintVerified\)/);
+  assert.match(mode, /Boundary \{buildConfig\.boundary \? \(boundaryVerified/);
+});
+
 test('the combined region is locked until every constraint is individually correct, and never renders early', () => {
   const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
   assert.match(mode, /disabled=\{!allConstraintsComplete\}/, 'Find overlap / Combine regions must be disabled until every constraint checks out.');
