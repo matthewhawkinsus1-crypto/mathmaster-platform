@@ -132,6 +132,21 @@ service cloud.firestore {
           == resource.data.get('assignedTeacherEmail', null);
     }
 
+    // SIS identity is an administrative/export identity, not student work.
+    // Only audited Admin SDK callables may add or change it. This prevents a
+    // student (or a normal grade update) from changing the TEAMS import key.
+    function sisIdentityUnchanged() {
+      return request.resource.data.get('sisStudentId', null) == resource.data.get('sisStudentId', null)
+        && request.resource.data.get('sisStudentIdVerifiedAt', null) == resource.data.get('sisStudentIdVerifiedAt', null)
+        && request.resource.data.get('sisStudentIdVerifiedBy', null) == resource.data.get('sisStudentIdVerifiedBy', null);
+    }
+
+    function sisIdentityAbsentOnClientCreate() {
+      return !request.resource.data.keys().hasAny([
+        'sisStudentId', 'sisStudentIdVerifiedAt', 'sisStudentIdVerifiedBy'
+      ]);
+    }
+
     // Student work: students read/update only their own document; a teacher
     // only their own students; the root administrator the school. Permanent
     // account deletion is never a client permission — even the root
@@ -141,6 +156,7 @@ service cloud.firestore {
       allow read: if rootAdmin() || ownsStudent(studentId) || teachesStudent();
       allow update: if (rootAdmin() || ownsStudent(studentId) || teachesStudent())
         && rosterAuthorizationUnchanged()
+        && sisIdentityUnchanged()
         && testCycleGradesUnchanged()
         && teacherGradeOverridesUnchanged();
       // Creation stays open to any teacher: a roster row may be written before
@@ -149,6 +165,7 @@ service cloud.firestore {
       // server-derived — otherwise the update rule's guarantee lasts only until
       // someone deletes and recreates the row, or creates it for the first time.
       allow create: if (teacher() || ownsStudent(studentId))
+        && sisIdentityAbsentOnClientCreate()
         && testCycleGradesAbsentOnCreate()
         && teacherGradeOverridesAbsentOnCreate();
       allow delete: if false;
