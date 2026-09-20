@@ -128,6 +128,12 @@ export const scoreLinearTableWorkbench = (question = {}, response = {}) => {
   const noDuplicates = evidenceCorrectness.every((entry) => !entry.duplicate);
   const enoughEvidence = distinctPairCount >= requiredComparisons && noDuplicates;
   const allEvidenceCorrect = evidenceCorrectness.length > 0 && evidenceCorrectness.every((entry) => entry.complete);
+  const correctRecordedRates = evidenceCorrectness
+    .map((entry, index) => entry.complete ? intervalTruth(rows[evidence[index]?.i], rows[evidence[index]?.j])?.rate : null)
+    .filter((value) => Number.isFinite(value));
+  const demonstratesNonconstantRate = correctRecordedRates.some((rate, index) => (
+    correctRecordedRates.some((other, otherIndex) => otherIndex > index && !nearlyEqual(rate, other, 1e-6))
+  ));
 
   const parts = {
     evidenceCount: enoughEvidence,
@@ -148,6 +154,12 @@ export const scoreLinearTableWorkbench = (question = {}, response = {}) => {
   } else {
     const expectedClassification = tableClassification(rows);
     parts.classification = response.classification === expectedClassification;
+    if (mode === 'constantRate' && expectedClassification === 'nonlinear') {
+      // A nonlinear verdict must be supported by evidence that actually shows
+      // two different correct rates. Otherwise a student can sample only a
+      // locally linear subset of a broken table and guess "nonlinear."
+      parts.nonconstantRateEvidence = demonstratesNonconstantRate;
+    }
   }
 
   if (mode === 'deriveEquation') {
