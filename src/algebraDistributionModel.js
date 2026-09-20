@@ -57,12 +57,20 @@ const detectOnSide = (side, expressionText) => {
   if (groupCandidates.length !== 1) return null;
   const group = groupCandidates[0];
   const otherFactors = withTerms.filter((_, index) => index !== group.index);
-  if (otherFactors.length !== 1) return null;
-  const factor = otherFactors[0].factor;
+  if (!otherFactors.length) return null;
+
+  // The outside factor may itself be a product, e.g. 2L(x + w). Distribution
+  // applies the whole outside product to every term, not just the nearest
+  // atomic factor. Preserve the product structurally and let MathDisplay
+  // typeset the factor chips from the constituent LaTeX.
+  const factorParts = otherFactors.map((entry) => ({
+    text: unwrapRedundantParens(entry.factor.text),
+    latex: entry.factor.latex,
+  }));
   return {
     side,
-    factorText: unwrapRedundantParens(factor.text),
-    factorLatex: factor.latex,
+    factorText: factorParts.map((part) => part.text).join(' * '),
+    factorLatex: factorParts.map((part) => part.latex).join('\\,'),
     groupText: group.factor.text,
     terms: group.terms,
   };
@@ -91,12 +99,26 @@ export const placeOnTerm = (state, termIndex) => {
   if (!state || !state.armed) return state;
   if (termIndex < 0 || termIndex >= state.terms.length) return state;
   if (state.placedIndices.includes(termIndex)) return state; // already received the factor
-  return { ...state, armed: false, placedIndices: [...state.placedIndices, termIndex] };
+  const placedIndices = [...state.placedIndices, termIndex];
+  // One pick-up means "carry this factor through the whole parenthetical
+  // group." Keep it armed while unserved terms remain; disarm only when every
+  // term has received a copy.
+  return {
+    ...state,
+    armed: placedIndices.length < state.terms.length,
+    placedIndices,
+  };
 };
 
 export const undoLastPlacement = (state) => {
   if (!state || !state.placedIndices.length) return state;
-  return { ...state, placedIndices: state.placedIndices.slice(0, -1) };
+  return {
+    ...state,
+    placedIndices: state.placedIndices.slice(0, -1),
+    // Undoing a placement returns the factor to the student's hand so the
+    // missing destination can be corrected without an extra pick-up.
+    armed: true,
+  };
 };
 
 const signedTermText = (term) => (term.sign < 0 ? `-${term.magnitudeText}` : term.magnitudeText);
