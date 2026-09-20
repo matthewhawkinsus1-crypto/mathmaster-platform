@@ -37,6 +37,7 @@ export const TOOL_CAPABILITIES = {
   solutionReview2: { supportsAttempts: false, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: false, supportsModifiedContent: false, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: false },
   linearTableWorkbench: { supportsAttempts: true, supportsSolutionReview: false, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
   expressionMeaning: { supportsAttempts: true, supportsSolutionReview: false, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
+  representationBridge: { supportsAttempts: true, supportsSolutionReview: false, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true },
 };
 
 TOOL_CAPABILITIES.intervalNumberLine = { supportsAttempts: true, supportsSolutionReview: true, supportsCalculator: false, supportsScaffolds: true, supportsModifiedContent: true, supportsTeacherPreview: true, supportsDemoMode: true, supportsAssessmentMode: true };

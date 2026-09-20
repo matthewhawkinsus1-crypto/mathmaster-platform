@@ -122,6 +122,18 @@ const linearTableWorkbenchHasTable = (question = {}) => (
   && nonEmptyArray(question.rows)
 );
 
+// representationBridge always renders its authored source table as the
+// student-visible table AND always includes a graph stage derived from that
+// same table, so a prompt referring to "the table below" or "the graph
+// shown" is truthful for any valid bridge question.
+const representationBridgeHasTable = (question = {}) => (
+  String(question.toolId || question.type) === 'representationBridge'
+  && question.source?.kind === 'table'
+  && nonEmptyArray(question.source?.rows)
+);
+
+const representationBridgeHasGraph = (question = {}) => representationBridgeHasTable(question);
+
 const openSortBoardHasGraph = (question = {}) => (
   String(question.toolId || question.type) === 'openSortBoard'
   && Array.isArray(question.items)
@@ -171,7 +183,8 @@ const VISUAL_PROMISES = [
       // in front of the student, so a prompt that says "the graph shown" is
       // telling the truth.
       || composedDrawsFigureGraphs(composed)
-      || composedPreviewsChoicesOnGraph(composed),
+      || composedPreviewsChoicesOnGraph(composed)
+      || representationBridgeHasGraph(question),
     remedy: 'Add a `graph` object or a `functionSpec` so the graph is actually drawn, or reword the prompt so it does not refer to one.',
   },
   {
@@ -181,7 +194,7 @@ const VISUAL_PROMISES = [
     satisfied: (question, composed) => (
       isObject(question.table) && nonEmptyArray(question.table.rows)
       && TYPES_THAT_RENDER_A_TABLE.has(String(question.toolId || question.type))
-    ) || linearTableWorkbenchHasTable(question) || composedHasStage(composed, ['tableInput']) || composedShowsTable(composed),
+    ) || linearTableWorkbenchHasTable(question) || representationBridgeHasTable(question) || composedHasStage(composed, ['tableInput']) || composedShowsTable(composed),
     remedy: `Add a \`table\` object with \`columns\` and \`rows\`, and use a type that displays one (${[...TYPES_THAT_RENDER_A_TABLE].join(', ')}), or reword the prompt.`,
   },
   {

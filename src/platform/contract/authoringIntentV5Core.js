@@ -82,6 +82,7 @@ const ACTION_ALIASES = Object.freeze({
   provelinearrate: 'proveConstantRate', provelineartablerate: 'proveConstantRate', analyzelineartable: 'proveConstantRate',
   determinelinearequation: 'proveConstantRate', repairlineartable: 'proveConstantRate',
   interpretexpressionmeaning: 'interpretExpressionMeaning', mapexpressionmeaning: 'interpretExpressionMeaning', explainexpressionmeaning: 'interpretExpressionMeaning',
+  connectlinearrepresentations: 'connectLinearRepresentations', representationbridge: 'connectLinearRepresentations', bridgerepresentations: 'connectLinearRepresentations',
 });
 
 const normalizeActions = (question = {}) => {
@@ -1060,6 +1061,9 @@ const resolveIntentType = (q, actions) => {
   if (actions.includes('interpretExpressionMeaning') || (Array.isArray(q.expressions) && isObject(q.choiceBanks))) {
     return 'expressionMeaning';
   }
+  if (actions.includes('connectLinearRepresentations') || (isObject(q.source) && q.source.kind === 'table' && Array.isArray(q.source.rows))) {
+    return 'representationBridge';
+  }
   // The legacy one-box Algebra renderer is retired. All ordinary equation
   // solving now uses the balance workspace so the student must actually solve.
   if (actions.includes('solveEquation') || q.equation) return 'stepAlgebra';
@@ -1728,6 +1732,20 @@ const compileOne = (q, index, repairs) => {
       });
       break;
     }
+    case 'representationBridge': {
+      out = copyCommon(q, {
+        type,
+        mode: q.mode || 'linear',
+        source: q.source,
+        context: q.context,
+        requiredStages: q.requiredStages,
+        requiredComparisons: q.requiredComparisons,
+        graphBounds: q.graphBounds,
+        feedbackTiming: q.feedbackTiming,
+        ...(q.tolerance != null ? { tolerance: q.tolerance } : {}),
+      });
+      break;
+    }
     case 'constraintFunctionBuilder': {
       const builder = q.builder || {};
       out = copyCommon(q, {
@@ -1855,5 +1873,5 @@ export const AUTHORING_INTENT_V5_ACTIONS = Object.freeze([
   'writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence','connectRepresentations','findRepresentationMismatch','sortIntoOwnGroups','sortIntoCategories','buildFunctionFromConstraints','analyzeData','fitDataModel','predictFromModel','calculateCorrelation',
   'findInverse','composeFunctions','analyzeParabolaGeometry','factorPolynomial','dividePolynomial','multiplyPolynomials','solveInequality','complexOperations','analyzeComplex',
   'exponentialLogBridge','solveExponential','solveLogarithmic','analyzeTransformations','constructLine','modelingLab',
-  'proveConstantRate','interpretExpressionMeaning',
+  'proveConstantRate','interpretExpressionMeaning','connectLinearRepresentations',
 ]);
