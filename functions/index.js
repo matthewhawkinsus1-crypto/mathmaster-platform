@@ -3347,7 +3347,7 @@ exports.createStudentAccount = onCall(async (request) => {
   if (studentId === "test_connection") {
     throw new HttpsError("failed-precondition", "The connection-test ID is reserved.");
   }
-  if (!/^\d{3,20}$/.test(studentId)) {
+  if (!/^\d{1,20}$/.test(studentId)) {
     throw new HttpsError(
       "invalid-argument",
       "New student accounts must use the district SIS student ID (digits only).",
@@ -17124,7 +17124,7 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
  */
 function normalizeTeamsSisStudentId(value) {
   const cleaned = String(value ?? "").trim();
-  if (!/^\d{3,20}$/.test(cleaned)) {
+  if (!/^\d{1,20}$/.test(cleaned)) {
     throw new HttpsError("invalid-argument", "SIS Student ID must contain digits only.");
   }
   return cleaned;
