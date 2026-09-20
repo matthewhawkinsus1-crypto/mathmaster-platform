@@ -14,6 +14,16 @@ export const loadTeacherGradeTransferState = async ({ classIds = [] } = {}) => {
   };
 };
 
+// Compatibility helpers for older call sites. They still use the same
+// server-authorized callable boundary; no browser Firestore reads are restored.
+export const listTeacherTransferSnapshots = async ({ classIds = [] } = {}) => (
+  await loadTeacherGradeTransferState({ classIds })
+).snapshots;
+
+export const listTeacherPracticePassRedemptions = async (classIds = []) => (
+  await loadTeacherGradeTransferState({ classIds })
+).practicePasses;
+
 export const persistTransferSnapshot = async (snapshot) => {
   const response = await callable('persistGradeTransferSnapshot')({ snapshot });
   return response.data?.transferId || snapshot.transferId;
