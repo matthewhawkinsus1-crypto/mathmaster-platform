@@ -99,9 +99,34 @@ ready.
 
 ## Deploy
 
-Hosting plus rules; add `functions` when anything under `functions/` changed.
+**Never deploy Hosting with a raw `firebase deploy --only hosting...` command.**
+Cloud Shell repeatedly hits Firebase Hosting upload timeouts when the CLI uses its
+normal high upload fan-out. Always use MathMaster's resilient Hosting wrapper,
+which deliberately lowers upload concurrency and retries transient network
+failures.
 
+For a normal release:
+
+```bash
+npm run build
+npm run build:firebase
+
+# Deploy server-side targets without Hosting.
+firebase deploy --project mathmaster-aleks --only firestore:rules[,functions:<exact-name>,...]
+
+# Hosting is ALWAYS separate and ALWAYS goes through the resilient wrapper.
+FIREBASE_HOSTING_UPLOAD_CONCURRENCY=4 npm run deploy:hosting
 ```
-npm run build && npm run build:firebase
-firebase deploy --only hosting,firestore:rules[,functions]
-```
+
+Rules for every agent/operator:
+
+- **Do not** put `hosting` in the same raw Firebase CLI command as functions or rules.
+- Prefer exact function names instead of redeploying the entire function fleet.
+- Use `npm run deploy:hosting` for every production Hosting release.
+- Default Hosting upload concurrency is intentionally low for Cloud Shell.
+- If Hosting times out, rerun only `npm run deploy:hosting`; do not rebuild or
+  redeploy successful functions/rules just because the Hosting upload failed.
+- A Hosting upload timeout is a transport failure, not evidence that the web build
+  is bad. Check the build result separately before changing application code.
+
+The wrapper is `scripts/deploy-hosting-resilient.sh`.
