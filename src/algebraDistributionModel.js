@@ -17,8 +17,9 @@ import { splitAdditiveTerms, splitMultiplicativeFactors } from './algebraAstEngi
  * Find a `factor * (term ± term ± ...)` shape on one side of the equation.
  *
  * Deliberately narrow, as the issue allows: the ENTIRE side must be exactly
- * one scalar/symbolic factor times one additive group — not a factor buried
- * inside a larger sum. Every documented example in the issue (`y - 7 =
+ * one outside factor expression (which may itself be a product such as 2L)
+ * times one additive group — not a factor buried inside a larger sum. Every
+ * documented example in the issue (`y - 7 =
  * -(2/3)(x + 3)`, `-3(x - 4)`, ...) is a full side shaped exactly this way.
  */
 // A factor the student authored with its own parentheses (e.g. the `(2/3)`
