@@ -3,8 +3,8 @@ set -euo pipefail
 
 PROJECT="${FIREBASE_PROJECT:-mathmaster-aleks}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MAX_ATTEMPTS="${FIREBASE_HOSTING_DEPLOY_ATTEMPTS:-6}"
-UPLOAD_CONCURRENCY="${FIREBASE_HOSTING_UPLOAD_CONCURRENCY:-8}"
+MAX_ATTEMPTS="${FIREBASE_HOSTING_DEPLOY_ATTEMPTS:-8}"
+UPLOAD_CONCURRENCY="${FIREBASE_HOSTING_UPLOAD_CONCURRENCY:-4}"
 
 cd "$REPO_ROOT"
 
@@ -30,7 +30,7 @@ fi
 # supports it on current releases.
 export FIREBASE_HOSTING_UPLOAD_CONCURRENCY="$UPLOAD_CONCURRENCY"
 
-echo "=== MathMaster resilient Firebase Hosting deploy ==="
+echo "=== MathMaster resilient Firebase Hosting deploy (Cloud Shell safe) ==="
 echo "Project: $PROJECT"
 echo "Upload concurrency: $FIREBASE_HOSTING_UPLOAD_CONCURRENCY"
 echo "Retry attempts: $MAX_ATTEMPTS"
