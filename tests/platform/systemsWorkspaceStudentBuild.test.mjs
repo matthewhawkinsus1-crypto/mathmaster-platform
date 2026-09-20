@@ -12,7 +12,7 @@ test('student-build inequality mode is opt-in and does not disturb the existing 
   const inequalityMode = region(executable, 'function InequalityMode(', 'function LinearQuadraticMode(', 'InequalityMode');
   assert.match(
     inequalityMode,
-    /studentBuildEnabled[\s\S]*?<StudentBuildInequalityMode/,
+    /studentBuildEnabled[\s\S]*?Object\.values\(inequalityConfig\.reasoning\)[\s\S]*?<StudentBuildInequalityMode/,
     'InequalityMode must route to the new mode only when a question explicitly opts in, before any of the existing hooks run.',
   );
   // The pre-existing "type four numbers, pick two selects" construction path
@@ -117,6 +117,25 @@ test('authored questions can express vertical and horizontal boundaries, which t
   assert.match(adapterSource, /orientation === 'horizontal'/);
   assert.match(schemaSource, /orientation/);
   assert.match(schemaSource, /systemsWorkspace studentBuild requires at least one inequality/);
+});
+
+test('canonical studentBuild and reasoning flags are honored independently instead of forcing every construction step on', () => {
+  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
+  assert.match(mode, /const buildConfig = inequalityConfig\.studentBuild/);
+  assert.match(mode, /buildConfig\.boundary \? \(/);
+  assert.match(mode, /buildConfig\.lineStyle \? \(/);
+  assert.match(mode, /buildConfig\.shading \? \(/);
+  assert.match(mode, /reasoningConfig\.testPoint/);
+  assert.match(mode, /boundaryProbeEnabled/);
+});
+
+test('contextual modeling graphs and reasons from the student-authored canonical constraints while still grading them against the authored model', () => {
+  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
+  assert.match(executable, /const modelingEntryToCanonical/);
+  assert.match(mode, /const workingConstraints = useMemo/);
+  assert.match(mode, /modeledConstraints\.every\(Boolean\)/);
+  assert.match(mode, /modelingEntries\.map\(\(entry, index\) => modelingEntryCorrect\(entry, expectedConstraints\[index\]\)\)/);
+  assert.match(mode, /classifyFeasibleRegion\(workingConstraints\)/);
 });
 
 test('the boundary adapter delegates math to the canonical PR #293 engine instead of maintaining a duplicate engine', () => {
