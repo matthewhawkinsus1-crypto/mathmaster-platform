@@ -1,4 +1,5 @@
 import MathDisplay from './MathDisplay';
+import { splitProseFractionRuns } from './components/common/mathSegments.js';
 
 const INLINE_MATH_PATTERN = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$[^$\n]+?\$)/g;
 
@@ -12,7 +13,19 @@ const renderStatement = (statement, index) => {
         {segments.map((segment, segmentIndex) => {
           const isMath = INLINE_MATH_PATTERN.test(segment);
           INLINE_MATH_PATTERN.lastIndex = 0;
-          if (!isMath) return <span key={`${segmentIndex}-${segment}`}>{segment}</span>;
+          if (!isMath) {
+            // A raw mathematical fraction can appear in non-delimited prose
+            // here too ("The formula uses 1/2 base times height."). Stack it
+            // instead of leaving a slash on the screen.
+            const fractionRuns = splitProseFractionRuns(segment);
+            return (
+              <span key={`${segmentIndex}-${segment}`}>
+                {fractionRuns.map((run, runIndex) => (run.isFraction
+                  ? <MathDisplay key={`${segmentIndex}-f-${runIndex}`} value={run.text} format="latex" inline />
+                  : <span key={`${segmentIndex}-p-${runIndex}`}>{run.text}</span>))}
+              </span>
+            );
+          }
           if (segment.startsWith('$$')) return <MathDisplay key={`${segmentIndex}-${segment}`} value={segment.slice(2, -2)} format="auto" />;
           if (segment.startsWith('\\[')) return <MathDisplay key={`${segmentIndex}-${segment}`} value={segment.slice(2, -2)} format="auto" />;
           if (segment.startsWith('\\(')) return <MathDisplay key={`${segmentIndex}-${segment}`} value={segment.slice(2, -2)} format="auto" inline />;

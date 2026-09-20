@@ -1,6 +1,7 @@
 import html2canvas from 'html2canvas';
 import { convertLatexToMarkup } from 'mathlive';
 import 'mathlive/static.css';
+import { stackDivisions } from '../../../functions/shared/stackDivisions.mjs';
 
 const PAGE_WIDTH = 816;
 const PAGE_HEIGHT = 1056;
@@ -25,7 +26,10 @@ const addMath = (parent, latex, block = true) => {
     lineHeight: '1.35',
     overflow: 'visible',
   });
-  wrapper.innerHTML = convertLatexToMarkup(clean(latex));
+  // An authored equation field may hold a plain "2/3" instead of proper
+  // \frac syntax; stack it the same as everywhere else so a teacher/answer
+  // key PDF never shows a raw slash fraction.
+  wrapper.innerHTML = convertLatexToMarkup(stackDivisions(clean(latex)));
   parent.appendChild(wrapper);
   return wrapper;
 };

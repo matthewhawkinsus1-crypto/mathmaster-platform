@@ -1,6 +1,8 @@
 import React from 'react';
 import MathDisplay from '../../MathDisplay.jsx';
-import { isMathSegment, normalizePlainMathTypography, splitMathSegments, unwrapMathSegment } from './mathSegments.js';
+import {
+  isMathSegment, normalizePlainMathTypography, splitMathSegments, splitProseFractionRuns, unwrapMathSegment,
+} from './mathSegments.js';
 
 // Prose with mathematics in it, rendered as mathematics.
 //
@@ -22,7 +24,17 @@ export const MathText = ({ children, style = {}, as: Tag = 'span' }) => {
     <Tag style={style}>
       {segments.map((segment, index) => {
         if (!isMathSegment(segment)) {
-          return <React.Fragment key={`t-${index}`}>{normalizePlainMathTypography(segment)}</React.Fragment>;
+          // A raw mathematical fraction can appear in plain prose the author
+          // never wrapped in $…$ ("Simplify 2/3."). Stack it the same as
+          // delimited math instead of leaving a slash on the screen.
+          const fractionRuns = splitProseFractionRuns(segment);
+          return (
+            <React.Fragment key={`t-${index}`}>
+              {fractionRuns.map((run, runIndex) => (run.isFraction
+                ? <MathDisplay key={`t-${index}-f-${runIndex}`} value={run.text} inline style={{ margin: '0 0.15em' }} />
+                : <React.Fragment key={`t-${index}-p-${runIndex}`}>{normalizePlainMathTypography(run.text)}</React.Fragment>))}
+            </React.Fragment>
+          );
         }
         const math = unwrapMathSegment(segment);
         return (

@@ -1,3 +1,5 @@
+import { stackDivisions } from '../../../functions/shared/stackDivisions.mjs';
+
 // Splitting prose into "words" and "mathematics", in one place.
 //
 // Single-dollar math delimiters are ambiguous in a school math product because
@@ -139,6 +141,37 @@ export const normalizePlainMathTypography = (value) => String(value ?? '')
   .replace(/>=/g, '≥')
   .replace(/!=/g, '≠')
   .replace(/\+\/-/g, '±');
+
+const FRACTION_TOKEN = /\\frac\{[^{}]*\}\{[^{}]*\}/g;
+
+/**
+ * Splits a plain-prose (non-`$…$`-delimited) segment into alternating
+ * plain-text and stacked-fraction chunks, using the same conservative
+ * `a/b` -> `\frac{a}{b}` detector the rest of the platform already trusts
+ * (`stackDivisions`). A mathematical fraction authored as plain prose
+ * ("Simplify 2/3.") must never reach a student as a raw slash; a URL, file
+ * path or prose unit such as "miles/hour" must never be touched —
+ * `stackDivisions` already protects both (see its own docstring), so this
+ * reuses it rather than inventing a second fraction detector.
+ */
+export const splitProseFractionRuns = (proseText) => {
+  const text = String(proseText ?? '');
+  if (!text.includes('/')) return [{ text, isFraction: false }];
+  const stacked = stackDivisions(text);
+  if (stacked === text) return [{ text, isFraction: false }];
+  const chunks = [];
+  let cursor = 0;
+  FRACTION_TOKEN.lastIndex = 0;
+  let match = FRACTION_TOKEN.exec(stacked);
+  while (match) {
+    if (match.index > cursor) chunks.push({ text: stacked.slice(cursor, match.index), isFraction: false });
+    chunks.push({ text: match[0], isFraction: true });
+    cursor = match.index + match[0].length;
+    match = FRACTION_TOKEN.exec(stacked);
+  }
+  if (cursor < stacked.length) chunks.push({ text: stacked.slice(cursor), isFraction: false });
+  return chunks.length ? chunks : [{ text, isFraction: false }];
+};
 
 /** Whether one already-split segment is mathematics. */
 export const isMathSegment = (segment) => {

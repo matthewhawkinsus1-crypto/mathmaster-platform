@@ -1,5 +1,7 @@
 import MathDisplay from './MathDisplay';
-import { isMathSegment, normalizePlainMathTypography, splitMathSegments, unwrapMathSegment } from './components/common/mathSegments.js';
+import {
+  isMathSegment, normalizePlainMathTypography, splitMathSegments, splitProseFractionRuns, unwrapMathSegment,
+} from './components/common/mathSegments.js';
 import { studentSafePromptText } from './platform/content/studentFacingTextSafety.js';
 
 /**
@@ -51,7 +53,17 @@ export default function QuestionPrompt({
       )}
       {segments.map((segment, index) => {
         if (!isMathSegment(segment)) {
-          return <span key={`${index}-${segment}`}>{normalizePlainMathTypography(segment)}</span>;
+          // A raw mathematical fraction can appear in plain prose the author
+          // never wrapped in $…$ ("Simplify 2/3."). Stack it the same as
+          // delimited math instead of leaving a slash on the screen.
+          const fractionRuns = splitProseFractionRuns(segment);
+          return (
+            <span key={`${index}-${segment}`}>
+              {fractionRuns.map((run, runIndex) => (run.isFraction
+                ? <MathDisplay key={`${index}-f-${runIndex}`} value={run.text} format={mathFormat} inline style={{ margin: '0 0.16em' }} />
+                : <span key={`${index}-p-${runIndex}`}>{normalizePlainMathTypography(run.text)}</span>))}
+            </span>
+          );
         }
 
         const math = unwrapMathSegment(segment);

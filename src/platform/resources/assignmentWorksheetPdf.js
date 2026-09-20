@@ -1,7 +1,7 @@
 import html2canvas from 'html2canvas';
 import { convertLatexToMarkup } from 'mathlive';
 import 'mathlive/static.css';
-import { isMathSegment, splitMathSegments, unwrapMathSegment } from '../../components/common/mathSegments.js';
+import { isMathSegment, splitMathSegments, splitProseFractionRuns, unwrapMathSegment } from '../../components/common/mathSegments.js';
 import { PRINT_OUTPUT_MODES, worksheetFileName } from './assignmentWorksheetPdfModel.js';
 import { renderWorksheetVisual } from './assignmentWorksheetVisuals.js';
 
@@ -20,9 +20,26 @@ const el = (tag, styles = {}, text = null) => {
 
 const appendRichText = (parent, value, { size = 15, weight = 400 } = {}) => {
   const line = el('div', { fontSize: `${size}px`, fontWeight: String(weight), lineHeight: '1.45', whiteSpace: 'pre-wrap' });
+  const appendMath = (latex) => {
+    const span = el('span', {
+      display: 'inline-block',
+      margin: '0 2px',
+      fontSize: `${size}px`,
+      verticalAlign: 'middle',
+    });
+    span.innerHTML = convertLatexToMarkup(latex);
+    line.appendChild(span);
+  };
   splitMathSegments(String(value ?? '')).forEach((segment) => {
     if (!isMathSegment(segment)) {
-      line.appendChild(document.createTextNode(segment));
+      // A raw mathematical fraction can appear in plain prose the author
+      // never wrapped in $…$ ("Simplify 2/3."). Stack it here too — this is
+      // the printable worksheet, teacher copy and answer key, so a student
+      // must never see a slash fraction that the on-screen version stacks.
+      splitProseFractionRuns(segment).forEach((run) => {
+        if (run.isFraction) appendMath(run.text);
+        else line.appendChild(document.createTextNode(run.text));
+      });
       return;
     }
     const math = unwrapMathSegment(segment);
