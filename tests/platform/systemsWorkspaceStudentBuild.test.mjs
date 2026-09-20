@@ -120,8 +120,9 @@ test('authored questions can express vertical and horizontal boundaries, which t
 });
 
 test('authoring schema keeps legacy systems at two inequalities while allowing one-inequality student construction and requires a point for boundary probes', () => {
-  assert.match(schemaSource, /minimumInequalities = question\.studentBuild \|\| question\.modeling \? 1 : 2/);
+  assert.match(schemaSource, /minimumInequalities = question\.studentBuild \|\| question\.reasoning \|\| question\.modeling \? 1 : 2/);
   assert.match(schemaSource, /reasoning\.boundaryProbe requires a finite teacher testPoint/);
+  assert.match(schemaSource, /if \(mode === 'inequalities'\) \{[\s\S]*?\['studentBuild', 'reasoning'\]/);
 });
 
 test('canonical studentBuild and reasoning flags are honored independently instead of forcing every construction step on', () => {
