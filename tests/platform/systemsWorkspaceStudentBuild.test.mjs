@@ -12,7 +12,7 @@ test('student-build inequality mode is opt-in and does not disturb the existing 
   const inequalityMode = region(executable, 'function InequalityMode(', 'function LinearQuadraticMode(', 'InequalityMode');
   assert.match(
     inequalityMode,
-    /if\s*\(questionData\.studentBuild\)\s*return\s*<StudentBuildInequalityMode/,
+    /studentBuildEnabled[\s\S]*?<StudentBuildInequalityMode/,
     'InequalityMode must route to the new mode only when a question explicitly opts in, before any of the existing hooks run.',
   );
   // The pre-existing "type four numbers, pick two selects" construction path
@@ -59,7 +59,7 @@ test('region classification supports bounded, unbounded, AND no solution as a le
   const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
   assert.match(mode, /<option value="bounded">/);
   assert.match(mode, /<option value="unbounded">/);
-  assert.match(mode, /<option value="none">No solution<\/option>/);
+  assert.match(mode, /<option value="empty">No solution<\/option>/);
 });
 
 test('vertex mode distinguishes a geometric intersection from an included solution point', () => {
