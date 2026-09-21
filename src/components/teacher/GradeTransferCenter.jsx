@@ -26,6 +26,28 @@ const download = (bytes, fileName, type) => {
 };
 const id = (prefix) => `${prefix}_${Date.now().toString(36)}_${crypto.randomUUID()}`;
 
+const unitsForPackage = (unit) => {
+  if (!Array.isArray(unit.sectionUnits) || !unit.sectionUnits.length) {
+    return downloadable.has(unit.state) ? [unit] : [];
+  }
+  if (unit.state === TRANSFER_STATE.UPDATE_REQUIRED) {
+    return unit.sectionUnits.filter((section) => section.state === TRANSFER_STATE.UPDATE_REQUIRED);
+  }
+  if (unit.state === TRANSFER_STATE.READY_TO_EXPORT) {
+    return unit.sectionUnits.filter((section) => [
+      TRANSFER_STATE.READY_TO_EXPORT,
+      TRANSFER_STATE.NO_TRANSFER_REQUIRED,
+    ].includes(section.state));
+  }
+  return [];
+};
+
+const snapshotMatchesUnit = (snapshot, unit) => (
+  snapshot.classId === unit.classId
+  && snapshot.assignmentId === unit.assignmentId
+  && String(snapshot.sectionKey || '') === String(unit.sectionKey || '')
+);
+
 export default function GradeTransferCenter({
   classes,
   assignments,
@@ -118,19 +140,20 @@ export default function GradeTransferCenter({
   }, [authorizedClassIds, projectedStudents]);
 
   const prepare = async (chosen) => {
-    const ready = chosen.filter((unit) => unit.rows.length && downloadable.has(unit.state));
-    if (!ready.length) {
+    const readyGroups = chosen.filter((unit) => downloadable.has(unit.state));
+    const packageUnits = readyGroups.flatMap(unitsForPackage);
+    if (!packageUnits.length) {
       setMessage(
         sisProblems.length
           ? 'Fix the missing/non-numeric SIS Student IDs before exporting this grade package.'
-          : 'No selected transfer has finalized, valid rows to export.',
+          : 'No selected transfer has finalized section grades ready to export.',
       );
       return;
     }
     setBusy(true);
     try {
       const packageId = id('package');
-      for (const unit of ready) {
+      for (const unit of packageUnits.filter((entry) => entry.rows.length)) {
         const snapshot = createExportSnapshot({
           unit,
           transferId: transferSnapshotId(unit),
@@ -140,10 +163,10 @@ export default function GradeTransferCenter({
         });
         await persistTransferSnapshot(snapshot);
       }
-      download(buildGradebookZip(ready), `${packageId}.zip`, 'application/zip');
+      download(buildGradebookZip(packageUnits), `${packageId}.zip`, 'application/zip');
       await refreshTransferState();
       setSelected(new Set());
-      setMessage('Package downloaded. Upload is not recorded until you mark each export uploaded.');
+      setMessage('Package downloaded. Each lesson assignment is a folder with separate Warm-Up, Classwork, Practice, and DOL grade files when those sections exist. Upload is not recorded until you mark the export uploaded.');
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -170,11 +193,11 @@ export default function GradeTransferCenter({
     }
   };
 
-  const ready = units.filter((unit) => unit.rows.length && downloadable.has(unit.state));
+  const ready = units.filter((unit) => downloadable.has(unit.state) && unitsForPackage(unit).length);
 
   return <section aria-labelledby="grade-transfer-heading">
     <h2 id="grade-transfer-heading" style={{ marginTop: 0 }}>Grade Transfer Center</h2>
-    <p>Prepare finalized MathMaster grades for Frontline/Prologic TEAMS. Every assignment remains a separate two-column, no-header CSV.</p>
+    <p>Prepare finalized MathMaster grades for Frontline/Prologic TEAMS. Lesson assignments export as one folder containing separate two-column, no-header CSVs for Warm-Up, Classwork, Practice, and DOL. Secure/non-sectioned assessments keep their single assignment-grade file.</p>
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
       <button type="button" onClick={() => setSelected(new Set(ready.map((unit) => unit.key)))}>Select all ready</button>
       <button type="button" disabled={busy || !selected.size} onClick={() => prepare(units.filter((unit) => selected.has(unit.key)))} style={{ background: '#174ea6', color: '#fff', border: 0, borderRadius: 7, padding: '9px 14px', fontWeight: 800 }}>Prepare Gradebook Package</button>
@@ -215,21 +238,33 @@ export default function GradeTransferCenter({
     {message && <div role="status" style={{ padding: 10, marginBottom: 12, background: '#e8f0fe', borderRadius: 7 }}>{message}</div>}
     <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr><th></th><th>Assignment</th><th>Class / period</th><th>Final deadline</th><th>Finalized</th><th>Extensions</th><th>Status</th><th>Changed</th><th>Next action</th></tr></thead><tbody>
       {units.map((unit) => {
-        const latest = snapshots
-          .filter((item) => item.classId === unit.classId && item.assignmentId === unit.assignmentId)
-          .sort(newestFirst)[0];
+        const transferUnits = Array.isArray(unit.sectionUnits) && unit.sectionUnits.length ? unit.sectionUnits : [unit];
+        const latestByUnit = transferUnits
+          .map((entry) => snapshots.filter((item) => snapshotMatchesUnit(item, entry)).sort(newestFirst)[0])
+          .filter(Boolean);
+        const pendingUploads = latestByUnit.filter((snapshot) => !snapshot.uploadConfirmedAt);
+        const sectionLabels = transferUnits.filter((entry) => entry.sectionKey).map((entry) => entry.sectionLabel);
         return <tr key={unit.key} style={{ borderTop: '1px solid #dadce0' }}>
-          <td><input type="checkbox" aria-label={`Select ${unit.assignmentTitle} for ${unit.classLabel}`} checked={selected.has(unit.key)} disabled={!unit.rows.length || !downloadable.has(unit.state)} onChange={(event) => setSelected((current) => { const next = new Set(current); if (event.target.checked) next.add(unit.key); else next.delete(unit.key); return next; })} /></td>
-          <td style={{ padding: 10 }}><strong>{unit.assignmentTitle}</strong>{(unit.withheld.length || unit.problems.length) > 0 && <details><summary>Inspect withheld/problem students</summary>{[...unit.withheld, ...unit.problems].map((item) => <div key={`${item.studentId}-${item.reason}`}>{item.name}: {item.reason}</div>)}</details>}</td>
+          <td><input type="checkbox" aria-label={`Select ${unit.assignmentTitle} for ${unit.classLabel}`} checked={selected.has(unit.key)} disabled={!downloadable.has(unit.state) || !unitsForPackage(unit).length} onChange={(event) => setSelected((current) => { const next = new Set(current); if (event.target.checked) next.add(unit.key); else next.delete(unit.key); return next; })} /></td>
+          <td style={{ padding: 10 }}>
+            <strong>{unit.assignmentTitle}</strong>
+            {sectionLabels.length > 0 && <div style={{ color: '#5f6368', fontSize: 12 }}>{sectionLabels.join(' • ')}</div>}
+            {(unit.withheld.length || unit.problems.length || unit.excused?.length) > 0 && <details>
+              <summary>Inspect withheld/problem/excused students</summary>
+              {[...unit.withheld, ...unit.problems, ...(unit.excused || [])].map((item) => <div key={`${item.studentId}-${item.reason}`}>{item.name}: {item.reason}</div>)}
+            </details>}
+          </td>
           <td>{unit.classLabel}</td><td>{unit.ordinaryDeadline ? new Date(unit.ordinaryDeadline).toLocaleString() : 'Needs review'}</td><td>{unit.finalizedCount}</td><td>{unit.extensionCount}</td><td><strong>{unit.state.replaceAll('_', ' ')}</strong></td><td>{unit.changedCount}</td>
           <td style={{ padding: 8 }}>
-            <button type="button" disabled={busy || !unit.rows.length || !downloadable.has(unit.state)} onClick={() => prepare([unit])}>Individual export</button>
-            {latest && !latest.uploadConfirmedAt && <button type="button" disabled={busy} onClick={async () => {
+            <button type="button" disabled={busy || !downloadable.has(unit.state) || !unitsForPackage(unit).length} onClick={() => prepare([unit])}>{unit.sectionUnits?.length ? 'Export assignment folder' : 'Individual export'}</button>
+            {pendingUploads.length > 0 && <button type="button" disabled={busy} onClick={async () => {
               setBusy(true);
               try {
-                await confirmTransferUploaded({ transferId: latest.transferId || latest.id });
+                for (const snapshot of pendingUploads) {
+                  await confirmTransferUploaded({ transferId: snapshot.transferId || snapshot.id });
+                }
                 await refreshTransferState();
-                setMessage('Marked uploaded to TEAMS.');
+                setMessage(`Marked ${pendingUploads.length} grade file${pendingUploads.length === 1 ? '' : 's'} uploaded to TEAMS.`);
               } catch (error) {
                 setMessage(error.message);
               } finally {
