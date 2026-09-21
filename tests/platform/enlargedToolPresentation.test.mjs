@@ -104,16 +104,18 @@ test('the task comes with the figure', () => {
   }
 });
 
-test('the task is shown only when enlarged, never twice', () => {
-  // The tool already leads with its task card. Rendering the same sentence
-  // inline as well would add bulk to fix a problem that only exists in the
-  // panel.
+test('the task is persistently visible only while Work View is enlarged', () => {
+  // The normal tool already leads with its task card. Work View covers that
+  // card, so the full authored task is repeated inside the figure only behind
+  // the enlarged-state gate; embedded mode still has a single visible task.
   const source = codeOf('src/components/common/EnlargeableFigure.jsx');
   const drawer = source.slice(source.indexOf('className="mathmaster-work-view-drawer"'), source.indexOf('aria-label="Help and instructions"'));
   assert.match(drawer, /data-open=\{enlarged && drawer === 'task'/);
   const figureStart = source.indexOf('const figure =');
   const embeddedFigure = source.slice(figureStart, source.indexOf('</figure>\n  );', figureStart));
-  assert.doesNotMatch(embeddedFigure, /\{task\}/);
+  assert.match(embeddedFigure, /\{enlarged && task \? \(/);
+  assert.match(embeddedFigure, /mathmaster-work-view-persistent-task/);
+  assert.doesNotMatch(embeddedFigure, /\{!enlarged && task \? \(/);
 });
 
 test('the width behind the decision is re-measured, not read once', () => {
