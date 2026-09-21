@@ -34,6 +34,14 @@ test('the original question task wins over a nested tool summary', () => {
   );
 });
 
+test('a normal local task may still override a non-authoritative fallback', () => {
+  const capabilities = mergeWorkViewCapabilities(
+    { task:{ text:'Fallback task' } },
+    { task:{ text:'Local tool task' } },
+  );
+  assert.equal(capabilities.task.text, 'Local tool task');
+});
+
 test('tool capabilities augment platform actions without creating another state owner', () => {
   const undo = () => {};
   const fit = () => {};
@@ -99,7 +107,7 @@ test('QuestionEngine registers Universal Undo beside the tool call site', async 
   const source = await readFile(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
   const provider = source.slice(source.indexOf('<WorkViewCapabilityProvider'), source.indexOf('</WorkViewCapabilityProvider>'));
   assert.match(provider, /undo:\s*\{[\s\S]*workspaceActions\.undo\.onClick/);
-  assert.match(provider, /task:/);
+  assert.match(provider, /task:\s*\{[\s\S]*authoritative:true/);
   assert.match(provider, /help:/);
   assert.match(provider, /primaryActions:/);
   assert.match(provider, /secondaryActions:/);
