@@ -50,4 +50,29 @@ assert.equal(new Set(types).size, 32, `expected 32 active destinations after ret
 assert.equal(types.filter((type) => type === 'stepAlgebra').length, 2);
 assert.equal(types.filter((type) => type === 'graphAnalysis').length, 2);
 validateAssignmentQuestions(parsed.questions);
+
+// PR 303 follow-up (#4): graphSystem is the graph-based systems-of-equations
+// action and must route to the interactive systemsWorkspace tool, not the
+// older symbolic `system` question contract — and it must not require
+// `equationsLatex`, which only the symbolic contract needs.
+const graphSystemPayload = {
+  schemaVersion: 5,
+  assignment: { title: 'graphSystem routing regression', courseId: 'algebra1' },
+  sections: [{ role: 'practice', title: 'Practice', questions: [
+    q('Graph the system and find where the lines cross.', ['graphSystem'], {
+      system: { m1: 3, b1: -2, m2: -3, b2: 2 },
+    }),
+  ] }],
+};
+const graphSystemParsed = parseAssignmentBlueprintText(JSON.stringify(graphSystemPayload));
+const graphSystemQuestion = graphSystemParsed.questions[0];
+assert.equal(graphSystemQuestion.type, 'systemsWorkspace', 'graphSystem must route to the interactive systemsWorkspace tool');
+assert.notEqual(graphSystemQuestion.type, 'system', 'graphSystem must not fall back to the older symbolic system contract');
+assert.equal(graphSystemQuestion.equationsLatex, undefined, 'systemsWorkspace routing must not require equationsLatex');
+validateAssignmentQuestions(graphSystemParsed.questions);
+
+// solveSystem (the symbolic action) must still route to the older `system`
+// contract, so the two actions stay distinguishable after the fix above.
+assert.equal(types[10], 'system', 'solveSystem should continue to route to the symbolic system question contract');
+
 console.log(`authoringIntentV5Destinations.test.mjs: ${types.length} intents across 32 active destinations passed`);

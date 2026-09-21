@@ -271,11 +271,17 @@ const auditQuestionGraphs = (question, type, label, errors, warnings, composedQu
     // Not every `graph` object is a GraphDisplay card. functionGraph and
     // graphAnalysis take their curve from `functionSpec`, and an interactive
     // tool — systemsWorkspace and the rest of the registry — draws its own
-    // picture from `inequalities`, `system` or `pairs` and uses `graph` for
-    // nothing but the viewport. Auditing those as static cards reported a
-    // correct question as having "no drawable function", which is the same
-    // mistake in reverse: judging JSON against a renderer it never reaches.
+    // picture from `inequalities`, `system`, `pairs`, or (PR 303) a
+    // `sourceConstraints`/`studentBuild`/`modeling` student-build workflow,
+    // and uses `graph` for nothing but the viewport. Auditing those as
+    // static cards reported a correct question as having "no drawable
+    // function", which is the same mistake in reverse: judging JSON against
+    // a renderer it never reaches. systemsWorkspace is keyed off its
+    // resolved type rather than a field allowlist because the set of fields
+    // that can drive it (plain `inequalities`/`system`, or the PR 303
+    // authored/canonical pair) keeps growing.
     const selfRenderedViewport = String(type) === 'constraintFunctionBuilder'
+      || String(type) === 'systemsWorkspace'
       || (String(type) === 'relationshipModel' && question.axisSetup?.required === true);
     const drawsItsOwnPicture = composedQuestion
       || selfRenderedViewport

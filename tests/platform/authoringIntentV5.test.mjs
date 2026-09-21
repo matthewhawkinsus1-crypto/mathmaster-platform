@@ -175,4 +175,115 @@ assert.deepEqual(controlledSortQuestion.categories.map((category) => category.id
 assert.equal(controlledSortQuestion.requireGroupNames, false);
 assert.equal(controlledSortQuestion.requireRationale, false);
 
+// PR 303 follow-up: the systemsWorkspace compiler case only preserved
+// `mode`, `system`, `inequalities`, `matrix`, and `linearQuadratic`, so the
+// PR 303 student-build inequality workflow (authored `sourceConstraints` ->
+// interactive rewrite -> hidden canonical `expectedConstraints`) and its
+// companion reasoning/viewport/modeling config were silently dropped by V5
+// authoring compilation even though the runtime tool fully supports them.
+// A round trip through the actual authoring text parser (not just the
+// in-process compiler) must still carry every one of those fields, with
+// `sourceConstraints` and `expectedConstraints` kept as separate objects —
+// authoring compilation must never collapse the student-facing form into
+// the hidden canonical grading form.
+const systemsWorkspaceRoundTrip = parseAssignmentBlueprintText(JSON.stringify({
+  schemaVersion: 5,
+  assignment: { title: 'PR 303 systems workspace round trip', courseId: 'algebra1' },
+  sections: [{
+    role: 'practice',
+    questions: [{
+      standard: 'A.3D',
+      prompt: 'Rewrite each inequality, then graph the system.',
+      studentActions: ['solveInequalitySystem'],
+      mode: 'inequalities',
+      sourceConstraints: ['x - y >= -1', '3x - y <= 4'],
+      expectedConstraints: [
+        { A: 1, B: -1, C: 1, relation: '>=' },
+        { A: 3, B: -1, C: -4, relation: '<=' },
+      ],
+      studentBuild: { rewrite: true, boundary: true, lineStyle: true, shading: true },
+      reasoning: { boundaryProbe: true },
+      testPoint: { x: 0, y: 0 },
+      allowStudentTestPoint: true,
+      askClassification: true,
+      askVertices: true,
+      graph: { xMin: -5, xMax: 5, yMin: -6, yMax: 6 },
+    }],
+  }],
+}));
+const systemsWorkspaceQuestion = systemsWorkspaceRoundTrip.questions[0];
+assert.equal(systemsWorkspaceQuestion.type, 'systemsWorkspace');
+assert.equal(systemsWorkspaceQuestion.mode, 'inequalities');
+assert.deepEqual(systemsWorkspaceQuestion.sourceConstraints, ['x - y >= -1', '3x - y <= 4']);
+assert.deepEqual(systemsWorkspaceQuestion.expectedConstraints, [
+  { A: 1, B: -1, C: 1, relation: '>=' },
+  { A: 3, B: -1, C: -4, relation: '<=' },
+]);
+assert.notDeepEqual(systemsWorkspaceQuestion.sourceConstraints, systemsWorkspaceQuestion.expectedConstraints,
+  'sourceConstraints (student-facing) must never be replaced by the hidden canonical expectedConstraints');
+assert.equal(systemsWorkspaceQuestion.studentBuild.rewrite, true);
+assert.equal(systemsWorkspaceQuestion.studentBuild.boundary, true);
+assert.equal(systemsWorkspaceQuestion.studentBuild.lineStyle, true);
+assert.equal(systemsWorkspaceQuestion.studentBuild.shading, true);
+assert.deepEqual(systemsWorkspaceQuestion.reasoning, { boundaryProbe: true });
+assert.deepEqual(systemsWorkspaceQuestion.testPoint, { x: 0, y: 0 });
+assert.equal(systemsWorkspaceQuestion.allowStudentTestPoint, true);
+assert.equal(systemsWorkspaceQuestion.askClassification, true);
+assert.equal(systemsWorkspaceQuestion.askVertices, true);
+assert.deepEqual(systemsWorkspaceQuestion.graph, { xMin: -5, xMax: 5, yMin: -6, yMax: 6 });
+validateAssignmentQuestions(systemsWorkspaceRoundTrip.questions);
+
+// A modeling-style question (student derives the constraints from a scenario
+// rather than rewriting authored inequalities) must survive the same way:
+// `modeling.variables` and `modeling.expectedConstraints` are the hidden
+// grading contract for that mode and must not be dropped either.
+const systemsWorkspaceModelingRoundTrip = parseAssignmentBlueprintText(JSON.stringify({
+  schemaVersion: 5,
+  assignment: { title: 'PR 303 systems workspace modeling round trip', courseId: 'algebra1' },
+  sections: [{
+    role: 'practice',
+    questions: [{
+      standard: 'A.3D',
+      prompt: 'Model the constraints on tickets sold, then graph the feasible region.',
+      studentActions: ['solveInequalitySystem'],
+      mode: 'inequalities',
+      modeling: {
+        variables: [{ symbol: 'x' }, { symbol: 'y' }],
+        expectedConstraints: [
+          { A: 1, B: 1, C: -10, relation: '<=' },
+        ],
+      },
+      studentBuild: { rewrite: true },
+    }],
+  }],
+}));
+const systemsWorkspaceModelingQuestion = systemsWorkspaceModelingRoundTrip.questions[0];
+assert.equal(systemsWorkspaceModelingQuestion.type, 'systemsWorkspace');
+assert.deepEqual(systemsWorkspaceModelingQuestion.modeling.variables, [{ symbol: 'x' }, { symbol: 'y' }]);
+assert.deepEqual(systemsWorkspaceModelingQuestion.modeling.expectedConstraints, [{ A: 1, B: 1, C: -10, relation: '<=' }]);
+validateAssignmentQuestions(systemsWorkspaceModelingRoundTrip.questions);
+
+// Older Systems Workspace JSON that only ever used `inequalities` or
+// `system` (pre-PR-303) must keep compiling exactly as before: adding the
+// new field allowlist must not disturb the legacy shape.
+const legacySystemsWorkspace = compileAuthoringIntentV5({
+  schemaVersion: 5,
+  assignment: { title: 'Legacy systemsWorkspace compatibility', courseId: 'algebra1' },
+  sections: [{
+    role: 'classwork',
+    questions: [{
+      standard: 'A.3C',
+      prompt: 'Graph the inequalities and shade the solution region.',
+      studentActions: ['solveInequalitySystem'],
+      inequalities: [{ m: 1, b: 1, relation: '>=' }, { m: -0.5, b: 6, relation: '<=' }],
+    }],
+  }],
+});
+const legacySystemsWorkspaceQuestion = legacySystemsWorkspace.package.sections[0].questions[0];
+assert.equal(legacySystemsWorkspaceQuestion.type, 'systemsWorkspace');
+assert.equal(legacySystemsWorkspaceQuestion.mode, 'inequalities');
+assert.deepEqual(legacySystemsWorkspaceQuestion.inequalities, [{ m: 1, b: 1, relation: '>=' }, { m: -0.5, b: 6, relation: '<=' }]);
+assert.equal(legacySystemsWorkspaceQuestion.sourceConstraints, undefined);
+assert.equal(legacySystemsWorkspaceQuestion.expectedConstraints, undefined);
+
 console.log('authoringIntentV5.test.mjs: all assertions passed');
