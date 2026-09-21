@@ -142,6 +142,24 @@ test('advancing an inactive or absent session is a no-op', () => {
   assert.equal(advanceLiveTeachingSession(ended, { assignment, storageQuestionIndex: 1 }), ended);
 });
 
+test('re-projecting the same exemplar position is referentially stable and does not request another write', () => {
+  const session = startLiveTeachingSession({
+    classId: 'c1',
+    assignmentId: 'a1',
+    assignment,
+    storageQuestionIndex: 1,
+    activityRole: 'classwork',
+    nowValue: 5000,
+  });
+  const same = advanceLiveTeachingSession(session, {
+    assignment,
+    storageQuestionIndex: 1,
+    activityRole: 'classwork',
+  });
+  assert.equal(same, session);
+  assert.equal(same.updatedAt, 5000);
+});
+
 test('ending a session clears it entirely', () => {
   assert.equal(endLiveTeachingSession(), null);
 });
