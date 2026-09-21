@@ -157,13 +157,21 @@ test('Practice Pass excuses Practice instead of inventing a TEAMS grade', () => 
     now: Date.parse('2026-09-17'),
     sectionKey: 'practice',
     sectionLabel: 'Practice',
-    projectCanonicalGrade: () => 100,
+    projectCanonicalGrade: () => null,
     hasAuthoritativePracticePass: () => true,
   });
   assert.equal(unit.state, TRANSFER_STATE.NO_TRANSFER_REQUIRED);
   assert.deepEqual(unit.rows, []);
   assert.equal(unit.excused.length, 1);
   assert.equal(unit.excused[0].reason, 'Practice Pass');
+
+  const teacherConsequence = buildTransferUnit({
+    classRecord: klass, assignment, students: [student()], now: Date.parse('2026-09-17'),
+    sectionKey: 'practice', sectionLabel: 'Practice', projectCanonicalGrade: () => 0,
+    hasAuthoritativePracticePass: () => true,
+  });
+  assert.deepEqual(teacherConsequence.rows.map((row) => row.grade), [0]);
+  assert.deepEqual(teacherConsequence.excused, []);
 });
 test('teacher override and Practice Pass share the legitimate platform grade projection', () => {
   const gradeAssignment = {
