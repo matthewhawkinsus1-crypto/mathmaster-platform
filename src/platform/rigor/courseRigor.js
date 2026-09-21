@@ -207,6 +207,7 @@ export const inspectHonorsRigor = (
     )),
     justification: included.some((question) => (
       ['graphStory', 'dataModelingLab', 'modelingLab'].includes(question.type || question.toolId)
+      || (String(question.type || question.toolId || '').trim().toLowerCase() === 'opensortboard' && question.requireRationale !== false)
       || hasAnyToken(searchableQuestionText(question), ['justify', 'justification', 'explain', 'reason', 'reasoning', 'error analysis', 'compare strategies', 'defend'])
     )),
     modelingApplication: included.some((question) => (
