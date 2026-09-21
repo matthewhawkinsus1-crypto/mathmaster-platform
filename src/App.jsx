@@ -7169,8 +7169,8 @@ function App() {
    * because a Firestore batch caps at 500 operations.
    */
   const applyBulkAssignmentPatch = async (assignmentIds, patch, describe) => {
-    const ids = Array.from(assignmentIds);
-    if (!ids.length) return;
+    const ids = Array.from(assignmentIds || []);
+    if (!ids.length) return false;
     setBulkBusy(true);
     try {
       for (let start = 0; start < ids.length; start += 400) {
@@ -7183,9 +7183,11 @@ function App() {
       await fetchAssignments();
       clearAssignmentSelection();
       toastSuccess(describe(ids.length));
+      return true;
     } catch (error) {
       console.error(error);
       toastError('Bulk update failed', error.message);
+      return false;
     } finally {
       setBulkBusy(false);
     }
@@ -7277,10 +7279,13 @@ function App() {
       : 'Marking period reopened',
   );
 
-  const handleMoveSelectedAssignmentsToGradingPeriod = async (period) => {
+  const handleMoveSelectedAssignmentsToGradingPeriod = async (
+    period,
+    assignmentIds = selectedAssignmentIds,
+  ) => {
     const label = period?.label || 'the default current period';
-    await applyBulkAssignmentPatch(
-      selectedAssignmentIds,
+    return applyBulkAssignmentPatch(
+      assignmentIds,
       gradingPeriodAssignmentPatch(period),
       (count) => `Moved ${count} assignment${count === 1 ? '' : 's'} to ${label}`,
     );
@@ -10038,8 +10043,8 @@ function App() {
 
                 <MarkingPeriodSettings
                   settings={gradingPeriodSettings}
-                  assignments={assignments}
-                  selectedAssignmentIds={selectedAssignmentIds}
+                  assignments={assignmentsForSelectedClass}
+                  classLabel={selectedGradebookClass?.name || selectedGradebookPeriod}
                   busy={gradingPeriodBusy || bulkBusy}
                   onCreatePeriod={handleCreateGradingPeriod}
                   onSetCurrentPeriod={handleSetCurrentGradingPeriod}
