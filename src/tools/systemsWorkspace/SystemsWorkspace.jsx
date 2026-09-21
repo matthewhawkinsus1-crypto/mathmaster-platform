@@ -79,6 +79,58 @@ const formatInequality = (ineq = {}) => {
   return 'Linear inequality';
 };
 
+const flipRelation = (relation) => ({
+  '<': '>',
+  '<=': '>=',
+  '>': '<',
+  '>=': '<=',
+}[String(relation || '')] || String(relation || ''));
+
+const formatGraphNumber = (value) => {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return String(value ?? '');
+  if (Math.abs(number) <= 1e-10) return '0';
+  const roundedInteger = Math.round(number);
+  if (Math.abs(number - roundedInteger) <= 1e-10) return String(roundedInteger);
+
+  const sign = number < 0 ? '−' : '';
+  const magnitude = Math.abs(number);
+  for (let denominator = 2; denominator <= 24; denominator += 1) {
+    const numerator = Math.round(magnitude * denominator);
+    if (Math.abs(magnitude - numerator / denominator) <= 1e-10) {
+      return `${sign}${numerator}/${denominator}`;
+    }
+  }
+  return String(Number(number.toFixed(4))).replace('-', '−');
+};
+
+const formatSlopeInterceptInequality = (ineq = {}) => {
+  const A = Number(ineq.A ?? 0);
+  const B = Number(ineq.B ?? 0);
+  const C = Number(ineq.C ?? 0);
+  if (![A, B, C].every(Number.isFinite) || Math.abs(B) <= 1e-10) return formatInequality(ineq);
+
+  const relation = B < 0 ? flipRelation(ineq.relation) : String(ineq.relation || '>=');
+  const m = -A / B;
+  const b = -C / B;
+
+  let right = '';
+  if (Math.abs(m) > 1e-10) {
+    if (Math.abs(m - 1) <= 1e-10) right = 'x';
+    else if (Math.abs(m + 1) <= 1e-10) right = '−x';
+    else right = `${formatGraphNumber(m)}x`;
+  }
+
+  if (Math.abs(b) > 1e-10 || !right) {
+    const absB = Math.abs(b);
+    const constant = formatGraphNumber(absB);
+    if (!right) right = b < 0 ? `−${constant}` : constant;
+    else right += b < 0 ? ` − ${constant}` : ` + ${constant}`;
+  }
+
+  return `y ${displayRelation(relation)} ${right}`;
+};
+
 // Naming the curves beats "the blue one". Ordinary equation lines are both
 // solid; dashed strokes are reserved for strict inequality boundaries.
 const Legend = ({ items }) => (
@@ -743,7 +795,9 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
 
   const inequalityLabel = (index) => {
     if (modeling) return formatModelingConstraint(modelingEntries[index], variables);
-    if (buildConfig.rewrite && rewriteEntries[index]?.verifiedText) return rewriteEntries[index].verifiedText;
+    if (buildConfig.rewrite && rewriteEntries[index]?.verifiedConstraint) {
+      return formatSlopeInterceptInequality(rewriteEntries[index].verifiedConstraint);
+    }
     const source = sourceConstraints[index];
     return typeof source === 'string' ? source : formatInequality(source);
   };
