@@ -7,6 +7,7 @@ const executable = executableSource(source);
 const adapterSource = componentSource('src/tools/systemsWorkspace/inequalityBuilderAdapter.js');
 const schemaSource = componentSource('src/tools/toolSchemas.js');
 const persistenceSource = componentSource('src/tools/toolStatePersistence.js');
+const rewriteSource = executableSource(componentSource('src/tools/systemsWorkspace/EmbeddedInequalityRewrite.jsx'));
 
 test('student-build inequality mode is opt-in and does not disturb the existing construct/analyze paths', () => {
   const inequalityMode = region(executable, 'function InequalityMode(', 'function LinearQuadraticMode(', 'InequalityMode');
@@ -32,7 +33,9 @@ test('every boundary type the task requires has its own construction method', ()
 
 test('the graph is click/tap driven through the shared touch-hardened CoordinatePlane', () => {
   const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
-  assert.match(mode, /<CoordinatePlane[\s\S]*?onPlot=\{rewritesComplete \? handlePlot : undefined\}/, 'all graph taps must route through the one interactive plane, which stays locked during required rewrite work.');
+  assert.match(mode, /<CoordinatePlane[\s\S]*?onPlot=\{handlePlot\}/, 'the shared graph stays interactive after any individual constraint unlocks.');
+  const plot = region(mode, 'const handlePlot = (point)', 'const boundaryMessage', 'handlePlot');
+  assert.match(plot, /armed\.type === 'boundaryPoint'.*rewriteVerified\(armed\.index\)/s, 'only the armed constraint’s own rewrite may gate its graph action.');
 });
 
 test('solid/dashed and shading feedback stays neutral on the first miss, per the platform feedback philosophy', () => {
@@ -46,6 +49,7 @@ test('progress checkmarks and Combine remain locked until the student explicitly
   assert.match(mode, /const boundaryVerified = .*boundaryAttempts > 0/);
   assert.match(mode, /const styleVerified = .*styleAttempts > 0/);
   assert.match(mode, /const shadeVerified = .*shadeAttempts > 0/);
+  assert.match(mode, /const rewriteVerified = .*verifiedConstraint/);
   assert.match(mode, /every\(constraintVerified\)/);
   assert.match(mode, /Boundary \{buildConfig\.boundary \? \(boundaryVerified/);
 });
@@ -129,6 +133,10 @@ test('slope-intercept construction requires two student points and never manufac
   assert.match(builder, /boundaryFromTwoPoints\(\[x1, y1\], \[x2, y2\]\)/);
   assert.match(builder, /Math\.abs\(x1\).*Math\.abs\(y1 - b\)/s);
   assert.doesNotMatch(builder, /\[0,\s*b\].*\[1,\s*m\s*\+\s*b\]/s);
+  assert.match(builder, /!entry\.point1Plotted \|\| !entry\.point2Plotted/);
+  const fields = region(executable, 'function ConstructionMethodFields', 'function TestPointReasoning', 'ConstructionMethodFields');
+  assert.match(fields, /<output/);
+  assert.doesNotMatch(fields, /onChange\(('[xy][12]')/);
 });
 
 test('constraint cards are accessible accordions that allow none open without discarding progress', () => {
@@ -143,9 +151,31 @@ test('rewrite is embedded, persistent, and gates graph construction while canoni
   const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
   assert.match(mode, /const sourceConstraints = questionData\.sourceConstraints/);
   assert.match(mode, /const rawExpectedConstraints = questionData\.expectedConstraints/);
-  assert.match(mode, /rewritesComplete/);
+  assert.match(mode, /rewriteVerified/);
   assert.match(mode, /Graph construction unlocks after your rewrite is verified/);
   assert.match(mode, /<EmbeddedInequalityRewrite/);
+});
+
+test('unfinished rewrite text and a pending sign flip survive collapse and Work View restoration', () => {
+  assert.match(rewriteSource, /const draft = value\?\.draft/);
+  assert.match(rewriteSource, /const pendingFlip = value\?\.pendingFlip/);
+  assert.match(rewriteSource, /pendingFlip:result\.requiresInequalityFlip/);
+  assert.match(rewriteSource, /committedText:result, draft:result, pendingFlip:null/);
+});
+
+test('manual algebra must be equivalence-checked and committed before final rewrite verification', () => {
+  const commit = region(rewriteSource, 'const commitRewrite = ()', 'const verify = ()', 'commitRewrite');
+  assert.match(commit, /validateRelationTransition\(previous, next, \{ kind:'equivalentRewrite' \}\)/);
+  const verify = region(rewriteSource, 'const verify = ()', 'return <div', 'verify');
+  assert.match(verify, /draft !== committedText/);
+  assert.match(verify, /graphableConstraintFromRelation\(committedText\)/);
+});
+
+test('rewrite-only work requires verified rewrite evidence and shows it in collapsed progress', () => {
+  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
+  assert.match(mode, /constraintVerified = \(index\) => rewriteVerified\(index\)/);
+  assert.match(mode, /rewriteVerified: buildConfig\.rewrite \? rewriteVerified\(index\) : null/);
+  assert.match(mode, /Rewrite \{buildConfig\.rewrite \? \(rewriteVerified\(index\) \? '✓' : '…'\) : 'provided'\}/);
 });
 
 test('the student-build workspace is wired into Work View with undo, point editing, and a primary check action', () => {

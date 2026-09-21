@@ -5,6 +5,7 @@ import {
   parseRelationSource,
   relationStateToText,
   reverseRelation,
+  validateRelationTransition,
 } from '../../algebraRelationFoundation.js';
 
 const control = { padding:'9px 10px', border:'1px solid #cfd8e6', borderRadius:8, background:'#fff', minHeight:40 };
@@ -54,20 +55,21 @@ export default function EmbeddedInequalityRewrite({ source, expectedConstraint, 
   const initial = useMemo(() => parseRelationSource(source, 'y'), [source]);
   const [operation, setOperation] = useState('subtract');
   const [operand, setOperand] = useState('');
-  const [draft, setDraft] = useState(value?.verifiedText || relationStateToText(initial));
-  const [pendingFlip, setPendingFlip] = useState(null);
+  const committedText = value?.committedText || value?.steps?.at(-1)?.result || relationStateToText(initial);
+  const draft = value?.draft ?? committedText;
+  const pendingFlip = value?.pendingFlip || null;
   const [message, setMessage] = useState('Use balanced operations, then rewrite/simplify the result with y isolated.');
 
   const applyOperation = () => {
     try {
-      const currentText = value?.steps?.at(-1)?.result || source;
+      if (pendingFlip) { setMessage('Finish the required inequality reversal before applying another operation.'); return; }
+      const currentText = committedText;
       const current = parseRelationSource(currentText, 'y');
       const result = applyBalancedOperationToRelation(current, operation, operand);
       const resultText = relationStateToText(result.state);
       const step = { operation, operand, result:resultText };
-      onChange({ ...value, source, steps:[...(value?.steps || []), step], verifiedText:'', verifiedConstraint:null });
-      setDraft(resultText);
-      setPendingFlip(result.requiresInequalityFlip ? result.expectedRelations?.[0] : null);
+      onChange({ ...value, source, steps:[...(value?.steps || []), step], committedText:resultText, draft:resultText,
+        pendingFlip:result.requiresInequalityFlip ? result.expectedRelations?.[0] : null, verifiedText:'', verifiedConstraint:null });
       setMessage(result.requiresInequalityFlip
         ? 'A negative operation was applied. Choose the equivalent inequality direction before continuing.'
         : 'Balanced operation recorded. Simplify the relation yourself when ready.');
@@ -81,19 +83,29 @@ export default function EmbeddedInequalityRewrite({ source, expectedConstraint, 
     const result = relationStateToText(state);
     const steps = [...(value?.steps || [])];
     steps[steps.length - 1] = { ...steps.at(-1), result, relationHandled:true };
-    onChange({ ...value, source, steps });
-    setDraft(result);
-    setPendingFlip(null);
+    onChange({ ...value, source, steps, committedText:result, draft:result, pendingFlip:null });
     setMessage('Correct inequality direction. Continue isolating y.');
+  };
+
+  const commitRewrite = () => {
+    try {
+      const previous = parseRelationSource(committedText, 'y');
+      const next = parseRelationSource(draft, 'y');
+      const validation = validateRelationTransition(previous, next, { kind:'equivalentRewrite' });
+      if (!validation.valid) { setMessage(validation.reason); return; }
+      onChange({ ...value, source, committedText:draft, draft, verifiedText:'', verifiedConstraint:null });
+      setMessage('Equivalent rewrite committed. Continue working or verify the graphable result.');
+    } catch { setMessage('Enter a valid relation before checking this rewrite.'); }
   };
 
   const verify = () => {
     if (!(value?.steps || []).length || pendingFlip) { setMessage('Record the algebra operations—and finish any required sign reversal—before checking the rewrite.'); return; }
-    const candidate = graphableConstraintFromRelation(draft);
+    if (draft !== committedText) { setMessage('Check and commit your latest rewrite before final verification.'); return; }
+    const candidate = graphableConstraintFromRelation(committedText);
     if (!candidate || !sameConstraint(candidate, expectedConstraint)) {
       setMessage('Not yet. Keep the inequality equivalent and isolate y in slope-intercept form.'); return;
     }
-    onChange({ ...value, source, verifiedText:draft, verifiedConstraint:candidate });
+    onChange({ ...value, source, committedText, draft:committedText, pendingFlip:null, verifiedText:committedText, verifiedConstraint:candidate });
     setMessage('Rewrite verified. Use your result to construct the graph.');
   };
 
@@ -111,8 +123,9 @@ export default function EmbeddedInequalityRewrite({ source, expectedConstraint, 
       <span>Choose the new relation: </span>{['<','<=','>','>='].map((relation)=><button type="button" key={relation} onClick={()=>confirmFlip(relation)} style={{ ...control, marginRight:5 }}>{relation}</button>)}
     </div> : null}
     <label style={{ display:'block', marginTop:10, fontWeight:700 }}>Your simplified, graphable inequality
-      <input value={draft} disabled={Boolean(pendingFlip)} onChange={(e)=>setDraft(e.target.value)} style={{ ...control, display:'block', width:'100%', boxSizing:'border-box', marginTop:5 }} />
+      <input value={draft} disabled={Boolean(pendingFlip)} onChange={(e)=>onChange({ ...value, source, committedText, draft:e.target.value, pendingFlip })} style={{ ...control, display:'block', width:'100%', boxSizing:'border-box', marginTop:5 }} />
     </label>
+    <button type="button" onClick={commitRewrite} disabled={Boolean(pendingFlip) || draft === committedText} style={{ ...control, marginTop:8, marginRight:6 }}>Check / commit rewrite</button>
     <button type="button" onClick={verify} style={{ ...control, marginTop:8, background:'#1a73e8', color:'#fff', fontWeight:800 }}>Verify rewrite</button>
     <p role="status" style={{ margin:'8px 0 0', fontSize:13 }}>{message}</p>
   </div>;

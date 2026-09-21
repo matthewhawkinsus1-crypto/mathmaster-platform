@@ -437,10 +437,11 @@ const CONSTRUCTION_METHODS = [
 
 const emptyBuildEntry = () => ({
   method: '', x1: '', y1: '', x2: '', y2: '', slope: '', intercept: '', constant: '',
+  point1Plotted: false, point2Plotted: false,
   boundaryAttempts: 0, style: '', styleAttempts: 0, shadePoint: null, shadeAttempts: 0, visible: true,
 });
 
-const emptyRewriteEntry = (source = '') => ({ source, steps: [], verifiedText:'', verifiedConstraint:null });
+const emptyRewriteEntry = (source = '') => ({ source, steps: [], committedText:source, draft:source, pendingFlip:null, verifiedText:'', verifiedConstraint:null });
 
 const emptyModelingEntry = () => ({ coeffA: '', coeffB: '', relation: '>=', constant: '' });
 
@@ -458,12 +459,14 @@ const explicitBooleanAnswerMatches = (answer, expected) => (
 const studentBoundaryLineFromEntry = (entry) => {
   if (!entry) return null;
   if (entry.method === 'points') {
+    if (!entry.point1Plotted || !entry.point2Plotted) return null;
     return boundaryFromTwoPoints(
       [parseNumericAnswer(entry.x1), parseNumericAnswer(entry.y1)],
       [parseNumericAnswer(entry.x2), parseNumericAnswer(entry.y2)],
     );
   }
   if (entry.method === 'slopeIntercept') {
+    if (!entry.point1Plotted || !entry.point2Plotted) return null;
     const m = parseNumericAnswer(entry.slope);
     const b = parseNumericAnswer(entry.intercept);
     const x1 = parseNumericAnswer(entry.x1);
@@ -562,13 +565,12 @@ const modelingEntryCorrect = (entry, expected) => {
 const staged = (attempts, first, later) => (attempts <= 1 ? first : later);
 
 function ConstructionMethodFields({ entry, onChange }) {
+  const plottedCoordinate = (label, value) => <Field label={label}><output style={{ ...inputStyle, display:'block', boxSizing:'border-box' }}>{value === '' ? 'Plot on graph' : value}</output></Field>;
   if (entry.method === 'points') {
     return (
       <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:9 }}>
-        <Field label="Point 1: x"><input type="number" inputMode="decimal" value={entry.x1} onChange={(e)=>onChange('x1', e.target.value)} style={inputStyle}/></Field>
-        <Field label="Point 1: y"><input type="number" inputMode="decimal" value={entry.y1} onChange={(e)=>onChange('y1', e.target.value)} style={inputStyle}/></Field>
-        <Field label="Point 2: x"><input type="number" inputMode="decimal" value={entry.x2} onChange={(e)=>onChange('x2', e.target.value)} style={inputStyle}/></Field>
-        <Field label="Point 2: y"><input type="number" inputMode="decimal" value={entry.y2} onChange={(e)=>onChange('y2', e.target.value)} style={inputStyle}/></Field>
+        {plottedCoordinate('Point 1: x', entry.x1)}{plottedCoordinate('Point 1: y', entry.y1)}
+        {plottedCoordinate('Point 2: x', entry.x2)}{plottedCoordinate('Point 2: y', entry.y2)}
       </div>
     );
   }
@@ -577,10 +579,8 @@ function ConstructionMethodFields({ entry, onChange }) {
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:9 }}>
         <Field label="Slope (m)"><input type="number" inputMode="decimal" step="any" value={entry.slope} onChange={(e)=>onChange('slope', e.target.value)} style={inputStyle}/></Field>
         <Field label="y-intercept (b)"><input type="number" inputMode="decimal" value={entry.intercept} onChange={(e)=>onChange('intercept', e.target.value)} style={inputStyle}/></Field>
-        <Field label="Plotted intercept: x"><input type="number" inputMode="decimal" value={entry.x1} onChange={(e)=>onChange('x1', e.target.value)} style={inputStyle}/></Field>
-        <Field label="Plotted intercept: y"><input type="number" inputMode="decimal" value={entry.y1} onChange={(e)=>onChange('y1', e.target.value)} style={inputStyle}/></Field>
-        <Field label="Second point: x"><input type="number" inputMode="decimal" value={entry.x2} onChange={(e)=>onChange('x2', e.target.value)} style={inputStyle}/></Field>
-        <Field label="Second point: y"><input type="number" inputMode="decimal" value={entry.y2} onChange={(e)=>onChange('y2', e.target.value)} style={inputStyle}/></Field>
+        {plottedCoordinate('Plotted intercept: x', entry.x1)}{plottedCoordinate('Plotted intercept: y', entry.y1)}
+        {plottedCoordinate('Second point: x', entry.x2)}{plottedCoordinate('Second point: y', entry.y2)}
       </div>
     );
   }
@@ -691,13 +691,11 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
   const modeledConstraints = useMemo(() => (
     modeling ? modelingEntries.map(modelingEntryToCanonical) : []
   ), [modeling, modelingEntries]);
-  const rewritesComplete = !buildConfig.rewrite || rewriteEntries.length === constraintCount
-    && rewriteEntries.every((entry) => entry?.verifiedConstraint);
   const workingConstraints = useMemo(() => {
     if (modeling && modelingSent && modeledConstraints.every(Boolean)) return modeledConstraints;
-    if (buildConfig.rewrite && rewritesComplete) return rewriteEntries.map((entry) => entry.verifiedConstraint);
+    if (buildConfig.rewrite) return expectedConstraints.map((expected, index) => rewriteEntries[index]?.verifiedConstraint || expected);
     return expectedConstraints;
-  }, [modeling, modelingSent, modeledConstraints, buildConfig.rewrite, rewritesComplete, rewriteEntries, expectedConstraints]);
+  }, [modeling, modelingSent, modeledConstraints, buildConfig.rewrite, rewriteEntries, expectedConstraints]);
   const workingClassification = useMemo(() => classifyFeasibleRegion(workingConstraints), [workingConstraints]);
   const workingVertices = useMemo(() => feasibleRegionVertices(workingConstraints), [workingConstraints]);
   const modelingEntriesReady = !modeling || modeledConstraints.length === constraintCount && modeledConstraints.every(Boolean);
@@ -765,11 +763,11 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
     const point = build[index]?.shadePoint;
     return Boolean(point) && satisfiesBoundary(workingConstraints[index], point[0], point[1]);
   };
-  const constraintCorrect = (index) => boundaryCorrect(index) && styleCorrect(index) && shadeCorrect(index);
   const boundaryVerified = (index) => !buildConfig.boundary || (build[index]?.boundaryAttempts > 0 && boundaryCorrect(index));
   const styleVerified = (index) => !buildConfig.lineStyle || (build[index]?.styleAttempts > 0 && styleCorrect(index));
   const shadeVerified = (index) => !buildConfig.shading || (build[index]?.shadeAttempts > 0 && shadeCorrect(index));
-  const constraintVerified = (index) => boundaryVerified(index) && styleVerified(index) && shadeVerified(index);
+  const rewriteVerified = (index) => !buildConfig.rewrite || Boolean(rewriteEntries[index]?.verifiedConstraint);
+  const constraintVerified = (index) => rewriteVerified(index) && boundaryVerified(index) && styleVerified(index) && shadeVerified(index);
   const allConstraintsComplete = constraintCount > 0 && Array.from({ length: constraintCount }, (_, i) => i).every(constraintVerified);
 
   const studentBoundaries = build.map((entry, index) => {
@@ -800,9 +798,10 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
 
   const handlePlot = (point) => {
     if (!armed) return;
+    if ((armed.type === 'boundaryPoint' || armed.type === 'shade') && !rewriteVerified(armed.index)) return;
     const [px, py] = point;
     if (armed.type === 'boundaryPoint') {
-      updateBuildEntry(armed.index, armed.which === 1 ? { x1: px, y1: py } : { x2: px, y2: py });
+      updateBuildEntry(armed.index, armed.which === 1 ? { x1: px, y1: py, point1Plotted:true } : { x2: px, y2: py, point2Plotted:true });
     } else if (armed.type === 'shade') {
       updateBuildEntry(armed.index, { shadePoint: [px, py] });
     } else if (armed.type === 'vertex') {
@@ -886,11 +885,12 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
 
   const finalCheck = () => {
     const perConstraint = Array.from({ length: constraintCount }, (_, index) => ({
+      rewriteVerified: buildConfig.rewrite ? rewriteVerified(index) : null,
       boundaryCorrect: buildConfig.boundary ? boundaryCorrect(index) : null,
       styleCorrect: buildConfig.lineStyle ? styleCorrect(index) : null,
       inclusionUnderstandingCorrect: buildConfig.lineStyle ? styleCorrect(index) : null,
       shadeCorrect: buildConfig.shading ? shadeCorrect(index) : null,
-      constraintCorrect: hasBuildSteps ? constraintCorrect(index) : null,
+      constraintCorrect: hasBuildSteps ? constraintVerified(index) : null,
     }));
     const modelingChecks = modeling ? modelingEntries.map((entry, index) => modelingEntryCorrect(entry, expectedConstraints[index])) : [];
     const classificationCorrect = !askClassification || regionClassification === workingClassification;
@@ -996,7 +996,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
               {armLabel() ? <p style={{ margin:'0 0 8px', fontSize:13, fontWeight:700, color:'#174ea6' }}>{armLabel()}</p> : null}
               <CoordinatePlane
                 xMin={bounds.xMin ?? -6} xMax={bounds.xMax ?? 8} yMin={bounds.yMin ?? -4} yMax={bounds.yMax ?? 10}
-                onPlot={rewritesComplete ? handlePlot : undefined}
+                onPlot={handlePlot}
                 points={graphPoints}
                 ariaLabel="Student-constructed graph of the inequality system"
                 enlargeable={false}
@@ -1095,6 +1095,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
                     </label>
                   </div>
                   <div style={{ display:'flex', gap:10, fontSize:12, fontWeight:800, marginBottom:10 }}>
+                    <span style={{ color: rewriteVerified(index) ? '#137333' : '#5f6b7a' }}>Rewrite {buildConfig.rewrite ? (rewriteVerified(index) ? '✓' : '…') : 'provided'}</span>
                     <span style={{ color: boundaryVerified(index) ? '#137333' : '#5f6b7a' }}>Boundary {buildConfig.boundary ? (boundaryVerified(index) ? '✓' : '…') : 'provided'}</span>
                     <span style={{ color: styleVerified(index) ? '#137333' : '#5f6b7a' }}>Line style {buildConfig.lineStyle ? (styleVerified(index) ? '✓' : '…') : 'provided'}</span>
                     <span style={{ color: shadeVerified(index) ? '#137333' : '#5f6b7a' }}>Region {buildConfig.shading ? (shadeVerified(index) ? '✓' : '…') : 'provided'}</span>

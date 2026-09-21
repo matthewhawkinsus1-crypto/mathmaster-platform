@@ -22,5 +22,6 @@ test('rewrite stage delegates balanced operations and sign reversal to algebraRe
   assert.match(rewrite, /applyBalancedOperationToRelation\(current, operation, operand\)/);
   assert.match(rewrite, /result\.requiresInequalityFlip/);
   assert.match(rewrite, /relation !== pendingFlip/);
-  assert.match(rewrite, /graphableConstraintFromRelation\(draft\)/);
+  assert.match(rewrite, /validateRelationTransition\(previous, next, \{ kind:'equivalentRewrite' \}\)/);
+  assert.match(rewrite, /graphableConstraintFromRelation\(committedText\)/);
 });
