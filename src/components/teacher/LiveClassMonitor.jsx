@@ -362,7 +362,7 @@ function LiveTeachingPanel({
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <button type="button" onClick={onResume} style={{ ...smallButtonStyle, borderColor: '#188038', background: '#fff', color: '#137333' }}>Resume Teaching</button>
-          <button type="button" onClick={() => onTeach(liveTeachingAssignmentId, { forceRestart: true })} style={smallButtonStyle}>Restart Fresh</button>
+          <button type="button" onClick={() => onTeach(liveTeachingAssignmentId, { forceRestart: true, classId: activeClassId })} style={smallButtonStyle}>Restart Fresh</button>
           <button type="button" onClick={onEndTeaching} style={{ ...smallButtonStyle, borderColor: '#d93025', background: '#fff', color: '#b3261e' }}>End Teaching</button>
         </div>
       </div>
@@ -383,7 +383,7 @@ function LiveTeachingPanel({
           <button
             type="button"
             disabled={!choiceId}
-            onClick={() => onTeach(choiceId)}
+            onClick={() => onTeach(choiceId, { classId: activeClassId })}
             style={{ ...smallButtonStyle, borderColor: '#1a73e8', background: choiceId ? '#e8f0fe' : '#f1f3f4', color: '#174ea6', cursor: choiceId ? 'pointer' : 'not-allowed' }}
           >
             Teach This Lesson
