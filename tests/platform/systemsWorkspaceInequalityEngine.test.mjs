@@ -125,7 +125,7 @@ test('mathematical classification is independent from viewport clipping', () => 
 test('new construction and reasoning schema is opt-in while legacy JSON defaults off', () => {
   assert.deepEqual(normalizeSystemsWorkspaceInequalityConfig({ mode: 'inequalities' }), {
     mode: 'inequalities',
-    studentBuild: { boundary: false, lineStyle: false, shading: false },
+    studentBuild: { rewrite: false, boundary: false, lineStyle: false, shading: false },
     reasoning: { testPoint: false, boundaryProbe: false, classifyRegion: false, vertices: false },
   });
   const question = {

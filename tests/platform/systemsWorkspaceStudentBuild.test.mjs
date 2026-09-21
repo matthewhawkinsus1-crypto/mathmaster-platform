@@ -32,7 +32,7 @@ test('every boundary type the task requires has its own construction method', ()
 
 test('the graph is click/tap driven through the shared touch-hardened CoordinatePlane', () => {
   const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
-  assert.match(mode, /<CoordinatePlane[\s\S]*?onPlot=\{handlePlot\}/, 'boundary points, shading, vertices and test points must all route through the one interactive plane.');
+  assert.match(mode, /<CoordinatePlane[\s\S]*?onPlot=\{rewritesComplete \? handlePlot : undefined\}/, 'all graph taps must route through the one interactive plane, which stays locked during required rewrite work.');
 });
 
 test('solid/dashed and shading feedback stays neutral on the first miss, per the platform feedback philosophy', () => {
@@ -113,14 +113,39 @@ test('constraint modeling reuses the same graphing/checking machinery instead of
 });
 
 test('all new answer-bearing state is draft-backed, and the registry names every new transient UI field', () => {
-  ['modelingEntries', 'modelingSent', 'build', 'combined', 'regionClassification', 'teacherPointResponse',
+  ['modelingEntries', 'modelingSent', 'rewriteEntries', 'activeIndex', 'build', 'combined', 'regionClassification', 'teacherPointResponse',
     'studentTestPoint', 'studentPointResponse', 'vertices'].forEach((key) => {
     assert.match(executable, new RegExp(`usePersistentToolState\\('${key}'`), `${key} must be usePersistentToolState-backed so Work View close/reopen and question navigation cannot erase it.`);
   });
   const registryEntry = region(persistenceSource, 'systemsWorkspace: entry(', ')),', 'systemsWorkspace persistence entry');
-  ['activeIndex', 'armed', 'teacherPointFeedback', 'studentPointFeedback', 'vertexFeedback'].forEach((key) => {
+  ['armed', 'teacherPointFeedback', 'studentPointFeedback', 'vertexFeedback'].forEach((key) => {
     assert.match(registryEntry, new RegExp(key), `${key} is a new raw useState in SystemsWorkspace.jsx and must be named in the persistence contract.`);
   });
+});
+
+test('slope-intercept construction requires two student points and never manufactures the slope movement', () => {
+  const builder = region(executable, 'const studentBoundaryLineFromEntry', 'const boundaryLinesMatch', 'studentBoundaryLineFromEntry');
+  assert.match(builder, /\[m, b, x1, y1, x2, y2\]\.some/);
+  assert.match(builder, /boundaryFromTwoPoints\(\[x1, y1\], \[x2, y2\]\)/);
+  assert.match(builder, /Math\.abs\(x1\).*Math\.abs\(y1 - b\)/s);
+  assert.doesNotMatch(builder, /\[0,\s*b\].*\[1,\s*m\s*\+\s*b\]/s);
+});
+
+test('constraint cards are accessible accordions that allow none open without discarding progress', () => {
+  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
+  assert.match(mode, /aria-expanded=\{activeIndex === index\}/);
+  assert.match(mode, /current === index \? null : index/);
+  assert.match(mode, /Boundary \{buildConfig\.boundary/);
+  assert.match(mode, /<strong>Combined solution<\/strong>/);
+});
+
+test('rewrite is embedded, persistent, and gates graph construction while canonical answers stay separate', () => {
+  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
+  assert.match(mode, /const sourceConstraints = questionData\.sourceConstraints/);
+  assert.match(mode, /const rawExpectedConstraints = questionData\.expectedConstraints/);
+  assert.match(mode, /rewritesComplete/);
+  assert.match(mode, /Graph construction unlocks after your rewrite is verified/);
+  assert.match(mode, /<EmbeddedInequalityRewrite/);
 });
 
 test('the student-build workspace is wired into Work View with undo, point editing, and a primary check action', () => {

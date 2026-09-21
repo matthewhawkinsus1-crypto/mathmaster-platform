@@ -224,6 +224,7 @@ export const normalizeSystemsWorkspaceInequalityConfig = (question = {}) => {
   return {
     mode: question.mode || 'linear',
     studentBuild: {
+      rewrite: Boolean(question.studentBuild?.rewrite),
       boundary: legacyAllOn || Boolean(question.studentBuild?.boundary),
       lineStyle: legacyAllOn || Boolean(question.studentBuild?.lineStyle),
       shading: legacyAllOn || Boolean(question.studentBuild?.shading),

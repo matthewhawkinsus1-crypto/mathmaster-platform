@@ -56,12 +56,11 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
   // inequality mode (boundary construction, style, shading, classification,
   // test-point reasoning, vertices, modeling constraints) is
   // `usePersistentToolState`-backed. What is listed below is only which
-  // constraint card is open and what a graph tap currently means, plus the
+  // graph tap currently means, plus the
   // last-check feedback strings for the reasoning panels — none of it is
   // mathematics, all of it is regenerated the moment a student re-opens the
   // card or re-runs a check.
   systemsWorkspace: entry(['systemsWorkspace/SystemsWorkspace.jsx'], {
-    activeIndex: 'Which constraint card is expanded for construction. Selection, not an answer.',
     armed: 'What the next graph tap will place (a boundary point, a shaded side, a vertex, or a test point). Selection, not an answer.',
     teacherPointFeedback: 'The message under the teacher test-point reasoning panel, regenerated from the response already stored in teacherPointResponse.',
     studentPointFeedback: 'The message under the student test-point reasoning panel, regenerated from the response already stored in studentPointResponse.',
