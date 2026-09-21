@@ -673,6 +673,11 @@ function App() {
   }, []);
 
   const [activeView, setActiveView] = useState('dashboard');
+  // Teacher Preview deliberately reuses the student assignment renderer, but the
+  // signed-in role remains teacher. Use this early flag to suspend teacher-only
+  // background feeds while that renderer is on screen; cached teacher data stays
+  // in memory and the feeds reconnect when Preview closes.
+  const teacherPreviewRuntimeActive = user?.role === 'teacher' && activeView === 'teacherPreview';
   const [teacherTab, setTeacherTab] = useState('home');
   const [teacherWorkspaceMode, setTeacherWorkspaceMode] = useState('teacher');
   const [adminTab, setAdminTab] = useState('classes');
@@ -1202,6 +1207,7 @@ function App() {
     // loaded yet would tell a teacher the whole class is behind every time they
     // open the page.
     if (user?.role !== 'teacher' || !['weeklyPath', 'home', 'grades'].includes(teacherTab)) return undefined;
+    if (teacherPreviewRuntimeActive) return undefined;
     const activeId = activeClass.classId || classes[0]?.classId || null;
     if (!activeId) { setWeeklyPathCompletionsByStudent({}); setWeeklyPathGoalSnapshotsByStudent({}); setWeeklyPathProgressLoadedFor(null); return undefined; }
     const classRecord = classes.find((entry) => entry.classId === activeId) || null;
@@ -1247,7 +1253,7 @@ function App() {
       alive = false;
       clearInterval(timer);
     };
-  }, [user?.role, teacherTab, activeClass.classId, classes, weeklyGoalsByClass]);
+  }, [user?.role, teacherTab, activeClass.classId, classes, weeklyGoalsByClass, teacherPreviewRuntimeActive]);
 
   useEffect(() => {
     if (!pendingClassroomLaunch) return;
@@ -2017,13 +2023,17 @@ function App() {
 
   useEffect(() => {
     if (user?.role !== 'teacher') return undefined;
+    // The live grade stream is one of the highest-churn teacher feeds. A
+    // teacher exemplar must not rerender because students elsewhere in the
+    // roster submit work while the teacher is demonstrating a question.
+    if (teacherPreviewRuntimeActive) return undefined;
     const viewer = { email: user.email || null, isRootAdmin: user.isRootAdmin === true };
     return onSnapshot(
       studentGradeSourceForViewer(viewer),
       (snapshot) => setAllStudents(collectStudentGradeSnapshot(snapshot)),
       (error) => console.error('Could not watch live student grades:', error),
     );
-  }, [user?.role, user?.email, user?.isRootAdmin]);
+  }, [user?.role, user?.email, user?.isRootAdmin, teacherPreviewRuntimeActive]);
 
   // Classes are the authoritative record of course, rigor and teacher of
   // record. Read-only from the client: only the audited admin callables write
@@ -3339,20 +3349,22 @@ function App() {
       setStudentSupportEvents([]);
       return undefined;
     }
+    if (teacherPreviewRuntimeActive) return undefined;
     return subscribeStudentSupportEvents({
       db,
       teacherEmail: user.email,
       onChange: setStudentSupportEvents,
       onError: (error) => console.error('Student support history failed:', error),
     });
-  }, [user?.role, user?.email]);
+  }, [user?.role, user?.email, teacherPreviewRuntimeActive]);
 
   // One teacher-scoped stream spans the whole roster. Firestore rules verify
   // teacher-of-record again for every appended contact; students have no access.
   useEffect(() => {
     if (user?.role !== 'teacher' || !user.email) { setParentContacts([]); return undefined; }
+    if (teacherPreviewRuntimeActive) return undefined;
     return subscribeParentContacts({ db, teacherEmail: user.email, onChange: setParentContacts, onError: (error) => console.error('Parent contact history failed:', error) });
-  }, [user?.role, user?.email]);
+  }, [user?.role, user?.email, teacherPreviewRuntimeActive]);
 
   const actionGradeScope = useMemo(() => projectGradeTransferUnits({
     classes, assignments, students: allStudents, teacherEmail: user?.email || '', isRootAdmin: user?.isRootAdmin === true,
@@ -3373,17 +3385,20 @@ function App() {
 
   useEffect(() => {
     const classIds = actionGradeScope.authorizedClassIds;
-    if (user?.role !== 'teacher' || !classIds.length) { setActionGradeSnapshots([]); setActionPracticePasses(new Set()); return; }
+    if (user?.role !== 'teacher') { setActionGradeSnapshots([]); setActionPracticePasses(new Set()); return; }
+    if (teacherPreviewRuntimeActive) return;
+    if (!classIds.length) { setActionGradeSnapshots([]); setActionPracticePasses(new Set()); return; }
     loadTeacherGradeTransferState({ classIds })
       .then(({ snapshots, practicePasses }) => {
         setActionGradeSnapshots(snapshots);
         setActionPracticePasses(practicePasses);
       })
       .catch((error) => console.error('Action Center grade-transfer projection failed:', error));
-  }, [user?.role, user?.uid, user?.isRootAdmin, auth.session?.uid, actionGradeScope.authorizedClassIds.join('|')]);
+  }, [user?.role, user?.uid, user?.isRootAdmin, auth.session?.uid, actionGradeScope.authorizedClassIds.join('|'), teacherPreviewRuntimeActive]);
 
   useEffect(() => {
     if (user?.role !== 'teacher') { setRetestRecoveryActions([]); return; }
+    if (teacherPreviewRuntimeActive) return undefined;
     let cancelled = false;
     Promise.all(assignments.filter(isTestCycleAssignment).map(async (assignment) => {
       const response = await listTeacherTestCycleRecords({ assignmentId: assignment.id });
@@ -3391,13 +3406,14 @@ function App() {
     })).then((groups) => { if (!cancelled) setRetestRecoveryActions(groups.flat()); })
       .catch((error) => console.error('Action Center Test Cycle projection failed:', error));
     return () => { cancelled = true; };
-  }, [user?.role, assignments]);
+  }, [user?.role, assignments, teacherPreviewRuntimeActive]);
 
   useEffect(() => {
     if (user?.role !== 'teacher' || !user.email) {
       setStudentSessionSummaries([]);
       return undefined;
     }
+    if (teacherPreviewRuntimeActive) return undefined;
     return subscribeStudentSessionSummaries({
       db,
       teacherEmail: user.email,
@@ -3407,7 +3423,7 @@ function App() {
       onChange: setStudentSessionSummaries,
       onError: (error) => console.error('Student session summaries failed:', error),
     });
-  }, [user?.role, user?.email, classes]);
+  }, [user?.role, user?.email, classes, teacherPreviewRuntimeActive]);
 
   /*
    * A per-student extension is never written as a client-side whole-map
@@ -3653,6 +3669,10 @@ function App() {
       setPresenceById({});
       return undefined;
     }
+    // Keep the last room snapshot in memory while Preview is open, but stop
+    // every per-student listener. This prevents heartbeat traffic from making
+    // the full interactive exemplar rerender during instruction.
+    if (teacherPreviewRuntimeActive) return undefined;
 
     const rosterIds = [...new Set(
       (Array.isArray(allStudents) ? allStudents : [])
@@ -3687,9 +3707,8 @@ function App() {
 
     return () => {
       unsubs.forEach((unsubscribe) => unsubscribe());
-      setPresenceById({});
     };
-  }, [user?.role, teacherTab, allStudents]);
+  }, [user?.role, teacherTab, allStudents, teacherPreviewRuntimeActive]);
 
   // The server writes one compact receipt only after Google Classroom accepts
   // a grade patch. Listening to that receipt gives students confirmation from
@@ -4489,32 +4508,53 @@ function App() {
       question: getStoredAssignmentQuestions(assignmentData)[startIndex],
       assignment: assignmentData,
     });
-    const sessionId = walkthroughSessionId({ teacherUid: user?.id || user?.email, classId, assignmentId });
-    const existing = await getDoc(doc(db, 'walkthroughSessions', sessionId));
-    if (!forceRestart && existing.exists() && existing.data()?.active) {
-      const resumed = existing.data();
-      walkthroughWriteRef.current = Number(resumed.updatedAt) || 0;
-      setLiveTeachingSession(resumed);
-      setActiveAssignmentId(assignmentId);
-      setCurrentQuestionIndex(Math.max(0, Number(resumed.storageQuestionIndex) || 0));
-      setActiveView('teacherPreview');
+    const startFresh = () => {
+      // Reuse the exact isolated student-preview runtime. This happens locally;
+      // a slow/failed Firestore lookup must never block a teacher from teaching.
+      startTeacherPreview(assignmentId);
+      setLiveTeachingSession(startLiveTeachingSession({
+        classId,
+        assignmentId,
+        assignment: assignmentData,
+        storageQuestionIndex: startIndex,
+        activityRole: startRole,
+        nowValue: Date.now(),
+        teacherUid: user?.id || null,
+        teacherEmail: user?.email || null,
+        suggestedWorkSeconds: getStoredAssignmentQuestions(assignmentData)[startIndex]?.suggestedWorkSeconds,
+      }));
+    };
+
+    if (forceRestart) {
+      startFresh();
       return;
     }
-    // Reuses the exact preview entry point: same fresh tracker, same cleared
-    // preview-only drafts, same teacher-preview isolation. "Restart Fresh"
-    // is this same call again on the assignment already being taught.
-    startTeacherPreview(assignmentId);
-    setLiveTeachingSession(startLiveTeachingSession({
-      classId,
-      assignmentId,
-      assignment: assignmentData,
-      storageQuestionIndex: startIndex,
-      activityRole: startRole,
-      nowValue: Date.now(),
-      teacherUid: user?.id || null,
-      teacherEmail: user?.email || null,
-      suggestedWorkSeconds: getStoredAssignmentQuestions(assignmentData)[startIndex]?.suggestedWorkSeconds,
-    }));
+
+    const sessionId = walkthroughSessionId({ teacherUid: user?.id || user?.email, classId, assignmentId });
+    try {
+      // Resume is a convenience, never a launch dependency. Give Firestore a
+      // very small budget to return an already-active session; after that we
+      // start locally so classroom instruction is not held hostage by network.
+      const lookup = await Promise.race([
+        getDoc(doc(db, 'walkthroughSessions', sessionId)),
+        new Promise((resolve) => window.setTimeout(() => resolve(null), 180)),
+      ]);
+      if (lookup?.exists() && lookup.data()?.active) {
+        const resumed = lookup.data();
+        walkthroughWriteRef.current = Number(resumed.updatedAt) || 0;
+        setLiveTeachingSession(resumed);
+        setActiveAssignmentId(assignmentId);
+        setCurrentQuestionIndex(Math.max(0, Number(resumed.storageQuestionIndex) || 0));
+        setAssignmentNavigationCollapsed(false);
+        setAssignmentOverviewExpanded(false);
+        setActiveView('teacherPreview');
+        return;
+      }
+    } catch (error) {
+      console.warn('Walkthrough resume lookup unavailable; starting fresh:', error);
+    }
+
+    startFresh();
   };
 
   // Re-enters the exemplar at the teacher's last real position without
