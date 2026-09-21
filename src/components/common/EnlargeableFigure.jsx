@@ -340,27 +340,6 @@ export default function EnlargeableFigure({
           {typeof instruction === 'string' ? <MathText>{instruction}</MathText> : instruction}
         </div>
       ) : null}
-      {enlarged && taskText && !registeredCapabilities.task ? (
-        <p
-          style={{
-            margin: '0 96px 12px 0',
-            padding: '10px 13px',
-            borderLeft: '4px solid #1a73e8',
-            borderRadius: '0 8px 8px 0',
-            background: '#f4f8ff',
-            color: '#202124',
-            fontSize: 15,
-            fontWeight: 700,
-            lineHeight: 1.4,
-          }}
-        >
-          {/* The task carries the same `$…$` mathematics the prompt does — this
-              IS the prompt, repeated where the modal covers it — so it needs the
-              same rendering. Printed raw, a student who enlarged a number-line
-              question read "Solve $-6x- 6 \ge 24$". */}
-          <MathText>{taskText}</MathText>
-        </p>
-      ) : null}
       {!enlarged ? (
         <button ref={openerRef} type="button" onClick={() => { if (!shouldForceClose) setEnlarged(true); }} disabled={shouldForceClose} style={CONTROL}>
           ⤢ {enlargeLabel}
@@ -434,7 +413,28 @@ export default function EnlargeableFigure({
       onClick={(event) => { if (enlarged && event.target === event.currentTarget) close(); }}
     >
       <header className="mathmaster-work-view-header">
-        <strong className="mathmaster-work-view-title">{label}</strong>
+        <div className="mathmaster-work-view-heading" style={{ minWidth: 0, flex: '1 1 auto', display: 'grid', gap: 2 }}>
+          <strong className="mathmaster-work-view-title">{label}</strong>
+          {task ? (
+            <div
+              className="mathmaster-work-view-persistent-task"
+              aria-label="Your task"
+              style={{
+                minWidth: 0,
+                maxHeight: '3.2em',
+                overflowY: 'auto',
+                paddingRight: 4,
+                color: '#3c4756',
+                fontSize: 12.5,
+                fontWeight: 700,
+                lineHeight: 1.35,
+              }}
+            >
+              <span style={{ color: '#174ea6', fontWeight: 900 }}>Your task: </span>
+              {typeof task === 'string' ? <MathText>{task}</MathText> : task}
+            </div>
+          ) : null}
+        </div>
         {task ? <button type="button" aria-expanded={drawer === 'task'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'task'))}>Task</button> : null}
         {help ? <button type="button" aria-expanded={drawer === 'help'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'help'))}>Help</button> : null}
         <button ref={closeRef} type="button" onClick={close}>{openEnlarged ? 'Close full screen ✕' : 'Close ✕'}</button>

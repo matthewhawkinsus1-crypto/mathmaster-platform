@@ -32,6 +32,11 @@ export function mergeWorkViewCapabilities(platform, tool) {
   return {
     ...base,
     ...local,
+    // QuestionEngine marks the authored question task as authoritative because
+    // nested tools often publish a shorter operational summary. Outside that
+    // question shell, normal composition still applies and the more local task
+    // may override a parent/descendant fallback.
+    task: base.task?.authoritative ? base.task : (local.task || base.task),
     primaryActions: [...(base.primaryActions || []), ...(local.primaryActions || [])],
     secondaryActions: [...(base.secondaryActions || []), ...(local.secondaryActions || [])],
   };

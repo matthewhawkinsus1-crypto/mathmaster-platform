@@ -40,6 +40,31 @@ test('strict simplified final form is required for the rewrite path, not merely 
   assert.equal(question.requireSimplifiedFinalForm, true);
 });
 
+test('canonical solveStepByStep rewrite intent also compiles to the mature slope-intercept solver', () => {
+  const question = compileOneQuestion({
+    studentActions: ['solveStepByStep'],
+    mode: 'rewriteLinearForm',
+    equation: 'y - 7 = -(2/3)(x + 3)',
+    targetForm: 'slopeIntercept',
+  });
+  assert.equal(question.type, 'stepAlgebra');
+  assert.equal(question.targetForm, 'slopeIntercept');
+  assert.equal(question.requireSimplifiedFinalForm, true);
+});
+
+test('canonical solveStepByStep intercept intent reaches the intercept orchestrator contract', () => {
+  const question = compileOneQuestion({
+    studentActions: ['solveStepByStep', 'findXIntercepts', 'findYIntercept'],
+    mode: 'linearIntercepts',
+    equation: '3x + 4y = 24',
+    feedbackTiming: 'delayed',
+  });
+  assert.equal(question.type, 'stepAlgebra');
+  assert.equal(question.mode, 'linearIntercepts');
+  assert.equal(question.equationText, '3x + 4y = 24');
+  assert.equal(question.feedbackTiming, 'delayed');
+});
+
 test('factoredLinear rewrite intent still compiles to the stepAlgebra2 compatibility shell, since the mature engine has no factored-form objective yet', () => {
   const question = compileOneQuestion({
     studentActions: ['interactiveAlgebra'],

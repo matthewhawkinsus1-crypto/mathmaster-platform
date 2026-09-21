@@ -1225,7 +1225,7 @@ export default function QuestionEngine({
         toolWorkspace={(
       <WorkViewCapabilityProvider capabilities={{
         undo: { label:workspaceActions.undo.label, onAction:workspaceActions.undo.onClick, disabled:workspaceActions.undo.disabled, title:workspaceActions.undo.title },
-        task: { text:processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.' },
+        task: { text:processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.', authoritative:true },
         help: workspaceActions.help || {
           label: 'Help',
           text: 'Use the task directions and the controls in this workspace. Your mathematical work stays in place when you open or close Work View.',

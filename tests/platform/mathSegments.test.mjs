@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  isMathSegment, splitMathSegments, unwrapMathSegment,
+  isMathSegment, removeRedundantPlainFractionParens, splitMathSegments, splitProseFractionRuns, unwrapMathSegment,
 } from '../../src/components/common/mathSegments.js';
 
 // Where the mathematics is in a sentence. Both MathText and QuestionPrompt read
@@ -49,6 +49,19 @@ test('a text with no mathematics is returned whole', () => {
   assert.deepEqual(splitMathSegments('Explain your reasoning.'), ['Explain your reasoning.']);
   assert.deepEqual(splitMathSegments(''), []);
   assert.deepEqual(splitMathSegments(null), []);
+});
+
+test('plain grouped scalar fractions lose only their redundant grouping before stacking', () => {
+  assert.equal(removeRedundantPlainFractionParens('(2/3)x'), '2/3x');
+  assert.equal(removeRedundantPlainFractionParens('-(3/4)(x - 14)'), '-3/4(x - 14)');
+  assert.equal(removeRedundantPlainFractionParens('(x + 1)/2'), '(x + 1)/2');
+
+  const runs = splitProseFractionRuns('Graph y = (2/3)x + 7.');
+  assert.deepEqual(runs, [
+    { text: 'Graph y = ', isFraction: false },
+    { text: '\\frac{2}{3}', isFraction: true },
+    { text: 'x + 7.', isFraction: false },
+  ]);
 });
 
 test('the pattern carries no state between callers', () => {

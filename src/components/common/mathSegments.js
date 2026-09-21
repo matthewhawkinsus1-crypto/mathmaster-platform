@@ -144,6 +144,18 @@ export const normalizePlainMathTypography = (value) => String(value ?? '')
 
 const FRACTION_TOKEN = /\\frac\{[^{}]*\}\{[^{}]*\}/g;
 
+const SIMPLE_GROUPED_SLASH_FRACTION = /\(\s*([+-]?(?:\d+(?:\.\d+)?|[A-Za-z]))\s*\/\s*((?:\d+(?:\.\d+)?|[A-Za-z]))\s*\)/g;
+
+// Plain-text authoring often wrapped a slash fraction in parentheses only to
+// keep the old one-line renderer from reading 2/3x as 2/(3x). Once the fraction
+// is converted to a real stacked \frac, those parentheses are visual noise and
+// can even appear to hug only the denominator because prose and MathDisplay are
+// separate inline boxes. Strip only the simplest scalar grouping here. Explicit
+// LaTeX parentheses and compound expressions are untouched, so an author can
+// still request grouping when it is mathematically meaningful.
+export const removeRedundantPlainFractionParens = (value) => String(value ?? '')
+  .replace(SIMPLE_GROUPED_SLASH_FRACTION, '$1/$2');
+
 /**
  * Splits a plain-prose (non-`$…$`-delimited) segment into alternating
  * plain-text and stacked-fraction chunks, using the same conservative
@@ -155,7 +167,7 @@ const FRACTION_TOKEN = /\\frac\{[^{}]*\}\{[^{}]*\}/g;
  * reuses it rather than inventing a second fraction detector.
  */
 export const splitProseFractionRuns = (proseText) => {
-  const text = String(proseText ?? '');
+  const text = removeRedundantPlainFractionParens(proseText);
   if (!text.includes('/')) return [{ text, isFraction: false }];
   const stacked = stackDivisions(text);
   if (stacked === text) return [{ text, isFraction: false }];

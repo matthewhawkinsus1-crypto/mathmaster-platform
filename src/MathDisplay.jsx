@@ -12,6 +12,15 @@ const repairLegacyMathLiveRelations = (value) => String(value ?? '')
   .replace(/\\get\b/g, '\\ge t')
   .replace(/\\net\b/g, '\\ne t');
 
+// Parentheses whose entire contents are one stacked fraction are redundant in
+// ordinary coefficient notation: (2/3)x existed only to make the old slash
+// renderer unambiguous. After stackDivisions has produced a real fraction, keep
+// the fraction as one MathLive atom and drop that visual-only grouping. This is
+// deliberately narrow: parentheses around sums/products are never touched.
+const stripRedundantStackedFractionParens = (value) => String(value ?? '')
+  .replace(/\\left\(\s*(\\frac\{[^{}]+\}\{[^{}]+\})\s*\\right\)/g, '$1')
+  .replace(/\(\s*(\\frac\{[^{}]+\}\{[^{}]+\})\s*\)/g, '$1');
+
 const stripMathDelimiters = (value) => {
   const text = String(value ?? '').trim();
 
@@ -54,7 +63,9 @@ export default function MathDisplay({
   // stacks in both modes, so writing it out settles the question before format
   // detection runs. Anything ambiguous is left exactly as authored — see
   // ../functions/shared/stackDivisions.mjs.
-  const cleanValue = stackDivisions(repairLegacyMathLiveRelations(stripMathDelimiters(value)));
+  const cleanValue = stripRedundantStackedFractionParens(
+    stackDivisions(repairLegacyMathLiveRelations(stripMathDelimiters(value))),
+  );
   if (!cleanValue) return null;
 
   // Important: stackDivisions may have introduced a LaTeX \frac into a value
