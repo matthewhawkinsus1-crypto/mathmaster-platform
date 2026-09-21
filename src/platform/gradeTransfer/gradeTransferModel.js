@@ -119,16 +119,6 @@ export const buildTransferUnit = ({
     if (effectiveDeadline === null || now < effectiveDeadline) continue;
 
     const practicePassRedeemed = hasAuthoritativePracticePass({ student, assignment, classRecord });
-    if (sectionKey === 'practice' && practicePassRedeemed) {
-      finalizedStudentIds.add(text(student.id));
-      excused.push({
-        studentId: text(student.id),
-        name: text(student.displayName || student.name || student.id),
-        reason: 'Practice Pass',
-      });
-      continue;
-    }
-
     const projectedGrade = projectCanonicalGrade({
       student,
       assignment,
@@ -136,6 +126,18 @@ export const buildTransferUnit = ({
       practicePassRedeemed,
     });
     if (projectedGrade === null || projectedGrade === undefined || projectedGrade === '') {
+      // Practice Pass is an excusal only when no stronger canonical authority
+      // supplied a numeric grade. This preserves assignment-level teacher
+      // consequences, which intentionally outrank the waiver.
+      if (sectionKey === 'practice' && practicePassRedeemed) {
+        finalizedStudentIds.add(text(student.id));
+        excused.push({
+          studentId: text(student.id),
+          name: text(student.displayName || student.name || student.id),
+          reason: 'Practice Pass',
+        });
+        continue;
+      }
       problems.push({ studentId: text(student.id), name: text(student.displayName || student.name || student.id), reason: 'No finalized canonical grade' });
       continue;
     }
