@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
+import { parseRelationSource, validateRelationTransition } from '../../src/algebraRelationFoundation.js';
+import { parseNumericAnswer } from '../../src/tools/shared/toolMath.js';
 
 const source = componentSource('src/tools/systemsWorkspace/SystemsWorkspace.jsx');
 const executable = executableSource(source);
@@ -137,6 +139,10 @@ test('slope-intercept construction requires two student points and never manufac
   const fields = region(executable, 'function ConstructionMethodFields', 'function TestPointReasoning', 'ConstructionMethodFields');
   assert.match(fields, /<output/);
   assert.doesNotMatch(fields, /onChange\(('[xy][12]')/);
+  const slopeField = fields.match(/<Field label="Slope \(m\)">([\s\S]*?)<\/Field>/)?.[1] || '';
+  assert.match(slopeField, /type="text"/);
+  assert.match(slopeField, /placeholder="e\.g\. -2\/3"/);
+  assert.equal(parseNumericAnswer('-2/3'), -2 / 3, 'the slope field accepts the canonical numeric parser\'s rise/run form');
 });
 
 test('constraint cards are accessible accordions that allow none open without discarding progress', () => {
@@ -164,11 +170,23 @@ test('unfinished rewrite text and a pending sign flip survive collapse and Work 
 });
 
 test('manual algebra must be equivalence-checked and committed before final rewrite verification', () => {
+  const apply = region(rewriteSource, 'const applyOperation = ()', 'const confirmFlip', 'applyOperation');
+  assert.match(apply, /validateRelationTransition\(current, result\.state, \{ kind:'equivalentRewrite' \}\)\.valid/);
   const commit = region(rewriteSource, 'const commitRewrite = ()', 'const verify = ()', 'commitRewrite');
   assert.match(commit, /validateRelationTransition\(previous, next, \{ kind:'equivalentRewrite' \}\)/);
   const verify = region(rewriteSource, 'const verify = ()', 'return <div', 'verify');
   assert.match(verify, /draft !== committedText/);
   assert.match(verify, /graphableConstraintFromRelation\(committedText\)/);
+
+  // Regression: from standard form, Add 0 changes neither side and therefore
+  // cannot earn the operation step that final verification requires. Typing
+  // the solved inequality also cannot be committed because it moves terms
+  // between sides instead of simplifying each side independently.
+  const standard = parseRelationSource('3*x + 2*y <= 6', 'y');
+  const addZero = parseRelationSource('(3*x + 2*y) + 0 <= 6 + 0', 'y');
+  const typedFinal = parseRelationSource('y <= -3/2*x + 3', 'y');
+  assert.equal(validateRelationTransition(standard, addZero, { kind:'equivalentRewrite' }).valid, true);
+  assert.equal(validateRelationTransition(standard, typedFinal, { kind:'equivalentRewrite' }).valid, false);
 });
 
 test('rewrite-only work requires verified rewrite evidence and shows it in collapsed progress', () => {

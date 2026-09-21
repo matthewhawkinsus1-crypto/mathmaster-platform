@@ -577,7 +577,7 @@ function ConstructionMethodFields({ entry, onChange }) {
   if (entry.method === 'slopeIntercept') {
     return (
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:9 }}>
-        <Field label="Slope (m)"><input type="number" inputMode="decimal" step="any" value={entry.slope} onChange={(e)=>onChange('slope', e.target.value)} style={inputStyle}/></Field>
+        <Field label="Slope (m)"><input type="text" inputMode="text" placeholder="e.g. -2/3" value={entry.slope} onChange={(e)=>onChange('slope', e.target.value)} style={inputStyle}/></Field>
         <Field label="y-intercept (b)"><input type="number" inputMode="decimal" value={entry.intercept} onChange={(e)=>onChange('intercept', e.target.value)} style={inputStyle}/></Field>
         {plottedCoordinate('Plotted intercept: x', entry.x1)}{plottedCoordinate('Plotted intercept: y', entry.y1)}
         {plottedCoordinate('Second point: x', entry.x2)}{plottedCoordinate('Second point: y', entry.y2)}

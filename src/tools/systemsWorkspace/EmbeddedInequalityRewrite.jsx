@@ -66,6 +66,14 @@ export default function EmbeddedInequalityRewrite({ source, expectedConstraint, 
       const currentText = committedText;
       const current = parseRelationSource(currentText, 'y');
       const result = applyBalancedOperationToRelation(current, operation, operand);
+      // Identity operations cannot count as algebra work. Besides blocking the
+      // obvious Add 0 / Multiply 1 bypass, using the relation engine here also
+      // catches equivalent identity expressions without introducing a second
+      // operand parser.
+      if (validateRelationTransition(current, result.state, { kind:'equivalentRewrite' }).valid) {
+        setMessage('That operation does not change the relation. Choose an operation that moves you toward isolating y.');
+        return;
+      }
       const resultText = relationStateToText(result.state);
       const step = { operation, operand, result:resultText };
       onChange({ ...value, source, steps:[...(value?.steps || []), step], committedText:resultText, draft:resultText,
