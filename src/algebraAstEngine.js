@@ -534,6 +534,80 @@ const expressionIsSimplified = (expression) => {
   }
 };
 
+const unwrapExpressionParens = (node) => {
+  let current = node;
+  while (current?.type === 'ParenthesisNode') current = current.content;
+  return current;
+};
+
+const nodeIsNumericExpression = (node) => {
+  const current = unwrapExpressionParens(node);
+  if (!current) return false;
+  const symbols = current
+    .filter((child) => child.isSymbolNode)
+    .map((child) => child.name)
+    .filter((name) => !['e', 'pi'].includes(name));
+  if (symbols.length) return false;
+  try { return Number.isFinite(Number(current.evaluate({}))); } catch { return false; }
+};
+
+const nodeIsSimpleLinearVariableTerm = (node, variable = 'x') => {
+  const current = unwrapExpressionParens(node);
+  if (!current) return false;
+  if (current.type === 'SymbolNode') return current.name === variable;
+  if (current.type === 'OperatorNode' && current.fn === 'unaryMinus' && current.args.length === 1) {
+    return nodeIsSimpleLinearVariableTerm(current.args[0], variable);
+  }
+  if (current.type === 'OperatorNode' && current.fn === 'multiply') {
+    const variableArgs = current.args.filter((arg) => symbolsIn(arg.toString()).includes(variable));
+    if (variableArgs.length !== 1) return false;
+    return current.args.every((arg) => (
+      symbolsIn(arg.toString()).includes(variable)
+        ? nodeIsSimpleLinearVariableTerm(arg, variable)
+        : nodeIsNumericExpression(arg)
+    ));
+  }
+  if (current.type === 'OperatorNode' && current.fn === 'divide' && current.args.length === 2) {
+    return nodeIsSimpleLinearVariableTerm(current.args[0], variable)
+      && nodeIsNumericExpression(current.args[1]);
+  }
+  return false;
+};
+
+// Slope-intercept completion is STRUCTURAL, not a string comparison against
+// MathJS's preferred ordering. Accept y = mx + b in any ordinary textbook
+// ordering while rejecting forms that still require student work, such as
+// y = 2(x + 3) or y = (-2x + 8)/(-4).
+export const isSimplifiedSlopeInterceptExpression = (expression, independentVariable = 'x') => {
+  try {
+    const terms = splitAdditiveTerms(expression);
+    if (!Array.isArray(terms) || !terms.length || terms.length > 2) return false;
+
+    let variableTerms = 0;
+    let constantTerms = 0;
+    for (const term of terms) {
+      const symbols = symbolsIn(term.text).filter((name) => !['e', 'pi'].includes(name));
+      if (!symbols.length) {
+        constantTerms += 1;
+        if (constantTerms > 1) return false;
+        const value = Number(parse(term.text).evaluate({}));
+        if (!Number.isFinite(value)) return false;
+        if (terms.length > 1 && nearlyEqual(value, 0)) return false;
+        continue;
+      }
+      if (symbols.some((name) => name !== independentVariable)) return false;
+      variableTerms += 1;
+      if (variableTerms > 1) return false;
+      if (!nodeIsSimpleLinearVariableTerm(parse(term.text), independentVariable)) return false;
+      const linear = getLinearForm(term.text, independentVariable);
+      if (!nearlyEqual(linear.constant, 0) || nearlyEqual(linear.coefficient, 0)) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export const isSolvedEquation = (equationState) => {
   const objective = equationState.objective || { kind: 'isolate', variable: equationState.variable || 'x', simplifyRequired: true };
   const variable = objective.variable || equationState.variable || 'x';
@@ -552,7 +626,13 @@ export const isSolvedEquation = (equationState) => {
         : false
   );
   if (objective.kind === 'slopeIntercept') {
-    return leftSolved && variable === 'y' && simplificationSatisfied;
+    // A slope-intercept target is complete when y is isolated and the right
+    // side is structurally mx + b. Do not compare the student's ordering to
+    // MathJS's canonical string; that rejected correct answers such as
+    // -2/3 x + 5 and trapped students after the mathematics was finished.
+    return leftSolved
+      && variable === 'y'
+      && (!strictSimplification || isSimplifiedSlopeInterceptExpression(equationState.right, 'x'));
   }
   return (leftSolved || rightSolved) && simplificationSatisfied;
 };
@@ -821,8 +901,48 @@ export const expressionsEquivalent = (leftExpression, rightExpression, variable 
     // a visually correct fraction is not rejected merely because of syntax.
     const left = latexToExpression(leftExpression);
     const right = latexToExpression(rightExpression);
-    const difference = simplifyExpression(`(${left}) - (${right})`);
-    if (difference === '0') return true;
-    return [-7, -2, 0, 3, 8].every((value) => nearlyEqual(evaluateAt(left, variable, value), evaluateAt(right, variable, value)));
+    try {
+      const difference = simplifyExpression(`(${left}) - (${right})`);
+      if (difference === '0') return true;
+    } catch {
+      // Some harmless equivalent rational forms are not reduced to a literal
+      // zero by MathJS. Fall through to deterministic multi-symbol sampling.
+    }
+
+    // Do not assume the equation's SOLVE-FOR variable is the only symbol on the
+    // side being simplified. In y=mx+b work the side being checked contains x
+    // while the objective variable is y; the old fallback therefore rejected a
+    // correct 1/2 x - 2 simply because x was "unexpected".
+    const symbols = [...new Set([...symbolsIn(left), ...symbolsIn(right)])]
+      .filter((name) => !['e', 'pi'].includes(name));
+    if (!symbols.length) {
+      const leftValue = Number(parse(left).evaluate({}));
+      const rightValue = Number(parse(right).evaluate({}));
+      return Number.isFinite(leftValue) && Number.isFinite(rightValue) && nearlyEqual(leftValue, rightValue);
+    }
+
+    const probes = [-7, -3, -1, 2, 5, 11];
+    let validSamples = 0;
+    for (let index = 0; index < probes.length; index += 1) {
+      const scope = Object.fromEntries(symbols.map((symbol, symbolIndex) => [
+        symbol,
+        probes[(index + symbolIndex) % probes.length],
+      ]));
+      let leftValue;
+      let rightValue;
+      try {
+        leftValue = Number(parse(left).evaluate(scope));
+        rightValue = Number(parse(right).evaluate(scope));
+      } catch {
+        continue;
+      }
+      const leftFinite = Number.isFinite(leftValue);
+      const rightFinite = Number.isFinite(rightValue);
+      if (leftFinite !== rightFinite) return false;
+      if (!leftFinite) continue;
+      validSamples += 1;
+      if (!nearlyEqual(leftValue, rightValue)) return false;
+    }
+    return validSamples >= 3;
   } catch { return false; }
 };
