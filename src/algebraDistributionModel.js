@@ -61,8 +61,12 @@ const detectFactoredTerm = (expressionText) => {
   const denominatorText = denominatorFactors
     .map((factor) => unwrapRedundantParens(factor.text))
     .join(' * ');
+  const simpleScalar = /^[+-]?(?:\\d+(?:\\.\\d+)?|[A-Za-z])$/;
+  const factorOperand = (value) => (
+    simpleScalar.test(String(value).trim()) ? String(value).trim() : `(${value})`
+  );
   const factorText = denominatorText
-    ? `(${numeratorText}) / (${denominatorText})`
+    ? `${factorOperand(numeratorText)} / ${factorOperand(denominatorText)}`
     : numeratorText;
 
   // Render from ONE canonical factor expression rather than concatenating
