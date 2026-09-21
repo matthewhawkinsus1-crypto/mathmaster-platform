@@ -41,7 +41,8 @@ export const formatSlopeInterceptInequality = (input = {}) => {
   const { A, B, C, relation: canonicalRelation } = normalizeLinearInequality(input);
   if (Math.abs(B) <= DEFAULT_INEQUALITY_TOLERANCE) {
     const x = -C / A;
-    return `x ${canonicalRelation.replace('<=', '≤').replace('>=', '≥')} ${formatGraphNumber(x)}`;
+    const relation = A < 0 ? flipRelation(canonicalRelation) : canonicalRelation;
+    return `x ${relation.replace('<=', '≤').replace('>=', '≥')} ${formatGraphNumber(x)}`;
   }
 
   const relation = B < 0 ? flipRelation(canonicalRelation) : canonicalRelation;
