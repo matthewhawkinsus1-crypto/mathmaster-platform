@@ -104,18 +104,23 @@ test('the task comes with the figure', () => {
   }
 });
 
-test('the task is persistently visible only while Work View is enlarged', () => {
-  // The normal tool already leads with its task card. Work View covers that
-  // card, so the full authored task is repeated inside the figure only behind
-  // the enlarged-state gate; embedded mode still has a single visible task.
+test('the task is persistently visible in Work View chrome without moving the tool surface', () => {
+  // The authored task belongs in the Work View header: it stays visible while
+  // the student works, but it does not become content inside the graph/tool
+  // surface and therefore cannot shift plotting geometry or response controls.
   const source = codeOf('src/components/common/EnlargeableFigure.jsx');
   const drawer = source.slice(source.indexOf('className="mathmaster-work-view-drawer"'), source.indexOf('aria-label="Help and instructions"'));
   assert.match(drawer, /data-open=\{enlarged && drawer === 'task'/);
+
+  const headerStart = source.indexOf('<header className="mathmaster-work-view-header">');
+  const header = source.slice(headerStart, source.indexOf('</header>', headerStart));
+  assert.match(header, /mathmaster-work-view-persistent-task/);
+  assert.match(header, /aria-label="Your task"/);
+  assert.match(header, /<MathText>\{task\}<\/MathText>/);
+
   const figureStart = source.indexOf('const figure =');
   const embeddedFigure = source.slice(figureStart, source.indexOf('</figure>\n  );', figureStart));
-  assert.match(embeddedFigure, /\{enlarged && task \? \(/);
-  assert.match(embeddedFigure, /mathmaster-work-view-persistent-task/);
-  assert.doesNotMatch(embeddedFigure, /\{!enlarged && task \? \(/);
+  assert.doesNotMatch(embeddedFigure, /mathmaster-work-view-persistent-task/);
 });
 
 test('the width behind the decision is re-measured, not read once', () => {
