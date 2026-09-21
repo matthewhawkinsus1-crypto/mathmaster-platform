@@ -892,7 +892,23 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
       shadeCorrect: buildConfig.shading ? shadeCorrect(index) : null,
       constraintCorrect: hasBuildSteps ? constraintVerified(index) : null,
     }));
-    const modelingChecks = modeling ? modelingEntries.map((entry, index) => modelingEntryCorrect(entry, expectedConstraints[index])) : [];
+    const modelingChecks = modeling ? (() => {
+      // A mathematical model is a SET of constraints, not an ordered answer
+      // list. Match each student-authored inequality to one still-unmatched
+      // expected constraint so an equivalent system earns full credit no
+      // matter which valid constraint the student entered first. Keeping
+      // expected rows single-use also prevents a duplicated correct constraint
+      // from satisfying two requirements.
+      const unmatchedExpected = new Set(expectedConstraints.map((_, index) => index));
+      return modelingEntries.map((entry) => {
+        const matchedIndex = expectedConstraints.findIndex((expected, index) => (
+          unmatchedExpected.has(index) && modelingEntryCorrect(entry, expected)
+        ));
+        if (matchedIndex < 0) return false;
+        unmatchedExpected.delete(matchedIndex);
+        return true;
+      });
+    })() : [];
     const classificationCorrect = !askClassification || regionClassification === workingClassification;
     const noSolutionRecognized = workingClassification !== 'empty' || regionClassification === 'empty';
     const teacherPointApplicable = Boolean(teacherTestPoint);
@@ -1298,223 +1314,3 @@ function LinearQuadraticMode({ questionData, onAction }) {
 
   return <EnlargeableFigure label="Linear-quadratic system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: 'Line and quadratic equations' }, numericControls: { label: 'Intersection controls', studentState: true }, instruction: { text: 'Find every point satisfying both equations.' }, primaryActions: [{ id: 'check-intersections', label: 'Check intersections', onAction: check, disabled: count === '' }] }}><ToolSplit>
     <Panel title="Line and parabola">
-      <CoordinatePlane xMin={questionData.graph?.xMin ?? -6} xMax={questionData.graph?.xMax ?? 6} yMin={questionData.graph?.yMin ?? -8} yMax={questionData.graph?.yMax ?? 12}
-        lines={[{ ...config.line, stroke:'#d93025', dash:'10 6' }]}
-        functions={[(x)=>Number(config.quadratic.a??1)*x*x+Number(config.quadratic.b??0)*x+Number(config.quadratic.c??0)]}
-        ariaLabel="Graph of a line and a parabola"
-        points={revealAnswers ? intersections.map((point)=>({x:point.x,y:point.y,label:'intersection'})) : []} enlargeable={false} />
-      <Legend items={[
-        { label:'Parabola', color:'#1a73e8', note:`y = ${config.quadratic.a}x² ${Number(config.quadratic.b)>=0?'+':'−'} ${Math.abs(Number(config.quadratic.b))}x ${Number(config.quadratic.c)>=0?'+':'−'} ${Math.abs(Number(config.quadratic.c))}` },
-        { label:'Line', color:'#d93025', dashed:true, note:formatLine(config.line) },
-      ]} />
-    </Panel>
-    <Panel title="Solve the nonlinear system">
-      <Field label="How many real intersections are there?"><select value={count} onChange={(e)=>setCount(e.target.value)} style={inputStyle}><option value="">Choose…</option><option value="0">0</option><option value="1">1</option><option value="2">2</option></select></Field>
-      {Number(count) >= 1 ? <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:12}}><Field label="x₁"><input type="number" inputMode="decimal" step="0.1" value={values.x1} onChange={update('x1')} style={inputStyle}/></Field><Field label="y₁"><input type="number" inputMode="decimal" step="0.1" value={values.y1} onChange={update('y1')} style={inputStyle}/></Field></div> : null}
-      {Number(count) >= 2 ? <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:10}}><Field label="x₂"><input type="number" inputMode="decimal" step="0.1" value={values.x2} onChange={update('x2')} style={inputStyle}/></Field><Field label="y₂"><input type="number" inputMode="decimal" step="0.1" value={values.y2} onChange={update('y2')} style={inputStyle}/></Field></div> : null}
-      <button type="button" onClick={check} disabled={count === ''} style={{ ...actionStyle, opacity: count === '' ? 0.5 : 1 }}>Check intersections</button>
-      {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'#3c4756',lineHeight:1.55}}>{message()}</p></div> : null}
-      <HintPanel
-        hints={[
-          'An intersection is a point that lies on both graphs at once.',
-          'Set the two expressions equal to each other. That gives a quadratic equation, and its number of real roots is your number of intersections.',
-          'Solve that quadratic for x, then substitute each x back into the line to get its y.',
-        ]}
-        onHintUsed={() => onAction?.('HINT_USED')}
-      />
-    </Panel>
-  </ToolSplit></EnlargeableFigure>;
-}
-
-function MatrixMode({ questionData, onAction }) {
-  const matrix = questionData.matrix || DEFAULT_MATRIX;
-  const isMatrix3 = questionData.mode === 'matrix3' || Boolean(matrix3x4Rows(matrix));
-  const solution = useMemo(
-    () => (isMatrix3 ? solve3x3System(matrix) : solve2x2System(matrix)),
-    [isMatrix3, matrix],
-  );
-  const revealAnswers = useRevealAnswers();
-  const [classification, setClassification] = usePersistentToolState('classification', 'one');
-  const [x, setX] = usePersistentToolState('x', '');
-  const [y, setY] = usePersistentToolState('y', '');
-  const [z, setZ] = usePersistentToolState('z', '');
-  const [technologyUsed, setTechnologyUsed] = usePersistentToolState('technologyUsed', false);
-  const { feedback, submit } = useToolSubmission(onAction);
-  const mathState = useMemo(() => ({ classification, x, y, z, technologyUsed }), [classification, x, y, z, technologyUsed]);
-  const restore = useCallback((value) => { setClassification(value?.classification || 'one'); setX(value?.x || ''); setY(value?.y || ''); setZ(value?.z || ''); setTechnologyUsed(Boolean(value?.technologyUsed)); }, []);
-  const undoHistory = useMathUndoHistory({ label: 'Undo the last matrix-system edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
-
-  const matrixRows = isMatrix3 ? (matrix3x4Rows(matrix) || []) : [
-    [matrix.a11, matrix.a12, matrix.b1],
-    [matrix.a21, matrix.a22, matrix.b2],
-  ];
-
-  const check = () => {
-    if (isMatrix3 && !technologyUsed) return;
-    const classCorrect = classification === solution.type;
-    const coordsCorrect = solution.type !== 'one' || (
-      matchesNumericAnswer(x,solution.x,0.05)
-      && matchesNumericAnswer(y,solution.y,0.05)
-      && (!isMatrix3 || matchesNumericAnswer(z,solution.z,0.05))
-    );
-    const technologyCorrect = !isMatrix3 || technologyUsed;
-    const parts = solution.type === 'one'
-      ? [classCorrect,technologyCorrect,coordsCorrect]
-      : [classCorrect,technologyCorrect];
-    submit(
-      {isCorrect:parts.every(Boolean),score:parts.filter(Boolean).length/parts.length},
-      {classification,x,y,...(isMatrix3?{z,technologyUsed}: {})},
-      {mode:isMatrix3?'matrix3':'matrix',checks:{classCorrect,technologyCorrect,coordsCorrect}},
-    );
-  };
-
-  const message = () => {
-    if (feedback.isCorrect) {
-      return isMatrix3
-        ? 'Correct — you used the matrix RREF technology and interpreted the reduced 3×3 system correctly.'
-        : 'Correct — the matrix reduces to exactly what you described.';
-    }
-    const checks = feedback.metadata?.checks || {};
-    if (isMatrix3 && !checks.technologyCorrect) return 'Use the RREF technology first. This task is specifically checking the matrix-technology method.';
-    if (!checks.classCorrect) {
-      return isMatrix3
-        ? 'The classification is off. Inspect the RREF: an identity coefficient matrix gives exactly one solution; a contradictory row gives no solution; a free variable gives infinitely many.'
-        : 'The classification is off. Compute the determinant a₁₁a₂₂ − a₁₂a₂₁ first: nonzero means exactly one solution.';
-    }
-    return isMatrix3
-      ? 'The classification is right, but at least one coordinate is off. Read x, y, and z from the RREF rows and check them in the original system.'
-      : 'The classification is right but the values are not. Write each row back out as an equation and substitute your x and y into both.';
-  };
-
-  const showRref = isMatrix3 && (technologyUsed || revealAnswers);
-
-  return <EnlargeableFigure label="Matrix system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: isMatrix3 ? 'Three equations and RREF' : 'Both equations and augmented matrix' }, numericControls: { label: 'Row reduction and solution controls', studentState: true }, instruction: { text: isMatrix3 ? 'Compute and interpret the RREF.' : 'Classify and solve the augmented system.' }, primaryActions: [{ id: 'check-matrix', label: 'Check matrix solution', onAction: check, disabled: isMatrix3 && !technologyUsed }] }}><ToolSplit>
-    <Panel title={isMatrix3 ? "3×3 augmented matrix" : "Augmented matrix"}>
-      <div style={{
-        display:'grid',
-        gridTemplateColumns:`repeat(${isMatrix3 ? 4 : 3},minmax(58px,80px))`,
-        justifyContent:'center',
-        gap:8,
-        fontSize:isMatrix3?19:22,
-        fontWeight:800,
-        margin:'24px 0',
-      }}>
-        {matrixRows.flatMap((row,rowIndex)=>row.map((value,colIndex)=>(
-          <div
-            key={`${rowIndex}-${colIndex}`}
-            style={{
-              padding:12,
-              textAlign:'center',
-              background:colIndex === row.length-1 ? '#fff5e6' : '#eef4ff',
-              borderRadius:8,
-            }}
-          >
-            {value}
-          </div>
-        )))}
-      </div>
-      <div style={{textAlign:'center',color:'#5f6b7a'}}>
-        Each row is one equation. The shaded final column is the augmented constant column.
-      </div>
-
-      {isMatrix3 ? <>
-        <button
-          type="button"
-          onClick={()=>setTechnologyUsed(true)}
-          style={{...actionStyle,width:'100%',marginTop:18}}
-        >
-          Use matrix technology · Compute RREF
-        </button>
-        <p style={{fontSize:13,color:'#5f6b7a',lineHeight:1.5}}>
-          This performs the matrix row-reduction command, like an RREF feature on matrix-capable technology. You still have to interpret the result.
-        </p>
-        {showRref ? <div style={{marginTop:16}}>
-          <strong>RREF result</strong>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(4,minmax(58px,80px))',justifyContent:'center',gap:8,fontSize:18,fontWeight:800,marginTop:10}}>
-            {(solution.rref || []).flatMap((row,rowIndex)=>row.map((value,colIndex)=>(
-              <div
-                key={`rref-${rowIndex}-${colIndex}`}
-                style={{padding:10,textAlign:'center',background:colIndex===3?'#fff5e6':'#eef8f0',borderRadius:8}}
-              >
-                {round(value,4)}
-              </div>
-            )))}
-          </div>
-        </div> : null}
-      </> : <div style={{marginTop:18,padding:12,borderRadius:10,background:'#f8fbff',color:'#3c4756'}}>
-        {revealAnswers
-          ? <><strong>Determinant:</strong> {round(solution.determinant,2)}. A nonzero determinant guarantees exactly one solution.</>
-          : <><strong>Determinant:</strong> compute a₁₁a₂₂ − a₁₂a₂₁ yourself. A nonzero determinant guarantees exactly one solution.</>}
-      </div>}
-    </Panel>
-
-    <Panel title={isMatrix3 ? "Interpret the RREF" : "Row-reduction outcome"}>
-      <Field label="How many solutions does this system have?">
-        <select value={classification} onChange={(e)=>setClassification(e.target.value)} style={inputStyle}>
-          <option value="one">Exactly one solution</option>
-          <option value="none">No solution</option>
-          <option value="infinite">Infinitely many solutions</option>
-        </select>
-      </Field>
-      {classification==='one'?<div style={{display:'grid',gridTemplateColumns:`repeat(${isMatrix3?3:2},1fr)`,gap:10,marginTop:12}}>
-        <Field label="x"><input type="number" inputMode="decimal" value={x} onChange={(e)=>setX(e.target.value)} style={inputStyle}/></Field>
-        <Field label="y"><input type="number" inputMode="decimal" value={y} onChange={(e)=>setY(e.target.value)} style={inputStyle}/></Field>
-        {isMatrix3?<Field label="z"><input type="number" inputMode="decimal" value={z} onChange={(e)=>setZ(e.target.value)} style={inputStyle}/></Field>:null}
-      </div>:null}
-      <button
-        type="button"
-        onClick={check}
-        disabled={isMatrix3 && !technologyUsed}
-        style={{...actionStyle,opacity:isMatrix3&&!technologyUsed?0.5:1}}
-      >
-        {isMatrix3 && !technologyUsed ? 'Use RREF technology first' : 'Check matrix solution'}
-      </button>
-      {feedback?<div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'#3c4756',lineHeight:1.55}}>{message()}</p></div>:null}
-      <HintPanel
-        hints={isMatrix3 ? [
-          'Enter the augmented matrix into matrix-capable technology and run RREF.',
-          'In RREF, a row [1, 0, 0 | a] means x = a; the next pivot rows identify y and z.',
-          'A row [0, 0, 0 | nonzero] is a contradiction. A missing pivot in a consistent system means a free variable.',
-        ] : [
-          'Rewrite each row as an ordinary equation before doing anything else.',
-          `Row 1 says ${matrix.a11}x + ${matrix.a12}y = ${matrix.b1}. Row 2 says ${matrix.a21}x + ${matrix.a22}y = ${matrix.b2}.`,
-          'Compute a₁₁a₂₂ − a₁₂a₂₁. If it is not zero there is one solution — then eliminate one variable to find it.',
-        ]}
-        onHintUsed={() => onAction?.('HINT_USED')}
-      />
-    </Panel>
-  </ToolSplit></EnlargeableFigure>;
-}
-
-const MODE_TASKS = {
-  linear: 'Decide how many solutions this system of two lines has, and give the solution if there is exactly one.',
-  inequalities: 'Decide whether the marked point is in the feasible region, then find a point of your own that satisfies every inequality.',
-  linearQuadratic: 'Find how many times the line meets the parabola, and give the coordinates of each meeting point.',
-  matrix: 'Read the augmented matrix as a system, classify it, and solve it if it has exactly one solution.',
-  matrix3: 'Use matrix technology to compute the RREF of a 3×3 augmented matrix, then classify and solve the system.',
-};
-
-const MODE_STEPS = {
-  linear: ['Compare the two slopes to decide how many solutions there can be.', 'If the lines cross, read the crossing point off the graph.', 'Check your point by substituting it into both equations.'],
-  inequalities: ['Substitute the purple point into every inequality.', 'Pick your own point from well inside the green overlap.', 'Enter both answers, then check.'],
-  linearQuadratic: ['Count how many times the two graphs actually meet.', 'Set the expressions equal and solve for each x.', 'Substitute each x back to get its y.'],
-  matrix: ['Rewrite each row as an equation.', 'Work out the determinant to decide the number of solutions.', 'Solve for x and y if there is exactly one.'],
-  matrix3: ['Read the 3×4 augmented matrix.', 'Use the matrix-technology RREF command.', 'Interpret the reduced rows to classify the system and read x, y, and z.'],
-};
-
-export default function SystemsWorkspace({ questionData = {}, onAction }) {
-  const mode = questionData.mode || 'linear';
-  const modeLabel = mode === 'inequalities' ? 'Systems of Inequalities'
-    : mode === 'linearQuadratic' ? 'Linear–Quadratic Systems'
-      : mode === 'matrix3' ? '3×3 Matrix Technology / RREF'
-        : mode === 'matrix' ? 'Matrix / Row Reduction'
-          : 'Linear Systems';
-  return <ToolShell title="Systems Workspace" subtitle="Solve, classify and interpret a system — graphically and algebraically — in one place." badge={modeLabel}>
-    <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.linear} steps={MODE_STEPS[mode] || MODE_STEPS.linear} />
-    {mode === 'inequalities' ? <InequalityMode questionData={questionData} onAction={onAction}/>
-      : mode === 'linearQuadratic' ? <LinearQuadraticMode questionData={questionData} onAction={onAction}/>
-        : (mode === 'matrix' || mode === 'matrix3') ? <MatrixMode questionData={questionData} onAction={onAction}/>
-          : <LinearMode questionData={questionData} onAction={onAction}/>
-    }
-  </ToolShell>;
-}
