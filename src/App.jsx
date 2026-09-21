@@ -7059,7 +7059,7 @@ function App() {
       // Class membership is a server-owned relationship. Updating only the
       // legacy period field can leave classId/teacher authorization disagreeing.
       await teacherAdmin.setStudentClass({ studentId, classId: newClassId || null });
-      await fetchStudents();
+      await fetchTeacherRosterSummaries();
     } catch (error) {
       console.error(error);
       toastError('Could not change class', error?.message || 'Class membership could not be updated.');
@@ -7744,9 +7744,6 @@ function App() {
     setDeleteTitleConfirmation('');
     setDeleteAcknowledged(false);
     setDeleteError('');
-    fetchStudents().catch((error) =>
-      console.error('Could not refresh affected student count:', error),
-    );
   };
 
   const closeDeleteDialog = () => {
@@ -7812,7 +7809,7 @@ function App() {
         await batch.commit();
       }
 
-      await Promise.all([fetchAssignments(), fetchStudents()]);
+      await Promise.all([fetchAssignments(), fetchTeacherRosterSummaries()]);
       setDeleteDialog(null);
       setDeleteStep(1);
       setDeleteTitleConfirmation('');
@@ -8007,10 +8004,9 @@ function App() {
   const renderDeleteAssignmentDialog = () => {
     if (!deleteDialog) return null;
 
-    const impactedStudentCount = allStudents.filter(
-      (student) =>
-        student.gradesByAssignment?.[deleteDialog.id] !== undefined,
-    ).length;
+    const impactedStudentCount = teacherStudentDataMode === 'full'
+      ? allStudents.filter((student) => student.gradesByAssignment?.[deleteDialog.id] !== undefined).length
+      : null;
     const titleMatches =
       deleteTitleConfirmation.trim() === deleteDialog.title.trim();
 
@@ -8083,7 +8079,9 @@ function App() {
                   removed.
                 </div>
                 <p style={{ color: '#3c4043', lineHeight: 1.55 }}>
-                  Student records currently affected: <strong>{impactedStudentCount}</strong>
+                  {impactedStudentCount === null
+                    ? 'Linked student records will be verified during deletion without loading the entire grade history into this screen.'
+                    : <>Student records currently affected: <strong>{impactedStudentCount}</strong></>}
                 </p>
               </div>
             )}
@@ -8141,9 +8139,11 @@ function App() {
                     Final confirmation
                   </div>
                   <div style={{ color: '#3c4043', lineHeight: 1.5 }}>
-                    You are permanently deleting this assignment and its linked data
-                    for {impactedStudentCount} student record
-                    {impactedStudentCount === 1 ? '' : 's'}.
+                    {impactedStudentCount === null
+                      ? 'You are permanently deleting this assignment and every linked student record for it.'
+                      : <>You are permanently deleting this assignment and its linked data
+                        for {impactedStudentCount} student record
+                        {impactedStudentCount === 1 ? '' : 's'}.</>}
                   </div>
                 </div>
                 <label
@@ -9420,7 +9420,7 @@ function App() {
                     setClassEvidenceByStudentId({});
                     await Promise.all([
                       fetchAssignments(),
-                      fetchStudents(),
+                      fetchTeacherRosterSummaries(),
                     ]);
                   }}
                 />
@@ -9476,7 +9476,7 @@ function App() {
             targetAssignment={contentUpgradeRequest.targetAssignment}
             onClose={() => setContentUpgradeRequest(null)}
             onUpgraded={async (result) => {
-              const refreshResults = await Promise.allSettled([fetchAssignments(), fetchStudents()]);
+              const refreshResults = await Promise.allSettled([fetchAssignments(), fetchTeacherRosterSummaries()]);
               const refreshFailed = refreshResults.some((entry) => entry.status === 'rejected');
               toastSuccess(
                 result?.alreadyUpgraded
@@ -9582,7 +9582,8 @@ function App() {
               // it is the class the teacher is working in, and it has to survive
               // the walk to another tab and back.
               setHomeNavigationPeriod(null);
-              if (['students', 'grades', 'gradeTransfer', 'parentContacts', 'standards', 'analytics', 'exams'].includes(tab)) fetchStudents().catch((error) => console.error('Could not refresh student data:', error));
+              // Full academic records are loaded by the tab-scoped subscription
+              // only on screens that actually need them.
             }}
             collapsed={sidebarCollapsed}
             onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
@@ -9800,7 +9801,9 @@ function App() {
                 )}
                 {visibleAssignments.map((assignment) => {
                   const lifecycle = getAssignmentLifecycle(assignment, now);
-                  const affectedStudents = allStudents.filter((student) => student.gradesByAssignment?.[assignment.id] !== undefined).length;
+                  const affectedStudents = teacherStudentDataMode === 'full'
+                    ? allStudents.filter((student) => student.gradesByAssignment?.[assignment.id] !== undefined).length
+                    : null;
                   const isSelected = selectedAssignmentIds.has(assignment.id);
                   const canonicalQuestions = getStoredAssignmentQuestions(assignment);
                   const includedQuestionIndices = getCurrentContentQuestionIndices(assignment);
@@ -9839,7 +9842,9 @@ function App() {
                                 plainly is the whole point of allowing it to exist. */}
                             {isLibraryAssignment(assignment) && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#fef7e0', color: '#7a4f00' }}>NOT ASSIGNED</span>}
                           </div>
-                          <div style={{ marginTop: '7px', color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>{includedQuestionIndices.length} included question{includedQuestionIndices.length === 1 ? '' : 's'}{canonicalQuestions.length !== includedQuestionIndices.length ? ` · ${canonicalQuestions.length - includedQuestionIndices.length} excluded` : ''} · {isLibraryAssignment(assignment) ? 'Not assigned to a class' : `Classes: ${(assignment.assignedClassPeriods || []).join(', ')}`}<br />{isLibraryAssignment(assignment) ? 'No due date yet' : `Due ${formatDueDate(assignment)} · Late close ${formatLateDueDate(assignment)}`} · {affectedStudents} student record{affectedStudents === 1 ? '' : 's'}</div>
+                          <div style={{ marginTop: '7px', color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>{includedQuestionIndices.length} included question{includedQuestionIndices.length === 1 ? '' : 's'}{canonicalQuestions.length !== includedQuestionIndices.length ? ` · ${canonicalQuestions.length - includedQuestionIndices.length} excluded` : ''} · {isLibraryAssignment(assignment) ? 'Not assigned to a class' : `Classes: ${(assignment.assignedClassPeriods || []).join(', ')}`}<br />{isLibraryAssignment(assignment) ? 'No due date yet' : `Due ${formatDueDate(assignment)} · Late close ${formatLateDueDate(assignment)}`} · {affectedStudents === null
+                            ? 'student activity available in Grades'
+                            : `${affectedStudents} student record${affectedStudents === 1 ? '' : 's'}`}</div>
                         </div>
                         <AssignmentCardMenu
                           ariaLabel={`More actions for ${assignment.title}`}
