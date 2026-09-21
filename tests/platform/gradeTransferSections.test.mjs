@@ -20,14 +20,15 @@ const klass = {
 
 const assignment = {
   id: 'a1',
+  schemaVersion: 5,
   title: 'Systems of Inequalities',
   assignedClassIds: ['c1'],
   lateDueAt: '2020-01-01T00:00:00Z',
   sections: [
-    { id: 'warmup', role: 'warmup', questions: [{ id: 'w1', activityRole: 'warmup' }] },
-    { id: 'classwork', role: 'classwork', questions: [{ id: 'c1', activityRole: 'classwork' }] },
-    { id: 'practice', role: 'practice', questions: [{ id: 'p1', activityRole: 'practice' }] },
-    { id: 'dol', role: 'dol', questions: [{ id: 'd1', activityRole: 'dol' }] },
+    { id: 'warmup', role: 'warmup', questions: [{ questionId: 'w1', activityRole: 'warmup' }] },
+    { id: 'classwork', role: 'classwork', questions: [{ questionId: 'c1', activityRole: 'classwork' }] },
+    { id: 'practice', role: 'practice', questions: [{ questionId: 'p1', activityRole: 'practice' }] },
+    { id: 'dol', role: 'dol', questions: [{ questionId: 'd1', activityRole: 'dol' }] },
   ],
 };
 
