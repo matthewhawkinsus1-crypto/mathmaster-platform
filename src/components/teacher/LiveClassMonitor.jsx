@@ -362,7 +362,7 @@ function LiveTeachingPanel({
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <button type="button" onClick={onResume} style={{ ...smallButtonStyle, borderColor: '#188038', background: '#fff', color: '#137333' }}>Resume Teaching</button>
-          <button type="button" onClick={() => onTeach(liveTeachingAssignmentId)} style={smallButtonStyle}>Restart Fresh</button>
+          <button type="button" onClick={() => onTeach(liveTeachingAssignmentId, { forceRestart: true })} style={smallButtonStyle}>Restart Fresh</button>
           <button type="button" onClick={onEndTeaching} style={{ ...smallButtonStyle, borderColor: '#d93025', background: '#fff', color: '#b3261e' }}>End Teaching</button>
         </div>
       </div>
