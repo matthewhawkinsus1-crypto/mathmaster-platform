@@ -130,9 +130,10 @@ test('Grade Transfer Center delegates audience decisions to the canonical helper
 test('canonical section projection uses the same section splits as the Grade Center', () => {
   const gradeAssignment = {
     id: 'a1',
+    schemaVersion: 5,
     sections: [
-      { id: 'wu', role: 'warmup', questions: [{ id: 'q1', activityRole: 'warmup' }] },
-      { id: 'cw', role: 'classwork', questions: [{ id: 'q2', activityRole: 'classwork' }] },
+      { id: 'wu', role: 'warmup', questions: [{ questionId: 'q1', activityRole: 'warmup' }] },
+      { id: 'cw', role: 'classwork', questions: [{ questionId: 'q2', activityRole: 'classwork' }] },
     ],
   };
   const sectionStudent = {
@@ -244,14 +245,15 @@ test('explicit SIS ids must be digits only even when the MathMaster account key 
 test('lesson assignment exports as one folder with four independent section-grade CSVs', () => {
   const lesson = {
     id: 'lesson-1',
+    schemaVersion: 5,
     title: 'Four Part Lesson',
     lateDueAt: '2026-09-16T23:00:00Z',
     assignedClassIds: ['c1'],
     sections: [
-      { id: 'wu', role: 'warmup', questions: [{ id: 'q1', activityRole: 'warmup' }] },
-      { id: 'cw', role: 'classwork', questions: [{ id: 'q2', activityRole: 'classwork' }] },
-      { id: 'pr', role: 'practice', questions: [{ id: 'q3', activityRole: 'practice' }] },
-      { id: 'dol', role: 'dol', questions: [{ id: 'q4', activityRole: 'dol' }] },
+      { id: 'wu', role: 'warmup', questions: [{ questionId: 'q1', activityRole: 'warmup' }] },
+      { id: 'cw', role: 'classwork', questions: [{ questionId: 'q2', activityRole: 'classwork' }] },
+      { id: 'pr', role: 'practice', questions: [{ questionId: 'q3', activityRole: 'practice' }] },
+      { id: 'dol', role: 'dol', questions: [{ questionId: 'q4', activityRole: 'dol' }] },
     ],
   };
   const sectionStudent = {
@@ -294,6 +296,43 @@ test('lesson assignment exports as one folder with four independent section-grad
   assert.match(zipText, /MANIFEST.txt/);
 });
 
+test('section upload history is independent so only the changed section becomes a delta', () => {
+  const lesson = {
+    id: 'lesson-delta', schemaVersion: 5, title: 'Section Delta',
+    lateDueAt: '2026-09-16T23:00:00Z', assignedClassIds: ['c1'],
+    sections: [
+      { id: 'wu', role: 'warmup', questions: [{ questionId: 'q1', activityRole: 'warmup' }] },
+      { id: 'cw', role: 'classwork', questions: [{ questionId: 'q2', activityRole: 'classwork' }] },
+      { id: 'pr', role: 'practice', questions: [{ questionId: 'q3', activityRole: 'practice' }] },
+      { id: 'dol', role: 'dol', questions: [{ questionId: 'q4', activityRole: 'dol' }] },
+    ],
+  };
+  const classRecord = { ...klass, teacherOfRecord: 'teacher@example.org' };
+  const before = {
+    id: '1500123', classId: 'c1', gradesByAssignment: { 'lesson-delta': {
+      0: { status: 'correct' }, 1: { status: 'correct' }, 2: { status: 'correct' },
+      3: { status: 'expired', partialCredit: 0 },
+    } },
+  };
+  const first = projectGradeTransferUnits({
+    classes: [classRecord], assignments: [lesson], students: [before], teacherEmail: 'teacher@example.org',
+    resolveStudentFinalDeadline: () => null,
+  }).units[0].sectionUnits;
+  const snapshots = first.map((unit) => ({
+    classId: unit.classId, assignmentId: unit.assignmentId, sectionKey: unit.sectionKey,
+    exportKind: 'initial', rows: unit.rows.map((row) => ({ ...row })),
+    createdAt: '2026-09-17T00:01:00Z', uploadConfirmedAt: '2026-09-17T00:02:00Z',
+  }));
+  const after = structuredClone(before);
+  after.gradesByAssignment['lesson-delta'][3] = { status: 'correct' };
+  const projected = projectGradeTransferUnits({
+    classes: [classRecord], assignments: [lesson], students: [after], teacherEmail: 'teacher@example.org',
+    snapshots, resolveStudentFinalDeadline: () => null,
+  }).units[0];
+  assert.equal(projected.state, TRANSFER_STATE.UPDATE_REQUIRED);
+  assert.deepEqual(projected.sectionUnits.filter((unit) => unit.rows.length).map((unit) => unit.sectionKey), ['dol']);
+  assert.equal(projected.sectionUnits.find((unit) => unit.sectionKey === 'dol').exportKind, 'delta');
+});
 test('non-sectioned assessment preserves the existing single-file export contract', () => {
   const first = buildTransferUnit({ classRecord: klass, assignment, students: [student()], now: Date.parse('2026-09-17'), projectCanonicalGrade: projectScore });
   const second = { ...first, key: 'c1__a2', assignmentId: 'a2', assignmentTitle: 'Slope', exportKind: 'delta' };
