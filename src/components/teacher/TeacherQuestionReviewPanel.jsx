@@ -137,6 +137,9 @@ export default function TeacherQuestionReviewPanel({
   const [repairJson, setRepairJson] = useState('');
   const [stagedRepair, setStagedRepair] = useState(null);
   const [serverPreview, setServerPreview] = useState(null);
+  const [activeRepairQuestionId, setActiveRepairQuestionId] = useState('');
+  const [reviewedRepairQuestionIds, setReviewedRepairQuestionIds] = useState([]);
+  const [savedReplacementPreviews, setSavedReplacementPreviews] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -213,17 +216,45 @@ export default function TeacherQuestionReviewPanel({
       question: result.replacementQuestion,
     })) || []
   ), [stagedRepair]);
-  const proposedQuestion = replacements.find((entry) => clean(entry.questionId) === questionId)?.question || null;
+  const storedQuestions = useMemo(
+    () => (assignmentRecord ? getStoredAssignmentQuestions(assignmentRecord) : []),
+    [assignmentRecord],
+  );
+  const effectiveRepairQuestionId = clean(
+    activeRepairQuestionId
+    || (replacements.some((entry) => clean(entry.questionId) === questionId) ? questionId : replacements[0]?.questionId),
+  );
+  const activeReplacement = replacements.find((entry) => clean(entry.questionId) === effectiveRepairQuestionId) || null;
+  const proposedQuestion = activeReplacement?.question || null;
+  const activeOriginalQuestion = storedQuestions.find((item) => clean(item?.questionId) === effectiveRepairQuestionId) || null;
+  const reviewedRepairQuestionIdSet = useMemo(
+    () => new Set(reviewedRepairQuestionIds.map(clean).filter(Boolean)),
+    [reviewedRepairQuestionIds],
+  );
+  const allReplacementsReviewed = replacements.length > 0
+    && replacements.every((entry) => reviewedRepairQuestionIdSet.has(clean(entry.questionId)));
+
+  const activateRepairQuestion = (nextQuestionId) => {
+    const id = clean(nextQuestionId);
+    if (!id) return;
+    setActiveRepairQuestionId(id);
+    setReviewedRepairQuestionIds((current) => (
+      current.includes(id) ? current : [...current, id]
+    ));
+  };
 
   const reloadAssignment = async () => {
+    let refreshedRecord = null;
     const snapshot = await getDoc(doc(db, 'assignments', assignmentId));
     if (snapshot?.exists?.()) {
       const record = { id: snapshot.id, ...snapshot.data() };
+      refreshedRecord = record;
       setAssignmentRecord(record);
       const questions = getStoredAssignmentQuestions(record);
       setResolvedQuestion(questions.find((item) => clean(item?.questionId) === questionId) || null);
     }
     await onAssignmentRefresh?.();
+    return refreshedRecord;
   };
 
   const persist = async (nextContext, successMessage) => {
@@ -396,6 +427,9 @@ export default function TeacherQuestionReviewPanel({
     setMessage('Validating and running Assignment V5 Preflight…');
     setStagedRepair(null);
     setServerPreview(null);
+    setActiveRepairQuestionId('');
+    setReviewedRepairQuestionIds([]);
+    setSavedReplacementPreviews([]);
     try {
       const parsed = parseUnifiedRepairUpload(rawText, {
         assignmentId,
@@ -427,6 +461,12 @@ export default function TeacherQuestionReviewPanel({
         return;
       }
       const nextReplacements = staged.questionResults.map((result) => ({ questionId: result.questionId, question: result.replacementQuestion }));
+      const initialRepairQuestionId = clean(
+        nextReplacements.find((entry) => clean(entry.questionId) === questionId)?.questionId
+        || nextReplacements[0]?.questionId,
+      );
+      setActiveRepairQuestionId(initialRepairQuestionId);
+      setReviewedRepairQuestionIds(initialRepairQuestionId ? [initialRepairQuestionId] : []);
       const preview = await teacherAdmin.previewTeacherQuestionRepair({ assignmentId, baseRevision, replacements: nextReplacements });
       setServerPreview(preview);
       setMessage('Correction staged. Test the actual student question below, review the server classification, then apply it here.');
@@ -447,21 +487,31 @@ export default function TeacherQuestionReviewPanel({
   };
 
   const applyCorrectedQuestion = async () => {
-    if (!stagedRepair?.canCommit || !serverPreview?.planHash || !replacements.length) return;
+    if (!stagedRepair?.canCommit || !serverPreview?.planHash || !replacements.length || !allReplacementsReviewed) return;
     setBusy(true);
     setMessage('Applying corrected question…');
     try {
-      await teacherAdmin.commitTeacherQuestionRepair({
+      const result = await teacherAdmin.commitTeacherQuestionRepair({
         assignmentId,
         baseRevision,
         expectedPlanHash: serverPreview.planHash,
         replacements,
       });
-      await reloadAssignment();
+      const refreshedRecord = await reloadAssignment();
+      const refreshedQuestions = refreshedRecord ? getStoredAssignmentQuestions(refreshedRecord) : [];
+      const savedReplacements = Object.entries(result?.replacementQuestionIds || {}).map(([sourceQuestionId, replacementQuestionId]) => {
+        const question = refreshedQuestions.find((item) => clean(item?.questionId) === clean(replacementQuestionId)) || null;
+        return question ? { sourceQuestionId, replacementQuestionId, question } : null;
+      }).filter(Boolean);
+      setSavedReplacementPreviews(savedReplacements);
       setRepairJson('');
       setStagedRepair(null);
       setServerPreview(null);
-      setMessage('Corrected question saved. Existing student work was preserved.');
+      setActiveRepairQuestionId('');
+      setReviewedRepairQuestionIds([]);
+      setMessage(savedReplacements.length
+        ? 'Corrected question saved. Existing student work was preserved. The saved replacement is rendered below so you can verify it before resolving the teacher flag.'
+        : 'Corrected question saved. Existing student work was preserved.');
     } catch (error) {
       setMessage(error.message || 'MathMaster could not save this correction. Nothing was changed.');
     } finally {
@@ -544,15 +594,47 @@ export default function TeacherQuestionReviewPanel({
                   {stagedRepair.validation.newBlockingDiagnostics.map((finding, index) => <div key={index}>{finding.message || finding.code || 'Blocking validation issue'}</div>)}
                 </div>
               )}
-              {proposedQuestion && (
+              {replacements.length > 1 && (
+                <section aria-label="Repair question selector" style={{ padding: 10, border: '1px solid #dadce0', borderRadius: 9, background: '#fff' }}>
+                  <strong>Review every corrected question before applying the batch</strong>
+                  <div style={{ marginTop: 5, color: '#5f6368', fontSize: 12 }}>
+                    Reviewed {reviewedRepairQuestionIdSet.size} of {replacements.length}. Apply stays disabled until every replacement has been opened here.
+                  </div>
+                  <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 8 }}>
+                    {replacements.map((entry) => {
+                      const id = clean(entry.questionId);
+                      const reviewed = reviewedRepairQuestionIdSet.has(id);
+                      const active = id === effectiveRepairQuestionId;
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => activateRepairQuestion(id)}
+                          style={{
+                            ...buttonStyle,
+                            minHeight: 34,
+                            padding: '6px 9px',
+                            background: active ? '#e8f0fe' : '#fff',
+                            borderColor: reviewed ? '#81c995' : '#aecbfa',
+                            color: active ? '#174ea6' : '#3c4043',
+                          }}
+                        >
+                          {reviewed ? '✓ ' : ''}{id}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+              {proposedQuestion && activeOriginalQuestion && (
                 <div style={{ display: 'grid', gap: 10 }}>
                   <section aria-label="Current Question" style={{ padding: 10, border: '1px solid #dadce0', borderRadius: 9, background: '#f8f9fa' }}>
-                    <strong>Current Question</strong>
-                    <TeacherRepairCandidateSandbox question={resolvedQuestion} assignmentId={assignmentId} resetKey={`${baseRevision}:${questionId}:current`} />
+                    <strong>Current Question · <code>{effectiveRepairQuestionId}</code></strong>
+                    <TeacherRepairCandidateSandbox question={activeOriginalQuestion} assignmentId={assignmentId} resetKey={`${baseRevision}:${effectiveRepairQuestionId}:current`} />
                   </section>
                   <section aria-label="Proposed Correction">
                     <strong style={{ color: '#137333' }}>Proposed Correction · interactive student renderer</strong>
-                    <TeacherRepairCandidateSandbox question={proposedQuestion} assignmentId={assignmentId} resetKey={`${baseRevision}:${questionId}:${serverPreview?.planHash || 'staged'}`} />
+                    <TeacherRepairCandidateSandbox question={proposedQuestion} assignmentId={assignmentId} resetKey={`${baseRevision}:${effectiveRepairQuestionId}:${serverPreview?.planHash || 'staged'}`} />
                   </section>
                 </div>
               )}
@@ -571,9 +653,32 @@ export default function TeacherQuestionReviewPanel({
                   ))}
                 </section>
               )}
-              <button type="button" onClick={applyCorrectedQuestion} disabled={busy || !stagedRepair.canCommit || !serverPreview?.planHash || !replacements.length} style={{ ...buttonStyle, background: '#188038', borderColor: '#188038', color: '#fff', fontSize: 14, opacity: busy || !stagedRepair.canCommit || !serverPreview?.planHash || !replacements.length ? 0.55 : 1 }}>
+              {!allReplacementsReviewed && replacements.length > 1 && (
+                <div role="status" style={{ padding: 9, borderRadius: 8, background: '#fff4ce', color: '#6b5200', fontSize: 12 }}>
+                  Open each proposed correction above before applying this batch.
+                </div>
+              )}
+              <button type="button" onClick={applyCorrectedQuestion} disabled={busy || !stagedRepair.canCommit || !serverPreview?.planHash || !replacements.length || !allReplacementsReviewed} style={{ ...buttonStyle, background: '#188038', borderColor: '#188038', color: '#fff', fontSize: 14, opacity: busy || !stagedRepair.canCommit || !serverPreview?.planHash || !replacements.length || !allReplacementsReviewed ? 0.55 : 1 }}>
                 Apply Corrected Question
               </button>
+            </section>
+          )}
+
+          {savedReplacementPreviews.length > 0 && (
+            <section aria-label="Saved corrected replacement" style={{ marginTop: 12, padding: 10, border: '2px solid #81c995', borderRadius: 10, background: '#f3fbf5' }}>
+              <strong style={{ color: '#137333' }}>Saved corrected replacement · verify before resolving the flag</strong>
+              {savedReplacementPreviews.map((entry) => (
+                <div key={entry.replacementQuestionId} style={{ marginTop: 10 }}>
+                  <div style={{ marginBottom: 5, fontSize: 12 }}>
+                    Historical <code>{entry.sourceQuestionId}</code> → corrected <code>{entry.replacementQuestionId}</code>
+                  </div>
+                  <TeacherRepairCandidateSandbox
+                    question={entry.question}
+                    assignmentId={assignmentId}
+                    resetKey={`saved:${entry.replacementQuestionId}`}
+                  />
+                </div>
+              ))}
             </section>
           )}
 
