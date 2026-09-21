@@ -250,7 +250,23 @@ const additiveTermDescriptor = ({ node, sign }, index) => {
   if (textCarriesNegative || latexCarriesNegative) {
     effectiveSign *= -1;
     magnitudeText = magnitudeText.replace(/^-\s*/, '');
-    magnitudeLatex = magnitudeLatex.replace(/^-\s*/, '');
+
+    // MathJS sometimes prints a negative rational product as
+    //   magnitudeText:  "-2 / 3 x"
+    //   magnitudeLatex: "\\frac{-2}{3}x"
+    // The additive sign has already been extracted above, so merely removing
+    // a leading "-" from the LaTeX leaves the numerator negative and renders
+    // visually as -(-2/3)x. Re-render the now-positive magnitude text instead
+    // so the sign exists in exactly one place: the additive operator.
+    try {
+      magnitudeLatex = cleanImplicitMultiplicationLatex(
+        parse(magnitudeText).toTex({ parenthesis: 'keep', implicit: 'hide' }),
+      ).trim();
+    } catch {
+      magnitudeLatex = magnitudeLatex
+        .replace(/^-\s*/, '')
+        .replace(/^(\\frac\{)\s*-\s*/, '$1');
+    }
   }
 
   const isFirst = index === 0;
