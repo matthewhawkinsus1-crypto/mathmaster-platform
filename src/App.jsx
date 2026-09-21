@@ -4621,8 +4621,12 @@ function App() {
    * can be the teacher's real position instead of a disconnected manual
    * counter. See platform/teacher/liveTeachingSession.js.
    */
-  const teachAssignmentLive = async (assignmentId, { forceRestart = false } = {}) => {
-    const classId = activeClass?.classId || null;
+  const teachAssignmentLive = async (assignmentId, { forceRestart = false, classId: requestedClassId = null } = {}) => {
+    // Live Classroom can auto-select the class that is actually in session even
+    // when the global Class Context bar has no explicit class selected. The
+    // launch must use the class that originated the command, not silently bail
+    // because activeClass.classId is empty.
+    const classId = requestedClassId || activeClass?.classId || null;
     if (!classId || !assignmentId) return;
     const assignmentData = assignments.find((assignment) => assignment.id === assignmentId);
     if (!assignmentData) return;
@@ -8976,7 +8980,7 @@ function App() {
                 <button type="button" onClick={() => controlWalkthroughTimer('extend', 60)} style={{ padding: '6px 10px' }}>+1 min</button>
                 <button
                   type="button"
-                  onClick={() => teachAssignmentLive(assignment.id, { forceRestart: true })}
+                  onClick={() => teachAssignmentLive(assignment.id, { forceRestart: true, classId: liveTeachingSession?.classId || activeClass?.classId || null })}
                   style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #fff', background: 'transparent', color: '#fff', fontWeight: 900, cursor: 'pointer', fontSize: 12 }}
                 >
                   Restart Fresh
