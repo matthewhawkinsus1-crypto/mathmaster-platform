@@ -340,8 +340,10 @@ export default function EnlargeableFigure({
           {typeof instruction === 'string' ? <MathText>{instruction}</MathText> : instruction}
         </div>
       ) : null}
-      {enlarged && taskText && !registeredCapabilities.task ? (
-        <p
+      {enlarged && task ? (
+        <div
+          className="mathmaster-work-view-persistent-task"
+          aria-label="Your task"
           style={{
             margin: '0 96px 12px 0',
             padding: '10px 13px',
@@ -350,16 +352,18 @@ export default function EnlargeableFigure({
             background: '#f4f8ff',
             color: '#202124',
             fontSize: 15,
-            fontWeight: 700,
             lineHeight: 1.4,
           }}
         >
-          {/* The task carries the same `$…$` mathematics the prompt does — this
-              IS the prompt, repeated where the modal covers it — so it needs the
-              same rendering. Printed raw, a student who enlarged a number-line
-              question read "Solve $-6x- 6 \ge 24$". */}
-          <MathText>{taskText}</MathText>
-        </p>
+          <div style={{ marginBottom: 4, color: '#174ea6', fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            Your task
+          </div>
+          {/* Work View covers the original question, so the authored task must
+              remain visible while the student graphs/types/solves. The merged
+              task capability keeps the QuestionEngine's full original prompt
+              ahead of a nested tool's shorter operational summary. */}
+          {typeof task === 'string' ? <MathText>{task}</MathText> : task}
+        </div>
       ) : null}
       {!enlarged ? (
         <button ref={openerRef} type="button" onClick={() => { if (!shouldForceClose) setEnlarged(true); }} disabled={shouldForceClose} style={CONTROL}>
