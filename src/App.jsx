@@ -1984,13 +1984,6 @@ function App() {
       : query(collection(db, 'grades'), where('assignedTeacherEmail', '==', viewer.email))
   );
 
-  const fetchStudents = async () => {
-    const viewer = viewerRef.current;
-    const studentData = collectStudentGradeSnapshot(await getDocs(studentGradeSourceForViewer(viewer)));
-    setAllStudents(studentData);
-    setTeacherStudentDataMode('full');
-    return studentData;
-  };
 
   const normalizeTeacherRosterSummary = (entry = {}) => {
     const id = String(entry.studentId || entry.id || '').trim();
