@@ -192,7 +192,7 @@ test('rewrite completion only unlocks graphing after an equivalent y-on-the-left
 });
 
 test('completed rewrites display a clean slope-intercept inequality instead of the solver\'s unsimplified intermediate text', () => {
-  assert.match(executable, /const formatSlopeInterceptInequality/);
+  assert.match(source, /import \{ formatSlopeInterceptInequality \} from '.\/linearInequalityEngine\.js'/);
   assert.match(executable, /if \(buildConfig\.rewrite && rewriteEntries\[index\]\?\.verifiedConstraint\)/);
   assert.match(executable, /return formatSlopeInterceptInequality\(rewriteEntries\[index\]\.verifiedConstraint\)/);
   assert.doesNotMatch(
