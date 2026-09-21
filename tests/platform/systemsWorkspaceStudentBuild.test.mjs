@@ -191,6 +191,19 @@ test('rewrite completion only unlocks graphing after an equivalent y-on-the-left
   assert.match(rewriteSource, /return null/);
 });
 
+test('completed rewrites display a clean slope-intercept inequality instead of the solver\'s unsimplified intermediate text', () => {
+  assert.match(executable, /const formatSlopeInterceptInequality/);
+  assert.match(executable, /if \(buildConfig\.rewrite && rewriteEntries\[index\]\?\.verifiedConstraint\)/);
+  assert.match(executable, /return formatSlopeInterceptInequality\(rewriteEntries\[index\]\.verifiedConstraint\)/);
+  assert.doesNotMatch(
+    region(executable, 'const inequalityLabel = (index) =>', 'const updateBuildEntry', 'inequalityLabel'),
+    /verifiedText/,
+    'student algebra history may persist internally, but the completed graphing card must not expose the unsimplified terminal solver expression',
+  );
+  assert.match(executable, /const formatGraphNumber/);
+  assert.match(executable, /displayRelation\(relation\)/);
+});
+
 test('rewrite-only work requires verified rewrite evidence and shows it in collapsed progress', () => {
   const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
   assert.match(mode, /constraintVerified = \(index\) => rewriteVerified\(index\)/);
