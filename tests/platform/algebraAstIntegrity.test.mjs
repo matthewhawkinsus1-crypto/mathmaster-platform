@@ -3,13 +3,48 @@ import assert from 'node:assert/strict';
 
 import {
   applyAdditiveOperationAtPlacement,
+  expressionsEquivalent,
   getLinearForm,
+  isSimplifiedSlopeInterceptExpression,
+  isSolvedEquation,
   splitAdditiveTerms,
 } from '../../src/algebraAstEngine.js';
 
 const assertLinearEquivalent = (actual, expected, variable = 'x') => {
   assert.deepEqual(getLinearForm(actual, variable), getLinearForm(expected, variable));
 };
+
+test('strict slope-intercept completion accepts a finished rational mx+b expression', () => {
+  const equation = {
+    left: 'y',
+    right: '-2 / 3 x + 5',
+    variable: 'y',
+    objective: {
+      kind: 'slopeIntercept',
+      variable: 'y',
+      requireSimplifiedFinalForm: true,
+    },
+  };
+  assert.equal(isSimplifiedSlopeInterceptExpression(equation.right), true);
+  assert.equal(isSolvedEquation(equation), true);
+});
+
+test('strict slope-intercept completion still rejects work that needs distribution or quotient simplification', () => {
+  assert.equal(isSimplifiedSlopeInterceptExpression('-(2/3)(x + 3) + 7'), false);
+  assert.equal(isSimplifiedSlopeInterceptExpression('(-2x + 8) / (-4)'), false);
+  assert.equal(isSimplifiedSlopeInterceptExpression('1/2 x - 2'), true);
+});
+
+test('simplification equivalence checks the symbols actually present, not only the solve-for variable', () => {
+  assert.equal(
+    expressionsEquivalent('\\frac{1}{2}x - 2', '(-2x + 8) / (-4)', 'y'),
+    true,
+  );
+  assert.equal(
+    expressionsEquivalent('\\frac{1}{2}x + 2', '(-2x + 8) / (-4)', 'y'),
+    false,
+  );
+});
 
 test('placement preserves a negative coefficient encoded inside a product node', () => {
   const result = applyAdditiveOperationAtPlacement(
