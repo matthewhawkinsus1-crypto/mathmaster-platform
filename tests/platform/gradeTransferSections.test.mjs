@@ -183,6 +183,33 @@ test('students with no assignment tracker remain review-required instead of rece
   });
 });
 
+test('mixed lesson and assessment roles fall back to one whole-assignment export so assessment grades are not dropped', () => {
+  const mixedAssignment = structuredClone(assignment);
+  mixedAssignment.sections.push({
+    id: 'quiz',
+    role: 'quiz',
+    questions: [{ questionId: 'q1', activityRole: 'quiz' }],
+  });
+
+  const mixedStudents = structuredClone(students);
+  mixedStudents.forEach((student) => {
+    student.gradesByAssignment.a1[4] = record('correct');
+  });
+
+  const [unit] = projectGradeTransferUnits({
+    classes: [klass],
+    assignments: [mixedAssignment],
+    students: mixedStudents,
+    teacherEmail: 'teacher@school.org',
+  }).units;
+
+  assert.equal(unit.state, TRANSFER_STATE.READY_TO_EXPORT);
+  assert.equal(unit.sectionUnits, undefined);
+  assert.equal(unit.sectionKey, '');
+  assert.equal(unit.rows.length, 2);
+  assert.equal(transferPackagePath(unit).includes('/'), false);
+});
+
 test('server persists and validates section identity on immutable Grade Transfer snapshots', () => {
   const server = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
   assert.match(server, /const sectionKey = String\(input\.sectionKey \|\| ""\)\.trim\(\)\.toLowerCase\(\)/);
