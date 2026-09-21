@@ -3372,22 +3372,22 @@ function App() {
       setStudentSupportEvents([]);
       return undefined;
     }
-    if (teacherPreviewRuntimeActive) return undefined;
+    if (teacherPreviewRuntimeActive || !TEACHER_SUPPORT_STREAM_TABS.has(teacherTab)) return undefined;
     return subscribeStudentSupportEvents({
       db,
       teacherEmail: user.email,
       onChange: setStudentSupportEvents,
       onError: (error) => console.error('Student support history failed:', error),
     });
-  }, [user?.role, user?.email, teacherPreviewRuntimeActive]);
+  }, [user?.role, user?.email, teacherPreviewRuntimeActive, teacherTab]);
 
   // One teacher-scoped stream spans the whole roster. Firestore rules verify
   // teacher-of-record again for every appended contact; students have no access.
   useEffect(() => {
     if (user?.role !== 'teacher' || !user.email) { setParentContacts([]); return undefined; }
-    if (teacherPreviewRuntimeActive) return undefined;
+    if (teacherPreviewRuntimeActive || !TEACHER_PARENT_CONTACT_STREAM_TABS.has(teacherTab)) return undefined;
     return subscribeParentContacts({ db, teacherEmail: user.email, onChange: setParentContacts, onError: (error) => console.error('Parent contact history failed:', error) });
-  }, [user?.role, user?.email, teacherPreviewRuntimeActive]);
+  }, [user?.role, user?.email, teacherPreviewRuntimeActive, teacherTab]);
 
   const actionGradeScope = useMemo(() => projectGradeTransferUnits({
     classes, assignments, students: allStudents, teacherEmail: user?.email || '', isRootAdmin: user?.isRootAdmin === true,
@@ -3409,7 +3409,7 @@ function App() {
   useEffect(() => {
     const classIds = actionGradeScope.authorizedClassIds;
     if (user?.role !== 'teacher') { setActionGradeSnapshots([]); setActionPracticePasses(new Set()); return; }
-    if (teacherPreviewRuntimeActive) return;
+    if (teacherPreviewRuntimeActive || teacherTab !== 'actionCenter') return;
     if (!classIds.length) { setActionGradeSnapshots([]); setActionPracticePasses(new Set()); return; }
     loadTeacherGradeTransferState({ classIds })
       .then(({ snapshots, practicePasses }) => {
@@ -3417,11 +3417,11 @@ function App() {
         setActionPracticePasses(practicePasses);
       })
       .catch((error) => console.error('Action Center grade-transfer projection failed:', error));
-  }, [user?.role, user?.uid, user?.isRootAdmin, auth.session?.uid, actionGradeScope.authorizedClassIds.join('|'), teacherPreviewRuntimeActive]);
+  }, [user?.role, user?.uid, user?.isRootAdmin, auth.session?.uid, actionGradeScope.authorizedClassIds.join('|'), teacherPreviewRuntimeActive, teacherTab]);
 
   useEffect(() => {
     if (user?.role !== 'teacher') { setRetestRecoveryActions([]); return; }
-    if (teacherPreviewRuntimeActive) return undefined;
+    if (teacherPreviewRuntimeActive || teacherTab !== 'actionCenter') return undefined;
     let cancelled = false;
     Promise.all(assignments.filter(isTestCycleAssignment).map(async (assignment) => {
       const response = await listTeacherTestCycleRecords({ assignmentId: assignment.id });
@@ -3429,14 +3429,14 @@ function App() {
     })).then((groups) => { if (!cancelled) setRetestRecoveryActions(groups.flat()); })
       .catch((error) => console.error('Action Center Test Cycle projection failed:', error));
     return () => { cancelled = true; };
-  }, [user?.role, assignments, teacherPreviewRuntimeActive]);
+  }, [user?.role, assignments, teacherPreviewRuntimeActive, teacherTab]);
 
   useEffect(() => {
     if (user?.role !== 'teacher' || !user.email) {
       setStudentSessionSummaries([]);
       return undefined;
     }
-    if (teacherPreviewRuntimeActive) return undefined;
+    if (teacherPreviewRuntimeActive || !TEACHER_SESSION_SUMMARY_TABS.has(teacherTab)) return undefined;
     return subscribeStudentSessionSummaries({
       db,
       teacherEmail: user.email,
@@ -3446,7 +3446,7 @@ function App() {
       onChange: setStudentSessionSummaries,
       onError: (error) => console.error('Student session summaries failed:', error),
     });
-  }, [user?.role, user?.email, classes, teacherPreviewRuntimeActive]);
+  }, [user?.role, user?.email, classes, teacherPreviewRuntimeActive, teacherTab]);
 
   /*
    * A per-student extension is never written as a client-side whole-map
