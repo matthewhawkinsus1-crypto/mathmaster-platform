@@ -8,6 +8,7 @@ import { getStoredAssignmentQuestions, storedAssignmentToV5 } from '../../platfo
 import { buildQuestionRepairRequest } from '../../platform/contract/questionRepairRequest.js';
 import {
   addTeacherReviewFlag,
+  markTeacherFlagPotentiallyAddressed,
   resolveTeacherReviewFlag,
 } from '../../platform/preflight/teacherReviewContext.js';
 import { teacherFlagNeedsReview } from '../../platform/preflight/assignmentAuthoringState.js';
@@ -59,6 +60,27 @@ const buttonStyle = {
 };
 
 const clean = (value) => String(value ?? '').trim();
+
+const issueIdentity = (issue = {}) => [
+  clean(issue.questionId),
+  clean(issue.classification),
+  clean(issue.reason || issue.message),
+  clean(issue.suspectedComponent),
+  clean(issue.repairKey),
+].join('|');
+
+const mergeIssueReports = (existing = [], incoming = []) => {
+  const merged = [];
+  const seen = new Set();
+  [...(Array.isArray(existing) ? existing : []), ...(Array.isArray(incoming) ? incoming : [])].forEach((issue) => {
+    if (!issue || typeof issue !== 'object' || Array.isArray(issue)) return;
+    const key = issueIdentity(issue);
+    if (seen.has(key)) return;
+    seen.add(key);
+    merged.push(issue);
+  });
+  return merged;
+};
 
 const writeClipboardText = async (text) => {
   if (navigator.clipboard?.writeText) {
@@ -445,14 +467,20 @@ export default function TeacherQuestionReviewPanel({
       });
       setStagedRepair(staged);
 
-      if (staged.responseKind === 'reportOnly') {
-        const nextContext = {
+      const hasReportedIssues = (staged.platformIssues || []).length > 0 || (staged.unclearIssues || []).length > 0;
+      let stagedContext = context;
+      if (hasReportedIssues) {
+        stagedContext = {
           ...context,
-          platformIssues: [...(context.platformIssues || []), ...(staged.platformIssues || [])],
-          unclearIssues: [...(context.unclearIssues || []), ...(staged.unclearIssues || [])],
+          platformIssues: mergeIssueReports(context.platformIssues, staged.platformIssues),
+          unclearIssues: mergeIssueReports(context.unclearIssues, staged.unclearIssues),
         };
-        const saved = await saveAssignmentTeacherReviewContext(assignmentId, nextContext);
+        const saved = await saveAssignmentTeacherReviewContext(assignmentId, stagedContext);
         setContext(saved);
+        stagedContext = saved;
+      }
+
+      if (staged.responseKind === 'reportOnly') {
         setMessage('The AI reported a platform issue or an unclear request. It was preserved for review; no question was rewritten.');
         return;
       }
@@ -504,6 +532,18 @@ export default function TeacherQuestionReviewPanel({
         return question ? { sourceQuestionId, replacementQuestionId, question } : null;
       }).filter(Boolean);
       setSavedReplacementPreviews(savedReplacements);
+
+      let nextContext = context;
+      for (const flagId of stagedRepair.pendingTeacherFlagIds || []) {
+        nextContext = markTeacherFlagPotentiallyAddressed(nextContext, flagId, {
+          assignmentRevision: result?.assignmentRevision,
+        });
+      }
+      if ((stagedRepair.pendingTeacherFlagIds || []).length > 0) {
+        const savedContext = await saveAssignmentTeacherReviewContext(assignmentId, nextContext);
+        setContext(savedContext);
+      }
+
       setRepairJson('');
       setStagedRepair(null);
       setServerPreview(null);
