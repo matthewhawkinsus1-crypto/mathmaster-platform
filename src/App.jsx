@@ -3379,7 +3379,11 @@ function App() {
       setStudentSupportEvents([]);
       return undefined;
     }
-    if (teacherWorkspaceMode !== 'teacher' || teacherPreviewRuntimeActive || !TEACHER_SUPPORT_STREAM_TABS.has(teacherTab)) return undefined;
+    if (teacherWorkspaceMode !== 'teacher' || !TEACHER_SUPPORT_STREAM_TABS.has(teacherTab)) {
+      setStudentSupportEvents([]);
+      return undefined;
+    }
+    if (teacherPreviewRuntimeActive) return undefined;
     return subscribeStudentSupportEvents({
       db,
       teacherEmail: user.email,
@@ -3392,31 +3396,53 @@ function App() {
   // teacher-of-record again for every appended contact; students have no access.
   useEffect(() => {
     if (user?.role !== 'teacher' || !user.email) { setParentContacts([]); return undefined; }
-    if (teacherWorkspaceMode !== 'teacher' || teacherPreviewRuntimeActive || !TEACHER_PARENT_CONTACT_STREAM_TABS.has(teacherTab)) return undefined;
+    if (teacherWorkspaceMode !== 'teacher' || !TEACHER_PARENT_CONTACT_STREAM_TABS.has(teacherTab)) {
+      setParentContacts([]);
+      return undefined;
+    }
+    if (teacherPreviewRuntimeActive) return undefined;
     return subscribeParentContacts({ db, teacherEmail: user.email, onChange: setParentContacts, onError: (error) => console.error('Parent contact history failed:', error) });
   }, [user?.role, user?.email, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab]);
 
-  const actionGradeScope = useMemo(() => projectGradeTransferUnits({
-    classes, assignments, students: allStudents, teacherEmail: user?.email || '', isRootAdmin: user?.isRootAdmin === true,
-    snapshots: actionGradeSnapshots, practicePasses: actionPracticePasses,
-  }), [classes, assignments, allStudents, user?.email, user?.isRootAdmin, actionGradeSnapshots, actionPracticePasses]);
-  const actionReturnCheckIns = useMemo(() => classes.flatMap((classRecord) => resolveReturnCheckIns({
-    roster: allStudents.filter((student) => student.classId === (classRecord.classId || classRecord.id)),
-    supportEvents: studentSupportEvents, assignments, classId: classRecord.classId || classRecord.id,
-    classPeriod: classRecord.period || classRecord.classPeriod, schedule: classSchedule,
-    nonInstructionalKeys: SCHOOL_NON_INSTRUCTIONAL_KEYS, todayDateKey: localDateKeyOf(now),
-  })), [classes, allStudents, studentSupportEvents, assignments, classSchedule, now]);
-  const teacherActionItems = useMemo(() => buildTeacherActionItems({
-    students: allStudents, classes, supportEvents: studentSupportEvents, parentContacts,
-    returnCheckIns: actionReturnCheckIns, gradeTransferUnits: actionGradeScope.units,
-    retestRecoveryActions, now, todayDateKey: localDateKeyOf(now),
-  }), [allStudents, classes, studentSupportEvents, parentContacts, actionReturnCheckIns, actionGradeScope.units, retestRecoveryActions, now]);
-  const teacherActionOpenCount = openTeacherActionCount(teacherActionItems);
+  const actionGradeScope = useMemo(() => {
+    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') {
+      return { units: [], authorizedClassIds: [] };
+    }
+    return projectGradeTransferUnits({
+      classes, assignments, students: allStudents, teacherEmail: user?.email || '', isRootAdmin: user?.isRootAdmin === true,
+      snapshots: actionGradeSnapshots, practicePasses: actionPracticePasses,
+    });
+  }, [teacherWorkspaceMode, teacherTab, classes, assignments, allStudents, user?.email, user?.isRootAdmin, actionGradeSnapshots, actionPracticePasses]);
+
+  const actionReturnCheckIns = useMemo(() => {
+    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return [];
+    return classes.flatMap((classRecord) => resolveReturnCheckIns({
+      roster: allStudents.filter((student) => student.classId === (classRecord.classId || classRecord.id)),
+      supportEvents: studentSupportEvents, assignments, classId: classRecord.classId || classRecord.id,
+      classPeriod: classRecord.period || classRecord.classPeriod, schedule: classSchedule,
+      nonInstructionalKeys: SCHOOL_NON_INSTRUCTIONAL_KEYS, todayDateKey: localDateKeyOf(now),
+    }));
+  }, [teacherWorkspaceMode, teacherTab, classes, allStudents, studentSupportEvents, assignments, classSchedule, now]);
+
+  const teacherActionItems = useMemo(() => {
+    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return [];
+    return buildTeacherActionItems({
+      students: allStudents, classes, supportEvents: studentSupportEvents, parentContacts,
+      returnCheckIns: actionReturnCheckIns, gradeTransferUnits: actionGradeScope.units,
+      retestRecoveryActions, now, todayDateKey: localDateKeyOf(now),
+    });
+  }, [teacherWorkspaceMode, teacherTab, allStudents, classes, studentSupportEvents, parentContacts, actionReturnCheckIns, actionGradeScope.units, retestRecoveryActions, now]);
+  const teacherActionOpenCount = teacherTab === 'actionCenter' ? openTeacherActionCount(teacherActionItems) : 0;
 
   useEffect(() => {
     const classIds = actionGradeScope.authorizedClassIds;
     if (user?.role !== 'teacher') { setActionGradeSnapshots([]); setActionPracticePasses(new Set()); return; }
-    if (teacherWorkspaceMode !== 'teacher' || teacherPreviewRuntimeActive || teacherTab !== 'actionCenter') return;
+    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') {
+      setActionGradeSnapshots([]);
+      setActionPracticePasses(new Set());
+      return;
+    }
+    if (teacherPreviewRuntimeActive) return;
     if (!classIds.length) { setActionGradeSnapshots([]); setActionPracticePasses(new Set()); return; }
     loadTeacherGradeTransferState({ classIds })
       .then(({ snapshots, practicePasses }) => {
@@ -3428,7 +3454,11 @@ function App() {
 
   useEffect(() => {
     if (user?.role !== 'teacher') { setRetestRecoveryActions([]); return; }
-    if (teacherWorkspaceMode !== 'teacher' || teacherPreviewRuntimeActive || teacherTab !== 'actionCenter') return undefined;
+    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') {
+      setRetestRecoveryActions([]);
+      return undefined;
+    }
+    if (teacherPreviewRuntimeActive) return undefined;
     let cancelled = false;
     Promise.all(assignments.filter(isTestCycleAssignment).map(async (assignment) => {
       const response = await listTeacherTestCycleRecords({ assignmentId: assignment.id });
@@ -3443,7 +3473,11 @@ function App() {
       setStudentSessionSummaries([]);
       return undefined;
     }
-    if (teacherWorkspaceMode !== 'teacher' || teacherPreviewRuntimeActive || !TEACHER_SESSION_SUMMARY_TABS.has(teacherTab)) return undefined;
+    if (teacherWorkspaceMode !== 'teacher' || !TEACHER_SESSION_SUMMARY_TABS.has(teacherTab)) {
+      setStudentSessionSummaries([]);
+      return undefined;
+    }
+    if (teacherPreviewRuntimeActive) return undefined;
     return subscribeStudentSessionSummaries({
       db,
       teacherEmail: user.email,
@@ -7131,6 +7165,7 @@ function App() {
     try {
       await updateDoc(doc(db, 'grades', studentId), { profile: nextProfile });
       setAllStudents((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile } : entry));
+      setTeacherRosterSummaries((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile } : entry));
     } catch (error) {
       console.error(error);
       toastError('Could not update support profile', error.message);
@@ -10294,7 +10329,7 @@ function App() {
                     {gradeExplanation && <div style={{ marginTop: 4, fontSize: 11, color: '#5f6368', lineHeight: 1.4, maxWidth: 280 }}>{gradeExplanation}</div>}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.warmup.attempted ? `${sectionGrades.warmup.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.classwork.attempted ? `${sectionGrades.classwork.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.practice.attempted ? `${sectionGrades.practice.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.dol.attempted ? `${sectionGrades.dol.score}%` : '—'}</td><td style={{ fontSize: '12px' }}>{modified ? `Modified: ${(usage.modifications || []).join(', ')}` : (usage.accommodations || []).length ? `Accommodated: ${usage.accommodations.join(', ')}` : 'Standard'}</td><td style={{ fontSize: '12px', lineHeight: 1.45 }}>Total {formatTime(activity.totalTimeSeconds || 0)}<br />On time {formatTime(activity.onTimeSeconds || 0)} · Late {formatTime(activity.lateSeconds || 0)}<br />Last on-time: {formatTimeStamp(activity.lastActiveBeforeDue)}<br />Last late: {formatTimeStamp(activity.lastActiveLate)}</td><td><button onClick={() => setGradebookFilter((current) => ({ ...current, student }))} style={{ padding: '8px 12px', border: 0, borderRadius: '6px', background: '#1a73e8', color: '#fff', fontWeight: 'bold' }}>Details</button></td></tr>; })}</tbody></table></div>
                 )}
 
-                {gradebookFilter.student && selectedAssignment && (() => { const student = gradebookFilter.student; const studentGrades = projectTeacherOverridesForDisplay(student.gradesByAssignment || {}, student.teacherGradeOverridesByAssignment || {})?.[selectedAssignment.id] || {}; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const displayedAssignmentScore = assignmentOverride ? assignmentOverride.score : Object.keys(studentGrades).length ? calculateGrade(studentGrades, selectedAssignment) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{displayedAssignmentScore === null ? '—' : `${displayedAssignmentScore}%`}</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div><AssignmentGradeOverrideControls student={student} assignment={selectedAssignment} onChanged={() => { fetchStudents().catch((error) => console.error('Could not refresh student grades after assignment override:', error)); setGradebookFilter((current) => ({ ...current, student: null })); }} />{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: '#fff', border: '1px solid #d8dde6' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: '#202124' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{getStoredAssignmentQuestions(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type} · Grade ×{normalizeQuestionWeight(question)}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.teacherGradeOverrideDisplay?.active ? (credit >= 100 ? 'Teacher assigned · Correct ✓' : `Teacher assigned · ${credit}%`) : record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button>{studentGrades[index] && <button type="button" onClick={() => setResponseInspectorTarget({ studentId: student.id, assignmentId: selectedAssignment.id, questionIndex: index })} style={{ marginTop: '8px', marginLeft: '8px', padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#e8f0fe', color: '#174ea6', fontWeight: 'bold' }}>Inspect Response / Override Grade</button>}</article>; })}</div></div>; })()}
+                {gradebookFilter.student && selectedAssignment && (() => { const student = gradebookFilter.student; const studentGrades = projectTeacherOverridesForDisplay(student.gradesByAssignment || {}, student.teacherGradeOverridesByAssignment || {})?.[selectedAssignment.id] || {}; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const displayedAssignmentScore = assignmentOverride ? assignmentOverride.score : Object.keys(studentGrades).length ? calculateGrade(studentGrades, selectedAssignment) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{displayedAssignmentScore === null ? '—' : `${displayedAssignmentScore}%`}</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div><AssignmentGradeOverrideControls student={student} assignment={selectedAssignment} onChanged={() => setGradebookFilter((current) => ({ ...current, student: null }))} />{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: '#fff', border: '1px solid #d8dde6' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: '#202124' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{getStoredAssignmentQuestions(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type} · Grade ×{normalizeQuestionWeight(question)}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.teacherGradeOverrideDisplay?.active ? (credit >= 100 ? 'Teacher assigned · Correct ✓' : `Teacher assigned · ${credit}%`) : record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button>{studentGrades[index] && <button type="button" onClick={() => setResponseInspectorTarget({ studentId: student.id, assignmentId: selectedAssignment.id, questionIndex: index })} style={{ marginTop: '8px', marginLeft: '8px', padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#e8f0fe', color: '#174ea6', fontWeight: 'bold' }}>Inspect Response / Override Grade</button>}</article>; })}</div></div>; })()}
               </div>
             )}
 
@@ -10314,7 +10349,7 @@ function App() {
               <StudentResponseInspector
                 {...responseInspectorTarget}
                 onClose={() => setResponseInspectorTarget(null)}
-                onChanged={() => fetchStudents().catch((error) => console.error('Could not refresh student grades after override:', error))}
+                onChanged={undefined}
               />
             )}
             {teacherTab === 'standards' && (
