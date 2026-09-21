@@ -231,7 +231,7 @@ export const transferSnapshotId = (unit) => `transfer_${shortIdentity([
 
 export const transferAssignmentFolderName = (unit) => {
   const deadline = unit.ordinaryDeadline ? new Date(unit.ordinaryDeadline).toISOString().slice(0, 10) : 'no-date';
-  return `${safeName(unit.classPeriod || unit.classLabel)}_${safeName(unit.assignmentTitle)}_${deadline}_${shortIdentity(unit.assignmentId)}`;
+  return `${safeName(unit.classPeriod || unit.classLabel)}_${safeName(unit.assignmentTitle)}_${deadline}_${shortIdentity(`${unit.classId}:${unit.assignmentId}`)}`;
 };
 
 export const transferFileName = (unit) => {
