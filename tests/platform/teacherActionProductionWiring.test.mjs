@@ -32,7 +32,9 @@ test('date-only action keys render as local calendar dates instead of UTC instan
   assert.doesNotMatch(component, /new Date\(item\.dueAt \|\| item\.createdAt\)\.toLocaleDateString\(\)/);
 });
 
-test('sidebar badge is fed by the mounted Action Center projection, not another listener', () => {
+test('sidebar badge keeps only the last projected count after Action Center releases heavy data', () => {
   assert.match(app, /actionCount=\{teacherActionOpenCount\}/);
-  assert.match(app, /const teacherActionOpenCount = openTeacherActionCount\(teacherActionItems\)/);
+  assert.match(app, /const currentTeacherActionOpenCount = openTeacherActionCount\(teacherActionItems\)/);
+  assert.match(app, /setTeacherActionOpenCountCache\(currentTeacherActionOpenCount\)/);
+  assert.match(app, /const teacherActionOpenCount = teacherTab === 'actionCenter'/);
 });
