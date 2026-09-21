@@ -24,7 +24,9 @@ const formatGraphNumber = (value) => {
   if (!Number.isFinite(number)) return String(value ?? '');
   if (Math.abs(number) <= 1e-10) return '0';
   const roundedInteger = Math.round(number);
-  if (Math.abs(number - roundedInteger) <= 1e-10) return String(roundedInteger);
+  if (Math.abs(number - roundedInteger) <= 1e-10) {
+    return String(roundedInteger).replace('-', '−');
+  }
 
   const sign = number < 0 ? '−' : '';
   const magnitude = Math.abs(number);
