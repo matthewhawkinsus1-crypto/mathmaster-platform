@@ -81,6 +81,7 @@ const studentSessionSummary = require("./lib/studentSessionSummary");
 const fullAssignmentRepair = require("./lib/fullAssignmentRepair");
 const assignmentContentVersion = require("./lib/assignmentContentVersion");
 const assignmentContentTrackerMigration = require("./lib/assignmentContentTrackerMigration");
+const teacherQuestionRepair = require("./lib/teacherQuestionRepair");
 
 // HTTPS/callable transport must be reachable by the Firebase client SDK.
 // MathMaster authorization still happens INSIDE each callable through
@@ -15504,6 +15505,368 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
     throw new HttpsError(
       "failed-precondition",
       error.message || "MathMaster refused the live content upgrade."
+    );
+  }
+});
+
+/*
+ * AUTHORITATIVE TEACHER QUESTION REPAIR.
+ *
+ * Teacher Review's flow is "paste/upload repair -> preview corrected question
+ * -> Apply Corrected Question". previewTeacherQuestionRepair and
+ * commitTeacherQuestionRepair are the only write paths: MathMaster decides
+ * server-side, via functions/lib/teacherQuestionRepair.js, whether a
+ * mathematically correct candidate question can replace directly, update in
+ * place, or must retire the historical question and append a corrected
+ * replacement. See that module for how it reuses the Content V2 classifier,
+ * the Safe Live Repair analyzer, and the grade-tracker migration already
+ * proven out by previewAssignmentContentUpgrade / commitAssignmentContentUpgrade
+ * above.
+ */
+
+// owner/admin/designated-repairer: an administrator or a designated repairer
+// (functions/lib/fullAssignmentRepair.js's authority, unchanged) may repair
+// ANY assignment, assigned or not. A plain teacher may repair a LIVE copy
+// only if they own every class it is assigned to -- the same rule
+// requireContentUpgradeOwner already enforces for the Content V2 live
+// upgrade, reused here rather than duplicated. An ordinary, unassigned
+// editable assignment has no live student history to protect and is exactly
+// the "any signed-in teacher may edit it" content Firestore's own
+// `assignments` rule already allows (see firestore.rules: `allow update: if
+// teacher()`, no ownership check) -- so any signed-in teacher may repair one
+// here too, matching that existing model rather than inventing a stricter one.
+async function requireTeacherQuestionRepairAuthority(db, request, assignment) {
+  const uid = await requireTeacher(request);
+  const email = callerEmail(request);
+  if (!email) {
+    throw new HttpsError("permission-denied", "A verified teacher email is required to repair a question.");
+  }
+  if (authLib.isRootAdminEmail(email)) {
+    return { uid, email, authorizationType: "administrator" };
+  }
+  if (fullAssignmentRepair.repairAuthority(request.auth) === "designatedRepairer") {
+    return { uid, email, authorizationType: "designatedRepairer" };
+  }
+
+  const { classIds, periods } = contentUpgradeAudience(assignment);
+  if (!classIds.length && !periods.length) {
+    return { uid, email, authorizationType: "teacherEditor" };
+  }
+  return requireContentUpgradeOwner(db, request, assignment);
+}
+
+function teacherQuestionRepairPreviewPayload(plan, affectedStudentCount) {
+  return {
+    assignmentId: plan.assignmentId,
+    baseRevision: plan.baseRevision,
+    planHash: plan.planHash,
+    affectedStudentCount,
+    hasStudentHistory: plan.hasStudentHistory,
+    canApply: plan.canApply,
+    counts: plan.counts,
+    changes: plan.changes.map((change) => ({
+      questionId: change.questionId,
+      flatIndex: change.flatIndex,
+      sectionRole: change.sectionRole,
+      classification: change.classification,
+      commitBehavior: change.commitBehavior,
+      reason: change.reason || null,
+      safe: change.safe,
+      affectedFieldIds: change.affectedFieldIds || [],
+      gradingKeys: change.gradingKeys || [],
+      beforePrompt: String(change.beforeQuestion?.prompt || change.beforeQuestion?.scenario || "").slice(0, 500),
+      afterPrompt: String(change.afterQuestion?.prompt || change.afterQuestion?.scenario || "").slice(0, 500),
+    })),
+  };
+}
+
+exports.previewTeacherQuestionRepair = onCall(async (request) => {
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const baseRevision = Number(request.data?.baseRevision);
+  const replacements = Array.isArray(request.data?.replacements) ? request.data.replacements : [];
+
+  try {
+    const db = getFirestore();
+    if (!assignmentId) {
+      throw new HttpsError("invalid-argument", "Choose an assignment to repair.");
+    }
+    if (!Number.isInteger(baseRevision) || baseRevision < 1) {
+      throw new HttpsError("invalid-argument", "A valid base assignment revision is required.");
+    }
+    if (!replacements.length) {
+      throw new HttpsError("invalid-argument", "Provide at least one corrected question to preview.");
+    }
+
+    const snapshot = await db.collection("assignments").doc(assignmentId).get();
+    if (!snapshot.exists) {
+      throw new HttpsError("not-found", "That assignment no longer exists.");
+    }
+    const liveAssignment = { id: snapshot.id, ...snapshot.data() };
+    await requireTeacherQuestionRepairAuthority(db, request, liveAssignment);
+
+    if (Number(liveAssignment.assignmentRevision || 1) !== baseRevision) {
+      throw new HttpsError(
+        "failed-precondition",
+        "This assignment changed since this repair packet was built. Reload it and preview again."
+      );
+    }
+
+    const trackers = await loadSavedAssignmentTrackers(db, assignmentId, liveAssignment);
+    const plan = await teacherQuestionRepair.buildTeacherRepairPlan({
+      liveAssignment,
+      replacements,
+      hasStudentHistory: trackers.length > 0,
+    });
+
+    return teacherQuestionRepairPreviewPayload(plan, trackers.length);
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    logger.error("Teacher question repair preview failed", {
+      assignmentId,
+      uid: request.auth?.uid || null,
+      code: error?.code || null,
+      message: String(error?.message || error || "Unknown error").slice(0, 1000),
+      stack: String(error?.stack || "").slice(0, 4000),
+    });
+    throw new HttpsError(
+      "unavailable",
+      "MathMaster could not preview this question repair. Nothing was changed. The server logged the failure; retry after the preview function is redeployed.",
+      { reason: "teacher-question-repair-preview-failed" }
+    );
+  }
+});
+
+exports.commitTeacherQuestionRepair = onCall(async (request) => {
+  const db = getFirestore();
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const baseRevision = Number(request.data?.baseRevision);
+  const expectedPlanHash = String(request.data?.expectedPlanHash || "").trim();
+  const replacements = Array.isArray(request.data?.replacements) ? request.data.replacements : [];
+
+  if (!assignmentId || !expectedPlanHash) {
+    throw new HttpsError("invalid-argument", "Preview this question repair before committing it.");
+  }
+  if (!Number.isInteger(baseRevision) || baseRevision < 1) {
+    throw new HttpsError("invalid-argument", "A valid base assignment revision is required.");
+  }
+  if (!replacements.length) {
+    throw new HttpsError("invalid-argument", "Provide at least one corrected question to apply.");
+  }
+
+  const initialSnapshot = await db.collection("assignments").doc(assignmentId).get();
+  if (!initialSnapshot.exists) {
+    throw new HttpsError("not-found", "That assignment no longer exists.");
+  }
+  const initialAssignment = { id: initialSnapshot.id, ...initialSnapshot.data() };
+  const initialAuthorization = await requireTeacherQuestionRepairAuthority(db, request, initialAssignment);
+
+  const actorEmail = callerEmail(request);
+  const isRoot = Boolean(authLib.isRootAdminEmail(actorEmail));
+  const isElevatedRepairer = fullAssignmentRepair.repairAuthority(request.auth) === "designatedRepairer";
+  const eventRef = db.collection("assignmentVersionEvents").doc();
+
+  try {
+    return await db.runTransaction(async (transaction) => {
+      const assignmentRef = db.collection("assignments").doc(assignmentId);
+      const snapshot = await transaction.get(assignmentRef);
+      if (!snapshot.exists) {
+        throw new HttpsError("not-found", "That assignment no longer exists.");
+      }
+      const liveAssignment = { id: snapshot.id, ...snapshot.data() };
+
+      if (Number(liveAssignment.assignmentRevision || 1) !== baseRevision) {
+        throw new HttpsError(
+          "failed-precondition",
+          "This assignment changed after preview. Nothing was changed; preview the repair again."
+        );
+      }
+
+      // Re-check authorization against the CURRENT assignment/classes inside
+      // the same transaction the write happens in, exactly like the Content
+      // V2 live upgrade commit above.
+      if (!isRoot && !isElevatedRepairer) {
+        const { classIds, periods } = contentUpgradeAudience(liveAssignment);
+        if (classIds.length) {
+          const classSnapshots = [];
+          for (const classId of classIds) {
+            // All reads occur before any transaction write.
+            // eslint-disable-next-line no-await-in-loop
+            classSnapshots.push(await transaction.get(db.collection("classes").doc(classId)));
+          }
+          const ownsEveryClass = classSnapshots.length === classIds.length && classSnapshots.every((snap) => (
+            snap.exists
+            && snap.data()?.status !== "archived"
+            && String(snap.data()?.teacherOfRecord || "").trim().toLowerCase() === actorEmail
+          ));
+          if (!ownsEveryClass) {
+            throw new HttpsError(
+              "permission-denied",
+              "Class ownership changed after preview. Only the current teacher of record may apply this repair."
+            );
+          }
+        } else if (periods.length) {
+          const legacyClasses = [];
+          for (const period of periods) {
+            // eslint-disable-next-line no-await-in-loop
+            const periodSnapshot = await transaction.get(
+              db.collection(CLASS_COLLECTION).where("period", "==", period)
+            );
+            periodSnapshot.docs.forEach((doc) => legacyClasses.push({ classId: doc.id, ...doc.data() }));
+          }
+          assertLegacyPeriodOwnership(legacyClasses, periods, actorEmail);
+        }
+        // else: an ordinary, unassigned editable assignment. Any signed-in
+        // teacher may repair it, matching Firestore's own `assignments` rule
+        // (`allow update: if teacher()`, no ownership check) -- there is no
+        // live student history on an unassigned assignment to protect, so
+        // there is nothing here to re-check beyond requireTeacher, already
+        // enforced by requireTeacherQuestionRepairAuthority above.
+      }
+
+      const trackerDocs = await loadSavedAssignmentTrackersInTransaction(
+        transaction,
+        db,
+        assignmentId,
+        liveAssignment
+      );
+      if (trackerDocs.length > 450) {
+        throw new HttpsError(
+          "resource-exhausted",
+          "This assignment has more than 450 saved student records. Use the server migration path in smaller cohorts instead of a partial repair."
+        );
+      }
+      const hasStudentHistory = trackerDocs.length > 0;
+
+      const plan = await teacherQuestionRepair.buildTeacherRepairPlan({
+        liveAssignment,
+        replacements,
+        hasStudentHistory,
+      });
+      if (plan.planHash !== expectedPlanHash) {
+        throw new HttpsError(
+          "failed-precondition",
+          "This repair plan changed after preview. Nothing was changed; preview it again."
+        );
+      }
+
+      if (!plan.canApply) {
+        return {
+          applied: false,
+          assignmentId,
+          baseRevision,
+          assignmentRevision: Number(liveAssignment.assignmentRevision || 1),
+          counts: plan.counts,
+          replacementQuestionIds: {},
+          affectedStudentCount: trackerDocs.length,
+          migratedStudentCount: 0,
+          gradeReconciliationRequested: false,
+        };
+      }
+
+      const correctedAt = new Date().toISOString();
+      const built = await teacherQuestionRepair.buildRepairedAssignment({
+        liveAssignment,
+        plan,
+        correctionEventId: eventRef.id,
+      });
+
+      let migratedStudents = 0;
+      let gradeReconciliationRequested = false;
+      const migratedRows = trackerDocs.map((gradeRow) => {
+        const migration = assignmentContentTrackerMigration.migrateTrackerForContentUpgrade({
+          tracker: gradeRow.tracker,
+          plan,
+          correctedAt,
+        });
+        if (migration.changed) migratedStudents += 1;
+        if (migration.gradeMayChange) gradeReconciliationRequested = true;
+        return { gradeRow, migration };
+      });
+
+      // Allow-listed update: only authored question containers and the
+      // revision move. Operational assignment data (classes, dates,
+      // Classroom mappings, publication state, accommodations) is untouched,
+      // so this can never create a new Classroom assignment or repost.
+      transaction.update(assignmentRef, {
+        sections: built.assignment.sections,
+        assignmentRevision: built.assignment.assignmentRevision,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      migratedRows.forEach(({ gradeRow, migration }) => {
+        if (!migration.changed) return;
+        transaction.update(
+          gradeRow.ref,
+          new FieldPath("gradesByAssignment", assignmentId),
+          migration.tracker
+        );
+        if (migration.gradeMayChange) {
+          transaction.update(
+            gradeRow.ref,
+            new FieldPath("classroomReleaseSignals", assignmentId),
+            {
+              requestedAt: correctedAt,
+              // Reuse the section-grade reconciliation trigger delivered by
+              // PR #177, same as the Content V2 live upgrade above. A
+              // question repair may change the derived grade, but it must
+              // not invent a parallel Classroom passback protocol.
+              reason: "section-grade-reconcile",
+              source: "teacher-question-repair",
+            }
+          );
+        }
+      });
+
+      transaction.set(eventRef, {
+        eventType: "teacherQuestionRepair",
+        assignmentId,
+        actorUid: request.auth.uid,
+        actorEmail: actorEmail || null,
+        actorAuthorizationType: isRoot ? "administrator" : (isElevatedRepairer ? "designatedRepairer" : initialAuthorization.authorizationType),
+        fromAssignmentRevision: baseRevision,
+        toAssignmentRevision: built.assignment.assignmentRevision,
+        hasStudentHistory,
+        changeCounts: plan.counts,
+        changes: plan.changes
+          .filter((change) => change.classification !== "unchanged")
+          .map((change) => ({
+            questionId: change.questionId,
+            classification: change.classification,
+            commitBehavior: change.commitBehavior,
+            replacementQuestionId: built.replacementQuestionIds[change.questionId] || null,
+            // Always true by construction: a repair either touches no stored
+            // response (graphViewportRepair, clarificationOnly, no history),
+            // monotonically improves credit without losing attempts
+            // (safeResponseControl, gradingExpansion), or leaves the
+            // historical record completely untouched under its own
+            // protected index (fundamental retire + replace).
+            historyPreserved: true,
+          })),
+        replacementQuestionIds: built.replacementQuestionIds,
+        affectedStudentCount: trackerDocs.length,
+        migratedStudentCount: migratedStudents,
+        gradeReconciliationRequested,
+        planHash: plan.planHash,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+
+      return {
+        applied: true,
+        assignmentId,
+        baseRevision,
+        assignmentRevision: built.assignment.assignmentRevision,
+        counts: plan.counts,
+        replacementQuestionIds: built.replacementQuestionIds,
+        affectedStudentCount: trackerDocs.length,
+        migratedStudentCount: migratedStudents,
+        gradeReconciliationRequested,
+      };
+    });
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError(
+      "failed-precondition",
+      error.message || "MathMaster refused this question repair."
     );
   }
 });
