@@ -1637,9 +1637,26 @@ const compileOne = (q, index, repairs) => {
     case 'inverseCompositionLab':
       out = copyCommon(q, { type, mode: q.mode || (actions.includes('composeFunctions') ? 'composition' : 'inverse'), f: toolFunctionSpec(q.f || q.function || q.inverse?.function), g: q.g ? toolFunctionSpec(q.g) : undefined, x: q.x, inverseBranch: q.inverseBranch });
       break;
-    case 'systemsWorkspace':
-      out = copyCommon(q, { type, mode: q.mode || (actions.includes('solveInequalitySystem') ? 'inequalities' : actions.includes('rowReduce') ? 'matrix' : q.linearQuadratic ? 'linearQuadratic' : 'linear'), system: q.system, inequalities: q.inequalities, matrix: q.matrix, linearQuadratic: q.linearQuadratic });
+    case 'systemsWorkspace': {
+      const mode = q.mode || (actions.includes('solveInequalitySystem') ? 'inequalities' : actions.includes('rowReduce') ? 'matrix' : q.linearQuadratic ? 'linearQuadratic' : 'linear');
+      out = copyCommon(q, { type, mode, system: q.system, inequalities: q.inequalities, matrix: q.matrix, linearQuadratic: q.linearQuadratic });
+      // PR 303's student-build inequality workflow (authored source form ->
+      // interactive rewrite -> hidden canonical grading constraints) and its
+      // companion viewport/reasoning/modeling config. Each is copied only
+      // when the author actually supplied it, so the compiler never
+      // manufactures a default that could fabricate or expose an answer.
+      // `sourceConstraints` (student-facing) and `expectedConstraints`
+      // (hidden grading canon) must stay separate objects all the way
+      // through — never collapse one into the other here.
+      [
+        'sourceConstraints', 'expectedConstraints', 'studentBuild', 'reasoning',
+        'testPoint', 'allowStudentTestPoint', 'askClassification', 'askVertices',
+        'modeling', 'graph',
+      ].forEach((key) => {
+        if (q[key] != null) out[key] = q[key];
+      });
       break;
+    }
     case 'parabolaGeometryLab': {
       const p = q.parabola || {};
       out = copyCommon(q, { type, mode: q.mode || (p.focus || q.focus ? 'fromGeometry' : 'features'), h: q.h ?? p.h, k: q.k ?? p.k, p: q.p ?? p.p, orientation: q.orientation || p.orientation, focus: q.focus || p.focus, directrix: q.directrix || p.directrix });

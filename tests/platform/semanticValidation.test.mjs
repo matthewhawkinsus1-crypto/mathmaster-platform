@@ -347,6 +347,28 @@ const warningsFor = (question) => validateQuestionSemantics(question).warnings;
   const emptyCard = { type: 'graphAnalysis', prompt: 'Describe the graph.', graph: { xMin: 0, xMax: 5, yMin: 0, yMax: 5 } };
   assert.ok(errorsFor(emptyCard).some((e) => /no drawable function/.test(e)),
     'an empty static graph card is still reported');
+
+  // PR 303 follow-up (#5): the compiled V5 authoring output never sets
+  // `toolId` — only `type: 'systemsWorkspace'` — and the PR 303 student-build
+  // workflow draws its picture from `sourceConstraints`/`expectedConstraints`/
+  // `studentBuild`/`modeling`, none of which the old field allowlist
+  // (`inequalities`, `system`, `pairs`) recognized. That gap made a correctly
+  // authored PR 303 question fail Preflight as though its `graph` were a
+  // blank GraphDisplay card, even though `graph` there is only viewport
+  // configuration for the interactive workspace.
+  const pr303ToolQuestion = {
+    type: 'systemsWorkspace',
+    mode: 'inequalities',
+    sourceConstraints: ['x - y >= -1', '3x - y <= 4'],
+    expectedConstraints: [
+      { A: 1, B: -1, C: 1, relation: '>=' },
+      { A: 3, B: -1, C: -4, relation: '<=' },
+    ],
+    studentBuild: { rewrite: true, boundary: true, lineStyle: true, shading: true },
+    graph: { xMin: -5, xMax: 5, yMin: -6, yMax: 6 },
+  };
+  assert.ok(!errorsFor(pr303ToolQuestion).some((e) => /no drawable function/.test(e)),
+    'a PR 303 systemsWorkspace question whose graph carries only viewport bounds is not audited as a static graph card');
 }
 
 // --- a scenario the renderer cannot show is not a scenario ------------------
