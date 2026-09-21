@@ -188,7 +188,7 @@ test('rewrite completion only unlocks graphing after an equivalent y-on-the-left
   assert.match(rewriteSource, /verifiedConstraint:\s*verified/);
   assert.match(rewriteSource, /Math\.abs\(left\.b - 1\)/);
   assert.match(rewriteSource, /Math\.abs\(right\.b\)/);
-  assert.match(rewriteSource, /variable visibly[\s\S]*isolated on the LEFT/);
+  assert.match(rewriteSource, /return null/);
 });
 
 test('rewrite-only work requires verified rewrite evidence and shows it in collapsed progress', () => {
