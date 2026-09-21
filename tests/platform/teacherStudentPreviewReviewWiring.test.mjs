@@ -61,8 +61,19 @@ test('the panel stays out of the student layout it exists to let a teacher judge
 
 test('teacher preview review panel resolves the canonical saved question to its stable questionId', () => {
   assert.match(panelSource, /getStoredAssignmentQuestions/);
-  assert.match(panelSource, /resolvedQuestion\?\.questionId/);
+  assert.match(panelSource, /questionProp\?\.questionId \|\| resolvedQuestion\?\.questionId/);
   assert.match(panelSource, /assignments/);
+});
+
+test('Teacher Review follows question navigation synchronously instead of waiting on Firestore', () => {
+  assert.match(panelSource, /if \(questionProp\) return questionProp;/,
+    'the question already rendered by View as Student must be the panel identity immediately');
+  assert.doesNotMatch(panelSource, /setResolvedQuestion/,
+    'a cached question state can lag behind navigation and attach notes to the previous question');
+  assert.match(panelSource, /\}, \[assignmentId\]\);/,
+    'assignment review context should load once per assignment rather than again on every Next click');
+  assert.match(panelSource, /setNote\(''\)[\s\S]*setPendingShot\(null\)[\s\S]*\[assignmentId, questionId\]/,
+    'unfinished question-specific notes/screenshots must not carry into the next question');
 });
 
 test('teacher preview review panel saves notes, resolves them, and builds a question-only repair request', () => {
