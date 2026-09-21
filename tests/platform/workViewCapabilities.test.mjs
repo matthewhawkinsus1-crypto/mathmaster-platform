@@ -23,6 +23,17 @@ test('Task and Help behave as mutually exclusive toggle drawers', () => {
   assert.equal(toggleWorkViewDrawer('task', 'help'), 'help');
 });
 
+test('the original question task wins over a nested tool summary', () => {
+  const capabilities = mergeWorkViewCapabilities(
+    { task:{ text:'Graph y - 5 = -(3/4)(x - 14) directly from point-slope form.' } },
+    { task:{ text:'Graph the line through (14, 5) with slope -3/4.' } },
+  );
+  assert.equal(
+    capabilities.task.text,
+    'Graph y - 5 = -(3/4)(x - 14) directly from point-slope form.',
+  );
+});
+
 test('tool capabilities augment platform actions without creating another state owner', () => {
   const undo = () => {};
   const fit = () => {};
@@ -79,6 +90,8 @@ test('EnlargeableFigure preserves one child instance and exposes Task and Help d
   assert.equal((source.match(/\{figure\}/g) || []).length, 1, 'one stable figure is rendered exactly once');
   assert.doesNotMatch(source, /cloneElement|createPortal|children\s*\.\s*map/);
   assert.match(source, /aria-label="Original task"/);
+  assert.match(source, /aria-label="Your task"/);
+  assert.match(source, /mathmaster-work-view-persistent-task/);
   assert.match(source, /aria-label="Help and instructions"/);
 });
 
