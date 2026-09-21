@@ -70,6 +70,24 @@ test('committing the substitution keeps a meaningful wrong-path outcome availabl
   assert.match(orchestratorSource, /mismatch/);
 });
 
+test('intercept coefficient resolution accepts the V5 equationText field used by imported/compiled questions', () => {
+  assert.deepEqual(
+    resolveStandardCoefficients({ equationText: '3x + 4y = 24' }),
+    { A: 3, B: 4, C: 24 },
+  );
+  assert.deepEqual(
+    resolveStandardCoefficients({ equationAscii: '2x + 3y = 12' }),
+    { A: 2, B: 3, C: 12 },
+  );
+});
+
+test('an invalid equation field falls through to a valid equationText instead of blocking the solver', () => {
+  assert.deepEqual(
+    resolveStandardCoefficients({ equation: 'not an equation', equationText: '4x + 3y = 24' }),
+    { A: 4, B: 3, C: 24 },
+  );
+});
+
 test('the intercept math itself: substitution state and expected point for a standard-form line', () => {
   const standard = resolveStandardCoefficients({ standard: { A: 3, B: 4, C: 24 } });
   assert.deepEqual(standard, { A: 3, B: 4, C: 24 });
