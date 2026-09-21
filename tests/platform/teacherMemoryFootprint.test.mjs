@@ -31,10 +31,10 @@ test('ordinary teacher tabs do not keep the whole grade corpus subscribed', () =
     ']);',
     'full student data tab list',
   );
-  for (const detailTab of ['students', 'weeklyPath', 'actionCenter', 'grades', 'gradeTransfer', 'standards', 'analytics', 'exams']) {
+  for (const detailTab of ['students', 'weeklyPath', 'actionCenter', 'parentContacts', 'grades', 'gradeTransfer', 'standards', 'analytics', 'exams']) {
     assert.match(tabs, new RegExp("'" + detailTab + "'"));
   }
-  for (const lightTab of ['home', 'assignments', 'library', 'classesWorkspace', 'parentContacts', 'pacing']) {
+  for (const lightTab of ['home', 'assignments', 'library', 'classesWorkspace', 'pacing']) {
     assert.doesNotMatch(tabs, new RegExp("'" + lightTab + "'"), lightTab + ' must stay roster-light');
   }
 
@@ -145,4 +145,25 @@ test('logging out clears both compact and detailed teacher student state', () =>
   assert.match(hydration, /setAllStudents\(\[\]\)/);
   assert.match(hydration, /setTeacherRosterSummaries\(\[\]\)/);
   assert.match(hydration, /setProfileDrawerStudentDetail\(null\)/);
+});
+
+test('Classes Workspace stays on live lightweight data instead of silently showing zero historical starts', () => {
+  const classesWorkspace = fs.readFileSync('src/ClassesWorkspace.jsx', 'utf8');
+  assert.match(app, /academicDataLoaded=\{teacherStudentDataMode === 'full'\}/);
+  assert.match(classesWorkspace, /academicDataLoaded = true/);
+  assert.match(classesWorkspace, /activeOnAssignmentCount/);
+  assert.match(classesWorkspace, /active now/);
+  assert.match(classesWorkspace, /This screen stays lightweight during class/);
+});
+
+test('Parent Contacts opts into complete academic detail only while that tab is open', () => {
+  const fullTabs = between(
+    app,
+    'const TEACHER_FULL_STUDENT_DATA_TABS = new Set([',
+    ']);',
+    'full student data tabs',
+  );
+  assert.match(fullTabs, /'parentContacts'/);
+  assert.match(app, /TEACHER_SUPPORT_STREAM_TABS[^\n]*parentContacts/);
+  assert.match(app, /TEACHER_SESSION_SUMMARY_TABS[^\n]*parentContacts/);
 });
