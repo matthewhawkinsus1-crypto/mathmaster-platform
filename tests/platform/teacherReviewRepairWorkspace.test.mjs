@@ -48,7 +48,15 @@ test('a staged candidate immediately uses the canonical sandboxed student render
   assert.match(sandbox, /onResponseCheckpoint=\{null\}/);
   assert.match(sandbox, /onSpotlightFrame=\{null\}/);
   assert.match(sandbox, /onSaveScratchpad=\{async \(\) => null\}/);
-  assert.match(panel, /proposedQuestion &&[\s\S]*<TeacherRepairCandidateSandbox question=\{proposedQuestion\}/);
+  assert.match(panel, /proposedQuestion && activeOriginalQuestion[\s\S]*<TeacherRepairCandidateSandbox question=\{proposedQuestion\}/);
+});
+
+test('batch repairs cannot be applied until every replacement has been opened in Teacher Review', () => {
+  assert.match(panel, /Reviewed \{reviewedRepairQuestionIdSet\.size\} of \{replacements\.length\}/);
+  assert.match(panel, /onClick=\{\(\) => activateRepairQuestion\(id\)\}/);
+  assert.match(panel, /const allReplacementsReviewed = replacements\.length > 0/);
+  assert.match(panel, /!allReplacementsReviewed/);
+  assert.match(panel, /Open each proposed correction above before applying this batch/);
 });
 
 test('Preflight gates Apply and report-only findings never become replacements', () => {
@@ -69,9 +77,16 @@ test('Apply commits the previewed plan, refreshes, clears staging, and does not 
   const end = panel.indexOf('if (!assignmentId', start);
   const apply = panel.slice(start, end);
   assert.match(apply, /commitTeacherQuestionRepair\(\{[\s\S]*assignmentId,[\s\S]*baseRevision,[\s\S]*expectedPlanHash: serverPreview\.planHash,[\s\S]*replacements/);
-  assert.match(apply, /await reloadAssignment\(\)/);
+  assert.match(apply, /const refreshedRecord = await reloadAssignment\(\)/);
   assert.match(apply, /setRepairJson\(''\)[\s\S]*setStagedRepair\(null\)[\s\S]*setServerPreview\(null\)/);
   assert.doesNotMatch(apply, /resolveTeacherReviewFlag/);
+});
+
+test('fundamental live repairs keep the saved replacement visible for teacher verification', () => {
+  assert.match(panel, /replacementQuestionIds/);
+  assert.match(panel, /setSavedReplacementPreviews\(savedReplacements\)/);
+  assert.match(panel, /Saved corrected replacement · verify before resolving the flag/);
+  assert.match(panel, /Historical <code>\{entry\.sourceQuestionId\}<\/code> → corrected <code>\{entry\.replacementQuestionId\}<\/code>/);
 });
 
 test('teacher admin exposes the two server callable contracts', () => {
