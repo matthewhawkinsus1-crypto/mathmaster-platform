@@ -7,6 +7,7 @@ import {
   nonCcmrHonorsMissing,
   nonCcmrHonorsReady,
   separateHonorsDepthAiRepair,
+  unresolvedRequestedHonorsGaps,
 } from '../../src/platform/contract/honorsDepthAiRepair.js';
 import { inspectHonorsRigor } from '../../src/platform/rigor/courseRigor.js';
 
@@ -38,6 +39,64 @@ const base = () => ({
   }],
   variantPolicy: { mode: 'personalized' },
   supportPolicy: { mode: 'inheritStudentProfile' },
+});
+
+test('representationMatch and representation-connection intent count as genuine Honors multiple representations', () => {
+  const byRuntimeTool = inspectHonorsRigor([{
+    type: 'representationMatch',
+    studentActions: ['findRepresentationMismatch', 'connectRepresentations'],
+    dok: 3,
+    alignments: [{ framework: 'teks', code: 'A.2B', role: 'primary', evidenceLevel: 'assessed' }],
+    sets: [{
+      slopeIntercept: 'y=2x+5',
+      pointSlope: 'y-3=2(x+1)',
+      standard: '-2x+y=5',
+    }],
+  }], { ccmrTargetRequired: false });
+  assert.equal(byRuntimeTool.checks.multipleRepresentations, true);
+
+  const bySemanticIntent = inspectHonorsRigor([{
+    type: 'multiAnswer',
+    studentActions: ['connectLinearRepresentations'],
+    dok: 3,
+    alignments: [{ framework: 'teks', code: 'A.2B', role: 'primary', evidenceLevel: 'assessed' }],
+  }], { ccmrTargetRequired: false });
+  assert.equal(bySemanticIntent.checks.multipleRepresentations, true);
+});
+
+test('a rationale-required open sort counts as explicit explanation/justification work', () => {
+  const report = inspectHonorsRigor([{
+    type: 'openSortBoard',
+    studentActions: ['sortIntoOwnGroups'],
+    requireRationale: true,
+    dok: 3,
+    alignments: [{ framework: 'teks', code: 'A.2B', role: 'primary', evidenceLevel: 'assessed' }],
+    items: [{ id: 'A' }, { id: 'B' }],
+    validSchemes: [{ groups: [{ itemIds: ['A'] }, { itemIds: ['B'] }] }],
+  }], { ccmrTargetRequired: false });
+  assert.equal(report.checks.justification, true);
+});
+
+test('Honors repair acceptance can require the exact gaps requested, not merely any 3-of-4 depth combination', () => {
+  const requested = ['multipleRepresentations', 'justification'];
+  const candidate = {
+    missing: ['multipleRepresentations', 'ccmrEnrichment'],
+    checks: {
+      coreTeks: true,
+      higherOrderReasoning: true,
+      multipleRepresentations: false,
+      justification: true,
+      modelingApplication: true,
+      ccmrEnrichment: false,
+    },
+    depthCount: 3,
+  };
+  assert.equal(nonCcmrHonorsReady(candidate), true, 'candidate can meet 3-of-4 overall');
+  assert.deepEqual(
+    unresolvedRequestedHonorsGaps(requested, candidate),
+    ['multipleRepresentations'],
+    'but the specific requested gap must still block acceptance',
+  );
 });
 
 test('CCMR is deliberately excluded from the embedded Honors repair target', () => {
@@ -73,6 +132,9 @@ test('Honors AI repair prompt tells the provider to repair TEKS/depth without fa
   assert.match(prompt, /## Common studentActions/);
   assert.match(prompt, /## Course TEKS/);
   assert.match(prompt, /Do NOT add type, toolId, questionId/);
+  assert.match(prompt, /Every non-CCMR gap listed at the top/);
+  assert.match(prompt, /do not satisfy it only by mentioning equation forms in prose\/card text/);
+  assert.match(prompt, /connectRepresentations\/findRepresentationMismatch/);
   assert.doesNotMatch(prompt, /Current MathMaster authoring contract/);
 });
 

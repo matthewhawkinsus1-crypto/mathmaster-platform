@@ -143,6 +143,12 @@ export const nonCcmrHonorsMissing = (honorsReport = {}) => (
     .filter((key) => key !== 'ccmrEnrichment')
 );
 
+export const unresolvedRequestedHonorsGaps = (requestedMissing = [], candidateReport = {}) => {
+  const requested = nonCcmrHonorsMissing({ missing: requestedMissing });
+  const candidateMissing = new Set(nonCcmrHonorsMissing(candidateReport));
+  return requested.filter((key) => candidateMissing.has(key));
+};
+
 /**
  * The provider returns a complete V5 object because the shared assignment-AI
  * callable is intentionally schema-specific. This gate prevents an Honors
@@ -349,6 +355,8 @@ export const buildHonorsDepthAiRepairRequest = ({
     '- A new extension must stay on the same lesson TEKS and require genuine reasoning through multiple representations, explanation/justification, or modeling/application as needed. Keep DOK and difficulty distinct.',
     '- Author a NEW extension as V5 mathematical intent: include studentActions and the mathematical data those actions need. Do NOT add type, toolId, questionId, functionSpec, analysisRequests, workflow, or renderer plumbing to the new extension; MathMaster compiles it locally.',
     '- Honors readiness requires Core TEKS, DOK 3+ reasoning, and at least three of the four depth dimensions (multiple representations, justification, modeling/application, higher-order reasoning). Do not force an unrelated fourth dimension just to satisfy a checklist.',
+    '- Every non-CCMR gap listed at the top of this repair request MUST be resolved by the returned candidate. MathMaster rechecks those exact requested gaps after compilation; reaching the overall 3-of-4 threshold while leaving a requested gap unresolved is not an acceptable repair.',
+    '- If multiple representations is listed as missing, do not satisfy it only by mentioning equation forms in prose/card text. Author structured V5 representation intent that MathMaster can inspect after compilation, such as connectRepresentations/findRepresentationMismatch with representation sets, connectLinearRepresentations with a structured source, or an item that actually contains two visible representation structures (for example table + graph/function).',
     '- Do not fabricate SAT, ACT, TSIA2, or ASVAB provenance. Audited CCMR Practice is sourced separately from MathMaster Fidelity V2.1 at publish time.',
     '- Do not add assignment-level delivery, grading, support, evidence, PDF, Classroom, or publication settings. MathMaster keeps those from the reviewed source.',
     // This packet carries a whole lesson to somebody else's chat window. Every

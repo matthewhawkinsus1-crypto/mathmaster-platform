@@ -126,6 +126,19 @@ const searchableQuestionText = (question = {}) => [
 
 const hasAnyToken = (value, tokens) => tokens.some((token) => value.includes(token));
 
+const hasExplicitRepresentationConnection = (question = {}) => {
+  const type = String(question.type || question.toolId || '').trim().toLowerCase();
+  if (['representationmatch', 'representationbridge'].includes(type)) return true;
+
+  const actions = (Array.isArray(question.studentActions) ? question.studentActions : [])
+    .map((action) => String(action || '').trim().toLowerCase());
+  return actions.some((action) => [
+    'connectrepresentations',
+    'findrepresentationmismatch',
+    'connectlinearrepresentations',
+  ].includes(action));
+};
+
 const representationKinds = (question = {}) => {
   const kinds = new Set(
     (Array.isArray(question.representations) ? question.representations : [])
@@ -188,11 +201,13 @@ export const inspectHonorsRigor = (
     coreTeks: included.some((question) => questionTeks(question).length > 0),
     higherOrderReasoning: included.some((question) => questionDok(question) >= 3),
     multipleRepresentations: included.some((question) => (
-      ['relationshipModel', 'graphComparison', 'graphStory', 'functionInvestigation', 'functionInvestigation2'].includes(question.type || question.toolId)
+      hasExplicitRepresentationConnection(question)
+      || ['relationshipModel', 'graphComparison', 'graphStory', 'functionInvestigation', 'functionInvestigation2'].includes(question.type || question.toolId)
       || representationKinds(question).size >= 2
     )),
     justification: included.some((question) => (
       ['graphStory', 'dataModelingLab', 'modelingLab'].includes(question.type || question.toolId)
+      || (String(question.type || question.toolId || '').trim().toLowerCase() === 'opensortboard' && question.requireRationale !== false)
       || hasAnyToken(searchableQuestionText(question), ['justify', 'justification', 'explain', 'reason', 'reasoning', 'error analysis', 'compare strategies', 'defend'])
     )),
     modelingApplication: included.some((question) => (

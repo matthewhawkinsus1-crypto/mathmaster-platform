@@ -23,6 +23,7 @@ import {
   nonCcmrHonorsMissing,
   nonCcmrHonorsReady,
   separateHonorsDepthAiRepair,
+  unresolvedRequestedHonorsGaps,
 } from '../../platform/contract/honorsDepthAiRepair.js';
 import {
   assignmentAiDiagnostics,
@@ -468,6 +469,11 @@ export const LessonPreflightModal = ({
     }
 
     const candidateReport = inspectHonorsRigor(candidateModel.questions, { allowNarrowCheckpoint: true });
+    const requestedGaps = nonCcmrHonorsMissing(honorsReport);
+    const unresolvedRequested = unresolvedRequestedHonorsGaps(requestedGaps, candidateReport);
+    if (unresolvedRequested.length) {
+      throw new Error(`${sourceLabel} did not resolve the Honors gap(s) it was asked to repair: ${honorsMissingLabels(unresolvedRequested).join(', ')}. The original assignment was kept unchanged.`);
+    }
     if (!nonCcmrHonorsReady(candidateReport)) {
       const unresolved = nonCcmrHonorsMissing(candidateReport);
       throw new Error(`${sourceLabel} could not safely resolve enough Honors depth: ${honorsMissingLabels(unresolved).join(', ')}. Honors requires Core TEKS, DOK 3+ reasoning, and at least three of the four depth dimensions. The original assignment was kept unchanged.`);
