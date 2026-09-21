@@ -7,6 +7,14 @@ export const TRANSFER_STATE = Object.freeze({
   UPDATE_REQUIRED: 'UPDATE_REQUIRED',
   ROSTER_ID_PROBLEM: 'ROSTER_ID_PROBLEM',
   REVIEW_REQUIRED: 'REVIEW_REQUIRED',
+  NO_TRANSFER_REQUIRED: 'NO_TRANSFER_REQUIRED',
+});
+
+export const SECTION_TRANSFER_LABELS = Object.freeze({
+  warmup: 'Warm-Up',
+  classwork: 'Classwork',
+  practice: 'Practice',
+  dol: 'DOL',
 });
 
 const text = (value) => String(value ?? '').trim();
@@ -57,24 +65,29 @@ export const authoritativeSisStudentId = (student) => {
   return validSisStudentId(legacy) ? legacy : '';
 };
 
-export const canonicalGradeVersion = ({ student, assignmentId, grade }) => text(
-  student?.canonicalGradeVersions?.[assignmentId]
-  || student?.gradeFinalizationByAssignment?.[assignmentId]?.version
-  || student?.gradesByAssignment?.[assignmentId]?.finalizationId
-  || `${assignmentId}:${grade}`,
-);
+export const canonicalGradeVersion = ({ student, assignmentId, sectionKey = '', grade }) => {
+  const base = text(
+    student?.canonicalGradeVersions?.[assignmentId]
+    || student?.gradeFinalizationByAssignment?.[assignmentId]?.version
+    || student?.gradesByAssignment?.[assignmentId]?.finalizationId
+    || `${assignmentId}:${grade}`,
+  );
+  return sectionKey ? `${base}:${sectionKey}` : base;
+};
 
 export const buildTransferUnit = ({
   classRecord, assignment, students, now = Date.now(), projectCanonicalGrade,
   hasAuthoritativePracticePass = () => false,
   resolveStudentFinalDeadline = () => null,
   confirmedSnapshots = null, confirmedSnapshot = null, latestExport = null,
+  sectionKey = '', sectionLabel = '',
 }) => {
   const ordinaryDeadline = time(assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate);
   const ordinaryFinal = ordinaryDeadline !== null && now >= ordinaryDeadline;
   const rows = [];
   const withheld = [];
   const problems = [];
+  const excused = [];
   const finalizedStudentIds = new Set();
   const history = confirmedHistory({ confirmedSnapshots, confirmedSnapshot });
   const hasConfirmedBaseline = history.length > 0;
@@ -105,12 +118,26 @@ export const buildTransferUnit = ({
     }
     if (effectiveDeadline === null || now < effectiveDeadline) continue;
 
+    const practicePassRedeemed = hasAuthoritativePracticePass({ student, assignment, classRecord });
     const projectedGrade = projectCanonicalGrade({
       student,
       assignment,
-      practicePassRedeemed: hasAuthoritativePracticePass({ student, assignment, classRecord }),
+      sectionKey,
+      practicePassRedeemed,
     });
     if (projectedGrade === null || projectedGrade === undefined || projectedGrade === '') {
+      // Practice Pass is an excusal only when no stronger canonical authority
+      // supplied a numeric grade. This preserves assignment-level teacher
+      // consequences, which intentionally outrank the waiver.
+      if (sectionKey === 'practice' && practicePassRedeemed) {
+        finalizedStudentIds.add(text(student.id));
+        excused.push({
+          studentId: text(student.id),
+          name: text(student.displayName || student.name || student.id),
+          reason: 'Practice Pass',
+        });
+        continue;
+      }
       problems.push({ studentId: text(student.id), name: text(student.displayName || student.name || student.id), reason: 'No finalized canonical grade' });
       continue;
     }
@@ -127,7 +154,12 @@ export const buildTransferUnit = ({
       problems.push({ studentId: text(student.id), name: text(student.displayName || student.name || student.id), reason: 'Missing or invalid SIS Student ID' });
       continue;
     }
-    const row = { studentId: text(student.id), sisStudentId, grade, gradeVersion: canonicalGradeVersion({ student, assignmentId: assignment.id, grade }) };
+    const row = {
+      studentId: text(student.id),
+      sisStudentId,
+      grade,
+      gradeVersion: canonicalGradeVersion({ student, assignmentId: assignment.id, sectionKey, grade }),
+    };
     const previous = baseline.get(row.studentId);
     // Provenance is retained in every snapshot for audit, but a harmless
     // canonical rewrite that leaves the TEAMS value unchanged is not a delta.
@@ -140,18 +172,40 @@ export const buildTransferUnit = ({
     : withheld.length ? TRANSFER_STATE.WAITING_ON_EXTENDED_STUDENTS : TRANSFER_STATE.UPLOAD_CONFIRMED;
   else if (latestExport) state = TRANSFER_STATE.EXPORTED;
   else if (withheld.length && !rows.length) state = TRANSFER_STATE.WAITING_ON_EXTENDED_STUDENTS;
+  if (
+    ordinaryFinal
+    && sectionKey === 'practice'
+    && excused.length
+    && !rows.length
+    && !withheld.length
+    && !problems.length
+    && !hasConfirmedBaseline
+    && !latestExport
+  ) state = TRANSFER_STATE.NO_TRANSFER_REQUIRED;
   if (problems.some((item) => item.reason.includes('SIS Student ID'))) state = TRANSFER_STATE.ROSTER_ID_PROBLEM;
   else if (problems.length && !rows.length) state = TRANSFER_STATE.REVIEW_REQUIRED;
 
+  const resolvedSectionLabel = sectionLabel || SECTION_TRANSFER_LABELS[sectionKey] || '';
   return {
-    key: `${classRecord.classId}__${assignment.id}`,
+    key: `${classRecord.classId}__${assignment.id}${sectionKey ? `__${sectionKey}` : ''}`,
+    assignmentKey: `${classRecord.classId}__${assignment.id}`,
     classId: classRecord.classId,
     classLabel: classRecord.name || classRecord.period || classRecord.classId,
-    classPeriod: classRecord.period || '', assignmentId: assignment.id,
-    assignmentTitle: assignment.title || 'Untitled assignment', ordinaryDeadline,
-    exportKind: hasConfirmedBaseline ? 'delta' : 'initial', state, rows, withheld, problems,
+    classPeriod: classRecord.period || '',
+    assignmentId: assignment.id,
+    assignmentTitle: assignment.title || 'Untitled assignment',
+    sectionKey,
+    sectionLabel: resolvedSectionLabel,
+    ordinaryDeadline,
+    exportKind: hasConfirmedBaseline ? 'delta' : 'initial',
+    state,
+    rows,
+    withheld,
+    problems,
+    excused,
     finalizedCount: finalizedStudentIds.size,
-    extensionCount: withheld.length, changedCount: hasConfirmedBaseline ? rows.length : 0,
+    extensionCount: withheld.length,
+    changedCount: hasConfirmedBaseline ? rows.length : 0,
   };
 };
 
@@ -166,22 +220,41 @@ const shortIdentity = (value) => {
   for (const character of text(value)) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
   return `${safeName(value).slice(0, 12)}-${(hash >>> 0).toString(16).padStart(8, '0').slice(0, 6)}`;
 };
+
 export const transferSnapshotId = (unit) => `transfer_${shortIdentity([
   unit.classId,
   unit.assignmentId,
+  unit.sectionKey || 'assignment',
   unit.exportKind,
   ...(unit.rows || []).map((row) => `${row.studentId}:${row.sisStudentId}:${row.grade}:${row.gradeVersion}`),
 ].join('|'))}`;
+
+export const transferAssignmentFolderName = (unit) => {
+  const deadline = unit.ordinaryDeadline ? new Date(unit.ordinaryDeadline).toISOString().slice(0, 10) : 'no-date';
+  return `${safeName(unit.classPeriod || unit.classLabel)}_${safeName(unit.assignmentTitle)}_${deadline}_${shortIdentity(`${unit.classId}:${unit.assignmentId}`)}`;
+};
+
 export const transferFileName = (unit) => {
+  if (unit.sectionKey) {
+    return `${safeName(unit.sectionLabel || SECTION_TRANSFER_LABELS[unit.sectionKey] || unit.sectionKey)}${unit.exportKind === 'delta' ? '_UPDATE' : ''}.csv`;
+  }
   const deadline = unit.ordinaryDeadline ? new Date(unit.ordinaryDeadline).toISOString().slice(0, 10) : 'no-date';
   return `${safeName(unit.classPeriod || unit.classLabel)}_${safeName(unit.assignmentTitle)}_${deadline}_${shortIdentity(unit.assignmentId)}${unit.exportKind === 'delta' ? '_UPDATE' : ''}.csv`;
 };
 
+export const transferPackagePath = (unit) => (
+  unit.sectionKey
+    ? `${transferAssignmentFolderName(unit)}/${transferFileName(unit)}`
+    : transferFileName(unit)
+);
+
 export const packageManifest = (units) => ['MathMaster Gradebook Package', '', ...(units || []).flatMap((unit) => [
   `Class/period: ${unit.classLabel}`,
   `Assignment: ${unit.assignmentTitle}`,
-  `File: ${transferFileName(unit)}`,
+  ...(unit.sectionKey ? [`Section: ${unit.sectionLabel || unit.sectionKey}`, `Folder: ${transferAssignmentFolderName(unit)}`] : []),
+  `File: ${transferPackagePath(unit)}`,
   `Student grades: ${unit.rows.length}`,
+  `Excused/no numeric TEAMS row: ${unit.excused?.length || 0}${unit.excused?.length ? ` (${unit.excused.map((row) => row.name).join(', ')})` : ''}`,
   `Withheld for active extensions: ${unit.withheld.length}${unit.withheld.length ? ` (${unit.withheld.map((row) => row.name).join(', ')})` : ''}`,
   `Export: ${unit.exportKind === 'delta' ? 'update' : 'initial'}`,
   `TEAMS “Overwrite existing grades?”: ${unit.exportKind === 'delta' ? 'YES' : 'NO'}`,
@@ -189,8 +262,18 @@ export const packageManifest = (units) => ['MathMaster Gradebook Package', '', .
 ])].join('\n');
 
 export const createExportSnapshot = ({ unit, transferId, teacherUid, teacherEmail, packageId }) => ({
-  transferId, teacherUid, teacherEmail, classId: unit.classId, assignmentId: unit.assignmentId,
-  assignmentTitle: unit.assignmentTitle, exportKind: unit.exportKind,
-  rows: unit.rows.map((row) => ({ ...row })), withheld: unit.withheld.map((row) => ({ ...row })),
-  fileName: transferFileName(unit), packageId, schemaVersion: 1,
+  transferId,
+  teacherUid,
+  teacherEmail,
+  classId: unit.classId,
+  assignmentId: unit.assignmentId,
+  assignmentTitle: unit.assignmentTitle,
+  sectionKey: unit.sectionKey || '',
+  sectionLabel: unit.sectionLabel || '',
+  exportKind: unit.exportKind,
+  rows: unit.rows.map((row) => ({ ...row })),
+  withheld: unit.withheld.map((row) => ({ ...row })),
+  fileName: transferPackagePath(unit),
+  packageId,
+  schemaVersion: unit.sectionKey ? 2 : 1,
 });

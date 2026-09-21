@@ -17218,6 +17218,11 @@ exports.persistGradeTransferSnapshot = onCall(async (request) => {
   const classId = String(input.classId || "").trim();
   const assignmentId = String(input.assignmentId || "").trim();
   if (!assignmentId) throw new HttpsError("invalid-argument", "assignmentId is required.");
+  const sectionKey = String(input.sectionKey || "").trim().toLowerCase();
+  if (sectionKey && !["warmup", "classwork", "practice", "dol"].includes(sectionKey)) {
+    throw new HttpsError("invalid-argument", "Invalid Grade Transfer section.");
+  }
+  const sectionLabel = String(input.sectionLabel || "").trim().slice(0, 80);
   const authority = await gradeTransferClassAuthority(db, request, classId);
 
   const rows = (Array.isArray(input.rows) ? input.rows : []).map((row) => {
@@ -17247,12 +17252,14 @@ exports.persistGradeTransferSnapshot = onCall(async (request) => {
     classId,
     assignmentId,
     assignmentTitle: String(input.assignmentTitle || "Untitled assignment").trim().slice(0, 240),
+    sectionKey: sectionKey || null,
+    sectionLabel: sectionLabel || null,
     exportKind: input.exportKind === "delta" ? "delta" : "initial",
     rows,
     withheld,
     fileName: String(input.fileName || "").trim().slice(0, 240),
     packageId: String(input.packageId || "").trim().slice(0, 160),
-    schemaVersion: 1,
+    schemaVersion: sectionKey ? 2 : 1,
   };
 
   const ref = db.collection("gradeTransferSnapshots").doc(transferId);
@@ -17263,6 +17270,7 @@ exports.persistGradeTransferSnapshot = onCall(async (request) => {
       if (
         data.classId !== classId
         || data.assignmentId !== assignmentId
+        || String(data.sectionKey || "") !== sectionKey
         || JSON.stringify(data.rows || []) !== JSON.stringify(rows)
       ) {
         throw new HttpsError("already-exists", "Transfer id already belongs to a different immutable snapshot.");
