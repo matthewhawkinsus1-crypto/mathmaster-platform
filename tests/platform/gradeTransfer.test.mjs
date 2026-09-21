@@ -146,6 +146,7 @@ test('canonical section projection uses the same section splits as the Grade Cen
   assert.equal(canonicalPresentedSectionGrade({ student: sectionStudent, assignment: gradeAssignment, sectionKey: 'warmup' }), 100);
   assert.equal(canonicalPresentedSectionGrade({ student: sectionStudent, assignment: gradeAssignment, sectionKey: 'classwork' }), 25);
   assert.equal(canonicalPresentedSectionGrade({ student: sectionStudent, assignment: gradeAssignment, sectionKey: 'practice' }), null);
+  assert.equal(canonicalPresentedSectionGrade({ student: { id: '1500456', gradesByAssignment: {} }, assignment: gradeAssignment, sectionKey: 'warmup' }), null);
 });
 
 test('Practice Pass excuses Practice instead of inventing a TEAMS grade', () => {
