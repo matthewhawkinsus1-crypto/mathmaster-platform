@@ -32,13 +32,11 @@ export function mergeWorkViewCapabilities(platform, tool) {
   return {
     ...base,
     ...local,
-    // The platform-level task is the authored question the student was asked.
-    // A nested tool may publish a shorter operational task (for example
-    // "graph the line through this point"), but that must never replace the
-    // original equation/scenario in Work View. Keep the authored task whenever
-    // the question shell supplied one; local task text is only a fallback for
-    // standalone tool hosts.
-    task: base.task || local.task,
+    // QuestionEngine marks the authored question task as authoritative because
+    // nested tools often publish a shorter operational summary. Outside that
+    // question shell, normal composition still applies and the more local task
+    // may override a parent/descendant fallback.
+    task: base.task?.authoritative ? base.task : (local.task || base.task),
     primaryActions: [...(base.primaryActions || []), ...(local.primaryActions || [])],
     secondaryActions: [...(base.secondaryActions || []), ...(local.secondaryActions || [])],
   };
