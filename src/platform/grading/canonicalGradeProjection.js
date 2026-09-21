@@ -105,6 +105,10 @@ export const canonicalPresentedSectionGrade = ({
 
   const assignmentOverride = assignmentGradeOverrideFor(student, assignment?.id);
   if (assignmentOverride) return assignmentOverride.score;
+  // An authored section with no tracker is missing evidence, not a numeric zero.
+  // Preserve the assignment-level export contract: only an explicit teacher
+  // assignment override may create a canonical score without student evidence.
+  if (!tracker) return null;
   if (section.excused === true) return null;
   return section.score ?? null;
 };
