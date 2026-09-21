@@ -6537,10 +6537,61 @@ function App() {
     weeklyPathCompletionsByStudent, weeklyPathTruncated, weeklyPathProgressLoadedFor, queueDayStart,
   ]);
 
-  const profileDrawerStudent = useMemo(
-    () => allStudents.find((student) => student.id === profileDrawerStudentId) || null,
-    [allStudents, profileDrawerStudentId],
+  const profileDrawerRosterStudent = useMemo(
+    () => allStudents.find((student) => student.id === profileDrawerStudentId)
+      || teacherRosterSummaries.find((student) => student.id === profileDrawerStudentId)
+      || null,
+    [allStudents, teacherRosterSummaries, profileDrawerStudentId],
   );
+
+  const profileDrawerStudent = profileDrawerStudentDetail?.id === profileDrawerStudentId
+    ? profileDrawerStudentDetail
+    : profileDrawerRosterStudent;
+
+  useEffect(() => {
+    if (user?.role !== 'teacher' || !profileDrawerStudentId) {
+      setProfileDrawerStudentDetail(null);
+      return undefined;
+    }
+    const current = allStudents.find((student) => student.id === profileDrawerStudentId);
+    if (current?.gradesByAssignment !== undefined) {
+      setProfileDrawerStudentDetail(current);
+      return undefined;
+    }
+
+    let active = true;
+    setProfileDrawerStudentDetail(null);
+    getDoc(doc(db, 'grades', profileDrawerStudentId))
+      .then((snapshot) => {
+        if (!active || !snapshot.exists()) return;
+        const data = snapshot.data() || {};
+        setProfileDrawerStudentDetail({
+          id: snapshot.id,
+          ...data,
+          profile: normalizeStudentProfile(data.profile || data),
+        });
+      })
+      .catch((error) => {
+        if (active) console.error('Could not load student profile detail:', error);
+      });
+    return () => { active = false; };
+  }, [user?.role, profileDrawerStudentId, allStudents]);
+
+  const profileDrawerLearningProfile = useMemo(() => {
+    if (!profileDrawerStudent) return null;
+    const globalProfile = teacherLearningProfiles[profileDrawerStudent.id] || null;
+    if (globalProfile) return globalProfile;
+    if (profileDrawerStudent.gradesByAssignment === undefined) return null;
+
+    const rows = collectStudentEvidence({ student: profileDrawerStudent, assignments });
+    const { events } = evidenceRowsToEvents(rows);
+    const legacyProfile = buildStudentMasteryProfile({ student: profileDrawerStudent, assignments });
+    return buildStudentLearningProfile({
+      courseId: resolveStudentCourseContext({ student: profileDrawerStudent, classesById, courseProfiles }).courseId,
+      evidenceEvents: events,
+      masteryProfilesByTeks: adaptLegacyMasteryToPhase5({ legacyProfile, evidenceRows: rows }),
+    });
+  }, [profileDrawerStudent, teacherLearningProfiles, assignments, classesById, courseProfiles]);
 
   useEffect(() => {
     if (user?.role !== 'teacher' || !user.email || !profileDrawerStudentId) {
@@ -6620,11 +6671,11 @@ function App() {
     return buildWeeklyPathPlan({
       options,
       courseId: context.courseId,
-      profile: teacherLearningProfiles[profileDrawerStudent.id] || null,
+      profile: profileDrawerLearningProfile,
       sessions: context.courseLevel === 'honors' ? 5 : 4,
       honors: context.courseLevel === 'honors',
     });
-  }, [profileDrawerStudent, classesById, courseProfiles, assignments, pacingByClass, skillOverrides, teacherLearningProfiles]);
+  }, [profileDrawerStudent, classesById, courseProfiles, assignments, pacingByClass, skillOverrides, profileDrawerLearningProfile]);
 
   // A view that cannot answer anything across five classes gets one chosen for
   // it rather than being left on an option its own bar does not offer. Weekly
@@ -9540,7 +9591,7 @@ function App() {
           open={Boolean(profileDrawerStudent)}
           studentId={profileDrawerStudent?.id || null}
           studentName={profileDrawerStudent ? formatStudentName(profileDrawerStudent) : ''}
-          profile={profileDrawerStudent ? teacherLearningProfiles[profileDrawerStudent.id] : null}
+          profile={profileDrawerLearningProfile}
           plan={profileDrawerPlan}
           classRecord={profileDrawerStudent ? classesById[profileDrawerStudent.classId] || null : null}
           courseContext={profileDrawerStudent
@@ -9961,6 +10012,7 @@ function App() {
                 onSelectPeriod={handleGoToClassFromHome}
                 needsAttention={needsAttentionQueue}
                 needsAttentionCompletionCoverage={Boolean(activeClass.classId) && weeklyPathProgressLoadedFor === activeClass.classId}
+                needsAttentionAcademicCoverage={teacherStudentDataMode === 'full'}
                 learningProfilesByStudentId={teacherLearningProfiles}
                 activeClassId={activeClass.classId}
                 classes={classes}
