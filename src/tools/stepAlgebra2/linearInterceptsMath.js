@@ -27,11 +27,22 @@ export const resolveStandardCoefficients = (question = {}) => {
     return Math.abs(standard.A) <= 1e-12 && Math.abs(standard.B) <= 1e-12 ? null : standard;
   }
 
-  const text = typeof question.equation === 'string'
-    ? question.equation
-    : question.equationAscii || question.initialEquation || '';
-  if (!String(text).trim()) return null;
-  return standardCoefficientsFromEquationText(text);
+  // Fresh V5 compilation preserves both equation and equationText for
+  // linearIntercepts, while some stored/legacy paths keep only equationText.
+  // The orchestrator must accept every canonical equation-text field instead of
+  // failing simply because one serialization omitted `equation`.
+  const candidates = [
+    typeof question.equation === 'string' ? question.equation : '',
+    question.equationText,
+    question.equationAscii,
+    question.initialEquation,
+  ].map((value) => String(value ?? '').trim()).filter(Boolean);
+
+  for (const text of candidates) {
+    const standard = standardCoefficientsFromEquationText(text);
+    if (standard) return standard;
+  }
+  return null;
 };
 
 const coefficientTerm = (coefficient, variable, { first = false } = {}) => {
