@@ -200,8 +200,7 @@ test('completed rewrites display a clean slope-intercept inequality instead of t
     /verifiedText/,
     'student algebra history may persist internally, but the completed graphing card must not expose the unsimplified terminal solver expression',
   );
-  assert.match(executable, /const formatGraphNumber/);
-  assert.match(executable, /displayRelation\(relation\)/);
+  assert.match(source, /import \{ formatSlopeInterceptInequality \} from '.\/linearInequalityEngine\.js'/);
 });
 
 test('rewrite-only work requires verified rewrite evidence and shows it in collapsed progress', () => {
