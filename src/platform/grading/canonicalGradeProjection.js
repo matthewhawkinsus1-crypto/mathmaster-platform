@@ -1,5 +1,5 @@
 import { buildTestCycleGradeState, isTestCycleAssignment } from '../assessment/testCycle.js';
-import { splitGrade } from '../teacher/gradeEvidence.js';
+import { splitGrade, splitGradesBySection } from '../teacher/gradeEvidence.js';
 
 export const ASSIGNMENT_GRADE_OVERRIDE_KEY = '__assignment';
 
@@ -72,4 +72,39 @@ export const canonicalPresentedAssignmentGrade = ({ student, assignment, practic
   const tracker = projected?.[assignment?.id];
   if (!tracker) return null;
   return splitGrade({ tracker, assignment, practicePassRedeemed }).score ?? null;
+};
+
+/**
+ * Canonical lesson-section grade used by Grade Transfer.
+ *
+ * The section calculation is the exact same split used by the Grade Center.
+ * Assignment-wide teacher consequences still remain authoritative across every
+ * real section. A Practice Pass remains an excusal, not invented evidence, so
+ * its Practice row is omitted from TEAMS rather than converted into a score.
+ */
+export const canonicalPresentedSectionGrade = ({
+  student,
+  assignment,
+  sectionKey,
+  practicePassRedeemed = false,
+}) => {
+  if (isTestCycleAssignment(assignment)) return null;
+
+  const projected = projectTeacherOverridesForDisplay(
+    student?.gradesByAssignment || {},
+    student?.teacherGradeOverridesByAssignment || {},
+  );
+  const tracker = projected?.[assignment?.id] || null;
+  const section = splitGradesBySection({
+    tracker,
+    assignment,
+    practicePassRedeemed,
+  })?.[sectionKey];
+
+  if (!section || section.total <= 0) return null;
+
+  const assignmentOverride = assignmentGradeOverrideFor(student, assignment?.id);
+  if (assignmentOverride) return assignmentOverride.score;
+  if (section.excused === true) return null;
+  return section.score ?? null;
 };
