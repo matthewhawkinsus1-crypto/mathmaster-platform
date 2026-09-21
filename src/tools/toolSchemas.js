@@ -125,14 +125,24 @@ export const validateToolQuestion = (question = {}) => {
     const mode = question.mode || 'linear';
     if (!modes.includes(mode)) errors.push(`Unsupported systemsWorkspace mode: ${mode}.`);
     if (mode === 'linear' && question.system?.m1 === question.system?.m2 && question.system?.b1 == null) warnings.push('Parallel/coincident system should explicitly provide both intercepts.');
-    if (mode === 'inequalities' && question.inequalities) {
+    if (mode === 'inequalities' && (question.inequalities || question.expectedConstraints)) {
+      const gradingConstraints = question.expectedConstraints || question.inequalities;
       const minimumInequalities = question.studentBuild || question.reasoning || question.modeling ? 1 : 2;
-      if (!Array.isArray(question.inequalities) || question.inequalities.length < minimumInequalities) {
+      if (!Array.isArray(gradingConstraints) || gradingConstraints.length < minimumInequalities) {
         errors.push(`Inequality mode requires at least ${minimumInequalities} inequalit${minimumInequalities === 1 ? 'y' : 'ies'}.`);
       }
     }
-    if (mode === 'inequalities' && Array.isArray(question.inequalities)) {
-      question.inequalities.forEach((inequality, index) => {
+    if (mode === 'inequalities' && question.sourceConstraints != null) {
+      if (!Array.isArray(question.sourceConstraints) || question.sourceConstraints.length < 1
+        || question.sourceConstraints.some((constraint) => !(typeof constraint === 'string' ? constraint.trim() : constraint && typeof constraint === 'object'))) {
+        errors.push('systemsWorkspace sourceConstraints must contain student-facing inequality strings or objects.');
+      }
+      if (Array.isArray(question.expectedConstraints) && question.sourceConstraints.length !== question.expectedConstraints.length) {
+        errors.push('systemsWorkspace sourceConstraints and expectedConstraints must have the same length.');
+      }
+    }
+    if (mode === 'inequalities' && Array.isArray(question.expectedConstraints || question.inequalities)) {
+      (question.expectedConstraints || question.inequalities).forEach((inequality, index) => {
         if (inequality?.orientation != null && !['vertical', 'horizontal'].includes(inequality.orientation)) {
           errors.push(`systemsWorkspace inequality ${index + 1} has an unsupported orientation: ${inequality.orientation}.`);
           return;
@@ -190,7 +200,8 @@ export const validateToolQuestion = (question = {}) => {
             }
           });
         }
-      } else if (!Array.isArray(question.inequalities) || question.inequalities.length < 1) {
+      } else if ((!Array.isArray(question.inequalities) || question.inequalities.length < 1)
+        && (!Array.isArray(question.expectedConstraints) || question.expectedConstraints.length < 1)) {
         errors.push('systemsWorkspace studentBuild requires at least one inequality, or a modeling config.');
       }
     }

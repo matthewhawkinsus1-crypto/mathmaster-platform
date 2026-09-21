@@ -19,7 +19,6 @@ import {
 import {
   authoredBoundaryFromInequality,
   boundaryFromHorizontal,
-  boundaryFromSlopeIntercept,
   boundaryFromTwoPoints,
   boundaryFromVertical,
   boundaryWithChosenSide,
@@ -32,6 +31,7 @@ import {
   sideOfBoundaryLine,
 } from './inequalityBuilderAdapter';
 import useToolSubmission from '../shared/useToolSubmission';
+import EmbeddedInequalityRewrite from './EmbeddedInequalityRewrite.jsx';
 
 const DEFAULT_SYSTEM = { m1: 2, b1: 1, m2: -1, b2: 7 };
 const DEFAULT_INEQUALITIES = [
@@ -79,8 +79,8 @@ const formatInequality = (ineq = {}) => {
   return 'Linear inequality';
 };
 
-// Naming the curves beats "the blue one": the plane draws the first series
-// solid blue and the second dashed red, so the legend says exactly that.
+// Naming the curves beats "the blue one". Ordinary equation lines are both
+// solid; dashed strokes are reserved for strict inequality boundaries.
 const Legend = ({ items }) => (
   <div style={{ display:'flex', gap:16, flexWrap:'wrap', marginTop:10, fontSize:13, color:'#3c4756' }}>
     {items.map((item) => (
@@ -131,14 +131,14 @@ function LinearMode({ questionData, onAction }) {
   }}><ToolSplit>
     <Panel title="Both equations on one grid">
       <CoordinatePlane xMin={questionData.graph?.xMin ?? -6} xMax={questionData.graph?.xMax ?? 8} yMin={questionData.graph?.yMin ?? -6} yMax={questionData.graph?.yMax ?? 12}
-        lines={[{m:system.m1,b:system.b1},{m:system.m2,b:system.b2,stroke:'#d93025',dash:'10 6'}]}
+        lines={[{m:system.m1,b:system.b1},{m:system.m2,b:system.b2,stroke:'#d93025'}]}
         ariaLabel="Graph of both equations in the system"
         // Marking and labelling the intersection is the answer to the question
         // being asked, so only the teacher bench draws it.
         points={revealAnswers && solution.type === 'one' ? [{x:solution.x,y:solution.y,label:'intersection'}] : []} enlargeable={false} />
       <Legend items={[
         { label:'Equation 1', color:'#1a73e8', note:formatLine({m:system.m1,b:system.b1}) },
-        { label:'Equation 2', color:'#d93025', dashed:true, note:formatLine({m:system.m2,b:system.b2}) },
+        { label:'Equation 2', color:'#d93025', note:formatLine({m:system.m2,b:system.b2}) },
       ]} />
     </Panel>
     <Panel title="Classify and solve">
@@ -437,8 +437,11 @@ const CONSTRUCTION_METHODS = [
 
 const emptyBuildEntry = () => ({
   method: '', x1: '', y1: '', x2: '', y2: '', slope: '', intercept: '', constant: '',
+  point1Plotted: false, point2Plotted: false,
   boundaryAttempts: 0, style: '', styleAttempts: 0, shadePoint: null, shadeAttempts: 0, visible: true,
 });
+
+const emptyRewriteEntry = (source = '') => ({ source, steps: [], committedText:source, draft:source, pendingFlip:null, verifiedText:'', verifiedConstraint:null });
 
 const emptyModelingEntry = () => ({ coeffA: '', coeffB: '', relation: '>=', constant: '' });
 
@@ -456,15 +459,28 @@ const explicitBooleanAnswerMatches = (answer, expected) => (
 const studentBoundaryLineFromEntry = (entry) => {
   if (!entry) return null;
   if (entry.method === 'points') {
+    if (!entry.point1Plotted || !entry.point2Plotted) return null;
     return boundaryFromTwoPoints(
       [parseNumericAnswer(entry.x1), parseNumericAnswer(entry.y1)],
       [parseNumericAnswer(entry.x2), parseNumericAnswer(entry.y2)],
     );
   }
   if (entry.method === 'slopeIntercept') {
+    if (!entry.point1Plotted || !entry.point2Plotted) return null;
     const m = parseNumericAnswer(entry.slope);
     const b = parseNumericAnswer(entry.intercept);
-    return (m == null || b == null) ? null : boundaryFromSlopeIntercept(m, b);
+    const x1 = parseNumericAnswer(entry.x1);
+    const y1 = parseNumericAnswer(entry.y1);
+    const x2 = parseNumericAnswer(entry.x2);
+    const y2 = parseNumericAnswer(entry.y2);
+    // Slope/intercept entries are planning information, not a shortcut that
+    // lets the platform manufacture the second point. The candidate line only
+    // exists after the student has plotted both points themselves.
+    if ([m, b, x1, y1, x2, y2].some((value) => value == null)) return null;
+    const fromStudentPoints = boundaryFromTwoPoints([x1, y1], [x2, y2]);
+    if (!fromStudentPoints || Math.abs(x1) > 0.08 || Math.abs(y1 - b) > 0.08) return null;
+    const movementSlope = (y2 - y1) / (x2 - x1);
+    return Math.abs(movementSlope - m) <= 0.08 ? fromStudentPoints : null;
   }
   if (entry.method === 'vertical') {
     const c = parseNumericAnswer(entry.constant);
@@ -549,21 +565,22 @@ const modelingEntryCorrect = (entry, expected) => {
 const staged = (attempts, first, later) => (attempts <= 1 ? first : later);
 
 function ConstructionMethodFields({ entry, onChange }) {
+  const plottedCoordinate = (label, value) => <Field label={label}><output style={{ ...inputStyle, display:'block', boxSizing:'border-box' }}>{value === '' ? 'Plot on graph' : value}</output></Field>;
   if (entry.method === 'points') {
     return (
       <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:9 }}>
-        <Field label="Point 1: x"><input type="number" inputMode="decimal" value={entry.x1} onChange={(e)=>onChange('x1', e.target.value)} style={inputStyle}/></Field>
-        <Field label="Point 1: y"><input type="number" inputMode="decimal" value={entry.y1} onChange={(e)=>onChange('y1', e.target.value)} style={inputStyle}/></Field>
-        <Field label="Point 2: x"><input type="number" inputMode="decimal" value={entry.x2} onChange={(e)=>onChange('x2', e.target.value)} style={inputStyle}/></Field>
-        <Field label="Point 2: y"><input type="number" inputMode="decimal" value={entry.y2} onChange={(e)=>onChange('y2', e.target.value)} style={inputStyle}/></Field>
+        {plottedCoordinate('Point 1: x', entry.x1)}{plottedCoordinate('Point 1: y', entry.y1)}
+        {plottedCoordinate('Point 2: x', entry.x2)}{plottedCoordinate('Point 2: y', entry.y2)}
       </div>
     );
   }
   if (entry.method === 'slopeIntercept') {
     return (
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:9 }}>
-        <Field label="Slope (m)"><input type="number" inputMode="decimal" step="any" value={entry.slope} onChange={(e)=>onChange('slope', e.target.value)} style={inputStyle}/></Field>
+        <Field label="Slope (m)"><input type="text" inputMode="text" placeholder="e.g. -2/3" value={entry.slope} onChange={(e)=>onChange('slope', e.target.value)} style={inputStyle}/></Field>
         <Field label="y-intercept (b)"><input type="number" inputMode="decimal" value={entry.intercept} onChange={(e)=>onChange('intercept', e.target.value)} style={inputStyle}/></Field>
+        {plottedCoordinate('Plotted intercept: x', entry.x1)}{plottedCoordinate('Plotted intercept: y', entry.y1)}
+        {plottedCoordinate('Second point: x', entry.x2)}{plottedCoordinate('Second point: y', entry.y2)}
       </div>
     );
   }
@@ -637,12 +654,16 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
   const bounds = questionData.graph || { xMin:-6, xMax:8, yMin:-4, yMax:10 };
   const modeling = questionData.modeling || null;
   const variables = modeling?.variables?.length ? modeling.variables : [{ symbol:'x', label:'x' }, { symbol:'y', label:'y' }];
-  const rawInequalities = questionData.inequalities || DEFAULT_INEQUALITIES;
+  // Source constraints are presentation; expected constraints are hidden,
+  // canonical grading truth. Never derive a student-facing label from the
+  // latter merely because the canonical engine consumes it.
+  const sourceConstraints = questionData.sourceConstraints || questionData.inequalities || DEFAULT_INEQUALITIES;
+  const rawExpectedConstraints = questionData.expectedConstraints || questionData.inequalities || DEFAULT_INEQUALITIES;
   const expectedConstraints = useMemo(() => (
     modeling
       ? (modeling.expectedConstraints || []).map((c) => ({ A:Number(c.A ?? 0), B:Number(c.B ?? 0), C:Number(c.C ?? 0), relation:c.relation || '>=' }))
-      : rawInequalities.map(authoredBoundaryFromInequality)
-  ), [modeling, rawInequalities]);
+      : rawExpectedConstraints.map(authoredBoundaryFromInequality)
+  ), [modeling, rawExpectedConstraints]);
   const constraintCount = expectedConstraints.length;
   const askClassification = questionData.askClassification != null
     ? Boolean(questionData.askClassification)
@@ -664,18 +685,21 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
   ));
   const [modelingSent, setModelingSent] = usePersistentToolState('modelingSent', !modeling);
   const [build, setBuild] = usePersistentToolState('build', () => Array.from({ length: constraintCount }, emptyBuildEntry));
+  const [rewriteEntries, setRewriteEntries] = usePersistentToolState('rewriteEntries', () => (
+    sourceConstraints.map((constraint) => emptyRewriteEntry(typeof constraint === 'string' ? constraint : formatInequality(constraint)))
+  ));
   const modeledConstraints = useMemo(() => (
     modeling ? modelingEntries.map(modelingEntryToCanonical) : []
   ), [modeling, modelingEntries]);
-  const workingConstraints = useMemo(() => (
-    modeling && modelingSent && modeledConstraints.every(Boolean)
-      ? modeledConstraints
-      : expectedConstraints
-  ), [modeling, modelingSent, modeledConstraints, expectedConstraints]);
+  const workingConstraints = useMemo(() => {
+    if (modeling && modelingSent && modeledConstraints.every(Boolean)) return modeledConstraints;
+    if (buildConfig.rewrite) return expectedConstraints.map((expected, index) => rewriteEntries[index]?.verifiedConstraint || expected);
+    return expectedConstraints;
+  }, [modeling, modelingSent, modeledConstraints, buildConfig.rewrite, rewriteEntries, expectedConstraints]);
   const workingClassification = useMemo(() => classifyFeasibleRegion(workingConstraints), [workingConstraints]);
   const workingVertices = useMemo(() => feasibleRegionVertices(workingConstraints), [workingConstraints]);
   const modelingEntriesReady = !modeling || modeledConstraints.length === constraintCount && modeledConstraints.every(Boolean);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = usePersistentToolState('activeIndex', 0);
   const [armed, setArmed] = useState(null);
   const [combined, setCombined] = usePersistentToolState('combined', false);
   const [regionClassification, setRegionClassification] = usePersistentToolState('regionClassification', '');
@@ -687,12 +711,13 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
   const { feedback, submit } = useToolSubmission(onAction);
 
   const mathState = useMemo(() => ({
-    modelingEntries, modelingSent, build, combined, regionClassification, regionClassificationAttempts,
+    modelingEntries, modelingSent, rewriteEntries, build, combined, regionClassification, regionClassificationAttempts,
     teacherPointResponse, studentTestPoint, studentPointResponse, vertices,
-  }), [modelingEntries, modelingSent, build, combined, regionClassification, regionClassificationAttempts, teacherPointResponse, studentTestPoint, studentPointResponse, vertices]);
+  }), [modelingEntries, modelingSent, rewriteEntries, build, combined, regionClassification, regionClassificationAttempts, teacherPointResponse, studentTestPoint, studentPointResponse, vertices]);
   const restore = useCallback((value) => {
     setModelingEntries(value?.modelingEntries || (modeling ? Array.from({ length: constraintCount }, emptyModelingEntry) : []));
     setModelingSent(value?.modelingSent ?? !modeling);
+    setRewriteEntries(value?.rewriteEntries || sourceConstraints.map((constraint) => emptyRewriteEntry(typeof constraint === 'string' ? constraint : formatInequality(constraint))));
     setBuild(value?.build || Array.from({ length: constraintCount }, emptyBuildEntry));
     setCombined(Boolean(value?.combined));
     setRegionClassification(value?.regionClassification || '');
@@ -701,7 +726,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
     setStudentTestPoint(value?.studentTestPoint || null);
     setStudentPointResponse(value?.studentPointResponse || emptyTestPointResponse(constraintCount));
     setVertices(value?.vertices || []);
-  }, [constraintCount, modeling]);
+  }, [constraintCount, modeling, sourceConstraints]);
   const undoHistory = useMathUndoHistory({ label: 'Undo the last student-build edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
 
   const reopenModeling = () => {
@@ -716,7 +741,12 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
     setVertices([]);
   };
 
-  const inequalityLabel = (index) => (modeling ? formatModelingConstraint(modelingEntries[index], variables) : formatInequality(rawInequalities[index]));
+  const inequalityLabel = (index) => {
+    if (modeling) return formatModelingConstraint(modelingEntries[index], variables);
+    if (buildConfig.rewrite && rewriteEntries[index]?.verifiedText) return rewriteEntries[index].verifiedText;
+    const source = sourceConstraints[index];
+    return typeof source === 'string' ? source : formatInequality(source);
+  };
 
   const updateBuildEntry = (index, patch) => setBuild((current) => current.map((entry, i) => (i === index ? { ...entry, ...(typeof patch === 'function' ? patch(entry) : patch) } : entry)));
   const updateModelingEntry = (index, key, value) => setModelingEntries((current) => current.map((entry, i) => (i === index ? { ...entry, [key]: value } : entry)));
@@ -733,11 +763,11 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
     const point = build[index]?.shadePoint;
     return Boolean(point) && satisfiesBoundary(workingConstraints[index], point[0], point[1]);
   };
-  const constraintCorrect = (index) => boundaryCorrect(index) && styleCorrect(index) && shadeCorrect(index);
   const boundaryVerified = (index) => !buildConfig.boundary || (build[index]?.boundaryAttempts > 0 && boundaryCorrect(index));
   const styleVerified = (index) => !buildConfig.lineStyle || (build[index]?.styleAttempts > 0 && styleCorrect(index));
   const shadeVerified = (index) => !buildConfig.shading || (build[index]?.shadeAttempts > 0 && shadeCorrect(index));
-  const constraintVerified = (index) => boundaryVerified(index) && styleVerified(index) && shadeVerified(index);
+  const rewriteVerified = (index) => !buildConfig.rewrite || Boolean(rewriteEntries[index]?.verifiedConstraint);
+  const constraintVerified = (index) => rewriteVerified(index) && boundaryVerified(index) && styleVerified(index) && shadeVerified(index);
   const allConstraintsComplete = constraintCount > 0 && Array.from({ length: constraintCount }, (_, i) => i).every(constraintVerified);
 
   const studentBoundaries = build.map((entry, index) => {
@@ -768,9 +798,10 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
 
   const handlePlot = (point) => {
     if (!armed) return;
+    if ((armed.type === 'boundaryPoint' || armed.type === 'shade') && !rewriteVerified(armed.index)) return;
     const [px, py] = point;
     if (armed.type === 'boundaryPoint') {
-      updateBuildEntry(armed.index, armed.which === 1 ? { x1: px, y1: py } : { x2: px, y2: py });
+      updateBuildEntry(armed.index, armed.which === 1 ? { x1: px, y1: py, point1Plotted:true } : { x2: px, y2: py, point2Plotted:true });
     } else if (armed.type === 'shade') {
       updateBuildEntry(armed.index, { shadePoint: [px, py] });
     } else if (armed.type === 'vertex') {
@@ -854,11 +885,12 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
 
   const finalCheck = () => {
     const perConstraint = Array.from({ length: constraintCount }, (_, index) => ({
+      rewriteVerified: buildConfig.rewrite ? rewriteVerified(index) : null,
       boundaryCorrect: buildConfig.boundary ? boundaryCorrect(index) : null,
       styleCorrect: buildConfig.lineStyle ? styleCorrect(index) : null,
       inclusionUnderstandingCorrect: buildConfig.lineStyle ? styleCorrect(index) : null,
       shadeCorrect: buildConfig.shading ? shadeCorrect(index) : null,
-      constraintCorrect: hasBuildSteps ? constraintCorrect(index) : null,
+      constraintCorrect: hasBuildSteps ? constraintVerified(index) : null,
     }));
     const modelingChecks = modeling ? modelingEntries.map((entry, index) => modelingEntryCorrect(entry, expectedConstraints[index])) : [];
     const classificationCorrect = !askClassification || regionClassification === workingClassification;
@@ -933,6 +965,10 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
   };
 
   const graphPoints = [
+    ...build.flatMap((entry, index) => [
+      ...(parseNumericAnswer(entry.x1) != null && parseNumericAnswer(entry.y1) != null ? [{ x:Number(entry.x1), y:Number(entry.y1), label:`C${index + 1} point 1`, fill:INEQUALITY_COLORS[index % INEQUALITY_COLORS.length] }] : []),
+      ...(parseNumericAnswer(entry.x2) != null && parseNumericAnswer(entry.y2) != null ? [{ x:Number(entry.x2), y:Number(entry.y2), label:`C${index + 1} point 2`, fill:INEQUALITY_COLORS[index % INEQUALITY_COLORS.length] }] : []),
+    ]),
     ...(teacherTestPoint ? [{ x:teacherTestPoint.x, y:teacherTestPoint.y, label:'Teacher point', fill:'#8a3ffc' }] : []),
     ...(studentTestPoint ? [{ x:studentTestPoint[0], y:studentTestPoint[1], label:'Your point', fill:'#b06000' }] : []),
     ...vertices.map((v, index) => ({ x:v.x, y:v.y, label:`Vertex ${index + 1}`, fill:'#188038' })),
@@ -1051,20 +1087,30 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
               {build.map((entry, index) => (
                 <div key={index} style={{ padding:12, border: activeIndex === index ? '2px solid #1a73e8' : '1px solid #dbe3ef', borderRadius:10, background:'#f8fbff' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginBottom:9 }}>
-                    <button type="button" onClick={()=>setActiveIndex(index)} style={{ background:'none', border:'none', padding:0, cursor:'pointer', textAlign:'left' }}>
-                      <strong>Constraint {index + 1}: {inequalityLabel(index)}</strong>
+                    <button type="button" aria-expanded={activeIndex === index} onClick={()=>setActiveIndex((current)=>current === index ? null : index)} style={{ background:'none', border:'none', padding:0, cursor:'pointer', textAlign:'left' }}>
+                      <strong>{activeIndex === index ? '▾' : '▸'} Constraint {index + 1}: {inequalityLabel(index)}</strong>
                     </button>
                     <label style={{ fontSize:12, color:'#5f6b7a', display:'flex', alignItems:'center', gap:5 }}>
                       <input type="checkbox" checked={entry.visible !== false} onChange={(e)=>updateBuildEntry(index, { visible:e.target.checked })} /> Show
                     </label>
                   </div>
                   <div style={{ display:'flex', gap:10, fontSize:12, fontWeight:800, marginBottom:10 }}>
+                    <span style={{ color: rewriteVerified(index) ? '#137333' : '#5f6b7a' }}>Rewrite {buildConfig.rewrite ? (rewriteVerified(index) ? '✓' : '…') : 'provided'}</span>
                     <span style={{ color: boundaryVerified(index) ? '#137333' : '#5f6b7a' }}>Boundary {buildConfig.boundary ? (boundaryVerified(index) ? '✓' : '…') : 'provided'}</span>
                     <span style={{ color: styleVerified(index) ? '#137333' : '#5f6b7a' }}>Line style {buildConfig.lineStyle ? (styleVerified(index) ? '✓' : '…') : 'provided'}</span>
                     <span style={{ color: shadeVerified(index) ? '#137333' : '#5f6b7a' }}>Region {buildConfig.shading ? (shadeVerified(index) ? '✓' : '…') : 'provided'}</span>
                   </div>
                   {activeIndex === index ? (
                     <div style={{ display:'grid', gap:12 }}>
+                      {buildConfig.rewrite && !rewriteEntries[index]?.verifiedConstraint ? (
+                        <EmbeddedInequalityRewrite
+                          source={rewriteEntries[index]?.source || inequalityLabel(index)}
+                          expectedConstraint={expectedConstraints[index]}
+                          value={rewriteEntries[index]}
+                          onChange={(next)=>setRewriteEntries((current)=>current.map((item,i)=>i===index?next:item))}
+                        />
+                      ) : null}
+                      {(!buildConfig.rewrite || rewriteEntries[index]?.verifiedConstraint) ? <>
                       {buildConfig.boundary ? (
                       <div>
                         <Field label="How will you build this boundary?">
@@ -1076,7 +1122,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
                         {entry.method ? (
                           <div style={{ marginTop:9 }}>
                             <ConstructionMethodFields entry={entry} onChange={(key,value)=>updateBuildEntry(index, { [key]:value })} />
-                            {entry.method === 'points' ? (
+                            {['points','slopeIntercept'].includes(entry.method) ? (
                               <div style={{ display:'flex', gap:8, marginTop:8 }}>
                                 <button type="button" onClick={()=>setArmed({ type:'boundaryPoint', index, which:1 })} style={{ ...actionStyle, marginTop:0, padding:'8px 12px', fontSize:12 }}>Place point 1 on graph</button>
                                 <button type="button" onClick={()=>setArmed({ type:'boundaryPoint', index, which:2 })} style={{ ...actionStyle, marginTop:0, padding:'8px 12px', fontSize:12 }}>Place point 2 on graph</button>
@@ -1110,6 +1156,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
                         {shadeMessage(index) ? <p style={{ margin:'6px 0 0', fontSize:13, color:'#3c4756' }}>{shadeMessage(index)}</p> : null}
                       </div>
                       ) : null}
+                      </> : <p style={{ margin:0, color:'#5f6b7a' }}>Graph construction unlocks after your rewrite is verified.</p>}
                     </div>
                   ) : null}
                 </div>
