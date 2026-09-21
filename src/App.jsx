@@ -1091,13 +1091,13 @@ function App() {
   }, [user, currentStudentMasteryProfile]);
 
   const teacherMasteryProfilesByStudentId = useMemo(() => {
-    if (user?.role === 'teacher' && teacherStudentDataMode !== 'full') return {};
+    if (teacherStudentDataMode !== 'full') return {};
     if (!allStudents.length) return {};
     return Object.fromEntries(allStudents.map((student) => {
       const profile = buildStudentMasteryProfile({ student, assignments });
       return [student.id, profile];
     }));
-  }, [allStudents, assignments, user?.role, teacherStudentDataMode]);
+  }, [allStudents, assignments, teacherStudentDataMode]);
 
   // ONE SET OF LEARNING PROFILES FOR THE WHOLE TEACHER WORKSPACE.
   //
@@ -1126,7 +1126,7 @@ function App() {
   ), []);
 
   const teacherLearningProfiles = useMemo(() => {
-    if (user?.role === 'teacher' && teacherStudentDataMode !== 'full') return {};
+    if (teacherStudentDataMode !== 'full') return {};
     if (!allStudents.length) return {};
     return Object.fromEntries(allStudents.map((student) => {
       const rows = collectStudentEvidence({ student, assignments });
@@ -1146,18 +1146,20 @@ function App() {
           : {},
       })];
     }));
-  }, [allStudents, assignments, courseProfiles, classesById, teacherMasteryProfilesByStudentId, user?.role, teacherStudentDataMode]);
+  }, [allStudents, assignments, courseProfiles, classesById, teacherMasteryProfilesByStudentId, teacherStudentDataMode]);
 
   // The students in the class the Weekly Path screen is looking at.
   const teacherWeeklyRoster = useMemo(() => {
+    if (!['weeklyPath', 'grades'].includes(teacherTab)) return [];
     const activeId = activeClass.classId || classes[0]?.classId || null;
     if (!activeId) return [];
     return studentsInClass({ students: allStudents, classes, classId: activeId })
       .map((student) => ({ ...student, name: formatStudentName(student) }))
       .sort((a, b) => String(a.name).localeCompare(String(b.name)));
-  }, [allStudents, classes, activeClass.classId]);
+  }, [allStudents, classes, activeClass.classId, teacherTab]);
 
   const teacherWeeklyGoalsByStudent = useMemo(() => {
+    if (!['weeklyPath', 'grades'].includes(teacherTab)) return {};
     const activeId = activeClass.classId || classes[0]?.classId || null;
     const classRecord = classes.find((entry) => entry.classId === activeId) || null;
     if (!classRecord) return {};
@@ -1212,14 +1214,14 @@ function App() {
       } : { ...proposedGoal, assignmentState: 'proposed' };
       return [student.id, goal];
     }));
-  }, [activeClass.classId, classes, courseProfiles, weeklyGoalsByClass, pacingByClass, skillOverrides, teacherWeeklyRoster, assignments, teacherLearningProfiles, weeklyPathGoalSnapshotsByStudent, now]);
+  }, [activeClass.classId, classes, courseProfiles, weeklyGoalsByClass, pacingByClass, skillOverrides, teacherWeeklyRoster, assignments, teacherLearningProfiles, weeklyPathGoalSnapshotsByStudent, now, teacherTab]);
 
   useEffect(() => {
     // Home needs this as much as the Weekly Path tab does: the needs-attention
     // queue reports who is behind, and reporting that from data that has not
     // loaded yet would tell a teacher the whole class is behind every time they
     // open the page.
-    if (user?.role !== 'teacher' || !['weeklyPath', 'home', 'grades'].includes(teacherTab)) return undefined;
+    if (user?.role !== 'teacher' || !['weeklyPath', 'grades'].includes(teacherTab)) return undefined;
     if (teacherPreviewRuntimeActive) return undefined;
     const activeId = activeClass.classId || classes[0]?.classId || null;
     if (!activeId) { setWeeklyPathCompletionsByStudent({}); setWeeklyPathGoalSnapshotsByStudent({}); setWeeklyPathProgressLoadedFor(null); return undefined; }
@@ -6501,6 +6503,7 @@ function App() {
   const queueDayStart = useMemo(() => new Date(now).setHours(0, 0, 0, 0), [Math.floor(now / 3_600_000)]);
 
   const needsAttentionQueue = useMemo(() => {
+    if (teacherTab !== 'home') return [];
     const scoped = activeClass.classId ? studentsInActiveClass : allStudents;
     const weeklyLoaded = Boolean(activeClass.classId) && weeklyPathProgressLoadedFor === activeClass.classId;
     const weeklyByStudentId = !weeklyLoaded ? {} : Object.fromEntries(buildTeacherWeeklyView(
@@ -6539,7 +6542,7 @@ function App() {
   }, [
     activeClass.classId, studentsInActiveClass, allStudents, classes,
     teacherLearningProfiles, teacherWeeklyRoster, teacherWeeklyGoalsByStudent,
-    weeklyPathCompletionsByStudent, weeklyPathTruncated, weeklyPathProgressLoadedFor, queueDayStart,
+    weeklyPathCompletionsByStudent, weeklyPathTruncated, weeklyPathProgressLoadedFor, queueDayStart, teacherTab,
   ]);
 
   const profileDrawerRosterStudent = useMemo(
