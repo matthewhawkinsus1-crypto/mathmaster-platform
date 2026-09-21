@@ -1,15 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import { evaluate } from 'mathjs';
-import {
-  applyBalancedOperationToRelation,
-  parseRelationSource,
-  relationStateToText,
-  reverseRelation,
-  validateRelationTransition,
-} from '../../algebraRelationFoundation.js';
-
-const control = { padding:'9px 10px', border:'1px solid #cfd8e6', borderRadius:8, background:'#fff', minHeight:40 };
-const flip = (relation) => reverseRelation(relation);
+import MultiRelationAlgebraCore from '../../MultiRelationAlgebraCore.jsx';
+import { parseRelationSource } from '../../algebraRelationFoundation.js';
 
 const affineCoefficients = (expression) => {
   try {
@@ -21,7 +13,9 @@ const affineCoefficients = (expression) => {
     // Reject nonlinear expressions instead of mistaking three samples for a line.
     if (Math.abs(at(2, 3) - (2 * a + 3 * b + c)) > 1e-7) return null;
     return { a, b, c };
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 };
 
 export const graphableConstraintFromRelation = (text) => {
@@ -32,109 +26,144 @@ export const graphableConstraintFromRelation = (text) => {
     const left = affineCoefficients(branch.expressions[0]);
     const right = affineCoefficients(branch.expressions[1]);
     if (!left || !right) return null;
-    // A graphable result must visibly isolate y; equivalence alone is not enough.
-    if (Math.abs(left.a) > 1e-7 || Math.abs(left.b - 1) > 1e-7 || Math.abs(left.c) > 1e-7 || Math.abs(right.b) > 1e-7) return null;
-    return { A:left.a-right.a, B:left.b-right.b, C:left.c-right.c, relation:branch.relations[0] };
-  } catch { return null; }
+
+    // The graphing handoff deliberately requires the target variable visibly
+    // isolated on the LEFT. Equivalent forms such as x + 1 >= y are valid
+    // inequalities, but they are not the slope-intercept graphing form this
+    // lesson is asking the student to produce.
+    if (
+      Math.abs(left.a) > 1e-7
+      || Math.abs(left.b - 1) > 1e-7
+      || Math.abs(left.c) > 1e-7
+      || Math.abs(right.b) > 1e-7
+    ) return null;
+
+    return {
+      A: left.a - right.a,
+      B: left.b - right.b,
+      C: left.c - right.c,
+      relation: branch.relations[0],
+    };
+  } catch {
+    return null;
+  }
 };
+
+const reverseRelation = (relation) => ({
+  '<': '>',
+  '<=': '>=',
+  '>': '<',
+  '>=': '<=',
+  '=': '=',
+}[relation] || relation);
 
 const sameConstraint = (actual, expected, tolerance = 1e-7) => {
   if (!actual || !expected) return false;
-  const a = [actual.A, actual.B, actual.C];
+  const a = [actual.A, actual.B, actual.C].map(Number);
   const e = [expected.A, expected.B, expected.C].map(Number);
   const pivot = e.findIndex((value) => Math.abs(value) > tolerance);
-  if (pivot < 0) return false;
+  if (pivot < 0 || a.some((value) => !Number.isFinite(value))) return false;
   const scale = a[pivot] / e[pivot];
   if (!Number.isFinite(scale) || Math.abs(scale) <= tolerance) return false;
-  if (!a.every((value, index) => Math.abs(value - scale * e[index]) <= tolerance * Math.max(1, Math.abs(value)))) return false;
-  return actual.relation === (scale < 0 ? flip(expected.relation) : expected.relation);
+  if (!a.every((value, index) => (
+    Math.abs(value - scale * e[index]) <= tolerance * Math.max(1, Math.abs(value), Math.abs(scale * e[index]))
+  ))) return false;
+  return actual.relation === (scale < 0 ? reverseRelation(expected.relation) : expected.relation);
 };
 
-/** A shell-free relation workspace for use inside another tool's Work View. */
-export default function EmbeddedInequalityRewrite({ source, expectedConstraint, value, onChange }) {
-  const initial = useMemo(() => parseRelationSource(source, 'y'), [source]);
-  const [operation, setOperation] = useState('subtract');
-  const [operand, setOperand] = useState('');
-  const committedText = value?.committedText || value?.steps?.at(-1)?.result || relationStateToText(initial);
-  const draft = value?.draft ?? committedText;
-  const pendingFlip = value?.pendingFlip || null;
-  const [message, setMessage] = useState('Use balanced operations, then rewrite/simplify the result with y isolated.');
+/**
+ * Systems Workspace's rewrite phase deliberately reuses the SAME mature
+ * relation solver used by absolute-value inequalities.
+ *
+ * This is not a second mini-solver. Students choose an operation, enter its
+ * value, place it on BOTH sides of the inequality, commit it, explicitly fix
+ * the inequality direction after a negative multiply/divide, and use the same
+ * Rewrite / Simplify and cancellation interactions as the standalone solver.
+ *
+ * Once the student's visible relation is an equivalent y-on-the-left graphing
+ * form, this adapter marks the rewrite complete and Systems Workspace advances
+ * to boundary plotting / line style / shading for that constraint.
+ */
+export default function EmbeddedInequalityRewrite({
+  source,
+  expectedConstraint,
+  value,
+  onChange,
+  draftKey = null,
+}) {
+  // Preserve any valid in-progress state produced by the older lightweight
+  // rewrite widget when a student resumes after deployment. A pending sign
+  // flip from that widget cannot be safely reconstructed, so restart that rare
+  // transient state from the authored source rather than hydrating a relation
+  // with the wrong inequality direction.
+  const seedSourceRef = useRef(null);
+  if (seedSourceRef.current == null) {
+    seedSourceRef.current = (
+      value?.verifiedText
+      || (!value?.pendingFlip && value?.committedText)
+      || source
+    );
+  }
+  const seedSource = seedSourceRef.current;
 
-  const applyOperation = () => {
-    try {
-      if (pendingFlip) { setMessage('Finish the required inequality reversal before applying another operation.'); return; }
-      const currentText = committedText;
-      const current = parseRelationSource(currentText, 'y');
-      const result = applyBalancedOperationToRelation(current, operation, operand);
-      // Identity operations cannot count as algebra work. Besides blocking the
-      // obvious Add 0 / Multiply 1 bypass, using the relation engine here also
-      // catches equivalent identity expressions without introducing a second
-      // operand parser.
-      if (validateRelationTransition(current, result.state, { kind:'equivalentRewrite' }).valid) {
-        setMessage('That operation does not change the relation. Choose an operation that moves you toward isolating y.');
-        return;
-      }
-      const resultText = relationStateToText(result.state);
-      const step = { operation, operand, result:resultText };
-      onChange({ ...value, source, steps:[...(value?.steps || []), step], committedText:resultText, draft:resultText,
-        pendingFlip:result.requiresInequalityFlip ? result.expectedRelations?.[0] : null, verifiedText:'', verifiedConstraint:null });
-      setMessage(result.requiresInequalityFlip
-        ? 'A negative operation was applied. Choose the equivalent inequality direction before continuing.'
-        : 'Balanced operation recorded. Simplify the relation yourself when ready.');
-    } catch (error) { setMessage(error?.message || 'That operation could not be applied.'); }
-  };
+  const solverQuestion = useMemo(() => ({
+    type: 'stepAlgebra',
+    equation: seedSource,
+    solveFor: 'y',
+    prompt: `Rewrite ${source} into slope-intercept inequality form. Choose each operation, place it on both sides, and commit it before moving to the graph.`,
+    workspaceDifficulty: 4,
+  }), [seedSource, source]);
 
-  const confirmFlip = (relation) => {
-    if (relation !== pendingFlip) { setMessage('That direction does not preserve the inequality after the negative operation.'); return; }
-    const state = parseRelationSource(draft, 'y');
-    state.branches[0].relations[0] = relation;
-    const result = relationStateToText(state);
-    const steps = [...(value?.steps || [])];
-    steps[steps.length - 1] = { ...steps.at(-1), result, relationHandled:true };
-    onChange({ ...value, source, steps, committedText:result, draft:result, pendingFlip:null });
-    setMessage('Correct inequality direction. Continue isolating y.');
-  };
+  const handleStateChange = useCallback((payload) => {
+    const relation = payload?.parts?.find((part) => part?.id === 'relation-work')?.response;
+    if (!relation) return;
 
-  const commitRewrite = () => {
-    try {
-      const previous = parseRelationSource(committedText, 'y');
-      const next = parseRelationSource(draft, 'y');
-      const validation = validateRelationTransition(previous, next, { kind:'equivalentRewrite' });
-      if (!validation.valid) { setMessage(validation.reason); return; }
-      onChange({ ...value, source, committedText:draft, draft, verifiedText:'', verifiedConstraint:null });
-      setMessage('Equivalent rewrite committed. Continue working or verify the graphable result.');
-    } catch { setMessage('Enter a valid relation before checking this rewrite.'); }
-  };
+    const candidate = graphableConstraintFromRelation(relation);
+    const verified = candidate && sameConstraint(candidate, expectedConstraint)
+      ? candidate
+      : null;
 
-  const verify = () => {
-    if (!(value?.steps || []).length || pendingFlip) { setMessage('Record the algebra operations—and finish any required sign reversal—before checking the rewrite.'); return; }
-    if (draft !== committedText) { setMessage('Check and commit your latest rewrite before final verification.'); return; }
-    const candidate = graphableConstraintFromRelation(committedText);
-    if (!candidate || !sameConstraint(candidate, expectedConstraint)) {
-      setMessage('Not yet. Keep the inequality equivalent and isolate y in slope-intercept form.'); return;
-    }
-    onChange({ ...value, source, committedText, draft:committedText, pendingFlip:null, verifiedText:committedText, verifiedConstraint:candidate });
-    setMessage('Rewrite verified. Use your result to construct the graph.');
-  };
+    if (
+      relation === value?.committedText
+      && Boolean(verified) === Boolean(value?.verifiedConstraint)
+      && (!verified || value?.verifiedText === relation)
+    ) return;
 
-  return <div style={{ padding:12, border:'1px solid #b8cdf0', borderRadius:10, background:'#f8fbff' }}>
-    <strong>Rewrite for graphing</strong>
-    <p style={{ margin:'6px 0' }}>Original: <b>{source}</b></p>
-    <div style={{ display:'flex', gap:7, flexWrap:'wrap' }}>
-      <select aria-label="Balanced operation" value={operation} onChange={(e)=>setOperation(e.target.value)} style={control}>
-        <option value="add">Add</option><option value="subtract">Subtract</option><option value="multiply">Multiply</option><option value="divide">Divide</option>
-      </select>
-      <input aria-label="Operation value" value={operand} onChange={(e)=>setOperand(e.target.value)} style={control} />
-      <button type="button" onClick={applyOperation} style={control}>Apply to both sides</button>
+    onChange({
+      ...value,
+      source,
+      committedText: relation,
+      draft: relation,
+      pendingFlip: null,
+      verifiedText: verified ? relation : '',
+      verifiedConstraint: verified,
+      // Keep a lightweight breadcrumb for old persistence/debug surfaces.
+      steps: relation === source
+        ? (value?.steps || [])
+        : [...(value?.steps || []).filter((step) => step?.engine !== 'relationSolver'), {
+          engine: 'relationSolver',
+          result: relation,
+        }],
+    });
+  }, [expectedConstraint, onChange, source, value]);
+
+  return (
+    <div style={{ padding: 10, border: '1px solid #b8cdf0', borderRadius: 10, background: '#f8fbff' }}>
+      <div style={{ marginBottom: 8 }}>
+        <strong>Rewrite for graphing · balanced-operation solver</strong>
+        <div style={{ marginTop: 4, color: '#5f6368', fontSize: 12.5 }}>
+          Use the same solver as absolute-value inequalities. Place every operation on both sides; graphing unlocks when y is isolated in an equivalent slope-intercept inequality.
+        </div>
+      </div>
+      <MultiRelationAlgebraCore
+        question={solverQuestion}
+        questionRecord={null}
+        draftKey={draftKey}
+        denseWorkspace
+        onStateChange={handleStateChange}
+        onStepGrade={null}
+        onUndoStateChange={null}
+      />
     </div>
-    {pendingFlip ? <div style={{ marginTop:8 }}>
-      <span>Choose the new relation: </span>{['<','<=','>','>='].map((relation)=><button type="button" key={relation} onClick={()=>confirmFlip(relation)} style={{ ...control, marginRight:5 }}>{relation}</button>)}
-    </div> : null}
-    <label style={{ display:'block', marginTop:10, fontWeight:700 }}>Your simplified, graphable inequality
-      <input value={draft} disabled={Boolean(pendingFlip)} onChange={(e)=>onChange({ ...value, source, committedText, draft:e.target.value, pendingFlip })} style={{ ...control, display:'block', width:'100%', boxSizing:'border-box', marginTop:5 }} />
-    </label>
-    <button type="button" onClick={commitRewrite} disabled={Boolean(pendingFlip) || draft === committedText} style={{ ...control, marginTop:8, marginRight:6 }}>Check / commit rewrite</button>
-    <button type="button" onClick={verify} style={{ ...control, marginTop:8, background:'#1a73e8', color:'#fff', fontWeight:800 }}>Verify rewrite</button>
-    <p role="status" style={{ margin:'8px 0 0', fontSize:13 }}>{message}</p>
-  </div>;
+  );
 }
