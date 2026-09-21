@@ -235,12 +235,17 @@ test('canonical studentBuild and reasoning flags are honored independently inste
   assert.match(mode, /boundaryProbeEnabled/);
 });
 
-test('contextual modeling graphs and reasons from the student-authored canonical constraints while still grading them against the authored model', () => {
+test('contextual modeling graphs and reasons from the student-authored canonical constraints while grading the model as an unordered set', () => {
   const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
   assert.match(executable, /const modelingEntryToCanonical/);
   assert.match(mode, /const workingConstraints = useMemo/);
   assert.match(mode, /modeledConstraints\.every\(Boolean\)/);
-  assert.match(mode, /modelingEntries\.map\(\(entry, index\) => modelingEntryCorrect\(entry, expectedConstraints\[index\]\)\)/);
+  assert.match(mode, /const unmatchedExpected = new Set\(expectedConstraints\.map/);
+  assert.match(mode, /unmatchedExpected\.has\(index\) && modelingEntryCorrect\(entry, expected\)/);
+  assert.match(mode, /unmatchedExpected\.delete\(matchedIndex\)/,
+    'one expected constraint may only satisfy one student row, so duplicates cannot earn double credit');
+  assert.doesNotMatch(mode, /modelingEntryCorrect\(entry, expectedConstraints\[index\]\)/,
+    'a correct system of constraints must not be marked wrong merely because the student entered them in a different order');
   assert.match(mode, /classifyFeasibleRegion\(workingConstraints\)/);
 });
 
