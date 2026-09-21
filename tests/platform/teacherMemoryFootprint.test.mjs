@@ -101,3 +101,48 @@ test('teacher background history streams are scoped to the screens that use them
   assert.match(app, /TEACHER_SESSION_SUMMARY_TABS\.has\(teacherTab\)/);
   assert.match(app, /teacherTab !== 'actionCenter'/);
 });
+
+test('ordinary teacher navigation has no generic whole-roster fetch helper left to call accidentally', () => {
+  assert.doesNotMatch(app, /const fetchStudents\s*=\s*async/);
+  assert.doesNotMatch(app, /fetchStudents\(\)/);
+});
+
+test('leaving heavy teacher screens releases their cached history arrays', () => {
+  const support = between(
+    app,
+    '// Persistent support/intervention history is teacher-authorized',
+    '// One teacher-scoped stream spans the whole roster.',
+    'support stream',
+  );
+  assert.match(support, /setStudentSupportEvents\(\[\]\)/);
+
+  const contacts = between(
+    app,
+    '// One teacher-scoped stream spans the whole roster.',
+    'const actionGradeScope = useMemo',
+    'parent contacts stream',
+  );
+  assert.match(contacts, /setParentContacts\(\[\]\)/);
+
+  const actionState = between(
+    app,
+    'const actionGradeScope = useMemo',
+    '/*\n   * A per-student extension',
+    'action center state',
+  );
+  assert.match(actionState, /setActionGradeSnapshots\(\[\]\)/);
+  assert.match(actionState, /setRetestRecoveryActions\(\[\]\)/);
+  assert.match(actionState, /setStudentSessionSummaries\(\[\]\)/);
+});
+
+test('logging out clears both compact and detailed teacher student state', () => {
+  const hydration = between(
+    app,
+    "if (auth.status !== 'ready' || !session) {",
+    'const hydrateSession = async () => {',
+    'signed-out cleanup',
+  );
+  assert.match(hydration, /setAllStudents\(\[\]\)/);
+  assert.match(hydration, /setTeacherRosterSummaries\(\[\]\)/);
+  assert.match(hydration, /setProfileDrawerStudentDetail\(null\)/);
+});
