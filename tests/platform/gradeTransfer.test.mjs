@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { buildTransferUnit, createExportSnapshot, packageManifest, teamsCsv, TRANSFER_STATE, transferFileName, transferSnapshotId } from '../../src/platform/gradeTransfer/gradeTransferModel.js';
+import { buildTransferUnit, createExportSnapshot, packageManifest, teamsCsv, TRANSFER_STATE, transferAssignmentFolderName, transferFileName, transferPackagePath, transferSnapshotId } from '../../src/platform/gradeTransfer/gradeTransferModel.js';
 import { buildGradebookZip } from '../../src/platform/gradeTransfer/gradeTransferPackage.js';
-import { canonicalPresentedAssignmentGrade, projectTeacherOverridesForDisplay } from '../../src/platform/grading/canonicalGradeProjection.js';
+import { canonicalPresentedAssignmentGrade, canonicalPresentedSectionGrade, projectTeacherOverridesForDisplay } from '../../src/platform/grading/canonicalGradeProjection.js';
 import { assignmentIsForStudent } from '../../src/assignmentLifecycle.js';
 import { authorizedGradeTransferClasses, gradeTransferRoster } from '../../src/platform/gradeTransfer/gradeTransferScope.js';
+import { projectGradeTransferUnits } from '../../src/platform/gradeTransfer/gradeTransferProjection.js';
 
 const assignment = { id: 'a1', title: 'Linear Correlation', lateDueAt: '2026-09-16T23:00:00Z' };
 const klass = { classId: 'c1', name: 'Algebra 1', period: 'P1' };
@@ -126,6 +127,42 @@ test('Grade Transfer Center delegates audience decisions to the canonical helper
   assert.doesNotMatch(projection, /assignment\.classIds|assignment\.classPeriod\s*===/);
 });
 
+test('canonical section projection uses the same section splits as the Grade Center', () => {
+  const gradeAssignment = {
+    id: 'a1',
+    sections: [
+      { id: 'wu', role: 'warmup', questions: [{ id: 'q1', activityRole: 'warmup' }] },
+      { id: 'cw', role: 'classwork', questions: [{ id: 'q2', activityRole: 'classwork' }] },
+    ],
+  };
+  const sectionStudent = {
+    id: '1500123',
+    gradesByAssignment: { a1: {
+      0: { status: 'correct', totalAttempts: 1, variantIndex: 0 },
+      1: { status: 'expired', partialCredit: 25, totalAttempts: 1, variantIndex: 0 },
+    } },
+  };
+  assert.equal(canonicalPresentedSectionGrade({ student: sectionStudent, assignment: gradeAssignment, sectionKey: 'warmup' }), 100);
+  assert.equal(canonicalPresentedSectionGrade({ student: sectionStudent, assignment: gradeAssignment, sectionKey: 'classwork' }), 25);
+  assert.equal(canonicalPresentedSectionGrade({ student: sectionStudent, assignment: gradeAssignment, sectionKey: 'practice' }), null);
+});
+
+test('Practice Pass excuses Practice instead of inventing a TEAMS grade', () => {
+  const unit = buildTransferUnit({
+    classRecord: klass,
+    assignment,
+    students: [student()],
+    now: Date.parse('2026-09-17'),
+    sectionKey: 'practice',
+    sectionLabel: 'Practice',
+    projectCanonicalGrade: () => 100,
+    hasAuthoritativePracticePass: () => true,
+  });
+  assert.equal(unit.state, TRANSFER_STATE.NO_TRANSFER_REQUIRED);
+  assert.deepEqual(unit.rows, []);
+  assert.equal(unit.excused.length, 1);
+  assert.equal(unit.excused[0].reason, 'Practice Pass');
+});
 test('teacher override and Practice Pass share the legitimate platform grade projection', () => {
   const gradeAssignment = {
     id: 'a1',
@@ -169,6 +206,8 @@ test('Grade Transfer writes and upload confirmation are server-authorized instea
   assert.match(store, /callable\('confirmGradeTransferUploaded'\)/);
   assert.match(server, /exports\.persistGradeTransferSnapshot = onCall/);
   assert.match(server, /exports\.confirmGradeTransferUploaded = onCall/);
+  assert.match(server, /sectionKey: sectionKey \|\| null/);
+  assert.match(server, /\["warmup", "classwork", "practice", "dol"\]\.includes\(sectionKey\)/);
   assert.match(server, /teacherOfRecord/);
 });
 
@@ -202,14 +241,67 @@ test('explicit SIS ids must be digits only even when the MathMaster account key 
   assert.equal(unit.rows.length, 0);
 });
 
-test('manifest and package preserve one file per class-assignment', () => {
+test('lesson assignment exports as one folder with four independent section-grade CSVs', () => {
+  const lesson = {
+    id: 'lesson-1',
+    title: 'Four Part Lesson',
+    lateDueAt: '2026-09-16T23:00:00Z',
+    assignedClassIds: ['c1'],
+    sections: [
+      { id: 'wu', role: 'warmup', questions: [{ id: 'q1', activityRole: 'warmup' }] },
+      { id: 'cw', role: 'classwork', questions: [{ id: 'q2', activityRole: 'classwork' }] },
+      { id: 'pr', role: 'practice', questions: [{ id: 'q3', activityRole: 'practice' }] },
+      { id: 'dol', role: 'dol', questions: [{ id: 'q4', activityRole: 'dol' }] },
+    ],
+  };
+  const sectionStudent = {
+    id: '1500123',
+    classId: 'c1',
+    displayName: 'Ada Lovelace',
+    gradesByAssignment: {
+      'lesson-1': {
+        0: { status: 'correct', totalAttempts: 1, variantIndex: 0 },
+        1: { status: 'expired', partialCredit: 50, totalAttempts: 1, variantIndex: 0 },
+        2: { status: 'correct', totalAttempts: 1, variantIndex: 0 },
+        3: { status: 'expired', partialCredit: 0, totalAttempts: 1, variantIndex: 0 },
+      },
+    },
+  };
+  const classRecord = { ...klass, teacherOfRecord: 'teacher@example.org' };
+  const { units } = projectGradeTransferUnits({
+    classes: [classRecord],
+    assignments: [lesson],
+    students: [sectionStudent],
+    teacherEmail: 'teacher@example.org',
+    resolveStudentFinalDeadline: () => null,
+  });
+  assert.equal(units.length, 1);
+  assert.deepEqual(units[0].sectionUnits.map((unit) => unit.sectionKey), ['warmup', 'classwork', 'practice', 'dol']);
+  assert.deepEqual(units[0].sectionUnits.map((unit) => unit.rows[0].grade), [100, 50, 100, 0]);
+
+  const sectionUnits = units[0].sectionUnits;
+  const folder = transferAssignmentFolderName(sectionUnits[0]);
+  assert.deepEqual(sectionUnits.map(transferFileName), ['Warm-Up.csv', 'Classwork.csv', 'Practice.csv', 'DOL.csv']);
+  assert.ok(sectionUnits.every((unit) => transferPackagePath(unit).startsWith(folder + '/')));
+
+  const manifest = packageManifest(sectionUnits);
+  assert.match(manifest, /Section: Warm-Up/);
+  assert.match(manifest, /Section: DOL/);
+  const zipText = new TextDecoder().decode(buildGradebookZip(sectionUnits));
+  for (const fileName of ['Warm-Up.csv', 'Classwork.csv', 'Practice.csv', 'DOL.csv']) {
+    assert.ok(zipText.includes(folder + '/' + fileName));
+  }
+  assert.match(zipText, /MANIFEST.txt/);
+});
+
+test('non-sectioned assessment preserves the existing single-file export contract', () => {
   const first = buildTransferUnit({ classRecord: klass, assignment, students: [student()], now: Date.parse('2026-09-17'), projectCanonicalGrade: projectScore });
   const second = { ...first, key: 'c1__a2', assignmentId: 'a2', assignmentTitle: 'Slope', exportKind: 'delta' };
   const manifest = packageManifest([first, second]);
   assert.match(manifest, /Overwrite existing grades\?”: NO/); assert.match(manifest, /Overwrite existing grades\?”: YES/);
   assert.notEqual(transferFileName(first), transferFileName(second));
   const zipText = new TextDecoder().decode(buildGradebookZip([first, second]));
-  assert.match(zipText, /P1_LinearCorrelation_2026-09-16_a1-/); assert.match(zipText, /P1_Slope_2026-09-16_a2-.*_UPDATE.csv/); assert.match(zipText, /MANIFEST.txt/);
+  assert.match(zipText, /P1_LinearCorrelation_2026-09-16_a1-/); assert.match(zipText, /P1_Slope_2026-09-16_a2-.*_UPDATE.csv/);
 });
 
 test('duplicate assignment titles still receive unique deterministic filenames', () => {
@@ -221,17 +313,24 @@ test('duplicate assignment titles still receive unique deterministic filenames',
   assert.match(first, /^P1_SameTitle_2026-09-16_[A-Za-z0-9_-]+\.csv$/);
 });
 
-test('snapshot contains immutable audit inputs and no answer content', () => {
-  const unit = buildTransferUnit({ classRecord: klass, assignment, students: [student()], now: Date.parse('2026-09-17'), projectCanonicalGrade: projectScore });
+test('snapshot contains immutable audit inputs and section identity with no answer content', () => {
+  const unit = buildTransferUnit({
+    classRecord: klass, assignment, students: [student()], now: Date.parse('2026-09-17'),
+    projectCanonicalGrade: projectScore, sectionKey: 'dol', sectionLabel: 'DOL',
+  });
   const snapshot = createExportSnapshot({ unit, transferId: 't1', teacherUid: 'teacher1', teacherEmail: 'teacher@example.org', packageId: 'p1' });
   assert.equal(snapshot.rows[0].grade, 92); assert.equal(snapshot.classId, 'c1'); assert.equal(snapshot.assignmentId, 'a1');
+  assert.equal(snapshot.sectionKey, 'dol');
+  assert.equal(snapshot.schemaVersion, 2);
+  assert.match(snapshot.fileName, /\/DOL\.csv$/);
   assert.doesNotMatch(JSON.stringify(snapshot), /answer/i);
 });
 
-test('identical export retries use the same snapshot identity', () => {
-  const unit = buildTransferUnit({ classRecord: klass, assignment, students: [student()], now: Date.parse('2026-09-17'), projectCanonicalGrade: projectScore });
+test('identical export retries use the same snapshot identity and different sections cannot collide', () => {
+  const unit = buildTransferUnit({ classRecord: klass, assignment, students: [student()], now: Date.parse('2026-09-17'), projectCanonicalGrade: projectScore, sectionKey: 'warmup', sectionLabel: 'Warm-Up' });
   assert.equal(transferSnapshotId(unit), transferSnapshotId(structuredClone(unit)));
   assert.notEqual(transferSnapshotId(unit), transferSnapshotId({ ...unit, rows: [{ ...unit.rows[0], grade: 93 }] }));
+  assert.notEqual(transferSnapshotId(unit), transferSnapshotId({ ...unit, sectionKey: 'dol', sectionLabel: 'DOL' }));
 });
 
 
