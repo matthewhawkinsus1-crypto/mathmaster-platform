@@ -119,5 +119,7 @@ test('the task repeated inside the enlarged panel is rendered as mathematics', (
   // "Solve $-6x- 6 \ge 24$" instead of the inequality.
   const source = codeOf('src/components/common/EnlargeableFigure.jsx');
   assert.match(source, /import MathText/);
-  assert.match(source, /<MathText>\{taskText\}<\/MathText>/);
+  assert.match(source, /mathmaster-work-view-persistent-task/);
+  assert.match(source, /aria-label="Your task"/);
+  assert.match(source, /<MathText>\{task\}<\/MathText>/);
 });
