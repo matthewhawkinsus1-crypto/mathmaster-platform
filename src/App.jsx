@@ -6503,7 +6503,7 @@ function App() {
   const queueDayStart = useMemo(() => new Date(now).setHours(0, 0, 0, 0), [Math.floor(now / 3_600_000)]);
 
   const needsAttentionQueue = useMemo(() => {
-    if (teacherTab !== 'home') return [];
+    if (!['home', 'classesWorkspace'].includes(teacherTab)) return [];
     const scoped = activeClass.classId ? studentsInActiveClass : allStudents;
     const weeklyLoaded = Boolean(activeClass.classId) && weeklyPathProgressLoadedFor === activeClass.classId;
     const weeklyByStudentId = !weeklyLoaded ? {} : Object.fromEntries(buildTeacherWeeklyView(
