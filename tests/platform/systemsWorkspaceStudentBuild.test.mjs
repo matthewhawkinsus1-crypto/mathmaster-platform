@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
-import { parseRelationSource, validateRelationTransition } from '../../src/algebraRelationFoundation.js';
 import { parseNumericAnswer } from '../../src/tools/shared/toolMath.js';
 
 const source = componentSource('src/tools/systemsWorkspace/SystemsWorkspace.jsx');
@@ -162,31 +161,34 @@ test('rewrite is embedded, persistent, and gates graph construction while canoni
   assert.match(mode, /<EmbeddedInequalityRewrite/);
 });
 
-test('unfinished rewrite text and a pending sign flip survive collapse and Work View restoration', () => {
-  assert.match(rewriteSource, /const draft = value\?\.draft/);
-  assert.match(rewriteSource, /const pendingFlip = value\?\.pendingFlip/);
-  assert.match(rewriteSource, /pendingFlip:result\.requiresInequalityFlip/);
-  assert.match(rewriteSource, /committedText:result, draft:result, pendingFlip:null/);
+test('rewrite phase reuses the mature relation solver instead of maintaining a second mini-solver', () => {
+  assert.match(rewriteSource, /import MultiRelationAlgebraCore from '..\/..\/MultiRelationAlgebraCore\.jsx'/);
+  assert.match(rewriteSource, /<MultiRelationAlgebraCore/);
+  assert.match(rewriteSource, /solveFor:\s*'y'/);
+  assert.match(rewriteSource, /denseWorkspace/);
+  assert.doesNotMatch(rewriteSource, /const applyOperation = \(\) =>/,
+    'Systems Workspace must not own a separate balanced-operation implementation anymore');
+  assert.doesNotMatch(rewriteSource, /<select aria-label="Balanced operation"/,
+    'the old dropdown mini-solver must not return');
 });
 
-test('manual algebra must be equivalence-checked and committed before final rewrite verification', () => {
-  const apply = region(rewriteSource, 'const applyOperation = ()', 'const confirmFlip', 'applyOperation');
-  assert.match(apply, /validateRelationTransition\(current, result\.state, \{ kind:'equivalentRewrite' \}\)\.valid/);
-  const commit = region(rewriteSource, 'const commitRewrite = ()', 'const verify = ()', 'commitRewrite');
-  assert.match(commit, /validateRelationTransition\(previous, next, \{ kind:'equivalentRewrite' \}\)/);
-  const verify = region(rewriteSource, 'const verify = ()', 'return <div', 'verify');
-  assert.match(verify, /draft !== committedText/);
-  assert.match(verify, /graphableConstraintFromRelation\(committedText\)/);
+test('the embedded relation solver keeps the absolute-value solver interaction contract and persistent draft identity', () => {
+  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
+  assert.match(mode, /draftKey=\{draftKey \? `\$\{draftKey\}:systems-rewrite:\$\{index\}` : null\}/);
+  assert.match(rewriteSource, /Place every operation on both sides/);
+  assert.match(rewriteSource, /value\?\.committedText/);
+  assert.match(rewriteSource, /!value\?\.pendingFlip && value\?\.committedText/,
+    'safe in-progress work from the old widget should seed the mature solver after deployment');
+});
 
-  // Regression: from standard form, Add 0 changes neither side and therefore
-  // cannot earn the operation step that final verification requires. Typing
-  // the solved inequality also cannot be committed because it moves terms
-  // between sides instead of simplifying each side independently.
-  const standard = parseRelationSource('3*x + 2*y <= 6', 'y');
-  const addZero = parseRelationSource('(3*x + 2*y) + 0 <= 6 + 0', 'y');
-  const typedFinal = parseRelationSource('y <= -3/2*x + 3', 'y');
-  assert.equal(validateRelationTransition(standard, addZero, { kind:'equivalentRewrite' }).valid, true);
-  assert.equal(validateRelationTransition(standard, typedFinal, { kind:'equivalentRewrite' }).valid, false);
+test('rewrite completion only unlocks graphing after an equivalent y-on-the-left graphing form is reached', () => {
+  assert.match(rewriteSource, /graphableConstraintFromRelation\(relation\)/);
+  assert.match(rewriteSource, /candidate && sameConstraint\(candidate, expectedConstraint\)/);
+  assert.match(rewriteSource, /verifiedText:\s*verified \? relation : ''/);
+  assert.match(rewriteSource, /verifiedConstraint:\s*verified/);
+  assert.match(rewriteSource, /Math\.abs\(left\.b - 1\)/);
+  assert.match(rewriteSource, /Math\.abs\(right\.b\)/);
+  assert.match(rewriteSource, /return null/);
 });
 
 test('rewrite-only work requires verified rewrite evidence and shows it in collapsed progress', () => {

@@ -158,7 +158,7 @@ function LinearMode({ questionData, onAction }) {
   </ToolSplit></EnlargeableFigure>;
 }
 
-function InequalityMode({ questionData, onAction }) {
+function InequalityMode({ questionData, onAction, draftKey = null }) {
   // Opt-in only (Definition of Done: "Existing systemsWorkspace questions must
   // continue working... New construction/reasoning modes should be opt-in").
   // Every existing authored question omits `studentBuild`, so it is untouched
@@ -168,7 +168,7 @@ function InequalityMode({ questionData, onAction }) {
     || Object.values(inequalityConfig.studentBuild).some(Boolean)
     || Object.values(inequalityConfig.reasoning).some(Boolean)
     || Boolean(questionData.modeling);
-  if (studentBuildEnabled) return <StudentBuildInequalityMode questionData={questionData} onAction={onAction} />;
+  if (studentBuildEnabled) return <StudentBuildInequalityMode questionData={questionData} onAction={onAction} draftKey={draftKey} />;
   const inequalities = questionData.inequalities || DEFAULT_INEQUALITIES;
   const bounds = questionData.graph || { xMin:-6, xMax:8, yMin:-4, yMax:10 };
   const ask = Array.isArray(questionData.ask) && questionData.ask.length
@@ -645,7 +645,7 @@ function TestPointReasoning({ title, point, count, response, setResponse, onBoun
   );
 }
 
-function StudentBuildInequalityMode({ questionData, onAction }) {
+function StudentBuildInequalityMode({ questionData, onAction, draftKey = null }) {
   const inequalityConfig = normalizeSystemsWorkspaceInequalityConfig(questionData);
   const buildConfig = inequalityConfig.studentBuild;
   const reasoningConfig = inequalityConfig.reasoning;
@@ -1124,6 +1124,7 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
                           expectedConstraint={expectedConstraints[index]}
                           value={rewriteEntries[index]}
                           onChange={(next)=>setRewriteEntries((current)=>current.map((item,i)=>i===index?next:item))}
+                          draftKey={draftKey ? `${draftKey}:systems-rewrite:${index}` : null}
                         />
                       ) : null}
                       {(!buildConfig.rewrite || rewriteEntries[index]?.verifiedConstraint) ? <>
@@ -1518,7 +1519,7 @@ const MODE_STEPS = {
   matrix3: ['Read the 3×4 augmented matrix.', 'Use the matrix-technology RREF command.', 'Interpret the reduced rows to classify the system and read x, y, and z.'],
 };
 
-export default function SystemsWorkspace({ questionData = {}, onAction }) {
+export default function SystemsWorkspace({ questionData = {}, onAction, draftKey = null }) {
   const mode = questionData.mode || 'linear';
   const modeLabel = mode === 'inequalities' ? 'Systems of Inequalities'
     : mode === 'linearQuadratic' ? 'Linear–Quadratic Systems'
@@ -1527,7 +1528,7 @@ export default function SystemsWorkspace({ questionData = {}, onAction }) {
           : 'Linear Systems';
   return <ToolShell title="Systems Workspace" subtitle="Solve, classify and interpret a system — graphically and algebraically — in one place." badge={modeLabel}>
     <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.linear} steps={MODE_STEPS[mode] || MODE_STEPS.linear} />
-    {mode === 'inequalities' ? <InequalityMode questionData={questionData} onAction={onAction}/>
+    {mode === 'inequalities' ? <InequalityMode questionData={questionData} onAction={onAction} draftKey={draftKey}/>
       : mode === 'linearQuadratic' ? <LinearQuadraticMode questionData={questionData} onAction={onAction}/>
         : (mode === 'matrix' || mode === 'matrix3') ? <MatrixMode questionData={questionData} onAction={onAction}/>
           : <LinearMode questionData={questionData} onAction={onAction}/>

@@ -16,12 +16,15 @@ test('ordinary linear systems draw two differently colored solid equation lines'
   assert.doesNotMatch(legend, /dashed/);
 });
 
-test('rewrite stage delegates balanced operations and sign reversal to algebraRelationFoundation', () => {
+test('rewrite stage delegates balanced operations and sign reversal to the mature relation solver', () => {
   const rewrite = executableSource(componentSource('src/tools/systemsWorkspace/EmbeddedInequalityRewrite.jsx'));
-  assert.match(rewrite, /from '..\/..\/algebraRelationFoundation\.js'/);
-  assert.match(rewrite, /applyBalancedOperationToRelation\(current, operation, operand\)/);
-  assert.match(rewrite, /result\.requiresInequalityFlip/);
-  assert.match(rewrite, /relation !== pendingFlip/);
-  assert.match(rewrite, /validateRelationTransition\(previous, next, \{ kind:'equivalentRewrite' \}\)/);
-  assert.match(rewrite, /graphableConstraintFromRelation\(committedText\)/);
+  const relationCore = executableSource(componentSource('src/MultiRelationAlgebraCore.jsx'));
+  assert.match(rewrite, /import MultiRelationAlgebraCore from '..\/..\/MultiRelationAlgebraCore\.jsx'/);
+  assert.match(rewrite, /<MultiRelationAlgebraCore/);
+  assert.match(relationCore, /applyBalancedOperationToBranches/);
+  assert.match(relationCore, /requireExplicitPlacement:\s*true/);
+  assert.match(relationCore, /requiresInequalityFlip/);
+  assert.match(relationCore, /pendingRelationFlip/);
+  assert.match(relationCore, /validateRelationTransition/);
+  assert.match(rewrite, /graphableConstraintFromRelation\(relation\)/);
 });
