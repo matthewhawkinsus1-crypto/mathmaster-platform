@@ -34,8 +34,11 @@ const unwrapRedundantParens = (text) => {
 
 const detectFactoredTerm = (expressionText) => {
   const factors = splitMultiplicativeFactors(expressionText);
-  if (!factors || factors.denominator.length) return null;
+  if (!factors) return null;
 
+  // Only a parenthetical ADDITIVE GROUP in the numerator is a distribution
+  // target. Denominator factors belong to the outside coefficient (for example
+  // -2/3), not to the group itself.
   const withTerms = factors.numerator.map((factor) => ({
     factor,
     terms: splitAdditiveTerms(factor.text),
@@ -46,21 +49,34 @@ const detectFactoredTerm = (expressionText) => {
   if (groupCandidates.length !== 1) return null;
 
   const group = groupCandidates[0];
-  const otherFactors = withTerms.filter((_, index) => index !== group.index);
-  if (!otherFactors.length) return null;
+  const otherNumeratorFactors = withTerms.filter((_, index) => index !== group.index);
+  const denominatorFactors = factors.denominator || [];
+  if (!otherNumeratorFactors.length && !denominatorFactors.length) return null;
 
-  const factorText = otherFactors
-    .map((entry) => unwrapRedundantParens(entry.factor.text))
+  const numeratorText = otherNumeratorFactors.length
+    ? otherNumeratorFactors
+      .map((entry) => unwrapRedundantParens(entry.factor.text))
+      .join(' * ')
+    : '1';
+  const denominatorText = denominatorFactors
+    .map((factor) => unwrapRedundantParens(factor.text))
     .join(' * ');
+  const factorText = denominatorText
+    ? `(${numeratorText}) / (${denominatorText})`
+    : numeratorText;
 
-  // Render from the canonical factor TEXT rather than concatenating the source
-  // factors' LaTeX. MathJS can encode a leading negative in both an outer node
-  // and a factor's TeX; rebuilding once here prevents visual "--2/3" artifacts.
+  // Render from ONE canonical factor expression rather than concatenating
+  // source factor LaTeX. This handles both grouped and flattened rational
+  // coefficients and prevents a leading negative from being emitted twice.
   let factorLatex;
   try {
     factorLatex = expressionToLatex(factorText);
   } catch {
-    factorLatex = otherFactors.map((entry) => entry.factor.latex).join('\\,');
+    const numeratorLatex = otherNumeratorFactors.map((entry) => entry.factor.latex).join('\\,') || '1';
+    const denominatorLatex = denominatorFactors.map((factor) => factor.latex).join('\\,');
+    factorLatex = denominatorLatex
+      ? `\\frac{${numeratorLatex}}{${denominatorLatex}}`
+      : numeratorLatex;
   }
 
   return {
