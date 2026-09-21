@@ -6,6 +6,7 @@ import {
   classifyFeasibleRegion,
   evaluatePoint,
   findFeasiblePoint,
+  formatSlopeInterceptInequality,
   getBoundaryMetadata,
   normalizeLinearInequality,
   normalizeSystemsWorkspaceInequalityConfig,
@@ -44,6 +45,28 @@ test('negative and fractional coefficients retain their mathematical meaning', (
   const inequality = { A: -1.5, B: -0.5, C: 2, relation: '>=' };
   assert.equal(evaluatePoint(inequality, 0, 0), 'inside');
   assert.equal(evaluatePoint(inequality, 2, 0), 'outside');
+});
+
+test('completed rewrite display is canonical, simplified, and keeps inequality direction correct', () => {
+  assert.equal(
+    formatSlopeInterceptInequality({ A: 1, B: -1, C: 1, relation: '>=' }),
+    'y ≤ x + 1',
+    'x - y ≥ -1 must display as y ≤ x + 1 after division by -1',
+  );
+  assert.equal(
+    formatSlopeInterceptInequality({ A: 3, B: -1, C: -4, relation: '<=' }),
+    'y ≥ 3x − 4',
+  );
+  assert.equal(
+    formatSlopeInterceptInequality({ A: -2, B: 3, C: 0, relation: '>' }),
+    'y > 2/3x',
+    'simple fractional slopes stay readable instead of becoming long decimals',
+  );
+  assert.equal(
+    formatSlopeInterceptInequality({ A: 1, B: 0, C: 2, relation: '>' }),
+    'x > −2',
+    'vertical boundaries remain clean when a rewrite ever hands one off',
+  );
 });
 
 test('classifies a two-line feasible region and a three-line bounded triangle', () => {

@@ -32,6 +32,7 @@ import {
 } from './inequalityBuilderAdapter';
 import useToolSubmission from '../shared/useToolSubmission';
 import EmbeddedInequalityRewrite from './EmbeddedInequalityRewrite.jsx';
+import { formatSlopeInterceptInequality } from './linearInequalityEngine.js';
 
 const DEFAULT_SYSTEM = { m1: 2, b1: 1, m2: -1, b2: 7 };
 const DEFAULT_INEQUALITIES = [
@@ -743,7 +744,9 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
 
   const inequalityLabel = (index) => {
     if (modeling) return formatModelingConstraint(modelingEntries[index], variables);
-    if (buildConfig.rewrite && rewriteEntries[index]?.verifiedText) return rewriteEntries[index].verifiedText;
+    if (buildConfig.rewrite && rewriteEntries[index]?.verifiedConstraint) {
+      return formatSlopeInterceptInequality(rewriteEntries[index].verifiedConstraint);
+    }
     const source = sourceConstraints[index];
     return typeof source === 'string' ? source : formatInequality(source);
   };
