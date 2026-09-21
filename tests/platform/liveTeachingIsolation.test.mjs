@@ -67,3 +67,40 @@ test('the Live Teaching session record itself holds no student response data —
   const liveTeachingSession = executableSource(fs.readFileSync('src/platform/teacher/liveTeachingSession.js', 'utf8'));
   assert.doesNotMatch(liveTeachingSession, /grade|assignmentActivity|evidence|studentId|response|attempt/i);
 });
+
+test('Teacher Preview suspends high-churn teacher reads while keeping cached dashboard state intact', () => {
+  assert.match(app, /const teacherPreviewRuntimeActive = user\?\.role === 'teacher' && activeView === 'teacherPreview';/);
+
+  const gradeStream = region(
+    app,
+    "// The query is constrained to this teacher",
+    "// Classes are the authoritative record",
+    'teacher live grade stream',
+  );
+  assert.match(gradeStream, /if \(teacherPreviewRuntimeActive\) return undefined;/);
+
+  const livePresence = region(
+    app,
+    '// Teachers stream presence only while the live grid is on screen.',
+    '// The server writes one compact receipt only after Google Classroom accepts',
+    'teacher live presence subscriptions',
+  );
+  assert.match(livePresence, /if \(teacherPreviewRuntimeActive\) return undefined;/);
+  assert.match(livePresence, /return \(\) => \{\s*unsubs\.forEach\(\(unsubscribe\) => unsubscribe\(\)\);\s*\};/);
+  assert.doesNotMatch(
+    livePresence,
+    /return \(\) => \{[\s\S]*unsubs\.forEach[\s\S]*setPresenceById\(\{\}\)/,
+    'entering Preview should unsubscribe without erasing the cached room snapshot',
+  );
+
+  for (const marker of [
+    'subscribeStudentSupportEvents',
+    'subscribeParentContacts',
+    'subscribeStudentSessionSummaries',
+  ]) {
+    const at = app.indexOf(marker);
+    assert.ok(at >= 0, marker + ' must remain wired');
+    const before = app.slice(Math.max(0, at - 450), at);
+    assert.match(before, /teacherPreviewRuntimeActive/, marker + ' must pause during Teacher Preview');
+  }
+});
