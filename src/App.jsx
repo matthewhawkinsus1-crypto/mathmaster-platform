@@ -565,12 +565,12 @@ const calculateDOLSectionScore = (assignmentTracker = {}, questionIndices = [], 
 const DISPLAYED_CHECKPOINT_OUTCOMES = ['auto-submitted', 'incomplete-at-close', 'explicitly-submitted'];
 
 const TEACHER_FULL_STUDENT_DATA_TABS = new Set([
-  'students', 'weeklyPath', 'actionCenter', 'grades', 'gradeTransfer',
+  'students', 'weeklyPath', 'actionCenter', 'parentContacts', 'grades', 'gradeTransfer',
   'standards', 'analytics', 'exams',
 ]);
-const TEACHER_SUPPORT_STREAM_TABS = new Set(['home', 'classesWorkspace', 'attendanceHistory', 'actionCenter']);
+const TEACHER_SUPPORT_STREAM_TABS = new Set(['home', 'classesWorkspace', 'attendanceHistory', 'actionCenter', 'parentContacts']);
 const TEACHER_PARENT_CONTACT_STREAM_TABS = new Set(['parentContacts', 'actionCenter']);
-const TEACHER_SESSION_SUMMARY_TABS = new Set(['home', 'classesWorkspace']);
+const TEACHER_SESSION_SUMMARY_TABS = new Set(['home', 'classesWorkspace', 'parentContacts']);
 
 function App() {
   const auth = useAuth();
@@ -10177,6 +10177,7 @@ function App() {
                 evidenceByStudentId={classEvidenceByStudentId}
                 onLoadDeliveredRigor={handleLoadDeliveredRigor}
                 rigorLoading={classEvidenceLoading}
+                academicDataLoaded={teacherStudentDataMode === 'full'}
               />
             )}
 
