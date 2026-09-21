@@ -61,7 +61,7 @@ const detectFactoredTerm = (expressionText) => {
   const denominatorText = denominatorFactors
     .map((factor) => unwrapRedundantParens(factor.text))
     .join(' * ');
-  const simpleScalar = /^[+-]?(?:\\d+(?:\\.\\d+)?|[A-Za-z])$/;
+  const simpleScalar = /^[+-]?(?:\d+(?:\.\d+)?|[A-Za-z])$/;
   const factorOperand = (value) => (
     simpleScalar.test(String(value).trim()) ? String(value).trim() : `(${value})`
   );
