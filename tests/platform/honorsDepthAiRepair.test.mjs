@@ -64,6 +64,19 @@ test('representationMatch and representation-connection intent count as genuine 
   assert.equal(bySemanticIntent.checks.multipleRepresentations, true);
 });
 
+test('a rationale-required open sort counts as explicit explanation/justification work', () => {
+  const report = inspectHonorsRigor([{
+    type: 'openSortBoard',
+    studentActions: ['sortIntoOwnGroups'],
+    requireRationale: true,
+    dok: 3,
+    alignments: [{ framework: 'teks', code: 'A.2B', role: 'primary', evidenceLevel: 'assessed' }],
+    items: [{ id: 'A' }, { id: 'B' }],
+    validSchemes: [{ groups: [{ itemIds: ['A'] }, { itemIds: ['B'] }] }],
+  }], { ccmrTargetRequired: false });
+  assert.equal(report.checks.justification, true);
+});
+
 test('Honors repair acceptance can require the exact gaps requested, not merely any 3-of-4 depth combination', () => {
   const requested = ['multipleRepresentations', 'justification'];
   const candidate = {
