@@ -25,7 +25,7 @@ test('Task and Help behave as mutually exclusive toggle drawers', () => {
 
 test('the original question task wins over a nested tool summary', () => {
   const capabilities = mergeWorkViewCapabilities(
-    { task:{ text:'Graph y - 5 = -(3/4)(x - 14) directly from point-slope form.' } },
+    { task:{ text:'Graph y - 5 = -(3/4)(x - 14) directly from point-slope form.', authoritative:true } },
     { task:{ text:'Graph the line through (14, 5) with slope -3/4.' } },
   );
   assert.equal(
