@@ -148,7 +148,6 @@ export default function TeacherQuestionReviewPanel({
   const repairUploadInputRef = useRef(null);
   const [context, setContext] = useState({ flags: [] });
   const [assignmentRecord, setAssignmentRecord] = useState(null);
-  const [resolvedQuestion, setResolvedQuestion] = useState(questionProp);
   const [category, setCategory] = useState('content');
   const [severity, setSeverity] = useState('needsEditing');
   const [note, setNote] = useState('');
@@ -167,6 +166,12 @@ export default function TeacherQuestionReviewPanel({
     let cancelled = false;
     if (!assignmentId) return undefined;
 
+    // Assignment review context belongs to the assignment, not to whichever
+    // question happens to be on screen. Reloading both documents on every Next
+    // click made the panel's identity lag behind the student view and could
+    // leave a note attached to the previous question until Firestore returned.
+    setAssignmentRecord(null);
+    setContext({ flags: [] });
     Promise.all([
       loadAssignmentTeacherReviewContext(assignmentId),
       getDoc(doc(db, 'assignments', assignmentId)),
@@ -174,28 +179,18 @@ export default function TeacherQuestionReviewPanel({
       .then(([nextContext, assignmentSnapshot]) => {
         if (cancelled) return;
         setContext(nextContext || { flags: [] });
-        if (assignmentSnapshot?.exists?.()) {
-          const record = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
-          setAssignmentRecord(record);
-          if (questionProp) setResolvedQuestion(questionProp);
-          else {
-            const questions = getStoredAssignmentQuestions(record);
-            const byId = clean(questionIdProp)
-              ? questions.find((item) => clean(item?.questionId) === clean(questionIdProp))
-              : null;
-            setResolvedQuestion(byId || (Number.isInteger(Number(questionIndex)) ? questions[Number(questionIndex)] : null) || null);
-          }
-        } else {
-          setAssignmentRecord(null);
-          if (questionProp) setResolvedQuestion(questionProp);
-        }
+        setAssignmentRecord(
+          assignmentSnapshot?.exists?.()
+            ? { id: assignmentSnapshot.id, ...assignmentSnapshot.data() }
+            : null,
+        );
         setMessage('');
       })
       .catch((error) => {
         if (!cancelled) setMessage(error.message || 'Could not load teacher review notes.');
       });
     return () => { cancelled = true; };
-  }, [assignmentId, questionIdProp, questionIndex, questionProp]);
+  }, [assignmentId]);
 
   const assignmentV5 = useMemo(() => {
     if (!assignmentRecord) return null;
@@ -221,7 +216,35 @@ export default function TeacherQuestionReviewPanel({
     return candidates.length ? Math.max(...candidates) : 1;
   }, [assignmentRecord, context]);
 
-  const questionId = clean(questionIdProp || resolvedQuestion?.questionId);
+  const storedQuestions = useMemo(
+    () => (assignmentRecord ? getStoredAssignmentQuestions(assignmentRecord) : []),
+    [assignmentRecord],
+  );
+  const resolvedQuestion = useMemo(() => {
+    // The live question prop is authoritative while the teacher navigates.
+    // Falling back to the saved assignment is only for callers that do not
+    // already have the rendered question. This keeps Teacher Review on the
+    // exact same question as View as Student with no async identity gap.
+    if (questionProp) return questionProp;
+    const wantedId = clean(questionIdProp);
+    if (wantedId) {
+      const byId = storedQuestions.find((item) => clean(item?.questionId) === wantedId);
+      if (byId) return byId;
+    }
+    const index = Number(questionIndex);
+    return Number.isInteger(index) ? storedQuestions[index] || null : null;
+  }, [questionProp, questionIdProp, questionIndex, storedQuestions]);
+
+  const questionId = clean(questionIdProp || questionProp?.questionId || resolvedQuestion?.questionId);
+
+  useEffect(() => {
+    // A note/screenshot is question-specific. Never carry an unfinished note
+    // across navigation where it could be saved against a different question.
+    setNote('');
+    setPendingShot(null);
+    setMessage('');
+  }, [assignmentId, questionId]);
+
   const questionFlags = useMemo(() => (
     (Array.isArray(context?.flags) ? context.flags : []).filter((flag) => (
       flag?.scope === 'question' && clean(flag?.targetId) === questionId
@@ -238,10 +261,6 @@ export default function TeacherQuestionReviewPanel({
       question: result.replacementQuestion,
     })) || []
   ), [stagedRepair]);
-  const storedQuestions = useMemo(
-    () => (assignmentRecord ? getStoredAssignmentQuestions(assignmentRecord) : []),
-    [assignmentRecord],
-  );
   const effectiveRepairQuestionId = clean(
     activeRepairQuestionId
     || (replacements.some((entry) => clean(entry.questionId) === questionId) ? questionId : replacements[0]?.questionId),
@@ -272,8 +291,6 @@ export default function TeacherQuestionReviewPanel({
       const record = { id: snapshot.id, ...snapshot.data() };
       refreshedRecord = record;
       setAssignmentRecord(record);
-      const questions = getStoredAssignmentQuestions(record);
-      setResolvedQuestion(questions.find((item) => clean(item?.questionId) === questionId) || null);
     }
     await onAssignmentRefresh?.();
     return refreshedRecord;

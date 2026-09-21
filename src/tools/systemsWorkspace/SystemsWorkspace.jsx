@@ -892,7 +892,23 @@ function StudentBuildInequalityMode({ questionData, onAction }) {
       shadeCorrect: buildConfig.shading ? shadeCorrect(index) : null,
       constraintCorrect: hasBuildSteps ? constraintVerified(index) : null,
     }));
-    const modelingChecks = modeling ? modelingEntries.map((entry, index) => modelingEntryCorrect(entry, expectedConstraints[index])) : [];
+    const modelingChecks = modeling ? (() => {
+      // A mathematical model is a SET of constraints, not an ordered answer
+      // list. Match each student-authored inequality to one still-unmatched
+      // expected constraint so an equivalent system earns full credit no
+      // matter which valid constraint the student entered first. Keeping
+      // expected rows single-use also prevents a duplicated correct constraint
+      // from satisfying two requirements.
+      const unmatchedExpected = new Set(expectedConstraints.map((_, index) => index));
+      return modelingEntries.map((entry) => {
+        const matchedIndex = expectedConstraints.findIndex((expected, index) => (
+          unmatchedExpected.has(index) && modelingEntryCorrect(entry, expected)
+        ));
+        if (matchedIndex < 0) return false;
+        unmatchedExpected.delete(matchedIndex);
+        return true;
+      });
+    })() : [];
     const classificationCorrect = !askClassification || regionClassification === workingClassification;
     const noSolutionRecognized = workingClassification !== 'empty' || regionClassification === 'empty';
     const teacherPointApplicable = Boolean(teacherTestPoint);
