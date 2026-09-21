@@ -1,4 +1,4 @@
-import { packageManifest, teamsCsv, transferFileName } from './gradeTransferModel.js';
+import { packageManifest, teamsCsv, transferPackagePath } from './gradeTransferModel.js';
 
 const encoder = new TextEncoder();
 const crc32 = (bytes) => {
@@ -11,10 +11,12 @@ const u32 = (value) => [...u16(value), ...u16(value >>> 16)];
 
 // A standards-compliant, store-only ZIP. CSVs are tiny and avoiding a new ZIP
 // dependency keeps the production transfer path deterministic and auditable.
+// A slash in a ZIP entry name is the folder boundary, so each lesson assignment
+// extracts as one folder containing its section-grade CSVs.
 export const buildGradebookZip = (units) => {
   const files = [
     { name: 'MANIFEST.txt', body: packageManifest(units) },
-    ...units.map((unit) => ({ name: transferFileName(unit), body: teamsCsv(unit.rows) })),
+    ...units.map((unit) => ({ name: transferPackagePath(unit), body: teamsCsv(unit.rows) })),
   ].map((file) => ({ name: encoder.encode(file.name), data: encoder.encode(file.body) }));
   const local = []; const central = []; let offset = 0;
   files.forEach((file) => {
