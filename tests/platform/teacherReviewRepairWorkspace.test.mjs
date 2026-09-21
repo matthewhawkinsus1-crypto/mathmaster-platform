@@ -60,9 +60,16 @@ test('batch repairs cannot be applied until every replacement has been opened in
 });
 
 test('Preflight gates Apply and report-only findings never become replacements', () => {
-  assert.match(panel, /if \(staged\.responseKind === 'reportOnly'\)[\s\S]*platformIssues:[\s\S]*unclearIssues:[\s\S]*no question was rewritten/i);
+  assert.match(panel, /if \(staged\.responseKind === 'reportOnly'\)[\s\S]*no question was rewritten/i);
   assert.match(panel, /if \(!staged\.canCommit\)[\s\S]*Preflight blocker/);
-  assert.match(panel, /disabled=\{busy \|\| !stagedRepair\.canCommit \|\| !serverPreview\?\.planHash \|\| !replacements\.length\}/);
+  assert.match(panel, /disabled=\{busy \|\| !stagedRepair\.canCommit \|\| !serverPreview\?\.planHash \|\| !replacements\.length \|\| !allReplacementsReviewed\}/);
+});
+
+test('platform and unclear reports are persisted even when the same AI response also contains replacements', () => {
+  assert.match(panel, /const hasReportedIssues =/);
+  assert.match(panel, /platformIssues: mergeIssueReports\(context\.platformIssues, staged\.platformIssues\)/);
+  assert.match(panel, /unclearIssues: mergeIssueReports\(context\.unclearIssues, staged\.unclearIssues\)/);
+  assert.match(panel, /saveAssignmentTeacherReviewContext\(assignmentId, stagedContext\)/);
 });
 
 test('server classification precedes Apply and fundamental changes are retire-and-replace, not blocked', () => {
@@ -87,6 +94,16 @@ test('fundamental live repairs keep the saved replacement visible for teacher ve
   assert.match(panel, /setSavedReplacementPreviews\(savedReplacements\)/);
   assert.match(panel, /Saved corrected replacement · verify before resolving the flag/);
   assert.match(panel, /Historical <code>\{entry\.sourceQuestionId\}<\/code> → corrected <code>\{entry\.replacementQuestionId\}<\/code>/);
+});
+
+test('successful Apply marks teacher flags potentially addressed but never resolves them automatically', () => {
+  const start = panel.indexOf('const applyCorrectedQuestion = async');
+  const end = panel.indexOf('if (!assignmentId', start);
+  const apply = panel.slice(start, end);
+  assert.match(apply, /markTeacherFlagPotentiallyAddressed/);
+  assert.match(apply, /pendingTeacherFlagIds/);
+  assert.match(apply, /assignmentRevision: result\?\.assignmentRevision/);
+  assert.doesNotMatch(apply, /resolveTeacherReviewFlag/);
 });
 
 test('teacher admin exposes the two server callable contracts', () => {
