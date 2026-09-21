@@ -33,6 +33,20 @@ test('split additive terms exposes canonical sign and unsigned magnitude', () =>
   assert.equal(second.magnitudeText, '3');
 });
 
+test('negative rational products render exactly one visible minus after distribution', () => {
+  const terms = splitAdditiveTerms('(-2/3)(x) + (-2/3)(3)');
+  assert.equal(terms.length, 2);
+
+  for (const term of terms) {
+    assert.equal(term.sign, -1);
+    assert.doesNotMatch(term.magnitudeLatex, /-/);
+    assert.equal((term.latex.match(/-/g) || []).length, 1);
+  }
+
+  assert.match(terms[0].magnitudeLatex, /\\frac\{2\}\{3\}/);
+  assert.match(terms[1].magnitudeLatex, /\\frac\{2\}\{3\}/);
+});
+
 test('placement preserves negative symbols, constants, groups, and later terms', () => {
   const cases = [
     {
