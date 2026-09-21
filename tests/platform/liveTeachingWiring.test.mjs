@@ -27,6 +27,20 @@ test('teaching a lesson reuses the existing student-preview runtime, not a secon
   assert.match(body, /setLiveTeachingSession\(startLiveTeachingSession\(/);
 });
 
+test('Walkthrough launch gives resume lookup only a tiny budget and falls back to a fresh local preview', () => {
+  const teach = region(app, 'const teachAssignmentLive = ', 'const resumeLiveTeaching = ', 'teachAssignmentLive');
+  assert.match(teach, /Promise\.race\(\[/);
+  assert.match(teach, /window\.setTimeout\(\(\) => resolve\(null\), 180\)/);
+  assert.match(teach, /catch \(error\) \{[\s\S]*starting fresh/);
+  assert.match(teach, /startFresh\(\);/);
+});
+
+test('Restart Fresh bypasses resume lookup and explicitly requests a clean session', () => {
+  const teach = region(app, 'const teachAssignmentLive = ', 'const resumeLiveTeaching = ', 'teachAssignmentLive');
+  assert.match(teach, /if \(forceRestart\) \{\s*startFresh\(\);\s*return;/);
+  assert.match(monitor, /onTeach\(liveTeachingAssignmentId, \{ forceRestart: true \}\)/);
+});
+
 test('resuming teaching re-enters the runtime WITHOUT resetting the tracker, scratchpads, or preview session', () => {
   const region_ = region(app, 'const resumeLiveTeaching = ', 'const endLiveTeaching = ', 'resumeLiveTeaching');
   assert.doesNotMatch(region_, /setPreviewTracker/, 'Resume must not reset the exemplar tracker — that would look like a fresh start');

@@ -138,12 +138,26 @@ export function advanceLiveTeachingSession(session, { assignment = null, storage
   if (!session?.active) return session;
   const index = Math.max(0, Number(storageQuestionIndex) || 0);
   const classworkPosition = classworkPositionForStorageIndex(assignment, index);
+  const nextActivityRole = activityRole || null;
+  const nextClassworkPosition = classworkPosition === null ? session.classworkQuestionPosition : classworkPosition;
+  const nextInstructionalPhase = questionAt(assignment, index)?.instructionalPhase || null;
+
+  // Assignment snapshots can replace the assignment object without the teacher
+  // moving. Returning the existing object here prevents a meaningless React
+  // update and a redundant Firestore walkthrough write for that case.
+  if (
+    session.storageQuestionIndex === index
+    && session.activityRole === nextActivityRole
+    && session.classworkQuestionPosition === nextClassworkPosition
+    && session.instructionalPhase === nextInstructionalPhase
+  ) return session;
+
   return {
     ...session,
     storageQuestionIndex: index,
-    activityRole: activityRole || null,
-    classworkQuestionPosition: classworkPosition === null ? session.classworkQuestionPosition : classworkPosition,
-    instructionalPhase: questionAt(assignment, index)?.instructionalPhase || null,
+    activityRole: nextActivityRole,
+    classworkQuestionPosition: nextClassworkPosition,
+    instructionalPhase: nextInstructionalPhase,
     updatedAt: Date.now(),
   };
 }

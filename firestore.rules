@@ -363,7 +363,14 @@ service cloud.firestore {
     // It contains no roster or answer data and is intentionally unreadable by
     // students; projector output is an allow-listed client projection.
     match /walkthroughSessions/{sessionId} {
-      allow read: if rootAdmin() || (teacher() && resource.data.ownerUid == request.auth.uid);
+      // A first-ever walkthrough has no document yet. Allow an authenticated
+      // teacher to perform that single-document existence check without making
+      // any existing teacher-owned session readable to another teacher.
+      allow get: if rootAdmin() || (teacher() && (
+        !exists(/databases/$(database)/documents/walkthroughSessions/$(sessionId))
+        || resource.data.ownerUid == request.auth.uid
+      ));
+      allow list: if rootAdmin() || (teacher() && resource.data.ownerUid == request.auth.uid);
       allow create: if rootAdmin() || (teacher()
         && request.resource.data.sessionId == sessionId
         && request.resource.data.ownerUid == request.auth.uid
