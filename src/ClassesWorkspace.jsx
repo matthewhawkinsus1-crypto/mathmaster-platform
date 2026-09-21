@@ -27,7 +27,7 @@ const formatClock = (date) => date instanceof Date ? date.toLocaleTimeString(und
 export default function ClassesWorkspace({ classes = [], allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onViewGradebook, onUnlockDOL = null, dolUnlockBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, initialPeriod = null, initialClassId = null, onSelectClass = null,
   learningProfilesByStudentId = {}, masteryProfilesByStudentId = {}, evidenceByStudentId = {},
   needsAttentionCount = 0, onOpenStudent = null,
-  onLoadDeliveredRigor = null, rigorLoading = false }) {
+  onLoadDeliveredRigor = null, rigorLoading = false, academicDataLoaded = true }) {
   const classOptions = classes.length
     ? classes.filter((entry) => entry?.status !== 'archived').map((entry) => ({ ...entry, key: entry.classId }))
     : CLASS_PERIODS.map((period) => ({ key: period, classId: '', name: period, period }));
@@ -109,6 +109,15 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
   const activeStudentCount = periodStudents.filter(studentIsActive).length;
 
   const startedCount = (assignment) => periodStudents.filter((student) => student.gradesByAssignment?.[assignment.id] !== undefined).length;
+  const activeOnAssignmentCount = (assignment) => periodStudents.filter((student) => {
+    const presence = presenceById?.[student.id];
+    const updatedAt = Number(presence?.updatedAt || 0);
+    return Boolean(
+      presence?.assignmentId === assignment.id
+      && updatedAt
+      && nowMs - updatedAt <= OFFLINE_AFTER_MS
+    );
+  }).length;
 
   return (
     <div style={{ textAlign: 'left' }}>
@@ -131,18 +140,28 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
         answer, and a teacher who reads only the first sentence of it has still
         learned the most useful thing on the page.
       */}
-      <ClassOverviewPanel
-        className={selectedClass.name || selectedPeriod}
-        students={periodStudents.map((student) => ({ ...student, displayName: formatStudentName(student) }))}
-        profilesByStudentId={learningProfilesByStudentId}
-        masteryProfilesByStudentId={masteryProfilesByStudentId}
-        evidenceByStudentId={evidenceByStudentId}
-        openAssignments={currentAssignments.length}
-        needsAttentionCount={needsAttentionCount}
-        onOpenStudent={onOpenStudent}
-        onLoadDeliveredRigor={onLoadDeliveredRigor ? () => onLoadDeliveredRigor(periodStudents.map((student) => student.id)) : null}
-        rigorLoading={rigorLoading}
-      />
+      {academicDataLoaded ? (
+        <ClassOverviewPanel
+          className={selectedClass.name || selectedPeriod}
+          students={periodStudents.map((student) => ({ ...student, displayName: formatStudentName(student) }))}
+          profilesByStudentId={learningProfilesByStudentId}
+          masteryProfilesByStudentId={masteryProfilesByStudentId}
+          evidenceByStudentId={evidenceByStudentId}
+          openAssignments={currentAssignments.length}
+          needsAttentionCount={needsAttentionCount}
+          onOpenStudent={onOpenStudent}
+          onLoadDeliveredRigor={onLoadDeliveredRigor ? () => onLoadDeliveredRigor(periodStudents.map((student) => student.id)) : null}
+          rigorLoading={rigorLoading}
+        />
+      ) : (
+        <section style={{ border: '1px solid #d8dde6', borderRadius: 11, background: '#f8f9fa', marginBottom: 20, padding: '14px 16px' }}>
+          <strong>Live class mode</strong>
+          <p style={{ margin: '5px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.5 }}>
+            This screen stays lightweight during class and does not keep every student&apos;s historical grade record in memory.
+            Live presence and class controls are current. Open the full Gradebook for academic-history analysis.
+          </p>
+        </section>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '22px' }}>
         <div style={{ padding: '14px', borderRadius: '10px', background: '#e8f0fe', color: '#174ea6' }}>
@@ -181,7 +200,11 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
                 <strong>{assignment.title}</strong>
                 <div style={{ fontSize: '12px', color: '#5f6368' }}>Due {formatDateTime(assignment.dueAt || assignment.dueDate)}</div>
               </div>
-              <div style={{ fontSize: '12px', color: '#5f6368' }}>{startedCount(assignment)}/{periodStudents.length} started</div>
+              <div style={{ fontSize: '12px', color: '#5f6368' }}>
+                {academicDataLoaded
+                  ? `${startedCount(assignment)}/${periodStudents.length} started`
+                  : `${activeOnAssignmentCount(assignment)}/${periodStudents.length} active now`}
+              </div>
             </div>
           ))}
         </div>

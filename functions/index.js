@@ -3254,7 +3254,7 @@ exports.listSignInAccess = onCall(async (request) => {
     // entire attempt history and has no business in this payload.
     db.collection("grades").select(
       "classPeriod", "classId", "status", "linkedEmail", "assignedTeacherEmail",
-      "displayName", "firstName", "lastName",
+      "displayName", "firstName", "lastName", "profile", "sisStudentId",
     ).get(),
     db.collection(authLib.CREDENTIALS_COLLECTION).get(),
     db.collection(authLib.DIRECTORY_COLLECTION).get(),
@@ -3308,6 +3308,8 @@ exports.listSignInAccess = onCall(async (request) => {
         classPeriod: data.classPeriod || "Unassigned",
         status: data.status === model.ACCOUNT_STATUS.DISABLED ? model.ACCOUNT_STATUS.DISABLED : model.ACCOUNT_STATUS.ACTIVE,
         assignedTeacherEmail: data.assignedTeacherEmail || null,
+        sisStudentId: data.sisStudentId || null,
+        profile: data.profile && typeof data.profile === "object" ? data.profile : {},
         hasPasscode: Boolean(credential?.hash) && credential?.resetRequired !== true,
         resetRequired: credential?.resetRequired === true,
         linkedEmail: emailByStudent[rosterDoc.id] || data.linkedEmail || null,

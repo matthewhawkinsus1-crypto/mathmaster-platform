@@ -564,6 +564,14 @@ const calculateDOLSectionScore = (assignmentTracker = {}, questionIndices = [], 
 // Every other lifecycle status is internal bookkeeping.
 const DISPLAYED_CHECKPOINT_OUTCOMES = ['auto-submitted', 'incomplete-at-close', 'explicitly-submitted'];
 
+const TEACHER_FULL_STUDENT_DATA_TABS = new Set([
+  'students', 'weeklyPath', 'actionCenter', 'parentContacts', 'grades', 'gradeTransfer',
+  'standards', 'analytics', 'exams',
+]);
+const TEACHER_SUPPORT_STREAM_TABS = new Set(['home', 'classesWorkspace', 'attendanceHistory', 'actionCenter', 'parentContacts']);
+const TEACHER_PARENT_CONTACT_STREAM_TABS = new Set(['parentContacts', 'actionCenter']);
+const TEACHER_SESSION_SUMMARY_TABS = new Set(['home', 'classesWorkspace', 'parentContacts']);
+
 function App() {
   const auth = useAuth();
   // Identity is owned entirely by <AuthProvider>. `user` below is the
@@ -700,8 +708,15 @@ function App() {
   // See platform/teacher/liveTeachingSession.js.
   const [liveTeachingSession, setLiveTeachingSession] = useState(null);
   const walkthroughWriteRef = useRef(null);
+  // Current-grader credit repair is intentionally deferred until the teacher
+  // opens Grades. It still repairs the authorized roster automatically, but it
+  // no longer makes every teacher login download and regrade the full history.
+  const teacherGraderRepairRanRef = useRef(false);
   const [assignments, setAssignments] = useState([]);
   const [allStudents, setAllStudents] = useState([]);
+  const [teacherRosterSummaries, setTeacherRosterSummaries] = useState([]);
+  const [teacherStudentDataMode, setTeacherStudentDataMode] = useState('summary');
+  const [profileDrawerStudentDetail, setProfileDrawerStudentDetail] = useState(null);
   // Live presence for the teacher home grid, keyed by student id. Never stored
   // alongside grades and never read outside the live view.
   const [presenceById, setPresenceById] = useState({});
@@ -711,6 +726,9 @@ function App() {
   const [parentContacts, setParentContacts] = useState([]);
   const [actionGradeSnapshots, setActionGradeSnapshots] = useState([]);
   const [actionPracticePasses, setActionPracticePasses] = useState(new Set());
+  // Keep only the small badge count after Action Center releases its heavy
+  // projections. This preserves the sidebar cue without retaining student history.
+  const [teacherActionOpenCountCache, setTeacherActionOpenCountCache] = useState(0);
   const [retestRecoveryActions, setRetestRecoveryActions] = useState([]);
   const [parentContactSourceAction, setParentContactSourceAction] = useState(null);
   const [studentSessionSummaries, setStudentSessionSummaries] = useState([]);
@@ -1080,12 +1098,13 @@ function App() {
   }, [user, currentStudentMasteryProfile]);
 
   const teacherMasteryProfilesByStudentId = useMemo(() => {
+    if (teacherStudentDataMode !== 'full') return {};
     if (!allStudents.length) return {};
     return Object.fromEntries(allStudents.map((student) => {
       const profile = buildStudentMasteryProfile({ student, assignments });
       return [student.id, profile];
     }));
-  }, [allStudents, assignments]);
+  }, [allStudents, assignments, teacherStudentDataMode]);
 
   // ONE SET OF LEARNING PROFILES FOR THE WHOLE TEACHER WORKSPACE.
   //
@@ -1114,6 +1133,7 @@ function App() {
   ), []);
 
   const teacherLearningProfiles = useMemo(() => {
+    if (teacherStudentDataMode !== 'full') return {};
     if (!allStudents.length) return {};
     return Object.fromEntries(allStudents.map((student) => {
       const rows = collectStudentEvidence({ student, assignments });
@@ -1133,18 +1153,20 @@ function App() {
           : {},
       })];
     }));
-  }, [allStudents, assignments, courseProfiles, classesById, teacherMasteryProfilesByStudentId]);
+  }, [allStudents, assignments, courseProfiles, classesById, teacherMasteryProfilesByStudentId, teacherStudentDataMode]);
 
   // The students in the class the Weekly Path screen is looking at.
   const teacherWeeklyRoster = useMemo(() => {
+    if (!['weeklyPath', 'grades'].includes(teacherTab)) return [];
     const activeId = activeClass.classId || classes[0]?.classId || null;
     if (!activeId) return [];
     return studentsInClass({ students: allStudents, classes, classId: activeId })
       .map((student) => ({ ...student, name: formatStudentName(student) }))
       .sort((a, b) => String(a.name).localeCompare(String(b.name)));
-  }, [allStudents, classes, activeClass.classId]);
+  }, [allStudents, classes, activeClass.classId, teacherTab]);
 
   const teacherWeeklyGoalsByStudent = useMemo(() => {
+    if (!['weeklyPath', 'grades'].includes(teacherTab)) return {};
     const activeId = activeClass.classId || classes[0]?.classId || null;
     const classRecord = classes.find((entry) => entry.classId === activeId) || null;
     if (!classRecord) return {};
@@ -1199,7 +1221,7 @@ function App() {
       } : { ...proposedGoal, assignmentState: 'proposed' };
       return [student.id, goal];
     }));
-  }, [activeClass.classId, classes, courseProfiles, weeklyGoalsByClass, pacingByClass, skillOverrides, teacherWeeklyRoster, assignments, teacherLearningProfiles, weeklyPathGoalSnapshotsByStudent, now]);
+  }, [activeClass.classId, classes, courseProfiles, weeklyGoalsByClass, pacingByClass, skillOverrides, teacherWeeklyRoster, assignments, teacherLearningProfiles, weeklyPathGoalSnapshotsByStudent, now, teacherTab]);
 
   useEffect(() => {
     // Home needs this as much as the Weekly Path tab does: the needs-attention
@@ -1958,11 +1980,9 @@ function App() {
     };
   };
 
-  // Grader corrections are allowed to be MONOTONIC only. When a corrected
-  // equivalence rule proves that a stored response was mathematically correct,
-  // repair the saved score without consuming another attempt. Teacher login
-  // repairs every student already in that teacher's authorized roster, so a
-  // child does not have to reopen the assignment to receive credit.
+  // Grader corrections are monotonic. Keep the teacher-side safety net, but
+  // run it only after the full academic corpus was intentionally loaded for
+  // Grades; ordinary teacher navigation never pays this CPU/memory cost.
   const persistCurrentGraderCreditRepairs = async (students = [], assignmentList = []) => {
     const correctedAt = new Date().toISOString();
     const repairs = (Array.isArray(students) ? students : []).map((student) => {
@@ -2009,31 +2029,80 @@ function App() {
       : query(collection(db, 'grades'), where('assignedTeacherEmail', '==', viewer.email))
   );
 
-  const fetchStudents = async () => {
-    const viewer = viewerRef.current;
 
-    // The query is constrained to this teacher, deliberately matching the
-    // security rule exactly. Filtering after an unconstrained read would look
-    // identical on screen while leaving the whole school readable to anyone
-    // with a console open.
-    const studentData = collectStudentGradeSnapshot(await getDocs(studentGradeSourceForViewer(viewer)));
-    setAllStudents(studentData);
-    return studentData;
+  const normalizeTeacherRosterSummary = (entry = {}) => {
+    const id = String(entry.studentId || entry.id || '').trim();
+    return {
+      id,
+      studentId: id,
+      firstName: entry.firstName || null,
+      lastName: entry.lastName || null,
+      displayName: entry.displayName || null,
+      classId: entry.classId || null,
+      classPeriod: entry.classPeriod || 'Unassigned',
+      status: entry.status || 'active',
+      assignedTeacherEmail: entry.assignedTeacherEmail || null,
+      linkedEmail: entry.linkedEmail || null,
+      sisStudentId: entry.sisStudentId || null,
+      profile: normalizeStudentProfile(entry.profile || {}),
+    };
+  };
+
+  const fetchTeacherRosterSummaries = async () => {
+    const response = await teacherAdmin.listSignInAccess();
+    const summaries = (Array.isArray(response?.students) ? response.students : [])
+      .map(normalizeTeacherRosterSummary)
+      .filter((student) => student.id)
+      .sort(compareStudentsByName);
+    setTeacherRosterSummaries(summaries);
+    if (!TEACHER_FULL_STUDENT_DATA_TABS.has(teacherTab) || teacherPreviewRuntimeActive) {
+      setAllStudents(summaries);
+      setTeacherStudentDataMode('summary');
+    }
+    return summaries;
   };
 
   useEffect(() => {
     if (user?.role !== 'teacher') return undefined;
-    // The live grade stream is one of the highest-churn teacher feeds. A
-    // teacher exemplar must not rerender because students elsewhere in the
-    // roster submit work while the teacher is demonstrating a question.
-    if (teacherPreviewRuntimeActive) return undefined;
+
+    const needsFullStudentData = teacherWorkspaceMode === 'teacher'
+      && TEACHER_FULL_STUDENT_DATA_TABS.has(teacherTab)
+      && !teacherPreviewRuntimeActive;
+
+    if (!needsFullStudentData) {
+      setAllStudents(teacherRosterSummaries);
+      setTeacherStudentDataMode('summary');
+      return undefined;
+    }
+
     const viewer = { email: user.email || null, isRootAdmin: user.isRootAdmin === true };
+    setTeacherStudentDataMode('loading-full');
     return onSnapshot(
       studentGradeSourceForViewer(viewer),
-      (snapshot) => setAllStudents(collectStudentGradeSnapshot(snapshot)),
-      (error) => console.error('Could not watch live student grades:', error),
+      (snapshot) => {
+        const studentData = collectStudentGradeSnapshot(snapshot);
+        setAllStudents(studentData);
+        setTeacherStudentDataMode('full');
+
+        if (teacherTab === 'grades' && !teacherGraderRepairRanRef.current) {
+          teacherGraderRepairRanRef.current = true;
+          persistCurrentGraderCreditRepairs(studentData, assignments)
+            .catch((error) => {
+              teacherGraderRepairRanRef.current = false;
+              console.error('Could not apply deferred current-grader credit repairs:', error);
+            });
+        }
+      },
+      (error) => {
+        console.error('Could not watch live student grades:', error);
+        setAllStudents(teacherRosterSummaries);
+        setTeacherStudentDataMode('summary');
+      },
     );
-  }, [user?.role, user?.email, user?.isRootAdmin, teacherPreviewRuntimeActive]);
+  }, [
+    user?.role, user?.email, user?.isRootAdmin, teacherTab, teacherWorkspaceMode,
+    teacherPreviewRuntimeActive, teacherRosterSummaries, assignments,
+  ]);
 
   // Classes are the authoritative record of course, rigor and teacher of
   // record. Read-only from the client: only the audited admin callables write
@@ -2370,6 +2439,13 @@ function App() {
     const session = auth.session;
     if (auth.status !== 'ready' || !session) {
       setUser(null);
+      setAllStudents([]);
+      setTeacherRosterSummaries([]);
+      setTeacherStudentDataMode('summary');
+      setTeacherActionOpenCountCache(0);
+      teacherGraderRepairRanRef.current = false;
+      setProfileDrawerStudentDetail(null);
+      teacherGraderRepairRanRef.current = false;
       setSessionHydrationError(null);
       setSessionHydrating(auth.status === 'loading');
       return () => { cancelled = true; };
@@ -2387,9 +2463,14 @@ function App() {
           viewerRef.current = { email: session.email || null, isRootAdmin: session.isRootAdmin === true };
           classesRef.current = await fetchClasses();
           if (cancelled) return;
-          const [loadedStudents] = await Promise.all([fetchStudents(), fetchClassSchedule(), fetchCourseProfiles(), fetchAssignmentFolders(), fetchGradingPeriodSettings(), fetchPathSettings()]);
-          if (cancelled) return;
-          await persistCurrentGraderCreditRepairs(loadedStudents, fetchedAssignments);
+          await Promise.all([
+            fetchTeacherRosterSummaries(),
+            fetchClassSchedule(),
+            fetchCourseProfiles(),
+            fetchAssignmentFolders(),
+            fetchGradingPeriodSettings(),
+            fetchPathSettings(),
+          ]);
           if (cancelled) return;
           setClassroomSyncStatusByAssignment({});
           classroomSyncNoticeRef.current = {};
@@ -3349,6 +3430,10 @@ function App() {
       setStudentSupportEvents([]);
       return undefined;
     }
+    if (teacherWorkspaceMode !== 'teacher' || !TEACHER_SUPPORT_STREAM_TABS.has(teacherTab)) {
+      setStudentSupportEvents([]);
+      return undefined;
+    }
     if (teacherPreviewRuntimeActive) return undefined;
     return subscribeStudentSupportEvents({
       db,
@@ -3356,36 +3441,66 @@ function App() {
       onChange: setStudentSupportEvents,
       onError: (error) => console.error('Student support history failed:', error),
     });
-  }, [user?.role, user?.email, teacherPreviewRuntimeActive]);
+  }, [user?.role, user?.email, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab]);
 
   // One teacher-scoped stream spans the whole roster. Firestore rules verify
   // teacher-of-record again for every appended contact; students have no access.
   useEffect(() => {
     if (user?.role !== 'teacher' || !user.email) { setParentContacts([]); return undefined; }
+    if (teacherWorkspaceMode !== 'teacher' || !TEACHER_PARENT_CONTACT_STREAM_TABS.has(teacherTab)) {
+      setParentContacts([]);
+      return undefined;
+    }
     if (teacherPreviewRuntimeActive) return undefined;
     return subscribeParentContacts({ db, teacherEmail: user.email, onChange: setParentContacts, onError: (error) => console.error('Parent contact history failed:', error) });
-  }, [user?.role, user?.email, teacherPreviewRuntimeActive]);
+  }, [user?.role, user?.email, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab]);
 
-  const actionGradeScope = useMemo(() => projectGradeTransferUnits({
-    classes, assignments, students: allStudents, teacherEmail: user?.email || '', isRootAdmin: user?.isRootAdmin === true,
-    snapshots: actionGradeSnapshots, practicePasses: actionPracticePasses,
-  }), [classes, assignments, allStudents, user?.email, user?.isRootAdmin, actionGradeSnapshots, actionPracticePasses]);
-  const actionReturnCheckIns = useMemo(() => classes.flatMap((classRecord) => resolveReturnCheckIns({
-    roster: allStudents.filter((student) => student.classId === (classRecord.classId || classRecord.id)),
-    supportEvents: studentSupportEvents, assignments, classId: classRecord.classId || classRecord.id,
-    classPeriod: classRecord.period || classRecord.classPeriod, schedule: classSchedule,
-    nonInstructionalKeys: SCHOOL_NON_INSTRUCTIONAL_KEYS, todayDateKey: localDateKeyOf(now),
-  })), [classes, allStudents, studentSupportEvents, assignments, classSchedule, now]);
-  const teacherActionItems = useMemo(() => buildTeacherActionItems({
-    students: allStudents, classes, supportEvents: studentSupportEvents, parentContacts,
-    returnCheckIns: actionReturnCheckIns, gradeTransferUnits: actionGradeScope.units,
-    retestRecoveryActions, now, todayDateKey: localDateKeyOf(now),
-  }), [allStudents, classes, studentSupportEvents, parentContacts, actionReturnCheckIns, actionGradeScope.units, retestRecoveryActions, now]);
-  const teacherActionOpenCount = openTeacherActionCount(teacherActionItems);
+  const actionGradeScope = useMemo(() => {
+    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') {
+      return { units: [], authorizedClassIds: [] };
+    }
+    return projectGradeTransferUnits({
+      classes, assignments, students: allStudents, teacherEmail: user?.email || '', isRootAdmin: user?.isRootAdmin === true,
+      snapshots: actionGradeSnapshots, practicePasses: actionPracticePasses,
+    });
+  }, [teacherWorkspaceMode, teacherTab, classes, assignments, allStudents, user?.email, user?.isRootAdmin, actionGradeSnapshots, actionPracticePasses]);
+
+  const actionReturnCheckIns = useMemo(() => {
+    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return [];
+    return classes.flatMap((classRecord) => resolveReturnCheckIns({
+      roster: allStudents.filter((student) => student.classId === (classRecord.classId || classRecord.id)),
+      supportEvents: studentSupportEvents, assignments, classId: classRecord.classId || classRecord.id,
+      classPeriod: classRecord.period || classRecord.classPeriod, schedule: classSchedule,
+      nonInstructionalKeys: SCHOOL_NON_INSTRUCTIONAL_KEYS, todayDateKey: localDateKeyOf(now),
+    }));
+  }, [teacherWorkspaceMode, teacherTab, classes, allStudents, studentSupportEvents, assignments, classSchedule, now]);
+
+  const teacherActionItems = useMemo(() => {
+    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return [];
+    return buildTeacherActionItems({
+      students: allStudents, classes, supportEvents: studentSupportEvents, parentContacts,
+      returnCheckIns: actionReturnCheckIns, gradeTransferUnits: actionGradeScope.units,
+      retestRecoveryActions, now, todayDateKey: localDateKeyOf(now),
+    });
+  }, [teacherWorkspaceMode, teacherTab, allStudents, classes, studentSupportEvents, parentContacts, actionReturnCheckIns, actionGradeScope.units, retestRecoveryActions, now]);
+  const currentTeacherActionOpenCount = openTeacherActionCount(teacherActionItems);
+  const teacherActionOpenCount = teacherTab === 'actionCenter'
+    ? currentTeacherActionOpenCount
+    : teacherActionOpenCountCache;
+
+  useEffect(() => {
+    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return;
+    setTeacherActionOpenCountCache(currentTeacherActionOpenCount);
+  }, [teacherWorkspaceMode, teacherTab, currentTeacherActionOpenCount]);
 
   useEffect(() => {
     const classIds = actionGradeScope.authorizedClassIds;
     if (user?.role !== 'teacher') { setActionGradeSnapshots([]); setActionPracticePasses(new Set()); return; }
+    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') {
+      setActionGradeSnapshots([]);
+      setActionPracticePasses(new Set());
+      return;
+    }
     if (teacherPreviewRuntimeActive) return;
     if (!classIds.length) { setActionGradeSnapshots([]); setActionPracticePasses(new Set()); return; }
     loadTeacherGradeTransferState({ classIds })
@@ -3394,10 +3509,14 @@ function App() {
         setActionPracticePasses(practicePasses);
       })
       .catch((error) => console.error('Action Center grade-transfer projection failed:', error));
-  }, [user?.role, user?.uid, user?.isRootAdmin, auth.session?.uid, actionGradeScope.authorizedClassIds.join('|'), teacherPreviewRuntimeActive]);
+  }, [user?.role, user?.uid, user?.isRootAdmin, auth.session?.uid, actionGradeScope.authorizedClassIds.join('|'), teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab]);
 
   useEffect(() => {
     if (user?.role !== 'teacher') { setRetestRecoveryActions([]); return; }
+    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') {
+      setRetestRecoveryActions([]);
+      return undefined;
+    }
     if (teacherPreviewRuntimeActive) return undefined;
     let cancelled = false;
     Promise.all(assignments.filter(isTestCycleAssignment).map(async (assignment) => {
@@ -3406,10 +3525,14 @@ function App() {
     })).then((groups) => { if (!cancelled) setRetestRecoveryActions(groups.flat()); })
       .catch((error) => console.error('Action Center Test Cycle projection failed:', error));
     return () => { cancelled = true; };
-  }, [user?.role, assignments, teacherPreviewRuntimeActive]);
+  }, [user?.role, assignments, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab]);
 
   useEffect(() => {
     if (user?.role !== 'teacher' || !user.email) {
+      setStudentSessionSummaries([]);
+      return undefined;
+    }
+    if (teacherWorkspaceMode !== 'teacher' || !TEACHER_SESSION_SUMMARY_TABS.has(teacherTab)) {
       setStudentSessionSummaries([]);
       return undefined;
     }
@@ -3423,7 +3546,7 @@ function App() {
       onChange: setStudentSessionSummaries,
       onError: (error) => console.error('Student session summaries failed:', error),
     });
-  }, [user?.role, user?.email, classes, teacherPreviewRuntimeActive]);
+  }, [user?.role, user?.email, classes, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab]);
 
   /*
    * A per-student extension is never written as a client-side whole-map
@@ -6473,6 +6596,7 @@ function App() {
   const queueDayStart = useMemo(() => new Date(now).setHours(0, 0, 0, 0), [Math.floor(now / 3_600_000)]);
 
   const needsAttentionQueue = useMemo(() => {
+    if (!['home', 'classesWorkspace'].includes(teacherTab)) return [];
     const scoped = activeClass.classId ? studentsInActiveClass : allStudents;
     const weeklyLoaded = Boolean(activeClass.classId) && weeklyPathProgressLoadedFor === activeClass.classId;
     const weeklyByStudentId = !weeklyLoaded ? {} : Object.fromEntries(buildTeacherWeeklyView(
@@ -6511,13 +6635,64 @@ function App() {
   }, [
     activeClass.classId, studentsInActiveClass, allStudents, classes,
     teacherLearningProfiles, teacherWeeklyRoster, teacherWeeklyGoalsByStudent,
-    weeklyPathCompletionsByStudent, weeklyPathTruncated, weeklyPathProgressLoadedFor, queueDayStart,
+    weeklyPathCompletionsByStudent, weeklyPathTruncated, weeklyPathProgressLoadedFor, queueDayStart, teacherTab,
   ]);
 
-  const profileDrawerStudent = useMemo(
-    () => allStudents.find((student) => student.id === profileDrawerStudentId) || null,
-    [allStudents, profileDrawerStudentId],
+  const profileDrawerRosterStudent = useMemo(
+    () => allStudents.find((student) => student.id === profileDrawerStudentId)
+      || teacherRosterSummaries.find((student) => student.id === profileDrawerStudentId)
+      || null,
+    [allStudents, teacherRosterSummaries, profileDrawerStudentId],
   );
+
+  const profileDrawerStudent = profileDrawerStudentDetail?.id === profileDrawerStudentId
+    ? profileDrawerStudentDetail
+    : profileDrawerRosterStudent;
+
+  useEffect(() => {
+    if (user?.role !== 'teacher' || !profileDrawerStudentId) {
+      setProfileDrawerStudentDetail(null);
+      return undefined;
+    }
+    const current = allStudents.find((student) => student.id === profileDrawerStudentId);
+    if (current?.gradesByAssignment !== undefined) {
+      setProfileDrawerStudentDetail(current);
+      return undefined;
+    }
+
+    let active = true;
+    setProfileDrawerStudentDetail(null);
+    getDoc(doc(db, 'grades', profileDrawerStudentId))
+      .then((snapshot) => {
+        if (!active || !snapshot.exists()) return;
+        const data = snapshot.data() || {};
+        setProfileDrawerStudentDetail({
+          id: snapshot.id,
+          ...data,
+          profile: normalizeStudentProfile(data.profile || data),
+        });
+      })
+      .catch((error) => {
+        if (active) console.error('Could not load student profile detail:', error);
+      });
+    return () => { active = false; };
+  }, [user?.role, profileDrawerStudentId, allStudents]);
+
+  const profileDrawerLearningProfile = useMemo(() => {
+    if (!profileDrawerStudent) return null;
+    const globalProfile = teacherLearningProfiles[profileDrawerStudent.id] || null;
+    if (globalProfile) return globalProfile;
+    if (profileDrawerStudent.gradesByAssignment === undefined) return null;
+
+    const rows = collectStudentEvidence({ student: profileDrawerStudent, assignments });
+    const { events } = evidenceRowsToEvents(rows);
+    const legacyProfile = buildStudentMasteryProfile({ student: profileDrawerStudent, assignments });
+    return buildStudentLearningProfile({
+      courseId: resolveStudentCourseContext({ student: profileDrawerStudent, classesById, courseProfiles }).courseId,
+      evidenceEvents: events,
+      masteryProfilesByTeks: adaptLegacyMasteryToPhase5({ legacyProfile, evidenceRows: rows }),
+    });
+  }, [profileDrawerStudent, teacherLearningProfiles, assignments, classesById, courseProfiles]);
 
   useEffect(() => {
     if (user?.role !== 'teacher' || !user.email || !profileDrawerStudentId) {
@@ -6597,11 +6772,11 @@ function App() {
     return buildWeeklyPathPlan({
       options,
       courseId: context.courseId,
-      profile: teacherLearningProfiles[profileDrawerStudent.id] || null,
+      profile: profileDrawerLearningProfile,
       sessions: context.courseLevel === 'honors' ? 5 : 4,
       honors: context.courseLevel === 'honors',
     });
-  }, [profileDrawerStudent, classesById, courseProfiles, assignments, pacingByClass, skillOverrides, teacherLearningProfiles]);
+  }, [profileDrawerStudent, classesById, courseProfiles, assignments, pacingByClass, skillOverrides, profileDrawerLearningProfile]);
 
   // A view that cannot answer anything across five classes gets one chosen for
   // it rather than being left on an option its own bar does not offer. Weekly
@@ -7036,7 +7211,7 @@ function App() {
       // Class membership is a server-owned relationship. Updating only the
       // legacy period field can leave classId/teacher authorization disagreeing.
       await teacherAdmin.setStudentClass({ studentId, classId: newClassId || null });
-      await fetchStudents();
+      await fetchTeacherRosterSummaries();
     } catch (error) {
       console.error(error);
       toastError('Could not change class', error?.message || 'Class membership could not be updated.');
@@ -7049,6 +7224,7 @@ function App() {
     try {
       await updateDoc(doc(db, 'grades', studentId), { profile: nextProfile });
       setAllStudents((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile } : entry));
+      setTeacherRosterSummaries((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile } : entry));
     } catch (error) {
       console.error(error);
       toastError('Could not update support profile', error.message);
@@ -7721,9 +7897,6 @@ function App() {
     setDeleteTitleConfirmation('');
     setDeleteAcknowledged(false);
     setDeleteError('');
-    fetchStudents().catch((error) =>
-      console.error('Could not refresh affected student count:', error),
-    );
   };
 
   const closeDeleteDialog = () => {
@@ -7789,7 +7962,7 @@ function App() {
         await batch.commit();
       }
 
-      await Promise.all([fetchAssignments(), fetchStudents()]);
+      await Promise.all([fetchAssignments(), fetchTeacherRosterSummaries()]);
       setDeleteDialog(null);
       setDeleteStep(1);
       setDeleteTitleConfirmation('');
@@ -7984,10 +8157,9 @@ function App() {
   const renderDeleteAssignmentDialog = () => {
     if (!deleteDialog) return null;
 
-    const impactedStudentCount = allStudents.filter(
-      (student) =>
-        student.gradesByAssignment?.[deleteDialog.id] !== undefined,
-    ).length;
+    const impactedStudentCount = teacherStudentDataMode === 'full'
+      ? allStudents.filter((student) => student.gradesByAssignment?.[deleteDialog.id] !== undefined).length
+      : null;
     const titleMatches =
       deleteTitleConfirmation.trim() === deleteDialog.title.trim();
 
@@ -8060,7 +8232,9 @@ function App() {
                   removed.
                 </div>
                 <p style={{ color: '#3c4043', lineHeight: 1.55 }}>
-                  Student records currently affected: <strong>{impactedStudentCount}</strong>
+                  {impactedStudentCount === null
+                    ? 'Linked student records will be verified during deletion without loading the entire grade history into this screen.'
+                    : <>Student records currently affected: <strong>{impactedStudentCount}</strong></>}
                 </p>
               </div>
             )}
@@ -8118,9 +8292,11 @@ function App() {
                     Final confirmation
                   </div>
                   <div style={{ color: '#3c4043', lineHeight: 1.5 }}>
-                    You are permanently deleting this assignment and its linked data
-                    for {impactedStudentCount} student record
-                    {impactedStudentCount === 1 ? '' : 's'}.
+                    {impactedStudentCount === null
+                      ? 'You are permanently deleting this assignment and every linked student record for it.'
+                      : <>You are permanently deleting this assignment and its linked data
+                        for {impactedStudentCount} student record
+                        {impactedStudentCount === 1 ? '' : 's'}.</>}
                   </div>
                 </div>
                 <label
@@ -9397,7 +9573,7 @@ function App() {
                     setClassEvidenceByStudentId({});
                     await Promise.all([
                       fetchAssignments(),
-                      fetchStudents(),
+                      fetchTeacherRosterSummaries(),
                     ]);
                   }}
                 />
@@ -9453,7 +9629,7 @@ function App() {
             targetAssignment={contentUpgradeRequest.targetAssignment}
             onClose={() => setContentUpgradeRequest(null)}
             onUpgraded={async (result) => {
-              const refreshResults = await Promise.allSettled([fetchAssignments(), fetchStudents()]);
+              const refreshResults = await Promise.allSettled([fetchAssignments(), fetchTeacherRosterSummaries()]);
               const refreshFailed = refreshResults.some((entry) => entry.status === 'rejected');
               toastSuccess(
                 result?.alreadyUpgraded
@@ -9517,7 +9693,7 @@ function App() {
           open={Boolean(profileDrawerStudent)}
           studentId={profileDrawerStudent?.id || null}
           studentName={profileDrawerStudent ? formatStudentName(profileDrawerStudent) : ''}
-          profile={profileDrawerStudent ? teacherLearningProfiles[profileDrawerStudent.id] : null}
+          profile={profileDrawerLearningProfile}
           plan={profileDrawerPlan}
           classRecord={profileDrawerStudent ? classesById[profileDrawerStudent.classId] || null : null}
           courseContext={profileDrawerStudent
@@ -9559,7 +9735,8 @@ function App() {
               // it is the class the teacher is working in, and it has to survive
               // the walk to another tab and back.
               setHomeNavigationPeriod(null);
-              if (['students', 'grades', 'gradeTransfer', 'parentContacts', 'standards', 'analytics', 'exams'].includes(tab)) fetchStudents().catch((error) => console.error('Could not refresh student data:', error));
+              // Full academic records are loaded by the tab-scoped subscription
+              // only on screens that actually need them.
             }}
             collapsed={sidebarCollapsed}
             onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
@@ -9777,7 +9954,9 @@ function App() {
                 )}
                 {visibleAssignments.map((assignment) => {
                   const lifecycle = getAssignmentLifecycle(assignment, now);
-                  const affectedStudents = allStudents.filter((student) => student.gradesByAssignment?.[assignment.id] !== undefined).length;
+                  const affectedStudents = teacherStudentDataMode === 'full'
+                    ? allStudents.filter((student) => student.gradesByAssignment?.[assignment.id] !== undefined).length
+                    : null;
                   const isSelected = selectedAssignmentIds.has(assignment.id);
                   const canonicalQuestions = getStoredAssignmentQuestions(assignment);
                   const includedQuestionIndices = getCurrentContentQuestionIndices(assignment);
@@ -9816,7 +9995,9 @@ function App() {
                                 plainly is the whole point of allowing it to exist. */}
                             {isLibraryAssignment(assignment) && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#fef7e0', color: '#7a4f00' }}>NOT ASSIGNED</span>}
                           </div>
-                          <div style={{ marginTop: '7px', color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>{includedQuestionIndices.length} included question{includedQuestionIndices.length === 1 ? '' : 's'}{canonicalQuestions.length !== includedQuestionIndices.length ? ` · ${canonicalQuestions.length - includedQuestionIndices.length} excluded` : ''} · {isLibraryAssignment(assignment) ? 'Not assigned to a class' : `Classes: ${(assignment.assignedClassPeriods || []).join(', ')}`}<br />{isLibraryAssignment(assignment) ? 'No due date yet' : `Due ${formatDueDate(assignment)} · Late close ${formatLateDueDate(assignment)}`} · {affectedStudents} student record{affectedStudents === 1 ? '' : 's'}</div>
+                          <div style={{ marginTop: '7px', color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>{includedQuestionIndices.length} included question{includedQuestionIndices.length === 1 ? '' : 's'}{canonicalQuestions.length !== includedQuestionIndices.length ? ` · ${canonicalQuestions.length - includedQuestionIndices.length} excluded` : ''} · {isLibraryAssignment(assignment) ? 'Not assigned to a class' : `Classes: ${(assignment.assignedClassPeriods || []).join(', ')}`}<br />{isLibraryAssignment(assignment) ? 'No due date yet' : `Due ${formatDueDate(assignment)} · Late close ${formatLateDueDate(assignment)}`} · {affectedStudents === null
+                            ? 'student activity available in Grades'
+                            : `${affectedStudents} student record${affectedStudents === 1 ? '' : 's'}`}</div>
                         </div>
                         <AssignmentCardMenu
                           ariaLabel={`More actions for ${assignment.title}`}
@@ -9933,6 +10114,7 @@ function App() {
                 onSelectPeriod={handleGoToClassFromHome}
                 needsAttention={needsAttentionQueue}
                 needsAttentionCompletionCoverage={Boolean(activeClass.classId) && weeklyPathProgressLoadedFor === activeClass.classId}
+                needsAttentionAcademicCoverage={teacherStudentDataMode === 'full'}
                 learningProfilesByStudentId={teacherLearningProfiles}
                 activeClassId={activeClass.classId}
                 classes={classes}
@@ -10061,6 +10243,7 @@ function App() {
                 evidenceByStudentId={classEvidenceByStudentId}
                 onLoadDeliveredRigor={handleLoadDeliveredRigor}
                 rigorLoading={classEvidenceLoading}
+                academicDataLoaded={teacherStudentDataMode === 'full'}
               />
             )}
 
@@ -10206,7 +10389,7 @@ function App() {
                     {gradeExplanation && <div style={{ marginTop: 4, fontSize: 11, color: '#5f6368', lineHeight: 1.4, maxWidth: 280 }}>{gradeExplanation}</div>}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.warmup.attempted ? `${sectionGrades.warmup.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.classwork.attempted ? `${sectionGrades.classwork.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.practice.attempted ? `${sectionGrades.practice.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.dol.attempted ? `${sectionGrades.dol.score}%` : '—'}</td><td style={{ fontSize: '12px' }}>{modified ? `Modified: ${(usage.modifications || []).join(', ')}` : (usage.accommodations || []).length ? `Accommodated: ${usage.accommodations.join(', ')}` : 'Standard'}</td><td style={{ fontSize: '12px', lineHeight: 1.45 }}>Total {formatTime(activity.totalTimeSeconds || 0)}<br />On time {formatTime(activity.onTimeSeconds || 0)} · Late {formatTime(activity.lateSeconds || 0)}<br />Last on-time: {formatTimeStamp(activity.lastActiveBeforeDue)}<br />Last late: {formatTimeStamp(activity.lastActiveLate)}</td><td><button onClick={() => setGradebookFilter((current) => ({ ...current, student }))} style={{ padding: '8px 12px', border: 0, borderRadius: '6px', background: '#1a73e8', color: '#fff', fontWeight: 'bold' }}>Details</button></td></tr>; })}</tbody></table></div>
                 )}
 
-                {gradebookFilter.student && selectedAssignment && (() => { const student = gradebookFilter.student; const studentGrades = projectTeacherOverridesForDisplay(student.gradesByAssignment || {}, student.teacherGradeOverridesByAssignment || {})?.[selectedAssignment.id] || {}; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const displayedAssignmentScore = assignmentOverride ? assignmentOverride.score : Object.keys(studentGrades).length ? calculateGrade(studentGrades, selectedAssignment) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{displayedAssignmentScore === null ? '—' : `${displayedAssignmentScore}%`}</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div><AssignmentGradeOverrideControls student={student} assignment={selectedAssignment} onChanged={() => { fetchStudents().catch((error) => console.error('Could not refresh student grades after assignment override:', error)); setGradebookFilter((current) => ({ ...current, student: null })); }} />{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: '#fff', border: '1px solid #d8dde6' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: '#202124' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{getStoredAssignmentQuestions(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type} · Grade ×{normalizeQuestionWeight(question)}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.teacherGradeOverrideDisplay?.active ? (credit >= 100 ? 'Teacher assigned · Correct ✓' : `Teacher assigned · ${credit}%`) : record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button>{studentGrades[index] && <button type="button" onClick={() => setResponseInspectorTarget({ studentId: student.id, assignmentId: selectedAssignment.id, questionIndex: index })} style={{ marginTop: '8px', marginLeft: '8px', padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#e8f0fe', color: '#174ea6', fontWeight: 'bold' }}>Inspect Response / Override Grade</button>}</article>; })}</div></div>; })()}
+                {gradebookFilter.student && selectedAssignment && (() => { const student = gradebookFilter.student; const studentGrades = projectTeacherOverridesForDisplay(student.gradesByAssignment || {}, student.teacherGradeOverridesByAssignment || {})?.[selectedAssignment.id] || {}; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const displayedAssignmentScore = assignmentOverride ? assignmentOverride.score : Object.keys(studentGrades).length ? calculateGrade(studentGrades, selectedAssignment) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{displayedAssignmentScore === null ? '—' : `${displayedAssignmentScore}%`}</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div><AssignmentGradeOverrideControls student={student} assignment={selectedAssignment} onChanged={() => setGradebookFilter((current) => ({ ...current, student: null }))} />{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: '#fff', border: '1px solid #d8dde6' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: '#202124' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{getStoredAssignmentQuestions(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type} · Grade ×{normalizeQuestionWeight(question)}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.teacherGradeOverrideDisplay?.active ? (credit >= 100 ? 'Teacher assigned · Correct ✓' : `Teacher assigned · ${credit}%`) : record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button>{studentGrades[index] && <button type="button" onClick={() => setResponseInspectorTarget({ studentId: student.id, assignmentId: selectedAssignment.id, questionIndex: index })} style={{ marginTop: '8px', marginLeft: '8px', padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#e8f0fe', color: '#174ea6', fontWeight: 'bold' }}>Inspect Response / Override Grade</button>}</article>; })}</div></div>; })()}
               </div>
             )}
 
@@ -10226,7 +10409,7 @@ function App() {
               <StudentResponseInspector
                 {...responseInspectorTarget}
                 onClose={() => setResponseInspectorTarget(null)}
-                onChanged={() => fetchStudents().catch((error) => console.error('Could not refresh student grades after override:', error))}
+                onChanged={undefined}
               />
             )}
             {teacherTab === 'standards' && (

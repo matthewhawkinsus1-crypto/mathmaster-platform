@@ -73,6 +73,10 @@ export default function NeedsAttentionQueue({
   // Silence about completion is honest; implying there is nothing to report is
   // not, so the panel says which half of the queue it is missing.
   completionCoverage = true,
+  // Home keeps a compact roster so ordinary navigation does not retain every
+  // student's complete assignment history. False means academic-history
+  // findings are intentionally not loaded on this surface.
+  academicCoverage = true,
 }) {
   const [kind, setKind] = useState(null);
   const [urgency, setUrgency] = useState(null);
@@ -91,10 +95,13 @@ export default function NeedsAttentionQueue({
   if (!queue.length) {
     return (
       <section style={{ padding: '16px 18px', border: '1px solid #d8dde6', borderRadius: 10, background: '#fff', marginBottom: 22 }}>
-        <h2 style={{ margin: 0, fontSize: 17 }}>Nothing needs your attention right now</h2>
+        <h2 style={{ margin: 0, fontSize: 17 }}>
+          {academicCoverage ? 'Nothing needs your attention right now' : 'Live classroom ready'}
+        </h2>
         <p style={{ margin: '6px 0 0', color: '#5f6368', fontSize: 13.5 }}>
-          No prerequisite gaps, reasoning gaps, slipping retention{completionCoverage ? ' or overdue path work' : ''} above the reporting threshold.
-          This panel stays quiet on purpose — a queue that always has something in it stops meaning anything.
+          {academicCoverage
+            ? <>No prerequisite gaps, reasoning gaps, slipping retention{completionCoverage ? ' or overdue path work' : ''} above the reporting threshold. This panel stays quiet on purpose — a queue that always has something in it stops meaning anything.</>
+            : <>Home is using the lightweight live roster so it does not keep every student&apos;s historical grade record in memory. Open Students, Weekly Path, Grades, TEKS &amp; Mastery, Analytics, or Exams when you need full academic-history analysis.</>}
           {!completionCoverage && ' Choose a class above to include this week’s learning-path completion.'}
         </p>
       </section>
@@ -132,9 +139,11 @@ export default function NeedsAttentionQueue({
   return (
     <section style={{ border: '1px solid #d8dde6', borderRadius: 10, background: '#fff', marginBottom: 22, overflow: 'hidden' }}>
       <header style={{ padding: '15px 18px 12px', borderBottom: '1px solid #eef0f2' }}>
-        {!completionCoverage && (
+        {(!completionCoverage || !academicCoverage) && (
           <p style={{ margin: '0 0 10px', padding: '8px 10px', borderRadius: 8, background: '#f1f3f4', color: '#3c4043', fontSize: 12.5 }}>
-            Showing academic and system items only. Choose a class above to include this week&apos;s learning-path completion.
+            {!academicCoverage
+              ? 'Home is showing live/system information from the lightweight roster. Full academic-history findings load only on detail screens.'
+              : 'Showing academic and system items only. Choose a class above to include this week\'s learning-path completion.'}
           </p>
         )}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>

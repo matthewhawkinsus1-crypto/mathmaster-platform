@@ -39,10 +39,19 @@ test('assigned assignments always enable live question protection even before gr
 });
 
 
-test('current grader corrections are applied automatically for teachers and students', () => {
+test('current grader corrections remain automatic without making teacher login regrade the whole roster', () => {
   assert.match(app, /repairAssignmentTrackerForCurrentGrader/);
   assert.match(app, /persistCurrentGraderCreditRepairs/);
-  assert.match(app, /await persistCurrentGraderCreditRepairs\(loadedStudents, fetchedAssignments\)/);
+
+  const teacherHydrationStart = app.indexOf("if (session.role === 'teacher') {");
+  const teacherHydrationEnd = app.indexOf("if (session.role !== 'student' || !session.studentId)", teacherHydrationStart);
+  const teacherHydration = app.slice(teacherHydrationStart, teacherHydrationEnd);
+  assert.doesNotMatch(teacherHydration, /persistCurrentGraderCreditRepairs/);
+
+  assert.match(app, /teacherTab === 'grades' && !teacherGraderRepairRanRef\.current/);
+  assert.match(app, /persistCurrentGraderCreditRepairs\(studentData, assignments\)/);
+
+  // Student self-repair still happens during student hydration.
   assert.match(app, /repairedStudentGrades\.changed/);
   assert.match(app, /gradesByAssignment: repairedStudentGrades\.gradesByAssignment/);
 });

@@ -73,11 +73,12 @@ test('Teacher Preview suspends high-churn teacher reads while keeping cached das
 
   const gradeStream = region(
     app,
-    "// The query is constrained to this teacher",
+    "const needsFullStudentData = teacherWorkspaceMode === 'teacher'",
     "// Classes are the authoritative record",
     'teacher live grade stream',
   );
-  assert.match(gradeStream, /if \(teacherPreviewRuntimeActive\) return undefined;/);
+  assert.match(gradeStream, /&& !teacherPreviewRuntimeActive/);
+  assert.match(gradeStream, /onSnapshot\(/);
 
   const livePresence = region(
     app,

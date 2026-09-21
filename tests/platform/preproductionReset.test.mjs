@@ -198,7 +198,10 @@ test('root Administration exposes a dedicated pre-production reset tab and refre
   assert.match(app, /setStudentSupportEvents\(\[\]\)/);
   assert.match(app, /setStudentSessionSummaries\(\[\]\)/);
   assert.match(app, /fetchAssignments\(\)/);
-  assert.match(app, /fetchStudents\(\)/);
+  // Reset still refreshes the roster, but it must not repopulate every
+  // student's complete grade history into the teacher shell.
+  assert.match(app, /fetchTeacherRosterSummaries\(\)/);
+  assert.doesNotMatch(app, /const fetchStudents\s*=\s*async/);
 });
 
 test('reset panel requires exact phrases, disables bulk reset after locking, and explains Google Classroom limitation', () => {
