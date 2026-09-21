@@ -229,10 +229,13 @@ test('a stale response is returned marked, never silently dropped', () => {
 const panelSource = readFileSync(new URL('../../src/components/teacher/TeacherQuestionReviewPanel.jsx', import.meta.url), 'utf8');
 const editorSource = readFileSync(new URL('../../src/AssignmentQuestionEditor.jsx', import.meta.url), 'utf8');
 
-test('Teacher Review carries the revision into the handoff', () => {
-  const call = panelSource.slice(panelSource.indexOf('queuePendingRepairUpload({'));
-  assert.match(call.slice(0, 160), /baseRevision/,
-    'queueing without the revision stores null, and Repair Center then refuses every upload as unprovable');
+test('Teacher Review carries the revision through direct preview and commit', () => {
+  const previewCall = panelSource.slice(panelSource.indexOf('previewTeacherQuestionRepair({'));
+  assert.match(previewCall.slice(0, 180), /baseRevision/,
+    'previewing without the revision cannot classify the exact assignment version the teacher inspected');
+  const commitCall = panelSource.slice(panelSource.indexOf('commitTeacherQuestionRepair({'));
+  assert.match(commitCall.slice(0, 220), /baseRevision/,
+    'committing without the revision could overwrite a concurrent edit');
 });
 
 test('Repair Center checks the revision and shows the refusal', () => {

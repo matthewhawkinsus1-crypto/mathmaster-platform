@@ -157,7 +157,8 @@ test('a teacher can attach, replace and remove a screenshot where they see the s
  * used.
  */
 test('pasting a screenshot into the note field attaches it', () => {
-  const start = panelSource.indexOf('<textarea');
+  const label = panelSource.indexOf('Repair note');
+  const start = panelSource.indexOf('<textarea', label);
   assert.notEqual(start, -1, 'the panel must have a note field');
   const field = panelSource.slice(start, panelSource.indexOf('/>', start));
 

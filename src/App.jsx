@@ -8721,6 +8721,7 @@ function App() {
             assignmentId={activeAssignmentId}
             question={questions[currentQuestionIndex] || null}
             questionIndex={currentQuestionIndex}
+            onAssignmentRefresh={fetchAssignments}
           />
         )}
         {!preview && renderStudentPackUpBanner()}

@@ -253,6 +253,10 @@ export const teacherAdmin = {
     callable('previewAssignmentContentUpgrade')(payload).then((result) => result.data || {}),
   commitAssignmentContentUpgrade: (payload) =>
     callable('commitAssignmentContentUpgrade')(payload).then((result) => result.data || {}),
+  previewTeacherQuestionRepair: (payload) =>
+    callable('previewTeacherQuestionRepair')(payload).then((result) => result.data || {}),
+  commitTeacherQuestionRepair: (payload) =>
+    callable('commitTeacherQuestionRepair')(payload).then((result) => result.data || {}),
 
   // Classes, rosters, and the three different things "remove" can mean.
   listClasses: () => callable('listClasses')().then((result) => result.data || {}),

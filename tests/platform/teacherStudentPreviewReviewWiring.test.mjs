@@ -73,14 +73,12 @@ test('teacher preview review panel saves notes, resolves them, and builds a ques
   assert.match(panelSource, /buildQuestionRepairRequest/);
   assert.match(panelSource, /Flag question for editing|Save teacher flag/i);
   assert.match(panelSource, /Verify fixed|Resolve/i);
-  // Named "Copy this question" since #156; matched on capability so a rename
-  // does not read as a removal, while losing the control entirely still fails.
-  assert.match(panelSource, /Copy this question|Copy repair request/i,
+  assert.match(panelSource, /Copy AI Repair Prompt/i,
     'the panel must offer a question-only copy for the AI');
-  assert.match(panelSource, /Copy all flagged/i,
+  assert.match(panelSource, /Copy All Flagged AI Fix Package/i,
     'and a copy covering every question under an unresolved teacher flag');
-  assert.match(panelSource, /Upload AI repair JSON/i,
-    'and the upload that hands the AI response back to Repair Center');
+  assert.match(panelSource, /Upload Repair JSON/i,
+    'and an upload that stages the AI response in Teacher Review itself');
 });
 
 /*

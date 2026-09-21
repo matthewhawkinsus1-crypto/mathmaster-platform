@@ -2,10 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase.js';
+import { teacherAdmin } from '../../auth/authService.js';
+import QuestionEngine from '../../QuestionEngine.jsx';
 import { getStoredAssignmentQuestions, storedAssignmentToV5 } from '../../platform/contract/storedAssignmentV5.js';
 import { buildQuestionRepairRequest } from '../../platform/contract/questionRepairRequest.js';
 import {
   addTeacherReviewFlag,
+  markTeacherFlagPotentiallyAddressed,
   resolveTeacherReviewFlag,
 } from '../../platform/preflight/teacherReviewContext.js';
 import { teacherFlagNeedsReview } from '../../platform/preflight/assignmentAuthoringState.js';
@@ -17,8 +20,8 @@ import {
   buildAllOpenTeacherFlagRepairRequest,
   getOpenFlaggedQuestionIds,
   parseUnifiedRepairUpload,
-  queuePendingRepairUpload,
 } from '../../platform/preflight/libraryAssignmentRepairWorkspace.js';
+import { stageBatchQuestionRepairImport } from '../../platform/preflight/questionRepairImport.js';
 import {
   attachScreenshotToFlag,
   detachScreenshotFromFlag,
@@ -33,8 +36,8 @@ import {
 } from '../../platform/preflight/teacherReviewScreenshotCapture.js';
 
 const panelStyle = {
-  width: 'min(760px, calc(100vw - 24px))',
-  maxHeight: 'min(78vh, 740px)',
+  width: 'min(1040px, calc(100vw - 24px))',
+  maxHeight: 'min(88vh, 900px)',
   overflow: 'auto',
   padding: '12px 14px',
   border: '2px solid #1a73e8',
@@ -58,6 +61,27 @@ const buttonStyle = {
 
 const clean = (value) => String(value ?? '').trim();
 
+const issueIdentity = (issue = {}) => [
+  clean(issue.questionId),
+  clean(issue.classification),
+  clean(issue.reason || issue.message),
+  clean(issue.suspectedComponent),
+  clean(issue.repairKey),
+].join('|');
+
+const mergeIssueReports = (existing = [], incoming = []) => {
+  const merged = [];
+  const seen = new Set();
+  [...(Array.isArray(existing) ? existing : []), ...(Array.isArray(incoming) ? incoming : [])].forEach((issue) => {
+    if (!issue || typeof issue !== 'object' || Array.isArray(issue)) return;
+    const key = issueIdentity(issue);
+    if (seen.has(key)) return;
+    seen.add(key);
+    merged.push(issue);
+  });
+  return merged;
+};
+
 const writeClipboardText = async (text) => {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
@@ -75,11 +99,51 @@ const writeClipboardText = async (text) => {
   if (!ok) throw new Error('Clipboard copy is unavailable in this browser.');
 };
 
+/**
+ * The correction is exercised by the same canonical renderer as View as
+ * Student, but with every persistence seam disconnected. A null draftKey also
+ * keeps registry-tool state inside this mounted preview rather than local or
+ * remote student storage.
+ */
+export function TeacherRepairCandidateSandbox({ question, assignmentId, resetKey }) {
+  const testGrade = async (isCorrect, questionDetails, parts) => ({
+    isCorrect,
+    status: isCorrect ? 'correct' : 'attempted',
+    attemptCount: 1,
+    remainingAttempts: 99,
+    expired: false,
+    incorrectParts: (parts || []).filter((part) => part?.graded !== false && !part?.isCorrect).map((part) => part?.label),
+    questionDetails,
+  });
+  return (
+    <div data-teacher-repair-sandbox="true" style={{ border: '1px solid #81c995', borderRadius: 10, background: '#fff', padding: 8 }}>
+      <QuestionEngine
+        key={resetKey}
+        question={question}
+        generationKey={`teacher-repair-preview|${assignmentId}|${resetKey}`}
+        questionRecord={null}
+        draftKey={null}
+        studentProfile={null}
+        executionScope="teacherRepairPreview"
+        attemptsDoNotExpire
+        onGrade={testGrade}
+        onStepGrade={testGrade}
+        onRequestNewQuestion={() => {}}
+        onLoadScratchpad={async () => null}
+        onSaveScratchpad={async () => null}
+        onResponseCheckpoint={null}
+        onSpotlightFrame={null}
+      />
+    </div>
+  );
+}
+
 export default function TeacherQuestionReviewPanel({
   assignmentId,
   questionId: questionIdProp = '',
   question: questionProp = null,
   questionIndex = null,
+  onAssignmentRefresh = null,
 }) {
   const repairUploadInputRef = useRef(null);
   const [context, setContext] = useState({ flags: [] });
@@ -92,6 +156,12 @@ export default function TeacherQuestionReviewPanel({
   const [message, setMessage] = useState('');
   const [expanded, setExpanded] = useState(false);
   const [pendingShot, setPendingShot] = useState(null);
+  const [repairJson, setRepairJson] = useState('');
+  const [stagedRepair, setStagedRepair] = useState(null);
+  const [serverPreview, setServerPreview] = useState(null);
+  const [activeRepairQuestionId, setActiveRepairQuestionId] = useState('');
+  const [reviewedRepairQuestionIds, setReviewedRepairQuestionIds] = useState([]);
+  const [savedReplacementPreviews, setSavedReplacementPreviews] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -161,6 +231,53 @@ export default function TeacherQuestionReviewPanel({
   const allFlaggedQuestionIds = useMemo(() => (
     assignmentV5 ? getOpenFlaggedQuestionIds({ assignmentV5, teacherReviewContext: context }) : []
   ), [assignmentV5, context]);
+
+  const replacements = useMemo(() => (
+    stagedRepair?.questionResults?.map((result) => ({
+      questionId: result.questionId,
+      question: result.replacementQuestion,
+    })) || []
+  ), [stagedRepair]);
+  const storedQuestions = useMemo(
+    () => (assignmentRecord ? getStoredAssignmentQuestions(assignmentRecord) : []),
+    [assignmentRecord],
+  );
+  const effectiveRepairQuestionId = clean(
+    activeRepairQuestionId
+    || (replacements.some((entry) => clean(entry.questionId) === questionId) ? questionId : replacements[0]?.questionId),
+  );
+  const activeReplacement = replacements.find((entry) => clean(entry.questionId) === effectiveRepairQuestionId) || null;
+  const proposedQuestion = activeReplacement?.question || null;
+  const activeOriginalQuestion = storedQuestions.find((item) => clean(item?.questionId) === effectiveRepairQuestionId) || null;
+  const reviewedRepairQuestionIdSet = useMemo(
+    () => new Set(reviewedRepairQuestionIds.map(clean).filter(Boolean)),
+    [reviewedRepairQuestionIds],
+  );
+  const allReplacementsReviewed = replacements.length > 0
+    && replacements.every((entry) => reviewedRepairQuestionIdSet.has(clean(entry.questionId)));
+
+  const activateRepairQuestion = (nextQuestionId) => {
+    const id = clean(nextQuestionId);
+    if (!id) return;
+    setActiveRepairQuestionId(id);
+    setReviewedRepairQuestionIds((current) => (
+      current.includes(id) ? current : [...current, id]
+    ));
+  };
+
+  const reloadAssignment = async () => {
+    let refreshedRecord = null;
+    const snapshot = await getDoc(doc(db, 'assignments', assignmentId));
+    if (snapshot?.exists?.()) {
+      const record = { id: snapshot.id, ...snapshot.data() };
+      refreshedRecord = record;
+      setAssignmentRecord(record);
+      const questions = getStoredAssignmentQuestions(record);
+      setResolvedQuestion(questions.find((item) => clean(item?.questionId) === questionId) || null);
+    }
+    await onAssignmentRefresh?.();
+    return refreshedRecord;
+  };
 
   const persist = async (nextContext, successMessage) => {
     setBusy(true);
@@ -322,34 +439,121 @@ export default function TeacherQuestionReviewPanel({
     }
   };
 
-  const uploadRepairFromTeacherReview = async (event) => {
-    const file = event.target.files?.[0] || null;
-    event.target.value = '';
-    if (!file) return;
+  const stageRepairText = async (rawText) => {
     if (!assignmentV5 || !allFlaggedQuestionIds.length) {
-      setMessage('Save at least one teacher flag before uploading a repair response.');
+      setMessage('Save at least one teacher flag before staging a repair response.');
       return;
     }
 
     setBusy(true);
-    setMessage('Checking uploaded repair JSON…');
+    setMessage('Validating and running Assignment V5 Preflight…');
+    setStagedRepair(null);
+    setServerPreview(null);
+    setActiveRepairQuestionId('');
+    setReviewedRepairQuestionIds([]);
+    setSavedReplacementPreviews([]);
     try {
-      const rawText = await file.text();
       const parsed = parseUnifiedRepairUpload(rawText, {
         assignmentId,
         baseRevision,
         allowedQuestionIds: allFlaggedQuestionIds,
       });
-      const replacementCount = Array.isArray(parsed?.replacements) ? parsed.replacements.length : 0;
-      if (!replacementCount) throw new Error('The uploaded repair contains no replacement questions.');
+      const staged = stageBatchQuestionRepairImport({
+        assignmentV5,
+        parsedResponse: parsed,
+        baseRevision,
+        currentRevision: baseRevision,
+        teacherReviewContext: context,
+      });
+      setStagedRepair(staged);
 
-      // The revision this response was built from travels with it. Without it
-      // Repair Center has no way to tell a fresh response from one built before
-      // the assignment was edited, and cannot refuse the stale one.
-      queuePendingRepairUpload({ assignmentId, rawText, baseRevision });
-      setMessage(`Repair JSON accepted for ${replacementCount} flagged question${replacementCount === 1 ? '' : 's'} and queued safely. Open Repair/Edit Questions next; its Repair Center will load and revalidate this upload automatically before anything can be applied.`);
+      const hasReportedIssues = (staged.platformIssues || []).length > 0 || (staged.unclearIssues || []).length > 0;
+      let stagedContext = context;
+      if (hasReportedIssues) {
+        stagedContext = {
+          ...context,
+          platformIssues: mergeIssueReports(context.platformIssues, staged.platformIssues),
+          unclearIssues: mergeIssueReports(context.unclearIssues, staged.unclearIssues),
+        };
+        const saved = await saveAssignmentTeacherReviewContext(assignmentId, stagedContext);
+        setContext(saved);
+        stagedContext = saved;
+      }
+
+      if (staged.responseKind === 'reportOnly') {
+        setMessage('The AI reported a platform issue or an unclear request. It was preserved for review; no question was rewritten.');
+        return;
+      }
+      if (!staged.canCommit) {
+        setMessage('The proposed correction introduces a new Assignment V5 Preflight blocker. Review the findings below; Apply is disabled.');
+        return;
+      }
+      const nextReplacements = staged.questionResults.map((result) => ({ questionId: result.questionId, question: result.replacementQuestion }));
+      const initialRepairQuestionId = clean(
+        nextReplacements.find((entry) => clean(entry.questionId) === questionId)?.questionId
+        || nextReplacements[0]?.questionId,
+      );
+      setActiveRepairQuestionId(initialRepairQuestionId);
+      setReviewedRepairQuestionIds(initialRepairQuestionId ? [initialRepairQuestionId] : []);
+      const preview = await teacherAdmin.previewTeacherQuestionRepair({ assignmentId, baseRevision, replacements: nextReplacements });
+      setServerPreview(preview);
+      setMessage('Correction staged. Test the actual student question below, review the server classification, then apply it here.');
     } catch (error) {
-      setMessage(error.message || 'MathMaster refused this repair upload. Nothing was queued or changed.');
+      setMessage(error.message || 'MathMaster refused this repair JSON. Nothing was changed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const uploadRepairFromTeacherReview = async (event) => {
+    const file = event.target.files?.[0] || null;
+    event.target.value = '';
+    if (!file) return;
+    const rawText = await file.text();
+    setRepairJson(rawText);
+    await stageRepairText(rawText);
+  };
+
+  const applyCorrectedQuestion = async () => {
+    if (!stagedRepair?.canCommit || !serverPreview?.planHash || !replacements.length || !allReplacementsReviewed) return;
+    setBusy(true);
+    setMessage('Applying corrected question…');
+    try {
+      const result = await teacherAdmin.commitTeacherQuestionRepair({
+        assignmentId,
+        baseRevision,
+        expectedPlanHash: serverPreview.planHash,
+        replacements,
+      });
+      const refreshedRecord = await reloadAssignment();
+      const refreshedQuestions = refreshedRecord ? getStoredAssignmentQuestions(refreshedRecord) : [];
+      const savedReplacements = Object.entries(result?.replacementQuestionIds || {}).map(([sourceQuestionId, replacementQuestionId]) => {
+        const question = refreshedQuestions.find((item) => clean(item?.questionId) === clean(replacementQuestionId)) || null;
+        return question ? { sourceQuestionId, replacementQuestionId, question } : null;
+      }).filter(Boolean);
+      setSavedReplacementPreviews(savedReplacements);
+
+      let nextContext = context;
+      for (const flagId of stagedRepair.pendingTeacherFlagIds || []) {
+        nextContext = markTeacherFlagPotentiallyAddressed(nextContext, flagId, {
+          assignmentRevision: result?.assignmentRevision,
+        });
+      }
+      if ((stagedRepair.pendingTeacherFlagIds || []).length > 0) {
+        const savedContext = await saveAssignmentTeacherReviewContext(assignmentId, nextContext);
+        setContext(savedContext);
+      }
+
+      setRepairJson('');
+      setStagedRepair(null);
+      setServerPreview(null);
+      setActiveRepairQuestionId('');
+      setReviewedRepairQuestionIds([]);
+      setMessage(savedReplacements.length
+        ? 'Corrected question saved. Existing student work was preserved. The saved replacement is rendered below so you can verify it before resolving the teacher flag.'
+        : 'Corrected question saved. Existing student work was preserved.');
+    } catch (error) {
+      setMessage(error.message || 'MathMaster could not save this correction. Nothing was changed.');
     } finally {
       setBusy(false);
     }
@@ -370,10 +574,10 @@ export default function TeacherQuestionReviewPanel({
             </div>
             <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               <button type="button" onClick={copyRepairRequest} disabled={busy || !openFlags.length || !resolvedQuestion} style={{ ...buttonStyle, opacity: busy || !openFlags.length || !resolvedQuestion ? 0.55 : 1 }}>
-                Copy this question
+                Copy AI Repair Prompt
               </button>
               <button type="button" onClick={copyAllFlaggedRepairRequest} disabled={busy || !assignmentV5 || !allFlaggedQuestionIds.length} style={{ ...buttonStyle, background: '#174ea6', borderColor: '#174ea6', color: '#fff', opacity: busy || !assignmentV5 || !allFlaggedQuestionIds.length ? 0.55 : 1 }}>
-                Copy all flagged ({allFlaggedQuestionIds.length})
+                Copy All Flagged AI Fix Package ({allFlaggedQuestionIds.length})
               </button>
               <input
                 ref={repairUploadInputRef}
@@ -388,14 +592,135 @@ export default function TeacherQuestionReviewPanel({
                 disabled={busy || !assignmentV5 || !allFlaggedQuestionIds.length}
                 style={{ ...buttonStyle, background: '#188038', borderColor: '#188038', color: '#fff', opacity: busy || !assignmentV5 || !allFlaggedQuestionIds.length ? 0.55 : 1 }}
               >
-                Upload AI repair JSON
+                Upload Repair JSON
               </button>
             </div>
           </div>
 
           <div style={{ marginTop: 8, padding: 8, borderRadius: 8, background: '#e8f0fe', color: '#174ea6', fontSize: 11.5, lineHeight: 1.4 }}>
-            Batch copy includes every question covered by an open teacher flag, including section/assignment flags. Uploads are checked here, then queued for the Repair Center in Repair/Edit Questions so Student Preview never mutates the assignment directly.
+            Batch copy includes every question covered by an open teacher flag. Paste and upload share one guarded parser, staging, and Preflight path. Nothing changes until the server classifies the correction and you choose Apply Corrected Question.
           </div>
+
+          <section aria-label="Stage AI repair JSON" style={{ marginTop: 10, padding: 10, border: '1px solid #aecbfa', borderRadius: 9, background: '#fff' }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 900 }}>
+              Paste Repair JSON
+              <textarea
+                value={repairJson}
+                onChange={(event) => setRepairJson(event.target.value)}
+                placeholder="Paste the AI repair response here, then stage it."
+                style={{ display: 'block', width: '100%', minHeight: 92, boxSizing: 'border-box', marginTop: 5, padding: 8, border: '1px solid #bdc7d6', borderRadius: 7, fontFamily: 'monospace', fontSize: 11.5 }}
+              />
+            </label>
+            <button type="button" onClick={() => stageRepairText(repairJson)} disabled={busy || !clean(repairJson) || !allFlaggedQuestionIds.length} style={{ ...buttonStyle, marginTop: 7, background: '#174ea6', color: '#fff', opacity: busy || !clean(repairJson) || !allFlaggedQuestionIds.length ? 0.55 : 1 }}>
+              Stage Pasted Repair
+            </button>
+          </section>
+
+          {stagedRepair && (
+            <section aria-label="Staged teacher correction" style={{ marginTop: 12, display: 'grid', gap: 10 }}>
+              {(stagedRepair.platformIssues || []).map((issue, index) => (
+                <div key={`platform-${index}`} role="status" style={{ padding: 10, borderRadius: 8, background: '#fce8e6', color: '#8c1d18' }}>
+                  <strong>Platform issue — question unchanged</strong><div>{issue.reason || issue.message || JSON.stringify(issue)}</div>
+                </div>
+              ))}
+              {(stagedRepair.unclearIssues || []).map((issue, index) => (
+                <div key={`unclear-${index}`} role="status" style={{ padding: 10, borderRadius: 8, background: '#fff4ce', color: '#6b5200' }}>
+                  <strong>Needs clarification — question unchanged</strong><div>{issue.reason || issue.message || JSON.stringify(issue)}</div>
+                </div>
+              ))}
+              {stagedRepair.validation?.newBlockingDiagnostics?.length > 0 && (
+                <div role="alert" style={{ padding: 10, borderRadius: 8, background: '#fce8e6', color: '#8c1d18' }}>
+                  <strong>Assignment V5 Preflight blocker</strong>
+                  {stagedRepair.validation.newBlockingDiagnostics.map((finding, index) => <div key={index}>{finding.message || finding.code || 'Blocking validation issue'}</div>)}
+                </div>
+              )}
+              {replacements.length > 1 && (
+                <section aria-label="Repair question selector" style={{ padding: 10, border: '1px solid #dadce0', borderRadius: 9, background: '#fff' }}>
+                  <strong>Review every corrected question before applying the batch</strong>
+                  <div style={{ marginTop: 5, color: '#5f6368', fontSize: 12 }}>
+                    Reviewed {reviewedRepairQuestionIdSet.size} of {replacements.length}. Apply stays disabled until every replacement has been opened here.
+                  </div>
+                  <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 8 }}>
+                    {replacements.map((entry) => {
+                      const id = clean(entry.questionId);
+                      const reviewed = reviewedRepairQuestionIdSet.has(id);
+                      const active = id === effectiveRepairQuestionId;
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => activateRepairQuestion(id)}
+                          style={{
+                            ...buttonStyle,
+                            minHeight: 34,
+                            padding: '6px 9px',
+                            background: active ? '#e8f0fe' : '#fff',
+                            borderColor: reviewed ? '#81c995' : '#aecbfa',
+                            color: active ? '#174ea6' : '#3c4043',
+                          }}
+                        >
+                          {reviewed ? '✓ ' : ''}{id}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+              {proposedQuestion && activeOriginalQuestion && (
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <section aria-label="Current Question" style={{ padding: 10, border: '1px solid #dadce0', borderRadius: 9, background: '#f8f9fa' }}>
+                    <strong>Current Question · <code>{effectiveRepairQuestionId}</code></strong>
+                    <TeacherRepairCandidateSandbox question={activeOriginalQuestion} assignmentId={assignmentId} resetKey={`${baseRevision}:${effectiveRepairQuestionId}:current`} />
+                  </section>
+                  <section aria-label="Proposed Correction">
+                    <strong style={{ color: '#137333' }}>Proposed Correction · interactive student renderer</strong>
+                    <TeacherRepairCandidateSandbox question={proposedQuestion} assignmentId={assignmentId} resetKey={`${baseRevision}:${effectiveRepairQuestionId}:${serverPreview?.planHash || 'staged'}`} />
+                  </section>
+                </div>
+              )}
+              {serverPreview && (
+                <section aria-label="Authoritative repair classification" style={{ padding: 10, border: '1px solid #81c995', borderRadius: 9, background: '#e6f4ea' }}>
+                  <strong>Server change classification</strong>
+                  <div style={{ marginTop: 4, fontSize: 12 }}>Affected students: {Number(serverPreview.affectedStudentCount) || 0}</div>
+                  {(serverPreview.changes || []).map((change) => (
+                    <div key={change.questionId} style={{ marginTop: 7 }}>
+                      <code>{change.questionId}</code> · <strong>{change.classification}</strong> · {change.commitBehavior}
+                      {change.reason && <div>{change.reason}</div>}
+                      {change.commitBehavior === 'retireAndReplace' && (
+                        <div style={{ marginTop: 5, fontWeight: 800 }}>This correction changes the mathematical task. MathMaster will preserve the historical question and student work, retire that flawed version, and introduce the corrected question as fresh work.</div>
+                      )}
+                    </div>
+                  ))}
+                </section>
+              )}
+              {!allReplacementsReviewed && replacements.length > 1 && (
+                <div role="status" style={{ padding: 9, borderRadius: 8, background: '#fff4ce', color: '#6b5200', fontSize: 12 }}>
+                  Open each proposed correction above before applying this batch.
+                </div>
+              )}
+              <button type="button" onClick={applyCorrectedQuestion} disabled={busy || !stagedRepair.canCommit || !serverPreview?.planHash || !replacements.length || !allReplacementsReviewed} style={{ ...buttonStyle, background: '#188038', borderColor: '#188038', color: '#fff', fontSize: 14, opacity: busy || !stagedRepair.canCommit || !serverPreview?.planHash || !replacements.length || !allReplacementsReviewed ? 0.55 : 1 }}>
+                Apply Corrected Question
+              </button>
+            </section>
+          )}
+
+          {savedReplacementPreviews.length > 0 && (
+            <section aria-label="Saved corrected replacement" style={{ marginTop: 12, padding: 10, border: '2px solid #81c995', borderRadius: 10, background: '#f3fbf5' }}>
+              <strong style={{ color: '#137333' }}>Saved corrected replacement · verify before resolving the flag</strong>
+              {savedReplacementPreviews.map((entry) => (
+                <div key={entry.replacementQuestionId} style={{ marginTop: 10 }}>
+                  <div style={{ marginBottom: 5, fontSize: 12 }}>
+                    Historical <code>{entry.sourceQuestionId}</code> → corrected <code>{entry.replacementQuestionId}</code>
+                  </div>
+                  <TeacherRepairCandidateSandbox
+                    question={entry.question}
+                    assignmentId={assignmentId}
+                    resetKey={`saved:${entry.replacementQuestionId}`}
+                  />
+                </div>
+              ))}
+            </section>
+          )}
 
           {questionFlags.length > 0 && (
             <div style={{ display: 'grid', gap: 7, marginTop: 10 }}>
