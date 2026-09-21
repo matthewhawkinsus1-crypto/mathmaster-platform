@@ -708,6 +708,10 @@ function App() {
   // See platform/teacher/liveTeachingSession.js.
   const [liveTeachingSession, setLiveTeachingSession] = useState(null);
   const walkthroughWriteRef = useRef(null);
+  // Current-grader credit repair is intentionally deferred until the teacher
+  // opens Grades. It still repairs the authorized roster automatically, but it
+  // no longer makes every teacher login download and regrade the full history.
+  const teacherGraderRepairRanRef = useRef(false);
   const [assignments, setAssignments] = useState([]);
   const [allStudents, setAllStudents] = useState([]);
   const [teacherRosterSummaries, setTeacherRosterSummaries] = useState([]);
@@ -1973,6 +1977,44 @@ function App() {
     };
   };
 
+  // Grader corrections are monotonic. Keep the teacher-side safety net, but
+  // run it only after the full academic corpus was intentionally loaded for
+  // Grades; ordinary teacher navigation never pays this CPU/memory cost.
+  const persistCurrentGraderCreditRepairs = async (students = [], assignmentList = []) => {
+    const correctedAt = new Date().toISOString();
+    const repairs = (Array.isArray(students) ? students : []).map((student) => {
+      const result = repairGradesByAssignmentWithCurrentGrader({
+        gradesByAssignment: student?.gradesByAssignment || {},
+        assignmentList,
+        correctedAt,
+      });
+      return result.changed
+        ? { student, gradesByAssignment: result.gradesByAssignment }
+        : null;
+    }).filter(Boolean);
+
+    if (!repairs.length) return 0;
+
+    for (let start = 0; start < repairs.length; start += 400) {
+      const batch = writeBatch(db);
+      repairs.slice(start, start + 400).forEach(({ student, gradesByAssignment }) => {
+        batch.update(doc(db, 'grades', student.id), { gradesByAssignment });
+      });
+      await batch.commit();
+    }
+
+    const repairedById = new Map(repairs.map(({ student, gradesByAssignment }) => [
+      student.id,
+      gradesByAssignment,
+    ]));
+    setAllStudents((current) => current.map((student) => (
+      repairedById.has(student.id)
+        ? { ...student, gradesByAssignment: repairedById.get(student.id) }
+        : student
+    )));
+    return repairs.length;
+  };
+
   const collectStudentGradeSnapshot = (querySnapshot) => querySnapshot.docs
     .filter((studentDoc) => studentDoc.id !== 'test_connection')
     .map((studentDoc) => ({ id: studentDoc.id, ...studentDoc.data(), profile: normalizeStudentProfile(studentDoc.data()?.profile || studentDoc.data()) }))
@@ -2035,8 +2077,18 @@ function App() {
     return onSnapshot(
       studentGradeSourceForViewer(viewer),
       (snapshot) => {
-        setAllStudents(collectStudentGradeSnapshot(snapshot));
+        const studentData = collectStudentGradeSnapshot(snapshot);
+        setAllStudents(studentData);
         setTeacherStudentDataMode('full');
+
+        if (teacherTab === 'grades' && !teacherGraderRepairRanRef.current) {
+          teacherGraderRepairRanRef.current = true;
+          persistCurrentGraderCreditRepairs(studentData, assignments)
+            .catch((error) => {
+              teacherGraderRepairRanRef.current = false;
+              console.error('Could not apply deferred current-grader credit repairs:', error);
+            });
+        }
       },
       (error) => {
         console.error('Could not watch live student grades:', error);
@@ -2046,7 +2098,7 @@ function App() {
     );
   }, [
     user?.role, user?.email, user?.isRootAdmin, teacherTab, teacherWorkspaceMode,
-    teacherPreviewRuntimeActive, teacherRosterSummaries,
+    teacherPreviewRuntimeActive, teacherRosterSummaries, assignments,
   ]);
 
   // Classes are the authoritative record of course, rigor and teacher of
@@ -2388,6 +2440,7 @@ function App() {
       setTeacherRosterSummaries([]);
       setTeacherStudentDataMode('summary');
       setProfileDrawerStudentDetail(null);
+      teacherGraderRepairRanRef.current = false;
       setSessionHydrationError(null);
       setSessionHydrating(auth.status === 'loading');
       return () => { cancelled = true; };
