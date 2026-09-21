@@ -51,6 +51,22 @@ test('authorization is owner/admin/designated-repairer, reusing existing helpers
   assert.match(commitFn, /requireTeacherQuestionRepairAuthority\(db, request, initialAssignment\)/);
 });
 
+test('an ordinary unassigned assignment is repairable by any signed-in teacher, matching firestore.rules\' assignments rule', () => {
+  // firestore.rules: match /assignments/{assignmentId} { allow update: if
+  // teacher() ... } -- no ownership check for an unassigned/editable
+  // assignment. requireTeacherQuestionRepairAuthority must not be stricter
+  // than that for the same document a teacher could otherwise edit directly.
+  const unassignedBranch = region(authorityFn, 'const { classIds, periods } = contentUpgradeAudience(assignment);', 'return requireContentUpgradeOwner(db, request, assignment);', 'unassigned branch');
+  assert.doesNotMatch(unassignedBranch, /throw new HttpsError/);
+  assert.match(unassignedBranch, /authorizationType:\s*"teacherEditor"/);
+
+  // The `else` arm after the class/legacy-period branches must not deny an
+  // unassigned assignment -- there is no permission-denied thrown for the
+  // "neither classIds nor periods" case inside the ownership re-check.
+  const ownershipRecheck = region(commitFn, 'if (!isRoot && !isElevatedRepairer) {', 'const trackerDocs = await loadSavedAssignmentTrackersInTransaction', 'ownership re-check block');
+  assert.doesNotMatch(executableSource(ownershipRecheck), /not assigned to a class/);
+});
+
 test('commit re-checks class ownership against fresh transaction reads, not the pre-transaction check', () => {
   const transactionRegion = region(commitFn, 'return await db.runTransaction', 'const trackerDocs = await loadSavedAssignmentTrackersInTransaction', 'commit transaction body');
   assert.match(transactionRegion, /teacherOfRecord/);

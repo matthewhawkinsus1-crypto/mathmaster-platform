@@ -54,6 +54,25 @@ async function platformOwnedFields() {
   return platformOwnedFieldsModule;
 }
 
+// functions/shared/questionTypeCatalog.mjs (+ its analysisRequestCatalog.mjs
+// and questionRecipes.mjs dependencies) is a verbatim copy of the SAME
+// authoring/Preflight type contract in src/platform/contract/ -- the catalog
+// that tells an AI author what a question type needs is the catalog that
+// decides whether a submitted repair has it. functions/ deploys as its own
+// package and cannot import src/ (see platformOwnedFields.mjs), so this is a
+// duplication, not a reference; tests/platform/questionTypeCatalogParity.test.mjs
+// fails if the copies ever drift from their src/ originals.
+let questionTypeCatalogModule = null;
+async function questionTypeCatalog() {
+  if (!questionTypeCatalogModule) {
+    questionTypeCatalogModule = await import("../shared/questionTypeCatalog.mjs");
+  }
+  return questionTypeCatalogModule;
+}
+
+const hasValue = (value) => value !== undefined && value !== null && value !== "";
+const pathValue = (question, path) => path.split(".").reduce((node, key) => (node == null ? undefined : node[key]), question);
+
 // Commit behavior when student history exists: every classification keeps its
 // established Content V2 meaning. "fundamental" is always retire + replace
 // here -- the teacher already chose "Apply Corrected Question", so there is no
@@ -75,7 +94,20 @@ const REASON_TEXT = Object.freeze({
   clarificationOnly: "This repair changes wording only (prompt or guided notes); the scored meaning is unchanged.",
 });
 
-function validateCandidateQuestion(candidate, questionId) {
+/**
+ * Authoritative server-side V5/tool validation. This is deliberately more
+ * than an identity check: for a catalogued type it runs the exact
+ * required-field and custom `validate()` rules the authoring contract and
+ * client Preflight already enforce (functions/shared/questionTypeCatalog.mjs),
+ * so a candidate missing e.g. a graphAnalysis functionSpec or a
+ * relationshipModel's quantities is rejected here, not only in the browser.
+ * The browser Preflight remains the deeper check (rendering-promise auditing,
+ * workflow/interaction/grading-contract validation, instructional integrity)
+ * for the composed/interactive types this catalog does not cover -- those get
+ * a narrower baseline (a prompt/scenario, and well-formed answerFields when
+ * present) rather than a second, partial reimplementation of that stack.
+ */
+async function validateCandidateQuestion(candidate, questionId) {
   if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
     throw new Error(`The corrected question for "${questionId}" is not a valid MathMaster question object.`);
   }
@@ -83,8 +115,45 @@ function validateCandidateQuestion(candidate, questionId) {
   if (candidateId !== questionId) {
     throw new Error(`The corrected question for "${questionId}" does not carry a matching question ID.`);
   }
-  if (!clean(candidate.type)) {
+  const type = clean(candidate.type);
+  if (!type) {
     throw new Error(`The corrected question for "${questionId}" is missing its Assignment V5 question type.`);
+  }
+
+  const catalog = await questionTypeCatalog();
+  const entry = catalog.getTypeEntry(type);
+  const problems = [];
+
+  if (entry) {
+    (entry.required || []).forEach((requirement) => {
+      if (!hasValue(pathValue(candidate, requirement.path))) problems.push(requirement.message);
+    });
+    if (!problems.length && typeof entry.validate === "function") {
+      try {
+        problems.push(...(entry.validate(candidate) || []));
+      } catch (error) {
+        problems.push(`could not be checked (${error.message})`);
+      }
+    }
+  } else {
+    if (!hasValue(candidate.prompt) && !hasValue(candidate.scenario)) {
+      problems.push("needs a prompt or scenario");
+    }
+    if (Array.isArray(candidate.answerFields)) {
+      const seenFieldIds = new Set();
+      candidate.answerFields.forEach((field, index) => {
+        const fieldId = clean(field?.id);
+        if (!fieldId) { problems.push(`answerFields[${index}] needs an id`); return; }
+        if (seenFieldIds.has(fieldId)) { problems.push(`answerFields[${index}] repeats id "${fieldId}"`); return; }
+        seenFieldIds.add(fieldId);
+        const hasAnswerValue = hasValue(field.answer) || (Array.isArray(field.acceptedAnswers) && field.acceptedAnswers.length > 0);
+        if (!hasAnswerValue) problems.push(`answerFields[${index}] ("${fieldId}") needs an answer or acceptedAnswers`);
+      });
+    }
+  }
+
+  if (problems.length) {
+    throw new Error(`The corrected question for "${questionId}" (${type}) failed V5 authoring validation: ${problems.join("; ")}.`);
   }
   return true;
 }
@@ -114,16 +183,19 @@ async function buildTeacherRepairPlan({ liveAssignment, replacements, hasStudent
   const rowsById = new Map(rows.map((row) => [row.questionId, row]));
 
   const seenIds = new Set();
-  const cleaned = replacements.map((entry, index) => {
+  const cleaned = [];
+  for (let index = 0; index < replacements.length; index += 1) {
+    const entry = replacements[index];
     const questionId = clean(entry?.questionId);
     if (!questionId) throw new Error(`Replacement ${index + 1} is missing a question ID.`);
     if (seenIds.has(questionId)) throw new Error(`Duplicate corrected question for "${questionId}".`);
     seenIds.add(questionId);
     const row = rowsById.get(questionId);
     if (!row) throw new Error(`Question "${questionId}" is not present in this assignment.`);
-    validateCandidateQuestion(entry?.question, questionId);
-    return { questionId, question: clone(entry.question), row };
-  });
+    // eslint-disable-next-line no-await-in-loop
+    await validateCandidateQuestion(entry?.question, questionId);
+    cleaned.push({ questionId, question: clone(entry.question), row });
+  }
 
   const policy = await upgradePolicy();
   const changes = cleaned.map(({ questionId, question, row }) => {

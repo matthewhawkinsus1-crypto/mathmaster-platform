@@ -27,11 +27,27 @@ const baseAssignment = () => ({
         questionId: 'q2',
         type: 'multiAnswer',
         prompt: 'Kind?',
-        answerFields: [{ id: 'kind', answer: 'interpolation', inputProfile: 'text' }],
+        answerFields: [{ id: 'kind', label: 'Kind', answer: 'interpolation', inputProfile: 'text' }],
       },
       { questionId: 'q3', type: 'dataModelingLab', mode: 'lineFit', prompt: 'Exact fit', points: [[0, 0], [10, 100]] },
-      { questionId: 'q4', type: 'relationshipModel', prompt: 'Old prompt wording.', correctIndependentId: 'x', correctDependentId: 'y' },
-      { questionId: 'q5', type: 'relationshipModel', prompt: 'Impossible task with no valid answer.', correctIndependentId: 'x', correctDependentId: 'y' },
+      {
+        questionId: 'q4',
+        type: 'relationshipModel',
+        prompt: 'Old prompt wording.',
+        scenario: 'A car rental company charges a flat fee plus a per-mile rate.',
+        quantities: [{ id: 'x', label: 'Miles driven' }, { id: 'y', label: 'Total cost' }],
+        correctIndependentId: 'x',
+        correctDependentId: 'y',
+      },
+      {
+        questionId: 'q5',
+        type: 'relationshipModel',
+        prompt: 'Impossible task with no valid answer.',
+        scenario: 'A tank drains at a constant rate.',
+        quantities: [{ id: 'x', label: 'Time' }, { id: 'y', label: 'Volume' }],
+        correctIndependentId: 'x',
+        correctDependentId: 'y',
+      },
     ],
   }],
 });
@@ -40,7 +56,7 @@ const safeResponseCandidate = {
   questionId: 'q2',
   type: 'multiAnswer',
   prompt: 'Kind?',
-  answerFields: [{ id: 'kind', answer: 'interpolation', inputProfile: 'choice', type: 'choice', options: ['interpolation', 'extrapolation'] }],
+  answerFields: [{ id: 'kind', label: 'Kind', answer: 'interpolation', inputProfile: 'choice', type: 'choice', options: ['interpolation', 'extrapolation'] }],
 };
 const gradingExpansionCandidate = {
   questionId: 'q3',
@@ -55,6 +71,8 @@ const clarificationCandidate = {
   questionId: 'q4',
   type: 'relationshipModel',
   prompt: 'Clarified prompt wording only.',
+  scenario: 'A car rental company charges a flat fee plus a per-mile rate.',
+  quantities: [{ id: 'x', label: 'Miles driven' }, { id: 'y', label: 'Total cost' }],
   correctIndependentId: 'x',
   correctDependentId: 'y',
 };
@@ -62,14 +80,25 @@ const fundamentalCandidate = {
   questionId: 'q5',
   type: 'relationshipModel',
   prompt: 'Corrected, mathematically valid task.',
+  scenario: 'A tank drains at a constant rate.',
+  quantities: [{ id: 'x', label: 'Time' }, { id: 'y', label: 'Volume' }],
   correctIndependentId: 'y',
   correctDependentId: 'x',
 };
 
+// systemsGraphing is not in the core type catalog (it's an interactive tool
+// validated by its own client-side schema), so this fixture exercises the
+// generic prompt/answerFields baseline instead of a catalogued type's
+// required-field rules -- matching the real graph-viewport-repair fixture in
+// tests/platform/liveGraphViewportRepair.test.mjs.
 const graphViewportBefore = {
   questionId: 'q6',
-  type: 'graphAnalysis',
-  prompt: 'Analyze the graph.',
+  type: 'systemsGraphing',
+  prompt: 'Graph the system and state the solution as an ordered pair.',
+  system: [
+    { id: 'line-1', equation: 'y=6x+18', slope: 6, intercept: 18 },
+    { id: 'line-2', equation: 'y=3x+42', slope: 3, intercept: 42 },
+  ],
   graph: { xMin: -5, xMax: 5, yMin: -5, yMax: 5, functions: [{ expression: 'x^2' }] },
 };
 const graphViewportCandidate = {
@@ -266,6 +295,8 @@ test('a prompt-only clarification proves the scored meaning is unchanged; a scor
     questionId: 'q4',
     type: 'relationshipModel',
     prompt: 'Clarified prompt wording only.',
+    scenario: 'A car rental company charges a flat fee plus a per-mile rate.',
+    quantities: [{ id: 'x', label: 'Miles driven' }, { id: 'y', label: 'Total cost' }],
     correctIndependentId: 'y', // scored answer key changed -> not provably clarification-only
     correctDependentId: 'x',
   };
@@ -299,8 +330,8 @@ test('duplicate and missing question IDs are denied', async () => {
     buildTeacherRepairPlan({
       liveAssignment,
       replacements: [
-        { questionId: 'q1', question: { questionId: 'q1', type: 'choice' } },
-        { questionId: 'q1', question: { questionId: 'q1', type: 'choice' } },
+        { questionId: 'q1', question: { questionId: 'q1', type: 'choice', prompt: 'Same', answer: 'A', options: ['A', 'B'] } },
+        { questionId: 'q1', question: { questionId: 'q1', type: 'choice', prompt: 'Same', answer: 'A', options: ['A', 'B'] } },
       ],
       hasStudentHistory: false,
     }),
@@ -328,6 +359,90 @@ test('multi-question repair is atomic: one malformed entry rejects the whole pla
       hasStudentHistory: false,
     }),
     /missing its Assignment V5 question type/,
+  );
+});
+
+test('server validation is authoritative, not just questionId + type: it runs the real V5 type contract', async () => {
+  const liveAssignment = baseAssignment();
+
+  // graphAnalysis is a catalogued type that requires functionSpec.type and a
+  // non-empty analysisRequests array -- a candidate that only "looks" like a
+  // question (has a type and a prompt) is not enough.
+  await assert.rejects(
+    buildTeacherRepairPlan({
+      liveAssignment: {
+        ...liveAssignment,
+        sections: [{
+          ...liveAssignment.sections[0],
+          questions: [...liveAssignment.sections[0].questions, {
+            questionId: 'q7', type: 'graphAnalysis', prompt: 'Analyze the graph.',
+          }],
+        }],
+      },
+      replacements: [{
+        questionId: 'q7',
+        question: { questionId: 'q7', type: 'graphAnalysis', prompt: 'A shallow, structurally invalid repair.' },
+      }],
+      hasStudentHistory: false,
+    }),
+    /failed V5 authoring validation/,
+  );
+
+  // relationshipModel requires quantities whose ids match
+  // correctIndependentId/correctDependentId -- a candidate with a dangling
+  // reference is rejected even though every field it has is well-typed.
+  await assert.rejects(
+    buildTeacherRepairPlan({
+      liveAssignment,
+      replacements: [{
+        questionId: 'q4',
+        question: {
+          questionId: 'q4', type: 'relationshipModel', prompt: 'Rewritten.',
+          scenario: 'A scenario.', quantities: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }],
+          correctIndependentId: 'x', correctDependentId: 'y', // not among quantity ids
+        },
+      }],
+      hasStudentHistory: false,
+    }),
+    /must match one of the quantity ids/,
+  );
+
+  // The same catalog accepts a genuinely well-formed candidate for that type.
+  const plan = await buildTeacherRepairPlan({
+    liveAssignment,
+    replacements: [{
+      questionId: 'q4',
+      question: {
+        questionId: 'q4', type: 'relationshipModel', prompt: 'Rewritten and valid.',
+        scenario: 'A scenario.', quantities: [{ id: 'x', label: 'X' }, { id: 'y', label: 'Y' }],
+        correctIndependentId: 'x', correctDependentId: 'y',
+      },
+    }],
+    hasStudentHistory: false,
+  });
+  assert.ok(plan.changes[0]);
+});
+
+test('an un-catalogued (interactive/composed) type still gets a real baseline check: prompt, and well-formed answerFields', async () => {
+  const liveAssignment = baseAssignment();
+  await assert.rejects(
+    buildTeacherRepairPlan({
+      liveAssignment,
+      replacements: [{ questionId: 'q1', question: { questionId: 'q1', type: 'someInteractiveTool' } }],
+      hasStudentHistory: false,
+    }),
+    /needs a prompt or scenario/,
+  );
+  await assert.rejects(
+    buildTeacherRepairPlan({
+      liveAssignment,
+      replacements: [{
+        questionId: 'q1',
+        question: { questionId: 'q1', type: 'someInteractiveTool', prompt: 'Do the thing.', answerFields: [{ label: 'no id' }] },
+      }],
+      hasStudentHistory: false,
+    }),
+    /needs an id/,
   );
 });
 

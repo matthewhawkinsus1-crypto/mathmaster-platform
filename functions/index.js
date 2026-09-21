@@ -15524,33 +15524,33 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
  * above.
  */
 
-// owner/admin/designated-repairer, in that priority: an administrator or a
-// designated repairer (functions/lib/fullAssignmentRepair.js's authority,
-// unchanged) may repair ANY assignment, assigned or not. A plain teacher may
-// only repair a live copy assigned to a class they own -- the same rule
+// owner/admin/designated-repairer: an administrator or a designated repairer
+// (functions/lib/fullAssignmentRepair.js's authority, unchanged) may repair
+// ANY assignment, assigned or not. A plain teacher may repair a LIVE copy
+// only if they own every class it is assigned to -- the same rule
 // requireContentUpgradeOwner already enforces for the Content V2 live
-// upgrade, reused here rather than duplicated. An unassigned/ordinary
-// editable assignment with no elevated authority is refused: that path is
-// Full Assignment Audit's, not a live teacher question repair.
+// upgrade, reused here rather than duplicated. An ordinary, unassigned
+// editable assignment has no live student history to protect and is exactly
+// the "any signed-in teacher may edit it" content Firestore's own
+// `assignments` rule already allows (see firestore.rules: `allow update: if
+// teacher()`, no ownership check) -- so any signed-in teacher may repair one
+// here too, matching that existing model rather than inventing a stricter one.
 async function requireTeacherQuestionRepairAuthority(db, request, assignment) {
-  await requireTeacher(request);
+  const uid = await requireTeacher(request);
   const email = callerEmail(request);
   if (!email) {
     throw new HttpsError("permission-denied", "A verified teacher email is required to repair a question.");
   }
   if (authLib.isRootAdminEmail(email)) {
-    return { uid: request.auth.uid, email, authorizationType: "administrator" };
+    return { uid, email, authorizationType: "administrator" };
   }
   if (fullAssignmentRepair.repairAuthority(request.auth) === "designatedRepairer") {
-    return { uid: request.auth.uid, email, authorizationType: "designatedRepairer" };
+    return { uid, email, authorizationType: "designatedRepairer" };
   }
 
   const { classIds, periods } = contentUpgradeAudience(assignment);
   if (!classIds.length && !periods.length) {
-    throw new HttpsError(
-      "permission-denied",
-      "This assignment is not assigned to a class. Only an administrator or a designated repairer may repair an unassigned assignment."
-    );
+    return { uid, email, authorizationType: "teacherEditor" };
   }
   return requireContentUpgradeOwner(db, request, assignment);
 }
@@ -15714,12 +15714,13 @@ exports.commitTeacherQuestionRepair = onCall(async (request) => {
             periodSnapshot.docs.forEach((doc) => legacyClasses.push({ classId: doc.id, ...doc.data() }));
           }
           assertLegacyPeriodOwnership(legacyClasses, periods, actorEmail);
-        } else {
-          throw new HttpsError(
-            "permission-denied",
-            "This assignment is not assigned to a class. Only an administrator or a designated repairer may repair an unassigned assignment."
-          );
         }
+        // else: an ordinary, unassigned editable assignment. Any signed-in
+        // teacher may repair it, matching Firestore's own `assignments` rule
+        // (`allow update: if teacher()`, no ownership check) -- there is no
+        // live student history on an unassigned assignment to protect, so
+        // there is nothing here to re-check beyond requireTeacher, already
+        // enforced by requireTeacherQuestionRepairAuthority above.
       }
 
       const trackerDocs = await loadSavedAssignmentTrackersInTransaction(
