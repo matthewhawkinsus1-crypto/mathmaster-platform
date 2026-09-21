@@ -564,6 +564,14 @@ const calculateDOLSectionScore = (assignmentTracker = {}, questionIndices = [], 
 // Every other lifecycle status is internal bookkeeping.
 const DISPLAYED_CHECKPOINT_OUTCOMES = ['auto-submitted', 'incomplete-at-close', 'explicitly-submitted'];
 
+const TEACHER_FULL_STUDENT_DATA_TABS = new Set([
+  'students', 'weeklyPath', 'actionCenter', 'grades', 'gradeTransfer',
+  'standards', 'analytics', 'exams',
+]);
+const TEACHER_SUPPORT_STREAM_TABS = new Set(['home', 'classesWorkspace', 'attendanceHistory', 'actionCenter']);
+const TEACHER_PARENT_CONTACT_STREAM_TABS = new Set(['parentContacts', 'actionCenter']);
+const TEACHER_SESSION_SUMMARY_TABS = new Set(['home', 'classesWorkspace']);
+
 function App() {
   const auth = useAuth();
   // Identity is owned entirely by <AuthProvider>. `user` below is the
@@ -702,6 +710,9 @@ function App() {
   const walkthroughWriteRef = useRef(null);
   const [assignments, setAssignments] = useState([]);
   const [allStudents, setAllStudents] = useState([]);
+  const [teacherRosterSummaries, setTeacherRosterSummaries] = useState([]);
+  const [teacherStudentDataMode, setTeacherStudentDataMode] = useState('summary');
+  const [profileDrawerStudentDetail, setProfileDrawerStudentDetail] = useState(null);
   // Live presence for the teacher home grid, keyed by student id. Never stored
   // alongside grades and never read outside the live view.
   const [presenceById, setPresenceById] = useState({});
@@ -1080,12 +1091,13 @@ function App() {
   }, [user, currentStudentMasteryProfile]);
 
   const teacherMasteryProfilesByStudentId = useMemo(() => {
+    if (user?.role === 'teacher' && teacherStudentDataMode !== 'full') return {};
     if (!allStudents.length) return {};
     return Object.fromEntries(allStudents.map((student) => {
       const profile = buildStudentMasteryProfile({ student, assignments });
       return [student.id, profile];
     }));
-  }, [allStudents, assignments]);
+  }, [allStudents, assignments, user?.role, teacherStudentDataMode]);
 
   // ONE SET OF LEARNING PROFILES FOR THE WHOLE TEACHER WORKSPACE.
   //
@@ -1114,6 +1126,7 @@ function App() {
   ), []);
 
   const teacherLearningProfiles = useMemo(() => {
+    if (user?.role === 'teacher' && teacherStudentDataMode !== 'full') return {};
     if (!allStudents.length) return {};
     return Object.fromEntries(allStudents.map((student) => {
       const rows = collectStudentEvidence({ student, assignments });
@@ -1133,7 +1146,7 @@ function App() {
           : {},
       })];
     }));
-  }, [allStudents, assignments, courseProfiles, classesById, teacherMasteryProfilesByStudentId]);
+  }, [allStudents, assignments, courseProfiles, classesById, teacherMasteryProfilesByStudentId, user?.role, teacherStudentDataMode]);
 
   // The students in the class the Weekly Path screen is looking at.
   const teacherWeeklyRoster = useMemo(() => {
@@ -1958,46 +1971,6 @@ function App() {
     };
   };
 
-  // Grader corrections are allowed to be MONOTONIC only. When a corrected
-  // equivalence rule proves that a stored response was mathematically correct,
-  // repair the saved score without consuming another attempt. Teacher login
-  // repairs every student already in that teacher's authorized roster, so a
-  // child does not have to reopen the assignment to receive credit.
-  const persistCurrentGraderCreditRepairs = async (students = [], assignmentList = []) => {
-    const correctedAt = new Date().toISOString();
-    const repairs = (Array.isArray(students) ? students : []).map((student) => {
-      const result = repairGradesByAssignmentWithCurrentGrader({
-        gradesByAssignment: student?.gradesByAssignment || {},
-        assignmentList,
-        correctedAt,
-      });
-      return result.changed
-        ? { student, gradesByAssignment: result.gradesByAssignment }
-        : null;
-    }).filter(Boolean);
-
-    if (!repairs.length) return 0;
-
-    for (let start = 0; start < repairs.length; start += 400) {
-      const batch = writeBatch(db);
-      repairs.slice(start, start + 400).forEach(({ student, gradesByAssignment }) => {
-        batch.update(doc(db, 'grades', student.id), { gradesByAssignment });
-      });
-      await batch.commit();
-    }
-
-    const repairedById = new Map(repairs.map(({ student, gradesByAssignment }) => [
-      student.id,
-      gradesByAssignment,
-    ]));
-    setAllStudents((current) => current.map((student) => (
-      repairedById.has(student.id)
-        ? { ...student, gradesByAssignment: repairedById.get(student.id) }
-        : student
-    )));
-    return repairs.length;
-  };
-
   const collectStudentGradeSnapshot = (querySnapshot) => querySnapshot.docs
     .filter((studentDoc) => studentDoc.id !== 'test_connection')
     .map((studentDoc) => ({ id: studentDoc.id, ...studentDoc.data(), profile: normalizeStudentProfile(studentDoc.data()?.profile || studentDoc.data()) }))
@@ -2011,29 +1984,74 @@ function App() {
 
   const fetchStudents = async () => {
     const viewer = viewerRef.current;
-
-    // The query is constrained to this teacher, deliberately matching the
-    // security rule exactly. Filtering after an unconstrained read would look
-    // identical on screen while leaving the whole school readable to anyone
-    // with a console open.
     const studentData = collectStudentGradeSnapshot(await getDocs(studentGradeSourceForViewer(viewer)));
     setAllStudents(studentData);
+    setTeacherStudentDataMode('full');
     return studentData;
+  };
+
+  const normalizeTeacherRosterSummary = (entry = {}) => {
+    const id = String(entry.studentId || entry.id || '').trim();
+    return {
+      id,
+      studentId: id,
+      firstName: entry.firstName || null,
+      lastName: entry.lastName || null,
+      displayName: entry.displayName || null,
+      classId: entry.classId || null,
+      classPeriod: entry.classPeriod || 'Unassigned',
+      status: entry.status || 'active',
+      assignedTeacherEmail: entry.assignedTeacherEmail || null,
+      linkedEmail: entry.linkedEmail || null,
+      sisStudentId: entry.sisStudentId || null,
+      profile: normalizeStudentProfile(entry.profile || {}),
+    };
+  };
+
+  const fetchTeacherRosterSummaries = async () => {
+    const response = await teacherAdmin.listSignInAccess();
+    const summaries = (Array.isArray(response?.students) ? response.students : [])
+      .map(normalizeTeacherRosterSummary)
+      .filter((student) => student.id)
+      .sort(compareStudentsByName);
+    setTeacherRosterSummaries(summaries);
+    if (!TEACHER_FULL_STUDENT_DATA_TABS.has(teacherTab) || teacherPreviewRuntimeActive) {
+      setAllStudents(summaries);
+      setTeacherStudentDataMode('summary');
+    }
+    return summaries;
   };
 
   useEffect(() => {
     if (user?.role !== 'teacher') return undefined;
-    // The live grade stream is one of the highest-churn teacher feeds. A
-    // teacher exemplar must not rerender because students elsewhere in the
-    // roster submit work while the teacher is demonstrating a question.
-    if (teacherPreviewRuntimeActive) return undefined;
+
+    const needsFullStudentData = TEACHER_FULL_STUDENT_DATA_TABS.has(teacherTab)
+      && !teacherPreviewRuntimeActive;
+
+    if (!needsFullStudentData) {
+      setAllStudents(teacherRosterSummaries);
+      setTeacherStudentDataMode('summary');
+      return undefined;
+    }
+
     const viewer = { email: user.email || null, isRootAdmin: user.isRootAdmin === true };
+    setTeacherStudentDataMode('loading-full');
     return onSnapshot(
       studentGradeSourceForViewer(viewer),
-      (snapshot) => setAllStudents(collectStudentGradeSnapshot(snapshot)),
-      (error) => console.error('Could not watch live student grades:', error),
+      (snapshot) => {
+        setAllStudents(collectStudentGradeSnapshot(snapshot));
+        setTeacherStudentDataMode('full');
+      },
+      (error) => {
+        console.error('Could not watch live student grades:', error);
+        setAllStudents(teacherRosterSummaries);
+        setTeacherStudentDataMode('summary');
+      },
     );
-  }, [user?.role, user?.email, user?.isRootAdmin, teacherPreviewRuntimeActive]);
+  }, [
+    user?.role, user?.email, user?.isRootAdmin, teacherTab,
+    teacherPreviewRuntimeActive, teacherRosterSummaries,
+  ]);
 
   // Classes are the authoritative record of course, rigor and teacher of
   // record. Read-only from the client: only the audited admin callables write
@@ -2387,9 +2405,14 @@ function App() {
           viewerRef.current = { email: session.email || null, isRootAdmin: session.isRootAdmin === true };
           classesRef.current = await fetchClasses();
           if (cancelled) return;
-          const [loadedStudents] = await Promise.all([fetchStudents(), fetchClassSchedule(), fetchCourseProfiles(), fetchAssignmentFolders(), fetchGradingPeriodSettings(), fetchPathSettings()]);
-          if (cancelled) return;
-          await persistCurrentGraderCreditRepairs(loadedStudents, fetchedAssignments);
+          await Promise.all([
+            fetchTeacherRosterSummaries(),
+            fetchClassSchedule(),
+            fetchCourseProfiles(),
+            fetchAssignmentFolders(),
+            fetchGradingPeriodSettings(),
+            fetchPathSettings(),
+          ]);
           if (cancelled) return;
           setClassroomSyncStatusByAssignment({});
           classroomSyncNoticeRef.current = {};
