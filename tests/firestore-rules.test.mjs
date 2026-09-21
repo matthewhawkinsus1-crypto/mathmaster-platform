@@ -141,6 +141,7 @@ const roleless = testEnv.authenticatedContext('random-uid', {}).firestore();
 const anon = testEnv.unauthenticatedContext().firestore();
 
 // --- Walkthrough sessions are private teacher control state ----------------
+await check('teacher can check a not-yet-created walkthrough session', assertSucceeds(getDoc(doc(teacher, 'walkthroughSessions/teacher-uid__class-1__missing'))));
 const walkthroughPath = 'walkthroughSessions/teacher-uid__class-1__A1';
 const walkthrough = { sessionId: 'teacher-uid__class-1__A1', ownerUid: 'teacher-uid', teacherEmail: TEACHER_EMAIL, classId: 'class-1', assignmentId: 'A1', active: true, storageQuestionIndex: 0, timer: { status: 'idle' } };
 await check('owning teacher creates and reads walkthrough session', (async () => { await assertSucceeds(setDoc(doc(teacher, walkthroughPath), walkthrough)); await assertSucceeds(getDoc(doc(teacher, walkthroughPath))); })());
