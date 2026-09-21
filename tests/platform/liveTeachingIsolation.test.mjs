@@ -98,7 +98,7 @@ test('Teacher Preview suspends high-churn teacher reads while keeping cached das
     'subscribeParentContacts',
     'subscribeStudentSessionSummaries',
   ]) {
-    const at = app.indexOf(marker);
+    const at = app.lastIndexOf(marker);
     assert.ok(at >= 0, marker + ' must remain wired');
     const before = app.slice(Math.max(0, at - 450), at);
     assert.match(before, /teacherPreviewRuntimeActive/, marker + ' must pause during Teacher Preview');
