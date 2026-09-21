@@ -17,6 +17,13 @@ const lessonSectionKeys = (assignment) => {
       .map((entry) => entry.logicalRole)
       .filter(Boolean),
   );
+
+  // Only split a pure lesson assignment into Warm-Up/Classwork/Practice/DOL.
+  // If a supported V5 assignment mixes in an assessment role (for example
+  // quiz/test), keep the established whole-assignment export so no evidence
+  // is silently dropped from the TEAMS package.
+  if ([...roles].some((role) => !SECTION_GRADE_KEYS.includes(role))) return [];
+
   return SECTION_GRADE_KEYS.filter((key) => roles.has(key));
 };
 
