@@ -726,6 +726,9 @@ function App() {
   const [parentContacts, setParentContacts] = useState([]);
   const [actionGradeSnapshots, setActionGradeSnapshots] = useState([]);
   const [actionPracticePasses, setActionPracticePasses] = useState(new Set());
+  // Keep only the small badge count after Action Center releases its heavy
+  // projections. This preserves the sidebar cue without retaining student history.
+  const [teacherActionOpenCountCache, setTeacherActionOpenCountCache] = useState(0);
   const [retestRecoveryActions, setRetestRecoveryActions] = useState([]);
   const [parentContactSourceAction, setParentContactSourceAction] = useState(null);
   const [studentSessionSummaries, setStudentSessionSummaries] = useState([]);
@@ -1225,7 +1228,7 @@ function App() {
     // queue reports who is behind, and reporting that from data that has not
     // loaded yet would tell a teacher the whole class is behind every time they
     // open the page.
-    if (user?.role !== 'teacher' || !['weeklyPath', 'grades'].includes(teacherTab)) return undefined;
+    if (user?.role !== 'teacher' || !['weeklyPath', 'home', 'grades'].includes(teacherTab)) return undefined;
     if (teacherPreviewRuntimeActive) return undefined;
     const activeId = activeClass.classId || classes[0]?.classId || null;
     if (!activeId) { setWeeklyPathCompletionsByStudent({}); setWeeklyPathGoalSnapshotsByStudent({}); setWeeklyPathProgressLoadedFor(null); return undefined; }
@@ -2439,6 +2442,8 @@ function App() {
       setAllStudents([]);
       setTeacherRosterSummaries([]);
       setTeacherStudentDataMode('summary');
+      setTeacherActionOpenCountCache(0);
+      teacherGraderRepairRanRef.current = false;
       setProfileDrawerStudentDetail(null);
       teacherGraderRepairRanRef.current = false;
       setSessionHydrationError(null);
@@ -3478,7 +3483,15 @@ function App() {
       retestRecoveryActions, now, todayDateKey: localDateKeyOf(now),
     });
   }, [teacherWorkspaceMode, teacherTab, allStudents, classes, studentSupportEvents, parentContacts, actionReturnCheckIns, actionGradeScope.units, retestRecoveryActions, now]);
-  const teacherActionOpenCount = teacherTab === 'actionCenter' ? openTeacherActionCount(teacherActionItems) : 0;
+  const currentTeacherActionOpenCount = openTeacherActionCount(teacherActionItems);
+  const teacherActionOpenCount = teacherTab === 'actionCenter'
+    ? currentTeacherActionOpenCount
+    : teacherActionOpenCountCache;
+
+  useEffect(() => {
+    if (teacherWorkspaceMode !== 'teacher' || teacherTab !== 'actionCenter') return;
+    setTeacherActionOpenCountCache(currentTeacherActionOpenCount);
+  }, [teacherWorkspaceMode, teacherTab, currentTeacherActionOpenCount]);
 
   useEffect(() => {
     const classIds = actionGradeScope.authorizedClassIds;
