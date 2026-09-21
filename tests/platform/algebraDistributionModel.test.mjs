@@ -52,8 +52,8 @@ test('rational negative factor matches the issue worked example exactly (modulo 
 test('negative rational factor carries one mathematical minus in its display form', () => {
   const detected = detectDistributableGroup({ left: 'y - 7', right: '-(2/3)(x + 3)' });
   assert.ok(detected);
-  assert.doesNotMatch(detected.factorLatex, /--|-s*-/);
-  assert.match(detected.factorText.replace(/s+/g, ''), /^-2\/3$/);
+  assert.doesNotMatch(detected.factorLatex, /--|-\s*-/);
+  assert.match(detected.factorText.replace(/\s+/g, ''), /^-2\/3$/);
 });
 
 test('distribution remains available after a different valid step adds a separate term', () => {
@@ -64,8 +64,8 @@ test('distribution remains available after a different valid step adds a separat
   assert.equal(detected.sideTermIndex, 0);
   const state = distributeAll(detected);
   const next = commitDistribution(equation, state);
-  assert.match(next.right.replace(/s+/g, ''), /\(-2\/3\)\(x\)/);
-  assert.match(next.right.replace(/s+/g, ''), /\+7$/);
+  assert.match(next.right.replace(/\s+/g, ''), /\(-2\/3\)\(x\)/);
+  assert.match(next.right.replace(/\s+/g, ''), /\+7$/);
 });
 
 test('distribution remains available when the factored term comes after another term', () => {
@@ -75,8 +75,8 @@ test('distribution remains available when the factored term comes after another 
   assert.equal(detected.sideTermIndex, 1);
   const state = distributeAll(detected);
   const next = commitDistribution(equation, state);
-  assert.match(next.right.replace(/s+/g, ''), /^7\+/);
-  assert.match(next.right.replace(/s+/g, ''), /\(-2\/3\)\(x\)/);
+  assert.match(next.right.replace(/\s+/g, ''), /^7\+/);
+  assert.match(next.right.replace(/\s+/g, ''), /\(-2\/3\)\(x\)/);
 });
 
 test('positive integer factor over two terms', () => {
