@@ -899,6 +899,7 @@ export default function QuestionEngine({
         if (processedQuestion.mode === 'linearIntercepts') {
           return (
             <LinearInterceptsOrchestrator
+              key={draftKey || processedQuestion?.questionId || processedQuestion?.id || generationKey}
               {...commonModuleProps}
               questionRecord={record}
               onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}

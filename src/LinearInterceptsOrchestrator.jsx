@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MathDisplay from './MathDisplay';
 import MathInput from './MathInput.jsx';
 import StepByStepAlgebraCore from './StepByStepAlgebraCore';
@@ -85,15 +85,43 @@ export default function LinearInterceptsOrchestrator({
     ? question.feedbackTiming
     : 'delayed';
 
+  // Keep the existing draft-key shape so work already saved by students remains
+  // restorable and continues to flow through the universal server draft sync.
   const workDraftKey = draftKey ? `${draftKey}:linear-intercepts` : null;
-  const [work, setWork] = useState(() => readQuestionDraft(workDraftKey, null) || initialWork());
+  const workDraftKeyRef = useRef(workDraftKey);
+  const [work, setWorkState] = useState(() => readQuestionDraft(workDraftKey, null) || initialWork());
   const [zeroArmed, setZeroArmed] = useState(false);
   const [stageHistory, setStageHistory] = useState(() => ({ kind: 'x', entries: [] })); // conceptual undo, scoped per intercept
   const [message, setMessage] = useState('');
 
+  /*
+   * Persist mathematical work inside the same state transition that accepts the
+   * edit. The previous passive effect could be skipped when navigation
+   * unmounted this question immediately after a click/keystroke, and it could
+   * also write the previous question's in-memory work under a newly changed
+   * draft key. This mirrors the write-through contract used by registry tools.
+   */
+  const setWork = useCallback((next) => {
+    setWorkState((current) => {
+      const resolved = typeof next === 'function' ? next(current) : next;
+      if (Object.is(resolved, current)) return current;
+      writeQuestionDraft(workDraftKeyRef.current, resolved);
+      return resolved;
+    });
+  }, []);
+
+  // Defensive restore for hosts that swap the question beneath a mounted
+  // component. QuestionEngine also keys this orchestrator by draft identity, so
+  // normal assignment navigation remounts cleanly; this prevents a future host
+  // from reintroducing cross-question state leakage.
   useEffect(() => {
-    writeQuestionDraft(workDraftKey, work);
-  }, [workDraftKey, work]);
+    if (workDraftKeyRef.current === workDraftKey) return;
+    workDraftKeyRef.current = workDraftKey;
+    setWorkState(readQuestionDraft(workDraftKey, null) || initialWork());
+    setZeroArmed(false);
+    setStageHistory({ kind: 'x', entries: [] });
+    setMessage('');
+  }, [workDraftKey]);
 
   const kind = work.activeKind === 'y' ? 'y' : 'x';
   const stage = work[kind] || initialStage();
@@ -386,7 +414,7 @@ export default function LinearInterceptsOrchestrator({
 
       {!stage.solved ? (
         <StepByStepAlgebraCore
-          key={`${kind}-${stage.placedZeroVariable}`}
+          key={`${draftKey || 'local'}:${kind}-${stage.placedZeroVariable}`}
           question={subEquationQuestion}
           questionRecord={solverQuestionRecord}
           onStateChange={handleSubEquationStateChange}
