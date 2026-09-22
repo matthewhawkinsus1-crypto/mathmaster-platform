@@ -55,6 +55,40 @@ test('QuestionEngine forwards the normal Step Algebra record and attempt policy 
   assert.match(region, /attemptsDoNotExpire=\{attemptsDoNotExpire\}/);
 });
 
+test('QuestionEngine remounts the intercept orchestrator for each question draft identity', () => {
+  const start = questionEngineSource.indexOf('<LinearInterceptsOrchestrator');
+  const end = questionEngineSource.indexOf('/>', start);
+  const region = questionEngineSource.slice(start, end);
+  assert.match(
+    region,
+    /key=\{draftKey \|\| processedQuestion\?\.questionId \|\| processedQuestion\?\.id \|\| generationKey\}/,
+  );
+});
+
+test('intercept conceptual and ordered-pair work is write-through persisted and restored by draft identity', () => {
+  const start = orchestratorSource.indexOf('const workDraftKey =');
+  const end = orchestratorSource.indexOf('const kind =', start);
+  const region = orchestratorSource.slice(start, end);
+
+  // Preserve the legacy/current key so already-saved student work is still
+  // visible to both local restoration and the workspace-draft server sync.
+  assert.match(region, /draftKey \? `\$\{draftKey\}:linear-intercepts` : null/);
+  assert.match(region, /const workDraftKeyRef = useRef\(workDraftKey\)/);
+  assert.match(region, /writeQuestionDraft\(workDraftKeyRef\.current, resolved\)/);
+  assert.match(region, /setWorkState\(readQuestionDraft\(workDraftKey, null\) \|\| initialWork\(\)\)/);
+
+  // The old passive save was the race: a navigation/key swap could happen
+  // before the effect ran, or make the old in-memory work land under the new key.
+  assert.doesNotMatch(region, /writeQuestionDraft\(workDraftKey, work\)/);
+});
+
+test('the embedded Step Algebra solver is keyed by the parent draft identity', () => {
+  const start = orchestratorSource.indexOf('<StepByStepAlgebraCore');
+  const end = orchestratorSource.indexOf('/>', start);
+  const region = orchestratorSource.slice(start, end);
+  assert.match(region, /key=\{`\$\{draftKey \|\| 'local'\}:\$\{kind\}-\$\{stage\.placedZeroVariable\}`\}/);
+});
+
 test('conceptual undo history is scoped to the active intercept so x history cannot leak into y', () => {
   assert.match(orchestratorSource, /current\.kind === kind \? current\.entries : \[\]/);
   assert.match(orchestratorSource, /stageHistory\.kind === kind \? stageHistory\.entries : \[\]/);
