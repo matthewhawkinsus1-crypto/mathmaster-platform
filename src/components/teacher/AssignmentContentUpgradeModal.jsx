@@ -12,9 +12,11 @@ const LABELS = {
 };
 
 function upgradeError(error, fallback) {
-  const message = describeAuthError(error) || fallback;
   const errorCode = String(error?.code || '').trim();
   const reason = String(error?.details?.reason || '').trim();
+  const message = errorCode === 'functions/internal'
+    ? 'The Content V2 server function is not running the current upgrade code. Redeploy the two Content V2 functions, then reopen this preview.'
+    : (describeAuthError(error) || fallback);
   return {
     message,
     errorCode,
