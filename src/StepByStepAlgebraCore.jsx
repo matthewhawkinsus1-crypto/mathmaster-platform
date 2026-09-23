@@ -30,6 +30,12 @@ import {
   splitAdditiveTerms,
   applyAdditiveOperationAtPlacement,
 } from './algebraAstEngine';
+import {
+  findLikeTermGroups,
+  replacementIsSingleLikeTerm,
+  replaceSelectedLikeTerms,
+  selectedLikeTermInfo,
+} from './algebraLikeTermsModel.js';
 import { getAttemptsRemaining, normalizeQuestionRecord } from './attemptPolicy';
 import {
   evaluateMove, getSupportPolicy, resolveEquationAfterKeepingMove, resolveEquationAfterMove,
@@ -228,6 +234,14 @@ export default function StepByStepAlgebra({
   const [rewriteScope, setRewriteScope] = useState('left');
   const [rewriteAnswers, setRewriteAnswers] = useState({ left: '', right: '' });
   const [rewriteFocusSignal, setRewriteFocusSignal] = useState(0);
+  // Interactive same-side simplification. A student chooses the side and the
+  // terms they believe are alike, then supplies the combined term. The platform
+  // checks the decision; it never supplies the coefficient/result.
+  const [likeTermsOpen, setLikeTermsOpen] = useState(Boolean(savedDraft?.likeTermsOpen));
+  const [likeTermsSide, setLikeTermsSide] = useState(savedDraft?.likeTermsSide || '');
+  const [selectedLikeTermIndices, setSelectedLikeTermIndices] = useState(savedDraft?.selectedLikeTermIndices || []);
+  const [likeTermsAnswer, setLikeTermsAnswer] = useState(savedDraft?.likeTermsAnswer || '');
+  const [likeTermsFocusSignal, setLikeTermsFocusSignal] = useState(0);
   // The whole drawn path, in coordinates local to the strike box, so the live
   // ink and the term rectangles share one space.
   const [stroke, setStroke] = useState(null); // { side, points: [{x,y}] } | null
@@ -378,8 +392,12 @@ export default function StepByStepAlgebra({
       selectedCancellationIndices,
       simplificationAnswers,
       promptAnswers,
+      likeTermsOpen,
+      likeTermsSide,
+      selectedLikeTermIndices,
+      likeTermsAnswer,
     });
-  }, [localDraftKey, equation, supportLevel, operand, distributionState, armedTile, pendingMove, crossedSides, cancelledPairIds, selectedCancellationIndices, simplificationAnswers, promptAnswers]);
+  }, [localDraftKey, equation, supportLevel, operand, distributionState, armedTile, pendingMove, crossedSides, cancelledPairIds, selectedCancellationIndices, simplificationAnswers, promptAnswers, likeTermsOpen, likeTermsSide, selectedLikeTermIndices, likeTermsAnswer]);
 
   useEffect(() => {
     const solved = isSolvedEquation(equation);
@@ -407,6 +425,15 @@ export default function StepByStepAlgebra({
   }, [equation, question, promptAnswers, onStateChange]);
 
   const hasDistributionProgress = Boolean(distributionState?.placedIndices?.length || distributionState?.armed);
+  const likeTermGroups = useMemo(() => ({
+    left: findLikeTermGroups(equation?.left),
+    right: findLikeTermGroups(equation?.right),
+  }), [equation]);
+  const hasLikeTermOpportunity = Boolean(likeTermGroups.left.length || likeTermGroups.right.length);
+  const currentLikeTermSelection = useMemo(
+    () => (likeTermsSide ? selectedLikeTermInfo(equation?.[likeTermsSide], selectedLikeTermIndices) : null),
+    [equation, likeTermsSide, selectedLikeTermIndices],
+  );
 
   const hasTransientUndo = Boolean(
     pendingMove
@@ -416,6 +443,9 @@ export default function StepByStepAlgebra({
     || Object.keys(simplificationAnswers).length
     || rewriteOpen
     || Object.values(rewriteAnswers).some((value) => String(value || '').trim())
+    || likeTermsOpen
+    || selectedLikeTermIndices.length
+    || String(likeTermsAnswer || '').trim()
     || armedTile
     || placedOperationSides.length
     || tapPlacementArmed
@@ -433,6 +463,9 @@ export default function StepByStepAlgebra({
           .some((indices) => indices?.length);
         const hasRewriteEntry = rewriteOpen
           || Object.values(rewriteAnswers).some((value) => String(value || '').trim());
+        const hasLikeTermsEntry = likeTermsOpen
+          || selectedLikeTermIndices.length > 0
+          || String(likeTermsAnswer || '').trim();
         const hasOperationStaging = Boolean(
           armedTile
           || placedOperationSides.length
@@ -459,6 +492,15 @@ export default function StepByStepAlgebra({
           setCancelledPairIds({});
           setSelectedCancellationIndices({});
           setSimplificationAnswers({});
+        } else if (hasLikeTermsEntry) {
+          if (String(likeTermsAnswer || '').trim()) {
+            setLikeTermsAnswer('');
+          } else if (selectedLikeTermIndices.length) {
+            setSelectedLikeTermIndices((current) => current.slice(0, -1));
+          } else {
+            setLikeTermsOpen(false);
+            setLikeTermsSide('');
+          }
         } else if (hasRewriteEntry) {
           setRewriteOpen(false);
           setRewriteAnswers({ left: '', right: '' });
@@ -485,6 +527,10 @@ export default function StepByStepAlgebra({
             setSimplificationAnswers({});
             setRewriteOpen(false);
             setRewriteAnswers({ left: '', right: '' });
+            setLikeTermsOpen(false);
+            setLikeTermsSide('');
+            setSelectedLikeTermIndices([]);
+            setLikeTermsAnswer('');
             setArmedTile(null);
             setOperand('');
             setDistributionState(null);
@@ -517,6 +563,10 @@ export default function StepByStepAlgebra({
     placedOperationSides,
     rewriteAnswers,
     rewriteOpen,
+    likeTermsOpen,
+    likeTermsSide,
+    selectedLikeTermIndices,
+    likeTermsAnswer,
     selectedCancellationIndices,
     simplificationAnswers,
     tapPlacementArmed,
@@ -863,6 +913,10 @@ export default function StepByStepAlgebra({
     setRewriteOpen(false);
     setRewriteScope('left');
     setRewriteAnswers({ left: '', right: '' });
+    setLikeTermsOpen(false);
+    setLikeTermsSide('');
+    setSelectedLikeTermIndices([]);
+    setLikeTermsAnswer('');
     setStroke(null);
     setLockedStroke(null);
     setStruckTerms(null);
