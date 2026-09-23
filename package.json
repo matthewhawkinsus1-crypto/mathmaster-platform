@@ -41,7 +41,9 @@
     "verify:persistence-indexes": "node scripts/check-persistence-indexes.mjs",
     "deploy:persistence": "bash scripts/deploy-persistence.sh",
     "verify:response-inspector-production": "node scripts/verify-response-inspector-production.mjs",
-    "deploy:response-inspector": "bash scripts/deploy-response-inspector.sh"
+    "deploy:response-inspector": "bash scripts/deploy-response-inspector.sh",
+    "deploy:grade-transfer-server": "bash scripts/deploy-grade-transfer-server.sh",
+    "deploy:grade-transfer": "npm run deploy:grade-transfer-server && npm run deploy:hosting"
   },
   "dependencies": {
     "firebase": "^12.17.1",

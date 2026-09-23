@@ -128,5 +128,11 @@ Rules for every agent/operator:
   redeploy successful functions/rules just because the Hosting upload failed.
 - A Hosting upload timeout is a transport failure, not evidence that the web build
   is bad. Check the build result separately before changing application code.
+- Grade Transfer has a dedicated server-only release command:
+  `npm run deploy:grade-transfer-server`. Use it when Grade Transfer callable
+  functions/rules changed or when Hosting already succeeded but those functions
+  did not finish deploying.
+- For a complete Grade Transfer release, use `npm run deploy:grade-transfer`;
+  it deploys the server surface first, then invokes the resilient Hosting wrapper.
 
-The wrapper is `scripts/deploy-hosting-resilient.sh`.
+The Hosting wrapper is `scripts/deploy-hosting-resilient.sh`.
