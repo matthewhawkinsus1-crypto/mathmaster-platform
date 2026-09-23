@@ -12,7 +12,17 @@ test('QuestionEngine owns one in-place Work View around the complete interaction
   assert.ok(start >= 0 && end > start);
   assert.match(boundary, /<EnlargeableFigure[\s\S]*className="mathmaster-question-tool-workspace"[\s\S]*\{renderModule\(\)\}[\s\S]*<\/EnlargeableFigure>/);
   assert.match(boundary, /primaryActions:[\s\S]*workspaceActions\.submit/);
-  assert.match(boundary, /secondaryActions:[\s\S]*workspaceActions\.scratchpad[\s\S]*workspaceActions\.calculator/);
+  assert.match(boundary, /secondaryActions:[\s\S]*workspaceActions\.reset[\s\S]*workspaceActions\.scratchpad[\s\S]*workspaceActions\.calculator/);
+});
+
+test('QuestionEngine exposes a universal reset that remounts the current tool without erasing attempts', () => {
+  const source = read('src/QuestionEngine.jsx');
+  assert.match(source, /resetQuestionDraftFamily\(draftKey\)/);
+  assert.match(source, /forgetToolDrafts\(draftKey\)/);
+  assert.match(source, /setQuestionResetVersion\(\(current\) => current \+ 1\)/);
+  assert.match(source, /Your recorded attempts and grade history will not be erased/);
+  assert.match(source, /↺ Reset Question/);
+  assert.match(source, /QuestionModuleBoundary[\s\S]*reset-\$\{questionResetVersion\}/);
 });
 
 test('nested fixture figures publish capabilities instead of opening another shell', () => {

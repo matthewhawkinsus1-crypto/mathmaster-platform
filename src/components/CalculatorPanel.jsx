@@ -84,14 +84,56 @@ export const CalculatorPanel = ({
     window.mathVirtualKeyboard?.hide?.();
 
     const handleInput = () => setDisplay(mathField.value || '0');
+    const handleKeyDown = (event) => {
+      if (
+        event.key !== 'Enter'
+        || event.isComposing
+        || event.altKey
+        || event.ctrlKey
+        || event.metaKey
+        || event.shiftKey
+      ) return;
+      // Enter belongs to the calculator while this field has focus. Stop it
+      // here so QuestionEngine cannot treat the same keypress as Submit/Next.
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        const expression = expressionFromMathField(mathField, mathField.value || display);
+        const result = String(evaluateCalculatorExpression(expression, policy.mode));
+        mathField.value = result;
+        setDisplay(result);
+      } catch {
+        mathField.value = 'Error';
+        setDisplay('Error');
+      }
+    };
     const preventContextMenu = (event) => event.preventDefault();
     mathField.addEventListener('input', handleInput);
+    mathField.addEventListener('keydown', handleKeyDown);
     mathField.addEventListener('contextmenu', preventContextMenu);
     return () => {
       mathField.removeEventListener('input', handleInput);
+      mathField.removeEventListener('keydown', handleKeyDown);
       mathField.removeEventListener('contextmenu', preventContextMenu);
     };
-  }, [isOpen, estimateUnlocked, display]);
+  }, [isOpen, estimateUnlocked, policy.mode]);
+
+  useEffect(() => {
+    const mathField = mathFieldRef.current;
+    if (!mathField || !isOpen || !estimateUnlocked) return undefined;
+    // Opening the calculator should mean the student can type immediately on a
+    // Chromebook. Focus once when it opens/unlocks; do not refocus on every
+    // keystroke because that would move an edited cursor back to the end.
+    const frame = window.requestAnimationFrame(() => {
+      try {
+        mathField.focus({ preventScroll: true });
+      } catch {
+        mathField.focus();
+      }
+      mathField.executeCommand?.('moveToMathfieldEnd');
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isOpen, estimateUnlocked]);
 
   useEffect(() => {
     const mathField = mathFieldRef.current;
@@ -358,6 +400,7 @@ export const CalculatorPanel = ({
             <div>
               <math-field
                 ref={mathFieldRef}
+                data-calculator-expression="true"
                 aria-label="Calculator expression"
                 math-virtual-keyboard-policy="manual"
                 inputmode="none"
