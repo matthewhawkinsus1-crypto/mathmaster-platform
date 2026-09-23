@@ -601,6 +601,8 @@ export default function StepByStepAlgebra({
     placedOperationSides,
     rewriteAnswers,
     rewriteOpen,
+    inlineRewriteSelection,
+    inlineRewriteAnswer,
     likeTermsOpen,
     likeTermsSide,
     selectedLikeTermIndices,
@@ -1115,6 +1117,7 @@ export default function StepByStepAlgebra({
     pendingMove,
     distributionState,
     equation,
+    inlineExpressionTools,
   ]);
 
   const openDistributionTool = () => {
@@ -1878,6 +1881,7 @@ export default function StepByStepAlgebra({
                 onDragStart={(event) => {
                   event.dataTransfer?.setData('text/plain', 'mathmaster-distribution-factor');
                   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+                  setDistributionState((current) => armDistributionFactorState(current));
                 }}
                 disabled={disabled || isDistributionComplete(distributionState)}
                 aria-pressed={distributionState.armed}
