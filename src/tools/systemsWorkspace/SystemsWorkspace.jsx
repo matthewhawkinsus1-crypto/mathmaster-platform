@@ -34,6 +34,7 @@ import useToolSubmission from '../shared/useToolSubmission';
 import EmbeddedInequalityRewrite from './EmbeddedInequalityRewrite.jsx';
 import { formatSlopeInterceptInequality } from './linearInequalityEngine.js';
 import AlgebraicSystemMode from './AlgebraicSystemMode.jsx';
+import { resolveSystemsWorkspaceMode } from './systemsWorkspaceMode.js';
 
 const DEFAULT_SYSTEM = { m1: 2, b1: 1, m2: -1, b2: 7 };
 const DEFAULT_INEQUALITIES = [
@@ -1526,7 +1527,7 @@ const MODE_STEPS = {
 };
 
 export default function SystemsWorkspace({ questionData = {}, onAction, draftKey = null }) {
-  const mode = questionData.mode || 'linear';
+  const mode = resolveSystemsWorkspaceMode(questionData);
   const modeLabel = mode === 'inequalities' ? 'Systems of Inequalities'
     : mode === 'linearQuadratic' ? 'Linear–Quadratic Systems'
       : mode === 'matrix3' ? '3×3 Matrix Technology / RREF'
