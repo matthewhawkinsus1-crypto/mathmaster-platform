@@ -968,17 +968,16 @@ export default function StepByStepAlgebra({
       return;
     }
 
-    const beforeKey = String(term.text || '').replace(/\s+/g, '');
-    const afterKey = String(replacement || '').replace(/\s+/g, '');
-    if (beforeKey === afterKey) {
-      setInlineRewriteFocusSignal((signal) => signal + 1);
-      setMessage({ tone: 'growth', text: 'That keeps the selected term exactly as written.' });
-      return;
-    }
-
     const nextSide = replaceSingleAdditiveTerm(equation[side], index, replacement);
     if (!nextSide) {
       setMessage({ tone: 'error', text: 'That term could not be placed back into the equation safely. Your work was not changed.' });
+      return;
+    }
+    const beforeKey = String(equation[side] || '').replace(/\s+/g, '');
+    const afterKey = String(nextSide || '').replace(/\s+/g, '');
+    if (beforeKey === afterKey) {
+      setInlineRewriteFocusSignal((signal) => signal + 1);
+      setMessage({ tone: 'growth', text: 'That keeps the selected term exactly as written.' });
       return;
     }
 
