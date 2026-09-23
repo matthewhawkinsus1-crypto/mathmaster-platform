@@ -66,6 +66,7 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
     studentPointFeedback: 'The message under the student test-point reasoning panel, regenerated from the response already stored in studentPointResponse.',
     vertexFeedback: 'The message under the vertex panel, regenerated from the vertex answers already stored in vertices.',
     slotAttempt: 'Transient pick-up/drop feedback for substitution, back-substitution, multiplier placement, equation combination, and verification. It records the currently armed token or last rejected destination, while every committed mathematical choice remains in the draft-backed systems fields.',
+    dragOverVariable: 'Which variable token is physically under the pointer during a drag. Hover-only presentation state that clears on drag leave/drop and never represents a mathematical choice.',
     embeddedUndoController: 'Transient bridge to the currently visible Step Algebra undo controller. It contains callbacks/canUndo presentation state, not student mathematics; the actual algebra history remains draft-backed inside Step Algebra.',
   }),
   parabolaGeometryLab: entry(['parabolaGeometry/ParabolaGeometryLab.jsx']),
