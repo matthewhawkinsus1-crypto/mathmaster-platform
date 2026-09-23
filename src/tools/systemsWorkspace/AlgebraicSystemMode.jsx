@@ -244,11 +244,21 @@ const solvedNumberFor = (latexResponse, variable) => {
  * reports the resulting text one level up. It never solves, isolates, or
  * simplifies anything itself.
  */
-function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, onSolved, onUndoStateChange, workspaceDifficulty }) {
+function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, onSolved, onUndoStateChange, workspaceDifficulty, autoReveal = false, autoOpenDistribution = false, simplifyDistributedProducts = false }) {
   const question = useMemo(() => ({
     equation: equationText, solveFor, prompt, workspaceDifficulty,
   }), [equationText, solveFor, prompt, workspaceDifficulty]);
+  const hostRef = useRef(null);
   const lastReportedRef = useRef(null);
+
+  React.useEffect(() => {
+    if (!autoReveal || !hostRef.current) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      hostRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+      hostRef.current?.focus?.({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [autoReveal, equationText]);
   const handleStateChange = useCallback((payload) => {
     const part = payload?.parts?.find((p) => p?.id === 'algebra-objective');
     if (!part?.isComplete || !part.response) return;
@@ -257,7 +267,7 @@ function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, 
     onSolved(part.response);
   }, [onSolved]);
   return (
-    <div className="mathmaster-systems-embedded-step-algebra">
+    <div ref={hostRef} tabIndex={-1} className="mathmaster-systems-embedded-step-algebra">
       {label ? <div style={{ marginBottom: 8, fontWeight: 800 }}>{label}</div> : null}
       <StepByStepAlgebraCore
         question={question}
@@ -266,6 +276,8 @@ function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, 
         onStateChange={handleStateChange}
         onStepGrade={null}
         onUndoStateChange={onUndoStateChange}
+        autoOpenDistribution={autoOpenDistribution}
+        simplifyDistributedProducts={simplifyDistributedProducts}
       />
     </div>
   );
@@ -518,11 +530,17 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       return;
     }
     setSlotAttempt({ stage: 'substitution', equationIndex, variable: clickedVariable, correct: true, armed: false });
+    const reducedEquation = substituteIntoEquation(
+      equations[equationIndex],
+      selection.variable,
+      substitutionTokenExpression || isolatedExpr,
+    );
     setSubstitution({
       targetVariable: selection.variable,
       targetEquationIndex: equationIndex,
-      equationText: substituteIntoEquation(equations[equationIndex], selection.variable, substitutionTokenExpression || isolatedExpr),
+      equationText: reducedEquation,
     });
+    setSlotAttempt(null);
   };
 
   const setMultiplierValue = (index, value) => {
@@ -1208,6 +1226,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                 onSolved={handleReduceSolved}
                 onUndoStateChange={setEmbeddedUndoController}
                 workspaceDifficulty={questionData.workspaceDifficulty}
+                autoReveal
+                autoOpenDistribution={effectiveMethod === 'substitution'}
+                simplifyDistributedProducts={effectiveMethod === 'substitution'}
               />
             </div>
           ) : null}
