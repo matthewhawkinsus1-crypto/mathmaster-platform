@@ -286,6 +286,7 @@ export default function StepByStepAlgebra({
   const [crossedSides, setCrossedSides] = useState(savedDraft?.crossedSides || []);
   const [cancelledPairIds, setCancelledPairIds] = useState(savedDraft?.cancelledPairIds || {});
   const [simplificationAnswers, setSimplificationAnswers] = useState(savedDraft?.simplificationAnswers || {});
+  const [simplificationFocusSignal, setSimplificationFocusSignal] = useState(0);
   const [promptAnswers, setPromptAnswers] = useState(savedDraft?.promptAnswers || {});
   const [rewriteOpen, setRewriteOpen] = useState(false);
   const [rewriteScope, setRewriteScope] = useState('left');
@@ -513,6 +514,19 @@ export default function StepByStepAlgebra({
     currentLikeTermSelection?.valid,
     currentLikeTermSelection?.selectedExpression,
   ]);
+
+  const simplificationPromptVisible = Boolean(
+    pendingMove?.simplificationTargets?.length
+    && pendingMove.requiredCancellationSides.every((side) => crossedSides.includes(side)),
+  );
+
+  useEffect(() => {
+    if (!simplificationPromptVisible) return;
+    // This prompt appears as a consequence of the student's completed algebra
+    // move. Put the caret in its first response field immediately so the next
+    // action can be typing; do not make the student click the newly appeared box.
+    setSimplificationFocusSignal((signal) => signal + 1);
+  }, [simplificationPromptVisible, pendingMove]);
 
   const hasTransientUndo = Boolean(
     pendingMove
@@ -2884,7 +2898,7 @@ export default function StepByStepAlgebra({
         <div className={`algebra-optional-simplification${pendingMove.simplificationTargets.length === 1 ? ` algebra-optional-simplification--${pendingMove.simplificationTargets[0].side}` : ''}`}>
           <h3>{equation.objective?.requireSimplifiedFinalForm ? 'Finish the required simplification' : 'Simplify (optional)'}</h3>
           <div className="algebra-simplification-grid">
-            {pendingMove.simplificationTargets.map((target) => (
+            {pendingMove.simplificationTargets.map((target, index) => (
               <div key={target.side} className="algebra-simplification-card">
                 <strong>{target.label}</strong>
                 <MathInput
@@ -2893,6 +2907,7 @@ export default function StepByStepAlgebra({
                   onSubmit={checkSimplifications}
                   placeholder="Simplified expression"
                   ariaLabel={`${target.label}: enter your simplification`}
+                  focusSignal={index === 0 ? simplificationFocusSignal : 0}
                 />
               </div>
             ))}
