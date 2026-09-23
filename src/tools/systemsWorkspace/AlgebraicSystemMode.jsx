@@ -37,6 +37,16 @@ const smallActionStyle = { ...actionStyle, marginTop: 8, padding: '9px 14px', fo
 const emptyVerificationEntry = () => ({ placed: {}, leftAnswer: '', rightAnswer: '', checked: false, valid: false });
 const emptySpecialCase = () => ({ isTrueAnswer: '', solutionsAnswer: '', classificationAnswer: '' });
 
+const equationIdentity = (value) => {
+  const text = String(value || '');
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+};
+
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 function MathDragToken({
@@ -250,6 +260,14 @@ function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, 
   }), [equationText, solveFor, prompt, workspaceDifficulty]);
   const hostRef = useRef(null);
   const lastReportedRef = useRef(null);
+  const embeddedEquationIdentity = useMemo(
+    () => `${draftKey || 'embedded'}:${solveFor || ''}:${equationIdentity(equationText)}`,
+    [draftKey, equationText, solveFor],
+  );
+
+  React.useEffect(() => {
+    lastReportedRef.current = null;
+  }, [embeddedEquationIdentity]);
 
   React.useEffect(() => {
     if (!autoReveal || !hostRef.current) return undefined;
@@ -270,6 +288,7 @@ function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, 
     <div ref={hostRef} tabIndex={-1} className="mathmaster-systems-embedded-step-algebra">
       {label ? <div style={{ marginBottom: 8, fontWeight: 800 }}>{label}</div> : null}
       <StepByStepAlgebraCore
+        key={embeddedEquationIdentity}
         question={question}
         questionRecord={null}
         draftKey={draftKey}
@@ -529,12 +548,44 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       });
       return;
     }
-    setSlotAttempt({ stage: 'substitution', equationIndex, variable: clickedVariable, correct: true, armed: false });
-    const reducedEquation = substituteIntoEquation(
-      equations[equationIndex],
-      selection.variable,
-      substitutionTokenExpression || isolatedExpr,
-    );
+    const replacementExpression = substitutionTokenExpression || isolatedExpr;
+    let reducedEquation;
+    try {
+      reducedEquation = substituteIntoEquation(
+        equations[equationIndex],
+        selection.variable,
+        replacementExpression,
+      );
+    } catch {
+      setSlotAttempt({
+        stage: 'substitution',
+        equationIndex,
+        variable: clickedVariable,
+        correct: false,
+        reason: 'expression-parse',
+        armed: true,
+      });
+      return;
+    }
+
+    // A valid substitution must remove the isolated variable from the target
+    // equation while leaving a readable linear equation for the surviving
+    // variable. Fail visibly rather than letting a malformed token strand the
+    // student on a dead board.
+    const reduced = linearEquationCoefficients(reducedEquation, variables);
+    const removedKey = selection.variable === variables[0] ? 'a' : 'b';
+    if (!reduced || Math.abs(reduced[removedKey]) > 1e-7) {
+      setSlotAttempt({
+        stage: 'substitution',
+        equationIndex,
+        variable: clickedVariable,
+        correct: false,
+        reason: 'expression-parse',
+        armed: true,
+      });
+      return;
+    }
+
     setSubstitution({
       targetVariable: selection.variable,
       targetEquationIndex: equationIndex,
@@ -993,7 +1044,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                         <p className="mathmaster-systems-substitution-feedback is-error">
                           {slotAttempt.reason === 'source-equation'
                             ? 'That placement puts the expression back into the equation it came from. Ask which equation needs the isolated expression to leave only one variable.'
-                            : 'That variable does not match the isolated equation. Look back at what the expression is equal to, then try the placement again.'}
+                            : slotAttempt.reason === 'expression-parse'
+                              ? 'MathMaster could not open the next solving step from that token form. Your work is still here. Choose Change expression and use an equivalent form, or try the original isolated form again.'
+                              : 'That variable does not match the isolated equation. Look back at what the expression is equal to, then try the placement again.'}
                         </p>
                       ) : null}
                     </>
@@ -1222,7 +1275,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                 prompt={`Solve this equation for ${survivingVariable}.`}
                 equationText={reduceInputText}
                 solveFor={survivingVariable}
-                draftKey={draftKey ? `${draftKey}:algebraic:reduce:${effectiveMethod}:${selection.variable}` : null}
+                draftKey={draftKey && reduceInputText
+                  ? `${draftKey}:algebraic:reduce:${effectiveMethod}:${selection.variable}:${substitution.targetEquationIndex ?? 'combined'}:${equationIdentity(reduceInputText)}`
+                  : null}
                 onSolved={handleReduceSolved}
                 onUndoStateChange={setEmbeddedUndoController}
                 workspaceDifficulty={questionData.workspaceDifficulty}
@@ -1313,7 +1368,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                   prompt={`Use your substitution to solve this equation for ${removedVariable}.`}
                   equationText={backSubEquationText}
                   solveFor={removedVariable}
-                  draftKey={draftKey ? `${draftKey}:algebraic:back-solve:${backSub.equationIndex}` : null}
+                  draftKey={draftKey && backSubEquationText
+                    ? `${draftKey}:algebraic:back-solve:${backSub.equationIndex}:${equationIdentity(backSubEquationText)}`
+                    : null}
                   onSolved={handleSecondSolved}
                   onUndoStateChange={setEmbeddedUndoController}
                   workspaceDifficulty={questionData.workspaceDifficulty}

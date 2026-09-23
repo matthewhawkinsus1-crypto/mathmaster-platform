@@ -92,13 +92,48 @@ const detectFactoredTerm = (expressionText) => {
   };
 };
 
+const withAdditiveSign = (detected, sign) => {
+  if (!detected || sign >= 0) return detected;
+  let factorText;
+  try {
+    factorText = simplifyExpression(`-1 * (${detected.factorText})`);
+  } catch {
+    factorText = `-(${detected.factorText})`;
+  }
+  let factorLatex;
+  try {
+    factorLatex = expressionToLatex(factorText);
+  } catch {
+    factorLatex = `-${detected.factorLatex}`;
+  }
+  return { ...detected, factorText, factorLatex };
+};
+
 const detectOnSide = (side, expressionText) => {
   const sideTerms = splitAdditiveTerms(expressionText);
   if (!Array.isArray(sideTerms) || !sideTerms.length) return null;
 
   const candidates = sideTerms
     .map((term, sideTermIndex) => {
-      const detected = detectFactoredTerm(term.text);
+      // Additive-term splitting already separates the leading +/− from the
+      // magnitude. Detect distribution on that unsigned magnitude and fold the
+      // sign into the outside factor afterward. Parsing the signed term as a
+      // whole can turn -3(2x-7) into one opaque unary-minus node, which is why
+      // larger substitutions into a negative coefficient used to strand the
+      // solver with no Distribute action.
+      let detected = detectFactoredTerm(term.magnitudeText);
+      if (!detected && term.sign < 0) {
+        const directTerms = splitAdditiveTerms(term.magnitudeText);
+        if (Array.isArray(directTerms) && directTerms.length >= 2) {
+          detected = {
+            factorText: '1',
+            factorLatex: '1',
+            groupText: term.magnitudeText,
+            terms: directTerms,
+          };
+        }
+      }
+      detected = withAdditiveSign(detected, term.sign);
       return detected ? { ...detected, sideTermIndex } : null;
     })
     .filter(Boolean);

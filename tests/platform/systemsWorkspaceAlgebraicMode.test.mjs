@@ -90,10 +90,10 @@ test('each Step Algebra embed gets a draft key scoped to the exact mathematical 
   assert.match(isolateBlock, /algebraic:isolate:\$\{selection\.equationIndex\}:\$\{selection\.variable\}/);
 
   const reduceBlock = region(modeSource, 'label={`Solve for ${survivingVariable}`}', 'onSolved={handleReduceSolved}', 'reduce embed');
-  assert.match(reduceBlock, /algebraic:reduce:\$\{effectiveMethod\}:\$\{selection\.variable\}/);
+  assert.match(reduceBlock, /algebraic:reduce:\$\{effectiveMethod\}:\$\{selection\.variable\}:\$\{substitution\.targetEquationIndex \?\? 'combined'\}:\$\{equationIdentity\(reduceInputText\)\}/);
 
   const backSolveBlock = region(modeSource, 'label="Solve the back-substitution equation"', 'onSolved={handleSecondSolved}', 'back-solve embed');
-  assert.match(backSolveBlock, /algebraic:back-solve:\$\{backSub\.equationIndex\}/);
+  assert.match(backSolveBlock, /algebraic:back-solve:\$\{backSub\.equationIndex\}:\$\{equationIdentity\(backSubEquationText\)\}/);
 });
 
 test('changing the equation/variable selection resets every downstream field so no stale answer can leak forward', () => {
@@ -115,7 +115,7 @@ test('substitution requires the student to choose both the other equation and th
   assert.match(attempt, /equationIndex === selection\.equationIndex/);
   assert.match(attempt, /clickedVariable !== selection\.variable/);
   assert.match(attempt, /targetEquationIndex: equationIndex/);
-  assert.match(attempt, /const reducedEquation = substituteIntoEquation\(/);
+  assert.match(attempt, /reducedEquation = substituteIntoEquation\(/);
   assert.match(attempt, /equationText: reducedEquation/);
 });
 
@@ -134,7 +134,7 @@ test('optional substitution-token simplification is draft-backed and can never s
   assert.match(modeSource, /simplificationChecked/);
   assert.match(modeSource, /simplificationValid/);
   assert.match(modeSource, /That rewrite is not equivalent to the isolated expression yet/);
-  assert.match(modeSource, /const reducedEquation = substituteIntoEquation\(/);
+  assert.match(modeSource, /reducedEquation = substituteIntoEquation\(/);
   assert.match(modeSource, /substitutionTokenExpression \|\| isolatedExpr/);
 });
 
@@ -152,12 +152,29 @@ test('substitution and back-substitution both route their one-variable result th
 
 test('a successful substitution immediately reveals the one-variable solver and activates manual distribution', () => {
   const attempt = region(modeSource, 'const attemptSubstitution = ', 'const setMultiplierValue', 'attemptSubstitution');
-  assert.match(attempt, /const reducedEquation = substituteIntoEquation/);
+  assert.match(attempt, /reducedEquation = substituteIntoEquation/);
   assert.match(attempt, /equationText: reducedEquation/);
   assert.match(attempt, /setSlotAttempt\(null\)/);
 
   assert.match(modeSource, /label=\{`Solve for \$\{survivingVariable\}`\}[\s\S]*?autoReveal[\s\S]*?autoOpenDistribution=\{effectiveMethod === 'substitution'\}[\s\S]*?simplifyDistributedProducts=\{effectiveMethod === 'substitution'\}/);
 });
+
+test('complex substitution failures stay recoverable instead of silently hanging the question', () => {
+  const attempt = region(modeSource, 'const attemptSubstitution = ', 'const setMultiplierValue', 'attemptSubstitution');
+  assert.match(attempt, /try \{[\s\S]*?substituteIntoEquation/);
+  assert.match(attempt, /linearEquationCoefficients\(reducedEquation, variables\)/);
+  assert.match(attempt, /reason: 'expression-parse'/);
+  assert.match(modeSource, /Your work is still here/);
+});
+
+test('embedded Step Algebra remounts for each exact reduced equation so question 2 cannot inherit question 1 solver state', () => {
+  const embed = region(modeSource, 'function EmbeddedStepAlgebra(', 'export default function AlgebraicSystemMode', 'EmbeddedStepAlgebra');
+  assert.match(embed, /const embeddedEquationIdentity = useMemo/);
+  assert.match(embed, /equationIdentity\(equationText\)/);
+  assert.match(embed, /key=\{embeddedEquationIdentity\}/);
+  assert.match(embed, /lastReportedRef\.current = null/);
+});
+
 
 test('embedded solver reveal is presentation-only and does not solve or choose a distribution step for the student', () => {
   const embed = region(modeSource, 'function EmbeddedStepAlgebra(', 'export default function AlgebraicSystemMode', 'EmbeddedStepAlgebra');
