@@ -1848,6 +1848,79 @@ export default function StepByStepAlgebra({
     );
   };
 
+  const renderInlineDistributionSide = (side) => {
+    if (!inlineExpressionTools || !distributionState || distributionState.side !== side) return null;
+    const sideTerms = Array.isArray(distributionState.sideTerms) ? distributionState.sideTerms : [];
+    return (
+      <span className="algebra-inline-distribution-expression">
+        {sideTerms.map((sideTerm, sideTermIndex) => {
+          if (sideTermIndex !== distributionState.sideTermIndex) {
+            return (
+              <span key={`ordinary-${sideTermIndex}`} className="algebra-inline-ordinary-term">
+                <MathDisplay value={sideTerm.text} format="ascii-math" inline style={{ fontSize: 'inherit' }} />
+              </span>
+            );
+          }
+          const needsLeadingPlus = sideTermIndex > 0 && sideTerm.sign >= 0;
+          return (
+            <span key={`distribution-${sideTermIndex}`} className="algebra-inline-distribution-group">
+              {needsLeadingPlus ? <span aria-hidden="true">+</span> : null}
+              <button
+                type="button"
+                className={`algebra-inline-factor-token${distributionState.armed ? ' is-armed' : ''}`}
+                draggable={!isDistributionComplete(distributionState)}
+                onClick={armDistributionFactor}
+                onDragStart={(event) => {
+                  event.dataTransfer?.setData('text/plain', 'mathmaster-distribution-factor');
+                  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+                }}
+                disabled={disabled || isDistributionComplete(distributionState)}
+                aria-pressed={distributionState.armed}
+                aria-label={`Pick up the factor ${distributionState.factorText}`}
+              >
+                <MathDisplay value={distributionState.factorLatex} format="latex" inline />
+              </button>
+              <span aria-hidden="true">(</span>
+              <span className="algebra-inline-distribution-targets">
+                {distributionState.terms.map((term, index) => {
+                  const placed = distributionState.placedIndices.includes(index);
+                  return (
+                    <button
+                      key={`${index}-${term.text}`}
+                      type="button"
+                      className={`algebra-inline-distribution-target${placed ? ' is-placed' : ''}${distributionState.armed && !placed ? ' is-ready' : ''}`}
+                      onClick={() => placeDistributionFactor(index)}
+                      onDragOver={(event) => { if (!placed) event.preventDefault(); }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        if (!placed && event.dataTransfer?.getData('text/plain') === 'mathmaster-distribution-factor') {
+                          setDistributionState((current) => placeDistributionTermState(armDistributionFactorState(current), index));
+                        }
+                      }}
+                      disabled={disabled || placed || !distributionState.armed}
+                      aria-pressed={placed}
+                      aria-label={placed
+                        ? `Factor applied to ${term.text}`
+                        : `Apply the factor to ${term.text}`}
+                    >
+                      <MathDisplay value={term.latex} format="latex" inline style={{ fontSize: 'inherit' }} />
+                      {placed ? (
+                        <span className="algebra-inline-factor-applied" aria-hidden="true">
+                          × <MathDisplay value={distributionState.factorLatex} format="latex" inline />
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </span>
+              <span aria-hidden="true">)</span>
+            </span>
+          );
+        })}
+      </span>
+    );
+  };
+
   const renderSide = (side, cancellationModel = null) => {
     if (cancellationModel) {
       const completedPairs = new Set(cancelledPairIds[side] || []);
@@ -1886,7 +1959,32 @@ export default function StepByStepAlgebra({
       );
     }
 
+    const inlineDistribution = renderInlineDistributionSide(side);
+    if (inlineDistribution) return inlineDistribution;
+
     const terms = splitAdditiveTerms(sideExpression(side));
+    if (inlineExpressionTools && rewriteOpen && !pendingMove && terms?.length) {
+      return (
+        <AlgebraTermRow
+          terms={terms}
+          side={side}
+          selectedIndices={inlineRewriteSelection?.side === side ? [inlineRewriteSelection.index] : []}
+          onTermClick={(index) => selectInlineRewriteTerm(side, index)}
+          interactionLabel="select as the term you want to rewrite"
+        />
+      );
+    }
+    if (inlineExpressionTools && likeTermsOpen && !pendingMove && terms?.length) {
+      return (
+        <AlgebraTermRow
+          terms={terms}
+          side={side}
+          selectedIndices={likeTermsSide === side ? selectedLikeTermIndices : []}
+          onTermClick={(index) => toggleInlineLikeTerm(side, index)}
+          interactionLabel="select as a term to combine"
+        />
+      );
+    }
     const inner = terms ? <AlgebraTermRow terms={terms} side={side} /> : <MathDisplay value={displayedSideLatex(side)} format="latex" inline />;
     if (!armedTile || pendingMove || !String(operand || '').trim()) {
       return <div key={sideExpression(side)} className="algebra-equation-side algebra-reflow" style={{ fontSize: sideFontSize(side), margin: '16px 0' }}>{inner}</div>;
