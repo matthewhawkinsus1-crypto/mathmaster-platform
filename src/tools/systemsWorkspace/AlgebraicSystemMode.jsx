@@ -7,6 +7,7 @@ import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import { matchesNumericAnswer } from '../shared/toolMath';
 import MathDisplay from '../../MathDisplay';
+import MathInput from '../../MathInput';
 import StepByStepAlgebraCore from '../../StepByStepAlgebraCore.jsx';
 import { latexToExpression } from '../../algebraAstEngine.js';
 import './AlgebraicSystemMode.css';
@@ -39,8 +40,15 @@ const emptySpecialCase = () => ({ isTrueAnswer: '', solutionsAnswer: '', classif
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-function SubstitutionToken({ variable, expression, onArm }) {
-  const dragPayload = `mathmaster-substitution:${variable}`;
+function MathDragToken({
+  payloadPrefix,
+  payloadValue,
+  expression,
+  label,
+  onArm,
+  ariaLabel,
+}) {
+  const dragPayload = `${payloadPrefix}${payloadValue}`;
   return (
     <button
       type="button"
@@ -52,23 +60,43 @@ function SubstitutionToken({ variable, expression, onArm }) {
         if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
         onArm?.();
       }}
-      aria-label={`Pick up ${expression} to replace ${variable}`}
-      title={`Drag this expression onto ${variable} in the other equation. On touch or keyboard, select the token and then select the variable.`}
+      aria-label={ariaLabel || `Pick up ${expression}`}
+      title="Drag this token onto the place you think it belongs. On touch or keyboard, select the token and then select a destination."
     >
-      <span className="mathmaster-systems-token-label">Replace {variable} with</span>
+      {label ? <span className="mathmaster-systems-token-label">{label}</span> : null}
       <MathDisplay value={expression} format="ascii-math" inline />
       <span aria-hidden="true" className="mathmaster-systems-token-grip">⠿</span>
     </button>
   );
 }
 
-function VariableDropEquation({ equationText, variables, replacementVariable, onVariableAttempt, tokenArmed = false, label = 'Equation' }) {
+function SubstitutionToken({ variable, expression, onArm, label = 'Expression from isolated equation' }) {
+  return (
+    <MathDragToken
+      payloadPrefix="mathmaster-substitution:"
+      payloadValue={variable}
+      expression={expression}
+      label={label}
+      onArm={onArm}
+      ariaLabel={`Pick up the expression ${expression} from the isolated equation`}
+    />
+  );
+}
+
+function VariableDropEquation({
+  equationText,
+  variables,
+  onVariableAttempt,
+  tokenArmed = false,
+  armedPayloadValue = null,
+  payloadPrefix = 'mathmaster-substitution:',
+  label = 'Equation',
+}) {
   const pattern = useMemo(
     () => new RegExp(`(${variables.map(escapeRegex).sort((a, b) => b.length - a.length).join('|')})`, 'g'),
     [variables],
   );
   const parts = useMemo(() => String(equationText || '').split(pattern), [equationText, pattern]);
-  const expectedPayload = `mathmaster-substitution:${replacementVariable}`;
 
   return (
     <div className="mathmaster-systems-drop-equation" role="group" aria-label={label}>
@@ -76,25 +104,24 @@ function VariableDropEquation({ equationText, variables, replacementVariable, on
         if (!variables.includes(part)) {
           return <span key={`text-${index}`} className="mathmaster-systems-equation-text">{part}</span>;
         }
-        const expected = part === replacementVariable;
         return (
           <button
             key={`variable-${index}-${part}`}
             type="button"
-            className={`mathmaster-systems-variable-drop${expected ? ' is-target' : ''}${tokenArmed ? ' is-armed' : ''}`}
+            className={`mathmaster-systems-variable-drop${tokenArmed ? ' is-armed' : ''}`}
             data-variable={part}
-            onClick={() => { if (tokenArmed) onVariableAttempt(part); }}
+            onClick={() => { if (tokenArmed) onVariableAttempt(part, armedPayloadValue); }}
             onDragOver={(event) => {
               if (event.dataTransfer?.types?.includes('text/plain')) event.preventDefault();
             }}
             onDrop={(event) => {
               event.preventDefault();
-              const payload = event.dataTransfer?.getData('text/plain');
-              if (payload === expectedPayload) onVariableAttempt(part);
-              else if (payload?.startsWith('mathmaster-substitution:')) onVariableAttempt(part);
+              const payload = event.dataTransfer?.getData('text/plain') || '';
+              if (!payload.startsWith(payloadPrefix)) return;
+              onVariableAttempt(part, payload.slice(payloadPrefix.length));
             }}
-            aria-label={`Variable ${part}. Drop the substitution token here`}
-            title={expected ? `Drop the replacement for ${part} here` : `This is ${part}. Decide whether this is the variable you isolated.`}
+            aria-label={`Variable ${part}. Drop the selected math token here`}
+            title="Drop the selected value or expression here if you think it belongs at this variable."
           >
             {part}
           </button>
@@ -103,6 +130,85 @@ function VariableDropEquation({ equationText, variables, replacementVariable, on
     </div>
   );
 }
+
+function SystemsWorkTrail({ stages = [] }) {
+  const activeIndex = stages.findIndex((stage) => !stage.complete);
+  return (
+    <div className="mathmaster-systems-work-trail">
+      <div className="mathmaster-systems-work-trail-steps" aria-label="Systems solving progress">
+        {stages.map((stage, index) => {
+          const active = activeIndex === index || (activeIndex < 0 && index === stages.length - 1);
+          return (
+            <div
+              key={stage.id}
+              className={`mathmaster-systems-work-step${stage.complete ? ' is-complete' : ''}${active ? ' is-active' : ''}`}
+            >
+              <span aria-hidden="true">{stage.complete ? '✓' : index + 1}</span>
+              <strong>{stage.label}</strong>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mathmaster-systems-completed-work">
+        {stages.filter((stage) => stage.complete && stage.summary).map((stage) => (
+          <div key={`summary-${stage.id}`} className="mathmaster-systems-completed-chip">
+            <span aria-hidden="true">✓</span>
+            <span>{stage.summary}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const cleanCoefficient = (value) => {
+  const rounded = Math.round(Number(value) * 1e9) / 1e9;
+  return Object.is(rounded, -0) ? 0 : rounded;
+};
+
+const coefficientTermText = (value, variable) => {
+  const coefficient = cleanCoefficient(value);
+  if (coefficient === 0) return '0';
+  if (coefficient === 1) return variable;
+  if (coefficient === -1) return `-${variable}`;
+  return `${coefficient}${variable}`;
+};
+
+function AlignedEquationRow({ equationText, variables, targetVariable, multiplier = null, cancelled = false, label }) {
+  const coefficients = useMemo(() => linearEquationCoefficients(equationText, variables), [equationText, variables]);
+  if (!coefficients) {
+    return (
+      <div className="mathmaster-systems-aligned-equation-row">
+        {label ? <span className="mathmaster-systems-equation-row-label">{label}</span> : null}
+        <MathDisplay value={equationText} format="ascii-math" inline />
+      </div>
+    );
+  }
+  const entries = [
+    { variable: variables[0], value: coefficients.a },
+    { variable: variables[1], value: coefficients.b },
+  ];
+  return (
+    <div className="mathmaster-systems-aligned-equation-row">
+      {label ? <span className="mathmaster-systems-equation-row-label">{label}</span> : null}
+      {multiplier != null ? <span className="mathmaster-systems-applied-multiplier">× {multiplier}</span> : null}
+      <div className="mathmaster-systems-equation-columns">
+        {entries.map((entry, index) => (
+          <span
+            key={entry.variable}
+            className={`mathmaster-systems-equation-term${entry.variable === targetVariable ? ' is-target-column' : ''}${cancelled && entry.variable === targetVariable ? ' is-cancelled' : ''}`}
+          >
+            {index === 1 && cleanCoefficient(entry.value) >= 0 ? '+ ' : ''}
+            {coefficientTermText(entry.value, entry.variable)}
+          </span>
+        ))}
+        <span className="mathmaster-systems-equation-equals">=</span>
+        <span className="mathmaster-systems-equation-constant">{cleanCoefficient(coefficients.c)}</span>
+      </div>
+    </div>
+  );
+}
+
 /** Extracts the plain-expression value a solved Step Algebra equation isolated `variable` to. */
 const solvedExpressionFor = (latexResponse, variable) => {
   try {
