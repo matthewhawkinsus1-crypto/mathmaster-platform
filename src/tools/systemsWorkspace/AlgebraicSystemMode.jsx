@@ -26,6 +26,7 @@ import {
   solveAlgebraicSystem,
   evaluateEquationSides,
   normalizeEquationForStepAlgebra,
+  repairPersistedIsolation,
 } from './algebraicSystemsEngine.js';
 
 const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '11px 12px', border: '1px solid #cfd8e6', borderRadius: 9, background: '#fff', fontSize: 15, minHeight: 44 };
@@ -333,7 +334,11 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const effectiveMethod = config.method === 'studentChoice' ? method : config.method;
 
   const [selection, setSelection] = usePersistentToolState('selection', { equationIndex: null, variable: null });
-  const [isolation, setIsolation] = usePersistentToolState('isolation', { expression: null, tokenExpression: null, simplificationDraft: '', simplifying: false, simplificationChecked: false, simplificationValid: false });
+  const [storedIsolation, setIsolation] = usePersistentToolState('isolation', { expression: null, tokenExpression: null, simplificationDraft: '', simplifying: false, simplificationChecked: false, simplificationValid: false });
+  // A draft saved before issue #334 can hold Step Algebra's LaTeX spacing
+  // ("-(3)+(2~ y)") in these plain-expression fields. Every read goes through
+  // the repair, so a reopened question behaves exactly like a fresh one.
+  const isolation = useMemo(() => repairPersistedIsolation(storedIsolation), [storedIsolation]);
   const [substitution, setSubstitution] = usePersistentToolState('substitution', { targetVariable: null, targetEquationIndex: null, equationText: null });
   const [multipliers, setMultipliers] = usePersistentToolState('multipliers', { 0: '1', 1: '1' });
   const [appliedMultipliers, setAppliedMultipliers] = usePersistentToolState('appliedMultipliers', { 0: false, 1: false });

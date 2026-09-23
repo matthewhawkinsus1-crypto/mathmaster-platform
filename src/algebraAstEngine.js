@@ -657,6 +657,12 @@ const LATEX_TO_EXPRESSION = [
   [/\\sqrt\{([^{}]*)\}/g, 'sqrt($1)'],
   [/\\pi/g, 'pi'],
   [/\\,|\\!|\\;/g, ''],
+  // `~` is LaTeX's non-breaking space, and MathJS's own toTex writes every
+  // implicit product with one: the operand a student types as 2y comes back
+  // from Step Algebra as `2~ y`. To MathJS `~` is bitwise NOT, so left in place
+  // it made the isolated expression unparseable (issue #334). A space, not
+  // nothing: `x~y` is the product x y, never the single symbol `xy`.
+  [/\s*~\s*/g, ' '],
   [/\^\{([^{}]*)\}/g, '^($1)'],
   [/_\{([^{}]*)\}/g, '_$1'],
 ];
