@@ -278,6 +278,8 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
           questionIndex: repairIndex,
           affectedFieldIds: liveRepair.affectedFieldIds,
           beforeFingerprint: liveRepair.beforeFingerprint,
+          repairKind: liveRepair.repairKind || 'response-entry-repair',
+          changedViewportKeys: liveRepair.changedViewportKeys || [],
         },
       ]);
     }
