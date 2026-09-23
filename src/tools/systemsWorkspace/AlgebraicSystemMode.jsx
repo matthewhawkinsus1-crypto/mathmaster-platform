@@ -25,6 +25,7 @@ import {
   linearEquationCoefficients,
   solveAlgebraicSystem,
   evaluateEquationSides,
+  normalizeEquationForStepAlgebra,
 } from './algebraicSystemsEngine.js';
 
 const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '11px 12px', border: '1px solid #cfd8e6', borderRadius: 9, background: '#fff', fontSize: 15, minHeight: 44 };
@@ -255,14 +256,21 @@ const solvedNumberFor = (latexResponse, variable) => {
  * simplifies anything itself.
  */
 function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, onSolved, onUndoStateChange, workspaceDifficulty, autoReveal = false, autoOpenDistribution = false, simplifyDistributedProducts = false }) {
+  const normalizedEquationText = useMemo(() => {
+    try {
+      return normalizeEquationForStepAlgebra(equationText);
+    } catch {
+      return equationText;
+    }
+  }, [equationText]);
   const question = useMemo(() => ({
-    equation: equationText, solveFor, prompt, workspaceDifficulty,
-  }), [equationText, solveFor, prompt, workspaceDifficulty]);
+    equation: normalizedEquationText, solveFor, prompt, workspaceDifficulty,
+  }), [normalizedEquationText, solveFor, prompt, workspaceDifficulty]);
   const hostRef = useRef(null);
   const lastReportedRef = useRef(null);
   const embeddedEquationIdentity = useMemo(
-    () => `${draftKey || 'embedded'}:${solveFor || ''}:${equationIdentity(equationText)}`,
-    [draftKey, equationText, solveFor],
+    () => `${draftKey || 'embedded'}:${solveFor || ''}:${equationIdentity(normalizedEquationText)}`,
+    [draftKey, normalizedEquationText, solveFor],
   );
 
   React.useEffect(() => {
@@ -276,7 +284,7 @@ function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, 
       hostRef.current?.focus?.({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [autoReveal, equationText]);
+  }, [autoReveal, normalizedEquationText]);
   const handleStateChange = useCallback((payload) => {
     const part = payload?.parts?.find((p) => p?.id === 'algebra-objective');
     if (!part?.isComplete || !part.response) return;
