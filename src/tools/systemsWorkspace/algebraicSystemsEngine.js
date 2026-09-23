@@ -24,6 +24,22 @@ const splitEquation = (text) => {
 };
 
 /**
+ * Canonicalize only the presentation structure of an equation before handing
+ * it to Step Algebra. This does NOT simplify, combine terms, distribute, or
+ * solve. It removes redundant parenthesis wrappers introduced by repeated
+ * token serialization while retaining every mathematically-required grouped
+ * sum/difference.
+ */
+export const normalizeEquationForStepAlgebra = (equationText) => {
+  const { left, right } = splitEquation(equationText);
+  const normalizeSide = (side) => parse(String(side)).toString({
+    parenthesis: 'auto',
+    implicit: 'show',
+  });
+  return `${normalizeSide(left)} = ${normalizeSide(right)}`;
+};
+
+/**
  * `{ a, b, c }` such that the equation is equivalent to
  * `a * variables[0] + b * variables[1] = c`.
  *
