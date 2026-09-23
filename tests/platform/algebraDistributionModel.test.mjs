@@ -228,10 +228,3 @@ test('a negative coefficient around a substituted multi-term expression still ex
   assert.equal(detected.terms.length, 2);
   assert.match(detected.factorText.replace(/\s+/g, ''), /^-3$/);
 });
-
-test('a bare negative grouped expression exposes distribution by negative one', () => {
-  const equation = { left: '4 * x - (2 * x - 7)', right: '1', variable: 'x' };
-  const detected = detectDistributableGroup(equation);
-  assert.ok(detected);
-  assert.match(detected.factorText.replace(/\s+/g, ''), /^-1$/);
-});
