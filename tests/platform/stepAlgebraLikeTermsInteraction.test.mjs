@@ -68,7 +68,11 @@ test('inline rewrite never changes a clicked token until the student supplies an
   assert.match(region, /replaceSingleAdditiveTerm/);
   assert.match(region, /kind: 'inline-term-rewrite'/);
   assert.match(region, /setEquation\(nextEquation\)/);
-  assert.doesNotMatch(coreSource.slice(coreSource.indexOf('const selectInlineRewriteTerm'), start), /setEquation\(/);
+  const selectStart = coreSource.indexOf('const selectInlineRewriteTerm');
+  const selectEnd = coreSource.indexOf('const openRewriteTool', selectStart);
+  const selectRegion = coreSource.slice(selectStart, selectEnd);
+  assert.match(selectRegion, /setInlineRewriteSelection\(\{ side, index \}\)/);
+  assert.doesNotMatch(selectRegion, /setEquation\(/);
 });
 
 test('inline systems mode keeps distribution controls on the equation instead of a second work panel', () => {
