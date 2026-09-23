@@ -65,7 +65,7 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
     teacherPointFeedback: 'The message under the teacher test-point reasoning panel, regenerated from the response already stored in teacherPointResponse.',
     studentPointFeedback: 'The message under the student test-point reasoning panel, regenerated from the response already stored in studentPointResponse.',
     vertexFeedback: 'The message under the vertex panel, regenerated from the vertex answers already stored in vertices.',
-    slotAttempt: 'Which variable slot the last substitution click landed on and whether it was the isolated variable. Interaction feedback, regenerated from the click and the already-persisted substitution/selection state — never itself part of the algebraic work.',
+    slotAttempt: 'Transient pick-up/drop feedback for substitution, back-substitution, multiplier placement, equation combination, and verification. It records the currently armed token or last rejected destination, while every committed mathematical choice remains in the draft-backed systems fields.',
     embeddedUndoController: 'Transient bridge to the currently visible Step Algebra undo controller. It contains callbacks/canUndo presentation state, not student mathematics; the actual algebra history remains draft-backed inside Step Algebra.',
   }),
   parabolaGeometryLab: entry(['parabolaGeometry/ParabolaGeometryLab.jsx']),
