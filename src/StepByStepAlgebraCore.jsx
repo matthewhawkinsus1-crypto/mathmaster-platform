@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
 import { ALGEBRA_DRAFT_VERSION, rehydrateAlgebraDraft } from './algebraDraftState';
 import { advanceCancellationProgress } from './algebraCancellationProgress';
@@ -159,6 +159,59 @@ function CancellationFactorRow({
  * The chip a student drags. A fraction is stacked with a real horizontal rule
  * rather than written with a slash, because that is what a fraction looks like.
  */
+function AutoFitEquationExpression({ children, baseFontSize = 34, cacheKey = '' }) {
+  const viewportRef = useRef(null);
+  const contentRef = useRef(null);
+  const base = Number(baseFontSize) || 34;
+  const [fontSize, setFontSize] = useState(base);
+
+  useLayoutEffect(() => {
+    setFontSize(base);
+  }, [base, cacheKey]);
+
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    const content = contentRef.current;
+    if (!viewport || !content) return undefined;
+
+    let frame = null;
+    const fit = () => {
+      const available = Math.max(1, viewport.clientWidth - 6);
+      const rendered = Math.max(1, content.scrollWidth);
+      const ratio = available / rendered;
+      // Resize the mathematical typography, not the viewport. This keeps the
+      // whole side visible without making students pan a horizontal scrollbar.
+      // The floor is deliberately readable; adaptive side widths do most of
+      // the work before the font ever needs to get this small.
+      const next = Math.max(17, Math.min(base, fontSize * ratio * 0.985));
+      if (Math.abs(next - fontSize) > 0.45) setFontSize(next);
+    };
+    const scheduleFit = () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(fit);
+    };
+
+    scheduleFit();
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(scheduleFit) : null;
+    observer?.observe(viewport);
+    observer?.observe(content);
+    window.addEventListener('resize', scheduleFit);
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      observer?.disconnect();
+      window.removeEventListener('resize', scheduleFit);
+    };
+  }, [base, cacheKey, fontSize]);
+
+  return (
+    <div ref={viewportRef} className="algebra-expression-fit-viewport">
+      <div ref={contentRef} className="algebra-expression-fit-content" style={{ fontSize: `${fontSize}px` }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function OperationChip({ token }) {
   if (!token) return null;
   if (token.kind === 'fraction') {
@@ -188,7 +241,7 @@ export default function StepByStepAlgebra({
   draftKey = null,
   autoOpenDistribution = false,
   simplifyDistributedProducts = false,
-  inlineExpressionTools = false,
+  inlineExpressionTools = true,
 }) {
   const normalizedRecord = normalizeQuestionRecord(questionRecord);
   const initialParse = useMemo(() => getInitialEquation(question, normalizedRecord), [question]);
