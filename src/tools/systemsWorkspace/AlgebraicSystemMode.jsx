@@ -300,10 +300,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
   const attemptSubstitution = (clickedVariable) => {
     if (clickedVariable !== selection.variable) {
-      setSlotAttempt({ variable: clickedVariable, correct: false });
+      setSlotAttempt({ stage: 'substitution', variable: clickedVariable, correct: false, armed: true });
       return;
     }
-    setSlotAttempt({ variable: clickedVariable, correct: true });
+    setSlotAttempt({ stage: 'substitution', variable: clickedVariable, correct: true, armed: false });
     setSubstitution({
       targetVariable: selection.variable,
       equationText: substituteIntoEquation(targetEquationText, selection.variable, isolatedExpr),
@@ -349,6 +349,15 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const chooseBackSub = (equationIndex) => {
     resetFromBackSub();
     setBackSub({ equationIndex });
+  };
+
+  const attemptBackSubstitution = (equationIndex, clickedVariable) => {
+    if (clickedVariable !== survivingVariable) {
+      setSlotAttempt({ stage: 'backSubstitution', variable: clickedVariable, correct: false, armed: true });
+      return;
+    }
+    setSlotAttempt({ stage: 'backSubstitution', variable: clickedVariable, correct: true, armed: false });
+    chooseBackSub(equationIndex);
   };
 
   const handleSecondSolved = useCallback((latexResponse) => {
@@ -415,6 +424,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   };
 
   const methodTitle = effectiveMethod === 'elimination' ? 'Elimination' : 'Substitution';
+  const isolationSolverActive = Boolean(selectionMade && !isolationDone && !alreadyIsolated);
+  const reducedEquationSolverActive = Boolean(reduceInputText && !isDegenerate && !firstSolvedDone);
+  const backSubSolverActive = Boolean(firstSolvedDone && !isDegenerate && backSubChosen && !secondSolvedDone);
+  const embeddedSolverActive = isolationSolverActive || reducedEquationSolverActive || backSubSolverActive;
 
   return (
     <EnlargeableFigure
@@ -429,7 +442,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         primaryActions: readyToSubmit ? [{ id: 'check-algebraic-system', label: 'Check my work', onAction: check }] : [],
       }}
     >
-      <ToolSplit>
+      <div className={`mathmaster-algebraic-system-layout${embeddedSolverActive ? ' has-active-solver' : ''}`}>
+        <div className="mathmaster-algebraic-system-givens">
         <Panel title="Both original equations">
           <div style={{ display: 'grid', gap: 8 }}>
             {equations.map((eq, index) => (
@@ -451,7 +465,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
             </div>
           ) : null}
         </Panel>
+        </div>
 
+        <div className="mathmaster-algebraic-system-workflow">
         <Panel title={`${methodTitle} workflow`}>
           {config.method === 'studentChoice' && !method ? (
             <div>
@@ -779,7 +795,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
             onHintUsed={() => onAction?.('HINT_USED')}
           />
         </Panel>
-      </ToolSplit>
+        </div>
+      </div>
     </EnlargeableFigure>
   );
 }
