@@ -620,7 +620,16 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const embeddedSolverActive = isolationSolverActive || reducedEquationSolverActive || backSubSolverActive;
 
   const workTrailStages = useMemo(() => {
-    const commonEnd = [
+    const commonEnd = isDegenerate ? [
+      {
+        id: 'interpret',
+        label: 'Interpret',
+        complete: Boolean(specialCaseCorrect),
+        summary: specialCaseCorrect
+          ? (degenerateTruth?.isTrue ? 'Infinitely many solutions · consistent and dependent' : 'No solution · inconsistent')
+          : '',
+      },
+    ] : [
       {
         id: 'solve-first',
         label: 'Solve',
@@ -684,6 +693,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     ];
   }, [
     effectiveMethod,
+    isDegenerate,
+    specialCaseCorrect,
+    degenerateTruth,
     firstSolvedDone,
     firstSolved,
     secondSolvedDone,
