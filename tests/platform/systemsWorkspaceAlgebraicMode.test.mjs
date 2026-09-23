@@ -162,8 +162,8 @@ test('a successful substitution immediately reveals the one-variable solver and 
 test('complex substitution failures stay recoverable instead of silently hanging the question', () => {
   const attempt = region(modeSource, 'const attemptSubstitution = ', 'const setMultiplierValue', 'attemptSubstitution');
   assert.match(attempt, /try \{[\s\S]*?substituteIntoEquation/);
-  assert.match(attempt, /linearEquationCoefficients\(reducedEquation, variables\)/);
   assert.match(attempt, /reason: 'expression-parse'/);
+  assert.doesNotMatch(attempt, /linearEquationCoefficients\(reducedEquation, variables\)/);
   assert.match(modeSource, /Your work is still here/);
 });
 
