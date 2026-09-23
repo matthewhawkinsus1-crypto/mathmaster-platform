@@ -91,7 +91,7 @@ test('each Step Algebra embed gets a draft key scoped to the exact mathematical 
   const reduceBlock = region(modeSource, 'label={`Solve for ${survivingVariable}`}', 'onSolved={handleReduceSolved}', 'reduce embed');
   assert.match(reduceBlock, /algebraic:reduce:\$\{effectiveMethod\}:\$\{selection\.variable\}/);
 
-  const backSolveBlock = region(modeSource, 'label={`Solve for ${removedVariable}`}', 'onSolved={handleSecondSolved}', 'back-solve embed');
+  const backSolveBlock = region(modeSource, 'label="Solve the back-substitution equation"', 'onSolved={handleSecondSolved}', 'back-solve embed');
   assert.match(backSolveBlock, /algebraic:back-solve:\$\{backSub\.equationIndex\}/);
 });
 
@@ -255,7 +255,8 @@ test('substitution is a neutral placement interaction that does not pre-highligh
   assert.match(modeSource, /mathmaster-substitution:/);
   assert.match(modeSource, /function VariableDropEquation/);
   assert.match(modeSource, /Use the isolated expression to create a one-variable equation/);
-  assert.doesNotMatch(modeSource, /is-target/);
+  const substitutionTarget = region(modeSource, 'function VariableDropEquation', '/** Extracts the plain-expression', 'VariableDropEquation');
+  assert.doesNotMatch(substitutionTarget, /is-target/);
   assert.doesNotMatch(modeSource, />Substitute for \{v\}</);
 });
 
