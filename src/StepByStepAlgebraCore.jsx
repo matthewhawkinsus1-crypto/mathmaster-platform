@@ -1877,11 +1877,21 @@ export default function StepByStepAlgebra({
   const displayedSideLatex = (side) => pendingMove ? pendingMove.unsimplifiedLatex[side] : expressionToLatex(equation[side]);
   const sideFontSize = (side) => {
     const length = String(sideExpression(side) || '').replace(/\s+/g, '').length;
-    if (length >= 42) return '23px';
-    if (length >= 30) return '27px';
-    if (length >= 22) return '30px';
-    return '34px';
+    if (length >= 42) return 23;
+    if (length >= 30) return 27;
+    if (length >= 22) return 30;
+    return 34;
   };
+  // Do not force both sides to own exactly half the board. A long left side
+  // beside a short constant should borrow unused room before typography ever
+  // has to shrink. This dramatically reduces the need for horizontal panning.
+  const leftVisualLength = Math.max(4, String(sideExpression('left') || '').replace(/\s+/g, '').length);
+  const rightVisualLength = Math.max(4, String(sideExpression('right') || '').replace(/\s+/g, '').length);
+  const shorterVisualLength = Math.max(4, Math.min(leftVisualLength, rightVisualLength));
+  const sideColumnWeight = (length) => Math.max(1, Math.min(2.4, Math.sqrt(length / shorterVisualLength)));
+  const adaptiveBalanceColumns = mobileInteraction.isMobile
+    ? undefined
+    : `minmax(0, ${sideColumnWeight(leftVisualLength)}fr) 56px minmax(0, ${sideColumnWeight(rightVisualLength)}fr)`;
   const balanceStagingSide = !pendingMove && placedOperationSides.length === 1 ? placedOperationSides[0] : null;
   const balanceMissingSide = balanceStagingSide === 'left' ? 'right' : balanceStagingSide === 'right' ? 'left' : null;
 
@@ -1917,7 +1927,7 @@ export default function StepByStepAlgebra({
           if (sideTermIndex !== distributionState.sideTermIndex) {
             return (
               <span key={`ordinary-${sideTermIndex}`} className="algebra-inline-ordinary-term">
-                <MathDisplay value={sideTerm.text} format="ascii-math" inline style={{ fontSize: 'inherit' }} />
+                <MathDisplay value={sideTerm.latex || expressionToLatex(sideTerm.text)} format="latex" inline style={{ fontSize: 'inherit' }} />
               </span>
             );
           }
@@ -2011,7 +2021,7 @@ export default function StepByStepAlgebra({
           onPointerMove={extendStroke}
           onPointerUp={() => finishStroke(side, cancellationModel)}
           onPointerCancel={() => setStroke(null)}
-          style={{ position: 'relative', width: 'min(96%, 520px)', maxWidth: '100%', minHeight: '132px', margin: '12px auto 4px', padding: '24px 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '14px', background: cancellationHintsEnabled ? '#fffdf6' : '#fff', outline: cancellationHintsEnabled ? '2px solid rgba(249,171,0,.32)' : 'none', touchAction: 'none', cursor: cancelAnimating ? 'wait' : 'crosshair', userSelect: 'none', overflowX: 'auto', overflowY: 'hidden', fontSize: sideFontSize(side) }}
+          style={{ position: 'relative', width: 'min(96%, 520px)', maxWidth: '100%', minHeight: '132px', margin: '12px auto 4px', padding: '24px 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '14px', background: cancellationHintsEnabled ? '#fffdf6' : '#fff', outline: cancellationHintsEnabled ? '2px solid rgba(249,171,0,.32)' : 'none', touchAction: 'none', cursor: cancelAnimating ? 'wait' : 'crosshair', userSelect: 'none', overflowX: 'hidden', overflowY: 'hidden', fontSize: 'inherit' }}
           aria-label="Cancellation workspace. Draw through matching factors directly in this equation."
         >
           {renderCancellationInk(side)}
@@ -2020,35 +2030,47 @@ export default function StepByStepAlgebra({
       );
     }
 
+    const equationSide = (content, extraClass = '') => (
+      <div
+        key={`${side}-${sideExpression(side)}-${extraClass}`}
+        className={`algebra-equation-side algebra-reflow ${extraClass}`.trim()}
+        style={{ fontSize: 'inherit', margin: '16px 0' }}
+      >
+        {content}
+      </div>
+    );
+
     const inlineDistribution = renderInlineDistributionSide(side);
-    if (inlineDistribution) return inlineDistribution;
+    if (inlineDistribution) return equationSide(inlineDistribution, 'is-inline-distribution');
 
     const terms = splitAdditiveTerms(sideExpression(side));
     if (inlineExpressionTools && rewriteOpen && !pendingMove && terms?.length) {
-      return (
+      return equationSide(
         <AlgebraTermRow
           terms={terms}
           side={side}
           selectedIndices={inlineRewriteSelection?.side === side ? [inlineRewriteSelection.index] : []}
           onTermClick={(index) => selectInlineRewriteTerm(side, index)}
           interactionLabel="select as the term you want to rewrite"
-        />
+        />,
+        'is-inline-rewrite',
       );
     }
     if (inlineExpressionTools && likeTermsOpen && !pendingMove && terms?.length) {
-      return (
+      return equationSide(
         <AlgebraTermRow
           terms={terms}
           side={side}
           selectedIndices={likeTermsSide === side ? selectedLikeTermIndices : []}
           onTermClick={(index) => toggleInlineLikeTerm(side, index)}
           interactionLabel="select as a term to combine"
-        />
+        />,
+        'is-inline-like-terms',
       );
     }
     const inner = terms ? <AlgebraTermRow terms={terms} side={side} /> : <MathDisplay value={displayedSideLatex(side)} format="latex" inline />;
     if (!armedTile || pendingMove || !String(operand || '').trim()) {
-      return <div key={sideExpression(side)} className="algebra-equation-side algebra-reflow" style={{ fontSize: sideFontSize(side), margin: '16px 0' }}>{inner}</div>;
+      return equationSide(inner);
     }
 
     const staged = placedOperationSides.includes(side);
@@ -2065,7 +2087,7 @@ export default function StepByStepAlgebra({
 
     if (armedTile.operation === 'multiply') {
       return (
-        <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: sideFontSize(side), margin: '16px 0', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+        <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: 'inherit', margin: '16px 0', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
           {position === 'after' ? <><span className="algebra-paren-inner">({inner})</span><span className="algebra-staged-operand">{operandMath}</span></> : <><span className="algebra-staged-operand">{operandMath}</span><span className="algebra-paren-inner">({inner})</span></>}
         </div>
       );
@@ -2073,7 +2095,7 @@ export default function StepByStepAlgebra({
 
     if (armedTile.operation === 'divide') {
       return (
-        <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: sideFontSize(side), margin: '16px 0', display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '140px' }}>
+        <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: 'inherit', margin: '16px 0', display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '140px' }}>
           <span className="algebra-div-num" style={{ textAlign: 'center' }}>{inner}</span>
           <span aria-hidden="true" className="algebra-div-bar" style={{ width: '100%', height: '3px', background: 'currentColor', borderRadius: '2px', margin: '4px 0' }} />
           <span className="algebra-div-den" style={{ textAlign: 'center' }}>{operandMath}</span>
@@ -2092,7 +2114,7 @@ export default function StepByStepAlgebra({
     );
     if (additivePosition.kind === 'under' && terms?.length) {
       return (
-        <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: sideFontSize(side), margin: '16px 0', display: 'inline-flex', alignItems: 'center' }}>
+        <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: 'inherit', margin: '16px 0', display: 'inline-flex', alignItems: 'center' }}>
           <AlgebraTermRow
             terms={terms}
             side={side}
@@ -2109,7 +2131,7 @@ export default function StepByStepAlgebra({
     );
     const previewTerms = splitAdditiveTerms(previewExpression);
     return (
-      <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: sideFontSize(side), margin: '16px 0', display: 'inline-flex', alignItems: 'center' }}>
+      <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: 'inherit', margin: '16px 0', display: 'inline-flex', alignItems: 'center' }}>
         {previewTerms
           ? <AlgebraTermRow terms={previewTerms} side={side} />
           : <><span>{inner}</span>{operationPreview}</>}
@@ -2577,7 +2599,12 @@ export default function StepByStepAlgebra({
           ))}
         </div>}
 
-        <div data-math-state={equationToLatex(equation)} aria-label="Interactive algebra balance scale" className={`algebra-equation-stage algebra-connected-balance ${balanceStagingSide ? `is-unbalanced is-unbalanced-${balanceStagingSide}` : ''}`}>
+        <div
+          data-math-state={equationToLatex(equation)}
+          aria-label="Interactive algebra balance scale"
+          className={`algebra-equation-stage algebra-connected-balance ${balanceStagingSide ? `is-unbalanced is-unbalanced-${balanceStagingSide}` : ''}`}
+          style={adaptiveBalanceColumns ? { gridTemplateColumns: adaptiveBalanceColumns } : undefined}
+        >
           {['left', 'right'].map((side, index) => {
             const target = pendingMove?.cancellationTargets.find((item) => item.side === side);
             const pendingCancellationModel = target?.canCancel ? buildCancellationModel(
@@ -2624,7 +2651,12 @@ export default function StepByStepAlgebra({
               >
                 <div className="algebra-side-label">{side} side</div>
                 <div ref={side === 'left' ? leftExpressionRef : rightExpressionRef} className="algebra-expression-anchor">
-                  {renderSide(side, cancellationModel)}
+                  <AutoFitEquationExpression
+                    baseFontSize={sideFontSize(side)}
+                    cacheKey={`${sideExpression(side)}|${inlineToolActive ? 'inline' : 'balance'}|${distributionState?.placedIndices?.length || 0}`}
+                  >
+                    {renderSide(side, cancellationModel)}
+                  </AutoFitEquationExpression>
                 </div>
 
                 {inlineExpressionTools && distributionState?.side === side ? (
