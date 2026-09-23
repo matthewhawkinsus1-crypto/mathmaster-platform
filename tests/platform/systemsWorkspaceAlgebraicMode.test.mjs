@@ -156,7 +156,20 @@ test('a successful substitution immediately reveals the one-variable solver and 
   assert.match(attempt, /equationText: reducedEquation/);
   assert.match(attempt, /setSlotAttempt\(null\)/);
 
-  assert.match(modeSource, /label=\{`Solve for \$\{survivingVariable\}`\}[\s\S]*?autoReveal[\s\S]*?autoOpenDistribution=\{effectiveMethod === 'substitution'\}[\s\S]*?simplifyDistributedProducts=\{effectiveMethod === 'substitution'\}/);
+  assert.match(modeSource, /label=\{`Solve for \$\{survivingVariable\}`\}[\s\S]*?autoReveal[\s\S]*?autoOpenDistribution=\{effectiveMethod === 'substitution'\}[\s\S]*?simplifyDistributedProducts=\{false\}/);
+});
+
+test('substitution distribution leaves products unsimplified for the student', () => {
+  const reduceSolver = region(
+    modeSource,
+    '{reduceInputText && !isDegenerate && !firstSolvedDone ? (',
+    '{isDegenerate ? (',
+    'substitution reduce solver',
+  );
+  assert.match(reduceSolver, /autoOpenDistribution=\{effectiveMethod === 'substitution'\}/);
+  assert.match(reduceSolver, /simplifyDistributedProducts=\{false\}/);
+  assert.match(reduceSolver, /inlineExpressionTools=\{effectiveMethod === 'substitution'\}/);
+  assert.doesNotMatch(reduceSolver, /simplifyDistributedProducts=\{effectiveMethod === 'substitution'\}/);
 });
 
 test('complex substitution failures stay recoverable instead of silently hanging the question', () => {

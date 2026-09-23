@@ -846,3 +846,165 @@
     width: 100%;
   }
 }
+
+
+/* --------------------------------------------------------------------------
+ * Inline expression tools
+ * Systems substitution can keep distribution, term rewriting, and like-term
+ * selection on the equation itself. A mode must be explicitly active before
+ * any term becomes interactive; ordinary equation clicks remain inert.
+ */
+.algebra-inline-distribution-expression {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  white-space: nowrap;
+  min-height: 64px;
+}
+
+.algebra-inline-ordinary-term {
+  display: inline-flex;
+  align-items: center;
+}
+
+.algebra-inline-distribution-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.algebra-inline-factor-token,
+.algebra-inline-distribution-target {
+  position: relative;
+  min-height: 48px;
+  min-width: 42px;
+  padding: 5px 9px;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+
+.algebra-inline-factor-token {
+  border: 2px solid #9bb8e8;
+  background: #fff;
+  color: #174ea6;
+  font-weight: 900;
+  cursor: grab;
+}
+
+.algebra-inline-factor-token.is-armed {
+  border-color: #174ea6;
+  background: #e8f0fe;
+  box-shadow: 0 0 0 3px rgba(26,115,232,.12);
+}
+
+.algebra-inline-distribution-target {
+  border: 1px solid transparent;
+}
+
+.algebra-inline-distribution-target.is-ready {
+  border: 2px dashed #7698cf;
+  background: rgba(232,240,254,.45);
+}
+
+.algebra-inline-distribution-target.is-placed {
+  border: 2px solid #34a853;
+  background: #e6f4ea;
+}
+
+.algebra-inline-distribution-target:disabled,
+.algebra-inline-factor-token:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.algebra-inline-distribution-targets {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.algebra-inline-factor-applied {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 3px);
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: #e6f4ea;
+  color: #137333;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.algebra-inline-mode-controls {
+  width: min(96%, 520px);
+  margin: 2px auto 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-height: 38px;
+}
+
+.algebra-inline-editor {
+  padding-top: 4px;
+}
+
+.algebra-inline-mode-status,
+.algebra-inline-mode-feedback {
+  font-size: 12px;
+  font-weight: 800;
+  color: #5f6368;
+}
+
+.algebra-inline-mode-feedback {
+  color: #8a5a00;
+}
+
+.algebra-inline-commit,
+.algebra-inline-clear {
+  min-height: 34px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.algebra-inline-commit {
+  border: 0;
+  background: #174ea6;
+  color: #fff;
+}
+
+.algebra-inline-clear {
+  border: 1px solid #b8c8e3;
+  background: #fff;
+  color: #5f6368;
+}
+
+@media (max-width: 720px) {
+  .algebra-inline-distribution-expression {
+    gap: 4px;
+    font-size: .88em;
+  }
+
+  .algebra-inline-factor-token,
+  .algebra-inline-distribution-target {
+    min-height: 44px;
+    padding: 4px 7px;
+  }
+
+  .algebra-inline-mode-controls {
+    width: 100%;
+  }
+}

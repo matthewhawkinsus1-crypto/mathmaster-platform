@@ -5,6 +5,7 @@ import {
   monomialSignature,
   replacementIsSingleLikeTerm,
   replaceSelectedLikeTerms,
+  replaceSingleAdditiveTerm,
   selectedLikeTermInfo,
 } from '../../src/algebraLikeTermsModel.js';
 import { expressionsEquivalent } from '../../src/algebraAstEngine.js';
@@ -48,4 +49,20 @@ test('replaces only the student-selected terms and preserves the rest of the sid
   const after = replaceSelectedLikeTerms(before, info.indices, '-2*x');
   assert.ok(after);
   assert.equal(expressionsEquivalent(after, '-2*x + 12', 'x'), true);
+});
+
+
+test('replaces one student-selected additive term without changing its neighbors', () => {
+  const before = '3*(-3) + 3*(2*y) + 5*y';
+  const after = replaceSingleAdditiveTerm(before, 0, '-9');
+  assert.ok(after);
+  assert.equal(expressionsEquivalent(after, '-9 + 3*(2*y) + 5*y', 'y'), true);
+
+  const next = replaceSingleAdditiveTerm(after, 1, '6*y');
+  assert.ok(next);
+  assert.equal(expressionsEquivalent(next, '-9 + 6*y + 5*y', 'y'), true);
+});
+
+test('single-term replacement refuses a multi-term rewrite', () => {
+  assert.equal(replaceSingleAdditiveTerm('3*(-3) + 5*y', 0, '-9 + y'), null);
 });

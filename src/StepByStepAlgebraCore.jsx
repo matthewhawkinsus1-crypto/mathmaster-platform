@@ -34,6 +34,7 @@ import {
   findLikeTermGroups,
   replacementIsSingleLikeTerm,
   replaceSelectedLikeTerms,
+  replaceSingleAdditiveTerm,
   selectedLikeTermInfo,
 } from './algebraLikeTermsModel.js';
 import { getAttemptsRemaining, normalizeQuestionRecord } from './attemptPolicy';
@@ -187,6 +188,7 @@ export default function StepByStepAlgebra({
   draftKey = null,
   autoOpenDistribution = false,
   simplifyDistributedProducts = false,
+  inlineExpressionTools = false,
 }) {
   const normalizedRecord = normalizeQuestionRecord(questionRecord);
   const initialParse = useMemo(() => getInitialEquation(question, normalizedRecord), [question]);
@@ -236,6 +238,13 @@ export default function StepByStepAlgebra({
   const [rewriteScope, setRewriteScope] = useState('left');
   const [rewriteAnswers, setRewriteAnswers] = useState({ left: '', right: '' });
   const [rewriteFocusSignal, setRewriteFocusSignal] = useState(0);
+  // In inline-expression mode, Rewrite / Simplify turns every additive term
+  // into a neutral selectable token on the balance board. Selecting a token
+  // NEVER changes it and never asks whether it should be simplified; only a
+  // student-authored equivalent replacement can commit.
+  const [inlineRewriteSelection, setInlineRewriteSelection] = useState({ side: null, index: null });
+  const [inlineRewriteAnswer, setInlineRewriteAnswer] = useState('');
+  const [inlineRewriteFocusSignal, setInlineRewriteFocusSignal] = useState(0);
   // Interactive same-side simplification. A student chooses the side and the
   // terms they believe are alike, then supplies the combined term. The platform
   // checks the decision; it never supplies the coefficient/result.
@@ -345,6 +354,8 @@ export default function StepByStepAlgebra({
     setRewriteOpen(false);
     setRewriteScope('left');
     setRewriteAnswers({ left: '', right: '' });
+    setInlineRewriteSelection({ side: null, index: null });
+    setInlineRewriteAnswer('');
     setSelectedCancellationIndices({});
     setMessage(null);
     setArmedTile(null);
@@ -458,6 +469,8 @@ export default function StepByStepAlgebra({
     || Object.keys(simplificationAnswers).length
     || rewriteOpen
     || Object.values(rewriteAnswers).some((value) => String(value || '').trim())
+    || Boolean(inlineRewriteSelection?.side)
+    || String(inlineRewriteAnswer || '').trim()
     || likeTermsOpen
     || selectedLikeTermIndices.length
     || String(likeTermsAnswer || '').trim()
@@ -477,7 +490,9 @@ export default function StepByStepAlgebra({
         const hasSelectedCancellation = Object.values(selectedCancellationIndices)
           .some((indices) => indices?.length);
         const hasRewriteEntry = rewriteOpen
-          || Object.values(rewriteAnswers).some((value) => String(value || '').trim());
+          || Object.values(rewriteAnswers).some((value) => String(value || '').trim())
+          || Boolean(inlineRewriteSelection?.side)
+          || String(inlineRewriteAnswer || '').trim();
         const hasLikeTermsEntry = likeTermsOpen
           || selectedLikeTermIndices.length > 0
           || String(likeTermsAnswer || '').trim();
@@ -517,8 +532,14 @@ export default function StepByStepAlgebra({
             setLikeTermsSide('');
           }
         } else if (hasRewriteEntry) {
-          setRewriteOpen(false);
-          setRewriteAnswers({ left: '', right: '' });
+          if (String(inlineRewriteAnswer || '').trim()) {
+            setInlineRewriteAnswer('');
+          } else if (inlineRewriteSelection?.side) {
+            setInlineRewriteSelection({ side: null, index: null });
+          } else {
+            setRewriteOpen(false);
+            setRewriteAnswers({ left: '', right: '' });
+          }
         } else if (distributionState?.placedIndices?.length) {
           // Before commit, undo removes the last factor placement.
           setDistributionState((current) => undoDistributionPlacement(current));
@@ -542,6 +563,8 @@ export default function StepByStepAlgebra({
             setSimplificationAnswers({});
             setRewriteOpen(false);
             setRewriteAnswers({ left: '', right: '' });
+            setInlineRewriteSelection({ side: null, index: null });
+            setInlineRewriteAnswer('');
             setLikeTermsOpen(false);
             setLikeTermsSide('');
             setSelectedLikeTermIndices([]);
@@ -578,6 +601,8 @@ export default function StepByStepAlgebra({
     placedOperationSides,
     rewriteAnswers,
     rewriteOpen,
+    inlineRewriteSelection,
+    inlineRewriteAnswer,
     likeTermsOpen,
     likeTermsSide,
     selectedLikeTermIndices,
@@ -700,6 +725,8 @@ export default function StepByStepAlgebra({
   const closeRewriteTool = () => {
     setRewriteOpen(false);
     setRewriteAnswers({ left: '', right: '' });
+    setInlineRewriteSelection({ side: null, index: null });
+    setInlineRewriteAnswer('');
   };
 
   const closeLikeTermsTool = () => {
@@ -724,6 +751,8 @@ export default function StepByStepAlgebra({
     setPlacedOperationPositions({});
     setOperand('');
     setRewriteOpen(false);
+    setInlineRewriteSelection({ side: null, index: null });
+    setInlineRewriteAnswer('');
     setDistributionState(null);
     setLikeTermsSide('');
     setSelectedLikeTermIndices([]);
@@ -749,6 +778,26 @@ export default function StepByStepAlgebra({
     setMessage(null);
   };
 
+  const toggleInlineLikeTerm = (side, index) => {
+    if (!inlineExpressionTools || !likeTermsOpen) return;
+    if (likeTermsSide !== side) {
+      setLikeTermsSide(side);
+      setSelectedLikeTermIndices([index]);
+      setLikeTermsAnswer('');
+      setMessage(null);
+      return;
+    }
+    toggleLikeTerm(index);
+  };
+
+  const selectInlineRewriteTerm = (side, index) => {
+    if (!inlineExpressionTools || !rewriteOpen) return;
+    setInlineRewriteSelection({ side, index });
+    setInlineRewriteAnswer('');
+    setInlineRewriteFocusSignal((signal) => signal + 1);
+    setMessage(null);
+  };
+
   const openRewriteTool = () => {
     if (disabled || savingStep || cancelAnimating) return;
     if (pendingMove) {
@@ -764,8 +813,11 @@ export default function StepByStepAlgebra({
     setPlacedOperationPositions({});
     setOperand('');
     setRewriteAnswers({ left: '', right: '' });
+    setInlineRewriteSelection({ side: null, index: null });
+    setInlineRewriteAnswer('');
     closeLikeTermsTool();
-    if (!rewriteOpen) setRewriteFocusSignal((signal) => signal + 1);
+    setDistributionState(null);
+    if (!rewriteOpen && !inlineExpressionTools) setRewriteFocusSignal((signal) => signal + 1);
     setRewriteOpen((current) => !current);
     setMessage(null);
   };
@@ -863,13 +915,85 @@ export default function StepByStepAlgebra({
     });
     pushCommittedEquation(beforeEquation);
     setEquation(nextEquation);
-    closeLikeTermsTool();
+    if (inlineExpressionTools) {
+      setSelectedLikeTermIndices([]);
+      setLikeTermsAnswer('');
+      setLikeTermsSide('');
+    } else {
+      closeLikeTermsTool();
+    }
     setBalancePulse(true);
     window.setTimeout(() => setBalancePulse(false), motionDuration(650, reducedMotion, { floor: 60 }));
     setMessage({
       tone: 'success',
       text: 'Like terms combined. You chose the terms and supplied the combined term; MathMaster only checked the algebra.',
     });
+  };
+
+  const checkInlineRewrite = async () => {
+    if (!inlineExpressionTools || !equation || disabled || savingStep || cancelAnimating || pendingMove) return;
+    const side = inlineRewriteSelection?.side;
+    const index = Number(inlineRewriteSelection?.index);
+    const terms = side ? (splitAdditiveTerms(equation[side]) || []) : [];
+    const term = Number.isInteger(index) ? terms[index] : null;
+    if (!side || !term) return;
+
+    if (!String(inlineRewriteAnswer || '').trim()) {
+      setInlineRewriteFocusSignal((signal) => signal + 1);
+      return;
+    }
+
+    let replacement;
+    try {
+      replacement = latexToExpression(inlineRewriteAnswer);
+    } catch {
+      triggerShake();
+      setInlineRewriteFocusSignal((signal) => signal + 1);
+      setMessage({ tone: 'error', text: 'MathMaster could not read that equivalent term yet.' });
+      return;
+    }
+
+    const replacementTerms = splitAdditiveTerms(replacement) || [];
+    if (replacementTerms.length !== 1) {
+      triggerShake();
+      setInlineRewriteFocusSignal((signal) => signal + 1);
+      setMessage({ tone: 'growth', text: 'Rewrite only the selected term. Keep the rest of the side where it is.' });
+      return;
+    }
+
+    if (!expressionsEquivalent(term.text, replacement, equation.variable)) {
+      triggerShake();
+      setInlineRewriteFocusSignal((signal) => signal + 1);
+      setMessage({ tone: 'growth', text: 'That replacement is not equivalent to the selected term.' });
+      return;
+    }
+
+    const nextSide = replaceSingleAdditiveTerm(equation[side], index, replacement);
+    if (!nextSide) {
+      setMessage({ tone: 'error', text: 'That term could not be placed back into the equation safely. Your work was not changed.' });
+      return;
+    }
+    const beforeKey = String(equation[side] || '').replace(/\s+/g, '');
+    const afterKey = String(nextSide || '').replace(/\s+/g, '');
+    if (beforeKey === afterKey) {
+      setInlineRewriteFocusSignal((signal) => signal + 1);
+      setMessage({ tone: 'growth', text: 'That keeps the selected term exactly as written.' });
+      return;
+    }
+
+    const beforeEquation = equation;
+    const nextEquation = { ...equation, [side]: nextSide };
+    await persistStudentRewrite(beforeEquation, nextEquation, [side], {
+      kind: 'inline-term-rewrite',
+      label: `Rewrite one term on the ${side} side`,
+    });
+    pushCommittedEquation(beforeEquation);
+    setEquation(nextEquation);
+    setInlineRewriteSelection({ side: null, index: null });
+    setInlineRewriteAnswer('');
+    setBalancePulse(true);
+    window.setTimeout(() => setBalancePulse(false), motionDuration(650, reducedMotion, { floor: 60 }));
+    setMessage({ tone: 'success', text: 'Equivalent term accepted.' });
   };
 
   const checkStudentRewrite = async () => {
@@ -979,7 +1103,9 @@ export default function StepByStepAlgebra({
     setDistributionState(initDistributionState(distributable));
     setMessage({
       tone: 'growth',
-      text: 'The substitution created a distributive step. Apply the outside factor to each term, then combine like terms.',
+      text: inlineExpressionTools
+        ? 'The substitution created a distributive step. Work directly on the equation.'
+        : 'The substitution created a distributive step. Apply the outside factor to each term, then combine like terms.',
     });
   }, [
     autoOpenDistribution,
@@ -990,6 +1116,7 @@ export default function StepByStepAlgebra({
     pendingMove,
     distributionState,
     equation,
+    inlineExpressionTools,
   ]);
 
   const openDistributionTool = () => {
@@ -1056,9 +1183,11 @@ export default function StepByStepAlgebra({
     window.setTimeout(() => setBalancePulse(false), motionDuration(650, reducedMotion, { floor: 60 }));
     setMessage({
       tone: 'success',
-      text: simplifyDistributedProducts
-        ? 'Distribution complete. The individual products are evaluated; combine like terms next.'
-        : 'Distribution complete. The products are not simplified yet — use Rewrite / Simplify to evaluate them, or continue solving.',
+      text: inlineExpressionTools
+        ? 'Distribution complete.'
+        : simplifyDistributedProducts
+          ? 'Distribution complete. The individual products are evaluated; combine like terms next.'
+          : 'Distribution complete. The products are not simplified yet — use Rewrite / Simplify to evaluate them, or continue solving.',
     });
   };
 
@@ -1684,6 +1813,9 @@ export default function StepByStepAlgebra({
     ? 100
     : Math.round(Number(normalizedRecord.bestPartialCredit || 0));
   const solved = isSolvedEquation(equation);
+  const inlineToolActive = Boolean(
+    inlineExpressionTools && (distributionState || rewriteOpen || likeTermsOpen),
+  );
   const objectiveLabel = equation.objective?.kind === 'slopeIntercept'
     ? 'Target: y = mx + b'
     : `Target: isolate ${equation.objective?.variable || equation.variable}${equation.objective?.requireSimplifiedFinalForm ? ' in simplified final form' : ''}`;
@@ -1720,6 +1852,80 @@ export default function StepByStepAlgebra({
           opacity={ink.locked ? 1 : 0.85}
         />
       </svg>
+    );
+  };
+
+  const renderInlineDistributionSide = (side) => {
+    if (!inlineExpressionTools || !distributionState || distributionState.side !== side) return null;
+    const sideTerms = Array.isArray(distributionState.sideTerms) ? distributionState.sideTerms : [];
+    return (
+      <span className="algebra-inline-distribution-expression">
+        {sideTerms.map((sideTerm, sideTermIndex) => {
+          if (sideTermIndex !== distributionState.sideTermIndex) {
+            return (
+              <span key={`ordinary-${sideTermIndex}`} className="algebra-inline-ordinary-term">
+                <MathDisplay value={sideTerm.text} format="ascii-math" inline style={{ fontSize: 'inherit' }} />
+              </span>
+            );
+          }
+          const needsLeadingPlus = sideTermIndex > 0 && sideTerm.sign >= 0;
+          return (
+            <span key={`distribution-${sideTermIndex}`} className="algebra-inline-distribution-group">
+              {needsLeadingPlus ? <span aria-hidden="true">+</span> : null}
+              <button
+                type="button"
+                className={`algebra-inline-factor-token${distributionState.armed ? ' is-armed' : ''}`}
+                draggable={!isDistributionComplete(distributionState)}
+                onClick={armDistributionFactor}
+                onDragStart={(event) => {
+                  event.dataTransfer?.setData('text/plain', 'mathmaster-distribution-factor');
+                  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+                  setDistributionState((current) => armDistributionFactorState(current));
+                }}
+                disabled={disabled || isDistributionComplete(distributionState)}
+                aria-pressed={distributionState.armed}
+                aria-label={`Pick up the factor ${distributionState.factorText}`}
+              >
+                <MathDisplay value={distributionState.factorLatex} format="latex" inline />
+              </button>
+              <span aria-hidden="true">(</span>
+              <span className="algebra-inline-distribution-targets">
+                {distributionState.terms.map((term, index) => {
+                  const placed = distributionState.placedIndices.includes(index);
+                  return (
+                    <button
+                      key={`${index}-${term.text}`}
+                      type="button"
+                      className={`algebra-inline-distribution-target${placed ? ' is-placed' : ''}${distributionState.armed && !placed ? ' is-ready' : ''}`}
+                      onClick={() => placeDistributionFactor(index)}
+                      onDragOver={(event) => { if (!placed) event.preventDefault(); }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        if (!placed && event.dataTransfer?.getData('text/plain') === 'mathmaster-distribution-factor') {
+                          setDistributionState((current) => placeDistributionTermState(armDistributionFactorState(current), index));
+                        }
+                      }}
+                      disabled={disabled || placed || !distributionState.armed}
+                      aria-pressed={placed}
+                      aria-label={placed
+                        ? `Factor applied to ${term.text}`
+                        : `Apply the factor to ${term.text}`}
+                    >
+                      <MathDisplay value={term.latex} format="latex" inline style={{ fontSize: 'inherit' }} />
+                      {placed ? (
+                        <span className="algebra-inline-factor-applied" aria-hidden="true">
+                          × <MathDisplay value={distributionState.factorLatex} format="latex" inline />
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </span>
+              <span aria-hidden="true">)</span>
+            </span>
+          );
+        })}
+      </span>
     );
   };
 
@@ -1761,7 +1967,32 @@ export default function StepByStepAlgebra({
       );
     }
 
+    const inlineDistribution = renderInlineDistributionSide(side);
+    if (inlineDistribution) return inlineDistribution;
+
     const terms = splitAdditiveTerms(sideExpression(side));
+    if (inlineExpressionTools && rewriteOpen && !pendingMove && terms?.length) {
+      return (
+        <AlgebraTermRow
+          terms={terms}
+          side={side}
+          selectedIndices={inlineRewriteSelection?.side === side ? [inlineRewriteSelection.index] : []}
+          onTermClick={(index) => selectInlineRewriteTerm(side, index)}
+          interactionLabel="select as the term you want to rewrite"
+        />
+      );
+    }
+    if (inlineExpressionTools && likeTermsOpen && !pendingMove && terms?.length) {
+      return (
+        <AlgebraTermRow
+          terms={terms}
+          side={side}
+          selectedIndices={likeTermsSide === side ? selectedLikeTermIndices : []}
+          onTermClick={(index) => toggleInlineLikeTerm(side, index)}
+          interactionLabel="select as a term to combine"
+        />
+      );
+    }
     const inner = terms ? <AlgebraTermRow terms={terms} side={side} /> : <MathDisplay value={displayedSideLatex(side)} format="latex" inline />;
     if (!armedTile || pendingMove || !String(operand || '').trim()) {
       return <div key={sideExpression(side)} className="algebra-equation-side algebra-reflow" style={{ fontSize: sideFontSize(side), margin: '16px 0' }}>{inner}</div>;
@@ -1901,7 +2132,7 @@ export default function StepByStepAlgebra({
           >
             Rewrite / Simplify
           </button>
-          {hasLikeTermOpportunity && (
+          {(inlineExpressionTools || hasLikeTermOpportunity) && (
             <button
               type="button"
               className="algebra-like-terms-toggle"
@@ -1953,7 +2184,7 @@ export default function StepByStepAlgebra({
         </div>
       </div>
 
-      {distributionState && (
+      {distributionState && !inlineExpressionTools && (
         <div
           className="algebra-distribution-tool"
           style={{
@@ -2046,7 +2277,7 @@ export default function StepByStepAlgebra({
         </div>
       )}
 
-      {likeTermsOpen && (
+      {likeTermsOpen && !inlineExpressionTools && (
         <div className="algebra-like-terms-tool">
           <div className="algebra-like-terms-header">
             <div>
@@ -2111,7 +2342,7 @@ export default function StepByStepAlgebra({
         </div>
       )}
 
-      {rewriteOpen && (
+      {rewriteOpen && !inlineExpressionTools && (
         <div
           className="algebra-rewrite-tool algebra-rewrite-tool-compact"
           style={{
@@ -2274,7 +2505,7 @@ export default function StepByStepAlgebra({
         </div>
       )}
 
-      {mobileInteraction.isMobile && !pendingMove && (
+      {mobileInteraction.isMobile && !pendingMove && !inlineToolActive && (
         <div className="algebra-mobile-operation-palette" role="group" aria-label="Choose an algebra operation">
           {OPERATIONS.map((operation) => (
             <button type="button" key={`mobile-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'left')} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
@@ -2285,7 +2516,7 @@ export default function StepByStepAlgebra({
       )}
 
       <div className={`algebra-balance-workspace-shell ${mobileInteraction.isMobile ? 'is-mobile-tap-layout' : ''}`}>
-        {!mobileInteraction.isMobile && <div ref={leftRailRef} className="algebra-rail algebra-rail-left">
+        {!mobileInteraction.isMobile && !inlineToolActive && <div ref={leftRailRef} className="algebra-rail algebra-rail-left">
           {OPERATIONS.map((operation) => (
             <button type="button" key={`left-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'left')} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
               {operation.symbol}
@@ -2342,6 +2573,108 @@ export default function StepByStepAlgebra({
                 <div ref={side === 'left' ? leftExpressionRef : rightExpressionRef} className="algebra-expression-anchor">
                   {renderSide(side, cancellationModel)}
                 </div>
+
+                {inlineExpressionTools && distributionState?.side === side ? (
+                  <div className="algebra-inline-mode-controls" aria-live="polite">
+                    <span className="algebra-inline-mode-status">
+                      Factor placements {distributionState.placedIndices.length}/{distributionState.terms.length}
+                    </span>
+                    {isDistributionComplete(distributionState) ? (
+                      <button
+                        type="button"
+                        className="algebra-inline-commit"
+                        onClick={commitDistributionStep}
+                        disabled={disabled || savingStep || cancelAnimating}
+                      >
+                        Commit distribution
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {inlineExpressionTools && rewriteOpen && inlineRewriteSelection?.side === side ? (
+                  <div className="algebra-inline-mode-controls algebra-inline-editor">
+                    <MathInput
+                      value={inlineRewriteAnswer}
+                      onChange={setInlineRewriteAnswer}
+                      onSubmit={checkInlineRewrite}
+                      placeholder="Equivalent term"
+                      ariaLabel={`Equivalent form for the selected ${side} side term`}
+                      toolProfile="algebra-operation"
+                      compact
+                      maxWidth={300}
+                      focusSignal={inlineRewriteFocusSignal}
+                      contextSymbols={operationContextSymbols}
+                      collapseSignal={mathToolsCollapseSignal}
+                    />
+                    <button
+                      type="button"
+                      className="algebra-inline-commit"
+                      onClick={checkInlineRewrite}
+                      disabled={savingStep || cancelAnimating}
+                    >
+                      Check
+                    </button>
+                    <button
+                      type="button"
+                      className="algebra-inline-clear"
+                      onClick={() => {
+                        setInlineRewriteSelection({ side: null, index: null });
+                        setInlineRewriteAnswer('');
+                        setMessage(null);
+                      }}
+                    >
+                      Clear selection
+                    </button>
+                  </div>
+                ) : null}
+
+                {inlineExpressionTools && likeTermsOpen && likeTermsSide === side && selectedLikeTermIndices.length >= 2 ? (
+                  <div className="algebra-inline-mode-controls algebra-inline-editor">
+                    {currentLikeTermSelection?.valid ? (
+                      <>
+                        <MathInput
+                          value={likeTermsAnswer}
+                          onChange={setLikeTermsAnswer}
+                          onSubmit={checkLikeTerms}
+                          placeholder="Combined term"
+                          ariaLabel="Enter the single term these selected terms combine to"
+                          toolProfile="algebra-operation"
+                          compact
+                          maxWidth={300}
+                          focusSignal={likeTermsFocusSignal}
+                          contextSymbols={operationContextSymbols}
+                          collapseSignal={mathToolsCollapseSignal}
+                        />
+                        <button
+                          type="button"
+                          className="algebra-inline-commit"
+                          onClick={checkLikeTerms}
+                          disabled={savingStep || cancelAnimating}
+                        >
+                          Check
+                        </button>
+                      </>
+                    ) : (
+                      <span className="algebra-inline-mode-feedback">
+                        {currentLikeTermSelection?.reason || 'Those selected terms do not combine as one like term.'}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="algebra-inline-clear"
+                      onClick={() => {
+                        setSelectedLikeTermIndices([]);
+                        setLikeTermsAnswer('');
+                        setLikeTermsSide('');
+                        setMessage(null);
+                      }}
+                    >
+                      Clear selection
+                    </button>
+                  </div>
+                ) : null}
+
                 {cancellationActive && !crossedSides.includes(side) && (
                   <div className="algebra-cancellation-cue">
                     <div>
@@ -2368,7 +2701,7 @@ export default function StepByStepAlgebra({
           <div aria-hidden="true" className={`algebra-balance-beam ${balancePulse ? 'algebra-balance-pulse' : ''} ${balanceStagingSide ? `tilt-${balanceStagingSide}` : ''}`} />
         </div>
 
-        {!mobileInteraction.isMobile && <div ref={rightRailRef} className="algebra-rail algebra-rail-right">
+        {!mobileInteraction.isMobile && !inlineToolActive && <div ref={rightRailRef} className="algebra-rail algebra-rail-right">
           {OPERATIONS.map((operation) => (
             <button type="button" key={`right-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'right')} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
               {operation.symbol}
@@ -2459,7 +2792,7 @@ export default function StepByStepAlgebra({
         </div>
       )}
 
-      {!armedTile && !pendingMove && <div className="algebra-operation-idle-hint">Choose an operation. The value field will activate automatically.</div>}
+      {!armedTile && !pendingMove && !inlineToolActive && <div className="algebra-operation-idle-hint">Choose an operation. The value field will activate automatically.</div>}
 
       {pendingMove && pendingMove.simplificationTargets?.length > 0
         && pendingMove.requiredCancellationSides.every((side) => crossedSides.includes(side)) && (

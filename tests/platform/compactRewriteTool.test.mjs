@@ -21,7 +21,7 @@ test('left right and both rewrite scopes are retained', () => {
 
 test('rewrite input autofocuses when opened and when scope changes', () => {
   assert.match(src, /rewriteFocusSignal/);
-  assert.match(src, /if \(!rewriteOpen\) setRewriteFocusSignal\(\(signal\) => signal \+ 1\)/);
+  assert.match(src, /if \(!rewriteOpen && !inlineExpressionTools\) setRewriteFocusSignal\(\(signal\) => signal \+ 1\)/);
   assert.match(src, /focusSignal=\{side === primarySide \? rewriteFocusSignal : 0\}/);
 });
 

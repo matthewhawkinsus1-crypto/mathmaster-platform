@@ -271,7 +271,7 @@ const solvedNumberFor = (latexResponse, variable) => {
  * reports the resulting text one level up. It never solves, isolates, or
  * simplifies anything itself.
  */
-function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, onSolved, onUndoStateChange, workspaceDifficulty, autoReveal = false, autoOpenDistribution = false, simplifyDistributedProducts = false }) {
+function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, onSolved, onUndoStateChange, workspaceDifficulty, autoReveal = false, autoOpenDistribution = false, simplifyDistributedProducts = false, inlineExpressionTools = false }) {
   const normalizedEquationText = useMemo(() => {
     try {
       return normalizeEquationForStepAlgebra(equationText);
@@ -321,6 +321,7 @@ function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, 
         onUndoStateChange={onUndoStateChange}
         autoOpenDistribution={autoOpenDistribution}
         simplifyDistributedProducts={simplifyDistributedProducts}
+        inlineExpressionTools={inlineExpressionTools}
       />
     </div>
   );
@@ -1526,7 +1527,13 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                 workspaceDifficulty={questionData.workspaceDifficulty}
                 autoReveal
                 autoOpenDistribution={effectiveMethod === 'substitution'}
-                simplifyDistributedProducts={effectiveMethod === 'substitution'}
+                // Distribution is a student-owned algebra step. After the
+                // factor has been placed on every term, keep the resulting
+                // products visible (for example 3(-3) + 3(2y) + 5y = 24).
+                // The student must simplify those products and then combine
+                // like terms; the systems wrapper must not do either for them.
+                simplifyDistributedProducts={false}
+                inlineExpressionTools={effectiveMethod === 'substitution'}
               />
             </div>
           ) : null}
