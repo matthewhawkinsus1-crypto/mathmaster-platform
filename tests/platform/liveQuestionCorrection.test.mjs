@@ -424,3 +424,66 @@ test('granular workflow regrade is monotonic and never lowers existing best cred
   const repaired = repairQuestionRecordForGranularWorkflowCredit({ record, question });
   assert.equal(repaired, record);
 });
+
+
+test('Systems Workspace recovery preserves earned credit and grants one retry only to exhausted students', () => {
+  const upgradedQuestion = {
+    questionId: 'systems-live',
+    type: 'systemsWorkspace',
+    toolId: 'systemsWorkspace',
+    mode: 'algebraic',
+    method: 'elimination',
+    equations: ['2x + 3y = 11', 'x + 5y = 9'],
+    variables: ['x', 'y'],
+    requireVerification: true,
+  };
+
+  const correctRecord = {
+    status: 'correct',
+    attemptCount: 2,
+    totalAttempts: 2,
+    partialCredit: 100,
+    bestPartialCredit: 100,
+    partGrades: [],
+  };
+  assert.strictEqual(repairQuestionRecordForLiveCorrection({
+    record: correctRecord,
+    question: upgradedQuestion,
+    repairKind: 'systems-workspace-upgrade',
+  }), correctRecord, 'a correct legacy response must stay untouched');
+
+  const exhausted = {
+    status: 'expired',
+    attemptCount: 3,
+    totalAttempts: 3,
+    partialCredit: 40,
+    bestPartialCredit: 60,
+    partGrades: [{ id: 'legacy-solution', isComplete: true, isCorrect: false, response: '(1,2)' }],
+  };
+  const repaired = repairQuestionRecordForLiveCorrection({
+    record: exhausted,
+    question: upgradedQuestion,
+    repairKind: 'systems-workspace-upgrade',
+    correctedAt: '2026-09-23T14:00:00.000Z',
+  });
+  assert.equal(repaired.status, 'attempted');
+  assert.equal(repaired.attemptCount, 2);
+  assert.equal(repaired.totalAttempts, 3);
+  assert.equal(repaired.partialCredit, 40);
+  assert.equal(repaired.bestPartialCredit, 60);
+  assert.deepEqual(repaired.partGrades, exhausted.partGrades);
+  assert.equal(repaired.liveCorrectionHistory.at(-1).kind, 'systems-workspace-upgrade');
+  assert.equal(repaired.liveCorrectionHistory.at(-1).grantedRepairRetry, true);
+
+  const stillHasAttempt = {
+    ...exhausted,
+    status: 'attempted',
+    attemptCount: 1,
+    totalAttempts: 1,
+  };
+  assert.strictEqual(repairQuestionRecordForLiveCorrection({
+    record: stillHasAttempt,
+    question: upgradedQuestion,
+    repairKind: 'systems-workspace-upgrade',
+  }), stillHasAttempt, 'students who still have attempts should keep their record exactly as-is');
+});
