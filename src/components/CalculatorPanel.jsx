@@ -334,7 +334,12 @@ export const CalculatorPanel = ({
   const buttons = calculatorButtonsForPolicy(policy.mode);
   const panelStyle = panelPosition
     ? { left: panelPosition.x, top: panelPosition.y }
-    : { right: 8, bottom: 'calc(var(--mm-work-view-actions, 0px) + 72px)' };
+    : {
+      // Work View publishes the exact space consumed by its action rail/row.
+      // When those variables are absent, keep the ordinary question position.
+      right: 'var(--mm-work-view-calculator-right, 8px)',
+      bottom: 'var(--mm-work-view-calculator-bottom, 72px)',
+    };
 
   return (
     <div className={`mathmaster-calculator-drawer ${isOpen ? 'is-open' : ''}`} style={{ position: showLauncher ? 'relative' : 'static', zIndex: isOpen ? 9000 : 'auto' }}>
@@ -364,6 +369,7 @@ export const CalculatorPanel = ({
         <div
           ref={panelRef}
           className="mathmaster-calculator-panel"
+          data-work-view-floating-tool="calculator"
           style={{
             position: 'fixed',
             width: 'min(320px, calc(100vw - 16px))',
