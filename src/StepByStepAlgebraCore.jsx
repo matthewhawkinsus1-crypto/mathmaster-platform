@@ -2483,7 +2483,7 @@ export default function StepByStepAlgebra({
             {!equation.objective?.requireSimplifiedFinalForm && (
               <button type="button" className="algebra-keep-written" onClick={keepPendingMoveAsWritten} disabled={savingStep || cancelAnimating}>Keep as written</button>
             )}
-            <button type="button" className="algebra-check-simplification" onClick={checkSimplifications} disabled={savingStep}>Check</button>
+            <button type="button" className="algebra-check-simplification" onClick={checkSimplifications} disabled={savingStep}>Check my simplification</button>
           </div>
           <p className="algebra-simplification-note">
             {equation.objective?.requireSimplifiedFinalForm
