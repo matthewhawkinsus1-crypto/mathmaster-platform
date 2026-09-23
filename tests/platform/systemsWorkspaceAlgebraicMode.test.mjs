@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 import { TOOL_STATE_PERSISTENCE } from '../../src/tools/toolStatePersistence.js';
+import { validateToolQuestion } from '../../src/tools/toolSchemas.js';
 
 const workspaceSource = executableSource(componentSource('src/tools/systemsWorkspace/SystemsWorkspace.jsx'));
 const modeSource = executableSource(componentSource('src/tools/systemsWorkspace/AlgebraicSystemMode.jsx'));
@@ -213,4 +214,26 @@ test('embedded Step Algebra owns universal Undo while a one-variable solve is ac
 test('ordered-pair display uses coordinate values rather than x = / y = labels', () => {
   assert.match(modeSource, /Ordered-pair solution:[\s\S]*\(\{solution\[variables\[0\]\]\}, \{solution\[variables\[1\]\]\}\)/);
   assert.doesNotMatch(modeSource, /Ordered-pair solution:[\s\S]{0,180}\{variables\[0\]\}\s*=\s*\{solution/);
+});
+
+
+test('tool schema accepts authored algebraic systems and rejects malformed equations', () => {
+  const valid = validateToolQuestion({
+    toolId: 'systemsWorkspace',
+    mode: 'algebraic',
+    method: 'substitution',
+    variables: ['x', 'y'],
+    equations: ['x - 2y = -3', '3x + 5y = 24'],
+    requireVerification: true,
+  });
+  assert.equal(valid.isValid, true, valid.errors.join('; '));
+
+  const invalid = validateToolQuestion({
+    toolId: 'systemsWorkspace',
+    mode: 'algebraic',
+    variables: ['x', 'y'],
+    equations: ['x^2 + y = 3', 'x + y = 4'],
+  });
+  assert.equal(invalid.isValid, false);
+  assert.ok(invalid.errors.some((message) => message.includes('equation 1 must be linear')));
 });
