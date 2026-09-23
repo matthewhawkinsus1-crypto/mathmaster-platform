@@ -1102,7 +1102,9 @@ export default function StepByStepAlgebra({
     setDistributionState(initDistributionState(distributable));
     setMessage({
       tone: 'growth',
-      text: 'The substitution created a distributive step. Apply the outside factor to each term, then combine like terms.',
+      text: inlineExpressionTools
+        ? 'The substitution created a distributive step. Work directly on the equation.'
+        : 'The substitution created a distributive step. Apply the outside factor to each term, then combine like terms.',
     });
   }, [
     autoOpenDistribution,
@@ -1809,6 +1811,9 @@ export default function StepByStepAlgebra({
     ? 100
     : Math.round(Number(normalizedRecord.bestPartialCredit || 0));
   const solved = isSolvedEquation(equation);
+  const inlineToolActive = Boolean(
+    inlineExpressionTools && (distributionState || rewriteOpen || likeTermsOpen),
+  );
   const objectiveLabel = equation.objective?.kind === 'slopeIntercept'
     ? 'Target: y = mx + b'
     : `Target: isolate ${equation.objective?.variable || equation.variable}${equation.objective?.requireSimplifiedFinalForm ? ' in simplified final form' : ''}`;
@@ -2124,7 +2129,7 @@ export default function StepByStepAlgebra({
           >
             Rewrite / Simplify
           </button>
-          {hasLikeTermOpportunity && (
+          {(inlineExpressionTools || hasLikeTermOpportunity) && (
             <button
               type="button"
               className="algebra-like-terms-toggle"
@@ -2176,7 +2181,7 @@ export default function StepByStepAlgebra({
         </div>
       </div>
 
-      {distributionState && (
+      {distributionState && !inlineExpressionTools && (
         <div
           className="algebra-distribution-tool"
           style={{
@@ -2269,7 +2274,7 @@ export default function StepByStepAlgebra({
         </div>
       )}
 
-      {likeTermsOpen && (
+      {likeTermsOpen && !inlineExpressionTools && (
         <div className="algebra-like-terms-tool">
           <div className="algebra-like-terms-header">
             <div>
@@ -2334,7 +2339,7 @@ export default function StepByStepAlgebra({
         </div>
       )}
 
-      {rewriteOpen && (
+      {rewriteOpen && !inlineExpressionTools && (
         <div
           className="algebra-rewrite-tool algebra-rewrite-tool-compact"
           style={{
@@ -2497,7 +2502,7 @@ export default function StepByStepAlgebra({
         </div>
       )}
 
-      {mobileInteraction.isMobile && !pendingMove && (
+      {mobileInteraction.isMobile && !pendingMove && !inlineToolActive && (
         <div className="algebra-mobile-operation-palette" role="group" aria-label="Choose an algebra operation">
           {OPERATIONS.map((operation) => (
             <button type="button" key={`mobile-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'left')} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
@@ -2508,7 +2513,7 @@ export default function StepByStepAlgebra({
       )}
 
       <div className={`algebra-balance-workspace-shell ${mobileInteraction.isMobile ? 'is-mobile-tap-layout' : ''}`}>
-        {!mobileInteraction.isMobile && <div ref={leftRailRef} className="algebra-rail algebra-rail-left">
+        {!mobileInteraction.isMobile && !inlineToolActive && <div ref={leftRailRef} className="algebra-rail algebra-rail-left">
           {OPERATIONS.map((operation) => (
             <button type="button" key={`left-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'left')} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
               {operation.symbol}
@@ -2565,6 +2570,108 @@ export default function StepByStepAlgebra({
                 <div ref={side === 'left' ? leftExpressionRef : rightExpressionRef} className="algebra-expression-anchor">
                   {renderSide(side, cancellationModel)}
                 </div>
+
+                {inlineExpressionTools && distributionState?.side === side ? (
+                  <div className="algebra-inline-mode-controls" aria-live="polite">
+                    <span className="algebra-inline-mode-status">
+                      Factor placements {distributionState.placedIndices.length}/{distributionState.terms.length}
+                    </span>
+                    {isDistributionComplete(distributionState) ? (
+                      <button
+                        type="button"
+                        className="algebra-inline-commit"
+                        onClick={commitDistributionStep}
+                        disabled={disabled || savingStep || cancelAnimating}
+                      >
+                        Commit distribution
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {inlineExpressionTools && rewriteOpen && inlineRewriteSelection?.side === side ? (
+                  <div className="algebra-inline-mode-controls algebra-inline-editor">
+                    <MathInput
+                      value={inlineRewriteAnswer}
+                      onChange={setInlineRewriteAnswer}
+                      onSubmit={checkInlineRewrite}
+                      placeholder="Equivalent term"
+                      ariaLabel={`Equivalent form for the selected ${side} side term`}
+                      toolProfile="algebra-operation"
+                      compact
+                      maxWidth={300}
+                      focusSignal={inlineRewriteFocusSignal}
+                      contextSymbols={operationContextSymbols}
+                      collapseSignal={mathToolsCollapseSignal}
+                    />
+                    <button
+                      type="button"
+                      className="algebra-inline-commit"
+                      onClick={checkInlineRewrite}
+                      disabled={savingStep || cancelAnimating}
+                    >
+                      Check
+                    </button>
+                    <button
+                      type="button"
+                      className="algebra-inline-clear"
+                      onClick={() => {
+                        setInlineRewriteSelection({ side: null, index: null });
+                        setInlineRewriteAnswer('');
+                        setMessage(null);
+                      }}
+                    >
+                      Clear selection
+                    </button>
+                  </div>
+                ) : null}
+
+                {inlineExpressionTools && likeTermsOpen && likeTermsSide === side && selectedLikeTermIndices.length >= 2 ? (
+                  <div className="algebra-inline-mode-controls algebra-inline-editor">
+                    {currentLikeTermSelection?.valid ? (
+                      <>
+                        <MathInput
+                          value={likeTermsAnswer}
+                          onChange={setLikeTermsAnswer}
+                          onSubmit={checkLikeTerms}
+                          placeholder="Combined term"
+                          ariaLabel="Enter the single term these selected terms combine to"
+                          toolProfile="algebra-operation"
+                          compact
+                          maxWidth={300}
+                          focusSignal={likeTermsFocusSignal}
+                          contextSymbols={operationContextSymbols}
+                          collapseSignal={mathToolsCollapseSignal}
+                        />
+                        <button
+                          type="button"
+                          className="algebra-inline-commit"
+                          onClick={checkLikeTerms}
+                          disabled={savingStep || cancelAnimating}
+                        >
+                          Check
+                        </button>
+                      </>
+                    ) : (
+                      <span className="algebra-inline-mode-feedback">
+                        {currentLikeTermSelection?.reason || 'Those selected terms do not combine as one like term.'}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="algebra-inline-clear"
+                      onClick={() => {
+                        setSelectedLikeTermIndices([]);
+                        setLikeTermsAnswer('');
+                        setLikeTermsSide('');
+                        setMessage(null);
+                      }}
+                    >
+                      Clear selection
+                    </button>
+                  </div>
+                ) : null}
+
                 {cancellationActive && !crossedSides.includes(side) && (
                   <div className="algebra-cancellation-cue">
                     <div>
@@ -2591,7 +2698,7 @@ export default function StepByStepAlgebra({
           <div aria-hidden="true" className={`algebra-balance-beam ${balancePulse ? 'algebra-balance-pulse' : ''} ${balanceStagingSide ? `tilt-${balanceStagingSide}` : ''}`} />
         </div>
 
-        {!mobileInteraction.isMobile && <div ref={rightRailRef} className="algebra-rail algebra-rail-right">
+        {!mobileInteraction.isMobile && !inlineToolActive && <div ref={rightRailRef} className="algebra-rail algebra-rail-right">
           {OPERATIONS.map((operation) => (
             <button type="button" key={`right-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'right')} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
               {operation.symbol}
@@ -2682,7 +2789,7 @@ export default function StepByStepAlgebra({
         </div>
       )}
 
-      {!armedTile && !pendingMove && <div className="algebra-operation-idle-hint">Choose an operation. The value field will activate automatically.</div>}
+      {!armedTile && !pendingMove && !inlineToolActive && <div className="algebra-operation-idle-hint">Choose an operation. The value field will activate automatically.</div>}
 
       {pendingMove && pendingMove.simplificationTargets?.length > 0
         && pendingMove.requiredCancellationSides.every((side) => crossedSides.includes(side)) && (
