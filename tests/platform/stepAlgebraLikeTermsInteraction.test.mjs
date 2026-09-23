@@ -50,3 +50,32 @@ test('the combined-term field receives focus as soon as a valid like-term pair i
 test('pressing Enter in the combined-term field checks the combination', () => {
   assert.match(coreSource, /onSubmit=\{checkLikeTerms\}/);
 });
+
+
+test('inline expression mode makes terms interactive only after the student activates a mode', () => {
+  assert.match(coreSource, /inlineExpressionTools && rewriteOpen && !pendingMove/);
+  assert.match(coreSource, /selectInlineRewriteTerm\(side, index\)/);
+  assert.match(coreSource, /inlineExpressionTools && likeTermsOpen && !pendingMove/);
+  assert.match(coreSource, /toggleInlineLikeTerm\(side, index\)/);
+  assert.doesNotMatch(coreSource, /useEffect\([\s\S]{0,250}setInlineRewriteSelection\(\{ side: ['"]left['"]/);
+});
+
+test('inline rewrite never changes a clicked token until the student supplies an equivalent replacement', () => {
+  const start = coreSource.indexOf('const checkInlineRewrite = async');
+  const end = coreSource.indexOf('const checkStudentRewrite = async');
+  const region = coreSource.slice(start, end);
+  assert.match(region, /expressionsEquivalent\(term\.text, replacement, equation\.variable\)/);
+  assert.match(region, /replaceSingleAdditiveTerm/);
+  assert.match(region, /kind: 'inline-term-rewrite'/);
+  assert.match(region, /setEquation\(nextEquation\)/);
+  assert.doesNotMatch(coreSource.slice(coreSource.indexOf('const selectInlineRewriteTerm'), start), /setEquation\(/);
+});
+
+test('inline systems mode keeps distribution controls on the equation instead of a second work panel', () => {
+  assert.match(coreSource, /renderInlineDistributionSide/);
+  assert.match(coreSource, /algebra-inline-factor-token/);
+  assert.match(coreSource, /algebra-inline-distribution-target/);
+  assert.match(coreSource, /distributionState && !inlineExpressionTools/);
+  assert.match(coreSource, /likeTermsOpen && !inlineExpressionTools/);
+  assert.match(coreSource, /rewriteOpen && !inlineExpressionTools/);
+});
