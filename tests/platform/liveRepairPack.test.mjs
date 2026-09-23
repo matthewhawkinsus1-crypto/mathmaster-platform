@@ -157,3 +157,44 @@ test('an unsaved editor weight change survives a repair-pack import and can save
   assert.equal(prepared.questions[0].questionWeight, 4);
   assert.equal(prepared.replacementCount, 1);
 });
+
+
+test('repair pack can restore the certified algebraic Systems Workspace without changing live question identity', () => {
+  const legacySystem = {
+    questionId: 'systems-l1-classwork-1',
+    type: 'system',
+    prompt: 'Use substitution to solve the system. One variable is already isolated: y = -4x + 12 and 2x + y = 2.',
+    studentActions: ['solveSystem'],
+    equationsLatex: ['y = -4x + 12', '2x + y = 2'],
+    standard: 'A2.3A',
+    teacherExcluded: false,
+  };
+  const restored = {
+    ...legacySystem,
+    type: 'systemsWorkspace',
+    toolId: 'systemsWorkspace',
+    mode: 'algebraic',
+    method: 'substitution',
+    equations: ['y = -4x + 12', '2x + y = 2'],
+    variables: ['x', 'y'],
+    requireVerification: true,
+  };
+  const prepared = prepareSafeLiveRepairPack({
+    pack: {
+      kind: 'mathmasterSafeLiveRepairPack',
+      replacementQuestions: [{
+        questionId: legacySystem.questionId,
+        purpose: 'Restore the intended algebraic Systems Workspace.',
+        question: restored,
+      }],
+    },
+    historicalQuestions: [legacySystem],
+    currentQuestions: [structuredClone(legacySystem)],
+  });
+
+  assert.equal(prepared.replacementCount, 1);
+  assert.equal(prepared.questions[0].type, 'systemsWorkspace');
+  assert.equal(prepared.questions[0].questionId, legacySystem.questionId);
+  assert.equal(prepared.liveRepairs[0].repairKind, 'systems-workspace-upgrade');
+  assert.equal(prepared.liveRepairs[0].questionIndex, 0);
+});

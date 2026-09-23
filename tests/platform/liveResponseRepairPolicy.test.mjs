@@ -46,3 +46,58 @@ test('shared safe-response policy rejects prompt changes', () => {
   };
   assert.equal(analyzeSafeResponseEntryRepair(before, after).safe, false);
 });
+
+
+test('shared safe-response policy allows the certified legacy system to algebraic Systems Workspace recovery', () => {
+  const before = {
+    questionId: 'systems-live-1',
+    type: 'system',
+    prompt: 'Use substitution to solve the system. One variable is already isolated: y = -4x + 12 and 2x + y = 2.',
+    studentActions: ['solveSystem'],
+    equationsLatex: ['y = -4x + 12', '2x + y = 2'],
+    standard: 'A2.3A',
+    dok: 2,
+    difficultyBand: 1,
+  };
+  const after = {
+    ...before,
+    type: 'systemsWorkspace',
+    toolId: 'systemsWorkspace',
+    mode: 'algebraic',
+    method: 'substitution',
+    equations: ['y = -4x + 12', '2x + y = 2'],
+    variables: ['x', 'y'],
+    requireVerification: true,
+  };
+  const result = analyzeSafeResponseEntryRepair(before, after);
+  assert.equal(result.safe, true);
+  assert.equal(result.repairKind, 'systems-workspace-upgrade');
+  assert.deepEqual(result.affectedFieldIds, []);
+});
+
+test('certified Systems Workspace recovery refuses changed mathematics or a different method', () => {
+  const before = {
+    questionId: 'systems-live-2',
+    type: 'system',
+    prompt: 'Use elimination to solve the system 2x + 3y = 11 and x + 5y = 9.',
+    studentActions: ['solveSystem'],
+    equationsLatex: ['2x + 3y = 11', 'x + 5y = 9'],
+  };
+  const baseAfter = {
+    ...before,
+    type: 'systemsWorkspace',
+    toolId: 'systemsWorkspace',
+    mode: 'algebraic',
+    method: 'elimination',
+    equations: ['2x + 3y = 11', 'x + 5y = 9'],
+    variables: ['x', 'y'],
+    requireVerification: true,
+  };
+
+  const changedEquation = structuredClone(baseAfter);
+  changedEquation.equations[1] = 'x + 5y = 10';
+  assert.equal(analyzeSafeResponseEntryRepair(before, changedEquation).safe, false);
+
+  const changedMethod = { ...baseAfter, method: 'substitution' };
+  assert.equal(analyzeSafeResponseEntryRepair(before, changedMethod).safe, false);
+});

@@ -7,6 +7,7 @@ import { getDomainRangeAcceptedAnswers } from '../../interactiveGraphEngine.js';
 import { pathAnalysisTextMatches } from '../../../functions/shared/pathToolContracts.mjs';
 import {
   GRAPH_VIEWPORT_REPAIR_KIND,
+  SYSTEMS_WORKSPACE_UPGRADE_REPAIR_KIND,
   analyzeSafeResponseEntryRepair,
 } from '../../../functions/shared/liveResponseRepairPolicy.mjs';
 import { readComposedQuestion } from '../workflow/questionWorkflow.js';
@@ -42,6 +43,42 @@ export const repairQuestionRecordForLiveCorrection = ({
   // correction credit, no returned attempt, no status change, no history entry
   // claiming a response was fixed.
   if (repairKind === GRAPH_VIEWPORT_REPAIR_KIND) return record;
+
+  // Restoring the intended algebraic Systems Workspace changes how future work
+  // is collected, but it must never erase or downgrade work students already
+  // submitted through the legacy ordered-pair grader. Correct stays correct;
+  // partial credit and totalAttempts stay untouched. A student who exhausted
+  // attempts on the defective renderer receives exactly one repair retry.
+  if (repairKind === SYSTEMS_WORKSPACE_UPGRADE_REPAIR_KIND) {
+    if (!record) return record;
+    const current = normalizeQuestionRecord(record);
+    const hadActivity = Number(current.totalAttempts || current.attemptCount || 0) > 0
+      || current.status === 'correct'
+      || current.status === 'expired'
+      || Number(current.bestPartialCredit || 0) > 0;
+    if (!hadActivity || current.status === 'correct') return record;
+
+    const maximumAttempts = resolveQuestionMaximumAttempts({ question });
+    const needsRepairRetry = current.status === 'expired' || current.attemptCount >= maximumAttempts;
+    if (!needsRepairRetry) return record;
+
+    return {
+      ...current,
+      status: current.status === 'expired' ? 'attempted' : current.status,
+      attemptCount: Math.max(0, maximumAttempts - 1),
+      liveCorrectionHistory: compactRepairHistory(current.liveCorrectionHistory, {
+        kind: SYSTEMS_WORKSPACE_UPGRADE_REPAIR_KIND,
+        questionId: question?.questionId || null,
+        affectedFieldIds: [],
+        creditedFieldIds: [],
+        correctedAt,
+        preservedTotalAttempts: current.totalAttempts,
+        preservedBestPartialCredit: current.bestPartialCredit,
+        grantedRepairRetry: true,
+      }),
+    };
+  }
+
   if (!record || !affectedFieldIds.length) return record;
   const current = normalizeQuestionRecord(record);
   const hadActivity = Number(current.totalAttempts || current.attemptCount || 0) > 0

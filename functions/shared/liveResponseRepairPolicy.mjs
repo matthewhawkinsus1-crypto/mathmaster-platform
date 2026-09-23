@@ -44,6 +44,141 @@ const sameOutsideAnswerFields = (before = {}, after = {}) => {
 };
 
 /*
+ * CERTIFIED LIVE SYSTEMS-WORKSPACE RECOVERY.
+ *
+ * Some early V5 assignments were authored with solveSystem intent but the old
+ * compiler persisted them as the legacy `system` ordered-pair grader. The
+ * mathematics never changed; the renderer did. A live repair may restore that
+ * intended algebraic Systems Workspace only when the exact question ID,
+ * prompt, standards, metadata, question order, and two original equations are
+ * unchanged. This is deliberately much narrower than a general tool swap.
+ */
+export const SYSTEMS_WORKSPACE_UPGRADE_REPAIR_KIND = 'systems-workspace-upgrade';
+
+const SYSTEMS_WORKSPACE_UPGRADE_FIELDS = new Set([
+  'type',
+  'toolId',
+  'mode',
+  'method',
+  'equations',
+  'equationsLatex',
+  'variables',
+  'requireVerification',
+  'askEfficiency',
+  'showGraph',
+  'showEquations',
+  'solution',
+]);
+
+const normalizeEquationText = (value) => String(value ?? '')
+  .replace(/[−–—]/g, '-')
+  .replace(/\s+/g, '');
+const solveSystemActions = (question = {}) => (
+  Array.isArray(question.studentActions)
+    ? question.studentActions.map((value) => String(value ?? '').trim())
+    : []
+);
+
+const certifiedSystemMethodFromPrompt = (prompt = '') => {
+  const text = String(prompt || '').trim().toLowerCase();
+  if (/choose\s+(?:an\s+efficient\s+)?(?:algebraic\s+)?method/.test(text)
+    || /choose\s+substitution\s+or\s+elimination/.test(text)) return 'studentChoice';
+  if (/use\s+substitution/.test(text)) return 'substitution';
+  if (/use\s+elimination/.test(text)) return 'elimination';
+  return null;
+};
+
+const analyzeSystemsWorkspaceUpgrade = (before = {}, after = {}) => {
+  const beforeType = String(before?.type || '').trim();
+  const afterType = String(after?.type || after?.toolId || '').trim();
+  if (beforeType !== 'system' || afterType !== 'systemsWorkspace') return null;
+  if (String(after?.mode || '').trim() !== 'algebraic') {
+    return {
+      safe: false,
+      affectedFieldIds: [],
+      reason: 'A live legacy-system recovery may only restore the algebraic Systems Workspace.',
+    };
+  }
+
+  const beforeActions = solveSystemActions(before);
+  const afterActions = solveSystemActions(after);
+  if (!beforeActions.includes('solveSystem') || !afterActions.includes('solveSystem')) {
+    return {
+      safe: false,
+      affectedFieldIds: [],
+      reason: 'The live system can be upgraded only when both versions preserve solveSystem intent.',
+    };
+  }
+
+  const beforeEquations = Array.isArray(before?.equationsLatex)
+    ? before.equationsLatex
+    : (Array.isArray(before?.equations) ? before.equations : []);
+  const afterEquations = Array.isArray(after?.equations) ? after.equations : [];
+  if (beforeEquations.length !== 2 || afterEquations.length !== 2
+    || beforeEquations.some((equation, index) => normalizeEquationText(equation) !== normalizeEquationText(afterEquations[index]))) {
+    return {
+      safe: false,
+      affectedFieldIds: [],
+      reason: 'A live Systems Workspace recovery must keep the two original equations exactly the same.',
+    };
+  }
+
+  const requiredMethod = certifiedSystemMethodFromPrompt(before?.prompt);
+  const afterMethod = String(after?.method || '').trim();
+  if (!requiredMethod || afterMethod !== requiredMethod) {
+    return {
+      safe: false,
+      affectedFieldIds: [],
+      reason: 'The restored Systems Workspace method must match the method already required by the live prompt.',
+    };
+  }
+
+  const variables = Array.isArray(after?.variables)
+    ? after.variables.map((value) => String(value ?? '').trim()).filter(Boolean)
+    : [];
+  if (variables.length !== 2 || new Set(variables).size !== 2) {
+    return {
+      safe: false,
+      affectedFieldIds: [],
+      reason: 'The restored Systems Workspace must declare exactly two distinct variables.',
+    };
+  }
+  const joinedEquations = afterEquations.join(' ');
+  if (variables.some((variable) => !/^[A-Za-z][A-Za-z0-9_]*$/.test(variable) || !joinedEquations.includes(variable))) {
+    return {
+      safe: false,
+      affectedFieldIds: [],
+      reason: 'The restored Systems Workspace variables must come from the original live equations.',
+    };
+  }
+
+  if (after?.requireVerification !== true) {
+    return {
+      safe: false,
+      affectedFieldIds: [],
+      reason: 'The certified algebraic Systems Workspace recovery requires verification in both original equations.',
+    };
+  }
+
+  const beforeProtected = withoutKeys(before, SYSTEMS_WORKSPACE_UPGRADE_FIELDS);
+  const afterProtected = withoutKeys(after, SYSTEMS_WORKSPACE_UPGRADE_FIELDS);
+  if (stableStringify(beforeProtected) !== stableStringify(afterProtected)) {
+    return {
+      safe: false,
+      affectedFieldIds: [],
+      reason: 'The certified live Systems Workspace recovery may change renderer plumbing only. Prompt, standards, metadata, grading weight, and every other protected field must remain unchanged.',
+    };
+  }
+
+  return {
+    safe: true,
+    repairKind: SYSTEMS_WORKSPACE_UPGRADE_REPAIR_KIND,
+    affectedFieldIds: [],
+    restoredMethod: afterMethod,
+    variables,
+  };
+};
+/*
  * PRESENTATION-ONLY GRAPH VIEWPORT REPAIR.
  *
  * A teacher watching a live assignment can discover that an authored window
@@ -298,6 +433,9 @@ export const analyzeSafeResponseEntryRepair = (beforeQuestion = {}, afterQuestio
   if (!beforeQuestion?.questionId || beforeQuestion.questionId !== afterQuestion?.questionId) {
     return { safe: false, affectedFieldIds: [], reason: 'The question ID must stay exactly the same.' };
   }
+
+  const systemsWorkspaceUpgrade = analyzeSystemsWorkspaceUpgrade(beforeQuestion, afterQuestion);
+  if (systemsWorkspaceUpgrade) return systemsWorkspaceUpgrade;
 
   const viewportRepair = analyzeGraphViewportRepair(beforeQuestion, afterQuestion);
   if (viewportRepair) return viewportRepair;
