@@ -290,9 +290,24 @@ html[data-undo-overlay-owner="scratchpad"] .mathmaster-work-view-actions [data-w
    than landing on it — the calculator launcher sits exactly where the Clear
    button does on a 390px phone, and on a support plan it is not a control that
    can simply be hidden. The height comes from the shell, which measures it. */
+/*
+ * The calculator is rendered once by QuestionEngine, outside the Work View
+ * subtree, so opening the full-screen modal must not strand it behind the modal
+ * stacking context. Keep the same calculator instance/state, but lift the panel
+ * above Work View and let the shell-published insets dock it in usable space.
+ */
+html[data-work-view-open="true"] .mathmaster-calculator-panel[data-work-view-floating-tool="calculator"] {
+  z-index: 2147483400 !important;
+  max-height: calc(var(--mm-work-view-height, 100dvh) - var(--mm-work-view-actions, 0px) - 32px) !important;
+}
+
 @media (max-width: 720px), (max-height: 460px) {
   html[data-work-view-open="true"] .mathmaster-calculator-drawer {
     bottom: calc(var(--mm-work-view-actions, 0px) + max(16px, env(safe-area-inset-bottom))) !important;
+  }
+
+  html[data-work-view-open="true"] .mathmaster-calculator-panel[data-work-view-floating-tool="calculator"] {
+    width: min(320px, calc(100vw - 20px)) !important;
   }
 }
 
