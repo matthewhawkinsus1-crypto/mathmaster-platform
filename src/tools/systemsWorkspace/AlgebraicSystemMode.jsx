@@ -37,6 +37,7 @@ const smallActionStyle = { ...actionStyle, marginTop: 8, padding: '9px 14px', fo
 
 const emptyVerificationEntry = () => ({ placed: {}, leftAnswer: '', rightAnswer: '', checked: false, valid: false });
 const emptySpecialCase = () => ({ isTrueAnswer: '', solutionsAnswer: '', classificationAnswer: '' });
+const emptyMultiplierWork = () => ({ active: false, a: '', b: '', c: '', checked: false, valid: false });
 
 const equationIdentity = (value) => {
   const text = String(value || '');
@@ -188,7 +189,7 @@ const coefficientTermText = (value, variable) => {
   return `${coefficient}${variable}`;
 };
 
-function AlignedEquationRow({ equationText, variables, targetVariable, multiplier = null, cancelled = false, label }) {
+function AlignedEquationRow({ equationText, variables, targetVariable, multiplier = null, cancelled = false, label, onTargetTermClick = null }) {
   const coefficients = useMemo(() => linearEquationCoefficients(equationText, variables), [equationText, variables]);
   if (!coefficients) {
     return (
@@ -208,13 +209,27 @@ function AlignedEquationRow({ equationText, variables, targetVariable, multiplie
       {multiplier != null ? <span className="mathmaster-systems-applied-multiplier">× {multiplier}</span> : null}
       <div className="mathmaster-systems-equation-columns">
         {entries.map((entry, index) => (
-          <span
-            key={entry.variable}
-            className={`mathmaster-systems-equation-term${entry.variable === targetVariable ? ' is-target-column' : ''}${cancelled && entry.variable === targetVariable ? ' is-cancelled' : ''}`}
-          >
-            {index === 1 && cleanCoefficient(entry.value) >= 0 ? '+ ' : ''}
-            {coefficientTermText(entry.value, entry.variable)}
-          </span>
+          entry.variable === targetVariable && onTargetTermClick ? (
+            <button
+              key={entry.variable}
+              type="button"
+              className={`mathmaster-systems-equation-term mathmaster-systems-cancellation-target is-target-column${cancelled ? ' is-cancelled' : ''}`}
+              onClick={onTargetTermClick}
+              aria-pressed={cancelled}
+              aria-label={`${cancelled ? 'Unmark' : 'Mark'} ${coefficientTermText(entry.value, entry.variable)} for elimination cancellation`}
+            >
+              {index === 1 && cleanCoefficient(entry.value) >= 0 ? '+ ' : ''}
+              {coefficientTermText(entry.value, entry.variable)}
+            </button>
+          ) : (
+            <span
+              key={entry.variable}
+              className={`mathmaster-systems-equation-term${entry.variable === targetVariable ? ' is-target-column' : ''}${cancelled && entry.variable === targetVariable ? ' is-cancelled' : ''}`}
+            >
+              {index === 1 && cleanCoefficient(entry.value) >= 0 ? '+ ' : ''}
+              {coefficientTermText(entry.value, entry.variable)}
+            </span>
+          )
         ))}
         <span className="mathmaster-systems-equation-equals">=</span>
         <span className="mathmaster-systems-equation-constant">{cleanCoefficient(coefficients.c)}</span>
@@ -322,7 +337,15 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const [substitution, setSubstitution] = usePersistentToolState('substitution', { targetVariable: null, targetEquationIndex: null, equationText: null });
   const [multipliers, setMultipliers] = usePersistentToolState('multipliers', { 0: '1', 1: '1' });
   const [appliedMultipliers, setAppliedMultipliers] = usePersistentToolState('appliedMultipliers', { 0: false, 1: false });
-  const [combination, setCombination] = usePersistentToolState('combination', { operation: null, attempts: 0, coefficients: null, text: null });
+  const [multiplierWork, setMultiplierWork] = usePersistentToolState('multiplierWork', { 0: emptyMultiplierWork(), 1: emptyMultiplierWork() });
+  const [combination, setCombination] = usePersistentToolState('combination', {
+    operation: null,
+    attempts: 0,
+    coefficients: null,
+    text: null,
+    pendingCoefficients: null,
+    cancelledRows: { 0: false, 1: false },
+  });
   const [firstSolved, setFirstSolved] = usePersistentToolState('firstSolved', { variable: null, value: null });
   const [specialCase, setSpecialCase] = usePersistentToolState('specialCase', null);
   const [backSub, setBackSub] = usePersistentToolState('backSub', { equationIndex: null });
@@ -345,7 +368,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setSubstitution({ targetVariable: null, targetEquationIndex: null, equationText: null });
     setMultipliers({ 0: '1', 1: '1' });
     setAppliedMultipliers({ 0: false, 1: false });
-    setCombination({ operation: null, attempts: 0, coefficients: null, text: null });
+    setMultiplierWork({ 0: emptyMultiplierWork(), 1: emptyMultiplierWork() });
+    setCombination({ operation: null, attempts: 0, coefficients: null, text: null, pendingCoefficients: null, cancelledRows: { 0: false, 1: false } });
     setFirstSolved({ variable: null, value: null });
     setSpecialCase(null);
     setBackSub({ equationIndex: null });
@@ -362,9 +386,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   }, []);
 
   const mathState = useMemo(() => ({
-    method, selection, isolation, substitution, multipliers, appliedMultipliers, combination,
+    method, selection, isolation, substitution, multipliers, appliedMultipliers, multiplierWork, combination,
     firstSolved, specialCase, backSub, secondSolved, verification, methodEfficiencyReason,
-  }), [method, selection, isolation, substitution, multipliers, appliedMultipliers, combination, firstSolved, specialCase, backSub, secondSolved, verification, methodEfficiencyReason]);
+  }), [method, selection, isolation, substitution, multipliers, appliedMultipliers, multiplierWork, combination, firstSolved, specialCase, backSub, secondSolved, verification, methodEfficiencyReason]);
   const restore = useCallback((value) => {
     setMethod(value?.method ?? (config.method === 'studentChoice' ? '' : config.method));
     setSelection(value?.selection || { equationIndex: null, variable: null });
@@ -372,7 +396,16 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setSubstitution({ targetVariable: null, targetEquationIndex: null, equationText: null, ...(value?.substitution || {}) });
     setMultipliers(value?.multipliers || { 0: '1', 1: '1' });
     setAppliedMultipliers(value?.appliedMultipliers || { 0: false, 1: false });
-    setCombination(value?.combination || { operation: null, attempts: 0, coefficients: null, text: null });
+    setMultiplierWork(value?.multiplierWork || { 0: emptyMultiplierWork(), 1: emptyMultiplierWork() });
+    setCombination({
+      operation: null,
+      attempts: 0,
+      coefficients: null,
+      text: null,
+      pendingCoefficients: null,
+      cancelledRows: { 0: false, 1: false },
+      ...(value?.combination || {}),
+    });
     setFirstSolved(value?.firstSolved || { variable: null, value: null });
     setSpecialCase(value?.specialCase || null);
     setBackSub(value?.backSub || { equationIndex: null });
@@ -421,6 +454,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   }, [equations, multipliers, variables]);
   const multipliersApplied = appliedMultipliers[0] && appliedMultipliers[1];
   const combinationLocked = Boolean(combination.text);
+  const cancellationPending = Boolean(combination.pendingCoefficients && !combination.text);
+  const cancellationComplete = Boolean(combination.cancelledRows?.[0] && combination.cancelledRows?.[1]);
 
   const reduceInputText = effectiveMethod === 'substitution' ? substitution.equationText : combination.text;
   const reduceCoefficients = effectiveMethod === 'substitution'
