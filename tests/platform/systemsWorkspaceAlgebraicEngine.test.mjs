@@ -114,6 +114,23 @@ test('question 2 accepts the exact parenthesized token form shown by Systems Wor
   }
 });
 
+test('substitution boundary repairs persisted display syntax before MathJS parses the token', () => {
+  const staleTokens = [
+    '−(3) + (2\u00a0y)',
+    '\\left(-(3)\\right) + (2y)',
+    '−3 + 2×y',
+    '−(3) + (2\u200by)',
+  ];
+  for (const token of staleTokens) {
+    const result = substituteIntoEquation('3x + 5y = 24', 'x', token);
+    const coeffs = linearEquationCoefficients(result, ['x', 'y']);
+    assert.ok(coeffs, `${JSON.stringify(token)} -> ${result}`);
+    assert.equal(coeffs.a, 0);
+    assert.equal(coeffs.b, 11);
+    assert.equal(coeffs.c, 33);
+  }
+});
+
 test('an unsimplified isolation token with division by negative one remains valid after substitution', () => {
   const result = substituteIntoEquation('-3x - 3y = 1', 'y', '((7) - (2*x))/(-1)');
   const coeffs = linearEquationCoefficients(result, ['x', 'y']);
