@@ -37,6 +37,74 @@ const smallActionStyle = { ...actionStyle, marginTop: 8, padding: '9px 14px', fo
 const emptyVerificationEntry = () => ({ placed: {}, leftAnswer: '', rightAnswer: '', checked: false, valid: false });
 const emptySpecialCase = () => ({ isTrueAnswer: '', solutionsAnswer: '', classificationAnswer: '' });
 
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\const emptySpecialCase = () => ({ isTrueAnswer: '', solutionsAnswer: '', classificationAnswer: '' });
+
+');
+
+function SubstitutionToken({ variable, expression, onArm }) {
+  const dragPayload = `mathmaster-substitution:${variable}`;
+  return (
+    <button
+      type="button"
+      className="mathmaster-systems-substitution-token"
+      draggable
+      onClick={onArm}
+      onDragStart={(event) => {
+        event.dataTransfer?.setData('text/plain', dragPayload);
+        if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+        onArm?.();
+      }}
+      aria-label={`Pick up ${expression} to replace ${variable}`}
+      title={`Drag this expression onto ${variable} in the other equation. On touch or keyboard, select the token and then select the variable.`}
+    >
+      <span className="mathmaster-systems-token-label">Replace {variable} with</span>
+      <MathDisplay value={expression} format="ascii-math" inline />
+      <span aria-hidden="true" className="mathmaster-systems-token-grip">⠿</span>
+    </button>
+  );
+}
+
+function VariableDropEquation({ equationText, variables, replacementVariable, onVariableAttempt, tokenArmed = false, label = 'Equation' }) {
+  const pattern = useMemo(
+    () => new RegExp(`(${variables.map(escapeRegex).sort((a, b) => b.length - a.length).join('|')})`, 'g'),
+    [variables],
+  );
+  const parts = useMemo(() => String(equationText || '').split(pattern), [equationText, pattern]);
+  const expectedPayload = `mathmaster-substitution:${replacementVariable}`;
+
+  return (
+    <div className="mathmaster-systems-drop-equation" role="group" aria-label={label}>
+      {parts.map((part, index) => {
+        if (!variables.includes(part)) {
+          return <span key={`text-${index}`} className="mathmaster-systems-equation-text">{part}</span>;
+        }
+        const expected = part === replacementVariable;
+        return (
+          <button
+            key={`variable-${index}-${part}`}
+            type="button"
+            className={`mathmaster-systems-variable-drop${expected ? ' is-target' : ''}${tokenArmed ? ' is-armed' : ''}`}
+            data-variable={part}
+            onClick={() => onVariableAttempt(part)}
+            onDragOver={(event) => {
+              if (event.dataTransfer?.types?.includes('text/plain')) event.preventDefault();
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              const payload = event.dataTransfer?.getData('text/plain');
+              if (payload === expectedPayload) onVariableAttempt(part);
+              else if (payload?.startsWith('mathmaster-substitution:')) onVariableAttempt(part);
+            }}
+            aria-label={`Variable ${part}. Drop the substitution token here`}
+            title={expected ? `Drop the replacement for ${part} here` : `This is ${part}. Decide whether this is the variable you isolated.`}
+          >
+            {part}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 /** Extracts the plain-expression value a solved Step Algebra equation isolated `variable` to. */
 const solvedExpressionFor = (latexResponse, variable) => {
   try {
