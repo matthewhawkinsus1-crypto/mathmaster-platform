@@ -89,6 +89,7 @@ function VariableDropEquation({
   tokenArmed = false,
   armedPayloadValue = null,
   payloadPrefix = 'mathmaster-substitution:',
+  placedValues = {},
   label = 'Equation',
 }) {
   const pattern = useMemo(
@@ -103,11 +104,12 @@ function VariableDropEquation({
         if (!variables.includes(part)) {
           return <span key={`text-${index}`} className="mathmaster-systems-equation-text">{part}</span>;
         }
+        const hasPlacedValue = Object.prototype.hasOwnProperty.call(placedValues || {}, part);
         return (
           <button
             key={`variable-${index}-${part}`}
             type="button"
-            className={`mathmaster-systems-variable-drop${tokenArmed ? ' is-armed' : ''}`}
+            className={`mathmaster-systems-variable-drop${tokenArmed ? ' is-armed' : ''}${hasPlacedValue ? ' is-filled' : ''}`}
             data-variable={part}
             onClick={() => { if (tokenArmed) onVariableAttempt(part, armedPayloadValue); }}
             onDragOver={(event) => {
@@ -119,10 +121,12 @@ function VariableDropEquation({
               if (!payload.startsWith(payloadPrefix)) return;
               onVariableAttempt(part, payload.slice(payloadPrefix.length));
             }}
-            aria-label={`Variable ${part}. Drop the selected math token here`}
+            aria-label={hasPlacedValue
+              ? `Variable ${part} currently has value ${placedValues[part]}`
+              : `Variable ${part}. Drop the selected math token here`}
             title="Drop the selected value or expression here if you think it belongs at this variable."
           >
-            {part}
+            {hasPlacedValue ? `(${placedValues[part]})` : part}
           </button>
         );
       })}
@@ -1204,6 +1208,11 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                         onVariableAttempt={(targetVariable, tokenVariable) => placeVerificationValue(index, targetVariable, tokenVariable)}
                         tokenArmed={slotAttempt?.stage === 'verification' && slotAttempt?.armed}
                         armedPayloadValue={slotAttempt?.stage === 'verification' ? slotAttempt?.tokenVariable : null}
+                        placedValues={Object.fromEntries(
+                          variables
+                            .filter((variable) => verification[index].placed[variable])
+                            .map((variable) => [variable, solution[variable]]),
+                        )}
                         label={`Equation ${index + 1}: place both solved values`}
                       />
                     ) : (
