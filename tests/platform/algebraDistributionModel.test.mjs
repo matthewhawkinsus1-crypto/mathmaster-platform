@@ -204,3 +204,18 @@ test('mutation guard: a broken model that pre-simplifies would fail the unsimpli
   const fakeExpanded = '-2/3x - 2'; // what a wrongly auto-simplified commit would produce
   assert.doesNotMatch(fakeExpanded, /\(x\)/);
 });
+
+
+test('distribution is detected after substituting a multi-term expression into a coefficient', () => {
+  const equation = { left: '3 * (2 * y - 3) + 5 * y', right: '24', variable: 'y' };
+  const detected = detectDistributableGroup(equation);
+  assert.ok(detected, '3(2y - 3) must open the manual distribution tool');
+  assert.equal(detected.terms.length, 2);
+});
+
+test('distribution is detected for the exact unsimplified divide-by-negative-one token produced by isolation', () => {
+  const equation = { left: '-3 * x - 3 * (((7) - (2 * x)) / (-1))', right: '1', variable: 'x' };
+  const detected = detectDistributableGroup(equation);
+  assert.ok(detected, 'an unsimplified isolated expression must never strand the systems solver');
+  assert.equal(detected.terms.length, 2);
+});
