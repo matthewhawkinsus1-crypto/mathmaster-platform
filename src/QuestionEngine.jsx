@@ -29,7 +29,7 @@ import ContextInterpretation from './ContextInterpretation';
 import MathDisplay from './MathDisplay';
 import { generateQuestion } from './problemGenerator';
 import { buildSupportUsage, getStudentSupportPresentation } from './studentSupport';
-import { removeQuestionDraftFamily } from './questionDraftStorage';
+import { removeQuestionDraftFamily, resetQuestionDraftFamily } from './questionDraftStorage';
 import CalculatorPanel from './components/CalculatorPanel';
 import ProblemUnderstandingPanel from './components/ProblemUnderstandingPanel';
 import MobileViewportContainer, { isMobileQuestionViewport } from './components/student/MobileViewportContainer';
@@ -261,6 +261,8 @@ export default function QuestionEngine({
   const [requesting, setRequesting] = useState(false);
   const [baseUndoController, setBaseUndoController] = useState(null);
   const [undoController, setUndoController] = useState(null);
+  const [questionResetVersion, setQuestionResetVersion] = useState(0);
+  const [resettingQuestion, setResettingQuestion] = useState(false);
   const [solverWorkspaceMode, setSolverWorkspaceMode] = useState('normal');
   const solverWorkspaceActive = solverWorkspaceMode !== 'normal';
   const [scratchpadOpen, setScratchpadOpen] = useState(false);
@@ -323,6 +325,8 @@ export default function QuestionEngine({
     setRequesting(false);
     setBaseUndoController(null);
     setUndoController(null);
+    setQuestionResetVersion(0);
+    setResettingQuestion(false);
     setSolverWorkspaceMode('normal');
     setScratchpadOpen(false);
     setScratchpadDataUrl('');
@@ -752,6 +756,44 @@ export default function QuestionEngine({
     }
   };
 
+  const handleResetQuestion = async () => {
+    if (locked || resettingQuestion || submitting || requesting) return;
+
+    const proceed = await confirmAction({
+      title: 'Reset this question?',
+      message: 'This clears all work on this question and returns every tool to its starting state. Your recorded attempts and grade history will not be erased.',
+      confirmLabel: 'Reset question',
+    });
+    if (!proceed) return;
+
+    setResettingQuestion(true);
+    try {
+      // Reset every nested draft (Step Algebra, intercept workflows, registry
+      // tools, etc.) through the normal persistence channel so an older server
+      // backup cannot resurrect the work on a later session/device.
+      resetQuestionDraftFamily(draftKey);
+      forgetToolDrafts(draftKey);
+
+      // The attempt record is intentionally untouched. Reset means "start the
+      // current workspace over", never "erase an attempt".
+      setAnswerState(EMPTY_ANSWER_STATE);
+      setFeedback(null);
+      setLastSubmittedResponseKey(record.lastResponseKey || '');
+      setWorkflowSubmissionReview(null);
+      setWorkflowGuidanceState(null);
+      setUnchangedConfirmOpen(false);
+      setCalculatorOpen(false);
+
+      // Drop stale Undo owners before remounting the response module. The new
+      // tool registers its own fresh controller after it mounts.
+      setBaseUndoController(null);
+      setUndoController(null);
+      setQuestionResetVersion((current) => current + 1);
+    } finally {
+      setResettingQuestion(false);
+    }
+  };
+
   const openScratchpad = async () => {
     if (scratchpadLoading) return;
     setScratchpadLoading(true);
@@ -1064,6 +1106,12 @@ export default function QuestionEngine({
       disabled: !undoController?.canUndo || locked,
       title: undoController?.label || 'Undo the most recent response change',
     },
+    reset: {
+      label: resettingQuestion ? 'Resetting…' : '↺ Reset Question',
+      onClick: handleResetQuestion,
+      disabled: locked || resettingQuestion || submitting || requesting,
+      title: 'Clear this question\'s work and return every tool to its starting state',
+    },
     scratchpad: {
       label: scratchpadLoading ? 'Opening…' : '✎ Scratchpad',
       onClick: openScratchpad,
@@ -1097,6 +1145,17 @@ export default function QuestionEngine({
   const questionWorkBar = (
     <>
       {!scratchpadOpen ? <UniversalUndoButton controller={undoController} disabled={locked} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: undoController?.canUndo && !locked ? 'pointer' : 'not-allowed', opacity: undoController?.canUndo && !locked ? 1 : 0.45 }} /> : null}
+      {!scratchpadOpen ? (
+        <button
+          type="button"
+          onClick={handleResetQuestion}
+          disabled={workspaceActions.reset.disabled}
+          title={workspaceActions.reset.title}
+          style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: workspaceActions.reset.disabled ? 'not-allowed' : 'pointer', opacity: workspaceActions.reset.disabled ? 0.45 : 1 }}
+        >
+          {workspaceActions.reset.label}
+        </button>
+      ) : null}
       <button type="button" onClick={openScratchpad} disabled={scratchpadLoading} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>
         {scratchpadLoading ? 'Opening…' : locked ? '✎ Scratchpad' : '✎ Scratchpad'}
       </button>
@@ -1196,7 +1255,7 @@ export default function QuestionEngine({
 
   return (
     <QuestionLifecycleProvider terminal={locked}>
-    <WorkViewUndoProvider register={setUndoController} baseController={baseUndoController} resetKey={processedQuestion?.questionId ?? processedQuestion?.id ?? processedQuestion?.prompt ?? null}>
+    <WorkViewUndoProvider register={setUndoController} baseController={baseUndoController} resetKey={`${processedQuestion?.questionId ?? processedQuestion?.id ?? processedQuestion?.prompt ?? 'question'}|${questionResetVersion}`}>
     <div
       ref={questionEngineRef}
       className={`mathmaster-question-engine mathmaster-question-engine-has-anchor ${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
@@ -1234,6 +1293,7 @@ export default function QuestionEngine({
         instruction: taskContextPresentation.currentStagePrompt ? { text:taskContextPresentation.currentStagePrompt } : null,
         primaryActions: workspaceActions.submit ? [{ ...workspaceActions.submit, onAction:workspaceActions.submit.onClick }] : [],
         secondaryActions: [
+          { ...workspaceActions.reset, onAction:workspaceActions.reset.onClick },
           { ...workspaceActions.scratchpad, onAction:workspaceActions.scratchpad.onClick },
           ...(workspaceActions.calculator ? [{ ...workspaceActions.calculator, onAction:workspaceActions.calculator.onClick }] : []),
         ],
@@ -1250,8 +1310,9 @@ export default function QuestionEngine({
         <fieldset disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <div aria-disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting ? 'true' : undefined} inert={locked || scaffoldRequired || contextScaffoldRequired || submitting ? '' : undefined} style={{ pointerEvents: locked || scaffoldRequired || contextScaffoldRequired || submitting ? 'none' : 'auto', opacity: locked ? 0.72 : scaffoldRequired || contextScaffoldRequired ? 0.5 : 1 }}>
             <QuestionModuleBoundary
+              key={`${generationKey}|${record.variantIndex}|reset-${questionResetVersion}`}
               questionType={processedQuestion?.type}
-              resetKey={`${generationKey}|${record.variantIndex}`}
+              resetKey={`${generationKey}|${record.variantIndex}|reset-${questionResetVersion}`}
             >
               {renderModule()}
             </QuestionModuleBoundary>
