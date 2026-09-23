@@ -690,20 +690,38 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
           {firstSolvedDone && !isDegenerate ? (
             <div style={{ marginTop: 14 }}>
-              <div style={{ padding: 10, border: '1px dashed #b8cdf0', borderRadius: 8, background: '#f8fbff' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#5f6b7a', marginBottom: 4 }}>Back-substitution token</div>
-                <MathDisplay value={`${survivingVariable} = ${firstSolved.value}`} format="ascii-math" inline />
-              </div>
               {!backSubChosen ? (
-                <div style={{ marginTop: 8 }}>
-                  <p style={{ margin: '0 0 6px', color: '#3c4756' }}>Choose one original equation to substitute this value into:</p>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                <div className="mathmaster-systems-substitution-stage">
+                  <p className="mathmaster-systems-substitution-direction">
+                    Back-substitute by dragging the solved value onto {survivingVariable} in either original equation.
+                    <span> On touch or keyboard, select the token, then select {survivingVariable}.</span>
+                  </p>
+                  <SubstitutionToken
+                    variable={survivingVariable}
+                    expression={String(firstSolved.value)}
+                    onArm={() => setSlotAttempt({ stage: 'backSubstitution', armed: true, correct: null, variable: null })}
+                  />
+                  <div className="mathmaster-systems-backsub-equations">
                     {equations.map((eq, index) => (
-                      <button key={index} type="button" onClick={() => chooseBackSub(index)} style={secondaryButtonStyle}>Equation {index + 1}</button>
+                      <div key={index}>
+                        <div className="mathmaster-systems-backsub-equation-label">Equation {index + 1}</div>
+                        <VariableDropEquation
+                          equationText={eq}
+                          variables={variables}
+                          replacementVariable={survivingVariable}
+                          onVariableAttempt={(variable) => attemptBackSubstitution(index, variable)}
+                          tokenArmed={slotAttempt?.stage === 'backSubstitution' && slotAttempt?.armed}
+                          label={`Equation ${index + 1}: choose where to back-substitute`}
+                        />
+                      </div>
                     ))}
                   </div>
-                </div>
-              ) : (
+                  {slotAttempt?.stage === 'backSubstitution' && slotAttempt.correct === false ? (
+                    <p className="mathmaster-systems-substitution-feedback is-error">
+                      The solved value belongs where {survivingVariable} appears, not where {slotAttempt.variable} appears.
+                    </p>
+                  ) : null}
+                </div>              ) : (
                 <div style={{ marginTop: 8 }}>
                   <div style={{ padding: 10, border: '1px solid #dbe3ef', borderRadius: 8, background: '#fff' }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: '#5f6b7a', marginBottom: 4 }}>Equation {backSub.equationIndex + 1} with the value substituted</div>
