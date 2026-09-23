@@ -61,3 +61,24 @@ test('mutation guard: a commit call missing countsAttempt:false would fail the a
   const fakeCommitSource = "kind: 'distribution', label: 'x', accepted: true";
   assert.doesNotMatch(fakeCommitSource, /countsAttempt:\s*false/);
 });
+
+
+test('an embedded systems solve can open distribution immediately without auto-committing it', () => {
+  assert.match(source, /autoOpenDistribution/);
+  assert.match(source, /setDistributionState\(initDistributionState\(distributable\)\)/);
+  assert.match(source, /The substitution created a distributive step/);
+  const autoRegion = source.slice(
+    source.indexOf("const autoDistributionOpenedForRef"),
+    source.indexOf("const openDistributionTool"),
+  );
+  assert.doesNotMatch(autoRegion, /commitDistributionStep|placeDistributionTermState/);
+});
+
+test('systems mode may simplify only the individual distributed products so Combine like terms remains student work', () => {
+  const commitRegion = source.slice(
+    source.indexOf('const commitDistributionStep'),
+    source.indexOf('const resetQuestionWork'),
+  );
+  assert.match(commitRegion, /simplifyProducts: simplifyDistributedProducts/);
+  assert.match(commitRegion, /combine like terms next/);
+});

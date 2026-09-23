@@ -45,7 +45,7 @@ test('every isolation and one-variable solve is handed to the existing StepBySte
   // The embed only watches for Step Algebra's own solved signal; it must not
   // re-implement isolation, balancing, distribution or cancellation.
   assert.match(embed, /algebra-objective/);
-  assert.doesNotMatch(embed, /applyBalancedOperation|distribut|cancellation/i);
+  assert.doesNotMatch(embed, /applyBalancedOperation|commitDistribution|detectDistributableGroup|cancellation/i);
 });
 
 test('the workspace-level engine never reimplements balanced-operation solving, distribution, or cancellation', () => {
@@ -115,7 +115,8 @@ test('substitution requires the student to choose both the other equation and th
   assert.match(attempt, /equationIndex === selection\.equationIndex/);
   assert.match(attempt, /clickedVariable !== selection\.variable/);
   assert.match(attempt, /targetEquationIndex: equationIndex/);
-  assert.match(attempt, /equationText: substituteIntoEquation\(equations\[equationIndex\]/);
+  assert.match(attempt, /const reducedEquation = substituteIntoEquation\(/);
+  assert.match(attempt, /equationText: reducedEquation/);
 });
 
 
@@ -133,7 +134,8 @@ test('optional substitution-token simplification is draft-backed and can never s
   assert.match(modeSource, /simplificationChecked/);
   assert.match(modeSource, /simplificationValid/);
   assert.match(modeSource, /That rewrite is not equivalent to the isolated expression yet/);
-  assert.match(modeSource, /substituteIntoEquation\(equations\[equationIndex\], selection\.variable, substitutionTokenExpression \|\| isolatedExpr\)/);
+  assert.match(modeSource, /const reducedEquation = substituteIntoEquation\(/);
+  assert.match(modeSource, /substitutionTokenExpression \|\| isolatedExpr/);
 });
 
 test('substitution feedback identifies the structural mistake without giving away the target variable', () => {
@@ -145,6 +147,24 @@ test('substitution feedback identifies the structural mistake without giving awa
 test('substitution and back-substitution both route their one-variable result through Step Algebra rather than solving it locally', () => {
   assert.match(modeSource, /equationText=\{reduceInputText\}/);
   assert.match(modeSource, /equationText=\{backSubEquationText\}/);
+});
+
+
+test('a successful substitution immediately reveals the one-variable solver and activates manual distribution', () => {
+  const attempt = region(modeSource, 'const attemptSubstitution = ', 'const setMultiplierValue', 'attemptSubstitution');
+  assert.match(attempt, /const reducedEquation = substituteIntoEquation/);
+  assert.match(attempt, /equationText: reducedEquation/);
+  assert.match(attempt, /setSlotAttempt\(null\)/);
+
+  assert.match(modeSource, /label=\{`Solve for \$\{survivingVariable\}`\}[\s\S]*?autoReveal[\s\S]*?autoOpenDistribution=\{effectiveMethod === 'substitution'\}[\s\S]*?simplifyDistributedProducts=\{effectiveMethod === 'substitution'\}/);
+});
+
+test('embedded solver reveal is presentation-only and does not solve or choose a distribution step for the student', () => {
+  const embed = region(modeSource, 'function EmbeddedStepAlgebra(', 'export default function AlgebraicSystemMode', 'EmbeddedStepAlgebra');
+  assert.match(embed, /scrollIntoView/);
+  assert.match(embed, /autoOpenDistribution=\{autoOpenDistribution\}/);
+  assert.match(embed, /simplifyDistributedProducts=\{simplifyDistributedProducts\}/);
+  assert.doesNotMatch(embed, /placeDistributionFactor|commitDistributionStep|combine like terms automatically/i);
 });
 
 test('the ordered pair is only assembled after both variables are solved, and verification is required before the workspace considers the attempt ready to check', () => {

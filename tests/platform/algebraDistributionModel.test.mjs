@@ -157,6 +157,21 @@ test('commit preserves unsimplified products — the equation state is not evalu
   assert.match(next.right, /\(3\)|\(-3\)/);
 });
 
+
+test('systems substitution may evaluate each distributed product while leaving like terms uncombined', () => {
+  const equation = { left: '-3x - 3(2x - 7)', right: '1', variable: 'x' };
+  const detected = detectDistributableGroup(equation);
+  assert.ok(detected);
+  const state = distributeAll(detected);
+  const next = commitDistribution(equation, state, { simplifyProducts: true });
+  const compact = next.left.replace(/\s+/g, '');
+  assert.match(compact, /-3x/);
+  assert.match(compact, /-6\*?x/);
+  assert.match(compact, /21/);
+  assert.doesNotMatch(compact, /-9\*?x/);
+  assert.doesNotMatch(compact, /\+\-\(/);
+});
+
 test('undo before commit removes only the last placement', () => {
   const detected = detectDistributableGroup({ left: 'y', right: '2(x + y - 3)' });
   let state = initDistributionState(detected);

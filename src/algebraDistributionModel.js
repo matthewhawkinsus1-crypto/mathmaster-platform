@@ -7,6 +7,7 @@
 // `y = -(2/3)(x + 3) + 7`; distribution is still available inside that term.
 import {
   expressionToLatex,
+  simplifyExpression,
   splitAdditiveTerms,
   splitMultiplicativeFactors,
 } from './algebraAstEngine.js';
@@ -169,10 +170,24 @@ const signedTermText = (term) => (
  * Expanded but deliberately UNSIMPLIFIED:
  * `-(2/3)(x + 3)` -> `(-2/3)(x) + (-2/3)(3)`.
  */
-export const expandedGroupText = (state) => {
+export const expandedGroupText = (state, { simplifyProducts = false } = {}) => {
   if (!isDistributionComplete(state)) return null;
   return state.terms
-    .map((term) => `(${state.factorText})(${signedTermText(term)})`)
+    .map((term) => {
+      const product = `(${state.factorText})(${signedTermText(term)})`;
+      if (!simplifyProducts) return product;
+      try {
+        const simplified = simplifyExpression(product);
+        // MathJS may print a negative product as "-(6 * x)". Preserve the
+        // product as its own term, but remove that redundant outer grouping so
+        // the next Combine like terms step reads naturally as "-6x", not
+        // "+ -(6x)".
+        const negativeGroup = simplified.match(/^-\((.+)\)$/);
+        return negativeGroup ? `-${negativeGroup[1]}` : simplified;
+      } catch {
+        return product;
+      }
+    })
     .join(' + ');
 };
 
@@ -201,8 +216,8 @@ const rebuildSideWithDistribution = (state, expanded) => {
 };
 
 /** Applies a completed distribution to the selected term of the full equation. */
-export const commitDistribution = (equation, state) => {
-  const expanded = expandedGroupText(state);
+export const commitDistribution = (equation, state, options = {}) => {
+  const expanded = expandedGroupText(state, options);
   if (!expanded || !equation) return null;
   return {
     ...equation,

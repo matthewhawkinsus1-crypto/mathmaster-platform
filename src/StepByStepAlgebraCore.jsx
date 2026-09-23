@@ -185,6 +185,8 @@ export default function StepByStepAlgebra({
   maximumAttempts = 3,
   attemptsDoNotExpire = false,
   draftKey = null,
+  autoOpenDistribution = false,
+  simplifyDistributedProducts = false,
 }) {
   const normalizedRecord = normalizeQuestionRecord(questionRecord);
   const initialParse = useMemo(() => getInitialEquation(question, normalizedRecord), [question]);
@@ -947,6 +949,35 @@ export default function StepByStepAlgebra({
   // unsimplified (`(-2/3)(x) + (-2/3)(3)`), and the existing Rewrite/Simplify
   // flow above is what evaluates them afterward. See algebraDistributionModel.js.
   const distributable = useMemo(() => detectDistributableGroup(equation), [equation]);
+  const autoDistributionOpenedForRef = useRef('');
+
+  useEffect(() => {
+    if (!autoOpenDistribution || !distributable || disabled || savingStep || cancelAnimating || pendingMove || distributionState) return;
+    const equationKey = `${equation?.left || ''}=${equation?.right || ''}`;
+    if (!equationKey || autoDistributionOpenedForRef.current === equationKey) return;
+    autoDistributionOpenedForRef.current = equationKey;
+    setArmedTile(null);
+    setTapPlacementArmed(false);
+    setPlacedOperationSides([]);
+    setPlacedOperationPositions({});
+    setOperand('');
+    setRewriteOpen(false);
+    closeLikeTermsTool();
+    setDistributionState(initDistributionState(distributable));
+    setMessage({
+      tone: 'growth',
+      text: 'The substitution created a distributive step. Apply the outside factor to each term, then combine like terms.',
+    });
+  }, [
+    autoOpenDistribution,
+    distributable,
+    disabled,
+    savingStep,
+    cancelAnimating,
+    pendingMove,
+    distributionState,
+    equation,
+  ]);
 
   const openDistributionTool = () => {
     if (disabled || savingStep || cancelAnimating || pendingMove || !distributable) return;
@@ -975,7 +1006,9 @@ export default function StepByStepAlgebra({
 
   const commitDistributionStep = async () => {
     if (disabled || savingStep || cancelAnimating || !isDistributionComplete(distributionState)) return;
-    const nextEquation = commitDistribution(equation, distributionState);
+    const nextEquation = commitDistribution(equation, distributionState, {
+      simplifyProducts: simplifyDistributedProducts,
+    });
     if (!nextEquation) return;
     if (onStepGrade) {
       setSavingStep(true);
@@ -1010,7 +1043,9 @@ export default function StepByStepAlgebra({
     window.setTimeout(() => setBalancePulse(false), motionDuration(650, reducedMotion, { floor: 60 }));
     setMessage({
       tone: 'success',
-      text: 'Distribution complete. The products are not simplified yet — use Rewrite / Simplify to evaluate them, or continue solving.',
+      text: simplifyDistributedProducts
+        ? 'Distribution complete. The individual products are evaluated; combine like terms next.'
+        : 'Distribution complete. The products are not simplified yet — use Rewrite / Simplify to evaluate them, or continue solving.',
     });
   };
 
