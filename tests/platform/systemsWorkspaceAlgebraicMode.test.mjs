@@ -156,7 +156,7 @@ test('a successful substitution immediately reveals the one-variable solver and 
   assert.match(attempt, /equationText: reducedEquation/);
   assert.match(attempt, /setSlotAttempt\(null\)/);
 
-  assert.match(modeSource, /label={`Solve for ${survivingVariable}`}[\s\S]*?autoReveal[\s\S]*?autoOpenDistribution=\{effectiveMethod === 'substitution'\}[\s\S]*?simplifyDistributedProducts=\{effectiveMethod === 'substitution'\}/);
+  assert.match(modeSource, /label=\{`Solve for \$\{survivingVariable\}`\}[\s\S]*?autoReveal[\s\S]*?autoOpenDistribution=\{effectiveMethod === 'substitution'\}[\s\S]*?simplifyDistributedProducts=\{effectiveMethod === 'substitution'\}/);
 });
 
 test('embedded solver reveal is presentation-only and does not solve or choose a distribution step for the student', () => {
