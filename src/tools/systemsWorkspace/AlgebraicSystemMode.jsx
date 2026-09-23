@@ -27,6 +27,8 @@ import {
   evaluateEquationSides,
   normalizeEquationForStepAlgebra,
   repairPersistedIsolation,
+  rationalExpressionFromNumber,
+  normalizeStudentExpressionForDisplay,
 } from './algebraicSystemsEngine.js';
 
 const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '11px 12px', border: '1px solid #cfd8e6', borderRadius: 9, background: '#fff', fontSize: 15, minHeight: 44 };
@@ -180,10 +182,15 @@ function SystemsWorkTrail({ stages = [] }) {
         })}
       </div>
       <div className="mathmaster-systems-completed-work">
-        {stages.filter((stage) => stage.complete && stage.summary).map((stage) => (
+        {stages.filter((stage) => stage.complete && (stage.summary || stage.summaryMath)).map((stage) => (
           <div key={`summary-${stage.id}`} className="mathmaster-systems-completed-chip">
             <span aria-hidden="true">✓</span>
-            <span>{stage.summary}</span>
+            {stage.summaryPrefix ? <span>{stage.summaryPrefix}</span> : null}
+            {stage.summaryMath ? (
+              <MathDisplay value={stage.summaryMath} format="ascii-math" inline />
+            ) : (
+              <span>{stage.summary}</span>
+            )}
           </div>
         ))}
       </div>
@@ -257,21 +264,28 @@ function AlignedEquationRow({ equationText, variables, targetVariable, multiplie
 const solvedExpressionFor = (latexResponse, variable) => {
   try {
     const plain = latexToExpression(latexResponse);
-    return isolatedExpressionFor(plain, variable);
+    const expression = isolatedExpressionFor(plain, variable);
+    return expression == null ? null : normalizeStudentExpressionForDisplay(expression);
   } catch {
     return null;
   }
 };
 
-const solvedNumberFor = (latexResponse, variable) => {
-  const expr = solvedExpressionFor(latexResponse, variable);
-  if (expr == null) return null;
+const solvedValueFor = (latexResponse, variable) => {
+  const expression = solvedExpressionFor(latexResponse, variable);
+  if (expression == null) return null;
   try {
-    const value = Number(evaluate(expr));
-    return Number.isFinite(value) ? value : null;
+    const value = Number(evaluate(expression));
+    return Number.isFinite(value) ? { variable, value, expression } : null;
   } catch {
     return null;
   }
+};
+
+const solvedRecordExpression = (record) => {
+  const persisted = String(record?.expression || '').trim();
+  if (persisted) return normalizeStudentExpressionForDisplay(persisted);
+  return rationalExpressionFromNumber(record?.value);
 };
 
 /*
@@ -366,10 +380,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     pendingCoefficients: null,
     cancelledRows: { 0: false, 1: false },
   });
-  const [firstSolved, setFirstSolved] = usePersistentToolState('firstSolved', { variable: null, value: null });
+  const [firstSolved, setFirstSolved] = usePersistentToolState('firstSolved', { variable: null, value: null, expression: null });
   const [specialCase, setSpecialCase] = usePersistentToolState('specialCase', null);
   const [backSub, setBackSub] = usePersistentToolState('backSub', { equationIndex: null });
-  const [secondSolved, setSecondSolved] = usePersistentToolState('secondSolved', { variable: null, value: null });
+  const [secondSolved, setSecondSolved] = usePersistentToolState('secondSolved', { variable: null, value: null, expression: null });
   const [verification, setVerification] = usePersistentToolState('verification', { 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
   const [methodEfficiencyReason, setMethodEfficiencyReason] = usePersistentToolState('methodEfficiencyReason', '');
   // Which slot the student's last substitution attempt landed on. Interaction
@@ -390,17 +404,17 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setAppliedMultipliers({ 0: false, 1: false });
     setMultiplierWork({ 0: emptyMultiplierWork(), 1: emptyMultiplierWork() });
     setCombination({ operation: null, attempts: 0, coefficients: null, text: null, pendingCoefficients: null, cancelledRows: { 0: false, 1: false } });
-    setFirstSolved({ variable: null, value: null });
+    setFirstSolved({ variable: null, value: null, expression: null });
     setSpecialCase(null);
     setBackSub({ equationIndex: null });
-    setSecondSolved({ variable: null, value: null });
+    setSecondSolved({ variable: null, value: null, expression: null });
     setVerification({ 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
     setSlotAttempt(null);
   }, []);
 
   const resetFromBackSub = useCallback(() => {
     setBackSub({ equationIndex: null });
-    setSecondSolved({ variable: null, value: null });
+    setSecondSolved({ variable: null, value: null, expression: null });
     setVerification({ 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
     setSlotAttempt(null);
   }, []);
@@ -426,10 +440,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       cancelledRows: { 0: false, 1: false },
       ...(value?.combination || {}),
     });
-    setFirstSolved(value?.firstSolved || { variable: null, value: null });
+    setFirstSolved({ variable: null, value: null, expression: null, ...(value?.firstSolved || {}) });
     setSpecialCase(value?.specialCase || null);
     setBackSub(value?.backSub || { equationIndex: null });
-    setSecondSolved(value?.secondSolved || { variable: null, value: null });
+    setSecondSolved({ variable: null, value: null, expression: null, ...(value?.secondSolved || {}) });
     setVerification(value?.verification || { 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
     setMethodEfficiencyReason(value?.methodEfficiencyReason || '');
   }, [config.method]);
@@ -485,12 +499,18 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const degenerateTruth = isDegenerate ? degenerateStatementTruth(reduceCoefficients) : null;
 
   const firstSolvedDone = firstSolved.value != null;
+  const firstSolvedExpression = firstSolvedDone ? solvedRecordExpression(firstSolved) : '';
   const backSubChosen = backSub.equationIndex != null;
   const backSubEquationText = (backSubChosen && firstSolvedDone)
-    ? substituteIntoEquation(equations[backSub.equationIndex], survivingVariable, String(firstSolved.value))
+    ? substituteIntoEquation(equations[backSub.equationIndex], survivingVariable, firstSolvedExpression)
     : null;
   const secondSolvedDone = secondSolved.value != null;
+  const secondSolvedExpression = secondSolvedDone ? solvedRecordExpression(secondSolved) : '';
   const solution = secondSolvedDone ? { [survivingVariable]: firstSolved.value, [removedVariable]: secondSolved.value } : null;
+  const solutionExpressions = secondSolvedDone
+    ? { [survivingVariable]: firstSolvedExpression, [removedVariable]: secondSolvedExpression }
+    : null;
+  const displayedIsolationExpression = normalizeStudentExpressionForDisplay(substitutionTokenExpression || isolatedExpr || '');
 
   const bothPlaced = (index) => variables.every((v) => verification[index]?.placed?.[v]);
   const allVerified = solution && verification[0].checked && verification[0].valid && verification[1].checked && verification[1].valid;
@@ -832,9 +852,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   };
 
   const handleReduceSolved = useCallback((latexResponse) => {
-    const value = solvedNumberFor(latexResponse, survivingVariable);
-    if (value == null) return;
-    setFirstSolved({ variable: survivingVariable, value });
+    const solved = solvedValueFor(latexResponse, survivingVariable);
+    if (!solved) return;
+    setFirstSolved(solved);
   }, [survivingVariable]);
 
   const chooseSpecialCaseField = (field, value) => {
@@ -856,9 +876,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   };
 
   const handleSecondSolved = useCallback((latexResponse) => {
-    const value = solvedNumberFor(latexResponse, removedVariable);
-    if (value == null) return;
-    setSecondSolved({ variable: removedVariable, value });
+    const solved = solvedValueFor(latexResponse, removedVariable);
+    if (!solved) return;
+    setSecondSolved(solved);
   }, [removedVariable]);
 
   const armVerificationValue = (variable) => {
