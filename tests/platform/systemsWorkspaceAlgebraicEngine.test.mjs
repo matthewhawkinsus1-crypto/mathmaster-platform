@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { evaluate } from 'mathjs';
 import {
   normalizeAlgebraicSystemConfig,
   linearEquationCoefficients,
@@ -173,7 +174,7 @@ test('student expression display cleanup removes serialization wrappers without 
   const unsimplified = normalizeStudentExpressionForDisplay('((((7)-(2*x)))/((-1)))');
   assert.doesNotMatch(unsimplified, /\(\(\(/);
   assert.ok(
-    Math.abs(Number((await import('mathjs')).evaluate(unsimplified, { x: 4 })) - (-1)) < 1e-9,
+    Math.abs(Number(evaluate(unsimplified, { x: 4 })) - (-1)) < 1e-9,
     unsimplified,
   );
   const studentSimplified = normalizeStudentExpressionForDisplay('2*x - 7');
