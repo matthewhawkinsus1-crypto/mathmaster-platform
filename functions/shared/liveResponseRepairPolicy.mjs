@@ -74,11 +74,7 @@ const normalizeEquationText = (value) => String(value ?? '')
   .replace(/[−–—]/g, '-')
   .replace(/\s+/g, '');
 
-const escapeSystemsVariable = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\const normalizeEquationText = (value) => String(value ?? '')
-  .replace(/[−–—]/g, '-')
-  .replace(/\s+/g, '');
-');
-
+const escapeSystemsVariable = (value) => String(value).replace(/[.*+?^$()|[\]\\]/g, '\\$&');
 const solveSystemActions = (question = {}) => (
   Array.isArray(question.studentActions)
     ? question.studentActions.map((value) => String(value ?? '').trim())
