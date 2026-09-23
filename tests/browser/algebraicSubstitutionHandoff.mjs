@@ -183,6 +183,30 @@ const shoot = (page, name) => page.screenshot({ path: path.join(ARTIFACTS, `${na
  * card. While the inline mode owns the equation, the balance operation rails
  * must also be hidden so the student has one clear workspace.
  */
+const assertStableEquationFit = async (page, journey) => {
+  const content = solver(page).locator('.algebra-expression-fit-content').first();
+  const samples = [];
+  for (let index = 0; index < 5; index += 1) {
+    if (index) await page.waitForTimeout(120);
+    samples.push(await content.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      return {
+        fontSize: Number.parseFloat(getComputedStyle(element).fontSize),
+        width: box.width,
+        x: box.x,
+      };
+    }));
+  }
+  const spread = (key) => Math.max(...samples.map((sample) => sample[key])) - Math.min(...samples.map((sample) => sample[key]));
+  const fontSpread = spread('fontSize');
+  const widthSpread = spread('width');
+  const xSpread = spread('x');
+  if (fontSpread > 0.5 || widthSpread > 1.5 || xSpread > 1.5) {
+    note(journey, `equation auto-fit is visually pulsing: ${JSON.stringify({ fontSpread, widthSpread, xSpread, samples })}`);
+  }
+  return { fontSpread, widthSpread, xSpread };
+};
+
 const assertInlineDistributionWorkspace = async (page, journey) => {
   const host = solver(page);
   const stage = host.locator('.algebra-equation-stage');
@@ -317,6 +341,12 @@ await dropTokenOnEquationTwoX(page, 'click');
 await assertStepAlgebraOpenedForY(page, 'preview-inline-workspace');
 const inlineObserved = await assertInlineDistributionWorkspace(page, 'preview-inline-workspace');
 const inlineHost = solver(page);
+// Force the equation close to its fit boundary, where the old ResizeObserver
+// feedback loop visibly bounced the numbers larger/smaller.
+const originalViewport = page.viewportSize();
+await page.setViewportSize({ width: 900, height: Math.max(820, originalViewport?.height || 900) });
+await page.waitForTimeout(350);
+inlineObserved.stability = await assertStableEquationFit(page, 'preview-inline-workspace');
 const distributionFontSize = Number.parseFloat(await inlineHost.locator('.algebra-expression-fit-content').first().evaluate((element) => getComputedStyle(element).fontSize));
 await shoot(page, 'inline-distribution-open');
 
