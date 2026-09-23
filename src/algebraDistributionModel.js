@@ -177,7 +177,13 @@ export const expandedGroupText = (state, { simplifyProducts = false } = {}) => {
       const product = `(${state.factorText})(${signedTermText(term)})`;
       if (!simplifyProducts) return product;
       try {
-        return simplifyExpression(product);
+        const simplified = simplifyExpression(product);
+        // MathJS may print a negative product as "-(6 * x)". Preserve the
+        // product as its own term, but remove that redundant outer grouping so
+        // the next Combine like terms step reads naturally as "-6x", not
+        // "+ -(6x)".
+        const negativeGroup = simplified.match(/^-\((.+)\)$/);
+        return negativeGroup ? `-${negativeGroup[1]}` : simplified;
       } catch {
         return product;
       }
