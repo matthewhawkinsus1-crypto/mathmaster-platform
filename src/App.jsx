@@ -9357,6 +9357,7 @@ function App() {
               })}
               activityRole={runtimeActivityRole}
               activityPolicy={runtimeQuestionActivityPolicy}
+              assignmentCalculatorMode={assignment?.toolPolicy?.calculator || null}
               feedbackReleased={currentFeedbackReleased}
               replacementWarning={replacementWarning}
               draftKey={buildQuestionDraftKey({ studentId: preview ? 'teacher-preview' : user?.id || 'anonymous', assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex, variantIndex: currentRecord.variantIndex, sessionMode: draftSessionMode })}
