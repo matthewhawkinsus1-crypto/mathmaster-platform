@@ -168,6 +168,7 @@ test('substitution distribution leaves products unsimplified for the student', (
   );
   assert.match(reduceSolver, /autoOpenDistribution=\{effectiveMethod === 'substitution'\}/);
   assert.match(reduceSolver, /simplifyDistributedProducts=\{false\}/);
+  assert.match(reduceSolver, /inlineExpressionTools=\{effectiveMethod === 'substitution'\}/);
   assert.doesNotMatch(reduceSolver, /simplifyDistributedProducts=\{effectiveMethod === 'substitution'\}/);
 });
 
