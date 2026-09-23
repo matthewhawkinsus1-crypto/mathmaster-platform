@@ -1008,7 +1008,12 @@ const resolveIntentType = (q, actions) => {
   // graph/domain/range actions after the axis step.
   if (actions.includes('configureAxes') && shouldCompileFunctionWorkflow(q, actions)) return 'functionWorkflow';
   if (actions.some((a) => ['identifyQuantities','configureAxes','writeEquation','classifyContinuity'].includes(a)) && (q.quantities || q.relationship || q.scenario)) return 'relationshipModel';
-  if (actions.includes('solveInequalitySystem') || actions.includes('graphSystem') || actions.includes('rowReduce')) return 'systemsWorkspace';
+  if (
+    actions.includes('solveInequalitySystem')
+    || actions.includes('graphSystem')
+    || actions.includes('rowReduce')
+    || (actions.includes('solveSystem') && q.mode === 'algebraic')
+  ) return 'systemsWorkspace';
   if (actions.includes('solveSystem') || q.equations) return 'system';
   if (actions.includes('solveLiteral') || (q.solveFor && !actions.includes('solveEquation') && !actions.includes('solveStepByStep'))) return 'literal';
   if (actions.includes('solveStepByStep')) return 'stepAlgebra';
@@ -1639,7 +1644,19 @@ const compileOne = (q, index, repairs) => {
       break;
     case 'systemsWorkspace': {
       const mode = q.mode || (actions.includes('solveInequalitySystem') ? 'inequalities' : actions.includes('rowReduce') ? 'matrix' : q.linearQuadratic ? 'linearQuadratic' : 'linear');
-      out = copyCommon(q, { type, mode, system: q.system, inequalities: q.inequalities, matrix: q.matrix, linearQuadratic: q.linearQuadratic });
+      out = copyCommon(q, {
+        type,
+        mode,
+        system: q.system,
+        inequalities: q.inequalities,
+        matrix: q.matrix,
+        linearQuadratic: q.linearQuadratic,
+        equations: q.equations,
+        variables: q.variables,
+        method: q.method,
+        requireVerification: q.requireVerification,
+        askEfficiency: q.askEfficiency,
+      });
       // PR 303's student-build inequality workflow (authored source form ->
       // interactive rewrite -> hidden canonical grading constraints) and its
       // companion viewport/reasoning/modeling config. Each is copied only
