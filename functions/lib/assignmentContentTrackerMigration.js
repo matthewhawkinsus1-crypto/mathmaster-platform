@@ -204,6 +204,30 @@ function migrateGradingExpansionRecord(record = {}, change = {}, correctedAt) {
   return multipart.provable ? multipart.record : record;
 }
 
+function migrateSystemsWorkspaceUpgradeRecord(record = {}, change = {}, correctedAt) {
+  if (!record || record.status === "unattempted" || record.status === "correct") return record;
+
+  // The old renderer collected only an ordered-pair answer. The corrected
+  // renderer requires the full substitution/elimination workflow. Historical
+  // score and total-attempt evidence are preserved exactly; only an exhausted
+  // student receives one returned attempt so the fixed workspace is usable.
+  if (record.status !== "expired") return record;
+
+  return {
+    ...record,
+    status: "attempted",
+    attemptCount: Math.max(0, Number(record.attemptCount || 0) - 1),
+    contentVersionRegradeHistory: compactHistory(record.contentVersionRegradeHistory, {
+      kind: "systems-workspace-upgrade",
+      questionId: change.questionId,
+      correctedAt,
+      previousBestPartialCredit: clamp(record.bestPartialCredit),
+      newBestPartialCredit: clamp(record.bestPartialCredit),
+      preservedTotalAttempts: Number(record.totalAttempts || 0),
+      grantedRepairRetry: true,
+    }),
+  };
+}
 function migrateTrackerForContentUpgrade({
   tracker = {},
   plan,
@@ -221,6 +245,8 @@ function migrateTrackerForContentUpgrade({
     let after = before;
     if (change.classification === "safeResponseControl") {
       after = migrateResponseControlRecord(before, change, correctedAt);
+    } else if (change.classification === "systemsWorkspaceUpgrade") {
+      after = migrateSystemsWorkspaceUpgradeRecord(before, change, correctedAt);
     } else if (change.classification === "gradingExpansion") {
       after = migrateGradingExpansionRecord(before, change, correctedAt);
     }
