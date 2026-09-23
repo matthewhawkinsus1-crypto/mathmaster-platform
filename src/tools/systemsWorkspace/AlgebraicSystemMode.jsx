@@ -9,6 +9,7 @@ import { matchesNumericAnswer } from '../shared/toolMath';
 import MathDisplay from '../../MathDisplay';
 import StepByStepAlgebraCore from '../../StepByStepAlgebraCore.jsx';
 import { latexToExpression } from '../../algebraAstEngine.js';
+import './AlgebraicSystemMode.css';
 import {
   normalizeAlgebraicSystemConfig,
   variableIsIsolated,
@@ -81,7 +82,7 @@ function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, 
     onSolved(part.response);
   }, [onSolved]);
   return (
-    <div style={{ padding: 10, border: '1px solid #b8cdf0', borderRadius: 10, background: '#f8fbff' }}>
+    <div className="mathmaster-systems-embedded-step-algebra">
       {label ? <div style={{ marginBottom: 8, fontWeight: 800 }}>{label}</div> : null}
       <StepByStepAlgebraCore
         question={question}
