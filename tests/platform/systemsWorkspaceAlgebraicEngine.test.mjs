@@ -74,7 +74,7 @@ test('substituting a non-atomic isolated expression preserves grouping with pare
   const result = substituteIntoEquation('3x + 5y = 24', 'x', '-3 + 2*y');
   // The student must see the substituted expression grouped, not distributed —
   // distribution is Step Algebra's job, not this engine's.
-  assert.match(result, /3\s*\(\s*-3\s*\+\s*2\s*\*?\s*y\s*\)/);
+  assert.match(result, /3\s*(?:\*\s*)?\(\s*-3\s*\+\s*2\s*\*?\s*y\s*\)/);
   assert.match(result, /=\s*24$/);
 });
 
