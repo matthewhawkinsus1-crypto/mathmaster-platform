@@ -5,6 +5,11 @@ const SINGLE_LINE_INPUT_TYPES = new Set([
 const normalizedTag = (target) => String(target?.tagName || target?.nodeName || '').toLowerCase();
 const normalizedType = (target) => String(target?.type || target?.getAttribute?.('type') || '').toLowerCase();
 
+const calculatorOwnsEnter = (target) => Boolean(
+  target?.closest?.('.mathmaster-calculator-panel')
+  || target?.getAttribute?.('data-calculator-expression') === 'true',
+);
+
 /**
  * Whether an Enter keypress belongs to a single-line answer control.
  *
@@ -13,6 +18,7 @@ const normalizedType = (target) => String(target?.type || target?.getAttribute?.
  * caller has one unambiguous primary Check/Submit action.
  */
 export const isSingleLineAnswerTarget = (target) => {
+  if (calculatorOwnsEnter(target)) return false;
   const tag = normalizedTag(target);
   if (tag === 'math-field') return true;
   if (tag !== 'input') return false;
@@ -36,6 +42,7 @@ export const shouldSubmitAnswerOnEnter = ({ event, responseComplete = false, can
 export const shouldAdvanceOnEnter = ({ event, canAdvance = false } = {}) => {
   if (!event || event.defaultPrevented || event.key !== 'Enter' || event.isComposing || event.repeat) return false;
   if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !canAdvance) return false;
+  if (calculatorOwnsEnter(event.target)) return false;
   const tag = normalizedTag(event.target);
   if (tag === 'textarea' || tag === 'select' || event.target?.isContentEditable) return false;
   if (event.target?.closest?.('[role="dialog"], [aria-modal="true"]')) return false;
