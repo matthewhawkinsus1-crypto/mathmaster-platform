@@ -750,6 +750,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
             </div>
           ) : null}
 
+          {effectiveMethod ? <SystemsWorkTrail stages={workTrailStages} /> : null}
+
           {effectiveMethod === 'substitution' ? (
             <div style={{ display: 'grid', gap: 14, marginTop: effectiveMethod ? 12 : 0 }}>
               {!selectionMade ? (
@@ -766,14 +768,14 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                     ))}
                   </div>
                 </div>
-              ) : (
+              ) : !isolationDone ? (
                 <div>
                   <p style={{ margin: '0 0 6px', color: '#3c4756' }}>
                     Isolating <strong>{selection.variable}</strong> in Equation {selection.equationIndex + 1}.
                   </p>
                   <button type="button" onClick={resetFromSelection} style={{ ...secondaryButtonStyle, fontSize: 12 }}>Choose a different equation/variable</button>
                 </div>
-              )}
+              ) : null}
 
               {selectionMade && !isolationDone ? (
                 alreadyIsolated ? null : (
@@ -793,33 +795,36 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
               {isolationDone && !substitution.equationText ? (
                 <div className="mathmaster-systems-substitution-stage">
                   <p className="mathmaster-systems-substitution-direction">
-                    Drag the expression onto the variable it replaces in Equation {otherIndex + 1}.
-                    <span> On touch or keyboard, select the token, then select the variable.</span>
+                    Use the isolated expression to create a one-variable equation. Decide which equation and which variable should receive it.
+                    <span> Drag the token, or select it and then select a variable.</span>
                   </p>
                   <SubstitutionToken
                     variable={selection.variable}
                     expression={isolatedExpr}
                     onArm={() => setSlotAttempt({ stage: 'substitution', armed: true, correct: null, variable: null })}
                   />
-                  <VariableDropEquation
-                    equationText={targetEquationText}
-                    variables={variables}
-                    replacementVariable={selection.variable}
-                    onVariableAttempt={attemptSubstitution}
-                    tokenArmed={slotAttempt?.stage === 'substitution' && slotAttempt?.armed}
-                    label={`Equation ${otherIndex + 1}: choose where to substitute`}
-                  />
+                  <div className="mathmaster-systems-substitution-equation-choices">
+                    {equations.map((equationText, equationIndex) => (
+                      <div key={equationIndex}>
+                        <div className="mathmaster-systems-backsub-equation-label">Equation {equationIndex + 1}</div>
+                        <VariableDropEquation
+                          equationText={equationText}
+                          variables={variables}
+                          onVariableAttempt={(variable) => attemptSubstitution(equationIndex, variable)}
+                          tokenArmed={slotAttempt?.stage === 'substitution' && slotAttempt?.armed}
+                          armedPayloadValue={selection.variable}
+                          label={`Equation ${equationIndex + 1}: choose where the isolated expression belongs`}
+                        />
+                      </div>
+                    ))}
+                  </div>
                   {slotAttempt?.stage === 'substitution' && slotAttempt.correct === false ? (
                     <p className="mathmaster-systems-substitution-feedback is-error">
-                      You isolated {selection.variable}, so replace {selection.variable} with the expression — not {slotAttempt.variable}.
+                      {slotAttempt.reason === 'source-equation'
+                        ? 'That placement puts the expression back into the equation it came from. Ask which equation needs the isolated expression to leave only one variable.'
+                        : 'That variable does not match the isolated equation. Look back at what the expression is equal to, then try the placement again.'}
                     </p>
                   ) : null}
-                </div>
-              ) : null}
-              {substitution.equationText ? (
-                <div className="mathmaster-systems-substituted-equation" style={{ padding: 10, border: '1px solid #dbe3ef', borderRadius: 8, background: '#fff' }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#5f6b7a', marginBottom: 4 }}>Substituted equation</div>
-                  <MathDisplay value={substitution.equationText} format="ascii-math" />
                 </div>
               ) : null}
             </div>
