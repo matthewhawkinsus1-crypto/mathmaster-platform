@@ -112,7 +112,8 @@ test('an already-isolated variable skips Step Algebra entirely', () => {
 test('substitution is only performed once the student identifies the correct variable location, and a wrong pick gives feedback without corrupting state', () => {
   const attempt = region(modeSource, 'const attemptSubstitution = ', 'const setMultiplierValue', 'attemptSubstitution');
   assert.match(attempt, /clickedVariable !== selection\.variable/);
-  assert.match(attempt, /setSlotAttempt\(\{ variable: clickedVariable, correct: false \}\);\s*\n\s*return;/);
+  assert.match(attempt, /setSlotAttempt\(\{ stage: 'substitution', variable: clickedVariable, correct: false, armed: true \}\);\s*\n\s*return;/);
+  assert.match(attempt, /setSubstitution\(/);
 });
 
 test('the substitution feedback names the isolated variable, per the platform feedback philosophy (identify the structural problem)', () => {
@@ -237,4 +238,28 @@ test('tool schema accepts authored algebraic systems and rejects malformed equat
   });
   assert.equal(invalid.isValid, false);
   assert.ok(invalid.errors.some((message) => message.includes('equation 1 must be linear')));
+});
+
+
+test('substitution is a placement interaction with a draggable token and variable drop targets', () => {
+  assert.match(modeSource, /function SubstitutionToken/);
+  assert.match(modeSource, /draggable/);
+  assert.match(modeSource, /mathmaster-substitution:/);
+  assert.match(modeSource, /function VariableDropEquation/);
+  assert.match(modeSource, /onDrop=\{\(event\) =>/);
+  assert.match(modeSource, /Drag the expression onto the variable it replaces/);
+  assert.doesNotMatch(modeSource, />Substitute for \{v\}</);
+});
+
+test('back-substitution reuses the same token-to-variable placement model', () => {
+  assert.match(modeSource, /attemptBackSubstitution/);
+  assert.match(modeSource, /Back-substitute by dragging the solved value/);
+  assert.match(modeSource, /replacementVariable=\{survivingVariable\}/);
+});
+
+test('an active embedded solver gets the dominant systems workspace column', () => {
+  assert.match(modeSource, /embeddedSolverActive/);
+  assert.match(modeSource, /mathmaster-algebraic-system-layout/);
+  assert.match(modeSource, /has-active-solver/);
+  assert.match(workspaceSource, /workspaceWidth=\{mode === 'algebraic' \? 'min\(100%, 1360px\)'/);
 });

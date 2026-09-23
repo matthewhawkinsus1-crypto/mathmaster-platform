@@ -3,12 +3,13 @@ import { evaluate } from 'mathjs';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
-import { Panel, ToolSplit, ResultPill, HintPanel } from '../shared/ToolShell';
+import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import { matchesNumericAnswer } from '../shared/toolMath';
 import MathDisplay from '../../MathDisplay';
 import StepByStepAlgebraCore from '../../StepByStepAlgebraCore.jsx';
 import { latexToExpression } from '../../algebraAstEngine.js';
+import './AlgebraicSystemMode.css';
 import {
   normalizeAlgebraicSystemConfig,
   variableIsIsolated,
@@ -36,6 +37,72 @@ const smallActionStyle = { ...actionStyle, marginTop: 8, padding: '9px 14px', fo
 const emptyVerificationEntry = () => ({ placed: {}, leftAnswer: '', rightAnswer: '', checked: false, valid: false });
 const emptySpecialCase = () => ({ isTrueAnswer: '', solutionsAnswer: '', classificationAnswer: '' });
 
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+function SubstitutionToken({ variable, expression, onArm }) {
+  const dragPayload = `mathmaster-substitution:${variable}`;
+  return (
+    <button
+      type="button"
+      className="mathmaster-systems-substitution-token"
+      draggable
+      onClick={onArm}
+      onDragStart={(event) => {
+        event.dataTransfer?.setData('text/plain', dragPayload);
+        if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+        onArm?.();
+      }}
+      aria-label={`Pick up ${expression} to replace ${variable}`}
+      title={`Drag this expression onto ${variable} in the other equation. On touch or keyboard, select the token and then select the variable.`}
+    >
+      <span className="mathmaster-systems-token-label">Replace {variable} with</span>
+      <MathDisplay value={expression} format="ascii-math" inline />
+      <span aria-hidden="true" className="mathmaster-systems-token-grip">⠿</span>
+    </button>
+  );
+}
+
+function VariableDropEquation({ equationText, variables, replacementVariable, onVariableAttempt, tokenArmed = false, label = 'Equation' }) {
+  const pattern = useMemo(
+    () => new RegExp(`(${variables.map(escapeRegex).sort((a, b) => b.length - a.length).join('|')})`, 'g'),
+    [variables],
+  );
+  const parts = useMemo(() => String(equationText || '').split(pattern), [equationText, pattern]);
+  const expectedPayload = `mathmaster-substitution:${replacementVariable}`;
+
+  return (
+    <div className="mathmaster-systems-drop-equation" role="group" aria-label={label}>
+      {parts.map((part, index) => {
+        if (!variables.includes(part)) {
+          return <span key={`text-${index}`} className="mathmaster-systems-equation-text">{part}</span>;
+        }
+        const expected = part === replacementVariable;
+        return (
+          <button
+            key={`variable-${index}-${part}`}
+            type="button"
+            className={`mathmaster-systems-variable-drop${expected ? ' is-target' : ''}${tokenArmed ? ' is-armed' : ''}`}
+            data-variable={part}
+            onClick={() => { if (tokenArmed) onVariableAttempt(part); }}
+            onDragOver={(event) => {
+              if (event.dataTransfer?.types?.includes('text/plain')) event.preventDefault();
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              const payload = event.dataTransfer?.getData('text/plain');
+              if (payload === expectedPayload) onVariableAttempt(part);
+              else if (payload?.startsWith('mathmaster-substitution:')) onVariableAttempt(part);
+            }}
+            aria-label={`Variable ${part}. Drop the substitution token here`}
+            title={expected ? `Drop the replacement for ${part} here` : `This is ${part}. Decide whether this is the variable you isolated.`}
+          >
+            {part}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 /** Extracts the plain-expression value a solved Step Algebra equation isolated `variable` to. */
 const solvedExpressionFor = (latexResponse, variable) => {
   try {
@@ -81,7 +148,7 @@ function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, 
     onSolved(part.response);
   }, [onSolved]);
   return (
-    <div style={{ padding: 10, border: '1px solid #b8cdf0', borderRadius: 10, background: '#f8fbff' }}>
+    <div className="mathmaster-systems-embedded-step-algebra">
       {label ? <div style={{ marginBottom: 8, fontWeight: 800 }}>{label}</div> : null}
       <StepByStepAlgebraCore
         question={question}
@@ -143,6 +210,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setBackSub({ equationIndex: null });
     setSecondSolved({ variable: null, value: null });
     setVerification({ 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
+    setSlotAttempt(null);
   }, []);
 
   const mathState = useMemo(() => ({
@@ -231,10 +299,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
   const attemptSubstitution = (clickedVariable) => {
     if (clickedVariable !== selection.variable) {
-      setSlotAttempt({ variable: clickedVariable, correct: false });
+      setSlotAttempt({ stage: 'substitution', variable: clickedVariable, correct: false, armed: true });
       return;
     }
-    setSlotAttempt({ variable: clickedVariable, correct: true });
+    setSlotAttempt({ stage: 'substitution', variable: clickedVariable, correct: true, armed: false });
     setSubstitution({
       targetVariable: selection.variable,
       equationText: substituteIntoEquation(targetEquationText, selection.variable, isolatedExpr),
@@ -280,6 +348,15 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const chooseBackSub = (equationIndex) => {
     resetFromBackSub();
     setBackSub({ equationIndex });
+  };
+
+  const attemptBackSubstitution = (equationIndex, clickedVariable) => {
+    if (clickedVariable !== survivingVariable) {
+      setSlotAttempt({ stage: 'backSubstitution', variable: clickedVariable, correct: false, armed: true });
+      return;
+    }
+    setSlotAttempt({ stage: 'backSubstitution', variable: clickedVariable, correct: true, armed: false });
+    chooseBackSub(equationIndex);
   };
 
   const handleSecondSolved = useCallback((latexResponse) => {
@@ -346,6 +423,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   };
 
   const methodTitle = effectiveMethod === 'elimination' ? 'Elimination' : 'Substitution';
+  const isolationSolverActive = Boolean(selectionMade && !isolationDone && !alreadyIsolated);
+  const reducedEquationSolverActive = Boolean(reduceInputText && !isDegenerate && !firstSolvedDone);
+  const backSubSolverActive = Boolean(firstSolvedDone && !isDegenerate && backSubChosen && !secondSolvedDone);
+  const embeddedSolverActive = isolationSolverActive || reducedEquationSolverActive || backSubSolverActive;
 
   return (
     <EnlargeableFigure
@@ -360,7 +441,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         primaryActions: readyToSubmit ? [{ id: 'check-algebraic-system', label: 'Check my work', onAction: check }] : [],
       }}
     >
-      <ToolSplit>
+      <div className={`mathmaster-algebraic-system-layout${embeddedSolverActive ? ' has-active-solver' : ''}`}>
+        <div className="mathmaster-algebraic-system-givens">
         <Panel title="Both original equations">
           <div style={{ display: 'grid', gap: 8 }}>
             {equations.map((eq, index) => (
@@ -382,7 +464,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
             </div>
           ) : null}
         </Panel>
+        </div>
 
+        <div className="mathmaster-algebraic-system-workflow">
         <Panel title={`${methodTitle} workflow`}>
           {config.method === 'studentChoice' && !method ? (
             <div>
@@ -442,36 +526,34 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                 )
               ) : null}
 
-              {isolationDone ? (
-                <div style={{ padding: 10, border: '1px dashed #b8cdf0', borderRadius: 8, background: '#f8fbff' }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#5f6b7a', marginBottom: 4 }}>Substitution token</div>
-                  <MathDisplay value={`${selection.variable} = ${isolatedExpr}`} format="ascii-math" />
-                </div>
-              ) : null}
-
               {isolationDone && !substitution.equationText ? (
-                <div>
-                  <p style={{ margin: '0 0 6px', color: '#3c4756' }}>
-                    Substitute that expression for {selection.variable} in Equation {otherIndex + 1}:
+                <div className="mathmaster-systems-substitution-stage">
+                  <p className="mathmaster-systems-substitution-direction">
+                    Drag the expression onto the variable it replaces in Equation {otherIndex + 1}.
+                    <span> On touch or keyboard, select the token, then select the variable.</span>
                   </p>
-                  <MathDisplay value={targetEquationText} format="ascii-math" />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                    {variables.map((v) => (
-                      <button key={v} type="button" onClick={() => attemptSubstitution(v)} style={secondaryButtonStyle}>
-                        Substitute for {v}
-                      </button>
-                    ))}
-                  </div>
-                  {slotAttempt && !slotAttempt.correct ? (
-                    <p style={{ margin: '8px 0 0', color: '#a02020', fontSize: 13 }}>
-                      You isolated {selection.variable}, so replace {selection.variable} in the other equation with this expression — not {slotAttempt.variable}.
+                  <SubstitutionToken
+                    variable={selection.variable}
+                    expression={isolatedExpr}
+                    onArm={() => setSlotAttempt({ stage: 'substitution', armed: true, correct: null, variable: null })}
+                  />
+                  <VariableDropEquation
+                    equationText={targetEquationText}
+                    variables={variables}
+                    replacementVariable={selection.variable}
+                    onVariableAttempt={attemptSubstitution}
+                    tokenArmed={slotAttempt?.stage === 'substitution' && slotAttempt?.armed}
+                    label={`Equation ${otherIndex + 1}: choose where to substitute`}
+                  />
+                  {slotAttempt?.stage === 'substitution' && slotAttempt.correct === false ? (
+                    <p className="mathmaster-systems-substitution-feedback is-error">
+                      You isolated {selection.variable}, so replace {selection.variable} with the expression — not {slotAttempt.variable}.
                     </p>
                   ) : null}
                 </div>
               ) : null}
-
               {substitution.equationText ? (
-                <div style={{ padding: 10, border: '1px solid #dbe3ef', borderRadius: 8, background: '#fff' }}>
+                <div className="mathmaster-systems-substituted-equation" style={{ padding: 10, border: '1px solid #dbe3ef', borderRadius: 8, background: '#fff' }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#5f6b7a', marginBottom: 4 }}>Substituted equation</div>
                   <MathDisplay value={substitution.equationText} format="ascii-math" />
                 </div>
@@ -607,20 +689,38 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
           {firstSolvedDone && !isDegenerate ? (
             <div style={{ marginTop: 14 }}>
-              <div style={{ padding: 10, border: '1px dashed #b8cdf0', borderRadius: 8, background: '#f8fbff' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#5f6b7a', marginBottom: 4 }}>Back-substitution token</div>
-                <MathDisplay value={`${survivingVariable} = ${firstSolved.value}`} format="ascii-math" inline />
-              </div>
               {!backSubChosen ? (
-                <div style={{ marginTop: 8 }}>
-                  <p style={{ margin: '0 0 6px', color: '#3c4756' }}>Choose one original equation to substitute this value into:</p>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                <div className="mathmaster-systems-substitution-stage">
+                  <p className="mathmaster-systems-substitution-direction">
+                    Back-substitute by dragging the solved value onto {survivingVariable} in either original equation.
+                    <span> On touch or keyboard, select the token, then select {survivingVariable}.</span>
+                  </p>
+                  <SubstitutionToken
+                    variable={survivingVariable}
+                    expression={String(firstSolved.value)}
+                    onArm={() => setSlotAttempt({ stage: 'backSubstitution', armed: true, correct: null, variable: null })}
+                  />
+                  <div className="mathmaster-systems-backsub-equations">
                     {equations.map((eq, index) => (
-                      <button key={index} type="button" onClick={() => chooseBackSub(index)} style={secondaryButtonStyle}>Equation {index + 1}</button>
+                      <div key={index}>
+                        <div className="mathmaster-systems-backsub-equation-label">Equation {index + 1}</div>
+                        <VariableDropEquation
+                          equationText={eq}
+                          variables={variables}
+                          replacementVariable={survivingVariable}
+                          onVariableAttempt={(variable) => attemptBackSubstitution(index, variable)}
+                          tokenArmed={slotAttempt?.stage === 'backSubstitution' && slotAttempt?.armed}
+                          label={`Equation ${index + 1}: choose where to back-substitute`}
+                        />
+                      </div>
                     ))}
                   </div>
-                </div>
-              ) : (
+                  {slotAttempt?.stage === 'backSubstitution' && slotAttempt.correct === false ? (
+                    <p className="mathmaster-systems-substitution-feedback is-error">
+                      The solved value belongs where {survivingVariable} appears, not where {slotAttempt.variable} appears.
+                    </p>
+                  ) : null}
+                </div>              ) : (
                 <div style={{ marginTop: 8 }}>
                   <div style={{ padding: 10, border: '1px solid #dbe3ef', borderRadius: 8, background: '#fff' }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: '#5f6b7a', marginBottom: 4 }}>Equation {backSub.equationIndex + 1} with the value substituted</div>
@@ -710,7 +810,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
             onHintUsed={() => onAction?.('HINT_USED')}
           />
         </Panel>
-      </ToolSplit>
+        </div>
+      </div>
     </EnlargeableFigure>
   );
 }

@@ -1533,7 +1533,12 @@ export default function SystemsWorkspace({ questionData = {}, onAction, draftKey
         : mode === 'matrix' ? 'Matrix / Row Reduction'
           : mode === 'algebraic' ? 'Algebraic Systems (Substitution / Elimination)'
             : 'Linear Systems';
-  return <ToolShell title="Systems Workspace" subtitle="Solve, classify and interpret a system — graphically and algebraically — in one place." badge={modeLabel}>
+  return <ToolShell
+    title="Systems Workspace"
+    subtitle="Solve, classify and interpret a system — graphically and algebraically — in one place."
+    badge={modeLabel}
+    workspaceWidth={mode === 'algebraic' ? 'min(100%, 1360px)' : 'min(100%, 1180px)'}
+  >
     <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.linear} steps={MODE_STEPS[mode] || MODE_STEPS.linear} />
     {mode === 'inequalities' ? <InequalityMode questionData={questionData} onAction={onAction} draftKey={draftKey}/>
       : mode === 'linearQuadratic' ? <LinearQuadraticMode questionData={questionData} onAction={onAction}/>
