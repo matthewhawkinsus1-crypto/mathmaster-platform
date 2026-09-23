@@ -30,6 +30,12 @@ import {
   splitAdditiveTerms,
   applyAdditiveOperationAtPlacement,
 } from './algebraAstEngine';
+import {
+  findLikeTermGroups,
+  replacementIsSingleLikeTerm,
+  replaceSelectedLikeTerms,
+  selectedLikeTermInfo,
+} from './algebraLikeTermsModel.js';
 import { getAttemptsRemaining, normalizeQuestionRecord } from './attemptPolicy';
 import {
   evaluateMove, getSupportPolicy, resolveEquationAfterKeepingMove, resolveEquationAfterMove,
@@ -228,6 +234,14 @@ export default function StepByStepAlgebra({
   const [rewriteScope, setRewriteScope] = useState('left');
   const [rewriteAnswers, setRewriteAnswers] = useState({ left: '', right: '' });
   const [rewriteFocusSignal, setRewriteFocusSignal] = useState(0);
+  // Interactive same-side simplification. A student chooses the side and the
+  // terms they believe are alike, then supplies the combined term. The platform
+  // checks the decision; it never supplies the coefficient/result.
+  const [likeTermsOpen, setLikeTermsOpen] = useState(Boolean(savedDraft?.likeTermsOpen));
+  const [likeTermsSide, setLikeTermsSide] = useState(savedDraft?.likeTermsSide || '');
+  const [selectedLikeTermIndices, setSelectedLikeTermIndices] = useState(savedDraft?.selectedLikeTermIndices || []);
+  const [likeTermsAnswer, setLikeTermsAnswer] = useState(savedDraft?.likeTermsAnswer || '');
+  const [likeTermsFocusSignal, setLikeTermsFocusSignal] = useState(0);
   // The whole drawn path, in coordinates local to the strike box, so the live
   // ink and the term rectangles share one space.
   const [stroke, setStroke] = useState(null); // { side, points: [{x,y}] } | null
@@ -378,8 +392,12 @@ export default function StepByStepAlgebra({
       selectedCancellationIndices,
       simplificationAnswers,
       promptAnswers,
+      likeTermsOpen,
+      likeTermsSide,
+      selectedLikeTermIndices,
+      likeTermsAnswer,
     });
-  }, [localDraftKey, equation, supportLevel, operand, distributionState, armedTile, pendingMove, crossedSides, cancelledPairIds, selectedCancellationIndices, simplificationAnswers, promptAnswers]);
+  }, [localDraftKey, equation, supportLevel, operand, distributionState, armedTile, pendingMove, crossedSides, cancelledPairIds, selectedCancellationIndices, simplificationAnswers, promptAnswers, likeTermsOpen, likeTermsSide, selectedLikeTermIndices, likeTermsAnswer]);
 
   useEffect(() => {
     const solved = isSolvedEquation(equation);
@@ -407,6 +425,15 @@ export default function StepByStepAlgebra({
   }, [equation, question, promptAnswers, onStateChange]);
 
   const hasDistributionProgress = Boolean(distributionState?.placedIndices?.length || distributionState?.armed);
+  const likeTermGroups = useMemo(() => ({
+    left: findLikeTermGroups(equation?.left),
+    right: findLikeTermGroups(equation?.right),
+  }), [equation]);
+  const hasLikeTermOpportunity = Boolean(likeTermGroups.left.length || likeTermGroups.right.length);
+  const currentLikeTermSelection = useMemo(
+    () => (likeTermsSide ? selectedLikeTermInfo(equation?.[likeTermsSide], selectedLikeTermIndices) : null),
+    [equation, likeTermsSide, selectedLikeTermIndices],
+  );
 
   const hasTransientUndo = Boolean(
     pendingMove
@@ -416,6 +443,9 @@ export default function StepByStepAlgebra({
     || Object.keys(simplificationAnswers).length
     || rewriteOpen
     || Object.values(rewriteAnswers).some((value) => String(value || '').trim())
+    || likeTermsOpen
+    || selectedLikeTermIndices.length
+    || String(likeTermsAnswer || '').trim()
     || armedTile
     || placedOperationSides.length
     || tapPlacementArmed
@@ -433,6 +463,9 @@ export default function StepByStepAlgebra({
           .some((indices) => indices?.length);
         const hasRewriteEntry = rewriteOpen
           || Object.values(rewriteAnswers).some((value) => String(value || '').trim());
+        const hasLikeTermsEntry = likeTermsOpen
+          || selectedLikeTermIndices.length > 0
+          || String(likeTermsAnswer || '').trim();
         const hasOperationStaging = Boolean(
           armedTile
           || placedOperationSides.length
@@ -459,6 +492,15 @@ export default function StepByStepAlgebra({
           setCancelledPairIds({});
           setSelectedCancellationIndices({});
           setSimplificationAnswers({});
+        } else if (hasLikeTermsEntry) {
+          if (String(likeTermsAnswer || '').trim()) {
+            setLikeTermsAnswer('');
+          } else if (selectedLikeTermIndices.length) {
+            setSelectedLikeTermIndices((current) => current.slice(0, -1));
+          } else {
+            setLikeTermsOpen(false);
+            setLikeTermsSide('');
+          }
         } else if (hasRewriteEntry) {
           setRewriteOpen(false);
           setRewriteAnswers({ left: '', right: '' });
@@ -485,6 +527,10 @@ export default function StepByStepAlgebra({
             setSimplificationAnswers({});
             setRewriteOpen(false);
             setRewriteAnswers({ left: '', right: '' });
+            setLikeTermsOpen(false);
+            setLikeTermsSide('');
+            setSelectedLikeTermIndices([]);
+            setLikeTermsAnswer('');
             setArmedTile(null);
             setOperand('');
             setDistributionState(null);
@@ -517,6 +563,10 @@ export default function StepByStepAlgebra({
     placedOperationSides,
     rewriteAnswers,
     rewriteOpen,
+    likeTermsOpen,
+    likeTermsSide,
+    selectedLikeTermIndices,
+    likeTermsAnswer,
     selectedCancellationIndices,
     simplificationAnswers,
     tapPlacementArmed,
@@ -637,6 +687,53 @@ export default function StepByStepAlgebra({
     setRewriteAnswers({ left: '', right: '' });
   };
 
+  const closeLikeTermsTool = () => {
+    setLikeTermsOpen(false);
+    setLikeTermsSide('');
+    setSelectedLikeTermIndices([]);
+    setLikeTermsAnswer('');
+  };
+
+  const openLikeTermsTool = () => {
+    if (disabled || savingStep || cancelAnimating) return;
+    if (pendingMove) {
+      setMessage({
+        tone: 'growth',
+        text: 'Finish the balanced operation already in progress first. Then you can combine like terms on either side.',
+      });
+      return;
+    }
+    setArmedTile(null);
+    setTapPlacementArmed(false);
+    setPlacedOperationSides([]);
+    setPlacedOperationPositions({});
+    setOperand('');
+    setRewriteOpen(false);
+    setDistributionState(null);
+    setLikeTermsSide('');
+    setSelectedLikeTermIndices([]);
+    setLikeTermsAnswer('');
+    setLikeTermsOpen((current) => !current);
+    setMessage(null);
+  };
+
+  const chooseLikeTermsSide = (side) => {
+    setLikeTermsSide(side);
+    setSelectedLikeTermIndices([]);
+    setLikeTermsAnswer('');
+    setMessage(null);
+  };
+
+  const toggleLikeTerm = (index) => {
+    setSelectedLikeTermIndices((current) => (
+      current.includes(index)
+        ? current.filter((value) => value !== index)
+        : [...current, index]
+    ));
+    setLikeTermsAnswer('');
+    setMessage(null);
+  };
+
   const openRewriteTool = () => {
     if (disabled || savingStep || cancelAnimating) return;
     if (pendingMove) {
@@ -652,19 +749,23 @@ export default function StepByStepAlgebra({
     setPlacedOperationPositions({});
     setOperand('');
     setRewriteAnswers({ left: '', right: '' });
+    closeLikeTermsTool();
     if (!rewriteOpen) setRewriteFocusSignal((signal) => signal + 1);
     setRewriteOpen((current) => !current);
     setMessage(null);
   };
 
-  const persistStudentRewrite = async (beforeEquation, nextEquation, changedSides) => {
+  const persistStudentRewrite = async (beforeEquation, nextEquation, changedSides, {
+    kind = 'student-rewrite',
+    label = `Rewrite / simplify ${changedSides.join(' and ')}`,
+  } = {}) => {
     if (!onStepGrade) return null;
     setSavingStep(true);
     try {
       return await onStepGrade({
         stepGrade: {
-          kind: 'student-rewrite',
-          label: `Rewrite / simplify ${changedSides.join(' and ')}`,
+          kind,
+          label,
           supportLevel,
           productive: true,
           accepted: true,
@@ -687,6 +788,73 @@ export default function StepByStepAlgebra({
     } finally {
       setSavingStep(false);
     }
+  };
+
+  const checkLikeTerms = async () => {
+    if (!equation || disabled || savingStep || cancelAnimating || pendingMove || !likeTermsSide) return;
+    const selection = selectedLikeTermInfo(equation[likeTermsSide], selectedLikeTermIndices);
+    if (!selection.valid) {
+      setMessage({ tone: 'growth', text: selection.reason || 'Choose terms that are alike before combining them.' });
+      return;
+    }
+
+    if (!String(likeTermsAnswer || '').trim()) {
+      setLikeTermsFocusSignal((signal) => signal + 1);
+      setMessage({ tone: 'growth', text: 'You chose the terms. Now enter the single term they combine to.' });
+      return;
+    }
+
+    let replacement;
+    try {
+      replacement = latexToExpression(likeTermsAnswer);
+    } catch {
+      triggerShake();
+      setLikeTermsFocusSignal((signal) => signal + 1);
+      setMessage({ tone: 'error', text: 'MathMaster could not read that combined term yet.' });
+      return;
+    }
+
+    if (!replacementIsSingleLikeTerm(replacement, selection.key)) {
+      triggerShake();
+      setLikeTermsFocusSignal((signal) => signal + 1);
+      setMessage({
+        tone: 'growth',
+        text: 'Enter one combined term with the same variable part. Do not re-enter the two original terms.',
+      });
+      return;
+    }
+
+    if (!expressionsEquivalent(selection.selectedExpression, replacement, equation.variable)) {
+      triggerShake();
+      setLikeTermsFocusSignal((signal) => signal + 1);
+      setMessage({
+        tone: 'growth',
+        text: 'Those terms are alike, but that coefficient does not equal their sum. Recheck the signs and coefficients.',
+      });
+      return;
+    }
+
+    const nextSide = replaceSelectedLikeTerms(equation[likeTermsSide], selection.indices, replacement);
+    if (!nextSide) {
+      setMessage({ tone: 'error', text: 'That combination could not be placed back into the equation safely. Your work was not changed.' });
+      return;
+    }
+
+    const beforeEquation = equation;
+    const nextEquation = { ...equation, [likeTermsSide]: nextSide };
+    await persistStudentRewrite(beforeEquation, nextEquation, [likeTermsSide], {
+      kind: 'combine-like-terms',
+      label: `Combine like terms on the ${likeTermsSide} side`,
+    });
+    pushCommittedEquation(beforeEquation);
+    setEquation(nextEquation);
+    closeLikeTermsTool();
+    setBalancePulse(true);
+    window.setTimeout(() => setBalancePulse(false), motionDuration(650, reducedMotion, { floor: 60 }));
+    setMessage({
+      tone: 'success',
+      text: 'Like terms combined. You chose the terms and supplied the combined term; MathMaster only checked the algebra.',
+    });
   };
 
   const checkStudentRewrite = async () => {
@@ -788,6 +956,7 @@ export default function StepByStepAlgebra({
     setPlacedOperationPositions({});
     setOperand('');
     setRewriteOpen(false);
+    closeLikeTermsTool();
     setDistributionState(initDistributionState(distributable));
     setMessage(null);
   };
@@ -863,6 +1032,10 @@ export default function StepByStepAlgebra({
     setRewriteOpen(false);
     setRewriteScope('left');
     setRewriteAnswers({ left: '', right: '' });
+    setLikeTermsOpen(false);
+    setLikeTermsSide('');
+    setSelectedLikeTermIndices([]);
+    setLikeTermsAnswer('');
     setStroke(null);
     setLockedStroke(null);
     setStruckTerms(null);
@@ -1413,6 +1586,7 @@ export default function StepByStepAlgebra({
     if (disabled || savingStep || pendingMove) return;
     setRewriteOpen(false);
     setRewriteAnswers({ left: '', right: '' });
+    closeLikeTermsTool();
     const switching = armedTile?.operation !== operation;
     setArmedTile({ operation, sourceSide });
     setTapPlacementArmed(false);
@@ -1672,6 +1846,28 @@ export default function StepByStepAlgebra({
           >
             Rewrite / Simplify
           </button>
+          {hasLikeTermOpportunity && (
+            <button
+              type="button"
+              className="algebra-like-terms-toggle"
+              onClick={openLikeTermsTool}
+              disabled={disabled || savingStep || cancelAnimating || Boolean(pendingMove)}
+              aria-expanded={likeTermsOpen}
+              title="Choose and combine like terms on one side of the equation"
+              style={{
+                minHeight: 40,
+                padding: '8px 14px',
+                borderRadius: 999,
+                border: likeTermsOpen ? '2px solid #174ea6' : '1px solid #b8c8e3',
+                background: likeTermsOpen ? '#e8f0fe' : '#fff',
+                color: '#174ea6',
+                fontWeight: 800,
+                cursor: disabled || savingStep || cancelAnimating ? 'not-allowed' : 'pointer',
+              }}
+            >
+              Combine like terms
+            </button>
+          )}
           {(distributable || distributionState) && (
             <button
               type="button"
@@ -1792,6 +1988,71 @@ export default function StepByStepAlgebra({
               Cancel
             </button>
           </div>
+        </div>
+      )}
+
+      {likeTermsOpen && (
+        <div className="algebra-like-terms-tool">
+          <div className="algebra-like-terms-header">
+            <div>
+              <strong>Combine like terms</strong>
+              <div>Choose the side first, then select the terms you believe belong together. MathMaster will not identify the pair for you.</div>
+            </div>
+            <button type="button" onClick={closeLikeTermsTool} aria-label="Close combine like terms" title="Close">×</button>
+          </div>
+
+          {!likeTermsSide ? (
+            <div className="algebra-like-terms-side-choice" role="group" aria-label="Choose which side to inspect for like terms">
+              <button type="button" onClick={() => chooseLikeTermsSide('left')}>Left side</button>
+              <button type="button" onClick={() => chooseLikeTermsSide('right')}>Right side</button>
+            </div>
+          ) : (
+            <>
+              <div className="algebra-like-terms-side-toolbar">
+                <span>{likeTermsSide === 'left' ? 'Left' : 'Right'} side</span>
+                <button type="button" onClick={() => chooseLikeTermsSide(likeTermsSide === 'left' ? 'right' : 'left')}>
+                  Try the {likeTermsSide === 'left' ? 'right' : 'left'} side
+                </button>
+              </div>
+              <div className="algebra-like-terms-equation-side">
+                <AlgebraTermRow
+                  terms={splitAdditiveTerms(equation[likeTermsSide]) || []}
+                  side={likeTermsSide}
+                  selectedIndices={selectedLikeTermIndices}
+                  onTermClick={toggleLikeTerm}
+                  interactionLabel="select as a term to combine"
+                />
+              </div>
+              <p className="algebra-like-terms-instruction">
+                Select at least two terms. If they are alike, enter the one term they combine to.
+              </p>
+              {selectedLikeTermIndices.length >= 2 && !currentLikeTermSelection?.valid ? (
+                <p className="algebra-like-terms-feedback is-error">
+                  {currentLikeTermSelection?.reason || 'Those selected terms are not alike.'}
+                </p>
+              ) : null}
+              {currentLikeTermSelection?.valid ? (
+                <div className="algebra-like-terms-answer">
+                  <MathInput
+                    value={likeTermsAnswer}
+                    onChange={setLikeTermsAnswer}
+                    onSubmit={checkLikeTerms}
+                    placeholder="Combined term"
+                    ariaLabel="Enter the single term these selected like terms combine to"
+                    toolProfile="algebra-operation"
+                    compact
+                    maxWidth={360}
+                    focusSignal={likeTermsFocusSignal}
+                    contextSymbols={operationContextSymbols}
+                    collapseSignal={mathToolsCollapseSignal}
+                  />
+                  <button type="button" onClick={checkLikeTerms} disabled={savingStep || cancelAnimating}>
+                    Check combination
+                  </button>
+                </div>
+              ) : null}
+            </>
+          )}
         </div>
       )}
 

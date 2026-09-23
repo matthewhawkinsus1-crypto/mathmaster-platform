@@ -119,8 +119,13 @@ export const substituteIntoEquation = (equationText, variable, replacementExpres
 export const applyEquationMultiplier = (equationText, multiplier, variables = ['x', 'y']) => {
   const coeffs = linearEquationCoefficients(equationText, variables);
   if (!coeffs) return null;
-  const m = Number(multiplier);
-  if (!Number.isFinite(m) || m === 0) return null;
+  let m;
+  try {
+    m = Number(evaluate(String(multiplier)));
+  } catch {
+    return null;
+  }
+  if (!Number.isFinite(m) || Math.abs(m) < EPS) return null;
   const scaled = { a: coeffs.a * m, b: coeffs.b * m, c: coeffs.c * m };
   return { coefficients: scaled, text: formatLinearEquation(scaled, variables) };
 };

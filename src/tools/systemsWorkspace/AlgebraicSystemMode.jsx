@@ -7,6 +7,7 @@ import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import { matchesNumericAnswer } from '../shared/toolMath';
 import MathDisplay from '../../MathDisplay';
+import MathInput from '../../MathInput';
 import StepByStepAlgebraCore from '../../StepByStepAlgebraCore.jsx';
 import { latexToExpression } from '../../algebraAstEngine.js';
 import './AlgebraicSystemMode.css';
@@ -31,7 +32,6 @@ const actionStyle = { marginTop: 16, padding: '11px 18px', border: 0, borderRadi
 const Field = ({ label, children }) => <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#465267' }}>{label}<div style={{ marginTop: 5 }}>{children}</div></label>;
 
 const secondaryButtonStyle = { ...actionStyle, marginTop: 0, padding: '9px 14px', fontSize: 13, background: '#eef4ff', color: '#174ea6' };
-const activeButtonStyle = { ...secondaryButtonStyle, background: '#174ea6', color: '#fff' };
 const smallActionStyle = { ...actionStyle, marginTop: 8, padding: '9px 14px', fontSize: 13 };
 
 const emptyVerificationEntry = () => ({ placed: {}, leftAnswer: '', rightAnswer: '', checked: false, valid: false });
@@ -39,8 +39,15 @@ const emptySpecialCase = () => ({ isTrueAnswer: '', solutionsAnswer: '', classif
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-function SubstitutionToken({ variable, expression, onArm }) {
-  const dragPayload = `mathmaster-substitution:${variable}`;
+function MathDragToken({
+  payloadPrefix,
+  payloadValue,
+  expression,
+  label,
+  onArm,
+  ariaLabel,
+}) {
+  const dragPayload = `${payloadPrefix}${payloadValue}`;
   return (
     <button
       type="button"
@@ -52,23 +59,44 @@ function SubstitutionToken({ variable, expression, onArm }) {
         if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
         onArm?.();
       }}
-      aria-label={`Pick up ${expression} to replace ${variable}`}
-      title={`Drag this expression onto ${variable} in the other equation. On touch or keyboard, select the token and then select the variable.`}
+      aria-label={ariaLabel || `Pick up ${expression}`}
+      title="Drag this token onto the place you think it belongs. On touch or keyboard, select the token and then select a destination."
     >
-      <span className="mathmaster-systems-token-label">Replace {variable} with</span>
+      {label ? <span className="mathmaster-systems-token-label">{label}</span> : null}
       <MathDisplay value={expression} format="ascii-math" inline />
       <span aria-hidden="true" className="mathmaster-systems-token-grip">⠿</span>
     </button>
   );
 }
 
-function VariableDropEquation({ equationText, variables, replacementVariable, onVariableAttempt, tokenArmed = false, label = 'Equation' }) {
+function SubstitutionToken({ variable, expression, onArm, label = 'Expression from isolated equation' }) {
+  return (
+    <MathDragToken
+      payloadPrefix="mathmaster-substitution:"
+      payloadValue={variable}
+      expression={expression}
+      label={label}
+      onArm={onArm}
+      ariaLabel={`Pick up the expression ${expression} from the isolated equation`}
+    />
+  );
+}
+
+function VariableDropEquation({
+  equationText,
+  variables,
+  onVariableAttempt,
+  tokenArmed = false,
+  armedPayloadValue = null,
+  payloadPrefix = 'mathmaster-substitution:',
+  placedValues = {},
+  label = 'Equation',
+}) {
   const pattern = useMemo(
     () => new RegExp(`(${variables.map(escapeRegex).sort((a, b) => b.length - a.length).join('|')})`, 'g'),
     [variables],
   );
   const parts = useMemo(() => String(equationText || '').split(pattern), [equationText, pattern]);
-  const expectedPayload = `mathmaster-substitution:${replacementVariable}`;
 
   return (
     <div className="mathmaster-systems-drop-equation" role="group" aria-label={label}>
@@ -76,33 +104,114 @@ function VariableDropEquation({ equationText, variables, replacementVariable, on
         if (!variables.includes(part)) {
           return <span key={`text-${index}`} className="mathmaster-systems-equation-text">{part}</span>;
         }
-        const expected = part === replacementVariable;
+        const hasPlacedValue = Object.prototype.hasOwnProperty.call(placedValues || {}, part);
         return (
           <button
             key={`variable-${index}-${part}`}
             type="button"
-            className={`mathmaster-systems-variable-drop${expected ? ' is-target' : ''}${tokenArmed ? ' is-armed' : ''}`}
+            className={`mathmaster-systems-variable-drop${tokenArmed ? ' is-armed' : ''}${hasPlacedValue ? ' is-filled' : ''}`}
             data-variable={part}
-            onClick={() => { if (tokenArmed) onVariableAttempt(part); }}
+            onClick={() => { if (tokenArmed) onVariableAttempt(part, armedPayloadValue); }}
             onDragOver={(event) => {
               if (event.dataTransfer?.types?.includes('text/plain')) event.preventDefault();
             }}
             onDrop={(event) => {
               event.preventDefault();
-              const payload = event.dataTransfer?.getData('text/plain');
-              if (payload === expectedPayload) onVariableAttempt(part);
-              else if (payload?.startsWith('mathmaster-substitution:')) onVariableAttempt(part);
+              const payload = event.dataTransfer?.getData('text/plain') || '';
+              if (!payload.startsWith(payloadPrefix)) return;
+              onVariableAttempt(part, payload.slice(payloadPrefix.length));
             }}
-            aria-label={`Variable ${part}. Drop the substitution token here`}
-            title={expected ? `Drop the replacement for ${part} here` : `This is ${part}. Decide whether this is the variable you isolated.`}
+            aria-label={hasPlacedValue
+              ? `Variable ${part} currently has value ${placedValues[part]}`
+              : `Variable ${part}. Drop the selected math token here`}
+            title="Drop the selected value or expression here if you think it belongs at this variable."
           >
-            {part}
+            {hasPlacedValue ? `(${placedValues[part]})` : part}
           </button>
         );
       })}
     </div>
   );
 }
+
+function SystemsWorkTrail({ stages = [] }) {
+  const activeIndex = stages.findIndex((stage) => !stage.complete);
+  return (
+    <div className="mathmaster-systems-work-trail">
+      <div className="mathmaster-systems-work-trail-steps" aria-label="Systems solving progress">
+        {stages.map((stage, index) => {
+          const active = activeIndex === index || (activeIndex < 0 && index === stages.length - 1);
+          return (
+            <div
+              key={stage.id}
+              className={`mathmaster-systems-work-step${stage.complete ? ' is-complete' : ''}${active ? ' is-active' : ''}`}
+            >
+              <span aria-hidden="true">{stage.complete ? '✓' : index + 1}</span>
+              <strong>{stage.label}</strong>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mathmaster-systems-completed-work">
+        {stages.filter((stage) => stage.complete && stage.summary).map((stage) => (
+          <div key={`summary-${stage.id}`} className="mathmaster-systems-completed-chip">
+            <span aria-hidden="true">✓</span>
+            <span>{stage.summary}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const cleanCoefficient = (value) => {
+  const rounded = Math.round(Number(value) * 1e9) / 1e9;
+  return Object.is(rounded, -0) ? 0 : rounded;
+};
+
+const coefficientTermText = (value, variable) => {
+  const coefficient = cleanCoefficient(value);
+  if (coefficient === 0) return `0${variable}`;
+  if (coefficient === 1) return variable;
+  if (coefficient === -1) return `-${variable}`;
+  return `${coefficient}${variable}`;
+};
+
+function AlignedEquationRow({ equationText, variables, targetVariable, multiplier = null, cancelled = false, label }) {
+  const coefficients = useMemo(() => linearEquationCoefficients(equationText, variables), [equationText, variables]);
+  if (!coefficients) {
+    return (
+      <div className="mathmaster-systems-aligned-equation-row">
+        {label ? <span className="mathmaster-systems-equation-row-label">{label}</span> : null}
+        <MathDisplay value={equationText} format="ascii-math" inline />
+      </div>
+    );
+  }
+  const entries = [
+    { variable: variables[0], value: coefficients.a },
+    { variable: variables[1], value: coefficients.b },
+  ];
+  return (
+    <div className="mathmaster-systems-aligned-equation-row">
+      {label ? <span className="mathmaster-systems-equation-row-label">{label}</span> : null}
+      {multiplier != null ? <span className="mathmaster-systems-applied-multiplier">× {multiplier}</span> : null}
+      <div className="mathmaster-systems-equation-columns">
+        {entries.map((entry, index) => (
+          <span
+            key={entry.variable}
+            className={`mathmaster-systems-equation-term${entry.variable === targetVariable ? ' is-target-column' : ''}${cancelled && entry.variable === targetVariable ? ' is-cancelled' : ''}`}
+          >
+            {index === 1 && cleanCoefficient(entry.value) >= 0 ? '+ ' : ''}
+            {coefficientTermText(entry.value, entry.variable)}
+          </span>
+        ))}
+        <span className="mathmaster-systems-equation-equals">=</span>
+        <span className="mathmaster-systems-equation-constant">{cleanCoefficient(coefficients.c)}</span>
+      </div>
+    </div>
+  );
+}
+
 /** Extracts the plain-expression value a solved Step Algebra equation isolated `variable` to. */
 const solvedExpressionFor = (latexResponse, variable) => {
   try {
@@ -171,7 +280,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
   const [selection, setSelection] = usePersistentToolState('selection', { equationIndex: null, variable: null });
   const [isolation, setIsolation] = usePersistentToolState('isolation', { expression: null });
-  const [substitution, setSubstitution] = usePersistentToolState('substitution', { targetVariable: null, equationText: null });
+  const [substitution, setSubstitution] = usePersistentToolState('substitution', { targetVariable: null, targetEquationIndex: null, equationText: null });
   const [multipliers, setMultipliers] = usePersistentToolState('multipliers', { 0: '1', 1: '1' });
   const [appliedMultipliers, setAppliedMultipliers] = usePersistentToolState('appliedMultipliers', { 0: false, 1: false });
   const [combination, setCombination] = usePersistentToolState('combination', { operation: null, attempts: 0, coefficients: null, text: null });
@@ -194,7 +303,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const resetFromSelection = useCallback(() => {
     setSelection({ equationIndex: null, variable: null });
     setIsolation({ expression: null });
-    setSubstitution({ targetVariable: null, equationText: null });
+    setSubstitution({ targetVariable: null, targetEquationIndex: null, equationText: null });
     setMultipliers({ 0: '1', 1: '1' });
     setAppliedMultipliers({ 0: false, 1: false });
     setCombination({ operation: null, attempts: 0, coefficients: null, text: null });
@@ -221,7 +330,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setMethod(value?.method ?? (config.method === 'studentChoice' ? '' : config.method));
     setSelection(value?.selection || { equationIndex: null, variable: null });
     setIsolation(value?.isolation || { expression: null });
-    setSubstitution(value?.substitution || { targetVariable: null, equationText: null });
+    setSubstitution({ targetVariable: null, targetEquationIndex: null, equationText: null, ...(value?.substitution || {}) });
     setMultipliers(value?.multipliers || { 0: '1', 1: '1' });
     setAppliedMultipliers(value?.appliedMultipliers || { 0: false, 1: false });
     setCombination(value?.combination || { operation: null, attempts: 0, coefficients: null, text: null });
@@ -258,12 +367,17 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
   const sourceEquationText = selectionMade ? equations[selection.equationIndex] : null;
   const otherIndex = selectionMade ? 1 - selection.equationIndex : null;
-  const targetEquationText = otherIndex != null ? equations[otherIndex] : null;
   const alreadyIsolated = sourceEquationText ? variableIsIsolated(sourceEquationText, selection.variable) : false;
   const isolatedExpr = alreadyIsolated ? isolatedExpressionFor(sourceEquationText, selection.variable) : isolation.expression;
   const isolationDone = Boolean(isolatedExpr);
 
-  const multipliedEq = useCallback((index) => applyEquationMultiplier(equations[index], multipliers[index], variables), [equations, multipliers, variables]);
+  const multipliedEq = useCallback((index) => {
+    try {
+      return applyEquationMultiplier(equations[index], latexToExpression(multipliers[index]), variables);
+    } catch {
+      return null;
+    }
+  }, [equations, multipliers, variables]);
   const multipliersApplied = appliedMultipliers[0] && appliedMultipliers[1];
   const combinationLocked = Boolean(combination.text);
 
@@ -297,15 +411,35 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setIsolation({ expression: expr });
   }, [selection.variable]);
 
-  const attemptSubstitution = (clickedVariable) => {
-    if (clickedVariable !== selection.variable) {
-      setSlotAttempt({ stage: 'substitution', variable: clickedVariable, correct: false, armed: true });
+  const attemptSubstitution = (equationIndex, clickedVariable) => {
+    const sameEquation = equationIndex === selection.equationIndex;
+    if (sameEquation) {
+      setSlotAttempt({
+        stage: 'substitution',
+        equationIndex,
+        variable: clickedVariable,
+        correct: false,
+        reason: 'source-equation',
+        armed: true,
+      });
       return;
     }
-    setSlotAttempt({ stage: 'substitution', variable: clickedVariable, correct: true, armed: false });
+    if (clickedVariable !== selection.variable) {
+      setSlotAttempt({
+        stage: 'substitution',
+        equationIndex,
+        variable: clickedVariable,
+        correct: false,
+        reason: 'wrong-variable',
+        armed: true,
+      });
+      return;
+    }
+    setSlotAttempt({ stage: 'substitution', equationIndex, variable: clickedVariable, correct: true, armed: false });
     setSubstitution({
       targetVariable: selection.variable,
-      equationText: substituteIntoEquation(targetEquationText, selection.variable, isolatedExpr),
+      targetEquationIndex: equationIndex,
+      equationText: substituteIntoEquation(equations[equationIndex], selection.variable, isolatedExpr),
     });
   };
 
@@ -317,8 +451,24 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
   const applyMultiplier = (index) => {
     const parsed = multipliedEq(index);
-    if (!parsed) return;
+    if (!parsed) {
+      setSlotAttempt({ stage: 'multiplier', index, correct: false, reason: 'invalid-multiplier', armed: true });
+      return;
+    }
     setAppliedMultipliers((current) => ({ ...current, [index]: true }));
+    setSlotAttempt({ stage: 'multiplier', index, correct: true, armed: false });
+  };
+
+  const armMultiplier = (index) => {
+    setSlotAttempt({ stage: 'multiplier', index, correct: null, armed: true });
+  };
+
+  const dropMultiplier = (targetIndex, payloadIndex = targetIndex) => {
+    if (Number(payloadIndex) !== targetIndex) {
+      setSlotAttempt({ stage: 'multiplier', index: targetIndex, sourceIndex: Number(payloadIndex), correct: false, reason: 'wrong-equation', armed: true });
+      return;
+    }
+    applyMultiplier(targetIndex);
   };
 
   const handleCombine = (operation) => {
@@ -333,6 +483,16 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       coefficients: eliminates ? combined : current.coefficients,
       text: eliminates ? formatLinearEquation(combined, variables) : current.text,
     }));
+    setSlotAttempt({ stage: 'combine', operation, correct: eliminates, armed: !eliminates });
+  };
+
+  const armCombine = (operation) => {
+    setSlotAttempt({ stage: 'combine', operation, correct: null, armed: true });
+  };
+
+  const dropCombine = (operation) => {
+    if (!operation) return;
+    handleCombine(operation);
   };
 
   const handleReduceSolved = useCallback((latexResponse) => {
@@ -352,10 +512,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
   const attemptBackSubstitution = (equationIndex, clickedVariable) => {
     if (clickedVariable !== survivingVariable) {
-      setSlotAttempt({ stage: 'backSubstitution', variable: clickedVariable, correct: false, armed: true });
+      setSlotAttempt({ stage: 'backSubstitution', equationIndex, variable: clickedVariable, correct: false, armed: true });
       return;
     }
-    setSlotAttempt({ stage: 'backSubstitution', variable: clickedVariable, correct: true, armed: false });
+    setSlotAttempt({ stage: 'backSubstitution', equationIndex, variable: clickedVariable, correct: true, armed: false });
     chooseBackSub(equationIndex);
   };
 
@@ -365,19 +525,52 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setSecondSolved({ variable: removedVariable, value });
   }, [removedVariable]);
 
-  const placeVerificationValue = (index, variable) => {
+  const armVerificationValue = (variable) => {
+    setSlotAttempt({ stage: 'verification', tokenVariable: variable, correct: null, armed: true });
+  };
+
+  const placeVerificationValue = (index, targetVariable, tokenVariable) => {
+    if (!tokenVariable) return;
+    if (targetVariable !== tokenVariable) {
+      setSlotAttempt({
+        stage: 'verification',
+        equationIndex: index,
+        tokenVariable,
+        variable: targetVariable,
+        correct: false,
+        armed: true,
+      });
+      return;
+    }
     setVerification((current) => ({
       ...current,
-      [index]: { ...current[index], placed: { ...current[index].placed, [variable]: true } },
+      [index]: {
+        ...current[index],
+        placed: { ...current[index].placed, [targetVariable]: true },
+        checked: false,
+        valid: false,
+      },
     }));
+    setSlotAttempt({ stage: 'verification', tokenVariable, variable: targetVariable, correct: true, armed: false });
   };
   const setVerificationAnswer = (index, side, value) => {
     setVerification((current) => ({ ...current, [index]: { ...current[index], [side]: value, checked: false } }));
   };
+  const numericVerificationEntry = (value) => {
+    try {
+      const numeric = Number(evaluate(latexToExpression(value)));
+      return Number.isFinite(numeric) ? numeric : NaN;
+    } catch {
+      return NaN;
+    }
+  };
+
   const checkVerification = (index) => {
     const actual = evaluateEquationSides(equations[index], solution);
-    const leftOk = matchesNumericAnswer(verification[index].leftAnswer, actual.left, 0.05);
-    const rightOk = matchesNumericAnswer(verification[index].rightAnswer, actual.right, 0.05);
+    const leftValue = numericVerificationEntry(verification[index].leftAnswer);
+    const rightValue = numericVerificationEntry(verification[index].rightAnswer);
+    const leftOk = Number.isFinite(leftValue) && Math.abs(leftValue - actual.left) <= 0.05;
+    const rightOk = Number.isFinite(rightValue) && Math.abs(rightValue - actual.right) <= 0.05;
     const equalityHolds = Math.abs(actual.left - actual.right) < 1e-6;
     setVerification((current) => ({ ...current, [index]: { ...current[index], checked: true, valid: leftOk && rightOk && equalityHolds } }));
   };
@@ -427,6 +620,102 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const reducedEquationSolverActive = Boolean(reduceInputText && !isDegenerate && !firstSolvedDone);
   const backSubSolverActive = Boolean(firstSolvedDone && !isDegenerate && backSubChosen && !secondSolvedDone);
   const embeddedSolverActive = isolationSolverActive || reducedEquationSolverActive || backSubSolverActive;
+
+  const workTrailStages = useMemo(() => {
+    const commonEnd = isDegenerate ? [
+      {
+        id: 'interpret',
+        label: 'Interpret',
+        complete: Boolean(specialCaseCorrect),
+        summary: specialCaseCorrect
+          ? (degenerateTruth?.isTrue ? 'Infinitely many solutions · consistent and dependent' : 'No solution · inconsistent')
+          : '',
+      },
+    ] : [
+      {
+        id: 'solve-first',
+        label: 'Solve',
+        complete: firstSolvedDone,
+        summary: firstSolvedDone ? `${firstSolved.variable} = ${firstSolved.value}` : '',
+      },
+      {
+        id: 'back-substitute',
+        label: 'Back-substitute',
+        complete: secondSolvedDone,
+        summary: secondSolvedDone ? `${secondSolved.variable} = ${secondSolved.value}` : '',
+      },
+      {
+        id: 'verify',
+        label: 'Verify',
+        complete: !config.requireVerification || Boolean(allVerified),
+        summary: allVerified ? 'Checked in both original equations' : '',
+      },
+    ];
+
+    if (effectiveMethod === 'elimination') {
+      return [
+        { id: 'method', label: 'Method', complete: Boolean(effectiveMethod), summary: effectiveMethod ? 'Elimination' : '' },
+        {
+          id: 'target',
+          label: 'Target',
+          complete: Boolean(selection.variable),
+          summary: selection.variable ? `Eliminate ${selection.variable}` : '',
+        },
+        {
+          id: 'prepare',
+          label: 'Prepare',
+          complete: multipliersApplied,
+          summary: multipliersApplied ? `Eq. 1 × ${multipliers[0]} · Eq. 2 × ${multipliers[1]}` : '',
+        },
+        {
+          id: 'combine',
+          label: 'Combine',
+          complete: combinationLocked,
+          summary: combinationLocked ? `${combination.operation === 'subtract' ? 'Equation 1 − Equation 2' : 'Equation 1 + Equation 2'} → ${combination.text}` : '',
+        },
+        ...commonEnd,
+      ];
+    }
+
+    return [
+      { id: 'method', label: 'Method', complete: Boolean(effectiveMethod), summary: effectiveMethod ? 'Substitution' : '' },
+      {
+        id: 'isolate',
+        label: 'Isolate',
+        complete: isolationDone,
+        summary: isolationDone && selection.variable ? `${selection.variable} = ${isolatedExpr}` : '',
+      },
+      {
+        id: 'substitute',
+        label: 'Substitute',
+        complete: Boolean(substitution.equationText),
+        summary: substitution.equationText ? `Equation ${Number(substitution.targetEquationIndex ?? otherIndex) + 1}: ${substitution.equationText}` : '',
+      },
+      ...commonEnd,
+    ];
+  }, [
+    effectiveMethod,
+    isDegenerate,
+    specialCaseCorrect,
+    degenerateTruth,
+    firstSolvedDone,
+    firstSolved,
+    secondSolvedDone,
+    secondSolved,
+    config.requireVerification,
+    allVerified,
+    selection.variable,
+    multipliersApplied,
+    multipliers,
+    combinationLocked,
+    combination.operation,
+    combination.text,
+    isolationDone,
+    isolatedExpr,
+    substitution.equationText,
+    substitution.targetEquationIndex,
+    otherIndex,
+  ]);
 
   return (
     <EnlargeableFigure
@@ -486,6 +775,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
             </div>
           ) : null}
 
+          {effectiveMethod ? <SystemsWorkTrail stages={workTrailStages} /> : null}
+
           {effectiveMethod === 'substitution' ? (
             <div style={{ display: 'grid', gap: 14, marginTop: effectiveMethod ? 12 : 0 }}>
               {!selectionMade ? (
@@ -502,14 +793,14 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                     ))}
                   </div>
                 </div>
-              ) : (
+              ) : !isolationDone ? (
                 <div>
                   <p style={{ margin: '0 0 6px', color: '#3c4756' }}>
                     Isolating <strong>{selection.variable}</strong> in Equation {selection.equationIndex + 1}.
                   </p>
                   <button type="button" onClick={resetFromSelection} style={{ ...secondaryButtonStyle, fontSize: 12 }}>Choose a different equation/variable</button>
                 </div>
-              )}
+              ) : null}
 
               {selectionMade && !isolationDone ? (
                 alreadyIsolated ? null : (
@@ -529,92 +820,218 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
               {isolationDone && !substitution.equationText ? (
                 <div className="mathmaster-systems-substitution-stage">
                   <p className="mathmaster-systems-substitution-direction">
-                    Drag the expression onto the variable it replaces in Equation {otherIndex + 1}.
-                    <span> On touch or keyboard, select the token, then select the variable.</span>
+                    Use the isolated expression to create a one-variable equation. Decide which equation and which variable should receive it.
+                    <span> Drag the token, or select it and then select a variable.</span>
                   </p>
                   <SubstitutionToken
                     variable={selection.variable}
                     expression={isolatedExpr}
                     onArm={() => setSlotAttempt({ stage: 'substitution', armed: true, correct: null, variable: null })}
                   />
-                  <VariableDropEquation
-                    equationText={targetEquationText}
-                    variables={variables}
-                    replacementVariable={selection.variable}
-                    onVariableAttempt={attemptSubstitution}
-                    tokenArmed={slotAttempt?.stage === 'substitution' && slotAttempt?.armed}
-                    label={`Equation ${otherIndex + 1}: choose where to substitute`}
-                  />
+                  <div className="mathmaster-systems-substitution-equation-choices">
+                    {equations.map((equationText, equationIndex) => (
+                      <div key={equationIndex}>
+                        <div className="mathmaster-systems-backsub-equation-label">Equation {equationIndex + 1}</div>
+                        <VariableDropEquation
+                          equationText={equationText}
+                          variables={variables}
+                          onVariableAttempt={(variable) => attemptSubstitution(equationIndex, variable)}
+                          tokenArmed={slotAttempt?.stage === 'substitution' && slotAttempt?.armed}
+                          armedPayloadValue={selection.variable}
+                          label={`Equation ${equationIndex + 1}: choose where the isolated expression belongs`}
+                        />
+                      </div>
+                    ))}
+                  </div>
                   {slotAttempt?.stage === 'substitution' && slotAttempt.correct === false ? (
                     <p className="mathmaster-systems-substitution-feedback is-error">
-                      You isolated {selection.variable}, so replace {selection.variable} with the expression — not {slotAttempt.variable}.
+                      {slotAttempt.reason === 'source-equation'
+                        ? 'That placement puts the expression back into the equation it came from. Ask which equation needs the isolated expression to leave only one variable.'
+                        : 'That variable does not match the isolated equation. Look back at what the expression is equal to, then try the placement again.'}
                     </p>
                   ) : null}
-                </div>
-              ) : null}
-              {substitution.equationText ? (
-                <div className="mathmaster-systems-substituted-equation" style={{ padding: 10, border: '1px solid #dbe3ef', borderRadius: 8, background: '#fff' }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#5f6b7a', marginBottom: 4 }}>Substituted equation</div>
-                  <MathDisplay value={substitution.equationText} format="ascii-math" />
                 </div>
               ) : null}
             </div>
           ) : null}
 
           {effectiveMethod === 'elimination' ? (
-            <div style={{ display: 'grid', gap: 14, marginTop: 12 }}>
+            <div className="mathmaster-systems-elimination-stage">
               {!selection.variable ? (
                 <div>
                   <p style={{ margin: '0 0 8px', color: '#3c4756' }}>Which variable will you eliminate?</p>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {variables.map((v) => (
                       <button key={v} type="button" onClick={() => chooseSelection(null, v)} style={secondaryButtonStyle}>Eliminate {v}</button>
                     ))}
                   </div>
                 </div>
-              ) : (
-                <div>
-                  <p style={{ margin: '0 0 6px', color: '#3c4756' }}>Eliminating <strong>{selection.variable}</strong>.</p>
-                  <button type="button" onClick={resetFromSelection} style={{ ...secondaryButtonStyle, fontSize: 12 }}>Choose a different variable</button>
-                </div>
-              )}
-
-              {selection.variable && !combinationLocked ? (
-                <div style={{ display: 'grid', gap: 10 }}>
-                  {[0, 1].map((index) => (
-                    <div key={index} style={{ padding: 10, border: '1px solid #dbe3ef', borderRadius: 8, background: '#fff' }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#5f6b7a', marginBottom: 4 }}>Equation {index + 1}</div>
-                      <MathDisplay value={equations[index]} format="ascii-math" />
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
-                        <span style={{ fontSize: 13 }}>Multiply by</span>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={multipliers[index]}
-                          onChange={(e) => setMultiplierValue(index, e.target.value)}
-                          style={{ ...inputStyle, width: 70, minHeight: 36, padding: '6px 8px' }}
-                        />
-                        <button type="button" onClick={() => applyMultiplier(index)} style={secondaryButtonStyle}>Apply</button>
-                      </div>
-                      {appliedMultipliers[index] && multipliedEq(index) ? (
-                        <div style={{ marginTop: 8 }}>
-                          <span style={{ fontSize: 12, color: '#5f6b7a' }}>becomes:</span>
-                          <MathDisplay value={multipliedEq(index).text} format="ascii-math" />
-                        </div>
-                      ) : null}
+              ) : !combinationLocked ? (
+                <div className="mathmaster-systems-elimination-board">
+                  <div className="mathmaster-systems-elimination-heading">
+                    <div>
+                      <strong>Prepare the equations</strong>
+                      <span>You chose to eliminate {selection.variable}. Choose any multipliers you need, then place each multiplier on its whole equation.</span>
                     </div>
-                  ))}
+                    <button type="button" onClick={resetFromSelection}>Change target</button>
+                  </div>
+
+                  <div className="mathmaster-systems-elimination-equations">
+                    {[0, 1].map((index) => {
+                      const transformed = appliedMultipliers[index] ? multipliedEq(index) : null;
+                      const multiplierArmed = slotAttempt?.stage === 'multiplier' && slotAttempt?.armed && Number(slotAttempt?.index) === index;
+                      return (
+                        <div key={index} className={`mathmaster-systems-elimination-equation-card${appliedMultipliers[index] ? ' is-prepared' : ''}`}>
+                          <AlignedEquationRow
+                            equationText={equations[index]}
+                            variables={variables}
+                            targetVariable={selection.variable}
+                            label={`Equation ${index + 1}`}
+                          />
+                          <div className="mathmaster-systems-multiplier-composer">
+                            <span>Multiplier</span>
+                            <MathInput
+                              value={multipliers[index]}
+                              onChange={(value) => setMultiplierValue(index, value)}
+                              placeholder="1"
+                              ariaLabel={`Multiplier for equation ${index + 1}`}
+                              toolProfile="algebra-operation"
+                              compact
+                              maxWidth={150}
+                            />
+                            <button
+                              type="button"
+                              className={`mathmaster-systems-multiplier-token${multiplierArmed ? ' is-armed' : ''}`}
+                              draggable
+                              onClick={() => armMultiplier(index)}
+                              onDragStart={(event) => {
+                                event.dataTransfer?.setData('text/plain', `mathmaster-system-multiplier:${index}`);
+                                if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+                                armMultiplier(index);
+                              }}
+                              aria-pressed={multiplierArmed}
+                            >
+                              ⠿ × {multipliers[index] || '?'}
+                            </button>
+                          </div>
+                          <div
+                            className={`mathmaster-systems-equation-multiplier-drop${multiplierArmed ? ' is-armed' : ''}`}
+                            role={multiplierArmed ? 'button' : undefined}
+                            tabIndex={multiplierArmed ? 0 : undefined}
+                            onClick={() => {
+                              if (multiplierArmed) dropMultiplier(index, slotAttempt?.index);
+                            }}
+                            onKeyDown={(event) => {
+                              if (multiplierArmed && (event.key === 'Enter' || event.key === ' ')) {
+                                event.preventDefault();
+                                dropMultiplier(index, slotAttempt?.index);
+                              }
+                            }}
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={(event) => {
+                              event.preventDefault();
+                              const payload = event.dataTransfer?.getData('text/plain') || '';
+                              if (!payload.startsWith('mathmaster-system-multiplier:')) return;
+                              dropMultiplier(index, payload.split(':').pop());
+                            }}
+                            aria-label={`Place the multiplier on equation ${index + 1}`}
+                          >
+                            {transformed ? (
+                              <AlignedEquationRow
+                                equationText={transformed.text}
+                                variables={variables}
+                                targetVariable={selection.variable}
+                                multiplier={multipliers[index]}
+                                label="Prepared equation"
+                              />
+                            ) : (
+                              <span>Place the multiplier on the entire equation</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {slotAttempt?.stage === 'multiplier' && slotAttempt.correct === false ? (
+                    <p className="mathmaster-systems-substitution-feedback is-error">
+                      {slotAttempt.reason === 'invalid-multiplier'
+                        ? 'That multiplier could not be read as a nonzero number. Check the sign or fraction and try again.'
+                        : 'That multiplier token belongs to the other equation row. Pick up the multiplier from the equation you want to transform.'}
+                    </p>
+                  ) : null}
 
                   {multipliersApplied ? (
-                    <div>
-                      <p style={{ margin: '0 0 8px', color: '#3c4756' }}>Add or subtract the transformed equations:</p>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button type="button" onClick={() => handleCombine('add')} style={combination.operation === 'add' ? activeButtonStyle : secondaryButtonStyle}>Add</button>
-                        <button type="button" onClick={() => handleCombine('subtract')} style={combination.operation === 'subtract' ? activeButtonStyle : secondaryButtonStyle}>Subtract</button>
+                    <div className="mathmaster-systems-combine-stage">
+                      <div className="mathmaster-systems-combine-preview">
+                        <AlignedEquationRow
+                          equationText={multipliedEq(0)?.text || equations[0]}
+                          variables={variables}
+                          targetVariable={selection.variable}
+                          cancelled={combinationLocked}
+                          label="Prepared equation 1"
+                        />
+                        <AlignedEquationRow
+                          equationText={multipliedEq(1)?.text || equations[1]}
+                          variables={variables}
+                          targetVariable={selection.variable}
+                          cancelled={combinationLocked}
+                          label="Prepared equation 2"
+                        />
+                      </div>
+                      <p>Now decide how the prepared equations should be combined.</p>
+                      <div className="mathmaster-systems-combine-token-bank">
+                        {[
+                          ['add', '+', 'Equation 1 + Equation 2'],
+                          ['subtract', '−', 'Equation 1 − Equation 2'],
+                        ].map(([operation, symbol, label]) => {
+                          const armed = slotAttempt?.stage === 'combine' && slotAttempt?.armed && slotAttempt?.operation === operation;
+                          return (
+                            <button
+                              key={operation}
+                              type="button"
+                              draggable
+                              className={`mathmaster-systems-combine-token${armed ? ' is-armed' : ''}`}
+                              onClick={() => armCombine(operation)}
+                              onDragStart={(event) => {
+                                event.dataTransfer?.setData('text/plain', `mathmaster-system-combine:${operation}`);
+                                if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+                                armCombine(operation);
+                              }}
+                              aria-pressed={armed}
+                            >
+                              <strong>{symbol}</strong>
+                              <span>{label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div
+                        className={`mathmaster-systems-combine-drop${slotAttempt?.stage === 'combine' && slotAttempt?.armed ? ' is-armed' : ''}`}
+                        role={slotAttempt?.stage === 'combine' && slotAttempt?.armed ? 'button' : undefined}
+                        tabIndex={slotAttempt?.stage === 'combine' && slotAttempt?.armed ? 0 : undefined}
+                        onClick={() => {
+                          if (slotAttempt?.stage === 'combine' && slotAttempt?.armed) dropCombine(slotAttempt.operation);
+                        }}
+                        onKeyDown={(event) => {
+                          if (slotAttempt?.stage === 'combine' && slotAttempt?.armed && (event.key === 'Enter' || event.key === ' ')) {
+                            event.preventDefault();
+                            dropCombine(slotAttempt.operation);
+                          }
+                        }}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          const payload = event.dataTransfer?.getData('text/plain') || '';
+                          if (!payload.startsWith('mathmaster-system-combine:')) return;
+                          dropCombine(payload.split(':').pop());
+                        }}
+                      >
+                        Drop Add or Subtract here to combine the equations
                       </div>
                       {combination.attempts > 0 && !combinationLocked ? (
-                        <p style={{ margin: '8px 0 0', color: '#a02020', fontSize: 13 }}>
-                          These coefficients do not cancel {selection.variable} when the equations are {combination.operation === 'subtract' ? 'subtracted' : 'added'}. Check your selected operation or multiplier.
+                        <p className="mathmaster-systems-substitution-feedback is-error">
+                          That combination does not eliminate the variable you chose. Recheck the signs in the prepared equations or change a multiplier.
                         </p>
                       ) : null}
                     </div>
@@ -622,12 +1039,29 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                 </div>
               ) : null}
 
-              {combinationLocked ? (
-                <div style={{ padding: 10, border: '1px solid #dbe3ef', borderRadius: 8, background: '#fff' }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#5f6b7a', marginBottom: 4 }}>
-                    Combined ({combination.operation}) — {selection.variable} cancels
+              {combinationLocked && !firstSolvedDone ? (
+                <div className="mathmaster-systems-elimination-result">
+                  <div className="mathmaster-systems-combine-preview is-complete">
+                    <AlignedEquationRow
+                      equationText={multipliedEq(0)?.text || equations[0]}
+                      variables={variables}
+                      targetVariable={selection.variable}
+                      cancelled
+                      label="Prepared equation 1"
+                    />
+                    <AlignedEquationRow
+                      equationText={multipliedEq(1)?.text || equations[1]}
+                      variables={variables}
+                      targetVariable={selection.variable}
+                      cancelled
+                      label="Prepared equation 2"
+                    />
                   </div>
-                  <MathDisplay value={combination.text} format="ascii-math" />
+                  <div className="mathmaster-systems-combine-result-line" />
+                  <div className="mathmaster-systems-combined-equation">
+                    <span>{combination.operation === 'subtract' ? 'Equation 1 − Equation 2' : 'Equation 1 + Equation 2'}</span>
+                    <MathDisplay value={combination.text} format="ascii-math" />
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -692,12 +1126,13 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
               {!backSubChosen ? (
                 <div className="mathmaster-systems-substitution-stage">
                   <p className="mathmaster-systems-substitution-direction">
-                    Back-substitute by dragging the solved value onto {survivingVariable} in either original equation.
-                    <span> On touch or keyboard, select the token, then select {survivingVariable}.</span>
+                    Back-substitute the solved value into one original equation. Decide which equation and which variable should receive it.
+                    <span> Drag the token, or select it and then select a variable.</span>
                   </p>
                   <SubstitutionToken
                     variable={survivingVariable}
                     expression={String(firstSolved.value)}
+                    label="Solved value"
                     onArm={() => setSlotAttempt({ stage: 'backSubstitution', armed: true, correct: null, variable: null })}
                   />
                   <div className="mathmaster-systems-backsub-equations">
@@ -707,84 +1142,131 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                         <VariableDropEquation
                           equationText={eq}
                           variables={variables}
-                          replacementVariable={survivingVariable}
                           onVariableAttempt={(variable) => attemptBackSubstitution(index, variable)}
                           tokenArmed={slotAttempt?.stage === 'backSubstitution' && slotAttempt?.armed}
-                          label={`Equation ${index + 1}: choose where to back-substitute`}
+                          armedPayloadValue={survivingVariable}
+                          label={`Equation ${index + 1}: choose where the solved value belongs`}
                         />
                       </div>
                     ))}
                   </div>
                   {slotAttempt?.stage === 'backSubstitution' && slotAttempt.correct === false ? (
                     <p className="mathmaster-systems-substitution-feedback is-error">
-                      The solved value belongs where {survivingVariable} appears, not where {slotAttempt.variable} appears.
+                      That placement does not match the variable represented by the solved value. Look back at the equation you just solved and try again.
                     </p>
                   ) : null}
-                </div>              ) : (
-                <div style={{ marginTop: 8 }}>
-                  <div style={{ padding: 10, border: '1px solid #dbe3ef', borderRadius: 8, background: '#fff' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#5f6b7a', marginBottom: 4 }}>Equation {backSub.equationIndex + 1} with the value substituted</div>
-                    <MathDisplay value={backSubEquationText} format="ascii-math" />
-                  </div>
-                  {!secondSolvedDone ? (
-                    <div style={{ marginTop: 10 }}>
-                      <EmbeddedStepAlgebra
-                        label={`Solve for ${removedVariable}`}
-                        prompt={`Solve this equation for ${removedVariable}.`}
-                        equationText={backSubEquationText}
-                        solveFor={removedVariable}
-                        draftKey={draftKey ? `${draftKey}:algebraic:back-solve:${backSub.equationIndex}` : null}
-                        onSolved={handleSecondSolved}
-                        onUndoStateChange={setEmbeddedUndoController}
-                        workspaceDifficulty={questionData.workspaceDifficulty}
-                      />
-                    </div>
-                  ) : null}
                 </div>
-              )}
+              ) : !secondSolvedDone ? (
+                <EmbeddedStepAlgebra
+                  label="Solve the back-substitution equation"
+                  prompt={`Use your substitution to solve this equation for ${removedVariable}.`}
+                  equationText={backSubEquationText}
+                  solveFor={removedVariable}
+                  draftKey={draftKey ? `${draftKey}:algebraic:back-solve:${backSub.equationIndex}` : null}
+                  onSolved={handleSecondSolved}
+                  onUndoStateChange={setEmbeddedUndoController}
+                  workspaceDifficulty={questionData.workspaceDifficulty}
+                />
+              ) : null}
             </div>
           ) : null}
 
           {solution && config.requireVerification ? (
-            <div style={{ marginTop: 14, display: 'grid', gap: 10 }}>
-              <p style={{ margin: 0, fontWeight: 700 }}>Verify the ordered pair in both original equations.</p>
-              {equations.map((eq, index) => (
-                <div key={index} style={{ padding: 10, border: '1px solid #dbe3ef', borderRadius: 8, background: verification[index].valid ? '#f0fbf4' : '#fff' }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#5f6b7a', marginBottom: 4 }}>Equation {index + 1}</div>
-                  <MathDisplay value={eq} format="ascii-math" />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                    {variables.map((v) => (
-                      <button
-                        key={v}
-                        type="button"
-                        onClick={() => placeVerificationValue(index, v)}
-                        style={verification[index].placed[v] ? activeButtonStyle : secondaryButtonStyle}
-                      >
-                        Place {v} = {solution[v]}
-                      </button>
-                    ))}
-                  </div>
-                  {bothPlaced(index) ? (
-                    <div style={{ marginTop: 8 }}>
-                      <MathDisplay value={substituteIntoEquation(substituteIntoEquation(eq, variables[0], String(solution[variables[0]])), variables[1], String(solution[variables[1]]))} format="ascii-math" />
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
-                        <Field label="Left side simplifies to">
-                          <input type="number" inputMode="decimal" value={verification[index].leftAnswer} onChange={(e) => setVerificationAnswer(index, 'leftAnswer', e.target.value)} style={inputStyle} />
-                        </Field>
-                        <Field label="Right side simplifies to">
-                          <input type="number" inputMode="decimal" value={verification[index].rightAnswer} onChange={(e) => setVerificationAnswer(index, 'rightAnswer', e.target.value)} style={inputStyle} />
-                        </Field>
+            <div className="mathmaster-systems-verification-stage">
+              <div className="mathmaster-systems-verification-heading">
+                <strong>Verify the ordered pair in both original equations</strong>
+                <span>Pick up each solved value and place it where it belongs. The variable locations are not pre-highlighted.</span>
+              </div>
+              <div className="mathmaster-systems-verification-token-bank">
+                {variables.map((variable) => (
+                    <MathDragToken
+                      key={variable}
+                      payloadPrefix="mathmaster-verification:"
+                      payloadValue={variable}
+                      expression={`${variable} = ${solution[variable]}`}
+                      label="Solved value"
+                      onArm={() => armVerificationValue(variable)}
+                      ariaLabel={`Pick up solved value ${solution[variable]} for ${variable}`}
+                    />
+                ))}
+              </div>
+
+              <div className="mathmaster-systems-verification-equations">
+                {equations.map((eq, index) => (
+                  <div key={index} className={`mathmaster-systems-verification-card${verification[index].valid ? ' is-valid' : ''}`}>
+                    <div className="mathmaster-systems-backsub-equation-label">Equation {index + 1}</div>
+                    {!bothPlaced(index) ? (
+                      <VariableDropEquation
+                        equationText={eq}
+                        variables={variables}
+                        payloadPrefix="mathmaster-verification:"
+                        onVariableAttempt={(targetVariable, tokenVariable) => placeVerificationValue(index, targetVariable, tokenVariable)}
+                        tokenArmed={slotAttempt?.stage === 'verification' && slotAttempt?.armed}
+                        armedPayloadValue={slotAttempt?.stage === 'verification' ? slotAttempt?.tokenVariable : null}
+                        placedValues={Object.fromEntries(
+                          variables
+                            .filter((variable) => verification[index].placed[variable])
+                            .map((variable) => [variable, solution[variable]]),
+                        )}
+                        label={`Equation ${index + 1}: place both solved values`}
+                      />
+                    ) : (
+                      <div className="mathmaster-systems-verification-substitution">
+                        <span>Values substituted</span>
+                        <MathDisplay
+                          value={substituteIntoEquation(
+                            substituteIntoEquation(eq, variables[0], String(solution[variables[0]])),
+                            variables[1],
+                            String(solution[variables[1]]),
+                          )}
+                          format="ascii-math"
+                        />
                       </div>
-                      <button type="button" onClick={() => checkVerification(index)} style={smallActionStyle}>Check equation {index + 1}</button>
-                      {verification[index].checked ? (
-                        <p style={{ margin: '8px 0 0', fontSize: 13, color: verification[index].valid ? '#137333' : '#a02020' }}>
-                          {verification[index].valid ? 'Both sides check out.' : 'Substitute the values in again and simplify each side carefully — the two sides should match.'}
+                    )}
+
+                    {slotAttempt?.stage === 'verification'
+                      && slotAttempt?.correct === false
+                      && slotAttempt?.equationIndex === index ? (
+                        <p className="mathmaster-systems-substitution-feedback is-error">
+                          That value was placed on a different variable than the one it represents. Use the solved assignment on the token to choose another location.
                         </p>
                       ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              ))}
+
+                    {bothPlaced(index) ? (
+                      <div className="mathmaster-systems-verification-arithmetic">
+                        <Field label="Left side simplifies to">
+                          <MathInput
+                            value={verification[index].leftAnswer}
+                            onChange={(value) => setVerificationAnswer(index, 'leftAnswer', value)}
+                            placeholder="value"
+                            ariaLabel={`Equation ${index + 1} left side value`}
+                            toolProfile="algebra-operation"
+                            compact
+                          />
+                        </Field>
+                        <Field label="Right side simplifies to">
+                          <MathInput
+                            value={verification[index].rightAnswer}
+                            onChange={(value) => setVerificationAnswer(index, 'rightAnswer', value)}
+                            placeholder="value"
+                            ariaLabel={`Equation ${index + 1} right side value`}
+                            toolProfile="algebra-operation"
+                            compact
+                          />
+                        </Field>
+                        <button type="button" onClick={() => checkVerification(index)} style={smallActionStyle}>Check equation {index + 1}</button>
+                        {verification[index].checked ? (
+                          <p className={`mathmaster-systems-verification-feedback${verification[index].valid ? ' is-valid' : ' is-error'}`}>
+                            {verification[index].valid
+                              ? 'Both sides check out.'
+                              : 'The values are placed. Recheck the arithmetic on each side; the two sides should match.'}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
             </div>
           ) : null}
 

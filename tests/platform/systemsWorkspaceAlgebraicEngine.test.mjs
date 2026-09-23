@@ -126,6 +126,12 @@ test('a multiplier applies to every term on both sides, including the constant',
   assert.equal(multiplied.text, '3x - 12y = 18');
 });
 
+test('exact fractional multiplier expressions are evaluated instead of coerced with Number()', () => {
+  const multiplied = applyEquationMultiplier('2x + 4y = 6', '1/2', ['x', 'y']);
+  assert.deepEqual(multiplied.coefficients, { a: 1, b: 2, c: 3 });
+  assert.equal(multiplied.text, 'x + 2y = 3');
+});
+
 test('both equations may need a multiplier at once', () => {
   const m1 = applyEquationMultiplier('3x + 2y = 16', 2, ['x', 'y']);
   const m2 = applyEquationMultiplier('2x + 5y = 21', -3, ['x', 'y']);

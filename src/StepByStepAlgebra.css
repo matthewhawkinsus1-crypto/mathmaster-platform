@@ -688,3 +688,140 @@
     padding: 12px;
   }
 }
+
+
+/* --- Interactive same-side like-term simplification ---------------------- */
+.algebra-like-terms-tool {
+  margin: 0 0 10px;
+  padding: 12px 14px;
+  border: 1px solid #b8c8e3;
+  border-radius: 12px;
+  background: #f8fbff;
+}
+
+.algebra-like-terms-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.algebra-like-terms-header strong {
+  display: block;
+  color: #174ea6;
+  font-size: 15px;
+}
+
+.algebra-like-terms-header > div > div {
+  margin-top: 3px;
+  color: #5f6368;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.algebra-like-terms-header > button {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border: 1px solid #c5d5ef;
+  border-radius: 999px;
+  background: #fff;
+  color: #5f6368;
+  font-size: 20px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.algebra-like-terms-side-choice {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.algebra-like-terms-side-choice button,
+.algebra-like-terms-side-toolbar button,
+.algebra-like-terms-answer button {
+  min-height: 40px;
+  padding: 7px 13px;
+  border: 1px solid #9bb8e8;
+  border-radius: 10px;
+  background: #fff;
+  color: #174ea6;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.algebra-like-terms-side-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  color: #465267;
+  font-weight: 800;
+}
+
+.algebra-like-terms-equation-side {
+  margin-top: 10px;
+  min-height: 82px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border: 2px dashed #b8cdf0;
+  border-radius: 12px;
+  background: #fff;
+  font-size: 30px;
+  overflow-x: auto;
+}
+
+.algebra-like-terms-instruction {
+  margin: 9px 0 0;
+  color: #5f6368;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.algebra-like-terms-feedback {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.algebra-like-terms-feedback.is-error {
+  color: #a02020;
+}
+
+.algebra-like-terms-answer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.algebra-like-terms-answer > *:first-child {
+  flex: 1 1 240px;
+}
+
+@media (max-width: 620px) {
+  .algebra-like-terms-side-choice {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .algebra-like-terms-equation-side {
+    justify-content: flex-start;
+    font-size: 25px;
+  }
+
+  .algebra-like-terms-answer {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .algebra-like-terms-answer button {
+    width: 100%;
+  }
+}
