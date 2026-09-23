@@ -1213,6 +1213,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                   <div className="mathmaster-systems-elimination-equations">
                     {[0, 1].map((index) => {
                       const transformed = appliedMultipliers[index] ? multipliedEq(index) : null;
+                      const expectedTransformed = multipliedEq(index);
+                      const originalCoefficients = linearEquationCoefficients(equations[index], variables);
+                      const work = multiplierWork[index] || emptyMultiplierWork();
                       const multiplierArmed = slotAttempt?.stage === 'multiplier' && slotAttempt?.armed && Number(slotAttempt?.index) === index;
                       return (
                         <div key={index} className={`mathmaster-systems-elimination-equation-card${appliedMultipliers[index] ? ' is-prepared' : ''}`}>
@@ -1278,6 +1281,44 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                                 multiplier={multipliers[index]}
                                 label="Prepared equation"
                               />
+                            ) : work.active && expectedTransformed && originalCoefficients ? (
+                              <div className="mathmaster-systems-multiplier-products" onClick={(event) => event.stopPropagation()}>
+                                <strong>Apply × {multipliers[index]} to every part</strong>
+                                <span>Enter each resulting coefficient, including the right side.</span>
+                                <div className="mathmaster-systems-multiplier-product-grid">
+                                  {[
+                                    ['a', coefficientTermText(originalCoefficients.a, variables[0]), variables[0]],
+                                    ['b', coefficientTermText(originalCoefficients.b, variables[1]), variables[1]],
+                                    ['c', String(cleanCoefficient(originalCoefficients.c)), 'right side'],
+                                  ].map(([field, sourceText, label]) => (
+                                    <label key={field}>
+                                      <span>{sourceText} × {multipliers[index]} → {label}</span>
+                                      <MathInput
+                                        value={work[field] || ''}
+                                        onChange={(value) => setMultiplierProduct(index, field, value)}
+                                        onSubmit={() => checkMultiplierProducts(index)}
+                                        placeholder="result"
+                                        ariaLabel={`Result of multiplying ${sourceText} by ${multipliers[index]}`}
+                                        toolProfile="number"
+                                        compact
+                                        maxWidth={140}
+                                      />
+                                    </label>
+                                  ))}
+                                </div>
+                                <button
+                                  type="button"
+                                  className="mathmaster-systems-check-products"
+                                  onClick={() => checkMultiplierProducts(index)}
+                                >
+                                  Check multiplied equation
+                                </button>
+                                {work.checked && !work.valid ? (
+                                  <p className="mathmaster-systems-substitution-feedback is-error">
+                                    One or more products are not correct yet. Multiply every coefficient and the right side by the same value.
+                                  </p>
+                                ) : null}
+                              </div>
                             ) : (
                               <span>Place the multiplier on the entire equation</span>
                             )}
