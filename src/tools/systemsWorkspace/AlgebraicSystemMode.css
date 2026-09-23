@@ -142,10 +142,6 @@
   outline: none;
 }
 
-.mathmaster-systems-variable-drop.is-target.is-armed {
-  border-style: dashed;
-}
-
 .mathmaster-systems-substitution-feedback {
   margin: 0;
   font-size: 13px;
@@ -225,5 +221,506 @@
   .mathmaster-systems-variable-drop {
     min-width: 44px;
     min-height: 44px;
+  }
+}
+
+
+/* --- Compact work trail -------------------------------------------------- */
+.mathmaster-systems-work-trail {
+  margin: 12px 0 4px;
+  padding: 10px;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: #fbfcff;
+}
+
+.mathmaster-systems-work-trail-steps {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.mathmaster-systems-work-step {
+  min-width: max-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border: 1px solid #d6dfec;
+  border-radius: 999px;
+  background: #fff;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.mathmaster-systems-work-step > span {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #edf1f7;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.mathmaster-systems-work-step.is-complete {
+  color: #137333;
+  border-color: #b7dfc2;
+  background: #f4fbf6;
+}
+
+.mathmaster-systems-work-step.is-complete > span {
+  background: #dff3e5;
+}
+
+.mathmaster-systems-work-step.is-active {
+  color: #174ea6;
+  border-color: #8ab4f8;
+  box-shadow: 0 0 0 2px rgba(26, 115, 232, .08);
+}
+
+.mathmaster-systems-completed-work {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.mathmaster-systems-completed-chip {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  max-width: 100%;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: #eef7f0;
+  color: #315f3e;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.mathmaster-systems-completed-chip span:last-child {
+  overflow-wrap: anywhere;
+}
+
+.mathmaster-systems-substitution-equation-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+/* --- Elimination manipulative board ------------------------------------- */
+.mathmaster-systems-elimination-stage {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.mathmaster-systems-elimination-board {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #c7d7f4;
+  border-radius: 14px;
+  background: #f8fbff;
+}
+
+.mathmaster-systems-elimination-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mathmaster-systems-elimination-heading strong {
+  display: block;
+  color: #172033;
+}
+
+.mathmaster-systems-elimination-heading span {
+  display: block;
+  margin-top: 3px;
+  color: #5f6b7a;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.mathmaster-systems-elimination-heading button {
+  min-height: 38px;
+  padding: 7px 11px;
+  border: 1px solid #b8c8e3;
+  border-radius: 9px;
+  background: #fff;
+  color: #174ea6;
+  font-weight: 800;
+}
+
+.mathmaster-systems-elimination-equations {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.mathmaster-systems-elimination-equation-card {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.mathmaster-systems-elimination-equation-card.is-prepared {
+  border-color: #9ccfac;
+  background: #fbfffc;
+}
+
+.mathmaster-systems-aligned-equation-row {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.mathmaster-systems-equation-row-label {
+  color: #5f6b7a;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.mathmaster-systems-applied-multiplier {
+  width: fit-content;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #e8f0fe;
+  color: #174ea6;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.mathmaster-systems-equation-columns {
+  display: grid;
+  grid-template-columns: minmax(70px, 1fr) minmax(70px, 1fr) 26px minmax(50px, .72fr);
+  align-items: center;
+  gap: 6px;
+  font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
+  font-size: 23px;
+}
+
+.mathmaster-systems-equation-term,
+.mathmaster-systems-equation-equals,
+.mathmaster-systems-equation-constant {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+}
+
+.mathmaster-systems-equation-term.is-target-column {
+  border-radius: 8px;
+  background: rgba(26, 115, 232, .06);
+  box-shadow: inset 0 0 0 1px rgba(26, 115, 232, .16);
+}
+
+.mathmaster-systems-equation-term.is-cancelled {
+  position: relative;
+  opacity: .55;
+}
+
+.mathmaster-systems-equation-term.is-cancelled::after {
+  content: "";
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  top: 50%;
+  height: 3px;
+  border-radius: 999px;
+  background: #c5221f;
+  transform: rotate(-7deg);
+}
+
+.mathmaster-systems-multiplier-composer {
+  display: grid;
+  grid-template-columns: auto minmax(90px, 150px) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.mathmaster-systems-multiplier-composer > span {
+  color: #5f6b7a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.mathmaster-systems-multiplier-token,
+.mathmaster-systems-combine-token {
+  min-height: 44px;
+  padding: 7px 11px;
+  border: 2px solid #8ab4f8;
+  border-radius: 10px;
+  background: #fff;
+  color: #174ea6;
+  font-weight: 900;
+  cursor: grab;
+}
+
+.mathmaster-systems-multiplier-token.is-armed,
+.mathmaster-systems-combine-token.is-armed {
+  border-color: #174ea6;
+  background: #e8f0fe;
+  box-shadow: 0 0 0 2px rgba(26, 115, 232, .10);
+}
+
+.mathmaster-systems-equation-multiplier-drop {
+  min-height: 66px;
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  border: 2px dashed #c5d5ef;
+  border-radius: 11px;
+  color: #6b7280;
+  font-size: 12px;
+  text-align: center;
+}
+
+.mathmaster-systems-equation-multiplier-drop.is-armed {
+  border-color: #6f96d6;
+  background: #f4f8ff;
+  color: #174ea6;
+}
+
+.mathmaster-systems-combine-stage {
+  display: grid;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.mathmaster-systems-combine-preview {
+  display: grid;
+  gap: 7px;
+}
+
+.mathmaster-systems-combine-preview.is-complete {
+  padding: 10px;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.mathmaster-systems-combine-stage > p {
+  margin: 0;
+  color: #3c4756;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.mathmaster-systems-combine-token-bank {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.mathmaster-systems-combine-token {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mathmaster-systems-combine-token strong {
+  font-size: 21px;
+}
+
+.mathmaster-systems-combine-token span {
+  font-size: 12px;
+}
+
+.mathmaster-systems-combine-drop {
+  min-height: 58px;
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  border: 2px dashed #9bb8e8;
+  border-radius: 12px;
+  background: #fff;
+  color: #5f6b7a;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.mathmaster-systems-combine-drop.is-armed {
+  border-color: #174ea6;
+  background: #eef4ff;
+  color: #174ea6;
+}
+
+.mathmaster-systems-elimination-result {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #b7dfc2;
+  border-radius: 12px;
+  background: #f6fcf7;
+}
+
+.mathmaster-systems-combine-result-line {
+  height: 3px;
+  border-radius: 999px;
+  background: #6d7f99;
+}
+
+.mathmaster-systems-combined-equation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mathmaster-systems-combined-equation > span {
+  color: #5f6b7a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* --- Verification ------------------------------------------------------- */
+.mathmaster-systems-verification-stage {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #c7d7f4;
+  border-radius: 12px;
+  background: #f8fbff;
+}
+
+.mathmaster-systems-verification-heading strong,
+.mathmaster-systems-verification-heading span {
+  display: block;
+}
+
+.mathmaster-systems-verification-heading span {
+  margin-top: 3px;
+  color: #5f6b7a;
+  font-size: 12px;
+}
+
+.mathmaster-systems-verification-token-bank {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.mathmaster-systems-verification-equations {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mathmaster-systems-verification-card {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #dbe3ef;
+  border-radius: 11px;
+  background: #fff;
+}
+
+.mathmaster-systems-verification-card.is-valid {
+  border-color: #9ccfac;
+  background: #f5fbf6;
+}
+
+.mathmaster-systems-verification-substitution {
+  display: grid;
+  gap: 5px;
+  padding: 9px;
+  border-radius: 9px;
+  background: #f8fbff;
+}
+
+.mathmaster-systems-verification-substitution > span {
+  color: #5f6b7a;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.mathmaster-systems-verification-arithmetic {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.mathmaster-systems-verification-arithmetic > button,
+.mathmaster-systems-verification-arithmetic > p {
+  grid-column: 1 / -1;
+}
+
+.mathmaster-systems-verification-feedback {
+  margin: 2px 0 0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.mathmaster-systems-verification-feedback.is-valid {
+  color: #137333;
+}
+
+.mathmaster-systems-verification-feedback.is-error {
+  color: #a02020;
+}
+
+@media (max-width: 980px) {
+  .mathmaster-systems-substitution-equation-choices,
+  .mathmaster-systems-elimination-equations,
+  .mathmaster-systems-verification-equations {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 620px) {
+  .mathmaster-systems-work-trail {
+    margin-inline: -2px;
+    padding: 8px;
+  }
+
+  .mathmaster-systems-completed-work {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mathmaster-systems-equation-columns {
+    grid-template-columns: minmax(62px, 1fr) minmax(62px, 1fr) 22px minmax(44px, .7fr);
+    gap: 3px;
+    font-size: 20px;
+  }
+
+  .mathmaster-systems-multiplier-composer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mathmaster-systems-multiplier-composer > span {
+    display: none;
+  }
+
+  .mathmaster-systems-multiplier-token {
+    width: 100%;
+  }
+
+  .mathmaster-systems-combine-token-bank {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mathmaster-systems-combine-token {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .mathmaster-systems-verification-arithmetic {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
