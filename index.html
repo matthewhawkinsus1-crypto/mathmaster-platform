@@ -7,7 +7,48 @@
     <title>Vite + React</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main
+        id="mathmaster-boot-fallback"
+        style="min-height:100vh;display:grid;place-items:center;padding:24px;box-sizing:border-box;font-family:system-ui,sans-serif;color:#174ea6;background:#f5f7fb;text-align:center"
+      >
+        <section>
+          <strong style="font-size:20px">Opening MathMaster…</strong>
+          <div style="margin-top:8px;color:#5f6368;font-size:14px">Loading the current platform build.</div>
+        </section>
+      </main>
+    </div>
+    <script>
+      (() => {
+        const showRecovery = (detail) => {
+          const fallback = document.getElementById('mathmaster-boot-fallback');
+          if (!fallback) return;
+          fallback.innerHTML =
+            '<section style="max-width:620px;padding:24px;border:1px solid #f28b82;border-radius:12px;background:#fff;color:#202124">' +
+            '<h1 style="margin:0 0 10px;font-size:24px;color:#b3261e">MathMaster did not finish loading</h1>' +
+            '<p style="margin:0 0 12px;line-height:1.45">' + detail + '</p>' +
+            '<button id="mathmaster-boot-reload" type="button" style="padding:10px 16px;border:0;border-radius:8px;background:#174ea6;color:#fff;font-weight:800;cursor:pointer">Reload current build</button>' +
+            '</section>';
+          document.getElementById('mathmaster-boot-reload')?.addEventListener('click', () => {
+            const url = new URL(window.location.href);
+            url.searchParams.set('_mm_reload', Date.now().toString());
+            window.location.replace(url.toString());
+          });
+        };
+
+        window.addEventListener('error', (event) => {
+          if (event?.target?.tagName === 'SCRIPT') {
+            showRecovery('The application bundle could not be loaded. This usually means the browser kept an older page shell after a deployment.');
+          }
+        }, true);
+
+        window.setTimeout(() => {
+          if (document.getElementById('mathmaster-boot-fallback')) {
+            showRecovery('The application is taking too long to start. Reloading the current build usually clears a stale Hosting cache.');
+          }
+        }, 8000);
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
