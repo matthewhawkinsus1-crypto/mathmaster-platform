@@ -109,15 +109,18 @@ test('an already-isolated variable skips Step Algebra entirely', () => {
   assert.match(modeSource, /alreadyIsolated \? null : \(/);
 });
 
-test('substitution is only performed once the student identifies the correct variable location, and a wrong pick gives feedback without corrupting state', () => {
+test('substitution requires the student to choose both the other equation and the matching variable location', () => {
   const attempt = region(modeSource, 'const attemptSubstitution = ', 'const setMultiplierValue', 'attemptSubstitution');
+  assert.match(attempt, /equationIndex === selection\.equationIndex/);
   assert.match(attempt, /clickedVariable !== selection\.variable/);
-  assert.match(attempt, /setSlotAttempt\(\{ stage: 'substitution', variable: clickedVariable, correct: false, armed: true \}\);\s*\n\s*return;/);
-  assert.match(attempt, /setSubstitution\(/);
+  assert.match(attempt, /targetEquationIndex: equationIndex/);
+  assert.match(attempt, /equationText: substituteIntoEquation\(equations\[equationIndex\]/);
 });
 
-test('the substitution feedback names the isolated variable, per the platform feedback philosophy (identify the structural problem)', () => {
-  assert.match(modeSource, /You isolated \{selection\.variable\}, so replace \{selection\.variable\}/);
+test('substitution feedback identifies the structural mistake without giving away the target variable', () => {
+  assert.match(modeSource, /That variable does not match the isolated equation/);
+  assert.doesNotMatch(modeSource, /so replace \{selection\.variable\}/);
+  assert.doesNotMatch(modeSource, /Replace \{variable\} with/);
 });
 
 test('substitution and back-substitution both route their one-variable result through Step Algebra rather than solving it locally', () => {
@@ -142,16 +145,21 @@ test('verification requires both original equations to be checked independently,
 // Elimination workflow (#8-14)
 // ---------------------------------------------------------------------------
 
-test('a multiplier is a student choice applied to a whole equation and shown before combination, never auto-chosen', () => {
-  const multiplierUi = region(modeSource, 'Multiply by', 'multipliersApplied ? (', 'multiplier UI');
-  assert.match(multiplierUi, /onChange=\{\(e\) => setMultiplierValue\(index, e\.target\.value\)\}/);
-  assert.match(multiplierUi, /onClick=\{\(\) => applyMultiplier\(index\)\}/);
+test('a multiplier is entered with MathInput, picked up, and placed on the whole equation instead of applied by a form button', () => {
+  assert.match(modeSource, /ariaLabel=\{\`Multiplier for equation/);
+  assert.match(modeSource, /mathmaster-system-multiplier:/);
+  assert.match(modeSource, /draggable/);
+  assert.match(modeSource, /dropMultiplier\(/);
+  assert.doesNotMatch(modeSource, />Apply<\/button>/);
   assert.doesNotMatch(modeSource, /bestMultiplier|autoChooseMultiplier|optimalMultiplier/i);
 });
 
-test('the combine step lets the student choose add or subtract explicitly', () => {
-  assert.match(modeSource, /onClick=\{\(\) => handleCombine\('add'\)\}/);
-  assert.match(modeSource, /onClick=\{\(\) => handleCombine\('subtract'\)\}/);
+test('the combine step uses draggable add/subtract operation tokens and preserves subtraction order', () => {
+  assert.match(modeSource, /mathmaster-system-combine:/);
+  assert.match(modeSource, /armCombine\(operation\)/);
+  assert.match(modeSource, /dropCombine\(/);
+  assert.match(modeSource, /Equation 1 − Equation 2/);
+  assert.match(modeSource, /Equation 1 \+ Equation 2/);
 });
 
 test('a combination that fails to cancel the target variable is rejected without destroying the prior valid combination', () => {
@@ -160,8 +168,9 @@ test('a combination that fails to cancel the target variable is rejected without
   assert.match(handle, /text: eliminates \? formatLinearEquation\(combined, variables\) : current\.text/);
 });
 
-test('a failed combination attempt surfaces mathematical feedback naming the operation/multiplier, per the feedback philosophy', () => {
-  assert.match(modeSource, /These coefficients do not cancel \{selection\.variable\} when the equations are/);
+test('a failed combination attempt keeps the board intact and redirects attention to signs or multipliers', () => {
+  assert.match(modeSource, /That combination does not eliminate the variable you chose/);
+  assert.match(modeSource, /change a multiplier/);
 });
 
 test('the reduced one-variable equation after elimination is handed to Step Algebra, never solved by this engine', () => {
@@ -241,20 +250,20 @@ test('tool schema accepts authored algebraic systems and rejects malformed equat
 });
 
 
-test('substitution is a placement interaction with a draggable token and variable drop targets', () => {
+test('substitution is a neutral placement interaction that does not pre-highlight the correct variable', () => {
   assert.match(modeSource, /function SubstitutionToken/);
-  assert.match(modeSource, /draggable/);
   assert.match(modeSource, /mathmaster-substitution:/);
   assert.match(modeSource, /function VariableDropEquation/);
-  assert.match(modeSource, /onDrop=\{\(event\) =>/);
-  assert.match(modeSource, /Drag the expression onto the variable it replaces/);
+  assert.match(modeSource, /Use the isolated expression to create a one-variable equation/);
+  assert.doesNotMatch(modeSource, /is-target/);
   assert.doesNotMatch(modeSource, />Substitute for \{v\}</);
 });
 
-test('back-substitution reuses the same token-to-variable placement model', () => {
+test('back-substitution reuses the same neutral token-to-variable placement model', () => {
   assert.match(modeSource, /attemptBackSubstitution/);
-  assert.match(modeSource, /Back-substitute by dragging the solved value/);
-  assert.match(modeSource, /replacementVariable=\{survivingVariable\}/);
+  assert.match(modeSource, /Back-substitute the solved value into one original equation/);
+  assert.match(modeSource, /armedPayloadValue=\{survivingVariable\}/);
+  assert.doesNotMatch(modeSource, /select the token, then select \{survivingVariable\}/);
 });
 
 test('an active embedded solver gets the dominant systems workspace column', () => {
@@ -262,4 +271,34 @@ test('an active embedded solver gets the dominant systems workspace column', () 
   assert.match(modeSource, /mathmaster-algebraic-system-layout/);
   assert.match(modeSource, /has-active-solver/);
   assert.match(workspaceSource, /workspaceWidth=\{mode === 'algebraic' \? 'min\(100%, 1360px\)'/);
+});
+
+
+test('solution verification uses reusable drag tokens instead of Place-value buttons', () => {
+  const verifyPanel = region(modeSource, "Verify the ordered pair in both original equations", 'readyToSubmit ? (', 'verification drag panel');
+  assert.match(verifyPanel, /payloadPrefix="mathmaster-verification:"/);
+  assert.match(verifyPanel, /armVerificationValue/);
+  assert.match(verifyPanel, /VariableDropEquation/);
+  assert.doesNotMatch(verifyPanel, />Place \{v\} = \{solution\[v\]\}</);
+});
+
+test('verification arithmetic uses MathInput so exact stacked-fraction entries remain available', () => {
+  const verifyPanel = region(modeSource, "Verify the ordered pair in both original equations", 'readyToSubmit ? (', 'verification arithmetic');
+  assert.match(verifyPanel, /<MathInput/);
+  assert.match(modeSource, /numericVerificationEntry/);
+  assert.match(modeSource, /latexToExpression\(value\)/);
+});
+
+test('the systems work trail compresses completed mathematical decisions instead of keeping every stage full-size', () => {
+  assert.match(modeSource, /function SystemsWorkTrail/);
+  assert.match(modeSource, /mathmaster-systems-completed-work/);
+  assert.match(modeSource, /workTrailStages/);
+  assert.match(modeSource, /Equation \$\{Number\(substitution\.targetEquationIndex/);
+});
+
+test('elimination visually aligns equations and crosses the student-selected target column only after a successful combination', () => {
+  assert.match(modeSource, /function AlignedEquationRow/);
+  assert.match(modeSource, /is-target-column/);
+  assert.match(modeSource, /is-cancelled/);
+  assert.match(modeSource, /combinationLocked && !firstSolvedDone/);
 });
