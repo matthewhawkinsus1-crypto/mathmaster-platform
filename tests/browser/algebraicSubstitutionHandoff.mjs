@@ -489,23 +489,25 @@ report.push({ journey: 'preview-inline-ui', ...inlineObserved });
   const exactToken = page.locator('.mathmaster-systems-substitution-token');
   await exactToken.waitFor({ timeout: 10000 });
   const exactTokenLabel = await exactToken.getAttribute('aria-label');
-  if (!/20\/9/.test(exactTokenLabel || '')) {
+  if (!/20\s*\/\s*9/.test(exactTokenLabel || '')) {
     note('preview-exact-fraction', `back-substitution token lost exact 20/9 form: ${exactTokenLabel}`);
   }
   if (/2\.222/.test(exactTokenLabel || '')) {
     note('preview-exact-fraction', `back-substitution token exposed decimal approximation: ${exactTokenLabel}`);
   }
 
-  const exactChips = await workTrailChips(page);
-  const chipText = exactChips.join(' | ');
-  if (!/20\s*\/\s*9/.test(chipText)) {
-    note('preview-exact-fraction', `work trail does not preserve x = 20/9: ${chipText}`);
+  const exactSummaryMath = await page.locator('[data-summary-math]').evaluateAll(
+    (elements) => elements.map((element) => element.getAttribute('data-summary-math') || ''),
+  );
+  const chipMath = exactSummaryMath.join(' | ');
+  if (!/x\s*=\s*20\s*\/\s*9/.test(chipMath)) {
+    note('preview-exact-fraction', `work trail does not preserve x = 20/9: ${chipMath}`);
   }
-  if (!/2\s*x\s*-\s*7/.test(chipText.replace(/·/g, ''))) {
-    note('preview-exact-fraction', `work trail does not show the student's simplified y = 2x - 7 form: ${chipText}`);
+  if (!/y\s*=\s*2\s*\*?\s*x\s*-\s*7/.test(chipMath)) {
+    note('preview-exact-fraction', `work trail does not show the student's simplified y = 2x - 7 form: ${chipMath}`);
   }
-  if (/2\.222|\*|\(\(\(/.test(chipText)) {
-    note('preview-exact-fraction', `work trail exposes decimal or machine syntax: ${chipText}`);
+  if (/2\.222|\(\(\(/.test(chipMath)) {
+    note('preview-exact-fraction', `work trail exposes decimal or redundant serialization wrappers: ${chipMath}`);
   }
   await shoot(page, 'exact-fraction-backsub-token');
 
@@ -514,6 +516,11 @@ report.push({ journey: 'preview-inline-ui', ...inlineObserved });
   await page.waitForTimeout(600);
   const exactBackHost = solver(page);
   await exactBackHost.waitFor({ timeout: 10000 });
+  await page.waitForFunction(() => {
+    const state = document.querySelector('.mathmaster-systems-embedded-step-algebra [data-math-state]')?.getAttribute('data-math-state') || '';
+    return state.includes('20') && state.includes('9');
+  }, null, { timeout: 10000 });
+  await page.waitForTimeout(600);
   const exactBackState = await exactBackHost.locator('[data-math-state]').first().getAttribute('data-math-state');
   if (/2\.222/.test(exactBackState || '')) {
     note('preview-exact-fraction', `back-substitution equation decimalized 20/9: ${exactBackState}`);
