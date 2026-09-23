@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ASSIGNMENT_RUNTIME_REPAIR_VERSION } from '../src/platform/assignments/assignmentRuntimeRepair.js';
 
@@ -32,6 +33,17 @@ const result = spawnSync(process.execPath, [viteBin, 'build'], {
 if (result.error) {
   console.error(result.error);
   process.exit(1);
+}
+
+if (result.status === 0) {
+  const manifestPath = resolve('dist/mathmaster-build.json');
+  writeFileSync(manifestPath, JSON.stringify({
+    gitSha,
+    builtAt,
+    executionMode: env.VITE_MATHMASTER_EXECUTION_MODE,
+    runtimeRepairVersion: ASSIGNMENT_RUNTIME_REPAIR_VERSION,
+  }, null, 2) + '\n', 'utf8');
+  console.log(`Wrote Firebase build manifest: ${manifestPath}`);
 }
 
 process.exit(result.status ?? 1);
