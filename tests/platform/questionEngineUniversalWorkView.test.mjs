@@ -45,3 +45,15 @@ test('assignment chrome suppression is not guarded by a viewport breakpoint', ()
   assert.match(rule, /display: none !important/);
   assert.equal(css.lastIndexOf('@media', start) < css.lastIndexOf('}', start), true);
 });
+
+
+test('Work View reserves visible space for the shared calculator and lifts it above the modal', () => {
+  const shell = read('src/components/common/EnlargeableFigure.jsx');
+  const css = read('src/components/common/WorkViewShell.css');
+  assert.match(shell, /--mm-work-view-calculator-bottom/);
+  assert.match(shell, /--mm-work-view-calculator-right/);
+  assert.match(shell, /viewport\.controlsPlacement === 'side'/);
+  assert.match(css, /mathmaster-calculator-panel\[data-work-view-floating-tool="calculator"\]/);
+  assert.match(css, /z-index:\s*2147483400\s*!important/);
+  assert.match(css, /max-height:\s*calc\(var\(--mm-work-view-height/);
+});
