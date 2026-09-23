@@ -459,3 +459,33 @@ test('V5 solveSystem intent preserves the algebraic systemsWorkspace contract', 
   assert.equal(question.askEfficiency, false);
   assert.equal(validateToolQuestion(question).isValid, true);
 });
+
+
+test('systems preserves the exact solved expression separately from its numeric grading value', () => {
+  assert.match(modeSource, /const solvedValueFor = \(latexResponse, variable\) =>/);
+  assert.match(modeSource, /\{ variable, value, expression \}/);
+  assert.match(modeSource, /firstSolvedExpression = firstSolvedDone \? solvedRecordExpression\(firstSolved\) : ''/);
+  assert.match(modeSource, /substituteIntoEquation\(equations\[backSub\.equationIndex\], survivingVariable, firstSolvedExpression\)/);
+  assert.doesNotMatch(modeSource, /substituteIntoEquation\(equations\[backSub\.equationIndex\], survivingVariable, String\(firstSolved\.value\)\)/);
+});
+
+test('back-substitution and verification tokens use exact expressions instead of decimalized numeric values', () => {
+  assert.match(modeSource, /expression=\{firstSolvedExpression\}/);
+  assert.match(modeSource, /solutionExpressions\[variable\]/);
+  assert.match(modeSource, /placedValues=\{Object\.fromEntries\([\s\S]*solutionExpressions\[variable\]/);
+  assert.match(modeSource, /substituteIntoEquation\(eq, variables\[0\], solutionExpressions\[variables\[0\]\]\)/);
+});
+
+test('systems work trail renders mathematical summaries as MathDisplay instead of exposing machine syntax', () => {
+  const trail = region(modeSource, 'function SystemsWorkTrail', 'const cleanCoefficient', 'SystemsWorkTrail');
+  assert.match(trail, /stage\.summaryMath/);
+  assert.match(trail, /<MathDisplay value=\{stage\.summaryMath\} format="ascii-math" inline/);
+  assert.match(modeSource, /summaryMath: isolationDone/);
+  assert.match(modeSource, /displayedIsolationExpression/);
+  assert.match(modeSource, /summaryMath: substitution\.equationText/);
+});
+
+test('the isolation work trail follows the student-selected simplified token form when one exists', () => {
+  assert.match(modeSource, /displayedIsolationExpression = normalizeStudentExpressionForDisplay\(substitutionTokenExpression \|\| isolatedExpr \|\| ''\)/);
+  assert.match(modeSource, /summaryMath: isolationDone && selection\.variable \? `\$\{selection\.variable\} = \$\{displayedIsolationExpression\}`/);
+});
