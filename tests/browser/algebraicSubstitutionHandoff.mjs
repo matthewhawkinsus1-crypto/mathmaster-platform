@@ -177,6 +177,36 @@ const assertTokenIsPlainMath = async (page, journey) => {
 
 const shoot = (page, name) => page.screenshot({ path: path.join(ARTIFACTS, `${name}.png`), fullPage: true });
 
+/**
+ * PR #336 visual contract. Distribution for a substituted system must happen
+ * on the balance equation itself — never in the old standalone distribution
+ * card. While the inline mode owns the equation, the balance operation rails
+ * must also be hidden so the student has one clear workspace.
+ */
+const assertInlineDistributionWorkspace = async (page, journey) => {
+  const host = solver(page);
+  const stage = host.locator('.algebra-equation-stage');
+  const observed = {
+    inlineFactorTokens: await stage.locator('.algebra-inline-factor-token').count(),
+    inlineTargets: await stage.locator('.algebra-inline-distribution-target').count(),
+    legacyDistributionPanels: await host.locator('.algebra-distribution-tool').count(),
+    operationRails: await host.locator('.algebra-rail').count(),
+  };
+  if (observed.inlineFactorTokens !== 1) {
+    note(journey, `expected one inline factor token inside the equation, saw ${observed.inlineFactorTokens}`);
+  }
+  if (observed.inlineTargets !== 2) {
+    note(journey, `expected two inline distribution targets inside the equation, saw ${observed.inlineTargets}`);
+  }
+  if (observed.legacyDistributionPanels) {
+    note(journey, `legacy standalone distribution panel is still visible (${observed.legacyDistributionPanels})`);
+  }
+  if (observed.operationRails) {
+    note(journey, `balance operation rails should be hidden during inline distribution, saw ${observed.operationRails}`);
+  }
+  return observed;
+};
+
 /* ----------------------------------------------------------------- journeys */
 
 const context = await browser.newContext({ viewport: { width: 1366, height: 900 } });
@@ -258,6 +288,54 @@ await assertTokenIsPlainMath(page, 'preview-old-draft');
 await dropTokenOnEquationTwoX(page, 'drag');
 await assertStepAlgebraOpenedForY(page, 'preview-old-draft');
 await shoot(page, 'preview-old-draft');
+
+// 7. PR #336 direct-manipulation acceptance: prove the exact screen the
+//    teacher requested, then actually perform the distribution and open the
+//    inline Rewrite / Simplify interaction. These screenshots are the visual
+//    release evidence for the workflow.
+await openFresh(page, { scope: 'teacherPreview' });
+await isolateXWithStepAlgebra(page);
+await useIsolatedFormAsToken(page);
+await dropTokenOnEquationTwoX(page, 'click');
+await assertStepAlgebraOpenedForY(page, 'preview-inline-workspace');
+const inlineObserved = await assertInlineDistributionWorkspace(page, 'preview-inline-workspace');
+await shoot(page, 'inline-distribution-open');
+
+const inlineHost = solver(page);
+const factor = inlineHost.locator('.algebra-inline-factor-token');
+await factor.click();
+const targets = inlineHost.locator('.algebra-inline-distribution-target');
+await targets.nth(0).click();
+await targets.nth(1).click();
+await page.waitForTimeout(250);
+const commitInline = inlineHost.locator('button', { hasText: 'Commit distribution' });
+if (!(await commitInline.count())) {
+  note('preview-inline-workspace', 'Commit distribution did not appear after the factor was placed on both terms');
+} else {
+  await shoot(page, 'inline-distribution-ready-to-commit');
+  await commitInline.click();
+  await page.waitForTimeout(450);
+  await shoot(page, 'inline-distribution-committed');
+
+  const stateAfterDistribution = await inlineHost.locator('[data-math-state]').first().getAttribute('data-math-state');
+  if (!stateAfterDistribution || /-9|6\s*y/.test(stateAfterDistribution)) {
+    note('preview-inline-workspace', `distribution auto-simplified a product: ${stateAfterDistribution}`);
+  }
+  if (!/3/.test(stateAfterDistribution || '') || !/2/.test(stateAfterDistribution || '')) {
+    note('preview-inline-workspace', `distributed products are not visibly preserved for student work: ${stateAfterDistribution}`);
+  }
+
+  await inlineHost.locator('button', { hasText: 'Rewrite / Simplify' }).click();
+  await page.waitForTimeout(200);
+  const rewritePanelCount = await inlineHost.locator('.algebra-rewrite-tool').count();
+  const selectableTerms = await inlineHost.locator('[aria-label$="select as the term you want to rewrite"]').count();
+  const railsInRewriteMode = await inlineHost.locator('.algebra-rail').count();
+  if (rewritePanelCount) note('preview-inline-workspace', 'legacy Rewrite / Simplify panel opened instead of inline term mode');
+  if (selectableTerms < 3) note('preview-inline-workspace', `expected neutral inline term tokens, saw only ${selectableTerms}`);
+  if (railsInRewriteMode) note('preview-inline-workspace', `operation rails remained visible in inline rewrite mode (${railsInRewriteMode})`);
+  await shoot(page, 'inline-rewrite-mode');
+}
+report.push({ journey: 'preview-inline-ui', ...inlineObserved });
 
 await browser.close();
 
