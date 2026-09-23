@@ -687,6 +687,53 @@ export default function StepByStepAlgebra({
     setRewriteAnswers({ left: '', right: '' });
   };
 
+  const closeLikeTermsTool = () => {
+    setLikeTermsOpen(false);
+    setLikeTermsSide('');
+    setSelectedLikeTermIndices([]);
+    setLikeTermsAnswer('');
+  };
+
+  const openLikeTermsTool = () => {
+    if (disabled || savingStep || cancelAnimating) return;
+    if (pendingMove) {
+      setMessage({
+        tone: 'growth',
+        text: 'Finish the balanced operation already in progress first. Then you can combine like terms on either side.',
+      });
+      return;
+    }
+    setArmedTile(null);
+    setTapPlacementArmed(false);
+    setPlacedOperationSides([]);
+    setPlacedOperationPositions({});
+    setOperand('');
+    setRewriteOpen(false);
+    setDistributionState(null);
+    setLikeTermsSide('');
+    setSelectedLikeTermIndices([]);
+    setLikeTermsAnswer('');
+    setLikeTermsOpen((current) => !current);
+    setMessage(null);
+  };
+
+  const chooseLikeTermsSide = (side) => {
+    setLikeTermsSide(side);
+    setSelectedLikeTermIndices([]);
+    setLikeTermsAnswer('');
+    setMessage(null);
+  };
+
+  const toggleLikeTerm = (index) => {
+    setSelectedLikeTermIndices((current) => (
+      current.includes(index)
+        ? current.filter((value) => value !== index)
+        : [...current, index]
+    ));
+    setLikeTermsAnswer('');
+    setMessage(null);
+  };
+
   const openRewriteTool = () => {
     if (disabled || savingStep || cancelAnimating) return;
     if (pendingMove) {
@@ -702,19 +749,23 @@ export default function StepByStepAlgebra({
     setPlacedOperationPositions({});
     setOperand('');
     setRewriteAnswers({ left: '', right: '' });
+    closeLikeTermsTool();
     if (!rewriteOpen) setRewriteFocusSignal((signal) => signal + 1);
     setRewriteOpen((current) => !current);
     setMessage(null);
   };
 
-  const persistStudentRewrite = async (beforeEquation, nextEquation, changedSides) => {
+  const persistStudentRewrite = async (beforeEquation, nextEquation, changedSides, {
+    kind = 'student-rewrite',
+    label = `Rewrite / simplify ${changedSides.join(' and ')}`,
+  } = {}) => {
     if (!onStepGrade) return null;
     setSavingStep(true);
     try {
       return await onStepGrade({
         stepGrade: {
-          kind: 'student-rewrite',
-          label: `Rewrite / simplify ${changedSides.join(' and ')}`,
+          kind,
+          label,
           supportLevel,
           productive: true,
           accepted: true,
@@ -737,6 +788,73 @@ export default function StepByStepAlgebra({
     } finally {
       setSavingStep(false);
     }
+  };
+
+  const checkLikeTerms = async () => {
+    if (!equation || disabled || savingStep || cancelAnimating || pendingMove || !likeTermsSide) return;
+    const selection = selectedLikeTermInfo(equation[likeTermsSide], selectedLikeTermIndices);
+    if (!selection.valid) {
+      setMessage({ tone: 'growth', text: selection.reason || 'Choose terms that are alike before combining them.' });
+      return;
+    }
+
+    if (!String(likeTermsAnswer || '').trim()) {
+      setLikeTermsFocusSignal((signal) => signal + 1);
+      setMessage({ tone: 'growth', text: 'You chose the terms. Now enter the single term they combine to.' });
+      return;
+    }
+
+    let replacement;
+    try {
+      replacement = latexToExpression(likeTermsAnswer);
+    } catch {
+      triggerShake();
+      setLikeTermsFocusSignal((signal) => signal + 1);
+      setMessage({ tone: 'error', text: 'MathMaster could not read that combined term yet.' });
+      return;
+    }
+
+    if (!replacementIsSingleLikeTerm(replacement, selection.key)) {
+      triggerShake();
+      setLikeTermsFocusSignal((signal) => signal + 1);
+      setMessage({
+        tone: 'growth',
+        text: 'Enter one combined term with the same variable part. Do not re-enter the two original terms.',
+      });
+      return;
+    }
+
+    if (!expressionsEquivalent(selection.selectedExpression, replacement, equation.variable)) {
+      triggerShake();
+      setLikeTermsFocusSignal((signal) => signal + 1);
+      setMessage({
+        tone: 'growth',
+        text: 'Those terms are alike, but that coefficient does not equal their sum. Recheck the signs and coefficients.',
+      });
+      return;
+    }
+
+    const nextSide = replaceSelectedLikeTerms(equation[likeTermsSide], selection.indices, replacement);
+    if (!nextSide) {
+      setMessage({ tone: 'error', text: 'That combination could not be placed back into the equation safely. Your work was not changed.' });
+      return;
+    }
+
+    const beforeEquation = equation;
+    const nextEquation = { ...equation, [likeTermsSide]: nextSide };
+    await persistStudentRewrite(beforeEquation, nextEquation, [likeTermsSide], {
+      kind: 'combine-like-terms',
+      label: `Combine like terms on the ${likeTermsSide} side`,
+    });
+    pushCommittedEquation(beforeEquation);
+    setEquation(nextEquation);
+    closeLikeTermsTool();
+    setBalancePulse(true);
+    window.setTimeout(() => setBalancePulse(false), motionDuration(650, reducedMotion, { floor: 60 }));
+    setMessage({
+      tone: 'success',
+      text: 'Like terms combined. You chose the terms and supplied the combined term; MathMaster only checked the algebra.',
+    });
   };
 
   const checkStudentRewrite = async () => {
@@ -838,6 +956,7 @@ export default function StepByStepAlgebra({
     setPlacedOperationPositions({});
     setOperand('');
     setRewriteOpen(false);
+    closeLikeTermsTool();
     setDistributionState(initDistributionState(distributable));
     setMessage(null);
   };
