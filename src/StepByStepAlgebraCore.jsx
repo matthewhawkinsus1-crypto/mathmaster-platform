@@ -34,6 +34,7 @@ import {
   findLikeTermGroups,
   replacementIsSingleLikeTerm,
   replaceSelectedLikeTerms,
+  replaceSingleAdditiveTerm,
   selectedLikeTermInfo,
 } from './algebraLikeTermsModel.js';
 import { getAttemptsRemaining, normalizeQuestionRecord } from './attemptPolicy';
@@ -187,6 +188,7 @@ export default function StepByStepAlgebra({
   draftKey = null,
   autoOpenDistribution = false,
   simplifyDistributedProducts = false,
+  inlineExpressionTools = false,
 }) {
   const normalizedRecord = normalizeQuestionRecord(questionRecord);
   const initialParse = useMemo(() => getInitialEquation(question, normalizedRecord), [question]);
@@ -236,6 +238,13 @@ export default function StepByStepAlgebra({
   const [rewriteScope, setRewriteScope] = useState('left');
   const [rewriteAnswers, setRewriteAnswers] = useState({ left: '', right: '' });
   const [rewriteFocusSignal, setRewriteFocusSignal] = useState(0);
+  // In inline-expression mode, Rewrite / Simplify turns every additive term
+  // into a neutral selectable token on the balance board. Selecting a token
+  // NEVER changes it and never asks whether it should be simplified; only a
+  // student-authored equivalent replacement can commit.
+  const [inlineRewriteSelection, setInlineRewriteSelection] = useState({ side: null, index: null });
+  const [inlineRewriteAnswer, setInlineRewriteAnswer] = useState('');
+  const [inlineRewriteFocusSignal, setInlineRewriteFocusSignal] = useState(0);
   // Interactive same-side simplification. A student chooses the side and the
   // terms they believe are alike, then supplies the combined term. The platform
   // checks the decision; it never supplies the coefficient/result.
@@ -345,6 +354,8 @@ export default function StepByStepAlgebra({
     setRewriteOpen(false);
     setRewriteScope('left');
     setRewriteAnswers({ left: '', right: '' });
+    setInlineRewriteSelection({ side: null, index: null });
+    setInlineRewriteAnswer('');
     setSelectedCancellationIndices({});
     setMessage(null);
     setArmedTile(null);
@@ -458,6 +469,8 @@ export default function StepByStepAlgebra({
     || Object.keys(simplificationAnswers).length
     || rewriteOpen
     || Object.values(rewriteAnswers).some((value) => String(value || '').trim())
+    || Boolean(inlineRewriteSelection?.side)
+    || String(inlineRewriteAnswer || '').trim()
     || likeTermsOpen
     || selectedLikeTermIndices.length
     || String(likeTermsAnswer || '').trim()
@@ -477,7 +490,9 @@ export default function StepByStepAlgebra({
         const hasSelectedCancellation = Object.values(selectedCancellationIndices)
           .some((indices) => indices?.length);
         const hasRewriteEntry = rewriteOpen
-          || Object.values(rewriteAnswers).some((value) => String(value || '').trim());
+          || Object.values(rewriteAnswers).some((value) => String(value || '').trim())
+          || Boolean(inlineRewriteSelection?.side)
+          || String(inlineRewriteAnswer || '').trim();
         const hasLikeTermsEntry = likeTermsOpen
           || selectedLikeTermIndices.length > 0
           || String(likeTermsAnswer || '').trim();
@@ -517,8 +532,14 @@ export default function StepByStepAlgebra({
             setLikeTermsSide('');
           }
         } else if (hasRewriteEntry) {
-          setRewriteOpen(false);
-          setRewriteAnswers({ left: '', right: '' });
+          if (String(inlineRewriteAnswer || '').trim()) {
+            setInlineRewriteAnswer('');
+          } else if (inlineRewriteSelection?.side) {
+            setInlineRewriteSelection({ side: null, index: null });
+          } else {
+            setRewriteOpen(false);
+            setRewriteAnswers({ left: '', right: '' });
+          }
         } else if (distributionState?.placedIndices?.length) {
           // Before commit, undo removes the last factor placement.
           setDistributionState((current) => undoDistributionPlacement(current));
@@ -542,6 +563,8 @@ export default function StepByStepAlgebra({
             setSimplificationAnswers({});
             setRewriteOpen(false);
             setRewriteAnswers({ left: '', right: '' });
+            setInlineRewriteSelection({ side: null, index: null });
+            setInlineRewriteAnswer('');
             setLikeTermsOpen(false);
             setLikeTermsSide('');
             setSelectedLikeTermIndices([]);
@@ -700,6 +723,8 @@ export default function StepByStepAlgebra({
   const closeRewriteTool = () => {
     setRewriteOpen(false);
     setRewriteAnswers({ left: '', right: '' });
+    setInlineRewriteSelection({ side: null, index: null });
+    setInlineRewriteAnswer('');
   };
 
   const closeLikeTermsTool = () => {
@@ -724,6 +749,8 @@ export default function StepByStepAlgebra({
     setPlacedOperationPositions({});
     setOperand('');
     setRewriteOpen(false);
+    setInlineRewriteSelection({ side: null, index: null });
+    setInlineRewriteAnswer('');
     setDistributionState(null);
     setLikeTermsSide('');
     setSelectedLikeTermIndices([]);
@@ -764,8 +791,11 @@ export default function StepByStepAlgebra({
     setPlacedOperationPositions({});
     setOperand('');
     setRewriteAnswers({ left: '', right: '' });
+    setInlineRewriteSelection({ side: null, index: null });
+    setInlineRewriteAnswer('');
     closeLikeTermsTool();
-    if (!rewriteOpen) setRewriteFocusSignal((signal) => signal + 1);
+    setDistributionState(null);
+    if (!rewriteOpen && !inlineExpressionTools) setRewriteFocusSignal((signal) => signal + 1);
     setRewriteOpen((current) => !current);
     setMessage(null);
   };
