@@ -45,3 +45,11 @@ test('calculator focuses its MathLive field on open and owns Enter as equals', (
   assert.match(source, /event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)/);
   assert.match(source, /data-calculator-expression="true"/);
 });
+
+
+test('calculator docks into Work View usable space without losing the single draggable panel instance', () => {
+  assert.match(source, /--mm-work-view-calculator-right/);
+  assert.match(source, /--mm-work-view-calculator-bottom/);
+  assert.match(source, /data-work-view-floating-tool="calculator"/);
+  assert.match(source, /panelPosition\s*\?\s*\{ left: panelPosition\.x, top: panelPosition\.y \}/);
+});
