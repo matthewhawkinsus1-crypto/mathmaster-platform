@@ -113,11 +113,30 @@
   max-width: 100%;
   min-height: 132px;
   position: relative;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-gutter: stable;
+  overflow: hidden;
   padding: 4px 6px;
   box-sizing: border-box;
+}
+
+.algebra-expression-fit-viewport {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.algebra-expression-fit-content {
+  width: max-content;
+  max-width: none;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
+  transition: font-size 100ms ease;
 }
 
 .algebra-balance-equals {
@@ -858,9 +877,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: .18em;
   white-space: nowrap;
-  min-height: 64px;
+  min-height: 1.75em;
+  font-size: inherit;
+  line-height: 1.15;
 }
 
 .algebra-inline-ordinary-term {
@@ -871,26 +892,28 @@
 .algebra-inline-distribution-group {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: .14em;
+  font-size: inherit;
 }
 
 .algebra-inline-factor-token,
 .algebra-inline-distribution-target {
   position: relative;
-  min-height: 48px;
-  min-width: 42px;
-  padding: 5px 9px;
-  border-radius: 10px;
+  min-height: 1.45em;
+  min-width: 1.1em;
+  padding: .06em .16em;
+  border-radius: .28em;
   background: transparent;
   color: inherit;
   font: inherit;
+  line-height: 1;
   cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
 }
 
 .algebra-inline-factor-token {
-  border: 2px solid #9bb8e8;
-  background: #fff;
+  border: 1.5px solid #7ea2dc;
+  background: rgba(255,255,255,.96);
   color: #174ea6;
   font-weight: 900;
   cursor: grab;
@@ -899,20 +922,21 @@
 .algebra-inline-factor-token.is-armed {
   border-color: #174ea6;
   background: #e8f0fe;
-  box-shadow: 0 0 0 3px rgba(26,115,232,.12);
+  box-shadow: 0 0 0 .11em rgba(26,115,232,.16);
+  transform: translateY(-1px);
 }
 
 .algebra-inline-distribution-target {
-  border: 1px solid transparent;
+  border: 1.5px solid transparent;
 }
 
 .algebra-inline-distribution-target.is-ready {
-  border: 2px dashed #7698cf;
-  background: rgba(232,240,254,.45);
+  border: 1.5px dashed #6f96d6;
+  background: rgba(232,240,254,.42);
 }
 
 .algebra-inline-distribution-target.is-placed {
-  border: 2px solid #34a853;
+  border: 1.5px solid #34a853;
   background: #e6f4ea;
 }
 
@@ -925,7 +949,8 @@
 .algebra-inline-distribution-targets {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: .08em;
+  font-size: inherit;
 }
 
 .algebra-inline-factor-applied {
@@ -1000,8 +1025,9 @@
 
   .algebra-inline-factor-token,
   .algebra-inline-distribution-target {
-    min-height: 44px;
-    padding: 4px 7px;
+    min-height: 40px;
+    min-width: 40px;
+    padding: 3px 6px;
   }
 
   .algebra-inline-mode-controls {

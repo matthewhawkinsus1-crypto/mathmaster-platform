@@ -150,7 +150,9 @@ const detectOnSide = (side, expressionText) => {
     sideTerms: sideTerms.map((term) => ({
       sign: term.sign,
       magnitudeText: term.magnitudeText,
+      magnitudeLatex: term.magnitudeLatex,
       text: term.text,
+      latex: term.latex,
     })),
   };
 };

@@ -57,6 +57,20 @@ test('there are exactly three Step Algebra embeds: isolate, reduce, and back-sub
   assert.equal(embeds.length, 3);
 });
 
+
+test('every embedded Step Algebra stage uses the same inline equation interaction model', () => {
+  const embed = region(modeSource, 'function EmbeddedStepAlgebra(', 'export default function AlgebraicSystemMode', 'EmbeddedStepAlgebra');
+  assert.match(embed, /inlineExpressionTools = true/);
+  assert.match(embed, /inlineExpressionTools=\{inlineExpressionTools\}/);
+  const reduceSolver = region(
+    modeSource,
+    '{reduceInputText && !isDegenerate && !firstSolvedDone ? (',
+    '{isDegenerate ? (',
+    'systems reduced equation',
+  );
+  assert.match(reduceSolver, /inlineExpressionTools/);
+});
+
 // ---------------------------------------------------------------------------
 // Persistence — every meaningful piece of unfinished work is draft-backed
 // ---------------------------------------------------------------------------
@@ -80,7 +94,7 @@ test('every stage of mathematical work required by the spec is stored through us
 
 test('the only local useState fields are transient interaction/Undo presentation state', () => {
   const useStateFields = [...modeSource.matchAll(/const\s*\[\s*([A-Za-z0-9_$]+)\s*,\s*set[A-Za-z0-9_$]*\s*\]\s*=\s*useState\(/g)].map((m) => m[1]);
-  assert.deepEqual(useStateFields.sort(), ['embeddedUndoController', 'slotAttempt'].sort());
+  assert.deepEqual(useStateFields.sort(), ['dragOverVariable', 'embeddedUndoController', 'slotAttempt'].sort());
   assert.ok(TOOL_STATE_PERSISTENCE.systemsWorkspace.transientState.slotAttempt);
   assert.ok(TOOL_STATE_PERSISTENCE.systemsWorkspace.transientState.embeddedUndoController);
 });
@@ -168,7 +182,7 @@ test('substitution distribution leaves products unsimplified for the student', (
   );
   assert.match(reduceSolver, /autoOpenDistribution=\{effectiveMethod === 'substitution'\}/);
   assert.match(reduceSolver, /simplifyDistributedProducts=\{false\}/);
-  assert.match(reduceSolver, /inlineExpressionTools=\{effectiveMethod === 'substitution'\}/);
+  assert.match(reduceSolver, /inlineExpressionTools/);
   assert.doesNotMatch(reduceSolver, /simplifyDistributedProducts=\{effectiveMethod === 'substitution'\}/);
 });
 
@@ -351,12 +365,14 @@ test('tool schema accepts authored algebraic systems and rejects malformed equat
 });
 
 
-test('substitution is a neutral placement interaction that does not pre-highlight the correct variable', () => {
+test('substitution is a neutral placement interaction that only highlights the variable actually under the dragged token', () => {
   assert.match(modeSource, /function SubstitutionToken/);
   assert.match(modeSource, /mathmaster-substitution:/);
   assert.match(modeSource, /function VariableDropEquation/);
   assert.match(modeSource, /Use the prepared expression to create a one-variable equation/);
   const substitutionTarget = region(modeSource, 'function VariableDropEquation', 'function SystemsWorkTrail', 'VariableDropEquation');
+  assert.match(substitutionTarget, /dragOverVariable/);
+  assert.match(substitutionTarget, /is-drag-over/);
   assert.doesNotMatch(substitutionTarget, /is-target/);
   assert.doesNotMatch(modeSource, />Substitute for \{v\}</);
 });

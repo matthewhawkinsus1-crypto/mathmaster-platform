@@ -204,6 +204,23 @@ const assertInlineDistributionWorkspace = async (page, journey) => {
   if (observed.operationRails) {
     note(journey, `balance operation rails should be hidden during inline distribution, saw ${observed.operationRails}`);
   }
+
+  observed.sideFits = await stage.locator('.algebra-expression-anchor').evaluateAll((anchors) => anchors.map((anchor) => {
+    const viewport = anchor.querySelector('.algebra-expression-fit-viewport');
+    const content = anchor.querySelector('.algebra-expression-fit-content');
+    if (!viewport || !content) return { fits: false, viewportWidth: 0, contentWidth: 0 };
+    const viewportBox = viewport.getBoundingClientRect();
+    const contentBox = content.getBoundingClientRect();
+    return {
+      fits: contentBox.width <= viewportBox.width + 2,
+      viewportWidth: Math.round(viewportBox.width),
+      contentWidth: Math.round(contentBox.width),
+      fontSize: Number.parseFloat(getComputedStyle(content).fontSize),
+    };
+  }));
+  observed.sideFits.forEach((fit, index) => {
+    if (!fit.fits) note(journey, `equation side ${index + 1} is clipped instead of fit: ${JSON.stringify(fit)}`);
+  });
   return observed;
 };
 
@@ -299,9 +316,24 @@ await useIsolatedFormAsToken(page);
 await dropTokenOnEquationTwoX(page, 'click');
 await assertStepAlgebraOpenedForY(page, 'preview-inline-workspace');
 const inlineObserved = await assertInlineDistributionWorkspace(page, 'preview-inline-workspace');
+const inlineHost = solver(page);
+const distributionFontSize = Number.parseFloat(await inlineHost.locator('.algebra-expression-fit-content').first().evaluate((element) => getComputedStyle(element).fontSize));
 await shoot(page, 'inline-distribution-open');
 
-const inlineHost = solver(page);
+// Compare the exact same equation with distribution mode closed. The typography
+// should remain visually stable; direct-manipulation mode may remove operation
+// chrome, but it must not make the mathematics suddenly tiny.
+await inlineHost.locator('button', { hasText: 'Distribute' }).click();
+await page.waitForTimeout(250);
+const regularFontSize = Number.parseFloat(await inlineHost.locator('.algebra-expression-fit-content').first().evaluate((element) => getComputedStyle(element).fontSize));
+if (Math.abs(regularFontSize - distributionFontSize) > 2) {
+  note('preview-inline-workspace', `distribution typography changed too much: regular ${regularFontSize}px vs distribution ${distributionFontSize}px`);
+}
+await shoot(page, 'inline-regular-equation');
+await inlineHost.locator('button', { hasText: 'Distribute' }).click();
+await page.waitForTimeout(250);
+
+
 const factor = inlineHost.locator('.algebra-inline-factor-token');
 await factor.click();
 const targets = inlineHost.locator('.algebra-inline-distribution-target');
@@ -336,6 +368,45 @@ if (!(await commitInline.count())) {
   await shoot(page, 'inline-rewrite-mode');
 }
 report.push({ journey: 'preview-inline-ui', ...inlineObserved });
+
+// 8. Uniformity contract: the back-substitution Step Algebra instance must use
+// the same inline Rewrite / Simplify interaction as the first one-variable
+// solve. Seed only the already-completed upstream systems state; the embedded
+// back-sub solver itself is mounted fresh.
+{
+  const workTool = BROKEN_DRAFT[':work:tool'];
+  const backSubSeed = {
+    ':work:tool': {
+      ...workTool,
+      selection: { equationIndex: 0, variable: 'x' },
+      isolation: {
+        ...workTool.isolation,
+        expression: '-3 + 2y',
+        tokenExpression: '-3 + 2y',
+      },
+      substitution: {
+        targetVariable: 'x',
+        targetEquationIndex: 1,
+        equationText: '3*(-3 + 2*y) + 5*y = 24',
+      },
+      firstSolved: { variable: 'y', value: 3 },
+      backSub: { equationIndex: 0 },
+      secondSolved: { variable: null, value: null },
+    },
+  };
+  await openFresh(page, { scope: 'teacherPreview', seed: backSubSeed });
+  const backHost = solver(page);
+  await backHost.waitFor({ timeout: 15000 });
+  await backHost.locator('button', { hasText: 'Rewrite / Simplify' }).click();
+  await page.waitForTimeout(250);
+  const legacyRewrite = await backHost.locator('.algebra-rewrite-tool').count();
+  const inlineTerms = await backHost.locator('[aria-label$="select as the term you want to rewrite"]').count();
+  const backRails = await backHost.locator('.algebra-rail').count();
+  if (legacyRewrite) note('preview-backsub-uniform', 'back-substitution opened the legacy Rewrite / Simplify panel');
+  if (inlineTerms < 2) note('preview-backsub-uniform', `back-substitution did not expose inline term tokens (${inlineTerms})`);
+  if (backRails) note('preview-backsub-uniform', `operation rails remained visible while inline rewrite owned back-substitution (${backRails})`);
+  await shoot(page, 'inline-backsub-rewrite-mode');
+}
 
 await browser.close();
 
