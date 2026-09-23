@@ -1845,6 +1845,28 @@ export default function StepByStepAlgebra({
           >
             Rewrite / Simplify
           </button>
+          {hasLikeTermOpportunity && (
+            <button
+              type="button"
+              className="algebra-like-terms-toggle"
+              onClick={openLikeTermsTool}
+              disabled={disabled || savingStep || cancelAnimating || Boolean(pendingMove)}
+              aria-expanded={likeTermsOpen}
+              title="Choose and combine like terms on one side of the equation"
+              style={{
+                minHeight: 40,
+                padding: '8px 14px',
+                borderRadius: 999,
+                border: likeTermsOpen ? '2px solid #174ea6' : '1px solid #b8c8e3',
+                background: likeTermsOpen ? '#e8f0fe' : '#fff',
+                color: '#174ea6',
+                fontWeight: 800,
+                cursor: disabled || savingStep || cancelAnimating ? 'not-allowed' : 'pointer',
+              }}
+            >
+              Combine like terms
+            </button>
+          )}
           {(distributable || distributionState) && (
             <button
               type="button"
@@ -1965,6 +1987,71 @@ export default function StepByStepAlgebra({
               Cancel
             </button>
           </div>
+        </div>
+      )}
+
+      {likeTermsOpen && (
+        <div className="algebra-like-terms-tool">
+          <div className="algebra-like-terms-header">
+            <div>
+              <strong>Combine like terms</strong>
+              <div>Choose the side first, then select the terms you believe belong together. MathMaster will not identify the pair for you.</div>
+            </div>
+            <button type="button" onClick={closeLikeTermsTool} aria-label="Close combine like terms" title="Close">×</button>
+          </div>
+
+          {!likeTermsSide ? (
+            <div className="algebra-like-terms-side-choice" role="group" aria-label="Choose which side to inspect for like terms">
+              <button type="button" onClick={() => chooseLikeTermsSide('left')}>Left side</button>
+              <button type="button" onClick={() => chooseLikeTermsSide('right')}>Right side</button>
+            </div>
+          ) : (
+            <>
+              <div className="algebra-like-terms-side-toolbar">
+                <span>{likeTermsSide === 'left' ? 'Left' : 'Right'} side</span>
+                <button type="button" onClick={() => chooseLikeTermsSide(likeTermsSide === 'left' ? 'right' : 'left')}>
+                  Try the {likeTermsSide === 'left' ? 'right' : 'left'} side
+                </button>
+              </div>
+              <div className="algebra-like-terms-equation-side">
+                <AlgebraTermRow
+                  terms={splitAdditiveTerms(equation[likeTermsSide]) || []}
+                  side={likeTermsSide}
+                  selectedIndices={selectedLikeTermIndices}
+                  onTermClick={toggleLikeTerm}
+                  interactionLabel="select as a term to combine"
+                />
+              </div>
+              <p className="algebra-like-terms-instruction">
+                Select at least two terms. If they are alike, enter the one term they combine to.
+              </p>
+              {selectedLikeTermIndices.length >= 2 && !currentLikeTermSelection?.valid ? (
+                <p className="algebra-like-terms-feedback is-error">
+                  {currentLikeTermSelection?.reason || 'Those selected terms are not alike.'}
+                </p>
+              ) : null}
+              {currentLikeTermSelection?.valid ? (
+                <div className="algebra-like-terms-answer">
+                  <MathInput
+                    value={likeTermsAnswer}
+                    onChange={setLikeTermsAnswer}
+                    onSubmit={checkLikeTerms}
+                    placeholder="Combined term"
+                    ariaLabel="Enter the single term these selected like terms combine to"
+                    toolProfile="algebra-operation"
+                    compact
+                    maxWidth={360}
+                    focusSignal={likeTermsFocusSignal}
+                    contextSymbols={operationContextSymbols}
+                    collapseSignal={mathToolsCollapseSignal}
+                  />
+                  <button type="button" onClick={checkLikeTerms} disabled={savingStep || cancelAnimating}>
+                    Check combination
+                  </button>
+                </div>
+              ) : null}
+            </>
+          )}
         </div>
       )}
 
