@@ -21,7 +21,7 @@ const contentKey = (value) => {
   return hash.toString(36);
 };
 
-export default function ToolShell({ title, subtitle, badge, children, footer, shellKey = null }) {
+export default function ToolShell({ title, subtitle, badge, children, footer, shellKey = null, workspaceWidth = 'min(100%, 1180px)' }) {
   useRenderPerformance('ToolShell');
   const shellRef = useRef(null);
 
@@ -56,7 +56,7 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
       // Takes the room it is given, up to a limit generous enough for a
       // coordinate plane beside its controls. The old fixed 980px capped a
       // graph well below the width available on a school Chromebook.
-      width: 'min(100%, 1180px)',
+      width: workspaceWidth,
       margin: '0 auto',
       border: '1px solid #d9e2f1',
       borderRadius: 18,
