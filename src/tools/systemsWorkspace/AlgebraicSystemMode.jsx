@@ -554,10 +554,21 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const setVerificationAnswer = (index, side, value) => {
     setVerification((current) => ({ ...current, [index]: { ...current[index], [side]: value, checked: false } }));
   };
+  const numericVerificationEntry = (value) => {
+    try {
+      const numeric = Number(evaluate(latexToExpression(value)));
+      return Number.isFinite(numeric) ? numeric : NaN;
+    } catch {
+      return NaN;
+    }
+  };
+
   const checkVerification = (index) => {
     const actual = evaluateEquationSides(equations[index], solution);
-    const leftOk = matchesNumericAnswer(verification[index].leftAnswer, actual.left, 0.05);
-    const rightOk = matchesNumericAnswer(verification[index].rightAnswer, actual.right, 0.05);
+    const leftValue = numericVerificationEntry(verification[index].leftAnswer);
+    const rightValue = numericVerificationEntry(verification[index].rightAnswer);
+    const leftOk = Number.isFinite(leftValue) && Math.abs(leftValue - actual.left) <= 0.05;
+    const rightOk = Number.isFinite(rightValue) && Math.abs(rightValue - actual.right) <= 0.05;
     const equalityHolds = Math.abs(actual.left - actual.right) < 1e-6;
     setVerification((current) => ({ ...current, [index]: { ...current[index], checked: true, valid: leftOk && rightOk && equalityHolds } }));
   };
@@ -1101,12 +1112,13 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
               {!backSubChosen ? (
                 <div className="mathmaster-systems-substitution-stage">
                   <p className="mathmaster-systems-substitution-direction">
-                    Back-substitute by dragging the solved value onto {survivingVariable} in either original equation.
-                    <span> On touch or keyboard, select the token, then select {survivingVariable}.</span>
+                    Back-substitute the solved value into one original equation. Decide which equation and which variable should receive it.
+                    <span> Drag the token, or select it and then select a variable.</span>
                   </p>
                   <SubstitutionToken
                     variable={survivingVariable}
                     expression={String(firstSolved.value)}
+                    label="Solved value"
                     onArm={() => setSlotAttempt({ stage: 'backSubstitution', armed: true, correct: null, variable: null })}
                   />
                   <div className="mathmaster-systems-backsub-equations">
@@ -1116,84 +1128,131 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                         <VariableDropEquation
                           equationText={eq}
                           variables={variables}
-                          replacementVariable={survivingVariable}
                           onVariableAttempt={(variable) => attemptBackSubstitution(index, variable)}
                           tokenArmed={slotAttempt?.stage === 'backSubstitution' && slotAttempt?.armed}
-                          label={`Equation ${index + 1}: choose where to back-substitute`}
+                          armedPayloadValue={survivingVariable}
+                          label={`Equation ${index + 1}: choose where the solved value belongs`}
                         />
                       </div>
                     ))}
                   </div>
                   {slotAttempt?.stage === 'backSubstitution' && slotAttempt.correct === false ? (
                     <p className="mathmaster-systems-substitution-feedback is-error">
-                      The solved value belongs where {survivingVariable} appears, not where {slotAttempt.variable} appears.
+                      That placement does not match the variable represented by the solved value. Look back at the equation you just solved and try again.
                     </p>
                   ) : null}
-                </div>              ) : (
-                <div style={{ marginTop: 8 }}>
-                  <div style={{ padding: 10, border: '1px solid #dbe3ef', borderRadius: 8, background: '#fff' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#5f6b7a', marginBottom: 4 }}>Equation {backSub.equationIndex + 1} with the value substituted</div>
-                    <MathDisplay value={backSubEquationText} format="ascii-math" />
-                  </div>
-                  {!secondSolvedDone ? (
-                    <div style={{ marginTop: 10 }}>
-                      <EmbeddedStepAlgebra
-                        label={`Solve for ${removedVariable}`}
-                        prompt={`Solve this equation for ${removedVariable}.`}
-                        equationText={backSubEquationText}
-                        solveFor={removedVariable}
-                        draftKey={draftKey ? `${draftKey}:algebraic:back-solve:${backSub.equationIndex}` : null}
-                        onSolved={handleSecondSolved}
-                        onUndoStateChange={setEmbeddedUndoController}
-                        workspaceDifficulty={questionData.workspaceDifficulty}
-                      />
-                    </div>
-                  ) : null}
                 </div>
-              )}
+              ) : !secondSolvedDone ? (
+                <EmbeddedStepAlgebra
+                  label="Solve the back-substitution equation"
+                  prompt={`Use your substitution to solve this equation for ${removedVariable}.`}
+                  equationText={backSubEquationText}
+                  solveFor={removedVariable}
+                  draftKey={draftKey ? `${draftKey}:algebraic:back-solve:${backSub.equationIndex}` : null}
+                  onSolved={handleSecondSolved}
+                  onUndoStateChange={setEmbeddedUndoController}
+                  workspaceDifficulty={questionData.workspaceDifficulty}
+                />
+              ) : null}
             </div>
           ) : null}
 
           {solution && config.requireVerification ? (
-            <div style={{ marginTop: 14, display: 'grid', gap: 10 }}>
-              <p style={{ margin: 0, fontWeight: 700 }}>Verify the ordered pair in both original equations.</p>
-              {equations.map((eq, index) => (
-                <div key={index} style={{ padding: 10, border: '1px solid #dbe3ef', borderRadius: 8, background: verification[index].valid ? '#f0fbf4' : '#fff' }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#5f6b7a', marginBottom: 4 }}>Equation {index + 1}</div>
-                  <MathDisplay value={eq} format="ascii-math" />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                    {variables.map((v) => (
-                      <button
-                        key={v}
-                        type="button"
-                        onClick={() => placeVerificationValue(index, v)}
-                        style={verification[index].placed[v] ? activeButtonStyle : secondaryButtonStyle}
-                      >
-                        Place {v} = {solution[v]}
-                      </button>
-                    ))}
-                  </div>
-                  {bothPlaced(index) ? (
-                    <div style={{ marginTop: 8 }}>
-                      <MathDisplay value={substituteIntoEquation(substituteIntoEquation(eq, variables[0], String(solution[variables[0]])), variables[1], String(solution[variables[1]]))} format="ascii-math" />
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
-                        <Field label="Left side simplifies to">
-                          <input type="number" inputMode="decimal" value={verification[index].leftAnswer} onChange={(e) => setVerificationAnswer(index, 'leftAnswer', e.target.value)} style={inputStyle} />
-                        </Field>
-                        <Field label="Right side simplifies to">
-                          <input type="number" inputMode="decimal" value={verification[index].rightAnswer} onChange={(e) => setVerificationAnswer(index, 'rightAnswer', e.target.value)} style={inputStyle} />
-                        </Field>
+            <div className="mathmaster-systems-verification-stage">
+              <div className="mathmaster-systems-verification-heading">
+                <strong>Verify the ordered pair in both original equations</strong>
+                <span>Pick up each solved value and place it where it belongs. The variable locations are not pre-highlighted.</span>
+              </div>
+              <div className="mathmaster-systems-verification-token-bank">
+                {variables.map((variable) => {
+                  const armed = slotAttempt?.stage === 'verification'
+                    && slotAttempt?.armed
+                    && slotAttempt?.tokenVariable === variable;
+                  return (
+                    <MathDragToken
+                      key={variable}
+                      payloadPrefix="mathmaster-verification:"
+                      payloadValue={variable}
+                      expression={`${variable} = ${solution[variable]}`}
+                      label="Solved value"
+                      onArm={() => armVerificationValue(variable)}
+                      ariaLabel={`Pick up solved value ${solution[variable]} for ${variable}`}
+                    />
+                  );
+                })}
+              </div>
+
+              <div className="mathmaster-systems-verification-equations">
+                {equations.map((eq, index) => (
+                  <div key={index} className={`mathmaster-systems-verification-card${verification[index].valid ? ' is-valid' : ''}`}>
+                    <div className="mathmaster-systems-backsub-equation-label">Equation {index + 1}</div>
+                    {!bothPlaced(index) ? (
+                      <VariableDropEquation
+                        equationText={eq}
+                        variables={variables}
+                        payloadPrefix="mathmaster-verification:"
+                        onVariableAttempt={(targetVariable, tokenVariable) => placeVerificationValue(index, targetVariable, tokenVariable)}
+                        tokenArmed={slotAttempt?.stage === 'verification' && slotAttempt?.armed}
+                        armedPayloadValue={slotAttempt?.stage === 'verification' ? slotAttempt?.tokenVariable : null}
+                        label={`Equation ${index + 1}: place both solved values`}
+                      />
+                    ) : (
+                      <div className="mathmaster-systems-verification-substitution">
+                        <span>Values substituted</span>
+                        <MathDisplay
+                          value={substituteIntoEquation(
+                            substituteIntoEquation(eq, variables[0], String(solution[variables[0]])),
+                            variables[1],
+                            String(solution[variables[1]]),
+                          )}
+                          format="ascii-math"
+                        />
                       </div>
-                      <button type="button" onClick={() => checkVerification(index)} style={smallActionStyle}>Check equation {index + 1}</button>
-                      {verification[index].checked ? (
-                        <p style={{ margin: '8px 0 0', fontSize: 13, color: verification[index].valid ? '#137333' : '#a02020' }}>
-                          {verification[index].valid ? 'Both sides check out.' : 'Substitute the values in again and simplify each side carefully — the two sides should match.'}
+                    )}
+
+                    {slotAttempt?.stage === 'verification'
+                      && slotAttempt?.correct === false
+                      && slotAttempt?.equationIndex === index ? (
+                        <p className="mathmaster-systems-substitution-feedback is-error">
+                          That value was placed on a different variable than the one it represents. Use the solved assignment on the token to choose another location.
                         </p>
                       ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              ))}
+
+                    {bothPlaced(index) ? (
+                      <div className="mathmaster-systems-verification-arithmetic">
+                        <Field label="Left side simplifies to">
+                          <MathInput
+                            value={verification[index].leftAnswer}
+                            onChange={(value) => setVerificationAnswer(index, 'leftAnswer', value)}
+                            placeholder="value"
+                            ariaLabel={`Equation ${index + 1} left side value`}
+                            toolProfile="algebra-operation"
+                            compact
+                          />
+                        </Field>
+                        <Field label="Right side simplifies to">
+                          <MathInput
+                            value={verification[index].rightAnswer}
+                            onChange={(value) => setVerificationAnswer(index, 'rightAnswer', value)}
+                            placeholder="value"
+                            ariaLabel={`Equation ${index + 1} right side value`}
+                            toolProfile="algebra-operation"
+                            compact
+                          />
+                        </Field>
+                        <button type="button" onClick={() => checkVerification(index)} style={smallActionStyle}>Check equation {index + 1}</button>
+                        {verification[index].checked ? (
+                          <p className={`mathmaster-systems-verification-feedback${verification[index].valid ? ' is-valid' : ' is-error'}`}>
+                            {verification[index].valid
+                              ? 'Both sides check out.'
+                              : 'The values are placed. Recheck the arithmetic on each side; the two sides should match.'}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
             </div>
           ) : null}
 
