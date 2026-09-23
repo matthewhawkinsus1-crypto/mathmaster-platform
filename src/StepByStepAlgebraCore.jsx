@@ -1586,6 +1586,7 @@ export default function StepByStepAlgebra({
     if (disabled || savingStep || pendingMove) return;
     setRewriteOpen(false);
     setRewriteAnswers({ left: '', right: '' });
+    closeLikeTermsTool();
     const switching = armedTile?.operation !== operation;
     setArmedTile({ operation, sourceSide });
     setTapPlacementArmed(false);
