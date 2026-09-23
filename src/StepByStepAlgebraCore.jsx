@@ -776,6 +776,26 @@ export default function StepByStepAlgebra({
     setMessage(null);
   };
 
+  const toggleInlineLikeTerm = (side, index) => {
+    if (!inlineExpressionTools || !likeTermsOpen) return;
+    if (likeTermsSide !== side) {
+      setLikeTermsSide(side);
+      setSelectedLikeTermIndices([index]);
+      setLikeTermsAnswer('');
+      setMessage(null);
+      return;
+    }
+    toggleLikeTerm(index);
+  };
+
+  const selectInlineRewriteTerm = (side, index) => {
+    if (!inlineExpressionTools || !rewriteOpen) return;
+    setInlineRewriteSelection({ side, index });
+    setInlineRewriteAnswer('');
+    setInlineRewriteFocusSignal((signal) => signal + 1);
+    setMessage(null);
+  };
+
   const openRewriteTool = () => {
     if (disabled || savingStep || cancelAnimating) return;
     if (pendingMove) {
@@ -893,13 +913,86 @@ export default function StepByStepAlgebra({
     });
     pushCommittedEquation(beforeEquation);
     setEquation(nextEquation);
-    closeLikeTermsTool();
+    if (inlineExpressionTools) {
+      setSelectedLikeTermIndices([]);
+      setLikeTermsAnswer('');
+      setLikeTermsSide('');
+    } else {
+      closeLikeTermsTool();
+    }
     setBalancePulse(true);
     window.setTimeout(() => setBalancePulse(false), motionDuration(650, reducedMotion, { floor: 60 }));
     setMessage({
       tone: 'success',
       text: 'Like terms combined. You chose the terms and supplied the combined term; MathMaster only checked the algebra.',
     });
+  };
+
+  const checkInlineRewrite = async () => {
+    if (!inlineExpressionTools || !equation || disabled || savingStep || cancelAnimating || pendingMove) return;
+    const side = inlineRewriteSelection?.side;
+    const index = Number(inlineRewriteSelection?.index);
+    const terms = side ? (splitAdditiveTerms(equation[side]) || []) : [];
+    const term = Number.isInteger(index) ? terms[index] : null;
+    if (!side || !term) return;
+
+    if (!String(inlineRewriteAnswer || '').trim()) {
+      setInlineRewriteFocusSignal((signal) => signal + 1);
+      return;
+    }
+
+    let replacement;
+    try {
+      replacement = latexToExpression(inlineRewriteAnswer);
+    } catch {
+      triggerShake();
+      setInlineRewriteFocusSignal((signal) => signal + 1);
+      setMessage({ tone: 'error', text: 'MathMaster could not read that equivalent term yet.' });
+      return;
+    }
+
+    const replacementTerms = splitAdditiveTerms(replacement) || [];
+    if (replacementTerms.length !== 1) {
+      triggerShake();
+      setInlineRewriteFocusSignal((signal) => signal + 1);
+      setMessage({ tone: 'growth', text: 'Rewrite only the selected term. Keep the rest of the side where it is.' });
+      return;
+    }
+
+    if (!expressionsEquivalent(term.text, replacement, equation.variable)) {
+      triggerShake();
+      setInlineRewriteFocusSignal((signal) => signal + 1);
+      setMessage({ tone: 'growth', text: 'That replacement is not equivalent to the selected term.' });
+      return;
+    }
+
+    const beforeKey = String(term.text || '').replace(/\s+/g, '');
+    const afterKey = String(replacement || '').replace(/\s+/g, '');
+    if (beforeKey === afterKey) {
+      setInlineRewriteFocusSignal((signal) => signal + 1);
+      setMessage({ tone: 'growth', text: 'That keeps the selected term exactly as written.' });
+      return;
+    }
+
+    const nextSide = replaceSingleAdditiveTerm(equation[side], index, replacement);
+    if (!nextSide) {
+      setMessage({ tone: 'error', text: 'That term could not be placed back into the equation safely. Your work was not changed.' });
+      return;
+    }
+
+    const beforeEquation = equation;
+    const nextEquation = { ...equation, [side]: nextSide };
+    await persistStudentRewrite(beforeEquation, nextEquation, [side], {
+      kind: 'inline-term-rewrite',
+      label: `Rewrite one term on the ${side} side`,
+    });
+    pushCommittedEquation(beforeEquation);
+    setEquation(nextEquation);
+    setInlineRewriteSelection({ side: null, index: null });
+    setInlineRewriteAnswer('');
+    setBalancePulse(true);
+    window.setTimeout(() => setBalancePulse(false), motionDuration(650, reducedMotion, { floor: 60 }));
+    setMessage({ tone: 'success', text: 'Equivalent term accepted.' });
   };
 
   const checkStudentRewrite = async () => {
@@ -1086,9 +1179,11 @@ export default function StepByStepAlgebra({
     window.setTimeout(() => setBalancePulse(false), motionDuration(650, reducedMotion, { floor: 60 }));
     setMessage({
       tone: 'success',
-      text: simplifyDistributedProducts
-        ? 'Distribution complete. The individual products are evaluated; combine like terms next.'
-        : 'Distribution complete. The products are not simplified yet — use Rewrite / Simplify to evaluate them, or continue solving.',
+      text: inlineExpressionTools
+        ? 'Distribution complete.'
+        : simplifyDistributedProducts
+          ? 'Distribution complete. The individual products are evaluated; combine like terms next.'
+          : 'Distribution complete. The products are not simplified yet — use Rewrite / Simplify to evaluate them, or continue solving.',
     });
   };
 
