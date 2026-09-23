@@ -136,7 +136,6 @@
   align-items: center;
   justify-content: center;
   line-height: 1.2;
-  transition: font-size 100ms ease;
 }
 
 .algebra-balance-equals {
