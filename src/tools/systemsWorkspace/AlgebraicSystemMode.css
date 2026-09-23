@@ -1,0 +1,229 @@
+/*
+ * Algebraic systems is not a graph-primary tool. The original generic ToolSplit
+ * gave most of the width to the two reference equations and squeezed the live
+ * Step Algebra solver into the smaller column. Give the workflow the working
+ * room instead, and bias it even further while an embedded solver is active.
+ */
+.mathmaster-algebraic-system-layout {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(250px, .72fr) minmax(0, 1.55fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.mathmaster-algebraic-system-layout.has-active-solver {
+  grid-template-columns: minmax(230px, 300px) minmax(0, 1fr);
+}
+
+.mathmaster-algebraic-system-givens,
+.mathmaster-algebraic-system-workflow {
+  min-width: 0;
+}
+
+.mathmaster-systems-embedded-step-algebra {
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #b8cdf0;
+  border-radius: 12px;
+  background: #f8fbff;
+  box-sizing: border-box;
+}
+
+/* Do not let a nested balance board inherit a narrow "card" feeling once the
+   parent systems workspace has already given it the working column. */
+.mathmaster-systems-embedded-step-algebra > section {
+  width: 100%;
+  max-width: none !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Substitution is a placement decision, not a multiple-choice decision. */
+.mathmaster-systems-substitution-stage {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #c7d7f4;
+  border-radius: 12px;
+  background: #f8fbff;
+}
+
+.mathmaster-systems-substitution-direction {
+  margin: 0;
+  color: #3c4756;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.mathmaster-systems-substitution-direction span {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.mathmaster-systems-substitution-token {
+  width: fit-content;
+  max-width: 100%;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 2px solid #6f96d6;
+  border-radius: 12px;
+  background: #fff;
+  color: #172033;
+  cursor: grab;
+  box-shadow: 0 3px 10px rgba(23, 78, 166, .10);
+  font-weight: 800;
+}
+
+.mathmaster-systems-substitution-token:active {
+  cursor: grabbing;
+}
+
+.mathmaster-systems-substitution-token:focus-visible {
+  outline: 3px solid #1a73e8;
+  outline-offset: 2px;
+}
+
+.mathmaster-systems-token-label {
+  color: #174ea6;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.mathmaster-systems-token-grip {
+  color: #6f7782;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.mathmaster-systems-drop-equation {
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 2px dashed #b8cdf0;
+  border-radius: 12px;
+  background: #fff;
+  color: #172033;
+  font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
+  font-size: 25px;
+  line-height: 1.3;
+}
+
+.mathmaster-systems-equation-text {
+  white-space: pre-wrap;
+}
+
+.mathmaster-systems-variable-drop {
+  min-width: 36px;
+  min-height: 42px;
+  padding: 2px 7px;
+  border: 2px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: #172033;
+  font: inherit;
+  font-style: italic;
+  cursor: pointer;
+}
+
+.mathmaster-systems-variable-drop:hover,
+.mathmaster-systems-variable-drop:focus-visible,
+.mathmaster-systems-variable-drop.is-armed {
+  border-color: #8ab4f8;
+  background: #eef4ff;
+  outline: none;
+}
+
+.mathmaster-systems-variable-drop.is-target.is-armed {
+  border-style: dashed;
+}
+
+.mathmaster-systems-substitution-feedback {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mathmaster-systems-substitution-feedback.is-error {
+  color: #a02020;
+}
+
+.mathmaster-systems-backsub-equations {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mathmaster-systems-backsub-equation-label {
+  margin-bottom: 4px;
+  color: #5f6b7a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* In Work View the outer shell already removed assignment chrome. Spend that
+   reclaimed space on the mathematics rather than reintroducing a narrow
+   workflow card. */
+.mathmaster-work-view-host[data-open="true"] .mathmaster-algebraic-system-layout.has-active-solver {
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+}
+
+.mathmaster-work-view-host[data-open="true"] .mathmaster-systems-embedded-step-algebra {
+  padding: 14px;
+}
+
+@media (max-width: 980px) {
+  .mathmaster-algebraic-system-layout,
+  .mathmaster-algebraic-system-layout.has-active-solver,
+  .mathmaster-work-view-host[data-open="true"] .mathmaster-algebraic-system-layout.has-active-solver {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mathmaster-algebraic-system-layout.has-active-solver .mathmaster-algebraic-system-givens .mathmaster-tool-panel {
+    padding-block: 10px;
+  }
+
+  .mathmaster-systems-backsub-equations {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 620px) {
+  .mathmaster-systems-embedded-step-algebra {
+    padding: 8px;
+  }
+
+  .mathmaster-systems-substitution-stage {
+    padding: 9px;
+  }
+
+  .mathmaster-systems-substitution-token {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .mathmaster-systems-token-label {
+    width: 100%;
+    text-align: center;
+  }
+
+  .mathmaster-systems-drop-equation {
+    min-height: 56px;
+    padding: 9px;
+    font-size: 22px;
+  }
+
+  .mathmaster-systems-variable-drop {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
