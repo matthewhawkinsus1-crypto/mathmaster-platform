@@ -1,0 +1,65 @@
+name: Systems Substitution Browser Certification
+
+on:
+  pull_request:
+    paths:
+      - "src/tools/systemsWorkspace/**"
+      - "src/StepByStepAlgebraCore.jsx"
+      - "src/StepByStepAlgebra.css"
+      - "src/AlgebraTermRow.jsx"
+      - "src/algebraDistributionModel.js"
+      - "src/algebraLikeTermsModel.js"
+      - "tests/browser/algebraicSubstitutionHandoff*"
+      - "tests/platform/fixtures/classworkQ2RuntimeCapture.json"
+      - ".github/workflows/systems-substitution-browser.yml"
+  workflow_dispatch:
+
+jobs:
+  substitution-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start browser harness
+        run: |
+          npx vite --host 127.0.0.1 --port 5199 --strictPort > /tmp/mathmaster-vite.log 2>&1 &
+          for i in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:5199/tests/browser/algebraicSubstitutionHandoff.html >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/mathmaster-vite.log
+          exit 1
+
+      - name: Drive substitution and inline-distribution workflow
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: http://127.0.0.1:5199
+        run: node tests/browser/algebraicSubstitutionHandoff.mjs
+
+      - name: Publish browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: systems-substitution-browser-screenshots
+          path: tests/browser/artifacts/algebraicSubstitutionHandoff
+          if-no-files-found: error
+          retention-days: 14
