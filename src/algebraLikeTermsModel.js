@@ -151,6 +151,32 @@ export const replacementIsSingleLikeTerm = (replacementExpression, expectedKey) 
   return terms.length === 1 && monomialSignature(terms[0].text) === expectedKey;
 };
 
+/**
+ * Replace one additive term with a student-authored equivalent term while
+ * preserving every other term on that side. This powers the inline
+ * Rewrite / Simplify mode: selecting a token never changes it by itself; the
+ * student's checked replacement is the only thing that can commit.
+ */
+export const replaceSingleAdditiveTerm = (expression, index, replacementExpression) => {
+  const terms = splitAdditiveTerms(expression) || [];
+  const targetIndex = Number(index);
+  if (!Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= terms.length) return null;
+
+  const replacementTerms = splitAdditiveTerms(replacementExpression) || [];
+  if (replacementTerms.length !== 1) return null;
+
+  const nextTerms = terms.map((term, termIndex) => (
+    termIndex === targetIndex ? replacementTerms[0] : term
+  ));
+  const result = serializeTerms(nextTerms);
+  try {
+    parse(result);
+    return result;
+  } catch {
+    return null;
+  }
+};
+
 export const replaceSelectedLikeTerms = (expression, indices, replacementExpression) => {
   const terms = splitAdditiveTerms(expression) || [];
   const normalized = [...new Set((indices || []).map(Number))]
