@@ -170,7 +170,8 @@ test('complex substitution failures stay recoverable instead of silently hanging
 test('embedded Step Algebra remounts for each exact reduced equation so question 2 cannot inherit question 1 solver state', () => {
   const embed = region(modeSource, 'function EmbeddedStepAlgebra(', 'export default function AlgebraicSystemMode', 'EmbeddedStepAlgebra');
   assert.match(embed, /const embeddedEquationIdentity = useMemo/);
-  assert.match(embed, /equationIdentity\(equationText\)/);
+  assert.match(embed, /normalizeEquationForStepAlgebra\(equationText\)/);
+  assert.match(embed, /equationIdentity\(normalizedEquationText\)/);
   assert.match(embed, /key=\{embeddedEquationIdentity\}/);
   assert.match(embed, /lastReportedRef\.current = null/);
 });
