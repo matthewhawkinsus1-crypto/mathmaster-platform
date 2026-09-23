@@ -115,7 +115,8 @@ test('substitution requires the student to choose both the other equation and th
   assert.match(attempt, /equationIndex === selection\.equationIndex/);
   assert.match(attempt, /clickedVariable !== selection\.variable/);
   assert.match(attempt, /targetEquationIndex: equationIndex/);
-  assert.match(attempt, /equationText: substituteIntoEquation\(equations\[equationIndex\]/);
+  assert.match(attempt, /const reducedEquation = substituteIntoEquation\(/);
+  assert.match(attempt, /equationText: reducedEquation/);
 });
 
 
@@ -133,7 +134,8 @@ test('optional substitution-token simplification is draft-backed and can never s
   assert.match(modeSource, /simplificationChecked/);
   assert.match(modeSource, /simplificationValid/);
   assert.match(modeSource, /That rewrite is not equivalent to the isolated expression yet/);
-  assert.match(modeSource, /substituteIntoEquation\(equations\[equationIndex\], selection\.variable, substitutionTokenExpression \|\| isolatedExpr\)/);
+  assert.match(modeSource, /const reducedEquation = substituteIntoEquation\(/);
+  assert.match(modeSource, /substitutionTokenExpression \|\| isolatedExpr/);
 });
 
 test('substitution feedback identifies the structural mistake without giving away the target variable', () => {
@@ -154,10 +156,7 @@ test('a successful substitution immediately reveals the one-variable solver and 
   assert.match(attempt, /equationText: reducedEquation/);
   assert.match(attempt, /setSlotAttempt\(null\)/);
 
-  const reduceBlock = region(modeSource, 'label={`Solve for ${survivingVariable}`}', 'onSolved={handleReduceSolved}', 'reduced solver');
-  assert.match(reduceBlock, /autoReveal/);
-  assert.match(reduceBlock, /autoOpenDistribution=\{effectiveMethod === 'substitution'\}/);
-  assert.match(reduceBlock, /simplifyDistributedProducts=\{effectiveMethod === 'substitution'\}/);
+  assert.match(modeSource, /label={`Solve for ${survivingVariable}`}[\s\S]*?autoReveal[\s\S]*?autoOpenDistribution=\{effectiveMethod === 'substitution'\}[\s\S]*?simplifyDistributedProducts=\{effectiveMethod === 'substitution'\}/);
 });
 
 test('embedded solver reveal is presentation-only and does not solve or choose a distribution step for the student', () => {
