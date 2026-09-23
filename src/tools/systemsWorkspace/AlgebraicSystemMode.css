@@ -500,6 +500,104 @@
   color: #174ea6;
 }
 
+.mathmaster-systems-multiplier-products {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #c7d7f4;
+  border-radius: 10px;
+  background: #f8fbff;
+  color: #202124;
+  text-align: left;
+}
+
+.mathmaster-systems-multiplier-products > strong,
+.mathmaster-systems-multiplier-products > span {
+  display: block;
+}
+
+.mathmaster-systems-multiplier-products > span {
+  color: #5f6b7a;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.mathmaster-systems-multiplier-product-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mathmaster-systems-multiplier-product-grid label {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.mathmaster-systems-multiplier-product-grid label > span {
+  color: #465267;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.mathmaster-systems-check-products,
+.mathmaster-systems-confirm-cancellation {
+  min-height: 40px;
+  width: fit-content;
+  padding: 7px 13px;
+  border: 0;
+  border-radius: 9px;
+  background: #174ea6;
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.mathmaster-systems-confirm-cancellation:disabled {
+  background: #d7dde7;
+  color: #7b8493;
+  cursor: not-allowed;
+}
+
+.mathmaster-systems-cancellation-target {
+  width: 100%;
+  border: 1px solid rgba(26, 115, 232, .18);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mathmaster-systems-cancellation-target:hover,
+.mathmaster-systems-cancellation-target:focus-visible {
+  background: rgba(26, 115, 232, .12);
+  outline: 2px solid rgba(26, 115, 232, .28);
+  outline-offset: 1px;
+}
+
+.mathmaster-systems-cancellation-stage {
+  display: grid;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid #f3c66a;
+  border-radius: 12px;
+  background: #fffaf0;
+}
+
+.mathmaster-systems-cancellation-heading strong,
+.mathmaster-systems-cancellation-heading span {
+  display: block;
+}
+
+.mathmaster-systems-cancellation-heading span,
+.mathmaster-systems-cancellation-progress {
+  margin-top: 3px;
+  color: #6b5b35;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .mathmaster-systems-combine-stage {
   display: grid;
   gap: 10px;
@@ -708,6 +806,15 @@
 
   .mathmaster-systems-multiplier-composer {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mathmaster-systems-multiplier-product-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mathmaster-systems-check-products,
+  .mathmaster-systems-confirm-cancellation {
+    width: 100%;
   }
 
   .mathmaster-systems-multiplier-composer > span {
