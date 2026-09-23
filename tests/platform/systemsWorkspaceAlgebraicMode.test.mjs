@@ -115,7 +115,7 @@ test('substitution requires the student to choose both the other equation and th
   assert.match(attempt, /equationIndex === selection\.equationIndex/);
   assert.match(attempt, /clickedVariable !== selection\.variable/);
   assert.match(attempt, /targetEquationIndex: equationIndex/);
-  assert.match(attempt, /const reducedEquation = substituteIntoEquation\(/);
+  assert.match(attempt, /reducedEquation = substituteIntoEquation\(/);
   assert.match(attempt, /equationText: reducedEquation/);
 });
 
@@ -134,7 +134,7 @@ test('optional substitution-token simplification is draft-backed and can never s
   assert.match(modeSource, /simplificationChecked/);
   assert.match(modeSource, /simplificationValid/);
   assert.match(modeSource, /That rewrite is not equivalent to the isolated expression yet/);
-  assert.match(modeSource, /const reducedEquation = substituteIntoEquation\(/);
+  assert.match(modeSource, /reducedEquation = substituteIntoEquation\(/);
   assert.match(modeSource, /substitutionTokenExpression \|\| isolatedExpr/);
 });
 
@@ -152,7 +152,7 @@ test('substitution and back-substitution both route their one-variable result th
 
 test('a successful substitution immediately reveals the one-variable solver and activates manual distribution', () => {
   const attempt = region(modeSource, 'const attemptSubstitution = ', 'const setMultiplierValue', 'attemptSubstitution');
-  assert.match(attempt, /const reducedEquation = substituteIntoEquation/);
+  assert.match(attempt, /reducedEquation = substituteIntoEquation/);
   assert.match(attempt, /equationText: reducedEquation/);
   assert.match(attempt, /setSlotAttempt\(null\)/);
 
