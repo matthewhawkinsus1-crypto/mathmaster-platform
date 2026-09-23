@@ -200,3 +200,17 @@ test('the Task Card stays visible via the shared MODE_TASKS/MODE_STEPS registry,
   assert.match(workspaceSource, /algebraic: 'Solve this 2×2 system algebraically/);
   assert.match(workspaceSource, /algebraic: \[.*Choose \(or use the assigned\) method/s);
 });
+
+
+test('embedded Step Algebra owns universal Undo while a one-variable solve is active', () => {
+  assert.match(modeSource, /useActiveUndoOwner/);
+  assert.match(modeSource, /algebraic-system-embedded-step-algebra/);
+  assert.match(modeSource, /onUndoStateChange=\{setEmbeddedUndoController\}/);
+  assert.match(modeSource, /activeUndoCapability/);
+  assert.match(modeSource, /undo:\s*activeUndoCapability/);
+});
+
+test('ordered-pair display uses coordinate values rather than x = / y = labels', () => {
+  assert.match(modeSource, /Ordered-pair solution:[\s\S]*\(\{solution\[variables\[0\]\]\}, \{solution\[variables\[1\]\]\}\)/);
+  assert.doesNotMatch(modeSource, /Ordered-pair solution:[\s\S]{0,180}\{variables\[0\]\}\s*=\s*\{solution/);
+});
