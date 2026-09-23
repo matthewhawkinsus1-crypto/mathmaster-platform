@@ -65,17 +65,17 @@
 .mathmaster-systems-substitution-token {
   width: fit-content;
   max-width: 100%;
-  min-height: 48px;
+  min-height: 40px;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border: 2px solid #6f96d6;
-  border-radius: 12px;
+  gap: 7px;
+  padding: 5px 9px;
+  border: 1.5px solid #6f96d6;
+  border-radius: 10px;
   background: #fff;
   color: #172033;
   cursor: grab;
-  box-shadow: 0 3px 10px rgba(23, 78, 166, .10);
+  box-shadow: 0 2px 6px rgba(23, 78, 166, .09);
   font-weight: 800;
 }
 
@@ -97,7 +97,7 @@
 
 .mathmaster-systems-token-grip {
   color: #6f7782;
-  font-size: 20px;
+  font-size: 16px;
   line-height: 1;
 }
 
@@ -140,6 +140,14 @@
   border-color: #8ab4f8;
   background: #eef4ff;
   outline: none;
+}
+
+.mathmaster-systems-variable-drop.is-drag-over {
+  border-color: #174ea6;
+  background: #dbeafe;
+  box-shadow: 0 0 0 4px rgba(26, 115, 232, .18), 0 4px 12px rgba(23, 78, 166, .16);
+  transform: scale(1.08);
+  color: #174ea6;
 }
 
 .mathmaster-systems-variable-drop.is-filled {
@@ -210,14 +218,13 @@
   }
 
   .mathmaster-systems-substitution-token {
-    width: 100%;
+    width: fit-content;
+    max-width: 100%;
     justify-content: center;
-    flex-wrap: wrap;
   }
 
   .mathmaster-systems-token-label {
-    width: 100%;
-    text-align: center;
+    font-size: 11px;
   }
 
   .mathmaster-systems-drop-equation {
