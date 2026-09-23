@@ -74,6 +74,11 @@ const normalizeEquationText = (value) => String(value ?? '')
   .replace(/[−–—]/g, '-')
   .replace(/\s+/g, '');
 
+const escapeSystemsVariable = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\const normalizeEquationText = (value) => String(value ?? '')
+  .replace(/[−–—]/g, '-')
+  .replace(/\s+/g, '');
+');
+
 const solveSystemActions = (question = {}) => (
   Array.isArray(question.studentActions)
     ? question.studentActions.map((value) => String(value ?? '').trim())
@@ -145,7 +150,7 @@ const analyzeSystemsWorkspaceUpgrade = (before = {}, after = {}) => {
     };
   }
   const joinedEquations = afterEquations.join(' ');
-  if (variables.some((variable) => !new RegExp('(^|[^A-Za-z0-9_])' + escapeRegex(variable) + '([^A-Za-z0-9_]|$)').test(joinedEquations))) {
+  if (variables.some((variable) => !new RegExp('(^|[^A-Za-z0-9_])' + escapeSystemsVariable(variable) + '([^A-Za-z0-9_]|$)').test(joinedEquations))) {
     return {
       safe: false,
       affectedFieldIds: [],
