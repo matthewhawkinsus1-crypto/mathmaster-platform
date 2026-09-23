@@ -35,3 +35,13 @@ test('calculator supports a shared external launcher rather than floating its ow
   assert.match(source, /borderRadius:999/);
   assert.doesNotMatch(source, /background: '#1a73e8'.*Calculator/);
 });
+
+
+test('calculator focuses its MathLive field on open and owns Enter as equals', () => {
+  assert.match(source, /requestAnimationFrame\(\(\) => \{[\s\S]*mathField\.focus/);
+  assert.match(source, /mathField\.addEventListener\('keydown', handleKeyDown\)/);
+  assert.match(source, /event\.key !== 'Enter'/);
+  assert.match(source, /evaluateCalculatorExpression\(expression, policy\.mode\)/);
+  assert.match(source, /event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)/);
+  assert.match(source, /data-calculator-expression="true"/);
+});
