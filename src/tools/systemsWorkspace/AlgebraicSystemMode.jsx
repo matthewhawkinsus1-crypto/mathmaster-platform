@@ -168,7 +168,7 @@ const cleanCoefficient = (value) => {
 
 const coefficientTermText = (value, variable) => {
   const coefficient = cleanCoefficient(value);
-  if (coefficient === 0) return '0';
+  if (coefficient === 0) return `0${variable}`;
   if (coefficient === 1) return variable;
   if (coefficient === -1) return `-${variable}`;
   return `${coefficient}${variable}`;
