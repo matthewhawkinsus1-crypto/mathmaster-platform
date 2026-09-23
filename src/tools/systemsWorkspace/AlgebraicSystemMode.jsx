@@ -831,59 +831,182 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
           ) : null}
 
           {effectiveMethod === 'elimination' ? (
-            <div style={{ display: 'grid', gap: 14, marginTop: 12 }}>
+            <div className="mathmaster-systems-elimination-stage">
               {!selection.variable ? (
                 <div>
                   <p style={{ margin: '0 0 8px', color: '#3c4756' }}>Which variable will you eliminate?</p>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {variables.map((v) => (
                       <button key={v} type="button" onClick={() => chooseSelection(null, v)} style={secondaryButtonStyle}>Eliminate {v}</button>
                     ))}
                   </div>
                 </div>
-              ) : (
-                <div>
-                  <p style={{ margin: '0 0 6px', color: '#3c4756' }}>Eliminating <strong>{selection.variable}</strong>.</p>
-                  <button type="button" onClick={resetFromSelection} style={{ ...secondaryButtonStyle, fontSize: 12 }}>Choose a different variable</button>
-                </div>
-              )}
-
-              {selection.variable && !combinationLocked ? (
-                <div style={{ display: 'grid', gap: 10 }}>
-                  {[0, 1].map((index) => (
-                    <div key={index} style={{ padding: 10, border: '1px solid #dbe3ef', borderRadius: 8, background: '#fff' }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#5f6b7a', marginBottom: 4 }}>Equation {index + 1}</div>
-                      <MathDisplay value={equations[index]} format="ascii-math" />
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
-                        <span style={{ fontSize: 13 }}>Multiply by</span>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={multipliers[index]}
-                          onChange={(e) => setMultiplierValue(index, e.target.value)}
-                          style={{ ...inputStyle, width: 70, minHeight: 36, padding: '6px 8px' }}
-                        />
-                        <button type="button" onClick={() => applyMultiplier(index)} style={secondaryButtonStyle}>Apply</button>
-                      </div>
-                      {appliedMultipliers[index] && multipliedEq(index) ? (
-                        <div style={{ marginTop: 8 }}>
-                          <span style={{ fontSize: 12, color: '#5f6b7a' }}>becomes:</span>
-                          <MathDisplay value={multipliedEq(index).text} format="ascii-math" />
-                        </div>
-                      ) : null}
+              ) : !combinationLocked ? (
+                <div className="mathmaster-systems-elimination-board">
+                  <div className="mathmaster-systems-elimination-heading">
+                    <div>
+                      <strong>Prepare the equations</strong>
+                      <span>You chose to eliminate {selection.variable}. Choose any multipliers you need, then place each multiplier on its whole equation.</span>
                     </div>
-                  ))}
+                    <button type="button" onClick={resetFromSelection}>Change target</button>
+                  </div>
+
+                  <div className="mathmaster-systems-elimination-equations">
+                    {[0, 1].map((index) => {
+                      const transformed = appliedMultipliers[index] ? multipliedEq(index) : null;
+                      const multiplierArmed = slotAttempt?.stage === 'multiplier' && slotAttempt?.armed && Number(slotAttempt?.index) === index;
+                      return (
+                        <div key={index} className={`mathmaster-systems-elimination-equation-card${appliedMultipliers[index] ? ' is-prepared' : ''}`}>
+                          <AlignedEquationRow
+                            equationText={equations[index]}
+                            variables={variables}
+                            targetVariable={selection.variable}
+                            label={`Equation ${index + 1}`}
+                          />
+                          <div className="mathmaster-systems-multiplier-composer">
+                            <span>Multiplier</span>
+                            <MathInput
+                              value={multipliers[index]}
+                              onChange={(value) => setMultiplierValue(index, value)}
+                              placeholder="1"
+                              ariaLabel={`Multiplier for equation ${index + 1}`}
+                              toolProfile="algebra-operation"
+                              compact
+                              maxWidth={150}
+                            />
+                            <button
+                              type="button"
+                              className={`mathmaster-systems-multiplier-token${multiplierArmed ? ' is-armed' : ''}`}
+                              draggable
+                              onClick={() => armMultiplier(index)}
+                              onDragStart={(event) => {
+                                event.dataTransfer?.setData('text/plain', `mathmaster-system-multiplier:${index}`);
+                                if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+                                armMultiplier(index);
+                              }}
+                              aria-pressed={multiplierArmed}
+                            >
+                              ⠿ × {multipliers[index] || '?'}
+                            </button>
+                          </div>
+                          <div
+                            className={`mathmaster-systems-equation-multiplier-drop${multiplierArmed ? ' is-armed' : ''}`}
+                            role={multiplierArmed ? 'button' : undefined}
+                            tabIndex={multiplierArmed ? 0 : undefined}
+                            onClick={() => {
+                              if (multiplierArmed) dropMultiplier(index, slotAttempt?.index);
+                            }}
+                            onKeyDown={(event) => {
+                              if (multiplierArmed && (event.key === 'Enter' || event.key === ' ')) {
+                                event.preventDefault();
+                                dropMultiplier(index, slotAttempt?.index);
+                              }
+                            }}
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={(event) => {
+                              event.preventDefault();
+                              const payload = event.dataTransfer?.getData('text/plain') || '';
+                              if (!payload.startsWith('mathmaster-system-multiplier:')) return;
+                              dropMultiplier(index, payload.split(':').pop());
+                            }}
+                            aria-label={`Place the multiplier on equation ${index + 1}`}
+                          >
+                            {transformed ? (
+                              <AlignedEquationRow
+                                equationText={transformed.text}
+                                variables={variables}
+                                targetVariable={selection.variable}
+                                multiplier={multipliers[index]}
+                                label="Prepared equation"
+                              />
+                            ) : (
+                              <span>Place the multiplier on the entire equation</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {slotAttempt?.stage === 'multiplier' && slotAttempt.correct === false ? (
+                    <p className="mathmaster-systems-substitution-feedback is-error">
+                      {slotAttempt.reason === 'invalid-multiplier'
+                        ? 'That multiplier could not be read as a nonzero number. Check the sign or fraction and try again.'
+                        : 'That multiplier token belongs to the other equation row. Pick up the multiplier from the equation you want to transform.'}
+                    </p>
+                  ) : null}
 
                   {multipliersApplied ? (
-                    <div>
-                      <p style={{ margin: '0 0 8px', color: '#3c4756' }}>Add or subtract the transformed equations:</p>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button type="button" onClick={() => handleCombine('add')} style={combination.operation === 'add' ? activeButtonStyle : secondaryButtonStyle}>Add</button>
-                        <button type="button" onClick={() => handleCombine('subtract')} style={combination.operation === 'subtract' ? activeButtonStyle : secondaryButtonStyle}>Subtract</button>
+                    <div className="mathmaster-systems-combine-stage">
+                      <div className="mathmaster-systems-combine-preview">
+                        <AlignedEquationRow
+                          equationText={multipliedEq(0)?.text || equations[0]}
+                          variables={variables}
+                          targetVariable={selection.variable}
+                          cancelled={combinationLocked}
+                          label="Prepared equation 1"
+                        />
+                        <AlignedEquationRow
+                          equationText={multipliedEq(1)?.text || equations[1]}
+                          variables={variables}
+                          targetVariable={selection.variable}
+                          cancelled={combinationLocked}
+                          label="Prepared equation 2"
+                        />
+                      </div>
+                      <p>Now decide how the prepared equations should be combined.</p>
+                      <div className="mathmaster-systems-combine-token-bank">
+                        {[
+                          ['add', '+', 'Equation 1 + Equation 2'],
+                          ['subtract', '−', 'Equation 1 − Equation 2'],
+                        ].map(([operation, symbol, label]) => {
+                          const armed = slotAttempt?.stage === 'combine' && slotAttempt?.armed && slotAttempt?.operation === operation;
+                          return (
+                            <button
+                              key={operation}
+                              type="button"
+                              draggable
+                              className={`mathmaster-systems-combine-token${armed ? ' is-armed' : ''}`}
+                              onClick={() => armCombine(operation)}
+                              onDragStart={(event) => {
+                                event.dataTransfer?.setData('text/plain', `mathmaster-system-combine:${operation}`);
+                                if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+                                armCombine(operation);
+                              }}
+                              aria-pressed={armed}
+                            >
+                              <strong>{symbol}</strong>
+                              <span>{label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div
+                        className={`mathmaster-systems-combine-drop${slotAttempt?.stage === 'combine' && slotAttempt?.armed ? ' is-armed' : ''}`}
+                        role={slotAttempt?.stage === 'combine' && slotAttempt?.armed ? 'button' : undefined}
+                        tabIndex={slotAttempt?.stage === 'combine' && slotAttempt?.armed ? 0 : undefined}
+                        onClick={() => {
+                          if (slotAttempt?.stage === 'combine' && slotAttempt?.armed) dropCombine(slotAttempt.operation);
+                        }}
+                        onKeyDown={(event) => {
+                          if (slotAttempt?.stage === 'combine' && slotAttempt?.armed && (event.key === 'Enter' || event.key === ' ')) {
+                            event.preventDefault();
+                            dropCombine(slotAttempt.operation);
+                          }
+                        }}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          const payload = event.dataTransfer?.getData('text/plain') || '';
+                          if (!payload.startsWith('mathmaster-system-combine:')) return;
+                          dropCombine(payload.split(':').pop());
+                        }}
+                      >
+                        Drop Add or Subtract here to combine the equations
                       </div>
                       {combination.attempts > 0 && !combinationLocked ? (
-                        <p style={{ margin: '8px 0 0', color: '#a02020', fontSize: 13 }}>
-                          These coefficients do not cancel {selection.variable} when the equations are {combination.operation === 'subtract' ? 'subtracted' : 'added'}. Check your selected operation or multiplier.
+                        <p className="mathmaster-systems-substitution-feedback is-error">
+                          That combination does not eliminate the variable you chose. Recheck the signs in the prepared equations or change a multiplier.
                         </p>
                       ) : null}
                     </div>
@@ -891,12 +1014,29 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                 </div>
               ) : null}
 
-              {combinationLocked ? (
-                <div style={{ padding: 10, border: '1px solid #dbe3ef', borderRadius: 8, background: '#fff' }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#5f6b7a', marginBottom: 4 }}>
-                    Combined ({combination.operation}) — {selection.variable} cancels
+              {combinationLocked && !firstSolvedDone ? (
+                <div className="mathmaster-systems-elimination-result">
+                  <div className="mathmaster-systems-combine-preview is-complete">
+                    <AlignedEquationRow
+                      equationText={multipliedEq(0)?.text || equations[0]}
+                      variables={variables}
+                      targetVariable={selection.variable}
+                      cancelled
+                      label="Prepared equation 1"
+                    />
+                    <AlignedEquationRow
+                      equationText={multipliedEq(1)?.text || equations[1]}
+                      variables={variables}
+                      targetVariable={selection.variable}
+                      cancelled
+                      label="Prepared equation 2"
+                    />
                   </div>
-                  <MathDisplay value={combination.text} format="ascii-math" />
+                  <div className="mathmaster-systems-combine-result-line" />
+                  <div className="mathmaster-systems-combined-equation">
+                    <span>{combination.operation === 'subtract' ? 'Equation 1 − Equation 2' : 'Equation 1 + Equation 2'}</span>
+                    <MathDisplay value={combination.text} format="ascii-math" />
+                  </div>
                 </div>
               ) : null}
             </div>
