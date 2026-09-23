@@ -5,6 +5,7 @@ const LABELS = {
   unchanged: 'Unchanged',
   safeResponseControl: 'Safe response controls',
   graphViewportRepair: 'Graph viewport (display only)',
+  systemsWorkspaceUpgrade: 'Restore interactive Systems Workspace',
   gradingExpansion: 'More forgiving grading',
   clarificationOnly: 'Clarification only',
   fundamental: 'Fundamental correction',

@@ -62,6 +62,7 @@ test('preview classifies all live V1 to V2 change kinds', async () => {
     // reframing a graph is never counted as a response-control correction. This
     // fixture contains none of them.
     graphViewportRepair: 0,
+    systemsWorkspaceUpgrade: 0,
     gradingExpansion: 1,
     clarificationOnly: 1,
     fundamental: 1,
@@ -257,4 +258,104 @@ test('preview recognizes an already-current live assignment instead of treating 
   const preview = indexSource.slice(start, end);
   assert.match(preview, /alreadyCurrent/);
   assert.match(preview, /Content V\$\{liveVersion\} is already applied/);
+});
+
+
+test('Content V2 can restore a live legacy system in place and return one exhausted attempt without lowering credit', async () => {
+  const live = {
+    id: 'live-systems',
+    schemaVersion: 5,
+    assignmentRevision: 1,
+    assignedClassIds: ['class-1'],
+    contentLineage: { familyId: 'systems-family', version: 1, releaseStatus: 'superseded' },
+    sections: [{
+      id: 'classwork',
+      role: 'classwork',
+      title: 'Classwork',
+      questions: [{
+        questionId: 'systems-q',
+        type: 'system',
+        prompt: 'Use elimination to solve the system 2x + 3y = 11 and x + 5y = 9.',
+        studentActions: ['solveSystem'],
+        equationsLatex: ['2x + 3y = 11', 'x + 5y = 9'],
+        standard: 'A2.3A',
+      }],
+    }],
+  };
+  const target = {
+    id: 'library-systems-v2',
+    schemaVersion: 5,
+    assignmentRevision: 1,
+    assignedClassIds: [],
+    contentLineage: { familyId: 'systems-family', version: 2, releaseStatus: 'current' },
+    sections: [{
+      id: 'classwork',
+      role: 'classwork',
+      title: 'Classwork',
+      questions: [{
+        ...live.sections[0].questions[0],
+        type: 'systemsWorkspace',
+        toolId: 'systemsWorkspace',
+        mode: 'algebraic',
+        method: 'elimination',
+        equations: ['2x + 3y = 11', 'x + 5y = 9'],
+        variables: ['x', 'y'],
+        requireVerification: true,
+      }],
+    }],
+  };
+
+  const plan = await buildContentUpgradePlan({ liveAssignment: live, targetAssignment: target });
+  assert.equal(plan.counts.systemsWorkspaceUpgrade, 1);
+  assert.equal(plan.requiresFundamentalChoice, false);
+
+  const upgraded = buildUpgradedAssignment({
+    liveAssignment: live,
+    targetAssignment: target,
+    plan,
+  });
+  const upgradedQuestion = upgraded.assignment.sections[0].questions[0];
+  assert.equal(upgradedQuestion.questionId, 'systems-q');
+  assert.equal(upgradedQuestion.type, 'systemsWorkspace');
+  assert.equal(upgradedQuestion.mode, 'algebraic');
+
+  const correctTracker = {
+    0: {
+      status: 'correct',
+      attemptCount: 2,
+      totalAttempts: 2,
+      partialCredit: 100,
+      bestPartialCredit: 100,
+      partGrades: [],
+    },
+  };
+  const correctResult = migrateTrackerForContentUpgrade({
+    tracker: correctTracker,
+    plan,
+    correctedAt: '2026-09-23T15:00:00.000Z',
+  });
+  assert.strictEqual(correctResult.tracker, correctTracker);
+
+  const exhaustedTracker = {
+    0: {
+      status: 'expired',
+      attemptCount: 3,
+      totalAttempts: 3,
+      partialCredit: 40,
+      bestPartialCredit: 60,
+      partGrades: [{ id: 'legacy-solution', isComplete: true, isCorrect: false, response: '(1,2)' }],
+    },
+  };
+  const exhaustedResult = migrateTrackerForContentUpgrade({
+    tracker: exhaustedTracker,
+    plan,
+    correctedAt: '2026-09-23T15:00:00.000Z',
+  });
+  assert.equal(exhaustedResult.tracker[0].status, 'attempted');
+  assert.equal(exhaustedResult.tracker[0].attemptCount, 2);
+  assert.equal(exhaustedResult.tracker[0].totalAttempts, 3);
+  assert.equal(exhaustedResult.tracker[0].bestPartialCredit, 60);
+  assert.deepEqual(exhaustedResult.tracker[0].partGrades, exhaustedTracker[0].partGrades);
+  assert.equal(exhaustedResult.tracker[0].contentVersionRegradeHistory.at(-1).kind, 'systems-workspace-upgrade');
+  assert.equal(exhaustedResult.tracker[0].contentVersionRegradeHistory.at(-1).grantedRepairRetry, true);
 });
