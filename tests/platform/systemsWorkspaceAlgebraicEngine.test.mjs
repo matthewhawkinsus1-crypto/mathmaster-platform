@@ -15,6 +15,7 @@ import {
   degenerateStatementTruth,
   solveAlgebraicSystem,
   evaluateEquationSides,
+  normalizeEquationForStepAlgebra,
 } from '../../src/tools/systemsWorkspace/algebraicSystemsEngine.js';
 
 // ---------------------------------------------------------------------------
@@ -119,6 +120,27 @@ test('an unsimplified isolation token with division by negative one remains vali
   assert.ok(coeffs, result);
   assert.equal(coeffs.b, 0);
   assert.notEqual(coeffs.a, 0);
+});
+
+
+test('Step Algebra import normalization removes redundant token wrappers without doing algebra for the student', () => {
+  const q1 = normalizeEquationForStepAlgebra('3 * x + 4 * ((2 * x)) = 11');
+  assert.doesNotMatch(q1, /\(\(/);
+  assert.match(q1, /3 \* x/);
+  assert.match(q1, /= 11$/);
+
+  const q6 = normalizeEquationForStepAlgebra('0.25 * (((200) - s)) + 0.75 * s = 120');
+  assert.doesNotMatch(q6, /\(\(/);
+  assert.match(q6, /0\.25 \* \(200 - s\)/);
+  assert.match(q6, /0\.75 \* s/);
+  assert.match(q6, /= 120$/);
+});
+
+test('Step Algebra import normalization preserves the distributive group in the alloy problem', () => {
+  const normalized = normalizeEquationForStepAlgebra('0.25 * (((200) - s)) + 0.75 * s = 120');
+  assert.match(normalized, /0\.25 \* \(200 - s\)/);
+  assert.doesNotMatch(normalized, /50/);
+  assert.doesNotMatch(normalized, /0\.5 \* s/);
 });
 
 // ---------------------------------------------------------------------------
