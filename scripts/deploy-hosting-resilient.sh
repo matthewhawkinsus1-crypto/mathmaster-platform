@@ -36,6 +36,29 @@ echo "Upload concurrency: $FIREBASE_HOSTING_UPLOAD_CONCURRENCY"
 echo "Retry attempts: $MAX_ATTEMPTS"
 echo
 
+# Always build the exact checked-out commit before uploading Hosting. This is
+# intentionally part of the deploy command so Cloud Shell can never publish a
+# stale dist/ directory left behind by an earlier session.
+EXPECTED_SHA="$(git rev-parse --short=12 HEAD)"
+echo "Building exact commit: $EXPECTED_SHA"
+npm run build:firebase
+
+if [ ! -f dist/mathmaster-build.json ]; then
+  echo "Firebase build manifest is missing: dist/mathmaster-build.json" >&2
+  exit 3
+fi
+
+BUILT_SHA="$(node --input-type=module -e "import fs from 'node:fs'; const m=JSON.parse(fs.readFileSync('dist/mathmaster-build.json','utf8')); process.stdout.write(String(m.gitSha || ''));")"
+if [ "$BUILT_SHA" != "$EXPECTED_SHA" ]; then
+  echo "Refusing to deploy stale Hosting output." >&2
+  echo "Expected commit: $EXPECTED_SHA" >&2
+  echo "Built commit:    $BUILT_SHA" >&2
+  exit 3
+fi
+
+echo "Verified Hosting build commit: $BUILT_SHA"
+echo
+
 is_retryable_hosting_failure() {
   local log_file="$1"
   grep -Eqi     'upload-firebasehosting\.googleapis\.com|ConnectTimeoutError|ETIMEDOUT|ECONNRESET|EAI_AGAIN|socket hang up|retries exhausted|network timeout|fetch failed'     "$log_file"
