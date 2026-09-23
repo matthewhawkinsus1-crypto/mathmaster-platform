@@ -568,23 +568,15 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       return;
     }
 
-    // A valid substitution must remove the isolated variable from the target
-    // equation while leaving a readable linear equation for the surviving
-    // variable. Fail visibly rather than letting a malformed token strand the
-    // student on a dead board.
-    const reduced = linearEquationCoefficients(reducedEquation, variables);
-    const removedKey = selection.variable === variables[0] ? 'a' : 'b';
-    if (!reduced || Math.abs(reduced[removedKey]) > 1e-7) {
-      setSlotAttempt({
-        stage: 'substitution',
-        equationIndex,
-        variable: clickedVariable,
-        correct: false,
-        reason: 'expression-parse',
-        armed: true,
-      });
-      return;
-    }
+    // Do not run the completed substitution back through the coefficient
+    // sampler here. The source expression was either produced by Step Algebra
+    // or equivalence-checked before becoming a token, and the target variable
+    // and equation have already been validated above. Sampling a perfectly
+    // valid but presentation-heavy expression (for example -(3) + (2y)) can
+    // return null even though Step Algebra can solve it. That false negative
+    // was what stranded Classwork Q2. Once substitution parses successfully,
+    // hand the exact reduced equation to Step Algebra and let the solver own
+    // the remaining algebra.
 
     setSubstitution({
       targetVariable: selection.variable,
