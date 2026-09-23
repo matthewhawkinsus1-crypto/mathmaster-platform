@@ -166,25 +166,26 @@ function AutoFitEquationExpression({ children, baseFontSize = 34, cacheKey = '' 
   const [fontSize, setFontSize] = useState(base);
 
   useLayoutEffect(() => {
-    setFontSize(base);
-  }, [base, cacheKey]);
-
-  useLayoutEffect(() => {
     const viewport = viewportRef.current;
     const content = contentRef.current;
     if (!viewport || !content) return undefined;
 
     let frame = null;
     const fit = () => {
-      const available = Math.max(1, viewport.clientWidth - 6);
+      const available = Math.max(1, viewport.clientWidth - 8);
+      const computed = Number.parseFloat(window.getComputedStyle(content).fontSize) || base;
       const rendered = Math.max(1, content.scrollWidth);
-      const ratio = available / rendered;
-      // Resize the mathematical typography, not the viewport. This keeps the
-      // whole side visible without making students pan a horizontal scrollbar.
-      // The floor is deliberately readable; adaptive side widths do most of
-      // the work before the font ever needs to get this small.
-      const next = Math.max(17, Math.min(base, fontSize * ratio * 0.985));
-      if (Math.abs(next - fontSize) > 0.45) setFontSize(next);
+
+      // Estimate the width this exact expression would occupy at the base
+      // typography, then derive one stable target size from that measurement.
+      // The old code multiplied the *current* font by a fresh width ratio while
+      // also observing the content itself. Changing the font changed the
+      // observed width, which triggered another resize, producing the visible
+      // "pulsing" students saw near the fit boundary.
+      const widthAtBase = Math.max(1, rendered * (base / computed));
+      const target = Math.max(17, Math.min(base, base * (available / widthAtBase) * 0.975));
+
+      setFontSize((current) => (Math.abs(target - current) > 0.35 ? target : current));
     };
     const scheduleFit = () => {
       if (frame) window.cancelAnimationFrame(frame);
@@ -192,16 +193,18 @@ function AutoFitEquationExpression({ children, baseFontSize = 34, cacheKey = '' 
     };
 
     scheduleFit();
+    // Observe only the space available to the equation. Observing the content
+    // itself creates a feedback loop because changing its font size changes its
+    // dimensions. Content changes already arrive through cacheKey.
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(scheduleFit) : null;
     observer?.observe(viewport);
-    observer?.observe(content);
     window.addEventListener('resize', scheduleFit);
     return () => {
       if (frame) window.cancelAnimationFrame(frame);
       observer?.disconnect();
       window.removeEventListener('resize', scheduleFit);
     };
-  }, [base, cacheKey, fontSize]);
+  }, [base, cacheKey]);
 
   return (
     <div ref={viewportRef} className="algebra-expression-fit-viewport">

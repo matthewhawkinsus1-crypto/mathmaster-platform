@@ -40,3 +40,15 @@ test('substitution token remains compact and only the live dragged-over variable
   assert.match(systems, /dragOverVariable === part \? ' is-drag-over'/);
   assert.match(systems, /setDragOverVariable\(part\)/);
 });
+
+
+test('equation auto-fit is stable and cannot observe its own font-size changes', () => {
+  const start = core.indexOf('function AutoFitEquationExpression');
+  const end = core.indexOf('function OperationChip', start);
+  const region = core.slice(start, end);
+  assert.match(region, /widthAtBase/);
+  assert.match(region, /observer\?\.observe\(viewport\)/);
+  assert.doesNotMatch(region, /observer\?\.observe\(content\)/);
+  assert.doesNotMatch(region, /\[base, cacheKey, fontSize\]/);
+  assert.doesNotMatch(css, /\.algebra-expression-fit-content[\s\S]{0,300}transition:\s*font-size/);
+});
