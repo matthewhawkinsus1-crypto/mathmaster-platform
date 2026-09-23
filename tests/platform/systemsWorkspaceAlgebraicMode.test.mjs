@@ -70,7 +70,7 @@ test('AlgebraicSystemMode is declared in the persistence contract alongside Syst
 test('every stage of mathematical work required by the spec is stored through usePersistentToolState, not useState', () => {
   const persistentFields = [...modeSource.matchAll(/usePersistentToolState\(\s*'([^']+)'/g)].map((m) => m[1]);
   [
-    'method', 'selection', 'isolation', 'substitution', 'multipliers', 'appliedMultipliers',
+    'method', 'selection', 'isolation', 'substitution', 'multipliers', 'appliedMultipliers', 'multiplierWork',
     'combination', 'firstSolved', 'specialCase', 'backSub', 'secondSolved', 'verification',
     'methodEfficiencyReason',
   ].forEach((field) => {
@@ -98,7 +98,7 @@ test('each Step Algebra embed gets a draft key scoped to the exact mathematical 
 
 test('changing the equation/variable selection resets every downstream field so no stale answer can leak forward', () => {
   const reset = region(modeSource, 'const resetFromSelection = useCallback(', '}, []);', 'resetFromSelection');
-  ['setSelection', 'setIsolation', 'setSubstitution', 'setMultipliers', 'setAppliedMultipliers', 'setCombination', 'setFirstSolved', 'setSpecialCase', 'setBackSub', 'setSecondSolved', 'setVerification']
+  ['setSelection', 'setIsolation', 'setSubstitution', 'setMultipliers', 'setAppliedMultipliers', 'setMultiplierWork', 'setCombination', 'setFirstSolved', 'setSpecialCase', 'setBackSub', 'setSecondSolved', 'setVerification']
     .forEach((setter) => assert.match(reset, new RegExp(setter)));
 });
 
@@ -170,7 +170,8 @@ test('complex substitution failures stay recoverable instead of silently hanging
 test('embedded Step Algebra remounts for each exact reduced equation so question 2 cannot inherit question 1 solver state', () => {
   const embed = region(modeSource, 'function EmbeddedStepAlgebra(', 'export default function AlgebraicSystemMode', 'EmbeddedStepAlgebra');
   assert.match(embed, /const embeddedEquationIdentity = useMemo/);
-  assert.match(embed, /equationIdentity\(equationText\)/);
+  assert.match(embed, /normalizeEquationForStepAlgebra\(equationText\)/);
+  assert.match(embed, /equationIdentity\(normalizedEquationText\)/);
   assert.match(embed, /key=\{embeddedEquationIdentity\}/);
   assert.match(embed, /lastReportedRef\.current = null/);
 });
@@ -201,13 +202,29 @@ test('verification requires both original equations to be checked independently,
 // Elimination workflow (#8-14)
 // ---------------------------------------------------------------------------
 
-test('a multiplier is entered with MathInput, picked up, and placed on the whole equation instead of applied by a form button', () => {
+test('a multiplier is entered, placed on the whole equation, and the student calculates every changed coefficient', () => {
   assert.match(modeSource, /ariaLabel=\{\`Multiplier for equation/);
   assert.match(modeSource, /mathmaster-system-multiplier:/);
   assert.match(modeSource, /draggable/);
   assert.match(modeSource, /dropMultiplier\(/);
-  assert.doesNotMatch(modeSource, />Apply<\/button>/);
+  assert.match(modeSource, /checkMultiplierProducts/);
+  assert.match(modeSource, /Multiply every coefficient and the right side by the same value/);
+  assert.match(modeSource, /Apply × \{multipliers\[index\]\} to every part/);
+  assert.match(modeSource, /\['a', coefficientTermText/);
+  assert.match(modeSource, /\['b', coefficientTermText/);
+  assert.match(modeSource, /\['c', String\(cleanCoefficient\(originalCoefficients\.c\)\)/);
   assert.doesNotMatch(modeSource, /bestMultiplier|autoChooseMultiplier|optimalMultiplier/i);
+});
+
+test('a nontrivial multiplier is not accepted until the student supplies the transformed coefficients', () => {
+  const apply = region(modeSource, 'const applyMultiplier = ', 'const armMultiplier', 'applyMultiplier');
+  assert.match(apply, /Math\.abs\(numericMultiplier - 1\)/);
+  const trivialBranchEnd = apply.indexOf("return;", apply.indexOf("Math.abs(numericMultiplier - 1)"));
+  const nontrivialBranch = apply.slice(trivialBranchEnd + "return;".length);
+  assert.match(nontrivialBranch, /setAppliedMultipliers\(\(current\) => \(\{ \.\.\.current, \[index\]: false \}\)\)/);
+  assert.match(nontrivialBranch, /setMultiplierWork/);
+  assert.match(nontrivialBranch, /active: true/);
+  assert.doesNotMatch(nontrivialBranch, /\[index\]: true/);
 });
 
 test('the combine step uses draggable add/subtract operation tokens and preserves subtraction order', () => {
@@ -218,14 +235,26 @@ test('the combine step uses draggable add/subtract operation tokens and preserve
   assert.match(modeSource, /Equation 1 \+ Equation 2/);
 });
 
-test('a combination that fails to cancel the target variable is rejected without destroying the prior valid combination', () => {
-  const handle = region(modeSource, 'const handleCombine = ', 'const handleReduceSolved', 'handleCombine');
-  assert.match(handle, /coefficients: eliminates \? combined : current\.coefficients/);
-  assert.match(handle, /text: eliminates \? formatLinearEquation\(combined, variables\) : current\.text/);
+test('a correct combine operation opens student cancellation instead of immediately producing the reduced equation', () => {
+  const handle = region(modeSource, 'const handleCombine = ', 'const armCombine', 'handleCombine');
+  assert.match(handle, /pendingCoefficients: eliminates \? combined : null/);
+  assert.match(handle, /cancelledRows: \{ 0: false, 1: false \}/);
+  assert.match(handle, /coefficients: null/);
+  assert.match(handle, /text: null/);
+  assert.doesNotMatch(handle, /formatLinearEquation/);
+});
+
+test('students must mark both cancelling target terms before MathMaster creates the reduced equation', () => {
+  assert.match(modeSource, /onTargetTermClick=\{\(\) => toggleCancellationRow\(index\)\}/);
+  assert.match(modeSource, /MathMaster will not cross them out for you/);
+  assert.match(modeSource, /disabled=\{!cancellationComplete\}/);
+  const confirm = region(modeSource, 'const confirmEliminationCancellation = ', 'const handleReduceSolved', 'confirmEliminationCancellation');
+  assert.match(confirm, /if \(!cancellationPending \|\| !cancellationComplete\) return/);
+  assert.match(confirm, /text: formatLinearEquation\(combined, variables\)/);
 });
 
 test('a failed combination attempt keeps the board intact and redirects attention to signs or multipliers', () => {
-  assert.match(modeSource, /That combination does not eliminate the variable you chose/);
+  assert.match(modeSource, /That operation does not eliminate the variable you chose/);
   assert.match(modeSource, /change a multiplier/);
 });
 

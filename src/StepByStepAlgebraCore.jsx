@@ -437,6 +437,19 @@ export default function StepByStepAlgebra({
     [equation, likeTermsSide, selectedLikeTermIndices],
   );
 
+  useEffect(() => {
+    if (!likeTermsOpen || !currentLikeTermSelection?.valid) return;
+    // The answer field is conditionally mounted only after a valid selection.
+    // Move the caret there immediately so the next student action is typing,
+    // not hunting for and clicking the new box.
+    setLikeTermsFocusSignal((signal) => signal + 1);
+  }, [
+    likeTermsOpen,
+    likeTermsSide,
+    currentLikeTermSelection?.valid,
+    currentLikeTermSelection?.selectedExpression,
+  ]);
+
   const hasTransientUndo = Boolean(
     pendingMove
     || crossedSides.length
@@ -1677,6 +1690,13 @@ export default function StepByStepAlgebra({
 
   const sideExpression = (side) => (pendingMove ? pendingMove.unsimplified[side] : equation[side]);
   const displayedSideLatex = (side) => pendingMove ? pendingMove.unsimplifiedLatex[side] : expressionToLatex(equation[side]);
+  const sideFontSize = (side) => {
+    const length = String(sideExpression(side) || '').replace(/\s+/g, '').length;
+    if (length >= 42) return '23px';
+    if (length >= 30) return '27px';
+    if (length >= 22) return '30px';
+    return '34px';
+  };
   const balanceStagingSide = !pendingMove && placedOperationSides.length === 1 ? placedOperationSides[0] : null;
   const balanceMissingSide = balanceStagingSide === 'left' ? 'right' : balanceStagingSide === 'right' ? 'left' : null;
 
@@ -1732,7 +1752,7 @@ export default function StepByStepAlgebra({
           onPointerMove={extendStroke}
           onPointerUp={() => finishStroke(side, cancellationModel)}
           onPointerCancel={() => setStroke(null)}
-          style={{ position: 'relative', width: 'min(96%, 520px)', minHeight: '132px', margin: '12px auto 4px', padding: '24px 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '14px', background: cancellationHintsEnabled ? '#fffdf6' : '#fff', outline: cancellationHintsEnabled ? '2px solid rgba(249,171,0,.32)' : 'none', touchAction: 'none', cursor: cancelAnimating ? 'wait' : 'crosshair', userSelect: 'none', overflow: 'visible' }}
+          style={{ position: 'relative', width: 'min(96%, 520px)', maxWidth: '100%', minHeight: '132px', margin: '12px auto 4px', padding: '24px 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '14px', background: cancellationHintsEnabled ? '#fffdf6' : '#fff', outline: cancellationHintsEnabled ? '2px solid rgba(249,171,0,.32)' : 'none', touchAction: 'none', cursor: cancelAnimating ? 'wait' : 'crosshair', userSelect: 'none', overflowX: 'auto', overflowY: 'hidden', fontSize: sideFontSize(side) }}
           aria-label="Cancellation workspace. Draw through matching factors directly in this equation."
         >
           {renderCancellationInk(side)}
@@ -1744,13 +1764,13 @@ export default function StepByStepAlgebra({
     const terms = splitAdditiveTerms(sideExpression(side));
     const inner = terms ? <AlgebraTermRow terms={terms} side={side} /> : <MathDisplay value={displayedSideLatex(side)} format="latex" inline />;
     if (!armedTile || pendingMove || !String(operand || '').trim()) {
-      return <div key={sideExpression(side)} className="algebra-equation-side algebra-reflow" style={{ fontSize: '34px', margin: '16px 0' }}>{inner}</div>;
+      return <div key={sideExpression(side)} className="algebra-equation-side algebra-reflow" style={{ fontSize: sideFontSize(side), margin: '16px 0' }}>{inner}</div>;
     }
 
     const staged = placedOperationSides.includes(side);
     const hovering = dragOverSide === side && (!isFactorOperation(armedTile.operation) || factorZoneHint?.side === side);
     if (!staged && !hovering) {
-      return <div key={sideExpression(side)} className="algebra-equation-side algebra-reflow" style={{ fontSize: '34px', margin: '16px 0' }}>{inner}</div>;
+      return <div key={sideExpression(side)} className="algebra-equation-side algebra-reflow" style={{ fontSize: sideFontSize(side), margin: '16px 0' }}>{inner}</div>;
     }
 
     let parsedOperand = operand;
@@ -1761,7 +1781,7 @@ export default function StepByStepAlgebra({
 
     if (armedTile.operation === 'multiply') {
       return (
-        <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: '34px', margin: '16px 0', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+        <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: sideFontSize(side), margin: '16px 0', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
           {position === 'after' ? <><span className="algebra-paren-inner">({inner})</span><span className="algebra-staged-operand">{operandMath}</span></> : <><span className="algebra-staged-operand">{operandMath}</span><span className="algebra-paren-inner">({inner})</span></>}
         </div>
       );
@@ -1769,7 +1789,7 @@ export default function StepByStepAlgebra({
 
     if (armedTile.operation === 'divide') {
       return (
-        <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: '34px', margin: '16px 0', display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '140px' }}>
+        <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: sideFontSize(side), margin: '16px 0', display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '140px' }}>
           <span className="algebra-div-num" style={{ textAlign: 'center' }}>{inner}</span>
           <span aria-hidden="true" className="algebra-div-bar" style={{ width: '100%', height: '3px', background: 'currentColor', borderRadius: '2px', margin: '4px 0' }} />
           <span className="algebra-div-den" style={{ textAlign: 'center' }}>{operandMath}</span>
@@ -1788,7 +1808,7 @@ export default function StepByStepAlgebra({
     );
     if (additivePosition.kind === 'under' && terms?.length) {
       return (
-        <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: '34px', margin: '16px 0', display: 'inline-flex', alignItems: 'center' }}>
+        <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: sideFontSize(side), margin: '16px 0', display: 'inline-flex', alignItems: 'center' }}>
           <AlgebraTermRow
             terms={terms}
             side={side}
@@ -1805,7 +1825,7 @@ export default function StepByStepAlgebra({
     );
     const previewTerms = splitAdditiveTerms(previewExpression);
     return (
-      <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: '34px', margin: '16px 0', display: 'inline-flex', alignItems: 'center' }}>
+      <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: sideFontSize(side), margin: '16px 0', display: 'inline-flex', alignItems: 'center' }}>
         {previewTerms
           ? <AlgebraTermRow terms={previewTerms} side={side} />
           : <><span>{inner}</span>{operationPreview}</>}
@@ -2444,14 +2464,11 @@ export default function StepByStepAlgebra({
       {pendingMove && pendingMove.simplificationTargets?.length > 0
         && pendingMove.requiredCancellationSides.every((side) => crossedSides.includes(side)) && (
         <div className={`algebra-optional-simplification${pendingMove.simplificationTargets.length === 1 ? ` algebra-optional-simplification--${pendingMove.simplificationTargets[0].side}` : ''}`}>
-          <h3>{equation.objective?.requireSimplifiedFinalForm ? 'Finish the required simplification' : 'Optional simplification'}</h3>
-          <p>{equation.objective?.requireSimplifiedFinalForm
-            ? 'This question specifically assesses simplified final form, so finish the remaining simplification before continuing.'
-            : 'The balanced equation is already valid. If you want to simplify, enter the simplified expression yourself below. MathMaster will check your work; it will not calculate the simplification for you. You may also keep it as written and continue solving.'}</p>
+          <h3>{equation.objective?.requireSimplifiedFinalForm ? 'Finish the required simplification' : 'Simplify (optional)'}</h3>
           <div className="algebra-simplification-grid">
             {pendingMove.simplificationTargets.map((target) => (
               <div key={target.side} className="algebra-simplification-card">
-                <strong>{target.label}: enter your simplification</strong>
+                <strong>{target.label}</strong>
                 <MathInput
                   value={simplificationAnswers[target.side] || ''}
                   onChange={(value) => setSimplificationAnswers((current) => ({ ...current, [target.side]: value }))}
@@ -2468,6 +2485,11 @@ export default function StepByStepAlgebra({
             )}
             <button type="button" className="algebra-check-simplification" onClick={checkSimplifications} disabled={savingStep}>Check my simplification</button>
           </div>
+          <p className="algebra-simplification-note">
+            {equation.objective?.requireSimplifiedFinalForm
+              ? 'Enter an equivalent simplified expression to finish this step.'
+              : 'Optional: enter an equivalent cleaner form, or keep the equation as written.'}
+          </p>
         </div>
       )}
       {question.showHint !== false && suggestedMove && !solved && <details style={{ marginTop: '14px', color: '#5f6368' }}><summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Need a strategic hint?</summary><p style={{ margin: '8px 0 0' }}>Look for a move that cancels a term: {describeOperation(suggestedMove.operation, suggestedMove.operand)}.</p></details>}

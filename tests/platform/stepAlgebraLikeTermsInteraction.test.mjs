@@ -39,3 +39,14 @@ test('a completed like-term combination is recorded as an algebra step and remai
   assert.match(coreSource, /pushCommittedEquation\(beforeEquation\)/);
   assert.match(coreSource, /setEquation\(nextEquation\)/);
 });
+
+
+test('the combined-term field receives focus as soon as a valid like-term pair is selected', () => {
+  assert.match(coreSource, /if \(!likeTermsOpen \|\| !currentLikeTermSelection\?\.valid\) return/);
+  assert.match(coreSource, /setLikeTermsFocusSignal\(\(signal\) => signal \+ 1\)/);
+  assert.match(coreSource, /focusSignal=\{likeTermsFocusSignal\}/);
+});
+
+test('pressing Enter in the combined-term field checks the combination', () => {
+  assert.match(coreSource, /onSubmit=\{checkLikeTerms\}/);
+});

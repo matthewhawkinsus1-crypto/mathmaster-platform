@@ -25,6 +25,7 @@ import {
   linearEquationCoefficients,
   solveAlgebraicSystem,
   evaluateEquationSides,
+  normalizeEquationForStepAlgebra,
 } from './algebraicSystemsEngine.js';
 
 const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '11px 12px', border: '1px solid #cfd8e6', borderRadius: 9, background: '#fff', fontSize: 15, minHeight: 44 };
@@ -36,6 +37,7 @@ const smallActionStyle = { ...actionStyle, marginTop: 8, padding: '9px 14px', fo
 
 const emptyVerificationEntry = () => ({ placed: {}, leftAnswer: '', rightAnswer: '', checked: false, valid: false });
 const emptySpecialCase = () => ({ isTrueAnswer: '', solutionsAnswer: '', classificationAnswer: '' });
+const emptyMultiplierWork = () => ({ active: false, a: '', b: '', c: '', checked: false, valid: false });
 
 const equationIdentity = (value) => {
   const text = String(value || '');
@@ -187,7 +189,7 @@ const coefficientTermText = (value, variable) => {
   return `${coefficient}${variable}`;
 };
 
-function AlignedEquationRow({ equationText, variables, targetVariable, multiplier = null, cancelled = false, label }) {
+function AlignedEquationRow({ equationText, variables, targetVariable, multiplier = null, cancelled = false, label, onTargetTermClick = null }) {
   const coefficients = useMemo(() => linearEquationCoefficients(equationText, variables), [equationText, variables]);
   if (!coefficients) {
     return (
@@ -207,13 +209,27 @@ function AlignedEquationRow({ equationText, variables, targetVariable, multiplie
       {multiplier != null ? <span className="mathmaster-systems-applied-multiplier">× {multiplier}</span> : null}
       <div className="mathmaster-systems-equation-columns">
         {entries.map((entry, index) => (
-          <span
-            key={entry.variable}
-            className={`mathmaster-systems-equation-term${entry.variable === targetVariable ? ' is-target-column' : ''}${cancelled && entry.variable === targetVariable ? ' is-cancelled' : ''}`}
-          >
-            {index === 1 && cleanCoefficient(entry.value) >= 0 ? '+ ' : ''}
-            {coefficientTermText(entry.value, entry.variable)}
-          </span>
+          entry.variable === targetVariable && onTargetTermClick ? (
+            <button
+              key={entry.variable}
+              type="button"
+              className={`mathmaster-systems-equation-term mathmaster-systems-cancellation-target is-target-column${cancelled ? ' is-cancelled' : ''}`}
+              onClick={onTargetTermClick}
+              aria-pressed={cancelled}
+              aria-label={`${cancelled ? 'Unmark' : 'Mark'} ${coefficientTermText(entry.value, entry.variable)} for elimination cancellation`}
+            >
+              {index === 1 && cleanCoefficient(entry.value) >= 0 ? '+ ' : ''}
+              {coefficientTermText(entry.value, entry.variable)}
+            </button>
+          ) : (
+            <span
+              key={entry.variable}
+              className={`mathmaster-systems-equation-term${entry.variable === targetVariable ? ' is-target-column' : ''}${cancelled && entry.variable === targetVariable ? ' is-cancelled' : ''}`}
+            >
+              {index === 1 && cleanCoefficient(entry.value) >= 0 ? '+ ' : ''}
+              {coefficientTermText(entry.value, entry.variable)}
+            </span>
+          )
         ))}
         <span className="mathmaster-systems-equation-equals">=</span>
         <span className="mathmaster-systems-equation-constant">{cleanCoefficient(coefficients.c)}</span>
@@ -255,14 +271,21 @@ const solvedNumberFor = (latexResponse, variable) => {
  * simplifies anything itself.
  */
 function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, onSolved, onUndoStateChange, workspaceDifficulty, autoReveal = false, autoOpenDistribution = false, simplifyDistributedProducts = false }) {
+  const normalizedEquationText = useMemo(() => {
+    try {
+      return normalizeEquationForStepAlgebra(equationText);
+    } catch {
+      return equationText;
+    }
+  }, [equationText]);
   const question = useMemo(() => ({
-    equation: equationText, solveFor, prompt, workspaceDifficulty,
-  }), [equationText, solveFor, prompt, workspaceDifficulty]);
+    equation: normalizedEquationText, solveFor, prompt, workspaceDifficulty,
+  }), [normalizedEquationText, solveFor, prompt, workspaceDifficulty]);
   const hostRef = useRef(null);
   const lastReportedRef = useRef(null);
   const embeddedEquationIdentity = useMemo(
-    () => `${draftKey || 'embedded'}:${solveFor || ''}:${equationIdentity(equationText)}`,
-    [draftKey, equationText, solveFor],
+    () => `${draftKey || 'embedded'}:${solveFor || ''}:${equationIdentity(normalizedEquationText)}`,
+    [draftKey, normalizedEquationText, solveFor],
   );
 
   React.useEffect(() => {
@@ -276,7 +299,7 @@ function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, 
       hostRef.current?.focus?.({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [autoReveal, equationText]);
+  }, [autoReveal, normalizedEquationText]);
   const handleStateChange = useCallback((payload) => {
     const part = payload?.parts?.find((p) => p?.id === 'algebra-objective');
     if (!part?.isComplete || !part.response) return;
@@ -314,7 +337,15 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const [substitution, setSubstitution] = usePersistentToolState('substitution', { targetVariable: null, targetEquationIndex: null, equationText: null });
   const [multipliers, setMultipliers] = usePersistentToolState('multipliers', { 0: '1', 1: '1' });
   const [appliedMultipliers, setAppliedMultipliers] = usePersistentToolState('appliedMultipliers', { 0: false, 1: false });
-  const [combination, setCombination] = usePersistentToolState('combination', { operation: null, attempts: 0, coefficients: null, text: null });
+  const [multiplierWork, setMultiplierWork] = usePersistentToolState('multiplierWork', { 0: emptyMultiplierWork(), 1: emptyMultiplierWork() });
+  const [combination, setCombination] = usePersistentToolState('combination', {
+    operation: null,
+    attempts: 0,
+    coefficients: null,
+    text: null,
+    pendingCoefficients: null,
+    cancelledRows: { 0: false, 1: false },
+  });
   const [firstSolved, setFirstSolved] = usePersistentToolState('firstSolved', { variable: null, value: null });
   const [specialCase, setSpecialCase] = usePersistentToolState('specialCase', null);
   const [backSub, setBackSub] = usePersistentToolState('backSub', { equationIndex: null });
@@ -337,7 +368,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setSubstitution({ targetVariable: null, targetEquationIndex: null, equationText: null });
     setMultipliers({ 0: '1', 1: '1' });
     setAppliedMultipliers({ 0: false, 1: false });
-    setCombination({ operation: null, attempts: 0, coefficients: null, text: null });
+    setMultiplierWork({ 0: emptyMultiplierWork(), 1: emptyMultiplierWork() });
+    setCombination({ operation: null, attempts: 0, coefficients: null, text: null, pendingCoefficients: null, cancelledRows: { 0: false, 1: false } });
     setFirstSolved({ variable: null, value: null });
     setSpecialCase(null);
     setBackSub({ equationIndex: null });
@@ -354,9 +386,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   }, []);
 
   const mathState = useMemo(() => ({
-    method, selection, isolation, substitution, multipliers, appliedMultipliers, combination,
+    method, selection, isolation, substitution, multipliers, appliedMultipliers, multiplierWork, combination,
     firstSolved, specialCase, backSub, secondSolved, verification, methodEfficiencyReason,
-  }), [method, selection, isolation, substitution, multipliers, appliedMultipliers, combination, firstSolved, specialCase, backSub, secondSolved, verification, methodEfficiencyReason]);
+  }), [method, selection, isolation, substitution, multipliers, appliedMultipliers, multiplierWork, combination, firstSolved, specialCase, backSub, secondSolved, verification, methodEfficiencyReason]);
   const restore = useCallback((value) => {
     setMethod(value?.method ?? (config.method === 'studentChoice' ? '' : config.method));
     setSelection(value?.selection || { equationIndex: null, variable: null });
@@ -364,7 +396,16 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setSubstitution({ targetVariable: null, targetEquationIndex: null, equationText: null, ...(value?.substitution || {}) });
     setMultipliers(value?.multipliers || { 0: '1', 1: '1' });
     setAppliedMultipliers(value?.appliedMultipliers || { 0: false, 1: false });
-    setCombination(value?.combination || { operation: null, attempts: 0, coefficients: null, text: null });
+    setMultiplierWork(value?.multiplierWork || { 0: emptyMultiplierWork(), 1: emptyMultiplierWork() });
+    setCombination({
+      operation: null,
+      attempts: 0,
+      coefficients: null,
+      text: null,
+      pendingCoefficients: null,
+      cancelledRows: { 0: false, 1: false },
+      ...(value?.combination || {}),
+    });
     setFirstSolved(value?.firstSolved || { variable: null, value: null });
     setSpecialCase(value?.specialCase || null);
     setBackSub(value?.backSub || { equationIndex: null });
@@ -413,6 +454,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   }, [equations, multipliers, variables]);
   const multipliersApplied = appliedMultipliers[0] && appliedMultipliers[1];
   const combinationLocked = Boolean(combination.text);
+  const cancellationPending = Boolean(combination.pendingCoefficients && !combination.text);
+  const cancellationComplete = Boolean(combination.cancelledRows?.[0] && combination.cancelledRows?.[1]);
 
   const reduceInputText = effectiveMethod === 'substitution' ? substitution.equationText : combination.text;
   const reduceCoefficients = effectiveMethod === 'substitution'
@@ -586,10 +629,69 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setSlotAttempt(null);
   };
 
+  const parseNumericEntry = (value) => {
+    try {
+      const numeric = Number(evaluate(latexToExpression(value)));
+      return Number.isFinite(numeric) ? numeric : NaN;
+    } catch {
+      return NaN;
+    }
+  };
+
+  const resetCombination = () => setCombination({
+    operation: null,
+    attempts: 0,
+    coefficients: null,
+    text: null,
+    pendingCoefficients: null,
+    cancelledRows: { 0: false, 1: false },
+  });
+
   const setMultiplierValue = (index, value) => {
     setMultipliers((current) => ({ ...current, [index]: value }));
     setAppliedMultipliers((current) => ({ ...current, [index]: false }));
-    setCombination({ operation: null, attempts: 0, coefficients: null, text: null });
+    setMultiplierWork((current) => ({ ...current, [index]: emptyMultiplierWork() }));
+    resetCombination();
+  };
+
+  const setMultiplierProduct = (index, field, value) => {
+    setMultiplierWork((current) => ({
+      ...current,
+      [index]: {
+        ...(current[index] || emptyMultiplierWork()),
+        [field]: value,
+        checked: false,
+        valid: false,
+      },
+    }));
+  };
+
+  const checkMultiplierProducts = (index) => {
+    const expected = multipliedEq(index);
+    if (!expected) {
+      setSlotAttempt({ stage: 'multiplier', index, correct: false, reason: 'invalid-multiplier', armed: true });
+      return;
+    }
+    const work = multiplierWork[index] || emptyMultiplierWork();
+    const supplied = {
+      a: parseNumericEntry(work.a),
+      b: parseNumericEntry(work.b),
+      c: parseNumericEntry(work.c),
+    };
+    const valid = ['a', 'b', 'c'].every((key) => (
+      Number.isFinite(supplied[key])
+      && Math.abs(supplied[key] - expected.coefficients[key]) <= 1e-7
+    ));
+    setMultiplierWork((current) => ({
+      ...current,
+      [index]: { ...(current[index] || emptyMultiplierWork()), checked: true, valid },
+    }));
+    if (!valid) {
+      setSlotAttempt({ stage: 'multiplier-products', index, correct: false, reason: 'incorrect-products', armed: false });
+      return;
+    }
+    setAppliedMultipliers((current) => ({ ...current, [index]: true }));
+    setSlotAttempt({ stage: 'multiplier-products', index, correct: true, armed: false });
   };
 
   const applyMultiplier = (index) => {
@@ -598,8 +700,29 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       setSlotAttempt({ stage: 'multiplier', index, correct: false, reason: 'invalid-multiplier', armed: true });
       return;
     }
-    setAppliedMultipliers((current) => ({ ...current, [index]: true }));
-    setSlotAttempt({ stage: 'multiplier', index, correct: true, armed: false });
+    let numericMultiplier = NaN;
+    try {
+      numericMultiplier = Number(evaluate(latexToExpression(multipliers[index])));
+    } catch {
+      numericMultiplier = NaN;
+    }
+
+    // ×1 changes no coefficient. The student still had to choose and place the
+    // multiplier token on the whole equation, so no extra product-entry step is
+    // needed. Every real scaling step must be calculated by the student.
+    if (Number.isFinite(numericMultiplier) && Math.abs(numericMultiplier - 1) <= 1e-9) {
+      setAppliedMultipliers((current) => ({ ...current, [index]: true }));
+      setMultiplierWork((current) => ({ ...current, [index]: { ...emptyMultiplierWork(), valid: true } }));
+      setSlotAttempt({ stage: 'multiplier', index, correct: true, armed: false });
+      return;
+    }
+
+    setAppliedMultipliers((current) => ({ ...current, [index]: false }));
+    setMultiplierWork((current) => ({
+      ...current,
+      [index]: { ...emptyMultiplierWork(), active: true },
+    }));
+    setSlotAttempt({ stage: 'multiplier-products', index, correct: null, armed: false });
   };
 
   const armMultiplier = (index) => {
@@ -623,8 +746,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setCombination((current) => ({
       operation,
       attempts: current.attempts + 1,
-      coefficients: eliminates ? combined : current.coefficients,
-      text: eliminates ? formatLinearEquation(combined, variables) : current.text,
+      coefficients: null,
+      text: null,
+      pendingCoefficients: eliminates ? combined : null,
+      cancelledRows: { 0: false, 1: false },
     }));
     setSlotAttempt({ stage: 'combine', operation, correct: eliminates, armed: !eliminates });
   };
@@ -636,6 +761,29 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const dropCombine = (operation) => {
     if (!operation) return;
     handleCombine(operation);
+  };
+
+  const toggleCancellationRow = (index) => {
+    if (!cancellationPending) return;
+    setCombination((current) => ({
+      ...current,
+      cancelledRows: {
+        ...(current.cancelledRows || { 0: false, 1: false }),
+        [index]: !current.cancelledRows?.[index],
+      },
+    }));
+  };
+
+  const confirmEliminationCancellation = () => {
+    if (!cancellationPending || !cancellationComplete) return;
+    const combined = combination.pendingCoefficients;
+    setCombination((current) => ({
+      ...current,
+      coefficients: combined,
+      text: formatLinearEquation(combined, variables),
+      pendingCoefficients: null,
+    }));
+    setSlotAttempt({ stage: 'cancellation', correct: true, armed: false });
   };
 
   const handleReduceSolved = useCallback((latexResponse) => {
@@ -699,14 +847,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const setVerificationAnswer = (index, side, value) => {
     setVerification((current) => ({ ...current, [index]: { ...current[index], [side]: value, checked: false } }));
   };
-  const numericVerificationEntry = (value) => {
-    try {
-      const numeric = Number(evaluate(latexToExpression(value)));
-      return Number.isFinite(numeric) ? numeric : NaN;
-    } catch {
-      return NaN;
-    }
-  };
+  const numericVerificationEntry = parseNumericEntry;
 
   const checkVerification = (index) => {
     const actual = evaluateEquationSides(equations[index], solution);
@@ -736,8 +877,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       isolation: effectiveMethod === 'substitution' ? { expression: isolatedExpr, alreadyIsolated } : undefined,
       substitution: effectiveMethod === 'substitution' ? substitution : undefined,
       multipliers: effectiveMethod === 'elimination' ? multipliers : undefined,
+      multiplierWork: effectiveMethod === 'elimination' ? multiplierWork : undefined,
       combinationOperation: effectiveMethod === 'elimination' ? combination.operation : undefined,
       combinationAttempts: effectiveMethod === 'elimination' ? combination.attempts : undefined,
+      eliminationCancellation: effectiveMethod === 'elimination' ? combination.cancelledRows : undefined,
       transformedEquations: effectiveMethod === 'elimination' ? [multipliedEq(0)?.text, multipliedEq(1)?.text] : undefined,
       reducedEquation: reduceInputText,
       firstSolvedVariable: firstSolved,
@@ -1072,6 +1215,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                   <div className="mathmaster-systems-elimination-equations">
                     {[0, 1].map((index) => {
                       const transformed = appliedMultipliers[index] ? multipliedEq(index) : null;
+                      const expectedTransformed = multipliedEq(index);
+                      const originalCoefficients = linearEquationCoefficients(equations[index], variables);
+                      const work = multiplierWork[index] || emptyMultiplierWork();
                       const multiplierArmed = slotAttempt?.stage === 'multiplier' && slotAttempt?.armed && Number(slotAttempt?.index) === index;
                       return (
                         <div key={index} className={`mathmaster-systems-elimination-equation-card${appliedMultipliers[index] ? ' is-prepared' : ''}`}>
@@ -1137,6 +1283,44 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                                 multiplier={multipliers[index]}
                                 label="Prepared equation"
                               />
+                            ) : work.active && expectedTransformed && originalCoefficients ? (
+                              <div className="mathmaster-systems-multiplier-products" onClick={(event) => event.stopPropagation()}>
+                                <strong>Apply × {multipliers[index]} to every part</strong>
+                                <span>Enter each resulting coefficient, including the right side.</span>
+                                <div className="mathmaster-systems-multiplier-product-grid">
+                                  {[
+                                    ['a', coefficientTermText(originalCoefficients.a, variables[0]), variables[0]],
+                                    ['b', coefficientTermText(originalCoefficients.b, variables[1]), variables[1]],
+                                    ['c', String(cleanCoefficient(originalCoefficients.c)), 'right side'],
+                                  ].map(([field, sourceText, label]) => (
+                                    <label key={field}>
+                                      <span>{sourceText} × {multipliers[index]} → {label}</span>
+                                      <MathInput
+                                        value={work[field] || ''}
+                                        onChange={(value) => setMultiplierProduct(index, field, value)}
+                                        onSubmit={() => checkMultiplierProducts(index)}
+                                        placeholder="result"
+                                        ariaLabel={`Result of multiplying ${sourceText} by ${multipliers[index]}`}
+                                        toolProfile="number"
+                                        compact
+                                        maxWidth={140}
+                                      />
+                                    </label>
+                                  ))}
+                                </div>
+                                <button
+                                  type="button"
+                                  className="mathmaster-systems-check-products"
+                                  onClick={() => checkMultiplierProducts(index)}
+                                >
+                                  Check multiplied equation
+                                </button>
+                                {work.checked && !work.valid ? (
+                                  <p className="mathmaster-systems-substitution-feedback is-error">
+                                    One or more products are not correct yet. Multiply every coefficient and the right side by the same value.
+                                  </p>
+                                ) : null}
+                              </div>
                             ) : (
                               <span>Place the multiplier on the entire equation</span>
                             )}
@@ -1156,77 +1340,114 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
                   {multipliersApplied ? (
                     <div className="mathmaster-systems-combine-stage">
-                      <div className="mathmaster-systems-combine-preview">
-                        <AlignedEquationRow
-                          equationText={multipliedEq(0)?.text || equations[0]}
-                          variables={variables}
-                          targetVariable={selection.variable}
-                          cancelled={combinationLocked}
-                          label="Prepared equation 1"
-                        />
-                        <AlignedEquationRow
-                          equationText={multipliedEq(1)?.text || equations[1]}
-                          variables={variables}
-                          targetVariable={selection.variable}
-                          cancelled={combinationLocked}
-                          label="Prepared equation 2"
-                        />
-                      </div>
-                      <p>Now decide how the prepared equations should be combined.</p>
-                      <div className="mathmaster-systems-combine-token-bank">
-                        {[
-                          ['add', '+', 'Equation 1 + Equation 2'],
-                          ['subtract', '−', 'Equation 1 − Equation 2'],
-                        ].map(([operation, symbol, label]) => {
-                          const armed = slotAttempt?.stage === 'combine' && slotAttempt?.armed && slotAttempt?.operation === operation;
-                          return (
-                            <button
-                              key={operation}
-                              type="button"
-                              draggable
-                              className={`mathmaster-systems-combine-token${armed ? ' is-armed' : ''}`}
-                              onClick={() => armCombine(operation)}
-                              onDragStart={(event) => {
-                                event.dataTransfer?.setData('text/plain', `mathmaster-system-combine:${operation}`);
-                                if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
-                                armCombine(operation);
-                              }}
-                              aria-pressed={armed}
-                            >
-                              <strong>{symbol}</strong>
-                              <span>{label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <div
-                        className={`mathmaster-systems-combine-drop${slotAttempt?.stage === 'combine' && slotAttempt?.armed ? ' is-armed' : ''}`}
-                        role={slotAttempt?.stage === 'combine' && slotAttempt?.armed ? 'button' : undefined}
-                        tabIndex={slotAttempt?.stage === 'combine' && slotAttempt?.armed ? 0 : undefined}
-                        onClick={() => {
-                          if (slotAttempt?.stage === 'combine' && slotAttempt?.armed) dropCombine(slotAttempt.operation);
-                        }}
-                        onKeyDown={(event) => {
-                          if (slotAttempt?.stage === 'combine' && slotAttempt?.armed && (event.key === 'Enter' || event.key === ' ')) {
-                            event.preventDefault();
-                            dropCombine(slotAttempt.operation);
-                          }
-                        }}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={(event) => {
-                          event.preventDefault();
-                          const payload = event.dataTransfer?.getData('text/plain') || '';
-                          if (!payload.startsWith('mathmaster-system-combine:')) return;
-                          dropCombine(payload.split(':').pop());
-                        }}
-                      >
-                        Drop Add or Subtract here to combine the equations
-                      </div>
-                      {combination.attempts > 0 && !combinationLocked ? (
-                        <p className="mathmaster-systems-substitution-feedback is-error">
-                          That combination does not eliminate the variable you chose. Recheck the signs in the prepared equations or change a multiplier.
-                        </p>
-                      ) : null}
+                      {!cancellationPending ? (
+                        <>
+                          <div className="mathmaster-systems-combine-preview">
+                            <AlignedEquationRow
+                              equationText={multipliedEq(0)?.text || equations[0]}
+                              variables={variables}
+                              targetVariable={selection.variable}
+                              label="Prepared equation 1"
+                            />
+                            <AlignedEquationRow
+                              equationText={multipliedEq(1)?.text || equations[1]}
+                              variables={variables}
+                              targetVariable={selection.variable}
+                              label="Prepared equation 2"
+                            />
+                          </div>
+                          <p>Choose how to combine the prepared equations.</p>
+                          <div className="mathmaster-systems-combine-token-bank">
+                            {[
+                              ['add', '+', 'Equation 1 + Equation 2'],
+                              ['subtract', '−', 'Equation 1 − Equation 2'],
+                            ].map(([operation, symbol, label]) => {
+                              const armed = slotAttempt?.stage === 'combine' && slotAttempt?.armed && slotAttempt?.operation === operation;
+                              return (
+                                <button
+                                  key={operation}
+                                  type="button"
+                                  draggable
+                                  className={`mathmaster-systems-combine-token${armed ? ' is-armed' : ''}`}
+                                  onClick={() => armCombine(operation)}
+                                  onDragStart={(event) => {
+                                    event.dataTransfer?.setData('text/plain', `mathmaster-system-combine:${operation}`);
+                                    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+                                    armCombine(operation);
+                                  }}
+                                  aria-pressed={armed}
+                                >
+                                  <strong>{symbol}</strong>
+                                  <span>{label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div
+                            className={`mathmaster-systems-combine-drop${slotAttempt?.stage === 'combine' && slotAttempt?.armed ? ' is-armed' : ''}`}
+                            role={slotAttempt?.stage === 'combine' && slotAttempt?.armed ? 'button' : undefined}
+                            tabIndex={slotAttempt?.stage === 'combine' && slotAttempt?.armed ? 0 : undefined}
+                            onClick={() => {
+                              if (slotAttempt?.stage === 'combine' && slotAttempt?.armed) dropCombine(slotAttempt.operation);
+                            }}
+                            onKeyDown={(event) => {
+                              if (slotAttempt?.stage === 'combine' && slotAttempt?.armed && (event.key === 'Enter' || event.key === ' ')) {
+                                event.preventDefault();
+                                dropCombine(slotAttempt.operation);
+                              }
+                            }}
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={(event) => {
+                              event.preventDefault();
+                              const payload = event.dataTransfer?.getData('text/plain') || '';
+                              if (!payload.startsWith('mathmaster-system-combine:')) return;
+                              dropCombine(payload.split(':').pop());
+                            }}
+                          >
+                            Drop Add or Subtract here
+                          </div>
+                          {combination.attempts > 0 && !combinationLocked ? (
+                            <p className="mathmaster-systems-substitution-feedback is-error">
+                              That operation does not eliminate the variable you chose. Recheck the signs or change a multiplier.
+                            </p>
+                          ) : null}
+                        </>
+                      ) : (
+                        <div className="mathmaster-systems-cancellation-stage">
+                          <div className="mathmaster-systems-cancellation-heading">
+                            <strong>
+                              {combination.operation === 'subtract' ? 'Subtract the equations' : 'Add the equations'} — mark the {selection.variable} terms that cancel
+                            </strong>
+                            <span>Select the {selection.variable} term in each prepared row. MathMaster will not cross them out for you.</span>
+                          </div>
+                          <div className="mathmaster-systems-combine-preview">
+                            {[0, 1].map((index) => (
+                              <AlignedEquationRow
+                                key={index}
+                                equationText={multipliedEq(index)?.text || equations[index]}
+                                variables={variables}
+                                targetVariable={selection.variable}
+                                cancelled={Boolean(combination.cancelledRows?.[index])}
+                                onTargetTermClick={() => toggleCancellationRow(index)}
+                                label={`Prepared equation ${index + 1}`}
+                              />
+                            ))}
+                          </div>
+                          <div className="mathmaster-systems-cancellation-progress">
+                            {cancellationComplete
+                              ? 'Both cancelling terms are marked.'
+                              : `Marked ${Number(Boolean(combination.cancelledRows?.[0])) + Number(Boolean(combination.cancelledRows?.[1]))} of 2 cancelling terms.`}
+                          </div>
+                          <button
+                            type="button"
+                            className="mathmaster-systems-confirm-cancellation"
+                            onClick={confirmEliminationCancellation}
+                            disabled={!cancellationComplete}
+                          >
+                            Confirm cancellation and combine
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ) : null}
                 </div>
