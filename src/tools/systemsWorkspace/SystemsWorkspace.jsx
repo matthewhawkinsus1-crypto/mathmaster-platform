@@ -33,6 +33,7 @@ import {
 import useToolSubmission from '../shared/useToolSubmission';
 import EmbeddedInequalityRewrite from './EmbeddedInequalityRewrite.jsx';
 import { formatSlopeInterceptInequality } from './linearInequalityEngine.js';
+import AlgebraicSystemMode from './AlgebraicSystemMode.jsx';
 
 const DEFAULT_SYSTEM = { m1: 2, b1: 1, m2: -1, b2: 7 };
 const DEFAULT_INEQUALITIES = [
@@ -1512,6 +1513,7 @@ const MODE_TASKS = {
   linearQuadratic: 'Find how many times the line meets the parabola, and give the coordinates of each meeting point.',
   matrix: 'Read the augmented matrix as a system, classify it, and solve it if it has exactly one solution.',
   matrix3: 'Use matrix technology to compute the RREF of a 3×3 augmented matrix, then classify and solve the system.',
+  algebraic: 'Solve this 2×2 system algebraically — by substitution or elimination — showing every mathematical decision along the way.',
 };
 
 const MODE_STEPS = {
@@ -1520,6 +1522,7 @@ const MODE_STEPS = {
   linearQuadratic: ['Count how many times the two graphs actually meet.', 'Set the expressions equal and solve for each x.', 'Substitute each x back to get its y.'],
   matrix: ['Rewrite each row as an equation.', 'Work out the determinant to decide the number of solutions.', 'Solve for x and y if there is exactly one.'],
   matrix3: ['Read the 3×4 augmented matrix.', 'Use the matrix-technology RREF command.', 'Interpret the reduced rows to classify the system and read x, y, and z.'],
+  algebraic: ['Choose (or use the assigned) method and decide which variable to work with first.', 'Solve each one-variable equation with the algebra solver, then substitute back.', 'State the ordered pair and verify it in both original equations.'],
 };
 
 export default function SystemsWorkspace({ questionData = {}, onAction, draftKey = null }) {
@@ -1528,13 +1531,15 @@ export default function SystemsWorkspace({ questionData = {}, onAction, draftKey
     : mode === 'linearQuadratic' ? 'Linear–Quadratic Systems'
       : mode === 'matrix3' ? '3×3 Matrix Technology / RREF'
         : mode === 'matrix' ? 'Matrix / Row Reduction'
-          : 'Linear Systems';
+          : mode === 'algebraic' ? 'Algebraic Systems (Substitution / Elimination)'
+            : 'Linear Systems';
   return <ToolShell title="Systems Workspace" subtitle="Solve, classify and interpret a system — graphically and algebraically — in one place." badge={modeLabel}>
     <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.linear} steps={MODE_STEPS[mode] || MODE_STEPS.linear} />
     {mode === 'inequalities' ? <InequalityMode questionData={questionData} onAction={onAction} draftKey={draftKey}/>
       : mode === 'linearQuadratic' ? <LinearQuadraticMode questionData={questionData} onAction={onAction}/>
         : (mode === 'matrix' || mode === 'matrix3') ? <MatrixMode questionData={questionData} onAction={onAction}/>
-          : <LinearMode questionData={questionData} onAction={onAction}/>
+          : mode === 'algebraic' ? <AlgebraicSystemMode questionData={questionData} onAction={onAction} draftKey={draftKey}/>
+            : <LinearMode questionData={questionData} onAction={onAction}/>
     }
   </ToolShell>;
 }
