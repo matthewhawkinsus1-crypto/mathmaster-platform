@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 import { TOOL_STATE_PERSISTENCE } from '../../src/tools/toolStatePersistence.js';
 import { validateToolQuestion } from '../../src/tools/toolSchemas.js';
+import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 
 const workspaceSource = executableSource(componentSource('src/tools/systemsWorkspace/SystemsWorkspace.jsx'));
 const modeSource = executableSource(componentSource('src/tools/systemsWorkspace/AlgebraicSystemMode.jsx'));
@@ -302,4 +303,43 @@ test('elimination visually aligns equations and crosses the student-selected tar
   assert.match(modeSource, /is-target-column/);
   assert.match(modeSource, /is-cancelled/);
   assert.match(modeSource, /combinationLocked && !firstSolvedDone/);
+});
+
+
+test('V5 solveSystem intent preserves the algebraic systemsWorkspace contract', () => {
+  const compiled = compileAuthoringIntentV5({
+    schemaVersion: 5,
+    assignment: {
+      title: 'Algebraic systems V5 compile',
+      courseId: 'algebra2',
+      instructionalPurpose: 'lesson',
+      gradingPurpose: 'classwork',
+    },
+    sections: [{
+      id: 'classwork',
+      role: 'classwork',
+      title: 'Classwork',
+      questions: [{
+        standard: 'A2.3A',
+        prompt: 'Use substitution to solve the system.',
+        studentActions: ['solveSystem'],
+        mode: 'algebraic',
+        method: 'substitution',
+        equations: ['y = -4x + 12', '2x + y = 2'],
+        variables: ['x', 'y'],
+        requireVerification: true,
+        askEfficiency: false,
+      }],
+    }],
+  });
+
+  const question = compiled.package.sections[0].questions[0];
+  assert.equal(question.type, 'systemsWorkspace');
+  assert.equal(question.mode, 'algebraic');
+  assert.equal(question.method, 'substitution');
+  assert.deepEqual(question.equations, ['y = -4x + 12', '2x + y = 2']);
+  assert.deepEqual(question.variables, ['x', 'y']);
+  assert.equal(question.requireVerification, true);
+  assert.equal(question.askEfficiency, false);
+  assert.equal(validateToolQuestion(question).isValid, true);
 });
