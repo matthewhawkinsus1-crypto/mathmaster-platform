@@ -189,7 +189,13 @@ function SystemsWorkTrail({ stages = [] }) {
             <span aria-hidden="true">✓</span>
             {stage.summaryPrefix ? <span>{stage.summaryPrefix}</span> : null}
             {stage.summaryMath ? (
-              <MathDisplay value={stage.summaryMath} format="ascii-math" inline />
+              <span
+                className="mathmaster-systems-completed-math"
+                data-summary-math={stage.summaryMath}
+                aria-label={stage.summaryMath}
+              >
+                <MathDisplay value={stage.summaryMath} format="ascii-math" inline />
+              </span>
             ) : (
               <span>{stage.summary}</span>
             )}
