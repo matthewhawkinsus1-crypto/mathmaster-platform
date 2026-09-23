@@ -2076,7 +2076,7 @@ export default function StepByStepAlgebra({
     const staged = placedOperationSides.includes(side);
     const hovering = dragOverSide === side && (!isFactorOperation(armedTile.operation) || factorZoneHint?.side === side);
     if (!staged && !hovering) {
-      return <div key={sideExpression(side)} className="algebra-equation-side algebra-reflow" style={{ fontSize: sideFontSize(side), margin: '16px 0' }}>{inner}</div>;
+      return equationSide(inner);
     }
 
     let parsedOperand = operand;
