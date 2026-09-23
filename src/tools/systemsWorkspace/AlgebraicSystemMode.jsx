@@ -481,6 +481,16 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       coefficients: eliminates ? combined : current.coefficients,
       text: eliminates ? formatLinearEquation(combined, variables) : current.text,
     }));
+    setSlotAttempt({ stage: 'combine', operation, correct: eliminates, armed: !eliminates });
+  };
+
+  const armCombine = (operation) => {
+    setSlotAttempt({ stage: 'combine', operation, correct: null, armed: true });
+  };
+
+  const dropCombine = (operation) => {
+    if (!operation) return;
+    handleCombine(operation);
   };
 
   const handleReduceSolved = useCallback((latexResponse) => {
@@ -597,6 +607,90 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const reducedEquationSolverActive = Boolean(reduceInputText && !isDegenerate && !firstSolvedDone);
   const backSubSolverActive = Boolean(firstSolvedDone && !isDegenerate && backSubChosen && !secondSolvedDone);
   const embeddedSolverActive = isolationSolverActive || reducedEquationSolverActive || backSubSolverActive;
+
+  const workTrailStages = useMemo(() => {
+    const commonEnd = [
+      {
+        id: 'solve-first',
+        label: 'Solve',
+        complete: firstSolvedDone,
+        summary: firstSolvedDone ? `${firstSolved.variable} = ${firstSolved.value}` : '',
+      },
+      {
+        id: 'back-substitute',
+        label: 'Back-substitute',
+        complete: secondSolvedDone,
+        summary: secondSolvedDone ? `${secondSolved.variable} = ${secondSolved.value}` : '',
+      },
+      {
+        id: 'verify',
+        label: 'Verify',
+        complete: !config.requireVerification || Boolean(allVerified),
+        summary: allVerified ? 'Checked in both original equations' : '',
+      },
+    ];
+
+    if (effectiveMethod === 'elimination') {
+      return [
+        { id: 'method', label: 'Method', complete: Boolean(effectiveMethod), summary: effectiveMethod ? 'Elimination' : '' },
+        {
+          id: 'target',
+          label: 'Target',
+          complete: Boolean(selection.variable),
+          summary: selection.variable ? `Eliminate ${selection.variable}` : '',
+        },
+        {
+          id: 'prepare',
+          label: 'Prepare',
+          complete: multipliersApplied,
+          summary: multipliersApplied ? `Eq. 1 × ${multipliers[0]} · Eq. 2 × ${multipliers[1]}` : '',
+        },
+        {
+          id: 'combine',
+          label: 'Combine',
+          complete: combinationLocked,
+          summary: combinationLocked ? `${combination.operation === 'subtract' ? 'Equation 1 − Equation 2' : 'Equation 1 + Equation 2'} → ${combination.text}` : '',
+        },
+        ...commonEnd,
+      ];
+    }
+
+    return [
+      { id: 'method', label: 'Method', complete: Boolean(effectiveMethod), summary: effectiveMethod ? 'Substitution' : '' },
+      {
+        id: 'isolate',
+        label: 'Isolate',
+        complete: isolationDone,
+        summary: isolationDone && selection.variable ? `${selection.variable} = ${isolatedExpr}` : '',
+      },
+      {
+        id: 'substitute',
+        label: 'Substitute',
+        complete: Boolean(substitution.equationText),
+        summary: substitution.equationText ? `Equation ${Number(substitution.targetEquationIndex ?? otherIndex) + 1}: ${substitution.equationText}` : '',
+      },
+      ...commonEnd,
+    ];
+  }, [
+    effectiveMethod,
+    firstSolvedDone,
+    firstSolved,
+    secondSolvedDone,
+    secondSolved,
+    config.requireVerification,
+    allVerified,
+    selection.variable,
+    multipliersApplied,
+    multipliers,
+    combinationLocked,
+    combination.operation,
+    combination.text,
+    isolationDone,
+    isolatedExpr,
+    substitution.equationText,
+    substitution.targetEquationIndex,
+    otherIndex,
+  ]);
 
   return (
     <EnlargeableFigure
