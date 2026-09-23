@@ -3,7 +3,7 @@ import { evaluate } from 'mathjs';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
-import { Panel, ToolSplit, ResultPill, HintPanel } from '../shared/ToolShell';
+import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import { matchesNumericAnswer } from '../shared/toolMath';
 import MathDisplay from '../../MathDisplay';
@@ -37,9 +37,7 @@ const smallActionStyle = { ...actionStyle, marginTop: 8, padding: '9px 14px', fo
 const emptyVerificationEntry = () => ({ placed: {}, leftAnswer: '', rightAnswer: '', checked: false, valid: false });
 const emptySpecialCase = () => ({ isTrueAnswer: '', solutionsAnswer: '', classificationAnswer: '' });
 
-const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\const emptySpecialCase = () => ({ isTrueAnswer: '', solutionsAnswer: '', classificationAnswer: '' });
-
-');
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 function SubstitutionToken({ variable, expression, onArm }) {
   const dragPayload = `mathmaster-substitution:${variable}`;
