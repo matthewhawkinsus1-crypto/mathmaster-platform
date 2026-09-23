@@ -48,6 +48,9 @@ on:
       - "src/tools/constraintFunctionBuilder/**"
       - "src/tools/sequenceExplorer/**"
       - "src/tools/systemsWorkspace/**"
+      - "src/algebraAstEngine.js"
+      - "tests/browser/algebraicSubstitutionHandoff*"
+      - "tests/platform/fixtures/classworkQ2RuntimeCapture.json"
       - "src/SystemGrader.jsx"
       - "src/StepByStepAlgebra.jsx"
       - "src/StepByStepAlgebraCore.jsx"
@@ -163,3 +166,22 @@ jobs:
 
       - name: Re-assert the fixture through the ordinary suite
         run: node --test tests/platform/workViewMatrixFindings.test.mjs tests/platform/workViewStage3A.test.mjs tests/platform/workViewStage3B.test.mjs tests/platform/workViewCapabilities.test.mjs
+
+      # Issue #334: isolate x with Step Algebra's own controls, drop the token
+      # the platform builds onto x in Equation 2, and require the embedded
+      # one-variable solve to open — fresh, from a draft saved on the broken
+      # build, after leaving and returning, in Student View and Teacher Preview.
+      - name: Certify the Classwork Q2 substitution handoff
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: http://127.0.0.1:5199
+        run: node tests/browser/algebraicSubstitutionHandoff.mjs
+
+      - name: Publish the substitution handoff screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: algebraic-substitution-handoff
+          path: tests/browser/artifacts/algebraicSubstitutionHandoff
+          if-no-files-found: ignore
+          retention-days: 14

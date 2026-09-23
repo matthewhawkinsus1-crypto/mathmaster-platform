@@ -1,0 +1,96 @@
+{
+  "issue": 334,
+  "capturedFrom": "Chromium via tests/browser/algebraicSubstitutionHandoff.html at 1eb11ea (PR #333), before the fix. The student chose Isolate x in Equation 1, added the operand 2y to both sides with Step Algebra's own controls, cancelled the zero pair, chose Use this form as the token, and dragged the token onto x in Equation 2. Values were recorded by temporary instrumentation in handleIsolated() and immediately before substituteIntoEquation(); that instrumentation is not part of the product.",
+  "equations": ["x - 2y = -3", "3x + 5y = 24"],
+  "studentOperand": "2y",
+  "handleIsolated": [
+    {
+      "note": "Reported the moment the balance was restored, before the zero pair was cancelled. x is not isolated yet, so the workspace correctly ignores it.",
+      "latexResponse": "\\left( x\\right)+\\left(2~ y\\right)-\\left(2y\\right) = -\\left(3\\right)+\\left(2~ y\\right)",
+      "latexToExpression": "( x)+(2~ y)-(2y) = -(3)+(2~ y)",
+      "solvedExpression": null
+    },
+    {
+      "note": "After cancellation. This is the response that became isolation.expression.",
+      "latexResponse": " x = -\\left(3\\right)+\\left(2~ y\\right)",
+      "latexToExpression": "x = -(3)+(2~ y)",
+      "solvedExpression": "-(3)+(2~ y)"
+    }
+  ],
+  "stepAlgebraSolvedState": { "left": "x", "right": "-(3) + (2 y)", "variable": "x" },
+  "attemptSubstitution": {
+    "equation": "3x + 5y = 24",
+    "selectionVariable": "x",
+    "rawIsolationExpression": "-(3)+(2~ y)",
+    "rawIsolationTokenExpression": "-(3)+(2~ y)",
+    "replacementExpression": "-(3)+(2~ y)",
+    "replacementCandidates": ["-(3)+(2~ y)"],
+    "normalizeSubstitutionBoundaryExpression": "THREW SyntaxError: Parenthesis ) expected (char 8)",
+    "exception": {
+      "name": "SyntaxError",
+      "message": "Parenthesis ) expected (char 8)",
+      "stackTop": ["createSyntaxError", "parseParentheses", "parseNumber", "parseObject", "parseMatrix", "parseString", "parseSymbol"]
+    },
+    "studentSaw": "MathMaster could not open the next solving step from that token form. Your work is still here. Choose Change expression and use an equivalent form, or try the original isolated form again.",
+    "workTrailChip": "x = -(3)+(2~ y)",
+    "tokenAriaLabel": "Pick up the expression -(3)+(2~ y) from the isolated equation"
+  },
+  "persistedDraft": {
+    ":work:tool": {
+      "selection": { "equationIndex": 0, "variable": "x" },
+      "isolation": {
+        "expression": "-(3)+(2~ y)",
+        "tokenExpression": "-(3)+(2~ y)",
+        "simplificationDraft": "",
+        "simplifying": false,
+        "simplificationChecked": false,
+        "simplificationValid": false
+      },
+      "substitution": { "targetVariable": null, "targetEquationIndex": null, "equationText": null },
+      "multipliers": { "0": "1", "1": "1" },
+      "appliedMultipliers": { "0": false, "1": false },
+      "multiplierWork": {
+        "0": { "active": false, "a": "", "b": "", "c": "", "checked": false, "valid": false },
+        "1": { "active": false, "a": "", "b": "", "c": "", "checked": false, "valid": false }
+      },
+      "combination": {
+        "operation": null,
+        "attempts": 0,
+        "coefficients": null,
+        "text": null,
+        "pendingCoefficients": null,
+        "cancelledRows": { "0": false, "1": false }
+      },
+      "firstSolved": { "variable": null, "value": null },
+      "backSub": { "equationIndex": null },
+      "secondSolved": { "variable": null, "value": null },
+      "verification": {
+        "0": { "placed": {}, "leftAnswer": "", "rightAnswer": "", "checked": false, "valid": false },
+        "1": { "placed": {}, "leftAnswer": "", "rightAnswer": "", "checked": false, "valid": false }
+      }
+    },
+    ":algebraic:isolate:0:x:step-algebra": {
+      "algebraDraftVersion": 2,
+      "equation": {
+        "left": "x",
+        "right": "-(3) + (2 y)",
+        "variable": "x",
+        "objective": { "kind": "isolate", "variable": "x", "simplifyRequired": true, "requireSimplifiedFinalForm": false, "targetForm": null }
+      },
+      "supportLevel": 3,
+      "operand": "",
+      "distributionState": null,
+      "armedTile": null,
+      "pendingMove": null,
+      "crossedSides": [],
+      "cancelledPairIds": { "left": [] },
+      "selectedCancellationIndices": { "left": [] },
+      "simplificationAnswers": {},
+      "promptAnswers": {},
+      "likeTermsOpen": false,
+      "likeTermsSide": "",
+      "selectedLikeTermIndices": [],
+      "likeTermsAnswer": ""
+    }
+  }
+}

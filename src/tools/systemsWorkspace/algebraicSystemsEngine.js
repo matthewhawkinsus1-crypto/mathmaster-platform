@@ -113,6 +113,26 @@ export const isolatedExpressionFor = (text, variable) => {
 };
 
 /**
+ * Repair an `isolation` record read back from a question draft.
+ *
+ * `expression` and `tokenExpression` are plain MathJS text by contract, but a
+ * draft written before issue #334 holds Step Algebra's LaTeX spacing in them —
+ * "-(3)+(2~ y)" — which the work trail shows verbatim, with the tilde reading
+ * as a minus sign. Pass both through the same LaTeX boundary a fresh attempt
+ * goes through, so a reopened question reads exactly like a new one without
+ * the student resetting it. Deterministic and idempotent: clean text comes back
+ * unchanged, and an unchanged record comes back as the same object.
+ */
+export const repairPersistedIsolation = (isolation) => {
+  if (!isolation || typeof isolation !== 'object') return isolation;
+  const repair = (value) => (typeof value === 'string' ? latexToExpression(value) : value);
+  const expression = repair(isolation.expression);
+  const tokenExpression = repair(isolation.tokenExpression);
+  if (expression === isolation.expression && tokenExpression === isolation.tokenExpression) return isolation;
+  return { ...isolation, expression, tokenExpression };
+};
+
+/**
  * Canonicalize a substitution token at the systems -> MathJS boundary.
  *
  * Persisted drafts can outlive a deploy, so a token may still contain MathLive
