@@ -43,6 +43,17 @@ const CLASSWORK_Q2 = Object.freeze({
   requireVerification: true,
 });
 
+const EXACT_FRACTION_SYSTEM = Object.freeze({
+  questionId: 'exact-fraction-systems-display',
+  type: 'systemsWorkspace',
+  prompt: 'Solve the system by substitution.',
+  studentActions: ['solveSystem'],
+  method: 'substitution',
+  equations: ['2x - y = 7', '-3x - 3y = 1'],
+  variables: ['x', 'y'],
+  requireVerification: true,
+});
+
 // Student View and Teacher Preview differ in exactly the props App.jsx varies.
 const SCOPES = {
   student: { studentId: 'issue-334-student', sessionMode: 'graded', executionScope: 'student', keySuffix: 'open' },
@@ -52,8 +63,13 @@ const SCOPES = {
 const listeners = new Set();
 // `?scope=teacherPreview` opens Teacher Preview directly, so the driver can seed
 // a draft and reload into either scope with every module freshly evaluated.
-const initialScope = new URLSearchParams(window.location.search).get('scope');
-let current = { scope: SCOPES[initialScope] ? initialScope : 'student', questionIndex: QUESTION_INDEX };
+const params = new URLSearchParams(window.location.search);
+const initialScope = params.get('scope');
+const requestedQuestionIndex = Number(params.get('q'));
+const initialQuestionIndex = Number.isInteger(requestedQuestionIndex) && requestedQuestionIndex >= 0
+  ? requestedQuestionIndex
+  : QUESTION_INDEX;
+let current = { scope: SCOPES[initialScope] ? initialScope : 'student', questionIndex: initialQuestionIndex };
 const notify = () => listeners.forEach((listen) => listen({ ...current }));
 
 const draftKeyFor = (scope, questionIndex) => buildQuestionDraftKey({
@@ -69,6 +85,7 @@ const draftKeyFor = (scope, questionIndex) => buildQuestionDraftKey({
 const QUESTIONS = [
   { questionId: 'issue-334-classwork-q1', type: 'systemsWorkspace', mode: 'linear', prompt: 'Classify the system.', system: { m1: 2, b1: 1, m2: -1, b2: 7 } },
   CLASSWORK_Q2,
+  EXACT_FRACTION_SYSTEM,
 ];
 
 function Harness() {
