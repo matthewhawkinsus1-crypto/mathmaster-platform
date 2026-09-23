@@ -9,7 +9,7 @@ import { matchesNumericAnswer } from '../shared/toolMath';
 import MathDisplay from '../../MathDisplay';
 import MathInput from '../../MathInput';
 import StepByStepAlgebraCore from '../../StepByStepAlgebraCore.jsx';
-import { latexToExpression } from '../../algebraAstEngine.js';
+import { expressionsEquivalent, latexToExpression } from '../../algebraAstEngine.js';
 import './AlgebraicSystemMode.css';
 import {
   normalizeAlgebraicSystemConfig,
@@ -279,7 +279,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const effectiveMethod = config.method === 'studentChoice' ? method : config.method;
 
   const [selection, setSelection] = usePersistentToolState('selection', { equationIndex: null, variable: null });
-  const [isolation, setIsolation] = usePersistentToolState('isolation', { expression: null });
+  const [isolation, setIsolation] = usePersistentToolState('isolation', { expression: null, tokenExpression: null, simplificationDraft: '', simplifying: false, simplificationChecked: false, simplificationValid: false });
   const [substitution, setSubstitution] = usePersistentToolState('substitution', { targetVariable: null, targetEquationIndex: null, equationText: null });
   const [multipliers, setMultipliers] = usePersistentToolState('multipliers', { 0: '1', 1: '1' });
   const [appliedMultipliers, setAppliedMultipliers] = usePersistentToolState('appliedMultipliers', { 0: false, 1: false });
@@ -302,7 +302,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
   const resetFromSelection = useCallback(() => {
     setSelection({ equationIndex: null, variable: null });
-    setIsolation({ expression: null });
+    setIsolation({ expression: null, tokenExpression: null, simplificationDraft: '', simplifying: false, simplificationChecked: false, simplificationValid: false });
     setSubstitution({ targetVariable: null, targetEquationIndex: null, equationText: null });
     setMultipliers({ 0: '1', 1: '1' });
     setAppliedMultipliers({ 0: false, 1: false });
@@ -329,7 +329,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const restore = useCallback((value) => {
     setMethod(value?.method ?? (config.method === 'studentChoice' ? '' : config.method));
     setSelection(value?.selection || { equationIndex: null, variable: null });
-    setIsolation(value?.isolation || { expression: null });
+    setIsolation({ expression: null, tokenExpression: null, simplificationDraft: '', simplifying: false, simplificationChecked: false, simplificationValid: false, ...(value?.isolation || {}) });
     setSubstitution({ targetVariable: null, targetEquationIndex: null, equationText: null, ...(value?.substitution || {}) });
     setMultipliers(value?.multipliers || { 0: '1', 1: '1' });
     setAppliedMultipliers(value?.appliedMultipliers || { 0: false, 1: false });
@@ -370,6 +370,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const alreadyIsolated = sourceEquationText ? variableIsIsolated(sourceEquationText, selection.variable) : false;
   const isolatedExpr = alreadyIsolated ? isolatedExpressionFor(sourceEquationText, selection.variable) : isolation.expression;
   const isolationDone = Boolean(isolatedExpr);
+  const substitutionTokenExpression = String(isolation.tokenExpression || '').trim() || null;
+  const substitutionTokenReady = Boolean(substitutionTokenExpression);
 
   const multipliedEq = useCallback((index) => {
     try {
@@ -408,8 +410,88 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const handleIsolated = useCallback((latexResponse) => {
     const expr = solvedExpressionFor(latexResponse, selection.variable);
     if (expr == null) return;
-    setIsolation({ expression: expr });
+    setIsolation({
+      expression: expr,
+      tokenExpression: null,
+      simplificationDraft: '',
+      simplifying: false,
+      simplificationChecked: false,
+      simplificationValid: false,
+    });
   }, [selection.variable]);
+
+  const useIsolatedExpressionAsToken = () => {
+    if (!isolatedExpr) return;
+    setIsolation((current) => ({
+      ...current,
+      tokenExpression: isolatedExpr,
+      simplifying: false,
+      simplificationChecked: false,
+      simplificationValid: false,
+    }));
+    setSlotAttempt(null);
+  };
+
+  const startOptionalIsolationSimplification = () => {
+    setIsolation((current) => ({
+      ...current,
+      tokenExpression: null,
+      simplifying: true,
+      simplificationDraft: current?.simplificationDraft || '',
+      simplificationChecked: false,
+      simplificationValid: false,
+    }));
+    setSlotAttempt(null);
+  };
+
+  const setIsolationSimplificationDraft = (value) => {
+    setIsolation((current) => ({
+      ...current,
+      simplificationDraft: value,
+      simplificationChecked: false,
+      simplificationValid: false,
+    }));
+  };
+
+  const checkAndUseIsolationSimplification = () => {
+    const draft = String(isolation.simplificationDraft || '').trim();
+    if (!draft || !isolatedExpr) {
+      setIsolation((current) => ({ ...current, simplificationChecked: true, simplificationValid: false }));
+      return;
+    }
+    const valid = expressionsEquivalent(draft, isolatedExpr, selection.variable);
+    if (!valid) {
+      setIsolation((current) => ({ ...current, simplificationChecked: true, simplificationValid: false }));
+      return;
+    }
+    let tokenExpression = draft;
+    try {
+      tokenExpression = latexToExpression(draft);
+    } catch {
+      // MathInput can return plain ASCII math already. Equivalence was proven
+      // above, so the student's visible expression remains safe to substitute.
+    }
+    setIsolation((current) => ({
+      ...current,
+      tokenExpression,
+      simplificationDraft: draft,
+      simplifying: false,
+      simplificationChecked: true,
+      simplificationValid: true,
+    }));
+    setSlotAttempt(null);
+  };
+
+  const changeSubstitutionTokenExpression = () => {
+    setIsolation((current) => ({
+      ...current,
+      tokenExpression: null,
+      simplifying: false,
+      simplificationChecked: false,
+      simplificationValid: false,
+    }));
+    setSlotAttempt(null);
+  };
 
   const attemptSubstitution = (equationIndex, clickedVariable) => {
     const sameEquation = equationIndex === selection.equationIndex;
@@ -439,7 +521,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setSubstitution({
       targetVariable: selection.variable,
       targetEquationIndex: equationIndex,
-      equationText: substituteIntoEquation(equations[equationIndex], selection.variable, isolatedExpr),
+      equationText: substituteIntoEquation(equations[equationIndex], selection.variable, substitutionTokenExpression || isolatedExpr),
     });
   };
 
@@ -819,37 +901,85 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
               {isolationDone && !substitution.equationText ? (
                 <div className="mathmaster-systems-substitution-stage">
-                  <p className="mathmaster-systems-substitution-direction">
-                    Use the isolated expression to create a one-variable equation. Decide which equation and which variable should receive it.
-                    <span> Drag the token, or select it and then select a variable.</span>
-                  </p>
-                  <SubstitutionToken
-                    variable={selection.variable}
-                    expression={isolatedExpr}
-                    onArm={() => setSlotAttempt({ stage: 'substitution', armed: true, correct: null, variable: null })}
-                  />
-                  <div className="mathmaster-systems-substitution-equation-choices">
-                    {equations.map((equationText, equationIndex) => (
-                      <div key={equationIndex}>
-                        <div className="mathmaster-systems-backsub-equation-label">Equation {equationIndex + 1}</div>
-                        <VariableDropEquation
-                          equationText={equationText}
-                          variables={variables}
-                          onVariableAttempt={(variable) => attemptSubstitution(equationIndex, variable)}
-                          tokenArmed={slotAttempt?.stage === 'substitution' && slotAttempt?.armed}
-                          armedPayloadValue={selection.variable}
-                          label={`Equation ${equationIndex + 1}: choose where the isolated expression belongs`}
-                        />
+                  {!substitutionTokenReady ? (
+                    <div style={{ display: 'grid', gap: 10 }}>
+                      <div style={{ padding: '12px 14px', border: '1px solid #dbe3ef', borderRadius: 10, background: '#f8fbff' }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: '#174ea6', marginBottom: 6 }}>Isolated expression ready</div>
+                        <MathDisplay value={`${selection.variable} = ${isolatedExpr}`} format="ascii-math" />
+                        <p style={{ margin: '8px 0 0', color: '#3c4756', lineHeight: 1.5 }}>
+                          This form is already mathematically valid. You may turn it into the substitution token now, or simplify the expression first.
+                          Simplifying is optional and does not change your credit.
+                        </p>
                       </div>
-                    ))}
-                  </div>
-                  {slotAttempt?.stage === 'substitution' && slotAttempt.correct === false ? (
-                    <p className="mathmaster-systems-substitution-feedback is-error">
-                      {slotAttempt.reason === 'source-equation'
-                        ? 'That placement puts the expression back into the equation it came from. Ask which equation needs the isolated expression to leave only one variable.'
-                        : 'That variable does not match the isolated equation. Look back at what the expression is equal to, then try the placement again.'}
-                    </p>
-                  ) : null}
+
+                      {!isolation.simplifying ? (
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <button type="button" onClick={useIsolatedExpressionAsToken} style={secondaryButtonStyle}>Use this form as the token</button>
+                          <button type="button" onClick={startOptionalIsolationSimplification} style={secondaryButtonStyle}>Simplify first (optional)</button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'grid', gap: 8, padding: '12px 14px', border: '1px solid #dbe3ef', borderRadius: 10, background: '#fff' }}>
+                          <Field label="Write an equivalent, simpler expression">
+                            <MathInput
+                              value={isolation.simplificationDraft || ''}
+                              onChange={setIsolationSimplificationDraft}
+                              placeholder="e.g. 2x - 7"
+                              ariaLabel="Optional simplified expression for the substitution token"
+                              toolProfile="algebra-operation"
+                            />
+                          </Field>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            <button type="button" onClick={checkAndUseIsolationSimplification} style={smallActionStyle}>Check and use my simplification</button>
+                            <button type="button" onClick={useIsolatedExpressionAsToken} style={secondaryButtonStyle}>Skip simplification</button>
+                          </div>
+                          {isolation.simplificationChecked && !isolation.simplificationValid ? (
+                            <p className="mathmaster-systems-substitution-feedback is-error" style={{ margin: 0 }}>
+                              That rewrite is not equivalent to the isolated expression yet. Revise it, or use the original form.
+                            </p>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <p className="mathmaster-systems-substitution-direction">
+                        Use the prepared expression to create a one-variable equation. Decide which equation and which variable should receive it.
+                        <span> Drag the token, or select it and then select a variable.</span>
+                      </p>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <SubstitutionToken
+                          variable={selection.variable}
+                          expression={substitutionTokenExpression}
+                          onArm={() => setSlotAttempt({ stage: 'substitution', armed: true, correct: null, variable: null })}
+                        />
+                        <button type="button" onClick={changeSubstitutionTokenExpression} style={{ ...secondaryButtonStyle, fontSize: 12 }}>
+                          Change expression
+                        </button>
+                      </div>
+                      <div className="mathmaster-systems-substitution-equation-choices">
+                        {equations.map((equationText, equationIndex) => (
+                          <div key={equationIndex}>
+                            <div className="mathmaster-systems-backsub-equation-label">Equation {equationIndex + 1}</div>
+                            <VariableDropEquation
+                              equationText={equationText}
+                              variables={variables}
+                              onVariableAttempt={(variable) => attemptSubstitution(equationIndex, variable)}
+                              tokenArmed={slotAttempt?.stage === 'substitution' && slotAttempt?.armed}
+                              armedPayloadValue={selection.variable}
+                              label={`Equation ${equationIndex + 1}: choose where the isolated expression belongs`}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      {slotAttempt?.stage === 'substitution' && slotAttempt.correct === false ? (
+                        <p className="mathmaster-systems-substitution-feedback is-error">
+                          {slotAttempt.reason === 'source-equation'
+                            ? 'That placement puts the expression back into the equation it came from. Ask which equation needs the isolated expression to leave only one variable.'
+                            : 'That variable does not match the isolated equation. Look back at what the expression is equal to, then try the placement again.'}
+                        </p>
+                      ) : null}
+                    </>
+                  )}
                 </div>
               ) : null}
             </div>
