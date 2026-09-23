@@ -118,6 +118,24 @@ test('substitution requires the student to choose both the other equation and th
   assert.match(attempt, /equationText: substituteIntoEquation\(equations\[equationIndex\]/);
 });
 
+
+test('substitution token creation lets the student keep the valid isolated form or simplify it first', () => {
+  assert.match(modeSource, /Use this form as the token/);
+  assert.match(modeSource, /Simplify first \(optional\)/);
+  assert.match(modeSource, /Skip simplification/);
+  assert.match(modeSource, /expressionsEquivalent\(draft, isolatedExpr, selection\.variable\)/);
+  assert.match(modeSource, /tokenExpression: isolatedExpr/);
+  assert.match(modeSource, /expression=\{substitutionTokenExpression\}/);
+});
+
+test('optional substitution-token simplification is draft-backed and can never silently change the mathematics', () => {
+  assert.match(modeSource, /simplificationDraft/);
+  assert.match(modeSource, /simplificationChecked/);
+  assert.match(modeSource, /simplificationValid/);
+  assert.match(modeSource, /That rewrite is not equivalent to the isolated expression yet/);
+  assert.match(modeSource, /substituteIntoEquation\(equations\[equationIndex\], selection\.variable, substitutionTokenExpression \|\| isolatedExpr\)/);
+});
+
 test('substitution feedback identifies the structural mistake without giving away the target variable', () => {
   assert.match(modeSource, /That variable does not match the isolated equation/);
   assert.doesNotMatch(modeSource, /so replace \{selection\.variable\}/);
