@@ -1547,7 +1547,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                 // The student must simplify those products and then combine
                 // like terms; the systems wrapper must not do either for them.
                 simplifyDistributedProducts={false}
-                inlineExpressionTools={effectiveMethod === 'substitution'}
+                inlineExpressionTools
               />
             </div>
           ) : null}
