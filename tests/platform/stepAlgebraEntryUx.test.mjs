@@ -18,10 +18,22 @@ test('optional simplification puts the answer field before explanatory copy', ()
   assert.doesNotMatch(region, /The balanced equation is already valid\. If you want to simplify/);
 });
 
-test('long equations shrink and scroll inside their own balance side instead of overlapping the equals sign', async () => {
+test('automatic simplification focuses the first answer field as soon as the prompt appears', () => {
+  assert.match(coreSource, /const \[simplificationFocusSignal, setSimplificationFocusSignal\] = useState\(0\)/);
+  assert.match(coreSource, /const simplificationPromptVisible = Boolean/);
+  assert.match(coreSource, /if \(!simplificationPromptVisible\) return/);
+  assert.match(coreSource, /setSimplificationFocusSignal\(\(signal\) => signal \+ 1\)/);
+  const start = coreSource.indexOf('pendingMove.simplificationTargets.map');
+  const end = coreSource.indexOf('algebra-simplification-actions', start);
+  const region = coreSource.slice(start, end);
+  assert.match(region, /focusSignal=\{index === 0 \? simplificationFocusSignal : 0\}/);
+});
+
+test('long equations fit inside their own balance side instead of requiring horizontal scrolling', async () => {
   const css = await readFile('src/StepByStepAlgebra.css', 'utf8');
   assert.match(coreSource, /const sideFontSize = \(side\) =>/);
-  assert.match(coreSource, /length >= 42/);
-  assert.match(css, /\.algebra-expression-anchor[\s\S]*?overflow-x:\s*auto/);
+  assert.match(coreSource, /function AutoFitEquationExpression/);
+  assert.match(coreSource, /adaptiveBalanceColumns/);
+  assert.match(css, /\.algebra-expression-anchor[\s\S]*?overflow:\s*hidden/);
   assert.match(css, /\.algebra-expression-anchor[\s\S]*?max-width:\s*100%/);
 });
