@@ -10,6 +10,12 @@ import {
 } from '../../src/platform/interaction/answerEntryUx.js';
 
 const target = (tagName, type = '') => ({ tagName, type });
+const calculatorTarget = () => ({
+  tagName: 'MATH-FIELD',
+  type: '',
+  getAttribute: (name) => (name === 'data-calculator-expression' ? 'true' : null),
+  closest: (selector) => (selector === '.mathmaster-calculator-panel' ? {} : null),
+});
 const eventFor = (overrides = {}) => ({
   key: 'Enter', target: target('INPUT', 'text'), isComposing: false,
   altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, ...overrides,
@@ -30,6 +36,20 @@ test('Enter submits only when the response and primary action are ready', () => 
   assert.equal(shouldSubmitAnswerOnEnter({ event: eventFor(), responseComplete: true, canSubmit: false }), false);
   assert.equal(shouldSubmitAnswerOnEnter({ event: eventFor({ target: target('TEXTAREA') }), responseComplete: true, canSubmit: true }), false);
   assert.equal(shouldSubmitAnswerOnEnter({ event: eventFor({ shiftKey: true }), responseComplete: true, canSubmit: true }), false);
+});
+
+test('calculator expression field keeps Enter for calculator equals, not question submit/advance', () => {
+  const calc = calculatorTarget();
+  assert.equal(isSingleLineAnswerTarget(calc), false);
+  assert.equal(shouldSubmitAnswerOnEnter({
+    event: eventFor({ target: calc }),
+    responseComplete: true,
+    canSubmit: true,
+  }), false);
+  assert.equal(shouldAdvanceOnEnter({
+    event: eventFor({ target: calc }),
+    canAdvance: true,
+  }), false);
 });
 
 test('a second Enter advances only after a correct flow exposes a next action', () => {
