@@ -277,7 +277,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
   const [selection, setSelection] = usePersistentToolState('selection', { equationIndex: null, variable: null });
   const [isolation, setIsolation] = usePersistentToolState('isolation', { expression: null });
-  const [substitution, setSubstitution] = usePersistentToolState('substitution', { targetVariable: null, equationText: null });
+  const [substitution, setSubstitution] = usePersistentToolState('substitution', { targetVariable: null, targetEquationIndex: null, equationText: null });
   const [multipliers, setMultipliers] = usePersistentToolState('multipliers', { 0: '1', 1: '1' });
   const [appliedMultipliers, setAppliedMultipliers] = usePersistentToolState('appliedMultipliers', { 0: false, 1: false });
   const [combination, setCombination] = usePersistentToolState('combination', { operation: null, attempts: 0, coefficients: null, text: null });
@@ -300,7 +300,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const resetFromSelection = useCallback(() => {
     setSelection({ equationIndex: null, variable: null });
     setIsolation({ expression: null });
-    setSubstitution({ targetVariable: null, equationText: null });
+    setSubstitution({ targetVariable: null, targetEquationIndex: null, equationText: null });
     setMultipliers({ 0: '1', 1: '1' });
     setAppliedMultipliers({ 0: false, 1: false });
     setCombination({ operation: null, attempts: 0, coefficients: null, text: null });
@@ -327,7 +327,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setMethod(value?.method ?? (config.method === 'studentChoice' ? '' : config.method));
     setSelection(value?.selection || { equationIndex: null, variable: null });
     setIsolation(value?.isolation || { expression: null });
-    setSubstitution(value?.substitution || { targetVariable: null, equationText: null });
+    setSubstitution({ targetVariable: null, targetEquationIndex: null, equationText: null, ...(value?.substitution || {}) });
     setMultipliers(value?.multipliers || { 0: '1', 1: '1' });
     setAppliedMultipliers(value?.appliedMultipliers || { 0: false, 1: false });
     setCombination(value?.combination || { operation: null, attempts: 0, coefficients: null, text: null });
@@ -369,7 +369,13 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const isolatedExpr = alreadyIsolated ? isolatedExpressionFor(sourceEquationText, selection.variable) : isolation.expression;
   const isolationDone = Boolean(isolatedExpr);
 
-  const multipliedEq = useCallback((index) => applyEquationMultiplier(equations[index], multipliers[index], variables), [equations, multipliers, variables]);
+  const multipliedEq = useCallback((index) => {
+    try {
+      return applyEquationMultiplier(equations[index], latexToExpression(multipliers[index]), variables);
+    } catch {
+      return null;
+    }
+  }, [equations, multipliers, variables]);
   const multipliersApplied = appliedMultipliers[0] && appliedMultipliers[1];
   const combinationLocked = Boolean(combination.text);
 
@@ -403,15 +409,35 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setIsolation({ expression: expr });
   }, [selection.variable]);
 
-  const attemptSubstitution = (clickedVariable) => {
-    if (clickedVariable !== selection.variable) {
-      setSlotAttempt({ stage: 'substitution', variable: clickedVariable, correct: false, armed: true });
+  const attemptSubstitution = (equationIndex, clickedVariable) => {
+    const sameEquation = equationIndex === selection.equationIndex;
+    if (sameEquation) {
+      setSlotAttempt({
+        stage: 'substitution',
+        equationIndex,
+        variable: clickedVariable,
+        correct: false,
+        reason: 'source-equation',
+        armed: true,
+      });
       return;
     }
-    setSlotAttempt({ stage: 'substitution', variable: clickedVariable, correct: true, armed: false });
+    if (clickedVariable !== selection.variable) {
+      setSlotAttempt({
+        stage: 'substitution',
+        equationIndex,
+        variable: clickedVariable,
+        correct: false,
+        reason: 'wrong-variable',
+        armed: true,
+      });
+      return;
+    }
+    setSlotAttempt({ stage: 'substitution', equationIndex, variable: clickedVariable, correct: true, armed: false });
     setSubstitution({
       targetVariable: selection.variable,
-      equationText: substituteIntoEquation(targetEquationText, selection.variable, isolatedExpr),
+      targetEquationIndex: equationIndex,
+      equationText: substituteIntoEquation(equations[equationIndex], selection.variable, isolatedExpr),
     });
   };
 
@@ -423,8 +449,24 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
   const applyMultiplier = (index) => {
     const parsed = multipliedEq(index);
-    if (!parsed) return;
+    if (!parsed) {
+      setSlotAttempt({ stage: 'multiplier', index, correct: false, reason: 'invalid-multiplier', armed: true });
+      return;
+    }
     setAppliedMultipliers((current) => ({ ...current, [index]: true }));
+    setSlotAttempt({ stage: 'multiplier', index, correct: true, armed: false });
+  };
+
+  const armMultiplier = (index) => {
+    setSlotAttempt({ stage: 'multiplier', index, correct: null, armed: true });
+  };
+
+  const dropMultiplier = (targetIndex, payloadIndex = targetIndex) => {
+    if (Number(payloadIndex) !== targetIndex) {
+      setSlotAttempt({ stage: 'multiplier', index: targetIndex, sourceIndex: Number(payloadIndex), correct: false, reason: 'wrong-equation', armed: true });
+      return;
+    }
+    applyMultiplier(targetIndex);
   };
 
   const handleCombine = (operation) => {
@@ -458,10 +500,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
   const attemptBackSubstitution = (equationIndex, clickedVariable) => {
     if (clickedVariable !== survivingVariable) {
-      setSlotAttempt({ stage: 'backSubstitution', variable: clickedVariable, correct: false, armed: true });
+      setSlotAttempt({ stage: 'backSubstitution', equationIndex, variable: clickedVariable, correct: false, armed: true });
       return;
     }
-    setSlotAttempt({ stage: 'backSubstitution', variable: clickedVariable, correct: true, armed: false });
+    setSlotAttempt({ stage: 'backSubstitution', equationIndex, variable: clickedVariable, correct: true, armed: false });
     chooseBackSub(equationIndex);
   };
 
@@ -471,11 +513,33 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setSecondSolved({ variable: removedVariable, value });
   }, [removedVariable]);
 
-  const placeVerificationValue = (index, variable) => {
+  const armVerificationValue = (variable) => {
+    setSlotAttempt({ stage: 'verification', tokenVariable: variable, correct: null, armed: true });
+  };
+
+  const placeVerificationValue = (index, targetVariable, tokenVariable) => {
+    if (!tokenVariable) return;
+    if (targetVariable !== tokenVariable) {
+      setSlotAttempt({
+        stage: 'verification',
+        equationIndex: index,
+        tokenVariable,
+        variable: targetVariable,
+        correct: false,
+        armed: true,
+      });
+      return;
+    }
     setVerification((current) => ({
       ...current,
-      [index]: { ...current[index], placed: { ...current[index].placed, [variable]: true } },
+      [index]: {
+        ...current[index],
+        placed: { ...current[index].placed, [targetVariable]: true },
+        checked: false,
+        valid: false,
+      },
     }));
+    setSlotAttempt({ stage: 'verification', tokenVariable, variable: targetVariable, correct: true, armed: false });
   };
   const setVerificationAnswer = (index, side, value) => {
     setVerification((current) => ({ ...current, [index]: { ...current[index], [side]: value, checked: false } }));
