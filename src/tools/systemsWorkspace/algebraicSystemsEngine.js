@@ -14,6 +14,7 @@
  * "second mini equation solver" this feature must not become.
  */
 import { evaluate, parse } from 'mathjs';
+import { latexToExpression } from '../../algebraAstEngine.js';
 
 const EPS = 1e-7;
 
@@ -112,6 +113,27 @@ export const isolatedExpressionFor = (text, variable) => {
 };
 
 /**
+ * Canonicalize a substitution token at the systems -> MathJS boundary.
+ *
+ * Persisted drafts can outlive a deploy, so a token may still contain MathLive
+ * LaTeX, Unicode operators, non-breaking spaces, or zero-width characters even
+ * though the visible MathDisplay looks ordinary. Never make a correct algebra
+ * step fail because presentation text was handed directly to MathJS.
+ */
+export const normalizeSubstitutionBoundaryExpression = (rawValue) => {
+  let text = latexToExpression(rawValue)
+    .replace(/\u00a0/g, ' ')
+    .replace(/[\u200b-\u200d\u2060\ufeff]/g, '')
+    .replace(/[×·∙⋅]/g, '*')
+    .trim();
+  // Written algebra commonly places grouped factors adjacent to each other.
+  // MathJS is stricter, so make only that unambiguous multiplication explicit.
+  text = text.replace(/\)\s*\(/g, ')*(');
+  if (!text) throw new Error('Substitution expression is empty.');
+  return parse(text).toString({ parenthesis: 'keep', implicit: 'show' });
+};
+
+/**
  * Replace every occurrence of `variable` in `text` with `replacementExpression`,
  * grouped in parentheses so the substitution is safe wherever it lands
  * (distribution across the parentheses is Step Algebra's job, not this
@@ -119,7 +141,8 @@ export const isolatedExpressionFor = (text, variable) => {
  */
 export const substituteVariable = (text, variable, replacementExpression) => {
   const node = parse(String(text));
-  const replacement = parse(`(${replacementExpression})`);
+  const replacementText = normalizeSubstitutionBoundaryExpression(replacementExpression);
+  const replacement = parse(`(${replacementText})`);
   const transformed = node.transform((n) => (
     n.type === 'SymbolNode' && n.name === variable ? replacement : n
   ));

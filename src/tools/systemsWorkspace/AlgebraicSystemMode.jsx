@@ -592,14 +592,33 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       return;
     }
     const replacementExpression = substitutionTokenExpression || isolatedExpr;
-    let reducedEquation;
-    try {
-      reducedEquation = substituteIntoEquation(
-        equations[equationIndex],
-        selection.variable,
-        replacementExpression,
-      );
-    } catch {
+    // Draft-backed token text can survive a deploy. Try the exact prepared
+    // token first, then the original isolated expression as a mathematically
+    // equivalent recovery path. Both came from this same isolation step; an
+    // optional rewritten token was equivalence-checked before it was accepted.
+    // This prevents old presentation syntax from permanently stranding a
+    // student on the substitution board.
+    const replacementCandidates = [...new Set(
+      [replacementExpression, isolatedExpr]
+        .map((value) => String(value || '').trim())
+        .filter(Boolean),
+    )];
+    let reducedEquation = null;
+    let acceptedReplacementExpression = null;
+    for (const candidate of replacementCandidates) {
+      try {
+        reducedEquation = substituteIntoEquation(
+          equations[equationIndex],
+          selection.variable,
+          candidate,
+        );
+        acceptedReplacementExpression = candidate;
+        break;
+      } catch {
+        // Try the next equivalent machine-safe form before showing an error.
+      }
+    }
+    if (!reducedEquation) {
       setSlotAttempt({
         stage: 'substitution',
         equationIndex,
@@ -609,6 +628,12 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         armed: true,
       });
       return;
+    }
+    if (acceptedReplacementExpression !== replacementExpression) {
+      setIsolation((current) => ({
+        ...current,
+        tokenExpression: acceptedReplacementExpression,
+      }));
     }
 
     // Do not run the completed substitution back through the coefficient
