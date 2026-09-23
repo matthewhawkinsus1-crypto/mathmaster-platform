@@ -169,6 +169,7 @@ test('systems substitution may evaluate each distributed product while leaving l
   assert.match(compact, /-6\*?x/);
   assert.match(compact, /21/);
   assert.doesNotMatch(compact, /-9\*?x/);
+  assert.doesNotMatch(compact, /\+\-\(/);
 });
 
 test('undo before commit removes only the last placement', () => {
