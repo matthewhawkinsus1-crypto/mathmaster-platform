@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { evaluate } from 'mathjs';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
-import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
+import useMathUndoHistory, { questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
 import { Panel, ToolSplit, ResultPill, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import { matchesNumericAnswer } from '../shared/toolMath';
@@ -68,7 +68,7 @@ const solvedNumberFor = (latexResponse, variable) => {
  * reports the resulting text one level up. It never solves, isolates, or
  * simplifies anything itself.
  */
-function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, onSolved, workspaceDifficulty }) {
+function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, onSolved, onUndoStateChange, workspaceDifficulty }) {
   const question = useMemo(() => ({
     equation: equationText, solveFor, prompt, workspaceDifficulty,
   }), [equationText, solveFor, prompt, workspaceDifficulty]);
@@ -89,7 +89,7 @@ function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, 
         draftKey={draftKey}
         onStateChange={handleStateChange}
         onStepGrade={null}
-        onUndoStateChange={null}
+        onUndoStateChange={onUndoStateChange}
       />
     </div>
   );
@@ -118,6 +118,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   // feedback only — the moment a correct placement is made, the actual
   // mathematics goes into `substitution`, which is draft-backed above.
   const [slotAttempt, setSlotAttempt] = useState(null);
+  // While a nested Step Algebra solve is on screen, its own step history must
+  // own the universal Undo button. Otherwise the parent systems history sees
+  // only stage-level changes and Undo appears broken during the actual algebra.
+  const [embeddedUndoController, setEmbeddedUndoController] = useState(null);
   const { feedback, submit } = useToolSubmission(onAction);
 
   const resetFromSelection = useCallback(() => {
@@ -161,6 +165,23 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setMethodEfficiencyReason(value?.methodEfficiencyReason || '');
   }, [config.method]);
   const undoHistory = useMathUndoHistory({ label: 'Undo the last algebraic-systems edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
+
+  useActiveUndoOwner({
+    id: 'algebraic-system-embedded-step-algebra',
+    active: Boolean(embeddedUndoController),
+    priority: 50,
+    controller: embeddedUndoController,
+  });
+
+  const activeUndoCapability = embeddedUndoController
+    ? {
+      label: '↶ Undo',
+      title: embeddedUndoController.label || 'Undo the last algebra step',
+      onAction: () => embeddedUndoController.onUndo?.(),
+      disabled: !embeddedUndoController.canUndo,
+      studentState: true,
+    }
+    : undoHistory.capability;
 
   // --- Derived workflow state -------------------------------------------
   const removedVariable = selection.variable; // isolated first (substitution) / targeted for elimination
@@ -332,7 +353,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       enlargeLabel="Enlarge algebraic systems workspace"
       style={{ width: '100%' }}
       capabilities={{
-        undo: undoHistory.capability,
+        undo: activeUndoCapability,
         equationInput: { label: 'Both equations and every algebraic move', studentState: true },
         numericControls: { label: 'Method, targets, and the final solution', studentState: true },
         instruction: { text: 'Solve the system with substitution or elimination, showing every mathematical decision.' },
@@ -352,7 +373,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
           {solution ? (
             <div style={{ marginTop: 12, padding: 10, borderRadius: 8, background: '#f0fbf4' }}>
               <strong>Ordered-pair solution:</strong>{' '}
-              ({variables[0]} = {solution[variables[0]]}, {variables[1]} = {solution[variables[1]]})
+              ({solution[variables[0]]}, {solution[variables[1]]})
             </div>
           ) : null}
           {isDegenerate ? (
@@ -415,6 +436,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                     solveFor={selection.variable}
                     draftKey={draftKey ? `${draftKey}:algebraic:isolate:${selection.equationIndex}:${selection.variable}` : null}
                     onSolved={handleIsolated}
+                    onUndoStateChange={setEmbeddedUndoController}
                     workspaceDifficulty={questionData.workspaceDifficulty}
                   />
                 )
@@ -538,6 +560,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                 solveFor={survivingVariable}
                 draftKey={draftKey ? `${draftKey}:algebraic:reduce:${effectiveMethod}:${selection.variable}` : null}
                 onSolved={handleReduceSolved}
+                onUndoStateChange={setEmbeddedUndoController}
                 workspaceDifficulty={questionData.workspaceDifficulty}
               />
             </div>
@@ -612,6 +635,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                         solveFor={removedVariable}
                         draftKey={draftKey ? `${draftKey}:algebraic:back-solve:${backSub.equationIndex}` : null}
                         onSolved={handleSecondSolved}
+                        onUndoStateChange={setEmbeddedUndoController}
                         workspaceDifficulty={questionData.workspaceDifficulty}
                       />
                     </div>
