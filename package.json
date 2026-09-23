@@ -41,7 +41,8 @@
     "verify:persistence-indexes": "node scripts/check-persistence-indexes.mjs",
     "deploy:persistence": "bash scripts/deploy-persistence.sh",
     "verify:response-inspector-production": "node scripts/verify-response-inspector-production.mjs",
-    "deploy:response-inspector": "bash scripts/deploy-response-inspector.sh"
+    "deploy:response-inspector": "bash scripts/deploy-response-inspector.sh",
+    "deploy:content-v2": "firebase deploy --only functions:previewAssignmentContentUpgrade,functions:commitAssignmentContentUpgrade --project mathmaster-aleks"
   },
   "dependencies": {
     "firebase": "^12.17.1",
