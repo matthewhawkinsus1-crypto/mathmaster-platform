@@ -273,7 +273,7 @@ test('substitution is a neutral placement interaction that does not pre-highligh
   assert.match(modeSource, /function SubstitutionToken/);
   assert.match(modeSource, /mathmaster-substitution:/);
   assert.match(modeSource, /function VariableDropEquation/);
-  assert.match(modeSource, /Use the isolated expression to create a one-variable equation/);
+  assert.match(modeSource, /Use the prepared expression to create a one-variable equation/);
   const substitutionTarget = region(modeSource, 'function VariableDropEquation', 'function SystemsWorkTrail', 'VariableDropEquation');
   assert.doesNotMatch(substitutionTarget, /is-target/);
   assert.doesNotMatch(modeSource, />Substitute for \{v\}</);
