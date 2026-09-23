@@ -82,7 +82,7 @@ function MathDragToken({
   );
 }
 
-function SubstitutionToken({ variable, expression, onArm, label = 'Expression from isolated equation' }) {
+function SubstitutionToken({ variable, expression, onArm, label = null }) {
   return (
     <MathDragToken
       payloadPrefix="mathmaster-substitution:"
@@ -105,6 +105,7 @@ function VariableDropEquation({
   placedValues = {},
   label = 'Equation',
 }) {
+  const [dragOverVariable, setDragOverVariable] = useState(null);
   const pattern = useMemo(
     () => new RegExp(`(${variables.map(escapeRegex).sort((a, b) => b.length - a.length).join('|')})`, 'g'),
     [variables],
@@ -122,14 +123,27 @@ function VariableDropEquation({
           <button
             key={`variable-${index}-${part}`}
             type="button"
-            className={`mathmaster-systems-variable-drop${tokenArmed ? ' is-armed' : ''}${hasPlacedValue ? ' is-filled' : ''}`}
+            className={`mathmaster-systems-variable-drop${tokenArmed ? ' is-armed' : ''}${dragOverVariable === part ? ' is-drag-over' : ''}${hasPlacedValue ? ' is-filled' : ''}`}
             data-variable={part}
             onClick={() => { if (tokenArmed) onVariableAttempt(part, armedPayloadValue); }}
+            onDragEnter={(event) => {
+              if (event.dataTransfer?.types?.includes('text/plain')) {
+                event.preventDefault();
+                setDragOverVariable(part);
+              }
+            }}
             onDragOver={(event) => {
-              if (event.dataTransfer?.types?.includes('text/plain')) event.preventDefault();
+              if (event.dataTransfer?.types?.includes('text/plain')) {
+                event.preventDefault();
+                setDragOverVariable(part);
+              }
+            }}
+            onDragLeave={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget)) setDragOverVariable((current) => current === part ? null : current);
             }}
             onDrop={(event) => {
               event.preventDefault();
+              setDragOverVariable(null);
               const payload = event.dataTransfer?.getData('text/plain') || '';
               if (!payload.startsWith(payloadPrefix)) return;
               onVariableAttempt(part, payload.slice(payloadPrefix.length));
@@ -271,7 +285,7 @@ const solvedNumberFor = (latexResponse, variable) => {
  * reports the resulting text one level up. It never solves, isolates, or
  * simplifies anything itself.
  */
-function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, onSolved, onUndoStateChange, workspaceDifficulty, autoReveal = false, autoOpenDistribution = false, simplifyDistributedProducts = false, inlineExpressionTools = false }) {
+function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, onSolved, onUndoStateChange, workspaceDifficulty, autoReveal = false, autoOpenDistribution = false, simplifyDistributedProducts = false, inlineExpressionTools = true }) {
   const normalizedEquationText = useMemo(() => {
     try {
       return normalizeEquationForStepAlgebra(equationText);
