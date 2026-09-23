@@ -269,10 +269,11 @@ export default function EnlargeableFigure({
     if (!enlarged || typeof document === 'undefined') return undefined;
     const root = document.documentElement;
     const apply = () => {
-      const height = viewport.controlsPlacement === 'bottom'
-        ? (actionsRef.current?.getBoundingClientRect?.().height || 0)
-        : 0;
+      const rect = actionsRef.current?.getBoundingClientRect?.();
+      const height = viewport.controlsPlacement === 'bottom' ? (rect?.height || 0) : 0;
+      const width = viewport.controlsPlacement === 'side' ? (rect?.width || 0) : 0;
       root.style.setProperty('--mm-work-view-actions', `${Math.round(height)}px`);
+      root.style.setProperty('--mm-work-view-actions-width', `${Math.round(width)}px`);
     };
     apply();
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(apply) : null;
@@ -280,6 +281,7 @@ export default function EnlargeableFigure({
     return () => {
       observer?.disconnect();
       root.style.removeProperty('--mm-work-view-actions');
+      root.style.removeProperty('--mm-work-view-actions-width');
     };
   }, [enlarged, viewport.controlsPlacement]);
 
