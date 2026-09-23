@@ -155,7 +155,9 @@ function VariableDropEquation({
               : `Variable ${part}. Drop the selected math token here`}
             title="Drop the selected value or expression here if you think it belongs at this variable."
           >
-            {hasPlacedValue ? `(${placedValues[part]})` : part}
+            {hasPlacedValue ? (
+              <MathDisplay value={String(placedValues[part])} format="ascii-math" inline />
+            ) : part}
           </button>
         );
       })}
@@ -1630,7 +1632,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                   </p>
                   <SubstitutionToken
                     variable={survivingVariable}
-                    expression={String(firstSolved.value)}
+                    expression={firstSolvedExpression}
                     label="Solved value"
                     onArm={() => setSlotAttempt({ stage: 'backSubstitution', armed: true, correct: null, variable: null })}
                   />
@@ -1684,10 +1686,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                       key={variable}
                       payloadPrefix="mathmaster-verification:"
                       payloadValue={variable}
-                      expression={`${variable} = ${solution[variable]}`}
+                      expression={`${variable} = ${solutionExpressions[variable]}`}
                       label="Solved value"
                       onArm={() => armVerificationValue(variable)}
-                      ariaLabel={`Pick up solved value ${solution[variable]} for ${variable}`}
+                      ariaLabel={`Pick up solved value ${solutionExpressions[variable]} for ${variable}`}
                     />
                 ))}
               </div>
@@ -1707,7 +1709,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                         placedValues={Object.fromEntries(
                           variables
                             .filter((variable) => verification[index].placed[variable])
-                            .map((variable) => [variable, solution[variable]]),
+                            .map((variable) => [variable, solutionExpressions[variable]]),
                         )}
                         label={`Equation ${index + 1}: place both solved values`}
                       />
@@ -1716,9 +1718,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                         <span>Values substituted</span>
                         <MathDisplay
                           value={substituteIntoEquation(
-                            substituteIntoEquation(eq, variables[0], String(solution[variables[0]])),
+                            substituteIntoEquation(eq, variables[0], solutionExpressions[variables[0]]),
                             variables[1],
-                            String(solution[variables[1]]),
+                            solutionExpressions[variables[1]],
                           )}
                           format="ascii-math"
                         />
