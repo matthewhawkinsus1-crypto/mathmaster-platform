@@ -190,6 +190,40 @@ export const removeQuestionDraftFamily = (prefix) => {
   }
 };
 
+/**
+ * Reset one question's entire draft family back to authored defaults.
+ *
+ * A plain localStorage deletion is not enough for student work: the server
+ * backup can restore that older draft on the next device/session. Writing null
+ * through the normal draft channel creates a newer tombstone for every draft
+ * key this device knows about, so the background workspace sync retires the
+ * same saved work remotely while readQuestionDraft treats null as "use the
+ * authored fallback".
+ *
+ * The base key is always tombstoned too. Child keys include Step Algebra,
+ * linear-intercepts, registry-tool workspaces, and any future nested workspace
+ * that follows the question draft-key contract.
+ */
+export const resetQuestionDraftFamily = (prefix) => {
+  if (!prefix) return 0;
+  const keys = new Set([prefix]);
+
+  if (storageAvailable()) {
+    try {
+      for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
+        const key = window.localStorage.key(index);
+        if (key === prefix || key?.startsWith(`${prefix}:`)) keys.add(key);
+      }
+    } catch {
+      // The base-key tombstone still gives the sync layer a reset signal even
+      // when browser storage cannot be enumerated.
+    }
+  }
+
+  keys.forEach((key) => writeQuestionDraft(key, null));
+  return keys.size;
+};
+
 export const removeAssignmentDrafts = ({ studentId, assignmentId }) => {
   if (!storageAvailable()) return;
   const studentPart = normalizeKeyPart(studentId || 'anonymous');
