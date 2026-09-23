@@ -107,7 +107,14 @@ export const substituteVariable = (text, variable, replacementExpression) => {
   const transformed = node.transform((n) => (
     n.type === 'SymbolNode' && n.name === variable ? replacement : n
   ));
-  return transformed.toString({ parenthesis: 'keep', implicit: 'hide' });
+
+  // This string is handed back into MathJS by Step Algebra. Keep multiplication
+  // explicit at this machine boundary. Hiding it can produce text such as
+  // "3 (-3 + 2 y) + 5 y", which is visually natural but can be reinterpreted
+  // ambiguously when a larger substitution token is parsed a second time.
+  // Step Algebra/MathDisplay are responsible for turning the parsed structure
+  // back into ordinary classroom notation for the student.
+  return transformed.toString({ parenthesis: 'keep', implicit: 'show' });
 };
 
 export const substituteIntoEquation = (equationText, variable, replacementExpression) => {
