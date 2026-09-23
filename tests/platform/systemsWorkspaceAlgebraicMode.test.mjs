@@ -338,8 +338,12 @@ test('embedded Step Algebra owns universal Undo while a one-variable solve is ac
 });
 
 test('ordered-pair display uses coordinate values rather than x = / y = labels', () => {
-  assert.match(modeSource, /Ordered-pair solution:[\s\S]*\(\{solution\[variables\[0\]\]\}, \{solution\[variables\[1\]\]\}\)/);
-  assert.doesNotMatch(modeSource, /Ordered-pair solution:[\s\S]{0,180}\{variables\[0\]\}\s*=\s*\{solution/);
+  const orderedPair = region(modeSource, '<strong>Ordered-pair solution:</strong>', '{isDegenerate ? (', 'ordered-pair display');
+  assert.match(orderedPair, /MathDisplay/);
+  assert.match(orderedPair, /solutionExpressions\[variables\[0\]\]/);
+  assert.match(orderedPair, /solutionExpressions\[variables\[1\]\]/);
+  assert.doesNotMatch(orderedPair, /variables\[0\].*=/);
+  assert.doesNotMatch(orderedPair, /variables\[1\].*=/);
 });
 
 
