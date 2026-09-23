@@ -1178,11 +1178,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                 <span>Pick up each solved value and place it where it belongs. The variable locations are not pre-highlighted.</span>
               </div>
               <div className="mathmaster-systems-verification-token-bank">
-                {variables.map((variable) => {
-                  const armed = slotAttempt?.stage === 'verification'
-                    && slotAttempt?.armed
-                    && slotAttempt?.tokenVariable === variable;
-                  return (
+                {variables.map((variable) => (
                     <MathDragToken
                       key={variable}
                       payloadPrefix="mathmaster-verification:"
@@ -1192,8 +1188,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                       onArm={() => armVerificationValue(variable)}
                       ariaLabel={`Pick up solved value ${solution[variable]} for ${variable}`}
                     />
-                  );
-                })}
+                ))}
               </div>
 
               <div className="mathmaster-systems-verification-equations">
