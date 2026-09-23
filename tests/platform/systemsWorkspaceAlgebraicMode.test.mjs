@@ -112,7 +112,8 @@ test('an already-isolated variable skips Step Algebra entirely', () => {
 test('substitution is only performed once the student identifies the correct variable location, and a wrong pick gives feedback without corrupting state', () => {
   const attempt = region(modeSource, 'const attemptSubstitution = ', 'const setMultiplierValue', 'attemptSubstitution');
   assert.match(attempt, /clickedVariable !== selection\.variable/);
-  assert.match(attempt, /setSlotAttempt\(\{ variable: clickedVariable, correct: false \}\);\s*\n\s*return;/);
+  assert.match(attempt, /setSlotAttempt\(\{ stage: 'substitution', variable: clickedVariable, correct: false, armed: true \}\);\s*\n\s*return;/);
+  assert.match(attempt, /setSubstitution\(/);
 });
 
 test('the substitution feedback names the isolated variable, per the platform feedback philosophy (identify the structural problem)', () => {
