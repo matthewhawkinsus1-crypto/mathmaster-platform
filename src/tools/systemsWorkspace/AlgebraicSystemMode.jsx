@@ -1338,77 +1338,114 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
                   {multipliersApplied ? (
                     <div className="mathmaster-systems-combine-stage">
-                      <div className="mathmaster-systems-combine-preview">
-                        <AlignedEquationRow
-                          equationText={multipliedEq(0)?.text || equations[0]}
-                          variables={variables}
-                          targetVariable={selection.variable}
-                          cancelled={combinationLocked}
-                          label="Prepared equation 1"
-                        />
-                        <AlignedEquationRow
-                          equationText={multipliedEq(1)?.text || equations[1]}
-                          variables={variables}
-                          targetVariable={selection.variable}
-                          cancelled={combinationLocked}
-                          label="Prepared equation 2"
-                        />
-                      </div>
-                      <p>Now decide how the prepared equations should be combined.</p>
-                      <div className="mathmaster-systems-combine-token-bank">
-                        {[
-                          ['add', '+', 'Equation 1 + Equation 2'],
-                          ['subtract', '−', 'Equation 1 − Equation 2'],
-                        ].map(([operation, symbol, label]) => {
-                          const armed = slotAttempt?.stage === 'combine' && slotAttempt?.armed && slotAttempt?.operation === operation;
-                          return (
-                            <button
-                              key={operation}
-                              type="button"
-                              draggable
-                              className={`mathmaster-systems-combine-token${armed ? ' is-armed' : ''}`}
-                              onClick={() => armCombine(operation)}
-                              onDragStart={(event) => {
-                                event.dataTransfer?.setData('text/plain', `mathmaster-system-combine:${operation}`);
-                                if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
-                                armCombine(operation);
-                              }}
-                              aria-pressed={armed}
-                            >
-                              <strong>{symbol}</strong>
-                              <span>{label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <div
-                        className={`mathmaster-systems-combine-drop${slotAttempt?.stage === 'combine' && slotAttempt?.armed ? ' is-armed' : ''}`}
-                        role={slotAttempt?.stage === 'combine' && slotAttempt?.armed ? 'button' : undefined}
-                        tabIndex={slotAttempt?.stage === 'combine' && slotAttempt?.armed ? 0 : undefined}
-                        onClick={() => {
-                          if (slotAttempt?.stage === 'combine' && slotAttempt?.armed) dropCombine(slotAttempt.operation);
-                        }}
-                        onKeyDown={(event) => {
-                          if (slotAttempt?.stage === 'combine' && slotAttempt?.armed && (event.key === 'Enter' || event.key === ' ')) {
-                            event.preventDefault();
-                            dropCombine(slotAttempt.operation);
-                          }
-                        }}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={(event) => {
-                          event.preventDefault();
-                          const payload = event.dataTransfer?.getData('text/plain') || '';
-                          if (!payload.startsWith('mathmaster-system-combine:')) return;
-                          dropCombine(payload.split(':').pop());
-                        }}
-                      >
-                        Drop Add or Subtract here to combine the equations
-                      </div>
-                      {combination.attempts > 0 && !combinationLocked ? (
-                        <p className="mathmaster-systems-substitution-feedback is-error">
-                          That combination does not eliminate the variable you chose. Recheck the signs in the prepared equations or change a multiplier.
-                        </p>
-                      ) : null}
+                      {!cancellationPending ? (
+                        <>
+                          <div className="mathmaster-systems-combine-preview">
+                            <AlignedEquationRow
+                              equationText={multipliedEq(0)?.text || equations[0]}
+                              variables={variables}
+                              targetVariable={selection.variable}
+                              label="Prepared equation 1"
+                            />
+                            <AlignedEquationRow
+                              equationText={multipliedEq(1)?.text || equations[1]}
+                              variables={variables}
+                              targetVariable={selection.variable}
+                              label="Prepared equation 2"
+                            />
+                          </div>
+                          <p>Choose how to combine the prepared equations.</p>
+                          <div className="mathmaster-systems-combine-token-bank">
+                            {[
+                              ['add', '+', 'Equation 1 + Equation 2'],
+                              ['subtract', '−', 'Equation 1 − Equation 2'],
+                            ].map(([operation, symbol, label]) => {
+                              const armed = slotAttempt?.stage === 'combine' && slotAttempt?.armed && slotAttempt?.operation === operation;
+                              return (
+                                <button
+                                  key={operation}
+                                  type="button"
+                                  draggable
+                                  className={`mathmaster-systems-combine-token${armed ? ' is-armed' : ''}`}
+                                  onClick={() => armCombine(operation)}
+                                  onDragStart={(event) => {
+                                    event.dataTransfer?.setData('text/plain', `mathmaster-system-combine:${operation}`);
+                                    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+                                    armCombine(operation);
+                                  }}
+                                  aria-pressed={armed}
+                                >
+                                  <strong>{symbol}</strong>
+                                  <span>{label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div
+                            className={`mathmaster-systems-combine-drop${slotAttempt?.stage === 'combine' && slotAttempt?.armed ? ' is-armed' : ''}`}
+                            role={slotAttempt?.stage === 'combine' && slotAttempt?.armed ? 'button' : undefined}
+                            tabIndex={slotAttempt?.stage === 'combine' && slotAttempt?.armed ? 0 : undefined}
+                            onClick={() => {
+                              if (slotAttempt?.stage === 'combine' && slotAttempt?.armed) dropCombine(slotAttempt.operation);
+                            }}
+                            onKeyDown={(event) => {
+                              if (slotAttempt?.stage === 'combine' && slotAttempt?.armed && (event.key === 'Enter' || event.key === ' ')) {
+                                event.preventDefault();
+                                dropCombine(slotAttempt.operation);
+                              }
+                            }}
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={(event) => {
+                              event.preventDefault();
+                              const payload = event.dataTransfer?.getData('text/plain') || '';
+                              if (!payload.startsWith('mathmaster-system-combine:')) return;
+                              dropCombine(payload.split(':').pop());
+                            }}
+                          >
+                            Drop Add or Subtract here
+                          </div>
+                          {combination.attempts > 0 && !combinationLocked ? (
+                            <p className="mathmaster-systems-substitution-feedback is-error">
+                              That operation does not eliminate the variable you chose. Recheck the signs or change a multiplier.
+                            </p>
+                          ) : null}
+                        </>
+                      ) : (
+                        <div className="mathmaster-systems-cancellation-stage">
+                          <div className="mathmaster-systems-cancellation-heading">
+                            <strong>
+                              {combination.operation === 'subtract' ? 'Subtract the equations' : 'Add the equations'} — mark the {selection.variable} terms that cancel
+                            </strong>
+                            <span>Select the {selection.variable} term in each prepared row. MathMaster will not cross them out for you.</span>
+                          </div>
+                          <div className="mathmaster-systems-combine-preview">
+                            {[0, 1].map((index) => (
+                              <AlignedEquationRow
+                                key={index}
+                                equationText={multipliedEq(index)?.text || equations[index]}
+                                variables={variables}
+                                targetVariable={selection.variable}
+                                cancelled={Boolean(combination.cancelledRows?.[index])}
+                                onTargetTermClick={() => toggleCancellationRow(index)}
+                                label={`Prepared equation ${index + 1}`}
+                              />
+                            ))}
+                          </div>
+                          <div className="mathmaster-systems-cancellation-progress">
+                            {cancellationComplete
+                              ? 'Both cancelling terms are marked.'
+                              : `Marked ${Number(Boolean(combination.cancelledRows?.[0])) + Number(Boolean(combination.cancelledRows?.[1]))} of 2 cancelling terms.`}
+                          </div>
+                          <button
+                            type="button"
+                            className="mathmaster-systems-confirm-cancellation"
+                            onClick={confirmEliminationCancellation}
+                            disabled={!cancellationComplete}
+                          >
+                            Confirm cancellation and combine
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ) : null}
                 </div>
