@@ -18,6 +18,10 @@ const cleanTransientState = (draft, equation) => ({
   cancelledPairIds: {},
   selectedCancellationIndices: {},
   simplificationAnswers: {},
+  likeTermsOpen: false,
+  likeTermsSide: '',
+  selectedLikeTermIndices: [],
+  likeTermsAnswer: '',
 });
 
 export const rehydrateAlgebraDraft = ({ draft, initialEquation }) => {
