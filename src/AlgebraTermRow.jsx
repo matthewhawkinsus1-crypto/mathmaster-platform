@@ -16,6 +16,7 @@ export default function AlgebraTermRow({
   highlightIndices = [],
   collapsingIndices = [],
   onTermClick,
+  interactionLabel = 'select to cancel',
   cancelIndexOffset = 0,
   underTermPreview = null,
 }) {
@@ -50,7 +51,7 @@ export default function AlgebraTermRow({
             role={onTermClick ? 'button' : undefined}
             tabIndex={onTermClick ? 0 : undefined}
             onKeyDown={onTermClick ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onTermClick(index); } } : undefined}
-            aria-label={onTermClick ? `${term.text}, select to cancel` : undefined}
+            aria-label={onTermClick ? `${term.text}, ${interactionLabel}` : undefined}
             aria-pressed={onTermClick ? selected : undefined}
             style={{
               position: 'relative',
