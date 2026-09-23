@@ -219,9 +219,12 @@ test('a multiplier is entered, placed on the whole equation, and the student cal
 test('a nontrivial multiplier is not accepted until the student supplies the transformed coefficients', () => {
   const apply = region(modeSource, 'const applyMultiplier = ', 'const armMultiplier', 'applyMultiplier');
   assert.match(apply, /Math\.abs\(numericMultiplier - 1\)/);
-  assert.match(apply, /setMultiplierWork/);
-  assert.match(apply, /active: true/);
-  assert.doesNotMatch(apply, /setAppliedMultipliers\(\(current\) => \(\{ \.\.\.current, \[index\]: true \}\)\)[\s\S]*?active: true/);
+  const trivialBranchEnd = apply.indexOf("return;", apply.indexOf("Math.abs(numericMultiplier - 1)"));
+  const nontrivialBranch = apply.slice(trivialBranchEnd + "return;".length);
+  assert.match(nontrivialBranch, /setAppliedMultipliers\(\(current\) => \(\{ \.\.\.current, \[index\]: false \}\)\)/);
+  assert.match(nontrivialBranch, /setMultiplierWork/);
+  assert.match(nontrivialBranch, /active: true/);
+  assert.doesNotMatch(nontrivialBranch, /\[index\]: true/);
 });
 
 test('the combine step uses draggable add/subtract operation tokens and preserves subtraction order', () => {
