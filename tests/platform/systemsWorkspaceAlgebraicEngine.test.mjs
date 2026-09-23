@@ -91,6 +91,23 @@ test('substitution only replaces the named variable, never the other one', () =>
   assert.equal(coeffs.a, 0); // x has been fully replaced
 });
 
+
+test('question 2 accepts a larger isolated expression token and still produces a valid one-variable equation', () => {
+  const result = substituteIntoEquation('3x + 5y = 24', 'x', '2*y - 3');
+  const coeffs = linearEquationCoefficients(result, ['x', 'y']);
+  assert.ok(coeffs, result);
+  assert.equal(coeffs.a, 0);
+  assert.notEqual(coeffs.b, 0);
+});
+
+test('an unsimplified isolation token with division by negative one remains valid after substitution', () => {
+  const result = substituteIntoEquation('-3x - 3y = 1', 'y', '((7) - (2*x))/(-1)');
+  const coeffs = linearEquationCoefficients(result, ['x', 'y']);
+  assert.ok(coeffs, result);
+  assert.equal(coeffs.b, 0);
+  assert.notEqual(coeffs.a, 0);
+});
+
 // ---------------------------------------------------------------------------
 // Elimination: multipliers, combination, cancellation
 // ---------------------------------------------------------------------------
