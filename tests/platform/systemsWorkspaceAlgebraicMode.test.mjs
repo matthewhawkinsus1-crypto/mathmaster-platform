@@ -77,10 +77,11 @@ test('every stage of mathematical work required by the spec is stored through us
   });
 });
 
-test('the only local useState is the transient substitution-slot interaction hint, already declared as presentation', () => {
+test('the only local useState fields are transient interaction/Undo presentation state', () => {
   const useStateFields = [...modeSource.matchAll(/const\s*\[\s*([A-Za-z0-9_$]+)\s*,\s*set[A-Za-z0-9_$]*\s*\]\s*=\s*useState\(/g)].map((m) => m[1]);
-  assert.deepEqual(useStateFields, ['slotAttempt']);
+  assert.deepEqual(useStateFields.sort(), ['embeddedUndoController', 'slotAttempt'].sort());
   assert.ok(TOOL_STATE_PERSISTENCE.systemsWorkspace.transientState.slotAttempt);
+  assert.ok(TOOL_STATE_PERSISTENCE.systemsWorkspace.transientState.embeddedUndoController);
 });
 
 test('each Step Algebra embed gets a draft key scoped to the exact mathematical identity being solved, so a different choice never rehydrates stale work', () => {
