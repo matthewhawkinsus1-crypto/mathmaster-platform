@@ -629,10 +629,69 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setSlotAttempt(null);
   };
 
+  const parseNumericEntry = (value) => {
+    try {
+      const numeric = Number(evaluate(latexToExpression(value)));
+      return Number.isFinite(numeric) ? numeric : NaN;
+    } catch {
+      return NaN;
+    }
+  };
+
+  const resetCombination = () => setCombination({
+    operation: null,
+    attempts: 0,
+    coefficients: null,
+    text: null,
+    pendingCoefficients: null,
+    cancelledRows: { 0: false, 1: false },
+  });
+
   const setMultiplierValue = (index, value) => {
     setMultipliers((current) => ({ ...current, [index]: value }));
     setAppliedMultipliers((current) => ({ ...current, [index]: false }));
-    setCombination({ operation: null, attempts: 0, coefficients: null, text: null });
+    setMultiplierWork((current) => ({ ...current, [index]: emptyMultiplierWork() }));
+    resetCombination();
+  };
+
+  const setMultiplierProduct = (index, field, value) => {
+    setMultiplierWork((current) => ({
+      ...current,
+      [index]: {
+        ...(current[index] || emptyMultiplierWork()),
+        [field]: value,
+        checked: false,
+        valid: false,
+      },
+    }));
+  };
+
+  const checkMultiplierProducts = (index) => {
+    const expected = multipliedEq(index);
+    if (!expected) {
+      setSlotAttempt({ stage: 'multiplier', index, correct: false, reason: 'invalid-multiplier', armed: true });
+      return;
+    }
+    const work = multiplierWork[index] || emptyMultiplierWork();
+    const supplied = {
+      a: parseNumericEntry(work.a),
+      b: parseNumericEntry(work.b),
+      c: parseNumericEntry(work.c),
+    };
+    const valid = ['a', 'b', 'c'].every((key) => (
+      Number.isFinite(supplied[key])
+      && Math.abs(supplied[key] - expected.coefficients[key]) <= 1e-7
+    ));
+    setMultiplierWork((current) => ({
+      ...current,
+      [index]: { ...(current[index] || emptyMultiplierWork()), checked: true, valid },
+    }));
+    if (!valid) {
+      setSlotAttempt({ stage: 'multiplier-products', index, correct: false, reason: 'incorrect-products', armed: false });
+      return;
+    }
+    setAppliedMultipliers((current) => ({ ...current, [index]: true }));
+    setSlotAttempt({ stage: 'multiplier-products', index, correct: true, armed: false });
   };
 
   const applyMultiplier = (index) => {
@@ -641,8 +700,29 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       setSlotAttempt({ stage: 'multiplier', index, correct: false, reason: 'invalid-multiplier', armed: true });
       return;
     }
-    setAppliedMultipliers((current) => ({ ...current, [index]: true }));
-    setSlotAttempt({ stage: 'multiplier', index, correct: true, armed: false });
+    let numericMultiplier = NaN;
+    try {
+      numericMultiplier = Number(evaluate(latexToExpression(multipliers[index])));
+    } catch {
+      numericMultiplier = NaN;
+    }
+
+    // ×1 changes no coefficient. The student still had to choose and place the
+    // multiplier token on the whole equation, so no extra product-entry step is
+    // needed. Every real scaling step must be calculated by the student.
+    if (Number.isFinite(numericMultiplier) && Math.abs(numericMultiplier - 1) <= 1e-9) {
+      setAppliedMultipliers((current) => ({ ...current, [index]: true }));
+      setMultiplierWork((current) => ({ ...current, [index]: { ...emptyMultiplierWork(), valid: true } }));
+      setSlotAttempt({ stage: 'multiplier', index, correct: true, armed: false });
+      return;
+    }
+
+    setAppliedMultipliers((current) => ({ ...current, [index]: false }));
+    setMultiplierWork((current) => ({
+      ...current,
+      [index]: { ...emptyMultiplierWork(), active: true },
+    }));
+    setSlotAttempt({ stage: 'multiplier-products', index, correct: null, armed: false });
   };
 
   const armMultiplier = (index) => {
@@ -666,8 +746,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setCombination((current) => ({
       operation,
       attempts: current.attempts + 1,
-      coefficients: eliminates ? combined : current.coefficients,
-      text: eliminates ? formatLinearEquation(combined, variables) : current.text,
+      coefficients: null,
+      text: null,
+      pendingCoefficients: eliminates ? combined : null,
+      cancelledRows: { 0: false, 1: false },
     }));
     setSlotAttempt({ stage: 'combine', operation, correct: eliminates, armed: !eliminates });
   };
@@ -679,6 +761,29 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const dropCombine = (operation) => {
     if (!operation) return;
     handleCombine(operation);
+  };
+
+  const toggleCancellationRow = (index) => {
+    if (!cancellationPending) return;
+    setCombination((current) => ({
+      ...current,
+      cancelledRows: {
+        ...(current.cancelledRows || { 0: false, 1: false }),
+        [index]: !current.cancelledRows?.[index],
+      },
+    }));
+  };
+
+  const confirmEliminationCancellation = () => {
+    if (!cancellationPending || !cancellationComplete) return;
+    const combined = combination.pendingCoefficients;
+    setCombination((current) => ({
+      ...current,
+      coefficients: combined,
+      text: formatLinearEquation(combined, variables),
+      pendingCoefficients: null,
+    }));
+    setSlotAttempt({ stage: 'cancellation', correct: true, armed: false });
   };
 
   const handleReduceSolved = useCallback((latexResponse) => {
@@ -742,14 +847,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const setVerificationAnswer = (index, side, value) => {
     setVerification((current) => ({ ...current, [index]: { ...current[index], [side]: value, checked: false } }));
   };
-  const numericVerificationEntry = (value) => {
-    try {
-      const numeric = Number(evaluate(latexToExpression(value)));
-      return Number.isFinite(numeric) ? numeric : NaN;
-    } catch {
-      return NaN;
-    }
-  };
+  const numericVerificationEntry = parseNumericEntry;
 
   const checkVerification = (index) => {
     const actual = evaluateEquationSides(equations[index], solution);
