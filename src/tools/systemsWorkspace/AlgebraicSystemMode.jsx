@@ -32,7 +32,6 @@ const actionStyle = { marginTop: 16, padding: '11px 18px', border: 0, borderRadi
 const Field = ({ label, children }) => <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#465267' }}>{label}<div style={{ marginTop: 5 }}>{children}</div></label>;
 
 const secondaryButtonStyle = { ...actionStyle, marginTop: 0, padding: '9px 14px', fontSize: 13, background: '#eef4ff', color: '#174ea6' };
-const activeButtonStyle = { ...secondaryButtonStyle, background: '#174ea6', color: '#fff' };
 const smallActionStyle = { ...actionStyle, marginTop: 8, padding: '9px 14px', fontSize: 13 };
 
 const emptyVerificationEntry = () => ({ placed: {}, leftAnswer: '', rightAnswer: '', checked: false, valid: false });
@@ -364,7 +363,6 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
   const sourceEquationText = selectionMade ? equations[selection.equationIndex] : null;
   const otherIndex = selectionMade ? 1 - selection.equationIndex : null;
-  const targetEquationText = otherIndex != null ? equations[otherIndex] : null;
   const alreadyIsolated = sourceEquationText ? variableIsIsolated(sourceEquationText, selection.variable) : false;
   const isolatedExpr = alreadyIsolated ? isolatedExpressionFor(sourceEquationText, selection.variable) : isolation.expression;
   const isolationDone = Boolean(isolatedExpr);
