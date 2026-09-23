@@ -7,6 +7,7 @@ import { validateLinearTableWorkbenchQuestion } from './linearTableWorkbench/lin
 import { validateExpressionMeaningQuestion } from './expressionMeaning/expressionMeaningMath.js';
 import { validateRepresentationBridgeQuestion } from './representationBridge/representationBridgeMath.js';
 import { normalizeLinearInequality } from './systemsWorkspace/linearInequalityEngine.js';
+import { linearEquationCoefficients } from './systemsWorkspace/algebraicSystemsEngine.js';
 const TOOL_IDS = new Set([
   'dataModelingLab','regressionCalculator','inverseCompositionLab','functionOperationsLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
   'signSolutionAnalyzer','sequenceExplorer','complexPlaneLab','exponentialLogBridge','transformationsLab',
@@ -121,7 +122,7 @@ export const validateToolQuestion = (question = {}) => {
     }
   }
   if (toolId === 'systemsWorkspace') {
-    const modes = ['linear','inequalities','linearQuadratic','matrix'];
+    const modes = ['linear','inequalities','linearQuadratic','matrix','matrix3','algebraic'];
     const mode = question.mode || 'linear';
     if (!modes.includes(mode)) errors.push(`Unsupported systemsWorkspace mode: ${mode}.`);
     if (mode === 'linear' && question.system?.m1 === question.system?.m2 && question.system?.b1 == null) warnings.push('Parallel/coincident system should explicitly provide both intercepts.');
@@ -206,6 +207,30 @@ export const validateToolQuestion = (question = {}) => {
       }
     }
     if (mode === 'linearQuadratic' && Number(question.linearQuadratic?.quadratic?.a ?? 1) === 0) errors.push('linearQuadratic mode requires a nonzero quadratic coefficient.');
+    if (mode === 'algebraic') {
+      const variables = Array.isArray(question.variables) ? question.variables : ['x', 'y'];
+      if (variables.length !== 2 || variables.some((value) => typeof value !== 'string' || !value.trim()) || new Set(variables.map((value) => value.trim())).size !== 2) {
+        errors.push('systemsWorkspace algebraic mode requires exactly two distinct non-empty variable names.');
+      }
+      if (!Array.isArray(question.equations) || question.equations.length !== 2 || question.equations.some((equation) => typeof equation !== 'string' || !equation.trim())) {
+        errors.push('systemsWorkspace algebraic mode requires exactly two non-empty equation strings.');
+      } else if (variables.length === 2) {
+        question.equations.forEach((equation, index) => {
+          if (!linearEquationCoefficients(equation, variables)) {
+            errors.push(`systemsWorkspace algebraic equation ${index + 1} must be linear in the two authored variables.`);
+          }
+        });
+      }
+      if (question.method != null && !['substitution', 'elimination', 'studentChoice'].includes(question.method)) {
+        errors.push('systemsWorkspace algebraic method must be substitution, elimination, or studentChoice.');
+      }
+      if (question.requireVerification != null && typeof question.requireVerification !== 'boolean') {
+        errors.push('systemsWorkspace algebraic requireVerification must be boolean when supplied.');
+      }
+      if (question.askEfficiency != null && typeof question.askEfficiency !== 'boolean') {
+        errors.push('systemsWorkspace algebraic askEfficiency must be boolean when supplied.');
+      }
+    }
   }
   if (toolId === 'inverseCompositionLab') {
     const modes = ['full','composition','inverse','restriction','deriveInverse'];
