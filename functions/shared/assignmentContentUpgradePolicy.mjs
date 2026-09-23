@@ -1,5 +1,6 @@
 import {
   GRAPH_VIEWPORT_REPAIR_KIND,
+  SYSTEMS_WORKSPACE_UPGRADE_REPAIR_KIND,
   analyzeSafeResponseEntryRepair,
 } from './liveResponseRepairPolicy.mjs';
 
@@ -143,6 +144,14 @@ export function classifyContentQuestionChange(before = {}, after = {}) {
       presentationOnly: true,
       affectedFieldIds: [],
       changedViewportKeys: responseRepair.changedViewportKeys || [],
+    };
+  }
+  if (responseRepair.safe && responseRepair.repairKind === SYSTEMS_WORKSPACE_UPGRADE_REPAIR_KIND) {
+    return {
+      classification: 'systemsWorkspaceUpgrade',
+      safe: true,
+      affectedFieldIds: [],
+      repairKind: SYSTEMS_WORKSPACE_UPGRADE_REPAIR_KIND,
     };
   }
   if (responseRepair.safe) {
