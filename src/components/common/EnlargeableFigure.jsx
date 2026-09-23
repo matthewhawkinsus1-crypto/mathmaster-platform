@@ -269,10 +269,17 @@ export default function EnlargeableFigure({
     if (!enlarged || typeof document === 'undefined') return undefined;
     const root = document.documentElement;
     const apply = () => {
-      const height = viewport.controlsPlacement === 'bottom'
-        ? (actionsRef.current?.getBoundingClientRect?.().height || 0)
-        : 0;
+      const rect = actionsRef.current?.getBoundingClientRect?.();
+      const height = viewport.controlsPlacement === 'bottom' ? (rect?.height || 0) : 0;
+      const width = viewport.controlsPlacement === 'side' ? (rect?.width || 0) : 0;
       root.style.setProperty('--mm-work-view-actions', `${Math.round(height)}px`);
+      root.style.setProperty('--mm-work-view-actions-width', `${Math.round(width)}px`);
+      // Floating platform tools such as the calculator live outside the Work
+      // View React subtree so their state survives opening/closing the modal.
+      // Publish the usable insets here so they dock INSIDE the visible workspace
+      // rather than underneath the bottom action row or right-hand action rail.
+      root.style.setProperty('--mm-work-view-calculator-bottom', `${Math.round(height) + 12}px`);
+      root.style.setProperty('--mm-work-view-calculator-right', `${Math.round(width) + 12}px`);
     };
     apply();
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(apply) : null;
@@ -280,6 +287,9 @@ export default function EnlargeableFigure({
     return () => {
       observer?.disconnect();
       root.style.removeProperty('--mm-work-view-actions');
+      root.style.removeProperty('--mm-work-view-actions-width');
+      root.style.removeProperty('--mm-work-view-calculator-bottom');
+      root.style.removeProperty('--mm-work-view-calculator-right');
     };
   }, [enlarged, viewport.controlsPlacement]);
 
