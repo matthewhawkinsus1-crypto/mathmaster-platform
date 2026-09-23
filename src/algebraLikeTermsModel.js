@@ -55,6 +55,10 @@ const decomposeNode = (node) => {
     return inner ? { coefficient: -inner.coefficient, factors: inner.factors } : null;
   }
 
+  if (node.fn === 'unaryPlus' && node.args?.length === 1) {
+    return decomposeNode(node.args[0]);
+  }
+
   if (node.fn === 'multiply' && Array.isArray(node.args) && node.args.length >= 2) {
     return node.args.reduce((acc, arg) => {
       if (!acc) return null;
