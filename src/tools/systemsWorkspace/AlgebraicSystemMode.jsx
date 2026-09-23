@@ -83,7 +83,7 @@ function VariableDropEquation({ equationText, variables, replacementVariable, on
             type="button"
             className={`mathmaster-systems-variable-drop${expected ? ' is-target' : ''}${tokenArmed ? ' is-armed' : ''}`}
             data-variable={part}
-            onClick={() => onVariableAttempt(part)}
+            onClick={() => { if (tokenArmed) onVariableAttempt(part); }}
             onDragOver={(event) => {
               if (event.dataTransfer?.types?.includes('text/plain')) event.preventDefault();
             }}
@@ -210,6 +210,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setBackSub({ equationIndex: null });
     setSecondSolved({ variable: null, value: null });
     setVerification({ 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
+    setSlotAttempt(null);
   }, []);
 
   const mathState = useMemo(() => ({
