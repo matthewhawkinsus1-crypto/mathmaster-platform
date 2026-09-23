@@ -44,3 +44,28 @@ test('answer-field count change is fundamental', () => {
   const after = { ...before, answerFields: [...before.answerFields, { id: 'b', answer: '2' }] };
   assert.equal(classifyContentQuestionChange(before, after).classification, 'fundamental');
 });
+
+
+test('legacy solveSystem content upgrade is classified as a safe Systems Workspace restoration', () => {
+  const before = {
+    questionId: 'systems-q',
+    type: 'system',
+    prompt: 'Use elimination to solve the system 2x + 3y = 11 and x + 5y = 9.',
+    studentActions: ['solveSystem'],
+    equationsLatex: ['2x + 3y = 11', 'x + 5y = 9'],
+    standard: 'A2.3A',
+  };
+  const after = {
+    ...before,
+    type: 'systemsWorkspace',
+    toolId: 'systemsWorkspace',
+    mode: 'algebraic',
+    method: 'elimination',
+    equations: ['2x + 3y = 11', 'x + 5y = 9'],
+    variables: ['x', 'y'],
+    requireVerification: true,
+  };
+  const result = classifyContentQuestionChange(before, after);
+  assert.equal(result.classification, 'systemsWorkspaceUpgrade');
+  assert.equal(result.safe, true);
+});
