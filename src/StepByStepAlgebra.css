@@ -203,6 +203,48 @@
  * land without writing the operand into the expression, and it takes no
  * layout space, so the auto-fit never re-measures and the math never jumps.
  */
+/* Live drag/drop preview: visual only, never part of the measured equation. */
+.algebra-live-math-preview {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 6;
+  transform: translate(-50%, -50%);
+  width: max-content;
+  max-width: calc(100% - 24px);
+  min-height: 64px;
+  padding: 10px 16px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .97);
+  color: #172033;
+  font-size: 30px;
+  line-height: 1.2;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(30, 64, 120, .16);
+}
+
+.algebra-live-math-preview.is-hover {
+  border: 2px dashed rgba(26, 115, 232, .62);
+}
+
+.algebra-live-math-preview.is-staged {
+  border: 2px solid rgba(227, 116, 0, .68);
+  background: rgba(255, 252, 244, .98);
+}
+
+@media (max-width: 620px) {
+  .algebra-live-math-preview {
+    max-width: calc(100% - 12px);
+    padding: 8px 10px;
+    font-size: 24px;
+  }
+}
+
 .algebra-equation-side.algebra-placement-cue {
   position: relative;
   border-radius: 10px;
