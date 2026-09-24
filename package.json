@@ -25,6 +25,7 @@
     "test:assignment-v5-followup": "node --test tests/platform/sequenceIntegratedWorkflow.test.mjs tests/platform/assignmentTransformationsFullModel.test.mjs tests/platform/assignmentCcmrAllRoutes.test.mjs tests/platform/assignmentCcmrBankHydration.test.mjs tests/platform/assignmentEvidencePolicy.test.mjs tests/platform/assignmentStudentProgressUi.test.mjs tests/platform/assignmentAiFailureDiagnosis.test.mjs tests/platform/assignmentAiStudentDataBoundary.test.mjs tests/platform/assignmentAiProvider.test.mjs tests/platform/assignmentIntegratedAiWiring.test.mjs tests/platform/rolePolicy.test.mjs",
     "test:challenge-finish": "firebase emulators:exec --only firestore --project mathmaster-finish-harness --config tests/browser/emulator/firebase.json \"node --test tests/integration/*.test.mjs\"",
     "test:platform": "node scripts/explain-test-failures.mjs \"tests/platform/*.test.mjs\"",
+    "certify:capabilities": "node scripts/certify-interactive-capabilities.mjs",
     "certify:performance": "node scripts/certify-performance.mjs",
     "test:test-cycle-certification": "firebase emulators:exec --only firestore --project mathmaster-cert-harness --config tests/browser/emulator/firebase.json \"node --test tests/integration/testCycleCertification.test.mjs\"",
     "test:test-cycle-device": "node scripts/run-test-cycle-device-certification.mjs",
