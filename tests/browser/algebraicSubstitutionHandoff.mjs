@@ -541,7 +541,19 @@ report.push({ journey: 'preview-inline-ui', ...inlineObserved });
 
   const board = page.locator('.mathmaster-systems-elimination-board');
   await board.waitFor({ timeout: 10000 });
-  const scaleField = board.locator('math-field[aria-label="Multiplier for equation 1"]');
+
+  // Identity rows are genuinely automatic: no visible "1" field or
+  // multiply-by-one action until the student explicitly chooses to scale.
+  const initialIdentityText = await board.locator('.mathmaster-systems-identity-row').allInnerTexts();
+  if (initialIdentityText.length !== 2) {
+    note(journey, `expected both equations to begin as automatic identity rows, saw ${initialIdentityText.length}`);
+  }
+  if (await board.locator('math-field[aria-label^="Scale factor for equation"]').count()) {
+    note(journey, 'identity rows exposed scale-factor inputs before the student chose to scale');
+  }
+
+  await board.locator('.mathmaster-systems-identity-row').nth(0).getByRole('button', { name: 'Scale equation' }).click();
+  const scaleField = board.locator('math-field[aria-label="Scale factor for equation 1"]');
   await scaleField.waitFor();
   await scaleField.evaluate((field) => {
     field.setValue('3');
@@ -585,7 +597,10 @@ report.push({ journey: 'preview-inline-ui', ...inlineObserved });
   const boardText = await board.innerText();
   if (boardText.includes('×')) note(journey, 'student-facing elimination UI still uses the multiplication × glyph');
   if (boardText.includes('Use as written')) note(journey, 'identity Equation 2 still requires a multiply-by-one confirmation');
-  if (!boardText.includes('Equation stays as written')) note(journey, 'identity Equation 2 is not recognized as already prepared');
+  if (!boardText.includes('No scaling needed')) note(journey, 'identity Equation 2 is not recognized as already prepared');
+  if (await board.locator('math-field[aria-label="Scale factor for equation 2"]').count()) {
+    note(journey, 'identity Equation 2 still exposes a multiply-by-one input');
+  }
 
   const combineStack = board.locator('.mathmaster-systems-combine-stack');
   await combineStack.waitFor({ timeout: 5000 });
