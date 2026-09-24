@@ -1,4 +1,5 @@
 // ISSUE #334: DOES CLASSWORK Q2 REACH STEP ALGEBRA? ASKED OF A REAL BROWSER.
+// 2026-09-24 live regression re-certification after Firebase mismatch report.
 //
 //   npx vite --host 127.0.0.1 --port 5199 --strictPort &
 //   AUDIT_ORIGIN=http://127.0.0.1:5199 node tests/browser/algebraicSubstitutionHandoff.mjs
