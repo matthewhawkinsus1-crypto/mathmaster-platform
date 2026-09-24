@@ -295,13 +295,28 @@ test('a correct combine operation opens student cancellation instead of immediat
   assert.doesNotMatch(handle, /formatLinearEquation/);
 });
 
-test('students must mark both cancelling target terms before MathMaster creates the reduced equation', () => {
-  assert.match(modeSource, /onTargetTermClick=\{\(\) => toggleCancellationRow\([01]\)\}/);
+test('students must mark both cancelling terms and calculate the remaining arithmetic themselves', () => {
+  assert.match(modeSource, /toggleCancellationRow\(0\)/);
+  assert.match(modeSource, /toggleCancellationRow\(1\)/);
   assert.match(modeSource, /MathMaster will not cross them out for you/);
   assert.match(modeSource, /disabled=\{!cancellationComplete\}/);
-  const confirm = region(modeSource, 'const confirmEliminationCancellation = ', 'const handleReduceSolved', 'confirmEliminationCancellation');
-  assert.match(confirm, /if \(!cancellationPending \|\| !cancellationComplete\) return/);
+
+  const confirm = region(modeSource, 'const confirmEliminationCancellation = ', 'const handleReduceSolved', 'elimination completion flow');
+  assert.match(confirm, /cancellationConfirmed: true/);
+  assert.doesNotMatch(confirm.slice(0, confirm.indexOf('const checkEliminationCombination')), /text: formatLinearEquation/);
+
+  assert.match(confirm, /const checkEliminationCombination =/);
+  assert.match(confirm, /coefficientAnswer/);
+  assert.match(confirm, /constantAnswer/);
+  assert.match(confirm, /coefficientCorrect/);
+  assert.match(confirm, /constantCorrect/);
   assert.match(confirm, /text: formatLinearEquation\(combined, variables\)/);
+
+  assert.match(modeSource, /Now combine what remains/);
+  assert.match(modeSource, /Combined coefficient of/);
+  assert.match(modeSource, /Combined right side/);
+  assert.match(modeSource, /Check combined equation/);
+  assert.doesNotMatch(modeSource, /Confirm cancellation and combine/);
 });
 
 test('a failed combination attempt keeps the board intact and redirects attention to signs or multipliers', () => {

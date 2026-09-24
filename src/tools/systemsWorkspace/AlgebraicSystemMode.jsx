@@ -473,6 +473,11 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     text: null,
     pendingCoefficients: null,
     cancelledRows: { 0: false, 1: false },
+    cancellationConfirmed: false,
+    coefficientAnswer: '',
+    constantAnswer: '',
+    combinationChecked: false,
+    combinationValid: false,
   });
   const [firstSolved, setFirstSolved] = usePersistentToolState('firstSolved', { variable: null, value: null, expression: null });
   const [specialCase, setSpecialCase] = usePersistentToolState('specialCase', null);
@@ -500,7 +505,19 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setMultipliers({ 0: '1', 1: '1' });
     setAppliedMultipliers({ 0: false, 1: false });
     setMultiplierWork({ 0: emptyMultiplierWork(), 1: emptyMultiplierWork() });
-    setCombination({ operation: null, attempts: 0, coefficients: null, text: null, pendingCoefficients: null, cancelledRows: { 0: false, 1: false } });
+    setCombination({
+      operation: null,
+      attempts: 0,
+      coefficients: null,
+      text: null,
+      pendingCoefficients: null,
+      cancelledRows: { 0: false, 1: false },
+      cancellationConfirmed: false,
+      coefficientAnswer: '',
+      constantAnswer: '',
+      combinationChecked: false,
+      combinationValid: false,
+    });
     setFirstSolved({ variable: null, value: null, expression: null });
     setSpecialCase(null);
     setBackSub({ equationIndex: null });
@@ -536,6 +553,11 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       text: null,
       pendingCoefficients: null,
       cancelledRows: { 0: false, 1: false },
+      cancellationConfirmed: false,
+      coefficientAnswer: '',
+      constantAnswer: '',
+      combinationChecked: false,
+      combinationValid: false,
       ...(value?.combination || {}),
     });
     setFirstSolved({ variable: null, value: null, expression: null, ...(value?.firstSolved || {}) });
@@ -611,6 +633,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const combinationLocked = Boolean(combination.text);
   const cancellationPending = Boolean(combination.pendingCoefficients && !combination.text);
   const cancellationComplete = Boolean(combination.cancelledRows?.[0] && combination.cancelledRows?.[1]);
+  const cancellationConfirmed = Boolean(combination.cancellationConfirmed);
 
   const reduceInputText = effectiveMethod === 'substitution' ? substitution.equationText : combination.text;
   const reduceCoefficients = effectiveMethod === 'substitution'
@@ -866,6 +889,11 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     text: null,
     pendingCoefficients: null,
     cancelledRows: { 0: false, 1: false },
+    cancellationConfirmed: false,
+    coefficientAnswer: '',
+    constantAnswer: '',
+    combinationChecked: false,
+    combinationValid: false,
   });
 
   const setMultiplierValue = (index, value) => {
@@ -972,12 +1000,17 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       text: null,
       pendingCoefficients: eliminates ? combined : null,
       cancelledRows: { 0: false, 1: false },
+      cancellationConfirmed: false,
+      coefficientAnswer: '',
+      constantAnswer: '',
+      combinationChecked: false,
+      combinationValid: false,
     }));
     setSlotAttempt({ stage: 'combine', operation, correct: eliminates, armed: !eliminates });
   };
 
   const toggleCancellationRow = (index) => {
-    if (!cancellationPending) return;
+    if (!cancellationPending || cancellationConfirmed) return;
     setCombination((current) => ({
       ...current,
       cancelledRows: {
@@ -989,14 +1022,74 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
   const confirmEliminationCancellation = () => {
     if (!cancellationPending || !cancellationComplete) return;
+    // Marking the cancelling pair is one student decision. It must NOT also
+    // perform the arithmetic for them. The next stage asks the student to
+    // calculate the remaining coefficient and right side.
+    setCombination((current) => ({
+      ...current,
+      cancellationConfirmed: true,
+      combinationChecked: false,
+      combinationValid: false,
+    }));
+    setSlotAttempt({ stage: 'cancellation', correct: true, armed: false });
+  };
+
+  const setEliminationCombinationAnswer = (field, value) => {
+    setCombination((current) => ({
+      ...current,
+      [field]: value,
+      combinationChecked: false,
+      combinationValid: false,
+    }));
+  };
+
+  const checkEliminationCombination = () => {
+    if (!cancellationPending || !cancellationConfirmed) return;
     const combined = combination.pendingCoefficients;
+    if (!combined) return;
+
+    const coefficientKey = survivingVariable === variables[0] ? 'a' : 'b';
+    const expectedCoefficient = Number(combined[coefficientKey]);
+    const expectedConstant = Number(combined.c);
+    const coefficientValue = parseNumericEntry(combination.coefficientAnswer);
+    const constantValue = parseNumericEntry(combination.constantAnswer);
+    const coefficientCorrect = Number.isFinite(coefficientValue)
+      && Math.abs(coefficientValue - expectedCoefficient) <= 1e-7;
+    const constantCorrect = Number.isFinite(constantValue)
+      && Math.abs(constantValue - expectedConstant) <= 1e-7;
+    const valid = coefficientCorrect && constantCorrect;
+
+    if (!valid) {
+      setCombination((current) => ({
+        ...current,
+        combinationChecked: true,
+        combinationValid: false,
+      }));
+      setSlotAttempt({
+        stage: 'combination-arithmetic',
+        correct: false,
+        coefficientCorrect,
+        constantCorrect,
+        armed: false,
+      });
+      return;
+    }
+
     setCombination((current) => ({
       ...current,
       coefficients: combined,
       text: formatLinearEquation(combined, variables),
       pendingCoefficients: null,
+      combinationChecked: true,
+      combinationValid: true,
     }));
-    setSlotAttempt({ stage: 'cancellation', correct: true, armed: false });
+    setSlotAttempt({
+      stage: 'combination-arithmetic',
+      correct: true,
+      coefficientCorrect: true,
+      constantCorrect: true,
+      armed: false,
+    });
   };
 
   const handleReduceSolved = useCallback((latexResponse) => {
@@ -1650,7 +1743,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                                 variables={variables}
                                 targetVariable={selection.variable}
                                 cancelled={Boolean(combination.cancelledRows?.[0])}
-                                onTargetTermClick={() => toggleCancellationRow(0)}
+                                onTargetTermClick={cancellationConfirmed ? undefined : () => toggleCancellationRow(0)}
                                 label="Prepared equation 1"
                               />
                             </div>
@@ -1663,7 +1756,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                                 variables={variables}
                                 targetVariable={selection.variable}
                                 cancelled={Boolean(combination.cancelledRows?.[1])}
-                                onTargetTermClick={() => toggleCancellationRow(1)}
+                                onTargetTermClick={cancellationConfirmed ? undefined : () => toggleCancellationRow(1)}
                                 label="Prepared equation 2"
                               />
                             </div>
@@ -1674,14 +1767,66 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                               ? 'Both cancelling terms are marked.'
                               : `Marked ${Number(Boolean(combination.cancelledRows?.[0])) + Number(Boolean(combination.cancelledRows?.[1]))} of 2 cancelling terms.`}
                           </div>
-                          <button
-                            type="button"
-                            className="mathmaster-systems-confirm-cancellation"
-                            onClick={confirmEliminationCancellation}
-                            disabled={!cancellationComplete}
-                          >
-                            Confirm cancellation and combine
-                          </button>
+                          {!cancellationConfirmed ? (
+                            <button
+                              type="button"
+                              className="mathmaster-systems-confirm-cancellation"
+                              onClick={confirmEliminationCancellation}
+                              disabled={!cancellationComplete}
+                            >
+                              Confirm marked cancellation
+                            </button>
+                          ) : (
+                            <div className="mathmaster-systems-student-combination">
+                              <div className="mathmaster-systems-student-combination-heading">
+                                <strong>Now combine what remains</strong>
+                                <span>
+                                  Do the {combination.operation === 'subtract' ? 'subtraction' : 'addition'} yourself.
+                                  Enter the coefficient of {survivingVariable} and the right-side result.
+                                </span>
+                              </div>
+                              <div className="mathmaster-systems-student-combination-equation">
+                                <MathInput
+                                  value={combination.coefficientAnswer || ''}
+                                  onChange={(value) => setEliminationCombinationAnswer('coefficientAnswer', value)}
+                                  onSubmit={checkEliminationCombination}
+                                  placeholder="coefficient"
+                                  ariaLabel={`Combined coefficient of ${survivingVariable}`}
+                                  toolProfile="algebra-operation"
+                                  compact
+                                  maxWidth={150}
+                                />
+                                <span className="mathmaster-systems-student-combination-variable">{survivingVariable}</span>
+                                <span className="mathmaster-systems-student-combination-equals">=</span>
+                                <MathInput
+                                  value={combination.constantAnswer || ''}
+                                  onChange={(value) => setEliminationCombinationAnswer('constantAnswer', value)}
+                                  onSubmit={checkEliminationCombination}
+                                  placeholder="right side"
+                                  ariaLabel="Combined right side"
+                                  toolProfile="algebra-operation"
+                                  compact
+                                  maxWidth={150}
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                className="mathmaster-systems-check-combination"
+                                onClick={checkEliminationCombination}
+                              >
+                                Check combined equation
+                              </button>
+                              {combination.combinationChecked && !combination.combinationValid ? (
+                                <p className="mathmaster-systems-combination-feedback is-error">
+                                  {slotAttempt?.stage === 'combination-arithmetic' && slotAttempt.coefficientCorrect === false && slotAttempt.constantCorrect === false
+                                    ? `Recheck both the ${survivingVariable} coefficient and the right-side arithmetic.`
+                                    : slotAttempt?.stage === 'combination-arithmetic' && slotAttempt.coefficientCorrect === false
+                                      ? `Recheck the ${survivingVariable} coefficient. Pay close attention to the signs in the two prepared equations.`
+                                      : 'The variable coefficient is correct. Recheck the right-side arithmetic and its sign.'}
+                                </p>
+                              ) : null}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
