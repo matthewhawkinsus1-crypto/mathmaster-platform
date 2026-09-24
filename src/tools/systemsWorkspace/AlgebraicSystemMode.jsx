@@ -27,6 +27,8 @@ import {
   evaluateEquationSides,
   normalizeEquationForStepAlgebra,
   repairPersistedIsolation,
+  rationalExpressionFromNumber,
+  normalizeStudentExpressionForDisplay,
 } from './algebraicSystemsEngine.js';
 
 const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '11px 12px', border: '1px solid #cfd8e6', borderRadius: 9, background: '#fff', fontSize: 15, minHeight: 44 };
@@ -153,7 +155,9 @@ function VariableDropEquation({
               : `Variable ${part}. Drop the selected math token here`}
             title="Drop the selected value or expression here if you think it belongs at this variable."
           >
-            {hasPlacedValue ? `(${placedValues[part]})` : part}
+            {hasPlacedValue ? (
+              <MathDisplay value={String(placedValues[part])} format="ascii-math" inline />
+            ) : part}
           </button>
         );
       })}
@@ -180,10 +184,21 @@ function SystemsWorkTrail({ stages = [] }) {
         })}
       </div>
       <div className="mathmaster-systems-completed-work">
-        {stages.filter((stage) => stage.complete && stage.summary).map((stage) => (
+        {stages.filter((stage) => stage.complete && (stage.summary || stage.summaryMath)).map((stage) => (
           <div key={`summary-${stage.id}`} className="mathmaster-systems-completed-chip">
             <span aria-hidden="true">✓</span>
-            <span>{stage.summary}</span>
+            {stage.summaryPrefix ? <span>{stage.summaryPrefix}</span> : null}
+            {stage.summaryMath ? (
+              <span
+                className="mathmaster-systems-completed-math"
+                data-summary-math={stage.summaryMath}
+                aria-label={stage.summaryMath}
+              >
+                <MathDisplay value={stage.summaryMath} format="ascii-math" inline />
+              </span>
+            ) : (
+              <span>{stage.summary}</span>
+            )}
           </div>
         ))}
       </div>
@@ -257,21 +272,28 @@ function AlignedEquationRow({ equationText, variables, targetVariable, multiplie
 const solvedExpressionFor = (latexResponse, variable) => {
   try {
     const plain = latexToExpression(latexResponse);
-    return isolatedExpressionFor(plain, variable);
+    const expression = isolatedExpressionFor(plain, variable);
+    return expression == null ? null : normalizeStudentExpressionForDisplay(expression);
   } catch {
     return null;
   }
 };
 
-const solvedNumberFor = (latexResponse, variable) => {
-  const expr = solvedExpressionFor(latexResponse, variable);
-  if (expr == null) return null;
+const solvedValueFor = (latexResponse, variable) => {
+  const expression = solvedExpressionFor(latexResponse, variable);
+  if (expression == null) return null;
   try {
-    const value = Number(evaluate(expr));
-    return Number.isFinite(value) ? value : null;
+    const value = Number(evaluate(expression));
+    return Number.isFinite(value) ? { variable, value, expression } : null;
   } catch {
     return null;
   }
+};
+
+const solvedRecordExpression = (record) => {
+  const persisted = String(record?.expression || '').trim();
+  if (persisted) return normalizeStudentExpressionForDisplay(persisted);
+  return rationalExpressionFromNumber(record?.value);
 };
 
 /*
@@ -366,10 +388,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     pendingCoefficients: null,
     cancelledRows: { 0: false, 1: false },
   });
-  const [firstSolved, setFirstSolved] = usePersistentToolState('firstSolved', { variable: null, value: null });
+  const [firstSolved, setFirstSolved] = usePersistentToolState('firstSolved', { variable: null, value: null, expression: null });
   const [specialCase, setSpecialCase] = usePersistentToolState('specialCase', null);
   const [backSub, setBackSub] = usePersistentToolState('backSub', { equationIndex: null });
-  const [secondSolved, setSecondSolved] = usePersistentToolState('secondSolved', { variable: null, value: null });
+  const [secondSolved, setSecondSolved] = usePersistentToolState('secondSolved', { variable: null, value: null, expression: null });
   const [verification, setVerification] = usePersistentToolState('verification', { 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
   const [methodEfficiencyReason, setMethodEfficiencyReason] = usePersistentToolState('methodEfficiencyReason', '');
   // Which slot the student's last substitution attempt landed on. Interaction
@@ -390,17 +412,17 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setAppliedMultipliers({ 0: false, 1: false });
     setMultiplierWork({ 0: emptyMultiplierWork(), 1: emptyMultiplierWork() });
     setCombination({ operation: null, attempts: 0, coefficients: null, text: null, pendingCoefficients: null, cancelledRows: { 0: false, 1: false } });
-    setFirstSolved({ variable: null, value: null });
+    setFirstSolved({ variable: null, value: null, expression: null });
     setSpecialCase(null);
     setBackSub({ equationIndex: null });
-    setSecondSolved({ variable: null, value: null });
+    setSecondSolved({ variable: null, value: null, expression: null });
     setVerification({ 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
     setSlotAttempt(null);
   }, []);
 
   const resetFromBackSub = useCallback(() => {
     setBackSub({ equationIndex: null });
-    setSecondSolved({ variable: null, value: null });
+    setSecondSolved({ variable: null, value: null, expression: null });
     setVerification({ 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
     setSlotAttempt(null);
   }, []);
@@ -426,10 +448,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       cancelledRows: { 0: false, 1: false },
       ...(value?.combination || {}),
     });
-    setFirstSolved(value?.firstSolved || { variable: null, value: null });
+    setFirstSolved({ variable: null, value: null, expression: null, ...(value?.firstSolved || {}) });
     setSpecialCase(value?.specialCase || null);
     setBackSub(value?.backSub || { equationIndex: null });
-    setSecondSolved(value?.secondSolved || { variable: null, value: null });
+    setSecondSolved({ variable: null, value: null, expression: null, ...(value?.secondSolved || {}) });
     setVerification(value?.verification || { 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
     setMethodEfficiencyReason(value?.methodEfficiencyReason || '');
   }, [config.method]);
@@ -485,12 +507,18 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const degenerateTruth = isDegenerate ? degenerateStatementTruth(reduceCoefficients) : null;
 
   const firstSolvedDone = firstSolved.value != null;
+  const firstSolvedExpression = firstSolvedDone ? solvedRecordExpression(firstSolved) : '';
   const backSubChosen = backSub.equationIndex != null;
   const backSubEquationText = (backSubChosen && firstSolvedDone)
-    ? substituteIntoEquation(equations[backSub.equationIndex], survivingVariable, String(firstSolved.value))
+    ? substituteIntoEquation(equations[backSub.equationIndex], survivingVariable, firstSolvedExpression)
     : null;
   const secondSolvedDone = secondSolved.value != null;
+  const secondSolvedExpression = secondSolvedDone ? solvedRecordExpression(secondSolved) : '';
   const solution = secondSolvedDone ? { [survivingVariable]: firstSolved.value, [removedVariable]: secondSolved.value } : null;
+  const solutionExpressions = secondSolvedDone
+    ? { [survivingVariable]: firstSolvedExpression, [removedVariable]: secondSolvedExpression }
+    : null;
+  const displayedIsolationExpression = normalizeStudentExpressionForDisplay(substitutionTokenExpression || isolatedExpr || '');
 
   const bothPlaced = (index) => variables.every((v) => verification[index]?.placed?.[v]);
   const allVerified = solution && verification[0].checked && verification[0].valid && verification[1].checked && verification[1].valid;
@@ -832,9 +860,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   };
 
   const handleReduceSolved = useCallback((latexResponse) => {
-    const value = solvedNumberFor(latexResponse, survivingVariable);
-    if (value == null) return;
-    setFirstSolved({ variable: survivingVariable, value });
+    const solved = solvedValueFor(latexResponse, survivingVariable);
+    if (!solved) return;
+    setFirstSolved(solved);
   }, [survivingVariable]);
 
   const chooseSpecialCaseField = (field, value) => {
@@ -856,9 +884,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   };
 
   const handleSecondSolved = useCallback((latexResponse) => {
-    const value = solvedNumberFor(latexResponse, removedVariable);
-    if (value == null) return;
-    setSecondSolved({ variable: removedVariable, value });
+    const solved = solvedValueFor(latexResponse, removedVariable);
+    if (!solved) return;
+    setSecondSolved(solved);
   }, [removedVariable]);
 
   const armVerificationValue = (variable) => {
@@ -967,13 +995,13 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         id: 'solve-first',
         label: 'Solve',
         complete: firstSolvedDone,
-        summary: firstSolvedDone ? `${firstSolved.variable} = ${firstSolved.value}` : '',
+        summaryMath: firstSolvedDone ? `${firstSolved.variable} = ${firstSolvedExpression}` : '',
       },
       {
         id: 'back-substitute',
         label: 'Back-substitute',
         complete: secondSolvedDone,
-        summary: secondSolvedDone ? `${secondSolved.variable} = ${secondSolved.value}` : '',
+        summaryMath: secondSolvedDone ? `${secondSolved.variable} = ${secondSolvedExpression}` : '',
       },
       {
         id: 'verify',
@@ -1002,7 +1030,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
           id: 'combine',
           label: 'Combine',
           complete: combinationLocked,
-          summary: combinationLocked ? `${combination.operation === 'subtract' ? 'Equation 1 − Equation 2' : 'Equation 1 + Equation 2'} → ${combination.text}` : '',
+          summaryPrefix: combinationLocked ? `${combination.operation === 'subtract' ? 'Equation 1 − Equation 2' : 'Equation 1 + Equation 2'} →` : '',
+          summaryMath: combinationLocked ? combination.text : '',
         },
         ...commonEnd,
       ];
@@ -1014,13 +1043,14 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         id: 'isolate',
         label: 'Isolate',
         complete: isolationDone,
-        summary: isolationDone && selection.variable ? `${selection.variable} = ${isolatedExpr}` : '',
+        summaryMath: isolationDone && selection.variable ? `${selection.variable} = ${displayedIsolationExpression}` : '',
       },
       {
         id: 'substitute',
         label: 'Substitute',
         complete: Boolean(substitution.equationText),
-        summary: substitution.equationText ? `Equation ${Number(substitution.targetEquationIndex ?? otherIndex) + 1}: ${substitution.equationText}` : '',
+        summaryPrefix: substitution.equationText ? `Equation ${Number(substitution.targetEquationIndex ?? otherIndex) + 1}:` : '',
+        summaryMath: substitution.equationText || '',
       },
       ...commonEnd,
     ];
@@ -1031,8 +1061,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     degenerateTruth,
     firstSolvedDone,
     firstSolved,
+    firstSolvedExpression,
     secondSolvedDone,
     secondSolved,
+    secondSolvedExpression,
     config.requireVerification,
     allVerified,
     selection.variable,
@@ -1043,6 +1075,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     combination.text,
     isolationDone,
     isolatedExpr,
+    displayedIsolationExpression,
     substitution.equationText,
     substitution.targetEquationIndex,
     otherIndex,
@@ -1072,10 +1105,14 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
               </div>
             ))}
           </div>
-          {solution ? (
+          {solution && solutionExpressions ? (
             <div style={{ marginTop: 12, padding: 10, borderRadius: 8, background: '#f0fbf4' }}>
               <strong>Ordered-pair solution:</strong>{' '}
-              ({solution[variables[0]]}, {solution[variables[1]]})
+              <MathDisplay
+                value={`(${solutionExpressions[variables[0]]}, ${solutionExpressions[variables[1]]})`}
+                format="ascii-math"
+                inline
+              />
             </div>
           ) : null}
           {isDegenerate ? (
@@ -1601,7 +1638,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                   </p>
                   <SubstitutionToken
                     variable={survivingVariable}
-                    expression={String(firstSolved.value)}
+                    expression={firstSolvedExpression}
                     label="Solved value"
                     onArm={() => setSlotAttempt({ stage: 'backSubstitution', armed: true, correct: null, variable: null })}
                   />
@@ -1655,10 +1692,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                       key={variable}
                       payloadPrefix="mathmaster-verification:"
                       payloadValue={variable}
-                      expression={`${variable} = ${solution[variable]}`}
+                      expression={`${variable} = ${solutionExpressions[variable]}`}
                       label="Solved value"
                       onArm={() => armVerificationValue(variable)}
-                      ariaLabel={`Pick up solved value ${solution[variable]} for ${variable}`}
+                      ariaLabel={`Pick up solved value ${solutionExpressions[variable]} for ${variable}`}
                     />
                 ))}
               </div>
@@ -1678,7 +1715,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                         placedValues={Object.fromEntries(
                           variables
                             .filter((variable) => verification[index].placed[variable])
-                            .map((variable) => [variable, solution[variable]]),
+                            .map((variable) => [variable, solutionExpressions[variable]]),
                         )}
                         label={`Equation ${index + 1}: place both solved values`}
                       />
@@ -1687,9 +1724,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                         <span>Values substituted</span>
                         <MathDisplay
                           value={substituteIntoEquation(
-                            substituteIntoEquation(eq, variables[0], String(solution[variables[0]])),
+                            substituteIntoEquation(eq, variables[0], solutionExpressions[variables[0]]),
                             variables[1],
-                            String(solution[variables[1]]),
+                            solutionExpressions[variables[1]],
                           )}
                           format="ascii-math"
                         />

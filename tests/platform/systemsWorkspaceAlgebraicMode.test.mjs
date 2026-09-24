@@ -338,8 +338,12 @@ test('embedded Step Algebra owns universal Undo while a one-variable solve is ac
 });
 
 test('ordered-pair display uses coordinate values rather than x = / y = labels', () => {
-  assert.match(modeSource, /Ordered-pair solution:[\s\S]*\(\{solution\[variables\[0\]\]\}, \{solution\[variables\[1\]\]\}\)/);
-  assert.doesNotMatch(modeSource, /Ordered-pair solution:[\s\S]{0,180}\{variables\[0\]\}\s*=\s*\{solution/);
+  const orderedPair = region(modeSource, '<strong>Ordered-pair solution:</strong>', '{isDegenerate ? (', 'ordered-pair display');
+  assert.match(orderedPair, /MathDisplay/);
+  assert.match(orderedPair, /solutionExpressions\[variables\[0\]\]/);
+  assert.match(orderedPair, /solutionExpressions\[variables\[1\]\]/);
+  assert.doesNotMatch(orderedPair, /variables\[0\].*=/);
+  assert.doesNotMatch(orderedPair, /variables\[1\].*=/);
 });
 
 
@@ -458,4 +462,34 @@ test('V5 solveSystem intent preserves the algebraic systemsWorkspace contract', 
   assert.equal(question.requireVerification, true);
   assert.equal(question.askEfficiency, false);
   assert.equal(validateToolQuestion(question).isValid, true);
+});
+
+
+test('systems preserves the exact solved expression separately from its numeric grading value', () => {
+  assert.match(modeSource, /const solvedValueFor = \(latexResponse, variable\) =>/);
+  assert.match(modeSource, /\{ variable, value, expression \}/);
+  assert.match(modeSource, /firstSolvedExpression = firstSolvedDone \? solvedRecordExpression\(firstSolved\) : ''/);
+  assert.match(modeSource, /substituteIntoEquation\(equations\[backSub\.equationIndex\], survivingVariable, firstSolvedExpression\)/);
+  assert.doesNotMatch(modeSource, /substituteIntoEquation\(equations\[backSub\.equationIndex\], survivingVariable, String\(firstSolved\.value\)\)/);
+});
+
+test('back-substitution and verification tokens use exact expressions instead of decimalized numeric values', () => {
+  assert.match(modeSource, /expression=\{firstSolvedExpression\}/);
+  assert.match(modeSource, /solutionExpressions\[variable\]/);
+  assert.match(modeSource, /placedValues=\{Object\.fromEntries\([\s\S]*solutionExpressions\[variable\]/);
+  assert.match(modeSource, /substituteIntoEquation\(eq, variables\[0\], solutionExpressions\[variables\[0\]\]\)/);
+});
+
+test('systems work trail renders mathematical summaries as MathDisplay instead of exposing machine syntax', () => {
+  const trail = region(modeSource, 'function SystemsWorkTrail', 'const cleanCoefficient', 'SystemsWorkTrail');
+  assert.match(trail, /stage\.summaryMath/);
+  assert.match(trail, /<MathDisplay value=\{stage\.summaryMath\} format="ascii-math" inline/);
+  assert.match(modeSource, /summaryMath: isolationDone/);
+  assert.match(modeSource, /displayedIsolationExpression/);
+  assert.match(modeSource, /summaryMath: substitution\.equationText/);
+});
+
+test('the isolation work trail follows the student-selected simplified token form when one exists', () => {
+  assert.match(modeSource, /displayedIsolationExpression = normalizeStudentExpressionForDisplay\(substitutionTokenExpression \|\| isolatedExpr \|\| ''\)/);
+  assert.match(modeSource, /summaryMath: isolationDone && selection\.variable \? `\$\{selection\.variable\} = \$\{displayedIsolationExpression\}`/);
 });

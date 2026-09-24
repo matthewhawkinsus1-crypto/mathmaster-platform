@@ -72,6 +72,74 @@ const cleanNumber = (value) => {
   return Object.is(rounded, -0) ? 0 : rounded;
 };
 
+
+/**
+ * Recover a compact exact-looking rational from a numeric value when the
+ * original symbolic expression is unavailable (legacy drafts).
+ *
+ * New systems work should persist the student's exact solved expression, so
+ * this is intentionally only a fallback. The tolerance is strict enough that
+ * ordinary rounded decimals are not casually rewritten as fractions.
+ */
+export const rationalExpressionFromNumber = (value, {
+  maxDenominator = 1000,
+  tolerance = 1e-10,
+} = {}) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '';
+  if (Math.abs(numeric - Math.round(numeric)) <= tolerance) return String(Math.round(numeric));
+
+  const sign = numeric < 0 ? -1 : 1;
+  const target = Math.abs(numeric);
+  let bestNumerator = null;
+  let bestDenominator = null;
+  let bestError = Number.POSITIVE_INFINITY;
+
+  for (let denominator = 1; denominator <= maxDenominator; denominator += 1) {
+    const numerator = Math.round(target * denominator);
+    const approximation = numerator / denominator;
+    const error = Math.abs(target - approximation);
+    if (error < bestError) {
+      bestError = error;
+      bestNumerator = numerator;
+      bestDenominator = denominator;
+    }
+    if (error <= tolerance * Math.max(1, target)) break;
+  }
+
+  if (
+    bestNumerator != null
+    && bestDenominator != null
+    && bestError <= tolerance * Math.max(1, target)
+  ) {
+    const signedNumerator = sign * bestNumerator;
+    return bestDenominator === 1
+      ? String(signedNumerator)
+      : `${signedNumerator}/${bestDenominator}`;
+  }
+
+  return String(cleanNumber(numeric));
+};
+
+/**
+ * Preserve the algebraic form a student reached while removing only redundant
+ * parser/serialization parentheses. This does not simplify, distribute,
+ * combine terms, factor, or evaluate.
+ */
+export const normalizeStudentExpressionForDisplay = (rawExpression) => {
+  const source = String(rawExpression ?? '').trim();
+  if (!source) return '';
+  try {
+    const plain = latexToExpression(source);
+    return parse(plain).toString({
+      parenthesis: 'auto',
+      implicit: 'show',
+    });
+  } catch {
+    return source;
+  }
+};
+
 const formatCoefficientTerm = (value, symbol, isFirst) => {
   const cleaned = Math.abs(value) < EPS ? 0 : cleanNumber(value);
   if (cleaned === 0) return '';

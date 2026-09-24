@@ -56,8 +56,8 @@ const note = (journey, detail) => findings.push({ journey, detail });
 
 /* ------------------------------------------------------------------ helpers */
 
-const openFresh = async (page, { scope = 'student', seed = null } = {}) => {
-  const url = `${PAGE}?scope=${scope}`;
+const openFresh = async (page, { scope = 'student', seed = null, questionIndex = 1 } = {}) => {
+  const url = `${PAGE}?scope=${scope}&q=${questionIndex}`;
   await page.goto(url);
   await page.waitForFunction(() => Boolean(window.__mmHandoff));
   await page.evaluate(() => window.__mmHandoff.clearStorage());
@@ -436,6 +436,99 @@ report.push({ journey: 'preview-inline-ui', ...inlineObserved });
   if (inlineTerms < 2) note('preview-backsub-uniform', `back-substitution did not expose inline term tokens (${inlineTerms})`);
   if (backRails) note('preview-backsub-uniform', `operation rails remained visible while inline rewrite owned back-substitution (${backRails})`);
   await shoot(page, 'inline-backsub-rewrite-mode');
+}
+
+// 9. Exact symbolic-value contract. This recreates the live system from the
+// teacher screenshot at the point where x = 20/9 has been solved. The parent
+// systems workflow must carry that exact expression into the token, work
+// history, and back-substitution equation instead of decimalizing it.
+{
+  const exactSeed = {
+    ':work:tool': {
+      method: 'substitution',
+      selection: { equationIndex: 0, variable: 'y' },
+      isolation: {
+        expression: '(7 - 2*x)/(-1)',
+        tokenExpression: '2*x - 7',
+        simplificationDraft: '2x - 7',
+        simplifying: false,
+        simplificationChecked: true,
+        simplificationValid: true,
+      },
+      substitution: {
+        targetVariable: 'y',
+        targetEquationIndex: 1,
+        equationText: '-3*x - 3*(2*x - 7) = 1',
+      },
+      multipliers: { 0: '1', 1: '1' },
+      appliedMultipliers: { 0: false, 1: false },
+      multiplierWork: {
+        0: { active: false, a: '', b: '', c: '', checked: false, valid: false },
+        1: { active: false, a: '', b: '', c: '', checked: false, valid: false },
+      },
+      combination: {
+        operation: null,
+        attempts: 0,
+        coefficients: null,
+        text: null,
+        pendingCoefficients: null,
+        cancelledRows: { 0: false, 1: false },
+      },
+      firstSolved: { variable: 'x', value: 20 / 9, expression: '20/9' },
+      specialCase: null,
+      backSub: { equationIndex: null },
+      secondSolved: { variable: null, value: null, expression: null },
+      verification: {
+        0: { placed: {}, leftAnswer: '', rightAnswer: '', checked: false, valid: false },
+        1: { placed: {}, leftAnswer: '', rightAnswer: '', checked: false, valid: false },
+      },
+      methodEfficiencyReason: '',
+    },
+  };
+  await openFresh(page, { scope: 'teacherPreview', seed: exactSeed, questionIndex: 2 });
+  const exactToken = page.locator('.mathmaster-systems-substitution-token');
+  await exactToken.waitFor({ timeout: 10000 });
+  const exactTokenLabel = await exactToken.getAttribute('aria-label');
+  if (!/20\s*\/\s*9/.test(exactTokenLabel || '')) {
+    note('preview-exact-fraction', `back-substitution token lost exact 20/9 form: ${exactTokenLabel}`);
+  }
+  if (/2\.222/.test(exactTokenLabel || '')) {
+    note('preview-exact-fraction', `back-substitution token exposed decimal approximation: ${exactTokenLabel}`);
+  }
+
+  const exactSummaryMath = await page.locator('[data-summary-math]').evaluateAll(
+    (elements) => elements.map((element) => element.getAttribute('data-summary-math') || ''),
+  );
+  const chipMath = exactSummaryMath.join(' | ');
+  if (!/x\s*=\s*20\s*\/\s*9/.test(chipMath)) {
+    note('preview-exact-fraction', `work trail does not preserve x = 20/9: ${chipMath}`);
+  }
+  if (!/y\s*=\s*2\s*\*?\s*x\s*-\s*7/.test(chipMath)) {
+    note('preview-exact-fraction', `work trail does not show the student's simplified y = 2x - 7 form: ${chipMath}`);
+  }
+  if (/2\.222|\(\(\(/.test(chipMath)) {
+    note('preview-exact-fraction', `work trail exposes decimal or redundant serialization wrappers: ${chipMath}`);
+  }
+  await shoot(page, 'exact-fraction-backsub-token');
+
+  await exactToken.click();
+  await page.locator('[aria-label^="Equation 2: choose where"] [data-variable="x"]').click();
+  await page.waitForTimeout(600);
+  const exactBackHost = solver(page);
+  await exactBackHost.waitFor({ timeout: 10000 });
+  await page.waitForFunction(() => {
+    const state = document.querySelector('.mathmaster-systems-embedded-step-algebra [data-math-state]')?.getAttribute('data-math-state') || '';
+    return state.includes('20') && state.includes('9');
+  }, null, { timeout: 10000 });
+  await page.waitForTimeout(600);
+  const exactBackState = await exactBackHost.locator('[data-math-state]').first().getAttribute('data-math-state');
+  if (/2\.222/.test(exactBackState || '')) {
+    note('preview-exact-fraction', `back-substitution equation decimalized 20/9: ${exactBackState}`);
+  }
+  if (!/20/.test(exactBackState || '') || !/9/.test(exactBackState || '')) {
+    note('preview-exact-fraction', `back-substitution equation lost exact fraction structure: ${exactBackState}`);
+  }
+  await shoot(page, 'exact-fraction-backsub-equation');
 }
 
 await browser.close();

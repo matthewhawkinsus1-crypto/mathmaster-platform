@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { evaluate } from 'mathjs';
 import {
   normalizeAlgebraicSystemConfig,
   linearEquationCoefficients,
@@ -16,6 +17,8 @@ import {
   solveAlgebraicSystem,
   evaluateEquationSides,
   normalizeEquationForStepAlgebra,
+  rationalExpressionFromNumber,
+  normalizeStudentExpressionForDisplay,
 } from '../../src/tools/systemsWorkspace/algebraicSystemsEngine.js';
 
 // ---------------------------------------------------------------------------
@@ -158,6 +161,25 @@ test('Step Algebra import normalization preserves the distributive group in the 
   assert.match(normalized, /0\.25 \* \(200 - s\)/);
   assert.doesNotMatch(normalized, /50/);
   assert.doesNotMatch(normalized, /0\.5 \* s/);
+});
+
+
+test('legacy repeating-decimal solved values recover the exact rational form for student display', () => {
+  assert.equal(rationalExpressionFromNumber(2.2222222222222223), '20/9');
+  assert.equal(rationalExpressionFromNumber(-2.2222222222222223), '-20/9');
+  assert.equal(rationalExpressionFromNumber(3), '3');
+});
+
+test('student expression display cleanup removes serialization wrappers without doing algebra', () => {
+  const unsimplified = normalizeStudentExpressionForDisplay('((((7)-(2*x)))/((-1)))');
+  assert.doesNotMatch(unsimplified, /\(\(\(/);
+  assert.ok(
+    Math.abs(Number(evaluate(unsimplified, { x: 4 })) - 1) < 1e-9,
+    unsimplified,
+  );
+  const studentSimplified = normalizeStudentExpressionForDisplay('2*x - 7');
+  assert.match(studentSimplified, /2\s*\*\s*x\s*-\s*7/);
+  assert.doesNotMatch(studentSimplified, /^\(+/);
 });
 
 // ---------------------------------------------------------------------------
