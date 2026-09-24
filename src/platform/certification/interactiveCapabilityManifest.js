@@ -344,7 +344,8 @@ export const INTERACTIVE_CAPABILITIES = Object.freeze([
  *
  *   pr       node gates only — every capability's route, wiring and model
  *            (tests/platform/interactiveCapabilityCertification.test.mjs runs
- *            inside the full platform suite on every PR). Seconds.
+ *            inside the full platform suite on every PR), plus the teacher,
+ *            assessment and persistence node suites below. Seconds.
  *   merge    + the interactive algebra journeys in Chromium. Every PR that
  *            touches runtime code; about ten minutes.
  *   release  + persistence, assessment, statistics and Work View suites that
@@ -355,6 +356,44 @@ export const INTERACTIVE_CAPABILITIES = Object.freeze([
  * the suite writes one; otherwise the suite passes or fails as a whole.
  */
 export const CERTIFICATION_SUITES = Object.freeze([
+  // Node gates for the subsystems whose certification is model- and
+  // policy-level today; seconds, so they run at every tier.
+  {
+    id: 'teacher-experience-node',
+    label: 'Teacher dashboard: listener cleanup, presence batching, memory footprint, question/tool check, DOL controls (node)',
+    subsystem: 'TEACHER EXPERIENCE',
+    tier: 'pr',
+    server: false,
+    command: ['node', '--test',
+      'tests/platform/listenerLifecycleGuard.test.mjs',
+      'tests/platform/teacherPresenceCoalescing.test.mjs',
+      'tests/platform/teacherMemoryFootprint.test.mjs',
+      'tests/platform/questionToolContract.test.mjs',
+      'tests/platform/dolClassReuseTeacherControl.test.mjs'],
+  },
+  {
+    id: 'assessment-recovery-node',
+    label: 'DOL reopen, extra attempts and grade resolution, browser and server agree (node)',
+    subsystem: 'ASSESSMENTS',
+    tier: 'pr',
+    server: false,
+    command: ['node', '--test',
+      'tests/platform/assessmentRecoveryPolicy.test.mjs',
+      'tests/platform/responseCheckpointFinalizer.test.mjs',
+      'tests/platform/choiceAttemptPolicy.test.mjs'],
+  },
+  {
+    id: 'persistence-node',
+    label: 'Draft durability, outbox and corrupted-draft recovery (node)',
+    subsystem: 'PERSISTENCE',
+    tier: 'pr',
+    server: false,
+    command: ['node', '--test',
+      'tests/platform/studentDraftDurability.test.mjs',
+      'tests/platform/durableActionOutbox.test.mjs',
+      'tests/platform/relationDraftRecovery.test.mjs',
+      'tests/platform/algebraDraftState.test.mjs'],
+  },
   {
     id: 'interactive-capabilities',
     label: 'Interactive capability journeys',

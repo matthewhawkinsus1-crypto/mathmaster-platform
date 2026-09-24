@@ -4,9 +4,11 @@ import fs from 'node:fs';
 import {
   CERTIFICATION_SUBSYSTEMS,
   CERTIFICATION_SUITES,
+  CERTIFICATION_TIERS,
   INTERACTIVE_CAPABILITIES,
   INTERACTIVE_CAPABILITY_FIXTURES,
   capabilityFixture,
+  suitesForTier,
 } from '../../src/platform/certification/interactiveCapabilityManifest.js';
 import { compileCapabilityFixture } from '../../src/platform/certification/capabilityFixtureRuntime.js';
 import {
@@ -228,6 +230,22 @@ test('every engine capability the manifest relies on is declared by that engine'
   const declared = new Set(Object.values(ALGEBRA_ENGINE_CAPABILITIES).flat());
   INTERACTIVE_CAPABILITIES.forEach((capability) => {
     assert.ok(declared.has(capability.requires) || capability.requires === 'interceptZeroSubstitution', `${capability.requires} is declared`);
+  });
+});
+
+test('every report section is backed by a capability or a suite, and every suite command exists', () => {
+  const fullRun = [...INTERACTIVE_CAPABILITIES.map((capability) => capability.subsystem), ...CERTIFICATION_SUITES.map((suite) => suite.subsystem)];
+  CERTIFICATION_SUBSYSTEMS.forEach((subsystem) => {
+    assert.ok(fullRun.includes(subsystem), `${subsystem} has nothing certifying it`);
+  });
+  // The fast PR tier still reports the teacher, assessment and persistence sections.
+  const prSubsystems = new Set(suitesForTier('pr').map((suite) => suite.subsystem));
+  ['TEACHER EXPERIENCE', 'ASSESSMENTS', 'PERSISTENCE'].forEach((subsystem) => assert.ok(prSubsystems.has(subsystem), `${subsystem} at tier pr`));
+  CERTIFICATION_SUITES.forEach((suite) => {
+    assert.ok(CERTIFICATION_TIERS.includes(suite.tier), `${suite.id} tier`);
+    suite.command.filter((part) => /\.(m?js)$/.test(part)).forEach((file) => {
+      assert.ok(fs.existsSync(file), `${suite.id}: ${file} does not exist`);
+    });
   });
 });
 

@@ -141,7 +141,12 @@ md.push('## MathMaster Interactive Capability Certification', '', `Tier **${tier
 for (const subsystem of CERTIFICATION_SUBSYSTEMS) {
   const capabilities = capabilityResults.filter((entry) => entry.subsystem === subsystem);
   const extraSuites = suiteResults.filter((entry) => entry.subsystem === subsystem);
-  if (!capabilities.length && !extraSuites.length) continue;
+  // A subsystem with nothing run at this tier is shown, never silently left out.
+  if (!capabilities.length && !extraSuites.length) {
+    lines.push('', subsystem, `NOT COVERED at tier ${tier}`);
+    md.push(`### ${subsystem}`, '', `⚪ Not covered at tier **${tier}**.`, '');
+    continue;
+  }
   lines.push('', subsystem);
   md.push(`### ${subsystem}`, '', '| | Capability | Node | Browser |', '|---|---|---|---|');
   for (const entry of capabilities) {
