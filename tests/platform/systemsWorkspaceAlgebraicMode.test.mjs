@@ -482,14 +482,32 @@ test('back-substitution and verification tokens use exact expressions instead of
 
 test('systems work trail renders mathematical summaries as MathDisplay instead of exposing machine syntax', () => {
   const trail = region(modeSource, 'function SystemsWorkTrail', 'const cleanCoefficient', 'SystemsWorkTrail');
-  assert.match(trail, /stage\.summaryMath/);
-  assert.match(trail, /<MathDisplay value=\{stage\.summaryMath\} format="ascii-math" inline/);
+  assert.match(trail, /stage\.summaryMath \|\| stage\.summaryLatex/);
+  assert.match(trail, /value=\{stage\.summaryLatex \|\| stage\.summaryMath\}/);
+  assert.match(trail, /format=\{stage\.summaryLatex \? 'latex' : 'ascii-math'\}/);
   assert.match(modeSource, /summaryMath: isolationDone/);
+  assert.match(modeSource, /summaryLatex: isolationDone/);
   assert.match(modeSource, /displayedIsolationExpression/);
   assert.match(modeSource, /summaryMath: substitution\.equationText/);
+  assert.match(modeSource, /summaryLatex: substitution\.equationText/);
 });
 
 test('the isolation work trail follows the student-selected simplified token form when one exists', () => {
   assert.match(modeSource, /displayedIsolationExpression = normalizeStudentExpressionForDisplay\(substitutionTokenExpression \|\| isolatedExpr \|\| ''\)/);
   assert.match(modeSource, /summaryMath: isolationDone && selection\.variable \? `\$\{selection\.variable\} = \$\{displayedIsolationExpression\}`/);
+});
+
+
+test('Systems Undo falls back to parent workflow history after local Step Algebra history is exhausted', () => {
+  assert.match(modeSource, /embeddedUndoController\?\.canUndo/);
+  assert.match(modeSource, /: undoHistory\.capability/);
+  assert.doesNotMatch(modeSource, /disabled:\s*!embeddedUndoController\.canUndo/);
+});
+
+test('completed systems history carries classroom LaTeX in addition to machine-safe math text', () => {
+  assert.match(modeSource, /classroomEquationLatex/);
+  assert.match(modeSource, /classroomAssignmentLatex/);
+  assert.match(modeSource, /summaryLatex:/);
+  const trail = region(modeSource, 'function SystemsWorkTrail', 'const cleanCoefficient', 'SystemsWorkTrail');
+  assert.match(trail, /format=\{stage\.summaryLatex \? 'latex' : 'ascii-math'\}/);
 });

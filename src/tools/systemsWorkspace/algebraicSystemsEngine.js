@@ -33,10 +33,33 @@ const splitEquation = (text) => {
  */
 export const normalizeEquationForStepAlgebra = (equationText) => {
   const { left, right } = splitEquation(equationText);
-  const normalizeSide = (side) => parse(String(side)).toString({
-    parenthesis: 'auto',
-    implicit: 'show',
-  });
+
+  const normalizeSide = (side) => {
+    const protectedFractions = [];
+    const protectedSource = String(side).replace(
+      /\(\s*([+-]?(?:\d+(?:\.\d+)?|[A-Za-z][A-Za-z0-9_]*)\s*\/\s*[+-]?(?:\d+(?:\.\d+)?|[A-Za-z][A-Za-z0-9_]*))\s*\)/g,
+      (_match, fraction) => {
+        const token = `__mm_fraction_${protectedFractions.length}__`;
+        protectedFractions.push(fraction);
+        return token;
+      },
+    );
+
+    let normalized = parse(protectedSource).toString({
+      parenthesis: 'auto',
+      implicit: 'show',
+    });
+
+    protectedFractions.forEach((fraction, index) => {
+      normalized = normalized.replace(
+        `__mm_fraction_${index}__`,
+        `(${fraction.replace(/\s+/g, ' ').trim()})`,
+      );
+    });
+
+    return normalized;
+  };
+
   return `${normalizeSide(left)} = ${normalizeSide(right)}`;
 };
 

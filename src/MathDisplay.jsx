@@ -18,8 +18,13 @@ const repairLegacyMathLiveRelations = (value) => String(value ?? '')
 // the fraction as one MathLive atom and drop that visual-only grouping. This is
 // deliberately narrow: parentheses around sums/products are never touched.
 const stripRedundantStackedFractionParens = (value) => String(value ?? '')
-  .replace(/\\left\(\s*(\\frac\{[^{}]+\}\{[^{}]+\})\s*\\right\)/g, '$1')
-  .replace(/\(\s*(\\frac\{[^{}]+\}\{[^{}]+\})\s*\)/g, '$1');
+  // Remove coefficient-only wrappers such as (2/3)x, where the following
+  // variable already makes the multiplication unambiguous. Do NOT strip the
+  // grouping from 3(20/9): there the parentheses communicate the student's
+  // substitution and prevent the product from visually collapsing into the
+  // fraction numerator.
+  .replace(/\\left\(\s*(\\frac\{[^{}]+\}\{[^{}]+\})\s*\\right\)(?=\s*(?:[A-Za-z]|\\[A-Za-z]))/g, '$1')
+  .replace(/\(\s*(\\frac\{[^{}]+\}\{[^{}]+\})\s*\)(?=\s*(?:[A-Za-z]|\\[A-Za-z]))/g, '$1');
 
 const stripMathDelimiters = (value) => {
   const text = String(value ?? '').trim();

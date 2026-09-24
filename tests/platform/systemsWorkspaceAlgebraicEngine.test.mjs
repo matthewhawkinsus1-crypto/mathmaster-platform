@@ -290,3 +290,12 @@ test('evaluateEquationSides evaluates both sides at a candidate solution for ver
   assert.equal(sides.left, -3);
   assert.equal(sides.right, -3);
 });
+
+
+test('exact rational back-substitution keeps the fraction as one grouped factor for Step Algebra', () => {
+  const substituted = substituteIntoEquation('-3x - 3y = 1', 'x', '20/9');
+  const normalized = normalizeEquationForStepAlgebra(substituted);
+  assert.match(normalized, /3\s*\*\s*\(+\s*20\s*\/\s*9\s*\)+/);
+  assert.match(normalized, /-\s*3\s*\*\s*y/);
+  assert.doesNotMatch(normalized, /2\.222/);
+});

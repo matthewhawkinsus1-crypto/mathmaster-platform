@@ -159,7 +159,25 @@ const cleanImplicitMultiplicationLatex = (latex) => {
     }
 
     // Anything else becomes a factor against a parenthesis. Never a dot.
-    text = `${before}${GROUP_OPEN}${after}${GROUP_CLOSE}`;
+    //
+    // IMPORTANT: wrap only the immediate right operand, not the entire
+    // remaining LaTeX string. The old implementation wrapped `after` wholesale.
+    // Inside a fraction numerator that could turn
+    //   \\frac{3 \\cdot 20}{9}
+    // into malformed
+    //   \\frac{3\\left(20}{9}\\right)
+    // which MathLive rendered as the nonsense-looking 3(209) over an empty
+    // denominator. Keep all suffix delimiters/braces exactly where they were.
+    if (rightOperand) {
+      text = `${before}${GROUP_OPEN}${rightOperand[1]}${GROUP_CLOSE}${after.slice(rightOperand[1].length)}`;
+      continue;
+    }
+
+    // If this is a genuinely complex operand that the lightweight scanner
+    // cannot isolate safely, preserve MathJS's explicit multiplication rather
+    // than risk corrupting the mathematical structure.
+    text = `${before}\\cdot ${after}`;
+    break;
   }
 
   return text;
