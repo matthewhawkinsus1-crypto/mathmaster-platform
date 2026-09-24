@@ -1,4 +1,4 @@
-// ISSUE #341: 3×3 SUBSTITUTION AND THE NO-STAGED-PREVIEW RULE, IN A REAL BROWSER.
+// ISSUE #341: 3×3 SUBSTITUTION + DRAG-ONLY STEP ALGEBRA PREVIEWS, IN A REAL BROWSER.
 //
 //   npx vite --host 127.0.0.1 --port 5199 --strictPort &
 //   AUDIT_ORIGIN=http://127.0.0.1:5199 node tests/browser/algebraicSystems3x3.mjs
@@ -19,11 +19,9 @@
 //   preview-negated    Teacher Preview: isolating y puts -(…) into E2; the
 //                      group must stay whole with the -1 offered to distribute
 //   no-preview/*       Step Algebra -9x + 21 = 1 in Student View and Teacher
-//                      Preview, plus the embedded Step Algebra inside the 3×3:
-//                      the equation must not change while subtract 21 is
-//                      hovered or placed on one side, and must change exactly
-//                      once, to the unsimplified result, when both sides are
-//                      placed
+//                      Preview: selecting/typing does not preview; an actual
+//                      drag and one-sided drop DO show a layout-neutral ghost
+//                      preview; committed state changes only after both sides.
 //
 // Exit code 1 on any finding. Screenshots and a report of every observed value
 // land in tests/browser/artifacts/algebraicSystems3x3/.
@@ -544,6 +542,7 @@ const runNoPreview = async (context, scope) => {
     expect(journey, JSON.stringify(await visibleEquation(host)) === JSON.stringify(committed), 'choosing Subtract changed the equation');
     await typeOperand(page, host, '21');
     expect(journey, JSON.stringify(await visibleEquation(host)) === JSON.stringify(committed), 'typing the operand changed the equation');
+    expect(journey, await host.locator('.algebra-live-math-preview').count() === 0, 'typing alone showed a drag/drop preview');
 
     // A real pointer drag from the pick-up button over each side.
     const pickup = host.locator('button.algebra-pickup-button');
@@ -555,9 +554,11 @@ const runNoPreview = async (context, scope) => {
     await page.mouse.move(left.x + left.width * 0.55, left.y + left.height * 0.52, { steps: 12 });
     await settle(page, 250);
     observed.hoverCue = await host.locator('.algebra-placement-cue.is-hover, .algebra-term-placement-cue.is-hover').count();
+    observed.hoverPreview = await host.locator('.algebra-live-math-preview.is-hover[data-preview-side="left"]').count();
     observed.hovering = await visibleEquation(host);
-    expect(journey, JSON.stringify(observed.hovering) === JSON.stringify(committed), `hovering the left side changed the equation: ${JSON.stringify(observed.hovering)}`);
+    expect(journey, JSON.stringify(observed.hovering) === JSON.stringify(committed), `hovering the left side changed committed equation text: ${JSON.stringify(observed.hovering)}`);
     expect(journey, observed.hoverCue > 0, 'no placement cue showed where the operation would land');
+    expect(journey, observed.hoverPreview === 1, 'the mathematical drag preview did not appear over the left side');
     await shoot(page, `${journey}-1-hover-left`);
     await page.mouse.move(right.x + right.width * 0.45, right.y + right.height * 0.52, { steps: 12 });
     await settle(page, 200);
@@ -568,8 +569,10 @@ const runNoPreview = async (context, scope) => {
 
     observed.oneSided = await visibleEquation(host);
     observed.marker = await host.locator('.algebra-placement-marker').allInnerTexts();
-    expect(journey, JSON.stringify(observed.oneSided) === JSON.stringify(committed), `placing on ONE side changed the equation: ${JSON.stringify(observed.oneSided)}`);
+    observed.stagedPreview = await host.locator('.algebra-live-math-preview.is-staged[data-preview-side="left"]').count();
+    expect(journey, JSON.stringify(observed.oneSided) === JSON.stringify(committed), `placing on ONE side changed committed equation text: ${JSON.stringify(observed.oneSided)}`);
     expect(journey, (await mathState(host)) === committedState, 'the committed equation state changed after a one-sided placement');
+    expect(journey, observed.stagedPreview === 1, 'the dropped operation did not remain visibly previewed on the staged side');
     expect(journey, observed.marker.some((text) => /21/.test(text) && /placed/.test(text)), `the placed side was not marked: ${JSON.stringify(observed.marker)}`);
     await shoot(page, `${journey}-2-one-side-placed`);
 
