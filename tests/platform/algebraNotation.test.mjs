@@ -103,3 +103,26 @@ test('a question authored with equationLatex builds the workspace', () => {
   assert.equal(parseEquationInput({ equation: 'x = 1', equationLatex: 'y = 2' }).left, 'x');
   assert.throws(() => parseEquationInput({ prompt: 'Solve.' }));
 });
+
+
+test('fraction substitution multiplication stays valid traditional LaTeX', () => {
+  const grouped = equationToLatex({ left: '-3 * (20 / 9) - 3 * y', right: '1' });
+  assertTraditional(grouped, 'grouped exact-fraction substitution');
+  assert.match(grouped, /\\frac\{20\}\{9\}/);
+  assert.match(grouped, /3\\left\(/);
+
+  // Even if a machine-side normalization has already associated the scalar
+  // into the fraction numerator, the notation cleaner must never move TeX
+  // denominator braces inside a multiplication parenthesis.
+  const flattened = equationToLatex({ left: '-3 * 20 / 9 - 3 * y', right: '1' });
+  assertTraditional(flattened, 'flattened exact-fraction substitution');
+  assert.match(flattened, /\\frac\{/);
+  let depth = 0;
+  for (const char of flattened) {
+    if (char === '{') depth += 1;
+    if (char === '}') depth -= 1;
+    assert.ok(depth >= 0, `unbalanced TeX braces: ${flattened}`);
+  }
+  assert.equal(depth, 0, `unbalanced TeX braces: ${flattened}`);
+  assert.doesNotMatch(flattened, /20\}\{9\}\\right/);
+});
