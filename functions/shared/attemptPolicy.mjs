@@ -56,17 +56,33 @@ export const isChoiceOnlyQuestion = (question = {}) => {
   return fields.length > 0 && fields.every(isRenderedAssignmentChoiceField);
 };
 
+export const resolveTeacherGrantedExtraAttempts = ({
+  assignment = {},
+  activityRole = null,
+  classId = null,
+} = {}) => {
+  if (String(activityRole || '').trim().toLowerCase() !== 'dol' || !classId) return 0;
+  const grant = assignment?.dol?.attemptGrantsByClassId?.[classId];
+  const value = grant && typeof grant === 'object' ? grant.extraAttempts : grant;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.min(20, Math.floor(parsed)));
+};
+
 export const resolveQuestionMaximumAttempts = ({
   question = {},
   maximumAttempts = null,
   activityPolicy = null,
+  teacherGrantedExtraAttempts = 0,
 } = {}) => {
   const requested = Math.max(
     1,
     Number(maximumAttempts ?? activityPolicy?.attempts ?? MAX_ATTEMPTS_PER_QUESTION)
       || MAX_ATTEMPTS_PER_QUESTION,
   );
-  return isChoiceOnlyQuestion(question) ? 1 : requested;
+  const base = isChoiceOnlyQuestion(question) ? 1 : requested;
+  const teacherBonus = Math.max(0, Math.min(20, Math.floor(Number(teacherGrantedExtraAttempts) || 0)));
+  return base + teacherBonus;
 };
 
 export const resolveQuestionReplacementAllowed = ({
@@ -270,13 +286,15 @@ export const recordQuestionStep = ({
   const current = normalizeQuestionRecord(record);
   const occurrenceIso = resolveOccurrenceIso(occurredAt);
 
-  if (current.status === 'correct' || current.status === 'expired') {
+  const expiredWithoutTeacherRoom = current.status === 'expired'
+    && getAttemptsRemaining(current, maximumAttempts) <= 0;
+  if (current.status === 'correct' || expiredWithoutTeacherRoom) {
     return {
       record: current,
       result: {
         status: current.status,
         remainingAttempts: getAttemptsRemaining(current, maximumAttempts),
-        expired: current.status === 'expired',
+        expired: expiredWithoutTeacherRoom,
         partialCredit: current.partialCredit,
       },
     };
@@ -388,7 +406,7 @@ export const recordQuestionAttempt = ({
     };
   }
 
-  if (current.status === 'expired') {
+  if (current.status === 'expired' && getAttemptsRemaining(current, maximumAttempts) <= 0) {
     return {
       record: current,
       result: {
