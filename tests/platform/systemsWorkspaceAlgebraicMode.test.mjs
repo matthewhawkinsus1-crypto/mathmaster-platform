@@ -338,8 +338,12 @@ test('embedded Step Algebra owns universal Undo while a one-variable solve is ac
 });
 
 test('ordered-pair display uses coordinate values rather than x = / y = labels', () => {
-  assert.match(modeSource, /Ordered-pair solution:[\s\S]*\(\{solution\[variables\[0\]\]\}, \{solution\[variables\[1\]\]\}\)/);
-  assert.doesNotMatch(modeSource, /Ordered-pair solution:[\s\S]{0,180}\{variables\[0\]\}\s*=\s*\{solution/);
+  const orderedPair = region(modeSource, '<strong>Ordered-pair solution:</strong>', '{isDegenerate ? (', 'ordered-pair display');
+  assert.match(orderedPair, /MathDisplay/);
+  assert.match(orderedPair, /solutionExpressions\[variables\[0\]\]/);
+  assert.match(orderedPair, /solutionExpressions\[variables\[1\]\]/);
+  assert.doesNotMatch(orderedPair, /variables\[0\].*=/);
+  assert.doesNotMatch(orderedPair, /variables\[1\].*=/);
 });
 
 
@@ -411,11 +415,9 @@ test('the systems work trail compresses completed mathematical decisions instead
   assert.match(modeSource, /function SystemsWorkTrail/);
   assert.match(modeSource, /mathmaster-systems-completed-work/);
   assert.match(modeSource, /workTrailStages/);
-  // The substitute stage's summary names the equation that received the
-  // expression — "Equation 2" standalone, "R₂" inside a 3×3 reduction (#341) —
-  // through the one naming helper, so the chip always matches the card label.
+  // Standalone systems say Equation 1/2; reduced 3×3 subsystems use R₁/R₂.
   const trail = region(modeSource, 'const workTrailStages = useMemo(', '  ]);', 'work trail stages');
-  assert.match(trail, /summary: substitution\.equationText \? `\$\{equationName\(Number\(substitution\.targetEquationIndex \?\? otherIndex\)\)\}: \$\{substitution\.equationText\}`/);
+  assert.match(trail, /equationName\(Number\(substitution\.targetEquationIndex/);
   assert.match(modeSource, /const equationName = \(index\) => subsystem\?\.equationLabels\?\.\[index\] \|\| `Equation \$\{index \+ 1\}`;/);
 });
 
@@ -463,4 +465,52 @@ test('V5 solveSystem intent preserves the algebraic systemsWorkspace contract', 
   assert.equal(question.requireVerification, true);
   assert.equal(question.askEfficiency, false);
   assert.equal(validateToolQuestion(question).isValid, true);
+});
+
+
+test('systems preserves the exact solved expression separately from its numeric grading value', () => {
+  assert.match(modeSource, /const solvedValueFor = \(latexResponse, variable\) =>/);
+  assert.match(modeSource, /\{ variable, value, expression \}/);
+  assert.match(modeSource, /firstSolvedExpression = firstSolvedDone \? solvedRecordExpression\(firstSolved\) : ''/);
+  assert.match(modeSource, /substituteIntoEquation\(equations\[backSub\.equationIndex\], survivingVariable, firstSolvedExpression\)/);
+  assert.doesNotMatch(modeSource, /substituteIntoEquation\(equations\[backSub\.equationIndex\], survivingVariable, String\(firstSolved\.value\)\)/);
+});
+
+test('back-substitution and verification tokens use exact expressions instead of decimalized numeric values', () => {
+  assert.match(modeSource, /expression=\{firstSolvedExpression\}/);
+  assert.match(modeSource, /solutionExpressions\[variable\]/);
+  assert.match(modeSource, /placedValues=\{Object\.fromEntries\([\s\S]*solutionExpressions\[variable\]/);
+  assert.match(modeSource, /substituteIntoEquation\(eq, variables\[0\], solutionExpressions\[variables\[0\]\]\)/);
+});
+
+test('systems work trail renders mathematical summaries as MathDisplay instead of exposing machine syntax', () => {
+  const trail = region(modeSource, 'function SystemsWorkTrail', 'const cleanCoefficient', 'SystemsWorkTrail');
+  assert.match(trail, /stage\.summaryMath \|\| stage\.summaryLatex/);
+  assert.match(trail, /value=\{stage\.summaryLatex \|\| stage\.summaryMath\}/);
+  assert.match(trail, /format=\{stage\.summaryLatex \? 'latex' : 'ascii-math'\}/);
+  assert.match(modeSource, /summaryMath: isolationDone/);
+  assert.match(modeSource, /summaryLatex: isolationDone/);
+  assert.match(modeSource, /displayedIsolationExpression/);
+  assert.match(modeSource, /summaryMath: substitution\.equationText/);
+  assert.match(modeSource, /summaryLatex: substitution\.equationText/);
+});
+
+test('the isolation work trail follows the student-selected simplified token form when one exists', () => {
+  assert.match(modeSource, /displayedIsolationExpression = normalizeStudentExpressionForDisplay\(substitutionTokenExpression \|\| isolatedExpr \|\| ''\)/);
+  assert.match(modeSource, /summaryMath: isolationDone && selection\.variable \? `\$\{selection\.variable\} = \$\{displayedIsolationExpression\}`/);
+});
+
+
+test('Systems Undo falls back to parent workflow history after local Step Algebra history is exhausted', () => {
+  assert.match(modeSource, /embeddedUndoController\?\.canUndo/);
+  assert.match(modeSource, /: undoHistory\.capability/);
+  assert.doesNotMatch(modeSource, /disabled:\s*!embeddedUndoController\.canUndo/);
+});
+
+test('completed systems history carries classroom LaTeX in addition to machine-safe math text', () => {
+  assert.match(modeSource, /classroomEquationLatex/);
+  assert.match(modeSource, /classroomAssignmentLatex/);
+  assert.match(modeSource, /summaryLatex:/);
+  const trail = region(modeSource, 'function SystemsWorkTrail', 'const cleanCoefficient', 'SystemsWorkTrail');
+  assert.match(trail, /format=\{stage\.summaryLatex \? 'latex' : 'ascii-math'\}/);
 });
