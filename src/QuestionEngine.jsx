@@ -1205,8 +1205,8 @@ export default function QuestionEngine({
           role="status"
           className="mathmaster-question-attempt-strip"
           style={{
-            border: `1px solid ${terminalFeedbackHidden ? '#c9d6e8' : record.status === 'attempted' ? '#f9ab00' : record.status === 'expired' ? '#e0b4b0' : record.status === 'correct' ? '#a8dab5' : '#d9e2f1'}`,
-            background: terminalFeedbackHidden ? '#f4f7fb' : record.status === 'attempted' ? '#fef7e0' : record.status === 'expired' ? '#fce8e6' : record.status === 'correct' ? '#e6f4ea' : '#f8fbff',
+            border: `1px solid ${terminalFeedbackHidden ? '#c9d6e8' : (record.status === 'attempted' || (record.status === 'expired' && !isExpired)) ? '#f9ab00' : isExpired ? '#e0b4b0' : record.status === 'correct' ? '#a8dab5' : '#d9e2f1'}`,
+            background: terminalFeedbackHidden ? '#f4f7fb' : (record.status === 'attempted' || (record.status === 'expired' && !isExpired)) ? '#fef7e0' : isExpired ? '#fce8e6' : record.status === 'correct' ? '#e6f4ea' : '#f8fbff',
             color: '#3c4043',
           }}
         >
@@ -1215,7 +1215,7 @@ export default function QuestionEngine({
               ? 'Response submitted'
               : record.status === 'correct'
                 ? 'Question complete'
-                : record.status === 'expired'
+                : isExpired
                   ? 'This question is closed'
                   : `${remainingAttempts} of ${resolvedMaximumAttempts} ${resolvedMaximumAttempts === 1 ? 'try' : 'tries'} left`}
           </strong>
@@ -1406,9 +1406,9 @@ export default function QuestionEngine({
         <div style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', backgroundColor: feedback.isCorrect ? '#e6f4ea' : '#fce8e6', color: feedback.isCorrect ? '#137333' : '#c5221f', fontSize: '16px', fontWeight: 'bold' }}>
           {feedback.message || (feedback.isCorrect
             ? 'Correct! This question is complete.'
-            : feedback.expired
+            : isExpired
               ? `That was the final allowed attempt (${resolvedMaximumAttempts} total). This response is locked.${resolvedActivityPolicy?.allowReplacement ? ' Review the solution, then request a new question to continue.' : ''}`
-              : `Not quite. You have ${feedback.remainingAttempts} ${feedback.remainingAttempts === 1 ? 'attempt' : 'attempts'} remaining on this version.`)}
+              : `Not quite. You have ${remainingAttempts} ${remainingAttempts === 1 ? 'attempt' : 'attempts'} remaining on this version.`)}
           {!feedback.isCorrect && isComposed && workflowSubmissionReview?.parts?.some((part) => part?.graded !== false && !part?.isCorrect) && (
             <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>
               The red steps above are the specific responses that need revision. MathMaster moved you to the first one.
