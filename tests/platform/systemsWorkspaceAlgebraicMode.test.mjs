@@ -260,6 +260,15 @@ test('a nontrivial multiplier is not accepted until the student supplies the tra
   assert.doesNotMatch(nontrivialBranch, /\[index\]: true/);
 });
 
+test('an equation with scale factor 1 is ready automatically instead of asking the student to multiply by 1', () => {
+  assert.match(modeSource, /const multiplierIsIdentity = useCallback/);
+  assert.match(modeSource, /appliedMultipliers\[index\] \|\| multiplierIsIdentity\(index\)/);
+  assert.match(modeSource, /const multipliersApplied = multiplierRowReady\(0\) && multiplierRowReady\(1\)/);
+  assert.match(modeSource, /Equation stays as written/);
+  assert.doesNotMatch(modeSource, />Use as written</);
+  assert.doesNotMatch(modeSource, /⠿ ×/);
+});
+
 test('the combine step keeps the equations stacked and puts + / − controls beside equation 2', () => {
   assert.match(modeSource, /mathmaster-systems-combine-stack/);
   assert.match(modeSource, /mathmaster-systems-operation-rail/);
