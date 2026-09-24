@@ -31,6 +31,7 @@ import {
   buildStudentAuthoredAbsoluteValueSplit,
   parseRelationSource,
   relationStateToLatex,
+  restorableRelationState,
   validateRelationTransition,
 } from '../../src/algebraRelationFoundation.js';
 import { buildSubstitutionState, expectedInterceptPoint, resolveStandardCoefficients } from '../../src/tools/stepAlgebra2/linearInterceptsMath.js';
@@ -126,6 +127,14 @@ const BEHAVIOUR = {
     assert.match(read('src/tools/systemsWorkspace/substitutionReduction.js'), /export const/);
   },
   'work-persistence': () => {},
+  'relation-persistence': (question) => {
+    const saved = JSON.parse(JSON.stringify(applyBalancedOperationToRelation(parseRelationSource(question.equation, 'x'), 'divide', '-2').state));
+    assert.deepEqual(restorableRelationState(saved), saved, 'a saved relation state round-trips through the draft');
+  },
+  'draft-recovery': () => {
+    assert.equal(restorableRelationState({ branches: 'broken' }), null);
+    assert.equal(restorableRelationState({ branches: [{ expressions: ['x', 5], relations: ['<'] }] }), null);
+  },
   'work-view': () => {},
   'history-notation': (question) => {
     assert.doesNotMatch(relationStateToLatex(parseRelationSource(question.equation, 'x')), /<=|>=|abs\(|\*/);

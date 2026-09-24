@@ -238,6 +238,30 @@ export const INTERACTIVE_CAPABILITIES = Object.freeze([
     browser: { harness: 'tests/browser/capabilityCertification.mjs', journey: 'work-persistence' },
   },
   {
+    id: 'relation-persistence',
+    label: 'Inequality Work Persistence',
+    subsystem: 'PERSISTENCE',
+    fixture: 'inequality-reversal',
+    expectedRoute: 'relation',
+    requires: 'draftPersistence',
+    wiring: [
+      { file: 'src/MultiRelationAlgebraCore.jsx', pattern: /writeQuestionDraft\(draftKeyFor\(draftKey\)/ },
+    ],
+    browser: { harness: 'tests/browser/capabilityCertification.mjs', journey: 'relation-persistence' },
+  },
+  {
+    id: 'draft-recovery',
+    label: 'Malformed Draft Recovery',
+    subsystem: 'PERSISTENCE',
+    fixture: 'inequality-reversal',
+    expectedRoute: 'relation',
+    requires: 'draftPersistence',
+    wiring: [
+      { file: 'src/MultiRelationAlgebraCore.jsx', pattern: /const relationState = restorableRelationState\(saved\.relationState\)/ },
+    ],
+    browser: { harness: 'tests/browser/capabilityCertification.mjs', journey: 'draft-recovery' },
+  },
+  {
     id: 'work-view',
     label: 'Work View',
     subsystem: 'MOBILE/WORK VIEW',

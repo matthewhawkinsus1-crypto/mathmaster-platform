@@ -158,6 +158,45 @@ export const parseRelationSource = (raw, variable = 'x') => {
 };
 
 export const cloneRelationState = (state) => JSON.parse(JSON.stringify(state));
+
+const RESTORABLE_RELATIONS = new Set(['=', '<', '<=', '>', '>=']);
+
+/**
+ * A saved relation state, or null when it cannot safely be drawn.
+ *
+ * Drafts come back from localStorage and from another device's Firestore
+ * copy; either can be truncated, from an older shape, or simply wrong. Handing
+ * a malformed state to the workspace crashed the whole question ("This
+ * question could not be displayed"), losing the student's way back in. Only
+ * a structurally sound state is restored — otherwise the caller starts from the
+ * question itself, which is always a valid place to resume from.
+ */
+export const restorableRelationState = (state) => {
+  if (!state || typeof state !== 'object' || Array.isArray(state)) return null;
+  if (state.special === 'noSolution' || state.special === 'allReals') {
+    return typeof state.variable === 'string' || state.variable == null ? state : null;
+  }
+  if (state.special != null) return null;
+  if (!Array.isArray(state.branches) || !state.branches.length) return null;
+  if (state.connective != null && !['OR', 'AND'].includes(state.connective)) return null;
+  if (state.variable != null && typeof state.variable !== 'string') return null;
+  const branchesSound = state.branches.every((branch) => (
+    branch && typeof branch === 'object'
+    && Array.isArray(branch.expressions) && branch.expressions.length >= 2
+    && Array.isArray(branch.relations) && branch.relations.length === branch.expressions.length - 1
+    && branch.relations.every((relation) => RESTORABLE_RELATIONS.has(relation))
+    && branch.expressions.every((expression) => {
+      if (typeof expression !== 'string' || !expression.trim()) return false;
+      try {
+        parse(expression);
+        return true;
+      } catch {
+        return false;
+      }
+    })
+  ));
+  return branchesSound ? state : null;
+};
 export const reverseRelation = (relation) => REVERSED[relation] || relation;
 
 export const relationStateToLatex = (state) => {

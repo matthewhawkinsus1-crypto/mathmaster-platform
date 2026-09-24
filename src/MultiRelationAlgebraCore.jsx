@@ -34,6 +34,7 @@ import {
   relationStateToLatex,
   relationStateToText,
   resolveRelationNumberLineConfig,
+  restorableRelationState,
   takeSquareRootOfRelation,
   validateRelationTransition,
 } from './algebraRelationFoundation.js';
@@ -80,9 +81,38 @@ const pendingFlipForBranch = (pending, branchIndex) => (
   pendingFlipResultsFor(pending).find((item) => item.branchIndex === branchIndex) || null
 );
 
-const initialStateFor = (question, draftKey) => {
+// One reader for the saved draft, so no field reaches the workspace unchecked.
+// A malformed relation state, pending symbol step or candidate map is dropped
+// and the question resumes from its own equation instead of failing to open.
+const readRelationDraft = (draftKey) => {
   const saved = readQuestionDraft(draftKeyFor(draftKey), null);
-  if (saved?.relationState) return saved.relationState;
+  if (!saved || typeof saved !== 'object' || Array.isArray(saved)) {
+    return { relationState: null, pendingRelationFlip: null, candidateChecks: {} };
+  }
+  const relationState = restorableRelationState(saved.relationState);
+  const pending = saved.pendingRelationFlip;
+  const pendingSound = Boolean(
+    relationState
+    && pending && typeof pending === 'object' && !Array.isArray(pending)
+    && pendingFlipResultsFor(pending).length
+    && pendingFlipResultsFor(pending).every((item) => (
+      Number.isInteger(item?.branchIndex)
+      && relationState.branches?.[item.branchIndex]
+      && Array.isArray(item.expectedRelations)
+    ))
+    && (!pending.before || restorableRelationState(pending.before))
+  );
+  const checks = saved.candidateChecks;
+  return {
+    relationState,
+    pendingRelationFlip: pendingSound ? pending : null,
+    candidateChecks: checks && typeof checks === 'object' && !Array.isArray(checks) ? checks : {},
+  };
+};
+
+const initialStateFor = (question, draftKey) => {
+  const saved = readRelationDraft(draftKey);
+  if (saved.relationState) return saved.relationState;
 
   const source = relationSourceFromQuestion(question);
   if (!source) {
@@ -99,13 +129,9 @@ const initialStateFor = (question, draftKey) => {
   );
 };
 
-const initialPendingRelationFlipFor = (draftKey) => (
-  readQuestionDraft(draftKeyFor(draftKey), null)?.pendingRelationFlip || null
-);
+const initialPendingRelationFlipFor = (draftKey) => readRelationDraft(draftKey).pendingRelationFlip;
 
-const initialCandidateChecksFor = (draftKey) => (
-  readQuestionDraft(draftKeyFor(draftKey), null)?.candidateChecks || {}
-);
+const initialCandidateChecksFor = (draftKey) => readRelationDraft(draftKey).candidateChecks;
 
 const compactText = (value) => String(value ?? '').replace(/\s+/g, '');
 

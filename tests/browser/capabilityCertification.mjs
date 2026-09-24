@@ -23,6 +23,8 @@
 //   work-view                  Enlarge keeps the task and the equation; closing keeps both
 //   inequality-sign-reversal   −2x + 3 > 7 ÷ −2: the kept symbol is refused, the reversed one accepted
 //   history-notation           the relation history shows math, not abs(…) / <= / *
+//   relation-persistence       the reversed-symbol step survives a full reload
+//   draft-recovery             a corrupted relation draft resumes the question instead of crashing it
 //   absolute-value             |2x − 3| = 7: a one-sided split is refused, 7 OR −7 is accepted
 //   absolute-value-inequality  |x − 2| < 5: −5 < x − 2 < 5 built by the student
 //   xy-intercepts              3x + 4y = 24: y = 0 dropped on y, then the mature engine solves
@@ -375,6 +377,39 @@ await journey('absolute-value-inequality', 'absolute-value-inequality', async (p
   const after = await state(page);
   check(/-\s*5\s*<\s*x\s*-\s*2\s*<\s*5/.test(after), `−5 < x − 2 < 5: ${after}`);
   return { after };
+});
+
+await journey('relation-persistence', 'inequality-reversal', async (page, step) => {
+  await divideRelationByNegativeTwo(page, step);
+  await chooseSymbol(page, '<');
+  const committed = await state(page);
+  step('reload the page');
+  await page.reload();
+  await page.waitForSelector('[data-math-state]', { timeout: 30000 });
+  await settle(page, 1200);
+  const restored = await state(page);
+  check(restored === committed, `the relation work survives a reload: ${restored} vs ${committed}`);
+  return { committed, restored };
+});
+
+await journey('draft-recovery', 'inequality-reversal', async (page, step) => {
+  await divideRelationByNegativeTwo(page, step);
+  await chooseSymbol(page, '<');
+  step('corrupt every saved draft for this question');
+  await page.evaluate(() => {
+    Object.keys(localStorage).filter((key) => key.includes('capability-certification')).forEach((key) => {
+      localStorage.setItem(key, JSON.stringify({ version: 2, savedAt: Date.now(), value: { relationState: { branches: 'broken' }, pendingRelationFlip: 42, candidateChecks: [1] } }));
+    });
+  });
+  step('reload');
+  await page.reload();
+  await page.waitForSelector('[data-algebra-route]', { timeout: 30000 });
+  await settle(page, 1200);
+  const text = await page.locator('.mathmaster-question-tool-workspace').first().innerText();
+  check(!/could not be displayed/i.test(text), 'a malformed draft must not stop the question from opening');
+  const resumed = await state(page);
+  check(/-\s*2\s*x\s*\+\s*3\s*>\s*7/.test(resumed), `the question resumes from its own inequality: ${resumed}`);
+  return { resumed };
 });
 
 // ------------------------------------------------------------------ INTERCEPTS
