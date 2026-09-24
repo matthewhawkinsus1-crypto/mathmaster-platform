@@ -610,7 +610,8 @@
 }
 
 .mathmaster-systems-check-products,
-.mathmaster-systems-confirm-cancellation {
+.mathmaster-systems-confirm-cancellation,
+.mathmaster-systems-check-combination {
   min-height: 40px;
   width: fit-content;
   padding: 7px 13px;
@@ -622,7 +623,8 @@
   cursor: pointer;
 }
 
-.mathmaster-systems-confirm-cancellation:disabled {
+.mathmaster-systems-confirm-cancellation:disabled,
+.mathmaster-systems-check-combination:disabled {
   background: #d7dde7;
   color: #7b8493;
   cursor: not-allowed;
@@ -665,6 +667,59 @@
   font-size: 12px;
   line-height: 1.35;
 }
+
+.mathmaster-systems-student-combination {
+  display: grid;
+  gap: 10px;
+  margin-top: 2px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(107, 91, 53, .22);
+}
+
+.mathmaster-systems-student-combination-heading strong,
+.mathmaster-systems-student-combination-heading span {
+  display: block;
+}
+
+.mathmaster-systems-student-combination-heading strong {
+  color: #202124;
+  font-size: 14px;
+}
+
+.mathmaster-systems-student-combination-heading span {
+  margin-top: 3px;
+  color: #6b5b35;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.mathmaster-systems-student-combination-equation {
+  display: grid;
+  grid-template-columns: minmax(90px, 150px) auto auto minmax(90px, 150px);
+  align-items: center;
+  justify-content: start;
+  gap: 8px;
+  font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
+}
+
+.mathmaster-systems-student-combination-variable,
+.mathmaster-systems-student-combination-equals {
+  color: #172033;
+  font-size: 25px;
+  font-weight: 800;
+}
+
+.mathmaster-systems-combination-feedback {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.mathmaster-systems-combination-feedback.is-error {
+  color: #a02020;
+}
+
 
 .mathmaster-systems-combine-stage {
   display: grid;
@@ -889,8 +944,13 @@
   }
 
   .mathmaster-systems-check-products,
-  .mathmaster-systems-confirm-cancellation {
+  .mathmaster-systems-confirm-cancellation,
+  .mathmaster-systems-check-combination {
     width: 100%;
+  }
+
+  .mathmaster-systems-student-combination-equation {
+    grid-template-columns: minmax(0, 1fr) auto auto minmax(0, 1fr);
   }
 
   .mathmaster-systems-multiplier-composer > span {
