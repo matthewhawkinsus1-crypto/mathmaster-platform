@@ -194,29 +194,83 @@
   background: #ad6a00;
 }
 
-.algebra-semantic-placement {
+/*
+ * STAGED-OPERATION CUES (#341).
+ *
+ * While a balanced move is only part-way placed, the equation text must stay
+ * exactly the committed equation. Every cue below is therefore drawn with an
+ * outline or a pseudo-element: it shows WHERE the student's operation will
+ * land without writing the operand into the expression, and it takes no
+ * layout space, so the auto-fit never re-measures and the math never jumps.
+ */
+.algebra-equation-side.algebra-placement-cue {
+  position: relative;
   border-radius: 10px;
-  padding: 5px 8px;
-  transition: background 120ms ease, outline-color 120ms ease, opacity 120ms ease;
+  transition: background 120ms ease, box-shadow 120ms ease;
 }
 
-.algebra-placement-preview {
-  outline: 2px dashed rgba(26,115,232,.48);
-  outline-offset: 4px;
+.algebra-equation-side.algebra-placement-cue.is-hover {
+  box-shadow: 0 0 0 2px rgba(26,115,232,.34);
   background: rgba(26,115,232,.035);
-  opacity: .82;
 }
 
-.algebra-placement-committed {
-  outline: 2px solid rgba(249,171,0,.52);
-  outline-offset: 4px;
-  background: rgba(249,171,0,.055);
+.algebra-equation-side.algebra-placement-cue.is-staged {
+  box-shadow: 0 0 0 2px rgba(249,171,0,.55);
+  background: rgba(249,171,0,.05);
 }
 
-.algebra-staged-operand {
-  color: #174ea6;
+/* × lands in front of or behind the whole side; ÷ lands beneath it. A bar on
+   that edge says so without drawing the factor or the fraction. */
+.algebra-placement-cue.is-factor-cue::after {
+  content: '';
+  position: absolute;
+  border-radius: 999px;
+  background: currentColor;
+  color: #1a73e8;
+  opacity: .7;
+  pointer-events: none;
+}
+
+.algebra-placement-cue.is-staged.is-factor-cue::after { color: #e37400; }
+.algebra-placement-cue.is-factor-before::after { left: -8px; top: 12%; bottom: 12%; width: 4px; }
+.algebra-placement-cue.is-factor-after::after { right: -8px; top: 12%; bottom: 12%; width: 4px; }
+.algebra-placement-cue.is-factor-below::after { left: 10%; right: 10%; bottom: -8px; height: 4px; }
+
+/* + / − lands before, after, or under one particular term. */
+.algebra-term-placement-cue::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  border-radius: 999px;
+  background: #1a73e8;
+  opacity: .75;
+}
+
+.algebra-term-placement-cue.is-staged::after { background: #e37400; }
+.algebra-term-placement-cue.is-before::after { left: -7px; top: 8%; bottom: 8%; width: 3px; }
+.algebra-term-placement-cue.is-after::after { right: -7px; top: 8%; bottom: 8%; width: 3px; }
+.algebra-term-placement-cue.is-under::after { left: 4%; right: 4%; bottom: -9px; height: 3px; }
+
+.algebra-placement-marker {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #fef7e0;
+  border: 1px solid rgba(227,116,0,.35);
+  color: #8a4b00;
+  font-size: 13px;
   font-weight: 800;
+  white-space: nowrap;
+  pointer-events: none;
 }
+
+.algebra-placement-marker-check { color: #137333; }
 
 .algebra-cancellation-cue {
   margin-top: 6px;
@@ -390,7 +444,7 @@
 @media (prefers-reduced-motion: reduce) {
   .algebra-balance-beam,
   .algebra-balance-equals,
-  .algebra-semantic-placement,
+  .algebra-placement-cue,
   .algebra-rail-tile { transition: none !important; }
 }
 

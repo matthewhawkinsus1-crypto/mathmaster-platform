@@ -26,8 +26,14 @@ test('workspace resolves additive placement around individual terms', () => {
   assert.match(src, /placementBySideOverride/);
 });
 
-test('term row supports a below-term operation preview', () => {
+test('term row cues where a staged + / − will land without writing the operand into the expression (#341)', () => {
   const src = fs.readFileSync('src/AlgebraTermRow.jsx', 'utf8');
-  assert.match(src, /underTermPreview/);
-  assert.match(src, /algebra-under-term-operation/);
+  // The cue is a class on the term the pointer is actually over, drawn by CSS
+  // beside it. The old `underTermPreview` rendered the student's operand
+  // inside the row, which previewed the move before it was committed.
+  assert.match(src, /placementCue\?\.termIndex === index/);
+  assert.match(src, /algebra-term-placement-cue is-\$\{/);
+  assert.doesNotMatch(src, /underTermPreview|algebra-under-term-operation/);
+  const css = fs.readFileSync('src/StepByStepAlgebra.css', 'utf8');
+  assert.match(css, /\.algebra-term-placement-cue\.is-under::after/);
 });

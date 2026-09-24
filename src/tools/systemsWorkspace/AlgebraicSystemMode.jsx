@@ -27,8 +27,10 @@ import {
   evaluateEquationSides,
   normalizeEquationForStepAlgebra,
   repairPersistedIsolation,
-  rationalExpressionFromNumber,
-  normalizeStudentExpressionForDisplay,
+  equationMentionsVariable,
+  exactNumberText,
+  presentableExpression,
+  classroomEquationText,
 } from './algebraicSystemsEngine.js';
 
 const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '11px 12px', border: '1px solid #cfd8e6', borderRadius: 9, background: '#fff', fontSize: 15, minHeight: 44 };
@@ -72,7 +74,7 @@ const equationIdentity = (value) => {
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-function MathDragToken({
+export function MathDragToken({
   payloadPrefix,
   payloadValue,
   expression,
@@ -102,7 +104,7 @@ function MathDragToken({
   );
 }
 
-function SubstitutionToken({ variable, expression, onArm, label = null }) {
+export function SubstitutionToken({ variable, expression, onArm, label = null }) {
   return (
     <MathDragToken
       payloadPrefix="mathmaster-substitution:"
@@ -115,7 +117,7 @@ function SubstitutionToken({ variable, expression, onArm, label = null }) {
   );
 }
 
-function VariableDropEquation({
+export function VariableDropEquation({
   equationText,
   variables,
   onVariableAttempt,
@@ -136,7 +138,8 @@ function VariableDropEquation({
     <div className="mathmaster-systems-drop-equation" role="group" aria-label={label}>
       {parts.map((part, index) => {
         if (!variables.includes(part)) {
-          return <span key={`text-${index}`} className="mathmaster-systems-equation-text">{part}</span>;
+          // Typeset minus, not a hyphen: "= −y − z" instead of "=- y - z".
+          return <span key={`text-${index}`} className="mathmaster-systems-equation-text">{part.replace(/-/g, '\u2212')}</span>;
         }
         const hasPlacedValue = Object.prototype.hasOwnProperty.call(placedValues || {}, part);
         return (
@@ -173,9 +176,7 @@ function VariableDropEquation({
               : `Variable ${part}. Drop the selected math token here`}
             title="Drop the selected value or expression here if you think it belongs at this variable."
           >
-            {hasPlacedValue ? (
-              <MathDisplay value={String(placedValues[part])} format="ascii-math" inline />
-            ) : part}
+            {hasPlacedValue ? <MathDisplay value={String(placedValues[part])} format="ascii-math" inline /> : part}
           </button>
         );
       })}
@@ -183,7 +184,7 @@ function VariableDropEquation({
   );
 }
 
-function SystemsWorkTrail({ stages = [] }) {
+export function SystemsWorkTrail({ stages = [] }) {
   const activeIndex = stages.findIndex((stage) => !stage.complete);
   return (
     <div className="mathmaster-systems-work-trail">
@@ -202,7 +203,7 @@ function SystemsWorkTrail({ stages = [] }) {
         })}
       </div>
       <div className="mathmaster-systems-completed-work">
-        {stages.filter((stage) => stage.complete && (stage.summary || stage.summaryMath)).map((stage) => (
+        {stages.filter((stage) => stage.complete && (stage.summary || stage.summaryMath || stage.summaryLatex)).map((stage) => (
           <div key={`summary-${stage.id}`} className="mathmaster-systems-completed-chip">
             <span aria-hidden="true">✓</span>
             {stage.summaryPrefix ? <span>{stage.summaryPrefix}</span> : null}
@@ -218,9 +219,7 @@ function SystemsWorkTrail({ stages = [] }) {
                   inline
                 />
               </span>
-            ) : (
-              <span>{stage.summary}</span>
-            )}
+            ) : <span>{stage.summary}</span>}
           </div>
         ))}
       </div>
@@ -291,17 +290,28 @@ function AlignedEquationRow({ equationText, variables, targetVariable, multiplie
 }
 
 /** Extracts the plain-expression value a solved Step Algebra equation isolated `variable` to. */
-const solvedExpressionFor = (latexResponse, variable) => {
+export const solvedExpressionFor = (latexResponse, variable) => {
   try {
     const plain = latexToExpression(latexResponse);
     const expression = isolatedExpressionFor(plain, variable);
-    return expression == null ? null : normalizeStudentExpressionForDisplay(expression);
+    return expression == null ? null : presentableExpression(expression);
   } catch {
     return null;
   }
 };
 
-const solvedValueFor = (latexResponse, variable) => {
+export const solvedNumberFor = (latexResponse, variable) => {
+  const expr = solvedExpressionFor(latexResponse, variable);
+  if (expr == null) return null;
+  try {
+    const value = Number(evaluate(expr));
+    return Number.isFinite(value) ? value : null;
+  } catch {
+    return null;
+  }
+};
+
+const solvedRecordFor = (latexResponse, variable) => {
   const expression = solvedExpressionFor(latexResponse, variable);
   if (expression == null) return null;
   try {
@@ -313,9 +323,8 @@ const solvedValueFor = (latexResponse, variable) => {
 };
 
 const solvedRecordExpression = (record) => {
-  const persisted = String(record?.expression || '').trim();
-  if (persisted) return normalizeStudentExpressionForDisplay(persisted);
-  return rationalExpressionFromNumber(record?.value);
+  const exact = String(record?.expression || '').trim();
+  return exact ? presentableExpression(exact) : exactNumberText(record?.value);
 };
 
 /*
@@ -329,7 +338,7 @@ const solvedRecordExpression = (record) => {
  * reports the resulting text one level up. It never solves, isolates, or
  * simplifies anything itself.
  */
-function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, onSolved, onUndoStateChange, workspaceDifficulty, autoReveal = false, autoOpenDistribution = false, simplifyDistributedProducts = false, inlineExpressionTools = true }) {
+export function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, onSolved, onUndoStateChange, workspaceDifficulty, autoReveal = false, autoOpenDistribution = false, simplifyDistributedProducts = false, inlineExpressionTools = true, objective = null, requireSimplifiedFinalForm = false, showHint = true }) {
   const normalizedEquationText = useMemo(() => {
     try {
       return normalizeEquationForStepAlgebra(equationText);
@@ -337,9 +346,23 @@ function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, 
       return equationText;
     }
   }, [equationText]);
+  // `objective` lets a reduction ask for a finished standard form instead of an
+  // isolated variable; `requireSimplifiedFinalForm` makes a value solve end on
+  // the student's own simplified number, so the workspace never evaluates
+  // x = 6 - (-1) - 3 on their behalf (#341). Both default off, which is the
+  // exact question every existing 2×2 embed has always built.
+  // Keyed by VALUE: a caller writing `objective={{ ... }}` inline must not hand
+  // Step Algebra a new question on every render, which restarts its setup.
+  const objectiveKey = objective ? JSON.stringify(objective) : '';
   const question = useMemo(() => ({
-    equation: normalizedEquationText, solveFor, prompt, workspaceDifficulty,
-  }), [normalizedEquationText, solveFor, prompt, workspaceDifficulty]);
+    equation: normalizedEquationText,
+    solveFor,
+    prompt,
+    workspaceDifficulty,
+    ...(objectiveKey ? { objective: JSON.parse(objectiveKey) } : {}),
+    ...(requireSimplifiedFinalForm ? { requireSimplifiedFinalForm: true } : {}),
+    ...(showHint ? {} : { showHint: false }),
+  }), [normalizedEquationText, solveFor, prompt, workspaceDifficulty, objectiveKey, requireSimplifiedFinalForm, showHint]);
   const hostRef = useRef(null);
   const lastReportedRef = useRef(null);
   const embeddedEquationIdentity = useMemo(
@@ -385,9 +408,49 @@ function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, draftKey, 
   );
 }
 
-export default function AlgebraicSystemMode({ questionData = {}, onAction, draftKey = null }) {
+/**
+ * The reduced subsystem's solution as its own draft record holds it, so a 3×3
+ * parent restored from a draft knows the subsystem is solved on its FIRST
+ * render instead of flashing the finished subsystem open for a frame. The
+ * field names are this component's, which is why the reader lives here.
+ */
+export const subsystemReportFromDraft = (record) => {
+  const first = record?.firstSolved;
+  const second = record?.secondSolved;
+  if (!first?.variable || !second?.variable || first.value == null || second.value == null) return null;
+  const firstValue = Number(first.value);
+  const secondValue = Number(second.value);
+  if (!Number.isFinite(firstValue) || !Number.isFinite(secondValue)) return null;
+  return {
+    solution: { [first.variable]: firstValue, [second.variable]: secondValue },
+    detail: {
+      selection: record.selection || null,
+      isolation: record.isolation ? { expression: record.isolation.expression ?? null, tokenExpression: record.isolation.tokenExpression ?? null } : null,
+      substitution: record.substitution || null,
+      firstSolved: first,
+      backSub: record.backSub || null,
+      secondSolved: second,
+    },
+  };
+};
+
+/*
+ * `subsystem` (#341): the SAME 2×2 workflow, run as the reduced system inside a
+ * 3×3 substitution. The parent (SubstitutionReductionMode) mounts it under its
+ * own draft scope and Undo channel, so every field below persists and undoes
+ * exactly as it does in a standalone 2×2 question. In this role it:
+ *   - labels its equations with the parent's lineage names (R₁, R₂);
+ *   - solves values in simplified final form and writes them exactly (7/3,
+ *     never 2.3333333333333335);
+ *   - owns no submission, verification or hint panel — it reports its
+ *     solution (or its absence, after an Undo) through `onSolutionChange`, and
+ *     the parent verifies in all three ORIGINAL equations.
+ */
+export default function AlgebraicSystemMode({ questionData = {}, onAction, draftKey = null, subsystem = null }) {
   const config = useMemo(() => normalizeAlgebraicSystemConfig(questionData), [questionData]);
   const { variables, equations } = config;
+  const equationName = (index) => subsystem?.equationLabels?.[index] || `Equation ${index + 1}`;
+  const valueText = (value) => (subsystem ? exactNumberText(value) : String(value));
 
   const [method, setMethod] = usePersistentToolState('method', config.method === 'studentChoice' ? '' : config.method);
   const effectiveMethod = config.method === 'studentChoice' ? method : config.method;
@@ -477,19 +540,24 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setVerification(value?.verification || { 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
     setMethodEfficiencyReason(value?.methodEfficiencyReason || '');
   }, [config.method]);
-  const undoHistory = useMathUndoHistory({ label: 'Undo the last algebraic-systems edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
+  const undoHistory = useMathUndoHistory({
+    label: 'Undo the last algebraic-systems edit',
+    state: mathState,
+    onRestore: restore,
+    resetKey: questionUndoResetKey(questionData),
+    ...(subsystem ? { ownerId: 'algebraic-subsystem-history' } : {}),
+  });
 
+  // The open Step Algebra owns Undo only while it has something to undo. A
+  // freshly opened solver used to hold the button disabled; now the press falls
+  // through to the systems history — the next most local action (#341).
   useActiveUndoOwner({
-    id: 'algebraic-system-embedded-step-algebra',
-    active: Boolean(embeddedUndoController),
+    id: subsystem ? 'algebraic-subsystem-embedded-step-algebra' : 'algebraic-system-embedded-step-algebra',
+    active: Boolean(embeddedUndoController?.canUndo),
     priority: 50,
     controller: embeddedUndoController,
   });
 
-  // Undo is local-first, not local-only. While Step Algebra has an
-  // internal move to undo, it owns the button. Once that local history is
-  // exhausted, fall back to the parent Systems history so the student can
-  // back out of the completed stage and choose a different valid path.
   const activeUndoCapability = embeddedUndoController?.canUndo
     ? {
       label: '↶ Undo',
@@ -544,13 +612,47 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const solutionExpressions = secondSolvedDone
     ? { [survivingVariable]: firstSolvedExpression, [removedVariable]: secondSolvedExpression }
     : null;
-  const displayedIsolationExpression = normalizeStudentExpressionForDisplay(substitutionTokenExpression || isolatedExpr || '');
+  const displayedIsolationExpression = presentableExpression(substitutionTokenExpression || isolatedExpr || '');
 
-  const bothPlaced = (index) => variables.every((v) => verification[index]?.placed?.[v]);
+  // Subsystem role: report the solution the moment it exists, and its absence
+  // the moment an Undo takes it back. The parent mirrors it; this component's
+  // draft-backed fields remain the source of truth.
+  const onSubsystemSolutionChange = subsystem?.onSolutionChange;
+  const subsystemSolutionKey = solution ? JSON.stringify(solution) : '';
+  React.useEffect(() => {
+    if (!onSubsystemSolutionChange) return;
+    onSubsystemSolutionChange(solution ? {
+      solution,
+      detail: {
+        selection,
+        isolation: { expression: isolatedExpr, tokenExpression: substitutionTokenExpression },
+        substitution,
+        firstSolved,
+        backSub,
+        secondSolved,
+      },
+    } : null);
+    // Keyed on the solution itself: re-reporting an identical solution on
+    // every render would churn the parent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onSubsystemSolutionChange, subsystemSolutionKey]);
+
+  // Only the variables an equation actually contains can be placed in it; a
+  // zero-coefficient equation (2x = 6) must not wait forever for a y.
+  const bothPlaced = (index) => variables
+    .filter((v) => equationMentionsVariable(equations[index], v))
+    .every((v) => verification[index]?.placed?.[v]);
   const allVerified = solution && verification[0].checked && verification[0].valid && verification[1].checked && verification[1].valid;
 
   // --- Handlers ------------------------------------------------------------
   const chooseSelection = (equationIndex, variable) => {
+    // A variable that does not appear in the chosen equation cannot be
+    // isolated from it; opening Step Algebra would strand the student. Say so
+    // neutrally and leave the choice with them.
+    if (equationIndex != null && !equationMentionsVariable(equations[equationIndex], variable)) {
+      setSlotAttempt({ stage: 'selection', equationIndex, variable, correct: false, reason: 'variable-absent', armed: false });
+      return;
+    }
     resetFromSelection();
     setSelection({ equationIndex, variable });
   };
@@ -559,7 +661,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     const expr = solvedExpressionFor(latexResponse, selection.variable);
     if (expr == null) return;
     setIsolation({
-      expression: expr,
+      // -(3) + (2y) reads as -3 + 2y: redundant grouping only, same tree.
+      expression: presentableExpression(expr),
       tokenExpression: null,
       simplificationDraft: '',
       simplifying: false,
@@ -886,7 +989,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   };
 
   const handleReduceSolved = useCallback((latexResponse) => {
-    const solved = solvedValueFor(latexResponse, survivingVariable);
+    const solved = solvedRecordFor(latexResponse, survivingVariable);
     if (!solved) return;
     setFirstSolved(solved);
   }, [survivingVariable]);
@@ -910,7 +1013,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   };
 
   const handleSecondSolved = useCallback((latexResponse) => {
-    const solved = solvedValueFor(latexResponse, removedVariable);
+    const solved = solvedRecordFor(latexResponse, removedVariable);
     if (!solved) return;
     setSecondSolved(solved);
   }, [removedVariable]);
@@ -1059,7 +1162,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
           label: 'Combine',
           complete: combinationLocked,
           summaryPrefix: combinationLocked ? `${combination.operation === 'subtract' ? 'Equation 1 − Equation 2' : 'Equation 1 + Equation 2'} →` : '',
-          summaryMath: combinationLocked ? combination.text : '',
+          summaryMath: combinationLocked ? classroomEquationText(combination.text) : '',
           summaryLatex: combinationLocked ? classroomEquationLatex(combination.text) : '',
         },
         ...commonEnd,
@@ -1079,8 +1182,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         id: 'substitute',
         label: 'Substitute',
         complete: Boolean(substitution.equationText),
-        summaryPrefix: substitution.equationText ? `Equation ${Number(substitution.targetEquationIndex ?? otherIndex) + 1}:` : '',
-        summaryMath: substitution.equationText || '',
+        summaryPrefix: substitution.equationText ? `${equationName(Number(substitution.targetEquationIndex ?? otherIndex))}:` : '',
+        summaryMath: substitution.equationText ? classroomEquationText(substitution.equationText) : '',
         summaryLatex: substitution.equationText ? classroomEquationLatex(substitution.equationText) : '',
       },
       ...commonEnd,
@@ -1112,50 +1215,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     otherIndex,
   ]);
 
-  return (
-    <EnlargeableFigure
-      label="Algebraic systems workspace"
-      enlargeLabel="Enlarge algebraic systems workspace"
-      style={{ width: '100%' }}
-      capabilities={{
-        undo: activeUndoCapability,
-        equationInput: { label: 'Both equations and every algebraic move', studentState: true },
-        numericControls: { label: 'Method, targets, and the final solution', studentState: true },
-        instruction: { text: 'Solve the system with substitution or elimination, showing every mathematical decision.' },
-        primaryActions: readyToSubmit ? [{ id: 'check-algebraic-system', label: 'Check my work', onAction: check }] : [],
-      }}
-    >
-      <div className={`mathmaster-algebraic-system-layout${embeddedSolverActive ? ' has-active-solver' : ''}`}>
-        <div className="mathmaster-algebraic-system-givens">
-        <Panel title="Both original equations">
-          <div style={{ display: 'grid', gap: 8 }}>
-            {equations.map((eq, index) => (
-              <div key={index} style={{ padding: '8px 10px', border: '1px solid #dbe3ef', borderRadius: 8, background: '#fff' }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#5f6b7a' }}>Equation {index + 1}</span>
-                <MathDisplay value={eq} format="ascii-math" />
-              </div>
-            ))}
-          </div>
-          {solution && solutionExpressions ? (
-            <div style={{ marginTop: 12, padding: 10, borderRadius: 8, background: '#f0fbf4' }}>
-              <strong>Ordered-pair solution:</strong>{' '}
-              <MathDisplay
-                value={`(${solutionExpressions[variables[0]]}, ${solutionExpressions[variables[1]]})`}
-                format="ascii-math"
-                inline
-              />
-            </div>
-          ) : null}
-          {isDegenerate ? (
-            <div style={{ marginTop: 12, padding: 10, borderRadius: 8, background: specialCaseCorrect ? '#f0fbf4' : '#f3f4f6' }}>
-              <strong>Reduced statement:</strong> <MathDisplay value={formatLinearEquation(reduceCoefficients, variables)} format="ascii-math" inline />
-            </div>
-          ) : null}
-        </Panel>
-        </div>
-
-        <div className="mathmaster-algebraic-system-workflow">
-        <Panel title={`${methodTitle} workflow`}>
+  const workflowBody = (
+    <>
           {config.method === 'studentChoice' && !method ? (
             <div>
               <p style={{ margin: '0 0 10px', color: '#3c4756' }}>Choose the method you will use to solve this system.</p>
@@ -1184,18 +1245,23 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                   <div style={{ display: 'grid', gap: 8 }}>
                     {equations.map((eq, eqIndex) => (
                       <div key={eqIndex} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <span style={{ fontSize: 13, color: '#5f6b7a', minWidth: 74 }}>Equation {eqIndex + 1}:</span>
+                        <span style={{ fontSize: 13, color: '#5f6b7a', minWidth: 74 }}>{equationName(eqIndex)}:</span>
                         {variables.map((v) => (
-                          <button key={v} type="button" onClick={() => chooseSelection(eqIndex, v)} style={secondaryButtonStyle}>Isolate {v}</button>
+                          <button key={v} type="button" onClick={() => chooseSelection(eqIndex, v)} style={secondaryButtonStyle} aria-label={`Isolate ${v} in ${equationName(eqIndex)}`}>Isolate {v}</button>
                         ))}
                       </div>
                     ))}
                   </div>
+                  {slotAttempt?.stage === 'selection' && slotAttempt.reason === 'variable-absent' ? (
+                    <p className="mathmaster-systems-substitution-feedback is-error" style={{ marginTop: 8 }}>
+                      {equationName(slotAttempt.equationIndex)} has no {slotAttempt.variable} term, so {slotAttempt.variable} cannot be isolated from it. Choose another equation or variable.
+                    </p>
+                  ) : null}
                 </div>
               ) : !isolationDone ? (
                 <div>
                   <p style={{ margin: '0 0 6px', color: '#3c4756' }}>
-                    Isolating <strong>{selection.variable}</strong> in Equation {selection.equationIndex + 1}.
+                    Isolating <strong>{selection.variable}</strong> in {equationName(selection.equationIndex)}.
                   </p>
                   <button type="button" onClick={resetFromSelection} style={{ ...secondaryButtonStyle, fontSize: 12 }}>Choose a different equation/variable</button>
                 </div>
@@ -1276,14 +1342,14 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                       <div className="mathmaster-systems-substitution-equation-choices">
                         {equations.map((equationText, equationIndex) => (
                           <div key={equationIndex}>
-                            <div className="mathmaster-systems-backsub-equation-label">Equation {equationIndex + 1}</div>
+                            <div className="mathmaster-systems-backsub-equation-label">{equationName(equationIndex)}</div>
                             <VariableDropEquation
                               equationText={equationText}
                               variables={variables}
                               onVariableAttempt={(variable) => attemptSubstitution(equationIndex, variable)}
                               tokenArmed={slotAttempt?.stage === 'substitution' && slotAttempt?.armed}
                               armedPayloadValue={selection.variable}
-                              label={`Equation ${equationIndex + 1}: choose where the isolated expression belongs`}
+                              label={`${equationName(equationIndex)}: choose where the isolated expression belongs`}
                             />
                           </div>
                         ))}
@@ -1607,6 +1673,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                 onSolved={handleReduceSolved}
                 onUndoStateChange={setEmbeddedUndoController}
                 workspaceDifficulty={questionData.workspaceDifficulty}
+                requireSimplifiedFinalForm={Boolean(subsystem)}
                 autoReveal
                 autoOpenDistribution={effectiveMethod === 'substitution'}
                 // Distribution is a student-owned algebra step. After the
@@ -1664,7 +1731,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
               {!backSubChosen ? (
                 <div className="mathmaster-systems-substitution-stage">
                   <p className="mathmaster-systems-substitution-direction">
-                    Back-substitute the solved value into one original equation. Decide which equation and which variable should receive it.
+                    {subsystem
+                      ? 'Back-substitute the solved value into one reduced equation. Decide which equation and which variable should receive it.'
+                      : 'Back-substitute the solved value into one original equation. Decide which equation and which variable should receive it.'}
                     <span> Drag the token, or select it and then select a variable.</span>
                   </p>
                   <SubstitutionToken
@@ -1676,14 +1745,14 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                   <div className="mathmaster-systems-backsub-equations">
                     {equations.map((eq, index) => (
                       <div key={index}>
-                        <div className="mathmaster-systems-backsub-equation-label">Equation {index + 1}</div>
+                        <div className="mathmaster-systems-backsub-equation-label">{equationName(index)}</div>
                         <VariableDropEquation
                           equationText={eq}
                           variables={variables}
                           onVariableAttempt={(variable) => attemptBackSubstitution(index, variable)}
                           tokenArmed={slotAttempt?.stage === 'backSubstitution' && slotAttempt?.armed}
                           armedPayloadValue={survivingVariable}
-                          label={`Equation ${index + 1}: choose where the solved value belongs`}
+                          label={`${equationName(index)}: choose where the solved value belongs`}
                         />
                       </div>
                     ))}
@@ -1706,6 +1775,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                   onSolved={handleSecondSolved}
                   onUndoStateChange={setEmbeddedUndoController}
                   workspaceDifficulty={questionData.workspaceDifficulty}
+                  requireSimplifiedFinalForm={Boolean(subsystem)}
                 />
               ) : null}
             </div>
@@ -1811,7 +1881,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
           ) : null}
 
           {readyToSubmit ? (
-            <button type="button" onClick={check} style={actionStyle}>Check my work</button>
+            // A reduced subsystem submits nothing: its solution goes up to the
+            // 3×3 workflow, which verifies in the original equations.
+            subsystem ? null : <button type="button" onClick={check} style={actionStyle}>Check my work</button>
           ) : null}
           {feedback ? (
             <div style={{ marginTop: 14 }}>
@@ -1819,7 +1891,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
             </div>
           ) : null}
 
-          <HintPanel
+          {subsystem ? null : <HintPanel
             hints={effectiveMethod === 'elimination' ? [
               'Look at the coefficients of the variable you want to eliminate. If they are already opposites, you can add the equations directly.',
               'If the coefficients are the same sign and size, subtracting removes that variable. Otherwise, multiply one or both equations so the coefficients become opposites.',
@@ -1830,7 +1902,74 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
               'Keep the substituted expression in parentheses until you distribute it in the algebra solver.',
             ]}
             onHintUsed={() => onAction?.('HINT_USED')}
-          />
+          />}
+    </>
+  );
+
+  if (subsystem) {
+    // Reduced-subsystem role: no second Work View host, no givens column and no
+    // bordered panel of its own — the parent's lineage column already shows
+    // where these equations came from. Just the equations and the workflow.
+    return (
+      <div className={`mathmaster-algebraic-subsystem${embeddedSolverActive ? ' has-active-solver' : ''}`}>
+        <div className="mathmaster-algebraic-subsystem-equations" role="group" aria-label="Reduced subsystem equations">
+          {equations.map((eq, index) => (
+            <div key={index} className="mathmaster-algebraic-subsystem-equation">
+              <span>{equationName(index)}</span>
+              <MathDisplay value={eq} format="ascii-math" inline />
+            </div>
+          ))}
+        </div>
+        {workflowBody}
+      </div>
+    );
+  }
+
+  return (
+    <EnlargeableFigure
+      label="Algebraic systems workspace"
+      enlargeLabel="Enlarge algebraic systems workspace"
+      style={{ width: '100%' }}
+      capabilities={{
+        undo: activeUndoCapability,
+        equationInput: { label: 'Both equations and every algebraic move', studentState: true },
+        numericControls: { label: 'Method, targets, and the final solution', studentState: true },
+        instruction: { text: 'Solve the system with substitution or elimination, showing every mathematical decision.' },
+        primaryActions: readyToSubmit ? [{ id: 'check-algebraic-system', label: 'Check my work', onAction: check }] : [],
+      }}
+    >
+      <div className={`mathmaster-algebraic-system-layout${embeddedSolverActive ? ' has-active-solver' : ''}`}>
+        <div className="mathmaster-algebraic-system-givens">
+        <Panel title="Both original equations">
+          <div style={{ display: 'grid', gap: 8 }}>
+            {equations.map((eq, index) => (
+              <div key={index} style={{ padding: '8px 10px', border: '1px solid #dbe3ef', borderRadius: 8, background: '#fff' }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#5f6b7a' }}>Equation {index + 1}</span>
+                <MathDisplay value={eq} format="ascii-math" />
+              </div>
+            ))}
+          </div>
+          {solution && solutionExpressions ? (
+            <div style={{ marginTop: 12, padding: 10, borderRadius: 8, background: '#f0fbf4' }}>
+              <strong>Ordered-pair solution:</strong>{' '}
+              <MathDisplay
+                value={`(${solutionExpressions[variables[0]]}, ${solutionExpressions[variables[1]]})`}
+                format="ascii-math"
+                inline
+              />
+            </div>
+          ) : null}
+          {isDegenerate ? (
+            <div style={{ marginTop: 12, padding: 10, borderRadius: 8, background: specialCaseCorrect ? '#f0fbf4' : '#f3f4f6' }}>
+              <strong>Reduced statement:</strong> <MathDisplay value={formatLinearEquation(reduceCoefficients, variables)} format="ascii-math" inline />
+            </div>
+          ) : null}
+        </Panel>
+        </div>
+
+        <div className="mathmaster-algebraic-system-workflow">
+        <Panel title={`${methodTitle} workflow`}>
+          {workflowBody}
         </Panel>
         </div>
       </div>

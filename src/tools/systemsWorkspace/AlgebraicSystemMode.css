@@ -846,3 +846,338 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ==========================================================================
+ * 3×3 SUBSTITUTION (#341)
+ *
+ * Same visual language as the 2×2 workspace: a narrow reference column that
+ * keeps the originals and their derived equations readable, and the wide
+ * column for the work. The reduced 2×2 renders flat inside the workflow — no
+ * second bordered panel, no second givens column.
+ * ========================================================================== */
+.mathmaster-reduction-layout {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(240px, .62fr) minmax(0, 1.7fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.mathmaster-reduction-layout.has-active-solver {
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+}
+
+.mathmaster-reduction-reference,
+.mathmaster-reduction-workflow {
+  min-width: 0;
+}
+
+.mathmaster-reduction-reference {
+  display: grid;
+  gap: 8px;
+  position: sticky;
+  top: 8px;
+}
+
+.mathmaster-reduction-reference-heading {
+  margin-top: 4px;
+  color: #465267;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+.mathmaster-reduction-equation-card {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid #dbe3ef;
+  border-radius: 9px;
+  background: #fff;
+  font-size: 15px;
+}
+
+.mathmaster-reduction-equation-card.is-source {
+  border-color: #8ab4f8;
+  background: #f5f9ff;
+}
+
+.mathmaster-reduction-equation-card.is-derived {
+  border-style: dashed;
+  background: #fbfcfe;
+}
+
+.mathmaster-reduction-equation-card.is-reduced {
+  border-style: solid;
+  border-color: #9ccfac;
+  background: #f4fbf6;
+}
+
+.mathmaster-reduction-equation-label {
+  color: #5f6b7a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.mathmaster-reduction-lineage-from {
+  font-weight: 600;
+  color: #7a8594;
+}
+
+.mathmaster-reduction-lineage-chip {
+  width: fit-content;
+  max-width: 100%;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #e8f0fe;
+  color: #174ea6;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.mathmaster-reduction-solved-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mathmaster-reduction-value-chip {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #e6f4ea;
+  color: #137333;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.mathmaster-reduction-ordered-triple {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f0fbf4;
+}
+
+.mathmaster-reduction-stage {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.mathmaster-reduction-source-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.mathmaster-reduction-source-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.mathmaster-reduction-source-row > span {
+  min-width: 82px;
+  color: #5f6b7a;
+  font-size: 13px;
+}
+
+.mathmaster-reduction-ready-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid #dbe3ef;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.mathmaster-reduction-ready-card p {
+  margin: 0;
+  color: #3c4756;
+  line-height: 1.5;
+}
+
+.mathmaster-reduction-ready-title {
+  color: #174ea6;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.mathmaster-reduction-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.mathmaster-reduction-field {
+  display: grid;
+  gap: 5px;
+  color: #465267;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mathmaster-reduction-progress {
+  width: fit-content;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #174ea6;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.mathmaster-reduction-target-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.mathmaster-reduction-target-card {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  min-width: 0;
+}
+
+.mathmaster-reduction-target-card.is-substituted {
+  padding: 10px 12px;
+  border: 1px dashed #b8cdf0;
+  border-radius: 12px;
+  background: #fff;
+  font-size: 18px;
+}
+
+.mathmaster-reduction-target-card.is-active {
+  border-style: solid;
+  border-color: #1a73e8;
+}
+
+.mathmaster-reduction-target-card.is-reduced {
+  border-style: solid;
+  border-color: #9ccfac;
+  background: #f4fbf6;
+}
+
+.mathmaster-reduction-carry {
+  width: fit-content;
+  padding: 4px 8px;
+  border: 0;
+  background: transparent;
+  color: #5f6b7a;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.mathmaster-reduction-done {
+  color: #137333;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.mathmaster-reduction-working {
+  color: #174ea6;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.mathmaster-reduction-subsystem {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.mathmaster-reduction-subsystem[hidden] {
+  display: none;
+}
+
+.mathmaster-reduction-subsystem-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.mathmaster-reduction-subsystem-heading span {
+  color: #5f6b7a;
+  font-size: 13px;
+}
+
+.mathmaster-reduction-back-stage {
+  margin-top: 12px;
+}
+
+.mathmaster-reduction-verification-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.mathmaster-reduction-unsupported {
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #fef7e0;
+  border: 1px solid #f9ab00;
+  color: #7a4f00;
+}
+
+.mathmaster-reduction-unsupported p {
+  margin: 6px 0 0;
+  color: #202124;
+}
+
+/* The reduced 2×2, flat inside the 3×3 workflow. */
+.mathmaster-algebraic-subsystem {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mathmaster-algebraic-subsystem-equations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mathmaster-algebraic-subsystem-equation {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid #9ccfac;
+  border-radius: 9px;
+  background: #f4fbf6;
+  font-size: 17px;
+}
+
+.mathmaster-algebraic-subsystem-equation > span {
+  color: #137333;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+@media (max-width: 980px) {
+  .mathmaster-reduction-layout,
+  .mathmaster-reduction-layout.has-active-solver {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mathmaster-reduction-reference {
+    position: static;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  .mathmaster-reduction-reference-heading,
+  .mathmaster-reduction-solved-values,
+  .mathmaster-reduction-ordered-triple {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 620px) {
+  .mathmaster-reduction-target-grid,
+  .mathmaster-reduction-verification-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

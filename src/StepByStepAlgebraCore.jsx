@@ -28,7 +28,6 @@ import {
   parseEquationInput,
   parseOperationOperand,
   splitAdditiveTerms,
-  applyAdditiveOperationAtPlacement,
 } from './algebraAstEngine';
 import {
   findLikeTermGroups,
@@ -488,7 +487,7 @@ export default function StepByStepAlgebra({
       responseKey: solved && promptsComplete ? `${equationToLatex(equation)}|${JSON.stringify(promptAnswers)}` : '',
       questionDetails: solved ? `Solved step-by-step: $${equationToLatex(equation)}$. ${promptParts.map((part) => `${part.label}: ${part.response}`).join('; ')}` : `Current equation: $${equationToLatex(equation)}$`,
       parts: [
-        { id: 'algebra-objective', label: question.objective?.label || (equation.objective?.kind === 'slopeIntercept' ? 'Write in slope-intercept form' : `Isolate ${equation.objective?.variable || equation.variable}`), isComplete: solved, isCorrect: solved, response: equationToLatex(equation) },
+        { id: 'algebra-objective', label: question.objective?.label || (equation.objective?.kind === 'slopeIntercept' ? 'Write in slope-intercept form' : equation.objective?.kind === 'linearStandardForm' ? 'Write in standard form' : `Isolate ${equation.objective?.variable || equation.variable}`), isComplete: solved, isCorrect: solved, response: equationToLatex(equation) },
         ...promptParts,
       ],
     });
@@ -1888,6 +1887,9 @@ export default function StepByStepAlgebra({
   );
   const objectiveLabel = equation.objective?.kind === 'slopeIntercept'
     ? 'Target: y = mx + b'
+    : equation.objective?.kind === 'linearStandardForm'
+      // Names the FORM, never the coefficients: "ay + bz = c".
+      ? `Target: ${(equation.objective.variables || [equation.variable]).map((name, index) => `${String.fromCharCode(97 + index)}${name}`).join(' + ')} = ${String.fromCharCode(97 + (equation.objective.variables || [equation.variable]).length)}`
     : `Target: isolate ${equation.objective?.variable || equation.variable}${equation.objective?.requireSimplifiedFinalForm ? ' in simplified final form' : ''}`;
 
   const sideExpression = (side) => (pendingMove ? pendingMove.unsimplified[side] : equation[side]);
@@ -2047,10 +2049,13 @@ export default function StepByStepAlgebra({
       );
     }
 
-    const equationSide = (content, extraClass = '') => (
+    // `cueClass` is presentation layered on the SAME element: it is kept out
+    // of the key so hovering a placement never remounts (and re-fits) the
+    // mathematics underneath it.
+    const equationSide = (content, extraClass = '', cueClass = '') => (
       <div
         key={`${side}-${sideExpression(side)}-${extraClass}`}
-        className={`algebra-equation-side algebra-reflow ${extraClass}`.trim()}
+        className={`algebra-equation-side algebra-reflow ${extraClass} ${cueClass}`.replace(/\s+/g, ' ').trim()}
         style={{ fontSize: 'inherit', margin: '16px 0' }}
       >
         {content}
@@ -2090,69 +2095,40 @@ export default function StepByStepAlgebra({
       return equationSide(inner);
     }
 
+    /*
+     * THE EQUATION DOES NOT CHANGE UNTIL THE BALANCED MOVE IS COMMITTED (#341).
+     *
+     * Choosing + − × ÷, typing the operand, hovering a side and placing the
+     * operation on ONE side are all decisions still in progress. This branch
+     * used to write the staged operation into the expression itself
+     * (-9x + 21 - 21 = 1), which showed the student the transformation before
+     * they had finished making it. The mathematics on screen is now exactly the
+     * committed equation; where the operation will land is shown as a cue drawn
+     * OUTSIDE the glyphs (a caret beside the term, a bracket beside the side,
+     * a bar under it), and a placed side is marked by the chip under the side
+     * box. Only once both sides are student-placed does `attemptMove` open the
+     * unsimplified result, once, through `pendingMove`.
+     */
     const staged = placedOperationSides.includes(side);
     const hovering = dragOverSide === side && (!isFactorOperation(armedTile.operation) || factorZoneHint?.side === side);
     if (!staged && !hovering) {
       return equationSide(inner);
     }
-
-    let parsedOperand = operand;
-    try { parsedOperand = parseOperationOperand(operand).expression; } catch { parsedOperand = latexToExpression(operand); }
-    const operandMath = <MathDisplay value={expressionToLatex(parsedOperand)} format="latex" inline />;
-    const placementClass = staged ? 'algebra-placement-committed' : 'algebra-placement-preview';
-    const position = placedOperationPositions[side] || factorZoneHint?.position || 'side';
-
-    if (armedTile.operation === 'multiply') {
-      return (
-        <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: 'inherit', margin: '16px 0', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-          {position === 'after' ? <><span className="algebra-paren-inner">({inner})</span><span className="algebra-staged-operand">{operandMath}</span></> : <><span className="algebra-staged-operand">{operandMath}</span><span className="algebra-paren-inner">({inner})</span></>}
-        </div>
-      );
+    const position = staged
+      ? placedOperationPositions[side]
+      : (factorZoneHint?.side === side ? factorZoneHint.position : null);
+    const cueState = staged ? 'staged' : 'hover';
+    if (isFactorOperation(armedTile.operation)) {
+      const factorCue = armedTile.operation === 'divide' ? 'below' : (position === 'after' ? 'after' : 'before');
+      return equationSide(inner, '', `algebra-placement-cue is-${cueState} is-factor-cue is-factor-${factorCue}`);
     }
-
-    if (armedTile.operation === 'divide') {
-      return (
-        <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: 'inherit', margin: '16px 0', display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '140px' }}>
-          <span className="algebra-div-num" style={{ textAlign: 'center' }}>{inner}</span>
-          <span aria-hidden="true" className="algebra-div-bar" style={{ width: '100%', height: '3px', background: 'currentColor', borderRadius: '2px', margin: '4px 0' }} />
-          <span className="algebra-div-den" style={{ textAlign: 'center' }}>{operandMath}</span>
-        </div>
-      );
-    }
-
-    const symbol = armedTile.operation === 'add' ? '+' : '−';
-    const additivePosition = position && typeof position === 'object'
-      ? position
-      : { kind: 'end', termIndex: Math.max(0, (terms?.length || 1) - 1) };
-    const operationPreview = (
-      <span className="algebra-staged-operand" style={{ display: 'inline-flex', gap: '5px', alignItems: 'center' }}>
-        <span aria-hidden="true" style={{ fontWeight: 700 }}>{symbol}</span>{operandMath}
-      </span>
-    );
-    if (additivePosition.kind === 'under' && terms?.length) {
-      return (
-        <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: 'inherit', margin: '16px 0', display: 'inline-flex', alignItems: 'center' }}>
-          <AlgebraTermRow
-            terms={terms}
-            side={side}
-            underTermPreview={{ termIndex: additivePosition.termIndex, content: operationPreview }}
-          />
-        </div>
-      );
-    }
-    const previewExpression = applyAdditiveOperationAtPlacement(
-      sideExpression(side),
-      armedTile.operation,
-      parsedOperand,
-      additivePosition,
-    );
-    const previewTerms = splitAdditiveTerms(previewExpression);
-    return (
-      <div className={`algebra-equation-side algebra-semantic-placement ${placementClass}`} style={{ fontSize: 'inherit', margin: '16px 0', display: 'inline-flex', alignItems: 'center' }}>
-        {previewTerms
-          ? <AlgebraTermRow terms={previewTerms} side={side} />
-          : <><span>{inner}</span>{operationPreview}</>}
-      </div>
+    const termCue = position && typeof position === 'object' && terms?.length
+      ? { termIndex: position.termIndex, kind: position.kind, state: cueState }
+      : null;
+    return equationSide(
+      termCue ? <AlgebraTermRow terms={terms} side={side} placementCue={termCue} /> : inner,
+      '',
+      `algebra-placement-cue is-${cueState}`,
     );
   };
   const armedOperationLabel = armedTile ? OPERATIONS.find((item) => item.id === armedTile.operation)?.label : null;
@@ -2675,6 +2651,18 @@ export default function StepByStepAlgebra({
                     {renderSide(side, cancellationModel)}
                   </AutoFitEquationExpression>
                 </div>
+
+                {/* One side has received the operation; the equation above is
+                    still the committed one (#341). The chip names the student's
+                    own move and sits outside the expression, so it can never be
+                    read as the resulting algebra and never changes the fit. */}
+                {stagedHere && armedTile && !pendingMove ? (
+                  <div className="algebra-placement-marker" role="status" aria-label={`Operation placed on the ${side} side`}>
+                    <span aria-hidden="true" className="algebra-placement-marker-check">✓</span>
+                    <OperationChip token={describeOperationToken(armedTile.operation, operandLabel)} />
+                    <span>placed</span>
+                  </div>
+                ) : null}
 
                 {inlineExpressionTools && distributionState?.side === side ? (
                   <div className="algebra-inline-mode-controls" aria-live="polite">
