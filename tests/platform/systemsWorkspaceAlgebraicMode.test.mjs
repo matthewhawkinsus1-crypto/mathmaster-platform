@@ -232,17 +232,20 @@ test('verification requires both original equations to be checked independently,
 // Elimination workflow (#8-14)
 // ---------------------------------------------------------------------------
 
-test('a multiplier is entered, placed on the whole equation, and the student calculates every changed coefficient', () => {
+test('a multiplier is entered and placed directly on the equation before the student calculates every changed term', () => {
   assert.match(modeSource, /ariaLabel=\{\`Multiplier for equation/);
   assert.match(modeSource, /mathmaster-system-multiplier:/);
   assert.match(modeSource, /draggable/);
   assert.match(modeSource, /dropMultiplier\(/);
-  assert.match(modeSource, /checkMultiplierProducts/);
-  assert.match(modeSource, /Multiply every coefficient and the right side by the same value/);
-  assert.match(modeSource, /Apply × \{multipliers\[index\]\} to every part/);
-  assert.match(modeSource, /\['a', coefficientTermText/);
-  assert.match(modeSource, /\['b', coefficientTermText/);
-  assert.match(modeSource, /\['c', String\(cleanCoefficient\(originalCoefficients\.c\)\)/);
+  assert.match(modeSource, /mathmaster-systems-equation-multiplier-target/);
+  assert.match(modeSource, /Complete the scaled equation/);
+  assert.match(modeSource, /You may type a full term such as 3x or just its coefficient/);
+  assert.match(modeSource, /multiplierProductValue\(work\.a, variables\[0\], variables\)/);
+  assert.match(modeSource, /multiplierProductValue\(work\.b, variables\[1\], variables\)/);
+  assert.match(modeSource, /multiplierProductValue\(work\.c, null, variables\)/);
+  assert.match(modeSource, /Check scaled equation/);
+  assert.doesNotMatch(modeSource, /mathmaster-systems-equation-multiplier-drop/);
+  assert.doesNotMatch(modeSource, /Apply ×/);
   assert.doesNotMatch(modeSource, /bestMultiplier|autoChooseMultiplier|optimalMultiplier/i);
 });
 
@@ -257,16 +260,30 @@ test('a nontrivial multiplier is not accepted until the student supplies the tra
   assert.doesNotMatch(nontrivialBranch, /\[index\]: true/);
 });
 
-test('the combine step uses draggable add/subtract operation tokens and preserves subtraction order', () => {
-  assert.match(modeSource, /mathmaster-system-combine:/);
-  assert.match(modeSource, /armCombine\(operation\)/);
-  assert.match(modeSource, /dropCombine\(/);
+test('an equation with scale factor 1 is ready automatically instead of asking the student to multiply by 1', () => {
+  assert.match(modeSource, /const multiplierIsIdentity = useCallback/);
+  assert.match(modeSource, /appliedMultipliers\[index\] \|\| multiplierIsIdentity\(index\)/);
+  assert.match(modeSource, /const multipliersApplied = multiplierRowReady\(0\) && multiplierRowReady\(1\)/);
+  assert.match(modeSource, /Equation stays as written/);
+  assert.doesNotMatch(modeSource, />Use as written</);
+  assert.doesNotMatch(modeSource, /⠿ ×/);
+});
+
+test('the combine step keeps the equations stacked and puts + / − controls beside equation 2', () => {
+  assert.match(modeSource, /mathmaster-systems-combine-stack/);
+  assert.match(modeSource, /mathmaster-systems-operation-rail/);
+  assert.match(modeSource, /handleCombine\('add'\)/);
+  assert.match(modeSource, /handleCombine\('subtract'\)/);
+  assert.match(modeSource, /aria-label="Add equation 2 to equation 1"/);
+  assert.match(modeSource, /aria-label="Subtract equation 2 from equation 1"/);
   assert.match(modeSource, /Equation 1 − Equation 2/);
   assert.match(modeSource, /Equation 1 \+ Equation 2/);
+  assert.doesNotMatch(modeSource, /mathmaster-system-combine:/);
+  assert.doesNotMatch(modeSource, /Drop Add or Subtract here/);
 });
 
 test('a correct combine operation opens student cancellation instead of immediately producing the reduced equation', () => {
-  const handle = region(modeSource, 'const handleCombine = ', 'const armCombine', 'handleCombine');
+  const handle = region(modeSource, 'const handleCombine = ', 'const toggleCancellationRow', 'handleCombine');
   assert.match(handle, /pendingCoefficients: eliminates \? combined : null/);
   assert.match(handle, /cancelledRows: \{ 0: false, 1: false \}/);
   assert.match(handle, /coefficients: null/);
@@ -275,7 +292,7 @@ test('a correct combine operation opens student cancellation instead of immediat
 });
 
 test('students must mark both cancelling target terms before MathMaster creates the reduced equation', () => {
-  assert.match(modeSource, /onTargetTermClick=\{\(\) => toggleCancellationRow\(index\)\}/);
+  assert.match(modeSource, /onTargetTermClick=\{\(\) => toggleCancellationRow\([01]\)\}/);
   assert.match(modeSource, /MathMaster will not cross them out for you/);
   assert.match(modeSource, /disabled=\{!cancellationComplete\}/);
   const confirm = region(modeSource, 'const confirmEliminationCancellation = ', 'const handleReduceSolved', 'confirmEliminationCancellation');

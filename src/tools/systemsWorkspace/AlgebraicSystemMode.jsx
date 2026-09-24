@@ -17,6 +17,7 @@ import {
   isolatedExpressionFor,
   substituteIntoEquation,
   applyEquationMultiplier,
+  multiplierProductValue,
   combineCoefficients,
   eliminatesVariable,
   isDegenerateStatement,
@@ -257,7 +258,7 @@ function AlignedEquationRow({ equationText, variables, targetVariable, multiplie
   return (
     <div className="mathmaster-systems-aligned-equation-row">
       {label ? <span className="mathmaster-systems-equation-row-label">{label}</span> : null}
-      {multiplier != null ? <span className="mathmaster-systems-applied-multiplier">× {multiplier}</span> : null}
+      {multiplier != null ? <span className="mathmaster-systems-applied-multiplier">· {multiplier}</span> : null}
       <div className="mathmaster-systems-equation-columns">
         {entries.map((entry, index) => (
           entry.variable === targetVariable && onTargetTermClick ? (
@@ -588,7 +589,21 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       return null;
     }
   }, [equations, multipliers, variables]);
-  const multipliersApplied = appliedMultipliers[0] && appliedMultipliers[1];
+  const multiplierIsIdentity = useCallback((index) => {
+    try {
+      const value = Number(evaluate(latexToExpression(multipliers[index])));
+      return Number.isFinite(value) && Math.abs(value - 1) <= 1e-9;
+    } catch {
+      return false;
+    }
+  }, [multipliers]);
+  // A factor of 1 means the equation is already prepared. Do not make the
+  // student perform or confirm a meaningless "multiply by 1" step.
+  const multiplierRowReady = useCallback(
+    (index) => appliedMultipliers[index] || multiplierIsIdentity(index),
+    [appliedMultipliers, multiplierIsIdentity],
+  );
+  const multipliersApplied = multiplierRowReady(0) && multiplierRowReady(1);
   const combinationLocked = Boolean(combination.text);
   const cancellationPending = Boolean(combination.pendingCoefficients && !combination.text);
   const cancellationComplete = Boolean(combination.cancelledRows?.[0] && combination.cancelledRows?.[1]);
@@ -876,9 +891,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     }
     const work = multiplierWork[index] || emptyMultiplierWork();
     const supplied = {
-      a: parseNumericEntry(work.a),
-      b: parseNumericEntry(work.b),
-      c: parseNumericEntry(work.c),
+      a: multiplierProductValue(work.a, variables[0], variables),
+      b: multiplierProductValue(work.b, variables[1], variables),
+      c: multiplierProductValue(work.c, null, variables),
     };
     const valid = ['a', 'b', 'c'].every((key) => (
       Number.isFinite(supplied[key])
@@ -909,9 +924,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       numericMultiplier = NaN;
     }
 
-    // ×1 changes no coefficient. The student still had to choose and place the
-    // multiplier token on the whole equation, so no extra product-entry step is
-    // needed. Every real scaling step must be calculated by the student.
+    // A factor of 1 changes no coefficient. Identity rows are treated as ready
+    // without requiring a student action; keep this branch as a safe no-op for
+    // restored drafts or alternate interaction paths. Every real scaling step
+    // must still be calculated by the student.
     if (Number.isFinite(numericMultiplier) && Math.abs(numericMultiplier - 1) <= 1e-9) {
       setAppliedMultipliers((current) => ({ ...current, [index]: true }));
       setMultiplierWork((current) => ({ ...current, [index]: { ...emptyMultiplierWork(), valid: true } }));
@@ -954,15 +970,6 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       cancelledRows: { 0: false, 1: false },
     }));
     setSlotAttempt({ stage: 'combine', operation, correct: eliminates, armed: !eliminates });
-  };
-
-  const armCombine = (operation) => {
-    setSlotAttempt({ stage: 'combine', operation, correct: null, armed: true });
-  };
-
-  const dropCombine = (operation) => {
-    if (!operation) return;
-    handleCombine(operation);
   };
 
   const toggleCancellationRow = (index) => {
@@ -1155,7 +1162,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
           id: 'prepare',
           label: 'Prepare',
           complete: multipliersApplied,
-          summary: multipliersApplied ? `Eq. 1 × ${multipliers[0]} · Eq. 2 × ${multipliers[1]}` : '',
+          summary: multipliersApplied ? `Eq. 1 · ${multipliers[0]}   Eq. 2 · ${multipliers[1]}` : '',
         },
         {
           id: 'combine',
@@ -1386,7 +1393,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                   <div className="mathmaster-systems-elimination-heading">
                     <div>
                       <strong>Prepare the equations</strong>
-                      <span>You chose to eliminate {selection.variable}. Choose any multipliers you need, then place each multiplier on its whole equation.</span>
+                      <span>
+                        You chose to eliminate {selection.variable}. Enter a scale factor only when an equation needs one, then place that factor directly on the equation.
+                      </span>
                     </div>
                     <button type="button" onClick={resetFromSelection}>Change target</button>
                   </div>
@@ -1398,16 +1407,33 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                       const originalCoefficients = linearEquationCoefficients(equations[index], variables);
                       const work = multiplierWork[index] || emptyMultiplierWork();
                       const multiplierArmed = slotAttempt?.stage === 'multiplier' && slotAttempt?.armed && Number(slotAttempt?.index) === index;
+                      const parsedMultiplier = parseNumericEntry(multipliers[index]);
+                      const identityMultiplier = Number.isFinite(parsedMultiplier) && Math.abs(parsedMultiplier - 1) <= 1e-9;
+                      const rowPrepared = appliedMultipliers[index] || identityMultiplier;
+                      const productSpecs = expectedTransformed && originalCoefficients ? [
+                        {
+                          field: 'a',
+                          source: coefficientTermText(originalCoefficients.a, variables[0]),
+                          variable: variables[0],
+                          placeholder: coefficientTermText(expectedTransformed.coefficients.a, variables[0]),
+                        },
+                        {
+                          field: 'b',
+                          source: coefficientTermText(originalCoefficients.b, variables[1]),
+                          variable: variables[1],
+                          placeholder: coefficientTermText(expectedTransformed.coefficients.b, variables[1]),
+                        },
+                        {
+                          field: 'c',
+                          source: String(cleanCoefficient(originalCoefficients.c)),
+                          variable: null,
+                          placeholder: String(cleanCoefficient(expectedTransformed.coefficients.c)),
+                        },
+                      ] : [];
                       return (
-                        <div key={index} className={`mathmaster-systems-elimination-equation-card${appliedMultipliers[index] ? ' is-prepared' : ''}`}>
-                          <AlignedEquationRow
-                            equationText={equations[index]}
-                            variables={variables}
-                            targetVariable={selection.variable}
-                            label={`Equation ${index + 1}`}
-                          />
+                        <div key={index} className={`mathmaster-systems-elimination-equation-card${rowPrepared ? ' is-prepared' : ''}`}>
                           <div className="mathmaster-systems-multiplier-composer">
-                            <span>Multiplier</span>
+                            <span>{identityMultiplier ? 'No scale needed' : 'Scale by'}</span>
                             <MathInput
                               value={multipliers[index]}
                               onChange={(value) => setMultiplierValue(index, value)}
@@ -1417,23 +1443,29 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                               compact
                               maxWidth={150}
                             />
-                            <button
-                              type="button"
-                              className={`mathmaster-systems-multiplier-token${multiplierArmed ? ' is-armed' : ''}`}
-                              draggable
-                              onClick={() => armMultiplier(index)}
-                              onDragStart={(event) => {
-                                event.dataTransfer?.setData('text/plain', `mathmaster-system-multiplier:${index}`);
-                                if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
-                                armMultiplier(index);
-                              }}
-                              aria-pressed={multiplierArmed}
-                            >
-                              ⠿ × {multipliers[index] || '?'}
-                            </button>
+                            {identityMultiplier ? (
+                              <span className="mathmaster-systems-scale-not-needed">Equation stays as written</span>
+                            ) : (
+                              <button
+                                type="button"
+                                className={`mathmaster-systems-multiplier-token${multiplierArmed ? ' is-armed' : ''}`}
+                                draggable
+                                onClick={() => armMultiplier(index)}
+                                onDragStart={(event) => {
+                                  event.dataTransfer?.setData('text/plain', `mathmaster-system-multiplier:${index}`);
+                                  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+                                  armMultiplier(index);
+                                }}
+                                aria-pressed={multiplierArmed}
+                                aria-label={`Pick up scale factor ${multipliers[index]} for equation ${index + 1}`}
+                              >
+                                ⠿ · {multipliers[index] || '?'}
+                              </button>
+                            )}
                           </div>
+
                           <div
-                            className={`mathmaster-systems-equation-multiplier-drop${multiplierArmed ? ' is-armed' : ''}`}
+                            className={`mathmaster-systems-equation-multiplier-target${multiplierArmed ? ' is-armed' : ''}${rowPrepared ? ' is-prepared' : ''}`}
                             role={multiplierArmed ? 'button' : undefined}
                             tabIndex={multiplierArmed ? 0 : undefined}
                             onClick={() => {
@@ -1445,65 +1477,77 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                                 dropMultiplier(index, slotAttempt?.index);
                               }
                             }}
-                            onDragOver={(event) => event.preventDefault()}
+                            onDragOver={(event) => {
+                              if (event.dataTransfer?.types?.includes('text/plain')) event.preventDefault();
+                            }}
                             onDrop={(event) => {
                               event.preventDefault();
                               const payload = event.dataTransfer?.getData('text/plain') || '';
                               if (!payload.startsWith('mathmaster-system-multiplier:')) return;
                               dropMultiplier(index, payload.split(':').pop());
                             }}
-                            aria-label={`Place the multiplier on equation ${index + 1}`}
+                            aria-label={multiplierArmed
+                              ? `Place scale factor on equation ${index + 1}`
+                              : `Equation ${index + 1}`}
                           >
-                            {transformed ? (
-                              <AlignedEquationRow
-                                equationText={transformed.text}
-                                variables={variables}
-                                targetVariable={selection.variable}
-                                multiplier={multipliers[index]}
-                                label="Prepared equation"
-                              />
-                            ) : work.active && expectedTransformed && originalCoefficients ? (
-                              <div className="mathmaster-systems-multiplier-products" onClick={(event) => event.stopPropagation()}>
-                                <strong>Apply × {multipliers[index]} to every part</strong>
-                                <span>Enter each resulting coefficient, including the right side.</span>
-                                <div className="mathmaster-systems-multiplier-product-grid">
-                                  {[
-                                    ['a', coefficientTermText(originalCoefficients.a, variables[0]), variables[0]],
-                                    ['b', coefficientTermText(originalCoefficients.b, variables[1]), variables[1]],
-                                    ['c', String(cleanCoefficient(originalCoefficients.c)), 'right side'],
-                                  ].map(([field, sourceText, label]) => (
-                                    <label key={field}>
-                                      <span>{sourceText} × {multipliers[index]} → {label}</span>
-                                      <MathInput
-                                        value={work[field] || ''}
-                                        onChange={(value) => setMultiplierProduct(index, field, value)}
-                                        onSubmit={() => checkMultiplierProducts(index)}
-                                        placeholder="result"
-                                        ariaLabel={`Result of multiplying ${sourceText} by ${multipliers[index]}`}
-                                        toolProfile="number"
-                                        compact
-                                        maxWidth={140}
-                                      />
-                                    </label>
-                                  ))}
-                                </div>
-                                <button
-                                  type="button"
-                                  className="mathmaster-systems-check-products"
-                                  onClick={() => checkMultiplierProducts(index)}
-                                >
-                                  Check multiplied equation
-                                </button>
-                                {work.checked && !work.valid ? (
-                                  <p className="mathmaster-systems-substitution-feedback is-error">
-                                    One or more products are not correct yet. Multiply every coefficient and the right side by the same value.
-                                  </p>
-                                ) : null}
-                              </div>
-                            ) : (
-                              <span>Place the multiplier on the entire equation</span>
-                            )}
+                            <AlignedEquationRow
+                              equationText={transformed?.text || equations[index]}
+                              variables={variables}
+                              targetVariable={selection.variable}
+                              multiplier={appliedMultipliers[index] && !identityMultiplier ? multipliers[index] : null}
+                              label={rowPrepared ? 'Prepared equation' : `Equation ${index + 1}`}
+                            />
                           </div>
+
+                          {work.active && expectedTransformed && originalCoefficients ? (
+                            <div className="mathmaster-systems-multiplier-products">
+                              <div className="mathmaster-systems-multiplier-products-heading">
+                                <strong>Complete the scaled equation</strong>
+                                <span>Enter the resulting terms where they belong. You may type a full term such as 3x or just its coefficient.</span>
+                              </div>
+                              <div className="mathmaster-systems-product-operation-row" aria-hidden="true">
+                                {productSpecs.map((spec, specIndex) => (
+                                  <React.Fragment key={spec.field}>
+                                    {specIndex === 2 ? <span className="mathmaster-systems-product-equals">=</span> : null}
+                                    <span className="mathmaster-systems-product-operation">
+                                      {spec.source} · {multipliers[index]}
+                                    </span>
+                                  </React.Fragment>
+                                ))}
+                              </div>
+                              <div className="mathmaster-systems-product-entry-row">
+                                {productSpecs.map((spec, specIndex) => (
+                                  <React.Fragment key={spec.field}>
+                                    {specIndex === 2 ? <span className="mathmaster-systems-product-equals">=</span> : null}
+                                    <MathInput
+                                      value={work[spec.field] || ''}
+                                      onChange={(value) => setMultiplierProduct(index, spec.field, value)}
+                                      onSubmit={() => checkMultiplierProducts(index)}
+                                      placeholder={spec.placeholder}
+                                      ariaLabel={spec.variable
+                                        ? `Scaled ${spec.variable} term for equation ${index + 1}`
+                                        : `Scaled right side for equation ${index + 1}`}
+                                      toolProfile="algebra-operation"
+                                      compact
+                                      maxWidth={160}
+                                    />
+                                  </React.Fragment>
+                                ))}
+                              </div>
+                              <button
+                                type="button"
+                                className="mathmaster-systems-check-products"
+                                onClick={() => checkMultiplierProducts(index)}
+                              >
+                                Check scaled equation
+                              </button>
+                              {work.checked && !work.valid ? (
+                                <p className="mathmaster-systems-substitution-feedback is-error">
+                                  One or more products do not match the scaled equation yet. Apply the same multiplier to every term and the right side.
+                                </p>
+                              ) : null}
+                            </div>
+                          ) : null}
                         </div>
                       );
                     })}
@@ -1513,7 +1557,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                     <p className="mathmaster-systems-substitution-feedback is-error">
                       {slotAttempt.reason === 'invalid-multiplier'
                         ? 'That multiplier could not be read as a nonzero number. Check the sign or fraction and try again.'
-                        : 'That multiplier token belongs to the other equation row. Pick up the multiplier from the equation you want to transform.'}
+                        : 'That scale-factor token belongs to the other equation. Pick up the factor beside the equation you want to transform.'}
                     </p>
                   ) : null}
 
@@ -1521,69 +1565,44 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                     <div className="mathmaster-systems-combine-stage">
                       {!cancellationPending ? (
                         <>
-                          <div className="mathmaster-systems-combine-preview">
-                            <AlignedEquationRow
-                              equationText={multipliedEq(0)?.text || equations[0]}
-                              variables={variables}
-                              targetVariable={selection.variable}
-                              label="Prepared equation 1"
-                            />
-                            <AlignedEquationRow
-                              equationText={multipliedEq(1)?.text || equations[1]}
-                              variables={variables}
-                              targetVariable={selection.variable}
-                              label="Prepared equation 2"
-                            />
-                          </div>
-                          <p>Choose how to combine the prepared equations.</p>
-                          <div className="mathmaster-systems-combine-token-bank">
-                            {[
-                              ['add', '+', 'Equation 1 + Equation 2'],
-                              ['subtract', '−', 'Equation 1 − Equation 2'],
-                            ].map(([operation, symbol, label]) => {
-                              const armed = slotAttempt?.stage === 'combine' && slotAttempt?.armed && slotAttempt?.operation === operation;
-                              return (
+                          <p>Choose + or − beside the second equation. The equations stay in place while you decide how to combine them.</p>
+                          <div className="mathmaster-systems-combine-stack">
+                            <div className="mathmaster-systems-combine-row">
+                              <div className="mathmaster-systems-operation-spacer" aria-hidden="true" />
+                              <AlignedEquationRow
+                                equationText={multipliedEq(0)?.text || equations[0]}
+                                variables={variables}
+                                targetVariable={selection.variable}
+                                label="Prepared equation 1"
+                              />
+                            </div>
+                            <div className="mathmaster-systems-combine-row">
+                              <div className="mathmaster-systems-operation-rail" aria-label="Choose how to combine the equations">
                                 <button
-                                  key={operation}
                                   type="button"
-                                  draggable
-                                  className={`mathmaster-systems-combine-token${armed ? ' is-armed' : ''}`}
-                                  onClick={() => armCombine(operation)}
-                                  onDragStart={(event) => {
-                                    event.dataTransfer?.setData('text/plain', `mathmaster-system-combine:${operation}`);
-                                    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
-                                    armCombine(operation);
-                                  }}
-                                  aria-pressed={armed}
+                                  className={combination.operation === 'add' && combination.attempts > 0 ? 'is-selected' : ''}
+                                  onClick={() => handleCombine('add')}
+                                  aria-label="Add equation 2 to equation 1"
                                 >
-                                  <strong>{symbol}</strong>
-                                  <span>{label}</span>
+                                  +
                                 </button>
-                              );
-                            })}
-                          </div>
-                          <div
-                            className={`mathmaster-systems-combine-drop${slotAttempt?.stage === 'combine' && slotAttempt?.armed ? ' is-armed' : ''}`}
-                            role={slotAttempt?.stage === 'combine' && slotAttempt?.armed ? 'button' : undefined}
-                            tabIndex={slotAttempt?.stage === 'combine' && slotAttempt?.armed ? 0 : undefined}
-                            onClick={() => {
-                              if (slotAttempt?.stage === 'combine' && slotAttempt?.armed) dropCombine(slotAttempt.operation);
-                            }}
-                            onKeyDown={(event) => {
-                              if (slotAttempt?.stage === 'combine' && slotAttempt?.armed && (event.key === 'Enter' || event.key === ' ')) {
-                                event.preventDefault();
-                                dropCombine(slotAttempt.operation);
-                              }
-                            }}
-                            onDragOver={(event) => event.preventDefault()}
-                            onDrop={(event) => {
-                              event.preventDefault();
-                              const payload = event.dataTransfer?.getData('text/plain') || '';
-                              if (!payload.startsWith('mathmaster-system-combine:')) return;
-                              dropCombine(payload.split(':').pop());
-                            }}
-                          >
-                            Drop Add or Subtract here
+                                <button
+                                  type="button"
+                                  className={combination.operation === 'subtract' && combination.attempts > 0 ? 'is-selected' : ''}
+                                  onClick={() => handleCombine('subtract')}
+                                  aria-label="Subtract equation 2 from equation 1"
+                                >
+                                  −
+                                </button>
+                              </div>
+                              <AlignedEquationRow
+                                equationText={multipliedEq(1)?.text || equations[1]}
+                                variables={variables}
+                                targetVariable={selection.variable}
+                                label="Prepared equation 2"
+                              />
+                            </div>
+                            <div className="mathmaster-systems-combine-result-line" />
                           </div>
                           {combination.attempts > 0 && !combinationLocked ? (
                             <p className="mathmaster-systems-substitution-feedback is-error">
@@ -1599,18 +1618,32 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                             </strong>
                             <span>Select the {selection.variable} term in each prepared row. MathMaster will not cross them out for you.</span>
                           </div>
-                          <div className="mathmaster-systems-combine-preview">
-                            {[0, 1].map((index) => (
+                          <div className="mathmaster-systems-combine-stack">
+                            <div className="mathmaster-systems-combine-row">
+                              <div className="mathmaster-systems-operation-spacer" aria-hidden="true" />
                               <AlignedEquationRow
-                                key={index}
-                                equationText={multipliedEq(index)?.text || equations[index]}
+                                equationText={multipliedEq(0)?.text || equations[0]}
                                 variables={variables}
                                 targetVariable={selection.variable}
-                                cancelled={Boolean(combination.cancelledRows?.[index])}
-                                onTargetTermClick={() => toggleCancellationRow(index)}
-                                label={`Prepared equation ${index + 1}`}
+                                cancelled={Boolean(combination.cancelledRows?.[0])}
+                                onTargetTermClick={() => toggleCancellationRow(0)}
+                                label="Prepared equation 1"
                               />
-                            ))}
+                            </div>
+                            <div className="mathmaster-systems-combine-row">
+                              <div className="mathmaster-systems-operation-symbol" aria-hidden="true">
+                                {combination.operation === 'subtract' ? '−' : '+'}
+                              </div>
+                              <AlignedEquationRow
+                                equationText={multipliedEq(1)?.text || equations[1]}
+                                variables={variables}
+                                targetVariable={selection.variable}
+                                cancelled={Boolean(combination.cancelledRows?.[1])}
+                                onTargetTermClick={() => toggleCancellationRow(1)}
+                                label="Prepared equation 2"
+                              />
+                            </div>
+                            <div className="mathmaster-systems-combine-result-line" />
                           </div>
                           <div className="mathmaster-systems-cancellation-progress">
                             {cancellationComplete
@@ -1634,23 +1667,31 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
               {combinationLocked && !firstSolvedDone ? (
                 <div className="mathmaster-systems-elimination-result">
-                  <div className="mathmaster-systems-combine-preview is-complete">
-                    <AlignedEquationRow
-                      equationText={multipliedEq(0)?.text || equations[0]}
-                      variables={variables}
-                      targetVariable={selection.variable}
-                      cancelled
-                      label="Prepared equation 1"
-                    />
-                    <AlignedEquationRow
-                      equationText={multipliedEq(1)?.text || equations[1]}
-                      variables={variables}
-                      targetVariable={selection.variable}
-                      cancelled
-                      label="Prepared equation 2"
-                    />
+                  <div className="mathmaster-systems-combine-stack is-complete">
+                    <div className="mathmaster-systems-combine-row">
+                      <div className="mathmaster-systems-operation-spacer" aria-hidden="true" />
+                      <AlignedEquationRow
+                        equationText={multipliedEq(0)?.text || equations[0]}
+                        variables={variables}
+                        targetVariable={selection.variable}
+                        cancelled
+                        label="Prepared equation 1"
+                      />
+                    </div>
+                    <div className="mathmaster-systems-combine-row">
+                      <div className="mathmaster-systems-operation-symbol" aria-hidden="true">
+                        {combination.operation === 'subtract' ? '−' : '+'}
+                      </div>
+                      <AlignedEquationRow
+                        equationText={multipliedEq(1)?.text || equations[1]}
+                        variables={variables}
+                        targetVariable={selection.variable}
+                        cancelled
+                        label="Prepared equation 2"
+                      />
+                    </div>
+                    <div className="mathmaster-systems-combine-result-line" />
                   </div>
-                  <div className="mathmaster-systems-combine-result-line" />
                   <div className="mathmaster-systems-combined-equation">
                     <span>{combination.operation === 'subtract' ? 'Equation 1 − Equation 2' : 'Equation 1 + Equation 2'}</span>
                     <MathDisplay value={combination.text} format="ascii-math" />
