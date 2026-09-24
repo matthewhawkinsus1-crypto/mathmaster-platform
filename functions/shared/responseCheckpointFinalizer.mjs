@@ -23,7 +23,7 @@
 import { resolveAuthoritativeClose, SCHOOL_TIME_ZONE } from './sectionDeadline.mjs';
 import { gradeOrdinaryResponse, serverGradingSupport } from './ordinaryResponseGrading.mjs';
 import { getEffectiveActivityPolicy } from './activityPolicies.mjs';
-import { normalizeQuestionRecord, recordQuestionAttempt, resolveQuestionMaximumAttempts } from './attemptPolicy.mjs';
+import { normalizeQuestionRecord, recordQuestionAttempt, resolveQuestionMaximumAttempts, resolveTeacherGrantedExtraAttempts } from './attemptPolicy.mjs';
 import { buildAttemptEvidenceEvent } from './attemptEvidenceEvent.mjs';
 import {
   classworkGradeProjection,
@@ -330,6 +330,11 @@ export const buildCheckpointFinalization = ({
       question,
       maximumAttempts: activityPolicy.attempts,
       activityPolicy,
+      teacherGrantedExtraAttempts: resolveTeacherGrantedExtraAttempts({
+        assignment,
+        activityRole: decision.activityRole,
+        classId: gradeDocument?.classId || null,
+      }),
     }),
     // `lastAttemptAt` is the deadline this response was submitted at, not the
     // minute a background function happened to process it.

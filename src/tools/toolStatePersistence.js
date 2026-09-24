@@ -119,6 +119,7 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
   constraintFunctionBuilder: entry(['constraintFunctionBuilder/ConstraintFunctionBuilder.jsx']),
   linearTableWorkbench: entry(['linearTableWorkbench/LinearTableWorkbench.jsx'], {
     selectedRows: 'Which rows are currently picked up before a comparison is recorded. Selection, not committed evidence.',
+    editingEvidenceIndex: 'Which already-recorded interval is open in the edit controls. Editor selection only; the committed evidence stays draft-backed until Save changes.',
     notice: 'Transient status line, regenerated from the action that raised it.',
     redoDepth: 'Mirror of the redo stack depth, for enabling a button.',
   }),

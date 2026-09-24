@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { getDOLInstructionDateKey } from '../../src/assignmentLifecycle.js';
+import { dolTeacherRecoveryActiveAt, resolveDolWindow } from '../../functions/shared/sectionDeadline.mjs';
 
 const app = fs.readFileSync('src/App.jsx', 'utf8');
 const lifecycle = fs.readFileSync('src/assignmentLifecycle.js', 'utf8');
@@ -45,32 +46,55 @@ test('teacher screens keep stale reused DOL controls reachable', () => {
 });
 
 
-test('expired early DOL can restart only before the regular DOL cutoff', () => {
-  const lifecycleStart = lifecycle.indexOf('export const getDOLState');
-  const lifecycleEnd = lifecycle.indexOf('export const normalizeAssignmentActivity', lifecycleStart);
-  const lifecycleBlock = lifecycle.slice(lifecycleStart, lifecycleEnd);
-  assert.match(lifecycleBlock, /regularEndsAt/);
-  assert.match(lifecycleBlock, /const canRestart = status === 'ended' && now < regularEndsAt/);
-  assert.match(lifecycleBlock, /regularOpensAt,/);
-  assert.match(lifecycleBlock, /regularEndsAt,/);
-  assert.match(lifecycleBlock, /canRestart,/);
+test('teacher can explicitly recover a DOL after the regular cutoff without rewriting the original window', () => {
+  const assignment = {
+    dol: {
+      minutesBeforeEnd: 10,
+      closeMinutesBeforeEnd: 5,
+      recoveryByClassId: {
+        'class-a': {
+          dateKey: '2026-09-24',
+          openedAt: '2026-09-24T20:00:00.000Z',
+          closesAt: '2026-09-24T20:10:00.000Z',
+          openedBy: 'teacher@example.com',
+        },
+      },
+    },
+  };
+  const window = { startMs: Date.parse('2026-09-24T18:00:00.000Z'), endMs: Date.parse('2026-09-24T19:00:00.000Z') };
+  const recovered = resolveDolWindow({ assignment, window, classId: 'class-a', todayKey: '2026-09-24' });
+  assert.equal(recovered.teacherRecovery, true);
+  assert.equal(recovered.opensAtMs, Date.parse('2026-09-24T20:00:00.000Z'));
+  assert.equal(recovered.endsAtMs, Date.parse('2026-09-24T20:10:00.000Z'));
+  assert.equal(dolTeacherRecoveryActiveAt({
+    assignment,
+    classId: 'class-a',
+    at: '2026-09-24T20:05:00.000Z',
+    timeZone: 'America/Chicago',
+  }), true);
+  assert.equal(dolTeacherRecoveryActiveAt({
+    assignment,
+    classId: 'class-b',
+    at: '2026-09-24T20:05:00.000Z',
+    timeZone: 'America/Chicago',
+  }), false);
 
   const handlerStart = app.indexOf('const handleUnlockDOLForClass');
   const handlerEnd = app.indexOf('const handleToggleWarmupForClass', handlerStart);
   const handlerBlock = app.slice(handlerStart, handlerEnd);
-  assert.match(handlerBlock, /const canRestart = state\.status === 'ended' && state\.canRestart === true/);
-  assert.match(handlerBlock, /Restart DOL/);
-  assert.match(handlerBlock, /final technology-return window/);
-  assert.match(handlerBlock, /if \(\(state\.status === 'ended' && !canRestart\)/);
-  assert.match(handlerBlock, /Date\.now\(\) >= state\.regularEndsAt\.getTime\(\)/);
+  assert.match(handlerBlock, /recoveryByClassId/);
+  assert.match(handlerBlock, /Reopen DOL/);
+  assert.match(handlerBlock, /teacher-recovery/);
 });
 
-test('teacher DOL surfaces keep restartable ended timers actionable', () => {
-  assert.match(teacherHome, /state\.canRestart === true/);
-  assert.match(teacherHome, /Restart DOL/);
+test('teacher DOL surfaces expose restart, reopen, and extra-attempt recovery', () => {
+  assert.match(teacherHome, /state\.canRestart/);
+  assert.match(teacherHome, /Reopen DOL/);
+  assert.match(teacherHome, /Grant \+1 attempt/);
   assert.match(classesWorkspace, /dol\.canRestart/);
-  assert.match(classesWorkspace, /RESTART AVAILABLE/);
-  assert.match(classesWorkspace, /Restart DOL/);
+  assert.match(classesWorkspace, /RECOVERY AVAILABLE/);
+  assert.match(classesWorkspace, /Reopen DOL/);
+  assert.match(classesWorkspace, /Grant \+1 attempt/);
 });
 
 console.log('dolClassReuseTeacherControl.test.mjs: all assertions passed');

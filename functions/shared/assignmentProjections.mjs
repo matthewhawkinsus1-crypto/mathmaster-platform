@@ -85,14 +85,17 @@ export const dolSectionProjection = ({
   recordedAt = new Date().toISOString(),
   finalize = false,
   correctionReason = 'deadline-auto-submit',
+  allowReopen = false,
 } = {}) => {
   if (!dateKey) return null;
   const previous = existing?.[dateKey] || null;
   const finalizing = Boolean(finalize);
 
-  // A live/in-progress update must never reopen or rewrite a final DOL. Only
-  // the authoritative post-cutoff path may correct it.
-  if (previous?.finalized === true && !finalizing) return null;
+  // A live/in-progress update ordinarily cannot rewrite a final DOL. The only
+  // exception is a server-verified teacher recovery window. That exception is
+  // explicit and audited; it never comes from a browser flag.
+  const reopeningFinal = previous?.finalized === true && !finalizing && allowReopen === true;
+  if (previous?.finalized === true && !finalizing && !reopeningFinal) return null;
 
   const correctingFinal = finalizing && previous?.finalized === true;
   const originalFinalizedAt = previous?.finalizedAt
@@ -107,8 +110,14 @@ export const dolSectionProjection = ({
     questionIndices,
     // Preserve the original close receipt when correcting an already-final DOL.
     recordedAt: correctingFinal ? (previous?.recordedAt || recordedAt) : recordedAt,
-    status: finalizing ? 'section-finalized' : 'section-in-progress',
+    status: finalizing ? 'section-finalized' : reopeningFinal ? 'section-reopened' : 'section-in-progress',
     ...(finalizing ? { finalizedAt: originalFinalizedAt } : {}),
+    ...(reopeningFinal ? {
+      previousFinalizedAt: previous?.finalizedAt || previous?.recordedAt || null,
+      finalizedAt: null,
+      reopenedAt: recordedAt,
+      reopenReason: correctionReason,
+    } : {}),
     ...(correctingFinal ? {
       recalculatedAt: recordedAt,
       recalculationReason: correctionReason,

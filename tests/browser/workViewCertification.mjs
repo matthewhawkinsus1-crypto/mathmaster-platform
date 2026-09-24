@@ -125,6 +125,21 @@ const makeStatefulEdit = async (page, shell, toolId, toolRoot) => {
     }
   }
 
+  if (toolId === 'expressionMeaning') {
+    // The first aria-pressed control is the already-active expression row, so
+    // the generic button probe would click it and observe no change. Exercise
+    // an actual answer choice instead: those buttons write draft-backed
+    // mathematical state and expose aria-pressed after selection.
+    const choice = surface.locator('[role="group"] button:visible:not([disabled])').first();
+    if (await choice.count()) {
+      try {
+        await choice.click({ timeout: 2500 });
+        const result = await changed('assigned an expression meaning choice');
+        if (result) return result;
+      } catch { /* continue through generic strategies */ }
+    }
+  }
+
   if (toolId === 'stepAlgebra2') {
     const operand = surface.locator('input[type="number"]:visible').first();
     const apply = surface.getByRole('button', { name: 'Apply to both sides', exact: true }).first();

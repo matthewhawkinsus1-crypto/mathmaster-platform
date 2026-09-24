@@ -190,3 +190,23 @@ test('validation rejects duplicate x-values, too few rows, and out-of-range requ
   assert.ok(validateLinearTableWorkbenchQuestion({ rows: equalSpacing, requiredComparisons: 99 })
     .some((message) => /cannot exceed/.test(message)));
 });
+
+
+test('grading identifies the exact interval fields that need another look', () => {
+  const question = { type: 'linearTableWorkbench', mode: 'deriveEquation', rows: irregularSpacing, requiredComparisons: 2 };
+  const response = {
+    evidence: [
+      { i: 0, j: 1, dx: 4, dy: 8, rate: 2 }, // sign errors: truth is -8 and -2
+      { i: 1, j: 2, dx: 3, dy: -6, rate: -2 },
+    ],
+    classification: 'linear',
+    m: -2,
+    b: 10,
+    equation: 'y=-2x+10',
+  };
+  const result = scoreLinearTableWorkbench(question, response);
+  assert.equal(result.evidenceCorrectness[0].dxCorrect, true);
+  assert.equal(result.evidenceCorrectness[0].dyCorrect, false);
+  assert.equal(result.evidenceCorrectness[0].rateCorrect, false);
+  assert.equal(result.evidenceCorrectness[1].complete, true);
+});

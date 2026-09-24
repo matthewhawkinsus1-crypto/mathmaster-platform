@@ -37,6 +37,38 @@ export const SAMPLE_SPECS = {
     validSchemes:[{id:'family',groups:[{itemIds:['a','c']},{itemIds:['b','d']}]}],
   },
   constraintFunctionBuilder: { allowedFamilies:['quadratic','absolute','linear'],constraints:[{id:'family',kind:'family',value:'quadratic',label:'A quadratic relation'}],graph:{xMin:-8,xMax:8,yMin:-8,yMax:8} },
+  linearTableWorkbench: {
+    mode:'deriveEquation',
+    rows:[{x:-2,y:5.5},{x:1,y:4.75},{x:4,y:4},{x:7,y:3.25}],
+    requiredComparisons:3,
+  },
+  expressionMeaning: {
+    questionId:'preview-expression-meaning',
+    expressions:[
+      {id:'rate',expression:'15',unit:'dollars per shirt',contextMeaning:'selling price earned for each shirt sold',mathRole:'rate of change / slope'},
+      {id:'constant',expression:'-45',unit:'dollars',contextMeaning:'value associated with the three shirts given away',mathRole:'y-intercept / constant term'},
+      {id:'adjustedInput',expression:'(t - 3)',unit:'shirts',contextMeaning:'shirts available to sell after three are given away',mathRole:'adjusted input'},
+    ],
+    choiceBanks:{
+      units:['dollars per shirt','dollars','shirts','minutes'],
+      contextMeanings:['selling price earned for each shirt sold','value associated with the three shirts given away','shirts available to sell after three are given away','total time spent selling'],
+      mathRoles:['rate of change / slope','y-intercept / constant term','adjusted input','independent variable'],
+    },
+  },
+  representationBridge: {
+    mode:'linear',
+    source:{kind:'table',rows:[{x:0,y:-20},{x:2,y:-10},{x:4,y:0},{x:6,y:10}]},
+    context:{
+      inputLabel:'items sold',outputLabel:'profit',inputUnit:'items',outputUnit:'dollars',
+      rateUnit:'dollars per item',rateMeaning:'profit earned for each item sold',
+      yInterceptMeaning:'starting profit after paying the booth fee',
+      zeroMeaning:'number of items that must be sold to break even',
+    },
+    requiredStages:['rateEvidence','generalForm','factoredForm','graph','meaning'],
+    requiredComparisons:3,
+    graphBounds:{xMin:-2,xMax:8,yMin:-25,yMax:15},
+    feedbackTiming:'checkpoint',
+  },
   solutionReview2: { solutionSteps:['Identify the target.','Use a mathematically valid strategy.','Verify in the original problem.'] },
 };
 

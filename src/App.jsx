@@ -61,6 +61,7 @@ import {
   requestReplacementQuestion,
   resolveQuestionMaximumAttempts,
   resolveQuestionReplacementAllowed,
+  resolveTeacherGrantedExtraAttempts,
 } from './attemptPolicy';
 import {
   parseAssignmentBlueprintText,
@@ -846,6 +847,7 @@ function App() {
   const [movingFolderValue, setMovingFolderValue] = useState('');
   const [feedbackReleaseBusyId, setFeedbackReleaseBusyId] = useState(null);
   const [dolUnlockBusyKey, setDolUnlockBusyKey] = useState(null);
+  const [dolAttemptGrantBusyKey, setDolAttemptGrantBusyKey] = useState(null);
   const [warmupControlBusyKey, setWarmupControlBusyKey] = useState(null);
   const [sectionAccessBusyKey, setSectionAccessBusyKey] = useState(null);
   const [studentDashboardMode, setStudentDashboardMode] = useState('assignments');
@@ -5011,6 +5013,12 @@ function App() {
     if (!activeAssignmentId) return null;
     if (!isTeacherPreview) lastAcademicInteractionRef.current = Date.now();
 
+    const localAssignment = assignments.find((item) => item.id === activeAssignmentId);
+    const teacherGrantedExtraAttempts = resolveTeacherGrantedExtraAttempts({
+      assignment: localAssignment,
+      activityRole: activeQuestionRole,
+      classId: user?.classId || null,
+    });
     const applyAttempt = (record) =>
       recordQuestionAttempt({
         record,
@@ -5025,6 +5033,7 @@ function App() {
           question: activeQuestions[currentQuestionIndex],
           maximumAttempts: activeActivityPolicy.attempts,
           activityPolicy: activeActivityPolicy,
+          teacherGrantedExtraAttempts,
         }),
       });
 
@@ -5039,7 +5048,6 @@ function App() {
 
     if (user?.role !== 'student') return null;
 
-    const localAssignment = assignments.find((item) => item.id === activeAssignmentId);
     const submissionCapturedAt = Date.now();
     const timedSectionAccess = captureTimedSectionAccess({
       activityRole: activeQuestionRole,
@@ -5247,6 +5255,12 @@ function App() {
   const handleStepGrade = async ({ stepGrade, countsAttempt, statePatch, supportUsage: providedSupportUsage = null }) => {
     if (!activeAssignmentId) return null;
     const supportUsage = providedSupportUsage || buildSupportUsage(user?.profile, activeQuestions[currentQuestionIndex]);
+    const localAssignment = assignments.find((item) => item.id === activeAssignmentId);
+    const teacherGrantedExtraAttempts = resolveTeacherGrantedExtraAttempts({
+      assignment: localAssignment,
+      activityRole: activeQuestionRole,
+      classId: user?.classId || null,
+    });
     const applyStep = (record) =>
       recordQuestionStep({
         record,
@@ -5258,6 +5272,7 @@ function App() {
           question: activeQuestions[currentQuestionIndex],
           maximumAttempts: activeActivityPolicy.attempts,
           activityPolicy: activeActivityPolicy,
+          teacherGrantedExtraAttempts,
         }),
       });
 
@@ -5271,7 +5286,6 @@ function App() {
     }
 
     if (user?.role !== 'student') return null;
-    const localAssignment = assignments.find((item) => item.id === activeAssignmentId);
     const stepCapturedAt = Date.now();
     const stepTimedSectionAccess = captureTimedSectionAccess({
       activityRole: activeQuestionRole,
@@ -6891,13 +6905,7 @@ function App() {
     }
     const needsOpenToday = ['notToday', 'unscheduled'].includes(state.status);
     if (!state.window) {
-      toastWarning('Bell schedule needed', `Set today’s A/B day and bell times for ${classPeriod} before unlocking its DOL.`);
-      return;
-    }
-    const actionNowMs = Date.now();
-    const canRestart = state.status === 'ended' && state.canRestart === true;
-    if ((state.status === 'ended' && !canRestart) || actionNowMs > state.window.end.getTime()) {
-      toastWarning('DOL window ended', `The DOL window for ${classLabel} has already ended.`);
+      toastWarning('Bell schedule needed', `Set today’s A/B day and bell times for ${classPeriod} before controlling its DOL.`);
       return;
     }
     if (state.status === 'active') {
@@ -6905,64 +6913,134 @@ function App() {
       return;
     }
 
+    const actionNowMs = Date.now();
     const durationMinutes = Math.max(1, Number(assignment?.dol?.minutesBeforeEnd || 10));
+    const closeMinutesBeforeEnd = Math.max(0, Number(assignment?.dol?.closeMinutesBeforeEnd ?? 5));
+    const derivedRegularEndMs = Math.max(
+      state.window.start.getTime(),
+      state.window.end.getTime() - closeMinutesBeforeEnd * 60_000,
+    );
+    const canRestart = state.status === 'ended' && state.canRestart === true;
+    // Once the normal DOL cutoff passes, a teacher can still deliberately
+    // reopen the DOL. This is stored as an audited recovery window instead of
+    // pretending the original bell-time window never ended.
+    const recoveryAfterCutoff = (state.status === 'ended' || needsOpenToday)
+      && actionNowMs >= (state.regularEndsAt?.getTime?.() || derivedRegularEndMs);
     const beforeClass = state.status === 'beforeClass' || actionNowMs < state.window.start.getTime();
+
     const proceed = await confirmAction({
-      title: canRestart
-        ? `Restart the DOL for ${classLabel}?`
-        : needsOpenToday
-          ? `Open the DOL today for ${classLabel}?`
-          : `Unlock the DOL early for ${classLabel}?`,
-      message: canRestart
-        ? `The earlier DOL timer ended, but instructional DOL time remains. Restart it now for ${classLabel} only. The timer will still stop before the final technology-return window.`
-        : needsOpenToday
-          ? beforeClass
-            ? `This lesson was saved for another instructional day. MathMaster will set today as the DOL date for ${classLabel} only, then open it when class begins with its ${durationMinutes}-minute timer.`
-            : `This lesson was saved for another instructional day. MathMaster will set today as the DOL date for ${classLabel} only and open it now with its ${durationMinutes}-minute timer. Other classes stay unchanged.`
-          : beforeClass
-            ? `The DOL will open when ${classLabel} begins and its ${durationMinutes}-minute timer will start then.`
-            : `The DOL will open immediately for ${classLabel} and its ${durationMinutes}-minute timer will start now. Other classes stay locked.`,
-      confirmLabel: canRestart ? 'Restart DOL' : needsOpenToday ? 'Open DOL Today' : 'Unlock DOL',
+      title: recoveryAfterCutoff
+        ? `Reopen the DOL for ${classLabel}?`
+        : canRestart
+          ? `Restart the DOL for ${classLabel}?`
+          : needsOpenToday
+            ? `Open the DOL today for ${classLabel}?`
+            : `Unlock the DOL early for ${classLabel}?`,
+      message: recoveryAfterCutoff
+        ? `The normal DOL window has ended. MathMaster will open a new ${durationMinutes}-minute teacher recovery window for ${classLabel} only. Existing attempts and work history stay intact, and the exception is recorded on the assignment.`
+        : canRestart
+          ? `The earlier DOL timer ended, but instructional DOL time remains. Restart it now for ${classLabel} only. The timer will still stop before the normal DOL cutoff.`
+          : needsOpenToday
+            ? beforeClass
+              ? `This lesson was saved for another instructional day. MathMaster will set today as the DOL date for ${classLabel} only, then open it when class begins with its ${durationMinutes}-minute timer.`
+              : `This lesson was saved for another instructional day. MathMaster will set today as the DOL date for ${classLabel} only and open it now with its ${durationMinutes}-minute timer. Other classes stay unchanged.`
+            : beforeClass
+              ? `The DOL will open when ${classLabel} begins and its ${durationMinutes}-minute timer will start then.`
+              : `The DOL will open immediately for ${classLabel} and its ${durationMinutes}-minute timer will start now. Other classes stay locked.`,
+      confirmLabel: recoveryAfterCutoff ? 'Reopen DOL' : canRestart ? 'Restart DOL' : needsOpenToday ? 'Open DOL Today' : 'Unlock DOL',
     });
     if (!proceed) return;
-    // A confirmation dialog can stay open across the cutoff. Re-check at the
-    // moment of the write so a restart can never leak into the final pack-up
-    // window just because the teacher clicked the button a few seconds earlier.
-    if (canRestart && state.regularEndsAt && Date.now() >= state.regularEndsAt.getTime()) {
-      toastWarning('DOL window ended', `The DOL window for ${classLabel} has already ended.`);
-      return;
-    }
 
     const busyKey = `${assignment.id}:${classKey}`;
     setDolUnlockBusyKey(busyKey);
     try {
-      const unlockedAt = new Date().toISOString();
-      const dateKey = localDateKey(unlockedAt);
+      const writeNow = Date.now();
+      const openedAt = new Date(writeNow).toISOString();
+      const dateKey = localDateKey(openedAt);
       const dol = { ...(assignment.dol || {}), enabled: true };
-      const entry = {
-        dateKey,
-        unlockedAt,
-        unlockedBy: user?.email || user?.id || 'teacher',
-      };
-      // Manual DOL release is authoritative for this real class. Pinning the
-      // instructional date by class ID repairs reused/moved lessons without
-      // altering the DOL date or completion history of any other class.
+      const currentRegularEndMs = state.regularEndsAt?.getTime?.() || derivedRegularEndMs;
+      // Re-evaluate after confirmation. If the regular cutoff passed while the
+      // dialog was open, safely convert the action into a recovery window.
+      const recoveryNow = (state.status === 'ended' || needsOpenToday) && writeNow >= currentRegularEndMs;
+
       dol.instructionDatesByClassId = {
         ...(assignment.dol?.instructionDatesByClassId || {}),
         [classId]: dateKey,
       };
-      dol.earlyUnlocksByClassId = { ...(assignment.dol?.earlyUnlocksByClassId || {}), [classId]: entry };
-      await updateDoc(doc(db, 'assignments', assignment.id), { dol, updatedAt: unlockedAt });
-      if (canRestart) {
-        toastSuccess('DOL restarted', `${assignment.title} is open again for ${classLabel} only and will still stop before the final pack-up window.`);
+
+      if (recoveryNow) {
+        const closesAt = new Date(writeNow + durationMinutes * 60_000).toISOString();
+        dol.recoveryByClassId = {
+          ...(assignment.dol?.recoveryByClassId || {}),
+          [classId]: {
+            dateKey,
+            openedAt,
+            closesAt,
+            openedBy: user?.email || user?.id || 'teacher',
+            reason: 'teacher-recovery',
+          },
+        };
       } else {
-        toastSuccess('DOL unlocked', `${assignment.title} is released early for ${classLabel} only. Its timer starts when the unlock takes effect.`);
+        const entry = {
+          dateKey,
+          unlockedAt: openedAt,
+          unlockedBy: user?.email || user?.id || 'teacher',
+        };
+        dol.earlyUnlocksByClassId = { ...(assignment.dol?.earlyUnlocksByClassId || {}), [classId]: entry };
+      }
+
+      await updateDoc(doc(db, 'assignments', assignment.id), { dol, updatedAt: openedAt });
+      if (recoveryNow) {
+        toastSuccess('DOL reopened', `${assignment.title} has a fresh ${durationMinutes}-minute recovery window for ${classLabel}. Existing work and attempt history were preserved.`);
+      } else if (canRestart) {
+        toastSuccess('DOL restarted', `${assignment.title} is open again for ${classLabel} only and will still stop before the normal pack-up window.`);
+      } else {
+        toastSuccess('DOL unlocked', `${assignment.title} is released for ${classLabel} only. Its timer starts when the unlock takes effect.`);
       }
     } catch (error) {
       console.error(error);
-      toastError('Could not unlock DOL', error.message);
+      toastError('Could not open DOL', error.message);
     } finally {
       setDolUnlockBusyKey(null);
+    }
+  };
+
+  const handleGrantDOLAttemptForClass = async (assignment, classContext) => {
+    const { classId, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
+    if (!assignment?.id || !classId || !classKey) return;
+    const currentBonus = resolveTeacherGrantedExtraAttempts({
+      assignment,
+      activityRole: 'dol',
+      classId,
+    });
+    const proceed = await confirmAction({
+      title: `Grant one more DOL attempt to ${classLabel}?`,
+      message: `Every student in ${classLabel} will receive one additional attempt on each DOL question in this assignment. Existing attempts, scores, and response history are preserved. The class bonus will become ${currentBonus + 1}.`,
+      confirmLabel: 'Grant +1 Attempt',
+    });
+    if (!proceed) return;
+
+    const busyKey = `${assignment.id}:${classKey}`;
+    setDolAttemptGrantBusyKey(busyKey);
+    try {
+      const changedAt = new Date().toISOString();
+      const dol = { ...(assignment.dol || {}), enabled: true };
+      dol.attemptGrantsByClassId = {
+        ...(assignment.dol?.attemptGrantsByClassId || {}),
+        [classId]: {
+          extraAttempts: Math.min(20, currentBonus + 1),
+          changedAt,
+          changedBy: user?.email || user?.id || 'teacher',
+          reason: 'teacher-dol-recovery',
+        },
+      };
+      await updateDoc(doc(db, 'assignments', assignment.id), { dol, updatedAt: changedAt });
+      toastSuccess('Extra DOL attempt granted', `${classLabel} now has ${Math.min(20, currentBonus + 1)} teacher-granted extra DOL attempt${Math.min(20, currentBonus + 1) === 1 ? '' : 's'}.`);
+    } catch (error) {
+      console.error(error);
+      toastError('Could not grant DOL attempt', error.message);
+    } finally {
+      setDolAttemptGrantBusyKey(null);
     }
   };
 
@@ -9267,7 +9345,17 @@ function App() {
                         : '';
                       const cardPolicy = getEffectiveActivityPolicy(cardRole);
                       const cardFeedbackHeld = !preview && !lifecycle.isPracticeOnly && cardPolicy.feedback === 'teacherRelease' && !assignmentFeedbackWasReleased(assignment);
-                      const storedCardState = getQuestionCardState(workingTracker?.[index]);
+                      const cardMaximumAttempts = resolveQuestionMaximumAttempts({
+                        question: questions[index],
+                        maximumAttempts: cardPolicy.attempts,
+                        activityPolicy: cardPolicy,
+                        teacherGrantedExtraAttempts: resolveTeacherGrantedExtraAttempts({
+                          assignment,
+                          activityRole: cardRole,
+                          classId: user?.classId || null,
+                        }),
+                      });
+                      const storedCardState = getQuestionCardState(workingTracker?.[index], cardMaximumAttempts);
                       const cardState = cardFeedbackHeld && ['correct', 'expired'].includes(record.status)
                         ? { background: '#eef4ff', color: '#174ea6', label: 'Submitted · feedback held' }
                         : storedCardState;
@@ -9354,6 +9442,11 @@ function App() {
                 question: questions[currentQuestionIndex],
                 maximumAttempts: runtimeQuestionActivityPolicy.attempts,
                 activityPolicy: runtimeQuestionActivityPolicy,
+              })}
+              teacherGrantedExtraAttempts={resolveTeacherGrantedExtraAttempts({
+                assignment,
+                activityRole: runtimeActivityRole,
+                classId: user?.classId || null,
               })}
               activityRole={runtimeActivityRole}
               activityPolicy={runtimeQuestionActivityPolicy}
@@ -10131,6 +10224,8 @@ function App() {
                 onOpenAdministration={() => setTeacherWorkspaceMode('administration')}
                 onUnlockDOL={handleUnlockDOLForClass}
                 dolUnlockBusyKey={dolUnlockBusyKey}
+                onGrantDOLAttempt={handleGrantDOLAttemptForClass}
+                dolAttemptGrantBusyKey={dolAttemptGrantBusyKey}
                 onToggleWarmup={handleToggleWarmupForClass}
                 warmupControlBusyKey={warmupControlBusyKey}
                 onToggleSectionAccess={handleToggleSectionAccessForClass}
@@ -10229,6 +10324,8 @@ function App() {
                 onViewGradebook={handleViewClassGradebook}
                 onUnlockDOL={handleUnlockDOLForClass}
                 dolUnlockBusyKey={dolUnlockBusyKey}
+                onGrantDOLAttempt={handleGrantDOLAttemptForClass}
+                dolAttemptGrantBusyKey={dolAttemptGrantBusyKey}
                 onToggleWarmup={handleToggleWarmupForClass}
                 warmupControlBusyKey={warmupControlBusyKey}
                 onToggleSectionAccess={handleToggleSectionAccessForClass}
