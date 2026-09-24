@@ -152,10 +152,48 @@ export const resolveDolWindow = ({ assignment, window, classId = null, todayKey 
   const durationMinutes = Math.max(1, Number(assignment?.dol?.minutesBeforeEnd || 10));
   const closeMinutesBeforeEnd = Math.max(0, Number(assignment?.dol?.closeMinutesBeforeEnd ?? 5));
   if (!window) {
-    return { opensAtMs: null, endsAtMs: null, regularOpensAtMs: null, regularEndsAtMs: null, earlyUnlocked: false, durationMinutes, closeMinutesBeforeEnd };
+    return {
+      opensAtMs: null, endsAtMs: null, regularOpensAtMs: null, regularEndsAtMs: null,
+      earlyUnlocked: false, teacherRecovery: false, durationMinutes, closeMinutesBeforeEnd,
+    };
   }
   const regularEndsAtMs = Math.max(window.startMs, window.endMs - closeMinutesBeforeEnd * 60_000);
   const regularOpensAtMs = Math.max(window.startMs, regularEndsAtMs - durationMinutes * 60_000);
+
+  /*
+   * A TEACHER MAY EXPLICITLY REOPEN A DOL AFTER ITS NORMAL CUTOFF.
+   *
+   * This is recovery authority, not a silent change to the original timer.
+   * The record is class-scoped, date-stamped, names who opened it, and carries
+   * an explicit close. Both the browser and Cloud Functions read this same
+   * record, so a student never sees an open DOL that the server would reject.
+   *
+   * Unlike an EARLY unlock, a recovery window is deliberately allowed to cross
+   * the normal pack-up cutoff: the teacher is making an explicit exception for
+   * a bad item, device problem, interruption, or other classroom circumstance.
+   */
+  const recovery = scopedOverride({ byClassId: assignment?.dol?.recoveryByClassId, classId });
+  const recoveryOpenedAtMs = overrideInstant(recovery, 'openedAt', null);
+  const recoveryClosesAtMs = overrideInstant(recovery, 'closesAt', null);
+  const recoveryDateKey = overrideDateKey(recovery);
+  const recoveryToday = Boolean(
+    recoveryOpenedAtMs
+    && recoveryClosesAtMs
+    && recoveryClosesAtMs > recoveryOpenedAtMs
+    && (!recoveryDateKey || !todayKey || recoveryDateKey === todayKey)
+  );
+  if (recoveryToday) {
+    return {
+      opensAtMs: recoveryOpenedAtMs,
+      endsAtMs: recoveryClosesAtMs,
+      regularOpensAtMs,
+      regularEndsAtMs,
+      earlyUnlocked: false,
+      teacherRecovery: true,
+      durationMinutes,
+      closeMinutesBeforeEnd,
+    };
+  }
 
   const unlock = scopedOverride({ byClassId: assignment?.dol?.earlyUnlocksByClassId, classId });
   const unlockAtMs = overrideInstant(unlock, 'unlockedAt', null);
@@ -164,13 +202,25 @@ export const resolveDolWindow = ({ assignment, window, classId = null, todayKey 
   const earlyUnlocked = unlockToday && unlockAtMs < regularOpensAtMs;
 
   if (!earlyUnlocked) {
-    return { opensAtMs: regularOpensAtMs, endsAtMs: regularEndsAtMs, regularOpensAtMs, regularEndsAtMs, earlyUnlocked: false, durationMinutes, closeMinutesBeforeEnd };
+    return {
+      opensAtMs: regularOpensAtMs,
+      endsAtMs: regularEndsAtMs,
+      regularOpensAtMs,
+      regularEndsAtMs,
+      earlyUnlocked: false,
+      teacherRecovery: false,
+      durationMinutes,
+      closeMinutesBeforeEnd,
+    };
   }
   const opensAtMs = Math.max(window.startMs, unlockAtMs);
   // Early release starts the same DOL timer immediately, but the DOL can never
   // extend into the final technology-return window.
   const endsAtMs = Math.min(regularEndsAtMs, opensAtMs + durationMinutes * 60_000);
-  return { opensAtMs, endsAtMs, regularOpensAtMs, regularEndsAtMs, earlyUnlocked: true, durationMinutes, closeMinutesBeforeEnd };
+  return {
+    opensAtMs, endsAtMs, regularOpensAtMs, regularEndsAtMs,
+    earlyUnlocked: true, teacherRecovery: false, durationMinutes, closeMinutesBeforeEnd,
+  };
 };
 
 /** When a teacher manually closed Classwork/Practice for one class, if they did. */
@@ -228,8 +278,15 @@ export const resolveAuthoritativeClose = ({
       return { closesAtMs: finalCloseAtMs, reason: 'assignment-final-deadline', teacherTimerScheduled: false };
     }
     const dol = resolveDolWindow({ assignment, window, classId, todayKey });
-    if (dol.endsAtMs) return { closesAtMs: dol.endsAtMs, reason: 'dol-close', earlyUnlocked: dol.earlyUnlocked };
-    return { closesAtMs: finalCloseAtMs, reason: 'assignment-final-deadline', earlyUnlocked: false };
+    if (dol.endsAtMs) {
+      return {
+        closesAtMs: dol.endsAtMs,
+        reason: dol.teacherRecovery ? 'teacher-dol-recovery-close' : 'dol-close',
+        earlyUnlocked: dol.earlyUnlocked,
+        teacherRecovery: dol.teacherRecovery === true,
+      };
+    }
+    return { closesAtMs: finalCloseAtMs, reason: 'assignment-final-deadline', earlyUnlocked: false, teacherRecovery: false };
   }
 
   const manualCloseAtMs = manualSectionCloseAt({ assignment, activityRole: role, classId });
