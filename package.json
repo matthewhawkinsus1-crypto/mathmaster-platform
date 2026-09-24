@@ -17,6 +17,8 @@
     "test:live-challenge": "node --test tests/platform/liveChallenge.test.mjs",
     "build:firebase": "node scripts/build-firebase-hosting.mjs",
     "deploy:hosting": "bash scripts/deploy-hosting-resilient.sh",
+    "verify:deployed-build": "node scripts/verify-deployed-build.mjs",
+    "check:deploy-provenance": "node scripts/check-deploy-provenance.mjs",
     "audit:answer-acceptance": "node scripts/audit-correct-answer-acceptance.mjs --samples 12",
     "audit:assignment-authoring-boundary": "node scripts/audit-assignment-authoring-boundary.mjs",
     "audit:legacy-assignment-source": "node scripts/audit-legacy-assignment-source.mjs",
