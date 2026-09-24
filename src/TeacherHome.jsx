@@ -131,6 +131,7 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
       && (
         ['beforeClass', 'waiting', 'active', 'notToday', 'unscheduled'].includes(state.status)
         || state.canRestart === true
+        || state.canRecover === true
       )
     ));
 
