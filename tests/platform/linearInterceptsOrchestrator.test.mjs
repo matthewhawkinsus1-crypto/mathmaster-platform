@@ -7,6 +7,8 @@ import {
   resolveStandardCoefficients,
 } from '../../src/tools/stepAlgebra2/linearInterceptsMath.js';
 import { compareOrderedPair, parseOrderedPair } from '../../src/answerUtils.js';
+import { ALGEBRA_WORKSPACE_ROUTES, resolveAlgebraWorkspaceRoute } from '../../src/platform/algebra/algebraWorkspaceRoute.js';
+import { region } from './helpers/sourceContract.mjs';
 
 const orchestratorSource = fs.readFileSync(
   new URL('../../src/LinearInterceptsOrchestrator.jsx', import.meta.url),
@@ -15,16 +17,37 @@ const orchestratorSource = fs.readFileSync(
 const questionEngineSource = fs.readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
 
 test('QuestionEngine routes type:"stepAlgebra" + mode:"linearIntercepts" to the orchestrator instead of the plain balance workspace', () => {
-  const stepAlgebraCase = questionEngineSource.slice(
-    questionEngineSource.indexOf("case 'stepAlgebra':"),
-    questionEngineSource.indexOf("case 'algebra':"),
+  // Behaviour: an intercept question opens the orchestrator, and an inequality
+  // never reaches the orchestrator by accident — the relation check wins.
+  // The decision lives in the React-free resolver QuestionEngine consults, so
+  // it is asserted by calling it, not by reading a regex out of the switch.
+  assert.equal(
+    resolveAlgebraWorkspaceRoute({ type: 'stepAlgebra', mode: 'linearIntercepts', equation: '2x + 3y = 12' }).route,
+    ALGEBRA_WORKSPACE_ROUTES.LINEAR_INTERCEPTS,
   );
-  assert.match(stepAlgebraCase, /processedQuestion\.mode === 'linearIntercepts'/);
-  assert.match(stepAlgebraCase, /<LinearInterceptsOrchestrator/);
-  // The relation check must still run first — an inequality never reaches
-  // the intercept orchestrator by accident.
+  assert.equal(
+    resolveAlgebraWorkspaceRoute({ type: 'stepAlgebra', mode: 'linearIntercepts', equation: '2x + 3y > 12' }).route,
+    ALGEBRA_WORKSPACE_ROUTES.RELATION,
+  );
+  assert.equal(
+    resolveAlgebraWorkspaceRoute({ type: 'stepAlgebra', equation: '2x + 3 = 12' }).route,
+    ALGEBRA_WORKSPACE_ROUTES.STEP_ALGEBRA,
+  );
+
+  // Wiring: the stepAlgebra case renders the orchestrator for that route, and
+  // tests the relation route before it.
+  const stepAlgebraCase = region(questionEngineSource, "case 'stepAlgebra':", "case 'algebra':", 'the stepAlgebra case');
+  const linearBranch = region(stepAlgebraCase, 'ALGEBRA_WORKSPACE_ROUTES.LINEAR_INTERCEPTS', '/>', 'the linear intercepts branch');
+  assert.match(linearBranch, /<LinearInterceptsOrchestrator/);
   assert.ok(
-    stepAlgebraCase.indexOf('needsMultiRelationWorkspace') < stepAlgebraCase.indexOf('linearIntercepts'),
+    stepAlgebraCase.indexOf('ALGEBRA_WORKSPACE_ROUTES.RELATION') > -1
+      && stepAlgebraCase.indexOf('ALGEBRA_WORKSPACE_ROUTES.RELATION') < stepAlgebraCase.indexOf('ALGEBRA_WORKSPACE_ROUTES.LINEAR_INTERCEPTS'),
+    'the relation route must be checked before the intercept route',
+  );
+  assert.match(
+    questionEngineSource,
+    /const algebraWorkspaceRoute = useMemo\(\s*\(\) => resolveAlgebraWorkspaceRoute\(processedQuestion\)/,
+    'QuestionEngine must route the question it actually renders',
   );
 });
 

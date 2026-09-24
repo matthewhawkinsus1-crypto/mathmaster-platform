@@ -20,6 +20,8 @@ import {
   verifyRelationCandidates,
   takeSquareRootOfRelation,
 } from '../../src/algebraRelationFoundation.js';
+import { ALGEBRA_WORKSPACE_ROUTES, resolveAlgebraWorkspaceRoute } from '../../src/platform/algebra/algebraWorkspaceRoute.js';
+import { region } from './helpers/sourceContract.mjs';
 import { multiRelationSource } from './helpers/solverSource.mjs';
 
 test('single inequalities parse as two-part relations', () => {
@@ -238,11 +240,18 @@ test('advanced relations route internally without a new public question type', (
 });
 
 test('QuestionEngine preserves stepAlgebra and internally routes advanced work', () => {
+  // Behaviour: a stepAlgebra relation keeps its public type and opens the
+  // relation workspace; a plain equation opens the mature Step Algebra engine.
+  // The resolver QuestionEngine consults is the decision, so call it.
+  assert.equal(resolveAlgebraWorkspaceRoute({ type: 'stepAlgebra', equation: '|x| = 4' }).route, ALGEBRA_WORKSPACE_ROUTES.RELATION);
+  assert.equal(resolveAlgebraWorkspaceRoute({ type: 'stepAlgebra', equation: '4*x - 7 = 9' }).route, ALGEBRA_WORKSPACE_ROUTES.STEP_ALGEBRA);
+
   const src = fs.readFileSync('src/QuestionEngine.jsx', 'utf8');
   assert.match(src, /import MultiRelationAlgebra from '\.\/MultiRelationAlgebra'/);
-  assert.match(src, /needsMultiRelationWorkspace\(processedQuestion\)/);
-  assert.match(src, /<MultiRelationAlgebra/);
-  assert.match(src, /<StepByStepAlgebra/);
+  const stepAlgebraCase = region(src, "case 'stepAlgebra':", "case 'algebra':", 'the stepAlgebra case');
+  const relationBranch = region(stepAlgebraCase, 'ALGEBRA_WORKSPACE_ROUTES.RELATION', '/>', 'the relation branch');
+  assert.match(relationBranch, /<MultiRelationAlgebra/);
+  assert.match(stepAlgebraCase, /<StepByStepAlgebra/);
 });
 
 test('advanced workspace always exposes Other operations and reuses IntervalNumberLine', () => {

@@ -4,7 +4,7 @@ import AlgebraWorkSteps from './AlgebraWorkSteps';
 import MultiRelationAlgebra from './MultiRelationAlgebra';
 import StepByStepAlgebraCore from './StepByStepAlgebraCore';
 import EnlargeableFigure from './components/common/EnlargeableFigure';
-import { needsMultiRelationWorkspace } from './algebraRelationFoundation';
+import { usesRelationWorkspace } from './platform/algebra/algebraWorkspaceRoute.js';
 import { withPromptRelationSource } from './stepAlgebraRelationRouting';
 
 export * from './StepByStepAlgebraCore';
@@ -20,9 +20,11 @@ const appendHistory = (current, value) => {
 export default function StepByStepAlgebra(props) {
   const { question = {}, onStateChange } = props;
   const relationQuestion = useMemo(() => withPromptRelationSource(question), [question]);
+  // The same predicate QuestionEngine's route uses (algebraWorkspaceRoute.js),
+  // so the handoff cannot drift between the two checks.
   const shouldUseRelationWorkspace = useMemo(
-    () => needsMultiRelationWorkspace(relationQuestion),
-    [relationQuestion],
+    () => usesRelationWorkspace(question),
+    [question],
   );
   const workspaceKey = useMemo(() => [
     props.draftKey,
