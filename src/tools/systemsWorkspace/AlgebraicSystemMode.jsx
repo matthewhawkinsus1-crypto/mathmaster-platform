@@ -1097,13 +1097,13 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         id: 'solve-first',
         label: 'Solve',
         complete: firstSolvedDone,
-        summary: firstSolvedDone ? `${firstSolved.variable} = ${firstSolved.value}` : '',
+        summaryMath: firstSolvedDone ? `${firstSolved.variable} = ${firstSolvedExpression}` : '',
       },
       {
         id: 'back-substitute',
         label: 'Back-substitute',
         complete: secondSolvedDone,
-        summary: secondSolvedDone ? `${secondSolved.variable} = ${secondSolved.value}` : '',
+        summaryMath: secondSolvedDone ? `${secondSolved.variable} = ${secondSolvedExpression}` : '',
       },
       {
         id: 'verify',
@@ -1132,7 +1132,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
           id: 'combine',
           label: 'Combine',
           complete: combinationLocked,
-          summary: combinationLocked ? `${combination.operation === 'subtract' ? 'Equation 1 − Equation 2' : 'Equation 1 + Equation 2'} → ${combination.text}` : '',
+          summaryPrefix: combinationLocked ? `${combination.operation === 'subtract' ? 'Equation 1 − Equation 2' : 'Equation 1 + Equation 2'} →` : '',
+          summaryMath: combinationLocked ? classroomEquationText(combination.text) : '',
         },
         ...commonEnd,
       ];
@@ -1144,13 +1145,14 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         id: 'isolate',
         label: 'Isolate',
         complete: isolationDone,
-        summary: isolationDone && selection.variable ? `${selection.variable} = ${isolatedExpr}` : '',
+        summaryMath: isolationDone && selection.variable ? `${selection.variable} = ${displayedIsolationExpression}` : '',
       },
       {
         id: 'substitute',
         label: 'Substitute',
         complete: Boolean(substitution.equationText),
-        summary: substitution.equationText ? `${equationName(Number(substitution.targetEquationIndex ?? otherIndex))}: ${substitution.equationText}` : '',
+        summaryPrefix: substitution.equationText ? `${equationName(Number(substitution.targetEquationIndex ?? otherIndex))}:` : '',
+        summaryMath: substitution.equationText ? classroomEquationText(substitution.equationText) : '',
       },
       ...commonEnd,
     ];
@@ -1161,8 +1163,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     degenerateTruth,
     firstSolvedDone,
     firstSolved,
+    firstSolvedExpression,
     secondSolvedDone,
     secondSolved,
+    secondSolvedExpression,
     config.requireVerification,
     allVerified,
     selection.variable,
@@ -1173,6 +1177,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     combination.text,
     isolationDone,
     isolatedExpr,
+    displayedIsolationExpression,
     substitution.equationText,
     substitution.targetEquationIndex,
     otherIndex,
@@ -1756,10 +1761,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                       key={variable}
                       payloadPrefix="mathmaster-verification:"
                       payloadValue={variable}
-                      expression={`${variable} = ${solution[variable]}`}
+                      expression={`${variable} = ${solutionExpressions[variable]}`}
                       label="Solved value"
                       onArm={() => armVerificationValue(variable)}
-                      ariaLabel={`Pick up solved value ${solution[variable]} for ${variable}`}
+                      ariaLabel={`Pick up solved value ${solutionExpressions[variable]} for ${variable}`}
                     />
                 ))}
               </div>
@@ -1779,7 +1784,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                         placedValues={Object.fromEntries(
                           variables
                             .filter((variable) => verification[index].placed[variable])
-                            .map((variable) => [variable, solution[variable]]),
+                            .map((variable) => [variable, solutionExpressions[variable]]),
                         )}
                         label={`Equation ${index + 1}: place both solved values`}
                       />
@@ -1788,9 +1793,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                         <span>Values substituted</span>
                         <MathDisplay
                           value={substituteIntoEquation(
-                            substituteIntoEquation(eq, variables[0], String(solution[variables[0]])),
+                            substituteIntoEquation(eq, variables[0], solutionExpressions[variables[0]]),
                             variables[1],
-                            String(solution[variables[1]]),
+                            solutionExpressions[variables[1]],
                           )}
                           format="ascii-math"
                         />
@@ -1912,10 +1917,14 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
               </div>
             ))}
           </div>
-          {solution ? (
+          {solution && solutionExpressions ? (
             <div style={{ marginTop: 12, padding: 10, borderRadius: 8, background: '#f0fbf4' }}>
               <strong>Ordered-pair solution:</strong>{' '}
-              ({solution[variables[0]]}, {solution[variables[1]]})
+              <MathDisplay
+                value={`(${solutionExpressions[variables[0]]}, ${solutionExpressions[variables[1]]})`}
+                format="ascii-math"
+                inline
+              />
             </div>
           ) : null}
           {isDegenerate ? (
