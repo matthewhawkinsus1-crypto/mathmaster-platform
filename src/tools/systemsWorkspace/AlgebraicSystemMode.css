@@ -327,6 +327,12 @@
 }
 
 /* --- Elimination manipulative board ------------------------------------- */
+/*
+ * Elimination stays spatially attached to the equations. Scale factors land on
+ * the equation itself, product work sits immediately beneath that row, and the
+ * + / − choice lives beside Equation 2. There are intentionally no detached
+ * "drop operation here" boxes.
+ */
 .mathmaster-systems-elimination-stage {
   display: grid;
   gap: 12px;
@@ -381,7 +387,7 @@
 .mathmaster-systems-elimination-equation-card {
   min-width: 0;
   display: grid;
-  gap: 10px;
+  gap: 9px;
   padding: 11px;
   border: 1px solid #dbe3ef;
   border-radius: 12px;
@@ -471,81 +477,112 @@
 }
 
 .mathmaster-systems-multiplier-token,
-.mathmaster-systems-combine-token {
-  min-height: 44px;
+.mathmaster-systems-use-as-written {
+  min-height: 42px;
   padding: 7px 11px;
   border: 2px solid #8ab4f8;
   border-radius: 10px;
   background: #fff;
   color: #174ea6;
   font-weight: 900;
+}
+
+.mathmaster-systems-multiplier-token {
   cursor: grab;
 }
 
-.mathmaster-systems-multiplier-token.is-armed,
-.mathmaster-systems-combine-token.is-armed {
+.mathmaster-systems-multiplier-token:active {
+  cursor: grabbing;
+}
+
+.mathmaster-systems-multiplier-token.is-armed {
   border-color: #174ea6;
   background: #e8f0fe;
   box-shadow: 0 0 0 2px rgba(26, 115, 232, .10);
 }
 
-.mathmaster-systems-equation-multiplier-drop {
-  min-height: 66px;
-  display: grid;
-  place-items: center;
-  padding: 8px;
-  border: 2px dashed #c5d5ef;
-  border-radius: 11px;
-  color: #6b7280;
-  font-size: 12px;
-  text-align: center;
+.mathmaster-systems-use-as-written {
+  cursor: pointer;
 }
 
-.mathmaster-systems-equation-multiplier-drop.is-armed {
+.mathmaster-systems-use-as-written:disabled {
+  border-color: #b7dfc2;
+  background: #f0fbf4;
+  color: #137333;
+  cursor: default;
+}
+
+.mathmaster-systems-equation-multiplier-target {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 2px solid transparent;
+  border-radius: 11px;
+  background: #fff;
+  transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+
+.mathmaster-systems-equation-multiplier-target.is-armed {
   border-color: #6f96d6;
   background: #f4f8ff;
-  color: #174ea6;
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, .08);
+  cursor: pointer;
+}
+
+.mathmaster-systems-equation-multiplier-target.is-prepared {
+  border-color: #b7dfc2;
+  background: #fbfffc;
 }
 
 .mathmaster-systems-multiplier-products {
   width: 100%;
   display: grid;
   gap: 8px;
-  padding: 10px;
-  border: 1px solid #c7d7f4;
-  border-radius: 10px;
-  background: #f8fbff;
+  padding-top: 9px;
+  border-top: 1px solid #dbe3ef;
   color: #202124;
   text-align: left;
 }
 
-.mathmaster-systems-multiplier-products > strong,
-.mathmaster-systems-multiplier-products > span {
+.mathmaster-systems-multiplier-products-heading strong,
+.mathmaster-systems-multiplier-products-heading span {
   display: block;
 }
 
-.mathmaster-systems-multiplier-products > span {
+.mathmaster-systems-multiplier-products-heading span {
+  margin-top: 2px;
   color: #5f6b7a;
   font-size: 11px;
   line-height: 1.35;
 }
 
-.mathmaster-systems-multiplier-product-grid {
+.mathmaster-systems-product-operation-row,
+.mathmaster-systems-product-entry-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: minmax(82px, 1fr) minmax(82px, 1fr) 22px minmax(72px, .8fr);
+  align-items: center;
+  gap: 6px;
 }
 
-.mathmaster-systems-multiplier-product-grid label {
+.mathmaster-systems-product-operation {
   min-width: 0;
-  display: grid;
-  gap: 5px;
+  color: #465267;
+  font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
+  font-size: 15px;
+  font-weight: 800;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 
-.mathmaster-systems-multiplier-product-grid label > span {
+.mathmaster-systems-product-equals {
   color: #465267;
-  font-size: 11px;
+  font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
+  font-size: 18px;
   font-weight: 800;
+  text-align: center;
+}
+
+.mathmaster-systems-product-entry-row > * {
+  min-width: 0;
 }
 
 .mathmaster-systems-check-products,
@@ -611,17 +648,6 @@
   padding-top: 4px;
 }
 
-.mathmaster-systems-combine-preview {
-  display: grid;
-  gap: 7px;
-}
-
-.mathmaster-systems-combine-preview.is-complete {
-  padding: 10px;
-  border-radius: 12px;
-  background: #fff;
-}
-
 .mathmaster-systems-combine-stage > p {
   margin: 0;
   color: #3c4756;
@@ -629,44 +655,73 @@
   font-weight: 800;
 }
 
-.mathmaster-systems-combine-token-bank {
-  display: flex;
-  gap: 9px;
-  flex-wrap: wrap;
+.mathmaster-systems-combine-stack {
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: #fff;
 }
 
-.mathmaster-systems-combine-token {
-  display: inline-flex;
+.mathmaster-systems-combine-stack.is-complete {
+  border-color: #b7dfc2;
+}
+
+.mathmaster-systems-combine-row {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
 }
 
-.mathmaster-systems-combine-token strong {
-  font-size: 21px;
+.mathmaster-systems-operation-spacer {
+  width: 58px;
 }
 
-.mathmaster-systems-combine-token span {
-  font-size: 12px;
+.mathmaster-systems-operation-rail {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
 }
 
-.mathmaster-systems-combine-drop {
-  min-height: 58px;
+.mathmaster-systems-operation-rail button {
+  min-width: 0;
+  min-height: 40px;
+  padding: 4px;
+  border: 1px solid #8ab4f8;
+  border-radius: 9px;
+  background: #fff;
+  color: #174ea6;
+  font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
+  font-size: 22px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.mathmaster-systems-operation-rail button:hover,
+.mathmaster-systems-operation-rail button:focus-visible,
+.mathmaster-systems-operation-rail button.is-selected {
+  border-color: #174ea6;
+  background: #e8f0fe;
+  outline: none;
+}
+
+.mathmaster-systems-operation-symbol {
   display: grid;
   place-items: center;
-  padding: 10px;
-  border: 2px dashed #9bb8e8;
-  border-radius: 12px;
-  background: #fff;
-  color: #5f6b7a;
-  font-size: 13px;
-  font-weight: 800;
-  text-align: center;
+  min-height: 40px;
+  color: #172033;
+  font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
+  font-size: 25px;
+  font-weight: 900;
 }
 
-.mathmaster-systems-combine-drop.is-armed {
-  border-color: #174ea6;
-  background: #eef4ff;
-  color: #174ea6;
+.mathmaster-systems-combine-result-line {
+  height: 3px;
+  margin-left: 66px;
+  border-radius: 999px;
+  background: #6d7f99;
 }
 
 .mathmaster-systems-elimination-result {
@@ -676,12 +731,6 @@
   border: 1px solid #b7dfc2;
   border-radius: 12px;
   background: #f6fcf7;
-}
-
-.mathmaster-systems-combine-result-line {
-  height: 3px;
-  border-radius: 999px;
-  background: #6d7f99;
 }
 
 .mathmaster-systems-combined-equation {
@@ -815,10 +864,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .mathmaster-systems-multiplier-product-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .mathmaster-systems-check-products,
   .mathmaster-systems-confirm-cancellation {
     width: 100%;
@@ -828,18 +873,32 @@
     display: none;
   }
 
-  .mathmaster-systems-multiplier-token {
+  .mathmaster-systems-multiplier-token,
+  .mathmaster-systems-use-as-written {
     width: 100%;
   }
 
-  .mathmaster-systems-combine-token-bank {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
+  .mathmaster-systems-product-operation-row,
+  .mathmaster-systems-product-entry-row {
+    grid-template-columns: minmax(62px, 1fr) minmax(62px, 1fr) 18px minmax(56px, .8fr);
+    gap: 3px;
   }
 
-  .mathmaster-systems-combine-token {
-    width: 100%;
-    justify-content: center;
+  .mathmaster-systems-product-operation {
+    font-size: 12px;
+  }
+
+  .mathmaster-systems-combine-row {
+    grid-template-columns: 50px minmax(0, 1fr);
+    gap: 5px;
+  }
+
+  .mathmaster-systems-operation-spacer {
+    width: 50px;
+  }
+
+  .mathmaster-systems-combine-result-line {
+    margin-left: 55px;
   }
 
   .mathmaster-systems-verification-arithmetic {
