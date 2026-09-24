@@ -31,10 +31,13 @@ const headContainsMain = mainFetched
 const missingFromBuild = mainFetched && !headContainsMain
   ? lines(git(['log', '--oneline', '--no-decorate', `HEAD..${originMainSha}`]).out)
   : [];
+const aheadOfMain = mainFetched && headContainsMain
+  ? Number(git(['rev-list', '--count', `${originMainSha}..HEAD`]).out) || 0
+  : 0;
 const dirtyFiles = lines(git(['status', '--porcelain', '--untracked-files=no']).out);
 
 const decision = evaluateDeployProvenance(
-  { headSha, branch: branch === 'HEAD' ? '' : branch, mainFetched, originMainSha, headContainsMain, missingFromBuild, dirtyFiles },
+  { headSha, branch: branch === 'HEAD' ? '' : branch, mainFetched, originMainSha, headContainsMain, aheadOfMain, missingFromBuild, dirtyFiles },
   {
     behindMain: flag(DEPLOY_OVERRIDE_ENV.behindMain),
     dirty: flag(DEPLOY_OVERRIDE_ENV.dirty),

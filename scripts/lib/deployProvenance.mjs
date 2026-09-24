@@ -60,6 +60,17 @@ export const evaluateDeployProvenance = (facts = {}, overrides = {}) => {
     });
   }
 
+  // Allowed — a hotfix is built on top of main — but never silent: whatever
+  // is ahead of main is going to students without having been merged.
+  const aheadOfMain = Number(facts.aheadOfMain) || 0;
+  if (facts.mainFetched === true && facts.headContainsMain === true && aheadOfMain > 0) {
+    warnings.push({
+      code: 'aheadOfMain',
+      overridden: false,
+      message: `This build contains ${aheadOfMain} commit(s) that are not merged to main. They will go live with this deploy.`,
+    });
+  }
+
   if (dirtyFiles.length) {
     push(overrides.dirty, {
       code: 'dirtyWorkingTree',
@@ -87,6 +98,11 @@ export const formatDeployProvenanceReport = (decision) => {
   lines.push(`origin/main:  ${decision.originMainSha.slice(0, 12) || 'unknown'}`);
   lines.push(`Contains main: ${decision.headContainsMain ? 'yes' : 'NO'}`);
   const describe = (entry, label) => {
+    if (entry.code === 'aheadOfMain') {
+      lines.push('');
+      lines.push(`NOTE: ${entry.message}`);
+      return;
+    }
     lines.push('');
     lines.push(`${label}: ${entry.message}`);
     list(entry.missingFromBuild).slice(0, 40).forEach((line) => lines.push(`    missing  ${line}`));

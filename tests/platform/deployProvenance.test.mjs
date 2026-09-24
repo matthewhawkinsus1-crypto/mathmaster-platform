@@ -31,8 +31,11 @@ test('a clean checkout of current main is allowed', () => {
   assert.deepEqual(decision.problems, []);
 });
 
-test('a branch that contains main (a hotfix on top of main) is allowed', () => {
-  assert.equal(evaluateDeployProvenance({ ...current, branch: 'hotfix/x', headSha: 'b'.repeat(40) }).ok, true);
+test('a branch that contains main (a hotfix on top of main) is allowed, and says unmerged work goes live', () => {
+  const decision = evaluateDeployProvenance({ ...current, branch: 'hotfix/x', headSha: 'b'.repeat(40), aheadOfMain: 2 });
+  assert.equal(decision.ok, true);
+  assert.equal(decision.warnings[0].code, 'aheadOfMain');
+  assert.match(formatDeployProvenanceReport(decision), /2 commit\(s\) that are not merged to main/);
 });
 
 test('a checkout behind main is refused and names every commit it would remove', () => {
