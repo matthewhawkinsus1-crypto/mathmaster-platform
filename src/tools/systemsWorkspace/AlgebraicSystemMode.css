@@ -476,8 +476,7 @@
   font-weight: 800;
 }
 
-.mathmaster-systems-multiplier-token,
-.mathmaster-systems-use-as-written {
+.mathmaster-systems-multiplier-token {
   min-height: 42px;
   padding: 7px 11px;
   border: 2px solid #8ab4f8;
@@ -485,9 +484,6 @@
   background: #fff;
   color: #174ea6;
   font-weight: 900;
-}
-
-.mathmaster-systems-multiplier-token {
   cursor: grab;
 }
 
@@ -501,15 +497,17 @@
   box-shadow: 0 0 0 2px rgba(26, 115, 232, .10);
 }
 
-.mathmaster-systems-use-as-written {
-  cursor: pointer;
-}
-
-.mathmaster-systems-use-as-written:disabled {
-  border-color: #b7dfc2;
+.mathmaster-systems-scale-not-needed {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 10px;
+  border: 1px solid #b7dfc2;
+  border-radius: 9px;
   background: #f0fbf4;
-  color: #137333;
-  cursor: default;
+  color: #137333 !important;
+  font-size: 11px !important;
+  font-weight: 800;
 }
 
 .mathmaster-systems-equation-multiplier-target {
@@ -874,8 +872,9 @@
   }
 
   .mathmaster-systems-multiplier-token,
-  .mathmaster-systems-use-as-written {
+  .mathmaster-systems-scale-not-needed {
     width: 100%;
+    box-sizing: border-box;
   }
 
   .mathmaster-systems-product-operation-row,
