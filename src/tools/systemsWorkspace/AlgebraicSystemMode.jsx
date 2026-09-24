@@ -184,10 +184,15 @@ export function SystemsWorkTrail({ stages = [] }) {
         })}
       </div>
       <div className="mathmaster-systems-completed-work">
-        {stages.filter((stage) => stage.complete && stage.summary).map((stage) => (
+        {stages.filter((stage) => stage.complete && (stage.summary || stage.summaryMath)).map((stage) => (
           <div key={`summary-${stage.id}`} className="mathmaster-systems-completed-chip">
             <span aria-hidden="true">✓</span>
-            <span>{stage.summary}</span>
+            {stage.summaryPrefix ? <span>{stage.summaryPrefix}</span> : null}
+            {stage.summaryMath ? (
+              <span className="mathmaster-systems-completed-math" data-summary-math={stage.summaryMath} aria-label={stage.summaryMath}>
+                <MathDisplay value={stage.summaryMath} format="ascii-math" inline />
+              </span>
+            ) : <span>{stage.summary}</span>}
           </div>
         ))}
       </div>
@@ -261,7 +266,8 @@ function AlignedEquationRow({ equationText, variables, targetVariable, multiplie
 export const solvedExpressionFor = (latexResponse, variable) => {
   try {
     const plain = latexToExpression(latexResponse);
-    return isolatedExpressionFor(plain, variable);
+    const expression = isolatedExpressionFor(plain, variable);
+    return expression == null ? null : presentableExpression(expression);
   } catch {
     return null;
   }
@@ -276,6 +282,22 @@ export const solvedNumberFor = (latexResponse, variable) => {
   } catch {
     return null;
   }
+};
+
+const solvedRecordFor = (latexResponse, variable) => {
+  const expression = solvedExpressionFor(latexResponse, variable);
+  if (expression == null) return null;
+  try {
+    const value = Number(evaluate(expression));
+    return Number.isFinite(value) ? { variable, value, expression } : null;
+  } catch {
+    return null;
+  }
+};
+
+const solvedRecordExpression = (record) => {
+  const exact = String(record?.expression || '').trim();
+  return exact ? presentableExpression(exact) : exactNumberText(record?.value);
 };
 
 /*
@@ -424,10 +446,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     pendingCoefficients: null,
     cancelledRows: { 0: false, 1: false },
   });
-  const [firstSolved, setFirstSolved] = usePersistentToolState('firstSolved', { variable: null, value: null });
+  const [firstSolved, setFirstSolved] = usePersistentToolState('firstSolved', { variable: null, value: null, expression: null });
   const [specialCase, setSpecialCase] = usePersistentToolState('specialCase', null);
   const [backSub, setBackSub] = usePersistentToolState('backSub', { equationIndex: null });
-  const [secondSolved, setSecondSolved] = usePersistentToolState('secondSolved', { variable: null, value: null });
+  const [secondSolved, setSecondSolved] = usePersistentToolState('secondSolved', { variable: null, value: null, expression: null });
   const [verification, setVerification] = usePersistentToolState('verification', { 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
   const [methodEfficiencyReason, setMethodEfficiencyReason] = usePersistentToolState('methodEfficiencyReason', '');
   // Which slot the student's last substitution attempt landed on. Interaction
@@ -448,17 +470,17 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setAppliedMultipliers({ 0: false, 1: false });
     setMultiplierWork({ 0: emptyMultiplierWork(), 1: emptyMultiplierWork() });
     setCombination({ operation: null, attempts: 0, coefficients: null, text: null, pendingCoefficients: null, cancelledRows: { 0: false, 1: false } });
-    setFirstSolved({ variable: null, value: null });
+    setFirstSolved({ variable: null, value: null, expression: null });
     setSpecialCase(null);
     setBackSub({ equationIndex: null });
-    setSecondSolved({ variable: null, value: null });
+    setSecondSolved({ variable: null, value: null, expression: null });
     setVerification({ 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
     setSlotAttempt(null);
   }, []);
 
   const resetFromBackSub = useCallback(() => {
     setBackSub({ equationIndex: null });
-    setSecondSolved({ variable: null, value: null });
+    setSecondSolved({ variable: null, value: null, expression: null });
     setVerification({ 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
     setSlotAttempt(null);
   }, []);
@@ -484,10 +506,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       cancelledRows: { 0: false, 1: false },
       ...(value?.combination || {}),
     });
-    setFirstSolved(value?.firstSolved || { variable: null, value: null });
+    setFirstSolved({ variable: null, value: null, expression: null, ...(value?.firstSolved || {}) });
     setSpecialCase(value?.specialCase || null);
     setBackSub(value?.backSub || { equationIndex: null });
-    setSecondSolved(value?.secondSolved || { variable: null, value: null });
+    setSecondSolved({ variable: null, value: null, expression: null, ...(value?.secondSolved || {}) });
     setVerification(value?.verification || { 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
     setMethodEfficiencyReason(value?.methodEfficiencyReason || '');
   }, [config.method]);
@@ -552,12 +574,18 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const degenerateTruth = isDegenerate ? degenerateStatementTruth(reduceCoefficients) : null;
 
   const firstSolvedDone = firstSolved.value != null;
+  const firstSolvedExpression = firstSolvedDone ? solvedRecordExpression(firstSolved) : '';
   const backSubChosen = backSub.equationIndex != null;
   const backSubEquationText = (backSubChosen && firstSolvedDone)
-    ? substituteIntoEquation(equations[backSub.equationIndex], survivingVariable, valueText(firstSolved.value))
+    ? substituteIntoEquation(equations[backSub.equationIndex], survivingVariable, firstSolvedExpression)
     : null;
   const secondSolvedDone = secondSolved.value != null;
+  const secondSolvedExpression = secondSolvedDone ? solvedRecordExpression(secondSolved) : '';
   const solution = secondSolvedDone ? { [survivingVariable]: firstSolved.value, [removedVariable]: secondSolved.value } : null;
+  const solutionExpressions = secondSolvedDone
+    ? { [survivingVariable]: firstSolvedExpression, [removedVariable]: secondSolvedExpression }
+    : null;
+  const displayedIsolationExpression = presentableExpression(substitutionTokenExpression || isolatedExpr || '');
 
   // Subsystem role: report the solution the moment it exists, and its absence
   // the moment an Undo takes it back. The parent mirrors it; this component's
@@ -934,9 +962,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   };
 
   const handleReduceSolved = useCallback((latexResponse) => {
-    const value = solvedNumberFor(latexResponse, survivingVariable);
-    if (value == null) return;
-    setFirstSolved({ variable: survivingVariable, value });
+    const solved = solvedRecordFor(latexResponse, survivingVariable);
+    if (!solved) return;
+    setFirstSolved(solved);
   }, [survivingVariable]);
 
   const chooseSpecialCaseField = (field, value) => {
@@ -958,9 +986,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   };
 
   const handleSecondSolved = useCallback((latexResponse) => {
-    const value = solvedNumberFor(latexResponse, removedVariable);
-    if (value == null) return;
-    setSecondSolved({ variable: removedVariable, value });
+    const solved = solvedRecordFor(latexResponse, removedVariable);
+    if (!solved) return;
+    setSecondSolved(solved);
   }, [removedVariable]);
 
   const armVerificationValue = (variable) => {
@@ -1673,7 +1701,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                   </p>
                   <SubstitutionToken
                     variable={survivingVariable}
-                    expression={valueText(firstSolved.value)}
+                    expression={firstSolvedExpression}
                     label="Solved value"
                     onArm={() => setSlotAttempt({ stage: 'backSubstitution', armed: true, correct: null, variable: null })}
                   />
