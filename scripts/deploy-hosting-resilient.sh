@@ -77,7 +77,38 @@ while [ "$attempt" -le "$MAX_ATTEMPTS" ]; do
   if [ "$status" -eq 0 ]; then
     rm -f "$log_file"
     echo
-    echo "=== Firebase Hosting deploy completed ==="
+    echo "Firebase CLI reported Hosting deploy success."
+    echo "Verifying the PUBLIC classroom URL is actually serving commit $BUILT_SHA ..."
+
+    verify_url="https://${PROJECT}.web.app/mathmaster-build.json"
+    verified=0
+    verify_attempt=1
+    live_sha=""
+    while [ "$verify_attempt" -le 12 ]; do
+      cache_buster="$(date +%s)-$verify_attempt"
+      live_manifest="$(curl -fsSL --connect-timeout 10 --max-time 20 -H 'Cache-Control: no-cache' "${verify_url}?v=${cache_buster}" 2>/dev/null || true)"
+      live_sha="$(printf '%s' "$live_manifest" | node --input-type=module -e "let s=''; process.stdin.on('data',d=>s+=d); process.stdin.on('end',()=>{try{const m=JSON.parse(s); process.stdout.write(String(m.gitSha||''));}catch{}});" 2>/dev/null || true)"
+      if [ "$live_sha" = "$BUILT_SHA" ]; then
+        verified=1
+        break
+      fi
+      echo "Public site verification $verify_attempt/12: expected $BUILT_SHA, saw ${live_sha:-no manifest yet}."
+      sleep 5
+      verify_attempt=$((verify_attempt + 1))
+    done
+
+    if [ "$verified" -ne 1 ]; then
+      echo >&2
+      echo "CRITICAL: Firebase CLI said deploy succeeded, but ${PROJECT}.web.app is NOT serving this commit." >&2
+      echo "Expected: $BUILT_SHA" >&2
+      echo "Live:     ${live_sha:-unknown}" >&2
+      echo "Do not treat this deployment as complete until the public build manifest matches." >&2
+      exit 4
+    fi
+
+    echo "Verified PUBLIC Firebase Hosting commit: $live_sha"
+    echo
+    echo "=== Firebase Hosting deploy completed and verified ==="
     exit 0
   fi
 
