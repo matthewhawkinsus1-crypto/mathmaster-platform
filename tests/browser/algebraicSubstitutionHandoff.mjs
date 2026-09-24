@@ -607,11 +607,14 @@ report.push({ journey: 'preview-inline-ui', ...inlineObserved });
   const combined = page.locator('.mathmaster-systems-combined-equation');
   if (!(await combined.count())) {
     note(journey, 'combined equation did not appear after student cancellation');
-  } else {
-    const combinedText = (await combined.innerText()).replace(/\s+/g, ' ');
-    if (!/4x/.test(combinedText) || !/=\s*0/.test(combinedText)) {
-      note(journey, `expected reduced equation 4x = 0, saw: ${combinedText}`);
-    }
+  }
+  // MathDisplay's visible equation is not plain innerText in every browser.
+  // Assert the persisted mathematical state instead of coupling this browser
+  // certification to one rendering representation.
+  const eliminationDrafts = await page.evaluate(() => window.__mmHandoff.drafts());
+  const combinedText = eliminationDrafts[':work:tool']?.combination?.text || '';
+  if (!/4x/.test(combinedText) || !/=\s*0/.test(combinedText)) {
+    note(journey, `expected reduced equation 4x = 0, stored: ${combinedText || '(missing)'}`);
   }
 
   const eliminationSolver = solver(page);
