@@ -615,7 +615,22 @@ report.push({ journey: 'preview-inline-ui', ...inlineObserved });
   } else {
     await cancelTargets.nth(0).click();
     await cancelTargets.nth(1).click();
-    await board.locator('button', { hasText: 'Confirm cancellation and combine' }).click();
+    await board.locator('button', { hasText: 'Confirm marked cancellation' }).click();
+    await page.waitForTimeout(250);
+
+    // Cancelling the x terms must NOT calculate the remaining equation.
+    const beforeArithmeticDrafts = await page.evaluate(() => window.__mmHandoff.drafts());
+    const beforeArithmetic = beforeArithmeticDrafts[':work:tool']?.combination || {};
+    if (beforeArithmetic.text) {
+      note(journey, `cancellation auto-calculated the reduced equation before student arithmetic: ${beforeArithmetic.text}`);
+    }
+    if (!(await board.locator('text=Now combine what remains').count())) {
+      note(journey, 'student combination arithmetic did not open after cancellation');
+    }
+
+    await enterMath('Combined coefficient of x', '4');
+    await enterMath('Combined right side', '0');
+    await board.locator('button', { hasText: 'Check combined equation' }).click();
     await page.waitForTimeout(500);
   }
 
