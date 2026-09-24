@@ -8,6 +8,7 @@ import {
 } from '../../platform/authoring/lessonPublishingIntent.js';
 import { defaultAssignmentDateInputs } from '../../platform/assignments/assignmentDateDefaults.js';
 import { buildAssignmentV5PreflightModel } from '../../platform/preflight/assignmentV5PreflightModel.js';
+import { applySafeToolContractRepairs } from '../../platform/contract/questionToolContract.js';
 import { formatPlannedTime } from '../../platform/teacher/classworkPacing.js';
 import {
   buildTestCyclePhaseStatus,
@@ -1387,6 +1388,38 @@ export const LessonPreflightModal = ({
   const renderCheck = () => (
     <section aria-label="Check">
       {isNarrow && <StepBlockers blockers={blockersForStep(readiness, 'check')} />}
+
+      {preflightModel.toolContract?.findings?.length > 0 && (
+        <div data-tool-contract-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid #aecbfa', borderRadius: 10, background: '#f8fbff' }}>
+          <strong style={{ color: '#174ea6' }}>Question and tool check</strong>
+          <p style={{ margin: '5px 0 9px', color: '#5f6368', fontSize: 12.5, lineHeight: 1.5 }}>
+            MathMaster checked that each question opens a tool that can do what it asks. A safe repair keeps the same mathematics and only moves it to the workspace students already see.
+          </p>
+          <ul style={{ margin: '0 0 10px', paddingLeft: 18, fontSize: 13, lineHeight: 1.5, color: '#202124' }}>
+            {preflightModel.toolContract.findings.map((finding) => (
+              <li key={`${finding.questionIndex}:${finding.rule}`} data-tool-contract-rule={finding.rule}>{finding.message}</li>
+            ))}
+          </ul>
+          {preflightModel.toolContract.safeRepairs.length > 0 && allowQuestionRepair && (
+            <button
+              type="button"
+              onClick={() => setWorkingAssignmentV5((current) => applySafeToolContractRepairs(current).assignmentV5)}
+              style={{ padding: '8px 13px', border: 0, borderRadius: 8, background: '#174ea6', color: '#fff', fontWeight: 800, cursor: 'pointer' }}
+            >
+              Apply {preflightModel.toolContract.safeRepairs.length} safe {preflightModel.toolContract.safeRepairs.length === 1 ? 'repair' : 'repairs'}
+            </button>
+          )}
+          <details style={{ marginTop: 10 }}>
+            <summary style={{ cursor: 'pointer', fontSize: 12, color: '#5f6368' }}>Developer details</summary>
+            <pre style={{ margin: '8px 0 0', padding: 10, borderRadius: 8, background: '#202124', color: '#e8eaed', fontSize: 11.5, whiteSpace: 'pre-wrap' }}>
+              {JSON.stringify(preflightModel.toolContract.findings.map(({ questionId, questionNumber, rule, severity, expected, actual, recommendedRepair }) => ({
+                questionId, questionNumber, rule, severity, expected, actual,
+                recommendedRepair: recommendedRepair ? { kind: recommendedRepair.kind, safe: recommendedRepair.safe, description: recommendedRepair.description } : null,
+              })), null, 2)}
+            </pre>
+          </details>
+        </div>
+      )}
 
       {questionRepairIssues.length > 0 && (
         <div style={{ marginBottom: 18, padding: 14, border: '1px solid #f1a5a0', borderRadius: 10, background: '#fff8f7' }}>

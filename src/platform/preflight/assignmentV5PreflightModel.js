@@ -5,6 +5,7 @@ import { validateAlignments, auditAlignmentSpecificity } from '../contract/align
 import { prepareAssignmentForRuntime } from '../contract/storedAssignmentV5.js';
 import { toEnforcedActivityPolicy } from '../policies/activityPolicies.js';
 import { validateAssignmentInteractionContracts } from '../interaction/interactionContract.js';
+import { auditAssignmentToolContracts } from '../contract/questionToolContract.js';
 import { auditAssignmentWorksheetPrintability } from './worksheetPrintPreflight.js';
 import { auditAssignmentSupportDifferentiation } from './supportDifferentiationPreflight.js';
 import { buildPreflightDiagnostics } from './preflightDiagnostics.js';
@@ -112,6 +113,10 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   const worksheetPrint = auditAssignmentWorksheetPrintability({ ...runtimeSource, sections }, questions);
   const supportDifferentiation = auditAssignmentSupportDifferentiation({ ...runtimeSource, sections }, questions);
   const classworkPacing = analyzeClassworkPlannedTime({ ...runtimeSource, sections });
+  // Question ↔ tool contract: judged on the LITERAL record, because it also
+  // reports records that only work because a runtime repair rescues them and
+  // offers the safe repair that makes the saved assignment match.
+  const toolContract = auditAssignmentToolContracts({ ...source, sections: persistenceSections });
 
   const persistenceErrors = firestoreUnsafePaths.map((path) => (
     `Firestore cannot save an array directly inside another array (found at ${path}). MathMaster cannot safely auto-repair this structure because it is not a recognized coordinate-pair list.`
@@ -147,6 +152,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     { source: 'supportDifferentiation', severity: 'blocking', messages: asMessages(supportDifferentiation.errors) },
     { source: 'classworkPacing', severity: 'blocking', messages: asMessages(classworkPacing.errors) },
     { source: 'alignment', severity: 'blocking', messages: alignmentErrors },
+    { source: 'toolContract', severity: 'blocking', messages: toolContract.errors },
     { source: 'persistence', severity: 'warning', messages: persistenceWarnings },
     { source: 'structural', severity: 'warning', messages: asMessages(structural.warnings) },
     { source: 'semantic', severity: 'warning', messages: asMessages(semantic.warnings) },
@@ -156,6 +162,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     { source: 'alignment', severity: 'warning', messages: alignmentWarnings },
     { source: 'alignmentProvenance', severity: 'warning', messages: alignmentProvenanceWarnings },
     { source: 'alignmentSpecificity', severity: 'warning', messages: alignmentSpecificityWarnings },
+    { source: 'toolContract', severity: 'warning', messages: toolContract.warnings },
   ];
 
   const errors = diagnosticGroups
@@ -186,6 +193,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     questions,
     runtimeRepair,
     classworkPacing,
+    toolContract,
     errors: uniqueErrors,
     warnings: uniqueWarnings,
     diagnostics,
