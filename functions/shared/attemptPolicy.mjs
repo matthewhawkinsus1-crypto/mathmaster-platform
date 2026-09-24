@@ -533,9 +533,9 @@ export const getQuestionCredit = (record) => {
   return clampPercent(normalized.bestPartialCredit) / 100;
 };
 
-export const getQuestionCardState = (record) => {
+export const getQuestionCardState = (record, maximumAttempts = MAX_ATTEMPTS_PER_QUESTION) => {
   const normalized = normalizeQuestionRecord(record);
-  const remainingAttempts = getAttemptsRemaining(normalized);
+  const remainingAttempts = getAttemptsRemaining(normalized, maximumAttempts);
   const credit = getQuestionCredit(normalized);
 
   if (normalized.status === 'correct') {
@@ -545,7 +545,7 @@ export const getQuestionCardState = (record) => {
       label: 'Correct',
     };
   }
-  if (normalized.status === 'expired') {
+  if (normalized.status === 'expired' && remainingAttempts <= 0) {
     const percent = Math.round(credit * 100);
     return {
       background: percent >= 50 ? '#fbbc04' : '#c5221f',
@@ -553,7 +553,7 @@ export const getQuestionCardState = (record) => {
       label: percent >= 50 ? `${percent}% · Almost` : 'Incorrect',
     };
   }
-  if (normalized.status === 'attempted') {
+  if (normalized.status === 'attempted' || (normalized.status === 'expired' && remainingAttempts > 0)) {
     return {
       background: credit >= 0.5 ? '#fbbc04' : '#f9ab00',
       color: '#3c2f00',
