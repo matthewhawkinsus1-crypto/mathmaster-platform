@@ -3,7 +3,7 @@ import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure';
 import useMathUndoHistory from '../../platform/workView/useMathUndoHistory';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
-import { nearlyEqual, round } from '../shared/toolMath';
+import { exactFractionText, nearlyEqual } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
 import RewriteLinearForm from './RewriteLinearForm';
 import LinearIntercepts from './LinearIntercepts';
@@ -19,13 +19,19 @@ const OPERATIONS = {
   divide: { label: 'Divide', preposition: 'by' },
 };
 
+// Exact values throughout: 9x = 20 divided by 9 reads x = 20/9, never 2.222.
+const exact = (value) => exactFractionText(value).replace(/^-/, '−');
 const formatEquation = (state) => {
-  const a = round(state.a, 3);
-  const b = round(state.b, 3);
-  const c = round(state.c, 3);
-  const coefficient = nearlyEqual(a, 1, 1e-9) ? 'x' : nearlyEqual(a, -1, 1e-9) ? '−x' : `${a}x`;
-  if (nearlyEqual(b, 0, 1e-9)) return `${coefficient} = ${c}`;
-  return `${coefficient} ${b >= 0 ? '+' : '−'} ${Math.abs(b)} = ${c}`;
+  const a = Number(state.a);
+  const b = Number(state.b);
+  const magnitude = exactFractionText(Math.abs(a));
+  const coefficient = nearlyEqual(a, 1, 1e-9)
+    ? 'x'
+    : nearlyEqual(a, -1, 1e-9)
+      ? '−x'
+      : `${a < 0 ? '−' : ''}${magnitude.includes('/') ? `(${magnitude})` : magnitude}x`;
+  if (nearlyEqual(b, 0, 1e-9)) return `${coefficient} = ${exact(state.c)}`;
+  return `${coefficient} ${b >= 0 ? '+' : '−'} ${exactFractionText(Math.abs(b))} = ${exact(state.c)}`;
 };
 
 const applyOperation = (state, operation, value) => {
@@ -132,9 +138,9 @@ export default function StepAlgebra2({ questionData = {}, onAction, draftKey = n
   };
 
   const feedbackMessage = () => {
-    if (feedback.isCorrect) return `Solved. x = ${round(solution, 3)}, and every step kept both sides balanced.`;
+    if (feedback.isCorrect) return `Solved. x = ${exact(solution)}, and every step kept both sides balanced.`;
     if (!constantCleared) return `The equation still reads ${formatEquation(state)}. Undo the constant term first: whatever is added to the x-term must be removed from both sides.`;
-    if (!coefficientCleared) return `You have ${formatEquation(state)}. x is still multiplied by ${round(state.a, 3)} — divide both sides by ${round(state.a, 3)} to finish.`;
+    if (!coefficientCleared) return `You have ${formatEquation(state)}. x is still multiplied by ${exact(state.a)} — divide both sides by ${exact(state.a)} to finish.`;
     return 'The equation is in the form x = number, but that number does not check out. Undo a step and look for one where the two sides were changed differently.';
   };
 
@@ -241,7 +247,7 @@ export default function StepAlgebra2({ questionData = {}, onAction, draftKey = n
             hints={[
               'Look at the side with the x. What is being done to x, and in what order?',
               `Undo the addition or subtraction first. Here that means ${Number(original.b) >= 0 ? 'subtracting' : 'adding'} ${Math.abs(Number(original.b))} ${Number(original.b) >= 0 ? 'from' : 'to'} both sides.`,
-              `After that the equation is ${formatEquation(applyOperation(original, Number(original.b) >= 0 ? 'subtract' : 'add', Math.abs(Number(original.b))))}. Divide both sides by ${round(Number(original.a), 3)} to get x alone.`,
+              `After that the equation is ${formatEquation(applyOperation(original, Number(original.b) >= 0 ? 'subtract' : 'add', Math.abs(Number(original.b))))}. Divide both sides by ${exact(Number(original.a))} to get x alone.`,
             ]}
             onHintUsed={() => onAction?.('HINT_USED')}
           />

@@ -8,6 +8,37 @@ export const round = (value, digits = 4) => {
   return Math.round(Number(value) * scale) / scale;
 };
 
+/**
+ * An exact fraction for a value that is really a rational: 20/9, not 2.222.
+ *
+ * The numeric tools keep their state as floats, but every value a student can
+ * reach by + − × ÷ with integers is rational, so showing it rounded hands them
+ * an approximation of their own exact answer. A continued fraction recovers
+ * the ratio (denominators up to `maxDenominator`); a value that is not such a
+ * ratio falls back to a rounded decimal.
+ */
+export const exactFractionText = (value, maxDenominator = 10000) => {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return String(value);
+  const tidy = Math.round(number * 1e9) / 1e9;
+  if (Number.isInteger(tidy)) return String(tidy === 0 ? 0 : tidy);
+  const magnitude = Math.abs(tidy);
+  let [h0, h1, k0, k1] = [0, 1, 1, 0];
+  let rest = magnitude;
+  for (let step = 0; step < 64; step += 1) {
+    const whole = Math.floor(rest);
+    const [h2, k2] = [whole * h1 + h0, whole * k1 + k0];
+    if (k2 > maxDenominator) break;
+    [h0, h1, k0, k1] = [h1, h2, k1, k2];
+    if (Math.abs(magnitude - h1 / k1) < 1e-9) break;
+    const fractional = rest - whole;
+    if (fractional < 1e-12) break;
+    rest = 1 / fractional;
+  }
+  if (k1 > 0 && Math.abs(magnitude - h1 / k1) < 1e-9) return `${tidy < 0 ? '-' : ''}${h1}/${k1}`;
+  return String(round(tidy, 4));
+};
+
 export const mean = (values = []) => values.length
   ? values.reduce((sum, value) => sum + Number(value), 0) / values.length
   : 0;
