@@ -1,0 +1,41 @@
+name: Firebase Live Diagnostic
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/firebase-live-diagnostic.yml"
+  workflow_dispatch:
+
+jobs:
+  inspect-live-firebase:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read live Firebase build identity and bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://mathmaster-aleks.web.app"
+          echo "=== HEADERS: build manifest ==="
+          curl -fsSIL "$BASE/mathmaster-build.json?ts=$(date +%s)" || true
+          echo
+          echo "=== BODY: build manifest ==="
+          curl -fsSL -H 'Cache-Control: no-cache' "$BASE/mathmaster-build.json?ts=$(date +%s)" | tee /tmp/live-manifest.json
+          echo
+          echo "=== INDEX ==="
+          curl -fsSL -H 'Cache-Control: no-cache' "$BASE/?ts=$(date +%s)" | tee /tmp/live-index.html
+          echo
+          asset="$(grep -oE '/assets/index-[^"]+\.js' /tmp/live-index.html | head -1 || true)"
+          echo "LIVE_ASSET=$asset"
+          if [ -n "$asset" ]; then
+            curl -fsSL -H 'Cache-Control: no-cache' "$BASE$asset" -o /tmp/live.js
+            echo "=== CURRENT FEATURE MARKERS IN LIVE BUNDLE ==="
+            for marker in               "MathMaster could not open the next solving step from that token form"               "Use this form as the token"               "Complete the scaled equation"               "Save interval changes"               "Grant +1 attempt"; do
+              if grep -Fq "$marker" /tmp/live.js; then
+                echo "FOUND: $marker"
+              else
+                echo "MISSING: $marker"
+              fi
+            done
+            echo "LIVE_BUNDLE_BYTES=$(wc -c < /tmp/live.js)"
+          fi
