@@ -133,6 +133,7 @@ export default function QuestionEngine({
   adaptation = null,
   questionRecord,
   maximumAttempts = null,
+  teacherGrantedExtraAttempts = 0,
   attemptsDoNotExpire = false,
   draftKey = null,
   studentProfile = null,
@@ -186,6 +187,7 @@ export default function QuestionEngine({
     question: processedQuestion,
     maximumAttempts,
     activityPolicy: resolvedActivityPolicy,
+    teacherGrantedExtraAttempts,
   });
   // The primary standard this question is aligned to, for the badge beneath the
   // prompt. Read through the same normalizer the rest of the platform uses, so
@@ -357,7 +359,10 @@ export default function QuestionEngine({
 
   const remainingAttempts = getAttemptsRemaining(record, resolvedMaximumAttempts);
   const isCorrect = record.status === 'correct' || feedback?.status === 'correct';
-  const isExpired = record.status === 'expired' || feedback?.expired;
+  // An expired record is terminal only while the CURRENT policy still has no
+  // attempts left. A teacher DOL grant raises the effective maximum, so the
+  // same preserved record becomes editable again without deleting its history.
+  const isExpired = (record.status === 'expired' && remainingAttempts <= 0) || feedback?.expired;
   const locked = Boolean(isCorrect || isExpired || assignmentLocked);
   const sameIncorrectResponse =
     record.status === 'attempted' &&
