@@ -26,14 +26,20 @@ export default function AlgebraTermRow({
   // CSS pseudo-elements — never as the operand inside the expression, because
   // the equation must not show the move before both sides are placed (#341).
   placementCue = null,
+  // Cancellation boxes are narrow on tablets and in the systems workspace.
+  // There a long side wraps onto a second line instead of running off the
+  // box's edge, where a leading term such as -9x was clipped (live QA).
+  allowWrap = false,
 }) {
   return (
     <span
       style={{
         display: 'inline-flex',
-        flexWrap: 'nowrap',
+        flexWrap: allowWrap ? 'wrap' : 'nowrap',
+        maxWidth: allowWrap ? '100%' : undefined,
+        rowGap: allowWrap ? '6px' : undefined,
         alignItems: 'center',
-        justifyContent: side === 'left' ? 'flex-end' : 'flex-start',
+        justifyContent: allowWrap ? 'center' : side === 'left' ? 'flex-end' : 'flex-start',
       }}
     >
       {terms.map((term, index) => {
@@ -67,6 +73,11 @@ export default function AlgebraTermRow({
               position: 'relative',
               display: 'inline-flex',
               alignItems: 'center',
+              // Never squeeze a term. Its math is a scroll container, so a
+              // shrinking flex item collapsed to ~17px and showed only the
+              // sign with a tiny scrollbar (cancellation mode, live QA). A long
+              // row scrolls as a whole in the equation box instead.
+              flexShrink: 0,
               marginLeft: index === 0 ? 0 : '10px',
               opacity: crossed ? 0.4 : 1,
               transition: 'opacity 0.25s ease 0.2s, outline-color 0.15s ease, background 0.15s ease',

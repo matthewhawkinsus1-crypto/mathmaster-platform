@@ -414,8 +414,11 @@
     display: none !important;
   }
 
+  /* The signed-in identity bar sits ABOVE the assignment screen. A screen of
+     a full 100dvh therefore ended one identity-bar below the phone's bottom
+     edge, and the action bar's second row (Calculator) was off-screen. */
   .mathmaster-assignment-screen {
-    height: 100dvh !important;
+    height: calc(100dvh - var(--mm-student-identity-stack-offset, 0px)) !important;
     min-height: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
@@ -424,7 +427,7 @@
   .mathmaster-assignment-screen .mathmaster-assignment-shell {
     width: 100% !important;
     max-width: none !important;
-    height: 100dvh !important;
+    height: calc(100dvh - var(--mm-student-identity-stack-offset, 0px)) !important;
     min-height: 0 !important;
     margin: 0 !important;
     display: grid;

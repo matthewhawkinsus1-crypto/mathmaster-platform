@@ -12,8 +12,35 @@
   align-items: start;
 }
 
+/* While the embedded solver is active, the two givens become a compact strip
+   ABOVE the solver instead of a side column. As a column they took 300px for
+   two one-line equations and left ~750px of blank space under them, while the
+   balance board got 165px per side — cancellation terms were clipped (live QA,
+   1536×900). Stacked, the givens stay directly above the work and the solver
+   gets the full width. */
 .mathmaster-algebraic-system-layout.has-active-solver {
-  grid-template-columns: minmax(230px, 300px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.mathmaster-algebraic-system-layout.has-active-solver .mathmaster-algebraic-system-givens > .mathmaster-tool-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  padding-block: 8px;
+}
+
+.mathmaster-algebraic-system-layout.has-active-solver .mathmaster-algebraic-system-givens > .mathmaster-tool-panel > h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* The equation cards' grid is inline-styled as one column. */
+.mathmaster-algebraic-system-layout.has-active-solver .mathmaster-algebraic-system-givens > .mathmaster-tool-panel > div {
+  flex: 1 1 360px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)) !important;
+  gap: 8px !important;
 }
 
 .mathmaster-algebraic-system-givens,
@@ -185,7 +212,7 @@
    reclaimed space on the mathematics rather than reintroducing a narrow
    workflow card. */
 .mathmaster-work-view-host[data-open="true"] .mathmaster-algebraic-system-layout.has-active-solver {
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .mathmaster-work-view-host[data-open="true"] .mathmaster-systems-embedded-step-algebra {

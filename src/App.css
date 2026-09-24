@@ -700,7 +700,10 @@
    focused on the mathematics the student needs to answer the question. */
 @media (min-width: 769px) {
   .mathmaster-assignment-screen {
-    --mm-sticky-task-top: 118px;
+    /* Starts where the sticky navigator ends (its height is measured and
+       published by stickyHeightRef). A fixed 118px put the task card's first
+       row underneath the navigator. */
+    --mm-sticky-task-top: calc(var(--mm-student-identity-stack-offset, 0px) + 6px + var(--mm-assignment-nav-height, 112px) + 4px);
   }
 
   .mathmaster-desktop-question-content .mathmaster-desktop-question-anchor {
@@ -752,6 +755,34 @@
   text-transform: none;
   letter-spacing: 0;
   cursor: pointer;
+}
+
+/* The Hide task control sits on the task card itself rather than in its own
+   row above it: that row repeated the card's "Your task" label and cost ~45px
+   of the sticky area on every question. */
+.mathmaster-desktop-question-anchor:not(.is-collapsed) .mathmaster-desktop-task-toggle-row {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  margin: 0 auto;
+  padding: 0 12px;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.mathmaster-desktop-question-anchor:not(.is-collapsed) .mathmaster-desktop-task-toggle-row span {
+  display: none;
+}
+
+.mathmaster-desktop-question-anchor:not(.is-collapsed) .mathmaster-desktop-task-toggle-row button {
+  pointer-events: auto;
+}
+
+/* Leave the button its own lane so it never covers the prompt's text. */
+.mathmaster-desktop-question-anchor:not(.is-collapsed) > .mathmaster-question-prompt {
+  padding-right: 104px !important; /* the card pads itself inline */
 }
 
 .mathmaster-desktop-question-anchor.is-collapsed {
@@ -871,9 +902,12 @@
   /* One phone viewport = one question. The old large assignment header and
      activity overview remain available on wider screens, while the compact
      rail carries the essential navigation/status on mobile. */
+  /* The signed-in identity bar sits ABOVE the assignment screen. A screen of
+     a full 100dvh therefore ended one identity-bar below the phone's bottom
+     edge, and the action bar's second row (Calculator) was off-screen. */
   .mathmaster-assignment-screen {
-    height: 100dvh !important;
-    min-height: 100dvh !important;
+    height: calc(100dvh - var(--mm-student-identity-stack-offset, 0px)) !important;
+    min-height: calc(100dvh - var(--mm-student-identity-stack-offset, 0px)) !important;
     padding: 0 !important;
     overflow: hidden !important;
   }
@@ -881,7 +915,7 @@
   .mathmaster-assignment-screen .mathmaster-assignment-shell {
     width: 100% !important;
     max-width: none !important;
-    height: 100dvh !important;
+    height: calc(100dvh - var(--mm-student-identity-stack-offset, 0px)) !important;
     min-height: 0 !important;
     margin: 0 !important;
     display: grid;
@@ -982,7 +1016,9 @@
    that is not yet correct; locked sections stay visible but disabled. */
 .mathmaster-assignment-unified-nav {
   position: sticky;
-  top: 8px;
+  /* Below the sticky identity bar, not under it: at top: 8px the section tabs
+     were half hidden behind the bar once the student scrolled. */
+  top: calc(var(--mm-student-identity-stack-offset, 0px) + 6px);
   z-index: 85;
   display: grid;
   gap: 8px;
@@ -1824,6 +1860,14 @@
    answer and then had to scroll to find the button that submits it, and the undo
    control was above the graph they had long since scrolled past. Both are
    controls for the hands, so both belong under them. */
+/* The action bar below is sticky over the bottom of the question. A math field
+   that is scrolled into view must land above it, not underneath it. */
+@media (min-width: 769px) {
+  .mathmaster-assignment-screen math-field {
+    scroll-margin-bottom: 120px;
+  }
+}
+
 .mathmaster-desktop-action-bar {
   position: sticky;
   bottom: 0;

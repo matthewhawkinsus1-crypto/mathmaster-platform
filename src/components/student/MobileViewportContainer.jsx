@@ -461,11 +461,14 @@ export const MobileViewportContainer = ({
                       <QuestionPrompt variant="plain">{currentStagePrompt}</QuestionPrompt>
                     </div>
                   )}
-                  {taskMeta && <div className="mathmaster-question-task-meta">{taskMeta}</div>}
                 </>
               )}
             </div>
           )}
+          {/* Standards and CCMR links are reference, not the task: they scroll
+              with the page instead of riding in the sticky anchor, where they
+              floated over the tool's own buttons (live QA). */}
+          {!workspaceActive && !isPromptCollapsed && taskMeta && <div className="mathmaster-question-task-meta mathmaster-desktop-task-meta">{taskMeta}</div>}
           {!workspaceActive && contextPanel}
           {responseFields}
         </>
