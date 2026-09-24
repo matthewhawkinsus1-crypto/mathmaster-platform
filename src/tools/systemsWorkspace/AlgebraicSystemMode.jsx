@@ -924,9 +924,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       numericMultiplier = NaN;
     }
 
-    // ×1 changes no coefficient. The student still had to choose and place the
-    // multiplier token on the whole equation, so no extra product-entry step is
-    // needed. Every real scaling step must be calculated by the student.
+    // A factor of 1 changes no coefficient. Identity rows are treated as ready
+    // without requiring a student action; keep this branch as a safe no-op for
+    // restored drafts or alternate interaction paths. Every real scaling step
+    // must still be calculated by the student.
     if (Number.isFinite(numericMultiplier) && Math.abs(numericMultiplier - 1) <= 1e-9) {
       setAppliedMultipliers((current) => ({ ...current, [index]: true }));
       setMultiplierWork((current) => ({ ...current, [index]: { ...emptyMultiplierWork(), valid: true } }));
