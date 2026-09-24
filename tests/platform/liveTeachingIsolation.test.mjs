@@ -87,7 +87,11 @@ test('Teacher Preview suspends high-churn teacher reads while keeping cached das
     'teacher live presence subscriptions',
   );
   assert.match(livePresence, /if \(teacherPreviewRuntimeActive\) return undefined;/);
-  assert.match(livePresence, /return \(\) => \{\s*unsubs\.forEach\(\(unsubscribe\) => unsubscribe\(\)\);\s*\};/);
+  // Cleanup releases every presence listener (and the batch buffer, so no
+  // late flush lands after teardown) — nothing else.
+  const cleanup = region(livePresence, 'return () => {', '};', 'presence cleanup');
+  assert.match(cleanup, /unsubs\.forEach\(\(unsubscribe\) => unsubscribe\(\)\);/);
+  assert.match(cleanup, /presenceBuffer\.cancel\(\);/);
   assert.doesNotMatch(
     livePresence,
     /return \(\) => \{[\s\S]*unsubs\.forEach[\s\S]*setPresenceById\(\{\}\)/,
