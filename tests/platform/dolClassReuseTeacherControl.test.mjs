@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { buildDolWindowOpening } from '../../src/platform/assessment/assessmentRecovery.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { getDOLInstructionDateKey } from '../../src/assignmentLifecycle.js';
@@ -34,8 +35,16 @@ test('teacher DOL release repairs stale date for only the selected class', () =>
   assert.match(block, /needsOpenToday = \['notToday', 'unscheduled'\]/);
   assert.match(block, /dol\.instructionDatesByClassId/);
   assert.match(block, /\[classId\]: dateKey/);
-  assert.match(block, /dol\.earlyUnlocksByClassId/);
   assert.doesNotMatch(block, /DOL is not scheduled today/);
+  // The unlock itself is built by the recovery model (so it is audited); the
+  // handler hands it this class only.
+  assert.match(block, /buildDolWindowOpening\(\{[\s\S]*?classId,[\s\S]*?recovery: recoveryNow,/);
+  const other = { dol: { earlyUnlocksByClassId: { 'class-b': { dateKey: '2026-09-23', unlockedAt: '2026-09-23T15:00:00.000Z' } } } };
+  const { dol } = buildDolWindowOpening({ assignment: other, classId: 'class-a', recovery: false, dateKey: '2026-09-24', now: Date.parse('2026-09-24T15:00:00Z') });
+  assert.equal(dol.instructionDatesByClassId['class-a'], '2026-09-24');
+  assert.equal(dol.earlyUnlocksByClassId['class-a'].dateKey, '2026-09-24');
+  assert.deepEqual(dol.earlyUnlocksByClassId['class-b'], other.dol.earlyUnlocksByClassId['class-b'], 'another class is untouched');
+  assert.equal(dol.instructionDatesByClassId['class-b'], undefined);
 });
 
 test('teacher screens keep stale reused DOL controls reachable', () => {
@@ -82,9 +91,16 @@ test('teacher can explicitly recover a DOL after the regular cutoff without rewr
   const handlerStart = app.indexOf('const handleUnlockDOLForClass');
   const handlerEnd = app.indexOf('const handleToggleWarmupForClass', handlerStart);
   const handlerBlock = app.slice(handlerStart, handlerEnd);
-  assert.match(handlerBlock, /recoveryByClassId/);
   assert.match(handlerBlock, /Reopen DOL/);
-  assert.match(handlerBlock, /teacher-recovery/);
+  assert.match(handlerBlock, /buildDolWindowOpening\(\{[\s\S]*?recovery: recoveryNow,/);
+  // What the handler writes on recovery: a class-scoped window with a close
+  // and the teacher-recovery reason, recorded in the audit.
+  const now = Date.parse('2026-09-24T20:00:00.000Z');
+  const opening = buildDolWindowOpening({ assignment: { dol: { minutesBeforeEnd: 10 } }, classId: 'class-a', recovery: true, dateKey: '2026-09-24', now });
+  assert.equal(opening.dol.recoveryByClassId['class-a'].reason, 'teacher-recovery');
+  assert.equal(opening.dol.recoveryByClassId['class-a'].closesAt, '2026-09-24T20:10:00.000Z');
+  assert.equal(opening.dol.recoveryByClassId['class-b'], undefined);
+  assert.equal(opening.dol.recoveryAudit.at(-1).action, 'reopenWindow');
 });
 
 test('teacher DOL surfaces expose restart, reopen, and extra-attempt recovery', () => {

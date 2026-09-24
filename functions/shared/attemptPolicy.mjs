@@ -56,17 +56,30 @@ export const isChoiceOnlyQuestion = (question = {}) => {
   return fields.length > 0 && fields.every(isRenderedAssignmentChoiceField);
 };
 
+const grantedAttempts = (grant) => {
+  const value = grant && typeof grant === 'object' ? grant.extraAttempts : grant;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0;
+};
+
+/**
+ * Extra DOL attempts a teacher granted: the class grant plus this student's own
+ * (an absent student, a device that failed mid-DOL). Both are explicit teacher
+ * decisions recorded on the assignment, so they add; the total stays bounded.
+ * The browser, submission ingestion and the checkpoint finalizer all call this
+ * with the same arguments, so a student never sees an attempt the server
+ * would refuse.
+ */
 export const resolveTeacherGrantedExtraAttempts = ({
   assignment = {},
   activityRole = null,
   classId = null,
+  studentId = null,
 } = {}) => {
-  if (String(activityRole || '').trim().toLowerCase() !== 'dol' || !classId) return 0;
-  const grant = assignment?.dol?.attemptGrantsByClassId?.[classId];
-  const value = grant && typeof grant === 'object' ? grant.extraAttempts : grant;
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return 0;
-  return Math.max(0, Math.min(20, Math.floor(parsed)));
+  if (String(activityRole || '').trim().toLowerCase() !== 'dol') return 0;
+  const classGrant = classId ? grantedAttempts(assignment?.dol?.attemptGrantsByClassId?.[classId]) : 0;
+  const studentGrant = studentId ? grantedAttempts(assignment?.dol?.attemptGrantsByStudentId?.[studentId]) : 0;
+  return Math.max(0, Math.min(20, classGrant + studentGrant));
 };
 
 export const resolveQuestionMaximumAttempts = ({

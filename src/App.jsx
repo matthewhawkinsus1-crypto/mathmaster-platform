@@ -30,6 +30,7 @@ import { createWorkspaceDraftSync } from './platform/persistence/workspaceDraftS
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
 import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
 import { resolveAuthoritativeClose } from '../functions/shared/sectionDeadline.mjs';
+import { buildDolAttemptGrant, buildDolWindowOpening, summarizeStudentRecovery } from './platform/assessment/assessmentRecovery.js';
 import { teacherAdmin } from './auth/authService';
 import {
   buildScratchpadWrites,
@@ -848,6 +849,7 @@ function App() {
   const [feedbackReleaseBusyId, setFeedbackReleaseBusyId] = useState(null);
   const [dolUnlockBusyKey, setDolUnlockBusyKey] = useState(null);
   const [dolAttemptGrantBusyKey, setDolAttemptGrantBusyKey] = useState(null);
+  const dolRecoveryAnnouncedRef = useRef({});
   const [warmupControlBusyKey, setWarmupControlBusyKey] = useState(null);
   const [sectionAccessBusyKey, setSectionAccessBusyKey] = useState(null);
   const [studentDashboardMode, setStudentDashboardMode] = useState('assignments');
@@ -3950,6 +3952,32 @@ function App() {
     });
   }, [now, user, assignments, classSchedule, tracker, toastWarning]);
 
+  // A REOPENED DOL OR AN EXTRA ATTEMPT MUST REACH THE STUDENT WHO ALREADY TRIED.
+  // The reminder above stops once a student has attempted the DOL, which is
+  // exactly who a teacher recovery is for. Tell them once per change: the
+  // window reopened (and when it closes), or how many more attempts they have.
+  useEffect(() => {
+    if (user?.role !== 'student') return;
+    assignments.forEach((assignment) => {
+      if (!assignment?.dol?.enabled) return;
+      if (!assignmentIsForStudent(assignment, { classId: user.classId || null, classPeriod: user.classPeriod })) return;
+      const recovery = summarizeStudentRecovery({ assignment, classId: user.classId || null, studentId: user.id, now });
+      const reopenKey = recovery.reopened ? `${assignment.id}:reopened:${recovery.reopened.openedAt}` : null;
+      if (reopenKey && !dolRecoveryAnnouncedRef.current[reopenKey]) {
+        dolRecoveryAnnouncedRef.current[reopenKey] = true;
+        toastWarning('Your teacher reopened the DOL', `${assignment.title}: the DOL is open again until ${formatDateTime(recovery.reopened.closesAt)}. Your earlier work is still there.`);
+      }
+      // A standing grant matters while the DOL can be worked; do not repeat an
+      // old grant every session on days the DOL is closed.
+      const dolOpen = getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now }).status === 'active';
+      const grantKey = recovery.extraAttempts && dolOpen ? `${assignment.id}:attempts:${recovery.extraAttempts}` : null;
+      if (grantKey && !dolRecoveryAnnouncedRef.current[grantKey]) {
+        dolRecoveryAnnouncedRef.current[grantKey] = true;
+        toastSuccess('More DOL attempts', `${assignment.title}: your teacher gave you ${recovery.extraAttempts} extra ${recovery.extraAttempts === 1 ? 'attempt' : 'attempts'} on each DOL question. Your earlier attempts still count.`);
+      }
+    });
+  }, [now, user, assignments, classSchedule, toastWarning, toastSuccess]);
+
   // Warm-Up reminders are student-wide, just like DOL reminders. The amber
   // countdown stays visible everywhere; this toast announces the opening and
   // repeats every two minutes while Warm-Up questions still need work.
@@ -5018,6 +5046,7 @@ function App() {
       assignment: localAssignment,
       activityRole: activeQuestionRole,
       classId: user?.classId || null,
+      studentId: user?.role === 'student' ? user.id : null,
     });
     const applyAttempt = (record) =>
       recordQuestionAttempt({
@@ -5260,6 +5289,7 @@ function App() {
       assignment: localAssignment,
       activityRole: activeQuestionRole,
       classId: user?.classId || null,
+      studentId: user?.role === 'student' ? user.id : null,
     });
     const applyStep = (record) =>
       recordQuestionStep({
@@ -6968,28 +6998,19 @@ function App() {
         [classId]: dateKey,
       };
 
-      if (recoveryNow) {
-        const closesAt = new Date(writeNow + durationMinutes * 60_000).toISOString();
-        dol.recoveryByClassId = {
-          ...(assignment.dol?.recoveryByClassId || {}),
-          [classId]: {
-            dateKey,
-            openedAt,
-            closesAt,
-            openedBy: user?.email || user?.id || 'teacher',
-            reason: 'teacher-recovery',
-          },
-        };
-      } else {
-        const entry = {
-          dateKey,
-          unlockedAt: openedAt,
-          unlockedBy: user?.email || user?.id || 'teacher',
-        };
-        dol.earlyUnlocksByClassId = { ...(assignment.dol?.earlyUnlocksByClassId || {}), [classId]: entry };
-      }
+      // Built by the recovery model so every opening lands in the append-only
+      // audit (who, class, before, after, when) — see assessmentRecovery.js.
+      const opening = buildDolWindowOpening({
+        assignment: { ...assignment, dol },
+        classId,
+        recovery: recoveryNow,
+        durationMinutes,
+        dateKey,
+        teacherId: user?.id || null,
+        now: writeNow,
+      });
 
-      await updateDoc(doc(db, 'assignments', assignment.id), { dol, updatedAt: openedAt });
+      await updateDoc(doc(db, 'assignments', assignment.id), { dol: opening.dol, updatedAt: openedAt });
       if (recoveryNow) {
         toastSuccess('DOL reopened', `${assignment.title} has a fresh ${durationMinutes}-minute recovery window for ${classLabel}. Existing work and attempt history were preserved.`);
       } else if (canRestart) {
@@ -7023,19 +7044,51 @@ function App() {
     const busyKey = `${assignment.id}:${classKey}`;
     setDolAttemptGrantBusyKey(busyKey);
     try {
-      const changedAt = new Date().toISOString();
-      const dol = { ...(assignment.dol || {}), enabled: true };
-      dol.attemptGrantsByClassId = {
-        ...(assignment.dol?.attemptGrantsByClassId || {}),
-        [classId]: {
-          extraAttempts: Math.min(20, currentBonus + 1),
-          changedAt,
-          changedBy: user?.email || user?.id || 'teacher',
-          reason: 'teacher-dol-recovery',
-        },
-      };
+      const nowMs = Date.now();
+      const changedAt = new Date(nowMs).toISOString();
+      const { dol } = buildDolAttemptGrant({
+        assignment,
+        scope: { type: 'class', classId },
+        teacherId: user?.id || null,
+        now: nowMs,
+      });
       await updateDoc(doc(db, 'assignments', assignment.id), { dol, updatedAt: changedAt });
       toastSuccess('Extra DOL attempt granted', `${classLabel} now has ${Math.min(20, currentBonus + 1)} teacher-granted extra DOL attempt${Math.min(20, currentBonus + 1) === 1 ? '' : 's'}.`);
+    } catch (error) {
+      console.error(error);
+      toastError('Could not grant DOL attempt', error.message);
+    } finally {
+      setDolAttemptGrantBusyKey(null);
+    }
+  };
+
+  /*
+   * ONE MORE DOL ATTEMPT FOR SELECTED STUDENTS — an absent student, a device
+   * that died mid-DOL. Adds to any class grant; prior attempts and scores are
+   * untouched, and the grant is recorded in the assignment's recovery audit.
+   */
+  const handleGrantDOLAttemptForStudents = async (assignment, students = []) => {
+    const chosen = (students || []).filter((student) => student?.id);
+    if (!assignment?.id || !chosen.length) return;
+    const names = chosen.map((student) => formatStudentName(student)).join(', ');
+    const proceed = await confirmAction({
+      title: chosen.length === 1 ? `Grant one more DOL attempt to ${names}?` : `Grant one more DOL attempt to ${chosen.length} students?`,
+      message: `${chosen.length === 1 ? names : names} will receive one additional attempt on each DOL question in ${assignment.title}. Existing attempts, scores, and response history are preserved, and the grant is recorded.`,
+      confirmLabel: 'Grant +1 Attempt',
+    });
+    if (!proceed) return;
+    const busyKey = `${assignment.id}:students:${chosen.map((student) => student.id).join('+')}`;
+    setDolAttemptGrantBusyKey(busyKey);
+    try {
+      const nowMs = Date.now();
+      const { dol } = buildDolAttemptGrant({
+        assignment,
+        scope: { type: 'students', studentIds: chosen.map((student) => student.id), classId: activeClass?.classId || null },
+        teacherId: user?.id || null,
+        now: nowMs,
+      });
+      await updateDoc(doc(db, 'assignments', assignment.id), { dol, updatedAt: new Date(nowMs).toISOString() });
+      toastSuccess('Extra DOL attempt granted', chosen.length === 1 ? `${names} has one more attempt on each DOL question.` : `${chosen.length} students have one more attempt on each DOL question.`);
     } catch (error) {
       console.error(error);
       toastError('Could not grant DOL attempt', error.message);
@@ -9353,6 +9406,7 @@ function App() {
                           assignment,
                           activityRole: cardRole,
                           classId: user?.classId || null,
+                          studentId: user?.role === 'student' ? user.id : null,
                         }),
                       });
                       const storedCardState = getQuestionCardState(workingTracker?.[index], cardMaximumAttempts);
@@ -9447,6 +9501,7 @@ function App() {
                 assignment,
                 activityRole: runtimeActivityRole,
                 classId: user?.classId || null,
+                studentId: user?.role === 'student' ? user.id : null,
               })}
               activityRole={runtimeActivityRole}
               activityPolicy={runtimeQuestionActivityPolicy}
@@ -10486,7 +10541,7 @@ function App() {
                     {gradeExplanation && <div style={{ marginTop: 4, fontSize: 11, color: '#5f6368', lineHeight: 1.4, maxWidth: 280 }}>{gradeExplanation}</div>}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.warmup.attempted ? `${sectionGrades.warmup.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.classwork.attempted ? `${sectionGrades.classwork.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.practice.attempted ? `${sectionGrades.practice.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.dol.attempted ? `${sectionGrades.dol.score}%` : '—'}</td><td style={{ fontSize: '12px' }}>{modified ? `Modified: ${(usage.modifications || []).join(', ')}` : (usage.accommodations || []).length ? `Accommodated: ${usage.accommodations.join(', ')}` : 'Standard'}</td><td style={{ fontSize: '12px', lineHeight: 1.45 }}>Total {formatTime(activity.totalTimeSeconds || 0)}<br />On time {formatTime(activity.onTimeSeconds || 0)} · Late {formatTime(activity.lateSeconds || 0)}<br />Last on-time: {formatTimeStamp(activity.lastActiveBeforeDue)}<br />Last late: {formatTimeStamp(activity.lastActiveLate)}</td><td><button onClick={() => setGradebookFilter((current) => ({ ...current, student }))} style={{ padding: '8px 12px', border: 0, borderRadius: '6px', background: '#1a73e8', color: '#fff', fontWeight: 'bold' }}>Details</button></td></tr>; })}</tbody></table></div>
                 )}
 
-                {gradebookFilter.student && selectedAssignment && (() => { const student = gradebookFilter.student; const studentGrades = projectTeacherOverridesForDisplay(student.gradesByAssignment || {}, student.teacherGradeOverridesByAssignment || {})?.[selectedAssignment.id] || {}; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const displayedAssignmentScore = assignmentOverride ? assignmentOverride.score : Object.keys(studentGrades).length ? calculateGrade(studentGrades, selectedAssignment) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{displayedAssignmentScore === null ? '—' : `${displayedAssignmentScore}%`}</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div><AssignmentGradeOverrideControls student={student} assignment={selectedAssignment} onChanged={() => setGradebookFilter((current) => ({ ...current, student: null }))} />{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: '#fff', border: '1px solid #d8dde6' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: '#202124' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{getStoredAssignmentQuestions(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type} · Grade ×{normalizeQuestionWeight(question)}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.teacherGradeOverrideDisplay?.active ? (credit >= 100 ? 'Teacher assigned · Correct ✓' : `Teacher assigned · ${credit}%`) : record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button>{studentGrades[index] && <button type="button" onClick={() => setResponseInspectorTarget({ studentId: student.id, assignmentId: selectedAssignment.id, questionIndex: index })} style={{ marginTop: '8px', marginLeft: '8px', padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#e8f0fe', color: '#174ea6', fontWeight: 'bold' }}>Inspect Response / Override Grade</button>}</article>; })}</div></div>; })()}
+                {gradebookFilter.student && selectedAssignment && (() => { const student = gradebookFilter.student; const studentGrades = projectTeacherOverridesForDisplay(student.gradesByAssignment || {}, student.teacherGradeOverridesByAssignment || {})?.[selectedAssignment.id] || {}; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const displayedAssignmentScore = assignmentOverride ? assignmentOverride.score : Object.keys(studentGrades).length ? calculateGrade(studentGrades, selectedAssignment) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{displayedAssignmentScore === null ? '—' : `${displayedAssignmentScore}%`}</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div><AssignmentGradeOverrideControls student={student} assignment={selectedAssignment} onChanged={() => setGradebookFilter((current) => ({ ...current, student: null }))} />{selectedAssignment?.dol?.enabled && (() => { const recovery = summarizeStudentRecovery({ assignment: selectedAssignment, classId: student.classId || activeClass?.classId || null, studentId: student.id }); const busy = dolAttemptGrantBusyKey === `${selectedAssignment.id}:students:${student.id}`; return <div data-dol-student-recovery={student.id} style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, fontSize: 12.5, color: '#3c4043' }}><span>Teacher-granted DOL attempts: <strong>{recovery.extraAttempts}</strong>{recovery.studentExtraAttempts ? ` (${recovery.studentExtraAttempts} for this student)` : ''}</span><button type="button" disabled={busy} onClick={() => handleGrantDOLAttemptForStudents(selectedAssignment, [student])} style={{ padding: '6px 10px', border: '1px solid #1a73e8', borderRadius: 6, background: '#fff', color: '#174ea6', fontWeight: 800, cursor: busy ? 'wait' : 'pointer' }}>{busy ? 'Granting…' : 'Grant +1 DOL attempt'}</button></div>; })()}{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: '#fff', border: '1px solid #d8dde6' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: '#202124' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{getStoredAssignmentQuestions(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type} · Grade ×{normalizeQuestionWeight(question)}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.teacherGradeOverrideDisplay?.active ? (credit >= 100 ? 'Teacher assigned · Correct ✓' : `Teacher assigned · ${credit}%`) : record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button>{studentGrades[index] && <button type="button" onClick={() => setResponseInspectorTarget({ studentId: student.id, assignmentId: selectedAssignment.id, questionIndex: index })} style={{ marginTop: '8px', marginLeft: '8px', padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#e8f0fe', color: '#174ea6', fontWeight: 'bold' }}>Inspect Response / Override Grade</button>}</article>; })}</div></div>; })()}
               </div>
             )}
 

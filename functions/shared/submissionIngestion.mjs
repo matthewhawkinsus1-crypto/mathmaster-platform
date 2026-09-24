@@ -518,6 +518,7 @@ export const buildIngestedAttempt = ({
     assignment,
     activityRole: envelope.activityRole,
     classId: gradeDocument?.classId || null,
+    studentId: envelope?.studentId || null,
   });
   const maximumAttempts = resolveQuestionMaximumAttempts({
     question,
