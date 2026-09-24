@@ -162,7 +162,18 @@ const cleanImplicitMultiplicationLatex = (latex) => {
     }
 
     // Anything else becomes a factor against a parenthesis. Never a dot.
-    text = `${before}${GROUP_OPEN}${after}${GROUP_CLOSE}`;
+    // Wrap only the immediate right operand, never the remaining TeX suffix.
+    // Otherwise a product inside a fraction numerator can swallow the
+    // denominator braces and render nonsense such as 3(209).
+    if (rightOperand) {
+      text = `${before}${GROUP_OPEN}${rightOperand[1]}${GROUP_CLOSE}${after.slice(rightOperand[1].length)}`;
+      continue;
+    }
+
+    // If the lightweight scanner cannot isolate a safe operand, keep the
+    // explicit multiplication instead of corrupting the LaTeX structure.
+    text = `${before}\\cdot ${after}`;
+    break;
   }
 
   return text;
