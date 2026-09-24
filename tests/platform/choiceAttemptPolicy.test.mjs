@@ -6,6 +6,7 @@ import {
   isChoiceOnlyQuestion,
   resolveQuestionMaximumAttempts,
   resolveQuestionReplacementAllowed,
+  resolveTeacherGrantedExtraAttempts,
   recordQuestionAttempt,
 } from '../../src/attemptPolicy.js';
 
@@ -221,4 +222,50 @@ test('multipart attempt stores weighted fractional part credit', () => {
   assert.equal(record.partialCredit, 81, '((.75×3)+1)/4 = 81.25%, rounded');
   assert.equal(record.partGrades[0].credit, 0.75);
   assert.equal(record.partGrades[0].weight, 3);
+});
+
+
+test('teacher DOL attempt grants add to the normal maximum without erasing history', () => {
+  const assignment = {
+    dol: {
+      attemptGrantsByClassId: {
+        'class-a': { extraAttempts: 1, changedAt: '2026-09-24T12:00:00.000Z' },
+      },
+    },
+  };
+  const bonus = resolveTeacherGrantedExtraAttempts({ assignment, activityRole: 'dol', classId: 'class-a' });
+  assert.equal(bonus, 1);
+
+  const question = { type: 'choice', choices: ['A', 'B', 'C', 'D'] };
+  const maximumAttempts = resolveQuestionMaximumAttempts({
+    question,
+    maximumAttempts: 1,
+    activityPolicy: { attempts: 1 },
+    teacherGrantedExtraAttempts: bonus,
+  });
+  assert.equal(maximumAttempts, 2, 'the teacher grant is added after the one-attempt choice base');
+
+  const expired = recordQuestionAttempt({
+    record: null,
+    isCorrect: false,
+    responseKey: 'A',
+    maximumAttempts: 1,
+  }).record;
+  assert.equal(expired.status, 'expired');
+
+  const retried = recordQuestionAttempt({
+    record: expired,
+    isCorrect: true,
+    responseKey: 'B',
+    maximumAttempts,
+  });
+  assert.equal(retried.record.status, 'correct', 'an expired record becomes writable when the teacher raises its maximum');
+  assert.equal(retried.record.totalAttempts, 2, 'history is preserved instead of reset');
+});
+
+test('teacher DOL attempt grants are class-scoped and DOL-only', () => {
+  const assignment = { dol: { attemptGrantsByClassId: { a: { extraAttempts: 3 } } } };
+  assert.equal(resolveTeacherGrantedExtraAttempts({ assignment, activityRole: 'dol', classId: 'a' }), 3);
+  assert.equal(resolveTeacherGrantedExtraAttempts({ assignment, activityRole: 'dol', classId: 'b' }), 0);
+  assert.equal(resolveTeacherGrantedExtraAttempts({ assignment, activityRole: 'practice', classId: 'a' }), 0);
 });
