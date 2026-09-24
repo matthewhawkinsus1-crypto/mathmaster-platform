@@ -35,18 +35,20 @@ export const normalizeEquationForStepAlgebra = (equationText) => {
   const { left, right } = splitEquation(equationText);
 
   const normalizeSide = (side) => {
-    const parsed = parse(String(side));
-    const cleaned = parsed.transform((node) => {
-      if (node?.type !== 'ParenthesisNode') return node;
+    let cleaned = parse(String(side));
 
-      // Collapse only presentation-only nesting and atom wrappers. Keep one
-      // meaningful group around a sum/product/division. In particular,
-      // back-substituting 20/9 into -3x must remain -3(20/9), rather than
-      // being reassociated to (-3*20)/9 before the student sees it.
-      if (node.content?.type === 'ParenthesisNode') return node.content;
-      if (['ConstantNode', 'SymbolNode'].includes(node.content?.type)) return node.content;
-      return node;
-    });
+    // MathJS transform is intentionally shallow when a ParenthesisNode is
+    // replaced, so run a few idempotent passes. This removes wrappers like
+    // (((200) - s)) -> (200 - s) while preserving one meaningful group around
+    // a sum or an exact rational factor such as (20 / 9).
+    for (let pass = 0; pass < 4; pass += 1) {
+      cleaned = cleaned.transform((node) => {
+        if (node?.type !== 'ParenthesisNode') return node;
+        if (node.content?.type === 'ParenthesisNode') return node.content;
+        if (['ConstantNode', 'SymbolNode'].includes(node.content?.type)) return node.content;
+        return node;
+      });
+    }
 
     return cleaned.toString({
       parenthesis: 'keep',
