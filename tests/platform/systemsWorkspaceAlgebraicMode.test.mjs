@@ -415,7 +415,10 @@ test('the systems work trail compresses completed mathematical decisions instead
   assert.match(modeSource, /function SystemsWorkTrail/);
   assert.match(modeSource, /mathmaster-systems-completed-work/);
   assert.match(modeSource, /workTrailStages/);
-  assert.match(modeSource, /Equation \$\{Number\(substitution\.targetEquationIndex/);
+  // Standalone systems say Equation 1/2; reduced 3×3 subsystems use R₁/R₂.
+  const trail = region(modeSource, 'const workTrailStages = useMemo(', '  ]);', 'work trail stages');
+  assert.match(trail, /equationName\(Number\(substitution\.targetEquationIndex/);
+  assert.match(modeSource, /const equationName = \(index\) => subsystem\?\.equationLabels\?\.\[index\] \|\| `Equation \$\{index \+ 1\}`;/);
 });
 
 test('elimination visually aligns equations and crosses the student-selected target column only after a successful combination', () => {

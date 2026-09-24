@@ -97,7 +97,9 @@ export default function StepAlgebra2({ questionData = {}, onAction }) {
         ? 'Multiplying both sides by 0 turns the equation into 0 = 0, which loses the solution.'
         : null;
   const operandIsUsable = operand !== '' && Number.isFinite(operandValue) && !blockReason;
-  const previewState = operandIsUsable ? applyOperation(state, operation, operandValue) : null;
+  // No preview of the resulting equation (#341): the move is the student's to
+  // finish. The line below names the chosen move; the new equation appears
+  // only once "Apply to both sides" commits it.
 
   const constantCleared = nearlyEqual(state.b, 0, 1e-9);
   const coefficientCleared = nearlyEqual(state.a, 1, 1e-9);
@@ -153,7 +155,7 @@ export default function StepAlgebra2({ questionData = {}, onAction }) {
         question={questionData}
         task={`Solve ${formatEquation(original)} for x.`}
         steps={[
-          'Pick an operation and a number, then check the preview of what both sides will become.',
+          'Pick an operation and a number for the move you want to make.',
           'Apply it. Repeat until the equation reads x = a number.',
           'Press Check solution when x is by itself.',
         ]}
@@ -192,12 +194,12 @@ export default function StepAlgebra2({ questionData = {}, onAction }) {
             </label>
           </div>
 
-          <div aria-live="polite" style={{ minHeight: 46, marginTop: 10, padding: '10px 12px', borderRadius: 9, background: inputError || blockReason ? '#fce8e6' : previewState ? '#f4f8ff' : '#f8f9fa', color: inputError || blockReason ? '#c5221f' : '#3c4756', fontSize: 14 }}>
+          <div aria-live="polite" style={{ minHeight: 46, marginTop: 10, padding: '10px 12px', borderRadius: 9, background: inputError || blockReason ? '#fce8e6' : operandIsUsable ? '#f4f8ff' : '#f8f9fa', color: inputError || blockReason ? '#c5221f' : '#3c4756', fontSize: 14 }}>
             {inputError || blockReason
               ? (inputError || blockReason)
-              : previewState
-                ? <><strong>{describeOperation(operation, operandValue)}:</strong> {formatEquation(state)} → {formatEquation(previewState)}</>
-                : 'Choose an operation and a number to see what it does to both sides.'}
+              : operandIsUsable
+                ? <><strong>{describeOperation(operation, operandValue)}</strong> is ready. Apply it to both sides to see the new equation.</>
+                : 'Choose an operation and a number, then apply it to both sides.'}
           </div>
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>

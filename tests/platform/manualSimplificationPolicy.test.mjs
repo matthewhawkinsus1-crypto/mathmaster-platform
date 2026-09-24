@@ -36,7 +36,13 @@ test('student may still keep an equivalent unsimplified step', () => {
 
 test('V1.3 freeform add-subtract placement remains', () => {
   assert.match(src, /resolveAdditivePlacementFromPoint/);
-  assert.match(src, /applyAdditiveOperationAtPlacement/);
   assert.match(src, /kind: 'under'/);
-  assert.match(src, /placementBySideOverride/);
+  // The positions the student chose are honoured by the COMMITTED move: they
+  // are handed to the balanced-operation engine, which places the operand at
+  // each position. (The workspace itself no longer applies them to draw a
+  // preview inside the equation — issue #341.)
+  assert.match(src, /applyBalancedOperation\(\{[^}]*placementBySide: placementBySideOverride \|\| placedOperationPositions/);
+  const engine = fs.readFileSync('src/algebraAstEngine.js', 'utf8');
+  assert.match(engine, /applyOperationToExpression\(equationState\.left, operation, operand\.expression, placementBySide\?\.left\)/);
+  assert.match(engine, /applyAdditiveOperationAtPlacement\(expression, operation, operandExpression, placement\)/);
 });
