@@ -223,6 +223,28 @@ export const resolveDolWindow = ({ assignment, window, classId = null, todayKey 
   };
 };
 
+/**
+ * Whether an academic occurrence happened inside an explicit teacher DOL
+ * recovery window. Server grading uses this to distinguish a legitimate
+ * reopened DOL from an ordinary post-cutoff submission.
+ */
+export const dolTeacherRecoveryActiveAt = ({
+  assignment,
+  classId = null,
+  at = Date.now(),
+  timeZone = SCHOOL_TIME_ZONE,
+} = {}) => {
+  if (!classId) return false;
+  const recovery = scopedOverride({ byClassId: assignment?.dol?.recoveryByClassId, classId });
+  const openedAtMs = overrideInstant(recovery, 'openedAt', timeZone);
+  const closesAtMs = overrideInstant(recovery, 'closesAt', timeZone);
+  if (openedAtMs === null || closesAtMs === null || closesAtMs <= openedAtMs) return false;
+  const occurrenceMs = parseInstant(at, { timeZone });
+  if (occurrenceMs === null || occurrenceMs < openedAtMs || occurrenceMs > closesAtMs) return false;
+  const dateKey = overrideDateKey(recovery);
+  return !dateKey || zonedDateKey(occurrenceMs, timeZone) === dateKey;
+};
+
 /** When a teacher manually closed Classwork/Practice for one class, if they did. */
 export const manualSectionCloseAt = ({ assignment, activityRole, classId = null } = {}) => {
   const role = String(activityRole || '').trim().toLowerCase();
