@@ -35,6 +35,10 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
   // Which rows are currently picked up before a comparison is recorded.
   // Selection, not committed evidence, so it stays out of the draft/undo history.
   const [selectedRows, setSelectedRows] = useState([]);
+  // Editing a recorded interval is intentionally transient. The committed
+  // evidence remains untouched until the student presses Save changes, so
+  // navigation/Undo can never destroy the last recorded version by accident.
+  const [editingEvidenceIndex, setEditingEvidenceIndex] = useState(null);
   const [notice, setNotice] = useState('');
   const [redoDepth, setRedoDepth] = useState(0);
   const redoStackRef = useRef([]);
@@ -66,6 +70,11 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
       redoStackRef.current = [...redoStackRef.current, mathematicalStateRef.current].slice(-60);
       setRedoDepth(redoStackRef.current.length);
       applyState(restored);
+      setEditingEvidenceIndex(null);
+      setSelectedRows([]);
+      setStagingDx('');
+      setStagingDy('');
+      setStagingRate('');
       setNotice('');
       clearFeedback();
     },
@@ -94,6 +103,7 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
     clearRedo();
     applyState(emptyState);
     setSelectedRows([]);
+    setEditingEvidenceIndex(null);
     setStagingDx('');
     setStagingDy('');
     setStagingRate('');
@@ -103,6 +113,16 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
 
   const toggleRow = (index) => {
     clearFeedback();
+    // Picking a new pair means the student has left an interval edit. Keep the
+    // committed version intact and start a fresh comparison instead of silently
+    // repurposing the edit form for another pair.
+    if (editingEvidenceIndex != null) {
+      setEditingEvidenceIndex(null);
+      setStagingDx('');
+      setStagingDy('');
+      setStagingRate('');
+      setNotice('');
+    }
     setSelectedRows((current) => {
       if (current.includes(index)) return current.filter((entry) => entry !== index);
       const next = [...current, index];
@@ -113,23 +133,55 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
   const [i, j] = selectedRows.length === 2 ? selectedRows : [null, null];
   const truth = i != null && j != null ? intervalTruth(rows[i], rows[j]) : null;
   const currentKey = i != null && j != null ? pairKey(i, j) : null;
-  const alreadyRecorded = currentKey != null && evidence.some((entry) => pairKey(entry.i, entry.j) === currentKey);
+  const alreadyRecorded = currentKey != null && evidence.some((entry, index) => (
+    index !== editingEvidenceIndex && pairKey(entry.i, entry.j) === currentKey
+  ));
 
   const recordInterval = () => {
     if (!truth || alreadyRecorded) return;
     clearRedo();
-    setEvidence((current) => [...current, { i, j, dx: stagingDx, dy: stagingDy, rate: stagingRate }]);
+    const nextEntry = { i, j, dx: stagingDx, dy: stagingDy, rate: stagingRate };
+    if (editingEvidenceIndex != null) {
+      setEvidence((current) => current.map((entry, index) => (index === editingEvidenceIndex ? nextEntry : entry)));
+      setNotice(`Updated Row ${i + 1} → Row ${j + 1}.`);
+    } else {
+      setEvidence((current) => [...current, nextEntry]);
+      setNotice('');
+    }
+    setEditingEvidenceIndex(null);
     setStagingDx('');
     setStagingDy('');
     setStagingRate('');
     setSelectedRows([]);
-    setNotice('');
     clearFeedback();
+  };
+
+  const editEvidence = (index) => {
+    const entry = evidence[index];
+    if (!entry) return;
+    setEditingEvidenceIndex(index);
+    setSelectedRows([Number(entry.i), Number(entry.j)]);
+    setStagingDx(String(entry.dx ?? ''));
+    setStagingDy(String(entry.dy ?? ''));
+    setStagingRate(String(entry.rate ?? ''));
+    setNotice(`Editing Row ${Number(entry.i) + 1} → Row ${Number(entry.j) + 1}. Change any value, then save.`);
+    clearFeedback();
+  };
+
+  const cancelEvidenceEdit = () => {
+    setEditingEvidenceIndex(null);
+    setSelectedRows([]);
+    setStagingDx('');
+    setStagingDy('');
+    setStagingRate('');
+    setNotice('');
   };
 
   const removeEvidence = (index) => {
     clearRedo();
     setEvidence((current) => current.filter((_, entryIndex) => entryIndex !== index));
+    if (editingEvidenceIndex === index) cancelEvidenceEdit();
+    else if (editingEvidenceIndex != null && index < editingEvidenceIndex) setEditingEvidenceIndex(editingEvidenceIndex - 1);
     clearFeedback();
   };
 
@@ -161,6 +213,49 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
 
   const feedbackParts = feedback?.metadata?.parts || [];
   const firstWrong = feedbackParts.find((part) => !part.isCorrect);
+  const evidenceChecks = Array.isArray(feedback?.metadata?.evidenceCorrectness)
+    ? feedback.metadata.evidenceCorrectness
+    : [];
+
+  const intervalIssueIndex = evidenceChecks.findIndex((entry) => entry && entry.complete !== true);
+  const intervalIssue = intervalIssueIndex >= 0 ? evidenceChecks[intervalIssueIndex] : null;
+  const intervalIssueEvidence = intervalIssueIndex >= 0 ? evidence[intervalIssueIndex] : null;
+  const intervalIssueFields = intervalIssue ? [
+    intervalIssue.dxCorrect === false ? 'Δx' : null,
+    intervalIssue.dyCorrect === false ? 'Δy' : null,
+    intervalIssue.rateCorrect === false ? 'rate of change' : null,
+  ].filter(Boolean) : [];
+
+  const feedbackGuidance = (() => {
+    if (!feedback || feedback.isCorrect) return '';
+    if (intervalIssue && intervalIssueEvidence) {
+      if (intervalIssue.duplicate) {
+        return `Check recorded interval ${intervalIssueIndex + 1}: Row ${Number(intervalIssueEvidence.i) + 1} → Row ${Number(intervalIssueEvidence.j) + 1} repeats a pair you already used. Edit it or choose a different pair.`;
+      }
+      const fields = intervalIssueFields.length ? intervalIssueFields.join(', ') : 'the interval entries';
+      return `Check Row ${Number(intervalIssueEvidence.i) + 1} → Row ${Number(intervalIssueEvidence.j) + 1}: ${fields}. Recheck subtraction order and signs before changing anything else.`;
+    }
+    switch (firstWrong?.id) {
+      case 'evidenceCount':
+        return `You need at least ${requiredComparisons} different row-pair comparisons. Add or edit an interval before checking the later parts.`;
+      case 'nonconstantRateEvidence':
+        return 'Your classification says the rate changes, but the recorded intervals do not yet show two different correct rates. Recheck which row pairs best prove your claim.';
+      case 'classification':
+        return 'Your recorded interval work is ready to use. Compare the rates you found and recheck only the linear/nonlinear classification.';
+      case 'repairIndex':
+        return 'Your interval evidence is not the issue here. Recheck which single table row breaks the pattern.';
+      case 'repairValue':
+        return 'You found the row to repair. Recheck only the corrected y-value by extending the constant-rate pattern.';
+      case 'slope':
+        return 'Your interval evidence is recorded. Recheck slope m using Δy ÷ Δx, especially the sign.';
+      case 'intercept':
+        return 'Recheck only b. Substitute one table point and your slope into y = mx + b, then solve for b.';
+      case 'equation':
+        return 'Your m and b entries are checked separately. Recheck how you wrote the final equation in y = mx + b form.';
+      default:
+        return firstWrong ? `Check this part again: ${firstWrong.label}.` : 'Check the highlighted part again.';
+    }
+  })();
 
   return (
     <ToolShell
@@ -228,10 +323,18 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
               <input style={input} inputMode="decimal" value={stagingRate} onChange={(event) => { setStagingRate(event.target.value); clearFeedback(); }} aria-label="Rate of change for this interval" />
             </label>
           </div>
-          <button type="button" onClick={recordInterval} disabled={alreadyRecorded} style={{ ...button, marginTop: 10, background: alreadyRecorded ? '#f1f3f4' : '#1a73e8', color: alreadyRecorded ? '#5f6368' : '#fff', border: 0 }}>
-            {alreadyRecorded ? 'Already recorded' : 'Record this interval'}
-          </button>
-          {alreadyRecorded ? <p style={{ color: '#7a4f01', fontSize: 13 }}>You already recorded this exact pair. Choose a different pair of rows for another piece of evidence.</p> : null}
+          <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button type="button" onClick={recordInterval} disabled={alreadyRecorded} style={{ ...button, background: alreadyRecorded ? '#f1f3f4' : '#1a73e8', color: alreadyRecorded ? '#5f6368' : '#fff', border: 0 }}>
+              {alreadyRecorded ? 'Already recorded' : editingEvidenceIndex != null ? 'Save interval changes' : 'Record this interval'}
+            </button>
+            {editingEvidenceIndex != null ? (
+              <button type="button" onClick={cancelEvidenceEdit} style={button}>Cancel edit</button>
+            ) : null}
+          </div>
+          {editingEvidenceIndex != null ? (
+            <p style={{ color: '#174ea6', fontSize: 13, marginBottom: 0 }}>You are editing recorded interval {editingEvidenceIndex + 1}. Saving replaces that interval; it does not add a duplicate.</p>
+          ) : null}
+          {alreadyRecorded ? <p style={{ color: '#7a4f01', fontSize: 13 }}>That row pair is already recorded elsewhere. Keep this interval unique or edit the existing one.</p> : null}
         </Panel>
       ) : selectedRows.length === 1 ? (
         <p style={{ color: '#5f6b7a' }}>Row {selectedRows[0] + 1} selected. Tap a second row to form an interval.</p>
@@ -240,15 +343,32 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
       <Panel title={`Recorded intervals (${evidence.length}, need ${requiredComparisons})`}>
         {evidence.length ? (
           <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 8 }}>
-            {evidence.map((entry, index) => (
-              <li key={`${entry.i}-${entry.j}`} style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1px solid #dde5f0', borderRadius: 8, padding: '8px 10px' }}>
-                <span style={{ fontWeight: 800 }}>Row {entry.i + 1} → Row {entry.j + 1}</span>
-                <span>Δx = {entry.dx || '—'}</span>
-                <span>Δy = {entry.dy || '—'}</span>
-                <span>rate = {entry.rate || '—'}</span>
-                <button type="button" onClick={() => removeEvidence(index)} aria-label={`Remove interval between row ${entry.i + 1} and row ${entry.j + 1}`} style={{ ...button, marginLeft: 'auto', minHeight: 32, padding: '4px 9px' }}>×</button>
-              </li>
-            ))}
+            {evidence.map((entry, index) => {
+              const check = evidenceChecks[index] || null;
+              const needsAttention = Boolean(feedback && !feedback.isCorrect && check && check.complete !== true);
+              const fieldsToCheck = check ? [
+                check.dxCorrect === false ? 'Δx' : null,
+                check.dyCorrect === false ? 'Δy' : null,
+                check.rateCorrect === false ? 'rate' : null,
+              ].filter(Boolean) : [];
+              return (
+                <li key={`${entry.i}-${entry.j}-${index}`} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', border: needsAttention ? '2px solid #d93025' : editingEvidenceIndex === index ? '2px solid #1a73e8' : '1px solid #dde5f0', background: needsAttention ? '#fff7f6' : editingEvidenceIndex === index ? '#f5f9ff' : '#fff', borderRadius: 8, padding: '8px 10px' }}>
+                  <span style={{ fontWeight: 800 }}>Row {entry.i + 1} → Row {entry.j + 1}</span>
+                  <span>Δx = {entry.dx || '—'}</span>
+                  <span>Δy = {entry.dy || '—'}</span>
+                  <span>rate = {entry.rate || '—'}</span>
+                  {needsAttention ? (
+                    <span role="status" style={{ color: '#b3261e', fontSize: 12, fontWeight: 900 }}>
+                      {check.duplicate ? 'Check: repeated row pair' : `Check: ${fieldsToCheck.join(', ') || 'this interval'}`}
+                    </span>
+                  ) : null}
+                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                    <button type="button" onClick={() => editEvidence(index)} aria-label={`Edit interval between row ${entry.i + 1} and row ${entry.j + 1}`} style={{ ...button, minHeight: 32, padding: '4px 10px', color: '#174ea6' }}>Edit</button>
+                    <button type="button" onClick={() => removeEvidence(index)} aria-label={`Remove interval between row ${entry.i + 1} and row ${entry.j + 1}`} style={{ ...button, minHeight: 32, padding: '4px 9px' }}>Remove</button>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         ) : <p style={{ color: '#80868b' }}>No intervals recorded yet.</p>}
       </Panel>
@@ -326,8 +446,10 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
         {feedback ? <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Needs another look'}</ResultPill> : null}
       </div>
       {notice ? <p role="status" style={{ color: '#5f6b7a' }}>{notice} <button type="button" onClick={undo}>Restore</button></p> : null}
-      {feedback && !feedback.isCorrect && firstWrong ? (
-        <p style={{ color: '#5f6b7a', lineHeight: 1.55 }}>Check this part again: <strong>{firstWrong.label}</strong>. MathMaster will not tell you the correct value — recompute it from the table.</p>
+      {feedback && !feedback.isCorrect && feedbackGuidance ? (
+        <p role="status" style={{ color: '#5f6b7a', lineHeight: 1.55 }}>
+          <strong>Where to check:</strong> {feedbackGuidance} MathMaster points you to the location of the issue without giving away the correct value.
+        </p>
       ) : null}
     </ToolShell>
   );
