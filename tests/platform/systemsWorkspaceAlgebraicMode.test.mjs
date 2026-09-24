@@ -485,11 +485,14 @@ test('back-substitution and verification tokens use exact expressions instead of
 
 test('systems work trail renders mathematical summaries as MathDisplay instead of exposing machine syntax', () => {
   const trail = region(modeSource, 'function SystemsWorkTrail', 'const cleanCoefficient', 'SystemsWorkTrail');
-  assert.match(trail, /stage\.summaryMath/);
-  assert.match(trail, /<MathDisplay value=\{stage\.summaryMath\} format="ascii-math" inline/);
+  assert.match(trail, /stage\.summaryMath \|\| stage\.summaryLatex/);
+  assert.match(trail, /value=\{stage\.summaryLatex \|\| stage\.summaryMath\}/);
+  assert.match(trail, /format=\{stage\.summaryLatex \? 'latex' : 'ascii-math'\}/);
   assert.match(modeSource, /summaryMath: isolationDone/);
+  assert.match(modeSource, /summaryLatex: isolationDone/);
   assert.match(modeSource, /displayedIsolationExpression/);
   assert.match(modeSource, /summaryMath: substitution\.equationText \? classroomEquationText/);
+  assert.match(modeSource, /summaryLatex: substitution\.equationText/);
 });
 
 test('the isolation work trail follows the student-selected simplified token form when one exists', () => {
@@ -504,10 +507,12 @@ test('Systems Undo falls back to parent workflow history after local Step Algebr
   assert.doesNotMatch(modeSource, /disabled:\s*!embeddedUndoController\.canUndo/);
 });
 
-test('completed systems history renders classroom notation instead of machine multiplication syntax', () => {
+test('completed systems history carries classroom LaTeX in addition to machine-safe math text', () => {
   assert.match(modeSource, /classroomEquationText/);
+  assert.match(modeSource, /classroomEquationLatex/);
+  assert.match(modeSource, /classroomAssignmentLatex/);
   assert.match(modeSource, /summaryMath:/);
+  assert.match(modeSource, /summaryLatex:/);
   const trail = region(modeSource, 'function SystemsWorkTrail', 'const cleanCoefficient', 'SystemsWorkTrail');
-  assert.match(trail, /MathDisplay/);
-  assert.match(trail, /format="ascii-math"/);
+  assert.match(trail, /format=\{stage\.summaryLatex \? 'latex' : 'ascii-math'\}/);
 });
