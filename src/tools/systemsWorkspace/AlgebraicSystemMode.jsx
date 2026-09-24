@@ -30,6 +30,7 @@ import {
   equationMentionsVariable,
   exactNumberText,
   presentableExpression,
+  classroomEquationText,
 } from './algebraicSystemsEngine.js';
 
 const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '11px 12px', border: '1px solid #cfd8e6', borderRadius: 9, background: '#fff', fontSize: 15, minHeight: 44 };
