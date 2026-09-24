@@ -155,6 +155,13 @@ product failure; rerun the suite.
   and in the existing *Work View Browser Matrix* workflow. The fix belongs in
   the shared Work View layout (`WorkViewShell.css`, side rail), not in this
   runner.
+- The Work View certification (Stage 4) has the same pre-existing failures in
+  CI: *Representation Bridge* on Android narrow ("7 controls are clipped") and
+  the two iPhone-landscape scenes above.
+- In a Claude Code cloud sandbox, the Work View certification also hits
+  `page.screenshot` timeouts on phone and tablet profiles for eight tools with
+  inputs. `origin/main` hits the identical timeouts there, and they do not
+  occur on GitHub runners, so treat them as a sandbox limitation.
 - A suite that exceeds its `timeoutMinutes` is stopped and reported as
   **TIMED OUT**. Locally, running other heavy jobs at the same time can push the
   Work View suites past their limit.
