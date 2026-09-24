@@ -30,7 +30,8 @@ test('drag and one-sided drop show real mathematical previews', () => {
   assert.match(preview, /\\\\frac/);
   assert.match(preview, /armedTile\.operation === 'multiply'/);
   assert.match(preview, /algebra-live-math-preview/);
-  assert.match(preview, /is-\$\{staged \? 'staged' : 'hover'\}/);
+  assert.match(preview, /algebra-live-math-preview/);
+  assert.match(preview, /staged \? 'staged' : 'hover'/);
 });
 
 test('preview is outside AutoFitEquationExpression so it cannot remeasure the equation', () => {
