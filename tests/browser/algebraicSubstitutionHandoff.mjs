@@ -531,6 +531,103 @@ report.push({ journey: 'preview-inline-ui', ...inlineObserved });
   await shoot(page, 'exact-fraction-backsub-equation');
 }
 
+// 10. Elimination direct-manipulation acceptance. This is the live system from
+//     the teacher report: scaling Equation 1 by 3 must accept the classroom
+//     terms 3x, 3y, and 6, then keep + / − and cancellation on the equations.
+{
+  const journey = 'preview-elimination-direct';
+  await openFresh(page, { scope: 'teacherPreview', questionIndex: 3 });
+  await page.locator('button', { hasText: 'Eliminate y' }).click();
+
+  const board = page.locator('.mathmaster-systems-elimination-board');
+  await board.waitFor({ timeout: 10000 });
+  const scaleField = board.locator('math-field[aria-label="Multiplier for equation 1"]');
+  await scaleField.waitFor();
+  await scaleField.evaluate((field) => {
+    field.setValue('3');
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.waitForTimeout(250);
+
+  if (await board.locator('.mathmaster-systems-combine-stack').count()) {
+    note(journey, 'combine controls stayed open before the nontrivial scale step was completed');
+  }
+
+  const scaleToken = board.locator('button[aria-label="Pick up scale factor 3 for equation 1"]');
+  await scaleToken.click();
+  await board.locator('.mathmaster-systems-equation-multiplier-target').nth(0).click();
+  await board.locator('text=Complete the scaled equation').waitFor({ timeout: 5000 });
+
+  const enterMath = async (ariaLabel, value) => {
+    const field = board.locator(`math-field[aria-label="${ariaLabel}"]`);
+    await field.waitFor();
+    await field.evaluate((element, nextValue) => {
+      element.setValue(nextValue);
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    }, value);
+  };
+  await enterMath('Scaled x term for equation 1', '3x');
+  await enterMath('Scaled y term for equation 1', '3y');
+  await enterMath('Scaled right side for equation 1', '6');
+  await board.locator('button', { hasText: 'Check scaled equation' }).click();
+  await page.waitForTimeout(450);
+
+  const productErrors = await board.locator('.mathmaster-systems-substitution-feedback.is-error').allInnerTexts();
+  if (productErrors.length) {
+    note(journey, `correct 3x, 3y, 6 scaling was rejected: ${productErrors.join(' | ')}`);
+  }
+
+  const firstPrepared = (await board.locator('.mathmaster-systems-equation-multiplier-target').nth(0).innerText()).replace(/\s+/g, ' ');
+  if (!/3x/.test(firstPrepared) || !/3y/.test(firstPrepared) || !/=\s*6/.test(firstPrepared)) {
+    note(journey, `Equation 1 did not become 3x + 3y = 6: ${firstPrepared}`);
+  }
+
+  const boardText = await board.innerText();
+  if (boardText.includes('×')) note(journey, 'student-facing elimination UI still uses the multiplication × glyph');
+  if (boardText.includes('Use as written')) note(journey, 'identity Equation 2 still requires a multiply-by-one confirmation');
+  if (!boardText.includes('Equation stays as written')) note(journey, 'identity Equation 2 is not recognized as already prepared');
+
+  const combineStack = board.locator('.mathmaster-systems-combine-stack');
+  await combineStack.waitFor({ timeout: 5000 });
+  const operationRail = board.locator('.mathmaster-systems-operation-rail');
+  if (await operationRail.count() !== 1) note(journey, 'the + / − operation rail is not attached beside the equation stack');
+  await board.locator('button[aria-label="Add equation 2 to equation 1"]').click();
+  await page.waitForTimeout(300);
+
+  const cancelTargets = board.locator('.mathmaster-systems-cancellation-target');
+  if (await cancelTargets.count() !== 2) {
+    note(journey, `expected 2 student cancellation targets, saw ${await cancelTargets.count()}`);
+  } else {
+    await cancelTargets.nth(0).click();
+    await cancelTargets.nth(1).click();
+    await board.locator('button', { hasText: 'Confirm cancellation and combine' }).click();
+    await page.waitForTimeout(500);
+  }
+
+  const combined = page.locator('.mathmaster-systems-combined-equation');
+  if (!(await combined.count())) {
+    note(journey, 'combined equation did not appear after student cancellation');
+  } else {
+    const combinedText = (await combined.innerText()).replace(/\s+/g, ' ');
+    if (!/4x/.test(combinedText) || !/=\s*0/.test(combinedText)) {
+      note(journey, `expected reduced equation 4x = 0, saw: ${combinedText}`);
+    }
+  }
+
+  const eliminationSolver = solver(page);
+  await eliminationSolver.waitFor({ timeout: 10000 });
+  const heading = (await eliminationSolver.locator('> div').first().innerText()).trim();
+  if (!/solve for x/i.test(heading)) note(journey, `reduced equation was not handed to Step Algebra for x: "${heading}"`);
+
+  report.push({
+    journey,
+    solverHeading: heading,
+    firstPrepared,
+    multiplicationGlyphPresent: boardText.includes('×'),
+  });
+  await shoot(page, journey);
+}
+
 await browser.close();
 
 writeFileSync(path.join(ARTIFACTS, 'report.json'), `${JSON.stringify({ findings, journeys: report }, null, 2)}\n`);
