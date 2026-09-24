@@ -493,3 +493,18 @@ test('the isolation work trail follows the student-selected simplified token for
   assert.match(modeSource, /displayedIsolationExpression = normalizeStudentExpressionForDisplay\(substitutionTokenExpression \|\| isolatedExpr \|\| ''\)/);
   assert.match(modeSource, /summaryMath: isolationDone && selection\.variable \? `\$\{selection\.variable\} = \$\{displayedIsolationExpression\}`/);
 });
+
+
+test('Systems Undo falls back to parent workflow history after local Step Algebra history is exhausted', () => {
+  assert.match(modeSource, /embeddedUndoController\?\.canUndo/);
+  assert.match(modeSource, /: undoHistory\.capability/);
+  assert.doesNotMatch(modeSource, /disabled:\s*!embeddedUndoController\.canUndo/);
+});
+
+test('completed systems history carries classroom LaTeX in addition to machine-safe math text', () => {
+  assert.match(modeSource, /classroomEquationLatex/);
+  assert.match(modeSource, /classroomAssignmentLatex/);
+  assert.match(modeSource, /summaryLatex:/);
+  const trail = region(modeSource, 'function SystemsWorkTrail', 'const cleanCoefficient', 'SystemsWorkTrail');
+  assert.match(trail, /format=\{stage\.summaryLatex \? 'latex' : 'ascii-math'\}/);
+});
