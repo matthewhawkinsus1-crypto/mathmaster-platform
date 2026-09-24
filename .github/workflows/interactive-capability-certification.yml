@@ -52,7 +52,9 @@ concurrency:
 jobs:
   certify:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # The release tier runs every browser certification in sequence; each
+    # suite also has its own limit in the manifest (timeoutMinutes).
+    timeout-minutes: 60
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

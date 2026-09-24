@@ -46,7 +46,7 @@ compiled question (see the comment at the top of
 | --- | --- | --- | --- |
 | **pr** | Node gate for every capability (route, engine, wiring, model), plus the node suites for TEACHER EXPERIENCE, ASSESSMENTS and PERSISTENCE | Every PR, inside the Full Platform Test Suite; locally `npm run certify:capabilities -- --tier pr` | seconds |
 | **merge** | pr + the interactive capability journeys, factoring/fraction/slope-intercept, systems substitution/elimination, 3×3 | `Interactive Capability Certification` workflow on every PR to `main` that touches runtime code (`src/**`, harnesses, Vite, dependencies) | about 10 min |
-| **release** | merge + draft persistence (navigate/reload/reopen, 14 families), durable outbox, Test Cycle on Chromebook and phone, regression calculator at 390px, Work View certification, Work View graphing matrix | Push to `main`, nightly at 09:17 UTC, manual dispatch; run locally before every production deploy | about 35 min |
+| **release** | merge + draft persistence (navigate/reload/reopen, 14 families), durable outbox, Test Cycle on Chromebook and phone, regression calculator at 390px, Work View certification, Work View graphing matrix | Push to `main`, nightly at 09:17 UTC, manual dispatch; run locally before every production deploy | under an hour |
 
 The PR path filter is deliberately broad: a capability disappears as easily
 through a routing, compiler or runtime-repair change as through the tool
@@ -145,6 +145,19 @@ product failure; rerun the suite.
    the node gate and the journey fail.
 
 ## Known gaps
+
+- **The release tier is red today, for a pre-existing reason.** In the Work
+  View graphing matrix, on an iPhone held sideways (844×390) the side rail has
+  seven controls and only six fit. Transformations Lab's *Clear* and Graphing
+  2's *Start over* sit below the screen edge (`@683,375 155x44`). The rail
+  scrolls, so a student can still reach them, but the Work View standard
+  requires every control on screen. This fails identically on `origin/main`
+  and in the existing *Work View Browser Matrix* workflow. The fix belongs in
+  the shared Work View layout (`WorkViewShell.css`, side rail), not in this
+  runner.
+- A suite that exceeds its `timeoutMinutes` is stopped and reported as
+  **TIMED OUT**. Locally, running other heavy jobs at the same time can push the
+  Work View suites past their limit.
 
 - **GRAPHING and STATISTICS** are certified only at the release tier (Work
   View graphing matrix, regression calculator). A PR that breaks a graph tool

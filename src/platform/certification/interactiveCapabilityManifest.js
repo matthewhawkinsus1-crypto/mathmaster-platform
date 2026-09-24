@@ -352,7 +352,8 @@ export const INTERACTIVE_CAPABILITIES = Object.freeze([
  *            already exist. Before a production deploy and nightly.
  *
  * `server: true` suites need the Vite harness on AUDIT_ORIGIN; the others
- * start their own. `results` names a JSON file with per-journey outcomes when
+ * start their own. A suite is stopped after `timeoutMinutes` (default 20) and
+ * reported as TIMED OUT. `results` names a JSON file with per-journey outcomes when
  * the suite writes one; otherwise the suite passes or fails as a whole.
  */
 export const CERTIFICATION_SUITES = Object.freeze([
@@ -466,6 +467,7 @@ export const CERTIFICATION_SUITES = Object.freeze([
     tier: 'release',
     server: true,
     command: ['node', 'tests/browser/workViewCertification.mjs'],
+    timeoutMinutes: 30,
   },
   {
     id: 'work-view-graph-matrix',
@@ -474,6 +476,7 @@ export const CERTIFICATION_SUITES = Object.freeze([
     tier: 'release',
     server: true,
     command: ['node', 'tests/browser/workViewMatrix.mjs'],
+    timeoutMinutes: 30,
   },
 ]);
 

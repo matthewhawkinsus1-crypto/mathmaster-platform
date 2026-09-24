@@ -48,10 +48,11 @@ const run = (command, env = {}, timeoutMs = 20 * 60 * 1000) => new Promise((reso
   let output = '';
   child.stdout.on('data', (chunk) => { output += chunk; process.stdout.write(chunk); });
   child.stderr.on('data', (chunk) => { output += chunk; process.stderr.write(chunk); });
-  const timer = setTimeout(() => child.kill('SIGKILL'), timeoutMs);
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; child.kill('SIGKILL'); }, timeoutMs);
   child.on('close', (code) => {
     clearTimeout(timer);
-    resolve({ code: code ?? 1, output, ms: Date.now() - started });
+    resolve({ code: timedOut ? 1 : code ?? 1, output, ms: Date.now() - started, timedOut });
   });
 });
 
@@ -91,7 +92,8 @@ if (suites.some((suite) => suite.server) && !origin) {
 for (const suite of suites) {
   console.log(`\n--- ${suite.label} (${suite.command.join(' ')}) ---`);
   if (suite.results && existsSync(suite.results)) rmSync(suite.results);
-  const result = await run(suite.command, suite.server ? { AUDIT_ORIGIN: origin } : {});
+  const timeoutMinutes = suite.timeoutMinutes || 20;
+  const result = await run(suite.command, suite.server ? { AUDIT_ORIGIN: origin } : {}, timeoutMinutes * 60 * 1000);
   let journeys = null;
   if (suite.results && existsSync(suite.results)) {
     try { journeys = JSON.parse(readFileSync(suite.results, 'utf8')).results || null; } catch { journeys = null; }
@@ -105,7 +107,8 @@ for (const suite of suites) {
     status: skipped ? 'skipped' : result.code === 0 ? 'pass' : 'fail',
     ms: result.ms,
     journeys,
-    outputTail: result.code === 0 ? '' : tail(result.output),
+    // A killed suite says so; its last progress lines alone read like a crash.
+    outputTail: result.code === 0 ? '' : `${result.timedOut ? `TIMED OUT after ${timeoutMinutes} min and was stopped.\n` : ''}${tail(result.output)}`,
     artifacts: suite.artifacts || null,
   });
 }
