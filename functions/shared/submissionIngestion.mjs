@@ -41,6 +41,7 @@ import {
   normalizeQuestionRecord,
   recordQuestionAttempt,
   resolveQuestionMaximumAttempts,
+  resolveTeacherGrantedExtraAttempts,
 } from './attemptPolicy.mjs';
 import { getEffectiveActivityPolicy } from './activityPolicies.mjs';
 import { buildAttemptEvidenceEvent } from './attemptEvidenceEvent.mjs';
@@ -51,7 +52,7 @@ import {
   mergeSupportUsage,
 } from './assignmentProjections.mjs';
 import { parseInstant, zonedDateKey } from './instructionalCalendar.mjs';
-import { SCHOOL_TIME_ZONE } from './sectionDeadline.mjs';
+import { dolTeacherRecoveryActiveAt, SCHOOL_TIME_ZONE } from './sectionDeadline.mjs';
 import {
   SUBMISSION_DISPOSITION,
   classifyCapturedSubmission,
@@ -513,7 +514,17 @@ export const buildIngestedAttempt = ({
     ? resolveAcademicOccurrenceAt({ envelope, assignment, ingestedAt })
     : finite(occurredAt, ingestedAt);
   const activityPolicy = getEffectiveActivityPolicy(envelope.activityRole);
-  const maximumAttempts = resolveQuestionMaximumAttempts({ question, maximumAttempts: activityPolicy.attempts, activityPolicy });
+  const teacherGrantedExtraAttempts = resolveTeacherGrantedExtraAttempts({
+    assignment,
+    activityRole: envelope.activityRole,
+    classId: gradeDocument?.classId || null,
+  });
+  const maximumAttempts = resolveQuestionMaximumAttempts({
+    question,
+    maximumAttempts: activityPolicy.attempts,
+    activityPolicy,
+    teacherGrantedExtraAttempts,
+  });
   const regrade = serverCanRegradeEnvelope({ envelope, question });
 
   let record;
@@ -619,7 +630,13 @@ export const buildIngestedAttempt = ({
       questionIndices: dolIndices,
       recordedAt,
       finalize: false,
-      correctionReason: 'server-ingestion',
+      correctionReason: 'teacher-dol-recovery',
+      allowReopen: dolTeacherRecoveryActiveAt({
+        assignment,
+        classId: gradeDocument?.classId || null,
+        at: academicAt,
+        timeZone,
+      }),
     })
     : null;
 
