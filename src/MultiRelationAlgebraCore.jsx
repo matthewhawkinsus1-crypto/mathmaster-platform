@@ -38,6 +38,8 @@ import {
   takeSquareRootOfRelation,
   validateRelationTransition,
 } from './algebraRelationFoundation.js';
+import { RelationDistributionPanel, RelationLikeTermsPanel } from './RelationStructureTools.jsx';
+import { relationDistributionCandidates, relationLikeTermCandidates } from './algebraRelationStructureModel.js';
 
 const BASIC_OPERATIONS = [
   { id: 'add', symbol: '+', label: 'Add' },
@@ -603,6 +605,9 @@ export default function MultiRelationAlgebra({
   const [rewriteIndex, setRewriteIndex] = useState(0);
   const [rewriteValue, setRewriteValue] = useState('');
   const [rewriteFocusSignal, setRewriteFocusSignal] = useState(0);
+  // Distribute / Combine like terms, the same shared operations the equation
+  // engine uses (RelationStructureTools.jsx). One open at a time.
+  const [structurePanel, setStructurePanel] = useState(null);
 
   const [otherOpen, setOtherOpen] = useState(true);
 
@@ -642,6 +647,7 @@ export default function MultiRelationAlgebra({
     setOperand('');
     setPlacementByKey({});
     setRewriteOpen(false);
+    setStructurePanel(null);
     setRewriteValue('');
     setOtherOpen(true);
     setCompleteSquareOpen(false);
@@ -1103,6 +1109,7 @@ export default function MultiRelationAlgebra({
       setMessage({ tone: 'growth', text: 'Finish the relation symbols from the last operation first.' });
       return;
     }
+    setStructurePanel(null);
     // Rewrite/Simplify is a different action. Never leave a stale operation
     // composer or staged placement hanging open underneath it.
     cancelBasicOperation();
@@ -1552,6 +1559,7 @@ export default function MultiRelationAlgebra({
   };
 
   const reset = () => {
+    setStructurePanel(null);
     setRelationState(pristine);
     setHistory([]);
     setActiveBranch(0);
@@ -1579,6 +1587,26 @@ export default function MultiRelationAlgebra({
   };
 
   const active = relationState.branches?.[activeBranch] || null;
+  const distributionAvailable = useMemo(() => relationDistributionCandidates(active).length > 0, [active]);
+  const likeTermsAvailable = useMemo(() => relationLikeTermCandidates(active).length > 0, [active]);
+  const commitStructureStep = async (next, label, kind) => {
+    const committed = await commitState(next, label, kind, { kind: 'equivalentRewrite' });
+    if (committed) {
+      setStructurePanel(null);
+      setMessage({
+        tone: 'success',
+        text: kind === 'distribution'
+          ? 'Distributed. The products are left as you wrote them; rewrite them when you are ready.'
+          : 'Like terms combined.',
+      });
+    }
+    return committed;
+  };
+  const toggleStructurePanel = (panel) => {
+    cancelBasicOperation();
+    setRewriteOpen(false);
+    setStructurePanel((current) => (current === panel ? null : panel));
+  };
 
   const operationDock = !summary.solved
     && !relationState.special
@@ -1770,6 +1798,30 @@ export default function MultiRelationAlgebra({
             Rewrite / Simplify
           </button>
 
+          {distributionAvailable && (
+            <button
+              type="button"
+              onClick={() => toggleStructurePanel('distribute')}
+              disabled={disabled || relationState.special || Boolean(pendingRelationFlip)}
+              style={buttonStyle(structurePanel === 'distribute')}
+              aria-expanded={structurePanel === 'distribute'}
+            >
+              Distribute
+            </button>
+          )}
+
+          {likeTermsAvailable && (
+            <button
+              type="button"
+              onClick={() => toggleStructurePanel('combine')}
+              disabled={disabled || relationState.special || Boolean(pendingRelationFlip)}
+              style={buttonStyle(structurePanel === 'combine')}
+              aria-expanded={structurePanel === 'combine'}
+            >
+              Combine like terms
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => {
@@ -1886,6 +1938,24 @@ export default function MultiRelationAlgebra({
             These choices stay available from the beginning. MathMaster checks whether the selected operation is valid; it does not reveal when to use one.
           </span>
         </div>
+      )}
+
+      {structurePanel === 'distribute' && active && distributionAvailable && (
+        <RelationDistributionPanel
+          state={relationState}
+          branchIndex={activeBranch}
+          onCommit={commitStructureStep}
+          onClose={() => setStructurePanel(null)}
+        />
+      )}
+
+      {structurePanel === 'combine' && active && likeTermsAvailable && (
+        <RelationLikeTermsPanel
+          state={relationState}
+          branchIndex={activeBranch}
+          onCommit={commitStructureStep}
+          onClose={() => setStructurePanel(null)}
+        />
       )}
 
       {rewriteOpen && active && (

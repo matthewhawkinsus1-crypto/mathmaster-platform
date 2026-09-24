@@ -116,6 +116,8 @@ export const ALGEBRA_ENGINE_CAPABILITIES = Object.freeze({
   ]),
   [ALGEBRA_ENGINES.MULTI_RELATION]: Object.freeze([
     'balancedOperations',
+    'distribution',
+    'combineLikeTerms',
     'inequalitySignReversal',
     'compoundInequality',
     'absoluteValueBranching',

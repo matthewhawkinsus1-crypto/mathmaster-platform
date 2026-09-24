@@ -25,6 +25,8 @@
 //   history-notation           the relation history shows math, not abs(…) / <= / *
 //   relation-persistence       the reversed-symbol step survives a full reload
 //   draft-recovery             a corrupted relation draft resumes the question instead of crashing it
+//   inequality-distribution    −3(x − 4) > 2x + 7: −3 placed on each term, Undo takes it back
+//   inequality-like-terms      2x + 3x − 4 ≤ 11: a wrong sum refused, 5x accepted with Enter
 //   absolute-value             |2x − 3| = 7: a one-sided split is refused, 7 OR −7 is accepted
 //   absolute-value-inequality  |x − 2| < 5: −5 < x − 2 < 5 built by the student
 //   xy-intercepts              3x + 4y = 24: y = 0 dropped on y, then the mature engine solves
@@ -336,6 +338,57 @@ await journey('history-notation', 'inequality-reversal', async (page, step) => {
   check(mathElements >= count, `every history row is rendered math (${mathElements}/${count})`);
   check(!/abs\(|<=|>=|\*/.test(text), `no solver syntax in the history: ${text}`);
   return { rows: count };
+});
+
+await journey('inequality-distribution', 'inequality-distribute', async (page, step) => {
+  check(await route(page) === 'relation', `route ${await route(page)}`);
+  const before = await state(page);
+  step('open Distribute');
+  await visibleButton(page, /^Distribute$/).click();
+  await settle(page, 300);
+  step('pick up −3 and place it on each term');
+  await visibleLabelled(page, 'Pick up the multiplier -3').click();
+  await visibleLabelled(page, 'Place the multiplier on x').click();
+  await visibleLabelled(page, 'Pick up the multiplier -3').click().catch(() => {});
+  await visibleLabelled(page, 'Place the multiplier on - 4').click();
+  await settle(page, 200);
+  step('commit');
+  await visibleButton(page, 'Commit distribution').click();
+  await settle(page, 700);
+  const after = await state(page);
+  check(!/\(x - 4\)/.test(after), `the group is distributed: ${after}`);
+  check(/\(-3\)\s*\(x\)/.test(after) && /\(-3\)\s*\(-4\)/.test(after), `−3 reached both terms, unsimplified: ${after}`);
+  check(/>/.test(after), 'the inequality symbol is unchanged');
+  step('Undo takes the distribution back');
+  await undoButton(page).click();
+  await settle(page, 700);
+  check(await state(page) === before, 'Undo restores the grouped inequality');
+  return { before, after };
+});
+
+await journey('inequality-like-terms', 'inequality-like-terms', async (page, step) => {
+  check(await route(page) === 'relation', `route ${await route(page)}`);
+  step('open Combine like terms and choose 2x and 3x');
+  await visibleButton(page, /^Combine like terms$/).click();
+  await settle(page, 300);
+  await visibleLabelled(page, '2 x, select as a term to combine').click();
+  await visibleLabelled(page, '3 x, select as a term to combine').click();
+  await settle(page, 300);
+  const field = page.locator('math-field[aria-label^="Enter the single term these selected terms combine to"]:visible').first();
+  const focused = await page.evaluate(() => document.activeElement?.tagName?.toLowerCase());
+  check(focused === 'math-field', `the answer box takes focus once two terms are chosen (${focused})`);
+  step('a wrong sum is refused');
+  await setMathField(page, field, '6x');
+  await page.keyboard.press('Enter');
+  await settle(page, 600);
+  check(/2\s*x\s*\+\s*3\s*x/.test(await state(page)), 'nothing was committed');
+  step('5x is accepted with Enter');
+  await setMathField(page, field, '5x');
+  await field.press('Enter');
+  await settle(page, 700);
+  const after = await state(page);
+  check(/^5\s*x\s*-\s*4\s*<=\s*11$/.test(after), `2x + 3x became 5x: ${after}`);
+  return { after };
 });
 
 await journey('absolute-value', 'absolute-value-equation', async (page, step) => {

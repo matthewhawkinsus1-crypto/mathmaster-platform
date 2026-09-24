@@ -23,6 +23,11 @@ import {
   placeOnTerm,
 } from '../../src/algebraDistributionModel.js';
 import { findLikeTermGroups, replaceSelectedLikeTerms } from '../../src/algebraLikeTermsModel.js';
+import {
+  commitRelationDistribution,
+  commitRelationLikeTerms,
+  relationDistributionCandidates,
+} from '../../src/algebraRelationStructureModel.js';
 import { detectFactorableLists, validateCommonFactor } from '../../src/algebraFactoringModel.js';
 import { divideRational, makeRational } from '../../src/algebraExactRational.js';
 import { detectSplittableFractions } from '../../src/algebraFractionSplitModel.js';
@@ -95,6 +100,22 @@ const BEHAVIOUR = {
     const result = applyBalancedOperationToRelation(state, 'divide', '-2');
     assert.equal(result.requiresInequalityFlip, true);
     assert.deepEqual(result.expectedRelations, ['<']);
+  },
+  'inequality-distribution': (question) => {
+    const state = parseRelationSource(question.equation, 'x');
+    const [candidate] = relationDistributionCandidates(state.branches[0]);
+    assert.equal(candidate.detected.factorText, '-3', 'the negative multiplier is the student\'s to place');
+    let distribution = initDistributionState(candidate.detected);
+    distribution.terms.forEach((_, index) => { distribution = placeOnTerm(armFactor(distribution), index); });
+    const next = commitRelationDistribution(state, 0, candidate.expressionIndex, distribution);
+    assert.equal(validateRelationTransition(state, next, { kind: 'equivalentRewrite' }).valid, true);
+  },
+  'inequality-like-terms': (question) => {
+    const state = parseRelationSource(question.equation, 'x');
+    const good = commitRelationLikeTerms(state, 0, 0, [0, 1], '5x');
+    assert.equal(validateRelationTransition(state, good.next, { kind: 'equivalentRewrite' }).valid, true);
+    const wrong = commitRelationLikeTerms(state, 0, 0, [0, 1], '6x');
+    assert.equal(validateRelationTransition(state, wrong.next, { kind: 'equivalentRewrite' }).valid, false, 'a wrong sum is refused');
   },
   'absolute-value': (question) => {
     const before = parseRelationSource(question.equation, 'x');
