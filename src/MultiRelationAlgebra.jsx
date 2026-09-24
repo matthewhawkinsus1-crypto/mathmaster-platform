@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import MultiRelationAlgebraCore from './MultiRelationAlgebraCore';
 import EnlargeableFigure from './components/common/EnlargeableFigure';
+import MathDisplay from './MathDisplay';
 import { withPromptRelationSource } from './stepAlgebraRelationRouting.js';
 
 export * from './MultiRelationAlgebraCore';
@@ -31,10 +32,13 @@ export default function MultiRelationAlgebra(props) {
   useEffect(() => setWorkHistory([]), [workspaceKey]);
 
   const handleStateChange = useCallback((payload) => {
-    const relation = payload?.parts?.find((part) => part?.id === 'relation-work')?.response;
-    if (relation) setWorkHistory((current) => appendHistory(current, relation));
     onStateChange?.(payload);
   }, [onStateChange]);
+  // History shows classroom math — |2x − 3| ≤ 7, not the solver's
+  // `abs(2 x - 3) <= 7` — so it is fed the LaTeX the workspace draws.
+  const handleRelationDisplayChange = useCallback((relationLatex) => {
+    if (relationLatex) setWorkHistory((current) => appendHistory(current, relationLatex));
+  }, []);
 
   const focusPanel = (
     <div className="solver-work-history">
@@ -44,7 +48,7 @@ export default function MultiRelationAlgebra(props) {
         <ol>
           {workHistory.map((relation, index) => (
             <li key={`${index}-${relation}`}>
-              <span className="solver-work-history__math-text">{relation}</span>
+              <MathDisplay value={relation} format="latex" />
             </li>
           ))}
         </ol>
@@ -71,6 +75,7 @@ export default function MultiRelationAlgebra(props) {
         question={relationQuestion}
         denseWorkspace={denseWorkspace}
         onStateChange={handleStateChange}
+        onRelationDisplayChange={handleRelationDisplayChange}
       />
     </EnlargeableFigure>
   );

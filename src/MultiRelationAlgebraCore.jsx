@@ -537,6 +537,10 @@ export default function MultiRelationAlgebra({
   disabled = false,
   draftKey = null,
   denseWorkspace = false,
+  // Classroom LaTeX of every committed relation, for the Work View history.
+  // Kept off the grading payload on purpose: `relation-work` still sends the
+  // raw mathematics graders and checkpoints already read.
+  onRelationDisplayChange = null,
 }) {
   const pristine = useMemo(() => {
     const source = relationSourceFromQuestion(question);
@@ -752,6 +756,10 @@ export default function MultiRelationAlgebra({
     requiresIntervalNotation,
     summary,
   ]);
+
+  useEffect(() => {
+    onRelationDisplayChange?.(relationStateToLatex(relationState));
+  }, [onRelationDisplayChange, relationState]);
 
   const hasTransientUndo = Boolean(
     pendingRelationFlip
