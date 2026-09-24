@@ -265,6 +265,20 @@ const independentOperationExpression = (expression, operation, operandExpression
   return null;
 };
 
+// An inequality may be multiplied or divided only by a quantity whose sign is
+// known: a positive number keeps the symbol, a negative number reverses it.
+// `x < 4` multiplied by `x` has no single correct symbol — it depends on the
+// sign of x (and x = 0 collapses it) — so the step is not a valid balanced
+// move at all, however the student sets the symbol.
+const scalesInequalityByUnknownSign = (relations, operation, numericValue) => (
+  ['multiply', 'divide'].includes(operation)
+  && numericValue === null
+  && (relations || []).some((relation) => relation !== '=')
+);
+
+export const UNKNOWN_SIGN_INEQUALITY_MESSAGE = 'Multiply or divide an inequality only by a number. '
+  + 'The sign of an expression with a variable is unknown, so the inequality symbol cannot be decided.';
+
 const expectedRelationsAfterOperation = (relations, operation, numericValue) => {
   const shouldReverse = ['multiply', 'divide'].includes(operation)
     && numericValue !== null
@@ -315,6 +329,7 @@ const validateBalancedOperation = (
     if (previousBranch.expressions.length !== nextBranch.expressions.length) return false;
     if (previousBranch.relations.length !== nextBranch.relations.length) return false;
 
+    if (scalesInequalityByUnknownSign(previousBranch.relations, operation, operand.numericValue)) return false;
     const expectedRelations = expectedRelationsAfterOperation(
       previousBranch.relations,
       operation,
@@ -472,6 +487,9 @@ export const applyBalancedOperationToRelation = (
   const next = cloneRelationState(state);
   const branch = next.branches[branchIndex];
   if (!branch) throw new Error('Choose a valid branch first.');
+  if (scalesInequalityByUnknownSign(branch.relations, operation, operand.numericValue)) {
+    throw new Error(UNKNOWN_SIGN_INEQUALITY_MESSAGE);
+  }
 
   if (requireExplicitPlacement) {
     const missing = branch.expressions
