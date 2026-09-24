@@ -81,6 +81,17 @@ export const arithmeticParts = (termMagnitudeText) => {
   }
 };
 
+// The student reads -3(2x) as the product of -3 and 2x, so the product they
+// are asked for is (-3) × 2 = -6 — never 3 × 2 with the minus hidden. A term's
+// negative sign therefore travels on its first number, and the term is then
+// rebuilt from the product alone.
+const negateLatex = (latex) => (String(latex).startsWith('-') ? String(latex).slice(1) : `-${latex}`);
+const foldTermSign = (numbers, termSign) => {
+  if (termSign >= 0 || !numbers.length) return numbers;
+  const [first, ...others] = numbers;
+  return [{ value: makeRational(-first.value.n, first.value.d), latex: negateLatex(first.latex) }, ...others];
+};
+
 export const detectArithmeticProducts = (equation) => {
   if (!equation) return [];
   const found = [];
@@ -88,15 +99,17 @@ export const detectArithmeticProducts = (equation) => {
     (splitAdditiveTerms(equation[side]) || []).forEach((term, sideTermIndex) => {
       const parts = arithmeticParts(term.magnitudeText);
       if (!parts) return;
+      const numbers = foldTermSign(parts.numbers, term.sign < 0 ? -1 : 1);
       found.push({
         id: `${side}:${sideTermIndex}`,
         side,
         sideTermIndex,
-        termSign: term.sign < 0 ? -1 : 1,
+        // Already folded into numbers[0]; the product's own sign is the term's.
+        termSign: 1,
         latex: term.latex,
-        numbers: parts.numbers,
+        numbers,
         rest: parts.rest,
-        productLatex: parts.numbers.map((entry) => (entry.latex.startsWith('-') ? `\\left(${entry.latex}\\right)` : entry.latex)).join(' \\times '),
+        productLatex: numbers.map((entry) => (entry.latex.startsWith('-') ? `\\left(${entry.latex}\\right)` : entry.latex)).join(' \\times '),
       });
     });
   });
