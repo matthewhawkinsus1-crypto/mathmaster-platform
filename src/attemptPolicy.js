@@ -17,4 +17,5 @@ export {
   requestReplacementQuestion,
   resolveQuestionMaximumAttempts,
   resolveQuestionReplacementAllowed,
+  resolveTeacherGrantedExtraAttempts,
 } from '../functions/shared/attemptPolicy.mjs';
