@@ -9,7 +9,7 @@ import { matchesNumericAnswer } from '../shared/toolMath';
 import MathDisplay from '../../MathDisplay';
 import MathInput from '../../MathInput';
 import StepByStepAlgebraCore from '../../StepByStepAlgebraCore.jsx';
-import { expressionsEquivalent, latexToExpression } from '../../algebraAstEngine.js';
+import { expressionsEquivalent, latexToExpression, expressionToLatex } from '../../algebraAstEngine.js';
 import './AlgebraicSystemMode.css';
 import {
   normalizeAlgebraicSystemConfig,
@@ -39,6 +39,24 @@ const Field = ({ label, children }) => <label style={{ display: 'block', fontSiz
 
 const secondaryButtonStyle = { ...actionStyle, marginTop: 0, padding: '9px 14px', fontSize: 13, background: '#eef4ff', color: '#174ea6' };
 const smallActionStyle = { ...actionStyle, marginTop: 8, padding: '9px 14px', fontSize: 13 };
+
+const classroomEquationLatex = (equationText) => {
+  const parts = String(equationText || '').split('=');
+  if (parts.length !== 2) return null;
+  try {
+    return `${expressionToLatex(parts[0].trim())} = ${expressionToLatex(parts[1].trim())}`;
+  } catch {
+    return null;
+  }
+};
+
+const classroomAssignmentLatex = (variable, expression) => {
+  try {
+    return `${variable} = ${expressionToLatex(expression)}`;
+  } catch {
+    return null;
+  }
+};
 
 const emptyVerificationEntry = () => ({ placed: {}, leftAnswer: '', rightAnswer: '', checked: false, valid: false });
 const emptySpecialCase = () => ({ isTrueAnswer: '', solutionsAnswer: '', classificationAnswer: '' });
@@ -158,7 +176,7 @@ export function VariableDropEquation({
               : `Variable ${part}. Drop the selected math token here`}
             title="Drop the selected value or expression here if you think it belongs at this variable."
           >
-            {hasPlacedValue ? `(${placedValues[part]})` : part}
+            {hasPlacedValue ? <MathDisplay value={String(placedValues[part])} format="ascii-math" inline /> : part}
           </button>
         );
       })}
@@ -185,13 +203,21 @@ export function SystemsWorkTrail({ stages = [] }) {
         })}
       </div>
       <div className="mathmaster-systems-completed-work">
-        {stages.filter((stage) => stage.complete && (stage.summary || stage.summaryMath)).map((stage) => (
+        {stages.filter((stage) => stage.complete && (stage.summary || stage.summaryMath || stage.summaryLatex)).map((stage) => (
           <div key={`summary-${stage.id}`} className="mathmaster-systems-completed-chip">
             <span aria-hidden="true">✓</span>
             {stage.summaryPrefix ? <span>{stage.summaryPrefix}</span> : null}
-            {stage.summaryMath ? (
-              <span className="mathmaster-systems-completed-math" data-summary-math={stage.summaryMath} aria-label={stage.summaryMath}>
-                <MathDisplay value={stage.summaryMath} format="ascii-math" inline />
+            {stage.summaryMath || stage.summaryLatex ? (
+              <span
+                className="mathmaster-systems-completed-math"
+                data-summary-math={stage.summaryMath || ''}
+                aria-label={stage.summaryMath || stage.summaryLatex}
+              >
+                <MathDisplay
+                  value={stage.summaryLatex || stage.summaryMath}
+                  format={stage.summaryLatex ? 'latex' : 'ascii-math'}
+                  inline
+                />
               </span>
             ) : <span>{stage.summary}</span>}
           </div>
@@ -1099,12 +1125,14 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         label: 'Solve',
         complete: firstSolvedDone,
         summaryMath: firstSolvedDone ? `${firstSolved.variable} = ${firstSolvedExpression}` : '',
+        summaryLatex: firstSolvedDone ? classroomAssignmentLatex(firstSolved.variable, firstSolvedExpression) : '',
       },
       {
         id: 'back-substitute',
         label: 'Back-substitute',
         complete: secondSolvedDone,
         summaryMath: secondSolvedDone ? `${secondSolved.variable} = ${secondSolvedExpression}` : '',
+        summaryLatex: secondSolvedDone ? classroomAssignmentLatex(secondSolved.variable, secondSolvedExpression) : '',
       },
       {
         id: 'verify',
@@ -1135,6 +1163,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
           complete: combinationLocked,
           summaryPrefix: combinationLocked ? `${combination.operation === 'subtract' ? 'Equation 1 − Equation 2' : 'Equation 1 + Equation 2'} →` : '',
           summaryMath: combinationLocked ? classroomEquationText(combination.text) : '',
+          summaryLatex: combinationLocked ? classroomEquationLatex(combination.text) : '',
         },
         ...commonEnd,
       ];
@@ -1147,6 +1176,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         label: 'Isolate',
         complete: isolationDone,
         summaryMath: isolationDone && selection.variable ? `${selection.variable} = ${displayedIsolationExpression}` : '',
+        summaryLatex: isolationDone && selection.variable ? classroomAssignmentLatex(selection.variable, displayedIsolationExpression) : '',
       },
       {
         id: 'substitute',
@@ -1154,6 +1184,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         complete: Boolean(substitution.equationText),
         summaryPrefix: substitution.equationText ? `${equationName(Number(substitution.targetEquationIndex ?? otherIndex))}:` : '',
         summaryMath: substitution.equationText ? classroomEquationText(substitution.equationText) : '',
+        summaryLatex: substitution.equationText ? classroomEquationLatex(substitution.equationText) : '',
       },
       ...commonEnd,
     ];
