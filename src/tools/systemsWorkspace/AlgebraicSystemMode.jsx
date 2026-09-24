@@ -563,7 +563,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       label: '↶ Undo',
       title: embeddedUndoController.label || 'Undo the last algebra step',
       onAction: () => embeddedUndoController.onUndo?.(),
-      disabled: !embeddedUndoController.canUndo,
+      disabled: false,
       studentState: true,
     }
     : undoHistory.capability;
