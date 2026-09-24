@@ -9345,7 +9345,17 @@ function App() {
                         : '';
                       const cardPolicy = getEffectiveActivityPolicy(cardRole);
                       const cardFeedbackHeld = !preview && !lifecycle.isPracticeOnly && cardPolicy.feedback === 'teacherRelease' && !assignmentFeedbackWasReleased(assignment);
-                      const storedCardState = getQuestionCardState(workingTracker?.[index]);
+                      const cardMaximumAttempts = resolveQuestionMaximumAttempts({
+                        question: questions[index],
+                        maximumAttempts: cardPolicy.attempts,
+                        activityPolicy: cardPolicy,
+                        teacherGrantedExtraAttempts: resolveTeacherGrantedExtraAttempts({
+                          assignment,
+                          activityRole: cardRole,
+                          classId: user?.classId || null,
+                        }),
+                      });
+                      const storedCardState = getQuestionCardState(workingTracker?.[index], cardMaximumAttempts);
                       const cardState = cardFeedbackHeld && ['correct', 'expired'].includes(record.status)
                         ? { background: '#eef4ff', color: '#174ea6', label: 'Submitted · feedback held' }
                         : storedCardState;
