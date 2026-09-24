@@ -1,0 +1,41 @@
+name: Firebase Build Fingerprint
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/firebase-build-fingerprint.yml"
+  workflow_dispatch:
+
+jobs:
+  fingerprint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        include:
+          - label: pr345
+            sha: 67b904c8565c3c79ed7ce93a36b626b7bfcb0f9e
+          - label: pr346
+            sha: 6d9570a73ee05022932eaf0edb604164b7ca9331
+          - label: pr347
+            sha: cf0e6517a009bb1767131f47a496899c89fbe96f
+          - label: current-main
+            sha: 14625bd70298751659f7c67c216e544df069c416
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Build fingerprint
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run build:firebase
+          asset="$(grep -oE '/assets/index-[^"]+\.js' dist/index.html | head -1)"
+          echo "FINGERPRINT label=${{ matrix.label }} sha=${{ matrix.sha }} asset=$asset index_sha=$(sha256sum dist/index.html | awk '{print $1}')"
