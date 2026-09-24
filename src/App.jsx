@@ -10214,6 +10214,8 @@ function App() {
                 onOpenAdministration={() => setTeacherWorkspaceMode('administration')}
                 onUnlockDOL={handleUnlockDOLForClass}
                 dolUnlockBusyKey={dolUnlockBusyKey}
+                onGrantDOLAttempt={handleGrantDOLAttemptForClass}
+                dolAttemptGrantBusyKey={dolAttemptGrantBusyKey}
                 onToggleWarmup={handleToggleWarmupForClass}
                 warmupControlBusyKey={warmupControlBusyKey}
                 onToggleSectionAccess={handleToggleSectionAccessForClass}
@@ -10312,6 +10314,8 @@ function App() {
                 onViewGradebook={handleViewClassGradebook}
                 onUnlockDOL={handleUnlockDOLForClass}
                 dolUnlockBusyKey={dolUnlockBusyKey}
+                onGrantDOLAttempt={handleGrantDOLAttemptForClass}
+                dolAttemptGrantBusyKey={dolAttemptGrantBusyKey}
                 onToggleWarmup={handleToggleWarmupForClass}
                 warmupControlBusyKey={warmupControlBusyKey}
                 onToggleSectionAccess={handleToggleSectionAccessForClass}
