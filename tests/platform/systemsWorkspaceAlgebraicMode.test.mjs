@@ -411,7 +411,12 @@ test('the systems work trail compresses completed mathematical decisions instead
   assert.match(modeSource, /function SystemsWorkTrail/);
   assert.match(modeSource, /mathmaster-systems-completed-work/);
   assert.match(modeSource, /workTrailStages/);
-  assert.match(modeSource, /Equation \$\{Number\(substitution\.targetEquationIndex/);
+  // The substitute stage's summary names the equation that received the
+  // expression — "Equation 2" standalone, "R₂" inside a 3×3 reduction (#341) —
+  // through the one naming helper, so the chip always matches the card label.
+  const trail = region(modeSource, 'const workTrailStages = useMemo(', '  ]);', 'work trail stages');
+  assert.match(trail, /summary: substitution\.equationText \? `\$\{equationName\(Number\(substitution\.targetEquationIndex \?\? otherIndex\)\)\}: \$\{substitution\.equationText\}`/);
+  assert.match(modeSource, /const equationName = \(index\) => subsystem\?\.equationLabels\?\.\[index\] \|\| `Equation \$\{index \+ 1\}`;/);
 });
 
 test('elimination visually aligns equations and crosses the student-selected target column only after a successful combination', () => {

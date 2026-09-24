@@ -26,5 +26,17 @@ export function resolveSystemsWorkspaceMode(question = {}) {
     );
 
   if (hasAlgebraicIntent) return 'algebraic';
+  // The plain authored shape from #341 — equations as strings, plus variables
+  // or a method, and no mode at all — is an algebraic system. Falling back to
+  // 'linear' would show the student the graph workspace's DEFAULT system,
+  // which is not the question they were assigned.
+  const authoredAlgebraicShape = !explicitMode
+    && !actions.includes('graphSystem')
+    && !question?.system
+    && Array.isArray(question?.equations)
+    && question.equations.length >= 2
+    && question.equations.every((equation) => typeof equation === 'string')
+    && (ALGEBRAIC_METHODS.has(method) || Array.isArray(question?.variables));
+  if (authoredAlgebraicShape) return 'algebraic';
   return explicitMode || 'linear';
 }

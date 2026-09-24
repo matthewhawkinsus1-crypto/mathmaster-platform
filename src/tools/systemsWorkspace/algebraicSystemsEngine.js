@@ -13,7 +13,7 @@
  * (StepByStepAlgebraCore). Duplicating that logic here is exactly the
  * "second mini equation solver" this feature must not become.
  */
-import { evaluate, parse } from 'mathjs';
+import { OperatorNode, evaluate, fraction, parse } from 'mathjs';
 import { latexToExpression } from '../../algebraAstEngine.js';
 
 const EPS = 1e-7;
@@ -113,6 +113,46 @@ export const isolatedExpressionFor = (text, variable) => {
 };
 
 /**
+ * Step Algebra reports an isolated side with its bookkeeping parentheses,
+ * -(y) - (z) + (6). The same expression without redundant grouping, -y - z + 6,
+ * is what a student reads and writes. Only grouping MathJS proves redundant
+ * is dropped — never a term, a sign or a needed parenthesis — so the tree, and
+ * the mathematics, are unchanged.
+ */
+export const presentableExpression = (expression) => {
+  try {
+    return parse(String(expression)).toString({ parenthesis: 'auto', implicit: 'hide' });
+  } catch {
+    return String(expression);
+  }
+};
+
+/**
+ * An equation as a student writes it, for DISPLAY only: a numeric factor sits
+ * against what it multiplies — 2(-y - z + 6) - y + 3z = 9, not
+ * 2 · (-y - z + 6) - y + 3 · z = 9. The stored text keeps its explicit
+ * multiplication for the MathJS boundary; every parenthesis is kept.
+ */
+export const classroomEquationText = (equationText) => {
+  const juxtapose = (node) => {
+    const mapped = node.map((child) => juxtapose(child));
+    if (mapped.type === 'OperatorNode' && mapped.fn === 'multiply' && mapped.args.length === 2 && !mapped.implicit) {
+      const [factor, target] = mapped.args;
+      const numericFactor = factor.type === 'ConstantNode'
+        || (factor.type === 'OperatorNode' && factor.fn === 'unaryMinus' && factor.args[0]?.type === 'ConstantNode');
+      const numericTarget = target.type === 'ConstantNode' || (target.type === 'ParenthesisNode' && target.content?.type === 'ConstantNode');
+      if (numericFactor && !numericTarget) return new OperatorNode('*', 'multiply', mapped.args, true);
+    }
+    return mapped;
+  };
+  try {
+    return String(equationText).split('=').map((side) => juxtapose(parse(side.trim())).toString({ parenthesis: 'keep', implicit: 'hide' })).join(' = ');
+  } catch {
+    return String(equationText);
+  }
+};
+
+/**
  * Repair an `isolation` record read back from a question draft.
  *
  * `expression` and `tokenExpression` are plain MathJS text by contract, but a
@@ -153,6 +193,19 @@ export const normalizeSubstitutionBoundaryExpression = (rawValue) => {
   return parse(text).toString({ parenthesis: 'keep', implicit: 'show' });
 };
 
+const splitAdditiveTermCount = (text) => {
+  const count = (n) => {
+    if (n.type === 'ParenthesisNode') return count(n.content);
+    if (n.type === 'OperatorNode' && ['add', 'subtract'].includes(n.fn) && n.args.length === 2) return count(n.args[0]) + count(n.args[1]);
+    return 1;
+  };
+  try {
+    return count(parse(String(text)));
+  } catch {
+    return 1;
+  }
+};
+
 /**
  * Replace every occurrence of `variable` in `text` with `replacementExpression`,
  * grouped in parentheses so the substitution is safe wherever it lands
@@ -163,9 +216,24 @@ export const substituteVariable = (text, variable, replacementExpression) => {
   const node = parse(String(text));
   const replacementText = normalizeSubstitutionBoundaryExpression(replacementExpression);
   const replacement = parse(`(${replacementText})`);
-  const transformed = node.transform((n) => (
-    n.type === 'SymbolNode' && n.name === variable ? replacement : n
-  ));
+  const isVariable = (n) => n?.type === 'SymbolNode' && n.name === variable;
+  // A multi-term expression replacing a NEGATED variable (-x, or a - x) is
+  // written with an explicit factor: -1(6 - y - z), a - 1(6 - y - z). Step
+  // Algebra flattens a bare -(6 - y - z) into -6 + y + z for display, which
+  // would distribute the negative for the student; as a product the group
+  // stays whole and the -1 is offered to the student to distribute (#341).
+  // Numbers and single terms are left alone — there is nothing to distribute.
+  const groupedReplacement = splitAdditiveTermCount(replacementText) > 1;
+  const substitute = (n) => {
+    if (groupedReplacement && n.type === 'OperatorNode' && n.fn === 'unaryMinus' && isVariable(n.args[0])) {
+      return parse(`-1 * (${replacementText})`);
+    }
+    if (groupedReplacement && n.type === 'OperatorNode' && n.fn === 'subtract' && n.args.length === 2 && isVariable(n.args[1])) {
+      return new OperatorNode('-', 'subtract', [n.args[0].transform(substitute), parse(`1 * (${replacementText})`)]);
+    }
+    return isVariable(n) ? replacement : n;
+  };
+  const transformed = node.transform(substitute);
 
   // This string is handed back into MathJS by Step Algebra. Keep multiplication
   // explicit at this machine boundary. Hiding it can produce text such as
@@ -225,28 +293,58 @@ export const degenerateStatementTruth = (coefficients) => {
 };
 
 /**
+ * How many variables (and equations) an authored algebraic system has.
+ *
+ * Inferred, never authored: three equations in three variables is a 3×3
+ * system, and everything else keeps the 2×2 behaviour it always had. When
+ * `variables` is omitted, three equations default to x, y, z the same way two
+ * default to x, y.
+ */
+export const algebraicSystemDimension = (questionData = {}) => {
+  const equations = Array.isArray(questionData.equations) ? questionData.equations : null;
+  const variables = Array.isArray(questionData.variables) ? questionData.variables : null;
+  if (equations?.length === 3 && (!variables || variables.length === 3)) return 3;
+  return 2;
+};
+
+const DEFAULT_VARIABLES = { 2: ['x', 'y'], 3: ['x', 'y', 'z'] };
+
+/**
  * Authored config -> the normalized shape AlgebraicSystemMode reads.
  *
- * `equations` must be exactly two linear equation strings in `variables`
- * (default ['x','y']). `method` may force 'substitution' or 'elimination',
- * or leave the choice to the student with 'studentChoice'.
+ * `equations` must be linear equation strings in `variables` — two of each
+ * (default ['x','y']) or, since #341, three of each. `method` may force
+ * 'substitution' or 'elimination', or leave the choice to the student with
+ * 'studentChoice'. A 3×3 system is solved by substitution only: 3×3
+ * elimination is not built, so it is never offered (see
+ * `validateAlgebraicSystemAuthoring`).
+ *
+ * `coefficients` keeps its 2×2 `{ a, b, c }` shape for every existing caller;
+ * `forms` is the dimension-agnostic `{ coefficients: { x, y, z }, constant }`.
  */
 export const normalizeAlgebraicSystemConfig = (questionData = {}) => {
-  const variables = Array.isArray(questionData.variables) && questionData.variables.length === 2
-    ? questionData.variables
-    : ['x', 'y'];
-  const equations = Array.isArray(questionData.equations) && questionData.equations.length === 2
+  const dimension = algebraicSystemDimension(questionData);
+  const variables = Array.isArray(questionData.variables) && questionData.variables.length === dimension
+    ? questionData.variables.map((value) => String(value).trim())
+    : DEFAULT_VARIABLES[dimension];
+  const equations = Array.isArray(questionData.equations) && questionData.equations.length === dimension
     ? questionData.equations.map(String)
     : ['x - 2y = -3', '3x + 5y = 24'];
-  const coefficients = equations.map((eq) => linearEquationCoefficients(eq, variables));
-  const method = ['substitution', 'elimination', 'studentChoice'].includes(questionData.method)
+  const coefficients = dimension === 2 ? equations.map((eq) => linearEquationCoefficients(eq, variables)) : null;
+  const forms = equations.map((eq) => linearEquationForm(eq, variables));
+  const authoredMethod = ['substitution', 'elimination', 'studentChoice'].includes(questionData.method)
     ? questionData.method
     : 'studentChoice';
   return {
+    dimension,
     variables,
     equations,
     coefficients,
-    method,
+    forms,
+    // 3×3 elimination does not exist yet; a 3×3 system never shows a method
+    // choice it could not honour.
+    method: dimension === 3 ? 'substitution' : authoredMethod,
+    authoredMethod,
     requireVerification: questionData.requireVerification !== false,
     askEfficiency: Boolean(questionData.askEfficiency),
   };
@@ -271,4 +369,263 @@ export const solveAlgebraicSystem = (coefficients) => {
 export const evaluateEquationSides = (equationText, values) => {
   const { left, right } = splitEquation(equationText);
   return { left: Number(evaluate(left, values)), right: Number(evaluate(right, values)) };
+};
+
+
+/* ==========================================================================
+ * N-VARIABLE LINEAR SYSTEMS (#341)
+ *
+ * The 2×2 helpers above speak `{ a, b, c }`, which cannot name a third
+ * variable. Everything below speaks a form keyed by the variable itself —
+ *
+ *   { coefficients: { x: 2, y: -1, z: 3 }, constant: 9 }   ≡   2x - y + 3z = 9
+ *
+ * — so a 3×3 system, the 2×2 system it reduces to, and any later N×N system
+ * share one representation. Like everything in this module it answers
+ * workflow questions ("is this what substituting x produced?", "does this
+ * system have exactly one solution?") and never performs a student's algebra.
+ * ========================================================================== */
+
+export const SUPPORTED_ALGEBRAIC_DIMENSIONS = Object.freeze([2, 3]);
+
+const tidy = (value) => {
+  const rounded = Math.round(Number(value) * 1e9) / 1e9;
+  return Object.is(rounded, -0) || Math.abs(rounded) < EPS ? 0 : rounded;
+};
+
+/**
+ * `{ coefficients, constant }` for a linear equation in an ordered variable
+ * list, or null when the equation is not linear in exactly those variables
+ * (a nonlinear term, an unknown symbol, or no single equals sign).
+ *
+ * Same sampling technique as `linearEquationCoefficients`, generalised: the
+ * value at the origin and at each unit vector fixes an affine form, and two
+ * off-axis probes reject anything that only looks affine at those points.
+ */
+export const linearEquationForm = (text, variables = ['x', 'y']) => {
+  const vars = (variables || []).map(String);
+  if (!vars.length) return null;
+  try {
+    const { left, right } = splitEquation(text);
+    const difference = parse(`(${left}) - (${right})`).compile();
+    const at = (scope) => Number(difference.evaluate(scope));
+    const origin = Object.fromEntries(vars.map((name) => [name, 0]));
+    const c0 = at(origin);
+    const coefficients = {};
+    vars.forEach((name) => { coefficients[name] = at({ ...origin, [name]: 1 }) - c0; });
+    if (![c0, ...Object.values(coefficients)].every(Number.isFinite)) return null;
+    const probes = [
+      vars.map((_, index) => index + 2),
+      vars.map((_, index) => ((index % 2 ? -1 : 1) * (3 * index + 5)) / 2),
+    ];
+    for (const probe of probes) {
+      const scope = Object.fromEntries(vars.map((name, index) => [name, probe[index]]));
+      const expected = c0 + vars.reduce((sum, name, index) => sum + coefficients[name] * probe[index], 0);
+      const actual = at(scope);
+      if (!Number.isFinite(actual) || Math.abs(actual - expected) > 1e-6 * Math.max(1, Math.abs(expected))) return null;
+    }
+    return {
+      coefficients: Object.fromEntries(vars.map((name) => [name, tidy(coefficients[name])])),
+      constant: tidy(-c0),
+    };
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * A number the way a student writes it: 3, -1, 7/3 — never 2.3333333333333335.
+ * Solved values are floats once MathJS has evaluated them; showing that float
+ * on a token, or substituting it back into an equation, would hand the student
+ * a rounding artefact instead of their own exact answer.
+ */
+export const exactNumberText = (value) => {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return String(value);
+  const clean = tidy(number);
+  if (Number.isInteger(clean)) return String(clean);
+  try {
+    const exact = fraction(clean);
+    const numerator = Number(exact.s) * Number(exact.n);
+    const denominator = Number(exact.d);
+    if (denominator <= 10000 && Math.abs(numerator / denominator - clean) < 1e-9) return `${numerator}/${denominator}`;
+  } catch {
+    // Fall through to the decimal.
+  }
+  return String(clean);
+};
+
+const coefficientDisplay = (value) => {
+  const magnitude = Math.abs(tidy(value));
+  if (Math.abs(magnitude - 1) < EPS) return '';
+  const text = exactNumberText(magnitude);
+  return text.includes('/') ? `(${text})` : text;
+};
+
+/**
+ * Ordinary classroom notation for a form: `2x - y + 3z = 9`, `5y = 10`,
+ * `-(1/2)x + z = 0`. Zero terms are omitted, a unit coefficient is implied, a
+ * negative is written as subtraction — never `5 · y`, `+ -3z` or `1x`.
+ */
+export const formatLinearForm = (form, variables) => {
+  const vars = variables || Object.keys(form?.coefficients || {});
+  let left = '';
+  vars.forEach((name) => {
+    const value = tidy(form?.coefficients?.[name] ?? 0);
+    if (value === 0) return;
+    const term = `${coefficientDisplay(value)}${name}`;
+    if (!left) left = `${value < 0 ? '-' : ''}${term}`;
+    else left += ` ${value < 0 ? '-' : '+'} ${term}`;
+  });
+  return `${left || '0'} = ${exactNumberText(tidy(form?.constant ?? 0))}`;
+};
+
+/** The variables a linear equation actually depends on (nonzero coefficient), in list order. */
+export const variablesWithNonzeroCoefficient = (text, variables) => {
+  const form = linearEquationForm(text, variables);
+  if (!form) return [];
+  return variables.filter((name) => form.coefficients[name] !== 0);
+};
+
+/**
+ * Whether the variable is WRITTEN in the equation — the question a drop target
+ * asks. Differs from a nonzero coefficient only for something like x - x.
+ */
+export const equationMentionsVariable = (text, variable) => {
+  try {
+    const { left, right } = splitEquation(text);
+    return [left, right].some((side) => parse(side).filter((node) => node.isSymbolNode && node.name === variable).length > 0);
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Do two linear forms describe the same equation (one is a nonzero multiple of
+ * the other)? `2(6 - y - z) - y + 3z = 9` and `-3y + z = -3` do; so does
+ * `3y - z = 3`, because multiplying both sides by -1 is a legitimate move.
+ */
+export const linearFormsEquivalent = (formA, formB, variables) => {
+  if (!formA || !formB) return false;
+  const a = [...variables.map((name) => formA.coefficients[name] ?? 0), formA.constant];
+  const b = [...variables.map((name) => formB.coefficients[name] ?? 0), formB.constant];
+  const pivot = a.findIndex((value) => Math.abs(value) > EPS);
+  if (pivot < 0) return b.every((value) => Math.abs(value) <= EPS);
+  if (Math.abs(b[pivot]) <= EPS) return false;
+  const ratio = b[pivot] / a[pivot];
+  return a.every((value, index) => Math.abs(value * ratio - b[index]) <= 1e-7 * Math.max(1, Math.abs(b[index])));
+};
+
+/**
+ * Rank analysis of a square or rectangular linear system.
+ *
+ *   unique    exactly one solution — returned in `solution`
+ *   none      inconsistent: some row reduces to 0 = nonzero
+ *   infinite  consistent but dependent: fewer pivots than variables
+ *
+ * Gaussian elimination with partial pivoting on the augmented matrix. The
+ * student never sees this: it gates authoring and grades the final answer.
+ */
+export const classifyLinearSystem = (forms, variables) => {
+  if (!Array.isArray(forms) || forms.some((form) => !form)) return { type: 'invalid', rank: 0, augmentedRank: 0 };
+  const n = variables.length;
+  const rows = forms.map((form) => [...variables.map((name) => Number(form.coefficients[name] ?? 0)), Number(form.constant)]);
+  const tolerance = 1e-9 * Math.max(1, ...rows.flat().map((value) => Math.abs(value)));
+  const pivotColumns = [];
+  let row = 0;
+  for (let column = 0; column < n && row < rows.length; column += 1) {
+    let best = row;
+    for (let candidate = row + 1; candidate < rows.length; candidate += 1) {
+      if (Math.abs(rows[candidate][column]) > Math.abs(rows[best][column])) best = candidate;
+    }
+    if (Math.abs(rows[best][column]) <= tolerance) continue;
+    [rows[row], rows[best]] = [rows[best], rows[row]];
+    const pivot = rows[row][column];
+    rows[row] = rows[row].map((value) => value / pivot);
+    for (let other = 0; other < rows.length; other += 1) {
+      if (other === row) continue;
+      const factor = rows[other][column];
+      if (Math.abs(factor) <= 0) continue;
+      rows[other] = rows[other].map((value, index) => value - factor * rows[row][index]);
+    }
+    pivotColumns.push(column);
+    row += 1;
+  }
+  const rank = pivotColumns.length;
+  const inconsistent = rows.slice(rank).some((values) => Math.abs(values[n]) > tolerance);
+  const augmentedRank = rank + (inconsistent ? 1 : 0);
+  if (inconsistent) return { type: 'none', rank, augmentedRank };
+  if (rank < n) return { type: 'infinite', rank, augmentedRank };
+  const solution = {};
+  pivotColumns.forEach((column, index) => { solution[variables[column]] = tidy(rows[index][n]); });
+  return { type: 'unique', rank, augmentedRank, solution };
+};
+
+/**
+ * Teacher-facing validation for an authored algebraic system, 2×2 or 3×3.
+ *
+ * Returns `{ dimension, errors, warnings }`. It is the single place that
+ * decides what the 3×3 workflow can honestly run:
+ *
+ *   - equation and variable counts must match, and be 2 or 3;
+ *   - every equation must be linear in exactly the authored variables;
+ *   - a 3×3 system must have exactly one solution. Substituting through a
+ *     dependent or inconsistent 3×3 system reaches an identity or a
+ *     contradiction part-way through, and the workflow does not yet teach how
+ *     to interpret that — so it is refused here, before a student sees it,
+ *     instead of being misgraded later;
+ *   - 3×3 elimination is not built, so it is an error; 'studentChoice' on a
+ *     3×3 system is allowed but only substitution will be offered (warning).
+ *
+ * 2×2 dependent/inconsistent systems stay valid: the 2×2 workflow already
+ * interprets 0 = 0 and 0 = c with the student.
+ */
+export const validateAlgebraicSystemAuthoring = (questionData = {}) => {
+  const errors = [];
+  const warnings = [];
+  const rawVariables = Array.isArray(questionData.variables) ? questionData.variables : null;
+  const rawEquations = Array.isArray(questionData.equations) ? questionData.equations : null;
+  const dimension = rawEquations && [2, 3].includes(rawEquations.length) ? rawEquations.length : (rawVariables?.length === 3 ? 3 : 2);
+  const variables = rawVariables || DEFAULT_VARIABLES[dimension];
+  const countWord = dimension === 3 ? 'three' : 'two';
+
+  if (variables.length !== dimension || variables.some((value) => typeof value !== 'string' || !value.trim()) || new Set(variables.map((value) => value.trim())).size !== variables.length) {
+    errors.push(rawEquations && rawVariables && rawEquations.length !== rawVariables.length
+      ? `systemsWorkspace algebraic mode needs the same number of equations and variables (got ${rawEquations.length} equations and ${rawVariables.length} variables).`
+      : `systemsWorkspace algebraic mode requires exactly ${countWord} distinct non-empty variable names.`);
+  }
+  if (!rawEquations || !SUPPORTED_ALGEBRAIC_DIMENSIONS.includes(rawEquations.length) || rawEquations.some((equation) => typeof equation !== 'string' || !equation.trim())) {
+    errors.push(`systemsWorkspace algebraic mode requires exactly ${countWord} non-empty equation strings${rawEquations && !SUPPORTED_ALGEBRAIC_DIMENSIONS.includes(rawEquations.length) ? ` (2×2 or 3×3 only; got ${rawEquations.length})` : ''}.`);
+  } else if (variables.length === dimension) {
+    const trimmed = variables.map((value) => String(value).trim());
+    rawEquations.forEach((equation, index) => {
+      if (!linearEquationForm(equation, trimmed)) {
+        errors.push(`systemsWorkspace algebraic equation ${index + 1} must be linear in the ${countWord} authored variables.`);
+      }
+    });
+  }
+  if (questionData.method != null && !['substitution', 'elimination', 'studentChoice'].includes(questionData.method)) {
+    errors.push('systemsWorkspace algebraic method must be substitution, elimination, or studentChoice.');
+  }
+  if (dimension === 3) {
+    if (questionData.method === 'elimination') {
+      errors.push('3×3 algebraic systems support substitution only; 3×3 elimination is not available yet. Use method "substitution".');
+    } else if (questionData.method === 'studentChoice') {
+      warnings.push('3×3 algebraic systems are solved by substitution; the method choice will not be shown to students.');
+    }
+    if (!errors.length) {
+      const trimmed = variables.map((value) => String(value).trim());
+      const classification = classifyLinearSystem(rawEquations.map((equation) => linearEquationForm(equation, trimmed)), trimmed);
+      if (classification.type !== 'unique') {
+        errors.push(`3×3 algebraic systems must have exactly one solution; this system is ${classification.type === 'none' ? 'inconsistent (no solution)' : 'dependent (infinitely many solutions)'}. Dependent and inconsistent 3×3 systems are not supported by the substitution workflow yet.`);
+      }
+    }
+  }
+  if (questionData.requireVerification != null && typeof questionData.requireVerification !== 'boolean') {
+    errors.push('systemsWorkspace algebraic requireVerification must be boolean when supplied.');
+  }
+  if (questionData.askEfficiency != null && typeof questionData.askEfficiency !== 'boolean') {
+    errors.push('systemsWorkspace algebraic askEfficiency must be boolean when supplied.');
+  }
+  return { dimension, errors, warnings };
 };

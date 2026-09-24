@@ -7,7 +7,8 @@ import { validateLinearTableWorkbenchQuestion } from './linearTableWorkbench/lin
 import { validateExpressionMeaningQuestion } from './expressionMeaning/expressionMeaningMath.js';
 import { validateRepresentationBridgeQuestion } from './representationBridge/representationBridgeMath.js';
 import { normalizeLinearInequality } from './systemsWorkspace/linearInequalityEngine.js';
-import { linearEquationCoefficients } from './systemsWorkspace/algebraicSystemsEngine.js';
+import { validateAlgebraicSystemAuthoring } from './systemsWorkspace/algebraicSystemsEngine.js';
+import { resolveSystemsWorkspaceMode } from './systemsWorkspace/systemsWorkspaceMode.js';
 const TOOL_IDS = new Set([
   'dataModelingLab','regressionCalculator','inverseCompositionLab','functionOperationsLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
   'signSolutionAnalyzer','sequenceExplorer','complexPlaneLab','exponentialLogBridge','transformationsLab',
@@ -123,7 +124,9 @@ export const validateToolQuestion = (question = {}) => {
   }
   if (toolId === 'systemsWorkspace') {
     const modes = ['linear','inequalities','linearQuadratic','matrix','matrix3','algebraic'];
-    const mode = question.mode || 'linear';
+    // Validate the mode the renderer will actually use, so content that routes
+    // to the algebraic workspace is checked as an algebraic system (#341).
+    const mode = resolveSystemsWorkspaceMode(question);
     if (!modes.includes(mode)) errors.push(`Unsupported systemsWorkspace mode: ${mode}.`);
     if (mode === 'linear' && question.system?.m1 === question.system?.m2 && question.system?.b1 == null) warnings.push('Parallel/coincident system should explicitly provide both intercepts.');
     if (mode === 'inequalities' && (question.inequalities || question.expectedConstraints)) {
@@ -208,28 +211,12 @@ export const validateToolQuestion = (question = {}) => {
     }
     if (mode === 'linearQuadratic' && Number(question.linearQuadratic?.quadratic?.a ?? 1) === 0) errors.push('linearQuadratic mode requires a nonzero quadratic coefficient.');
     if (mode === 'algebraic') {
-      const variables = Array.isArray(question.variables) ? question.variables : ['x', 'y'];
-      if (variables.length !== 2 || variables.some((value) => typeof value !== 'string' || !value.trim()) || new Set(variables.map((value) => value.trim())).size !== 2) {
-        errors.push('systemsWorkspace algebraic mode requires exactly two distinct non-empty variable names.');
-      }
-      if (!Array.isArray(question.equations) || question.equations.length !== 2 || question.equations.some((equation) => typeof equation !== 'string' || !equation.trim())) {
-        errors.push('systemsWorkspace algebraic mode requires exactly two non-empty equation strings.');
-      } else if (variables.length === 2) {
-        question.equations.forEach((equation, index) => {
-          if (!linearEquationCoefficients(equation, variables)) {
-            errors.push(`systemsWorkspace algebraic equation ${index + 1} must be linear in the two authored variables.`);
-          }
-        });
-      }
-      if (question.method != null && !['substitution', 'elimination', 'studentChoice'].includes(question.method)) {
-        errors.push('systemsWorkspace algebraic method must be substitution, elimination, or studentChoice.');
-      }
-      if (question.requireVerification != null && typeof question.requireVerification !== 'boolean') {
-        errors.push('systemsWorkspace algebraic requireVerification must be boolean when supplied.');
-      }
-      if (question.askEfficiency != null && typeof question.askEfficiency !== 'boolean') {
-        errors.push('systemsWorkspace algebraic askEfficiency must be boolean when supplied.');
-      }
+      // 2×2 and, since #341, 3×3. One validator decides what the workflow can
+      // honestly run — counts, linearity, the 3×3 unique-solution gate, and
+      // which methods exist at each size — and the preflight reports it.
+      const algebraic = validateAlgebraicSystemAuthoring(question);
+      errors.push(...algebraic.errors);
+      warnings.push(...algebraic.warnings);
     }
   }
   if (toolId === 'inverseCompositionLab') {
