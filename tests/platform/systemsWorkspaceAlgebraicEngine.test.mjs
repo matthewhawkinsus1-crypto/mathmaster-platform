@@ -10,6 +10,7 @@ import {
   substituteVariable,
   substituteIntoEquation,
   applyEquationMultiplier,
+  multiplierProductValue,
   combineCoefficients,
   eliminatesVariable,
   isDegenerateStatement,
@@ -215,6 +216,20 @@ test('a multiplier applies to every term on both sides, including the constant',
   const multiplied = applyEquationMultiplier('x - 4y = 6', 3, ['x', 'y']);
   assert.deepEqual(multiplied.coefficients, { a: 3, b: -12, c: 18 });
   assert.equal(multiplied.text, '3x - 12y = 18');
+});
+
+test('elimination product slots accept classroom terms as well as legacy coefficient-only entries', () => {
+  assert.equal(multiplierProductValue('3x', 'x', ['x', 'y']), 3);
+  assert.equal(multiplierProductValue('3*x', 'x', ['x', 'y']), 3);
+  assert.equal(multiplierProductValue('-6y', 'y', ['x', 'y']), -6);
+  assert.equal(multiplierProductValue('3', 'x', ['x', 'y']), 3, 'old drafts stored coefficient-only values');
+  assert.equal(multiplierProductValue('6', null, ['x', 'y']), 6);
+});
+
+test('elimination product slots reject a correct number attached to the wrong variable', () => {
+  assert.ok(Number.isNaN(multiplierProductValue('3y', 'x', ['x', 'y'])));
+  assert.ok(Number.isNaN(multiplierProductValue('3x + 1', 'x', ['x', 'y'])));
+  assert.ok(Number.isNaN(multiplierProductValue('3x + y', 'x', ['x', 'y'])));
 });
 
 test('exact fractional multiplier expressions are evaluated instead of coerced with Number()', () => {
