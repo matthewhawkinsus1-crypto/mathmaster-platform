@@ -544,26 +544,51 @@ const runNoPreview = async (context, scope) => {
     expect(journey, JSON.stringify(await visibleEquation(host)) === JSON.stringify(committed), 'typing the operand changed the equation');
     expect(journey, await host.locator('.algebra-live-math-preview').count() === 0, 'typing alone showed a drag/drop preview');
 
-    // A real pointer drag from the pick-up button over each side.
+    // A real pointer drag from the pick-up button. First enter the right-side
+    // slot of +21, then move DOWN under that same term. This recreates the
+    // regression where hysteresis made the right/left slot sticky and the
+    // under-term target could never take ownership.
     const pickup = host.locator('button.algebra-pickup-button');
     const start = await pickup.boundingBox();
-    const left = await host.locator('.algebra-equation-box').nth(0).boundingBox();
+    const leftBox = host.locator('.algebra-equation-box').nth(0);
+    const left = await leftBox.boundingBox();
+    const targetTerm = leftBox.locator('[data-term-index="1"]');
+    const termRect = await targetTerm.boundingBox();
     const right = await host.locator('.algebra-equation-box').nth(1).boundingBox();
+
     await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
     await page.mouse.down();
-    await page.mouse.move(left.x + left.width * 0.55, left.y + left.height * 0.52, { steps: 12 });
+
+    // Enter the ordinary after/right slot first.
+    await page.mouse.move(termRect.right - 2, termRect.top + termRect.height / 2, { steps: 10 });
+    await settle(page, 180);
+    expect(
+      journey,
+      await targetTerm.locator('xpath=self::*[contains(@class,"algebra-term-placement-cue") and contains(@class,"is-after")]').count() === 1,
+      'the expected after/right placement cue did not activate before the under-term transition',
+    );
+
+    // Then move beneath the SAME term. Under must win decisively even though
+    // the previous after slot remains inside its larger anti-jitter radius.
+    const underY = Math.min(left.bottom - 24, termRect.bottom + 42);
+    await page.mouse.move(termRect.left + termRect.width / 2, underY, { steps: 8 });
     await settle(page, 250);
-    observed.hoverCue = await host.locator('.algebra-placement-cue.is-hover, .algebra-term-placement-cue.is-hover').count();
+    observed.underCue = await targetTerm.locator('xpath=self::*[contains(@class,"algebra-term-placement-cue") and contains(@class,"is-under")]').count();
     observed.hoverPreview = await host.locator('.algebra-live-math-preview.is-hover[data-preview-side="left"]').count();
     observed.hovering = await visibleEquation(host);
-    expect(journey, JSON.stringify(observed.hovering) === JSON.stringify(committed), `hovering the left side changed committed equation text: ${JSON.stringify(observed.hovering)}`);
-    expect(journey, observed.hoverCue > 0, 'no placement cue showed where the operation would land');
-    expect(journey, observed.hoverPreview === 1, 'the mathematical drag preview did not appear over the left side');
-    await shoot(page, `${journey}-1-hover-left`);
+    expect(journey, JSON.stringify(observed.hovering) === JSON.stringify(committed), `hovering under +21 changed committed equation text: ${JSON.stringify(observed.hovering)}`);
+    expect(journey, observed.underCue === 1, 'moving below +21 stayed trapped in a left/right placement instead of activating under-term placement');
+    expect(journey, observed.hoverPreview === 1, 'the mathematical drag preview did not appear for the under-term target');
+    await shoot(page, `${journey}-1-hover-under-term`);
+
+    // Leave and return to the under target once more; it must remain reachable
+    // after traversing another side too.
     await page.mouse.move(right.x + right.width * 0.45, right.y + right.height * 0.52, { steps: 12 });
-    await settle(page, 200);
+    await settle(page, 180);
     expect(journey, JSON.stringify(await visibleEquation(host)) === JSON.stringify(committed), 'hovering the right side changed the equation');
-    await page.mouse.move(left.x + left.width * 0.55, left.y + left.height * 0.52, { steps: 12 });
+    await page.mouse.move(termRect.left + termRect.width / 2, underY, { steps: 12 });
+    await settle(page, 160);
+    expect(journey, await targetTerm.locator('xpath=self::*[contains(@class,"algebra-term-placement-cue") and contains(@class,"is-under")]').count() === 1, 'under-term target was not reacquired after moving across the equation');
     await page.mouse.up();
     await settle(page, 400);
 
