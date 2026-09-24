@@ -41,6 +41,10 @@ on:
         required: false
         default: "release"
 
+# Reads the repository and uploads artifacts; never writes.
+permissions:
+  contents: read
+
 concurrency:
   group: capability-certification-${{ github.ref }}
   cancel-in-progress: true
