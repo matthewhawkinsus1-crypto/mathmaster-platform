@@ -391,7 +391,9 @@ export function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, dra
     onSolved(part.response);
   }, [onSolved]);
   return (
-    <div ref={hostRef} tabIndex={-1} className="mathmaster-systems-embedded-step-algebra">
+    // data-work-view-focus: opening Work View brings the live solver into
+    // view instead of the workflow's header cards.
+    <div ref={hostRef} tabIndex={-1} className="mathmaster-systems-embedded-step-algebra" data-work-view-focus="true">
       {label ? <div style={{ marginBottom: 8, fontWeight: 800 }}>{label}</div> : null}
       <StepByStepAlgebraCore
         key={embeddedEquationIdentity}

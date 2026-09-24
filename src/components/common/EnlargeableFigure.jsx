@@ -119,6 +119,7 @@ export default function EnlargeableFigure({
   const closeRef = useRef(null);
   const presentationKeyRef = useRef(presentationKey);
   const actionsRef = useRef(null);
+  const hostRef = useRef(null);
   // What descendants have told this shell they can do. Held per publisher id so
   // a plane that unmounts withdraws only its own controls.
   const [publishedByChild, setPublishedByChild] = useState({});
@@ -177,6 +178,33 @@ export default function EnlargeableFigure({
     closeRef.current?.focus?.();
     return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [enlarged, close]);
+
+  /*
+   * OPEN ON THE STUDENT'S CURRENT WORK.
+   *
+   * The surface opened at its top, so on a Chromebook a systems question showed
+   * the tool header, the givens and the workflow cards while the balance board
+   * the student was working on started 620px down (live QA, 1536×900). A tool
+   * marks its live region with data-work-view-focus; the task stays in the
+   * header, so bringing that region up shows task and work together. Only
+   * scrolls when the region is not already fully visible; tools that mark
+   * nothing open exactly as before.
+   */
+  useEffect(() => {
+    if (!enlarged || typeof window === 'undefined') return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      const host = hostRef.current;
+      const surface = host?.querySelector?.('.mathmaster-work-view-surface');
+      const targets = surface?.querySelectorAll?.('[data-work-view-focus="true"]');
+      const target = targets?.length ? targets[targets.length - 1] : null;
+      if (!surface || !target) return;
+      const surfaceBox = surface.getBoundingClientRect();
+      const targetBox = target.getBoundingClientRect();
+      if (targetBox.top >= surfaceBox.top && targetBox.bottom <= surfaceBox.bottom) return;
+      surface.scrollTop += targetBox.top - surfaceBox.top - 8;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [enlarged]);
 
   // Focus goes back where it came from, so a keyboard user is not dropped at
   // the top of the page after closing.
@@ -398,6 +426,7 @@ export default function EnlargeableFigure({
    */
   return (
     <div
+      ref={hostRef}
       className={`mathmaster-work-view-host${enlarged ? ' mathmaster-enlarged-figure' : ''}`}
       data-open={enlarged ? 'true' : 'false'}
       data-layout={viewport.mode}

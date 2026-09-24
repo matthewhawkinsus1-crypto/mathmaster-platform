@@ -65,3 +65,18 @@ test('reference chips scroll with the page; the Hide task control sits on the ca
   assert.match(css, /\.mathmaster-desktop-question-anchor:not\(\.is-collapsed\) > \.mathmaster-question-prompt \{\s*padding-right: 104px !important;/);
   assert.match(read('src/index.css'), /\.mathmaster-desktop-question-anchor,\s*\.mathmaster-desktop-task-meta \{\s*display: none;/);
 });
+
+// Live QA, Work View at 1536×900: the surface opened at its top and the balance
+// board the student was working on started ~620px down, half below the fold.
+test('Work View opens on the region the tool marks as the student\'s current work', () => {
+  const shell = read('src/components/common/EnlargeableFigure.jsx');
+  const effect = shell.slice(shell.indexOf('OPEN ON THE STUDENT\'S CURRENT WORK'), shell.indexOf('// Focus goes back where it came from'));
+  assert.match(effect, /if \(!enlarged \|\| typeof window === 'undefined'\) return undefined;/);
+  assert.match(effect, /querySelectorAll\?\.\('\[data-work-view-focus="true"\]'\)/);
+  assert.match(effect, /if \(targetBox\.top >= surfaceBox\.top && targetBox\.bottom <= surfaceBox\.bottom\) return;/, 'an already visible region is not moved');
+  assert.match(effect, /surface\.scrollTop \+= targetBox\.top - surfaceBox\.top - 8;/);
+  assert.match(shell, /<div\s+ref=\{hostRef\}\s+className=\{`mathmaster-work-view-host/);
+
+  const systems = read('src/tools/systemsWorkspace/AlgebraicSystemMode.jsx');
+  assert.match(systems, /className="mathmaster-systems-embedded-step-algebra" data-work-view-focus="true"/);
+});
