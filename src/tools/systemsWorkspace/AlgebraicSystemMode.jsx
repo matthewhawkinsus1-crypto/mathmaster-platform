@@ -589,7 +589,21 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       return null;
     }
   }, [equations, multipliers, variables]);
-  const multipliersApplied = appliedMultipliers[0] && appliedMultipliers[1];
+  const multiplierIsIdentity = useCallback((index) => {
+    try {
+      const value = Number(evaluate(latexToExpression(multipliers[index])));
+      return Number.isFinite(value) && Math.abs(value - 1) <= 1e-9;
+    } catch {
+      return false;
+    }
+  }, [multipliers]);
+  // A factor of 1 means the equation is already prepared. Do not make the
+  // student perform or confirm a meaningless "multiply by 1" step.
+  const multiplierRowReady = useCallback(
+    (index) => appliedMultipliers[index] || multiplierIsIdentity(index),
+    [appliedMultipliers, multiplierIsIdentity],
+  );
+  const multipliersApplied = multiplierRowReady(0) && multiplierRowReady(1);
   const combinationLocked = Boolean(combination.text);
   const cancellationPending = Boolean(combination.pendingCoefficients && !combination.text);
   const cancellationComplete = Boolean(combination.cancelledRows?.[0] && combination.cancelledRows?.[1]);
@@ -1394,6 +1408,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                       const multiplierArmed = slotAttempt?.stage === 'multiplier' && slotAttempt?.armed && Number(slotAttempt?.index) === index;
                       const parsedMultiplier = parseNumericEntry(multipliers[index]);
                       const identityMultiplier = Number.isFinite(parsedMultiplier) && Math.abs(parsedMultiplier - 1) <= 1e-9;
+                      const rowPrepared = appliedMultipliers[index] || identityMultiplier;
                       const productSpecs = expectedTransformed && originalCoefficients ? [
                         {
                           field: 'a',
@@ -1415,7 +1430,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                         },
                       ] : [];
                       return (
-                        <div key={index} className={`mathmaster-systems-elimination-equation-card${appliedMultipliers[index] ? ' is-prepared' : ''}`}>
+                        <div key={index} className={`mathmaster-systems-elimination-equation-card${rowPrepared ? ' is-prepared' : ''}`}>
                           <div className="mathmaster-systems-multiplier-composer">
                             <span>{identityMultiplier ? 'No scale needed' : 'Scale by'}</span>
                             <MathInput
@@ -1428,14 +1443,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                               maxWidth={150}
                             />
                             {identityMultiplier ? (
-                              <button
-                                type="button"
-                                className="mathmaster-systems-use-as-written"
-                                onClick={() => applyMultiplier(index)}
-                                disabled={appliedMultipliers[index]}
-                              >
-                                {appliedMultipliers[index] ? 'Using as written' : 'Use as written'}
-                              </button>
+                              <span className="mathmaster-systems-scale-not-needed">Equation stays as written</span>
                             ) : (
                               <button
                                 type="button"
@@ -1456,7 +1464,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                           </div>
 
                           <div
-                            className={`mathmaster-systems-equation-multiplier-target${multiplierArmed ? ' is-armed' : ''}${appliedMultipliers[index] ? ' is-prepared' : ''}`}
+                            className={`mathmaster-systems-equation-multiplier-target${multiplierArmed ? ' is-armed' : ''}${rowPrepared ? ' is-prepared' : ''}`}
                             role={multiplierArmed ? 'button' : undefined}
                             tabIndex={multiplierArmed ? 0 : undefined}
                             onClick={() => {
@@ -1486,7 +1494,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                               variables={variables}
                               targetVariable={selection.variable}
                               multiplier={appliedMultipliers[index] && !identityMultiplier ? multipliers[index] : null}
-                              label={appliedMultipliers[index] ? 'Prepared equation' : `Equation ${index + 1}`}
+                              label={rowPrepared ? 'Prepared equation' : `Equation ${index + 1}`}
                             />
                           </div>
 
