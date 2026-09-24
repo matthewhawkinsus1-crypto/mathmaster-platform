@@ -26,6 +26,19 @@ test('workspace resolves additive placement around individual terms', () => {
   assert.match(src, /placementBySideOverride/);
 });
 
+test('additive drag hysteresis cannot trap the pointer in left/right when the student moves under a term', () => {
+  const src = fs.readFileSync('src/StepByStepAlgebraCore.jsx', 'utf8');
+  const start = src.indexOf('const updateAdditiveZones =');
+  const end = src.indexOf('const updatePointerVisuals =', start);
+  assert.ok(start >= 0 && end > start, 'additive placement resolver must exist');
+  const update = src.slice(start, end);
+  assert.match(update, /previousDistance/);
+  assert.match(update, /nearestDistance/);
+  assert.match(update, /previousStillCompetitive/);
+  assert.match(update, /previousDistance <= nearestDistance \+ 0\.12/);
+  assert.doesNotMatch(update, /const stable = stillInsidePrevious \? previous : nearest/);
+});
+
 test('term row cues where a staged + / − will land without writing the operand into the expression (#341)', () => {
   const src = fs.readFileSync('src/AlgebraTermRow.jsx', 'utf8');
   // The cue is a class on the term the pointer is actually over, drawn by CSS

@@ -1939,10 +1939,39 @@ export default function StepByStepAlgebra({
     const right = resolveAdditivePlacementFromPoint('right', clientX, clientY);
     const nearest = left || right;
     const previous = factorZoneRef.current;
-    const stillInsidePrevious = previous?.xRadius && previous?.yRadius
-      && Math.abs(clientX - previous.x) <= previous.xRadius * 1.18
-      && Math.abs(clientY - previous.y) <= previous.yRadius * 1.18;
-    const stable = stillInsidePrevious ? previous : nearest;
+
+    // The anti-jitter hysteresis must never trap the pointer in a left/right
+    // slot after the student deliberately moves BELOW a term. The previous
+    // implementation kept any prior target for 18% beyond its hit radius.
+    // Because an under-term target is only about one term-height lower, the
+    // old before/after target could remain "sticky" across the entire under
+    // region, making under placement effectively unreachable.
+    //
+    // Keep the previous target only when it is still almost as good as the
+    // newly resolved target. Crossing decisively into an under/before/after
+    // region immediately hands ownership to that region; tiny boundary motion
+    // still keeps the old target stable.
+    const placementDistance = (candidate) => {
+      if (!candidate?.xRadius || !candidate?.yRadius) return Infinity;
+      return Math.hypot(
+        Math.abs(clientX - candidate.x) / candidate.xRadius,
+        Math.abs(clientY - candidate.y) / candidate.yRadius,
+      );
+    };
+    const previousDistance = placementDistance(previous);
+    const nearestDistance = placementDistance(nearest);
+    const stillInsidePrevious = previousDistance <= 1.18;
+    const sameResolvedTarget = Boolean(
+      previous && nearest
+      && previous.side === nearest.side
+      && previous.position?.kind === nearest.position?.kind
+      && previous.position?.termIndex === nearest.position?.termIndex,
+    );
+    const previousStillCompetitive = previousDistance <= nearestDistance + 0.12;
+    const stable = stillInsidePrevious && (sameResolvedTarget || previousStillCompetitive)
+      ? previous
+      : nearest;
+
     factorZoneRef.current = stable;
     setFactorZoneHint(stable);
     const side = stable?.side || null;
