@@ -33,10 +33,33 @@ const splitEquation = (text) => {
  */
 export const normalizeEquationForStepAlgebra = (equationText) => {
   const { left, right } = splitEquation(equationText);
-  const normalizeSide = (side) => parse(String(side)).toString({
-    parenthesis: 'auto',
-    implicit: 'show',
-  });
+
+  const normalizeSide = (side) => {
+    const protectedFractions = [];
+    const protectedSource = String(side).replace(
+      /\(\s*([+-]?(?:\d+(?:\.\d+)?|[A-Za-z][A-Za-z0-9_]*)\s*\/\s*[+-]?(?:\d+(?:\.\d+)?|[A-Za-z][A-Za-z0-9_]*))\s*\)/g,
+      (_match, fractionText) => {
+        const token = `__mm_fraction_${protectedFractions.length}__`;
+        protectedFractions.push(fractionText);
+        return token;
+      },
+    );
+
+    let normalized = parse(protectedSource).toString({
+      parenthesis: 'auto',
+      implicit: 'show',
+    });
+
+    protectedFractions.forEach((fractionText, index) => {
+      normalized = normalized.replace(
+        `__mm_fraction_${index}__`,
+        `(${fractionText.replace(/\s+/g, ' ').trim()})`,
+      );
+    });
+
+    return normalized;
+  };
+
   return `${normalizeSide(left)} = ${normalizeSide(right)}`;
 };
 
@@ -71,6 +94,65 @@ const cleanNumber = (value) => {
   const rounded = Math.round(value * 1e9) / 1e9;
   return Object.is(rounded, -0) ? 0 : rounded;
 };
+
+export const rationalExpressionFromNumber = (value, {
+  maxDenominator = 1000,
+  tolerance = 1e-10,
+} = {}) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '';
+  if (Math.abs(numeric - Math.round(numeric)) <= tolerance) return String(Math.round(numeric));
+
+  const sign = numeric < 0 ? -1 : 1;
+  const target = Math.abs(numeric);
+  let bestNumerator = null;
+  let bestDenominator = null;
+  let bestError = Number.POSITIVE_INFINITY;
+
+  for (let denominator = 1; denominator <= maxDenominator; denominator += 1) {
+    const numerator = Math.round(target * denominator);
+    const approximation = numerator / denominator;
+    const error = Math.abs(target - approximation);
+    if (error < bestError) {
+      bestError = error;
+      bestNumerator = numerator;
+      bestDenominator = denominator;
+    }
+    if (error <= tolerance * Math.max(1, target)) break;
+  }
+
+  if (
+    bestNumerator != null
+    && bestDenominator != null
+    && bestError <= tolerance * Math.max(1, target)
+  ) {
+    const signedNumerator = sign * bestNumerator;
+    return bestDenominator === 1
+      ? String(signedNumerator)
+      : `${signedNumerator}/${bestDenominator}`;
+  }
+
+  return String(cleanNumber(numeric));
+};
+
+/**
+ * Presentation cleanup only. Preserve the student's algebraic form while
+ * removing parser/serialization wrappers that do not change grouping.
+ */
+export const normalizeStudentExpressionForDisplay = (rawExpression) => {
+  const source = String(rawExpression ?? '').trim();
+  if (!source) return '';
+  try {
+    const plain = latexToExpression(source);
+    return parse(plain).toString({
+      parenthesis: 'auto',
+      implicit: 'show',
+    });
+  } catch {
+    return source;
+  }
+};
+
 
 const formatCoefficientTerm = (value, symbol, isFirst) => {
   const cleaned = Math.abs(value) < EPS ? 0 : cleanNumber(value);
