@@ -54,6 +54,17 @@ const EXACT_FRACTION_SYSTEM = Object.freeze({
   requireVerification: true,
 });
 
+const ELIMINATION_DIRECT_SYSTEM = Object.freeze({
+  questionId: 'elimination-direct-equation-flow',
+  type: 'systemsWorkspace',
+  prompt: 'Solve the system by elimination.',
+  studentActions: ['solveSystem'],
+  method: 'elimination',
+  equations: ['x + y = 2', 'x - 3y = -6'],
+  variables: ['x', 'y'],
+  requireVerification: true,
+});
+
 // Student View and Teacher Preview differ in exactly the props App.jsx varies.
 const SCOPES = {
   student: { studentId: 'issue-334-student', sessionMode: 'graded', executionScope: 'student', keySuffix: 'open' },
@@ -86,6 +97,7 @@ const QUESTIONS = [
   { questionId: 'issue-334-classwork-q1', type: 'systemsWorkspace', mode: 'linear', prompt: 'Classify the system.', system: { m1: 2, b1: 1, m2: -1, b2: 7 } },
   CLASSWORK_Q2,
   EXACT_FRACTION_SYSTEM,
+  ELIMINATION_DIRECT_SYSTEM,
 ];
 
 function Harness() {
