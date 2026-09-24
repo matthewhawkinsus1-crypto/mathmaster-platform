@@ -362,7 +362,7 @@ export default function QuestionEngine({
   // An expired record is terminal only while the CURRENT policy still has no
   // attempts left. A teacher DOL grant raises the effective maximum, so the
   // same preserved record becomes editable again without deleting its history.
-  const isExpired = (record.status === 'expired' && remainingAttempts <= 0) || feedback?.expired;
+  const isExpired = remainingAttempts <= 0 && (record.status === 'expired' || feedback?.expired);
   const locked = Boolean(isCorrect || isExpired || assignmentLocked);
   const sameIncorrectResponse =
     record.status === 'attempted' &&
