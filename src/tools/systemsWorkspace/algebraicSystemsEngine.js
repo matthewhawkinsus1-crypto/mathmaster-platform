@@ -35,25 +35,29 @@ export const normalizeEquationForStepAlgebra = (equationText) => {
   const { left, right } = splitEquation(equationText);
 
   const normalizeSide = (side) => {
-    let cleaned = parse(String(side));
+    const protectedFractions = [];
+    const protectedSource = String(side).replace(
+      /\(\s*([+-]?(?:\d+(?:\.\d+)?|[A-Za-z][A-Za-z0-9_]*)\s*\/\s*[+-]?(?:\d+(?:\.\d+)?|[A-Za-z][A-Za-z0-9_]*))\s*\)/g,
+      (_match, fraction) => {
+        const token = `__mm_fraction_${protectedFractions.length}__`;
+        protectedFractions.push(fraction);
+        return token;
+      },
+    );
 
-    // MathJS transform is intentionally shallow when a ParenthesisNode is
-    // replaced, so run a few idempotent passes. This removes wrappers like
-    // (((200) - s)) -> (200 - s) while preserving one meaningful group around
-    // a sum or an exact rational factor such as (20 / 9).
-    for (let pass = 0; pass < 4; pass += 1) {
-      cleaned = cleaned.transform((node) => {
-        if (node?.type !== 'ParenthesisNode') return node;
-        if (node.content?.type === 'ParenthesisNode') return node.content;
-        if (['ConstantNode', 'SymbolNode'].includes(node.content?.type)) return node.content;
-        return node;
-      });
-    }
-
-    return cleaned.toString({
-      parenthesis: 'keep',
+    let normalized = parse(protectedSource).toString({
+      parenthesis: 'auto',
       implicit: 'show',
     });
+
+    protectedFractions.forEach((fraction, index) => {
+      normalized = normalized.replace(
+        `__mm_fraction_${index}__`,
+        `(${fraction.replace(/\s+/g, ' ').trim()})`,
+      );
+    });
+
+    return normalized;
   };
 
   return `${normalizeSide(left)} = ${normalizeSide(right)}`;
