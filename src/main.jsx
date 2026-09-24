@@ -4,6 +4,7 @@ import './index.css';
 import App from './App.jsx';
 import { AuthProvider } from './auth/AuthProvider.jsx';
 import { ToastProvider } from './ui/Toast.jsx';
+import BuildFreshnessNotice from './components/common/BuildFreshnessNotice.jsx';
 import { getMathMasterBuildInfo } from './platform/runtime/buildInfo.js';
 import { installPerformanceDiagnostics, startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
 
@@ -107,6 +108,9 @@ createRoot(rootElement).render(
           <Suspense fallback={<main style={{ padding: 24 }}>Opening MathMaster…</main>}>
             <App />
           </Suspense>
+          {/* Tells a long-open tab (or the retired Vercel copy) that it is not
+              running the build Hosting serves. Never reloads on its own. */}
+          <BuildFreshnessNotice />
         </AuthProvider>
       </ToastProvider>
     </AppErrorBoundary>
