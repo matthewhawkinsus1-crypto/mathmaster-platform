@@ -35,7 +35,21 @@ calculator, tap-to-place and drag-to-place, 390×844, 360×740, 820×1180, 1180�
 | 7 | Major (desktop) | "Subtract what?" field and its Pick up chip hidden under the sticky Undo/Calculator bar; dragging from there selected toolbar text | Programmatic focus used `preventScroll` and nothing revealed the field | After focus-signal focus on non-mobile, `scrollIntoView({block:'nearest'})` + `scroll-margin-bottom: 120px` |
 | 8 | Moderate (layout) | Section tabs half hidden under the identity bar; "Hide task" under the navigator; TEKS/CCMR chips floating over tool buttons | Sticky offsets were constants (8 px, 118 px) | Navigator offset by the identity bar; task card starts at the navigator's *measured* height (`stickyHeightRef`); Hide task sits on the card; chips scroll with the page. Workspace band 514 → 534 px at 1536×900 with no overlaps |
 | 9 | Moderate (math wording) | "Draw through matching **factors**" for +12 and −12 | One message for every operation | "opposite terms" after + / −, "matching factors" after × / ÷ |
+| 11 | Major (Work View) | Work View opened at the top of the surface; the balance board began ~620 px down at 1536×900 | The shell never positioned the surface; focus went to Close | Tools mark their live region with `data-work-view-focus`; on open the shell scrolls it up unless already visible. Systems marks its embedded solver |
 | 10 | Polish (a11y) | Side announced "Place **undefined** 5 on both sides" | Label kept after the tile was spent | Side is a button only while an operation is armed |
+
+## Workspace visibility measurements (same question, systems substitution → solve)
+
+| Viewport | Before | After |
+| --- | --- | --- |
+| 1536×900 page | sticky chrome to y=321, workspace band 514 px, chips over controls, section tabs clipped | chrome to y=301, band 534 px, no overlaps |
+| 1536×900 equation side | 165 px, terms clipped | 344 px, all terms visible |
+| 1536×900 Work View | board at y=622–952 (below fold) | board 384–714, task in header |
+| 1180×820 Work View | — | whole board visible on open |
+| 820×1180 page | −9x clipped in cancellation box | wraps to 2 lines, all visible; anchor follows the taller navigator |
+| 390×844 page | document 896 px tall, Calculator off-screen | document 844 px, Calculator visible, no horizontal scroll |
+| 360×740 page | — | Calculator visible, no horizontal scroll |
+| 390×844 Work View | — | solver scrolled up; board still partly below the action row |
 
 ## Automated tests
 
@@ -53,6 +67,14 @@ calculator, tap-to-place and drag-to-place, 390×844, 360×740, 820×1180, 1180�
   (operation-aware wording).
 - `npm run lint` exit 0 (warnings only, none in changed files). `npm run build` OK.
 - `npm run test:rules` — **not run: no Java in this environment.**
+- `npm run certify:capabilities` (merge tier). The journeys import Playwright
+  from `/opt/node22/...`, absent here; run with `PLAYWRIGHT_MODULE` pointing at
+  a local shim that launches the installed Chrome. Full run: 30/36 PASS; the 6
+  red rows came from two scripts timing out while cold/under load
+  (`algebraicSubstitutionHandoff` page boot, `stepAlgebraStructureTools`
+  `solveRegression`). Re-run in isolation on this branch, both **pass**
+  (9/9 handoff journeys; structure tools with no findings). Work View, Work
+  Persistence, 3×3 Substitution and host parity pass in the full run.
 
 ## Found, not fixed (next session)
 
@@ -67,7 +89,14 @@ Workspace visibility (the current mission):
   against a max-content parent).
 - `SubstitutionReductionMode` (3-variable reduction) has the same fixed
   `220–280px` side column while solving — same fix pattern as #5, untested here.
-- Work View / Enlarge, graphing and regression tools: not yet exercised in this run.
+- Work View: the 240 px side rail carries four buttons and two non-actionable
+  capability chips, then blank space; on a phone the solver's own header
+  (Solve for x, support chips, four tool buttons) still pushes the balance
+  board partly under the action row. "About this tool" has no route from the
+  Work View Help drawer (it is hidden with the tool header on phones).
+- Only other tools with a Work View focus region would benefit from the new
+  `data-work-view-focus` hook; graphing, regression and statistics tools were
+  not in this assignment and were not exercised.
 
 Mathematics / workflow:
 - Back-substitution into an equation whose variable is already isolated skips
