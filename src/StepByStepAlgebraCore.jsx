@@ -2415,10 +2415,10 @@ export default function StepByStepAlgebra({
 
     if (armedTile.operation === 'multiply') {
       previewLatex = position === 'after'
-        ? `\\\\left(${sourceLatex}\\\\right)\\\\left(${operandLatex}\\\\right)`
-        : `\\\\left(${operandLatex}\\\\right)\\\\left(${sourceLatex}\\\\right)`;
+        ? `\\left(${sourceLatex}\\right)\\left(${operandLatex}\\right)`
+        : `\\left(${operandLatex}\\right)\\left(${sourceLatex}\\right)`;
     } else if (armedTile.operation === 'divide') {
-      previewLatex = `\\\\frac{${sourceLatex}}{${operandLatex}}`;
+      previewLatex = `\\frac{${sourceLatex}}{${operandLatex}}`;
     } else {
       const additivePosition = position && typeof position === 'object'
         ? position
