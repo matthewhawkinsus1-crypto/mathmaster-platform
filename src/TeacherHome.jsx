@@ -27,7 +27,7 @@ const greetingFor = (date) => {
 // Landing tab for teachers: today's classes at a glance, so a period's
 // status and roster are one click away instead of hunting through the
 // class-period dropdown on Grades or scrolling the full Classes grid.
-export default function TeacherHome({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, needsAttentionAcademicCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], teacherUid = '', teacherEmail = '', teacherLabel = 'Your teacher', isRootAdmin = false, studentSupportEvents = [], studentSessionSummaries = [], onRecordStudentSupportEvent = null, onRecommendPersonalPath = null, pathInterventionBusyStudentId = null, liveTeachingSession = null, onTeachAssignment = null, onResumeTeaching = null, onEndLiveTeaching = null }) {
+export default function TeacherHome({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onGrantDOLAttempt = null, dolAttemptGrantBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, needsAttentionAcademicCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], teacherUid = '', teacherEmail = '', teacherLabel = 'Your teacher', isRootAdmin = false, studentSupportEvents = [], studentSessionSummaries = [], onRecordStudentSupportEvent = null, onRecommendPersonalPath = null, pathInterventionBusyStudentId = null, liveTeachingSession = null, onTeachAssignment = null, onResumeTeaching = null, onEndLiveTeaching = null }) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
   const [warmupTimerMinutesByKey, setWarmupTimerMinutesByKey] = useState({});
   const [recoveryClassId, setRecoveryClassId] = useState('');
@@ -311,15 +311,19 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
             {liveDOLControls.map(({ assignment, state }) => {
               const busyKey = `${assignment.id}:${classIdInSession || periodInSession}`;
               const needsOpenToday = ['notToday', 'unscheduled'].includes(state.status);
+              const attemptBonus = Number(assignment?.dol?.attemptGrantsByClassId?.[classIdInSession]?.extraAttempts || 0);
+              const recoveryAvailable = state.status === 'ended' && state.canRecover === true;
               return (
                 <div key={assignment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px', borderRadius: 9, background: '#fff' }}>
                   <div>
                     <strong>{assignment.title}</strong>
                     <div style={{ marginTop: 3, fontSize: 12 }}>
                       {state.status === 'active'
-                        ? `${state.earlyUnlocked ? 'Unlocked early · ' : ''}${Math.max(0, Math.ceil(state.millisecondsRemaining / 60000))} min left`
+                        ? `${state.teacherRecovery ? 'Teacher recovery · ' : state.earlyUnlocked ? 'Unlocked early · ' : ''}${Math.max(0, Math.ceil(state.millisecondsRemaining / 60000))} min left${attemptBonus ? ` · +${attemptBonus} attempt${attemptBonus === 1 ? '' : 's'}` : ''}`
                         : state.canRestart
-                          ? 'Early DOL timer ended · restart is available before the normal DOL cutoff'
+                          ? `Early DOL timer ended · restart is available before the normal DOL cutoff${attemptBonus ? ` · +${attemptBonus} attempt${attemptBonus === 1 ? '' : 's'}` : ''}`
+                          : recoveryAvailable
+                            ? `Normal DOL window ended · teacher recovery is available${attemptBonus ? ` · +${attemptBonus} attempt${attemptBonus === 1 ? '' : 's'}` : ''}`
                           : needsOpenToday
                             ? state.status === 'notToday'
                               ? `Saved for ${state.instructionDateKey || 'another day'} · open it for this class today`
@@ -329,13 +333,20 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
                               : `Locked · opens in ${Math.max(0, Math.ceil(state.millisecondsRemaining / 60000))} min`}
                     </div>
                   </div>
-                  {state.status !== 'active' ? (
-                    <button type="button" disabled={dolUnlockBusyKey === busyKey} onClick={() => onUnlockDOL?.(assignment, classContextInSession)} style={{ minHeight: 40, padding: '8px 13px', border: 0, borderRadius: 8, background: '#681da8', color: '#fff', fontWeight: 900, cursor: dolUnlockBusyKey === busyKey ? 'wait' : 'pointer' }}>
-                      {dolUnlockBusyKey === busyKey ? (state.canRestart ? 'Restarting…' : 'Unlocking…') : state.canRestart ? 'Restart DOL' : needsOpenToday ? 'Open DOL Today' : 'Unlock DOL Early'}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    {state.status !== 'active' ? (
+                      <button type="button" disabled={dolUnlockBusyKey === busyKey} onClick={() => onUnlockDOL?.(assignment, classContextInSession)} style={{ minHeight: 40, padding: '8px 13px', border: 0, borderRadius: 8, background: '#681da8', color: '#fff', fontWeight: 900, cursor: dolUnlockBusyKey === busyKey ? 'wait' : 'pointer' }}>
+                        {dolUnlockBusyKey === busyKey
+                          ? (recoveryAvailable ? 'Reopening…' : state.canRestart ? 'Restarting…' : 'Unlocking…')
+                          : recoveryAvailable ? 'Reopen DOL' : state.canRestart ? 'Restart DOL' : needsOpenToday ? 'Open DOL Today' : 'Unlock DOL Early'}
+                      </button>
+                    ) : (
+                      <span style={{ padding: '5px 9px', borderRadius: 999, background: '#e6f4ea', color: '#137333', fontSize: 11, fontWeight: 900 }}>OPEN NOW</span>
+                    )}
+                    <button type="button" disabled={dolAttemptGrantBusyKey === busyKey} onClick={() => onGrantDOLAttempt?.(assignment, classContextInSession)} style={{ minHeight: 40, padding: '8px 13px', border: '1px solid #681da8', borderRadius: 8, background: '#fff', color: '#681da8', fontWeight: 900, cursor: dolAttemptGrantBusyKey === busyKey ? 'wait' : 'pointer' }}>
+                      {dolAttemptGrantBusyKey === busyKey ? 'Granting…' : `Grant +1 attempt${attemptBonus ? ` (now +${attemptBonus})` : ''}`}
                     </button>
-                  ) : (
-                    <span style={{ padding: '5px 9px', borderRadius: 999, background: '#e6f4ea', color: '#137333', fontSize: 11, fontWeight: 900 }}>OPEN NOW</span>
-                  )}
+                  </div>
                 </div>
               );
             })}
