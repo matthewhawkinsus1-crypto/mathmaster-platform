@@ -346,6 +346,56 @@ export const applyEquationMultiplier = (equationText, multiplier, variables = ['
   return { coefficients: scaled, text: formatLinearEquation(scaled, variables) };
 };
 
+/**
+ * Read one student-entered product from the elimination scaling row.
+ *
+ * Product slots are mathematical term locations, so both classroom term input
+ * (`3x`, `-6y`) and the older coefficient-only draft form (`3`, `-6`)
+ * are accepted. A term entered in the wrong variable slot is rejected.
+ */
+export const multiplierProductValue = (input, variable = null, variables = ['x', 'y']) => {
+  let expression;
+  try {
+    expression = latexToExpression(String(input ?? '').trim());
+  } catch {
+    return NaN;
+  }
+  if (!expression) return NaN;
+
+  // Backward compatibility: old drafts stored coefficient-only values.
+  try {
+    const numeric = Number(evaluate(expression));
+    if (Number.isFinite(numeric)) return numeric;
+  } catch {
+    // A symbolic term such as 3x is handled below.
+  }
+
+  if (!variable || !variables.includes(variable)) return NaN;
+
+  try {
+    const zeroScope = Object.fromEntries(variables.map((name) => [name, 0]));
+    const oneScope = { ...zeroScope, [variable]: 1 };
+    const twoScope = { ...zeroScope, [variable]: 2 };
+    const atZero = Number(evaluate(expression, zeroScope));
+    const atOne = Number(evaluate(expression, oneScope));
+    const atTwo = Number(evaluate(expression, twoScope));
+    if (![atZero, atOne, atTwo].every(Number.isFinite)) return NaN;
+    if (Math.abs(atZero) > EPS || Math.abs(atTwo - (2 * atOne)) > EPS) return NaN;
+
+    // A product belonging in the x slot cannot secretly contain y (and vice
+    // versa). Check every non-target variable independently.
+    for (const other of variables) {
+      if (other === variable) continue;
+      const otherScope = { ...zeroScope, [other]: 1 };
+      const otherValue = Number(evaluate(expression, otherScope));
+      if (!Number.isFinite(otherValue) || Math.abs(otherValue) > EPS) return NaN;
+    }
+    return atOne;
+  } catch {
+    return NaN;
+  }
+};
+
 /** Add or subtract two equations' coefficient triples: `eq1 (op) eq2`. */
 export const combineCoefficients = (coeffs1, coeffs2, operation) => {
   const sign = operation === 'subtract' ? -1 : 1;
