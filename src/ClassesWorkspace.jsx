@@ -24,7 +24,7 @@ const formatClock = (date) => date instanceof Date ? date.toLocaleTimeString(und
 // duplicate that gradebook detail (attempts, activity breakdowns, IEP
 // report generation, ...) — "View full gradebook" hands off to the
 // existing Grades tab already wired for that.
-export default function ClassesWorkspace({ classes = [], allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onViewGradebook, onUnlockDOL = null, dolUnlockBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, initialPeriod = null, initialClassId = null, onSelectClass = null,
+export default function ClassesWorkspace({ classes = [], allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onViewGradebook, onUnlockDOL = null, dolUnlockBusyKey = null, onGrantDOLAttempt = null, dolAttemptGrantBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, initialPeriod = null, initialClassId = null, onSelectClass = null,
   learningProfilesByStudentId = {}, masteryProfilesByStudentId = {}, evidenceByStudentId = {},
   needsAttentionCount = 0, onOpenStudent = null,
   onLoadDeliveredRigor = null, rigorLoading = false, academicDataLoaded = true }) {
@@ -348,33 +348,42 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
             {dolToday.map(({ assignment, dol }) => {
               const busyKey = `${assignment.id}:${selectedClass.classId || selectedPeriod}`;
               const needsOpenToday = ['notToday', 'unscheduled'].includes(dol.status);
+              const attemptBonus = Number(assignment?.dol?.attemptGrantsByClassId?.[selectedClass.classId]?.extraAttempts || 0);
+              const recoveryAvailable = dol.status === 'ended' && dol.canRecover === true;
               return (
                 <div key={assignment.id} style={{ padding: '12px 14px', borderRadius: '9px', border: '1px solid #e0e3e7', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   <div>
                     <strong>{assignment.title}</strong>
                     <div style={{ marginTop: 4, fontSize: 12, color: '#5f6368' }}>
                       {dol.status === 'active'
-                        ? `${dol.earlyUnlocked ? 'Unlocked early · ' : ''}${formatRemainingTime(dol.millisecondsRemaining)} left`
+                        ? `${dol.teacherRecovery ? 'Teacher recovery · ' : dol.earlyUnlocked ? 'Unlocked early · ' : ''}${formatRemainingTime(dol.millisecondsRemaining)} left${attemptBonus ? ` · +${attemptBonus} attempt${attemptBonus === 1 ? '' : 's'}` : ''}`
                         : dol.canRestart
-                          ? 'Early DOL timer ended · restart is available before the normal DOL cutoff'
-                          : needsOpenToday
-                            ? dol.status === 'notToday'
-                              ? `Saved for ${dol.instructionDateKey || 'another day'} · teacher can open it for this class today`
-                              : 'No DOL instructional date saved · teacher can open it for this class today'
-                            : dol.status === 'waiting'
-                              ? `Locked · opens in ${formatRemainingTime(dol.millisecondsRemaining)}`
-                              : dol.status === 'beforeClass' ? 'Locked until class begins / normal DOL window' : 'Ended'}
+                          ? `Early DOL timer ended · restart is available before the normal DOL cutoff${attemptBonus ? ` · +${attemptBonus} attempt${attemptBonus === 1 ? '' : 's'}` : ''}`
+                          : recoveryAvailable
+                            ? `Normal DOL window ended · teacher recovery is available${attemptBonus ? ` · +${attemptBonus} attempt${attemptBonus === 1 ? '' : 's'}` : ''}`
+                            : needsOpenToday
+                              ? dol.status === 'notToday'
+                                ? `Saved for ${dol.instructionDateKey || 'another day'} · teacher can open it for this class today`
+                                : 'No DOL instructional date saved · teacher can open it for this class today'
+                              : dol.status === 'waiting'
+                                ? `Locked · opens in ${formatRemainingTime(dol.millisecondsRemaining)}`
+                                : dol.status === 'beforeClass' ? 'Locked until class begins / normal DOL window' : 'Ended'}
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '12px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: dol.status === 'active' ? '#e6f4ea' : '#f1f3f4', color: dol.status === 'active' ? '#137333' : '#5f6368' }}>
-                      {dol.status === 'active' ? 'OPEN NOW' : dol.canRestart ? 'RESTART AVAILABLE' : dol.status === 'ended' ? 'ENDED' : needsOpenToday ? 'NOT OPEN TODAY' : 'LOCKED'}
+                      {dol.status === 'active' ? 'OPEN NOW' : dol.canRestart ? 'RESTART AVAILABLE' : recoveryAvailable ? 'RECOVERY AVAILABLE' : dol.status === 'ended' ? 'ENDED' : needsOpenToday ? 'NOT OPEN TODAY' : 'LOCKED'}
                     </span>
-                    {(['waiting', 'beforeClass', 'notToday', 'unscheduled'].includes(dol.status) || dol.canRestart) && (
+                    {(['waiting', 'beforeClass', 'notToday', 'unscheduled'].includes(dol.status) || dol.canRestart || recoveryAvailable) && (
                       <button type="button" disabled={dolUnlockBusyKey === busyKey} onClick={() => onUnlockDOL?.(assignment, { classId: selectedClass.classId || null, classPeriod: selectedPeriod })} style={{ padding: '8px 12px', border: 0, borderRadius: 7, background: '#681da8', color: '#fff', fontWeight: 900, cursor: dolUnlockBusyKey === busyKey ? 'wait' : 'pointer' }}>
-                        {dolUnlockBusyKey === busyKey ? (dol.canRestart ? 'Restarting…' : 'Unlocking…') : dol.canRestart ? 'Restart DOL' : needsOpenToday ? 'Open DOL Today' : 'Unlock DOL Early'}
+                        {dolUnlockBusyKey === busyKey
+                          ? (recoveryAvailable ? 'Reopening…' : dol.canRestart ? 'Restarting…' : 'Unlocking…')
+                          : recoveryAvailable ? 'Reopen DOL' : dol.canRestart ? 'Restart DOL' : needsOpenToday ? 'Open DOL Today' : 'Unlock DOL Early'}
                       </button>
                     )}
+                    <button type="button" disabled={dolAttemptGrantBusyKey === busyKey} onClick={() => onGrantDOLAttempt?.(assignment, { classId: selectedClass.classId || null, classPeriod: selectedPeriod })} style={{ padding: '8px 12px', border: '1px solid #681da8', borderRadius: 7, background: '#fff', color: '#681da8', fontWeight: 900, cursor: dolAttemptGrantBusyKey === busyKey ? 'wait' : 'pointer' }}>
+                      {dolAttemptGrantBusyKey === busyKey ? 'Granting…' : `Grant +1 attempt${attemptBonus ? ` (now +${attemptBonus})` : ''}`}
+                    </button>
                   </div>
                 </div>
               );
