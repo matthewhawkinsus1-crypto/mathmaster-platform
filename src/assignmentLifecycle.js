@@ -531,7 +531,7 @@ export const getDOLState = ({ assignment, schedule, classId = null, classPeriod,
     classId,
     todayKey,
   });
-  const { durationMinutes, closeMinutesBeforeEnd, earlyUnlocked } = sharedDol;
+  const { durationMinutes, closeMinutesBeforeEnd, earlyUnlocked, teacherRecovery } = sharedDol;
   const regularEndsAt = new Date(sharedDol.regularEndsAtMs);
   const regularOpensAt = new Date(sharedDol.regularOpensAtMs);
   const opensAt = new Date(sharedDol.opensAtMs);
@@ -544,11 +544,11 @@ export const getDOLState = ({ assignment, schedule, classId = null, classPeriod,
       : now <= endsAt
         ? 'active'
         : 'ended';
-  // An early DOL can finish before the lesson's normal DOL cutoff. Keep a
-  // teacher recovery path available only inside that remaining instructional
-  // window; once the regular cutoff arrives, the final pack-up window is
-  // protected and the DOL cannot be restarted.
-  const canRestart = status === 'ended' && now < regularEndsAt;
+  // "Restart" preserves the original early-unlock behavior inside the normal
+  // instructional window. "Recover" is the explicit teacher exception after
+  // that cutoff: it is audited on the assignment and receives a fresh timer.
+  const canRestart = status === 'ended' && teacherRecovery !== true && now < regularEndsAt;
+  const canRecover = status === 'ended';
 
   return {
     enabled: true,
@@ -562,7 +562,9 @@ export const getDOLState = ({ assignment, schedule, classId = null, classPeriod,
     regularOpensAt,
     regularEndsAt,
     earlyUnlocked,
+    teacherRecovery: teacherRecovery === true,
     canRestart,
+    canRecover,
     durationMinutes,
     closeMinutesBeforeEnd,
     millisecondsRemaining: status === 'active'
