@@ -560,7 +560,7 @@ const runNoPreview = async (context, scope) => {
     await page.mouse.down();
 
     // Enter the ordinary after/right slot first.
-    await page.mouse.move(termRect.right - 2, termRect.top + termRect.height / 2, { steps: 10 });
+    await page.mouse.move(termRect.x + termRect.width - 2, termRect.y + termRect.height / 2, { steps: 10 });
     await settle(page, 180);
     expect(
       journey,
@@ -570,8 +570,8 @@ const runNoPreview = async (context, scope) => {
 
     // Then move beneath the SAME term. Under must win decisively even though
     // the previous after slot remains inside its larger anti-jitter radius.
-    const underY = Math.min(left.bottom - 24, termRect.bottom + 42);
-    await page.mouse.move(termRect.left + termRect.width / 2, underY, { steps: 8 });
+    const underY = Math.min(left.y + left.height - 24, termRect.y + termRect.height + 42);
+    await page.mouse.move(termRect.x + termRect.width / 2, underY, { steps: 8 });
     await settle(page, 250);
     observed.underCue = await targetTerm.locator('xpath=self::*[contains(@class,"algebra-term-placement-cue") and contains(@class,"is-under")]').count();
     observed.hoverPreview = await host.locator('.algebra-live-math-preview.is-hover[data-preview-side="left"]').count();
@@ -586,7 +586,7 @@ const runNoPreview = async (context, scope) => {
     await page.mouse.move(right.x + right.width * 0.45, right.y + right.height * 0.52, { steps: 12 });
     await settle(page, 180);
     expect(journey, JSON.stringify(await visibleEquation(host)) === JSON.stringify(committed), 'hovering the right side changed the equation');
-    await page.mouse.move(termRect.left + termRect.width / 2, underY, { steps: 12 });
+    await page.mouse.move(termRect.x + termRect.width / 2, underY, { steps: 12 });
     await settle(page, 160);
     expect(journey, await targetTerm.locator('xpath=self::*[contains(@class,"algebra-term-placement-cue") and contains(@class,"is-under")]').count() === 1, 'under-term target was not reacquired after moving across the equation');
     await page.mouse.up();
