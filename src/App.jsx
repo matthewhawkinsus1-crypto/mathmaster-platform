@@ -31,6 +31,7 @@ import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } fr
 import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
 import { resolveAuthoritativeClose } from '../functions/shared/sectionDeadline.mjs';
 import { buildDolAttemptGrant, buildDolWindowOpening, summarizeStudentRecovery } from './platform/assessment/assessmentRecovery.js';
+import { PRESENCE_FLUSH_MS, applyKeyedChanges, createKeyedUpdateBuffer } from './platform/performance/coalescedKeyedUpdates.js';
 import { teacherAdmin } from './auth/authService';
 import {
   buildScratchpadWrites,
@@ -3812,18 +3813,17 @@ function App() {
       return undefined;
     }
 
+    // One render per second at most, however many students heartbeat: every
+    // snapshot used to re-render the whole dashboard (about 7.5 renders a
+    // second for 150 students). See coalescedKeyedUpdates.js.
+    const presenceBuffer = createKeyedUpdateBuffer({
+      flushMs: PRESENCE_FLUSH_MS,
+      onFlush: (changes) => setPresenceById((current) => applyKeyedChanges(current, changes)),
+    });
     const unsubs = rosterIds.map((studentId) => onSnapshot(
       doc(db, 'presence', studentId),
       (snapshot) => {
-        setPresenceById((current) => {
-          if (!snapshot.exists()) {
-            if (!Object.prototype.hasOwnProperty.call(current, studentId)) return current;
-            const next = { ...current };
-            delete next[studentId];
-            return next;
-          }
-          return { ...current, [studentId]: snapshot.data() };
-        });
+        presenceBuffer.set(studentId, snapshot.exists() ? snapshot.data() : null);
       },
       (error) => {
         // One stale/reassigned roster row should not take the rest of the live
@@ -3833,6 +3833,7 @@ function App() {
     ));
 
     return () => {
+      presenceBuffer.cancel();
       unsubs.forEach((unsubscribe) => unsubscribe());
     };
   }, [user?.role, teacherTab, allStudents, teacherPreviewRuntimeActive]);
