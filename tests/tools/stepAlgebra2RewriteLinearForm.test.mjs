@@ -110,21 +110,37 @@ test('rewriteLinearForm mode is dispatched before the legacy ax + b = c workspac
   assert.ok(dispatchIndex >= 0, 'expected an explicit rewriteLinearForm mode check');
   assert.ok(legacyOriginalIndex >= 0, 'expected the legacy ax + b = c default to remain present');
   assert.ok(dispatchIndex < legacyOriginalIndex, 'rewriteLinearForm must return before the legacy equation state is constructed');
-  assert.match(source, /return <RewriteLinearForm questionData=\{questionData\} onAction=\{onAction\} \/>/);
+  // The dispatch hands the question on unchanged, plus the question's draft key
+  // so the embedded Step Algebra can keep its per-question draft.
+  assert.match(source, /return <RewriteLinearForm questionData=\{questionData\} onAction=\{onAction\} draftKey=\{draftKey\} \/>/);
 });
 
-// 13. Undo/persistence works in rewrite mode: the equation state and the
-// committed-step history are both persistent-tool-state fields, and Universal
-// Undo restores both together (not just the equation, which would desync the
-// "Your steps" list from the equation it explains).
-test('rewriteLinearForm wires the equation state and history through persistence and Universal Undo', () => {
+// 13. Undo/persistence works in rewrite mode. The mode now hosts the mature
+// StepByStepAlgebraCore, which owns the committed equation, the open structure
+// tool and the step log in its own per-question draft, and whose Undo pops a
+// committed equation and its history entry in the same move. This screen keeps
+// persisted mirrors of the equation and the step log (so work begun on the old
+// screen carries over), and hands Universal Undo to the core. Asserted against
+// the regions that do the work, not anywhere in the file.
+test('rewriteLinearForm persists the equation and history and gives Universal Undo to the embedded core', () => {
   const source = fs.readFileSync(new URL('../../src/tools/stepAlgebra2/RewriteLinearForm.jsx', import.meta.url), 'utf8');
   assert.match(source, /usePersistentToolState\('rewriteEquationState', initialEquationState\)/);
   assert.match(source, /usePersistentToolState\('rewriteHistory', \[\]\)/);
-  assert.match(source, /useMathUndoHistory\(\{[\s\S]{0,200}state: \{ equationState, history \}/);
-  assert.match(source, /onRestore: restoreWork/);
-  assert.match(source, /resetKey: questionData\.questionId \?\? questionData\.id \?\? null/);
-  assert.match(source, /undo: undoHistory\.capability/);
+
+  const core = source.slice(source.indexOf('<StepByStepAlgebraCore'), source.indexOf('/>', source.indexOf('<StepByStepAlgebraCore')));
+  assert.match(core, /draftKey=\{coreDraftKey\}/, 'the core must persist under this question\'s draft key');
+  assert.match(core, /onUndoStateChange=\{setCoreUndo\}/, 'the core must report its Undo controller');
+  assert.match(core, /onWorkStepsChange=\{handleWorkSteps\}/, 'the history must be the core\'s own step log');
+  assert.match(core, /onEquationChange=\{handleEquationChange\}/, 'the graded equation must be the core\'s equation');
+  assert.match(source, /const coreDraftKey = draftKey \? `\$\{draftKey\}:rewrite-linear-form` : null/);
+  assert.match(source, /const handleWorkSteps = useCallback\(\(steps\) => setHistory\(steps\)/);
+
+  const owner = source.slice(source.indexOf('useActiveUndoOwner({'), source.indexOf('});', source.indexOf('useActiveUndoOwner({')));
+  assert.match(owner, /controller: coreUndo/);
+  assert.match(owner, /active: Boolean\(coreUndo\?\.canUndo\)/);
+  const capability = source.slice(source.indexOf('undo: {'), source.indexOf('},', source.indexOf('undo: {')));
+  assert.match(capability, /onAction: \(\) => coreUndo\?\.onUndo\?\.\(\)/);
+  assert.match(capability, /disabled: !coreUndo\?\.canUndo/);
 });
 
 test('isSimplifiedSlopeInterceptForm rejects un-distributed and single-fraction right sides', () => {

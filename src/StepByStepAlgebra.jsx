@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MathDisplay from './MathDisplay';
+import AlgebraWorkSteps from './AlgebraWorkSteps';
 import MultiRelationAlgebra from './MultiRelationAlgebra';
 import StepByStepAlgebraCore from './StepByStepAlgebraCore';
 import EnlargeableFigure from './components/common/EnlargeableFigure';
@@ -33,8 +34,20 @@ export default function StepByStepAlgebra(props) {
     question.prompt,
   ].filter(Boolean).join('|') || 'step-algebra', [props.draftKey, question]);
   const [workHistory, setWorkHistory] = useState([]);
+  // Described steps ("Factored 15 from the right side", before → after),
+  // reported by the core from the same log its Undo pops.
+  const [workSteps, setWorkSteps] = useState([]);
 
-  useEffect(() => setWorkHistory([]), [workspaceKey]);
+  // Reset only when the workspace changes to another question. Child effects
+  // run first, so resetting on mount would erase the steps the core has just
+  // restored from its draft.
+  const reportedWorkspaceKeyRef = useRef(workspaceKey);
+  useEffect(() => {
+    if (reportedWorkspaceKeyRef.current === workspaceKey) return;
+    reportedWorkspaceKeyRef.current = workspaceKey;
+    setWorkHistory([]);
+    setWorkSteps([]);
+  }, [workspaceKey]);
 
   const handleStateChange = useCallback((payload) => {
     const equation = payload?.parts?.find((part) => part?.id === 'algebra-objective')?.response;
@@ -46,7 +59,7 @@ export default function StepByStepAlgebra(props) {
     <div className="solver-work-history">
       <h3>Work history</h3>
       <p>Your valid equation states stay visible here while you solve. Undo removes the most recent state from this route.</p>
-      {workHistory.length ? (
+      {workSteps.length ? <AlgebraWorkSteps steps={workSteps} /> : workHistory.length ? (
         <ol>
           {workHistory.map((equation, index) => (
             <li key={`${index}-${equation}`}>
@@ -81,7 +94,7 @@ export default function StepByStepAlgebra(props) {
         help: { content: focusPanel },
       }}
     >
-      <StepByStepAlgebraCore {...props} onStateChange={handleStateChange} />
+      <StepByStepAlgebraCore {...props} onStateChange={handleStateChange} onWorkStepsChange={setWorkSteps} />
     </EnlargeableFigure>
   );
 }

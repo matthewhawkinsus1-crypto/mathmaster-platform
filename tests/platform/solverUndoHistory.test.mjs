@@ -15,7 +15,9 @@ test('StepByStep keeps capped committed equation history and exposes it through 
   const source = await read('src/StepByStepAlgebraCore.jsx');
 
   assert.match(source, /const \[committedHistory, setCommittedHistory\] = useState\(\[\]\)/);
-  assert.match(source, /const pushCommittedEquation = \(snapshot\) =>/);
+  // The snapshot is the Undo entry; an optional step records what the move did
+  // for the work history, pushed by the same call so the two stay in lockstep.
+  assert.match(source, /const pushCommittedEquation = \(snapshot(?:, step = null)?\) =>/);
   assert.match(source, /slice\(-59\)/);
 
   const undoBlock = blockBetween(source, 'useEffect(() => {\n    onUndoStateChange?.({', '  const triggerShake');
@@ -31,21 +33,21 @@ test('StepByStep records the pre-commit equation for every accepted student math
   const rewriteBlock = blockBetween(source, 'const checkStudentRewrite = async', '  const resetQuestionWork');
   const cancellationBlock = blockBetween(source, 'const commitStandaloneCancellation = async', '  const registerCancellationHits');
 
-  assert.match(moveBlock, /pushCommittedEquation\(equation\)/);
+  assert.match(moveBlock, /pushCommittedEquation\(equation[,)]/);
   assert.ok(
-    moveBlock.indexOf('pushCommittedEquation(equation)') < moveBlock.indexOf('setEquation(nextEquation)'),
+    moveBlock.indexOf('pushCommittedEquation(equation') < moveBlock.indexOf('setEquation(nextEquation)'),
     'balanced move history must be recorded before visible equation replacement',
   );
 
-  assert.match(rewriteBlock, /pushCommittedEquation\(equation\)/);
+  assert.match(rewriteBlock, /pushCommittedEquation\(equation[,)]/);
   assert.ok(
-    rewriteBlock.indexOf('pushCommittedEquation(equation)') < rewriteBlock.indexOf('setEquation(nextEquation)'),
+    rewriteBlock.indexOf('pushCommittedEquation(equation') < rewriteBlock.indexOf('setEquation(nextEquation)'),
     'rewrite history must be recorded before visible equation replacement',
   );
 
-  assert.match(cancellationBlock, /pushCommittedEquation\(beforeEquation\)/);
+  assert.match(cancellationBlock, /pushCommittedEquation\(beforeEquation[,)]/);
   assert.ok(
-    cancellationBlock.indexOf('pushCommittedEquation(beforeEquation)') < cancellationBlock.indexOf('setEquation(nextEquation)'),
+    cancellationBlock.indexOf('pushCommittedEquation(beforeEquation') < cancellationBlock.indexOf('setEquation(nextEquation)'),
     'standalone cancellation history must be recorded before visible equation replacement',
   );
 });

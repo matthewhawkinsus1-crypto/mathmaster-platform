@@ -11,16 +11,20 @@
 //     `expressionsEquivalent` only substitutes one named variable, which is
 //     enough while solving ax + b = c but throws away information whenever
 //     a rewrite step still has both x and y present on one side.
-//   - `isSimplifiedSlopeInterceptForm` recognizes "y = mx + b" *structurally*
-//     (an additive chain of a bare/coefficient x-term and a constant) without
-//     demanding the student's text match mathjs's own internal simplify()
-//     ordering, which is not how any textbook writes a line and would reject
-//     perfectly correct student answers such as "y = -(5/2)x + 3".
+//   - `isSimplifiedSlopeInterceptForm` / `isFactoredLinearForm` recognize
+//     "y = mx + b" and "y = a(x - c)" *structurally*, never by comparing the
+//     student's text with mathjs's own simplify() ordering (which would reject
+//     a correct "y = -(5/2)x + 3"). Both delegate to the engine's
+//     isSimplifiedSlopeInterceptExpression / isFactoredLinearExpression — the
+//     same checks the Step Algebra workspace this mode now hosts completes on —
+//     adding only the linear-domain guard.
 import { parse } from 'mathjs';
 import {
   applyBalancedOperation,
   equationToLatex,
   expressionToLatex,
+  isFactoredLinearExpression,
+  isSimplifiedSlopeInterceptExpression,
   latexToExpression,
   parseEquationInput,
   parseOperationOperand,
@@ -37,12 +41,6 @@ const symbolsOf = (expression) => {
   }
 };
 
-const unwrapParens = (node) => {
-  let current = node;
-  while (current?.type === 'ParenthesisNode') current = current.content;
-  return current;
-};
-
 const containsVariableDenominator = (node) => {
   if (!node) return false;
   if (node.type === 'OperatorNode' && node.fn === 'divide') {
@@ -56,70 +54,30 @@ export const preservesLinearDomain = (expression) => {
   try { return !containsVariableDenominator(parse(String(expression))); } catch { return false; }
 };
 
-// A "simple x term" is a bare x, a bare number, or a product/quotient of the
-// two (a rational coefficient on x) — never a factor that is itself still an
-// unresolved sum, which is what an un-distributed or un-combined term looks
-// like structurally.
-const isSimpleXTerm = (node) => {
-  const current = unwrapParens(node);
-  if (!current) return false;
-  if (current.type === 'ConstantNode') return true;
-  if (current.type === 'SymbolNode') return current.name === 'x';
-  if (current.type === 'OperatorNode' && current.fn === 'unaryMinus' && current.args.length === 1) {
-    return isSimpleXTerm(current.args[0]);
-  }
-  if (current.type === 'OperatorNode' && (current.fn === 'multiply' || current.fn === 'divide')) {
-    if (current.fn === 'divide' && current.args[1].filter((node) => node.isSymbolNode).some((node) => ['x', 'y'].includes(node.name))) return false;
-    return current.args.every((arg) => {
-      const inner = unwrapParens(arg);
-      if (inner?.type === 'OperatorNode' && ['add', 'subtract'].includes(inner.fn)) return false;
-      return isSimpleXTerm(inner);
-    });
-  }
-  return false;
-};
-
-const isNumericExpression = (node) => {
-  const current = unwrapParens(node);
-  if (!current || current.filter((child) => child.isSymbolNode).some((child) => child.name === 'x' || child.name === 'y')) return false;
-  try { return Number.isFinite(Number(current.evaluate({}))); } catch { return false; }
-};
-
-/** Structurally requires coefficient times a parenthesized (x +/- constant). */
-export const isFactoredLinearForm = (expression) => {
-  try {
-    const node = unwrapParens(parse(String(expression)));
-    if (!preservesLinearDomain(expression) || node.type !== 'OperatorNode' || node.fn !== 'multiply' || node.args.length !== 2) return false;
-    const pairs = [[node.args[0], node.args[1]], [node.args[1], node.args[0]]];
-    return pairs.some(([coefficient, factorNode]) => {
-      if (!isNumericExpression(coefficient) || Math.abs(Number(unwrapParens(coefficient).evaluate({}))) <= 1e-12) return false;
-      const factor = unwrapParens(factorNode);
-      if (factor?.type !== 'OperatorNode' || !['add', 'subtract'].includes(factor.fn) || factor.args.length !== 2) return false;
-      const [left, right] = factor.args.map(unwrapParens);
-      return left?.type === 'SymbolNode' && left.name === 'x' && isNumericExpression(right);
-    });
-  } catch { return false; }
-};
+/**
+ * Structurally requires a reduced nonzero number times a parenthesized
+ * (x +/- number): y = a(x - c). The mature Step Algebra engine owns this
+ * definition (`isFactoredLinearExpression`) so the workspace and this check
+ * cannot disagree about when factored form is finished.
+ */
+export const isFactoredLinearForm = (expression) => (
+  preservesLinearDomain(expression) && isFactoredLinearExpression(latexToExpression(expression), 'x')
+);
 
 /**
  * True when `expression` is already written as a slope-intercept right-hand
  * side: a single x-term, a single constant, or the sum/difference of the two
- * — e.g. "-(5/2)x + 3", "3 - (5/2)x", "(5/7)x + 11/7". False for a form that
- * is mathematically equivalent but still needs a transformation the student
- * has to perform, such as an un-distributed product ("-(2/3)(x+3)+7") or a
- * single fraction spanning the whole numerator ("(6-5x)/2").
+ * in either order — e.g. "-(5/2)x + 3", "3 - (5/2)x", "(5/7)x + 11/7". False
+ * for a form that is mathematically equivalent but still needs a
+ * transformation the student has to perform, such as an un-distributed product
+ * ("-(2/3)(x+3)+7"), a single fraction spanning the whole numerator
+ * ("(6-5x)/2"), or an unreduced fraction ("6/2 - 5x/2"). Delegates to the
+ * engine's `isSimplifiedSlopeInterceptExpression`, the same check the Step
+ * Algebra workspace completes on.
  */
-export const isSimplifiedSlopeInterceptForm = (expression) => {
-  try {
-    const node = unwrapParens(parse(String(expression)));
-    if (node.type === 'OperatorNode' && (node.fn === 'add' || node.fn === 'subtract') && node.args.length === 2) {
-      return node.args.every((term) => isSimpleXTerm(term));
-    }
-    return isSimpleXTerm(node);
-  } catch {
-    return false;
-  }
-};
+export const isSimplifiedSlopeInterceptForm = (expression) => (
+  preservesLinearDomain(expression) && isSimplifiedSlopeInterceptExpression(latexToExpression(expression), 'x')
+);
 
 export const buildInitialEquationState = (questionData = {}) => {
   const parsed = parseEquationInput({

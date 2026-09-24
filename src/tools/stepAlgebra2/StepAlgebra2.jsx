@@ -43,13 +43,15 @@ const describeOperation = (operation, value) => {
   return `${spec.label} ${Math.abs(value) === value ? value : `(${value})`} ${spec.preposition} both sides`;
 };
 
-export default function StepAlgebra2({ questionData = {}, onAction }) {
+export default function StepAlgebra2({ questionData = {}, onAction, draftKey = null }) {
   // rewriteLinearForm is an additive mode (two-variable equation rewriting)
   // with a different workspace shape entirely; it is its own component so
   // the ax + b = c solving mode below is untouched for every existing
   // authored question, which has no `mode` field and defaults past this check.
   if (questionData.mode === 'rewriteLinearForm') {
-    return <RewriteLinearForm questionData={questionData} onAction={onAction} />;
+    // draftKey: the embedded Step Algebra keeps its per-question draft (equation,
+    // open factoring/splitting work, step log) under this question's key.
+    return <RewriteLinearForm questionData={questionData} onAction={onAction} draftKey={draftKey} />;
   }
   if (questionData.mode === 'linearIntercepts') {
     return <LinearIntercepts questionData={questionData} onAction={onAction} />;

@@ -95,8 +95,9 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
   graphing2: entry(['graphing2/Graphing2.jsx']),
   stepAlgebra2: entry(['stepAlgebra2/StepAlgebra2.jsx', 'stepAlgebra2/RewriteLinearForm.jsx', 'stepAlgebra2/LinearIntercepts.jsx'], {
     inputError: 'Why an operand was rejected. Error text, not a step.',
-    operationError: 'Why the last balanced operation was rejected. Error text, not a step.',
-    rewriteError: 'Why the last equivalent-rewrite check failed. Error text, not a step.',
+    // RewriteLinearForm hosts StepByStepAlgebraCore, which persists its own work
+    // (equation, open structure tool, step log) in its per-question draft.
+    coreUndo: 'The embedded Step Algebra Undo controller (callbacks). Wiring, not an answer.',
     localMessage: 'Why the current intercept path needs attention. Feedback text, not mathematical work.',
     zeroArmed: 'Whether the movable zero token is selected. Interaction state, not an answer.',
   }),

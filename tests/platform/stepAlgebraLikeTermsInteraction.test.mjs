@@ -36,7 +36,11 @@ test('like-term interaction is draft-backed and participates in universal Undo b
 
 test('a completed like-term combination is recorded as an algebra step and remains undoable', () => {
   assert.match(coreSource, /kind: 'combine-like-terms'/);
-  assert.match(coreSource, /pushCommittedEquation\(beforeEquation\)/);
+  // Anchored to the like-term handler: it records the PRE-commit equation
+  // (a second argument describes the step for the work history).
+  const likeTermsCommit = coreSource.slice(coreSource.indexOf('const checkLikeTerms = async'), coreSource.indexOf('const checkInlineRewrite = async'));
+  assert.match(likeTermsCommit, /pushCommittedEquation\(beforeEquation[,)]/);
+  assert.ok(likeTermsCommit.indexOf('pushCommittedEquation(beforeEquation') < likeTermsCommit.indexOf('setEquation(nextEquation)'));
   assert.match(coreSource, /setEquation\(nextEquation\)/);
 });
 

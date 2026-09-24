@@ -20,7 +20,9 @@ test('committing a distribution records real step evidence and never consumes an
   );
   assert.match(commitRegion, /kind:\s*'distribution'/);
   assert.match(commitRegion, /countsAttempt:\s*false/);
-  assert.match(commitRegion, /pushCommittedEquation\(equation\)/);
+  // The first argument is the PRE-commit equation (the Undo snapshot); a second
+  // argument describes the step for the work history.
+  assert.match(commitRegion, /pushCommittedEquation\(equation[,)]/);
 });
 
 test('distribution state is included in draft persistence, so partial work survives navigation', () => {

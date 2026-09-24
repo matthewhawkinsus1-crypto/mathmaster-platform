@@ -1,4 +1,5 @@
 import { OperatorNode, ParenthesisNode, evaluate, parse, simplify } from 'mathjs';
+import { gcdInteger, makeRational, reducedNumberValue } from './algebraExactRational.js';
 
 const EPSILON = 1e-9;
 const nearlyEqual = (left, right) => Math.abs(Number(left) - Number(right)) <= EPSILON;
@@ -46,10 +47,15 @@ const symbolsIn = (expression) => {
   }
 };
 
+// Rewriting a line into y = mx + b or y = a(x - c) is a y-objective. Every
+// other target form keeps the historical default of isolating x.
+const LINE_TARGET_FORMS = ['slopeIntercept', 'factoredLinear'];
+
 export const parseEquationInput = (question = {}) => {
+  const lineTarget = LINE_TARGET_FORMS.includes(question.targetForm) ? question.targetForm : null;
   const objective = {
-    kind: question.objective?.kind || question.objectiveKind || (question.targetForm === 'slopeIntercept' ? 'slopeIntercept' : 'isolate'),
-    variable: String(question.objective?.variable || question.solveFor || question.variable || (question.targetForm === 'slopeIntercept' ? 'y' : 'x')),
+    kind: question.objective?.kind || question.objectiveKind || lineTarget || 'isolate',
+    variable: String(question.objective?.variable || question.solveFor || question.variable || (lineTarget ? 'y' : 'x')),
     // `simplifyRequired` is retained as a presentation/coaching preference for
     // older authored questions. It no longer blocks completion by itself.
     // A question must explicitly opt into STRICT final-form grading with
@@ -145,6 +151,14 @@ const cleanImplicitMultiplicationLatex = (latex) => {
       if (groupStart >= 0 && operandMatch) {
         const prefix = before.slice(0, groupStart);
         const group = before.slice(groupStart);
+        // A grouped FRACTION is a coefficient, not a group: (5/2) · x is
+        // written (5/2)x, never x(5/2). Moving the letter in front turned
+        // -(5/2)x into -x(5/2) in the workspace and the work history.
+        const inner = group.slice(GROUP_OPEN.length, -GROUP_CLOSE.length).trim();
+        if (/^-?\\frac\{[^{}]*\}\{[^{}]*\}$/.test(inner) && /^[a-zA-Z\\]/.test(operandMatch[1])) {
+          text = `${before}${after}`;
+          continue;
+        }
         text = `${prefix}${operandMatch[1]}${group}${after.slice(operandMatch[1].length)}`;
         continue;
       }
@@ -154,6 +168,13 @@ const cleanImplicitMultiplicationLatex = (latex) => {
     // not two times three, so that one is parenthesised instead.
     const leftOperand = before.match(OPERAND_AT_END);
     const rightOperand = after.match(OPERAND_AT_START);
+
+    // A braced construct (a stacked fraction, a power) followed by a letter is
+    // written against it: \frac{5}{2}x and x^{2}y, not \frac{5}{2}(x).
+    if (before.endsWith('}') && rightOperand && /^(?:[a-zA-Z]|\\mathrm\{[A-Za-z]+\})$/.test(rightOperand[1])) {
+      text = `${before}${after}`;
+      continue;
+    }
     const bothNumeric = leftOperand && rightOperand
       && /^\d/.test(leftOperand[1]) && /^\d/.test(rightOperand[1]);
     if (leftOperand && rightOperand && SIMPLE_OPERAND.test(rightOperand[1]) && !bothNumeric) {
@@ -220,7 +241,95 @@ export const simplifyStudentExpression = (expression, variable = 'x') => {
   return original;
 };
 
-export const expressionToLatex = (expression) => cleanImplicitMultiplicationLatex(parse(String(expression)).toTex({ parenthesis: 'keep', implicit: 'hide' }));
+// --- Redundant grouping ---------------------------------------------------------
+//
+// The engine wraps every operand it builds in parentheses so the MathJS text is
+// unambiguous: subtracting 5x from 6 is stored as (6) - (5 x), and dividing
+// that by 2 as ((6) - (5 x)) / (2). Those wrappers are bookkeeping, not the
+// student's mathematics, yet `parenthesis: 'keep'` drew every one of them, so
+// the committed y = (6 - 5x)/2 reached the workspace and the work history as
+// y = ((6) - (5x))/(2) with a doubled bracket inside the fraction.
+//
+// Only grouping that provably changes nothing is dropped, and only here, at the
+// LaTeX boundary: the stored expression keeps every wrapper, and every grouping
+// a student can see a reason for stays — a factor against a group 3(x - 2), a
+// product of numbers 3(20/9), a distributed product (-2/3)(x), a negative
+// after a minus sign 8 - (-3), a sum after a minus sign 6 - (x + 1).
+const isParenthesis = (node) => node?.type === 'ParenthesisNode';
+const unwrapGrouping = (node) => {
+  let current = node;
+  while (isParenthesis(current)) current = current.content;
+  return current;
+};
+
+// Does the written form of `node` begin with a minus sign?
+const leadsWithMinus = (node) => {
+  const current = unwrapGrouping(node);
+  if (!current) return false;
+  if (current.type === 'ConstantNode') return typeof current.value === 'number' && current.value < 0;
+  if (current.type === 'OperatorNode' && current.fn === 'unaryMinus') return true;
+  if (current.type === 'OperatorNode' && ['multiply', 'divide', 'add', 'subtract'].includes(current.fn) && current.args?.length) {
+    return !isParenthesis(current.args[0]) && leadsWithMinus(current.args[0]);
+  }
+  return false;
+};
+
+const isAdditive = (node) => node?.type === 'OperatorNode' && ['add', 'subtract'].includes(node.fn) && node.args?.length === 2;
+
+const groupingIsRedundant = (parent, argIndex, content) => {
+  // The whole expression, and each side of a fraction bar, are already grouped.
+  if (!parent) return true;
+  if (parent.type === 'OperatorNode' && parent.fn === 'divide') return true;
+  if (parent.type === 'OperatorNode' && ['add', 'subtract'].includes(parent.fn) && parent.args?.length === 2) {
+    // The leading term of a sum is never changed by removing its grouping.
+    if (argIndex === 0) return true;
+    // A later term keeps grouping that carries a sign or a sum behind a minus.
+    if (leadsWithMinus(content)) return false;
+    if (isAdditive(content)) return parent.fn === 'add';
+    return true;
+  }
+  if (parent.type === 'OperatorNode' && parent.fn === 'unaryMinus') {
+    return !isAdditive(content) && !leadsWithMinus(content);
+  }
+  return false;
+};
+
+const withoutRedundantGrouping = (node, parent = null, argIndex = 0) => {
+  if (isParenthesis(node)) {
+    // ((x)) is never more grouped than (x).
+    let content = node.content;
+    while (isParenthesis(content)) content = content.content;
+    const cleanedContent = withoutRedundantGrouping(content, node, 0);
+    if (groupingIsRedundant(parent, argIndex, cleanedContent)) return cleanedContent;
+    return new ParenthesisNode(cleanedContent);
+  }
+  if (node?.type === 'OperatorNode' && Array.isArray(node.args)) {
+    const args = node.args.map((arg, index) => withoutRedundantGrouping(arg, node, index));
+    // MathJS always brackets a product under a minus sign, drawing -(5x) as
+    // -\left(5x\right). Folding the sign onto the product's leading number or
+    // letter, (-5)·x, is the same value and is drawn the way it is written: -5x.
+    const [only] = args;
+    if (node.fn === 'unaryMinus' && args.length === 1 && only?.type === 'OperatorNode' && only.fn === 'multiply'
+      && ['ConstantNode', 'SymbolNode'].includes(only.args?.[0]?.type)
+      && !(only.args[0].type === 'ConstantNode' && Number(only.args[0].value) < 0)) {
+      const [leading, ...rest] = only.args;
+      return new OperatorNode(only.op, only.fn, [new OperatorNode('-', 'unaryMinus', [leading]), ...rest], only.implicit);
+    }
+    return new OperatorNode(node.op, node.fn, args, node.implicit);
+  }
+  return node;
+};
+
+const presentationNode = (expression) => {
+  const node = parse(String(expression));
+  try {
+    return withoutRedundantGrouping(node);
+  } catch {
+    return node;
+  }
+};
+
+export const expressionToLatex = (expression) => cleanImplicitMultiplicationLatex(presentationNode(expression).toTex({ parenthesis: 'keep', implicit: 'hide' }));
 export const equationToLatex = ({ left, right }) => `${expressionToLatex(left)} = ${expressionToLatex(right)}`;
 
 // --- Presentation-only term splitting ---------------------------------------
@@ -290,8 +399,10 @@ const unambiguousTermText = (node) => {
 const additiveTermDescriptor = ({ node, sign }, index) => {
   let effectiveSign = sign < 0 ? -1 : 1;
   let magnitudeText = unambiguousTermText(node);
+  // Drawn without the engine's bookkeeping wrappers — a fraction term reads
+  // (8 - 2x)/(-4) as a stacked fraction, not with brackets inside the bar.
   let magnitudeLatex = cleanImplicitMultiplicationLatex(
-    node.toTex({ parenthesis: 'keep', implicit: 'hide' }),
+    withoutRedundantGrouping(node).toTex({ parenthesis: 'keep', implicit: 'hide' }),
   ).trim();
 
   // MathJS can encode a negative coefficient inside an opaque product node
@@ -628,10 +739,42 @@ const nodeIsSimpleLinearVariableTerm = (node, variable = 'x') => {
   return false;
 };
 
+// A coefficient WRITTEN in lowest terms on a single variable term: x, -x, 3x,
+// (5/2)x, 5x/2, x/2, -(2/3)x, 2.5x. 10x/4 and (6/2)x are equivalent but still
+// hold a reduction the student has not made, so they are not finished.
+const reducedVariableTermCoefficient = (rawNode, variable) => {
+  const node = unwrapExpressionParens(rawNode);
+  if (!node) return null;
+  if (node.type === 'SymbolNode') return node.name === variable ? makeRational(1, 1) : null;
+  if (node.type === 'OperatorNode' && node.fn === 'unaryMinus' && node.args?.length === 1) {
+    const inner = reducedVariableTermCoefficient(node.args[0], variable);
+    return inner ? makeRational(-inner.n, inner.d) : null;
+  }
+  if (node.type === 'OperatorNode' && node.fn === 'multiply' && node.args?.length === 2) {
+    const [first, second] = node.args.map(unwrapExpressionParens);
+    const pairs = [[first, second], [second, first]];
+    for (const [numberNode, variableNode] of pairs) {
+      if (variableNode?.type === 'SymbolNode' && variableNode.name === variable) {
+        const value = reducedNumberValue(numberNode);
+        if (value && value.n !== 0) return value;
+      }
+    }
+    return null;
+  }
+  if (node.type === 'OperatorNode' && node.fn === 'divide' && node.args?.length === 2) {
+    const denominator = unwrapExpressionParens(node.args[1]);
+    if (denominator?.type !== 'ConstantNode' || !Number.isSafeInteger(denominator.value) || denominator.value <= 1) return null;
+    const numerator = reducedVariableTermCoefficient(node.args[0], variable);
+    if (!numerator || numerator.d !== 1 || gcdInteger(numerator.n, denominator.value) !== 1) return null;
+    return makeRational(numerator.n, denominator.value);
+  }
+  return null;
+};
+
 // Slope-intercept completion is STRUCTURAL, not a string comparison against
 // MathJS's preferred ordering. Accept y = mx + b in any ordinary textbook
 // ordering while rejecting forms that still require student work, such as
-// y = 2(x + 3) or y = (-2x + 8)/(-4).
+// y = 2(x + 3), y = (-2x + 8)/(-4), or an unreduced y = 6/2 - 5x/2.
 export const isSimplifiedSlopeInterceptExpression = (expression, independentVariable = 'x') => {
   try {
     const terms = splitAdditiveTerms(expression);
@@ -647,16 +790,52 @@ export const isSimplifiedSlopeInterceptExpression = (expression, independentVari
         const value = Number(parse(term.text).evaluate({}));
         if (!Number.isFinite(value)) return false;
         if (terms.length > 1 && nearlyEqual(value, 0)) return false;
+        // The constant must be WRITTEN as a single reduced number.
+        if (!reducedNumberValue(parse(term.magnitudeText))) return false;
         continue;
       }
       if (symbols.some((name) => name !== independentVariable)) return false;
       variableTerms += 1;
       if (variableTerms > 1) return false;
-      if (!nodeIsSimpleLinearVariableTerm(parse(term.text), independentVariable)) return false;
-      const linear = getLinearForm(term.text, independentVariable);
+      // Read the unsigned magnitude: a later term's text carries its operator,
+      // and "+ x / 2" parses as a unary plus the structural check never knew,
+      // which rejected every finished y = b + mx with a positive slope.
+      if (!nodeIsSimpleLinearVariableTerm(parse(term.magnitudeText), independentVariable)) return false;
+      const linear = getLinearForm(term.magnitudeText, independentVariable);
       if (!nearlyEqual(linear.constant, 0) || nearlyEqual(linear.coefficient, 0)) return false;
+      if (!reducedVariableTermCoefficient(parse(term.magnitudeText), independentVariable)) return false;
     }
     return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Factored linear form, structurally: a nonzero number written in lowest terms
+ * against a group of the variable plus or minus a number, y = a(x - c):
+ * 15(x - 3), -6(x - 2), (1/2)(x + 4). Not finished: 3(5x - 15), 6(-x + 2),
+ * 15x - 45, 3(5(x - 3)), (x - 3)/2. Mirrors isSimplifiedSlopeInterceptExpression
+ * so both line targets are graded by structure the student built, never by the
+ * string MathJS would print.
+ */
+export const isFactoredLinearExpression = (expression, independentVariable = 'x') => {
+  try {
+    const node = unwrapExpressionParens(parse(String(expression)));
+    if (node?.type !== 'OperatorNode' || node.fn !== 'multiply' || node.args?.length !== 2) return false;
+    const [first, second] = node.args;
+    return [[first, second], [second, first]].some(([coefficientNode, groupNode]) => {
+      const coefficient = reducedNumberValue(coefficientNode);
+      if (!coefficient || coefficient.n === 0) return false;
+      // A sum can only be a factor of a product when it is grouped, so
+      // 15x - 3 never reaches here as a multiply node.
+      const group = unwrapExpressionParens(groupNode);
+      if (!isAdditive(group)) return false;
+      const [variablePart, constantPart] = group.args.map(unwrapExpressionParens);
+      if (variablePart?.type !== 'SymbolNode' || variablePart.name !== independentVariable) return false;
+      const constant = reducedNumberValue(constantPart);
+      return Boolean(constant) && constant.n >= 0;
+    });
   } catch {
     return false;
   }
@@ -775,6 +954,11 @@ export const isSolvedEquation = (equationState) => {
         ? expressionIsSimplified(equationState.left)
         : false
   );
+  if (objective.kind === 'factoredLinear') {
+    // The factored form IS the objective, so it is always graded structurally:
+    // y isolated on the left and the right side written as a(x - c).
+    return leftSolved && isFactoredLinearExpression(equationState.right, 'x');
+  }
   if (objective.kind === 'slopeIntercept') {
     // A slope-intercept target is complete when y is isolated and the right
     // side is structurally mx + b. Do not compare the student's ordering to
@@ -953,7 +1137,15 @@ export const applyBalancedOperation = ({ equationState, operation, operand: rawO
     // MathJS may choose to factor P*r*t + t into t(P*r + 1), distribute, or
     // reorder terms. Those are different algebraic choices, not silent cleanup.
     // A strict final-form question may still request symbolic simplification.
-    const strictFinalForm = equationState.objective?.requireSimplifiedFinalForm === true;
+    //
+    // A LINE target (y = mx + b, y = a(x - c)) is the exception: its written
+    // form is graded structurally when the student finishes, and the student
+    // reaches it with Split fraction, Cancel factors and Arrange terms. Forcing a
+    // typed symbolic simplification after each balanced move made them type the
+    // finished right side instead — (8 - 2x)/(-4) had to be retyped as
+    // x/2 - 2 before any of those steps could be used.
+    const structuralLineTarget = ['slopeIntercept', 'factoredLinear'].includes(equationState.objective?.kind);
+    const strictFinalForm = equationState.objective?.requireSimplifiedFinalForm === true && !structuralLineTarget;
     const needsSimplification = !canCancel
       && simplifiedNodeCount < unsimplifiedNodeCount
       && (pureArithmetic || strictFinalForm);

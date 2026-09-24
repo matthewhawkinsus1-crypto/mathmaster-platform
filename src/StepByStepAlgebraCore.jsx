@@ -42,6 +42,22 @@ import {
   resolveEquationAfterStudentSimplification, resolveSupportLevel,
 } from './algebraSupportLevels';
 import {
+  STRUCTURE_TOOL_KINDS,
+  STRUCTURE_TOOL_LABELS,
+  commitStructureTool,
+  detectStructureTools,
+  openStructureTool,
+  undoStructureTool,
+} from './algebraStructureTools';
+import { equationKey } from './algebraStructureToolState';
+import { MAX_WORK_STEPS } from './algebraDraftState';
+import {
+  StructureToolControls,
+  StructureToolSide,
+  structureToolDrawsSide,
+  structureToolFitKey,
+} from './StepAlgebraStructureTools';
+import {
   armFactor as armDistributionFactorState,
   commitDistribution,
   detectDistributableGroup,
@@ -51,6 +67,14 @@ import {
   placeOnTerm as placeDistributionTermState,
   undoLastPlacement as undoDistributionPlacement,
 } from './algebraDistributionModel';
+
+const STRUCTURE_TOOL_TITLES = {
+  factor: 'Choose terms, write them as primes, and pull out a factor they share',
+  split: 'Give each numerator term its own copy of the denominator',
+  reduce: 'Write a fraction as prime factors and cancel matching pairs',
+  arithmetic: 'Multiply the numbers in a product',
+  arrange: 'Change the order of the terms on one side',
+};
 
 const OPERATIONS = [
   { id: 'add', symbol: '+', label: 'Add' },
@@ -89,6 +113,28 @@ const operationOperandIdentity = (value) => {
 };
 
 const pairForToken = (model, index) => model?.pairs?.find((pair) => pair.indices.includes(index)) || null;
+
+// A committed step, described the way a teacher narrates the board: words
+// around classroom-notation math, never MathJS text.
+const mathPart = (expression) => {
+  try { return { latex: expressionToLatex(expression) }; } catch { return String(expression ?? ''); }
+};
+const partsText = (parts) => parts.map((part) => (typeof part === 'string' ? part : String(part.text ?? part.latex ?? ''))).join('');
+const describedStep = (kind, parts, after) => ({ kind, parts, description: partsText(parts), after });
+const BALANCED_STEP_WORDS = {
+  add: ['Added ', ' to both sides'],
+  subtract: ['Subtracted ', ' from both sides'],
+  multiply: ['Multiplied both sides by ', ''],
+  divide: ['Divided both sides by ', ''],
+};
+const balancedStep = (move, after) => {
+  const [before, trailing] = BALANCED_STEP_WORDS[move.operation] || [`${move.operation} `, ' on both sides'];
+  const operand = mathPart(move.operandExpression);
+  return {
+    ...describedStep('balanced-operation', [before, operand, trailing].filter((part) => part !== ''), after),
+    description: `${before}${String(move.operandExpression).replace(/\s+/g, '')}${trailing}`,
+  };
+};
 
 const factorNeedsDot = (left, right) => /^-?\d+(?:\.\d+)?$/.test(left?.text || '') && /^-?\d+(?:\.\d+)?$/.test(right?.text || '');
 
@@ -244,6 +290,18 @@ export default function StepByStepAlgebra({
   autoOpenDistribution = false,
   simplifyDistributedProducts = false,
   inlineExpressionTools = true,
+  // Optional: the committed work-step log (description + before/after), for a
+  // host that shows the student's history — RewriteLinearForm, the Work View
+  // history panel. Same entries Undo pops, so the two cannot drift.
+  onWorkStepsChange = null,
+  // Optional: the committed equation itself (plain expressions, not LaTeX),
+  // for a host that grades or mirrors it.
+  onEquationChange = null,
+  // Optional: history carried over from a host's earlier persistence, used only
+  // when this workspace has no draft of its own yet.
+  initialWorkSteps = null,
+  // A host that already shows the question prompt can hide the repeat.
+  showPrompt = true,
 }) {
   const normalizedRecord = normalizeQuestionRecord(questionRecord);
   const initialParse = useMemo(() => getInitialEquation(question, normalizedRecord), [question]);
@@ -263,10 +321,26 @@ export default function StepByStepAlgebra({
   );
   const [equation, setEquation] = useState(savedDraft?.equation || initialEquation);
   const [committedHistory, setCommittedHistory] = useState([]);
-  const pushCommittedEquation = (snapshot) => {
+  // What each committed step DID, in words and classroom notation, for the
+  // work history. Pushed by the same call that records the Undo snapshot and
+  // popped by the same Undo, so the history can never disagree with the
+  // equation. Unlike the Undo stack it is part of the draft: a reopened
+  // question still shows how the student got here.
+  const initialWorkStepsRef = useRef(Array.isArray(initialWorkSteps) ? initialWorkSteps : []);
+  const [workSteps, setWorkSteps] = useState(savedDraft?.workSteps || initialWorkStepsRef.current);
+  const pushCommittedEquation = (snapshot, step = null) => {
     if (!snapshot?.left || !snapshot?.right) return;
     const copy = JSON.parse(JSON.stringify(snapshot));
     setCommittedHistory((current) => [...current.slice(-59), copy]);
+    const after = step?.after?.left && step?.after?.right ? { left: step.after.left, right: step.after.right } : null;
+    if (!after) return;
+    setWorkSteps((current) => [...current, {
+      kind: step.kind || 'step',
+      description: step.description || 'Algebra step',
+      parts: Array.isArray(step.parts) ? step.parts : [step.description || 'Algebra step'],
+      before: { left: copy.left, right: copy.right },
+      after,
+    }].slice(-MAX_WORK_STEPS));
   };
   // One 1-5 support scale. `resolveSupportLevel` also reads the old
   // rigorous/exploratory values, so saved drafts and old assignment JSON keep
@@ -284,6 +358,9 @@ export default function StepByStepAlgebra({
   // Partial distribution (factor placements not yet committed) persists
   // across navigation, same as every other in-progress move.
   const [distributionState, setDistributionState] = useState(savedDraft?.distributionState || null);
+  // Factor, Split fraction, Cancel factors, Simplify arithmetic, Arrange terms:
+  // one open tool at a time, persisted, undone one decision at a time.
+  const [structureTool, setStructureTool] = useState(savedDraft?.structureTool || null);
   const [pendingMove, setPendingMove] = useState(savedDraft?.pendingMove || null);
   const [crossedSides, setCrossedSides] = useState(savedDraft?.crossedSides || []);
   const [cancelledPairIds, setCancelledPairIds] = useState(savedDraft?.cancelledPairIds || {});
@@ -401,6 +478,8 @@ export default function StepByStepAlgebra({
     setSupportLevel(resolveSupportLevel({ workspaceDifficulty: question.workspaceDifficulty ?? question.mode }));
     setOperand('');
     setDistributionState(null);
+    setStructureTool(null);
+    setWorkSteps(initialWorkStepsRef.current);
     setPendingMove(null);
     setCrossedSides([]);
     setCancelledPairIds({});
@@ -454,6 +533,8 @@ export default function StepByStepAlgebra({
       supportLevel,
       operand,
       distributionState,
+      structureTool,
+      workSteps,
       armedTile,
       pendingMove,
       crossedSides,
@@ -466,7 +547,7 @@ export default function StepByStepAlgebra({
       selectedLikeTermIndices,
       likeTermsAnswer,
     });
-  }, [localDraftKey, equation, supportLevel, operand, distributionState, armedTile, pendingMove, crossedSides, cancelledPairIds, selectedCancellationIndices, simplificationAnswers, promptAnswers, likeTermsOpen, likeTermsSide, selectedLikeTermIndices, likeTermsAnswer]);
+  }, [localDraftKey, equation, supportLevel, operand, distributionState, structureTool, workSteps, armedTile, pendingMove, crossedSides, cancelledPairIds, selectedCancellationIndices, simplificationAnswers, promptAnswers, likeTermsOpen, likeTermsSide, selectedLikeTermIndices, likeTermsAnswer]);
 
   useEffect(() => {
     const solved = isSolvedEquation(equation);
@@ -487,11 +568,26 @@ export default function StepByStepAlgebra({
       responseKey: solved && promptsComplete ? `${equationToLatex(equation)}|${JSON.stringify(promptAnswers)}` : '',
       questionDetails: solved ? `Solved step-by-step: $${equationToLatex(equation)}$. ${promptParts.map((part) => `${part.label}: ${part.response}`).join('; ')}` : `Current equation: $${equationToLatex(equation)}$`,
       parts: [
-        { id: 'algebra-objective', label: question.objective?.label || (equation.objective?.kind === 'slopeIntercept' ? 'Write in slope-intercept form' : equation.objective?.kind === 'linearStandardForm' ? 'Write in standard form' : `Isolate ${equation.objective?.variable || equation.variable}`), isComplete: solved, isCorrect: solved, response: equationToLatex(equation) },
+        { id: 'algebra-objective', label: question.objective?.label || (equation.objective?.kind === 'slopeIntercept' ? 'Write in slope-intercept form' : equation.objective?.kind === 'factoredLinear' ? 'Write in factored linear form' : equation.objective?.kind === 'linearStandardForm' ? 'Write in standard form' : `Isolate ${equation.objective?.variable || equation.variable}`), isComplete: solved, isCorrect: solved, response: equationToLatex(equation) },
         ...promptParts,
       ],
     });
   }, [equation, question, promptAnswers, onStateChange]);
+
+  useEffect(() => {
+    onWorkStepsChange?.(workSteps);
+  }, [workSteps, onWorkStepsChange]);
+
+  useEffect(() => {
+    if (equation?.left && equation?.right) onEquationChange?.(equation);
+  }, [equation, onEquationChange]);
+
+  // A structure tool belongs to the equation it was opened on. If that equation
+  // changes by any route (a commit, an Undo), the tool's decisions no longer
+  // describe the mathematics on screen, so it closes.
+  useEffect(() => {
+    if (structureTool && equation && structureTool.equationKey !== equationKey(equation)) setStructureTool(null);
+  }, [structureTool, equation]);
 
   const hasDistributionProgress = Boolean(distributionState?.placedIndices?.length || distributionState?.armed);
   const likeTermGroups = useMemo(() => ({
@@ -548,6 +644,7 @@ export default function StepByStepAlgebra({
     || tapPlacementArmed
     || String(operand || '').trim()
     || hasDistributionProgress
+    || Boolean(structureTool)
   );
 
   useEffect(() => {
@@ -609,6 +706,11 @@ export default function StepByStepAlgebra({
             setRewriteOpen(false);
             setRewriteAnswers({ left: '', right: '' });
           }
+        } else if (structureTool) {
+          // One decision inside the open structure tool: the last prime factor
+          // chosen, the last denominator placed, the last cancelled pair. With
+          // nothing left to back out, the tool itself closes.
+          setStructureTool((current) => undoStructureTool(current));
         } else if (distributionState?.placedIndices?.length) {
           // Before commit, undo removes the last factor placement.
           setDistributionState((current) => undoDistributionPlacement(current));
@@ -621,10 +723,14 @@ export default function StepByStepAlgebra({
           setPlacedOperationPositions({});
           setTapPlacementArmed(false);
         } else if (committedHistory.length) {
+          // The history entry that step wrote goes with it — popped here, not
+          // inside the updater below, so it happens exactly once per Undo.
+          setWorkSteps((steps) => steps.slice(0, -1));
           setCommittedHistory((current) => {
             if (!current.length) return current;
             const previous = current[current.length - 1];
             setEquation(previous);
+            setStructureTool(null);
             setPendingMove(null);
             setCrossedSides([]);
             setCancelledPairIds({});
@@ -678,6 +784,7 @@ export default function StepByStepAlgebra({
     likeTermsAnswer,
     selectedCancellationIndices,
     simplificationAnswers,
+    structureTool,
     tapPlacementArmed,
   ]);
 
@@ -738,7 +845,7 @@ export default function StepByStepAlgebra({
       // silently replace their intentionally-unsimplified work with the engine's
       // prettiest equivalent form.
       await saveStep({ move, earned, possible: 2, countsAttempt: false, accepted: true, equationAfter: nextEquation });
-      pushCommittedEquation(equation);
+      pushCommittedEquation(equation, balancedStep(move, nextEquation));
       setEquation(nextEquation);
       setPendingMove(null);
       setCrossedSides([]);
@@ -823,6 +930,7 @@ export default function StepByStepAlgebra({
     setInlineRewriteSelection({ side: null, index: null });
     setInlineRewriteAnswer('');
     setDistributionState(null);
+    setStructureTool(null);
     setLikeTermsSide('');
     setSelectedLikeTermIndices([]);
     setLikeTermsAnswer('');
@@ -886,6 +994,7 @@ export default function StepByStepAlgebra({
     setInlineRewriteAnswer('');
     closeLikeTermsTool();
     setDistributionState(null);
+    setStructureTool(null);
     if (!rewriteOpen && !inlineExpressionTools) setRewriteFocusSignal((signal) => signal + 1);
     setRewriteOpen((current) => !current);
     setMessage(null);
@@ -982,7 +1091,7 @@ export default function StepByStepAlgebra({
       kind: 'combine-like-terms',
       label: `Combine like terms on the ${likeTermsSide} side`,
     });
-    pushCommittedEquation(beforeEquation);
+    pushCommittedEquation(beforeEquation, describedStep('combine-like-terms', [`Combined like terms on the ${likeTermsSide} side`], nextEquation));
     setEquation(nextEquation);
     if (inlineExpressionTools) {
       setSelectedLikeTermIndices([]);
@@ -1056,7 +1165,7 @@ export default function StepByStepAlgebra({
       kind: 'inline-term-rewrite',
       label: `Rewrite one term on the ${side} side`,
     });
-    pushCommittedEquation(beforeEquation);
+    pushCommittedEquation(beforeEquation, describedStep('inline-term-rewrite', [`Rewrote a term on the ${side} side`], nextEquation));
     setEquation(nextEquation);
     setInlineRewriteSelection({ side: null, index: null });
     setInlineRewriteAnswer('');
@@ -1134,7 +1243,7 @@ export default function StepByStepAlgebra({
     }
 
     await persistStudentRewrite(equation, nextEquation, changedSides);
-    pushCommittedEquation(equation);
+    pushCommittedEquation(equation, describedStep('student-rewrite', [changedSides.length > 1 ? 'Rewrote both sides' : `Rewrote the ${changedSides[0]} side`], nextEquation));
     setEquation(nextEquation);
     setRewriteAnswers({ left: '', right: '' });
     setRewriteOpen(false);
@@ -1169,6 +1278,7 @@ export default function StepByStepAlgebra({
     setOperand('');
     setRewriteOpen(false);
     closeLikeTermsTool();
+    setStructureTool(null);
     setDistributionState(initDistributionState(distributable));
     setMessage({
       tone: 'growth',
@@ -1197,6 +1307,7 @@ export default function StepByStepAlgebra({
     setOperand('');
     setRewriteOpen(false);
     closeLikeTermsTool();
+    setStructureTool(null);
     setDistributionState(initDistributionState(distributable));
     setMessage(null);
   };
@@ -1245,7 +1356,7 @@ export default function StepByStepAlgebra({
         setSavingStep(false);
       }
     }
-    pushCommittedEquation(equation);
+    pushCommittedEquation(equation, describedStep('distribution', ['Distributed ', { latex: distributionState.factorLatex }, ` on the ${distributionState.side} side`], nextEquation));
     setEquation(nextEquation);
     setDistributionState(null);
     setBalancePulse(true);
@@ -1260,6 +1371,93 @@ export default function StepByStepAlgebra({
     });
   };
 
+  // STRUCTURE TOOLS: Factor, Split fraction, Cancel factors, Simplify
+  // arithmetic, Arrange terms. Each is offered only when the committed equation
+  // has the structure it acts on (see algebraStructureTools.js), works directly
+  // on the equation, and changes nothing until the student commits it. A side
+  // that already shows a cancellation pair keeps that interaction instead.
+  const cancellationActiveSides = useMemo(() => {
+    if (!equation || pendingMove) return [];
+    return ['left', 'right'].filter((side) => {
+      try {
+        return Boolean(buildCancellationModel(equation[side], null, equation.variable, [])?.pairs?.length);
+      } catch {
+        return false;
+      }
+    });
+  }, [equation, pendingMove]);
+  const lineObjective = ['slopeIntercept', 'factoredLinear', 'linearStandardForm'].includes(equation?.objective?.kind);
+  const structureOptions = useMemo(() => {
+    const detected = detectStructureTools(pendingMove ? null : equation, { excludeSides: cancellationActiveSides });
+    // Reordering terms is part of reaching a line's written form; ordinary
+    // solving does not need it offered on every multi-term side.
+    return lineObjective ? detected : { ...detected, arrange: [] };
+  }, [equation, pendingMove, cancellationActiveSides, lineObjective]);
+
+  const updateStructureTool = (change) => setStructureTool((current) => (current ? (change(current) ?? current) : current));
+
+  const toggleStructureTool = (kind) => {
+    if (disabled || savingStep || cancelAnimating) return;
+    if (pendingMove) {
+      setMessage({ tone: 'growth', text: 'Finish the balanced operation already in progress first.' });
+      return;
+    }
+    if (structureTool?.kind === kind) {
+      setStructureTool(null);
+      setMessage(null);
+      return;
+    }
+    setArmedTile(null);
+    setTapPlacementArmed(false);
+    setPlacedOperationSides([]);
+    setPlacedOperationPositions({});
+    setOperand('');
+    closeRewriteTool();
+    closeLikeTermsTool();
+    setDistributionState(null);
+    setStructureTool(openStructureTool(kind, equation));
+    setMessage(null);
+  };
+
+  // `latestTool` lets an answer box commit what was typed on the very keystroke
+  // before Enter, even if that keystroke has not re-rendered yet. It must be
+  // the same tool, on the same equation; anything else is ignored.
+  const commitStructureToolStep = async (latestTool = null) => {
+    if (!structureTool || !equation || disabled || savingStep || cancelAnimating || pendingMove) return;
+    const tool = latestTool && latestTool.kind === structureTool.kind && latestTool.equationKey === structureTool.equationKey
+      ? latestTool
+      : structureTool;
+    const result = commitStructureTool(tool, equation);
+    if (!result.ok) {
+      triggerShake();
+      setMessage({
+        tone: 'growth',
+        text: result.reason === 'stale'
+          ? 'The equation changed, so that step was not applied. Start it again.'
+          : 'That step is not finished yet. Your equation has not been changed.',
+      });
+      return;
+    }
+    const beforeEquation = equation;
+    const nextEquation = result.equation;
+    const changedSides = ['left', 'right'].filter((side) => nextEquation[side] !== beforeEquation[side]);
+    await persistStudentRewrite(beforeEquation, nextEquation, changedSides, {
+      kind: result.step.kind,
+      label: result.step.description,
+    });
+    pushCommittedEquation(beforeEquation, { ...result.step, after: nextEquation });
+    setEquation(nextEquation);
+    setStructureTool(null);
+    setBalancePulse(true);
+    window.setTimeout(() => setBalancePulse(false), motionDuration(650, reducedMotion, { floor: 60 }));
+    setMessage({
+      tone: 'success',
+      text: isSolvedEquation(nextEquation)
+        ? `${result.step.description}. The equation is now in the target form.`
+        : `${result.step.description}. You did the algebra; MathMaster only checked it.`,
+    });
+  };
+
   const resetQuestionWork = () => {
     if (disabled || savingStep || !pristineEquation) return;
     const confirmed = typeof window === 'undefined' || window.confirm('Start this problem over? Your current workspace work will be cleared, but your attempt count will not change.');
@@ -1267,6 +1465,8 @@ export default function StepByStepAlgebra({
 
     setEquation(pristineEquation);
     setCommittedHistory([]);
+    setWorkSteps([]);
+    setStructureTool(null);
     setOperand('');
     setDistributionState(null);
     setPendingMove(null);
@@ -1459,7 +1659,7 @@ export default function StepByStepAlgebra({
           });
         }
 
-        pushCommittedEquation(beforeEquation);
+        pushCommittedEquation(beforeEquation, describedStep('student-cancellation', [`Cancelled matching ${model.kind === 'additive' ? 'terms' : 'factors'} on the ${side} side`], nextEquation));
         setEquation(nextEquation);
         setCancelledPairIds((current) => ({ ...current, [side]: [] }));
         setSelectedCancellationIndices((current) => ({ ...current, [side]: [] }));
@@ -1833,6 +2033,7 @@ export default function StepByStepAlgebra({
     setRewriteOpen(false);
     setRewriteAnswers({ left: '', right: '' });
     closeLikeTermsTool();
+    setStructureTool(null);
     const switching = armedTile?.operation !== operation;
     setArmedTile({ operation, sourceSide });
     setTapPlacementArmed(false);
@@ -1883,10 +2084,12 @@ export default function StepByStepAlgebra({
     : Math.round(Number(normalizedRecord.bestPartialCredit || 0));
   const solved = isSolvedEquation(equation);
   const inlineToolActive = Boolean(
-    inlineExpressionTools && (distributionState || rewriteOpen || likeTermsOpen),
+    (inlineExpressionTools && (distributionState || rewriteOpen || likeTermsOpen)) || structureTool,
   );
   const objectiveLabel = equation.objective?.kind === 'slopeIntercept'
     ? 'Target: y = mx + b'
+    : equation.objective?.kind === 'factoredLinear'
+      ? 'Target: y = a(x − c)'
     : equation.objective?.kind === 'linearStandardForm'
       // Names the FORM, never the coefficients: "ay + bz = c".
       ? `Target: ${(equation.objective.variables || [equation.variable]).map((name, index) => `${String.fromCharCode(97 + index)}${name}`).join(' + ')} = ${String.fromCharCode(97 + (equation.objective.variables || [equation.variable]).length)}`
@@ -1911,6 +2114,17 @@ export default function StepByStepAlgebra({
   const adaptiveBalanceColumns = mobileInteraction.isMobile
     ? undefined
     : `minmax(0, ${sideColumnWeight(leftVisualLength)}fr) 56px minmax(0, ${sideColumnWeight(rightVisualLength)}fr)`;
+  // A structure tool writes one side out as tokens (primes, a fraction being
+  // split); that side borrows most of the width, on a phone especially, so the
+  // tokens are never clipped to the half-width the balance gives each side.
+  const structureFocusSides = structureTool && !pendingMove
+    ? ['left', 'right'].filter((side) => !cancellationActiveSides.includes(side) && structureToolDrawsSide(structureTool, equation, side))
+    : [];
+  const structureFocusColumns = structureFocusSides.length === 1
+    ? (structureFocusSides[0] === 'left'
+      ? `minmax(0, 3fr) ${mobileInteraction.isMobile ? 28 : 56}px minmax(0, 1fr)`
+      : `minmax(0, 1fr) ${mobileInteraction.isMobile ? 28 : 56}px minmax(0, 3fr)`)
+    : null;
   const balanceStagingSide = !pendingMove && placedOperationSides.length === 1 ? placedOperationSides[0] : null;
   const balanceMissingSide = balanceStagingSide === 'left' ? 'right' : balanceStagingSide === 'right' ? 'left' : null;
 
@@ -2012,6 +2226,26 @@ export default function StepByStepAlgebra({
   };
 
   const renderSide = (side, cancellationModel = null) => {
+    // An open structure tool draws its side on the equation itself — terms as
+    // tokens in place — and takes precedence over the plain rendering.
+    if (structureTool && !pendingMove && !cancellationActiveSides.includes(side) && structureToolDrawsSide(structureTool, equation, side)) {
+      return (
+        <div
+          key={`structure-${side}-${sideExpression(side)}`}
+          className="algebra-equation-side algebra-reflow is-inline-structure"
+          style={{ fontSize: 'inherit', margin: '16px 0' }}
+        >
+          <StructureToolSide
+            tool={structureTool}
+            equation={equation}
+            side={side}
+            update={updateStructureTool}
+            notify={setMessage}
+            disabled={disabled || savingStep || cancelAnimating}
+          />
+        </div>
+      );
+    }
     if (cancellationModel) {
       const completedPairs = new Set(cancelledPairIds[side] || []);
       const completedIndices = cancellationModel.pairs
@@ -2167,7 +2401,7 @@ export default function StepByStepAlgebra({
 
   return (
     <section className={shake ? 'algebra-shake' : ''} style={{ maxWidth: '1120px', margin: '0 auto', padding: '10px 10px 24px', textAlign: 'left' }}>
-      <QuestionPrompt>{question.prompt || 'Solve the equation by keeping both sides balanced.'}</QuestionPrompt>
+      {showPrompt ? <QuestionPrompt>{question.prompt || 'Solve the equation by keeping both sides balanced.'}</QuestionPrompt> : null}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '999px', background: supportPolicy.level >= 4 ? '#e8f0fe' : '#f3e8fd', color: supportPolicy.level >= 4 ? '#174ea6' : '#681da8', fontWeight: 'bold' }}>{`Support ${supportPolicy.level} · ${supportPolicy.label}`}</div>
         <div style={{ padding: '8px 12px', borderRadius: '999px', background: '#e6f4ea', color: '#137333', fontWeight: 'bold' }}>{objectiveLabel}</div>
@@ -2244,6 +2478,31 @@ export default function StepByStepAlgebra({
               Distribute
             </button>
           )}
+          {STRUCTURE_TOOL_KINDS
+            .filter((kind) => structureTool?.kind === kind || structureOptions[kind]?.length)
+            .map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                className={`algebra-structure-toggle algebra-structure-toggle--${kind}`}
+                onClick={() => toggleStructureTool(kind)}
+                disabled={disabled || savingStep || cancelAnimating || Boolean(pendingMove)}
+                aria-expanded={structureTool?.kind === kind}
+                title={STRUCTURE_TOOL_TITLES[kind]}
+                style={{
+                  minHeight: 40,
+                  padding: '8px 14px',
+                  borderRadius: 999,
+                  border: structureTool?.kind === kind ? '2px solid #174ea6' : '1px solid #b8c8e3',
+                  background: structureTool?.kind === kind ? '#e8f0fe' : '#fff',
+                  color: '#174ea6',
+                  fontWeight: 800,
+                  cursor: disabled || savingStep || cancelAnimating ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {STRUCTURE_TOOL_LABELS[kind]}
+              </button>
+            ))}
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontSize: '12px', fontWeight: 'bold', color: '#5f6368' }}>
             <input type="checkbox" checked={cancellationHintsEnabled} onChange={(event) => setCancellationHintsEnabled(event.target.checked)} style={{ width: '15px', height: '15px' }} />
             Cancellation hints
@@ -2595,8 +2854,10 @@ export default function StepByStepAlgebra({
         <div
           data-math-state={equationToLatex(equation)}
           aria-label="Interactive algebra balance scale"
-          className={`algebra-equation-stage algebra-connected-balance ${balanceStagingSide ? `is-unbalanced is-unbalanced-${balanceStagingSide}` : ''}`}
-          style={adaptiveBalanceColumns ? { gridTemplateColumns: adaptiveBalanceColumns } : undefined}
+          className={`algebra-equation-stage algebra-connected-balance ${balanceStagingSide ? `is-unbalanced is-unbalanced-${balanceStagingSide}` : ''}${structureFocusSides.length === 1 ? ` has-structure-focus-${structureFocusSides[0]}` : ''}`}
+          style={structureFocusColumns
+            ? { gridTemplateColumns: structureFocusColumns }
+            : adaptiveBalanceColumns ? { gridTemplateColumns: adaptiveBalanceColumns } : undefined}
         >
           {['left', 'right'].map((side, index) => {
             const target = pendingMove?.cancellationTargets.find((item) => item.side === side);
@@ -2646,7 +2907,7 @@ export default function StepByStepAlgebra({
                 <div ref={side === 'left' ? leftExpressionRef : rightExpressionRef} className="algebra-expression-anchor">
                   <AutoFitEquationExpression
                     baseFontSize={sideFontSize(side)}
-                    cacheKey={`${sideExpression(side)}|${inlineToolActive ? 'inline' : 'balance'}|${distributionState?.placedIndices?.length || 0}`}
+                    cacheKey={`${sideExpression(side)}|${inlineToolActive ? 'inline' : 'balance'}|${distributionState?.placedIndices?.length || 0}|${structureToolFitKey(structureTool)}`}
                   >
                     {renderSide(side, cancellationModel)}
                   </AutoFitEquationExpression>
@@ -2680,6 +2941,21 @@ export default function StepByStepAlgebra({
                       </button>
                     ) : null}
                   </div>
+                ) : null}
+
+                {structureTool && !pendingMove && !cancellationActiveSides.includes(side) ? (
+                  <StructureToolControls
+                    tool={structureTool}
+                    equation={equation}
+                    side={side}
+                    update={updateStructureTool}
+                    notify={setMessage}
+                    onCommit={commitStructureToolStep}
+                    disabled={disabled || cancelAnimating}
+                    busy={savingStep}
+                    contextSymbols={operationContextSymbols}
+                    collapseSignal={mathToolsCollapseSignal}
+                  />
                 ) : null}
 
                 {inlineExpressionTools && rewriteOpen && inlineRewriteSelection?.side === side ? (
