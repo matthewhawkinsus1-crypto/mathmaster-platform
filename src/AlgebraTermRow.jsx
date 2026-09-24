@@ -15,6 +15,9 @@ export default function AlgebraTermRow({
   // highlighted, and then the pair that cancels collapses out of the row.
   highlightIndices = [],
   collapsingIndices = [],
+  // Terms a structure tool can act on (the fraction to split, the fraction to
+  // reduce): a quiet dashed outline, never the red cancellation flash.
+  candidateIndices = [],
   onTermClick,
   interactionLabel = 'select to cancel',
   cancelIndexOffset = 0,
@@ -39,9 +42,11 @@ export default function AlgebraTermRow({
         const highlighted = highlightIndices.includes(index);
         const collapsing = collapsingIndices.includes(index);
         const cued = placementCue?.termIndex === index;
+        const candidate = candidateIndices.includes(index);
         const effect = [
           index === justInsertedIndex ? 'algebra-term-pop' : '',
           highlighted ? 'algebra-term-highlight' : '',
+          candidate ? 'algebra-term-candidate' : '',
           collapsing ? 'algebra-term-collapse' : '',
           cued ? `algebra-term-placement-cue is-${placementCue.kind === 'end' ? 'after' : placementCue.kind} is-${placementCue.state || 'hover'}` : '',
         ].filter(Boolean).join(' ');

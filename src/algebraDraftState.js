@@ -1,4 +1,5 @@
 import { applyBalancedOperation } from './algebraAstEngine.js';
+import { sanitizeStructureTool } from './algebraStructureTools.js';
 
 // Increment this whenever the shape/meaning of a pending algebra move changes.
 // Saved equations are durable; cancellation/simplification UI is derived and
@@ -22,7 +23,22 @@ const cleanTransientState = (draft, equation) => ({
   likeTermsSide: '',
   selectedLikeTermIndices: [],
   likeTermsAnswer: '',
+  // An open Factor / Split fraction / Cancel factors / … tool is a run of
+  // undecided choices, like a pending move: it goes. The work-step log is
+  // committed history and stays.
+  structureTool: null,
 });
+
+const MAX_WORK_STEPS = 80;
+
+// The committed work-step log is displayed as the student's history, so only
+// well-formed entries (two sides before and after, a description) come back.
+const sanitizeWorkSteps = (steps) => (Array.isArray(steps) ? steps : [])
+  .filter((step) => step && typeof step === 'object'
+    && step.before?.left != null && step.before?.right != null
+    && step.after?.left != null && step.after?.right != null
+    && typeof step.description === 'string')
+  .slice(-MAX_WORK_STEPS);
 
 export const rehydrateAlgebraDraft = ({ draft, initialEquation }) => {
   if (!draft) return null;
@@ -34,17 +50,21 @@ export const rehydrateAlgebraDraft = ({ draft, initialEquation }) => {
   // created it. Clear that transient step once when upgrading; the student's
   // last committed equation is preserved.
   if (Number(draft.algebraDraftVersion) !== ALGEBRA_DRAFT_VERSION) {
-    return cleanTransientState(draft, equation);
+    return { ...cleanTransientState(draft, equation), workSteps: sanitizeWorkSteps(draft.workSteps) };
   }
 
-  if (!draft.pendingMove) return { ...draft, equation };
+  // A structure tool is kept only while it is still about this exact equation.
+  const structureTool = sanitizeStructureTool(draft.structureTool, equation);
+  const workSteps = sanitizeWorkSteps(draft.workSteps);
+
+  if (!draft.pendingMove) return { ...draft, equation, structureTool, workSteps };
 
   // Even within the same draft version, recompute the pending move from the
   // committed equation + operation rather than trusting serialized derived
   // fields. This keeps renderer state in sync with the current engine.
   const operation = draft.pendingMove.operation;
   const operand = draft.pendingMove.operandExpression ?? draft.pendingMove.operand;
-  if (!operation || !String(operand ?? '').trim()) return cleanTransientState(draft, equation);
+  if (!operation || !String(operand ?? '').trim()) return { ...cleanTransientState(draft, equation), workSteps };
 
   try {
     const pendingMove = applyBalancedOperation({
@@ -73,8 +93,12 @@ export const rehydrateAlgebraDraft = ({ draft, initialEquation }) => {
       cancelledPairIds: {},
       selectedCancellationIndices: {},
       simplificationAnswers,
+      structureTool: null,
+      workSteps,
     };
   } catch {
-    return cleanTransientState(draft, equation);
+    return { ...cleanTransientState(draft, equation), workSteps };
   }
 };
+
+export { sanitizeWorkSteps, MAX_WORK_STEPS };

@@ -1087,3 +1087,273 @@
     width: 100%;
   }
 }
+
+/* --------------------------------------------------------------------------
+ * Structure tools: Factor, Split fraction, Cancel factors, Simplify
+ * arithmetic, Arrange terms. Same visual language as the inline distribution
+ * tokens above — blue for something to choose, green for something placed —
+ * drawn on the equation itself so the mathematics stays the centre of the
+ * workspace. Sizes are in em so the tokens scale with the equation's fit.
+ */
+.algebra-term-candidate {
+  outline: 1.5px dashed #6f96d6 !important;
+  outline-offset: 2px;
+}
+
+.algebra-structure-token-group {
+  display: inline-flex;
+  align-items: center;
+  gap: .06em;
+  padding: .05em .16em;
+  border: 1.5px dashed #9bb8e8;
+  border-radius: .32em;
+  background: rgba(247,250,255,.9);
+}
+
+.algebra-structure-token-slot {
+  display: inline-flex;
+  align-items: center;
+}
+
+.algebra-structure-times {
+  margin: 0 .08em;
+  font-size: .72em;
+  color: #5f6368;
+}
+
+.algebra-structure-token {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.45em;
+  min-width: 1.1em;
+  padding: .04em .14em;
+  border: 1.5px solid #9bb8e8;
+  border-radius: .26em;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.algebra-structure-token:focus-visible {
+  outline: 3px solid #1a73e8;
+  outline-offset: 1px;
+}
+
+.algebra-structure-token.is-chosen {
+  border-color: #174ea6;
+  background: #e8f0fe;
+  box-shadow: 0 0 0 .1em rgba(26,115,232,.18);
+}
+
+.algebra-structure-token.is-static {
+  border-color: transparent;
+  background: transparent;
+  cursor: default;
+}
+
+.algebra-structure-token.is-sign {
+  color: #5f6368;
+}
+
+.algebra-structure-token.is-pulled {
+  opacity: .38;
+  text-decoration: line-through;
+}
+
+.algebra-structure-token.is-paired {
+  opacity: .55;
+  cursor: default;
+}
+
+.algebra-structure-token.is-paired::after {
+  content: '';
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  top: 50%;
+  height: 3px;
+  border-radius: 999px;
+  background: #c5221f;
+  transform: rotate(-14deg);
+  box-shadow: 0 0 0 2px rgba(255,255,255,.8);
+}
+
+.algebra-structure-fraction {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .1em;
+  vertical-align: middle;
+}
+
+.algebra-structure-fraction-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .12em;
+}
+
+.algebra-structure-fraction-bar {
+  display: block;
+  align-self: stretch;
+  min-width: 1.4em;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.algebra-structure-controls {
+  gap: 8px;
+}
+
+.algebra-structure-gcf {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 4px 10px;
+  border-radius: 10px;
+  border: 1px solid #c7d7f4;
+  background: #f7faff;
+}
+
+.algebra-structure-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1.5px solid #174ea6;
+  background: #fff;
+  color: #174ea6;
+  font-weight: 800;
+  cursor: grab;
+}
+
+.algebra-structure-outside-slot {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #5f6368;
+  font-weight: 800;
+}
+
+.algebra-structure-outside-box {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  border: 1.5px dashed #6f96d6;
+  border-radius: 6px;
+}
+
+.algebra-structure-quotients {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.algebra-structure-quotients > .algebra-inline-mode-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  text-align: center;
+}
+
+.algebra-structure-quotient {
+  display: grid;
+  grid-template-columns: minmax(64px, auto) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.algebra-structure-equals {
+  font-weight: 800;
+  color: #3c4043;
+}
+
+.algebra-structure-quotients > .algebra-inline-commit {
+  align-self: center;
+}
+
+.algebra-structure-paren {
+  font-size: 26px;
+  line-height: 1;
+  color: #3c4043;
+}
+
+.algebra-structure-controls .algebra-inline-commit:disabled {
+  background: #c9d3e3;
+  color: #fff;
+  cursor: not-allowed;
+}
+
+.algebra-structure-controls .algebra-inline-clear[aria-pressed="true"] {
+  border: 2px solid #174ea6;
+  background: #e8f0fe;
+  color: #174ea6;
+}
+
+/* The side a structure tool is writing out as tokens borrows the width. This
+   has to outrank the phone layout's equal-halves rule in App.css, which is
+   !important. */
+.algebra-equation-stage.has-structure-focus-right {
+  grid-template-columns: minmax(0, 1fr) 34px minmax(0, 3fr) !important;
+}
+
+.algebra-equation-stage.has-structure-focus-left {
+  grid-template-columns: minmax(0, 3fr) 34px minmax(0, 1fr) !important;
+}
+
+.algebra-structure-toggle:focus-visible {
+  outline: 3px solid #1a73e8;
+  outline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  /* On a narrow screen the tokens wrap instead of shrinking past legibility. */
+  .algebra-expression-fit-content:has(> .is-inline-structure) {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .is-inline-structure {
+    width: 100%;
+  }
+
+  .is-inline-structure .algebra-inline-distribution-expression,
+  .is-inline-structure .algebra-inline-distribution-group,
+  .is-inline-structure .algebra-structure-token-group,
+  .is-inline-structure .algebra-structure-fraction-row {
+    flex-wrap: wrap;
+    white-space: normal;
+    justify-content: center;
+    row-gap: 4px;
+  }
+
+  .algebra-structure-quotient {
+    grid-template-columns: auto auto minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .algebra-structure-token {
+    min-height: 40px;
+    min-width: 36px;
+    padding: 2px 6px;
+  }
+
+  .algebra-structure-gcf {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .algebra-structure-paren {
+    display: none;
+  }
+
+}
