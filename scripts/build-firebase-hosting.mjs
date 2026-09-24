@@ -11,6 +11,19 @@ const gitSha = (() => {
   return String(process.env.GITHUB_SHA || 'unknown').slice(0, 12) || 'unknown';
 })();
 
+// Provenance published beside the sha, so `npm run verify:deployed-build` and a
+// teacher's build stamp can say not just which commit is live but where it came
+// from. A branch name and a clean/dirty flag only — nothing secret.
+const gitBranch = (() => {
+  const result = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { encoding: 'utf8' });
+  const branch = result.status === 0 ? String(result.stdout || '').trim() : '';
+  return branch && branch !== 'HEAD' ? branch : (process.env.GITHUB_REF_NAME || 'detached');
+})();
+const gitDirty = (() => {
+  const result = spawnSync('git', ['status', '--porcelain', '--untracked-files=no'], { encoding: 'utf8' });
+  return result.status === 0 ? Boolean(String(result.stdout || '').trim()) : null;
+})();
+
 const builtAt = new Date().toISOString();
 const env = {
   ...process.env,
@@ -39,6 +52,8 @@ if (result.status === 0) {
   const manifestPath = resolve('dist/mathmaster-build.json');
   writeFileSync(manifestPath, JSON.stringify({
     gitSha,
+    gitBranch,
+    gitDirty,
     builtAt,
     executionMode: env.VITE_MATHMASTER_EXECUTION_MODE,
     runtimeRepairVersion: ASSIGNMENT_RUNTIME_REPAIR_VERSION,

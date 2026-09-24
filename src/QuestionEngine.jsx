@@ -13,7 +13,11 @@ import GraphAnalysis from './GraphAnalysis';
 import StepByStepAlgebra from './StepByStepAlgebra';
 import LinearInterceptsOrchestrator from './LinearInterceptsOrchestrator';
 import MultiRelationAlgebra from './MultiRelationAlgebra';
-import { needsMultiRelationWorkspace } from './algebraRelationFoundation.js';
+import {
+  ALGEBRA_WORKSPACE_ROUTES,
+  prepareQuestionForRuntimeRouting,
+  resolveAlgebraWorkspaceRoute,
+} from './platform/algebra/algebraWorkspaceRoute.js';
 import ScratchpadOverlay from './ScratchpadOverlay';
 import SolutionReview from './SolutionReview';
 import ToolSolutionReview from './tools/shared/ToolSolutionReview';
@@ -179,9 +183,27 @@ export default function QuestionEngine({
   // the question on every keystroke — and leaving it OUT would serve a stale
   // band after the student's evidence moves.
   const stableAdaptation = useDeepStableValue(adaptation);
+  // ONE RUNTIME VIEW FOR EVERY HOST. The student assignment player repaired
+  // stored questions before they got here; Teacher Question Review, library
+  // and Path previews, Live Challenge and the demo did not, so a stored
+  // `stepAlgebra2` intercept question opened the mature engine for a student
+  // and a retired mini-solver for the teacher checking it. The repair is pure
+  // and idempotent, so the player's already-repaired question passes through
+  // unchanged (same identity).
+  const serverGraded = Boolean(serverGrading);
+  const runtimeQuestion = useMemo(
+    () => prepareQuestionForRuntimeRouting(stableQuestion, { serverGraded }),
+    [stableQuestion, serverGraded],
+  );
   const processedQuestion = useMemo(
-    () => normalizeContextualQuestion(generateQuestion(stableQuestion, generationKey, stableStudentProfile, stableAdaptation)),
-    [stableQuestion, generationKey, stableStudentProfile, stableAdaptation],
+    () => normalizeContextualQuestion(generateQuestion(runtimeQuestion, generationKey, stableStudentProfile, stableAdaptation)),
+    [runtimeQuestion, generationKey, stableStudentProfile, stableAdaptation],
+  );
+  // Which algebra workspace this question opens — decided once, by the same
+  // React-free resolver the capability certification tests call.
+  const algebraWorkspaceRoute = useMemo(
+    () => resolveAlgebraWorkspaceRoute(processedQuestion),
+    [processedQuestion],
   );
   const resolvedMaximumAttempts = resolveQuestionMaximumAttempts({
     question: processedQuestion,
@@ -925,7 +947,9 @@ export default function QuestionEngine({
       case 'graphAnalysis':
         return <GraphAnalysis {...commonModuleProps} {...graphModuleProps} />;
       case 'stepAlgebra':
-        if (needsMultiRelationWorkspace(processedQuestion)) {
+        // The relation check runs first, so an inequality never reaches the
+        // intercept orchestrator by accident (see algebraWorkspaceRoute.js).
+        if (algebraWorkspaceRoute.route === ALGEBRA_WORKSPACE_ROUTES.RELATION) {
           return (
             <MultiRelationAlgebra
               {...commonModuleProps}
@@ -943,7 +967,7 @@ export default function QuestionEngine({
         // `stepAlgebra2` questions are runtime-migrated onto `type:
         // "stepAlgebra"` (see assignmentRuntimeRepair.js), so they reach this
         // branch too.
-        if (processedQuestion.mode === 'linearIntercepts') {
+        if (algebraWorkspaceRoute.route === ALGEBRA_WORKSPACE_ROUTES.LINEAR_INTERCEPTS) {
           return (
             <LinearInterceptsOrchestrator
               key={draftKey || processedQuestion?.questionId || processedQuestion?.id || generationKey}
@@ -1310,7 +1334,12 @@ export default function QuestionEngine({
         forceClosed={locked}
         style={{ width: '100%' }}
       >
-      <div className="mathmaster-question-tool-workspace" style={{ position: 'relative' }}>
+      <div
+        className="mathmaster-question-tool-workspace"
+        data-algebra-route={algebraWorkspaceRoute.route}
+        data-algebra-engine={algebraWorkspaceRoute.engine || undefined}
+        style={{ position: 'relative' }}
+      >
         {!solverWorkspaceActive && guidedCoach}
         <fieldset disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <div aria-disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting ? 'true' : undefined} inert={locked || scaffoldRequired || contextScaffoldRequired || submitting ? '' : undefined} style={{ pointerEvents: locked || scaffoldRequired || contextScaffoldRequired || submitting ? 'none' : 'auto', opacity: locked ? 0.72 : scaffoldRequired || contextScaffoldRequired ? 0.5 : 1 }}>

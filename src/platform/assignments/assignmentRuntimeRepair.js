@@ -1,3 +1,5 @@
+import { extractPromptRelationSource } from '../../stepAlgebraRelationRouting.js';
+
 const isObject = (value) => Boolean(value && typeof value === 'object' && !Array.isArray(value));
 const clean = (value) => String(value ?? '').trim();
 const lower = (value) => clean(value).toLowerCase();
@@ -7,7 +9,12 @@ const asArray = (value) => Array.isArray(value) ? value : [];
 // linearIntercepts questions onto the mature Step Algebra engine at runtime,
 // so the existing lesson does not have to be republished to pick up the
 // consolidated experience.
-export const ASSIGNMENT_RUNTIME_REPAIR_VERSION = 6;
+// Version 7 opens two stored shapes that rendered the wrong mathematics on the
+// Step Algebra engines instead: a mode-less `stepAlgebra2` whose equation is
+// text (the legacy numeric solver reads only {a, b, c}), and a Sign & Solution
+// Analyzer question compiled with no factors (the analyzer drew its built-in
+// demo factors instead of the prompt's inequality). Both are runtime-only.
+export const ASSIGNMENT_RUNTIME_REPAIR_VERSION = 7;
 
 export const RUNTIME_REPAIR_KEYS = Object.freeze({
   NO_SYNTHETIC_FUNCTION_MODELING_GRAPH: 'function-modeling-exact-ask-no-synthetic-graph-v1',
@@ -16,6 +23,8 @@ export const RUNTIME_REPAIR_KEYS = Object.freeze({
   AUTHORED_GRAPH_PERSISTENCE: 'workflow-authored-graph-persistence-v1',
   COLLAPSED_WORKFLOW: 'collapsed-generated-workflow-v1',
   STEP_ALGEBRA_2_CONSOLIDATION: 'step-algebra-2-consolidation-v1',
+  STEP_ALGEBRA_2_TEXT_EQUATION: 'step-algebra-2-text-equation-v1',
+  SIGN_ANALYZER_WITHOUT_FACTORS: 'sign-analyzer-without-factors-v1',
 });
 
 // stepAlgebra2's rewriteLinearForm/linearIntercepts modes are now compiled
@@ -58,6 +67,75 @@ const consolidateStepAlgebra2Question = (question = {}) => {
     // (equation/targetForm/standard/feedbackTiming); only the renderer
     // discriminator changed, so this is safe to persist back permanently.
     safeToPersist: true,
+    diagnostics: [],
+  };
+};
+
+// A mode-less stepAlgebra2 is the legacy numeric ax + b = c solver. It reads
+// `equation` as {a, b, c}; handed text such as "3x + 6 = 21" it spreads the
+// string into its state and draws NaN, so the student cannot start. The
+// authored text is exactly what the mature engine reads, so route it there.
+// A {a, b, c} model is left on the legacy solver (issue #297 kept it), so
+// in-progress work on those questions is not disturbed.
+const hasTextEquation = (question = {}) => (
+  typeof question?.equation === 'string' && question.equation.includes('=')
+);
+
+const openTextEquationStepAlgebra2 = (question = {}) => {
+  const isStepAlgebra2 = lower(question?.type) === 'stepalgebra2' || lower(question?.toolId) === 'stepalgebra2';
+  if (!isStepAlgebra2 || clean(question?.mode) || !hasTextEquation(question)) return { applies: false };
+  const migrated = { ...question, type: 'stepAlgebra' };
+  if (lower(question?.toolId) === 'stepalgebra2') delete migrated.toolId;
+  return {
+    applies: true,
+    question: migrated,
+    changed: true,
+    // Runtime-only: the persistence verifier certifies a fixed set of keys,
+    // and this one has not been through it. The student sees the right
+    // workspace either way.
+    safeToPersist: false,
+    diagnostics: [],
+  };
+};
+
+const SIGN_ANALYZER_DATA_FIELDS = ['factors', 'numeratorFactors', 'denominatorFactors', 'radicalEquation', 'signChart', 'candidates'];
+const RELATION_SYMBOL = /(?:<=|>=|[<>≤≥]|\\leq?|\\geq?)/;
+
+const readableInequalitySource = (question = {}) => {
+  const direct = [question.inequality, question.inequalityText, question.equation]
+    .find((value) => typeof value === 'string' && RELATION_SYMBOL.test(value));
+  if (direct) return clean(direct);
+  // The V5 compiler dropped the authored inequality for these questions and
+  // kept only the prompt ("Solve −2x + 3 > 7."). Read it back the same way
+  // Step Algebra reads prompt-only inequalities.
+  return extractPromptRelationSource({ ...question, type: 'stepAlgebra' });
+};
+
+/*
+ * A Sign & Solution Analyzer with no factors is not an Algebra II sign chart —
+ * it is a linear or absolute-value inequality the compiler sent to the wrong
+ * tool, and the analyzer fills the gap with its demo factors (x + 2)(x − 3):
+ * a different problem from the one on the page. When the inequality itself can
+ * be read, open it on the relation workspace, which reverses the symbol when
+ * the student multiplies or divides by a negative.
+ */
+const openSignAnalyzerWithoutFactors = (question = {}) => {
+  const isAnalyzer = lower(question?.type) === 'signsolutionanalyzer' || lower(question?.toolId) === 'signsolutionanalyzer';
+  if (!isAnalyzer) return { applies: false };
+  if (SIGN_ANALYZER_DATA_FIELDS.some((field) => question?.[field] != null && question[field] !== '')) return { applies: false };
+  const source = readableInequalitySource(question);
+  if (!source) return { applies: false };
+  const migrated = { ...question, type: 'stepAlgebra', equation: source, inequalityText: source };
+  if (lower(question?.toolId) === 'signsolutionanalyzer') delete migrated.toolId;
+  if (lower(migrated.mode) === 'polynomial') delete migrated.mode;
+  return {
+    applies: true,
+    question: migrated,
+    changed: true,
+    // Runtime-only: the inequality may have been read from the prompt, and a
+    // library record is never rewritten from a heuristic. Teacher repair can
+    // persist it deliberately.
+    safeToPersist: false,
     diagnostics: [],
   };
 };
@@ -557,6 +635,22 @@ export const repairQuestionForCurrentRuntime = (question = {}, context = {}) => 
         changed = true;
         changedSafely = changedSafely && graphRule.safeToPersist === true;
       }
+    }
+
+    const textEquationRule = openTextEquationStepAlgebra2(repaired);
+    if (textEquationRule.applies) {
+      repairKeys.push(RUNTIME_REPAIR_KEYS.STEP_ALGEBRA_2_TEXT_EQUATION);
+      repaired = textEquationRule.question;
+      changed = true;
+      changedSafely = changedSafely && textEquationRule.safeToPersist === true;
+    }
+
+    const signAnalyzerRule = openSignAnalyzerWithoutFactors(repaired);
+    if (signAnalyzerRule.applies) {
+      repairKeys.push(RUNTIME_REPAIR_KEYS.SIGN_ANALYZER_WITHOUT_FACTORS);
+      repaired = signAnalyzerRule.question;
+      changed = true;
+      changedSafely = changedSafely && signAnalyzerRule.safeToPersist === true;
     }
 
     const consolidationRule = consolidateStepAlgebra2Question(repaired);

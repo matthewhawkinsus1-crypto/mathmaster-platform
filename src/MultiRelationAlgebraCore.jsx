@@ -34,9 +34,12 @@ import {
   relationStateToLatex,
   relationStateToText,
   resolveRelationNumberLineConfig,
+  restorableRelationState,
   takeSquareRootOfRelation,
   validateRelationTransition,
 } from './algebraRelationFoundation.js';
+import { RelationDistributionPanel, RelationLikeTermsPanel } from './RelationStructureTools.jsx';
+import { relationDistributionCandidates, relationLikeTermCandidates } from './algebraRelationStructureModel.js';
 
 const BASIC_OPERATIONS = [
   { id: 'add', symbol: '+', label: 'Add' },
@@ -80,9 +83,38 @@ const pendingFlipForBranch = (pending, branchIndex) => (
   pendingFlipResultsFor(pending).find((item) => item.branchIndex === branchIndex) || null
 );
 
-const initialStateFor = (question, draftKey) => {
+// One reader for the saved draft, so no field reaches the workspace unchecked.
+// A malformed relation state, pending symbol step or candidate map is dropped
+// and the question resumes from its own equation instead of failing to open.
+const readRelationDraft = (draftKey) => {
   const saved = readQuestionDraft(draftKeyFor(draftKey), null);
-  if (saved?.relationState) return saved.relationState;
+  if (!saved || typeof saved !== 'object' || Array.isArray(saved)) {
+    return { relationState: null, pendingRelationFlip: null, candidateChecks: {} };
+  }
+  const relationState = restorableRelationState(saved.relationState);
+  const pending = saved.pendingRelationFlip;
+  const pendingSound = Boolean(
+    relationState
+    && pending && typeof pending === 'object' && !Array.isArray(pending)
+    && pendingFlipResultsFor(pending).length
+    && pendingFlipResultsFor(pending).every((item) => (
+      Number.isInteger(item?.branchIndex)
+      && relationState.branches?.[item.branchIndex]
+      && Array.isArray(item.expectedRelations)
+    ))
+    && (!pending.before || restorableRelationState(pending.before))
+  );
+  const checks = saved.candidateChecks;
+  return {
+    relationState,
+    pendingRelationFlip: pendingSound ? pending : null,
+    candidateChecks: checks && typeof checks === 'object' && !Array.isArray(checks) ? checks : {},
+  };
+};
+
+const initialStateFor = (question, draftKey) => {
+  const saved = readRelationDraft(draftKey);
+  if (saved.relationState) return saved.relationState;
 
   const source = relationSourceFromQuestion(question);
   if (!source) {
@@ -99,13 +131,9 @@ const initialStateFor = (question, draftKey) => {
   );
 };
 
-const initialPendingRelationFlipFor = (draftKey) => (
-  readQuestionDraft(draftKeyFor(draftKey), null)?.pendingRelationFlip || null
-);
+const initialPendingRelationFlipFor = (draftKey) => readRelationDraft(draftKey).pendingRelationFlip;
 
-const initialCandidateChecksFor = (draftKey) => (
-  readQuestionDraft(draftKeyFor(draftKey), null)?.candidateChecks || {}
-);
+const initialCandidateChecksFor = (draftKey) => readRelationDraft(draftKey).candidateChecks;
 
 const compactText = (value) => String(value ?? '').replace(/\s+/g, '');
 
@@ -537,6 +565,10 @@ export default function MultiRelationAlgebra({
   disabled = false,
   draftKey = null,
   denseWorkspace = false,
+  // Classroom LaTeX of every committed relation, for the Work View history.
+  // Kept off the grading payload on purpose: `relation-work` still sends the
+  // raw mathematics graders and checkpoints already read.
+  onRelationDisplayChange = null,
 }) {
   const pristine = useMemo(() => {
     const source = relationSourceFromQuestion(question);
@@ -573,6 +605,9 @@ export default function MultiRelationAlgebra({
   const [rewriteIndex, setRewriteIndex] = useState(0);
   const [rewriteValue, setRewriteValue] = useState('');
   const [rewriteFocusSignal, setRewriteFocusSignal] = useState(0);
+  // Distribute / Combine like terms, the same shared operations the equation
+  // engine uses (RelationStructureTools.jsx). One open at a time.
+  const [structurePanel, setStructurePanel] = useState(null);
 
   const [otherOpen, setOtherOpen] = useState(true);
 
@@ -612,6 +647,7 @@ export default function MultiRelationAlgebra({
     setOperand('');
     setPlacementByKey({});
     setRewriteOpen(false);
+    setStructurePanel(null);
     setRewriteValue('');
     setOtherOpen(true);
     setCompleteSquareOpen(false);
@@ -752,6 +788,10 @@ export default function MultiRelationAlgebra({
     requiresIntervalNotation,
     summary,
   ]);
+
+  useEffect(() => {
+    onRelationDisplayChange?.(relationStateToLatex(relationState));
+  }, [onRelationDisplayChange, relationState]);
 
   const hasTransientUndo = Boolean(
     pendingRelationFlip
@@ -1069,6 +1109,7 @@ export default function MultiRelationAlgebra({
       setMessage({ tone: 'growth', text: 'Finish the relation symbols from the last operation first.' });
       return;
     }
+    setStructurePanel(null);
     // Rewrite/Simplify is a different action. Never leave a stale operation
     // composer or staged placement hanging open underneath it.
     cancelBasicOperation();
@@ -1518,6 +1559,7 @@ export default function MultiRelationAlgebra({
   };
 
   const reset = () => {
+    setStructurePanel(null);
     setRelationState(pristine);
     setHistory([]);
     setActiveBranch(0);
@@ -1545,6 +1587,26 @@ export default function MultiRelationAlgebra({
   };
 
   const active = relationState.branches?.[activeBranch] || null;
+  const distributionAvailable = useMemo(() => relationDistributionCandidates(active).length > 0, [active]);
+  const likeTermsAvailable = useMemo(() => relationLikeTermCandidates(active).length > 0, [active]);
+  const commitStructureStep = async (next, label, kind) => {
+    const committed = await commitState(next, label, kind, { kind: 'equivalentRewrite' });
+    if (committed) {
+      setStructurePanel(null);
+      setMessage({
+        tone: 'success',
+        text: kind === 'distribution'
+          ? 'Distributed. The products are left as you wrote them; rewrite them when you are ready.'
+          : 'Like terms combined.',
+      });
+    }
+    return committed;
+  };
+  const toggleStructurePanel = (panel) => {
+    cancelBasicOperation();
+    setRewriteOpen(false);
+    setStructurePanel((current) => (current === panel ? null : panel));
+  };
 
   const operationDock = !summary.solved
     && !relationState.special
@@ -1736,6 +1798,30 @@ export default function MultiRelationAlgebra({
             Rewrite / Simplify
           </button>
 
+          {distributionAvailable && (
+            <button
+              type="button"
+              onClick={() => toggleStructurePanel('distribute')}
+              disabled={disabled || relationState.special || Boolean(pendingRelationFlip)}
+              style={buttonStyle(structurePanel === 'distribute')}
+              aria-expanded={structurePanel === 'distribute'}
+            >
+              Distribute
+            </button>
+          )}
+
+          {likeTermsAvailable && (
+            <button
+              type="button"
+              onClick={() => toggleStructurePanel('combine')}
+              disabled={disabled || relationState.special || Boolean(pendingRelationFlip)}
+              style={buttonStyle(structurePanel === 'combine')}
+              aria-expanded={structurePanel === 'combine'}
+            >
+              Combine like terms
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => {
@@ -1852,6 +1938,24 @@ export default function MultiRelationAlgebra({
             These choices stay available from the beginning. MathMaster checks whether the selected operation is valid; it does not reveal when to use one.
           </span>
         </div>
+      )}
+
+      {structurePanel === 'distribute' && active && distributionAvailable && (
+        <RelationDistributionPanel
+          state={relationState}
+          branchIndex={activeBranch}
+          onCommit={commitStructureStep}
+          onClose={() => setStructurePanel(null)}
+        />
+      )}
+
+      {structurePanel === 'combine' && active && likeTermsAvailable && (
+        <RelationLikeTermsPanel
+          state={relationState}
+          branchIndex={activeBranch}
+          onCommit={commitStructureStep}
+          onClose={() => setStructurePanel(null)}
+        />
       )}
 
       {rewriteOpen && active && (

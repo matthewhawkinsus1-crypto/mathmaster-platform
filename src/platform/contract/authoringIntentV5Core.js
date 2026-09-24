@@ -907,6 +907,17 @@ const compileRelationshipModel = (q, actions) => {
   return out;
 };
 
+const SIGN_CHART_DATA_FIELDS = ['factors', 'numeratorFactors', 'denominatorFactors', 'radicalEquation', 'candidates'];
+const hasSignChartData = (q = {}) => {
+  const model = isObject(q.inequalityModel) ? q.inequalityModel : {};
+  return SIGN_CHART_DATA_FIELDS.some((field) => (
+    (q[field] != null && q[field] !== '') || (model[field] != null && model[field] !== '')
+  ));
+};
+const INEQUALITY_SYMBOL = /(?:<=|>=|[<>≤≥]|\\leq?|\\geq?)/;
+const readableInequalityIntent = (q = {}) => [q.inequality, q.inequalityText, q.equation]
+  .some((value) => typeof value === 'string' && INEQUALITY_SYMBOL.test(value));
+
 const resolveIntentType = (q, actions) => {
   const hint = clean(q.toolHint || q.destination || q.intentType || q.questionType);
   if (hint) return hint;
@@ -916,7 +927,13 @@ const resolveIntentType = (q, actions) => {
   if (q.inverse || q.composition || actions.some((a) => ['findInverse','composeFunctions'].includes(a))) return 'inverseCompositionLab';
   if (q.parabola || actions.includes('analyzeParabolaGeometry')) return 'parabolaGeometryLab';
   if (q.polynomial || actions.some((a) => ['factorPolynomial','dividePolynomial','multiplyPolynomials'].includes(a))) return 'polynomialWorkshop';
-  if (q.signChart || actions.includes('solveInequality')) return 'signSolutionAnalyzer';
+  // A sign chart needs its factors. Without them the analyzer draws its demo
+  // factors (x + 2)(x − 3) — a different problem from the prompt — so a
+  // linear or absolute-value inequality goes to the Step Algebra relation
+  // workspace, which also enforces the sign reversal.
+  if (q.signChart || (actions.includes('solveInequality') && hasSignChartData(q))) return 'signSolutionAnalyzer';
+  if (actions.includes('solveInequality') && readableInequalityIntent(q)) return 'stepAlgebra';
+  if (actions.includes('solveInequality')) return 'signSolutionAnalyzer';
   if (q.complex || q.z || actions.some((a) => ['complexOperations','analyzeComplex'].includes(a))) return 'complexPlaneLab';
   if (q.logarithm || q.exponentialLog || actions.some((a) => ['exponentialLogBridge','solveExponential','solveLogarithmic'].includes(a))) return 'exponentialLogBridge';
   if (q.transformation || actions.includes('analyzeTransformations')) return 'transformationsLab';
@@ -1025,6 +1042,10 @@ const resolveIntentType = (q, actions) => {
   // compile to the stepAlgebra2 compatibility shell until it does.
   if (actions.includes('stepAlgebra2') && q.mode === 'linearIntercepts') return 'stepAlgebra';
   if (actions.includes('stepAlgebra2') && q.mode === 'rewriteLinearForm' && q.targetForm !== 'factoredLinear') return 'stepAlgebra';
+  // The mode-less stepAlgebra2 shell is the legacy numeric solver: it reads
+  // only an {a, b, c} equationModel. Equation text compiled there opened as
+  // NaN, so text goes to the mature engine that reads it.
+  if (actions.includes('stepAlgebra2') && !q.mode && !isObject(q.equationModel) && typeof q.equation === 'string' && q.equation.includes('=')) return 'stepAlgebra';
   if (actions.includes('stepAlgebra2')) return 'stepAlgebra2';
   if (actions.includes('constructLine') || q.lineIntent) return 'graphing2';
   if (shouldCompileFunctionWorkflow(q, actions)) return 'functionWorkflow';

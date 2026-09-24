@@ -36,6 +36,18 @@ echo "Upload concurrency: $FIREBASE_HOSTING_UPLOAD_CONCURRENCY"
 echo "Retry attempts: $MAX_ATTEMPTS"
 echo
 
+# Refuse to publish a build that does not contain current origin/main. The
+# stale-dist and live-manifest checks below prove production serves THIS
+# commit; they cannot tell whether this commit is current. A checkout left on
+# a PR branch (or an unpulled main) deploys cleanly and silently removes every
+# PR merged since — see scripts/lib/deployProvenance.mjs.
+if ! node scripts/check-deploy-provenance.mjs; then
+  echo >&2
+  echo "Deploy refused: this checkout is not current main. Nothing was built or uploaded." >&2
+  exit 5
+fi
+echo
+
 # Always build the exact checked-out commit before uploading Hosting. This is
 # intentionally part of the deploy command so Cloud Shell can never publish a
 # stale dist/ directory left behind by an earlier session.

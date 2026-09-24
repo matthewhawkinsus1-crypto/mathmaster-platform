@@ -20,8 +20,9 @@
 //   slope-5x-2y-6       Balanced moves, Split fraction (with an Undo of one
 //                       denominator placement), Cancel factors (a mismatched
 //                       pair refused), Arrange terms -> y = -5x/2 + 3.
-//   slope-2x-4y-8       The stepAlgebra2 tool path, negative denominator:
-//                       y = -2 + x/2, never an invented negative.
+//   slope-2x-4y-8       A stored stepAlgebra2 slope-intercept record (opened on
+//                       the consolidated engine, as students get it), negative
+//                       denominator: y = -2 + x/2, never an invented negative.
 //   keyboard            Factor tokens and commit reached by keyboard alone.
 //   phone               390px: no horizontal page scroll, tokens in view.
 //   solve-regression    3x + 6 = 21 still solves to x = 5.
@@ -348,11 +349,22 @@ async function slopeTwoFourEight(context) {
   }
   const final = compact(await state(page));
   expect(journey, final === 'y=-2+\\frac{x}{2}', `reduced: ${final}`);
-  expect(journey, (await page.locator('text=✓ Written as y = mx + b').count()) === 1, 'slope-intercept goal chip not complete');
-  await page.getByRole('button', { name: 'Check equation' }).click();
-  await settle(page, 500);
+  // A stored stepAlgebra2 slope-intercept record is consolidated onto the
+  // mature Step Algebra engine by the runtime repair (issue #297). The student
+  // player always applied it; QuestionEngine now applies it for every host, so
+  // this record opens exactly as a student sees it. The factored-form records
+  // (Q1, Q2) still open in RewriteLinearForm with its goal chips.
+  const route = await page.locator('[data-algebra-route]').first().getAttribute('data-algebra-route');
+  if (route === 'stepAlgebra2.rewriteLinearForm') {
+    expect(journey, (await page.locator('text=✓ Written as y = mx + b').count()) === 1, 'slope-intercept goal chip not complete');
+    await page.getByRole('button', { name: 'Check equation' }).click();
+    await settle(page, 500);
+  } else {
+    expect(journey, route === 'stepAlgebra', `the stored record reached ${route}, not the consolidated Step Algebra engine`);
+    expect(journey, (await page.locator('button:visible', { hasText: 'Submit Solved Equation' }).count()) >= 1, 'the engine did not report the slope-intercept form as finished');
+  }
   const grades = await page.evaluate(() => window.__mmStructure.grades());
-  report.push({ journey, split, final, gradeCount: grades.length });
+  report.push({ journey, route, split, final, gradeCount: grades.length });
   await page.close();
 }
 

@@ -1,0 +1,95 @@
+name: Interactive Capability Certification
+
+# Every student-facing algebra capability MathMaster has promised — distribution,
+# substitution, elimination, factoring, exact fractions, undo, persistence,
+# intercepts, absolute value, Work View — performed in Chromium from a question
+# compiled out of real V5 authoring JSON. See
+# src/platform/certification/interactiveCapabilityManifest.js.
+#
+# Tiers:
+#   pull_request (runtime code)   merge tier — the algebra journeys (~10 min)
+#   push to main, nightly, manual release tier — plus persistence, assessments,
+#                                  statistics and Work View suites
+# The node tier runs inside the Full Platform Test Suite on every PR.
+#
+# Deliberately broad paths: a capability disappears as easily through a
+# routing, compiler or runtime-repair change as through the tool itself, so any
+# runtime code change runs the whole certification.
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "tests/browser/**"
+      - "index.html"
+      - "vite.config.js"
+      - "package.json"
+      - "package-lock.json"
+      - "scripts/certify-interactive-capabilities.mjs"
+      - ".github/workflows/interactive-capability-certification.yml"
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "17 9 * * *"
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: "pr, merge or release"
+        required: false
+        default: "release"
+
+# Reads the repository and uploads artifacts; never writes.
+permissions:
+  contents: read
+
+concurrency:
+  group: capability-certification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    # The release tier runs every browser certification in sequence; each
+    # suite also has its own limit in the manifest (timeoutMinutes).
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Certify interactive capabilities
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          CERTIFICATION_TIER: ${{ github.event_name == 'pull_request' && 'merge' || inputs.tier || 'release' }}
+        run: node scripts/certify-interactive-capabilities.mjs
+
+      - name: Publish certification report and failure screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capability-certification
+          path: |
+            tests/browser/artifacts/capability-certification-report.md
+            tests/browser/artifacts/capability-certification-report.json
+            tests/browser/artifacts/capabilityCertification
+            tests/browser/artifacts/stepAlgebraStructureTools
+            tests/browser/artifacts/algebraicSubstitutionHandoff
+            tests/browser/artifacts/algebraicSystems3x3
+          if-no-files-found: warn
+          retention-days: 14

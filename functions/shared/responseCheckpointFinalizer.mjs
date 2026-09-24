@@ -334,6 +334,7 @@ export const buildCheckpointFinalization = ({
         assignment,
         activityRole: decision.activityRole,
         classId: gradeDocument?.classId || null,
+        studentId: text(checkpoint.studentId) || null,
       }),
     }),
     // `lastAttemptAt` is the deadline this response was submitted at, not the
