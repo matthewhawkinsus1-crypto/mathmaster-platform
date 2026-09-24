@@ -94,9 +94,10 @@ test('every stage of mathematical work required by the spec is stored through us
 
 test('the only local useState fields are transient interaction/Undo presentation state', () => {
   const useStateFields = [...modeSource.matchAll(/const\s*\[\s*([A-Za-z0-9_$]+)\s*,\s*set[A-Za-z0-9_$]*\s*\]\s*=\s*useState\(/g)].map((m) => m[1]);
-  assert.deepEqual(useStateFields.sort(), ['dragOverVariable', 'embeddedUndoController', 'slotAttempt'].sort());
+  assert.deepEqual(useStateFields.sort(), ['dragOverVariable', 'embeddedUndoController', 'scaleEditors', 'slotAttempt'].sort());
   assert.ok(TOOL_STATE_PERSISTENCE.systemsWorkspace.transientState.slotAttempt);
   assert.ok(TOOL_STATE_PERSISTENCE.systemsWorkspace.transientState.embeddedUndoController);
+  assert.ok(TOOL_STATE_PERSISTENCE.systemsWorkspace.transientState.scaleEditors);
 });
 
 test('each Step Algebra embed gets a draft key scoped to the exact mathematical identity being solved, so a different choice never rehydrates stale work', () => {
@@ -233,7 +234,8 @@ test('verification requires both original equations to be checked independently,
 // ---------------------------------------------------------------------------
 
 test('a multiplier is entered and placed directly on the equation before the student calculates every changed term', () => {
-  assert.match(modeSource, /ariaLabel=\{\`Multiplier for equation/);
+  assert.match(modeSource, /ariaLabel=\{\`Scale factor for equation/);
+  assert.match(modeSource, />\s*Scale equation\s*</);
   assert.match(modeSource, /mathmaster-system-multiplier:/);
   assert.match(modeSource, /draggable/);
   assert.match(modeSource, /dropMultiplier\(/);
@@ -264,7 +266,9 @@ test('an equation with scale factor 1 is ready automatically instead of asking t
   assert.match(modeSource, /const multiplierIsIdentity = useCallback/);
   assert.match(modeSource, /appliedMultipliers\[index\] \|\| multiplierIsIdentity\(index\)/);
   assert.match(modeSource, /const multipliersApplied = multiplierRowReady\(0\) && multiplierRowReady\(1\)/);
-  assert.match(modeSource, /Equation stays as written/);
+  assert.match(modeSource, /No scaling needed — equation stays as written/);
+  assert.match(modeSource, /scaleEditorOpen = Boolean\(scaleEditors\[index\]\) \|\| !identityMultiplier/);
+  assert.match(modeSource, /scaleEditorOpen \? \(/);
   assert.doesNotMatch(modeSource, />Use as written</);
   assert.doesNotMatch(modeSource, /⠿ ×/);
 });

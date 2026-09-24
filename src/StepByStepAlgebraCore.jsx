@@ -16,6 +16,7 @@ import './StepByStepAlgebra.css';
 import useMobileInteractionMode from './platform/mobile/useMobileInteractionMode.js';
 import { extractEquationSymbols, placementInstructionForOperation, semanticPlacementFromTap } from './platform/mobile/mobileInteractionFoundation.js';
 import {
+  applyAdditiveOperationAtPlacement,
   applyBalancedOperation,
   describeOperation,
   equationToLatex,
@@ -1851,9 +1852,18 @@ export default function StepByStepAlgebra({
       }
     });
 
-    factorZoneRef.current = nearest;
-    setFactorZoneHint(nearest);
-    const side = nearest?.side || null;
+    // Keep the current target until the pointer has clearly left its enlarged
+    // hit region. Neighboring zones otherwise trade ownership frame-by-frame
+    // near a boundary and make the drag preview visibly shake.
+    const previous = factorZoneRef.current;
+    const stillInsidePrevious = previous?.xRadius && previous?.yRadius
+      && Math.abs(clientX - previous.x) <= previous.xRadius * 1.18
+      && Math.abs(clientY - previous.y) <= previous.yRadius * 1.18;
+    const stable = stillInsidePrevious ? previous : nearest;
+
+    factorZoneRef.current = stable;
+    setFactorZoneHint(stable);
+    const side = stable?.side || null;
     dragOverSideRef.current = side;
     setDragOverSide(side);
   };
@@ -1909,21 +1919,33 @@ export default function StepByStepAlgebra({
         nearest = candidate;
       }
     });
-    return nearest || {
+    if (nearest) return nearest;
+    const lastNode = nodes[nodes.length - 1];
+    const lastRect = lastNode?.getBoundingClientRect?.();
+    return {
       side,
       position: {
         kind: 'end',
         termIndex: Math.max(0, nodes.length - 1),
       },
+      x: lastRect?.right ?? (sideRect.left + sideRect.width / 2),
+      y: lastRect ? (lastRect.top + lastRect.height / 2) : (sideRect.top + sideRect.height / 2),
+      xRadius: Math.max(56, lastRect?.width || 56),
+      yRadius: Math.max(64, lastRect?.height || 64),
     };
   };
   const updateAdditiveZones = (clientX, clientY) => {
     const left = resolveAdditivePlacementFromPoint('left', clientX, clientY);
     const right = resolveAdditivePlacementFromPoint('right', clientX, clientY);
     const nearest = left || right;
-    factorZoneRef.current = nearest;
-    setFactorZoneHint(nearest);
-    const side = nearest?.side || null;
+    const previous = factorZoneRef.current;
+    const stillInsidePrevious = previous?.xRadius && previous?.yRadius
+      && Math.abs(clientX - previous.x) <= previous.xRadius * 1.18
+      && Math.abs(clientY - previous.y) <= previous.yRadius * 1.18;
+    const stable = stillInsidePrevious ? previous : nearest;
+    factorZoneRef.current = stable;
+    setFactorZoneHint(stable);
+    const side = stable?.side || null;
     dragOverSideRef.current = side;
     setDragOverSide(side);
   };
@@ -2365,6 +2387,65 @@ export default function StepByStepAlgebra({
       `algebra-placement-cue is-${cueState}`,
     );
   };
+  /*
+   * DRAG / DROP MATHEMATICAL PREVIEW
+   *
+   * Typing an operand or merely selecting an operation never changes what the
+   * student sees. A preview appears only while the student is over a valid
+   * placement target, or after one side has actually received the drop.
+   *
+   * The preview is rendered OUTSIDE AutoFitEquationExpression so it cannot
+   * resize the committed equation, alter its React key, or move hit targets.
+   */
+  const renderPlacementMathPreview = (side) => {
+    if (!armedTile || pendingMove || !String(operand || '').trim()) return null;
+    const staged = placedOperationSides.includes(side);
+    const hovering = dragOverSide === side
+      && (!isFactorOperation(armedTile.operation) || factorZoneHint?.side === side);
+    if (!staged && !hovering) return null;
+
+    const position = staged
+      ? placedOperationPositions[side]
+      : (factorZoneHint?.side === side ? factorZoneHint.position : null);
+    let parsedOperand = operand;
+    try { parsedOperand = parseOperationOperand(operand).expression; } catch { parsedOperand = latexToExpression(operand); }
+    const operandLatex = expressionToLatex(parsedOperand);
+    const sourceLatex = expressionToLatex(sideExpression(side));
+    let previewLatex = sourceLatex;
+
+    if (armedTile.operation === 'multiply') {
+      previewLatex = position === 'after'
+        ? `\\left(${sourceLatex}\\right)\\left(${operandLatex}\\right)`
+        : `\\left(${operandLatex}\\right)\\left(${sourceLatex}\\right)`;
+    } else if (armedTile.operation === 'divide') {
+      previewLatex = `\\frac{${sourceLatex}}{${operandLatex}}`;
+    } else {
+      const additivePosition = position && typeof position === 'object'
+        ? position
+        : { kind: 'end', termIndex: Math.max(0, (splitAdditiveTerms(sideExpression(side))?.length || 1) - 1) };
+      try {
+        previewLatex = expressionToLatex(applyAdditiveOperationAtPlacement(
+          sideExpression(side),
+          armedTile.operation,
+          parsedOperand,
+          additivePosition,
+        ));
+      } catch {
+        previewLatex = sourceLatex;
+      }
+    }
+
+    return (
+      <div
+        className={`algebra-live-math-preview is-${staged ? 'staged' : 'hover'}`}
+        aria-hidden="true"
+        data-preview-side={side}
+      >
+        <MathDisplay value={previewLatex} format="latex" inline />
+      </div>
+    );
+  };
+
   const armedOperationLabel = armedTile ? OPERATIONS.find((item) => item.id === armedTile.operation)?.label : null;
   // What the button says it will apply. The field now holds LaTeX, and
   // "Apply Divide by \\frac{1}{2}" is not a sentence a student should read.
@@ -2912,6 +2993,8 @@ export default function StepByStepAlgebra({
                     {renderSide(side, cancellationModel)}
                   </AutoFitEquationExpression>
                 </div>
+
+                {renderPlacementMathPreview(side)}
 
                 {/* One side has received the operation; the equation above is
                     still the committed one (#341). The chip names the student's
