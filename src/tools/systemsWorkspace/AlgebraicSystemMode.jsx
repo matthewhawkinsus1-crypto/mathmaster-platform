@@ -484,6 +484,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   // feedback only — the moment a correct placement is made, the actual
   // mathematics goes into `substitution`, which is draft-backed above.
   const [slotAttempt, setSlotAttempt] = useState(null);
+  // Identity scaling is automatic. The editor is opt-in so a row that stays as
+  // written never looks like the student is being asked to "multiply by 1".
+  const [scaleEditors, setScaleEditors] = useState({ 0: false, 1: false });
   // While a nested Step Algebra solve is on screen, its own step history must
   // own the universal Undo button. Otherwise the parent systems history sees
   // only stage-level changes and Undo appears broken during the actual algebra.
@@ -503,6 +506,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setBackSub({ equationIndex: null });
     setSecondSolved({ variable: null, value: null, expression: null });
     setVerification({ 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
+    setScaleEditors({ 0: false, 1: false });
     setSlotAttempt(null);
   }, []);
 
@@ -1410,6 +1414,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                       const parsedMultiplier = parseNumericEntry(multipliers[index]);
                       const identityMultiplier = Number.isFinite(parsedMultiplier) && Math.abs(parsedMultiplier - 1) <= 1e-9;
                       const rowPrepared = appliedMultipliers[index] || identityMultiplier;
+                      const scaleEditorOpen = Boolean(scaleEditors[index]) || !identityMultiplier;
                       const productSpecs = expectedTransformed && originalCoefficients ? [
                         {
                           field: 'a',
@@ -1432,37 +1437,56 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                       ] : [];
                       return (
                         <div key={index} className={`mathmaster-systems-elimination-equation-card${rowPrepared ? ' is-prepared' : ''}`}>
-                          <div className="mathmaster-systems-multiplier-composer">
-                            <span>{identityMultiplier ? 'No scale needed' : 'Scale by'}</span>
-                            <MathInput
-                              value={multipliers[index]}
-                              onChange={(value) => setMultiplierValue(index, value)}
-                              placeholder="1"
-                              ariaLabel={`Multiplier for equation ${index + 1}`}
-                              toolProfile="algebra-operation"
-                              compact
-                              maxWidth={150}
-                            />
-                            {identityMultiplier ? (
-                              <span className="mathmaster-systems-scale-not-needed">Equation stays as written</span>
-                            ) : (
+                          {scaleEditorOpen ? (
+                            <div className="mathmaster-systems-multiplier-composer">
+                              <span>Scale by</span>
+                              <MathInput
+                                value={multipliers[index]}
+                                onChange={(value) => setMultiplierValue(index, value)}
+                                placeholder="factor"
+                                ariaLabel={`Scale factor for equation ${index + 1}`}
+                                toolProfile="algebra-operation"
+                                compact
+                                maxWidth={150}
+                              />
+                              {identityMultiplier ? (
+                                <button
+                                  type="button"
+                                  className="mathmaster-systems-scale-edit"
+                                  onClick={() => setScaleEditors((current) => ({ ...current, [index]: false }))}
+                                >
+                                  Keep as written
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className={`mathmaster-systems-multiplier-token${multiplierArmed ? ' is-armed' : ''}`}
+                                  draggable
+                                  onClick={() => armMultiplier(index)}
+                                  onDragStart={(event) => {
+                                    event.dataTransfer?.setData('text/plain', `mathmaster-system-multiplier:${index}`);
+                                    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+                                    armMultiplier(index);
+                                  }}
+                                  aria-pressed={multiplierArmed}
+                                  aria-label={`Pick up scale factor ${multipliers[index]} for equation ${index + 1}`}
+                                >
+                                  ⠿ · {multipliers[index] || '?'}
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="mathmaster-systems-identity-row">
+                              <span className="mathmaster-systems-scale-not-needed">No scaling needed — equation stays as written</span>
                               <button
                                 type="button"
-                                className={`mathmaster-systems-multiplier-token${multiplierArmed ? ' is-armed' : ''}`}
-                                draggable
-                                onClick={() => armMultiplier(index)}
-                                onDragStart={(event) => {
-                                  event.dataTransfer?.setData('text/plain', `mathmaster-system-multiplier:${index}`);
-                                  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
-                                  armMultiplier(index);
-                                }}
-                                aria-pressed={multiplierArmed}
-                                aria-label={`Pick up scale factor ${multipliers[index]} for equation ${index + 1}`}
+                                className="mathmaster-systems-scale-edit"
+                                onClick={() => setScaleEditors((current) => ({ ...current, [index]: true }))}
                               >
-                                ⠿ · {multipliers[index] || '?'}
+                                Scale equation
                               </button>
-                            )}
-                          </div>
+                            </div>
+                          )}
 
                           <div
                             className={`mathmaster-systems-equation-multiplier-target${multiplierArmed ? ' is-armed' : ''}${rowPrepared ? ' is-prepared' : ''}`}
