@@ -511,9 +511,12 @@
     background: #f8fbff;
   }
 
+  /* !important: App.css pins every rail tile to 44x44 on small screens with
+     !important, which squeezed these palette tiles into 44px of a 58px column
+     and cut their labels to "Subt…", "Multi…", "Divi…" (live QA round 2). */
   .algebra-mobile-operation-palette .algebra-rail-tile {
-    width: 100%;
-    height: auto;
+    width: 100% !important;
+    height: auto !important;
     min-height: 52px;
     display: grid;
     place-items: center;
@@ -535,8 +538,10 @@
     color: #5f6368;
     font-size: 9px;
     line-height: 1.05;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    /* Two short lines rather than "Multiply…". */
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .algebra-mobile-operation-palette .algebra-rail-tile.is-selected {

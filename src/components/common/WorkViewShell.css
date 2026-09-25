@@ -603,3 +603,16 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
   padding-left: 8px;
   padding-right: 8px;
 }
+
+/*
+ * PHONE WORK VIEW: THE MATH GETS THE WIDTH, NOT THE NESTING.
+ *
+ * A systems question nests the Work View surface, the tool shell, a panel and
+ * the embedded solver, each padded 11-14px on both sides: at 390px the balance
+ * board was left 267px and its mode buttons stacked one per row (live QA round
+ * 2). Enlarged on a phone, each layer keeps a thin inset instead.
+ */
+[data-open="true"][data-layout="mobile"] .mathmaster-work-view-surface { padding: 6px !important; }
+[data-open="true"][data-layout="mobile"] .mathmaster-tool-shell-body { padding: 6px !important; }
+[data-open="true"][data-layout="mobile"] .mathmaster-tool-panel { padding: 8px !important; }
+[data-open="true"][data-layout="mobile"] .mathmaster-systems-embedded-step-algebra { padding: 6px !important; }

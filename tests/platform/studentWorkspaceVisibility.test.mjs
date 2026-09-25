@@ -346,3 +346,21 @@ test('new elimination stages come into view when they appear', () => {
   const css = read('src/tools/systemsWorkspace/AlgebraicSystemMode.css');
   assert.match(css, /\.mathmaster-systems-student-combination \{\s*scroll-margin-bottom: 96px;/, 'clears the sticky action bar');
 });
+
+// Live QA round 2, 390×844: the phone operation palette's labels read
+// "Subt…", "Multi…", "Divi…" — the tiles were pinned to 44px by App.css.
+test('phone operation palette tiles fill their column', () => {
+  const css = read('src/StepByStepAlgebra.css');
+  assert.match(css, /\.algebra-mobile-operation-palette \.algebra-rail-tile \{\s*width: 100% !important;\s*height: auto !important;/);
+  const small = css.slice(css.indexOf('.algebra-mobile-operation-palette .algebra-rail-tile small {'), css.indexOf('}', css.indexOf('.algebra-mobile-operation-palette .algebra-rail-tile small {')));
+  assert.match(small, /white-space: normal;/);
+  assert.doesNotMatch(small, /text-overflow: ellipsis/);
+});
+
+// Live QA round 2, 390×844 Work View: nested padding left the board 267px.
+test('phone Work View trims nested padding around the math', () => {
+  const css = read('src/components/common/WorkViewShell.css');
+  for (const layer of ['mathmaster-work-view-surface', 'mathmaster-tool-shell-body', 'mathmaster-tool-panel', 'mathmaster-systems-embedded-step-algebra']) {
+    assert.match(css, new RegExp(`\\[data-open="true"\\]\\[data-layout="mobile"\\] \\.${layer} \\{ padding: \\d+px !important; \\}`), layer);
+  }
+});
