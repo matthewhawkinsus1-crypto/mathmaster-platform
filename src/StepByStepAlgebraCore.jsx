@@ -14,6 +14,7 @@ import QuestionPrompt from './QuestionPrompt';
 import AlgebraTermRow from './AlgebraTermRow';
 import './StepByStepAlgebra.css';
 import useMobileInteractionMode from './platform/mobile/useMobileInteractionMode.js';
+import { workspaceNeedsReveal } from './platform/layout/workspaceReveal.js';
 import { extractEquationSymbols, placementInstructionForOperation, semanticPlacementFromTap } from './platform/mobile/mobileInteractionFoundation.js';
 import {
   applyAdditiveOperationAtPlacement,
@@ -870,6 +871,17 @@ export default function StepByStepAlgebra({
       setStruckTerms(null);
       setBalancePulse(true);
       window.setTimeout(() => setBalancePulse(false), motionDuration(700, reducedMotion, { floor: 60 }));
+      // "Continue from the equation shown" has to be true: a committed step can
+      // leave the board under the sticky task card (see workspaceReveal.js).
+      // Phones keep their own vertical-only focus scrolling.
+      if (!mobileInteraction?.isMobile) {
+        window.requestAnimationFrame(() => {
+          const equals = equalsRef.current;
+          if (equals && workspaceNeedsReveal(equals.getBoundingClientRect(), window.innerHeight)) {
+            equals.scrollIntoView?.({ block: 'center', inline: 'nearest', behavior: reducedMotion ? 'auto' : 'smooth' });
+          }
+        });
+      }
       setMessage({
         tone: nextSolved ? 'success' : move.productive ? 'success' : 'growth',
         text: nextSolved
