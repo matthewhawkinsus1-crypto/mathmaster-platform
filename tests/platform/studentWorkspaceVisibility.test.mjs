@@ -185,7 +185,11 @@ test('every embedded systems solver reveals itself when it opens', () => {
 test('opening a question lands on its live work when a tool marks one', () => {
   const app = read('src/App.jsx');
   const effect = app.slice(app.indexOf("const liveWork = stage?.querySelectorAll?.('[data-work-view-focus=\"true\"]');"), app.indexOf("const changeQuestion = async"));
-  assert.match(effect, /if \(target\) target\.scrollIntoView\?\.\(\{ behavior: 'smooth', block: 'start' \}\);\s*else stage\?\.scrollIntoView\?\.\(\{ behavior: 'smooth', block: 'start' \}\);/);
+  assert.match(effect, /if \(target\) target\.scrollIntoView\?\.\(\{ behavior, block: 'start' \}\);\s*else stage\?\.scrollIntoView\?\.\(\{ behavior, block: 'start' \}\);/);
+  // Re-aims while the next question renders (the page is briefly short and the
+  // scroll clamps), and stops as soon as the student scrolls, types or touches.
+  assert.match(effect, /new ResizeObserver\(\(\) => \{ if \(!settled\) reveal\('auto'\); \}\)/);
+  assert.match(effect, /const settleEvents = \['wheel', 'touchstart', 'keydown', 'pointerdown'\];/);
 
   // ...with its top just under the sticky task, whose height is measured.
   const css = read('src/App.css');
