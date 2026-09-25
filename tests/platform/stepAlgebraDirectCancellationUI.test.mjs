@@ -17,7 +17,10 @@ test('operation input starts blank and resets blank', () => {
 test('cancellation is performed on actual equation tokens rather than a duplicate cancellation box', () => {
   assert.match(source, /data-cancel-index/);
   assert.match(source, /Tap or slash either matching factor once/);
-  assert.match(source, /Draw directly through matching factors in the equation itself/);
+  // The balanced-step prompt names what actually cancels: opposite terms after
+  // + / −, matching factors after × / ÷ (live QA: "factors" for +12 and −12).
+  assert.match(source, /const cancelledPieces = \['add', 'subtract'\]\.includes\(move\.operation\) \? 'opposite terms' : 'matching factors';/);
+  assert.match(source, /Draw directly through the \$\{cancelledPieces\} in the equation itself/);
   assert.ok(!source.includes('Draw through the zero pair or identity pair'));
   assert.ok(!source.includes('Required assumption:'));
 });

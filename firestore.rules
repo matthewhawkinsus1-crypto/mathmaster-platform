@@ -713,7 +713,14 @@ service cloud.firestore {
     }
 
     match /studentWorkspaceDrafts/{draftId} {
-      allow read: if rootAdmin() || ownsStudent(resource.data.studentId);
+      // The client saves inside a transaction that READS the draft first, so a
+      // student must be able to read their own draft before it exists. With no
+      // document there is no resource.data to check; the id itself
+      // ({studentId}__{assignmentId}) is what names the owner.
+      allow read: if rootAdmin()
+        || (resource == null
+          ? ownsStudent(draftId.split('__')[0])
+          : ownsStudent(resource.data.studentId));
       allow create: if ownsStudent(request.resource.data.studentId)
         && request.resource.data.documentId == draftId
         && request.resource.data.secure == false

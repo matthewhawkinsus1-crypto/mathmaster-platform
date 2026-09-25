@@ -382,9 +382,18 @@ export default function MathInput({
   // every MathInput autofocus on mount: only an explicit increment focuses it.
   useEffect(() => {
     if (!focusSignal || !mfRef.current) return undefined;
-    const frame = window.requestAnimationFrame(() => mfRef.current?.focus?.({ preventScroll: true }));
+    const frame = window.requestAnimationFrame(() => {
+      const mathField = mfRef.current;
+      mathField?.focus?.({ preventScroll: true });
+      // On a Chromebook the field the student was just sent to could sit under
+      // the sticky Undo / Reset / Calculator bar (live QA: "Subtract what?" and
+      // its Pick up chip were hidden there). 'nearest' leaves a visible field
+      // alone; the field's scroll-margin keeps it clear of the bar. Phones keep
+      // their own viewport stabilisation.
+      if (!isMobile) mathField?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    });
     return () => window.cancelAnimationFrame(frame);
-  }, [focusSignal]);
+  }, [focusSignal, isMobile]);
 
   useEffect(() => {
     if (!collapseSignal) return;

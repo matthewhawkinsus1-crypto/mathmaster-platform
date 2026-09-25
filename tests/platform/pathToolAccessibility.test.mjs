@@ -88,7 +88,11 @@ test('select-then-place in the algebra workspace is not gated behind a device ch
 });
 
 test('an armed operation makes both equation sides keyboard-reachable', () => {
-  assert.match(algebra, /tabIndex=\{tapPlacementArmed \? 0 : undefined\}/,
+  // Tabbable exactly while an operation is in hand — not gated on device, and
+  // not left as an unnamed button once the tile is spent.
+  assert.match(algebra, /const sideTapReady = tapPlacementArmed && Boolean\(armedTile\?\.operation\);/,
+    'the side tap target follows the armed operation, on every device');
+  assert.match(algebra, /tabIndex=\{sideTapReady \? 0 : undefined\}/,
     'once an operation is armed, the sides must be tabbable on every device');
   assert.match(algebra, /if \(tapPlacementArmed && \(event\.key === 'Enter' \|\| event\.key === ' '\)\)/,
     'Enter or Space must apply the armed operation to the focused side');

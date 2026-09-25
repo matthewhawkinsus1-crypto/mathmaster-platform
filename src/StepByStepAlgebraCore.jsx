@@ -1552,11 +1552,13 @@ export default function StepByStepAlgebra({
         await commitMove(move);
       }
     } else {
+      // +12 and −12 are opposite TERMS; only × and ÷ leave matching factors.
+      const cancelledPieces = ['add', 'subtract'].includes(move.operation) ? 'opposite terms' : 'matching factors';
       setMessage({
         tone: cancellationHintsEnabled ? 'success' : 'growth',
         text: cancellationHintsEnabled
-          ? 'The operation is balanced. Draw directly through matching factors in the equation itself.'
-          : 'The operation is balanced. Find the matching factors in the equation and cancel them directly — hints are off.',
+          ? `The operation is balanced. Draw directly through the ${cancelledPieces} in the equation itself.`
+          : `The operation is balanced. Find the ${cancelledPieces} in the equation and cancel them directly — hints are off.`,
       });
     }
   };
@@ -2314,7 +2316,7 @@ export default function StepByStepAlgebra({
           </span>
         )
         : (
-          <AlgebraTermRow terms={cancellationModel.terms} side={side} crossedIndices={markedIndices} selectedIndices={selectedIndices} highlightIndices={struckTerms?.side === side ? struckTerms.indices : []} collapsingIndices={collapsingSides.includes(side) ? completedIndices : []} onTermClick={(termIndex) => handleTermClick(side, termIndex, cancellationModel)} />
+          <AlgebraTermRow allowWrap terms={cancellationModel.terms} side={side} crossedIndices={markedIndices} selectedIndices={selectedIndices} highlightIndices={struckTerms?.side === side ? struckTerms.indices : []} collapsingIndices={collapsingSides.includes(side) ? completedIndices : []} onTermClick={(termIndex) => handleTermClick(side, termIndex, cancellationModel)} />
         );
 
       return (
@@ -2984,14 +2986,18 @@ export default function StepByStepAlgebra({
               || (visibleCancellationModel?.pairs?.length ? visibleCancellationModel : null);
             const cancellationActive = Boolean(cancellationModel?.pairs?.length);
             const stagedHere = placedOperationSides.includes(side);
+            // A side is a tap target only while an operation is in hand. Once
+            // the tile is spent (placed on this side) the side must stop
+            // announcing "Place undefined 5 on both sides".
+            const sideTapReady = tapPlacementArmed && Boolean(armedTile?.operation);
             return (
               <div
                 key={side}
                 ref={side === 'left' ? leftSideRef : rightSideRef}
-                className={`algebra-equation-box algebra-connected-side ${dragOverSide === side ? 'is-hovered' : ''} ${stagedHere ? 'has-staged-operation' : ''} ${mobileInteraction.isMobile && tapPlacementArmed ? 'mathmaster-tap-placement-ready' : ''}`}
-                role={tapPlacementArmed ? 'button' : undefined}
-                tabIndex={tapPlacementArmed ? 0 : undefined}
-                aria-label={tapPlacementArmed ? `Place ${describeOperation(armedTile?.operation, operand)} on the ${side} side` : undefined}
+                className={`algebra-equation-box algebra-connected-side ${dragOverSide === side ? 'is-hovered' : ''} ${stagedHere ? 'has-staged-operation' : ''} ${mobileInteraction.isMobile && sideTapReady ? 'mathmaster-tap-placement-ready' : ''}`}
+                role={sideTapReady ? 'button' : undefined}
+                tabIndex={sideTapReady ? 0 : undefined}
+                aria-label={sideTapReady ? `Place ${describeOperation(armedTile.operation, operand)} on the ${side} side` : undefined}
                 onClick={(event) => tapPlacementOnSide(side, event)}
                 onKeyDown={(event) => {
                   /* Not gated on isMobile any more. A student on a Chromebook

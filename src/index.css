@@ -203,7 +203,8 @@ math-field:focus-within {
    sticky task anchor: many Chromebooks have both a touchscreen and a normal
    desktop-sized viewport. */
 @media (max-width: 768px), (orientation: landscape) and (max-height: 500px) and (max-width: 1024px) {
-  .mathmaster-desktop-question-anchor {
+  .mathmaster-desktop-question-anchor,
+  .mathmaster-desktop-task-meta {
     display: none;
   }
 }

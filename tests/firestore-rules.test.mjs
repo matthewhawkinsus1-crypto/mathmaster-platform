@@ -16,7 +16,7 @@ import {
   assertFails,
   assertSucceeds,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, query, where, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, query, where, serverTimestamp, runTransaction } from 'firebase/firestore';
 
 const testEnv = await initializeTestEnvironment({
   projectId: 'mathmaster-rules-test',
@@ -499,6 +499,17 @@ await check('student CANNOT smuggle evidence into a workspace draft', assertFail
 // A fresh Chromebook has no history and must still be able to save.
 await check('a fresh device with no prior revision can still save a workspace draft', assertSucceeds(setDoc(workspaceDoc(student, 'S1042__A1'), { ...ownWorkspace, entries: [] })));
 await check('student CANNOT delete a workspace draft', assertFails(deleteDoc(workspaceDoc(student, 'S1042__A1'))));
+// The real save path (writeWorkspaceDraft) is a transaction that reads first.
+// Before the first save there is no document, so the read must not depend on
+// resource.data — otherwise no student can ever create a draft.
+await check('student reads their own not-yet-saved workspace draft', assertSucceeds(getDoc(workspaceDoc(student, 'S1042__A-new'))));
+await check('student saves a first workspace draft through a read-then-write transaction', assertSucceeds(runTransaction(student, async (transaction) => {
+  const reference = workspaceDoc(student, 'S1042__A-tx');
+  await transaction.get(reference);
+  transaction.set(reference, { ...ownWorkspace, documentId: 'S1042__A-tx', assignmentId: 'A-tx' });
+})));
+await check('student CANNOT read another student not-yet-saved workspace draft', assertFails(getDoc(workspaceDoc(student, 'S2000__A-new'))));
+await check('teacher CANNOT read a not-yet-saved student workspace draft', assertFails(getDoc(workspaceDoc(teacher, 'S1042__A-new'))));
 
 /*
  * A review screenshot is a picture of a student-facing screen, captured by a

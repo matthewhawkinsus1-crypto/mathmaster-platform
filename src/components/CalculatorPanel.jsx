@@ -3,6 +3,7 @@ import 'mathlive';
 import { getCalculatorButtonsForMode, getCalculatorModeLabel } from '../platform/policies/calculatorPolicy';
 import { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
 import { clampCalculatorPosition } from './calculatorPanelGeometry.js';
+import { nextDivisionKeypadStep } from './calculatorKeypadFlow.js';
 
 export { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
 
@@ -66,6 +67,8 @@ export const CalculatorPanel = ({
   const mathFieldRef = useRef(null);
   const panelRef = useRef(null);
   const dragRef = useRef(null);
+  // True while the cursor sits in the denominator a ÷ press created.
+  const divisionPendingRef = useRef(false);
 
   useEffect(() => {
     setEstimate('');
@@ -97,6 +100,7 @@ export const CalculatorPanel = ({
       // here so QuestionEngine cannot treat the same keypress as Submit/Next.
       event.preventDefault();
       event.stopPropagation();
+      divisionPendingRef.current = false;
       try {
         const expression = expressionFromMathField(mathField, mathField.value || display);
         const result = String(evaluateCalculatorExpression(expression, policy.mode));
@@ -225,6 +229,7 @@ export const CalculatorPanel = ({
 
   const setCalculatorValue = useCallback((value) => {
     const next = String(value ?? '0');
+    divisionPendingRef.current = false;
     setDisplay(next);
     if (mathFieldRef.current) mathFieldRef.current.value = next;
   }, []);
@@ -237,6 +242,15 @@ export const CalculatorPanel = ({
       mathField.value = '';
       setDisplay('');
     }
+    const step = nextDivisionKeypadStep({
+      divisionPending: divisionPendingRef.current,
+      command,
+      latex: mathField.value,
+    });
+    divisionPendingRef.current = step.divisionPending;
+    // 6 ÷ 3 + 1 is (6/3) + 1: an operator after a filled denominator starts
+    // after the fraction, not inside it.
+    if (step.leaveDenominator) mathField.executeCommand?.('moveToMathfieldEnd');
     mathField.insert(command, {
       insertionMode: 'replaceSelection',
       selectionMode: /#0|#\?/.test(command) ? 'placeholder' : 'after',
@@ -269,6 +283,7 @@ export const CalculatorPanel = ({
       insertionMode: 'replaceSelection',
       selectionMode: 'placeholder',
     });
+    divisionPendingRef.current = true;
     setDisplay(mathField.value || '0');
   }, [display]);
 
