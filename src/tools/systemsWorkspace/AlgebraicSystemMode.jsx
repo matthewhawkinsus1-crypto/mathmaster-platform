@@ -462,6 +462,20 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const effectiveMethod = config.method === 'studentChoice' ? method : config.method;
 
   const [selection, setSelection] = usePersistentToolState('selection', { equationIndex: null, variable: null });
+  // A NEW STAGE COMES INTO VIEW WHEN IT APPEARS.
+  //
+  // Each elimination stage (complete the scaled equation, mark the cancelling
+  // terms, combine what remains) opened below the one the student just
+  // finished, past the bottom of the screen, with nothing to say it was there
+  // (live QA round 2, Work View 1536x900). Only stages that appear while the
+  // student works; a resumed question's existing stages are left to the
+  // question-entry scroll.
+  const stagesMountedRef = useRef(false);
+  React.useEffect(() => { stagesMountedRef.current = true; }, []);
+  const revealStageOnAppear = useCallback((element) => {
+    if (!element || !stagesMountedRef.current || typeof window === 'undefined') return;
+    window.requestAnimationFrame(() => element.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }));
+  }, []);
   const [storedIsolation, setIsolation] = usePersistentToolState('isolation', { expression: null, tokenExpression: null, simplificationDraft: '', simplifying: false, simplificationChecked: false, simplificationValid: false });
   // A draft saved before issue #334 can hold Step Algebra's LaTeX spacing
   // ("-(3)+(2~ y)") in these plain-expression fields. Every read goes through
@@ -1623,7 +1637,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                           </div>
 
                           {work.active && expectedTransformed && originalCoefficients ? (
-                            <div className="mathmaster-systems-multiplier-products">
+                            <div ref={revealStageOnAppear} className="mathmaster-systems-multiplier-products">
                               <div className="mathmaster-systems-multiplier-products-heading">
                                 <strong>Complete the scaled equation</strong>
                                 <span>Enter the resulting terms where they belong. You may type a full term such as 3x or just its coefficient.</span>
@@ -1734,7 +1748,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                           ) : null}
                         </>
                       ) : (
-                        <div className="mathmaster-systems-cancellation-stage">
+                        <div ref={revealStageOnAppear} className="mathmaster-systems-cancellation-stage">
                           <div className="mathmaster-systems-cancellation-heading">
                             <strong>
                               {combination.operation === 'subtract' ? 'Subtract the equations' : 'Add the equations'} — mark the {selection.variable} terms that cancel
@@ -1783,7 +1797,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                               Confirm marked cancellation
                             </button>
                           ) : (
-                            <div className="mathmaster-systems-student-combination">
+                            <div ref={revealStageOnAppear} className="mathmaster-systems-student-combination">
                               <div className="mathmaster-systems-student-combination-heading">
                                 <strong>Now combine what remains</strong>
                                 <span>

@@ -334,3 +334,13 @@ test('elimination work gets the full width once a target is chosen', () => {
   const source = read('src/tools/systemsWorkspace/AlgebraicSystemMode.jsx');
   assert.match(source, /className=\{`mathmaster-algebraic-system-layout\$\{embeddedSolverActive \|\| \(effectiveMethod === 'elimination' && Boolean\(selection\.variable\)\) \? ' has-active-solver' : ''\}`\}/);
 });
+
+// Live QA round 2: each new elimination stage opened below the fold with
+// nothing bringing it into view.
+test('new elimination stages come into view when they appear', () => {
+  const source = read('src/tools/systemsWorkspace/AlgebraicSystemMode.jsx');
+  assert.match(source, /const revealStageOnAppear = useCallback\(\(element\) => \{\s*if \(!element \|\| !stagesMountedRef\.current/);
+  for (const stage of ['mathmaster-systems-multiplier-products', 'mathmaster-systems-cancellation-stage', 'mathmaster-systems-student-combination']) {
+    assert.match(source, new RegExp(`<div ref=\\{revealStageOnAppear\\} className="${stage}">`), stage);
+  }
+});
