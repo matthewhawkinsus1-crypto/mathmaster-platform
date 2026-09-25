@@ -290,3 +290,16 @@ test('a finished question puts its next step in the action bar', () => {
   assert.match(decide, /!sectionComplete && typeof onNextQuestion === 'function'\s*\? \{ label: 'Next question →', onClick: onNextQuestion \}/);
   assert.match(engine, /\) : barContinueAction \? \(\s*\/\/[\s\S]*?<button\s*type="button"\s*className="mathmaster-bar-continue"\s*onClick=\{barContinueAction\.onClick\}/);
 });
+
+// Live QA round 2, 1180×820: a multi-part question's table sat centred with
+// ~370px blank either side and every answer field below the fold; scrolling to
+// the fields slid the table under the sticky task card.
+test('a multi-part data table sits beside its fields where there is room', () => {
+  const grader = read('src/MultiAnswerGrader.jsx');
+  assert.match(grader, /import '\.\/MultiAnswerGrader\.css';/);
+  assert.match(grader, /data-side-table=\{Boolean\(question\?\.table\) && !question\?\.graph && !question\?\.visual && !question\?\.mathDisplay && !question\?\.supportingMath && !candidateGraphs\.length \? 'true' : 'false'\}/);
+  assert.match(grader, /<div className="mathmaster-multipart-body">\s*<QuestionVisual question=\{question\} \/>/);
+  const css = read('src/MultiAnswerGrader.css');
+  assert.match(css, /@container multipart \(min-width: 900px\) \{\s*\.mathmaster-multipart-layout\[data-side-table="true"\] > \.mathmaster-multipart-body \{\s*display: grid;\s*grid-template-columns: max-content minmax\(0, 1fr\);/);
+  assert.match(css, /html:not\(\[data-work-view-open="true"\]\) \.mathmaster-multipart-layout\[data-side-table="true"\] > \.mathmaster-multipart-body > :first-child \{\s*position: sticky;/);
+});
