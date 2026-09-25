@@ -90,7 +90,11 @@ export default function MathDisplay({
         display: inline ? 'inline-block' : 'block',
         maxWidth: '100%',
         overflowX: inline ? 'visible' : 'auto',
-        overflowY: 'hidden',
+        // Inline math never scrolls. `visible` on one axis with `hidden` on the
+        // other computes to `auto`, so a stacked fraction a few pixels taller
+        // than the line (the solved value 20/9 in a substitution token) was
+        // clipped and grew a horizontal scrollbar under it.
+        overflowY: inline ? 'visible' : 'hidden',
         verticalAlign: inline ? '-0.16em' : 'middle',
         lineHeight: 1.35,
         ...style,
