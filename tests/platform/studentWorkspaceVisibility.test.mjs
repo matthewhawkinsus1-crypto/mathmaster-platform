@@ -148,3 +148,25 @@ test('a locked question says why in the attempt strip, not only below the tool',
   assert.ok(lockedAt > 0, 'the strip shows the lock message');
   assert.ok(triesAt > lockedAt, 'the lock message wins over the tries count');
 });
+
+// Live QA round 2: the substitution token "Solved value 20/9" and the step chip
+// "x = 20/9" showed scrollbar arrows under a clipped fraction.
+test('inline math never becomes a scroll container', () => {
+  const source = read('src/MathDisplay.jsx');
+  const style = source.slice(source.indexOf('style={{', source.indexOf('<Element')), source.indexOf('...style,', source.indexOf('<Element')));
+  assert.match(style, /overflowX: inline \? 'visible' : 'auto',/);
+  assert.match(style, /overflowY: inline \? 'visible' : 'hidden',/);
+});
+
+// Live QA round 2: finishing a simplification left the page clamped at its
+// bottom with the equation under the sticky task card.
+test('a committed step reveals the equation when it is under the sticky chrome', async () => {
+  const { workspaceNeedsReveal } = await import('../../src/platform/layout/workspaceReveal.js');
+  assert.equal(workspaceNeedsReveal({ top: 120, bottom: 170 }, 900), true, 'under the task card');
+  assert.equal(workspaceNeedsReveal({ top: 850, bottom: 900 }, 900), true, 'under the action bar');
+  assert.equal(workspaceNeedsReveal({ top: 430, bottom: 480 }, 900), false);
+  const core = read('src/StepByStepAlgebraCore.jsx');
+  assert.match(core, /import \{ workspaceNeedsReveal \} from '\.\/platform\/layout\/workspaceReveal\.js';/);
+  const commit = core.slice(core.indexOf('setBalancePulse(true);'), core.indexOf("'Balanced step complete. Continue from the equation shown.'"));
+  assert.match(commit, /if \(equals && workspaceNeedsReveal\(equals\.getBoundingClientRect\(\), window\.innerHeight\)\) \{\s*equals\.scrollIntoView\?\.\(\{ block: 'center'/);
+});
