@@ -480,6 +480,13 @@ export default function QuestionEngine({
   const contextScaffoldEnabled = Boolean(processedQuestion?.context?.scenario && processedQuestion?.context?.scaffold?.enabled !== false);
   const contextScaffoldRequired = contextScaffoldEnabled && !contextScaffoldComplete && !locked;
   const terminalFeedbackHidden = !showOutcomeFeedback && (isCorrect || isExpired);
+  // The attempt strip at the top of the question states the lock reason where
+  // the student lands. When it does, the notice below the tool would repeat the
+  // same sentence (two copies of "This assignment is closed.").
+  const lockReasonInAttemptStrip = Boolean(
+    assignmentLocked && !supportPresentation.declutter && !terminalFeedbackHidden
+      && record.status !== 'correct' && !isExpired,
+  );
 
   // Every ordinary assignment and canonical Path question passes through this
   // runtime. Focus the first real answer control once the question is ready —
@@ -1552,7 +1559,7 @@ export default function QuestionEngine({
         </div>
       )}
 
-      {assignmentLocked && !isCorrect && !isExpired && (
+      {assignmentLocked && !isCorrect && !isExpired && !lockReasonInAttemptStrip && (
         <div style={{ margin: '25px auto 0', padding: '18px', maxWidth: '700px', borderRadius: '10px', border: '2px solid #5f6368', background: '#f1f3f4', color: '#3c4043' }}><strong>{assignmentLockedMessage || 'This assignment is permanently closed.'}</strong>{!assignmentLockedMessage && ' The saved response is available for review, but no changes or submissions are allowed.'}</div>
       )}
 

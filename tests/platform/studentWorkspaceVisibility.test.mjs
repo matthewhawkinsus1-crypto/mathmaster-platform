@@ -372,3 +372,24 @@ test('multi-part choices are named by their own text', () => {
   assert.match(grader, /format=\{format\} inline ariaLabel=\{choiceLabel\(text\)\} \/>/);
   assert.match(grader, /role="radio"\s*aria-checked=\{selected\}\s*aria-label=\{choiceLabel\(raw\)\}/);
 });
+
+// PR #357 CI: the typeset operand made the placed marker's innerText MathLive
+// markup ("✓ − placed"). Its name carries operation, operand and side.
+test('a one-sided placement is named by operation, operand and side', async () => {
+  const { describePlacedOperation } = await import('../../src/algebraAstEngine.js');
+  assert.equal(describePlacedOperation('subtract', '21', 'left'), 'Subtract 21 placed on the left side');
+  assert.equal(describePlacedOperation('divide', '-2', 'right'), 'Divide by -2 placed on the right side');
+  const core = read('src/StepByStepAlgebraCore.jsx');
+  assert.match(core, /className="algebra-placement-marker"\s*role="status"\s*aria-label=\{describePlacedOperation\(armedTile\.operation, operandLabel, side\)\}\s*data-placed-operation=\{armedTile\.operation\}\s*data-placed-operand=\{operandLabel\}\s*data-placed-side=\{side\}/);
+});
+
+// PR #357 CI (workViewTerminalTransition): the lock reason appeared twice —
+// in the attempt strip and again below the tool. The strip keeps it; the lower
+// notice renders only when the strip is not showing it.
+test('a lock reason appears once', () => {
+  const engine = read('src/QuestionEngine.jsx');
+  assert.match(engine, /const lockReasonInAttemptStrip = Boolean\(\s*assignmentLocked && !supportPresentation\.declutter && !terminalFeedbackHidden\s*&& record\.status !== 'correct' && !isExpired,\s*\);/);
+  assert.match(engine, /\{assignmentLocked && !isCorrect && !isExpired && !lockReasonInAttemptStrip && \(/);
+  const strip = engine.slice(engine.indexOf('className="mathmaster-question-attempt-strip"'), engine.indexOf('{dolMode && <div'));
+  assert.match(strip, /: assignmentLocked\s*\?\s*\(assignmentLockedMessage \|\|/, 'the strip still states the reason');
+});
