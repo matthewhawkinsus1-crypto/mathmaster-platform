@@ -9,7 +9,7 @@ import { matchesNumericAnswer } from '../shared/toolMath';
 import MathDisplay from '../../MathDisplay';
 import MathInput from '../../MathInput';
 import StepByStepAlgebraCore from '../../StepByStepAlgebraCore.jsx';
-import { expressionsEquivalent, latexToExpression, expressionToLatex } from '../../algebraAstEngine.js';
+import { expressionsEquivalent, latexToExpression, expressionToLatex, expressionIsSimplified } from '../../algebraAstEngine.js';
 import './AlgebraicSystemMode.css';
 import {
   normalizeAlgebraicSystemConfig,
@@ -326,7 +326,10 @@ const solvedRecordFor = (latexResponse, variable) => {
 
 const solvedRecordExpression = (record) => {
   const exact = String(record?.expression || '').trim();
-  return exact ? presentableExpression(exact) : exactNumberText(record?.value);
+  if (exact && expressionIsSimplified(exact)) {
+    return presentableExpression(exact);
+  }
+  return exactNumberText(record?.value);
 };
 
 /*
@@ -1566,7 +1569,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                                 <button
                                   type="button"
                                   className="mathmaster-systems-scale-edit"
-                                  onClick={() => setScaleEditors((current) => ({ ...current, [index]: false }))}
+                                  onClick={() => {
+                                    setScaleEditors((current) => ({ ...current, [index]: false }));
+                                    setMultiplierValue(index, '1');
+                                  }}
                                 >
                                   Keep as written
                                 </button>
@@ -1594,7 +1600,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                               <button
                                 type="button"
                                 className="mathmaster-systems-scale-edit"
-                                onClick={() => setScaleEditors((current) => ({ ...current, [index]: true }))}
+                                onClick={() => {
+                                  setScaleEditors((current) => ({ ...current, [index]: true }));
+                                  if (multipliers[index] === '1') setMultiplierValue(index, '');
+                                }}
                               >
                                 Scale equation
                               </button>

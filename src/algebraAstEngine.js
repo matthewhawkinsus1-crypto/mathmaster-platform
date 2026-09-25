@@ -692,7 +692,7 @@ const expressionIsVariable = (expression, variable) => {
   try { return simplifyExpression(expression) === variable; } catch { return false; }
 };
 const containsVariable = (expression, variable) => symbolsIn(expression).includes(variable);
-const expressionIsSimplified = (expression) => {
+export const expressionIsSimplified = (expression) => {
   try {
     const original = parse(String(expression)).toString({ parenthesis: 'auto', implicit: 'hide' });
     return original.replace(/\s+/g, '') === simplifyExpression(expression).replace(/\s+/g, '');
