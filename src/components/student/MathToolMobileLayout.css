@@ -5,6 +5,21 @@
   display: none;
 }
 
+/* With the prompt hidden, the card held nothing but the folded "How to do this"
+   button, centred in a bordered blue box 72px tall — above the workspace on
+   every tool of every assignment (live QA, 1536×900). The box goes; the fold
+   stays where it was, and opens exactly as before. */
+.mathmaster-question-engine-has-anchor .mathmaster-tool-task-card {
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin-bottom: 8px !important;
+}
+
+.mathmaster-question-engine-has-anchor .mathmaster-tool-task-card > .mathmaster-quiet-disclosure {
+  margin: 0 !important;
+}
+
 .mathmaster-question-container {
   width: 100%;
   height: var(--mm-visual-viewport-height, 100dvh);
@@ -229,6 +244,27 @@
 
   .mathmaster-question-container.mode-portrait .portrait-action-bar > * {
     margin-top: 0 !important;
+  }
+
+  /* One row of controls, not two. Four inline pills (446px) wrapped at 390px
+     and the bar took 105px of an 844px screen; as a flex row with "Reset"
+     for "Reset Question" it is 61px. Extra controls (Read aloud, Submit)
+     still wrap rather than clip. */
+  .mathmaster-question-container.mode-portrait .portrait-action-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .mathmaster-question-container.mode-portrait .portrait-action-bar > button {
+    flex: 1 1 auto;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    white-space: nowrap;
+  }
+
+  .mathmaster-question-container.mode-portrait .mathmaster-action-label-long {
+    display: none;
   }
 
   .mathmaster-calculator-drawer {

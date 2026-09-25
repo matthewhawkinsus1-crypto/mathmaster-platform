@@ -480,6 +480,13 @@ export default function QuestionEngine({
   const contextScaffoldEnabled = Boolean(processedQuestion?.context?.scenario && processedQuestion?.context?.scaffold?.enabled !== false);
   const contextScaffoldRequired = contextScaffoldEnabled && !contextScaffoldComplete && !locked;
   const terminalFeedbackHidden = !showOutcomeFeedback && (isCorrect || isExpired);
+  // The attempt strip at the top of the question states the lock reason where
+  // the student lands. When it does, the notice below the tool would repeat the
+  // same sentence (two copies of "This assignment is closed.").
+  const lockReasonInAttemptStrip = Boolean(
+    assignmentLocked && !supportPresentation.declutter && !terminalFeedbackHidden
+      && record.status !== 'correct' && !isExpired,
+  );
 
   // Every ordinary assignment and canonical Path question passes through this
   // runtime. Focus the first real answer control once the question is ready —
@@ -1137,6 +1144,7 @@ export default function QuestionEngine({
     },
     reset: {
       label: resettingQuestion ? 'Resetting…' : '↺ Reset Question',
+      shortLabel: resettingQuestion ? 'Resetting…' : '↺ Reset',
       onClick: handleResetQuestion,
       disabled: locked || resettingQuestion || submitting || requesting,
       title: 'Clear this question\'s work and return every tool to its starting state',
@@ -1166,6 +1174,14 @@ export default function QuestionEngine({
     } : null,
   };
 
+  const barContinueAction = !locked
+    ? null
+    : sectionComplete && typeof onContinueSection === 'function'
+      ? { label: `Continue to ${continueSectionLabel || 'next section'} →`, onClick: onContinueSection }
+      : !sectionComplete && typeof onNextQuestion === 'function'
+        ? { label: 'Next question →', onClick: onNextQuestion }
+        : null;
+
   // UNDO BELONGS WHERE THE HANDS ARE. These lived in a centred row above the
   // tool, which meant that on any question tall enough to scroll — which is most
   // graph questions — the student was several screens away from the control that
@@ -1180,9 +1196,11 @@ export default function QuestionEngine({
           onClick={handleResetQuestion}
           disabled={workspaceActions.reset.disabled}
           title={workspaceActions.reset.title}
+          aria-label={resettingQuestion ? 'Resetting…' : 'Reset Question'}
           style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: workspaceActions.reset.disabled ? 'not-allowed' : 'pointer', opacity: workspaceActions.reset.disabled ? 0.45 : 1 }}
         >
-          {workspaceActions.reset.label}
+          {/* "Question" drops on a phone so the work bar fits one row. */}
+          {resettingQuestion ? 'Resetting…' : <>↺ Reset<span className="mathmaster-action-label-long"> Question</span></>}
         </button>
       ) : null}
       <button type="button" onClick={openScratchpad} disabled={scratchpadLoading} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>
@@ -1229,7 +1247,7 @@ export default function QuestionEngine({
           role="status"
           className="mathmaster-question-attempt-strip"
           style={{
-            border: `1px solid ${terminalFeedbackHidden ? '#c9d6e8' : (record.status === 'attempted' || (record.status === 'expired' && !isExpired)) ? '#f9ab00' : isExpired ? '#e0b4b0' : record.status === 'correct' ? '#a8dab5' : '#d9e2f1'}`,
+            border: `1px solid ${assignmentLocked && !terminalFeedbackHidden && record.status !== 'correct' && !isExpired ? '#9aa0a6' : terminalFeedbackHidden ? '#c9d6e8' : (record.status === 'attempted' || (record.status === 'expired' && !isExpired)) ? '#f9ab00' : isExpired ? '#e0b4b0' : record.status === 'correct' ? '#a8dab5' : '#d9e2f1'}`,
             background: terminalFeedbackHidden ? '#f4f7fb' : (record.status === 'attempted' || (record.status === 'expired' && !isExpired)) ? '#fef7e0' : isExpired ? '#fce8e6' : record.status === 'correct' ? '#e6f4ea' : '#f8fbff',
             color: '#3c4043',
           }}
@@ -1241,7 +1259,14 @@ export default function QuestionEngine({
                 ? 'Question complete'
                 : isExpired
                   ? 'This question is closed'
-                  : `${remainingAttempts} of ${resolvedMaximumAttempts} ${resolvedMaximumAttempts === 1 ? 'try' : 'tries'} left`}
+                  // A locked question (Warm-Up after the period, closed section,
+                  // ended DOL) rendered every control disabled under "3 of 3
+                  // tries left"; the reason sat ~1470px below, past the tool
+                  // (live QA, 1536×900). The reason belongs where the student
+                  // lands.
+                  : assignmentLocked
+                    ? (assignmentLockedMessage || 'This assignment is closed. Your saved response is available for review.')
+                    : `${remainingAttempts} of ${resolvedMaximumAttempts} ${resolvedMaximumAttempts === 1 ? 'try' : 'tries'} left`}
           </strong>
           {terminalFeedbackHidden && <span className="mathmaster-attempt-detail">Feedback opens later</span>}
           {!terminalFeedbackHidden && record.bestPartialCredit > 0 && record.status !== 'correct' && (
@@ -1407,6 +1432,20 @@ export default function QuestionEngine({
         <button onClick={handleSubmit} disabled={submitDisabled} style={{ minHeight: '44px', padding: '12px 24px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: submitDisabled ? '#dadce0' : '#1a73e8', color: 'white', cursor: submitDisabled ? 'not-allowed' : 'pointer', boxShadow: submitDisabled ? 'none' : '0 4px 6px rgba(26, 115, 232, 0.2)' }}>
           {submitLabel}
         </button>
+        ) : barContinueAction ? (
+        // THE NEXT STEP GOES WHERE SUBMIT WAS. The large continuation card is
+        // rendered after the question container, which on a phone is a fixed
+        // 100dvh box with overflow hidden: after a correct answer "Next
+        // Question" sat at y=939 of an 844px screen, clipped and unreachable
+        // (live QA round 2). On desktop it sat ~100px below the fold.
+        <button
+          type="button"
+          className="mathmaster-bar-continue"
+          onClick={barContinueAction.onClick}
+          style={{ minHeight: '44px', padding: '12px 20px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: '#1a73e8', color: 'white', cursor: 'pointer', boxShadow: '0 4px 6px rgba(26, 115, 232, 0.2)', whiteSpace: 'nowrap' }}
+        >
+          {barContinueAction.label}
+        </button>
         ) : null}
       />
 
@@ -1520,7 +1559,7 @@ export default function QuestionEngine({
         </div>
       )}
 
-      {assignmentLocked && !isCorrect && !isExpired && (
+      {assignmentLocked && !isCorrect && !isExpired && !lockReasonInAttemptStrip && (
         <div style={{ margin: '25px auto 0', padding: '18px', maxWidth: '700px', borderRadius: '10px', border: '2px solid #5f6368', background: '#f1f3f4', color: '#3c4043' }}><strong>{assignmentLockedMessage || 'This assignment is permanently closed.'}</strong>{!assignmentLockedMessage && ' The saved response is available for review, but no changes or submissions are allowed.'}</div>
       )}
 

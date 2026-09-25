@@ -1,4 +1,6 @@
+import { useEffect, useRef } from 'react';
 import 'mathlive';
+import { ensureMathElementRenders } from './platform/math/ensureMathElementRenders.js';
 import { stackDivisions } from '../functions/shared/stackDivisions.mjs';
 import { resolveMathDisplayFormat } from './mathDisplayFormat.js';
 
@@ -71,6 +73,8 @@ export default function MathDisplay({
   const cleanValue = stripRedundantStackedFractionParens(
     stackDivisions(repairLegacyMathLiveRelations(stripMathDelimiters(value))),
   );
+  const elementRef = useRef(null);
+  useEffect(() => ensureMathElementRenders(elementRef.current), [cleanValue, format]);
   if (!cleanValue) return null;
 
   // Important: stackDivisions may have introduced a LaTeX \frac into a value
@@ -82,6 +86,7 @@ export default function MathDisplay({
 
   return (
     <Element
+      ref={elementRef}
       key={`${resolvedFormat}:${cleanValue}`}
       format={resolvedFormat}
       aria-label={ariaLabel}
@@ -90,9 +95,18 @@ export default function MathDisplay({
         display: inline ? 'inline-block' : 'block',
         maxWidth: '100%',
         overflowX: inline ? 'visible' : 'auto',
-        overflowY: 'hidden',
+        // Inline math never scrolls. `visible` on one axis with `hidden` on the
+        // other computes to `auto`, so a stacked fraction a few pixels taller
+        // than the line (the solved value 20/9 in a substitution token) was
+        // clipped and grew a horizontal scrollbar under it.
+        overflowY: inline ? 'visible' : 'hidden',
         verticalAlign: inline ? '-0.16em' : 'middle',
         lineHeight: 1.35,
+        // Block math clips vertically at its padding box, and a stacked
+        // fraction hangs ~0.4em below the line: denominators on the systems
+        // verify card lost their bottom 7px. Room for the fraction, only when
+        // there is one.
+        ...(!inline && cleanValue.includes('\\frac') ? { paddingTop: '0.1em', paddingBottom: '0.4em' } : null),
         ...style,
       }}
     >

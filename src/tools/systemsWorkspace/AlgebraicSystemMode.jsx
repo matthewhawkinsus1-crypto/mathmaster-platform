@@ -32,6 +32,7 @@ import {
   exactNumberText,
   presentableExpression,
   classroomEquationText,
+  substitutedEquationLatex,
 } from './algebraicSystemsEngine.js';
 
 const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '11px 12px', border: '1px solid #cfd8e6', borderRadius: 9, background: '#fff', fontSize: 15, minHeight: 44 };
@@ -378,7 +379,9 @@ export function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, dra
   React.useEffect(() => {
     if (!autoReveal || !hostRef.current) return undefined;
     const frame = window.requestAnimationFrame(() => {
-      hostRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+      // `start` + the scroll-margin under the sticky task (App.css): the
+      // solver's own controls land just below the task, not under it.
+      hostRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
       hostRef.current?.focus?.({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(frame);
@@ -459,6 +462,20 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const effectiveMethod = config.method === 'studentChoice' ? method : config.method;
 
   const [selection, setSelection] = usePersistentToolState('selection', { equationIndex: null, variable: null });
+  // A NEW STAGE COMES INTO VIEW WHEN IT APPEARS.
+  //
+  // Each elimination stage (complete the scaled equation, mark the cancelling
+  // terms, combine what remains) opened below the one the student just
+  // finished, past the bottom of the screen, with nothing to say it was there
+  // (live QA round 2, Work View 1536x900). Only stages that appear while the
+  // student works; a resumed question's existing stages are left to the
+  // question-entry scroll.
+  const stagesMountedRef = useRef(false);
+  React.useEffect(() => { stagesMountedRef.current = true; }, []);
+  const revealStageOnAppear = useCallback((element) => {
+    if (!element || !stagesMountedRef.current || typeof window === 'undefined') return;
+    window.requestAnimationFrame(() => element.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }));
+  }, []);
   const [storedIsolation, setIsolation] = usePersistentToolState('isolation', { expression: null, tokenExpression: null, simplificationDraft: '', simplifying: false, simplificationChecked: false, simplificationValid: false });
   // A draft saved before issue #334 can hold Step Algebra's LaTeX spacing
   // ("-(3)+(2~ y)") in these plain-expression fields. Every read goes through
@@ -1384,6 +1401,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                     onSolved={handleIsolated}
                     onUndoStateChange={setEmbeddedUndoController}
                     workspaceDifficulty={questionData.workspaceDifficulty}
+                    autoReveal
                   />
                 )
               ) : null}
@@ -1619,7 +1637,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                           </div>
 
                           {work.active && expectedTransformed && originalCoefficients ? (
-                            <div className="mathmaster-systems-multiplier-products">
+                            <div ref={revealStageOnAppear} className="mathmaster-systems-multiplier-products">
                               <div className="mathmaster-systems-multiplier-products-heading">
                                 <strong>Complete the scaled equation</strong>
                                 <span>Enter the resulting terms where they belong. You may type a full term such as 3x or just its coefficient.</span>
@@ -1730,7 +1748,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                           ) : null}
                         </>
                       ) : (
-                        <div className="mathmaster-systems-cancellation-stage">
+                        <div ref={revealStageOnAppear} className="mathmaster-systems-cancellation-stage">
                           <div className="mathmaster-systems-cancellation-heading">
                             <strong>
                               {combination.operation === 'subtract' ? 'Subtract the equations' : 'Add the equations'} — mark the {selection.variable} terms that cancel
@@ -1779,7 +1797,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                               Confirm marked cancellation
                             </button>
                           ) : (
-                            <div className="mathmaster-systems-student-combination">
+                            <div ref={revealStageOnAppear} className="mathmaster-systems-student-combination">
                               <div className="mathmaster-systems-student-combination-heading">
                                 <strong>Now combine what remains</strong>
                                 <span>
@@ -1988,6 +2006,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                   onUndoStateChange={setEmbeddedUndoController}
                   workspaceDifficulty={questionData.workspaceDifficulty}
                   requireSimplifiedFinalForm={Boolean(subsystem)}
+                  // Opened with its equation behind the action bar (board top
+                  // at 700 of 900, live QA): bring it up like the reduce solver.
+                  autoReveal
                 />
               ) : null}
             </div>
@@ -2035,14 +2056,15 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                     ) : (
                       <div className="mathmaster-systems-verification-substitution">
                         <span>Values substituted</span>
-                        <MathDisplay
-                          value={substituteIntoEquation(
+                        {(() => {
+                          const substituted = substituteIntoEquation(
                             substituteIntoEquation(eq, variables[0], solutionExpressions[variables[0]]),
                             variables[1],
                             solutionExpressions[variables[1]],
-                          )}
-                          format="ascii-math"
-                        />
+                          );
+                          const latex = substitutedEquationLatex(substituted);
+                          return <MathDisplay value={latex || substituted} format={latex ? 'latex' : 'ascii-math'} />;
+                        })()}
                       </div>
                     )}
 
@@ -2150,7 +2172,12 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         primaryActions: readyToSubmit ? [{ id: 'check-algebraic-system', label: 'Check my work', onAction: check }] : [],
       }}
     >
-      <div className={`mathmaster-algebraic-system-layout${embeddedSolverActive ? ' has-active-solver' : ''}`}>
+      {/* The givens become a strip above the work once a route is under way
+          (a variable is chosen): the elimination Prepare / Combine cards, the
+          substitution and back-substitution slots, the solvers and the verify
+          cards were each squeezed into 620px beside a 380px column of
+          equations they already repeat (live QA round 2). */}
+      <div className={`mathmaster-algebraic-system-layout${embeddedSolverActive || Boolean(selection.variable) ? ' has-active-solver' : ''}`}>
         <div className="mathmaster-algebraic-system-givens">
         <Panel title="Both original equations">
           <div style={{ display: 'grid', gap: 8 }}>

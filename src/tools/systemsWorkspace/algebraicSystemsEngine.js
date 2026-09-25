@@ -14,7 +14,7 @@
  * "second mini equation solver" this feature must not become.
  */
 import { OperatorNode, evaluate, fraction, parse } from 'mathjs';
-import { latexToExpression } from '../../algebraAstEngine.js';
+import { expressionToLatex, latexToExpression } from '../../algebraAstEngine.js';
 
 const EPS = 1e-7;
 
@@ -329,6 +329,21 @@ export const substituteVariable = (text, variable, replacementExpression) => {
 export const substituteIntoEquation = (equationText, variable, replacementExpression) => {
   const { left, right } = splitEquation(equationText);
   return `${substituteVariable(left, variable, replacementExpression)} = ${substituteVariable(right, variable, replacementExpression)}`;
+};
+
+/**
+ * The substituted equation as a student reads it. `substituteIntoEquation`
+ * keeps `*` explicit because its output is parsed again; shown as ASCII-math
+ * that read "2 * (20/9) - (-(23/9)) = 7" on the verify card. This is the same
+ * notation Step Algebra uses: 2(20/9) − (−23/9) = 7.
+ */
+export const substitutedEquationLatex = (equationText) => {
+  try {
+    const { left, right } = splitEquation(equationText);
+    return `${expressionToLatex(left)} = ${expressionToLatex(right)}`;
+  } catch {
+    return null;
+  }
 };
 
 /** Multiply every term on both sides by `multiplier`. Returns the resulting equation text and its coefficients. */

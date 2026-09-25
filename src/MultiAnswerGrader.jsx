@@ -3,6 +3,7 @@ import MathInput from './MathInput';
 import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
+import './MultiAnswerGrader.css';
 import GraphDisplay from './GraphDisplay';
 import { answerCandidatesForField, looksLikeFiniteSetNotation } from './answerUtils';
 import { gradeMultiAnswerResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
@@ -20,11 +21,16 @@ const normalizeMathDisplayValue = (value) => normalizePlainMathTypography(value)
   .replace(/²/g, '^2')
   .replace(/³/g, '^3');
 
+// The spoken name of a choice: its text without TeX delimiters ("$5$" → "5").
+const choiceLabel = (value) => String(value ?? '').trim().replace(/^\$+|\$+$/g, '').replace(/^\\\(|\\\)$/g, '').trim();
+
 const renderChoiceText = (value) => {
   const text = String(value ?? '');
   const format = resolveLabelFormat(text);
   return format
-    ? <MathDisplay value={normalizeMathDisplayValue(text)} format={format} inline />
+    // Named by its own text: every choice was announced "Mathematical
+    // expression", so a screen reader could not tell 11 from 5.
+    ? <MathDisplay value={normalizeMathDisplayValue(text)} format={format} inline ariaLabel={choiceLabel(text)} />
     : normalizePlainMathTypography(text);
 };
 
@@ -117,6 +123,15 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
     <div>
       <h2 style={{ color: '#202124', marginTop: 0 }}>{question.heading || 'Complete Each Part'}</h2>
       <QuestionPrompt>{prompt || 'Enter an answer for every part.'}</QuestionPrompt>
+      {/* A data table beside its answer fields where there is room. Stacked,
+          the table sat centred with ~370px blank either side on a 1180px
+          tablet and the fields below the fold; scrolling to them slid the
+          table the student was reading from under the sticky task card. */}
+      <div
+        className="mathmaster-multipart-layout"
+        data-side-table={Boolean(question?.table) && !question?.graph && !question?.visual && !question?.mathDisplay && !question?.supportingMath && !candidateGraphs.length ? 'true' : 'false'}
+      >
+      <div className="mathmaster-multipart-body">
       <QuestionVisual question={question} />
       {candidateGraphs.length > 0 && (
         <div
@@ -152,7 +167,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
           ))}
         </div>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '24px' }}>
+      <div className="mathmaster-multipart-fields" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '24px' }}>
         {safeFields.map((field) => {
           const grade = feedback?.partGrades?.find((part) => part.id === field.id);
           const choiceOptions = choiceOptionsForField(field, choiceSeed(question.questionId || question.prompt, field.id));
@@ -194,6 +209,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                         key={raw}
                         role="radio"
                         aria-checked={selected}
+                        aria-label={choiceLabel(raw)}
                         onClick={() => history.setValue((current) => ({ ...current, [field.id]: raw }))}
                         style={{
                           minHeight: '46px',
@@ -256,6 +272,8 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
             </div>
           );
         })}
+      </div>
+      </div>
       </div>
     </div>
   );

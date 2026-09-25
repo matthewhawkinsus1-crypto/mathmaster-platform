@@ -1,6 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import './RepresentationMatch.css';
 import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel } from '../shared/ToolShell';
+
+const CardSetStack = ({ children }) => (
+  <div className="mathmaster-tool-card-set-stack" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 18 }}>{children}</div>
+);
 import CoordinatePlane from '../shared/CoordinatePlane';
 import MathDisplay from '../../MathDisplay';
 import { evaluateFunctionSpec } from '../shared/toolMath';
@@ -263,7 +268,9 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
   const renderLinearCardBody = (card) => {
     if (card.kind === 'graph') {
       const bounds = questionData.graphBounds || { xMin: -8, xMax: 8, yMin: -8, yMax: 8 };
-      return <CoordinatePlane enlargeable={false} width={220} height={140} {...bounds} functions={[(x) => evaluateFunctionSpec(card.value || {}, x)]} />;
+      // The plane scales to the card's width; this sets its proportions. At
+      // 220x140 a -8..8 y-axis stacked its labels on top of each other.
+      return <CoordinatePlane enlargeable={false} width={320} height={240} {...bounds} functions={[(x) => evaluateFunctionSpec(card.value || {}, x)]} />;
     }
     if (['slopeIntercept', 'factoredLinear', 'pointSlope', 'standard'].includes(card.kind)) {
       return <MathDisplay value={String(card.value)} format="ascii-math" ariaLabel={`${LINEAR_KIND_LABELS[card.kind]}: ${card.value}`} />;
@@ -279,9 +286,18 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
         : mode === 'linearConnections' ? (linearTask === 'findMismatch' ? 'Find the Mismatched Line' : 'Connect the Line')
           : 'Connect the Representations';
 
+  // A set of line cards is the workspace, and it needs width: in an even
+  // two-column grid twelve cards were squeezed into three narrow columns with
+  // unreadable graph thumbnails, and "Check groups" fell below the fold, while
+  // the other half of the screen held reference text that is identical on
+  // every question (live QA, 1536×900, Work View). Card sets take the full
+  // width and the reference panel follows underneath.
+  const cardSetLayout = mode === 'linearConnections';
+  const Layout = cardSetLayout ? CardSetStack : ToolGrid;
+
   return <ToolShell title={shellTitle} subtitle="Equations, tables, graphs and contexts are four ways of saying the same thing — make sure they agree." badge="Multiple representations">
     <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.completeSet} steps={MODE_STEPS[mode] || MODE_STEPS.completeSet} />
-    <ToolGrid min={330}>
+    <Layout min={330}>
       <Panel title={
         mode === 'completeSet' ? 'Build a consistent representation set'
           : mode === 'findMismatch' ? 'Find the broken link'
@@ -338,7 +354,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
               ))}
             </div>
           </fieldset>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+          <div className="mathmaster-line-card-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
             {linearGroupCards.map((card) => {
               const assignedSlot = linearAssignments[card.id];
               const assignedLabel = assignedSlot != null ? `Line ${lineLabels[assignedSlot]}` : 'Unassigned';
@@ -346,6 +362,8 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                 <button
                   type="button"
                   key={card.id}
+                  className="mathmaster-line-card"
+                  data-card-kind={card.kind}
                   onClick={() => toggleCardAssignment(card.id)}
                   aria-pressed={assignedSlot === activeLineSlot}
                   aria-label={`${LINEAR_KIND_LABELS[card.kind]} card, currently ${assignedLabel}. Tap to ${assignedSlot === activeLineSlot ? 'remove from' : 'assign to'} Line ${lineLabels[activeLineSlot]}.`}
@@ -416,6 +434,6 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
         <ul style={{ lineHeight: 1.8, paddingLeft: 20, marginTop: 0 }}><li>An equation encodes the rule.</li><li>A table samples input-output pairs.</li><li>A graph shows shape, rate, and defining features.</li><li>A context gives quantities meaning and units.</li></ul>
         <p style={{ color: '#5f6b7a', marginBottom: 0 }}>None of these is the “real” version of the relationship. Each one shows something the others hide, which is why you check them against each other.</p>
       </Panel>
-    </ToolGrid>
+    </Layout>
   </ToolShell>;
 }

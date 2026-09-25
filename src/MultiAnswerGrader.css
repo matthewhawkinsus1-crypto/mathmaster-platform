@@ -1,0 +1,27 @@
+/* A data table beside its answer fields where the question has room for both
+   (see MultiAnswerGrader.jsx). Container-sized, so it follows the space the
+   question actually has — the page column, a tablet, or Work View. */
+.mathmaster-multipart-layout {
+  container: multipart / inline-size;
+}
+
+@container multipart (min-width: 900px) {
+  .mathmaster-multipart-layout[data-side-table="true"] > .mathmaster-multipart-body {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: 24px;
+    align-items: start;
+  }
+
+  .mathmaster-multipart-layout[data-side-table="true"] .mathmaster-multipart-fields {
+    margin-top: 22px !important;
+  }
+
+  /* The table stays in view, just under the sticky task, while the student
+     works down the parts beside it. Not in Work View, whose surface is its own
+     scroller with no sticky task above it. */
+  html:not([data-work-view-open="true"]) .mathmaster-multipart-layout[data-side-table="true"] > .mathmaster-multipart-body > :first-child {
+    position: sticky;
+    top: calc(var(--mm-sticky-task-top, 0px) + var(--mm-sticky-task-height, 0px) + 8px);
+  }
+}

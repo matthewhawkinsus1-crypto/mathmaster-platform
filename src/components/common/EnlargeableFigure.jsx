@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import MathText from './MathText.jsx';
 import {
   WorkViewCapabilityPortProvider,
@@ -10,6 +10,7 @@ import {
   workViewCapabilitySummary,
 } from '../../platform/workView/workViewCapabilities.js';
 import { readWorkViewViewport } from '../../platform/workView/workViewViewport.js';
+import { captureWorkViewScrollHold, restoreWorkViewScrollHold } from '../../platform/workView/workViewScrollHold.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import './WorkViewShell.css';
 
@@ -117,6 +118,10 @@ export default function EnlargeableFigure({
   const [viewport, setViewport] = useState(() => readWorkViewViewport());
   const openerRef = useRef(null);
   const closeRef = useRef(null);
+  // Where the page was, and how much room the tool took, when the student
+  // opened Work View. See workViewScrollHold.js.
+  const scrollHoldRef = useRef(null);
+  const [placeholderHeight, setPlaceholderHeight] = useState(0);
   const presentationKeyRef = useRef(presentationKey);
   const actionsRef = useRef(null);
   const hostRef = useRef(null);
@@ -175,7 +180,9 @@ export default function EnlargeableFigure({
       }
     };
     window.addEventListener('keydown', onKeyDown, true);
-    closeRef.current?.focus?.();
+    // preventScroll: focusing into the pinned panel scrolled the page behind it
+    // to the top (scrollY 400 → 5), losing the student's place on close.
+    closeRef.current?.focus?.({ preventScroll: true });
     return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [enlarged, close]);
 
@@ -205,6 +212,28 @@ export default function EnlargeableFigure({
     });
     return () => window.cancelAnimationFrame(frame);
   }, [enlarged]);
+
+  // Back in the flow: put the page where the student left it. Once before
+  // paint, and once more on the next frame, because scroll anchoring moves the
+  // page again by the tool's height when it re-enters the flow (measured
+  // 400 → 940 at 1536×900 with the first restore alone).
+  useLayoutEffect(() => {
+    const hold = scrollHoldRef.current;
+    if (enlarged || !hold || typeof window === 'undefined') return undefined;
+    scrollHoldRef.current = null;
+    restoreWorkViewScrollHold(hold);
+    const frame = window.requestAnimationFrame(() => restoreWorkViewScrollHold(hold));
+    return () => window.cancelAnimationFrame(frame);
+  }, [enlarged]);
+
+  const openWorkView = () => {
+    if (shouldForceClose) return;
+    // The host is `display: contents` while closed; the surface has the box.
+    const hold = captureWorkViewScrollHold(hostRef.current?.querySelector?.('.mathmaster-work-view-surface'));
+    scrollHoldRef.current = hold;
+    setPlaceholderHeight(hold?.height || 0);
+    setEnlarged(true);
+  };
 
   // Focus goes back where it came from, so a keyboard user is not dropped at
   // the top of the page after closing.
@@ -379,7 +408,7 @@ export default function EnlargeableFigure({
         </div>
       ) : null}
       {!enlarged ? (
-        <button ref={openerRef} type="button" onClick={() => { if (!shouldForceClose) setEnlarged(true); }} disabled={shouldForceClose} style={CONTROL}>
+        <button ref={openerRef} type="button" onClick={openWorkView} disabled={shouldForceClose} style={CONTROL}>
           ⤢ {enlargeLabel}
         </button>
       ) : null}
@@ -425,6 +454,7 @@ export default function EnlargeableFigure({
    * what catches the next ancestor that grows a transform.
    */
   return (
+    <>
     <div
       ref={hostRef}
       className={`mathmaster-work-view-host${enlarged ? ' mathmaster-enlarged-figure' : ''}`}
@@ -504,13 +534,28 @@ export default function EnlargeableFigure({
               onClick={() => invokeAction(action)}
               disabled={action.disabled}
               title={action.title}
+              // A phone row fits four controls only with short labels ("Reset"
+              // for "Reset Question"); the full label stays the accessible name.
+              aria-label={action.shortLabel && typeof action.label === 'string' ? action.label : undefined}
             >
-              {action.label}
+              {action.shortLabel ? (
+                <>
+                  <span className="mathmaster-work-view-action-full">{action.label}</span>
+                  <span className="mathmaster-work-view-action-short" aria-hidden="true">{action.shortLabel}</span>
+                </>
+              ) : action.label}
             </button>
           ))}
           {capabilityNames.map((name) => <span key={name} className="mathmaster-work-view-capability" data-work-view-capability={name}>{registeredCapabilities[name]?.label || name}</span>)}
         </aside>
       </div>
     </div>
+    {/* Holds the tool's place in the page while it is pinned to the viewport,
+        so the browser does not clamp the scroll position (workViewScrollHold.js).
+        Always inside the same fragment, so the host above never remounts. */}
+    {enlarged && placeholderHeight ? (
+      <div className="mathmaster-work-view-placeholder" aria-hidden="true" style={{ height: placeholderHeight }} />
+    ) : null}
+    </>
   );
 }

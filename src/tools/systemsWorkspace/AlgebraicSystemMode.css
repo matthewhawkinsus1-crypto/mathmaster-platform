@@ -276,10 +276,13 @@
   background: #fbfcff;
 }
 
+/* Wraps rather than scrolling sideways: seven elimination steps are 700px in
+   a 612px panel, and a scroll strip hid Verify and Back-substitute behind a
+   scrollbar a student had no reason to try (live QA round 2, 1536x900). */
 .mathmaster-systems-work-trail-steps {
   display: flex;
+  flex-wrap: wrap;
   gap: 7px;
-  overflow-x: auto;
   padding-bottom: 2px;
 }
 
@@ -1351,4 +1354,12 @@
   .mathmaster-reduction-verification-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* Revealed as they appear (revealStageOnAppear): clear the sticky action bar
+   so the stage's own Check button is not left under it. */
+.mathmaster-systems-multiplier-products,
+.mathmaster-systems-cancellation-stage,
+.mathmaster-systems-student-combination {
+  scroll-margin-bottom: 96px;
 }

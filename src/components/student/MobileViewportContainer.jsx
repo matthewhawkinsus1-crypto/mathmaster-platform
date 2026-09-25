@@ -9,6 +9,7 @@ import {
 } from '../../platform/mobile/mobileFocusViewport.js';
 import { isBrowserPinchZoomed, readStableViewportBox } from '../../platform/mobile/mobileInteractionFoundation.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
+import { STICKY_TASK_HEIGHT_VAR, stickyHeightRef } from '../../platform/layout/stickyHeightRef.js';
 
 const NUMERIC_SELECTOR = 'input[type="number"], input[inputmode="numeric"], input[inputmode="decimal"], input[data-mathmaster-mobile-keypad="true"]';
 const KEYS = ['7', '8', '9', '4', '5', '6', '1', '2', '3', '±', '0', '.'];
@@ -436,7 +437,7 @@ export const MobileViewportContainer = ({
       ) : (
         <>
           {!workspaceActive && (
-            <div className={`mathmaster-desktop-question-anchor${isPromptCollapsed ? ' is-collapsed' : ''}`}>
+            <div ref={stickyHeightRef(STICKY_TASK_HEIGHT_VAR)} className={`mathmaster-desktop-question-anchor${isPromptCollapsed ? ' is-collapsed' : ''}`}>
               <div className="mathmaster-desktop-task-toggle-row">
                 {!isPromptCollapsed && <span>Your task</span>}
                 <button

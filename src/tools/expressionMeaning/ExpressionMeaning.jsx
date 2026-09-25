@@ -3,7 +3,7 @@ import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
-import { choiceBankFor, EXPRESSION_MEANING_DIMENSIONS, scoreExpressionMeaning } from './expressionMeaningMath.js';
+import { choiceBankFor, EXPRESSION_MEANING_DIMENSIONS, nextIncompleteExpressionId, scoreExpressionMeaning } from './expressionMeaningMath.js';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid #c9d6e8', background: '#fff', fontWeight: 800, cursor: 'pointer' };
 
@@ -31,13 +31,20 @@ export default function ExpressionMeaning({ questionData = {}, onAction }) {
 
   const activeExpression = expressions.find((expr) => expr.id === activeId) || expressions[0] || null;
 
+  const isRowComplete = (given = {}) => EXPRESSION_MEANING_DIMENSIONS.every((dimension) => String(given[dimension] || '').trim());
+
   const assign = (exprId, dimension, value) => {
     if (!exprId) return;
     clearFeedback();
-    setAssignments((current) => ({
-      ...current,
-      [exprId]: { ...current[exprId], [dimension]: value },
-    }));
+    const next = { ...assignments, [exprId]: { ...assignments[exprId], [dimension]: value } };
+    setAssignments(next);
+    // Completing a row opens the next incomplete one in place, so the student
+    // is not sent back up to the matrix for every expression. Editing a row
+    // that was already complete stays on it.
+    if (!isRowComplete(assignments[exprId]) && isRowComplete(next[exprId])) {
+      const nextId = nextIncompleteExpressionId(expressions, next, exprId);
+      if (nextId) setActiveId(nextId);
+    }
   };
 
   const completedCount = expressions.filter((expr) => {

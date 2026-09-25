@@ -14,6 +14,7 @@ import QuestionPrompt from './QuestionPrompt';
 import AlgebraTermRow from './AlgebraTermRow';
 import './StepByStepAlgebra.css';
 import useMobileInteractionMode from './platform/mobile/useMobileInteractionMode.js';
+import { workspaceNeedsReveal } from './platform/layout/workspaceReveal.js';
 import { extractEquationSymbols, placementInstructionForOperation, semanticPlacementFromTap } from './platform/mobile/mobileInteractionFoundation.js';
 import {
   applyAdditiveOperationAtPlacement,
@@ -22,6 +23,7 @@ import {
   equationToLatex,
   expressionToLatex,
   describeOperationToken,
+  describePlacedOperation,
   getSuggestedMove,
   isSolvedEquation,
   expressionsEquivalent,
@@ -261,21 +263,27 @@ function AutoFitEquationExpression({ children, baseFontSize = 34, cacheKey = '' 
   );
 }
 
-function OperationChip({ token }) {
+// `latex` is the operand as typed in the math field. It is typeset rather than
+// printed: "Pick up − \frac{40}{9}" was shown to the student verbatim.
+function OperationChip({ token, latex = '' }) {
   if (!token) return null;
+  const operand = latex
+    ? <MathDisplay value={latex} format="latex" inline ariaLabel={token.operand} />
+    : token.operand;
   if (token.kind === 'fraction') {
     return (
       <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.05 }}>
         <span style={{ minWidth: '18px', height: '11px' }} />
         <span style={{ width: '100%', minWidth: '22px', height: '2px', background: 'currentColor' }} />
-        <span>{token.operand}</span>
+        <span>{operand}</span>
       </span>
     );
   }
   if (token.kind === 'factor') {
-    return <span>{token.operand}<span style={{ opacity: 0.55 }}>(&thinsp;)</span></span>;
+    return <span>{operand}<span style={{ opacity: 0.55 }}>(&thinsp;)</span></span>;
   }
-  return <span>{token.text}</span>;
+  const sign = token.text.endsWith(token.operand) ? token.text.slice(0, token.text.length - token.operand.length) : '';
+  return sign ? <span>{sign}{operand}</span> : <span>{token.text}</span>;
 }
 
 export default function StepByStepAlgebra({
@@ -870,6 +878,17 @@ export default function StepByStepAlgebra({
       setStruckTerms(null);
       setBalancePulse(true);
       window.setTimeout(() => setBalancePulse(false), motionDuration(700, reducedMotion, { floor: 60 }));
+      // "Continue from the equation shown" has to be true: a committed step can
+      // leave the board under the sticky task card (see workspaceReveal.js).
+      // Phones keep their own vertical-only focus scrolling.
+      if (!mobileInteraction?.isMobile) {
+        window.requestAnimationFrame(() => {
+          const equals = equalsRef.current;
+          if (equals && workspaceNeedsReveal(equals.getBoundingClientRect(), window.innerHeight)) {
+            equals.scrollIntoView?.({ block: 'center', inline: 'nearest', behavior: reducedMotion ? 'auto' : 'smooth' });
+          }
+        });
+      }
       setMessage({
         tone: nextSolved ? 'success' : move.productive ? 'success' : 'growth',
         text: nextSolved
@@ -1992,9 +2011,9 @@ export default function StepByStepAlgebra({
       return;
     }
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    const label = describeOperationToken(operation, operand);
+    const label = describeOperationToken(operation, operandLabel || operand);
     dragRef.current = { operation, label, pointerId: event.pointerId };
-    setHeldToken({ x: event.clientX, y: event.clientY, label });
+    setHeldToken({ x: event.clientX, y: event.clientY, label, latex: operand });
     setMessage(null);
   };
 
@@ -3036,9 +3055,16 @@ export default function StepByStepAlgebra({
                     own move and sits outside the expression, so it can never be
                     read as the resulting algebra and never changes the fit. */}
                 {stagedHere && armedTile && !pendingMove ? (
-                  <div className="algebra-placement-marker" role="status" aria-label={`Operation placed on the ${side} side`}>
+                  <div
+                    className="algebra-placement-marker"
+                    role="status"
+                    aria-label={describePlacedOperation(armedTile.operation, operandLabel, side)}
+                    data-placed-operation={armedTile.operation}
+                    data-placed-operand={operandLabel}
+                    data-placed-side={side}
+                  >
                     <span aria-hidden="true" className="algebra-placement-marker-check">✓</span>
-                    <OperationChip token={describeOperationToken(armedTile.operation, operandLabel)} />
+                    <OperationChip token={describeOperationToken(armedTile.operation, operandLabel)} latex={operand} />
                     <span>placed</span>
                   </div>
                 ) : null}
@@ -3253,9 +3279,12 @@ export default function StepByStepAlgebra({
               ? 'Arm this operation, then tap the equation where it belongs'
               : 'Drag this operation onto one side of the equation, or press Enter and then choose a side'}
             aria-pressed={tapPlacementArmed}
+            aria-label={operandLabel
+              ? `${mobileInteraction.isMobile ? (tapPlacementArmed ? 'Ready to place' : 'Use') : 'Pick up'} ${describeOperationToken(armedTile.operation, operandLabel).text}`
+              : undefined}
           >
             {mobileInteraction.isMobile ? (tapPlacementArmed ? 'Ready to place ' : 'Use ') : '⠿ Pick up '}
-            {operandLabel ? <OperationChip token={describeOperationToken(armedTile.operation, operand)} /> : 'operation'}
+            {operandLabel ? <OperationChip token={describeOperationToken(armedTile.operation, operandLabel)} latex={operand} /> : 'operation'}
           </button>
           {allowAutoApply && (
             <button type="button" className="algebra-auto-apply-button" onClick={() => attemptMove(armedTile.operation, armedTile.sourceSide || 'left')} disabled={disabled || savingStep || !String(operand || '').trim()} title="Accommodation shortcut: apply this operation to both sides">
@@ -3320,7 +3349,7 @@ export default function StepByStepAlgebra({
       </p>
 
       {heldToken && (
-        <div aria-hidden="true" style={{ position: 'fixed', left: heldToken.x, top: heldToken.y, transform: 'translate(-50%, -50%)', zIndex: 40, pointerEvents: 'none', fontFamily: 'ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace', fontWeight: 800, fontSize: '22px', color: '#174ea6', background: '#e8f0fe', borderRadius: '12px', padding: '6px 12px', boxShadow: '0 12px 26px rgba(26,115,232,0.3)', whiteSpace: 'nowrap' }}><OperationChip token={heldToken.label} /></div>
+        <div aria-hidden="true" style={{ position: 'fixed', left: heldToken.x, top: heldToken.y, transform: 'translate(-50%, -50%)', zIndex: 40, pointerEvents: 'none', fontFamily: 'ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace', fontWeight: 800, fontSize: '22px', color: '#174ea6', background: '#e8f0fe', borderRadius: '12px', padding: '6px 12px', boxShadow: '0 12px 26px rgba(26,115,232,0.3)', whiteSpace: 'nowrap' }}><OperationChip token={heldToken.label} latex={heldToken.latex} /></div>
       )}
     </section>
   );

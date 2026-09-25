@@ -154,8 +154,10 @@ const cleanImplicitMultiplicationLatex = (latex) => {
         // A grouped FRACTION is a coefficient, not a group: (5/2) · x is
         // written (5/2)x, never x(5/2). Moving the letter in front turned
         // -(5/2)x into -x(5/2) in the workspace and the work history.
+        // A grouped NUMBER is the same: 4 · 2 · x (the substitution 4(2x))
+        // arrives here as 4(2) · x and read 4x(2) on the balance board.
         const inner = group.slice(GROUP_OPEN.length, -GROUP_CLOSE.length).trim();
-        if (/^-?\\frac\{[^{}]*\}\{[^{}]*\}$/.test(inner) && /^[a-zA-Z\\]/.test(operandMatch[1])) {
+        if (/^-?(?:\d+(?:\.\d+)?|\\frac\{[^{}]*\}\{[^{}]*\})$/.test(inner) && /^[a-zA-Z\\]/.test(operandMatch[1])) {
           text = `${before}${after}`;
           continue;
         }
@@ -1232,6 +1234,12 @@ export const describeOperationToken = (operation, operandExpression) => {
 };
 
 export const describeOperation = (operation, operandExpression) => `${OPERATION_LABELS[operation] || operation} ${operandExpression} on both sides`;
+// The spoken, semantic name of a one-sided placement: "Subtract 21 placed on
+// the left side". The visible chip typesets the operand, so its text content is
+// MathLive markup; this is the name assistive technology and tests read.
+export const describePlacedOperation = (operation, operandExpression, side) => (
+  `${OPERATION_LABELS[operation] || operation} ${String(operandExpression ?? '').trim()} placed on the ${side} side`
+);
 
 export const getSuggestedMove = (equationState) => {
   const analysis = getEquationAnalysis(equationState);
