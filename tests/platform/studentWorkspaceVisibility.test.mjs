@@ -364,3 +364,11 @@ test('phone Work View trims nested padding around the math', () => {
     assert.match(css, new RegExp(`\\[data-open="true"\\]\\[data-layout="mobile"\\] \\.${layer} \\{ padding: \\d+px !important; \\}`), layer);
   }
 });
+
+// Live QA round 2: multiple-choice radios were announced only as
+// "Mathematical expression".
+test('multi-part choices are named by their own text', () => {
+  const grader = read('src/MultiAnswerGrader.jsx');
+  assert.match(grader, /format=\{format\} inline ariaLabel=\{choiceLabel\(text\)\} \/>/);
+  assert.match(grader, /role="radio"\s*aria-checked=\{selected\}\s*aria-label=\{choiceLabel\(raw\)\}/);
+});
