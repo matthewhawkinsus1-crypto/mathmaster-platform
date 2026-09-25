@@ -309,8 +309,8 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
 
           {mode === 'intercepts' ? <>
             <p style={{ color: '#5f6b7a', fontSize: 13 }}>Separate multiple x-intercepts with commas. Type <strong>none</strong> when an intercept does not exist.</p>
-            <label style={{ fontSize: 13, fontWeight: 700, color: '#3c4756' }}>x-intercept values<input value={xIntercepts} onChange={(event) => setXIntercepts(event.target.value)} placeholder="Example: -2, 3 or none" style={inputStyle} /></label>
-            <label style={{ display: 'block', marginTop: 12, fontSize: 13, fontWeight: 700, color: '#3c4756' }}>y-intercept value<input value={yIntercept} onChange={(event) => setYIntercept(event.target.value)} placeholder="Example: 4 or none" style={inputStyle} /></label>
+            <label style={{ fontSize: 13, fontWeight: 700, color: '#3c4756' }}>x-intercept values<input value={xIntercepts} onChange={(event) => setXIntercepts(event.target.value)} placeholder="Example: -2, 3 or none" style={inputStyle} aria-label="x-intercept values" /></label>
+            <label style={{ display: 'block', marginTop: 12, fontSize: 13, fontWeight: 700, color: '#3c4756' }}>y-intercept value<input value={yIntercept} onChange={(event) => setYIntercept(event.target.value)} placeholder="Example: 4 or none" style={inputStyle} aria-label="y-intercept value" /></label>
             <button type="button" onClick={checkIntercepts} style={{ ...buttonStyle, marginTop: 14 }}>Check intercepts</button>
           </> : null}
 

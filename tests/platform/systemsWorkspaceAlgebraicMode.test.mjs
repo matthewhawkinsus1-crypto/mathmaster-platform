@@ -552,3 +552,14 @@ test('completed systems history carries classroom LaTeX in addition to machine-s
   const trail = region(modeSource, 'function SystemsWorkTrail', 'const cleanCoefficient', 'SystemsWorkTrail');
   assert.match(trail, /format=\{stage\.summaryLatex \? 'latex' : 'ascii-math'\}/);
 });
+
+test('solvedRecordExpression falls back to clean exact number when raw expression contains unsimplified arithmetic', () => {
+  assert.match(modeSource, /expressionIsSimplified/);
+  assert.match(modeSource, /if\s*\(exact\s*&&\s*expressionIsSimplified\(exact\)\)\s*\{\s*return presentableExpression\(exact\);\s*\}\s*return exactNumberText\(record\?\.value\);/);
+});
+
+test('scale editor clears default multiplier 1 when opened and restores 1 when kept as written', () => {
+  assert.match(modeSource, /if\s*\(multipliers\[index\] === '1'\)\s*setMultiplierValue\(index, ''\);/);
+  assert.match(modeSource, /setMultiplierValue\(index, '1'\);/);
+});
+
