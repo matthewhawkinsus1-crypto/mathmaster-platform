@@ -1,4 +1,6 @@
+import { useEffect, useRef } from 'react';
 import 'mathlive';
+import { ensureMathElementRenders } from './platform/math/ensureMathElementRenders.js';
 import { stackDivisions } from '../functions/shared/stackDivisions.mjs';
 import { resolveMathDisplayFormat } from './mathDisplayFormat.js';
 
@@ -71,6 +73,8 @@ export default function MathDisplay({
   const cleanValue = stripRedundantStackedFractionParens(
     stackDivisions(repairLegacyMathLiveRelations(stripMathDelimiters(value))),
   );
+  const elementRef = useRef(null);
+  useEffect(() => ensureMathElementRenders(elementRef.current), [cleanValue, format]);
   if (!cleanValue) return null;
 
   // Important: stackDivisions may have introduced a LaTeX \frac into a value
@@ -82,6 +86,7 @@ export default function MathDisplay({
 
   return (
     <Element
+      ref={elementRef}
       key={`${resolvedFormat}:${cleanValue}`}
       format={resolvedFormat}
       aria-label={ariaLabel}
