@@ -330,9 +330,9 @@ test('the systems step trail wraps instead of scrolling sideways', () => {
 
 // Live QA round 2: the elimination Prepare/Combine cards were squeezed beside
 // a 380px column of the given equations.
-test('elimination work gets the full width once a target is chosen', () => {
+test('systems work gets the full width once a route is under way', () => {
   const source = read('src/tools/systemsWorkspace/AlgebraicSystemMode.jsx');
-  assert.match(source, /className=\{`mathmaster-algebraic-system-layout\$\{embeddedSolverActive \|\| \(effectiveMethod === 'elimination' && Boolean\(selection\.variable\)\) \? ' has-active-solver' : ''\}`\}/);
+  assert.match(source, /className=\{`mathmaster-algebraic-system-layout\$\{embeddedSolverActive \|\| Boolean\(selection\.variable\) \? ' has-active-solver' : ''\}`\}/);
 });
 
 // Live QA round 2: each new elimination stage opened below the fold with
