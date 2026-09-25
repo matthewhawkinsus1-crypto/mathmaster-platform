@@ -77,11 +77,14 @@ test('an active Warm-Up is surfaced as the highest-priority live action', async 
       questions: [{ type: 'algebra', prompt: 'Warm up', equationLatex: 'x=1', activityRole: 'warmup' }],
     }],
   };
+  const nowDate = new Date(NOW);
+  const startH = String(nowDate.getHours()).padStart(2, '0');
+  const endH = String((nowDate.getHours() + 1) % 24).padStart(2, '0');
   const classSchedule = {
     version: 2,
     dayTypeOverrides: { '2026-10-26': 'A' },
     daySchedules: {
-      A: { periods: { 'Period 1': { enabled: true, start: '14:55', end: '16:00' } } },
+      A: { periods: { 'Period 1': { enabled: true, start: `${startH}:00`, end: `${endH}:00` } } },
       B: { periods: {} },
     },
   };
