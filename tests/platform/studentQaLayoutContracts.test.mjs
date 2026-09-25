@@ -18,6 +18,9 @@ test('a field focused on the student\'s behalf is scrolled clear of the sticky a
   const rule = css.match(/\.mathmaster-assignment-screen math-field \{\s*scroll-margin-bottom:\s*(\d+)px;/);
   assert.ok(rule, 'math fields reserve room for the sticky action bar');
   assert.ok(Number(rule[1]) >= 90, 'the reserve is at least the bar\'s height');
+
+  const paddingRule = css.match(/\.mathmaster-assignment-screen \{[\s\S]*?scroll-padding-top:\s*([^;]+);[\s\S]*?scroll-padding-bottom:\s*([^;]+);/);
+  assert.ok(paddingRule, 'assignment screen defines scroll-padding for sticky headers and action bar');
 });
 
 // Live QA (390×844 portrait): the question container ended 52px below the
