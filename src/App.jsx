@@ -1363,6 +1363,7 @@ function App() {
 
   const [isIdle, setIsIdle] = useState(false);
   const lastActivityRef = useRef(Date.now());
+  const lastPointerRef = useRef(null);
   // Academic interaction is deliberately separate from generic mouse/keyboard
   // activity. Presence never records keys or response text; this timestamp is
   // advanced only by meaningful assignment actions below.
@@ -4145,10 +4146,27 @@ function App() {
       lastActivityRef.current = Date.now();
       if (isIdle) setIsIdle(false);
     };
+    // Browsers fire a mousemove with unchanged coordinates when content
+    // appears under a resting cursor. The idle overlay itself is such content,
+    // so it dismissed itself the moment it rendered and restarted the timer
+    // (live QA round 2). Only a pointer that actually moved is activity.
+    // Held in a ref: this effect re-subscribes when the overlay appears.
+    const resetOnPointerMove = (event) => {
+      const point = `${event.screenX},${event.screenY}`;
+      if (point === lastPointerRef.current) return;
+      lastPointerRef.current = point;
+      resetActivity();
+    };
 
-    window.addEventListener('mousemove', resetActivity);
+    window.addEventListener('mousemove', resetOnPointerMove);
     window.addEventListener('keydown', resetActivity);
     window.addEventListener('click', resetActivity);
+    // A phone or tablet student reading and scrolling never fires mousemove,
+    // and a drag that ends away from where it started never fires click.
+    const passive = { passive: true };
+    window.addEventListener('pointerdown', resetActivity, passive);
+    window.addEventListener('touchstart', resetActivity, passive);
+    window.addEventListener('wheel', resetActivity, passive);
 
     const interval = window.setInterval(() => {
       if (document.hidden) return;
@@ -4166,9 +4184,12 @@ function App() {
     }, 1000);
 
     return () => {
-      window.removeEventListener('mousemove', resetActivity);
+      window.removeEventListener('mousemove', resetOnPointerMove);
       window.removeEventListener('keydown', resetActivity);
       window.removeEventListener('click', resetActivity);
+      window.removeEventListener('pointerdown', resetActivity, passive);
+      window.removeEventListener('touchstart', resetActivity, passive);
+      window.removeEventListener('wheel', resetActivity, passive);
       window.clearInterval(interval);
     };
   }, [user, activeView, activeAssignmentId, isIdle, activeSupportPresentation.disableIdleTimer]);
@@ -8248,11 +8269,19 @@ function App() {
     if (!isIdle) return null;
     return (
       <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="mathmaster-idle-title"
+        aria-describedby="mathmaster-idle-detail"
+        className="mathmaster-idle-overlay"
         style={{
           position: 'fixed',
           inset: 0,
           backgroundColor: 'rgba(0,0,0,0.85)',
-          zIndex: 9999,
+          // Above Work View (2147483000). At 9999 the overlay sat behind an
+          // open Work View: the timer paused and the student was never told
+          // (live QA round 2).
+          zIndex: 2147483100,
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
@@ -8268,17 +8297,22 @@ function App() {
             maxWidth: '400px',
           }}
         >
-          <h2 style={{ color: '#d93025', marginTop: 0 }}>Are you still working?</h2>
-          <p style={{ color: '#5f6368', fontSize: '16px', marginBottom: '30px' }}>
-            Your timer has been paused due to inactivity.
+          <h2 id="mathmaster-idle-title" style={{ color: '#d93025', marginTop: 0 }}>Are you still working?</h2>
+          <p id="mathmaster-idle-detail" style={{ color: '#5f6368', fontSize: '16px', marginBottom: '30px' }}>
+            Your timer has been paused due to inactivity. Your work stays where you left it.
           </p>
           <button
+            type="button"
+            // Focused on appearance so Enter or Space resumes, and a screen
+            // reader lands on the dialog instead of the paused work behind it.
+            ref={(element) => element?.focus?.({ preventScroll: true })}
             onClick={() => {
               lastActivityRef.current = Date.now();
               setIsIdle(false);
             }}
             style={{
               padding: '12px 24px',
+              minHeight: '44px',
               fontSize: '16px',
               background: '#1a73e8',
               color: '#fff',

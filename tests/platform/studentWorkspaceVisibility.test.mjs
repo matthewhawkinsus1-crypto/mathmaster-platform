@@ -206,3 +206,34 @@ test('operation chips typeset the operand instead of printing its LaTeX', () => 
   assert.match(core, /<OperationChip token=\{describeOperationToken\(armedTile\.operation, operandLabel\)\} latex=\{operand\} \/>/);
   assert.match(core, /<OperationChip token=\{heldToken\.label\} latex=\{heldToken\.latex\} \/>/);
 });
+
+// Live QA round 2: idle for two minutes with Work View open, the overlay
+// (z-index 9999) rendered behind Work View (2147483000) — the timer paused and
+// the student was never told. It was also an unlabelled div without focus.
+test('the inactivity overlay sits above Work View and is a focused, labelled dialog', () => {
+  const app = read('src/App.jsx');
+  const overlay = app.slice(app.indexOf('const renderIdleOverlay = () => {'), app.indexOf('const renderDeleteAssignmentDialog'));
+  const zIndex = Number(overlay.match(/zIndex: (\d+),/)?.[1]);
+  const workView = read('src/components/common/WorkViewShell.css');
+  const workViewZ = Number(workView.match(/\.mathmaster-work-view-host\[data-open="true"\] \{[\s\S]*?z-index: (\d+);/)?.[1]);
+  assert.ok(workViewZ > 0 && zIndex > workViewZ, `${zIndex} must exceed Work View ${workViewZ}`);
+  assert.match(overlay, /role="alertdialog"\s*aria-modal="true"\s*aria-labelledby="mathmaster-idle-title"/);
+  assert.match(overlay, /ref=\{\(element\) => element\?\.focus\?\.\(\{ preventScroll: true \}\)\}/);
+});
+
+// Live QA round 2: once the overlay was on top, the browser's synthetic
+// mousemove (content appearing under a resting cursor) dismissed it instantly
+// and restarted the timer.
+test('only a pointer that actually moved counts as activity', () => {
+  const app = read('src/App.jsx');
+  assert.match(app, /const lastPointerRef = useRef\(null\);/);
+  const effect = app.slice(app.indexOf('const resetOnPointerMove = (event) => {'), app.indexOf("window.addEventListener('keydown', resetActivity);"));
+  assert.match(effect, /if \(point === lastPointerRef\.current\) return;/);
+  assert.match(effect, /window\.addEventListener\('mousemove', resetOnPointerMove\);/);
+  assert.doesNotMatch(app, /addEventListener\('mousemove', resetActivity\)/);
+  // Touch reading, wheel scrolling and drags are activity too.
+  for (const type of ['pointerdown', 'touchstart', 'wheel']) {
+    assert.match(app, new RegExp(`window\\.addEventListener\\('${type}', resetActivity, passive\\);`), type);
+    assert.match(app, new RegExp(`window\\.removeEventListener\\('${type}', resetActivity, passive\\);`), type);
+  }
+});
