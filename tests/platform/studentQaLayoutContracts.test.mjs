@@ -41,3 +41,33 @@ test('the mobile assignment screen leaves room for the identity bar above it', (
   assert.match(bar, /export const STUDENT_IDENTITY_STACK_OFFSET = '--mm-student-identity-stack-offset'/);
   assert.match(bar, /setProperty\(STUDENT_IDENTITY_STACK_OFFSET, `\$\{bar\.offsetHeight\}px`\)/);
 });
+
+// Desktop QA review: un-scoped html, body scroll padding applied globally across
+// every MathMaster screen because its fallback is ~348px even when no assignment is open.
+// Document-level scroll padding must be scoped strictly to the active assignment screen
+// (via :has(.mathmaster-assignment-screen)) so teacher dashboard, library, admin,
+// login, etc. do not inherit large padding.
+test('document-level scroll padding is scoped to active student assignments and not inherited by non-assignment screens', () => {
+  const css = read('src/App.css');
+
+  // 1. Must NOT have unconstrained global html or body rules setting scroll-padding
+  assert.doesNotMatch(
+    css,
+    /(?:^|\})\s*(?:html\s*,\s*body|body\s*,\s*html|html|body)\s*\{[^}]*scroll-padding/m,
+    'global unconstrained html or body must not declare assignment scroll padding'
+  );
+
+  // 2. Document-level scroll padding must be scoped to the active assignment screen
+  const scopedDocRule = css.match(/(?:html|body):has\(\.mathmaster-assignment-screen\)[^{]*\{([\s\S]*?)\}/);
+  assert.ok(scopedDocRule, 'document scroll-padding is scoped with :has(.mathmaster-assignment-screen)');
+  const scopedBlock = scopedDocRule[1];
+  assert.match(scopedBlock, /scroll-padding-top:\s*calc\(var\(--mm-sticky-task-top,\s*208px\)\s*\+\s*140px\);/, 'scoped document clears sticky task header');
+  assert.match(scopedBlock, /scroll-padding-bottom:\s*90px;/, 'scoped document clears sticky action bar');
+
+  // 3. .mathmaster-assignment-screen container also preserves its own scroll padding
+  const screenRule = css.match(/\.mathmaster-assignment-screen\s*\{([\s\S]*?)\}/);
+  assert.ok(screenRule, 'assignment screen container defines scroll padding');
+  assert.match(screenRule[1], /scroll-padding-top:\s*calc\(var\(--mm-sticky-task-top,\s*208px\)\s*\+\s*140px\);/);
+  assert.match(screenRule[1], /scroll-padding-bottom:\s*90px;/);
+});
+

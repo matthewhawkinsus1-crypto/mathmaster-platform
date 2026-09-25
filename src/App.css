@@ -699,8 +699,9 @@
    Attempt status and helper controls still scroll away so the sticky area stays
    focused on the mathematics the student needs to answer the question. */
 @media (min-width: 769px) {
-  html,
-  body {
+  html:has(.mathmaster-assignment-screen),
+  body:has(.mathmaster-assignment-screen) {
+    --mm-sticky-task-top: calc(var(--mm-student-identity-stack-offset, 0px) + 6px + var(--mm-assignment-nav-height, 112px) + 4px);
     scroll-padding-top: calc(var(--mm-sticky-task-top, 208px) + 140px);
     scroll-padding-bottom: 90px;
   }
