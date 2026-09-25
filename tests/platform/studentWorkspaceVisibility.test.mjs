@@ -318,3 +318,12 @@ test('a focused answer field keeps its label clear of the sticky task', () => {
   const css = read('src/App.css');
   assert.match(css, /\.mathmaster-desktop-question-content math-field,\s*\.mathmaster-desktop-question-content input,\s*\.mathmaster-desktop-question-content select,\s*\.mathmaster-desktop-question-content textarea \{\s*scroll-margin-top: calc\(var\(--mm-sticky-task-top, 0px\) \+ var\(--mm-sticky-task-height, 0px\) \+ 56px\);/);
 });
+
+// Live QA round 2: seven elimination steps in a 612px panel scrolled sideways,
+// hiding Back-substitute and Verify behind a scrollbar.
+test('the systems step trail wraps instead of scrolling sideways', () => {
+  const css = read('src/tools/systemsWorkspace/AlgebraicSystemMode.css');
+  const rule = css.slice(css.indexOf('.mathmaster-systems-work-trail-steps {'), css.indexOf('}', css.indexOf('.mathmaster-systems-work-trail-steps {')));
+  assert.match(rule, /flex-wrap: wrap;/);
+  assert.doesNotMatch(rule, /overflow-x: auto/);
+});
