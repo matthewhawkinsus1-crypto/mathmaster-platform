@@ -280,3 +280,13 @@ test('Work View phone controls use short labels and share one row', () => {
   assert.match(css, /\[data-open="true"\]\[data-layout="mobile"\]\[data-controls="bottom"\] \.mathmaster-work-view-actions button \{\s*flex: 1 1 auto;/);
   assert.match(read('src/QuestionEngine.jsx'), /shortLabel: resettingQuestion \? 'Resetting…' : '↺ Reset',/);
 });
+
+// Live QA round 2, 390×844: after a correct answer "Next Question" was at
+// y=939, clipped by the fixed-height question container — unreachable.
+test('a finished question puts its next step in the action bar', () => {
+  const engine = read('src/QuestionEngine.jsx');
+  const decide = engine.slice(engine.indexOf('const barContinueAction = !locked'), engine.indexOf('// UNDO BELONGS WHERE THE HANDS ARE.'));
+  assert.match(decide, /sectionComplete && typeof onContinueSection === 'function'\s*\? \{ label: `Continue to \$\{continueSectionLabel \|\| 'next section'\} →`, onClick: onContinueSection \}/);
+  assert.match(decide, /!sectionComplete && typeof onNextQuestion === 'function'\s*\? \{ label: 'Next question →', onClick: onNextQuestion \}/);
+  assert.match(engine, /\) : barContinueAction \? \(\s*\/\/[\s\S]*?<button\s*type="button"\s*className="mathmaster-bar-continue"\s*onClick=\{barContinueAction\.onClick\}/);
+});

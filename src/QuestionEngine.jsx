@@ -1167,6 +1167,14 @@ export default function QuestionEngine({
     } : null,
   };
 
+  const barContinueAction = !locked
+    ? null
+    : sectionComplete && typeof onContinueSection === 'function'
+      ? { label: `Continue to ${continueSectionLabel || 'next section'} →`, onClick: onContinueSection }
+      : !sectionComplete && typeof onNextQuestion === 'function'
+        ? { label: 'Next question →', onClick: onNextQuestion }
+        : null;
+
   // UNDO BELONGS WHERE THE HANDS ARE. These lived in a centred row above the
   // tool, which meant that on any question tall enough to scroll — which is most
   // graph questions — the student was several screens away from the control that
@@ -1416,6 +1424,20 @@ export default function QuestionEngine({
         actionButtons={!locked && shouldShowSubmit ? (
         <button onClick={handleSubmit} disabled={submitDisabled} style={{ minHeight: '44px', padding: '12px 24px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: submitDisabled ? '#dadce0' : '#1a73e8', color: 'white', cursor: submitDisabled ? 'not-allowed' : 'pointer', boxShadow: submitDisabled ? 'none' : '0 4px 6px rgba(26, 115, 232, 0.2)' }}>
           {submitLabel}
+        </button>
+        ) : barContinueAction ? (
+        // THE NEXT STEP GOES WHERE SUBMIT WAS. The large continuation card is
+        // rendered after the question container, which on a phone is a fixed
+        // 100dvh box with overflow hidden: after a correct answer "Next
+        // Question" sat at y=939 of an 844px screen, clipped and unreachable
+        // (live QA round 2). On desktop it sat ~100px below the fold.
+        <button
+          type="button"
+          className="mathmaster-bar-continue"
+          onClick={barContinueAction.onClick}
+          style={{ minHeight: '44px', padding: '12px 20px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: '#1a73e8', color: 'white', cursor: 'pointer', boxShadow: '0 4px 6px rgba(26, 115, 232, 0.2)', whiteSpace: 'nowrap' }}
+        >
+          {barContinueAction.label}
         </button>
         ) : null}
       />
