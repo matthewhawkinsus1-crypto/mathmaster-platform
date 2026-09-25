@@ -2158,7 +2158,11 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         primaryActions: readyToSubmit ? [{ id: 'check-algebraic-system', label: 'Check my work', onAction: check }] : [],
       }}
     >
-      <div className={`mathmaster-algebraic-system-layout${embeddedSolverActive ? ' has-active-solver' : ''}`}>
+      {/* The givens become a strip above the work once there is work that
+          needs the width: an embedded solver, or the elimination Prepare /
+          Combine cards, which were squeezed into 620px beside a 380px column
+          of equations the cards already repeat (live QA round 2). */}
+      <div className={`mathmaster-algebraic-system-layout${embeddedSolverActive || (effectiveMethod === 'elimination' && Boolean(selection.variable)) ? ' has-active-solver' : ''}`}>
         <div className="mathmaster-algebraic-system-givens">
         <Panel title="Both original equations">
           <div style={{ display: 'grid', gap: 8 }}>
