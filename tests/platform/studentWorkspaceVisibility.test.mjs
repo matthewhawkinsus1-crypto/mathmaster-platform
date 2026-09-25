@@ -80,3 +80,59 @@ test('Work View opens on the region the tool marks as the student\'s current wor
   const systems = read('src/tools/systemsWorkspace/AlgebraicSystemMode.jsx');
   assert.match(systems, /className="mathmaster-systems-embedded-step-algebra" data-work-view-focus="true"/);
 });
+
+// Live QA round 2, 1536×900: opening Work View pinned the tool to the viewport,
+// the document shrank by the tool's height and the browser clamped scrollY
+// 294 → 0. After a correct answer closed Work View the student sat at the top
+// of the assignment header, with the feedback and Next Question ~1600px below.
+test('Work View holds the tool’s place and restores the scroll position on close', async () => {
+  const { captureWorkViewScrollHold, restoreWorkViewScrollHold } = await import('../../src/platform/workView/workViewScrollHold.js');
+  const calls = [];
+  const win = { scrollX: 0, scrollY: 294, scrollTo: (options) => { calls.push(options); win.scrollY = options.top; } };
+  const hold = captureWorkViewScrollHold({ getBoundingClientRect: () => ({ height: 1180.4 }) }, win);
+  assert.deepEqual(hold, { scrollX: 0, scrollY: 294, height: 1180 });
+
+  win.scrollY = 0; // clamped while the page was locked
+  assert.equal(restoreWorkViewScrollHold(hold, win), true);
+  assert.equal(win.scrollY, 294);
+  assert.equal(restoreWorkViewScrollHold(hold, win), false, 'no scroll when already in place');
+  assert.equal(calls.length, 1);
+
+  const source = read('src/components/common/EnlargeableFigure.jsx');
+  const open = source.slice(source.indexOf('const openWorkView = () => {'), source.indexOf('// Focus goes back where it came from'));
+  assert.match(open, /const hold = captureWorkViewScrollHold\(hostRef\.current\?\.querySelector\?\.\('\.mathmaster-work-view-surface'\)\);\s*scrollHoldRef\.current = hold;\s*setPlaceholderHeight\(hold\?\.height \|\| 0\);\s*setEnlarged\(true\);/, 'captured before the tool leaves the flow');
+  assert.match(source, /onClick=\{openWorkView\}/);
+  const restore = source.slice(source.indexOf('useLayoutEffect(() => {'), source.indexOf('const openWorkView'));
+  assert.match(restore, /restoreWorkViewScrollHold\(hold\);\s*const frame = window\.requestAnimationFrame\(\(\) => restoreWorkViewScrollHold\(hold\)\);/, 'restored before paint and again after scroll anchoring');
+  assert.match(source, /\{enlarged && placeholderHeight \? \(\s*<div className="mathmaster-work-view-placeholder" aria-hidden="true" style=\{\{ height: placeholderHeight \}\} \/>/);
+  assert.match(source, /closeRef\.current\?\.focus\?\.\(\{ preventScroll: true \}\);/, 'focusing the panel must not scroll the page behind it');
+});
+
+// Live QA round 2, Connect the Line in Work View: the header showed "Your task:
+// …" and the instruction banner under it repeated the same prompt; the rail
+// chips read "numeric Controls" and "table Data".
+test('registered-tool Work View shows the task once and labels chips in sentence case', () => {
+  const source = read('src/tools/shared/RegisteredToolWorkView.jsx');
+  const describe = source.slice(source.indexOf('const capabilityDescriptor'), source.indexOf('// Final-registry safety net'));
+  assert.match(describe, /if \(key === 'instruction'\) return descriptor\(key\);/);
+  assert.doesNotMatch(describe, /'instruction'\) return \{[^}]*content: taskText/);
+
+  // Evaluate the label helper without importing JSX.
+  const helper = source.slice(source.indexOf('export const capabilityLabel'), source.indexOf('const descriptor'));
+  const capabilityLabel = new Function(`${helper.replace('export const', 'const')} return capabilityLabel;`)();
+  assert.equal(capabilityLabel('numericControls'), 'Numeric controls');
+  assert.equal(capabilityLabel('tableData'), 'Table data');
+  assert.equal(capabilityLabel('pointEditing'), 'Edit mathematical objects');
+});
+
+// Live QA round 2, 1536×900 Work View: twelve line cards in a 540px column with
+// "Check groups" below the fold while reference text took the other half.
+test('line card sets take the full width; graph cards span two columns where there is room', () => {
+  const source = read('src/tools/representationMatch/RepresentationMatch.jsx');
+  assert.match(source, /const cardSetLayout = mode === 'linearConnections';\s*const Layout = cardSetLayout \? CardSetStack : ToolGrid;/);
+  assert.match(source, /<Layout min=\{330\}>[\s\S]*<Panel title="Representation reasoning" collapsible>[\s\S]*<\/Layout>/);
+  assert.match(source, /const CardSetStack = [\s\S]{0,120}gridTemplateColumns: 'minmax\(0, 1fr\)'/);
+  const css = read('src/tools/representationMatch/RepresentationMatch.css');
+  assert.match(css, /@container line-cards \(min-width: 520px\) \{\s*\.mathmaster-line-card-grid > \.mathmaster-line-card\[data-card-kind="graph"\] \{\s*grid-column: span 2;/);
+  assert.match(source, /import '\.\/RepresentationMatch\.css';/);
+});
