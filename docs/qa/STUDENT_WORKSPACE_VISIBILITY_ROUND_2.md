@@ -26,6 +26,15 @@ The duplicated display name is test data, not a defect.
 | Alg I M2 T1 L6 | Practice Q9 | Connect the Line (new full-width layout) | 1536×900 | Correct | #21 |
 | Alg I M2 T1 L6 | Practice Q10 | Representation Bridge (capstone: intervals, general, factored, graph, meanings) | 1536×900 Work View | Correct — Practice complete 10/10 | healthy |
 | Alg I M2 T1 L6 | DOL Q1–3 | Linear Table Workbench | 1536×900 | DOL timer ended — review only | lock reason now at top (#1) |
+| Alg II H L1 (systems) | Practice Q3 | Elimination, dependent (0 = 0) | 1536×900 page + Work View | Correct | #22, #23, #24 |
+| Alg II H L1 (systems) | Practice Q4 | Elimination, inconsistent (0 = 12) | 1536×900 | Correct | #24 retest (stages revealed, Check clear of bar) |
+| Alg II H L1 (systems) | Practice Q5 | Elimination, scale both (×2, ×3) | 1536×900 | Correct ((2, 3)) | healthy |
+| Alg II H L1 (systems) | Practice Q6 | Substitution with decimals (alloy) | 390×844 Work View → 1536×900 | Correct (w = 60, s = 140) | #25, #26, #27 |
+| Alg II H L1 (systems) | Practice Q7 | Substitution + distribute −3 | 1536×900 | Correct ((3, −1)) | #28 |
+| Alg II H L1 (systems) | Practice Q8 | Multiple choice (exponential) | 1536×900 (after idle timeout) | Correct (5) — Practice complete | #29; idle modal verified in the wild |
+| Alg II H L1 (systems) | Classwork Q2 | Substitution | 1536×900 | Correct ((3, 3)) | healthy |
+| Alg II H L1 (systems) | Classwork Q3 | Elimination (plane/wind) | 820×1180 | Correct (p = 120, w = 20) | healthy on tablet portrait |
+| Alg II H L1 (systems) | Classwork Q5 | Elimination, inconsistent | 1536×900 | Correct — Classwork complete | |
 
 ## Confirmed issues
 
@@ -53,6 +62,13 @@ The duplicated display name is test data, not a defect.
 | 19 | Major (scrolling) | Expression Meaning: choose row in matrix above, answer below — scroll up/down ×6 | 1536×900 | `111-p7-filled.png`, `112-p7-matrix.png` | Panel stayed on the completed row | Completing a row opens the next incomplete one in place | Page stayed at ~965 for all five rows |
 | 20 | Major (scrolling, intermittent) | Question landing at scrollY 78/92/93 with the tool 600px below | 1536×900 | `110-p7.png` | Page briefly short between questions; scroll clamped; nothing re-aimed | For 1.5s after a question change the stage growing re-aims unless the student scrolls/types/touches | 3 consecutive transitions land at stage top 142 |
 | 21 | Moderate (readability) | Connect the Line graph thumbnails: y labels stacked; short cards stretched beside graph cards | 1536×900 | `117-p9-grouped.png` | 220×140 plane proportions; grid stretch | 320×240 proportions; `align-items: start` | `119-graph-card.png` |
+| 22 | Moderate (layout) | Systems step trail (7 steps, 700px) scrolled sideways in a 612px panel, hiding Back-substitute and Verify | 1536×900 | `127-sys-p.png` | `overflow-x: auto` strip | Trail wraps | `128-elim.png` |
+| 23 | Major (layout) | Elimination Prepare/Combine, substitution, back-substitution and verify cards squeezed into 620px beside a 380px givens column | 1536×900 | `129-elim-wv.png`, `185-p6-verify.png` | Strip layout applied only while an embedded solver was active | Strip layout from the moment a variable is chosen, either method (620 → 995px) | `131-elim-strip-wv.png`, `186-verify-strip.png` |
+| 24 | Major (scrolling) | Each new elimination stage (scaled equation, cancellation, combine) opened below the fold with nothing to say so | 1536×900 Work View | `137-scaled-checked.png` | No reveal on appear | Callback ref scrolls new stages to `nearest` (not on resume); `scroll-margin-bottom: 96px` clears the action bar | `145-p4-cancel-stage.png`, `146-p4-combine-stage.png` |
+| 25 | **Blocker (phone)** | Step Algebra board in phone Work View showed "LEFT SIDE = RIGHT SIDE" with no terms | 390×844 Work View | `164-p6-isolate.png`, `169-p6-repro.png` | MathLive `<math-span>` renders on its own IntersectionObserver; not-yet-rendered spans have zero width and that observer never reported them | `ensureMathElementRenders`: second observer + 400ms check renders on-screen, still-empty math; off-screen stays lazy | `170-p6-fixed.png` (w + s = 200) |
+| 26 | Moderate (phone) | Phone operation palette labels cut to "Subt…", "Multi…", "Divi…" | 390×844 | `164-p6-isolate.png` | App.css `!important` pinned rail tiles to 44px inside 58px columns | Palette tiles fill their column; label wraps to two lines | `171-palette.png` |
+| 27 | Major (phone) | Nested padding left the systems balance board 267px of 390; mode buttons one per row | 390×844 Work View | `165-p6-board.png` | 4 nested layers padded 11–14px each side | Thin insets in phone Work View only | 317px; `172-phone-wv-trim.png` |
+| 28 | Moderate (a11y) | Choice radios announced "Mathematical expression" / "$5$" | any | — | Radios unnamed; MathDisplay default label | Named by choice text without TeX delimiters | radios: 11, 24, 5, 8 |
 
 ## Inactivity timeout
 
@@ -89,3 +105,18 @@ The duplicated display name is test data, not a defect.
   screen-reader student cannot tell the two lines apart.
 - Question landing position after clicking the continuation button once measured scrollY 78 (graph below the
   fold) instead of 294; not reproducible on direct navigation.
+
+- Tablet portrait: the section navigator wraps DOL onto a second row (~50px).
+- After finishing Classwork, the action bar offers "Continue to Practice →" when Practice is already complete.
+- Cancellation workspace aria-label still says "matching factors" for additive steps; term aria-labels are
+  program syntax ("4 * x"); substitution token "Pick up the expression 3 from the isolated equation" for a solved value.
+- Intermittent: the page jumped ~350px up once or twice after placing a ÷ operation (not reproducible on demand;
+  subsequent ÷ placements were stable). The commit-time reveal (#7) recovers it on the next step.
+- Phone portrait keeps ~200px for the task panel above the tool; Work View header clips long tasks to 3 lines
+  (full text via "Task").
+
+## Automated gate
+
+`npm run test:platform` 6266/6268 — the two failures are pre-existing on `main` (googleapis module missing;
+clock-dependent Warm-Up test). `tests/tools` 179/179, `test:authoring-v5` 677/677, lint exit 0, `build` and
+`build:firebase` OK. `test:rules` not run (no Java). New assertions were mutation-checked where noted in commits.
