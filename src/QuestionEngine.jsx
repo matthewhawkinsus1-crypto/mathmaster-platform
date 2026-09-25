@@ -1180,9 +1180,11 @@ export default function QuestionEngine({
           onClick={handleResetQuestion}
           disabled={workspaceActions.reset.disabled}
           title={workspaceActions.reset.title}
+          aria-label={resettingQuestion ? 'Resetting…' : 'Reset Question'}
           style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: workspaceActions.reset.disabled ? 'not-allowed' : 'pointer', opacity: workspaceActions.reset.disabled ? 0.45 : 1 }}
         >
-          {workspaceActions.reset.label}
+          {/* "Question" drops on a phone so the work bar fits one row. */}
+          {resettingQuestion ? 'Resetting…' : <>↺ Reset<span className="mathmaster-action-label-long"> Question</span></>}
         </button>
       ) : null}
       <button type="button" onClick={openScratchpad} disabled={scratchpadLoading} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>

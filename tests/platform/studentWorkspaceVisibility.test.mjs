@@ -237,3 +237,23 @@ test('only a pointer that actually moved counts as activity', () => {
     assert.match(app, new RegExp(`window\\.removeEventListener\\('${type}', resetActivity, passive\\);`), type);
   }
 });
+
+// Live QA round 2: the floating Enlarge button covered "About this tool" on
+// desktop and the tool's title on a phone.
+test('the tool header leaves room for the floating Work View opener', () => {
+  const css = read('src/components/common/WorkViewShell.css');
+  assert.match(css, /\.mathmaster-question-container \.mathmaster-work-view-surface\[data-enlarged="false"\] \.mathmaster-tool-shell-header \{\s*padding-right: 176px !important;/);
+  const opener = read('src/components/common/EnlargeableFigure.jsx');
+  assert.match(opener, /const CONTROL = \{\s*position: 'absolute',\s*top: 8,\s*right: 8,/, 'the opener still floats at the top-right corner');
+});
+
+// Live QA round 2, 390×844: the four work-bar pills (446px) wrapped into a
+// 105px two-row bar.
+test('the phone work bar is one flexible row with a short Reset label', () => {
+  const css = read('src/components/student/MathToolMobileLayout.css');
+  assert.match(css, /\.mathmaster-question-container\.mode-portrait \.portrait-action-bar \{\s*display: flex;\s*flex-wrap: wrap;\s*gap: 6px;/);
+  assert.match(css, /\.mathmaster-question-container\.mode-portrait \.mathmaster-action-label-long \{\s*display: none;/);
+  const engine = read('src/QuestionEngine.jsx');
+  assert.match(engine, /aria-label=\{resettingQuestion \? 'Resetting…' : 'Reset Question'\}/);
+  assert.match(engine, /↺ Reset<span className="mathmaster-action-label-long"> Question<\/span>/);
+});

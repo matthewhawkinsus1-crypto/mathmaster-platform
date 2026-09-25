@@ -246,6 +246,27 @@
     margin-top: 0 !important;
   }
 
+  /* One row of controls, not two. Four inline pills (446px) wrapped at 390px
+     and the bar took 105px of an 844px screen; as a flex row with "Reset"
+     for "Reset Question" it is 61px. Extra controls (Read aloud, Submit)
+     still wrap rather than clip. */
+  .mathmaster-question-container.mode-portrait .portrait-action-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .mathmaster-question-container.mode-portrait .portrait-action-bar > button {
+    flex: 1 1 auto;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    white-space: nowrap;
+  }
+
+  .mathmaster-question-container.mode-portrait .mathmaster-action-label-long {
+    display: none;
+  }
+
   .mathmaster-calculator-drawer {
     right: max(8px, env(safe-area-inset-right)) !important;
     bottom: max(8px, env(safe-area-inset-bottom)) !important;
