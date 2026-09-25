@@ -46,7 +46,7 @@ import AlgebraicSystemMode, {
   solvedNumberFor,
   subsystemReportFromDraft,
 } from './AlgebraicSystemMode.jsx';
-import { classroomEquationText, exactNumberText, normalizeAlgebraicSystemConfig, substituteIntoEquation } from './algebraicSystemsEngine.js';
+import { classroomEquationText, exactNumberText, normalizeAlgebraicSystemConfig, substituteIntoEquation, substitutedEquationLatex } from './algebraicSystemsEngine.js';
 import {
   RELATION_DESTINATION_ID,
   allOriginalsVerified,
@@ -799,10 +799,11 @@ function Verification({ reduction, system, solution, sourceVariable, armedToken,
                 <>
                   <div className="mathmaster-systems-verification-substitution">
                     <span>Values substituted</span>
-                    <MathDisplay
-                      value={verificationVariables(system, equation.id).reduce((text, name) => substituteIntoEquation(text, name, display(name)), equation.text)}
-                      format="ascii-math"
-                    />
+                    {(() => {
+                      const substituted = verificationVariables(system, equation.id).reduce((text, name) => substituteIntoEquation(text, name, display(name)), equation.text);
+                      const latex = substitutedEquationLatex(substituted);
+                      return <MathDisplay value={latex || substituted} format={latex ? 'latex' : 'ascii-math'} />;
+                    })()}
                   </div>
                   <div className="mathmaster-systems-verification-arithmetic">
                     <label className="mathmaster-reduction-field">

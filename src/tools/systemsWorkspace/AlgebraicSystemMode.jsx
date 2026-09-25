@@ -32,6 +32,7 @@ import {
   exactNumberText,
   presentableExpression,
   classroomEquationText,
+  substitutedEquationLatex,
 } from './algebraicSystemsEngine.js';
 
 const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '11px 12px', border: '1px solid #cfd8e6', borderRadius: 9, background: '#fff', fontSize: 15, minHeight: 44 };
@@ -2041,14 +2042,15 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                     ) : (
                       <div className="mathmaster-systems-verification-substitution">
                         <span>Values substituted</span>
-                        <MathDisplay
-                          value={substituteIntoEquation(
+                        {(() => {
+                          const substituted = substituteIntoEquation(
                             substituteIntoEquation(eq, variables[0], solutionExpressions[variables[0]]),
                             variables[1],
                             solutionExpressions[variables[1]],
-                          )}
-                          format="ascii-math"
-                        />
+                          );
+                          const latex = substitutedEquationLatex(substituted);
+                          return <MathDisplay value={latex || substituted} format={latex ? 'latex' : 'ascii-math'} />;
+                        })()}
                       </div>
                     )}
 
