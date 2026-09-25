@@ -156,6 +156,8 @@ test('inline math never becomes a scroll container', () => {
   const style = source.slice(source.indexOf('style={{', source.indexOf('<Element')), source.indexOf('...style,', source.indexOf('<Element')));
   assert.match(style, /overflowX: inline \? 'visible' : 'auto',/);
   assert.match(style, /overflowY: inline \? 'visible' : 'hidden',/);
+  // Block math keeps its vertical clip, so a stacked fraction gets room inside it.
+  assert.match(style, /\.\.\.\(!inline && cleanValue\.includes\('\\\\frac'\) \? \{ paddingTop: '0\.1em', paddingBottom: '0\.4em' \} : null\),/);
 });
 
 // Live QA round 2: finishing a simplification left the page clamped at its

@@ -97,6 +97,11 @@ export default function MathDisplay({
         overflowY: inline ? 'visible' : 'hidden',
         verticalAlign: inline ? '-0.16em' : 'middle',
         lineHeight: 1.35,
+        // Block math clips vertically at its padding box, and a stacked
+        // fraction hangs ~0.4em below the line: denominators on the systems
+        // verify card lost their bottom 7px. Room for the fraction, only when
+        // there is one.
+        ...(!inline && cleanValue.includes('\\frac') ? { paddingTop: '0.1em', paddingBottom: '0.4em' } : null),
         ...style,
       }}
     >
