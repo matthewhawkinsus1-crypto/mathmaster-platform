@@ -119,3 +119,21 @@ export const validateExpressionMeaningQuestion = (question = {}) => {
 
   return errors;
 };
+
+/*
+ * Where the assignment panel goes once a row is complete.
+ *
+ * The matrix sits above the panel, so choosing each next expression meant
+ * scrolling up to the matrix and back down to the choices — six times per
+ * question (live QA round 2, 1536x900). Completing a row now opens the next
+ * incomplete one (in order, wrapping). Null when every row is complete.
+ */
+export const nextIncompleteExpressionId = (expressions = [], assignments = {}, currentId = null) => {
+  const complete = (expr) => EXPRESSION_MEANING_DIMENSIONS.every((dimension) => String(assignments?.[expr.id]?.[dimension] || '').trim());
+  const start = Math.max(0, expressions.findIndex((expr) => expr.id === currentId));
+  for (let step = 1; step <= expressions.length; step += 1) {
+    const candidate = expressions[(start + step) % expressions.length];
+    if (candidate && !complete(candidate)) return candidate.id;
+  }
+  return null;
+};

@@ -732,6 +732,16 @@
   .mathmaster-desktop-question-content [data-work-view-focus="true"] {
     scroll-margin-top: calc(var(--mm-sticky-task-top, 0px) + var(--mm-sticky-task-height, 0px) + 8px);
   }
+
+  /* A focused answer field is scrolled into view with its label, not under
+     the sticky task: "E(2)" and "E(5)" sat beneath the task card while their
+     fields took the cursor (live QA round 2, 1536x900). 56px is the label. */
+  .mathmaster-desktop-question-content math-field,
+  .mathmaster-desktop-question-content input,
+  .mathmaster-desktop-question-content select,
+  .mathmaster-desktop-question-content textarea {
+    scroll-margin-top: calc(var(--mm-sticky-task-top, 0px) + var(--mm-sticky-task-height, 0px) + 56px);
+  }
 }
 
 .mathmaster-desktop-task-toggle-row {

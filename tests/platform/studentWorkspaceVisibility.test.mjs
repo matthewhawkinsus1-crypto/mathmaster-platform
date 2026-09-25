@@ -303,3 +303,10 @@ test('a multi-part data table sits beside its fields where there is room', () =>
   assert.match(css, /@container multipart \(min-width: 900px\) \{\s*\.mathmaster-multipart-layout\[data-side-table="true"\] > \.mathmaster-multipart-body \{\s*display: grid;\s*grid-template-columns: max-content minmax\(0, 1fr\);/);
   assert.match(css, /html:not\(\[data-work-view-open="true"\]\) \.mathmaster-multipart-layout\[data-side-table="true"\] > \.mathmaster-multipart-body > :first-child \{\s*position: sticky;/);
 });
+
+// Live QA round 2, 1536×900: focusing E(2)'s field scrolled it to just under
+// the sticky task card, with its label hidden beneath the card.
+test('a focused answer field keeps its label clear of the sticky task', () => {
+  const css = read('src/App.css');
+  assert.match(css, /\.mathmaster-desktop-question-content math-field,\s*\.mathmaster-desktop-question-content input,\s*\.mathmaster-desktop-question-content select,\s*\.mathmaster-desktop-question-content textarea \{\s*scroll-margin-top: calc\(var\(--mm-sticky-task-top, 0px\) \+ var\(--mm-sticky-task-height, 0px\) \+ 56px\);/);
+});
