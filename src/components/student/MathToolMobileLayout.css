@@ -5,6 +5,21 @@
   display: none;
 }
 
+/* With the prompt hidden, the card held nothing but the folded "How to do this"
+   button, centred in a bordered blue box 72px tall — above the workspace on
+   every tool of every assignment (live QA, 1536×900). The box goes; the fold
+   stays where it was, and opens exactly as before. */
+.mathmaster-question-engine-has-anchor .mathmaster-tool-task-card {
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin-bottom: 8px !important;
+}
+
+.mathmaster-question-engine-has-anchor .mathmaster-tool-task-card > .mathmaster-quiet-disclosure {
+  margin: 0 !important;
+}
+
 .mathmaster-question-container {
   width: 100%;
   height: var(--mm-visual-viewport-height, 100dvh);
