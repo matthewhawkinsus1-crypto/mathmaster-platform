@@ -136,3 +136,15 @@ test('line card sets take the full width; graph cards span two columns where the
   assert.match(css, /@container line-cards \(min-width: 520px\) \{\s*\.mathmaster-line-card-grid > \.mathmaster-line-card\[data-card-kind="graph"\] \{\s*grid-column: span 2;/);
   assert.match(source, /import '\.\/RepresentationMatch\.css';/);
 });
+
+// Live QA round 2, 1536×900: Start landed on a Warm-Up closed for the period.
+// Every control was disabled under "3 of 3 tries left"; the reason was ~1470px
+// below the landing position, past the tool.
+test('a locked question says why in the attempt strip, not only below the tool', () => {
+  const source = read('src/QuestionEngine.jsx');
+  const strip = source.slice(source.indexOf('className="mathmaster-question-attempt-strip"'), source.indexOf('{dolMode && <div'));
+  const lockedAt = strip.search(/: assignmentLocked\s*\?\s*\(assignmentLockedMessage \|\|/);
+  const triesAt = strip.indexOf("'try' : 'tries'} left`");
+  assert.ok(lockedAt > 0, 'the strip shows the lock message');
+  assert.ok(triesAt > lockedAt, 'the lock message wins over the tries count');
+});

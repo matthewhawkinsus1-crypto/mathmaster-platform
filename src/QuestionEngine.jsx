@@ -1229,7 +1229,7 @@ export default function QuestionEngine({
           role="status"
           className="mathmaster-question-attempt-strip"
           style={{
-            border: `1px solid ${terminalFeedbackHidden ? '#c9d6e8' : (record.status === 'attempted' || (record.status === 'expired' && !isExpired)) ? '#f9ab00' : isExpired ? '#e0b4b0' : record.status === 'correct' ? '#a8dab5' : '#d9e2f1'}`,
+            border: `1px solid ${assignmentLocked && !terminalFeedbackHidden && record.status !== 'correct' && !isExpired ? '#9aa0a6' : terminalFeedbackHidden ? '#c9d6e8' : (record.status === 'attempted' || (record.status === 'expired' && !isExpired)) ? '#f9ab00' : isExpired ? '#e0b4b0' : record.status === 'correct' ? '#a8dab5' : '#d9e2f1'}`,
             background: terminalFeedbackHidden ? '#f4f7fb' : (record.status === 'attempted' || (record.status === 'expired' && !isExpired)) ? '#fef7e0' : isExpired ? '#fce8e6' : record.status === 'correct' ? '#e6f4ea' : '#f8fbff',
             color: '#3c4043',
           }}
@@ -1241,7 +1241,14 @@ export default function QuestionEngine({
                 ? 'Question complete'
                 : isExpired
                   ? 'This question is closed'
-                  : `${remainingAttempts} of ${resolvedMaximumAttempts} ${resolvedMaximumAttempts === 1 ? 'try' : 'tries'} left`}
+                  // A locked question (Warm-Up after the period, closed section,
+                  // ended DOL) rendered every control disabled under "3 of 3
+                  // tries left"; the reason sat ~1470px below, past the tool
+                  // (live QA, 1536×900). The reason belongs where the student
+                  // lands.
+                  : assignmentLocked
+                    ? (assignmentLockedMessage || 'This assignment is closed. Your saved response is available for review.')
+                    : `${remainingAttempts} of ${resolvedMaximumAttempts} ${resolvedMaximumAttempts === 1 ? 'try' : 'tries'} left`}
           </strong>
           {terminalFeedbackHidden && <span className="mathmaster-attempt-detail">Feedback opens later</span>}
           {!terminalFeedbackHidden && record.bestPartialCredit > 0 && record.status !== 'correct' && (
