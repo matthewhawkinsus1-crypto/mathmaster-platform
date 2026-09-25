@@ -343,4 +343,6 @@ test('new elimination stages come into view when they appear', () => {
   for (const stage of ['mathmaster-systems-multiplier-products', 'mathmaster-systems-cancellation-stage', 'mathmaster-systems-student-combination']) {
     assert.match(source, new RegExp(`<div ref=\\{revealStageOnAppear\\} className="${stage}">`), stage);
   }
+  const css = read('src/tools/systemsWorkspace/AlgebraicSystemMode.css');
+  assert.match(css, /\.mathmaster-systems-student-combination \{\s*scroll-margin-bottom: 96px;/, 'clears the sticky action bar');
 });

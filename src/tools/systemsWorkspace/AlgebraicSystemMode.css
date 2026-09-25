@@ -1355,3 +1355,11 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Revealed as they appear (revealStageOnAppear): clear the sticky action bar
+   so the stage's own Check button is not left under it. */
+.mathmaster-systems-multiplier-products,
+.mathmaster-systems-cancellation-stage,
+.mathmaster-systems-student-combination {
+  scroll-margin-bottom: 96px;
+}
