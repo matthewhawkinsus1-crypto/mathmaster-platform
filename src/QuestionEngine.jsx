@@ -1137,6 +1137,7 @@ export default function QuestionEngine({
     },
     reset: {
       label: resettingQuestion ? 'Resetting…' : '↺ Reset Question',
+      shortLabel: resettingQuestion ? 'Resetting…' : '↺ Reset',
       onClick: handleResetQuestion,
       disabled: locked || resettingQuestion || submitting || requesting,
       title: 'Clear this question\'s work and return every tool to its starting state',

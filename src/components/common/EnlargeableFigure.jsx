@@ -534,8 +534,16 @@ export default function EnlargeableFigure({
               onClick={() => invokeAction(action)}
               disabled={action.disabled}
               title={action.title}
+              // A phone row fits four controls only with short labels ("Reset"
+              // for "Reset Question"); the full label stays the accessible name.
+              aria-label={action.shortLabel && typeof action.label === 'string' ? action.label : undefined}
             >
-              {action.label}
+              {action.shortLabel ? (
+                <>
+                  <span className="mathmaster-work-view-action-full">{action.label}</span>
+                  <span className="mathmaster-work-view-action-short" aria-hidden="true">{action.shortLabel}</span>
+                </>
+              ) : action.label}
             </button>
           ))}
           {capabilityNames.map((name) => <span key={name} className="mathmaster-work-view-capability" data-work-view-capability={name}>{registeredCapabilities[name]?.label || name}</span>)}

@@ -296,6 +296,17 @@ html[data-undo-overlay-owner="scratchpad"] .mathmaster-work-view-actions [data-w
  * stacking context. Keep the same calculator instance/state, but lift the panel
  * above Work View and let the shell-published insets dock it in usable space.
  */
+/*
+ * The numeric keypad has the same problem as the calculator: it is fixed at
+ * z-index 13000 and Work View is 2147483000. On a phone in Work View the keypad
+ * opened BEHIND the modal — invisible — while the body still reserved its
+ * 274px, leaving a blank band where the keys should be (live QA round 2,
+ * 390x844). Above Work View, below the calculator and the inactivity dialog.
+ */
+html[data-work-view-open="true"] .mathmaster-mobile-numeric-keypad {
+  z-index: 2147483050 !important;
+}
+
 html[data-work-view-open="true"] .mathmaster-calculator-panel[data-work-view-floating-tool="calculator"] {
   z-index: 2147483400 !important;
   max-height: calc(var(--mm-work-view-height, 100dvh) - var(--mm-work-view-actions, 0px) - 32px) !important;
@@ -571,4 +582,24 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
 .mathmaster-work-view-surface[data-enlarged="false"] .mathmaster-tool-shell-header,
 .mathmaster-question-container .mathmaster-work-view-surface[data-enlarged="false"] .mathmaster-tool-shell-header {
   padding-right: 176px !important;
+}
+
+/*
+ * ONE ROW OF WORK VIEW CONTROLS ON A PHONE.
+ *
+ * Undo, Reset Question, Scratchpad and Calculator wrapped to two rows (~110px)
+ * at 390x844, and with the keypad up the workspace was left ~380px. Short
+ * labels where an action offers one, and the buttons share the row.
+ */
+.mathmaster-work-view-action-short { display: none; }
+[data-open="true"][data-layout="mobile"] .mathmaster-work-view-action-full { display: none; }
+[data-open="true"][data-layout="mobile"] .mathmaster-work-view-action-short { display: inline; }
+[data-open="true"][data-layout="mobile"][data-controls="bottom"] .mathmaster-work-view-actions {
+  justify-content: stretch;
+  column-gap: 6px;
+}
+[data-open="true"][data-layout="mobile"][data-controls="bottom"] .mathmaster-work-view-actions button {
+  flex: 1 1 auto;
+  padding-left: 8px;
+  padding-right: 8px;
 }

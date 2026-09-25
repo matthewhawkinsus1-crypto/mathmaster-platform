@@ -257,3 +257,26 @@ test('the phone work bar is one flexible row with a short Reset label', () => {
   assert.match(engine, /aria-label=\{resettingQuestion \? 'Resetting…' : 'Reset Question'\}/);
   assert.match(engine, /↺ Reset<span className="mathmaster-action-label-long"> Question<\/span>/);
 });
+
+// Live QA round 2, 390×844 Work View: the numeric keypad (z 13000) opened
+// behind Work View (z 2147483000) while its height was still reserved.
+test('the numeric keypad stacks above Work View and below the inactivity dialog', () => {
+  const shell = read('src/components/common/WorkViewShell.css');
+  const z = (pattern) => Number(shell.match(pattern)?.[1]);
+  const workView = z(/\.mathmaster-work-view-host\[data-open="true"\] \{[\s\S]*?z-index: (\d+);/);
+  const keypad = z(/html\[data-work-view-open="true"\] \.mathmaster-mobile-numeric-keypad \{\s*z-index: (\d+) !important;/);
+  const idle = Number(read('src/App.jsx').match(/className="mathmaster-idle-overlay"[\s\S]*?zIndex: (\d+),/)?.[1]);
+  assert.ok(keypad > workView, `${keypad} > ${workView}`);
+  assert.ok(idle > keypad, `${idle} > ${keypad}`);
+});
+
+// Live QA round 2, 390×844: Work View's four controls wrapped to ~107px.
+test('Work View phone controls use short labels and share one row', () => {
+  const figure = read('src/components/common/EnlargeableFigure.jsx');
+  assert.match(figure, /aria-label=\{action\.shortLabel && typeof action\.label === 'string' \? action\.label : undefined\}/);
+  assert.match(figure, /<span className="mathmaster-work-view-action-short" aria-hidden="true">\{action\.shortLabel\}<\/span>/);
+  const css = read('src/components/common/WorkViewShell.css');
+  assert.match(css, /\[data-open="true"\]\[data-layout="mobile"\] \.mathmaster-work-view-action-full \{ display: none; \}/);
+  assert.match(css, /\[data-open="true"\]\[data-layout="mobile"\]\[data-controls="bottom"\] \.mathmaster-work-view-actions button \{\s*flex: 1 1 auto;/);
+  assert.match(read('src/QuestionEngine.jsx'), /shortLabel: resettingQuestion \? 'Resetting…' : '↺ Reset',/);
+});
