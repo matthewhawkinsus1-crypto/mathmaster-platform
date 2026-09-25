@@ -4,14 +4,27 @@ import { WORK_VIEW_INVENTORY } from '../workViewInventory.js';
 import useMobileInteractionMode from '../../platform/mobile/useMobileInteractionMode.js';
 import { useRenderPerformance } from '../../platform/performance/useRenderPerformance.js';
 
+// Sentence case for the rail labels: `numericControls` used to read
+// "numeric Controls" to the student.
+export const capabilityLabel = (key) => {
+  if (key === 'pointEditing') return 'Edit mathematical objects';
+  const words = key.replace(/([A-Z])/g, ' $1').toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
 const descriptor = (key) => ({
-  label: key === 'pointEditing' ? 'Edit mathematical objects' : key.replace(/([A-Z])/g, ' $1'),
+  label: capabilityLabel(key),
   studentState: !['task', 'help', 'instruction'].includes(key),
 });
 
 const capabilityDescriptor = (key, { taskText, helpText }) => {
   if (key === 'task') return { ...descriptor(key), content: taskText };
-  if (key === 'instruction') return { ...descriptor(key), content: taskText };
+  // No instruction content: this wrapper only knows the authored prompt, which
+  // Work View already shows as the task in its header. Filling the instruction
+  // banner with the same prompt showed the student the task twice and pushed
+  // the workspace ~60px down (live QA, Connect the Line, 1536×900). A tool that
+  // knows its current step publishes its own instruction.
+  if (key === 'instruction') return descriptor(key);
   if (key === 'help') return { ...descriptor(key), content: helpText };
   return descriptor(key);
 };

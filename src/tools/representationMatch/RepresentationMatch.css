@@ -1,0 +1,13 @@
+/* A graph card spans two card columns so its plane is readable: squeezed into
+   one 160px column the axis labels overlapped and the slope was hard to judge.
+   Only where the grid is wide enough to have two columns — a span on a
+   one-column phone grid would create an implicit column and scroll sideways. */
+@container line-cards (min-width: 520px) {
+  .mathmaster-line-card-grid > .mathmaster-line-card[data-card-kind="graph"] {
+    grid-column: span 2;
+  }
+}
+
+.mathmaster-line-card-grid {
+  container: line-cards / inline-size;
+}
