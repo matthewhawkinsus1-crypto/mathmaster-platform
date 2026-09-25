@@ -378,7 +378,9 @@ export function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, dra
   React.useEffect(() => {
     if (!autoReveal || !hostRef.current) return undefined;
     const frame = window.requestAnimationFrame(() => {
-      hostRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+      // `start` + the scroll-margin under the sticky task (App.css): the
+      // solver's own controls land just below the task, not under it.
+      hostRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
       hostRef.current?.focus?.({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(frame);
@@ -1384,6 +1386,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                     onSolved={handleIsolated}
                     onUndoStateChange={setEmbeddedUndoController}
                     workspaceDifficulty={questionData.workspaceDifficulty}
+                    autoReveal
                   />
                 )
               ) : null}
@@ -1988,6 +1991,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                   onUndoStateChange={setEmbeddedUndoController}
                   workspaceDifficulty={questionData.workspaceDifficulty}
                   requireSimplifiedFinalForm={Boolean(subsystem)}
+                  // Opened with its equation behind the action bar (board top
+                  // at 700 of 900, live QA): bring it up like the reduce solver.
+                  autoReveal
                 />
               ) : null}
             </div>

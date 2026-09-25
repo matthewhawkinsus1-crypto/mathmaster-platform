@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { ASSIGNMENT_NAV_HEIGHT_VAR, stickyHeightRef } from '../../src/platform/layout/stickyHeightRef.js';
+import { ASSIGNMENT_NAV_HEIGHT_VAR, STICKY_TASK_HEIGHT_VAR, stickyHeightRef } from '../../src/platform/layout/stickyHeightRef.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -56,7 +56,7 @@ test('the navigator height ref is stable across renders and publishes the height
 
 test('reference chips scroll with the page; the Hide task control sits on the card', () => {
   const container = read('src/components/student/MobileViewportContainer.jsx');
-  const anchorStart = container.indexOf('<div className={`mathmaster-desktop-question-anchor');
+  const anchorStart = container.lastIndexOf('<div', container.indexOf('className={`mathmaster-desktop-question-anchor'));
   const anchorEnd = container.indexOf('{!workspaceActive && !isPromptCollapsed && taskMeta');
   assert.ok(anchorStart > 0 && anchorEnd > anchorStart);
   assert.doesNotMatch(container.slice(anchorStart, anchorEnd), /taskMeta &&/, 'chips are not inside the sticky anchor');
@@ -169,4 +169,27 @@ test('a committed step reveals the equation when it is under the sticky chrome',
   assert.match(core, /import \{ workspaceNeedsReveal \} from '\.\/platform\/layout\/workspaceReveal\.js';/);
   const commit = core.slice(core.indexOf('setBalancePulse(true);'), core.indexOf("'Balanced step complete. Continue from the equation shown.'"));
   assert.match(commit, /if \(equals && workspaceNeedsReveal\(equals\.getBoundingClientRect\(\), window\.innerHeight\)\) \{\s*equals\.scrollIntoView\?\.\(\{ block: 'center'/);
+});
+
+// Live QA round 2, 1536×900: the back-substitution solver opened with its
+// equation behind the action bar; only the reduce solver revealed itself.
+test('every embedded systems solver reveals itself when it opens', () => {
+  const source = read('src/tools/systemsWorkspace/AlgebraicSystemMode.jsx');
+  const solvers = source.split('<EmbeddedStepAlgebra').slice(1).map((chunk) => chunk.slice(0, chunk.indexOf('/>')));
+  assert.equal(solvers.length, 3);
+  solvers.forEach((solver) => assert.match(solver, /\n\s*autoReveal\n/, solver.slice(0, 80)));
+});
+
+test('opening a question lands on its live work when a tool marks one', () => {
+  const app = read('src/App.jsx');
+  const effect = app.slice(app.indexOf("const liveWork = stage?.querySelectorAll?.('[data-work-view-focus=\"true\"]');"), app.indexOf("const changeQuestion = async"));
+  assert.match(effect, /if \(target\) target\.scrollIntoView\?\.\(\{ behavior: 'smooth', block: 'start' \}\);\s*else stage\?\.scrollIntoView\?\.\(\{ behavior: 'smooth', block: 'start' \}\);/);
+
+  // ...with its top just under the sticky task, whose height is measured.
+  const css = read('src/App.css');
+  assert.match(css, /\.mathmaster-desktop-question-content \[data-work-view-focus="true"\] \{\s*scroll-margin-top: calc\(var\(--mm-sticky-task-top, 0px\) \+ var\(--mm-sticky-task-height, 0px\) \+ 8px\);/);
+  const container = read('src/components/student/MobileViewportContainer.jsx');
+  assert.match(container, /import \{ STICKY_TASK_HEIGHT_VAR, stickyHeightRef \} from '\.\.\/\.\.\/platform\/layout\/stickyHeightRef\.js';/);
+  assert.match(container, /<div ref=\{stickyHeightRef\(STICKY_TASK_HEIGHT_VAR\)\} className=\{`mathmaster-desktop-question-anchor/);
+  assert.equal(STICKY_TASK_HEIGHT_VAR, '--mm-sticky-task-height');
 });

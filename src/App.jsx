@@ -4178,7 +4178,15 @@ function App() {
     let secondFrame = null;
     const firstFrame = window.requestAnimationFrame(() => {
       secondFrame = window.requestAnimationFrame(() => {
-        assignmentQuestionStageRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+        // A question the student already started opens on the live work (the
+        // region a tool marks for Work View), not on the tool header: resuming
+        // a systems question landed 700px above its balance board, and this
+        // scroll cancelled the solver's own reveal. The task stays sticky.
+        const stage = assignmentQuestionStageRef.current;
+        const liveWork = stage?.querySelectorAll?.('[data-work-view-focus="true"]');
+        const target = liveWork?.length ? liveWork[liveWork.length - 1] : null;
+        if (target) target.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+        else stage?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
       });
     });
     return () => {

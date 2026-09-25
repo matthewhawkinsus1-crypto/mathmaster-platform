@@ -34,3 +34,4 @@ export const stickyHeightRef = (variableName) => {
 };
 
 export const ASSIGNMENT_NAV_HEIGHT_VAR = '--mm-assignment-nav-height';
+export const STICKY_TASK_HEIGHT_VAR = '--mm-sticky-task-height';
