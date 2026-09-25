@@ -30,3 +30,4 @@ check_module1.mjs
 # can be looked at, and not in every clone forever. The findings JSON beside
 # them IS committed — that is the part the ordinary suite asserts.
 tests/browser/artifacts/
+.playwright-mcp/
