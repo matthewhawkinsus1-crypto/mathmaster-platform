@@ -1234,6 +1234,12 @@ export const describeOperationToken = (operation, operandExpression) => {
 };
 
 export const describeOperation = (operation, operandExpression) => `${OPERATION_LABELS[operation] || operation} ${operandExpression} on both sides`;
+// The spoken, semantic name of a one-sided placement: "Subtract 21 placed on
+// the left side". The visible chip typesets the operand, so its text content is
+// MathLive markup; this is the name assistive technology and tests read.
+export const describePlacedOperation = (operation, operandExpression, side) => (
+  `${OPERATION_LABELS[operation] || operation} ${String(operandExpression ?? '').trim()} placed on the ${side} side`
+);
 
 export const getSuggestedMove = (equationState) => {
   const analysis = getEquationAnalysis(equationState);

@@ -593,12 +593,20 @@ const runNoPreview = async (context, scope) => {
     await settle(page, 400);
 
     observed.oneSided = await visibleEquation(host);
-    observed.marker = await host.locator('.algebra-placement-marker').allInnerTexts();
+    // Read the marker's semantic state, not its innerText: the operand is
+    // typeset by MathLive, whose rendered text is presentation markup.
+    observed.marker = await host.locator('.algebra-placement-marker').evaluateAll((markers) => markers.map((marker) => ({
+      label: marker.getAttribute('aria-label'),
+      operation: marker.dataset.placedOperation,
+      operand: marker.dataset.placedOperand,
+      side: marker.dataset.placedSide,
+    })));
     observed.stagedPreview = await host.locator('.algebra-live-math-preview.is-staged[data-preview-side="left"]').count();
     expect(journey, JSON.stringify(observed.oneSided) === JSON.stringify(committed), `placing on ONE side changed committed equation text: ${JSON.stringify(observed.oneSided)}`);
     expect(journey, (await mathState(host)) === committedState, 'the committed equation state changed after a one-sided placement');
     expect(journey, observed.stagedPreview === 1, 'the dropped operation did not remain visibly previewed on the staged side');
-    expect(journey, observed.marker.some((text) => /21/.test(text) && /placed/.test(text)), `the placed side was not marked: ${JSON.stringify(observed.marker)}`);
+    expect(journey, observed.marker.some((marker) => marker.label === 'Subtract 21 placed on the left side'
+      && marker.operation === 'subtract' && marker.operand === '21' && marker.side === 'left'), `the placed side was not marked: ${JSON.stringify(observed.marker)}`);
     await shoot(page, `${journey}-2-one-side-placed`);
 
     await host.locator('[aria-label$="on the right side"]').first().click().catch(async () => {

@@ -23,6 +23,7 @@ import {
   equationToLatex,
   expressionToLatex,
   describeOperationToken,
+  describePlacedOperation,
   getSuggestedMove,
   isSolvedEquation,
   expressionsEquivalent,
@@ -3054,7 +3055,14 @@ export default function StepByStepAlgebra({
                     own move and sits outside the expression, so it can never be
                     read as the resulting algebra and never changes the fit. */}
                 {stagedHere && armedTile && !pendingMove ? (
-                  <div className="algebra-placement-marker" role="status" aria-label={`Operation placed on the ${side} side`}>
+                  <div
+                    className="algebra-placement-marker"
+                    role="status"
+                    aria-label={describePlacedOperation(armedTile.operation, operandLabel, side)}
+                    data-placed-operation={armedTile.operation}
+                    data-placed-operand={operandLabel}
+                    data-placed-side={side}
+                  >
                     <span aria-hidden="true" className="algebra-placement-marker-check">✓</span>
                     <OperationChip token={describeOperationToken(armedTile.operation, operandLabel)} latex={operand} />
                     <span>placed</span>
