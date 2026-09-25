@@ -268,7 +268,9 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
   const renderLinearCardBody = (card) => {
     if (card.kind === 'graph') {
       const bounds = questionData.graphBounds || { xMin: -8, xMax: 8, yMin: -8, yMax: 8 };
-      return <CoordinatePlane enlargeable={false} width={220} height={140} {...bounds} functions={[(x) => evaluateFunctionSpec(card.value || {}, x)]} />;
+      // The plane scales to the card's width; this sets its proportions. At
+      // 220x140 a -8..8 y-axis stacked its labels on top of each other.
+      return <CoordinatePlane enlargeable={false} width={320} height={240} {...bounds} functions={[(x) => evaluateFunctionSpec(card.value || {}, x)]} />;
     }
     if (['slopeIntercept', 'factoredLinear', 'pointSlope', 'standard'].includes(card.kind)) {
       return <MathDisplay value={String(card.value)} format="ascii-math" ariaLabel={`${LINEAR_KIND_LABELS[card.kind]}: ${card.value}`} />;

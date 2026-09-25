@@ -11,3 +11,9 @@
 .mathmaster-line-card-grid {
   container: line-cards / inline-size;
 }
+
+/* A two-column graph card makes its row tall; the one-line cards beside it
+   keep their own height instead of stretching into mostly blank tiles. */
+.mathmaster-line-card-grid {
+  align-items: start;
+}

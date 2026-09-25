@@ -135,6 +135,10 @@ test('line card sets take the full width; graph cards span two columns where the
   const css = read('src/tools/representationMatch/RepresentationMatch.css');
   assert.match(css, /@container line-cards \(min-width: 520px\) \{\s*\.mathmaster-line-card-grid > \.mathmaster-line-card\[data-card-kind="graph"\] \{\s*grid-column: span 2;/);
   assert.match(source, /import '\.\/RepresentationMatch\.css';/);
+  // Short cards keep their height beside a tall graph card, and the graph's
+  // proportions leave its axis labels apart.
+  assert.match(css, /\.mathmaster-line-card-grid \{\s*align-items: start;/);
+  assert.match(source, /<CoordinatePlane enlargeable=\{false\} width=\{320\} height=\{240\}/);
 });
 
 // Live QA round 2, 1536×900: Start landed on a Warm-Up closed for the period.
