@@ -193,3 +193,14 @@ test('opening a question lands on its live work when a tool marks one', () => {
   assert.match(container, /<div ref=\{stickyHeightRef\(STICKY_TASK_HEIGHT_VAR\)\} className=\{`mathmaster-desktop-question-anchor/);
   assert.equal(STICKY_TASK_HEIGHT_VAR, '--mm-sticky-task-height');
 });
+
+// Live QA round 2: subtracting 40/9 showed "⠿ Pick up − \frac{40}{9}" — the
+// math field's LaTeX printed as text, and read aloud as such.
+test('operation chips typeset the operand instead of printing its LaTeX', () => {
+  const core = read('src/StepByStepAlgebraCore.jsx');
+  const chip = core.slice(core.indexOf('function OperationChip'), core.indexOf('export default function StepByStepAlgebra'));
+  assert.match(chip, /<MathDisplay value=\{latex\} format="latex" inline ariaLabel=\{token\.operand\} \/>/);
+  assert.doesNotMatch(core, /describeOperationToken\(armedTile\.operation, operand\)/, 'tokens are described from the parsed operand');
+  assert.match(core, /<OperationChip token=\{describeOperationToken\(armedTile\.operation, operandLabel\)\} latex=\{operand\} \/>/);
+  assert.match(core, /<OperationChip token=\{heldToken\.label\} latex=\{heldToken\.latex\} \/>/);
+});
