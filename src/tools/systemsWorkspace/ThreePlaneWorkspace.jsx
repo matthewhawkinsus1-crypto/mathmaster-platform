@@ -17,7 +17,7 @@ import { Panel, HintPanel, ResultPill } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import MathDisplay from '../../MathDisplay';
 import MathInput from '../../MathInput';
-import { classifyLinearSystem, linearEquationForm } from './algebraicSystemsEngine.js';
+import { classifyLinearSystem, exactNumberText, linearEquationForm } from './algebraicSystemsEngine.js';
 import { clipPlaneToCube, legibleCamera, planePlaneIntersection, projectPoint, projectPolygon } from './threePlaneGeometry.js';
 import { gradeMultiAnswerResponse } from '../../../functions/shared/ordinaryResponseGrading.mjs';
 import './AlgebraicSystemMode.css';
@@ -37,6 +37,8 @@ const toScreen = (point, scale, cameraOffset) => [
 ];
 
 const clampLabel = (value, margin) => Math.min(VIEW_SIZE - margin, Math.max(margin, value));
+/** "(1, −2, 4)": exact values with a true minus sign, the way the algebra wrote them. */
+const orderedTripleText = (solution, variables) => `(${variables.map((name) => exactNumberText(solution[name]).replace(/^-/, '\u2212')).join(', ')})`;
 
 const boundingRadius = (solution, variables) => {
   const magnitudes = variables.map((name) => Math.abs(Number(solution?.[name]) || 0));
@@ -228,7 +230,23 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
               />
             ))}
             {solutionMarker ? (
-              <circle cx={toScreen(solutionMarker, scale, [0, 0])[0]} cy={toScreen(solutionMarker, scale, [0, 0])[1]} r={6} fill="#202124" stroke="#fff" strokeWidth={2} />
+              <g>
+                <circle cx={toScreen(solutionMarker, scale, [0, 0])[0]} cy={toScreen(solutionMarker, scale, [0, 0])[1]} r={6} fill="#202124" stroke="#fff" strokeWidth={2} />
+                {/* The coordinates sit on the point itself, so the ordered
+                    triple and the place in space are read together. */}
+                <text
+                  x={clampLabel(toScreen(solutionMarker, scale, [0, 0])[0] + 10, 40)}
+                  y={clampLabel(toScreen(solutionMarker, scale, [0, 0])[1] - 10, 18)}
+                  fontSize={15}
+                  fontWeight={800}
+                  fill="#202124"
+                  stroke="#fff"
+                  strokeWidth={4}
+                  paintOrder="stroke"
+                >
+                  {orderedTripleText(classification.solution, variables)}
+                </text>
+              </g>
             ) : null}
           </svg>
           {intersectionLines.length ? (
@@ -246,8 +264,12 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
           </div>
           {revealed ? (
             <p className="mathmaster-reduction-ready-card" role="status">
+              {/* The reveal marks the point; it does not also classify the
+                  system. "The three planes meet at exactly one point" was the
+                  answer to the very question beside it, nearly word for word
+                  (CW3, PR4, DOL2 — #361). */}
               {classification.type === 'unique'
-                ? `The three planes meet at exactly one point: (${variables.map((name) => classification.solution[name]).join(', ')}).`
+                ? `Point marked on the model: ${orderedTripleText(classification.solution, variables)}.`
                 : classification.type === 'none'
                   ? 'The three planes share no common point.'
                   : classification.type === 'infinite'

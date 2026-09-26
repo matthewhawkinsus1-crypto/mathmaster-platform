@@ -45,7 +45,21 @@ export const normalizeEquationForStepAlgebra = (equationText) => {
       },
     );
 
-    let normalized = parse(protectedSource).toString({
+    // A substituted NEGATIVE value keeps its parentheses the same way: with
+    // `parenthesis: 'auto'` MathJS printed 3 * (-1) as "3 * -1" and
+    // 2x - (-2) as "2 * x - -2", which Step Algebra showed as 3 · −1 and
+    // 2x − −2 — not classroom notation (#361). Classroom: 3(−1), 2x − (−2).
+    const protectedNegatives = [];
+    const protectedNegativeSource = protectedSource.replace(
+      /\(\s*-\s*(\d+(?:\.\d+)?)\s*\)/g,
+      (_match, digits) => {
+        const token = `__mm_negative_${protectedNegatives.length}__`;
+        protectedNegatives.push(digits);
+        return token;
+      },
+    );
+
+    let normalized = parse(protectedNegativeSource).toString({
       parenthesis: 'auto',
       implicit: 'show',
     });
@@ -55,6 +69,9 @@ export const normalizeEquationForStepAlgebra = (equationText) => {
         `__mm_fraction_${index}__`,
         `(${fractionText.replace(/\s+/g, ' ').trim()})`,
       );
+    });
+    protectedNegatives.forEach((digits, index) => {
+      normalized = normalized.replace(`__mm_negative_${index}__`, `(-${digits})`);
     });
 
     return normalized;

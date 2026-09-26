@@ -13,7 +13,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
-import { linearEquationForm } from '../../src/tools/systemsWorkspace/algebraicSystemsEngine.js';
+import { linearEquationForm, normalizeEquationForStepAlgebra, substituteIntoEquation } from '../../src/tools/systemsWorkspace/algebraicSystemsEngine.js';
 import { legibleCamera, planeFacing } from '../../src/tools/systemsWorkspace/threePlaneGeometry.js';
 
 const elimination = executableSource(componentSource('src/tools/systemsWorkspace/EliminationReductionMode.jsx'));
@@ -156,4 +156,28 @@ test('legibleCamera turns the Day 1 planes from slivers into faces, and is deter
   assert.ok(after > 0.6, `every plane should be well face-on from the opening view (${after.toFixed(2)})`);
   assert.deepEqual(legibleCamera(day1, variables, fixed), camera);
   assert.ok(camera.elevation >= 0.2 && camera.elevation <= 0.9, 'the view stays upright');
+});
+
+/* --------------------------------------------------- classroom notation */
+
+test('a substituted negative value keeps its parentheses on the way into Step Algebra', () => {
+  // Back-substituting y = −1 into 4x + 3y = 5 was shown as "4x + 3 · −1",
+  // and y = −2 into 2x − y + 3z = 16 as "2x − −2" (#361).
+  const product = normalizeEquationForStepAlgebra(substituteIntoEquation('4x + 3y = 5', 'y', '-1'));
+  assert.match(product, /3 \* \(-1\)/);
+  assert.doesNotMatch(product, /\* -1/);
+  const difference = normalizeEquationForStepAlgebra(substituteIntoEquation('2x - y + 3z = 16', 'y', '-2'));
+  assert.match(difference, /- \(-2\)/);
+  assert.doesNotMatch(difference, /- -2/);
+  // Positive values and fractions keep their existing forms.
+  assert.equal(normalizeEquationForStepAlgebra(substituteIntoEquation('x + y + z = 3', 'x', '1')), '1 + y + z = 3');
+  assert.match(normalizeEquationForStepAlgebra(substituteIntoEquation('-3x - 3y = 1', 'x', '20/9')), /3\s*\*\s*\(20 \/ 9\)/);
+});
+
+test('revealing the point marks and labels it without classifying the system for the student', () => {
+  const reveal = region(threePlanes, "{classification.type === 'unique'", "'This system could not be classified.'", 'reveal message');
+  assert.match(reveal, /`Point marked on the model: \$\{orderedTripleText\(classification\.solution, variables\)\}\.`/);
+  assert.doesNotMatch(reveal, /meet at exactly one point/);
+  const marker = region(threePlanes, '{solutionMarker ? (', ') : null}', 'solution marker');
+  assert.match(marker, /<circle[\s\S]*?<text[\s\S]*?\{orderedTripleText\(classification\.solution, variables\)\}/);
 });
