@@ -18,7 +18,7 @@ import useToolSubmission from '../shared/useToolSubmission';
 import MathDisplay from '../../MathDisplay';
 import MathInput from '../../MathInput';
 import { classifyLinearSystem, linearEquationForm } from './algebraicSystemsEngine.js';
-import { clipPlaneToCube, projectPolygon } from './threePlaneGeometry.js';
+import { clipPlaneToCube, planePlaneIntersection, projectPoint, projectPolygon } from './threePlaneGeometry.js';
 import { gradeMultiAnswerResponse } from '../../../functions/shared/ordinaryResponseGrading.mjs';
 import './AlgebraicSystemMode.css';
 import './ThreePlaneWorkspace.css';
@@ -97,6 +97,21 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
     if (!polygon3D) return null;
     return { ...projectPolygon(polygon3D, camera), color: PLANE_COLORS[index % PLANE_COLORS.length], index };
   }).filter(Boolean), [forms, visiblePlanes, variables, R, camera]);
+
+  // The pairwise line where two visible, non-parallel planes cross — the
+  // cue two translucent polygons alone do not give: WHERE they meet, not
+  // just that they overlap. Hidden whenever either plane of the pair is
+  // hidden, or the pair is parallel (no line to show).
+  const intersectionLines = useMemo(() => {
+    const pairs = [[0, 1], [0, 2], [1, 2]];
+    return pairs.map(([i, j]) => {
+      if (!visiblePlanes[i] || !visiblePlanes[j] || !forms[i] || !forms[j]) return null;
+      const line = planePlaneIntersection(forms[i], forms[j], variables, R);
+      if (!line) return null;
+      const projected = line.points.map((point) => projectPoint(point, camera));
+      return { key: `${i}-${j}`, from: [projected[0].screenX, projected[0].screenY], to: [projected[1].screenX, projected[1].screenY] };
+    }).filter(Boolean);
+  }, [forms, visiblePlanes, variables, R, camera]);
 
   const axisEnds = useMemo(() => {
     const axisLength = R + 2;
@@ -197,10 +212,23 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
                 strokeWidth={1.5}
               />
             ))}
+            {intersectionLines.map((line) => (
+              <line
+                key={line.key}
+                x1={toScreen(line.from, scale, [0, 0])[0]} y1={toScreen(line.from, scale, [0, 0])[1]}
+                x2={toScreen(line.to, scale, [0, 0])[0]} y2={toScreen(line.to, scale, [0, 0])[1]}
+                stroke="#202124" strokeWidth={2.5} strokeDasharray="6 4"
+              />
+            ))}
             {solutionMarker ? (
               <circle cx={toScreen(solutionMarker, scale, [0, 0])[0]} cy={toScreen(solutionMarker, scale, [0, 0])[1]} r={6} fill="#202124" stroke="#fff" strokeWidth={2} />
             ) : null}
           </svg>
+          {intersectionLines.length ? (
+            <p className="mathmaster-threeplane-legend">
+              <span className="mathmaster-threeplane-legend-swatch" aria-hidden="true" /> Dashed line: where two shown planes meet.
+            </p>
+          ) : null}
           <div className="mathmaster-reduction-button-row" style={{ marginTop: 10 }}>
             <button type="button" onClick={resetView} className="mathmaster-reduction-carry">Reset view</button>
             {canReveal ? (
@@ -267,7 +295,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
         hints={[
           'Drag anywhere on the model to rotate it.',
           'Hide a plane to see the other two more clearly, then show it again.',
-          'Two planes that are not parallel always meet in a line — look for where two colors overlap.',
+          'Two planes that are not parallel always meet in a line — shown as a dashed line wherever two visible planes cross.',
         ]}
         onHintUsed={() => onAction?.('HINT_USED')}
       />

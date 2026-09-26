@@ -3,15 +3,21 @@
  *
  * Pure state-machine tests for eliminationReduction.js against the Day 1
  * system (solution (3,1,5)), mirroring how systemsWorkspace3x3Engine.test.mjs
- * pins substitutionReduction.js.
+ * pins substitutionReduction.js. Covers the richer multiplier/distribution/
+ * cancellation/combination-arithmetic interaction added in response to
+ * review feedback on PR #360: scaling an equation requires distributing the
+ * multiplier across every term, and cancellation is an intentional action
+ * before the reduced equation is accepted.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildReductionSystem, reductionAnswerKey } from '../../src/tools/systemsWorkspace/substitutionReduction.js';
 import {
   activeEliminationRoundKey,
+  applyEliminationMultiplier,
   attemptEliminationBackPlacement,
   checkEliminationCombination,
+  checkEliminationMultiplierProducts,
   chooseEliminationPair,
   chooseEliminationVariable,
   eliminationBackSubstitutionDestinations,
@@ -20,13 +26,17 @@ import {
   eliminationPairOptions,
   eliminationPhase,
   eliminationReducedSystem,
+  eliminationRoundEliminates,
+  eliminationRoundStage,
   emptyEliminationState,
   recordEliminationBackSolve,
   repairEliminationState,
   resetEliminationRound,
-  setEliminationCombinedDraft,
+  setEliminationCombinationTerm,
   setEliminationMultiplierDraft,
+  setEliminationMultiplierProductTerm,
   setEliminationOperation,
+  toggleEliminationCancellation,
 } from '../../src/tools/systemsWorkspace/eliminationReduction.js';
 
 const XYZ = ['x', 'y', 'z'];
@@ -67,7 +77,6 @@ test('the second round cannot reuse the first round\'s exact pair', () => {
 });
 
 test('a pair whose equations do not contain the target variable is rejected (nothing to eliminate)', () => {
-  // 5y = 10 never contains z, so it cannot participate in a z-elimination pair.
   const system = buildReductionSystem({ variables: XYZ, equations: ['x + y + z = 6', '5y = 10', '2x - y + 3z = 9'] });
   let state = chooseEliminationVariable(emptyEliminationState(), system, 'z').state;
   const rejected = chooseEliminationPair(state, system, 'round1', 'E1E2');
@@ -85,65 +94,174 @@ test('resetEliminationRound clears exactly one round\'s work and lets the studen
   assert.deepEqual(state.rounds.round1.multiplierDrafts, {});
 });
 
-test('a genuinely correct elimination round accepts multiple valid multiplier/operation routes for the same variable', () => {
-  const system = buildSystem();
-  // Route A: eliminate y from E1 (2x - y + 2z = 15) and E2 (-x + y + z = 3) by
-  // adding directly (multipliers left blank = 1), since the y coefficients
-  // are already opposite (-1 and +1).
-  let stateA = chooseEliminationVariable(emptyEliminationState(), system, 'y').state;
-  stateA = chooseEliminationPair(stateA, system, 'round1', 'E1E2').state;
-  stateA = setEliminationOperation(stateA, 'round1', 'add').state;
-  stateA = setEliminationCombinedDraft(stateA, 'round1', 'x + 3z = 18').state;
-  const checkedA = checkEliminationCombination(stateA, system, 'round1');
-  assert.equal(checkedA.feedback, null, JSON.stringify(checkedA.feedback));
-  assert.equal(checkedA.state.rounds.round1.combinedText, 'x + 3z = 18');
+/* -------------------------------------------------- scaling / distribution */
 
-  // Route B: eliminate y from E1 and E3 (3x - y + 2z = 18) by subtracting
-  // directly (again multipliers left blank), a different, equally valid pair.
-  let stateB = chooseEliminationVariable(emptyEliminationState(), system, 'y').state;
-  stateB = chooseEliminationPair(stateB, system, 'round1', 'E1E3').state;
-  stateB = setEliminationOperation(stateB, 'round1', 'subtract').state;
-  // E1 - E3 = (2x - y + 2z) - (3x - y + 2z) = -x = 15 - 18 = -3
-  stateB = setEliminationCombinedDraft(stateB, 'round1', '-x = -3').state;
-  const checkedB = checkEliminationCombination(stateB, system, 'round1');
-  assert.equal(checkedB.feedback, null, JSON.stringify(checkedB.feedback));
-});
-
-test('scaling is optional: a blank multiplier means no scaling needed, never a forced multiply-by-1 step', () => {
+test('scaling is optional: a blank multiplier means no scaling needed, applied immediately with no per-term entry', () => {
   const system = buildSystem();
   let state = chooseEliminationVariable(emptyEliminationState(), system, 'y').state;
   state = chooseEliminationPair(state, system, 'round1', 'E1E2').state;
-  state = setEliminationOperation(state, 'round1', 'add').state;
-  // Neither multiplier draft is ever set.
-  assert.deepEqual(state.rounds.round1.multiplierDrafts, {});
-  state = setEliminationCombinedDraft(state, 'round1', 'x + 3z = 18').state;
-  const checked = checkEliminationCombination(state, system, 'round1');
-  assert.equal(checked.feedback, null);
+  assert.equal(eliminationRoundStage(state, system, 'round1'), 'multiplier');
+  const appliedA = applyEliminationMultiplier(state, system, 'round1', 'E1');
+  assert.equal(appliedA.feedback, null);
+  state = appliedA.state;
+  assert.equal(state.rounds.round1.multiplierValues.E1, 1);
+  assert.equal(state.rounds.round1.multiplierWork.E1, undefined, 'an identity scale never opens a term-entry stage');
 });
 
-test('a combination that does not actually cancel the target variable is rejected, not silently accepted', () => {
+test('a non-identity scale factor opens a term-by-term distribution stage, checked against the true product, never computed for the student', () => {
   const system = buildSystem();
   let state = chooseEliminationVariable(emptyEliminationState(), system, 'y').state;
   state = chooseEliminationPair(state, system, 'round1', 'E1E2').state;
-  state = setEliminationOperation(state, 'round1', 'subtract').state; // should have been add
-  state = setEliminationCombinedDraft(state, 'round1', 'x + 3z = 18').state;
-  const checked = checkEliminationCombination(state, system, 'round1');
-  assert.ok(checked.feedback, 'a wrong operation choice must not eliminate y and must be rejected');
-  assert.equal(checked.state.rounds.round1.combinedText, null);
-});
-
-test('an algebraically equivalent but differently-scaled combination is still accepted (multiple valid routes)', () => {
-  const system = buildSystem();
-  let state = chooseEliminationVariable(emptyEliminationState(), system, 'y').state;
-  state = chooseEliminationPair(state, system, 'round1', 'E1E2').state;
-  state = setEliminationMultiplierDraft(state, 'round1', 'E1', '2').state;
   state = setEliminationMultiplierDraft(state, 'round1', 'E2', '2').state;
+  const applied = applyEliminationMultiplier(state, system, 'round1', 'E2');
+  assert.equal(applied.feedback, null);
+  state = applied.state;
+  assert.ok(state.rounds.round1.multiplierWork.E2.active, 'distribution stage must open for a non-identity multiplier');
+  assert.equal(state.rounds.round1.multiplierValues.E2, undefined, 'not applied until the products are checked');
+
+  // -x + y + z = 3, scaled by 2, is -2x + 2y + 2z = 6.
+  state = setEliminationMultiplierProductTerm(state, 'round1', 'E2', 'x', '-2').state;
+  state = setEliminationMultiplierProductTerm(state, 'round1', 'E2', 'y', '2').state;
+  const wrongConstant = setEliminationMultiplierProductTerm(state, 'round1', 'E2', 'constant', '5').state;
+  const wrongCheck = checkEliminationMultiplierProducts(wrongConstant, system, 'round1', 'E2');
+  assert.ok(wrongCheck.feedback, 'an incorrect distributed term must be rejected, not silently accepted');
+  assert.equal(wrongCheck.feedback.reason, 'incorrect-products');
+  assert.equal(wrongCheck.state.rounds.round1.multiplierValues.E2, undefined);
+
+  state = setEliminationMultiplierProductTerm(state, 'round1', 'E2', 'z', '2').state;
+  state = setEliminationMultiplierProductTerm(state, 'round1', 'E2', 'constant', '6').state;
+  const rightCheck = checkEliminationMultiplierProducts(state, system, 'round1', 'E2');
+  assert.equal(rightCheck.feedback, null);
+  assert.equal(rightCheck.state.rounds.round1.multiplierValues.E2, 2);
+  assert.equal(rightCheck.state.rounds.round1.multiplierWork.E2, undefined, 'the work area closes once accepted');
+});
+
+test('a bare coefficient (not a full term) is also accepted for the distributed product, matching the 2x2 elimination convention', () => {
+  const system = buildSystem();
+  let state = chooseEliminationVariable(emptyEliminationState(), system, 'y').state;
+  state = chooseEliminationPair(state, system, 'round1', 'E1E2').state;
+  state = setEliminationMultiplierDraft(state, 'round1', 'E2', '2').state;
+  state = applyEliminationMultiplier(state, system, 'round1', 'E2').state;
+  state = setEliminationMultiplierProductTerm(state, 'round1', 'E2', 'x', '-2').state;
+  state = setEliminationMultiplierProductTerm(state, 'round1', 'E2', 'y', '2').state;
+  state = setEliminationMultiplierProductTerm(state, 'round1', 'E2', 'z', '2z').state; // a full term is also fine
+  state = setEliminationMultiplierProductTerm(state, 'round1', 'E2', 'constant', '6').state;
+  const check = checkEliminationMultiplierProducts(state, system, 'round1', 'E2');
+  assert.equal(check.feedback, null);
+});
+
+/* ------------------------------------------------------------- operation */
+
+test('the operation cannot be chosen until both equations of the pair are scaled', () => {
+  const system = buildSystem();
+  let state = chooseEliminationVariable(emptyEliminationState(), system, 'y').state;
+  state = chooseEliminationPair(state, system, 'round1', 'E1E2').state;
+  state = applyEliminationMultiplier(state, system, 'round1', 'E1').state; // only E1 applied
+  const attempt = setEliminationOperation(state, 'round1', 'add');
+  assert.equal(attempt.state.rounds.round1.operation, null, 'operation must wait for both equations to be scaled');
+});
+
+test('an operation that does not eliminate the target variable is recorded but flagged, so the student can try the other one', () => {
+  const system = buildSystem();
+  let state = chooseEliminationVariable(emptyEliminationState(), system, 'y').state;
+  state = chooseEliminationPair(state, system, 'round1', 'E1E2').state;
+  state = applyEliminationMultiplier(state, system, 'round1', 'E1').state;
+  state = applyEliminationMultiplier(state, system, 'round1', 'E2').state;
+  state = setEliminationOperation(state, 'round1', 'subtract').state; // y coefficients are -1 and +1: subtract does NOT eliminate y
+  assert.equal(state.rounds.round1.operation, 'subtract');
+  assert.equal(eliminationRoundEliminates(state, system, 'round1'), false);
+  assert.equal(eliminationRoundStage(state, system, 'round1'), 'operation', 'a non-eliminating operation must not advance to cancellation');
+
+  const fixed = setEliminationOperation(state, 'round1', 'add').state;
+  assert.equal(eliminationRoundEliminates(fixed, system, 'round1'), true);
+  assert.equal(eliminationRoundStage(fixed, system, 'round1'), 'cancellation');
+});
+
+/* ----------------------------------------------------------- cancellation */
+
+test('cancellation is intentional and per-equation: the combination stage opens only once BOTH equations are marked', () => {
+  const system = buildSystem();
+  let state = chooseEliminationVariable(emptyEliminationState(), system, 'y').state;
+  state = chooseEliminationPair(state, system, 'round1', 'E1E2').state;
+  state = applyEliminationMultiplier(state, system, 'round1', 'E1').state;
+  state = applyEliminationMultiplier(state, system, 'round1', 'E2').state;
   state = setEliminationOperation(state, 'round1', 'add').state;
-  // 2*(2x - y + 2z) + 2*(-x + y + z) = 2x + 6z = 36, equivalent to x + 3z = 18.
-  state = setEliminationCombinedDraft(state, 'round1', '2x + 6z = 36').state;
+  assert.equal(eliminationRoundStage(state, system, 'round1'), 'cancellation');
+
+  state = toggleEliminationCancellation(state, system, 'round1', 'E1').state;
+  assert.equal(state.rounds.round1.combinationWork, null, 'only one of two equations marked; combination must stay closed');
+  assert.equal(eliminationRoundStage(state, system, 'round1'), 'cancellation');
+
+  state = toggleEliminationCancellation(state, system, 'round1', 'E2').state;
+  assert.ok(state.rounds.round1.combinationWork, 'both equations marked; combination work area opens');
+  assert.equal(eliminationRoundStage(state, system, 'round1'), 'combination');
+
+  // Toggling one back off closes it again — the marking is a real, reversible decision.
+  state = toggleEliminationCancellation(state, system, 'round1', 'E1').state;
+  assert.equal(state.rounds.round1.combinationWork, null);
+  assert.equal(eliminationRoundStage(state, system, 'round1'), 'cancellation');
+});
+
+test('cancellation cannot be marked before an eliminating operation is chosen', () => {
+  const system = buildSystem();
+  let state = chooseEliminationVariable(emptyEliminationState(), system, 'y').state;
+  state = chooseEliminationPair(state, system, 'round1', 'E1E2').state;
+  state = applyEliminationMultiplier(state, system, 'round1', 'E1').state;
+  state = applyEliminationMultiplier(state, system, 'round1', 'E2').state;
+  // No operation chosen yet.
+  const attempt = toggleEliminationCancellation(state, system, 'round1', 'E1');
+  assert.deepEqual(attempt.state.rounds.round1.cancelledEquations, {});
+});
+
+/* ------------------------------------------------------- combination arithmetic */
+
+test('the full round: identity scaling, add, mark both cancelling terms, and term-by-term combination arithmetic — the Day 1 system', () => {
+  const system = buildSystem();
+  let state = chooseEliminationVariable(emptyEliminationState(), system, 'y').state;
+  state = chooseEliminationPair(state, system, 'round1', 'E1E2').state; // 2x-y+2z=15, -x+y+z=3
+  state = applyEliminationMultiplier(state, system, 'round1', 'E1').state;
+  state = applyEliminationMultiplier(state, system, 'round1', 'E2').state;
+  state = setEliminationOperation(state, 'round1', 'add').state;
+  state = toggleEliminationCancellation(state, system, 'round1', 'E1').state;
+  state = toggleEliminationCancellation(state, system, 'round1', 'E2').state;
+  assert.equal(eliminationRoundStage(state, system, 'round1'), 'combination');
+
+  // (2x - y + 2z) + (-x + y + z) = x + 3z; 15 + 3 = 18.
+  const wrong = setEliminationCombinationTerm(state, 'round1', 'x', '2').state;
+  const wrongChecked = checkEliminationCombination(wrong, system, 'round1');
+  assert.ok(wrongChecked.feedback);
+  assert.equal(wrongChecked.feedback.reason, 'not-equivalent');
+  assert.equal(wrongChecked.state.rounds.round1.combinedText, null);
+
+  state = setEliminationCombinationTerm(state, 'round1', 'x', '1').state;
+  state = setEliminationCombinationTerm(state, 'round1', 'z', '3').state;
+  state = setEliminationCombinationTerm(state, 'round1', 'constant', '18').state;
   const checked = checkEliminationCombination(state, system, 'round1');
   assert.equal(checked.feedback, null, JSON.stringify(checked.feedback));
+  assert.equal(checked.state.rounds.round1.combinedText, 'x + 3z = 18');
+  assert.equal(eliminationRoundStage(checked.state, system, 'round1'), 'done');
 });
+
+test('multiple valid routes: a different pair, a non-identity multiplier, and subtraction also reduce correctly', () => {
+  const system = buildSystem();
+  let state = chooseEliminationVariable(emptyEliminationState(), system, 'y').state;
+  // E1 (2x - y + 2z = 15) and E3 (3x - y + 2z = 18): subtract directly (y coefficients equal) -> -x = -3.
+  state = chooseEliminationPair(state, system, 'round1', 'E1E3').state;
+  state = applyEliminationMultiplier(state, system, 'round1', 'E1').state;
+  state = applyEliminationMultiplier(state, system, 'round1', 'E3').state;
+  state = setEliminationOperation(state, 'round1', 'subtract').state;
+  assert.equal(eliminationRoundEliminates(state, system, 'round1'), true);
+  state = toggleEliminationCancellation(state, system, 'round1', 'E1').state;
+  state = toggleEliminationCancellation(state, system, 'round1', 'E3').state;
+  state = setEliminationCombinationTerm(state, 'round1', 'x', '-1').state;
+  state = setEliminationCombinationTerm(state, 'round1', 'z', '0').state;
+  state = setEliminationCombinationTerm(state, 'round1', 'constant', '-3').state;
+  const checked = checkEliminationCombination(state, system, 'round1');
+  assert.equal(checked.feedback, null, JSON.stringify(checked.feedback));
+  assert.equal(checked.state.rounds.round1.combinedText, '-x = -3');
+});
+
+/* ---------------------------------------------------------------- full flow */
 
 test('the full elimination round reduces the Day 1 system to a correct, independent 2×2, then solves through to the ordered triple', () => {
   const system = buildSystem();
@@ -152,15 +270,27 @@ test('the full elimination round reduces the Day 1 system to a correct, independ
 
   state = chooseEliminationPair(state, system, 'round1', 'E1E2').state;
   assert.equal(activeEliminationRoundKey(state), 'round1');
+  state = applyEliminationMultiplier(state, system, 'round1', 'E1').state;
+  state = applyEliminationMultiplier(state, system, 'round1', 'E2').state;
   state = setEliminationOperation(state, 'round1', 'add').state;
-  state = setEliminationCombinedDraft(state, 'round1', 'x + 3z = 18').state;
+  state = toggleEliminationCancellation(state, system, 'round1', 'E1').state;
+  state = toggleEliminationCancellation(state, system, 'round1', 'E2').state;
+  state = setEliminationCombinationTerm(state, 'round1', 'x', '1').state;
+  state = setEliminationCombinationTerm(state, 'round1', 'z', '3').state;
+  state = setEliminationCombinationTerm(state, 'round1', 'constant', '18').state;
   state = checkEliminationCombination(state, system, 'round1').state;
   assert.equal(eliminationPhase(state, system, {}), 'round2-pair');
 
   state = chooseEliminationPair(state, system, 'round2', 'E2E3').state;
   // E2 (-x + y + z = 3) + E3 (3x - y + 2z = 18) = 2x + 3z = 21.
+  state = applyEliminationMultiplier(state, system, 'round2', 'E2').state;
+  state = applyEliminationMultiplier(state, system, 'round2', 'E3').state;
   state = setEliminationOperation(state, 'round2', 'add').state;
-  state = setEliminationCombinedDraft(state, 'round2', '2x + 3z = 21').state;
+  state = toggleEliminationCancellation(state, system, 'round2', 'E2').state;
+  state = toggleEliminationCancellation(state, system, 'round2', 'E3').state;
+  state = setEliminationCombinationTerm(state, 'round2', 'x', '2').state;
+  state = setEliminationCombinationTerm(state, 'round2', 'z', '3').state;
+  state = setEliminationCombinationTerm(state, 'round2', 'constant', '21').state;
   state = checkEliminationCombination(state, system, 'round2').state;
   assert.equal(activeEliminationRoundKey(state), null);
   assert.equal(eliminationPhase(state, system, {}), 'subsystem');
@@ -170,55 +300,77 @@ test('the full elimination round reduces the Day 1 system to a correct, independ
   assert.equal(reduced.equations[0].text, 'x + 3z = 18');
   assert.equal(reduced.equations[1].text, '2x + 3z = 21');
 
-  // Solving R1/R2 by hand: (2x+3z) - (x+3z) = 21-18 -> x = 3, then z = 5.
   const reducedSolution = { x: 3, z: 5 };
   assert.equal(eliminationPhase(state, system, { reducedSolution }), 'back-substitute');
 
   const destinations = eliminationBackSubstitutionDestinations(state, system);
   assert.ok(destinations.length >= 1);
   const destination = destinations[0];
-  const placeX = attemptEliminationBackPlacement(state, system, reducedSolution, destination.id, 'x', 'x');
-  state = placeX.state;
-  const placeZ = attemptEliminationBackPlacement(state, system, reducedSolution, destination.id, 'z', 'z');
-  state = placeZ.state;
+  state = attemptEliminationBackPlacement(state, system, reducedSolution, destination.id, 'x', 'x').state;
+  state = attemptEliminationBackPlacement(state, system, reducedSolution, destination.id, 'z', 'z').state;
   const backEquation = eliminationBackSubstitutionEquation(state, system, reducedSolution);
   assert.ok(backEquation, 'a fully-placed back-substitution destination must be ready to solve');
 
-  // Solve the back equation for y by hand and record it, matching whichever
-  // original equation was chosen as the destination.
-  const yValueFromDestination = () => {
-    if (destination.id === 'E1') return 1; // 2(3) - y + 2(5) = 15 -> y = 1
-    if (destination.id === 'E2') return 1; // -(3) + y + 5 = 3 -> y = 1
-    return 1; // 3(3) - y + 2(5) = 18 -> y = 1
-  };
-  state = recordEliminationBackSolve(state, yValueFromDestination(), '1').state;
+  state = recordEliminationBackSolve(state, 1, '1').state;
   assert.equal(eliminationPhase(state, system, { reducedSolution }), 'verify');
 
   const solution = eliminationKnownSolution(state, reducedSolution);
   assert.deepEqual(solution, { x: 3, z: 5, y: 1 });
 });
 
-test('repairEliminationState replays a persisted draft against the current system and drops anything no longer true', () => {
+/* --------------------------------------------------------------- repair */
+
+test('repairEliminationState replays a persisted draft through the full stage sequence, including distribution and cancellation', () => {
   const system = buildSystem();
   let state = chooseEliminationVariable(emptyEliminationState(), system, 'y').state;
   state = chooseEliminationPair(state, system, 'round1', 'E1E2').state;
+  // Scale BOTH equations by 2 (not mathematically necessary here, but a
+  // valid student choice) and add: still eliminates y.
+  // 2*(2x-y+2z=15) = 4x-2y+4z=30; 2*(-x+y+z=3) = -2x+2y+2z=6; sum: 2x+6z=36.
+  state = setEliminationMultiplierDraft(state, 'round1', 'E1', '2').state;
+  state = applyEliminationMultiplier(state, system, 'round1', 'E1').state;
+  state = setEliminationMultiplierProductTerm(state, 'round1', 'E1', 'x', '4').state;
+  state = setEliminationMultiplierProductTerm(state, 'round1', 'E1', 'y', '-2').state;
+  state = setEliminationMultiplierProductTerm(state, 'round1', 'E1', 'z', '4').state;
+  state = setEliminationMultiplierProductTerm(state, 'round1', 'E1', 'constant', '30').state;
+  state = checkEliminationMultiplierProducts(state, system, 'round1', 'E1').state;
+  assert.equal(state.rounds.round1.multiplierValues.E1, 2);
+
+  state = setEliminationMultiplierDraft(state, 'round1', 'E2', '2').state;
+  state = applyEliminationMultiplier(state, system, 'round1', 'E2').state;
+  state = setEliminationMultiplierProductTerm(state, 'round1', 'E2', 'x', '-2').state;
+  state = setEliminationMultiplierProductTerm(state, 'round1', 'E2', 'y', '2').state;
+  state = setEliminationMultiplierProductTerm(state, 'round1', 'E2', 'z', '2').state;
+  state = setEliminationMultiplierProductTerm(state, 'round1', 'E2', 'constant', '6').state;
+  state = checkEliminationMultiplierProducts(state, system, 'round1', 'E2').state;
+  assert.equal(state.rounds.round1.multiplierValues.E2, 2);
+
   state = setEliminationOperation(state, 'round1', 'add').state;
-  state = setEliminationCombinedDraft(state, 'round1', 'x + 3z = 18').state;
-  state = checkEliminationCombination(state, system, 'round1').state;
+  assert.equal(eliminationRoundEliminates(state, system, 'round1'), true);
+  state = toggleEliminationCancellation(state, system, 'round1', 'E1').state;
+  state = toggleEliminationCancellation(state, system, 'round1', 'E2').state;
+  state = setEliminationCombinationTerm(state, 'round1', 'x', '2').state;
+  state = setEliminationCombinationTerm(state, 'round1', 'z', '6').state;
+  state = setEliminationCombinationTerm(state, 'round1', 'constant', '36').state;
+  const checked = checkEliminationCombination(state, system, 'round1');
+  assert.equal(checked.feedback, null, JSON.stringify(checked.feedback));
+  state = checked.state;
+  assert.equal(state.rounds.round1.combinedText, '2x + 6z = 36');
 
   const repaired = repairEliminationState(state, system);
-  assert.equal(repaired.variable, 'y');
-  assert.equal(repaired.rounds.round1.combinedText, 'x + 3z = 18');
-
-  // A draft claiming a combinedText that no longer matches the stored
-  // multipliers/operation must not be trusted blindly.
-  const tampered = { ...state, rounds: { ...state.rounds, round1: { ...state.rounds.round1, combinedText: 'x + 99z = 1' } } };
-  const repairedTampered = repairEliminationState(tampered, system);
-  assert.notEqual(repairedTampered.rounds.round1.combinedText, 'x + 99z = 1');
+  assert.equal(repaired.rounds.round1.combinedText, '2x + 6z = 36');
+  assert.equal(repaired.rounds.round1.multiplierValues.E1, 2);
+  assert.equal(repaired.rounds.round1.multiplierValues.E2, 2);
 });
 
 test('repairEliminationState drops an unauthored eliminated variable entirely', () => {
   const system = buildSystem();
-  const repaired = repairEliminationState({ version: 1, variable: 'q', rounds: {} }, system);
+  const repaired = repairEliminationState({ version: 2, variable: 'q', rounds: {} }, system);
+  assert.deepEqual(repaired, emptyEliminationState());
+});
+
+test('repairEliminationState rejects a draft from an older state-shape version rather than misreading it', () => {
+  const system = buildSystem();
+  const repaired = repairEliminationState({ version: 1, variable: 'y', rounds: {} }, system);
   assert.deepEqual(repaired, emptyEliminationState());
 });

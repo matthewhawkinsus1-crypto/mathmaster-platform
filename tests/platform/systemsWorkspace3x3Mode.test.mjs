@@ -34,10 +34,21 @@ test('three equations route to the 3×3 workflow and everything else stays on th
 
 test('the 3×3 method-choice wrapper offers substitution or elimination, never silently defaulting to substitution', () => {
   assert.match(methodDispatch, /config\.method === 'studentChoice'/);
-  assert.match(methodDispatch, /setMethod\('substitution'\)/);
-  assert.match(methodDispatch, /setMethod\('elimination'\)/);
+  assert.match(methodDispatch, /chooseMethod\('substitution'\)/);
+  assert.match(methodDispatch, /chooseMethod\('elimination'\)/);
   assert.match(methodDispatch, /effectiveMethod === 'elimination'\s*\n?\s*\? <EliminationReductionMode/);
   assert.match(methodDispatch, /: <SubstitutionReductionMode/);
+});
+
+// #360 review: the method choice must be changeable, without clearing the
+// other method's own (separately-keyed) work, and must be a registered Undo
+// entry rather than a side door around Undo.
+test('the 3×3 method choice is reversible: a visible "change method" control, and a registered Undo history', () => {
+  assert.match(methodDispatch, /Change method/);
+  assert.match(methodDispatch, /onClick=\{\(\) => setMethod\(''\)\}/);
+  assert.match(methodDispatch, /useMathUndoHistory\(\{/);
+  assert.match(methodDispatch, /useActiveUndoOwner\(\{/);
+  assert.match(methodDispatch, /ownerId: 'algebraic3-method-choice'/);
 });
 
 /* ------------------------------------------------------ the student decides */

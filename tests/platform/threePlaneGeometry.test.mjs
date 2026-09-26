@@ -8,7 +8,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { linearEquationForm } from '../../src/tools/systemsWorkspace/algebraicSystemsEngine.js';
-import { clipPlaneToCube, cubeCorners, cubeEdges, projectPoint, projectPolygon } from '../../src/tools/systemsWorkspace/threePlaneGeometry.js';
+import {
+  clipPlaneToCube,
+  cubeCorners,
+  cubeEdges,
+  planePlaneIntersection,
+  projectPoint,
+  projectPolygon,
+  threePlaneCommonPoint,
+} from '../../src/tools/systemsWorkspace/threePlaneGeometry.js';
 
 const XYZ = ['x', 'y', 'z'];
 
@@ -111,4 +119,62 @@ test('projectPolygon reports the average depth of its projected vertices', () =>
   const { points, depth } = projectPolygon(points3D, { azimuth: 0, elevation: 0 });
   assert.equal(points.length, 3);
   assert.equal(depth, 3);
+});
+
+/* ---------------------------------------------- pairwise plane intersections */
+
+test('planePlaneIntersection finds the line where two coordinate planes cross, clipped to the cube', () => {
+  // x = 0 and y = 0 meet exactly on the z-axis.
+  const planeX = { coefficients: { x: 1, y: 0, z: 0 }, constant: 0 };
+  const planeY = { coefficients: { x: 0, y: 1, z: 0 }, constant: 0 };
+  const line = planePlaneIntersection(planeX, planeY, XYZ, 5);
+  assert.ok(line && line.points.length === 2);
+  line.points.forEach(([x, y, z]) => {
+    assert.ok(Math.abs(x) < 1e-9 && Math.abs(y) < 1e-9, 'every point on the line has x = y = 0');
+    assert.ok(Math.abs(z) <= 5 + 1e-9);
+  });
+  const zValues = line.points.map((point) => point[2]).sort((a, b) => a - b);
+  assert.ok(Math.abs(zValues[0] - -5) < 1e-9 && Math.abs(zValues[1] - 5) < 1e-9, 'the segment spans the full cube');
+});
+
+test('planePlaneIntersection returns null for parallel (and coincident) planes', () => {
+  const planeA = { coefficients: { x: 1, y: 1, z: 1 }, constant: 3 };
+  const planeParallel = { coefficients: { x: 1, y: 1, z: 1 }, constant: 9 };
+  const planeCoincident = { coefficients: { x: 2, y: 2, z: 2 }, constant: 6 };
+  assert.equal(planePlaneIntersection(planeA, planeParallel, XYZ, 8), null);
+  assert.equal(planePlaneIntersection(planeA, planeCoincident, XYZ, 8), null);
+});
+
+test('planePlaneIntersection returns null when the line misses the cube', () => {
+  // z = 0 and z = 100 are parallel (no line); use two non-parallel planes
+  // whose shared line runs far outside a small cube instead.
+  const planeA = { coefficients: { x: 1, y: 0, z: 0 }, constant: 100 };
+  const planeB = { coefficients: { x: 0, y: 1, z: 0 }, constant: 100 };
+  assert.equal(planePlaneIntersection(planeA, planeB, XYZ, 5), null);
+});
+
+test('every point returned by planePlaneIntersection satisfies both plane equations, for the Day 1 system', () => {
+  const formA = linearEquationForm('2x - y + 2z = 15', XYZ);
+  const formB = linearEquationForm('-x + y + z = 3', XYZ);
+  const line = planePlaneIntersection(formA, formB, XYZ, 10);
+  assert.ok(line);
+  line.points.forEach(([x, y, z]) => {
+    assert.ok(Math.abs(2 * x - y + 2 * z - 15) < 1e-6);
+    assert.ok(Math.abs(-x + y + z - 3) < 1e-6);
+  });
+});
+
+/* -------------------------------------------------------- three-plane point */
+
+test('threePlaneCommonPoint finds the unique solution of the Day 1 system', () => {
+  const forms = ['2x - y + 2z = 15', '-x + y + z = 3', '3x - y + 2z = 18'].map((equation) => linearEquationForm(equation, XYZ));
+  const point = threePlaneCommonPoint(forms[0], forms[1], forms[2], XYZ);
+  assert.ok(point);
+  const [x, y, z] = point;
+  assert.ok(Math.abs(x - 3) < 1e-9 && Math.abs(y - 1) < 1e-9 && Math.abs(z - 5) < 1e-9);
+});
+
+test('threePlaneCommonPoint returns null when the three planes have no unique common point', () => {
+  const parallelTrio = ['x + y + z = 1', 'x + y + z = 2', '2x + 2y + 2z = 3'].map((equation) => linearEquationForm(equation, XYZ));
+  assert.equal(threePlaneCommonPoint(parallelTrio[0], parallelTrio[1], parallelTrio[2], XYZ), null);
 });

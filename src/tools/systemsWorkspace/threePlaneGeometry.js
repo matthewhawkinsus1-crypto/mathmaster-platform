@@ -121,3 +121,92 @@ export const projectPolygon = (points3D, camera) => {
   const depth = projected.reduce((sum, point) => sum + point.depth, 0) / (projected.length || 1);
   return { points: projected.map(({ screenX, screenY }) => [screenX, screenY]), depth };
 };
+
+/** `[a, b, c, d]` for `a·x + b·y + c·z = d`, from a `linearEquationForm` result and an [x,y,z]-ordered variable list. */
+const planeVector = (form, variables) => {
+  const [vx, vy, vz] = variables;
+  return [form?.coefficients?.[vx] ?? 0, form?.coefficients?.[vy] ?? 0, form?.coefficients?.[vz] ?? 0, form?.constant ?? 0];
+};
+
+/**
+ * The line where two planes meet, clipped to the cube `[-R, R]^3` — the
+ * pairwise intersection cue every reviewer of #359/#360 asked for: two
+ * translucent polygons alone do not show a student WHERE they meet.
+ *
+ * Returns `{ points: [p1, p2] }` (two 3D endpoints) if the planes are not
+ * parallel and their line crosses the cube, or `null` if they are parallel
+ * (including coincident) or the line misses the cube entirely.
+ */
+export const planePlaneIntersection = (formA, formB, variables, R) => {
+  const [a1, b1, c1, d1] = planeVector(formA, variables);
+  const [a2, b2, c2, d2] = planeVector(formB, variables);
+  const n1 = [a1, b1, c1];
+  const n2 = [a2, b2, c2];
+  const direction = cross(n1, n2);
+  if (length(direction) < 1e-9) return null;
+
+  // The point on the line closest to the origin: the minimum-norm solution
+  // of the two plane equations, found by inverting the 2×2 Gram matrix of
+  // the two normals.
+  const m11 = dot(n1, n1);
+  const m12 = dot(n1, n2);
+  const m22 = dot(n2, n2);
+  const det = m11 * m22 - m12 * m12;
+  if (Math.abs(det) < 1e-12) return null;
+  const alpha = (d1 * m22 - d2 * m12) / det;
+  const beta = (d2 * m11 - d1 * m12) / det;
+  const p0 = [
+    alpha * n1[0] + beta * n2[0],
+    alpha * n1[1] + beta * n2[1],
+    alpha * n1[2] + beta * n2[2],
+  ];
+
+  // Clip the parametric line p0 + t*direction to the cube: intersect the
+  // t-interval each axis allows.
+  let tMin = -Infinity;
+  let tMax = Infinity;
+  for (let axis = 0; axis < 3; axis += 1) {
+    const u = direction[axis];
+    const p = p0[axis];
+    if (Math.abs(u) < 1e-12) {
+      if (p < -R - 1e-9 || p > R + 1e-9) return null;
+      continue;
+    }
+    const t1 = (-R - p) / u;
+    const t2 = (R - p) / u;
+    const lo = Math.min(t1, t2);
+    const hi = Math.max(t1, t2);
+    tMin = Math.max(tMin, lo);
+    tMax = Math.min(tMax, hi);
+  }
+  if (!(tMin <= tMax)) return null;
+
+  const at = (t) => [p0[0] + t * direction[0], p0[1] + t * direction[1], p0[2] + t * direction[2]];
+  return { points: [at(tMin), at(tMax)] };
+};
+
+/**
+ * The single point where all three planes meet, by Cramer's rule — `null`
+ * when the system has no unique solution (parallel or dependent planes), the
+ * same condition `linearSystemSolution` already tests algebraically. This is
+ * a plain geometric restatement so the visualizer can mark the point without
+ * importing the algebra engine.
+ */
+export const threePlaneCommonPoint = (formA, formB, formC, variables) => {
+  const [a1, b1, c1, d1] = planeVector(formA, variables);
+  const [a2, b2, c2, d2] = planeVector(formB, variables);
+  const [a3, b3, c3, d3] = planeVector(formC, variables);
+  const det3 = (m) => (
+    m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
+    - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+    + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0])
+  );
+  const A = [[a1, b1, c1], [a2, b2, c2], [a3, b3, c3]];
+  const detA = det3(A);
+  if (Math.abs(detA) < 1e-9) return null;
+  const withColumn = (col, values) => A.map((row, index) => row.map((value, colIndex) => (colIndex === col ? values[index] : value)));
+  const x = det3(withColumn(0, [d1, d2, d3])) / detA;
+  const y = det3(withColumn(1, [d1, d2, d3])) / detA;
+  const z = det3(withColumn(2, [d1, d2, d3])) / detA;
+  return [x, y, z];
+};

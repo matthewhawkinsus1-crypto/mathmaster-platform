@@ -30,6 +30,7 @@ import useToolSubmission from '../shared/useToolSubmission';
 import MathDisplay from '../../MathDisplay';
 import MathInput from '../../MathInput';
 import AlgebraicSystemMode, {
+  EmbeddedStepAlgebra,
   MathDragToken,
   VariableDropEquation,
   SystemsWorkTrail,
@@ -41,8 +42,10 @@ import { classroomEquationText, exactNumberText, normalizeAlgebraicSystemConfig,
 import { buildReductionSystem, reductionAnswerKey } from './substitutionReduction.js';
 import {
   activeEliminationRoundKey,
+  applyEliminationMultiplier,
   attemptEliminationBackPlacement,
   checkEliminationCombination,
+  checkEliminationMultiplierProducts,
   chooseEliminationPair,
   chooseEliminationVariable,
   clearEliminationBackDestination,
@@ -52,13 +55,17 @@ import {
   eliminationPairOptions,
   eliminationPhase,
   eliminationReducedSystem,
+  eliminationRoundEliminates,
+  eliminationRoundStage,
   emptyEliminationState,
   recordEliminationBackSolve,
   repairEliminationState,
   resetEliminationRound,
-  setEliminationCombinedDraft,
+  setEliminationCombinationTerm,
   setEliminationMultiplierDraft,
+  setEliminationMultiplierProductTerm,
   setEliminationOperation,
+  toggleEliminationCancellation,
 } from './eliminationReduction.js';
 import {
   allOriginalsVerified,
@@ -98,10 +105,10 @@ const feedbackText = (note, system) => {
       return 'The other round already used this exact pair. Choose two different equations so the two reduced equations are independent.';
     case 'multiplier:invalid-multiplier':
       return 'That scale factor is not a valid nonzero number. Leave it blank if the equation needs no scaling, or enter a nonzero value.';
-    case 'combine:parse-error':
-      return 'MathMaster could not read that as an equation. Check the equals sign and try again.';
+    case 'multiplier-products:incorrect-products':
+      return 'One or more of those terms do not match the scaled equation yet. Apply the same multiplier to every term, including the right side.';
     case 'combine:not-equivalent':
-      return 'That is not the result of combining the two scaled equations. Check your scaling and your addition or subtraction, then try again.';
+      return 'That is not the result of combining the two scaled equations. Check your arithmetic on each term, then try again.';
     case 'combine:does-not-eliminate':
       return `That combination still has a ${note.variable} term. Check your scale factors — the ${note.variable} coefficients need to cancel.`;
     case 'back:destination-lacks-unknown':
@@ -128,6 +135,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
 
   const [feedbackNote, setFeedbackNote] = useState(null);
   const [armedToken, setArmedToken] = useState(null);
+  const [embeddedUndoController, setEmbeddedUndoController] = useState(null);
   const [subsystemUndoController, setSubsystemUndoController] = useState(null);
   const [subsystemReport, setSubsystemReport] = useState(null);
   const { feedback, submit } = useToolSubmission(onAction);
@@ -176,10 +184,11 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
   const hasPostSubsystemWork = Boolean(elimination.back?.destinationId || Object.keys(elimination.verification || {}).length);
   const compositeUndo = useMemo(() => {
     const historyController = { canUndo: undoHistory.canUndo, onUndo: undoHistory.undo, label: 'Undo the last 3×3 elimination edit' };
+    if (embeddedUndoController?.canUndo) return embeddedUndoController;
     if (phase === 'subsystem' && subsystemUndoController?.canUndo) return subsystemUndoController;
     if (reducedSolution && !hasPostSubsystemWork && subsystemUndoController?.canUndo) return subsystemUndoController;
     return historyController;
-  }, [subsystemUndoController, phase, reducedSolution, hasPostSubsystemWork, undoHistory.canUndo, undoHistory.undo]);
+  }, [embeddedUndoController, subsystemUndoController, phase, reducedSolution, hasPostSubsystemWork, undoHistory.canUndo, undoHistory.undo]);
   useActiveUndoOwner({ id: 'algebraic-elimination-composite', active: true, priority: 60, controller: compositeUndo });
   const undoCapability = {
     label: '↶ Undo',
@@ -387,6 +396,8 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
                     apply={apply}
                     draftKey={draftKey}
                     onSolved={handleBackSolved}
+                    onUndoStateChange={setEmbeddedUndoController}
+                    workspaceDifficulty={questionData.workspaceDifficulty}
                     variable={variable}
                   />
                 ) : null}
@@ -448,72 +459,146 @@ function EliminationPairChoice({ label, system, roundKey, elimination, apply }) 
 }
 
 /*
- * Scale (optional) and combine. Nothing here computes or previews the scaled
- * or combined equation for the student — the multiplier fields are theirs to
- * fill in (or leave blank, meaning no scaling), and the combined-equation
- * field is checked only once they submit it.
+ * Scale (optional, distributed term by term), choose add/subtract, mark the
+ * cancelling term as an intentional decision, then combine term by term.
+ * Nothing here computes or previews the scaled or combined equation for the
+ * student — every field is checked only once they submit it.
  */
 function EliminationCombineStage({ label, system, roundKey, variable, elimination, apply }) {
   const round = elimination.rounds[roundKey];
   const [idA, idB] = round.pair;
   const equationA = system.equations.find((equation) => equation.id === idA);
   const equationB = system.equations.find((equation) => equation.id === idB);
+  const stage = eliminationRoundStage(elimination, system, roundKey);
+  const remaining = system.variables.filter((name) => name !== variable);
+  const eliminates = round.operation ? eliminationRoundEliminates(elimination, system, roundKey) : null;
+
   return (
     <div className="mathmaster-systems-substitution-stage mathmaster-reduction-reduce-stage">
       <p className="mathmaster-systems-substitution-direction">
-        {label}: {equationA.label} and {equationB.label}. Scale either equation if it needs it — leave a scale factor blank if it does not — then choose add or subtract, and write the resulting equation.
+        {label}: {equationA.label} and {equationB.label}. Scale either equation if it needs it — leave a scale factor blank if it does not.
       </p>
       <button type="button" onClick={() => apply(resetEliminationRound(elimination, roundKey))} style={{ ...secondaryButtonStyle, fontSize: 12, width: 'fit-content' }}>Choose a different pair</button>
 
       <div className="mathmaster-reduction-target-grid">
-        {[[idA, equationA], [idB, equationB]].map(([id, equation]) => (
-          <div key={id} className="mathmaster-reduction-target-card" data-equation-id={id}>
-            <div className="mathmaster-systems-backsub-equation-label">{equation.label}</div>
-            <MathDisplay value={equation.text} format="ascii-math" />
-            <label className="mathmaster-reduction-field">
-              Scale factor (leave blank for none)
-              <MathInput
-                value={round.multiplierDrafts?.[id] || ''}
-                onChange={(value) => apply(setEliminationMultiplierDraft(elimination, roundKey, id, value))}
-                placeholder="e.g. 2 or -1/3"
-                ariaLabel={`Scale factor for ${equation.label}`}
-                toolProfile="algebra-operation"
-                compact
-              />
-            </label>
+        {[[idA, equationA], [idB, equationB]].map(([id, equation]) => {
+          const confirmed = Number.isFinite(round.multiplierValues?.[id]);
+          const work = round.multiplierWork?.[id];
+          return (
+            <div key={id} className="mathmaster-reduction-target-card" data-equation-id={id}>
+              <div className="mathmaster-systems-backsub-equation-label">{equation.label}</div>
+              <MathDisplay value={equation.text} format="ascii-math" />
+              {confirmed ? (
+                <p className="mathmaster-reduction-multiplier-confirmed">
+                  {Math.abs(round.multiplierValues[id] - 1) < 1e-9 ? 'Used as written (×1).' : `Scaled by ×${exactNumberText(round.multiplierValues[id])}.`}
+                </p>
+              ) : (
+                <>
+                  <label className="mathmaster-reduction-field">
+                    Scale factor (leave blank for none)
+                    <MathInput
+                      value={round.multiplierDrafts?.[id] || ''}
+                      onChange={(value) => apply(setEliminationMultiplierDraft(elimination, roundKey, id, value))}
+                      placeholder="e.g. 2 or -1/3"
+                      ariaLabel={`Scale factor for ${equation.label}`}
+                      toolProfile="algebra-operation"
+                      compact
+                    />
+                  </label>
+                  {!work ? (
+                    <button type="button" onClick={() => apply(applyEliminationMultiplier(elimination, system, roundKey, id))} style={smallActionStyle}>Apply this scale factor</button>
+                  ) : (
+                    <div className="mathmaster-reduction-distribution">
+                      <p className="mathmaster-systems-substitution-direction">Distribute the scale factor across every term, including the right side.</p>
+                      <div className="mathmaster-reduction-term-row">
+                        {[...system.variables, 'constant'].map((key) => (
+                          <label key={key} className="mathmaster-reduction-field mathmaster-reduction-term-field">
+                            {key === 'constant' ? 'Constant' : `${key} term`}
+                            <MathInput
+                              value={work[key] || ''}
+                              onChange={(value) => apply(setEliminationMultiplierProductTerm(elimination, roundKey, id, key, value))}
+                              placeholder={key === 'constant' ? 'value' : `e.g. 3${key}`}
+                              ariaLabel={`Scaled ${key === 'constant' ? 'constant' : key + ' term'} for ${equation.label}`}
+                              toolProfile="algebra-operation"
+                              compact
+                            />
+                          </label>
+                        ))}
+                      </div>
+                      <button type="button" onClick={() => apply(checkEliminationMultiplierProducts(elimination, system, roundKey, id))} style={smallActionStyle}>Check my scaled terms</button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {stage !== 'multiplier' ? (
+        <div className="mathmaster-reduction-button-row">
+          <button
+            type="button"
+            onClick={() => apply(setEliminationOperation(elimination, roundKey, 'add'))}
+            style={round.operation === 'add' ? actionStyle : secondaryButtonStyle}
+          >
+            Add the two (scaled) equations
+          </button>
+          <button
+            type="button"
+            onClick={() => apply(setEliminationOperation(elimination, roundKey, 'subtract'))}
+            style={round.operation === 'subtract' ? actionStyle : secondaryButtonStyle}
+          >
+            Subtract the two (scaled) equations
+          </button>
+        </div>
+      ) : null}
+
+      {round.operation && eliminates === false ? (
+        <p className="mathmaster-systems-substitution-feedback is-error" role="status">
+          That combination still has a {variable} term. Check your scale factors — the {variable} coefficients need to cancel, then choose add or subtract again.
+        </p>
+      ) : null}
+
+      {round.operation && eliminates ? (
+        <div className="mathmaster-reduction-cancellation">
+          <p className="mathmaster-systems-substitution-direction">Mark the {variable} term in each equation that cancels.</p>
+          <div className="mathmaster-reduction-button-row">
+            {[[idA, equationA], [idB, equationB]].map(([id, equation]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => apply(toggleEliminationCancellation(elimination, system, roundKey, id))}
+                style={round.cancelledEquations?.[id] ? actionStyle : secondaryButtonStyle}
+                aria-pressed={Boolean(round.cancelledEquations?.[id])}
+              >
+                {round.cancelledEquations?.[id] ? '✓ ' : ''}{equation.label}: {variable} term cancels
+              </button>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      ) : null}
 
-      <div className="mathmaster-reduction-button-row">
-        <button
-          type="button"
-          onClick={() => apply(setEliminationOperation(elimination, roundKey, 'add'))}
-          style={round.operation === 'add' ? actionStyle : secondaryButtonStyle}
-        >
-          Add the two (scaled) equations
-        </button>
-        <button
-          type="button"
-          onClick={() => apply(setEliminationOperation(elimination, roundKey, 'subtract'))}
-          style={round.operation === 'subtract' ? actionStyle : secondaryButtonStyle}
-        >
-          Subtract the two (scaled) equations
-        </button>
-      </div>
-
-      {round.operation ? (
-        <label className="mathmaster-reduction-field">
-          Write the combined equation, after eliminating {variable}
-          <MathInput
-            value={round.combinedDraft || ''}
-            onChange={(value) => apply(setEliminationCombinedDraft(elimination, roundKey, value))}
-            placeholder="e.g. x + 3z = 18"
-            ariaLabel="Combined equation"
-            toolProfile="algebra-operation"
-          />
+      {round.combinationWork ? (
+        <div className="mathmaster-reduction-distribution">
+          <p className="mathmaster-systems-substitution-direction">Write the result of combining the two scaled equations, term by term.</p>
+          <div className="mathmaster-reduction-term-row">
+            {[...remaining, 'constant'].map((key) => (
+              <label key={key} className="mathmaster-reduction-field mathmaster-reduction-term-field">
+                {key === 'constant' ? 'Constant' : `${key} term`}
+                <MathInput
+                  value={round.combinationWork[key] || ''}
+                  onChange={(value) => apply(setEliminationCombinationTerm(elimination, roundKey, key, value))}
+                  placeholder={key === 'constant' ? 'value' : `e.g. 3${key}`}
+                  ariaLabel={`Combined ${key === 'constant' ? 'constant' : key + ' term'}`}
+                  toolProfile="algebra-operation"
+                  compact
+                />
+              </label>
+            ))}
+          </div>
           <button type="button" onClick={() => apply(checkEliminationCombination(elimination, system, roundKey))} style={smallActionStyle}>Check my combination</button>
-        </label>
+        </div>
       ) : null}
     </div>
   );
@@ -552,7 +637,7 @@ function ReducedEliminationSubsystem({ reduced, identity, scope, scopeContext, p
   );
 }
 
-function EliminationBackSubstitution({ elimination, system, reducedSolution, backEquation, armedToken, setArmedToken, apply, draftKey, onSolved, variable }) {
+function EliminationBackSubstitution({ elimination, system, reducedSolution, backEquation, armedToken, setArmedToken, apply, draftKey, onSolved, onUndoStateChange, workspaceDifficulty, variable }) {
   const destinations = eliminationBackSubstitutionDestinations(elimination, system);
   const chosen = elimination.back?.destinationId || null;
   const solved = elimination.back?.solved || null;
@@ -605,7 +690,18 @@ function EliminationBackSubstitution({ elimination, system, reducedSolution, bac
       {backEquation && !solved ? (
         <>
           <button type="button" onClick={() => apply(clearEliminationBackDestination(elimination))} style={{ ...secondaryButtonStyle, fontSize: 12, width: 'fit-content' }}>Choose a different equation</button>
-          <BackSolveEntry backEquation={backEquation} variable={variable} draftKey={draftKey} onSolved={onSolved} />
+          <EmbeddedStepAlgebra
+            label={`Solve for ${variable}`}
+            prompt={`Use your substitution to solve this equation for ${variable}.`}
+            equationText={backEquation}
+            solveFor={variable}
+            requireSimplifiedFinalForm
+            draftKey={draftKey ? `${draftKey}:elimination:back-solve:${elimination.back.destinationId}:${hashText(backEquation)}` : null}
+            onSolved={onSolved}
+            onUndoStateChange={onUndoStateChange}
+            workspaceDifficulty={workspaceDifficulty}
+            autoReveal
+          />
         </>
       ) : null}
       {solved ? (
@@ -613,42 +709,6 @@ function EliminationBackSubstitution({ elimination, system, reducedSolution, bac
           <MathDisplay value={`${variable} = ${solved.text}`} format="ascii-math" />
         </div>
       ) : null}
-    </div>
-  );
-}
-
-/**
- * A lightweight solve-for-one-variable entry, matching the classroom step of
- * substituting two known values into an original equation and solving for
- * the third. This is ordinary numeric arithmetic (not a multi-step
- * expression to isolate), so it uses the same plain MathInput pattern as
- * every other single-value entry in this workspace rather than opening a
- * full Step Algebra instance for one arithmetic step.
- */
-function BackSolveEntry({ backEquation, variable, onSolved }) {
-  const [draft, setDraft] = useState('');
-  const [checked, setChecked] = useState(false);
-  const submit = () => {
-    setChecked(true);
-    const responseText = `${variable} = ${draft}`;
-    onSolved(responseText);
-  };
-  return (
-    <div className="mathmaster-reduction-ready-card">
-      <MathDisplay value={substitutedEquationLatex(backEquation) || backEquation} format={substitutedEquationLatex(backEquation) ? 'latex' : 'ascii-math'} />
-      <label className="mathmaster-reduction-field">
-        Solve for {variable}
-        <MathInput
-          value={draft}
-          onChange={(value) => { setDraft(value); setChecked(false); }}
-          placeholder={`value of ${variable}`}
-          ariaLabel={`Solve for ${variable}`}
-          toolProfile="algebra-operation"
-          compact
-        />
-      </label>
-      <button type="button" onClick={submit} style={smallActionStyle}>Check my solution</button>
-      {checked ? <p className="mathmaster-systems-substitution-feedback">If that value is not yet accepted above, double-check your arithmetic and try again.</p> : null}
     </div>
   );
 }
