@@ -1,0 +1,66 @@
+name: Firebase Live Diagnostic
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/firebase-live-diagnostic.yml"
+  workflow_dispatch:
+
+jobs:
+  inspect-live-firebase:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Build the exact PR source the Firebase way
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run build:firebase
+          echo "=== EXPECTED BUILD MANIFEST ==="
+          cat dist/mathmaster-build.json
+          expected_asset="$(grep -oE '/assets/index-[^"]+\.js' dist/index.html | head -1)"
+          echo "EXPECTED_ASSET=$expected_asset"
+          echo "EXPECTED_INDEX_SHA256=$(sha256sum dist/index.html | awk '{print $1}')"
+
+      - name: Compare live Firebase against the exact Firebase build
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://mathmaster-aleks.web.app"
+          ts="$(date +%s)"
+          echo "=== LIVE BUILD MANIFEST RESPONSE ==="
+          curl -fsSL -D /tmp/manifest-headers.txt -H 'Cache-Control: no-cache' "$BASE/mathmaster-build.json?ts=$ts" -o /tmp/live-manifest
+          cat /tmp/manifest-headers.txt
+          echo "--- BODY PREFIX ---"
+          head -c 500 /tmp/live-manifest
+          echo
+
+          echo "=== LIVE INDEX ==="
+          curl -fsSL -H 'Cache-Control: no-cache' "$BASE/?ts=$ts" -o /tmp/live-index.html
+          live_asset="$(grep -oE '/assets/index-[^"]+\.js' /tmp/live-index.html | head -1 || true)"
+          expected_asset="$(grep -oE '/assets/index-[^"]+\.js' dist/index.html | head -1 || true)"
+          echo "EXPECTED_ASSET=$expected_asset"
+          echo "LIVE_ASSET=$live_asset"
+          echo "EXPECTED_INDEX_SHA256=$(sha256sum dist/index.html | awk '{print $1}')"
+          echo "LIVE_INDEX_SHA256=$(sha256sum /tmp/live-index.html | awk '{print $1}')"
+
+          if cmp -s dist/index.html /tmp/live-index.html; then
+            echo "INDEX_MATCH=YES"
+          else
+            echo "INDEX_MATCH=NO"
+          fi
+
+          if grep -q '"gitSha"' /tmp/live-manifest; then
+            echo "LIVE_MANIFEST_PRESENT=YES"
+            cat /tmp/live-manifest
+          else
+            echo "LIVE_MANIFEST_PRESENT=NO"
+          fi
