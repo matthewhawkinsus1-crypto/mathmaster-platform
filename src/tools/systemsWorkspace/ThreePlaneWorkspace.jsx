@@ -18,7 +18,7 @@ import useToolSubmission from '../shared/useToolSubmission';
 import MathDisplay from '../../MathDisplay';
 import MathInput from '../../MathInput';
 import { classifyLinearSystem, linearEquationForm } from './algebraicSystemsEngine.js';
-import { clipPlaneToCube, planePlaneIntersection, projectPoint, projectPolygon } from './threePlaneGeometry.js';
+import { clipPlaneToCube, legibleCamera, planePlaneIntersection, projectPoint, projectPolygon } from './threePlaneGeometry.js';
 import { gradeMultiAnswerResponse } from '../../../functions/shared/ordinaryResponseGrading.mjs';
 import './AlgebraicSystemMode.css';
 import './ThreePlaneWorkspace.css';
@@ -35,6 +35,8 @@ const toScreen = (point, scale, cameraOffset) => [
   VIEW_SIZE / 2 + (point[0] - cameraOffset[0]) * scale,
   VIEW_SIZE / 2 + (point[1] - cameraOffset[1]) * scale,
 ];
+
+const clampLabel = (value, margin) => Math.min(VIEW_SIZE - margin, Math.max(margin, value));
 
 const boundingRadius = (solution, variables) => {
   const magnitudes = variables.map((name) => Math.abs(Number(solution?.[name]) || 0));
@@ -56,7 +58,10 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
   const classification = useMemo(() => classifyLinearSystem(forms, variables), [forms, variables]);
   const R = useMemo(() => boundingRadius(classification.solution, variables), [classification.solution, variables]);
 
-  const [camera, setCamera] = useState(DEFAULT_CAMERA);
+  // Opening view: the upright angle where every plane is seen most face-on,
+  // instead of one fixed angle that showed the Day 1 planes as slivers (#361).
+  const openingCamera = useMemo(() => legibleCamera(forms, variables, DEFAULT_CAMERA), [forms, variables]);
+  const [camera, setCamera] = useState(openingCamera);
   const dragRef = useRef(null);
   const [visiblePlanes, setVisiblePlanes] = usePersistentToolState('visiblePlanes', [true, true, true]);
   const [revealed, setRevealed] = usePersistentToolState('solutionRevealed', spatialModel.revealSolution === true);
@@ -69,7 +74,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
     setVisiblePlanes((current) => current.map((value, i) => (i === index ? !value : value)));
   }, [setVisiblePlanes]);
 
-  const resetView = useCallback(() => setCamera(DEFAULT_CAMERA), []);
+  const resetView = useCallback(() => setCamera(openingCamera), [openingCamera]);
 
   const handlePointerDown = useCallback((event) => {
     event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -194,8 +199,10 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
                   stroke="#5f6368" strokeWidth={1.5}
                 />
                 <text
-                  x={toScreen(axis.to, scale, [0, 0])[0]}
-                  y={toScreen(axis.to, scale, [0, 0])[1] + (axis.to[1] > 0 ? AXIS_LABEL_OFFSET : -AXIS_LABEL_OFFSET / 2)}
+                  // Kept inside the frame: at some angles an axis runs past
+                  // the edge and its name was drawn off the model (#361).
+                  x={clampLabel(toScreen(axis.to, scale, [0, 0])[0], 14)}
+                  y={clampLabel(toScreen(axis.to, scale, [0, 0])[1] + (axis.to[1] > 0 ? AXIS_LABEL_OFFSET : -AXIS_LABEL_OFFSET / 2), 18)}
                   fontSize={16} fontWeight={700} fill="#3c4043" textAnchor="middle"
                 >
                   {axis.name}
@@ -253,39 +260,56 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
 
       {answerFields.length ? (
         <Panel title="Interpret what you found">
-          {answerFields.map((field) => (
-            <label key={field.id} className="mathmaster-reduction-field" style={{ display: 'block', marginTop: 10 }}>
-              {field.label}
-              {Array.isArray(field.options) && field.options.length ? (
-                <div className="mathmaster-reduction-button-row">
-                  {field.options.map((option) => (
+          {answerFields.map((field) => (Array.isArray(field.options) && field.options.length ? (
+            // A real choice group (#361). The options were link-styled
+            // secondary buttons and the chosen one looked exactly like the
+            // others — only aria-pressed changed — so a student could not see
+            // what they were about to submit.
+            <fieldset key={field.id} className="mathmaster-threeplane-choice-field">
+              <legend>{field.label}</legend>
+              <div className="mathmaster-threeplane-choices" role="radiogroup" aria-label={field.label}>
+                {field.options.map((option) => {
+                  const selected = responses[field.id] === option;
+                  return (
                     <button
                       key={String(option)}
                       type="button"
+                      role="radio"
+                      aria-checked={selected}
                       onClick={() => fieldResponses(field.id, option)}
-                      className="mathmaster-reduction-carry"
-                      aria-pressed={responses[field.id] === option}
+                      className={`mathmaster-threeplane-choice${selected ? ' is-selected' : ''}`}
                     >
-                      {String(option)}
+                      <span className="mathmaster-threeplane-choice-mark" aria-hidden="true" />
+                      <span>{String(option)}</span>
                     </button>
-                  ))}
-                </div>
-              ) : (
-                <MathInput
-                  value={responses[field.id] || ''}
-                  onChange={(value) => fieldResponses(field.id, value)}
-                  ariaLabel={field.label}
-                  toolProfile="algebra-operation"
-                />
-              )}
+                  );
+                })}
+              </div>
+            </fieldset>
+          ) : (
+            <label key={field.id} className="mathmaster-reduction-field" style={{ display: 'block', marginTop: 10 }}>
+              {field.label}
+              <MathInput
+                value={responses[field.id] || ''}
+                onChange={(value) => fieldResponses(field.id, value)}
+                ariaLabel={field.label}
+                toolProfile="algebra-operation"
+              />
             </label>
-          ))}
+          )))}
           <button type="button" onClick={check} style={{ marginTop: 14, padding: '11px 18px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer', minHeight: 44 }}>
             Check my answer
           </button>
           {feedback ? (
             <div style={{ marginTop: 14 }}>
               <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
+              {!feedback.isCorrect ? (
+                // A nudge toward the idea, never the option: "Not yet" alone
+                // told a first-time 3D learner nothing about what to rethink.
+                <p className="mathmaster-threeplane-feedback" role="status">
+                  A solution of the system has to make all three equations true at the same time. Look at the model again: what do all three planes share?
+                </p>
+              ) : null}
             </div>
           ) : null}
         </Panel>

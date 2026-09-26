@@ -210,3 +210,54 @@ export const threePlaneCommonPoint = (formA, formB, formC, variables) => {
   const z = det3(withColumn(2, [d1, d2, d3])) / detA;
   return [x, y, z];
 };
+
+/** The world-space direction a `{ azimuth, elevation }` camera looks along (the `depth` axis of projectPoint). */
+export const cameraViewDirection = ({ azimuth, elevation }) => [
+  Math.sin(azimuth) * Math.cos(elevation),
+  Math.sin(elevation),
+  Math.cos(azimuth) * Math.cos(elevation),
+];
+
+/**
+ * How face-on each plane is from `camera`: |n̂ · view|, 1 for a plane seen
+ * square-on, 0 for one seen edge-on (a line). Planes with no normal are skipped.
+ */
+export const planeFacing = (forms, variables, camera) => {
+  const view = cameraViewDirection(camera);
+  return forms.map((form) => {
+    const normal = planeVector(form, variables).slice(0, 3);
+    const size = length(normal);
+    if (size < 1e-9) return null;
+    return Math.abs((normal[0] * view[0] + normal[1] * view[1] + normal[2] * view[2]) / size);
+  });
+};
+
+/**
+ * THE OPENING VIEW OF THE THREE-PLANE MODEL (#361).
+ *
+ * One fixed angle for every system showed the Day 1 system with two of its
+ * three planes almost edge-on — thin slivers — so the first 3D picture a
+ * first-time learner saw was one big plane and two lines. This picks, among
+ * upright views (no roll, moderate elevation), the one in which the LEAST
+ * face-on plane is as face-on as possible, preferring the old default on a
+ * tie. It is a camera choice only: nothing about the system is computed for
+ * the student, and they can still rotate anywhere.
+ */
+export const legibleCamera = (forms, variables, fallback = { azimuth: -0.7, elevation: 0.5 }) => {
+  const usable = (forms || []).filter((form) => form && length(planeVector(form, variables).slice(0, 3)) > 1e-9);
+  if (!usable.length) return { ...fallback };
+  let best = null;
+  for (let step = -36; step < 36; step += 1) {
+    const azimuth = (step * Math.PI) / 36;
+    for (let tenth = 4; tenth <= 18; tenth += 1) {
+      const elevation = tenth / 20;
+      const facing = planeFacing(usable, variables, { azimuth, elevation }).filter((value) => value != null);
+      const score = Math.min(...facing);
+      const distance = Math.hypot(azimuth - fallback.azimuth, elevation - fallback.elevation);
+      if (!best || score > best.score + 1e-6 || (Math.abs(score - best.score) <= 1e-6 && distance < best.distance)) {
+        best = { azimuth, elevation, score, distance };
+      }
+    }
+  }
+  return { azimuth: best.azimuth, elevation: best.elevation };
+};

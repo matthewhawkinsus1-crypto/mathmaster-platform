@@ -12,6 +12,7 @@ import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
 import { Panel } from '../shared/ToolShell';
+import MathDisplay from '../../MathDisplay';
 import { normalizeAlgebraicSystemConfig } from './algebraicSystemsEngine.js';
 import SubstitutionReductionMode from './SubstitutionReductionMode.jsx';
 import EliminationReductionMode from './EliminationReductionMode.jsx';
@@ -63,6 +64,17 @@ export default function Algebraic3SystemMode({ questionData = {}, onAction, draf
     return (
       <EnlargeableFigure label="3×3 algebraic systems workspace" enlargeLabel="Enlarge 3×3 algebraic systems workspace" style={{ width: '100%' }}>
         <Panel title="3×3 algebraic systems">
+          {/* The prompt asks the student to choose "based on the structure you
+              see" — so the structure has to be on screen when they choose
+              (#361: this screen showed only the two buttons). */}
+          <div className="mathmaster-algebraic3-choice-system" role="group" aria-label="The system to solve">
+            {config.equations.map((equation, index) => (
+              <div key={`${index}-${equation}`} className="mathmaster-reduction-equation-card">
+                <span className="mathmaster-reduction-equation-label">Equation {index + 1}</span>
+                <MathDisplay value={equation} format="ascii-math" />
+              </div>
+            ))}
+          </div>
           <p className="mathmaster-systems-substitution-direction">How will you solve this system?</p>
           <div className="mathmaster-reduction-button-row">
             <button type="button" onClick={() => chooseMethod('substitution')} style={choiceButtonStyle}>Substitution</button>

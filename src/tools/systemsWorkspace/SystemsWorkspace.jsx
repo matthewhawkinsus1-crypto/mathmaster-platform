@@ -1519,6 +1519,11 @@ const MODE_TASKS = {
   matrix3: 'Use matrix technology to compute the RREF of a 3×3 augmented matrix, then classify and solve the system.',
   algebraic: 'Solve this 2×2 system algebraically — by substitution or elimination — showing every mathematical decision along the way.',
   algebraic3: 'Solve this 3×3 system — by substitution or elimination — reduce it to a 2×2 system, solve that, and work back to all three values, showing every mathematical decision.',
+  // A question that assigns the method gets directions for THAT method: the
+  // elimination lesson told students to "choose substitution or elimination"
+  // on questions where no choice was offered (#361).
+  algebraic3Elimination: 'Solve this 3×3 system by elimination: eliminate the same variable from two different pairs of equations, solve the 2×2 system that leaves, and work back to all three values.',
+  algebraic3Substitution: 'Solve this 3×3 system by substitution: isolate a variable, substitute it into the other two equations, solve the 2×2 system that leaves, and work back to all three values.',
   spatial: 'Explore the three planes for this system: rotate the model, show or hide each plane, and see how they relate.',
 };
 
@@ -1530,6 +1535,8 @@ const MODE_STEPS = {
   matrix3: ['Read the 3×4 augmented matrix.', 'Use the matrix-technology RREF command.', 'Interpret the reduced rows to classify the system and read x, y, and z.'],
   algebraic: ['Choose (or use the assigned) method and decide which variable to work with first.', 'Solve each one-variable equation with the algebra solver, then substitute back.', 'State the ordered pair and verify it in both original equations.'],
   algebraic3: ['Choose substitution or elimination, then choose your first move — nothing is suggested for you.', 'Reduce the system to a 2×2, then solve it.', 'Work back to the third value and verify all three in every original equation.'],
+  algebraic3Elimination: ['Choose the variable to eliminate and a first pair of equations — nothing is suggested for you.', 'Eliminate the same variable from a different pair, so you have a 2×2 system, then solve it.', 'Back-substitute for the third value and verify all three in every original equation.'],
+  algebraic3Substitution: ['Choose an equation and the variable to isolate — nothing is suggested for you.', 'Substitute into the other two equations to get a 2×2 system, then solve it.', 'Work back to the third value and verify all three in every original equation.'],
   spatial: ['Rotate the model and show or hide each plane to see how they meet.', 'Decide whether the three planes share one point, no point, or infinitely many.', 'Answer the question using what the model shows.'],
 };
 
@@ -1538,7 +1545,10 @@ export default function SystemsWorkspace({ questionData = {}, onAction, draftKey
   // Dimension is inferred from the authored equations and variables (#341):
   // three of each is a 3×3 system, everything else keeps 2×2.
   const algebraic3 = mode === 'algebraic' && algebraicSystemDimension(questionData) === 3;
-  const taskKey = algebraic3 ? 'algebraic3' : mode;
+  const assignedMethod3 = algebraic3 && ['elimination', 'substitution'].includes(questionData.method) ? questionData.method : null;
+  const taskKey = algebraic3
+    ? (assignedMethod3 === 'elimination' ? 'algebraic3Elimination' : assignedMethod3 === 'substitution' ? 'algebraic3Substitution' : 'algebraic3')
+    : mode;
   const modeLabel = algebraic3 ? 'Algebraic Systems (3×3 Substitution / Elimination)'
     : mode === 'spatial' ? 'Three-Plane Systems'
     : mode === 'inequalities' ? 'Systems of Inequalities'
