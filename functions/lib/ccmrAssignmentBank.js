@@ -75,6 +75,92 @@ function loadFrameworkBank(framework) {
   return documents;
 }
 
+/*
+ * SEMANTIC-FIT GATE (#359).
+ *
+ * Same-TEKS is necessary but not sufficient: a TEKS code such as A2.3B is
+ * carried by every "native" ACT/TSIA2 algebra item in the audited bank
+ * (single-equation solves, radical equations, quadratic equations — none of
+ * them a system), and A2.3A covers both a 3-variable linear system lesson
+ * AND an unrelated 2-variable linear-quadratic system. Ranking those
+ * candidates by DOK/difficulty alone can silently swap a 3×3 elimination
+ * Practice question for a linear-quadratic break-even item that happens to
+ * share the TEKS code. Before ranking, reject any candidate whose own
+ * taskType metadata contradicts the source question's mathematical family —
+ * system vs. single equation, and linear-quadratic vs. pure linear system.
+ * `sourceQuestion` is optional: omitting it (nothing to compare against)
+ * skips the gate rather than rejecting everything.
+ */
+const SYSTEM_TASK_TYPE_PATTERN = /system/i;
+const QUADRATIC_TASK_TYPE_PATTERN = /quadratic/i;
+// No bank document carries an explicit variable count, so a 3-variable
+// system is recognized the same way a person skimming the item would: the
+// task type/family id names three/3x3 (taskType is camelCase, e.g.
+// "solveThreeVariableSystem", so this intentionally does not require a word
+// boundary before "three"), or the prompt itself uses the third variable
+// letter (z) the way a 2-variable "system" item never does.
+const THREE_VARIABLE_SIGNAL_PATTERN = /three[-\s]?(?:variable|equation)|3\s?[x×]\s?3|\bz\b/i;
+
+function deriveSourceSemanticProfile(question = {}) {
+  const equations = Array.isArray(question.equations) ? question.equations : null;
+  const variables = Array.isArray(question.variables) ? question.variables : null;
+  const dimension = equations?.length || variables?.length || null;
+  const actions = (Array.isArray(question.studentActions) ? question.studentActions : []).map(clean);
+  const isSystem = Boolean(
+    actions.includes("solveSystem")
+    || actions.includes("graphSystem")
+    || actions.includes("solveInequalitySystem")
+    || (actions.includes("connectRepresentations") && equations)
+    || clean(question.type) === "systemsWorkspace"
+    || (equations && equations.length >= 2),
+  );
+  const isLinearQuadratic = Boolean(question.linearQuadratic) || clean(question.mode).toLowerCase() === "linearquadratic";
+  return {
+    dimension,
+    isSystem,
+    isLinearQuadratic,
+    method: clean(question.method),
+    taskType: clean(question.taskType),
+    representation: clean(question.representation),
+  };
+}
+
+function documentSemanticProfile(document = {}) {
+  const taskType = clean(document.taskType);
+  const dimensionHaystack = [taskType, document.familyId, document.assessedConstruct, document.prompt].map(clean).join(" ");
+  return {
+    taskType,
+    representation: clean(document.representation),
+    isSystemTaskType: SYSTEM_TASK_TYPE_PATTERN.test(taskType),
+    isQuadraticTaskType: QUADRATIC_TASK_TYPE_PATTERN.test(taskType),
+    hasThreeVariableSignal: THREE_VARIABLE_SIGNAL_PATTERN.test(dimensionHaystack),
+  };
+}
+
+/**
+ * Does this candidate's own taskType contradict the source question's
+ * mathematical family? Absence of metadata is never treated as a mismatch —
+ * only a stated contradiction rejects a candidate, so sparsely-tagged bank
+ * content is not needlessly excluded.
+ */
+function isSemanticallyCompatible(sourceProfile, document) {
+  if (!sourceProfile || !sourceProfile.isSystem) return true;
+  const docProfile = documentSemanticProfile(document);
+  // A system (2+ equations) source must be matched by a bank item that is
+  // itself a system task, not a single-equation solve carrying the same
+  // broad TEKS alignment.
+  if (docProfile.taskType && !docProfile.isSystemTaskType) return false;
+  // Same TEKS, different construct family: a pure linear system is never
+  // interchangeable with a linear-quadratic system, in either direction.
+  if (!sourceProfile.isLinearQuadratic && docProfile.isQuadraticTaskType) return false;
+  if (sourceProfile.isLinearQuadratic && docProfile.taskType && !docProfile.isQuadraticTaskType) return false;
+  // System dimension: a 3-variable linear system must not be satisfied by a
+  // system item with no signal that it is anything but the far more common
+  // 2-variable case (#359 — "system dimension / number of variables").
+  if (sourceProfile.dimension === 3 && !sourceProfile.isLinearQuadratic && docProfile.isSystemTaskType && !docProfile.hasThreeVariableSignal) return false;
+  return true;
+}
+
 function stableHash(value) {
   let hash = 2166136261;
   const text = String(value || "");
@@ -85,26 +171,18 @@ function stableHash(value) {
   return hash >>> 0;
 }
 
-function chooseAuditedBankDocument({
-  framework,
-  domainId,
-  teksCodes = [],
-  dok = null,
-  difficultyBand = null,
-  seed = "",
-  excludeDocumentIds = [],
-} = {}) {
+function sameTeksCandidates({ framework, domainId, teksCodes = [], excludeDocumentIds = [] } = {}) {
   const normalizedCodes = new Set((teksCodes || []).map(normalizeTeks).filter(Boolean));
-  if (!SUPPORTED_FRAMEWORKS.has(framework) || !normalizedCodes.size) return null;
-
+  if (!SUPPORTED_FRAMEWORKS.has(framework) || !normalizedCodes.size) return [];
   const excluded = new Set((excludeDocumentIds || []).map(clean).filter(Boolean));
-  const candidates = loadFrameworkBank(framework).filter((document) => {
+  return loadFrameworkBank(framework).filter((document) => {
     if (excluded.has(clean(document?.id))) return false;
     if (domainId && examDomain(document, framework) !== domainId) return false;
     return documentTeksCodes(document).some((code) => normalizedCodes.has(code));
   });
-  if (!candidates.length) return null;
+}
 
+function rankCandidates(candidates, { dok, difficultyBand, seed }) {
   const desiredDok = Number(dok);
   const desiredDifficulty = Number(difficultyBand);
   const ranked = candidates
@@ -119,10 +197,38 @@ function chooseAuditedBankDocument({
       return { document, score: directPenalty + dokPenalty + difficultyPenalty };
     })
     .sort((left, right) => left.score - right.score || clean(left.document.id).localeCompare(clean(right.document.id)));
-
+  if (!ranked.length) return null;
   const bestScore = ranked[0].score;
   const best = ranked.filter((entry) => entry.score === bestScore);
   return best[stableHash(seed) % best.length]?.document || best[0]?.document || null;
+}
+
+/**
+ * `sourceQuestion` is the teacher's authored Practice question this bank item
+ * would replace. When supplied, a candidate is ranked only after surviving
+ * the semantic-fit gate (#359): same TEKS is necessary but not sufficient —
+ * see `isSemanticallyCompatible`. Omitting `sourceQuestion` keeps the older
+ * TEKS/DOK/difficulty-only behavior for callers that have no source question
+ * to compare against.
+ */
+function chooseAuditedBankDocument({
+  framework,
+  domainId,
+  teksCodes = [],
+  dok = null,
+  difficultyBand = null,
+  seed = "",
+  excludeDocumentIds = [],
+  sourceQuestion = null,
+} = {}) {
+  const candidates = sameTeksCandidates({ framework, domainId, teksCodes, excludeDocumentIds });
+  if (!candidates.length) return null;
+  const sourceProfile = sourceQuestion ? deriveSourceSemanticProfile(sourceQuestion) : null;
+  const compatible = sourceProfile
+    ? candidates.filter((document) => isSemanticallyCompatible(sourceProfile, document))
+    : candidates;
+  if (!compatible.length) return null;
+  return rankCandidates(compatible, { dok, difficultyBand, seed });
 }
 
 function chooseAuditedBankDocumentAnyFramework({
@@ -131,6 +237,7 @@ function chooseAuditedBankDocumentAnyFramework({
   difficultyBand = null,
   seed = "",
   excludeDocumentIds = [],
+  sourceQuestion = null,
 } = {}) {
   const frameworks = Object.keys(FRAMEWORK_FILES);
   if (!frameworks.length) return null;
@@ -144,10 +251,56 @@ function chooseAuditedBankDocumentAnyFramework({
       difficultyBand,
       seed: `${seed}|${framework}`,
       excludeDocumentIds,
+      sourceQuestion,
     });
     if (document) return document;
   }
   return null;
+}
+
+/**
+ * Diagnostics for a source question's CCMR match — how many same-TEKS
+ * candidates existed across every supported framework, how many survived the
+ * semantic-fit gate, and which one (if any) was actually chosen. This is
+ * what a teacher-facing Preflight message and `ccmrSource.matchProvenance`
+ * are built from (#359): "surface a clear message that no compatible
+ * audited CCMR item is available" needs to be distinguishable from "no
+ * same-TEKS item exists at all".
+ */
+function explainAuditedBankMatch(sourceQuestion = {}, { teksCodes, dok, difficultyBand, seed = "", excludeDocumentIds = [] } = {}) {
+  const codes = teksCodes && teksCodes.length ? teksCodes : questionTeksCodes(sourceQuestion);
+  const sourceProfile = deriveSourceSemanticProfile(sourceQuestion);
+  const frameworks = Object.keys(FRAMEWORK_FILES);
+  let sameTeksCount = 0;
+  let semanticallyCompatibleCount = 0;
+  const perFramework = {};
+  for (const framework of frameworks) {
+    const candidates = sameTeksCandidates({ framework, teksCodes: codes, excludeDocumentIds });
+    const compatible = candidates.filter((document) => isSemanticallyCompatible(sourceProfile, document));
+    sameTeksCount += candidates.length;
+    semanticallyCompatibleCount += compatible.length;
+    perFramework[framework] = { sameTeksCount: candidates.length, semanticallyCompatibleCount: compatible.length };
+  }
+  const chosen = chooseAuditedBankDocumentAnyFramework({ teksCodes: codes, dok, difficultyBand, seed, excludeDocumentIds, sourceQuestion });
+  return {
+    teksCodes: codes,
+    sourceConstructSignals: {
+      isSystem: sourceProfile.isSystem,
+      isLinearQuadratic: sourceProfile.isLinearQuadratic,
+      dimension: sourceProfile.dimension,
+      method: sourceProfile.method || null,
+    },
+    sameTeksCount,
+    semanticallyCompatibleCount,
+    rejectedForConstructMismatch: sameTeksCount - semanticallyCompatibleCount,
+    perFramework,
+    chosenDocumentId: chosen ? clean(chosen.id) : null,
+    reason: chosen
+      ? "matched"
+      : sameTeksCount === 0
+        ? "no_same_teks_audited_item"
+        : "no_semantically_compatible_audited_item",
+  };
 }
 
 function isAuditedBankQuestion(question = {}) {
@@ -190,7 +343,7 @@ function responseFieldToIntent(field = {}, document = {}) {
   return out;
 }
 
-function bankDocumentToV5Intent(document = {}, { activityRole = "practice" } = {}) {
+function bankDocumentToV5Intent(document = {}, { activityRole = "practice", matchProvenance = null } = {}) {
   const teksCodes = documentTeksCodes(document);
   const framework = clean(document?.assessmentContext?.framework);
   const domainId = examDomain(document, framework);
@@ -231,6 +384,18 @@ function bankDocumentToV5Intent(document = {}, { activityRole = "practice" } = {
       documentId: clean(document.id),
       familyId: clean(document.familyId),
       familyVersion: document.familyVersion ?? null,
+      // #359: so a teacher can see which exact item was inserted and why it
+      // matched — TEKS codes considered, how many same-TEKS candidates were
+      // semantically compatible, and this item's own taskType/representation.
+      ...(matchProvenance ? {
+        matchProvenance: {
+          teksCodes: matchProvenance.teksCodes || teksCodes,
+          sameTeksCount: matchProvenance.sameTeksCount ?? null,
+          semanticallyCompatibleCount: matchProvenance.semanticallyCompatibleCount ?? null,
+          documentTaskType: clean(document.taskType) || null,
+          documentRepresentation: clean(document.representation) || null,
+        },
+      } : {}),
     },
   };
 }
@@ -249,6 +414,7 @@ function directCcmrClaim(question = {}) {
     teksCodes,
     dok: question.dok,
     difficultyBand: question.difficultyBand,
+    sourceQuestion: question,
   };
 }
 
@@ -319,6 +485,7 @@ function ensureAuditedCcmrPractice(assignment = {}, audit = null) {
     .sort((left, right) => (
       Number(questionDok(left.question) >= 3) - Number(questionDok(right.question) >= 3)
     ));
+  const compatibilityMisses = [];
   for (const position of candidates) {
     if (needed <= 0) break;
     const sourceQuestion = mutableSections[position.sectionIndex]?.questions?.[position.questionIndex];
@@ -326,25 +493,48 @@ function ensureAuditedCcmrPractice(assignment = {}, audit = null) {
     const teksCodes = questionTeksCodes(sourceQuestion);
     if (!teksCodes.length) continue;
 
+    const seed = [
+      assignment?.assignment?.title,
+      mutableSections[position.sectionIndex]?.id || position.sectionIndex,
+      sourceQuestion?.questionId || sourceQuestion?.familyId || sourceQuestion?.prompt || position.questionIndex,
+      teksCodes.join(","),
+    ].join("|");
     const bankDocument = chooseAuditedBankDocumentAnyFramework({
       teksCodes,
       dok: sourceQuestion.dok,
       difficultyBand: sourceQuestion.difficultyBand,
-      seed: [
-        assignment?.assignment?.title,
-        mutableSections[position.sectionIndex]?.id || position.sectionIndex,
-        sourceQuestion?.questionId || sourceQuestion?.familyId || sourceQuestion?.prompt || position.questionIndex,
-        teksCodes.join(","),
-      ].join("|"),
+      seed,
       excludeDocumentIds: [...usedDocumentIds],
+      sourceQuestion,
     });
-    if (!bankDocument) continue;
+    if (!bankDocument) {
+      // #359: keep the teacher's original question and record WHY nothing
+      // was inserted — a same-TEKS item existed but failed the
+      // semantic-fit gate, versus no same-TEKS item existing at all — so
+      // Preflight can surface a specific, honest message instead of
+      // inserting an unrelated question merely to hit the 15% target.
+      const diagnostics = explainAuditedBankMatch(sourceQuestion, { teksCodes, dok: sourceQuestion.dok, difficultyBand: sourceQuestion.difficultyBand, seed, excludeDocumentIds: [...usedDocumentIds] });
+      if (diagnostics.reason !== "no_same_teks_audited_item") {
+        compatibilityMisses.push({
+          sectionIndex: position.sectionIndex,
+          questionIndex: position.questionIndex,
+          questionId: sourceQuestion.questionId || null,
+          teksCodes,
+          reason: diagnostics.reason,
+          sameTeksCount: diagnostics.sameTeksCount,
+          semanticallyCompatibleCount: diagnostics.semanticallyCompatibleCount,
+        });
+      }
+      continue;
+    }
 
     const replacementCodes = new Set(documentTeksCodes(bankDocument));
     if (!teksCodes.some((code) => replacementCodes.has(code))) continue;
 
+    const matchProvenance = explainAuditedBankMatch(sourceQuestion, { teksCodes, dok: sourceQuestion.dok, difficultyBand: sourceQuestion.difficultyBand, seed, excludeDocumentIds: [...usedDocumentIds] });
     mutableSections[position.sectionIndex].questions[position.questionIndex] = bankDocumentToV5Intent(bankDocument, {
       activityRole: clean(sourceQuestion.activityRole) || "practice",
+      matchProvenance,
     });
     usedDocumentIds.add(clean(bankDocument.id));
     resultAudit.autoSourced = Number(resultAudit.autoSourced || 0) + 1;
@@ -356,6 +546,7 @@ function ensureAuditedCcmrPractice(assignment = {}, audit = null) {
       reason: "insufficient_same_teks_audited_families",
       requested: targetCount,
       sourced: targetCount - needed,
+      details: compatibilityMisses,
     });
   }
 
@@ -395,18 +586,36 @@ function replaceDirectCcmrQuestionsWithAuditedBank(assignment = {}, { ensurePrac
         ].join("|"),
       });
       if (!bankDocument) {
+        // #359: distinguish "no same-TEKS item" from "a same-TEKS item
+        // exists but is a different mathematical construct" so Preflight can
+        // tell the teacher which one happened, instead of silently forcing
+        // in an unrelated question or staying silent about the gap.
+        const diagnostics = explainAuditedBankMatch(question, {
+          teksCodes: claim.teksCodes,
+          dok: claim.dok,
+          difficultyBand: claim.difficultyBand,
+        });
         audit.misses.push({
           sectionIndex,
           questionIndex,
           framework: claim.framework,
           domainId: claim.domainId,
           teksCodes: claim.teksCodes,
+          reason: diagnostics.reason,
+          sameTeksCount: diagnostics.sameTeksCount,
+          semanticallyCompatibleCount: diagnostics.semanticallyCompatibleCount,
         });
         return question;
       }
       audit.replaced += 1;
+      const matchProvenance = explainAuditedBankMatch(question, {
+        teksCodes: claim.teksCodes,
+        dok: claim.dok,
+        difficultyBand: claim.difficultyBand,
+      });
       return bankDocumentToV5Intent(bankDocument, {
         activityRole: clean(question.activityRole) || role || "practice",
+        matchProvenance,
       });
     });
     return { ...section, questions };
@@ -429,4 +638,7 @@ module.exports = {
   isAuditedBankQuestion,
   ensureAuditedCcmrPractice,
   replaceDirectCcmrQuestionsWithAuditedBank,
+  deriveSourceSemanticProfile,
+  isSemanticallyCompatible,
+  explainAuditedBankMatch,
 };

@@ -249,7 +249,20 @@ export const INTERACTIVE_CAPABILITIES = Object.freeze([
     expectedRoute: 'systemsWorkspace',
     requires: 'threeVariableSubstitution',
     wiring: [
-      { file: 'src/tools/systemsWorkspace/SystemsWorkspace.jsx', pattern: /<SubstitutionReductionMode/ },
+      { file: 'src/tools/systemsWorkspace/Algebraic3SystemMode.jsx', pattern: /<SubstitutionReductionMode/ },
+    ],
+    browser: { harness: 'tests/browser/algebraicSystems3x3.mjs', journey: 'student-3x3' },
+  },
+  {
+    id: 'three-variable-elimination',
+    label: '3×3 Elimination',
+    subsystem: 'SYSTEMS',
+    fixture: 'systems-substitution',
+    expectedRoute: 'systemsWorkspace',
+    requires: 'elimination',
+    wiring: [
+      { file: 'src/tools/systemsWorkspace/Algebraic3SystemMode.jsx', pattern: /<EliminationReductionMode/ },
+      { file: 'src/tools/systemsWorkspace/eliminationReduction.js', pattern: /checkEliminationCombination/ },
     ],
     browser: { harness: 'tests/browser/algebraicSystems3x3.mjs', journey: 'student-3x3' },
   },

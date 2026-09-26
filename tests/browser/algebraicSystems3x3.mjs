@@ -288,7 +288,11 @@ const runFull3x3 = async (context, scope) => {
   await page.waitForSelector('.mathmaster-reduction-workflow', { timeout: 20000 });
 
   const ok = await step(page, journey, 'initial view', async () => {
-    observed.badge = await page.locator('text=Algebraic Systems (3×3 Substitution)').count();
+    // #359 added elimination as a real 3×3 path, so the badge now names both
+    // methods the workspace can offer (matching the 2×2 badge's own wording),
+    // even though THIS fixture is authored method:"substitution" and never
+    // shows an Elimination control — asserted separately below.
+    observed.badge = await page.locator('text=Algebraic Systems (3×3 Substitution / Elimination)').count();
     expect(journey, observed.badge === 1, 'the 3×3 question did not route to the 3×3 substitution workspace');
     observed.originals = await page.locator('.mathmaster-reduction-reference [data-equation-id]').count();
     expect(journey, observed.originals === 3, `expected three original equations in the reference column, saw ${observed.originals}`);

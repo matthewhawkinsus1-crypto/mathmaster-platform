@@ -1228,6 +1228,55 @@
   border-color: #1a73e8;
 }
 
+.mathmaster-reduction-multiplier-confirmed {
+  margin: 0;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: #f4fbf6;
+  color: #1c7a3d;
+  font-size: 12px;
+  font-weight: 800;
+  width: fit-content;
+}
+
+.mathmaster-reduction-distribution {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px dashed #b8cdf0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.mathmaster-reduction-term-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mathmaster-reduction-term-field {
+  min-width: 110px;
+}
+
+.mathmaster-reduction-cancellation {
+  display: grid;
+  gap: 8px;
+}
+
+.mathmaster-algebraic3-method-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 4px;
+}
+
+.mathmaster-algebraic3-method-label {
+  font-size: 13px;
+  font-weight: 800;
+  color: #465267;
+}
+
 .mathmaster-reduction-target-card.is-reduced {
   border-style: solid;
   border-color: #9ccfac;

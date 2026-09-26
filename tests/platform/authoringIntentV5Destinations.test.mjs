@@ -46,9 +46,14 @@ const types = parsed.questions.map((question) => question.type || question.toolI
 assert.equal(types.length, 34);
 assert.equal(types[0], 'stepAlgebra', 'solveEquation should use the balance workspace, not the retired algebra answer box');
 assert.equal(types[4], 'graphAnalysis', 'readGraph should use graph analysis, not the retired line-only graphing renderer');
-assert.equal(new Set(types).size, 32, `expected 32 active destinations after retiring algebra + line-only graphing; got ${types.join(', ')}`);
+// #359: plain solveSystem + equations[] now reaches the interactive
+// systemsWorkspace tool directly (see the routing regression below), so the
+// older symbolic `system` destination is no longer produced by this fixture
+// and the active-destination count drops from 32 to 31.
+assert.equal(new Set(types).size, 31, `expected 31 active destinations after retiring algebra + line-only graphing and routing solveSystem to systemsWorkspace; got ${types.join(', ')}`);
 assert.equal(types.filter((type) => type === 'stepAlgebra').length, 2);
 assert.equal(types.filter((type) => type === 'graphAnalysis').length, 2);
+assert.equal(types.filter((type) => type === 'systemsWorkspace').length, 2);
 validateAssignmentQuestions(parsed.questions);
 
 // PR 303 follow-up (#4): graphSystem is the graph-based systems-of-equations
@@ -71,8 +76,24 @@ assert.notEqual(graphSystemQuestion.type, 'system', 'graphSystem must not fall b
 assert.equal(graphSystemQuestion.equationsLatex, undefined, 'systemsWorkspace routing must not require equationsLatex');
 validateAssignmentQuestions(graphSystemParsed.questions);
 
-// solveSystem (the symbolic action) must still route to the older `system`
-// contract, so the two actions stay distinguishable after the fix above.
-assert.equal(types[10], 'system', 'solveSystem should continue to route to the symbolic system question contract');
+// #359: plain solveSystem + equations[] must compile straight to the
+// interactive systemsWorkspace tool, with mode defaulted to "algebraic" —
+// never the older symbolic `system` answer box, and never requiring the
+// author to spell out renderer plumbing (mode/toolId/type) to get there.
+assert.equal(types[10], 'systemsWorkspace', 'solveSystem with equations[] must route to the interactive systemsWorkspace tool');
+assert.equal(parsed.questions[10].mode, 'algebraic', 'an unmodified solveSystem intent must default to algebraic mode, not the graph-only linear default');
 
-console.log(`authoringIntentV5Destinations.test.mjs: ${types.length} intents across 32 active destinations passed`);
+// An explicit destination hint is still honored when an author deliberately
+// wants the older symbolic answer box instead (V5 ignores a raw `type`/
+// `toolId` as renderer plumbing, but `toolHint` is its supported override).
+const explicitSystemPayload = {
+  schemaVersion: 5,
+  assignment: { title: 'explicit system destination', courseId: 'algebra1' },
+  sections: [{ role: 'practice', title: 'Practice', questions: [
+    q('Solve the system.', ['solveSystem'], { toolHint: 'system', equations: ['y=x', 'y=-x+2'], answer: { x: 1, y: 1 } }),
+  ] }],
+};
+const explicitSystemParsed = parseAssignmentBlueprintText(JSON.stringify(explicitSystemPayload));
+assert.equal(explicitSystemParsed.questions[0].type, 'system', 'an explicit toolHint override must still be honored');
+
+console.log(`authoringIntentV5Destinations.test.mjs: ${types.length} intents across 31 active destinations passed`);

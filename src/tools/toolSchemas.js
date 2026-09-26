@@ -123,7 +123,7 @@ export const validateToolQuestion = (question = {}) => {
     }
   }
   if (toolId === 'systemsWorkspace') {
-    const modes = ['linear','inequalities','linearQuadratic','matrix','matrix3','algebraic'];
+    const modes = ['linear','inequalities','linearQuadratic','matrix','matrix3','algebraic','spatial'];
     // Validate the mode the renderer will actually use, so content that routes
     // to the algebraic workspace is checked as an algebraic system (#341).
     const mode = resolveSystemsWorkspaceMode(question);
@@ -217,6 +217,18 @@ export const validateToolQuestion = (question = {}) => {
       const algebraic = validateAlgebraicSystemAuthoring(question);
       errors.push(...algebraic.errors);
       warnings.push(...algebraic.warnings);
+    }
+    if (mode === 'spatial') {
+      // #359: the three-plane exploration needs exactly three linear
+      // equations in exactly three variables — the same shape and linearity
+      // rules as a 3×3 algebraic system, minus the unique-solution gate
+      // (a spatial exploration may intentionally show no solution or
+      // infinitely many, for Day 2 classification).
+      const spatial = validateAlgebraicSystemAuthoring({ ...question, method: 'substitution' });
+      errors.push(...spatial.errors.filter((message) => !/exactly one solution/.test(message)));
+      if (String(question.spatialModel?.kind || '').trim().toLowerCase() !== 'threeplanes') {
+        errors.push('systemsWorkspace spatial mode requires spatialModel.kind "threePlanes".');
+      }
     }
   }
   if (toolId === 'inverseCompositionLab') {

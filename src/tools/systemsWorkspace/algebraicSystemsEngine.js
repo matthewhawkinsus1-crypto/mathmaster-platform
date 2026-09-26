@@ -462,9 +462,9 @@ const DEFAULT_VARIABLES = { 2: ['x', 'y'], 3: ['x', 'y', 'z'] };
  * `equations` must be linear equation strings in `variables` — two of each
  * (default ['x','y']) or, since #341, three of each. `method` may force
  * 'substitution' or 'elimination', or leave the choice to the student with
- * 'studentChoice'. A 3×3 system is solved by substitution only: 3×3
- * elimination is not built, so it is never offered (see
- * `validateAlgebraicSystemAuthoring`).
+ * 'studentChoice'. Since #359, 3×3 elimination is a genuine, student-driven
+ * workflow (see `eliminationReduction.js`), so a 3×3 system honours the
+ * authored method exactly like a 2×2 one.
  *
  * `coefficients` keeps its 2×2 `{ a, b, c }` shape for every existing caller;
  * `forms` is the dimension-agnostic `{ coefficients: { x, y, z }, constant }`.
@@ -488,9 +488,7 @@ export const normalizeAlgebraicSystemConfig = (questionData = {}) => {
     equations,
     coefficients,
     forms,
-    // 3×3 elimination does not exist yet; a 3×3 system never shows a method
-    // choice it could not honour.
-    method: dimension === 3 ? 'substitution' : authoredMethod,
+    method: authoredMethod,
     authoredMethod,
     requireVerification: questionData.requireVerification !== false,
     askEfficiency: Boolean(questionData.askEfficiency),
@@ -627,6 +625,44 @@ export const formatLinearForm = (form, variables) => {
   return `${left || '0'} = ${exactNumberText(tidy(form?.constant ?? 0))}`;
 };
 
+/**
+ * N-VARIABLE ELIMINATION (#359).
+ *
+ * The 2×2 elimination helpers above (`applyEquationMultiplier`,
+ * `combineCoefficients`, `eliminatesVariable`) speak `{ a, b, c }`, which
+ * cannot name a third variable. These three answer the same workflow
+ * questions for an arbitrary-length `form` — `{ coefficients: { x, y, z },
+ * constant }` — so the 3×3 elimination workflow can scale and combine any
+ * pair of equations from a larger system the same way the 2×2 workflow
+ * always has. They perform the arithmetic used to CHECK a student's own
+ * combination; they never choose a multiplier, a pair, or an operation for
+ * the student.
+ */
+export const applyFormMultiplier = (form, multiplier, variables) => {
+  if (!form) return null;
+  let m;
+  try {
+    m = Number(evaluate(String(multiplier)));
+  } catch {
+    return null;
+  }
+  if (!Number.isFinite(m) || Math.abs(m) < EPS) return null;
+  const coefficients = {};
+  variables.forEach((name) => { coefficients[name] = tidy((form.coefficients?.[name] ?? 0) * m); });
+  return { coefficients, constant: tidy((form.constant ?? 0) * m) };
+};
+
+/** Add or subtract two n-variable forms: `formA (op) formB`. */
+export const combineForms = (formA, formB, operation, variables) => {
+  const sign = operation === 'subtract' ? -1 : 1;
+  const coefficients = {};
+  variables.forEach((name) => { coefficients[name] = tidy((formA.coefficients?.[name] ?? 0) + sign * (formB.coefficients?.[name] ?? 0)); });
+  return { coefficients, constant: tidy((formA.constant ?? 0) + sign * (formB.constant ?? 0)) };
+};
+
+/** Does this form have a zero coefficient for `variable` — i.e. did a combination eliminate it? */
+export const formEliminatesVariable = (form, variable) => Math.abs(form?.coefficients?.[variable] ?? 0) < 1e-6;
+
 /** The variables a linear equation actually depends on (nonzero coefficient), in list order. */
 export const variablesWithNonzeroCoefficient = (text, variables) => {
   const form = linearEquationForm(text, variables);
@@ -716,13 +752,14 @@ export const classifyLinearSystem = (forms, variables) => {
  *
  *   - equation and variable counts must match, and be 2 or 3;
  *   - every equation must be linear in exactly the authored variables;
- *   - a 3×3 system must have exactly one solution. Substituting through a
+ *   - a 3×3 system must have exactly one solution. Working through a
  *     dependent or inconsistent 3×3 system reaches an identity or a
- *     contradiction part-way through, and the workflow does not yet teach how
- *     to interpret that — so it is refused here, before a student sees it,
- *     instead of being misgraded later;
- *   - 3×3 elimination is not built, so it is an error; 'studentChoice' on a
- *     3×3 system is allowed but only substitution will be offered (warning).
+ *     contradiction part-way through, and neither the substitution nor the
+ *     elimination workflow yet teaches how to interpret that — so it is
+ *     refused here, before a student sees it, instead of being misgraded
+ *     later;
+ *   - 3×3 elimination is a real workflow (#359): substitution, elimination,
+ *     and studentChoice are all offered on a 3×3 system, exactly as on 2×2.
  *
  * 2×2 dependent/inconsistent systems stay valid: the 2×2 workflow already
  * interprets 0 = 0 and 0 = c with the student.
@@ -755,11 +792,6 @@ export const validateAlgebraicSystemAuthoring = (questionData = {}) => {
     errors.push('systemsWorkspace algebraic method must be substitution, elimination, or studentChoice.');
   }
   if (dimension === 3) {
-    if (questionData.method === 'elimination') {
-      errors.push('3×3 algebraic systems support substitution only; 3×3 elimination is not available yet. Use method "substitution".');
-    } else if (questionData.method === 'studentChoice') {
-      warnings.push('3×3 algebraic systems are solved by substitution; the method choice will not be shown to students.');
-    }
     if (!errors.length) {
       const trimmed = variables.map((value) => String(value).trim());
       const classification = classifyLinearSystem(rawEquations.map((equation) => linearEquationForm(equation, trimmed)), trimmed);
