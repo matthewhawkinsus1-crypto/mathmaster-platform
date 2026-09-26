@@ -937,7 +937,15 @@ const resolveIntentType = (q, actions) => {
   if (q.complex || q.z || actions.some((a) => ['complexOperations','analyzeComplex'].includes(a))) return 'complexPlaneLab';
   if (q.logarithm || q.exponentialLog || actions.some((a) => ['exponentialLogBridge','solveExponential','solveLogarithmic'].includes(a))) return 'exponentialLogBridge';
   if (q.transformation || actions.includes('analyzeTransformations')) return 'transformationsLab';
-  if (q.representations || q.sets || actions.some((a) => ['connectRepresentations','findRepresentationMismatch'].includes(a))) return 'representationMatch';
+  // A structured spatial model (#359): connectRepresentations with equations
+  // and spatialModel.kind:"threePlanes" is a 3×3 system's three-plane
+  // exploration, not a representations-match card sort. This must be checked
+  // before the general representationMatch claim below.
+  const spatialKind = clean(q.spatialModel?.kind).toLowerCase();
+  const isThreePlaneSpatialIntent = spatialKind === 'threeplanes'
+    && Array.isArray(q.equations)
+    && actions.includes('connectRepresentations');
+  if (!isThreePlaneSpatialIntent && (q.representations || q.sets || actions.some((a) => ['connectRepresentations','findRepresentationMismatch'].includes(a)))) return 'representationMatch';
   if (q.sequence || actions.some((a) => ['analyzeSequence','findSequenceTerm','findMissingTerm','writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence'].includes(a))) return 'sequenceExplorer';
   // A source table that only asks the student to classify the relation should
   // stay a table. Do not invent a mapping diagram merely because normalized
@@ -1029,7 +1037,16 @@ const resolveIntentType = (q, actions) => {
     actions.includes('solveInequalitySystem')
     || actions.includes('graphSystem')
     || actions.includes('rowReduce')
-    || (actions.includes('solveSystem') && q.mode === 'algebraic')
+    // #359: outside authors write mathematical intent, not renderer
+    // plumbing. `solveSystem` with a valid `equations[]` array is algebraic
+    // solve intent and must reach the interactive Systems Workspace even
+    // when no explicit mode is authored — it no longer needs `mode:
+    // "algebraic"` spelled out to avoid the older symbolic `system` answer
+    // box below.
+    || (actions.includes('solveSystem') && Array.isArray(q.equations))
+    // A three-plane spatial model is a real Systems Workspace 3D view, not
+    // a representations-match card sort or a static text question.
+    || isThreePlaneSpatialIntent
   ) return 'systemsWorkspace';
   if (actions.includes('solveSystem') || q.equations) return 'system';
   if (actions.includes('solveLiteral') || (q.solveFor && !actions.includes('solveEquation') && !actions.includes('solveStepByStep'))) return 'literal';
@@ -1664,7 +1681,21 @@ const compileOne = (q, index, repairs) => {
       out = copyCommon(q, { type, mode: q.mode || (actions.includes('composeFunctions') ? 'composition' : 'inverse'), f: toolFunctionSpec(q.f || q.function || q.inverse?.function), g: q.g ? toolFunctionSpec(q.g) : undefined, x: q.x, inverseBranch: q.inverseBranch });
       break;
     case 'systemsWorkspace': {
-      const mode = q.mode || (actions.includes('solveInequalitySystem') ? 'inequalities' : actions.includes('rowReduce') ? 'matrix' : q.linearQuadratic ? 'linearQuadratic' : 'linear');
+      // #359: if no explicit mode is authored, algebraic solve intent
+      // (solveSystem, not graphSystem) must default to "algebraic" — never
+      // the graph-only "linear" default, which would show the graph
+      // workspace's own demo system instead of the authored equations. A
+      // pure three-plane exploration (connectRepresentations +
+      // spatialModel.kind:"threePlanes", with no solve intent) defaults to
+      // the "spatial" mode instead.
+      const hasThreePlaneSpatialModel = isObject(q.spatialModel) && clean(q.spatialModel.kind).toLowerCase() === 'threeplanes';
+      const mode = q.mode
+        || (actions.includes('solveInequalitySystem') ? 'inequalities'
+          : actions.includes('rowReduce') ? 'matrix'
+            : q.linearQuadratic ? 'linearQuadratic'
+              : (actions.includes('solveSystem') && !actions.includes('graphSystem')) ? 'algebraic'
+                : (hasThreePlaneSpatialModel && actions.includes('connectRepresentations')) ? 'spatial'
+                  : 'linear');
       out = copyCommon(q, {
         type,
         mode,
@@ -1689,10 +1720,18 @@ const compileOne = (q, index, repairs) => {
       [
         'sourceConstraints', 'expectedConstraints', 'studentBuild', 'reasoning',
         'testPoint', 'allowStudentTestPoint', 'askClassification', 'askVertices',
-        'modeling', 'graph',
+        'modeling', 'graph', 'spatialModel',
       ].forEach((key) => {
         if (q[key] != null) out[key] = q[key];
       });
+      // A plane-exploration question can also ask for a written
+      // interpretation (#359) — the answerFields grader must survive
+      // alongside the spatial model, normalized the same way every other
+      // destination normalizes them.
+      {
+        const rawFields = q.answerFields || q.responses || q.response?.fields;
+        if (Array.isArray(rawFields) && rawFields.length) out.answerFields = asArray(rawFields).map(fieldFromIntent);
+      }
       break;
     }
     case 'parabolaGeometryLab': {

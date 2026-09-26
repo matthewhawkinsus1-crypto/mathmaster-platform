@@ -156,7 +156,7 @@ test('dimension is inferred from the authored equations and variables', () => {
   assert.equal(algebraicSystemDimension({ equations: SYSTEM, variables: ['x', 'y'] }), 2, 'mismatched counts never route to 3×3');
 });
 
-test('the 2×2 config keeps its exact shape; a 3×3 config adds forms and forces substitution', () => {
+test('the 2×2 config keeps its exact shape; a 3×3 config adds forms and honours every authored method (#359)', () => {
   const twoByTwo = normalizeAlgebraicSystemConfig({ equations: ['x - 2y = -3', '3x + 5y = 24'], variables: ['x', 'y'], method: 'elimination' });
   assert.equal(twoByTwo.dimension, 2);
   assert.equal(twoByTwo.method, 'elimination');
@@ -165,13 +165,16 @@ test('the 2×2 config keeps its exact shape; a 3×3 config adds forms and forces
 
   const threeByThree = normalizeAlgebraicSystemConfig({ equations: SYSTEM, variables: XYZ, method: 'studentChoice' });
   assert.equal(threeByThree.dimension, 3);
-  assert.equal(threeByThree.method, 'substitution', '3×3 elimination does not exist, so it is never offered');
+  assert.equal(threeByThree.method, 'studentChoice', '3×3 elimination is a real workflow now, so studentChoice is honoured (#359)');
   assert.equal(threeByThree.authoredMethod, 'studentChoice');
   assert.equal(threeByThree.coefficients, null);
   assert.deepEqual(threeByThree.forms[1], { coefficients: { x: 2, y: -1, z: 3 }, constant: 9 });
+
+  const threeByThreeElimination = normalizeAlgebraicSystemConfig({ equations: SYSTEM, variables: XYZ, method: 'elimination' });
+  assert.equal(threeByThreeElimination.method, 'elimination');
 });
 
-test('the authoring gate accepts 2×2 and unique 3×3 substitution, and names every unsupported case', () => {
+test('the authoring gate accepts 2×2 and 3×3 substitution and elimination, and names every unsupported case', () => {
   assert.deepEqual(validateAlgebraicSystemAuthoring({ equations: ['x - 2y = -3', '3x + 5y = 24'], variables: ['x', 'y'], method: 'elimination' }).errors, []);
   assert.deepEqual(validateAlgebraicSystemAuthoring({ equations: SYSTEM, variables: XYZ, method: 'substitution' }).errors, []);
 
@@ -182,11 +185,13 @@ test('the authoring gate accepts 2×2 and unique 3×3 substitution, and names ev
   const nonlinear = validateAlgebraicSystemAuthoring({ equations: ['x*y + z = 1', SYSTEM[1], SYSTEM[2]], variables: XYZ });
   assert.ok(nonlinear.errors.some((message) => /equation 1 must be linear in the three authored variables/.test(message)));
 
+  // #359: 3×3 elimination is a real, student-driven workflow now — both
+  // elimination and studentChoice are accepted without error or warning.
   const elimination = validateAlgebraicSystemAuthoring({ equations: SYSTEM, variables: XYZ, method: 'elimination' });
-  assert.ok(elimination.errors.some((message) => /substitution only; 3×3 elimination is not available yet/.test(message)));
+  assert.deepEqual(elimination.errors, []);
   const choice = validateAlgebraicSystemAuthoring({ equations: SYSTEM, variables: XYZ, method: 'studentChoice' });
   assert.deepEqual(choice.errors, []);
-  assert.ok(choice.warnings.some((message) => /method choice will not be shown/.test(message)));
+  assert.deepEqual(choice.warnings, []);
 
   const dependent = validateAlgebraicSystemAuthoring({ equations: ['x + y + z = 1', '2x + 2y + 2z = 2', 'x - y = 0'], variables: XYZ });
   assert.ok(dependent.errors.some((message) => /exactly one solution; this system is dependent/.test(message)));
