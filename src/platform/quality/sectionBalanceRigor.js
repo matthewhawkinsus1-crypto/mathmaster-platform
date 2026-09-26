@@ -39,6 +39,11 @@ const questionFamily = (question = {}) => {
   const construct = clean(question.assessedConstruct);
   if (construct) return construct;
   const type = clean(question.type || question.toolId);
+  // #359: a three-plane spatial exploration is its own experience type, not
+  // interchangeable with an ordinary systemsWorkspace linear/algebraic
+  // question — Practice revisiting "systems" should not silently count a
+  // text-and-graph question as having covered the 3D model, or vice versa.
+  if (type === 'systemsWorkspace' && lower(question.mode) === 'spatial') return 'three-plane spatial model';
   return INTERACTION_FAMILIES[type] || type || 'general response';
 };
 
@@ -52,6 +57,10 @@ const richnessWeight = (question = {}) => {
   const type = clean(question.type || question.toolId);
   let weight = PLAIN_TYPES.has(type) ? 1 : 1.25;
   if (['relationshipModel', 'modelingLab', 'constraintFunctionBuilder', 'openSortBoard', 'representationMatch'].includes(type)) weight += 0.35;
+  // A real, rotatable 3D model is at least as rich as the platform's other
+  // bonus-weighted interaction families (#359) — never counted as a plain
+  // question, and never silently downgraded to the ordinary systemsWorkspace weight.
+  if (type === 'systemsWorkspace' && lower(question.mode) === 'spatial') weight += 0.35;
   if (Array.isArray(question.stages) && question.stages.length > 1) weight += Math.min(0.75, (question.stages.length - 1) * 0.15);
   if (Array.isArray(question.analysisRequests) && question.analysisRequests.length > 2) weight += Math.min(0.5, (question.analysisRequests.length - 2) * 0.1);
   return Number(weight.toFixed(2));
