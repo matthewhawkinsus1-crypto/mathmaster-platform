@@ -1,0 +1,591 @@
+{
+  "title": "Algebra II Honors — 3×3 Systems: Planes & Elimination",
+  "note": "Question content of the live Day 1 assignment (issue #361), captured from the student view after PR #360. Content only: no student, class or grade data.",
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Reconnect to 2×2 Systems",
+      "recommendedMinutes": 8,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3A",
+              "role": "primary"
+            }
+          ],
+          "requireVerification": true,
+          "studentActions": [
+            "solveSystem"
+          ],
+          "difficultyBand": 1,
+          "dok": 2,
+          "prompt": "Use elimination to solve the system. Keep your work in the Systems Workspace and verify the ordered pair.",
+          "questionId": "3x3-d1-wu-1",
+          "standard": "A2.3A",
+          "variables": [
+            "x",
+            "y"
+          ],
+          "type": "systemsWorkspace",
+          "purpose": "prerequisite review",
+          "activityRole": "warmup",
+          "sectionTitle": "Warm-Up — Reconnect to 2×2 Systems",
+          "sectionId": "warmup",
+          "mode": "algebraic",
+          "method": "elimination",
+          "equations": [
+            "3x + 4y = -25",
+            "3x - 2y = -1"
+          ]
+        },
+        {
+          "activityRole": "warmup",
+          "sectionTitle": "Warm-Up — Reconnect to 2×2 Systems",
+          "type": "systemsWorkspace",
+          "difficultyBand": 1,
+          "studentActions": [
+            "solveSystem"
+          ],
+          "variables": [
+            "x",
+            "y"
+          ],
+          "prompt": "Solve the system. Choose a reasonable algebraic method, show your work, and verify the ordered pair.",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3A",
+              "role": "primary"
+            }
+          ],
+          "dok": 2,
+          "questionId": "3x3-d1-wu-2",
+          "equations": [
+            "x + 2y = -1",
+            "3x - y = 18"
+          ],
+          "requireVerification": true,
+          "mode": "algebraic",
+          "method": "studentChoice",
+          "sectionId": "warmup",
+          "standard": "A2.3A",
+          "purpose": "prerequisite review"
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — From Three Planes to One Ordered Triple",
+      "recommendedMinutes": 20,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "3x3-d1-cw-1",
+          "spatialModel": {
+            "kind": "threePlanes"
+          },
+          "alignments": [
+            {
+              "role": "primary",
+              "code": "A2.3B",
+              "framework": "teks"
+            },
+            {
+              "framework": "teks",
+              "role": "supporting",
+              "code": "A2.3A"
+            }
+          ],
+          "equations": [
+            "2x - y + 2z = 15",
+            "-x + y + z = 3",
+            "3x - y + 2z = 18"
+          ],
+          "sectionTitle": "Classwork — From Three Planes to One Ordered Triple",
+          "activityRole": "classwork",
+          "studentActions": [
+            "connectRepresentations"
+          ],
+          "difficultyBand": 1,
+          "prompt": "With your teacher, rotate the 3D model and show or hide the three planes. Before any coordinates are revealed, decide what a solution to all three equations must represent.",
+          "sectionId": "classwork",
+          "type": "systemsWorkspace",
+          "standard": "A2.3B",
+          "variables": [
+            "x",
+            "y",
+            "z"
+          ],
+          "answerFields": [
+            {
+              "options": [
+                "A point that lies on all three planes.",
+                "A different point on each plane.",
+                "Three separate intercepts.",
+                "A point that only has to lie on two planes."
+              ],
+              "id": "meaning",
+              "label": "What does a solution to all three equations represent?",
+              "inputProfile": "choice",
+              "answer": "A point that lies on all three planes.",
+              "type": "choice"
+            }
+          ],
+          "dok": 2,
+          "mode": "spatial",
+          "purpose": "guided concept development"
+        },
+        {
+          "dok": 3,
+          "mode": "algebraic",
+          "method": "elimination",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "role": "primary",
+              "code": "A2.3B",
+              "framework": "teks"
+            },
+            {
+              "role": "supporting",
+              "code": "A2.3A",
+              "framework": "teks"
+            }
+          ],
+          "difficultyBand": 2,
+          "studentActions": [
+            "solveSystem"
+          ],
+          "variables": [
+            "x",
+            "y",
+            "z"
+          ],
+          "questionId": "3x3-d1-cw-2",
+          "type": "systemsWorkspace",
+          "sectionId": "classwork",
+          "requireVerification": true,
+          "prompt": "Solve the 3×3 system by elimination with your teacher. Choose the variable to eliminate, choose two different equation pairs, complete any needed scaling and cancellation, solve the reduced 2×2 system, back-substitute, and verify the ordered triple in all three original equations.",
+          "equations": [
+            "2x - y + 2z = 15",
+            "-x + y + z = 3",
+            "3x - y + 2z = 18"
+          ],
+          "sectionTitle": "Classwork — From Three Planes to One Ordered Triple",
+          "activityRole": "classwork",
+          "purpose": "guided elimination"
+        },
+        {
+          "activityRole": "classwork",
+          "sectionTitle": "Classwork — From Three Planes to One Ordered Triple",
+          "alignments": [
+            {
+              "code": "A2.3B",
+              "role": "primary",
+              "framework": "teks"
+            },
+            {
+              "code": "A2.3A",
+              "framework": "teks",
+              "role": "supporting"
+            }
+          ],
+          "spatialModel": {
+            "allowSolutionReveal": true,
+            "kind": "threePlanes"
+          },
+          "standard": "A2.3B",
+          "questionId": "3x3-d1-cw-3",
+          "type": "systemsWorkspace",
+          "purpose": "guided representation connection",
+          "studentActions": [
+            "connectRepresentations"
+          ],
+          "difficultyBand": 2,
+          "variables": [
+            "x",
+            "y",
+            "z"
+          ],
+          "dok": 2,
+          "answerFields": [
+            {
+              "options": [
+                "The ordered triple satisfies all three equations, so the point lies on all three planes.",
+                "Each coordinate belongs to a different plane.",
+                "The ordered triple only needs to satisfy two equations.",
+                "The ordered triple gives the three y-intercepts."
+              ],
+              "id": "connection",
+              "label": "Which statement best explains the connection?",
+              "answer": "The ordered triple satisfies all three equations, so the point lies on all three planes.",
+              "type": "choice",
+              "inputProfile": "choice"
+            }
+          ],
+          "sectionId": "classwork",
+          "mode": "spatial",
+          "equations": [
+            "2x - y + 2z = 15",
+            "-x + y + z = 3",
+            "3x - y + 2z = 18"
+          ],
+          "prompt": "Return to the same 3D model. Reveal the solution point, rotate the model, and explain how the point (3, 1, 5) connects the algebraic solution to the three planes."
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Independent Practice — Eliminate, Reduce, Solve, Verify",
+      "recommendedMinutes": 48,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "equations": [
+            "x + y - z = -1",
+            "x + y + z = 3",
+            "3x - 2y - z = -4"
+          ],
+          "standard": "A2.3B",
+          "mode": "algebraic",
+          "dok": 3,
+          "requireVerification": true,
+          "difficultyBand": 2,
+          "studentActions": [
+            "solveSystem"
+          ],
+          "purpose": "independent elimination",
+          "method": "elimination",
+          "sectionId": "practice",
+          "type": "systemsWorkspace",
+          "prompt": "Solve the system by elimination. Choose the variable and the equation pairs yourself, reduce to a 2×2 system, back-substitute, and verify your ordered triple.",
+          "variables": [
+            "x",
+            "y",
+            "z"
+          ],
+          "activityRole": "practice",
+          "sectionTitle": "Independent Practice — Eliminate, Reduce, Solve, Verify",
+          "alignments": [
+            {
+              "role": "primary",
+              "framework": "teks",
+              "code": "A2.3B"
+            }
+          ],
+          "questionId": "3x3-d1-pr-1"
+        },
+        {
+          "standard": "A2.3B",
+          "questionId": "3x3-d1-pr-2",
+          "requireVerification": true,
+          "alignments": [
+            {
+              "role": "primary",
+              "code": "A2.3B",
+              "framework": "teks"
+            }
+          ],
+          "dok": 3,
+          "type": "systemsWorkspace",
+          "method": "studentChoice",
+          "variables": [
+            "x",
+            "y",
+            "z"
+          ],
+          "prompt": "Solve the 3×3 system. Choose substitution or elimination based on the structure you see, then verify the ordered triple in the original equations.",
+          "sectionId": "practice",
+          "studentActions": [
+            "solveSystem"
+          ],
+          "difficultyBand": 3,
+          "equations": [
+            "5x + 3y + 2z = 2",
+            "2x + y - z = 5",
+            "x + 4y + 2z = 16"
+          ],
+          "purpose": "independent strategy choice",
+          "mode": "algebraic",
+          "sectionTitle": "Independent Practice — Eliminate, Reduce, Solve, Verify",
+          "activityRole": "practice"
+        },
+        {
+          "type": "systemsWorkspace",
+          "standard": "A2.3B",
+          "studentActions": [
+            "solveSystem"
+          ],
+          "difficultyBand": 4,
+          "variables": [
+            "x",
+            "y",
+            "z"
+          ],
+          "purpose": "honors elimination challenge",
+          "questionId": "3x3-d1-pr-3",
+          "method": "elimination",
+          "alignments": [
+            {
+              "role": "primary",
+              "code": "A2.3B",
+              "framework": "teks"
+            }
+          ],
+          "mode": "algebraic",
+          "requireVerification": true,
+          "dok": 4,
+          "equations": [
+            "2x + 3y - z = 9",
+            "3x - 2y + 2z = -3",
+            "x + 4y + 3z = 6"
+          ],
+          "prompt": "Solve the system by elimination. This system requires thoughtful scaling. Enter the multipliers, distribute them across the equations, mark the cancelling terms, build the reduced equations, and complete the solve.",
+          "sectionId": "practice",
+          "activityRole": "practice",
+          "sectionTitle": "Independent Practice — Eliminate, Reduce, Solve, Verify"
+        },
+        {
+          "dok": 3,
+          "type": "systemsWorkspace",
+          "purpose": "independent representation connection",
+          "variables": [
+            "x",
+            "y",
+            "z"
+          ],
+          "sectionTitle": "Independent Practice — Eliminate, Reduce, Solve, Verify",
+          "activityRole": "practice",
+          "prompt": "Use the 3D model for the system you just solved. Rotate the planes, use the pairwise intersection lines, reveal the common point, and decide what the geometry confirms about your algebraic solution.",
+          "spatialModel": {
+            "allowSolutionReveal": true,
+            "kind": "threePlanes"
+          },
+          "mode": "spatial",
+          "studentActions": [
+            "connectRepresentations"
+          ],
+          "difficultyBand": 3,
+          "standard": "A2.3B",
+          "sectionId": "practice",
+          "answerFields": [
+            {
+              "answer": "The three planes share one common point.",
+              "options": [
+                "The three planes share one common point.",
+                "The three planes share no common point.",
+                "All three planes are the same plane.",
+                "The planes only intersect the coordinate axes."
+              ],
+              "inputProfile": "choice",
+              "label": "What does the model confirm?",
+              "type": "choice",
+              "id": "classification"
+            }
+          ],
+          "questionId": "3x3-d1-pr-4",
+          "equations": [
+            "2x + 3y - z = 9",
+            "3x - 2y + 2z = -3",
+            "x + 4y + 3z = 6"
+          ],
+          "alignments": [
+            {
+              "framework": "teks",
+              "role": "primary",
+              "code": "A2.3B"
+            },
+            {
+              "role": "supporting",
+              "framework": "teks",
+              "code": "A2.3A"
+            }
+          ]
+        },
+        {
+          "sectionTitle": "Independent Practice — Eliminate, Reduce, Solve, Verify",
+          "activityRole": "practice",
+          "purpose": "independent transfer",
+          "equations": [
+            "x + y + z = 4",
+            "2x - y + z = 8",
+            "3x + 2y - z = 1"
+          ],
+          "sectionId": "practice",
+          "questionId": "3x3-d1-pr-5",
+          "alignments": [
+            {
+              "role": "primary",
+              "framework": "teks",
+              "code": "A2.3B"
+            }
+          ],
+          "standard": "A2.3B",
+          "method": "elimination",
+          "type": "systemsWorkspace",
+          "dok": 3,
+          "prompt": "Solve the system. Choose an efficient elimination path instead of following a prescribed pair order, then verify the ordered triple.",
+          "variables": [
+            "x",
+            "y",
+            "z"
+          ],
+          "difficultyBand": 3,
+          "studentActions": [
+            "solveSystem"
+          ],
+          "requireVerification": true,
+          "mode": "algebraic"
+        },
+        {
+          "questionId": "3x3-d1-pr-6-ccmr-bridge",
+          "alignments": [
+            {
+              "code": "A2.3B",
+              "role": "primary",
+              "framework": "teks"
+            }
+          ],
+          "equations": [
+            "x + y = 11",
+            "2x - y = 4"
+          ],
+          "prompt": "College-readiness transfer: solve the two-variable system x + y = 11 and 2x - y = 4. Use the same elimination reasoning you rely on inside a 3×3 system, then verify the ordered pair.",
+          "studentActions": [
+            "solveSystem"
+          ],
+          "difficultyBand": 3,
+          "sectionId": "practice",
+          "mode": "algebraic",
+          "standard": "A2.3B",
+          "variables": [
+            "x",
+            "y"
+          ],
+          "requireVerification": true,
+          "method": "elimination",
+          "sectionTitle": "Independent Practice — Eliminate, Reduce, Solve, Verify",
+          "activityRole": "practice",
+          "dok": 2,
+          "type": "systemsWorkspace",
+          "purpose": "CCMR transfer bridge from two-variable systems to three-variable systems"
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Solve and Connect the Geometry",
+      "recommendedMinutes": 12,
+      "feedbackMode": "afterAssignmentSubmit",
+      "hintsAllowed": false,
+      "attemptsAllowed": 1,
+      "questions": [
+        {
+          "variables": [
+            "x",
+            "y",
+            "z"
+          ],
+          "standard": "A2.3B",
+          "type": "systemsWorkspace",
+          "alignments": [
+            {
+              "role": "primary",
+              "code": "A2.3B",
+              "framework": "teks"
+            }
+          ],
+          "dok": 3,
+          "activityRole": "dol",
+          "difficultyBand": 3,
+          "studentActions": [
+            "solveSystem"
+          ],
+          "sectionTitle": "DOL — Solve and Connect the Geometry",
+          "prompt": "Independently solve the system. Choose your elimination path, reduce to two variables, back-substitute, and verify the ordered triple.",
+          "questionId": "3x3-d1-dol-1",
+          "purpose": "independent demonstration of learning",
+          "method": "elimination",
+          "mode": "algebraic",
+          "requireVerification": true,
+          "equations": [
+            "x + y + z = 3",
+            "2x - y + 3z = 16",
+            "-x + 2y + z = -1"
+          ],
+          "sectionId": "dol"
+        },
+        {
+          "questionId": "3x3-d1-dol-2",
+          "mode": "spatial",
+          "dok": 2,
+          "answerFields": [
+            {
+              "answer": "The point (1, -2, 4) lies on all three planes.",
+              "type": "choice",
+              "label": "Choose the correct interpretation.",
+              "options": [
+                "The point (1, -2, 4) lies on all three planes.",
+                "Each coordinate names a different plane.",
+                "The point only has to lie on two of the three planes.",
+                "The ordered triple gives three separate intercepts."
+              ],
+              "inputProfile": "choice",
+              "id": "geometry"
+            }
+          ],
+          "alignments": [
+            {
+              "role": "primary",
+              "code": "A2.3B",
+              "framework": "teks"
+            },
+            {
+              "role": "supporting",
+              "framework": "teks",
+              "code": "A2.3A"
+            }
+          ],
+          "equations": [
+            "x + y + z = 3",
+            "2x - y + 3z = 16",
+            "-x + 2y + z = -1"
+          ],
+          "standard": "A2.3B",
+          "studentActions": [
+            "connectRepresentations"
+          ],
+          "difficultyBand": 2,
+          "sectionId": "dol",
+          "type": "systemsWorkspace",
+          "variables": [
+            "x",
+            "y",
+            "z"
+          ],
+          "spatialModel": {
+            "allowSolutionReveal": true,
+            "kind": "threePlanes"
+          },
+          "activityRole": "dol",
+          "sectionTitle": "DOL — Solve and Connect the Geometry",
+          "prompt": "Use the 3D model of the same system. Rotate the three planes and reveal the solution point (1, -2, 4). Which statement correctly explains what the ordered triple means geometrically?",
+          "purpose": "geometric interpretation of a solved three-variable system"
+        }
+      ]
+    }
+  ]
+}
