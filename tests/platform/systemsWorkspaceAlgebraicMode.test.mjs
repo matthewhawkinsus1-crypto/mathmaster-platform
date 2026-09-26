@@ -136,7 +136,9 @@ test('substitution requires the student to choose both the other equation and th
 
 
 test('substitution token creation lets the student keep the valid isolated form or simplify it first', () => {
-  assert.match(modeSource, /Use this form as the token/);
+  // #361: the choice is named for what it does ("Use this expression"); the
+  // student-facing copy never says "token".
+  assert.match(modeSource, /onClick=\{useIsolatedExpressionAsToken\} style=\{secondaryButtonStyle\}>Use this expression</);
   assert.match(modeSource, /Simplify first \(optional\)/);
   assert.match(modeSource, /Skip simplification/);
   assert.match(modeSource, /expressionsEquivalent\(draft, isolatedExpr, selection\.variable\)/);
@@ -234,7 +236,9 @@ test('verification requires both original equations to be checked independently,
 // ---------------------------------------------------------------------------
 
 test('a multiplier is entered and placed directly on the equation before the student calculates every changed term', () => {
-  assert.match(modeSource, /ariaLabel=\{\`Scale factor for equation/);
+  // Named by the equation's own reference: "equation 2" standalone, "R₂" in a 3×3 subsystem (#361).
+  assert.match(modeSource, /const equationRef = \(index\) => subsystem\?\.equationLabels\?\.\[index\] \|\| `equation \$\{index \+ 1\}`;/);
+  assert.match(modeSource, /ariaLabel=\{`Scale factor for \$\{equationRef\(index\)\}`\}/);
   assert.match(modeSource, />\s*Scale equation\s*</);
   assert.match(modeSource, /mathmaster-system-multiplier:/);
   assert.match(modeSource, /draggable/);
@@ -266,7 +270,11 @@ test('an equation with scale factor 1 is ready automatically instead of asking t
   assert.match(modeSource, /const multiplierIsIdentity = useCallback/);
   assert.match(modeSource, /appliedMultipliers\[index\] \|\| multiplierIsIdentity\(index\)/);
   assert.match(modeSource, /const multipliersApplied = multiplierRowReady\(0\) && multiplierRowReady\(1\)/);
-  assert.match(modeSource, /No scaling needed — equation stays as written/);
+  // The identity row is described neutrally: the default ×1 is not a claim
+  // that the equation needs no factor (#361 — it said "No scaling needed" on
+  // a row that did).
+  assert.match(modeSource, /mathmaster-systems-scale-not-needed">Used as written — no scale factor</);
+  assert.doesNotMatch(executableSource(modeSource), /No scaling needed/);
   assert.match(modeSource, /scaleEditorOpen = Boolean\(scaleEditors\[index\]\) \|\| !identityMultiplier/);
   assert.match(modeSource, /scaleEditorOpen \? \(/);
   assert.doesNotMatch(modeSource, />Use as written</);
@@ -278,10 +286,11 @@ test('the combine step keeps the equations stacked and puts + / − controls bes
   assert.match(modeSource, /mathmaster-systems-operation-rail/);
   assert.match(modeSource, /handleCombine\('add'\)/);
   assert.match(modeSource, /handleCombine\('subtract'\)/);
-  assert.match(modeSource, /aria-label="Add equation 2 to equation 1"/);
-  assert.match(modeSource, /aria-label="Subtract equation 2 from equation 1"/);
-  assert.match(modeSource, /Equation 1 − Equation 2/);
-  assert.match(modeSource, /Equation 1 \+ Equation 2/);
+  // Standalone these read "Add equation 2 to equation 1"; inside a 3×3 they
+  // name R₂ and R₁ instead of reusing the originals' names (#361).
+  assert.match(modeSource, /aria-label=\{`Add \$\{equationRef\(1\)\} to \$\{equationRef\(0\)\}`\}/);
+  assert.match(modeSource, /aria-label=\{`Subtract \$\{equationRef\(1\)\} from \$\{equationRef\(0\)\}`\}/);
+  assert.match(modeSource, /`\$\{equationName\(0\)\} \$\{combination\.operation === 'subtract' \? '−' : '\+'\} \$\{equationName\(1\)\}`/);
   assert.doesNotMatch(modeSource, /mathmaster-system-combine:/);
   assert.doesNotMatch(modeSource, /Drop Add or Subtract here/);
 });

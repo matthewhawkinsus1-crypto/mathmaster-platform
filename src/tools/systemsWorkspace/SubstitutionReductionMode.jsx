@@ -125,7 +125,7 @@ const feedbackText = (note, system, sourceVariable) => {
     case 'substitution:contains-variable':
       return `${labelFor(note.equationId)} still contains ${sourceVariable}. Place the expression there instead of carrying the equation over.`;
     case 'substitution:expression-parse':
-      return 'MathMaster could not open the next solving step from that token form. Your work is still here. Choose Change expression and use an equivalent form, or try the original isolated form again.';
+      return 'MathMaster could not open the next solving step from that form of the expression. Your work is still here. Choose Change expression and use an equivalent form, or try the original isolated form again.';
     case 'token:token-in-use':
       return 'The expression is already in a reduced equation. Undo that substitution first if you want to change it.';
     case 'reduce:not-equivalent':
@@ -134,7 +134,7 @@ const feedbackText = (note, system, sourceVariable) => {
       return `${labelFor(note.destinationId)} has no ${note.variable}, so it cannot give the value of ${note.variable}. Choose another equation.`;
     case 'back:wrong-variable':
     case 'verification:wrong-variable':
-      return 'That value was placed on a different variable than the one it represents. Use the variable named on the token to choose another location.';
+      return 'That value was placed on a different variable than the one it represents. Use the variable named on the value to choose another location.';
     default:
       return null;
   }
@@ -450,11 +450,11 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
                     <div className="mathmaster-reduction-ready-card">
                       <div className="mathmaster-reduction-ready-title">Isolated expression ready</div>
                       <MathDisplay value={`${sourceVariable} = ${isolated}`} format="ascii-math" />
-                      <p>This form is already mathematically valid. You may turn it into the substitution token now, or simplify the expression first. Simplifying is optional and does not change your credit.</p>
+                      <p>This form is already mathematically valid. You can substitute it as it is, or simplify the expression first. Simplifying is optional and does not change your credit.</p>
                     </div>
                     {!reduction.isolation.simplifying ? (
                       <div className="mathmaster-reduction-button-row">
-                        <button type="button" onClick={() => apply(useIsolatedExpressionAsToken(reduction, system))} style={secondaryButtonStyle}>Use this form as the token</button>
+                        <button type="button" onClick={() => apply(useIsolatedExpressionAsToken(reduction, system))} style={secondaryButtonStyle}>Use this expression</button>
                         <button type="button" onClick={() => apply(startTokenSimplification(reduction))} style={secondaryButtonStyle}>Simplify first (optional)</button>
                       </div>
                     ) : (
@@ -465,7 +465,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
                             value={reduction.isolation.simplificationDraft || ''}
                             onChange={(value) => apply(setTokenSimplificationDraft(reduction, value))}
                             placeholder="e.g. 6 - y - z"
-                            ariaLabel="Optional simplified expression for the substitution token"
+                            ariaLabel="Optional simplified expression to substitute"
                             toolProfile="algebra-operation"
                           />
                         </label>
@@ -485,7 +485,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
                   <div className="mathmaster-systems-substitution-stage mathmaster-reduction-reduce-stage">
                     <p className="mathmaster-systems-substitution-direction">
                       Substitute the isolated expression into each of the other equations. You choose each equation and where the expression goes, in any order.
-                      <span> Drag the token, or select it and then select a variable.</span>
+                      <span> Drag the expression, or select it and then select a variable.</span>
                     </p>
                     <div className="mathmaster-reduction-progress" aria-live="polite">Reduced equations {reducedCount} of {targets.length}</div>
                     {targets.some((equation) => !reduction.targets[equation.id]) ? (

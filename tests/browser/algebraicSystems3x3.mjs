@@ -179,7 +179,7 @@ const isolateXInEquationOne = async (page, journey) => {
 };
 
 const useFormAsToken = async (page) => {
-  await page.locator('button', { hasText: 'Use this form as the token' }).click();
+  await page.locator('button', { hasText: 'Use this expression' }).click();
   await page.locator('.mathmaster-systems-substitution-token').waitFor({ timeout: 5000 });
 };
 
@@ -231,7 +231,7 @@ const solveReducedSubsystem = async (page, journey, { pauseMidSolve = null } = {
   await balancedMove(page, host, 'Add', '3y');
   await cancelTerm(page, host, '+ 3 y');
   await sub.locator('text=Isolated expression ready').waitFor({ timeout: 10000 });
-  await sub.locator('button', { hasText: 'Use this form as the token' }).click();
+  await sub.locator('button', { hasText: 'Use this expression' }).click();
   const token = sub.locator('.mathmaster-systems-substitution-token');
   await token.waitFor();
   const tokenBox = await token.boundingBox();

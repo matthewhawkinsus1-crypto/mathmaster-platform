@@ -102,7 +102,7 @@ const isolateXWithStepAlgebra = async (page) => {
 };
 
 const useIsolatedFormAsToken = async (page) => {
-  await page.locator('button', { hasText: 'Use this form as the token' }).click();
+  await page.locator('button', { hasText: 'Use this expression' }).click();
   await page.locator('.mathmaster-systems-substitution-token').waitFor({ timeout: 5000 });
 };
 
@@ -289,7 +289,7 @@ await shoot(page, 'student-old-draft');
   };
   await openFresh(page, { scope: 'student', seed: beforeToken });
   await page.locator('button', { hasText: 'Simplify first (optional)' }).click();
-  const field = page.locator('math-field[aria-label="Optional simplified expression for the substitution token"]');
+  const field = page.locator('math-field[aria-label="Optional simplified expression to substitute"]');
   await field.waitFor();
   await field.evaluate((element) => {
     element.setValue('2y-3');
@@ -597,7 +597,7 @@ report.push({ journey: 'preview-inline-ui', ...inlineObserved });
   const boardText = await board.innerText();
   if (boardText.includes('×')) note(journey, 'student-facing elimination UI still uses the multiplication × glyph');
   if (boardText.includes('Use as written')) note(journey, 'identity Equation 2 still requires a multiply-by-one confirmation');
-  if (!boardText.includes('No scaling needed')) note(journey, 'identity Equation 2 is not recognized as already prepared');
+  if (!boardText.includes('Used as written — no scale factor')) note(journey, 'identity Equation 2 is not recognized as already prepared');
   if (await board.locator('math-field[aria-label="Scale factor for equation 2"]').count()) {
     note(journey, 'identity Equation 2 still exposes a multiply-by-one input');
   }
