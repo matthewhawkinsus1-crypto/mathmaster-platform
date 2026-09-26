@@ -44,9 +44,13 @@ import {
 import { buildSubstitutionState, expectedInterceptPoint, resolveStandardCoefficients } from '../../src/tools/stepAlgebra2/linearInterceptsMath.js';
 import {
   applyEquationMultiplier,
+  applyFormMultiplier,
   combineCoefficients,
+  combineForms,
   eliminatesVariable,
+  formEliminatesVariable,
   linearEquationCoefficients,
+  linearEquationForm,
   substituteIntoEquation,
 } from '../../src/tools/systemsWorkspace/algebraicSystemsEngine.js';
 
@@ -148,6 +152,18 @@ const BEHAVIOUR = {
   },
   'three-variable-substitution': () => {
     assert.match(read('src/tools/systemsWorkspace/substitutionReduction.js'), /export const/);
+  },
+  'three-variable-elimination': () => {
+    // The same pair-elimination math the student performs on Day 1 (#359):
+    // eliminate y from 2x - y + 2z = 15 and -x + y + z = 3 by adding directly.
+    const vars = ['x', 'y', 'z'];
+    const formA = linearEquationForm('2x - y + 2z = 15', vars);
+    const formB = linearEquationForm('-x + y + z = 3', vars);
+    const scaledB = applyFormMultiplier(formB, 1, vars);
+    const combined = combineForms(formA, scaledB, 'add', vars);
+    assert.ok(formEliminatesVariable(combined, 'y'), 'the student-chosen pair and operation eliminate y');
+    assert.deepEqual(combined.coefficients, { x: 1, y: 0, z: 3 });
+    assert.equal(combined.constant, 18);
   },
   'work-persistence': () => {},
   'relation-persistence': (question) => {

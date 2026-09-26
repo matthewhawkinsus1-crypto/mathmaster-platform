@@ -13,6 +13,7 @@ import { TOOL_STATE_PERSISTENCE } from '../../src/tools/toolStatePersistence.js'
 const reduction = executableSource(componentSource('src/tools/systemsWorkspace/SubstitutionReductionMode.jsx'));
 const twoByTwo = executableSource(componentSource('src/tools/systemsWorkspace/AlgebraicSystemMode.jsx'));
 const workspace = executableSource(componentSource('src/tools/systemsWorkspace/SystemsWorkspace.jsx'));
+const methodDispatch = executableSource(componentSource('src/tools/systemsWorkspace/Algebraic3SystemMode.jsx'));
 const model = executableSource(componentSource('src/tools/systemsWorkspace/substitutionReduction.js'));
 
 /* ----------------------------------------------------------------- routing */
@@ -20,12 +21,23 @@ const model = executableSource(componentSource('src/tools/systemsWorkspace/subst
 test('three equations route to the 3×3 workflow and everything else stays on the 2×2, with its own task card', () => {
   const dispatch = region(workspace, 'export default function SystemsWorkspace(', null, 'SystemsWorkspace dispatch');
   assert.match(dispatch, /const algebraic3 = mode === 'algebraic' && algebraicSystemDimension\(questionData\) === 3;/);
-  assert.match(dispatch, /mode === 'algebraic' \? \(algebraic3\s*\? <SubstitutionReductionMode [^>]*\/>\s*: <AlgebraicSystemMode /);
+  // #359: a 3×3 system can be solved by substitution OR elimination now, so
+  // SystemsWorkspace hands off to a method-dispatching wrapper instead of
+  // mounting SubstitutionReductionMode directly.
+  assert.match(dispatch, /mode === 'algebraic' \? \(algebraic3\s*\? <Algebraic3SystemMode [^>]*\/>\s*: <AlgebraicSystemMode /);
   assert.match(dispatch, /task=\{MODE_TASKS\[taskKey\]/);
-  assert.match(workspace, /algebraic3: 'Solve this 3×3 system by substitution/);
+  assert.match(workspace, /algebraic3: 'Solve this 3×3 system/);
   // App.jsx lesson: a call needs its import.
-  assert.match(workspace, /import SubstitutionReductionMode from '\.\/SubstitutionReductionMode\.jsx';/);
+  assert.match(workspace, /import Algebraic3SystemMode from '\.\/Algebraic3SystemMode\.jsx';/);
   assert.match(workspace, /import \{ algebraicSystemDimension \} from '\.\/algebraicSystemsEngine\.js';/);
+});
+
+test('the 3×3 method-choice wrapper offers substitution or elimination, never silently defaulting to substitution', () => {
+  assert.match(methodDispatch, /config\.method === 'studentChoice'/);
+  assert.match(methodDispatch, /setMethod\('substitution'\)/);
+  assert.match(methodDispatch, /setMethod\('elimination'\)/);
+  assert.match(methodDispatch, /effectiveMethod === 'elimination'\s*\n?\s*\? <EliminationReductionMode/);
+  assert.match(methodDispatch, /: <SubstitutionReductionMode/);
 });
 
 /* ------------------------------------------------------ the student decides */
@@ -169,7 +181,10 @@ test('verification is in all three ORIGINAL equations with the student’s own a
   assert.match(reduction, /const readyToSubmit = phase === 'complete';/);
 });
 
-test('one Work View host, originals always visible, and no method choice on a 3×3', () => {
+test('one Work View host, originals always visible, and SubstitutionReductionMode itself never offers a method choice', () => {
+  // #359: the method choice (substitution vs. elimination) now lives one
+  // level up, in Algebraic3SystemMode — SubstitutionReductionMode stays the
+  // substitution-only screen it always was, mounted once that choice is made.
   assert.equal([...reduction.matchAll(/<EnlargeableFigure/g)].length, 1);
   assert.match(reduction, /<aside className="mathmaster-reduction-reference"[\s\S]*?system\.equations\.map/);
   assert.doesNotMatch(reduction, />Elimination</);

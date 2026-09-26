@@ -428,7 +428,9 @@ test('an active embedded solver gets the dominant systems workspace column', () 
   assert.match(modeSource, /embeddedSolverActive/);
   assert.match(modeSource, /mathmaster-algebraic-system-layout/);
   assert.match(modeSource, /has-active-solver/);
-  assert.match(workspaceSource, /workspaceWidth=\{mode === 'algebraic' \? 'min\(100%, 1360px\)'/);
+  // #359: the three-plane spatial mode shares the same wide workspace as
+  // the algebraic modes, since it also needs room for a substantial figure.
+  assert.match(workspaceSource, /workspaceWidth=\{\(mode === 'algebraic' \|\| mode === 'spatial'\) \? 'min\(100%, 1360px\)'/);
 });
 
 

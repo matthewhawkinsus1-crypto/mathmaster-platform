@@ -34,7 +34,8 @@ import useToolSubmission from '../shared/useToolSubmission';
 import EmbeddedInequalityRewrite from './EmbeddedInequalityRewrite.jsx';
 import { formatSlopeInterceptInequality } from './linearInequalityEngine.js';
 import AlgebraicSystemMode from './AlgebraicSystemMode.jsx';
-import SubstitutionReductionMode from './SubstitutionReductionMode.jsx';
+import Algebraic3SystemMode from './Algebraic3SystemMode.jsx';
+import ThreePlaneWorkspace from './ThreePlaneWorkspace.jsx';
 import { resolveSystemsWorkspaceMode } from './systemsWorkspaceMode.js';
 import { algebraicSystemDimension } from './algebraicSystemsEngine.js';
 
@@ -1517,7 +1518,8 @@ const MODE_TASKS = {
   matrix: 'Read the augmented matrix as a system, classify it, and solve it if it has exactly one solution.',
   matrix3: 'Use matrix technology to compute the RREF of a 3×3 augmented matrix, then classify and solve the system.',
   algebraic: 'Solve this 2×2 system algebraically — by substitution or elimination — showing every mathematical decision along the way.',
-  algebraic3: 'Solve this 3×3 system by substitution — reduce it to a 2×2 system, solve that, and work back to all three values, showing every mathematical decision.',
+  algebraic3: 'Solve this 3×3 system — by substitution or elimination — reduce it to a 2×2 system, solve that, and work back to all three values, showing every mathematical decision.',
+  spatial: 'Explore the three planes for this system: rotate the model, show or hide each plane, and see how they relate.',
 };
 
 const MODE_STEPS = {
@@ -1527,16 +1529,18 @@ const MODE_STEPS = {
   matrix: ['Rewrite each row as an equation.', 'Work out the determinant to decide the number of solutions.', 'Solve for x and y if there is exactly one.'],
   matrix3: ['Read the 3×4 augmented matrix.', 'Use the matrix-technology RREF command.', 'Interpret the reduced rows to classify the system and read x, y, and z.'],
   algebraic: ['Choose (or use the assigned) method and decide which variable to work with first.', 'Solve each one-variable equation with the algebra solver, then substitute back.', 'State the ordered pair and verify it in both original equations.'],
-  algebraic3: ['Choose an equation and a variable to isolate first.', 'Substitute into both other equations and simplify each, giving a 2×2 system.', 'Solve the 2×2, work back to the third value, and verify all three in every original equation.'],
+  algebraic3: ['Choose substitution or elimination, then choose your first move — nothing is suggested for you.', 'Reduce the system to a 2×2, then solve it.', 'Work back to the third value and verify all three in every original equation.'],
+  spatial: ['Rotate the model and show or hide each plane to see how they meet.', 'Decide whether the three planes share one point, no point, or infinitely many.', 'Answer the question using what the model shows.'],
 };
 
 export default function SystemsWorkspace({ questionData = {}, onAction, draftKey = null }) {
   const mode = resolveSystemsWorkspaceMode(questionData);
   // Dimension is inferred from the authored equations and variables (#341):
-  // three of each is a 3×3 substitution, everything else keeps 2×2.
+  // three of each is a 3×3 system, everything else keeps 2×2.
   const algebraic3 = mode === 'algebraic' && algebraicSystemDimension(questionData) === 3;
   const taskKey = algebraic3 ? 'algebraic3' : mode;
-  const modeLabel = algebraic3 ? 'Algebraic Systems (3×3 Substitution)'
+  const modeLabel = algebraic3 ? 'Algebraic Systems (3×3 Substitution / Elimination)'
+    : mode === 'spatial' ? 'Three-Plane Systems'
     : mode === 'inequalities' ? 'Systems of Inequalities'
     : mode === 'linearQuadratic' ? 'Linear–Quadratic Systems'
       : mode === 'matrix3' ? '3×3 Matrix Technology / RREF'
@@ -1547,14 +1551,15 @@ export default function SystemsWorkspace({ questionData = {}, onAction, draftKey
     title="Systems Workspace"
     subtitle="Solve, classify and interpret a system — graphically and algebraically — in one place."
     badge={modeLabel}
-    workspaceWidth={mode === 'algebraic' ? 'min(100%, 1360px)' : 'min(100%, 1180px)'}
+    workspaceWidth={(mode === 'algebraic' || mode === 'spatial') ? 'min(100%, 1360px)' : 'min(100%, 1180px)'}
   >
     <TaskCard question={questionData} task={MODE_TASKS[taskKey] || MODE_TASKS.linear} steps={MODE_STEPS[taskKey] || MODE_STEPS.linear} />
     {mode === 'inequalities' ? <InequalityMode questionData={questionData} onAction={onAction} draftKey={draftKey}/>
       : mode === 'linearQuadratic' ? <LinearQuadraticMode questionData={questionData} onAction={onAction}/>
         : (mode === 'matrix' || mode === 'matrix3') ? <MatrixMode questionData={questionData} onAction={onAction}/>
+          : mode === 'spatial' ? <ThreePlaneWorkspace questionData={questionData} onAction={onAction} draftKey={draftKey}/>
           : mode === 'algebraic' ? (algebraic3
-            ? <SubstitutionReductionMode questionData={questionData} onAction={onAction} draftKey={draftKey}/>
+            ? <Algebraic3SystemMode questionData={questionData} onAction={onAction} draftKey={draftKey}/>
             : <AlgebraicSystemMode questionData={questionData} onAction={onAction} draftKey={draftKey}/>)
             : <LinearMode questionData={questionData} onAction={onAction}/>
     }
