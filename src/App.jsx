@@ -5719,6 +5719,24 @@ function App() {
     }
   };
 
+  // #359: "no compatible audited CCMR item" must be a clear, teacher-facing
+  // message distinguishable from a plain "nothing sourced" silence — never a
+  // reason to insert an unrelated question merely to hit the 15% target.
+  const ccmrAuditWarnings = (audit) => {
+    const messages = [];
+    const sourcedCount = Number(audit?.autoSourced || 0) + Number(audit?.replaced || 0);
+    if (sourcedCount > 0) {
+      messages.push(`MathMaster sourced ${sourcedCount} Practice item${sourcedCount === 1 ? '' : 's'} from the audited CCMR Fidelity V2.1 bank.`);
+    }
+    const gaps = Array.isArray(audit?.misses) ? audit.misses : [];
+    const semanticGaps = gaps.filter((miss) => miss?.reason === 'no_semantically_compatible_audited_item'
+      || (Array.isArray(miss?.details) && miss.details.some((detail) => detail?.reason === 'no_semantically_compatible_audited_item')));
+    if (semanticGaps.length) {
+      messages.push('MathMaster kept the teacher-authored Practice question(s) as written: the audited CCMR bank has same-TEKS items, but none that match this question\'s construct (e.g. system dimension, or linear vs. linear–quadratic), so nothing was substituted.');
+    }
+    return messages;
+  };
+
   // Single entry point for pasted, uploaded and dropped JSON.
   const handleAssignmentJsonReady = async ({ text, sourceName, incompleteDraftId = null }) => {
     let sourceText = text;
@@ -5749,12 +5767,7 @@ function App() {
     }
 
     const result = readAssignmentJson(sourceText);
-    const bankWarnings = [];
-    if (ccmrAudit?.autoSourced > 0 || ccmrAudit?.replaced > 0) {
-      bankWarnings.push(
-        `MathMaster sourced ${Number(ccmrAudit.autoSourced || 0) + Number(ccmrAudit.replaced || 0)} Practice item${Number(ccmrAudit.autoSourced || 0) + Number(ccmrAudit.replaced || 0) === 1 ? '' : 's'} from the audited CCMR Fidelity V2.1 bank.`,
-      );
-    }
+    const bankWarnings = [...ccmrAuditWarnings(ccmrAudit)];
     const warnings = [...(result.warnings || []), ...bankWarnings];
     if (!result.ok) {
       if (!canSalvageV5IntakeResult(result)) return { ...result, warnings };
@@ -6007,6 +6020,11 @@ function App() {
       // section is large enough to carry the ~15% audited CCMR target.
       // Default to strict if an audit is ever unavailable.
       let honorsCcmrTargetRequired = true;
+      // #359: when the target was required but nothing was sourced, name WHY
+      // — same-TEKS items exist but none fit this question's construct,
+      // versus no same-TEKS item existing at all — instead of a single generic
+      // "could not find" message either way.
+      let honorsCcmrGapMessage = '';
 
       // CCMR is destination-aware. Standard destinations keep the authored
       // Practice. When an Honors destination is actually selected, MathMaster
@@ -6024,6 +6042,12 @@ function App() {
         if (hydratedHonors?.audit && Object.prototype.hasOwnProperty.call(hydratedHonors.audit, 'targetCount')) {
           honorsCcmrTargetRequired = Number(hydratedHonors.audit.targetCount || 0) > 0;
         }
+        const honorsMisses = Array.isArray(hydratedHonors?.audit?.misses) ? hydratedHonors.audit.misses : [];
+        const honorsSemanticGap = honorsMisses.some((miss) => miss?.reason === 'no_semantically_compatible_audited_item'
+          || (Array.isArray(miss?.details) && miss.details.some((detail) => detail?.reason === 'no_semantically_compatible_audited_item')));
+        honorsCcmrGapMessage = honorsSemanticGap
+          ? 'The audited CCMR bank has items on this lesson’s TEKS, but none that match the question’s construct (for example, system dimension, or linear vs. linear–quadratic). MathMaster kept the authored Practice question rather than substitute an unrelated item.'
+          : 'MathMaster could not find any audited CCMR Fidelity V2.1 Practice family on the same lesson TEKS.';
       }
 
       const sourceHonorsReport = inspectHonorsRigor(honorsParsedQuestions, {
@@ -6090,7 +6114,7 @@ function App() {
           let enrichmentQuestion = null;
           if (!sourceHonorsReport.isHonorsReady) {
             if (sourceHonorsReport.ccmrTargetRequired && !sourceHonorsReport.checks.ccmrEnrichment) {
-              throw new Error('MathMaster could not find an audited CCMR Fidelity V2.1 Practice family on the same lesson TEKS for this Honors destination. Review the Practice TEKS or reduce the independent Practice section below the CCMR target threshold.');
+              throw new Error(`${honorsCcmrGapMessage || 'MathMaster could not find an audited CCMR Fidelity V2.1 Practice family on the same lesson TEKS for this Honors destination.'} Review the Practice TEKS or reduce the independent Practice section below the CCMR target threshold.`);
             }
             if (!teacherReview?.honorsEnrichmentQuestion) {
               throw new Error('This Honors destination still needs additional Honors depth. Return to preflight and choose Build Honors Depth with MathMaster AI.');
