@@ -66,8 +66,11 @@ const emptyTermWork = (variables) => ({
 
 export const emptyRoundState = () => ({
   pair: null,
-  // Raw scale-factor text per equation id. Blank/absent means "no scaling
-  // needed" — the student is never asked to type a multiplier of 1.
+  // Raw scale-factor text per equation id. ABSENT means the student has not
+  // opened this equation's scale editor, so it is used as written (×1) — the
+  // student is never asked to type a multiplier of 1. PRESENT (even '') means
+  // the editor is open: the student is deciding on a factor, and nothing is
+  // applied until they press Apply (#361).
   multiplierDrafts: {},
   // The confirmed numeric multiplier per equation id, set only once its
   // scaled terms (or its identity) have been accepted.
@@ -171,6 +174,46 @@ const resolvedMultiplierDraft = (round, equationId) => {
     return NaN;
   }
 };
+
+/**
+ * "Scale this equation": open the equation's scale editor, empty, so the
+ * student can type a factor. Same effect as typing into it — the equation is
+ * no longer "used as written" until the student applies a factor or keeps it
+ * as written — so any later work in the round is cleared.
+ */
+export const openEliminationScaleEditor = (state, roundKey, equationId) => {
+  const round = state.rounds[roundKey];
+  const current = round?.multiplierDrafts?.[equationId];
+  const existing = Number.isFinite(round?.multiplierValues?.[equationId]) && Math.abs(round.multiplierValues[equationId] - 1) > EPS
+    ? exactNumberText(round.multiplierValues[equationId])
+    : '';
+  return setEliminationMultiplierDraft(state, roundKey, equationId, typeof current === 'string' && current.trim() ? current : existing);
+};
+
+/**
+ * "Keep as written": close the scale editor. The equation goes back to ×1 —
+ * the same default every equation starts with — and any later work in the
+ * round is cleared, because the equation it was built on has changed.
+ */
+export const keepEliminationEquationAsWritten = (state, roundKey, equationId) => {
+  const round = state.rounds[roundKey];
+  if (!roundEquationIds(round).includes(equationId)) return result(state);
+  const next = clone(round);
+  delete next.multiplierDrafts[equationId];
+  delete next.multiplierWork[equationId];
+  next.multiplierValues[equationId] = 1;
+  next.operation = null;
+  next.operationAttempts = 0;
+  next.cancelledEquations = {};
+  next.combinationWork = null;
+  next.combinedText = null;
+  return result(setRound(state, roundKey, next));
+};
+
+/** True while this equation's scale editor is open (a draft exists and no factor has been applied yet). */
+export const eliminationScaleEditorOpen = (round, equationId) => (
+  typeof round?.multiplierDrafts?.[equationId] === 'string' && !Number.isFinite(round?.multiplierValues?.[equationId])
+);
 
 export const setEliminationMultiplierDraft = (state, roundKey, equationId, value) => {
   const round = state.rounds[roundKey];
@@ -490,18 +533,37 @@ export const repairEliminationState = (stored, system) => {
         state = setRound(state, roundKey, next);
         continue;
       }
+      // An equation whose scale editor was never opened is used as written
+      // (×1), exactly like the 2×2 workspace. But an OPEN editor (a draft
+      // exists, even an empty one) is the student deciding on a factor: it
+      // stays open until THEY apply a factor or keep the equation as written.
+      // Replaying "apply" here on every render confirmed a blank editor as ×1
+      // the moment a pair was chosen, so the scale-factor field never
+      // appeared and a pair that needed scaling was a dead end (#361).
+      const editorOpen = typeof draft === 'string';
+      const storedWork = storedRound.multiplierWork?.[equationId];
+      if (editorOpen && !(storedWork && typeof storedWork === 'object')) continue;
       const applied = applyEliminationMultiplier(state, system, roundKey, equationId);
       if (applied.feedback) continue;
       state = applied.state;
-      const storedWork = storedRound.multiplierWork?.[equationId];
       if (state.rounds[roundKey].multiplierWork?.[equationId] && storedWork && typeof storedWork === 'object') {
         for (const key of [...system.variables, 'constant']) {
           if (typeof storedWork[key] === 'string') {
             state = setEliminationMultiplierProductTerm(state, roundKey, equationId, key, storedWork[key]).state;
           }
         }
-        const checked = checkEliminationMultiplierProducts(state, system, roundKey, equationId);
-        if (!checked.feedback) state = checked.state;
+        // Restore the student's typed terms, never CHECK them: this runs on
+        // every render, and checking here accepted the distribution the
+        // moment all four terms happened to be right — before the student
+        // pressed "Check my scaled terms" — which both skipped their decision
+        // and told them, keystroke by keystroke, when they were right (#361).
+        // An accepted distribution is stored as its multiplierValue (handled
+        // above), so stored work is by definition not yet accepted.
+        if (storedWork.checked === true && storedWork.valid === false) {
+          const next = clone(state.rounds[roundKey]);
+          next.multiplierWork[equationId] = { ...next.multiplierWork[equationId], checked: true, valid: false };
+          state = setRound(state, roundKey, next);
+        }
       }
     }
 
