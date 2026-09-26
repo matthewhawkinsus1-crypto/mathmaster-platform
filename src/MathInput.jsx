@@ -218,6 +218,11 @@ export default function MathInput({
   requiredSymbols = [],
   collapseSignal = 0,
   onSubmit = null,
+  // Desktop only: drop the "Show math tools" pill for a field that sits in a
+  // tight, column-aligned layout (a stacked elimination row). A physical
+  // keyboard types everything these fields take. On a phone the tools ARE the
+  // keypad (the native keyboard is suppressed), so they are never hidden there.
+  hideToolsToggle = false,
 }) {
   const mfRef = useRef(null);
   const onChangeRef = useRef(onChange);
@@ -534,7 +539,7 @@ export default function MathInput({
         </div>
       )}
 
-      <button
+      {hideToolsToggle && !isMobile ? null : <button
         type="button"
         onClick={() => setShowTools((current) => !current)}
         aria-expanded={showTools}
@@ -550,7 +555,7 @@ export default function MathInput({
         }}
       >
         {showTools ? 'Hide math tools' : 'Show math tools'}
-      </button>
+      </button>}
 
       {showTools && (
         <div
