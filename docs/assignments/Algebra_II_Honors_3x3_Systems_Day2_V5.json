@@ -1,0 +1,695 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra II Honors — 3×3 Systems: Strategy, Classification & Modeling",
+    "courseId": "algebra2",
+    "folder": "Algebra II/Module 1/3x3 Systems",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork"
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Reconnect & Strategic Structure",
+      "recommendedMinutes": 8,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "3x3-d2-wu-1",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "type": "systemsWorkspace",
+          "mode": "spatial",
+          "studentActions": [
+            "connectRepresentations"
+          ],
+          "difficultyBand": 2,
+          "dok": 2,
+          "equations": [
+            "x + y - z = -1",
+            "x + y + z = 3",
+            "3x - 2y - z = -4"
+          ],
+          "variables": [
+            "x",
+            "y",
+            "z"
+          ],
+          "spatialModel": {
+            "kind": "threePlanes",
+            "allowSolutionReveal": true
+          },
+          "prompt": "Reconnect to three-plane geometry: Rotate the 3D model, show and hide individual planes, and reveal the solution point. What does the single intersection point (0, 1, 2) represent for the system?",
+          "answerFields": [
+            {
+              "id": "geometric_meaning",
+              "label": "What does the single intersection point represent?",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "An ordered triple (0, 1, 2) that satisfies all three equations simultaneously.",
+                "Three separate intercepts, one on each coordinate axis.",
+                "A point that satisfies only the first two planes.",
+                "A point that lies on the x-axis only."
+              ],
+              "answer": "An ordered triple (0, 1, 2) that satisfies all three equations simultaneously."
+            }
+          ]
+        },
+        {
+          "questionId": "3x3-d2-wu-2",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "type": "multiAnswer",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "difficultyBand": 2,
+          "dok": 2,
+          "prompt": "Consider the 3×3 system before performing any arithmetic:\n(1) 5x + 3y + 2z = 2\n(2) 2x + y - z = 5\n(3) x + 4y + 2z = 16\nStrategic mathematicians inspect the coefficients of all three variables to choose an efficient elimination strategy before calculating.",
+          "answerFields": [
+            {
+              "id": "strategy_first_variable",
+              "label": "Which variable can be eliminated between Equation 1 and Equation 3 without scaling either equation?",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "z (since both equations have +2z, subtracting eliminates z immediately)",
+                "x (since 5 and 1 have opposite parity)",
+                "y (since 3 and 4 differ by 1)",
+                "None of the variables can be eliminated without multiplying by non-unit factors"
+              ],
+              "answer": "z (since both equations have +2z, subtracting eliminates z immediately)"
+            },
+            {
+              "id": "strategy_second_pair",
+              "label": "To eliminate the same variable z in a second round, which pairing requires the least scaling?",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "Pair Equation 2 (-z) with Equation 1 (+2z) or Equation 3 (+2z), multiplying only Equation 2 by 2.",
+                "Pair Equation 1 with Equation 3 and multiply both by 5.",
+                "Pair Equation 1 with Equation 2, multiplying Equation 1 by 3 and Equation 2 by 5.",
+                "Multiply all three equations by 10."
+              ],
+              "answer": "Pair Equation 2 (-z) with Equation 1 (+2z) or Equation 3 (+2z), multiplying only Equation 2 by 2."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — Strategy, Classification & Guided Solve",
+      "recommendedMinutes": 20,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "3x3-d2-cw-1",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "type": "systemsWorkspace",
+          "mode": "spatial",
+          "studentActions": [
+            "connectRepresentations"
+          ],
+          "difficultyBand": 2,
+          "dok": 2,
+          "equations": [
+            "2x + y - 3z = 5",
+            "x + 2y - 4z = 7",
+            "6x + 3y - 9z = 15"
+          ],
+          "variables": [
+            "x",
+            "y",
+            "z"
+          ],
+          "spatialModel": {
+            "kind": "threePlanes",
+            "allowSolutionReveal": true
+          },
+          "prompt": "With your teacher, explore this 3×3 system in 3D. Rotate the model and toggle the planes on and off. Notice Plane 1 (blue) and Plane 3 (green) in relation to each other, and observe how Plane 2 (red) intersects them. How do the three planes intersect?",
+          "answerFields": [
+            {
+              "id": "spatial_classification",
+              "label": "How do the three planes intersect?",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "Planes 1 and 3 are coincident (the same plane), and Plane 2 intersects them along a line of infinitely many solutions.",
+                "The three planes intersect at exactly one unique point.",
+                "The three planes are mutually parallel and never touch.",
+                "The three planes form a triangular tube with three separate parallel lines."
+              ],
+              "answer": "Planes 1 and 3 are coincident (the same plane), and Plane 2 intersects them along a line of infinitely many solutions."
+            }
+          ]
+        },
+        {
+          "questionId": "3x3-d2-cw-2",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "type": "multiAnswer",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "difficultyBand": 2,
+          "dok": 2,
+          "prompt": "Connect the 3D model from Question 1 to its algebra:\n(1) 2x + y - 3z = 5\n(2) x + 2y - 4z = 7\n(3) 6x + 3y - 9z = 15\nMultiplying Equation 1 by 3 yields 6x + 3y - 9z = 15.\nSubtracting Equation 3 from this scaled equation yields 0 = 0.\nInterpret this algebraic result.",
+          "answerFields": [
+            {
+              "id": "identity_meaning",
+              "label": "What does the statement 0 = 0 indicate algebraically?",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "It is an identity (true for all points on the plane), indicating dependent equations with shared solutions.",
+                "It is a contradiction, proving that no solution exists.",
+                "It means the only solution is (0, 0, 0).",
+                "It means an arithmetic mistake was made."
+              ],
+              "answer": "It is an identity (true for all points on the plane), indicating dependent equations with shared solutions."
+            },
+            {
+              "id": "identity_solution_set",
+              "label": "What is the complete solution set to the system?",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "Infinitely many solutions (the common line of intersection between the two distinct planes).",
+                "No solution.",
+                "Exactly one unique point.",
+                "All points in three-dimensional space."
+              ],
+              "answer": "Infinitely many solutions (the common line of intersection between the two distinct planes)."
+            }
+          ]
+        },
+        {
+          "questionId": "3x3-d2-cw-3",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "type": "systemsWorkspace",
+          "mode": "algebraic",
+          "method": "elimination",
+          "studentActions": [
+            "solveSystem"
+          ],
+          "difficultyBand": 3,
+          "dok": 3,
+          "equations": [
+            "5x + 3y + 2z = 2",
+            "2x + y - z = 5",
+            "x + 4y + 2z = 16"
+          ],
+          "variables": [
+            "x",
+            "y",
+            "z"
+          ],
+          "requireVerification": true,
+          "prompt": "Solve the unique-solution 3×3 system by elimination with your teacher. Put your strategy into action: eliminate z using two different pairs, solve the reduced 2×2 system for x and y, back-substitute to find z, and verify the ordered triple (-2, 6, -3) in all three original equations."
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Independent Solve, Classification & Modeling",
+      "recommendedMinutes": 48,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "3x3-d2-pr-1",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "type": "systemsWorkspace",
+          "mode": "algebraic",
+          "method": "studentChoice",
+          "studentActions": [
+            "solveSystem"
+          ],
+          "difficultyBand": 2,
+          "dok": 3,
+          "equations": [
+            "x + y - z = -1",
+            "x + y + z = 3",
+            "3x - 2y - z = -4"
+          ],
+          "variables": [
+            "x",
+            "y",
+            "z"
+          ],
+          "requireVerification": true,
+          "prompt": "Solve the 3×3 system independently. Look for an efficient elimination path (for example, adding the first two equations to eliminate z directly), reduce to a 2×2 system, back-substitute, and verify your ordered triple in the original equations."
+        },
+        {
+          "questionId": "3x3-d2-pr-2",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "type": "systemsWorkspace",
+          "mode": "spatial",
+          "studentActions": [
+            "connectRepresentations"
+          ],
+          "difficultyBand": 3,
+          "dok": 2,
+          "equations": [
+            "3x - y - 2z = 4",
+            "6x - 2y - 4z = 11",
+            "9x - 3y - 6z = 12"
+          ],
+          "variables": [
+            "x",
+            "y",
+            "z"
+          ],
+          "spatialModel": {
+            "kind": "threePlanes",
+            "allowSolutionReveal": true
+          },
+          "prompt": "Rotate the 3D model of this system. Compare the normal coefficients: [3, -1, -2], [6, -2, -4], and [9, -3, -6]. Notice the constant terms (4, 11, 12). What geometric relationship exists among these three planes?",
+          "answerFields": [
+            {
+              "id": "parallel_planes",
+              "label": "Geometric relationship of the planes:",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "All three planes are parallel and distinct; they never intersect, so the system has no solution.",
+                "The three planes intersect at a single point.",
+                "The three planes intersect along a single line.",
+                "Planes 1 and 2 are perpendicular to Plane 3."
+              ],
+              "answer": "All three planes are parallel and distinct; they never intersect, so the system has no solution."
+            }
+          ]
+        },
+        {
+          "questionId": "3x3-d2-pr-3",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "type": "multiAnswer",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "difficultyBand": 2,
+          "dok": 2,
+          "prompt": "Now analyze the algebra for the first two equations from the previous question:\n(1) 3x - y - 2z = 4\n(2) 6x - 2y - 4z = 11\nMultiplying Equation 1 by 2 gives 6x - 2y - 4z = 8.\nSubtracting Equation 2 (6x - 2y - 4z = 11) gives:\n0 = -3.\nInterpret this algebraic result.",
+          "answerFields": [
+            {
+              "id": "contradiction_statement",
+              "label": "What kind of mathematical statement is 0 = -3?",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "A contradiction (a statement that is false for every ordered triple (x, y, z)).",
+                "An identity (a statement that is true for every ordered triple).",
+                "A conditional statement true only when z = -3.",
+                "A linear equation with negative intercept."
+              ],
+              "answer": "A contradiction (a statement that is false for every ordered triple (x, y, z))."
+            },
+            {
+              "id": "contradiction_solution",
+              "label": "What does this contradiction prove about the 3×3 system?",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "The system is inconsistent and has no solution (no points are common to the planes).",
+                "The system has infinitely many solutions.",
+                "The unique solution is (0, 0, -3).",
+                "The system has exactly two solutions."
+              ],
+              "answer": "The system is inconsistent and has no solution (no points are common to the planes)."
+            }
+          ]
+        },
+        {
+          "questionId": "3x3-d2-pr-4",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "type": "multiAnswer",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "difficultyBand": 3,
+          "dok": 3,
+          "prompt": "Comparing Algebraic Signals:\nWhen solving a 3×3 linear system algebraically, two special outcomes can occur during elimination:\nCase 1: An equation reduces to 0 = 0.\nCase 2: An equation reduces to 0 = k (where k is a nonzero constant).\nMatch each outcome to its correct algebraic classification and geometric interpretation.",
+          "answerFields": [
+            {
+              "id": "case1_identity",
+              "label": "Case 1 (0 = 0):",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "Dependent system with infinitely many solutions; the equations share a line or plane of intersection.",
+                "Inconsistent system with no solution; the planes never intersect.",
+                "Consistent system with unique solution (0, 0, 0).",
+                "Underdetermined system with exactly 3 solutions."
+              ],
+              "answer": "Dependent system with infinitely many solutions; the equations share a line or plane of intersection."
+            },
+            {
+              "id": "case2_contradiction",
+              "label": "Case 2 (0 = k with k ≠ 0):",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "Inconsistent system with no solution; parallel or non-intersecting planes share no common location.",
+                "Dependent system with infinitely many solutions along the line z = k.",
+                "Consistent system with exactly one solution at z = k.",
+                "Coincident planes with identical slopes."
+              ],
+              "answer": "Inconsistent system with no solution; parallel or non-intersecting planes share no common location."
+            }
+          ]
+        },
+        {
+          "questionId": "3x3-d2-pr-5",
+          "standard": "A2.3A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3A",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "supporting"
+            }
+          ],
+          "type": "multiAnswer",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "difficultyBand": 3,
+          "dok": 3,
+          "prompt": "Triangle Modeling — Formulate the System:\nA triangle has three side lengths: shortest side s, medium side m, and longest side l (all measured in centimeters).\nDefine the system of equations from the given conditions:\nCondition 1: The sum of the shortest and medium sides is 8 cm longer than the longest side.\nCondition 2: The sum of the medium and longest sides is 4 cm more than three times the shortest side.\nCondition 3: The perimeter of the triangle is 72 cm.",
+          "answerFields": [
+            {
+              "id": "modeling_eq1",
+              "label": "Equation for Condition 1 (sum of short and medium is 8 cm longer than longest):",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "s + m = l + 8",
+                "s + m + 8 = l",
+                "s + m + l = 8",
+                "s + m = 8l"
+              ],
+              "answer": "s + m = l + 8"
+            },
+            {
+              "id": "modeling_eq2",
+              "label": "Equation for Condition 2 (sum of medium and longest is 4 cm more than three times shortest):",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "m + l = 3s + 4",
+                "m + l + 4 = 3s",
+                "3m + l = s + 4",
+                "m + l = 4s + 3"
+              ],
+              "answer": "m + l = 3s + 4"
+            },
+            {
+              "id": "modeling_eq3",
+              "label": "Equation for Condition 3 (Perimeter is 72 cm):",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "s + m + l = 72",
+                "s + m = 72 - l",
+                "s · m · l = 72",
+                "s + m - l = 72"
+              ],
+              "answer": "s + m + l = 72"
+            }
+          ]
+        },
+        {
+          "questionId": "3x3-d2-pr-6",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.3A",
+              "role": "supporting"
+            }
+          ],
+          "type": "systemsWorkspace",
+          "mode": "algebraic",
+          "method": "elimination",
+          "studentActions": [
+            "solveSystem"
+          ],
+          "difficultyBand": 4,
+          "dok": 3,
+          "equations": [
+            "s + m - l = 8",
+            "-3s + m + l = 4",
+            "s + m + l = 72"
+          ],
+          "variables": [
+            "s",
+            "m",
+            "l"
+          ],
+          "requireVerification": true,
+          "prompt": "Solve the triangle modeling system you formulated. Use elimination: notice that Equation 1 has -l while Equations 2 and 3 have +l, making l straightforward to eliminate. Find the side lengths s, m, and l, and verify them in all three equations."
+        },
+        {
+          "questionId": "3x3-d2-pr-7-ccmr-rigor",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary",
+              "evidenceLevel": "assessed"
+            },
+            {
+              "framework": "act",
+              "domainId": "preparingHigherMath",
+              "role": "primary",
+              "evidenceMode": "direct"
+            }
+          ],
+          "assessmentContext": {
+            "framework": "act",
+            "examStyle": true
+          },
+          "type": "multiAnswer",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "difficultyBand": 4,
+          "dok": 3,
+          "prompt": "[College-Readiness / Honors Transfer] A student is analyzing a 3×3 linear system with a variable parameter c:\n(1) 2x + y - 3z = 5\n(2) x + 2y - 4z = 7\n(3) 6x + 3y - 9z = c\nThe first two equations intersect in a line in three-dimensional space.",
+          "answerFields": [
+            {
+              "id": "param_infinite",
+              "label": "For what value of c will the system have infinitely many solutions?",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "c = 15",
+                "c = 5",
+                "c = 0",
+                "c = -15"
+              ],
+              "answer": "c = 15"
+            },
+            {
+              "id": "param_none",
+              "label": "If c = 20, what is the solution set of the system?",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "No solution (Equation 3 is parallel to and distinct from Equation 1, creating a contradiction 0 = -5).",
+                "Infinitely many solutions.",
+                "Exactly one unique solution.",
+                "Exactly two distinct solutions."
+              ],
+              "answer": "No solution (Equation 3 is parallel to and distinct from Equation 1, creating a contradiction 0 = -5)."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Classification, Justification & Geometry",
+      "recommendedMinutes": 10,
+      "feedbackMode": "afterAssignmentSubmit",
+      "hintsAllowed": false,
+      "attemptsAllowed": 1,
+      "questions": [
+        {
+          "questionId": "3x3-d2-dol-1",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "type": "multiAnswer",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "difficultyBand": 3,
+          "dok": 2,
+          "prompt": "A student applies Gaussian elimination to a system of three linear equations in x, y, and z.\nAfter combining two equations to eliminate y, the resulting equation is:\n0 = 8.\nClassify the system and state the mathematical justification.",
+          "answerFields": [
+            {
+              "id": "dol1_classification",
+              "label": "Classification of the system:",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "Inconsistent (no solution)",
+                "Dependent (infinitely many solutions)",
+                "Consistent with a unique solution",
+                "Consistent with two solutions"
+              ],
+              "answer": "Inconsistent (no solution)"
+            },
+            {
+              "id": "dol1_reason",
+              "label": "Mathematical justification:",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "0 = 8 is a contradiction (false for all values of x, y, z), meaning the planes share no common intersection.",
+                "0 = 8 is an identity defining a plane parallel to the z-axis.",
+                "The number 8 is the z-coordinate of the unique intersection point.",
+                "The system has infinitely many solutions whenever the left side is 0."
+              ],
+              "answer": "0 = 8 is a contradiction (false for all values of x, y, z), meaning the planes share no common intersection."
+            }
+          ]
+        },
+        {
+          "questionId": "3x3-d2-dol-2",
+          "standard": "A2.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.3B",
+              "role": "primary"
+            }
+          ],
+          "type": "multiAnswer",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "difficultyBand": 3,
+          "dok": 3,
+          "prompt": "Suppose a 3×3 linear system of equations corresponds to three planes in space.\nTwo of the planes are parallel and never meet, while the third plane intersects both of them along two distinct parallel lines.\nWhich algebraic outcome would you encounter when eliminating variables in this system?",
+          "answerFields": [
+            {
+              "id": "dol2_algebra_connection",
+              "label": "Algebraic outcome of the elimination:",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "A contradiction such as 0 = k (where k ≠ 0) when combining the two parallel plane equations.",
+                "An identity 0 = 0 for all pairs of equations.",
+                "A unique ordered triple (x, y, z).",
+                "All coefficients becoming negative."
+              ],
+              "answer": "A contradiction such as 0 = k (where k ≠ 0) when combining the two parallel plane equations."
+            },
+            {
+              "id": "dol2_solution_count",
+              "label": "Number of solutions to the 3×3 system:",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "No solution (the three planes share no point in common).",
+                "Infinitely many solutions (the two parallel lines).",
+                "Exactly one unique solution.",
+                "Three separate solutions."
+              ],
+              "answer": "No solution (the three planes share no point in common)."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
