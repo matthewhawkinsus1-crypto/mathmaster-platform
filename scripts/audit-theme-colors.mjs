@@ -1,7 +1,10 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
-const roots = ['src/components/student', 'src/components/common', 'src/tools', 'src/platform/workflow'];
+// Scan the complete application source so top-level shared student runtime
+// files (App, QuestionEngine, MathInput, graph renderers, etc.) cannot bypass
+// the guard merely because they do not live under components/student.
+const roots = ['src'];
 const extensions = new Set(['.js', '.jsx', '.css']);
 const suspicious = /(?:background(?:-color)?\s*[:=]\s*['"]?|color\s*[:=]\s*['"]?)(#fff(?:fff)?|white|#202124|#000(?:000)?|black)\b/gi;
 const baseline = JSON.parse(readFileSync(new URL('./theme-color-baseline.json', import.meta.url), 'utf8'));

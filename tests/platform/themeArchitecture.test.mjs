@@ -25,3 +25,8 @@ test('both palettes define readable graph, status, and control contracts', () =>
     assert.ok(css.match(new RegExp(`--mm-${token}:`, 'g'))?.length >= 2, `missing two-theme token --mm-${token}`);
   }
 });
+
+test('dark mode styles only opt-in neutral buttons and preserves semantic states', () => {
+  assert.match(css, /:is\(\.mm-button-neutral, \[data-mm-button-variant='neutral'\]\)/);
+  assert.doesNotMatch(css, /#root button:not\(/, 'a global button override would erase selected, primary, warning, and destructive states');
+});

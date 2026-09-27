@@ -408,7 +408,7 @@ export default function EnlargeableFigure({
         </div>
       ) : null}
       {!enlarged ? (
-        <button ref={openerRef} type="button" onClick={openWorkView} disabled={shouldForceClose} style={CONTROL}>
+        <button ref={openerRef} className="mm-button-neutral" type="button" onClick={openWorkView} disabled={shouldForceClose} style={CONTROL}>
           ⤢ {enlargeLabel}
         </button>
       ) : null}
@@ -525,7 +525,7 @@ export default function EnlargeableFigure({
               // measure them. A capability that registered but rendered off the
               // bottom of a phone is not a control the student has.
               data-work-view-action={action.id || action.label}
-              className={/undo/i.test(String(action.id || action.label || '')) ? 'mathmaster-universal-undo' : undefined}
+              className={`mm-button-neutral${/undo/i.test(String(action.id || action.label || '')) ? ' mathmaster-universal-undo' : ''}`}
               data-undo-owner={/undo/i.test(String(action.id || action.label || '')) ? 'current-tool' : undefined}
               // Fit, pan and zoom move the camera and nothing else. Marked in
               // the DOM so the state-integrity gate can press them and assert

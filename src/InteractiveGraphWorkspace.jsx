@@ -1446,6 +1446,7 @@ export default function InteractiveGraphWorkspace({
           )}
 
           <button
+            className="mm-button-neutral"
             type="button"
             onClick={() => {
               if (stage === 'analysis' && inverseReflectionEnabled) {
@@ -1481,6 +1482,7 @@ export default function InteractiveGraphWorkspace({
               this surface a pinch would have to be taken from the gesture that
               places a point or the one that draws a stroke. */}
           <button
+            className="mm-button-neutral"
             type="button"
             onClick={() => zoomBy(1 / 1.4)}
             aria-label="Zoom in"
@@ -1489,6 +1491,7 @@ export default function InteractiveGraphWorkspace({
             +
           </button>
           <button
+            className="mm-button-neutral"
             type="button"
             onClick={() => zoomBy(1.4)}
             aria-label="Zoom out"

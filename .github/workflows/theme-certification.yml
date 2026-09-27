@@ -1,0 +1,56 @@
+name: Theme Readability Certification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "scripts/audit-theme-colors.mjs"
+      - "scripts/theme-color-baseline.json"
+      - "tests/browser/darkModeCertification.mjs"
+      - "tests/browser/workViewCertification*"
+      - "tests/platform/themeArchitecture.test.mjs"
+      - "package.json"
+      - ".github/workflows/theme-certification.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: theme-certification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  theme-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - name: Reject new hard-coded surface and text colors
+        run: npm run audit:theme-colors
+      - name: Test semantic theme architecture
+        run: node --test tests/platform/themeArchitecture.test.mjs tests/platform/nativeFormControlVisibility.test.mjs
+
+  browser-readability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false playwright@1.55.0
+      - run: npx playwright install --with-deps chromium
+      - name: Start theme certification harness
+        run: |
+          npx vite --host 127.0.0.1 --port 5199 --strictPort >/tmp/theme-vite.log 2>&1 &
+          for i in {1..60}; do curl -fsS http://127.0.0.1:5199/tests/browser/workViewCertification.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/theme-vite.log; exit 1
+      - name: Certify light and dark readability
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: npm run certify:dark-mode

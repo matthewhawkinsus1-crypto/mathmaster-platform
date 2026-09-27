@@ -406,7 +406,7 @@ export const MobileViewportContainer = ({
               <div className="question-prompt-heading">
                 <span>YOUR TASK</span>
                 {!isLandscape && (
-                  <button type="button" onClick={() => setIsPromptCollapsed((current) => !current)}>
+                  <button className="mm-button-neutral" type="button" onClick={() => setIsPromptCollapsed((current) => !current)}>
                     {isPromptCollapsed ? 'Show Prompt ▼' : 'Minimize ▲'}
                   </button>
                 )}
@@ -441,6 +441,7 @@ export const MobileViewportContainer = ({
               <div className="mathmaster-desktop-task-toggle-row">
                 {!isPromptCollapsed && <span>Your task</span>}
                 <button
+                  className="mm-button-neutral"
                   type="button"
                   onClick={() => setIsPromptCollapsed((current) => !current)}
                   aria-expanded={!isPromptCollapsed}

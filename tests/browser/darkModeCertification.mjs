@@ -27,16 +27,19 @@ for (const [device, width, height] of devices) {
       await page.locator(`[data-stage4-tool="${tool}"]`).waitFor();
       await page.waitForTimeout(300);
       const failures = await page.locator(`[data-stage4-tool="${tool}"]`).evaluate((root) => {
-        const rgb = (value) => (value.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+        const rgba = (value) => {
+          const channels = (value.match(/[\d.]+/g) || []).map(Number);
+          return { rgb: channels.slice(0, 3), alpha: channels.length > 3 ? channels[3] : 1 };
+        };
         const luminance = (value) => {
-          const channels = rgb(value).map((entry) => { const n = entry / 255; return n <= .03928 ? n / 12.92 : ((n + .055) / 1.055) ** 2.4; });
+          const channels = rgba(value).rgb.map((entry) => { const n = entry / 255; return n <= .03928 ? n / 12.92 : ((n + .055) / 1.055) ** 2.4; });
           return .2126 * channels[0] + .7152 * channels[1] + .0722 * channels[2];
         };
         const ratio = (a, b) => { const x = luminance(a); const y = luminance(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
         const background = (node) => {
           for (let current = node; current; current = current.parentElement) {
             const value = getComputedStyle(current).backgroundColor;
-            if (rgb(value)[3] !== 0 && value !== 'rgba(0, 0, 0, 0)') return value;
+            if (rgba(value).alpha > 0) return value;
           }
           return getComputedStyle(document.documentElement).backgroundColor;
         };

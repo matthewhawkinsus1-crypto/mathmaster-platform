@@ -252,15 +252,15 @@ math-field:focus-within {
 .mm-feedback-error { padding: 8px; border: 1px solid var(--mm-error-border); background: var(--mm-error-bg); color: var(--mm-error-text); }
 .question-prompt-heading button { color: var(--mm-primary) !important; }
 
-/* Historical question tools supplied neutral button colors inline.  This
-   shared dark-theme boundary prevents those light-only declarations from
-   outranking the palette while they migrate to the button primitive. */
-:root[data-theme='dark'] #root button:not(.mathmaster-success-next-question) {
+/* Opt-in compatibility primitive for neutral legacy actions. Stateful,
+   selected, primary, destructive, and game controls must retain their own
+   semantic palettes instead of being flattened by a global button override. */
+:root[data-theme='dark'] #root :is(.mm-button-neutral, [data-mm-button-variant='neutral']) {
   background: var(--mm-surface-raised) !important;
   color: var(--mm-text-strong) !important;
   border-color: var(--mm-border) !important;
 }
-:root[data-theme='dark'] #root button:not(.mathmaster-success-next-question) :is(span, strong, small) {
+:root[data-theme='dark'] #root :is(.mm-button-neutral, [data-mm-button-variant='neutral']) :is(span, strong, small) {
   color: inherit !important;
 }
 :root[data-theme='dark'] .mathmaster-success-next-question {

@@ -393,7 +393,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
                 point back, and unlike the local button it keeps working after a
                 point has been dragged. Start over is not undo — it discards
                 both points at once — so it stays. */}
-            <button type="button" onClick={clear} disabled={!points.length} style={{ ...secondaryButton, opacity: points.length ? 1 : 0.5 }}>
+            <button className="mm-button-neutral" type="button" onClick={clear} disabled={!points.length} style={{ ...secondaryButton, opacity: points.length ? 1 : 0.5 }}>
               Start over
             </button>
           </div>
