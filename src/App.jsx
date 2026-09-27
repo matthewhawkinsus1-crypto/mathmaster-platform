@@ -8251,7 +8251,14 @@ function App() {
           ) indices.push(index);
           return indices;
         }, []);
-        return questionIndices.length ? { assignment, state, questionIndices } : null;
+        if (!questionIndices.length) return null;
+        const assignmentGrades = tracker?.[assignment.id] || {};
+        const allCompleted = questionIndices.every((index) => {
+          const rec = normalizeQuestionRecord(assignmentGrades[index]);
+          return ['correct', 'expired'].includes(rec.status);
+        });
+        if (allCompleted) return null;
+        return { assignment, state, questionIndices };
       })
       .filter(Boolean)
       .sort((a, b) => Number(a.state.endsAt?.getTime?.() || 0) - Number(b.state.endsAt?.getTime?.() || 0));
