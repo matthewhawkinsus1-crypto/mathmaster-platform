@@ -6,8 +6,6 @@ Branch `ai/claude-3x3-synthesis-review` · base `2ebc5c01` (head of synthesis PR
 **Test target: the local branch build at `http://localhost:5173/`** (Vite from `~/mathmaster-platform`), never
 production. Production still runs `main`.
 
-> Status: in progress. Sections marked *pending* are still being worked.
-
 ## Environment and how the lesson was taken
 
 | Check | Result |
@@ -25,8 +23,9 @@ Day 1 lesson was therefore taken on the same local build through the lesson harn
 nothing to production. Dashboard-only items (Warm-Up banner, resume target, Finished vs Practice) need a signed-in
 student — see *Not verified live* below.
 
-Viewports: 1366×768 (Chromebook/laptop), page mode and Work View; 390×844 and 360×740 (phones) — *pending*.
-Input: mouse clicks, select-then-place, real HTML5 drag (`dragTo`), keyboard typing into MathLive fields.
+Viewports: 1366×768 (Chromebook/laptop), page mode and Work View; 390×844 (phone), Work View.
+Input: mouse clicks, select-then-place, real HTML5 drag (`dragTo`), the phone operation palette, keyboard typing into
+MathLive fields.
 
 ## Priority 1 — the synthesized core, end to end
 
@@ -34,6 +33,10 @@ Input: mouse clicks, select-then-place, real HTML5 drag (`dragTo`), keyboard typ
 | --- | --- | --- |
 | CW2 guided 3×3 (by hand) | eliminate y: E1 + E2 → R₁ x + 3z = 18; E2 + E3 → R₂ 2x + 3z = 21 → reduced 2×2 by elimination (R₁ − R₂, −x = −3, Step Algebra ÷ −1) → back-substitute z in R₁ (Step Algebra) → back-substitute x, z in E2 (one select-then-place, one real drag) → y = 1 → verify all three | Correct |
 | WU1 2×2 (by hand) | eliminate x by subtracting → 6y = −24 → Step Algebra; reload mid-solve | Resumed at the same Step Algebra stage; Undo walks back out of an extra move |
+| PR1 3×3 (by hand, **390×844 Work View**) | eliminate z: E1 + E2 → R₁ 2x + 2y = 2; E2 + E3 → R₂ 4x − y = −1 → reduced 2×2 by elimination with R₂ × 2 (typed 8x, −2y, −2) → R₁ + 2R₂ → 10x = 0 → Step Algebra ÷ 10 → back-substitute x = 0 in R₁: 2(0) + 2y = 2 → y = 1 → back-substitute into E2 → z = 2 → verify | Correct |
+| PR2 (by hand) | equations shown before the choice → Substitution → isolate y in E2 | Embedded solver integrated in the substitution route too |
+| CW1 (by hand) | three-plane model, page and Work View | 560×384 page; 560×560 in Work View, bottom at 766 of 768 — fits |
+| CW3 (by hand) | reveal the point, rotate by drag, choose the interpretation | (3, 1, 5) marked, pairwise lines through it; Correct |
 | CW2, PR3, DOL1 (driver) | `tests/browser/day1SystemsJourney.mjs` against `localhost:5173`: CW2 with a reload in round 2, PR3 ("requires thoughtful scaling", non-identity factors in both rounds), DOL1 under DOL rules | All graded correct, before and after every change here |
 
 Confirmed on the synthesized build:
@@ -101,6 +104,10 @@ Change (3×3 substitution and elimination; shared state in `substitutionReductio
 
 After: **3 placements, 3 typed left sides, 3 checks** (9 actions).
 
+Follow-up (`7bd8c47e`): on a phone the given value sat at the top of its box, because `MathDisplay`'s inline
+`display` beat the flex rule. It is now centred, and it is announced "Right side, as written: −1" instead of
+"Mathematical expression".
+
 Coverage: new cases in `systemsWorkspaceSubstitutionReduction.test.mjs` (fill, refusal, no reset of a checked
 equation, a given side on the left, both sides with variables) and `synthesis3x3StudentExperience.test.mjs` (token and
 an equation without the variable). Each was mutation-checked. The Day 1 journey driver now asserts three placements
@@ -108,7 +115,45 @@ substitute into all three equations and that no number side asks for input.
 
 Not changed: the 2×2 workspace (Warm-Up, PR6) keeps its own verification with a typed right side. See *Open*.
 
-### 2c. Narrow-screen progress trail — *pending*
+### 2c. Narrow-screen progress trail — **fixed** (`bf1bcd43`)
+
+390×844 Work View, PR1 after both elimination rounds, before the change:
+
+- the 3×3 trail was **207px**: seven labelled step pills over three rows, then every completed-work chip forced onto its
+  own full-width row (`grid-template-columns: 1fr` at ≤ 620px);
+- choosing Elimination for the reduced 2×2 added a second, **176px** trail — and the question the student had to
+  answer next ("Which variable will you eliminate?") was below the fold;
+- the five reference equations (three originals, R₁, R₂) were two-line cards, **360px**;
+- the embedded solver's tool row was **214px** ("Reset work" forced to a full-width row on touch).
+
+At ≤ 620px now:
+
+- one row of step badges (✓ or number); only the current step shows its name. The others keep theirs for assistive
+  tech — clipped, not `display: none`;
+- the completed work is still listed, wrapping inline — the student's history is kept, it just stops taking a row
+  per entry. Trails: **207 → 73px** and **176 → 73px**; the next question is on screen with R₁ and R₂;
+- each reference equation is one line with its name (originals 66 → 35px each; reference 360 → 305px, the R₁/R₂ lineage
+  still wraps);
+- embedded "Reset work" (this step only; the question keeps its own Reset) sits beside the hint switch:
+  tool row **214 → 160px**, button still 44px.
+
+At every width the trail now marks the current step `aria-current="step"` and says ", done" for completed steps —
+completion used to be carried only by an `aria-hidden` ✓.
+
+Coverage: `tests/platform/systemsNarrowTrail369.test.mjs`. Each assertion was mutation-checked: `display: none` on the
+labels, one chip per row, no `aria-current`, two-line reference cards, and a full-width Reset all turn it red.
+
+## Gates run locally against `localhost:5173` (this branch, after every change)
+
+| Gate | CI job | Result |
+| --- | --- | --- |
+| `tests/browser/day1SystemsJourney.mjs` | — | CW2, PR3, DOL1 graded correct; now also asserts one placement per value and no retyped numeric side |
+| `tests/browser/algebraicSystems3x3.mjs` | systems-substitution-browser | 8 journeys pass (Student View, Teacher Preview, reset, no-staged-preview, Chromebook and phone layout, no overflow) — verification step rewritten for the new flow |
+| `tests/browser/algebraicSubstitutionHandoff.mjs` | substitution-browser | 9 journeys pass — now reads the step name from the solver's tool row |
+| `tests/browser/workViewCertification.mjs` | certify (device) | chromebook 23/23, iphone-portrait 23/23; android-narrow: only `representationBridge` 2 clipped (the known pre-existing finding below); iphone-landscape: only `transformationsLab` and `graphing2` 1 clipped each (known, below). **`systemsWorkspace` passes on all four** |
+| `npm run test:platform` | full-platform / verify | 6381 / 6382 — the one failure is N6 (`googleapis` not installed locally) |
+| `npm run test:authoring-v5`, `tests/tools` | verify | 677 / 677, 179 / 179 |
+| `npm run lint`, `npm run build` | verify | pass |
 
 ## Priority 3 — PR #368 CI
 
@@ -133,8 +178,10 @@ representation tools this PR does not touch (`git diff --stat origin/main...HEAD
 | N2 | `RewriteLinearForm.jsx` | Also mounts Step Algebra with `onStepGrade={null}`, so the same false "Attempts remaining" footnote shows there. | Different tool; the `embedded` role or an `onStepGrade`-aware footnote would fix it. |
 | N3 | Step Algebra term names | Cancellation targets are announced "+ 3 * z, select to cancel" (parser syntax read aloud). | Engine labelling; outside the 3×3 synthesis. |
 | N4 | Reduced 2×2 by elimination | Uses the 2×2 "Prepare the equations" cards and a separate *Confirm marked cancellation* press, while the 3×3 rounds above it are stacked boards with no confirm; the prepared equations are shown twice. | A larger interaction change to the mature 2×2 workspace. |
-| N5 | 2×2 trail inside the 3×3 | Chip "✓ R₁ · 1 R₂ · 1" (scale factors of 1) is cryptic. | Minor; see 2c. |
+| N5 | 2×2 trail inside the 3×3 | Chip "✓ R₁ · 1 R₂ · 1" (scale factors as bare numbers after a dot) was cryptic. | **Fixed**: "R₁ as written · R₂ × 2" (covered in `systemsNarrowTrail369`, mutation-checked). |
 | N6 | Local test run | `classroomScheduledPublication.test.mjs` fails locally: `Cannot find module 'googleapis'` (a `functions/` dependency, not installed in this checkout). | Environmental; CI installs it (`full-platform` green on #368). |
+| N7 | Phone Work View | Escape (e.g. to dismiss the keypad from a math field) closes Work View. Nothing is lost, but it is easy to do by accident. | Work View shell behaviour, all tools. |
+| N8 | Step Algebra, PR1 on the phone | After back-substituting x = 0 the board reads 2(0) + 2y = 2; rewriting 2(0) as 0 leaves 0 + 2y = 2, and Rewrite / Simplify takes one term at a time, so the "0 +" cannot be dropped on its own (÷ 2 on both sides then works). | Engine behaviour; worth a look for zero terms. |
 
 ## Not verified live (need a signed-in student on `localhost:5173`)
 
