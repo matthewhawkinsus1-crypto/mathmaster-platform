@@ -11,7 +11,7 @@ import {
   predictionKind,
 } from './dataModelingMath';
 import useToolSubmission from '../shared/useToolSubmission';
-import { lineFitNamesPrediction, numberVisiblePanels } from './dataModelingPlan.js';
+import { lineFitNamesPrediction, lineFitUsesRegressionTechnology, numberVisiblePanels } from './dataModelingPlan.js';
 import { fitAdjustmentPlan, fitDataBounds, interactionIncrements, residualScale, stepFitControl } from '../../platform/graph/graphScaleService.js';
 
 const DEFAULT_POINTS = [[1,2],[2,3],[3,5],[4,5],[5,7],[6,8],[7,10]];
@@ -101,6 +101,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const mode = questionData.mode || 'full';
   // A hand fit that names a prediction target also asks for the prediction.
   const lineFitPrediction = lineFitNamesPrediction(mode, questionData);
+  const lineFitRegressionTechnology = lineFitUsesRegressionTechnology(mode, questionData);
   const regression = useMemo(() => linearRegression(points), [points]);
   const candidateModels = useMemo(() => buildCandidateModels(points, regression), [points, regression]);
   const bestModel = useMemo(() => chooseBestModel(candidateModels, questionData.modelMetric || 'rmse'), [candidateModels, questionData.modelMetric]);
@@ -149,6 +150,10 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const [predictionY, setPredictionY] = usePersistentToolState('predictionY', '');
   const [predictionType, setPredictionType] = usePersistentToolState('predictionType', FIT_PREDICTION_MODELS[mode] ? '' : 'interpolation');
   const [correlationEntry, setCorrelationEntry] = usePersistentToolState('correlationEntry', '');
+  // Technology starts closed. The regression coefficients are not visible until
+  // the student deliberately runs regression, preserving the estimate-first
+  // portion of a lineFit task while keeping the calculator in this workspace.
+  const [regressionTechnologyRun, setRegressionTechnologyRun] = usePersistentToolState('regressionTechnologyRun', false);
   // Neutral defaults are deliberate. Initialising these fields from the
   // regression result would put most of the answer in the boxes before the
   // student used technology to calculate it.
@@ -336,6 +341,41 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                 <div className="mathmaster-line-fit-steppers" style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0, 1fr))', gap:10, marginTop:12 }}>
                   <FitStepper label="Slope m" value={m} control={fitControls.slope} onChange={(value)=>{setM(value);clearFeedback();}} />
                   <FitStepper label="Intercept b" value={b} control={fitControls.intercept} onChange={(value)=>{setB(value);clearFeedback();}} />
+                  {lineFitRegressionTechnology ? (
+                    <section
+                      aria-label="Linear regression technology"
+                      style={{ gridColumn:'1 / -1', border:'1px solid #b9c8dc', borderRadius:10, padding:11, background:'#f8fbff' }}
+                    >
+                      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap' }}>
+                        <div>
+                          <strong style={{ color:'#174ea6' }}>Regression technology</strong>
+                          <div style={{ marginTop:3, color:'#5f6b7a', fontSize:12 }}>After making your estimate, run linear regression on the full data set.</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { setRegressionTechnologyRun(true); clearFeedback(); }}
+                          style={{ minHeight:42, border:'1px solid #174ea6', borderRadius:9, background:'#174ea6', color:'#fff', padding:'8px 12px', fontWeight:850 }}
+                        >
+                          Run linear regression
+                        </button>
+                      </div>
+                      {regressionTechnologyRun ? (
+                        <div data-line-fit-regression-result style={{ marginTop:10, display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap' }}>
+                          <output aria-live="polite" style={{ fontWeight:850, color:'#172033' }}>
+                            y = {round(regression.m, 3)}x {regression.b >= 0 ? '+' : '−'} {Math.abs(round(regression.b, 3))}
+                            <span style={{ marginLeft:10, color:'#5f6b7a', fontWeight:700 }}>r = {round(r, 3)}</span>
+                          </output>
+                          <button
+                            type="button"
+                            onClick={() => { setM(round(regression.m, 3)); setB(round(regression.b, 3)); clearFeedback(); }}
+                            style={{ minHeight:40, border:'1px solid #b9c8dc', borderRadius:9, background:'#fff', color:'#174ea6', padding:'7px 11px', fontWeight:850 }}
+                          >
+                            Use regression model
+                          </button>
+                        </div>
+                      ) : null}
+                    </section>
+                  ) : null}
                 </div>
               ) : (
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:12 }}>
