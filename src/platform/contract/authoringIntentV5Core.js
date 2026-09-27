@@ -946,7 +946,14 @@ const resolveIntentType = (q, actions) => {
     && Array.isArray(q.equations)
     && actions.includes('connectRepresentations');
   if (!isThreePlaneSpatialIntent && (q.representations || q.sets || actions.some((a) => ['connectRepresentations','findRepresentationMismatch'].includes(a)))) return 'representationMatch';
-  if (q.sequence || actions.some((a) => ['analyzeSequence','findSequenceTerm','findMissingTerm','writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence'].includes(a))) return 'sequenceExplorer';
+  const hasSequenceAction = actions.some((a) => ['analyzeSequence','findSequenceTerm','findMissingTerm','writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence'].includes(a));
+  // A sequence is mathematical context, not permission to replace an explicitly
+  // authored response contract. If the teacher supplied concrete response
+  // fields (for example a₅ + a₉, or one explicit-rule box) and only asked for
+  // multipleResponses, preserve those exact fields. SequenceExplorer owns the
+  // question only when semantic sequence actions ask it to build that workflow,
+  // or when no student-facing response fields were authored at all.
+  if (hasSequenceAction || (q.sequence && !hasStudentFacingResponseFields(q))) return 'sequenceExplorer';
   // A source table that only asks the student to classify the relation should
   // stay a table. Do not invent a mapping diagram merely because normalized
   // pairs are also present for grading.
@@ -1440,6 +1447,7 @@ const compileOne = (q, index, repairs) => {
         type,
         answerFields: orderDomainRangeResponseFields(fields.map(fieldFromIntent)),
         table: q.table,
+        sequence: q.sequence,
         graph: graphFromIntent(q),
         candidateGraphs: candidateGraphs.length ? candidateGraphs : undefined,
         visual: q.visual,

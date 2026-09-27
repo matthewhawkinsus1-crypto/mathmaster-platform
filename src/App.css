@@ -2094,3 +2094,57 @@
   }
 
 }
+
+
+/* Short laptop / zoomed classroom view: preserve the SAME navigation and task
+   context, but budget far less vertical chrome for it. At 1400×1000 (and at
+   common 67% classroom zoom) the stacked identity + navigator + task surfaces
+   otherwise consume a disproportionate share of the graphing workspace. This
+   is global student-workspace behavior, not an assignment-specific patch. */
+@media (min-width: 769px) and (max-height: 1050px) {
+  .mathmaster-assignment-unified-nav {
+    gap: 4px;
+    margin-bottom: 8px;
+    padding: 5px 7px;
+    border-radius: 10px;
+  }
+
+  .mathmaster-assignment-unified-top,
+  .mathmaster-assignment-unified-bottom,
+  .mathmaster-section-tabs {
+    gap: 4px;
+  }
+
+  .mathmaster-section-tab {
+    min-height: 32px;
+    padding: 3px 7px;
+  }
+
+  .mathmaster-unified-nav-back,
+  .mathmaster-overview-button,
+  .mathmaster-focus-view-button,
+  .mathmaster-unified-question-controls button,
+  .mathmaster-unified-question-controls select {
+    min-height: 32px;
+  }
+
+  .mathmaster-desktop-question-content .mathmaster-desktop-question-anchor {
+    margin-bottom: 6px;
+    padding-top: 0;
+  }
+
+  .mathmaster-desktop-question-content
+    .mathmaster-desktop-question-anchor
+    .mathmaster-current-question {
+    margin-top: 3px;
+    padding: 5px 10px 6px;
+  }
+
+  .mathmaster-desktop-question-anchor:not(.is-collapsed) .mathmaster-desktop-task-toggle-row {
+    top: 5px;
+  }
+
+  .mathmaster-assignment-screen {
+    scroll-padding-bottom: 72px;
+  }
+}

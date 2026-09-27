@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { lineFitNamesPrediction, numberVisiblePanels } from '../../src/tools/dataModeling/dataModelingPlan.js';
+import { lineFitNamesPrediction, lineFitUsesRegressionTechnology, numberVisiblePanels } from '../../src/tools/dataModeling/dataModelingPlan.js';
 import { componentSource, executableSource } from './helpers/sourceContract.mjs';
 
 // Live QA, Algebra I District DOL #2, Classwork Q6: "use the regression
@@ -34,4 +34,21 @@ test('DataModelingLab shows, locks and grades the line-fit prediction', () => {
   assert.match(source, /const fixedPredictionTarget = Boolean\(\(FIT_PREDICTION_MODELS\[mode\] \|\| lineFitPrediction\)/);
   // Checked against a LINEAR model: for this data a quadratic fits best by RMSE.
   assert.match(source, /const expectedPrediction = lineFitPrediction\s*\?\s*regression\.m \* Number\(predictionX\) \+ regression\.b/);
+});
+
+
+test('semantic fitDataModel enables regression technology inside a line-fit workspace', () => {
+  assert.equal(lineFitUsesRegressionTechnology('lineFit', { studentActions: ['analyzeData', 'fitDataModel', 'predictFromModel'] }), true);
+  assert.equal(lineFitUsesRegressionTechnology('lineFit', { studentActions: ['analyzeData'] }), false);
+  assert.equal(lineFitUsesRegressionTechnology('linearFitPrediction', { studentActions: ['fitDataModel'] }), false);
+});
+
+test('line-fit regression result is student-triggered and can populate the active model', () => {
+  const source = executableSource(componentSource('src/tools/dataModeling/DataModelingLab.jsx'));
+  assert.match(source, /usePersistentToolState\('regressionTechnologyRun', false\)/);
+  assert.match(source, />\s*Run linear regression\s*</);
+  assert.match(source, /regressionTechnologyRun \? \(/);
+  assert.match(source, /data-line-fit-regression-result/);
+  assert.match(source, /setM\(round\(regression\.m, 3\)\)/);
+  assert.match(source, /setB\(round\(regression\.b, 3\)\)/);
 });

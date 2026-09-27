@@ -11,7 +11,7 @@ import { resolveLabelFormat } from './labelFormat';
 import { inferRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 import { describeAnswerFormat } from './platform/interaction/answerFormatHints.js';
 import useUndoHistory from './useUndoHistory';
-import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from './platform/interaction/choiceOptions.js';
+import { choiceSeed, prepareFiniteChoiceSet, stableShuffleChoices } from './platform/interaction/choiceOptions.js';
 import { normalizePlainMathTypography } from './components/common/mathSegments.js';
 
 const TEXTUAL_MATH_SIGNAL = /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/;
@@ -72,11 +72,10 @@ const inferredBinaryOptions = (field) => {
 };
 
 const choiceOptionsForField = (field, seed = '') => {
-  const authored = Array.isArray(field?.options) && field.options.length
-    ? field.options
-    : inferredBinaryOptions(field);
-  if (!authored) return null;
-  return stableShuffleChoices(strengthenTwoChoiceSet(authored), seed);
+  const authored = Array.isArray(field?.options) && field.options.length ? field.options : null;
+  const options = authored || inferredBinaryOptions(field);
+  if (!options) return null;
+  return stableShuffleChoices(prepareFiniteChoiceSet(options, { authored: Boolean(authored) }), seed);
 };
 
 const shouldUsePlainTextInput = (field) => {

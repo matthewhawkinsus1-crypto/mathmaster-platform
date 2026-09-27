@@ -107,6 +107,11 @@ const FUNCTION_MODELING = {
     equation: (question) => ({
       id: 'equation',
       kind: 'equationInput',
+      // This stage asks for a FUNCTION RULE. It may accept an equivalent
+      // function name or a bare right-hand side. Other equationInput stages
+      // (axis of symmetry, solved equation, asymptote, etc.) must keep the
+      // equation's declared left side as part of the answer.
+      acceptEquivalentFunctionRule: true,
       prompt: question.equationPrompt || 'Write a function that models this situation.',
     }),
     table: (question, asked) => ({

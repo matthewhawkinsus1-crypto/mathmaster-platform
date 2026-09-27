@@ -174,6 +174,7 @@ import {
 import {
   SUBMISSION_DISPOSITION,
 } from '../functions/shared/studentSubmissionDisposition.mjs';
+import { resolveStudentAssignmentEntry } from './platform/student/assignmentEntry.js';
 import { EmptyState, ProgressBar, SearchField, StatCard } from './ui/primitives';
 import { buildStudentMasteryProfile, collectStudentEvidence } from './masteryEngine.js';
 import {
@@ -4574,6 +4575,51 @@ function App() {
     // explicitly requested. Never open one for a real student who holds the pass.
     if (hasPracticePass && !includedQuestionIndices.includes(safeQuestionIndex)) {
       safeQuestionIndex = includedQuestionIndices[0];
+    }
+
+    // Enter usable work, not merely the first stored question. Warm-Up and DOL
+    // have time windows of their own; Classwork and Practice use their section
+    // access policy. This changes navigation only — it never opens a locked
+    // section or rewrites its schedule. An explicit Classroom section launch is
+    // constrained to that section rather than silently jumping elsewhere.
+    if (user?.role === 'student' && !lifecycle.isPracticeOnly) {
+      const entryNow = Date.now();
+      const studentContext = { classId: user.classId || null, classPeriod: user.classPeriod };
+      const roleIsActionable = (role) => {
+        if (role === 'warmup') {
+          return getWarmupState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }).status === 'active';
+        }
+        if (role === 'dol') {
+          return getDOLState({ assignment: assignmentData, schedule: classSchedule, ...studentContext, nowValue: entryNow }).status === 'active';
+        }
+        if (role === 'classwork' || role === 'practice') {
+          return getSectionAccessState({
+            assignment: assignmentData,
+            activityRole: role,
+            ...studentContext,
+            studentId: user.id,
+            nowValue: entryNow,
+          }).isOpen;
+        }
+        return true;
+      };
+      const actionableIndex = resolveStudentAssignmentEntry({
+        entries: stageEntries,
+        includedQuestionIndices,
+        requestedQuestionIndex: safeQuestionIndex,
+        roleIsActionable,
+        restrictToRole: scopedSectionKey,
+      });
+      if (actionableIndex === null) {
+        toastInfo(
+          scopedSectionKey ? 'This section is not open right now' : 'Nothing open right now',
+          scopedSectionKey
+            ? 'This section is currently locked or outside its class window.'
+            : 'There is no student-actionable section in this assignment right now.',
+        );
+        return;
+      }
+      safeQuestionIndex = actionableIndex;
     }
     setActiveClassroomSectionKey(scopedSectionKey);
     // When Practice/Review was launched from Assignment Result, preserve that

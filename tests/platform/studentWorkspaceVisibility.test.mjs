@@ -393,3 +393,15 @@ test('a lock reason appears once', () => {
   const strip = engine.slice(engine.indexOf('className="mathmaster-question-attempt-strip"'), engine.indexOf('{dolMode && <div'));
   assert.match(strip, /: assignmentLocked\s*\?\s*\(assignmentLockedMessage \|\|/, 'the strip still states the reason');
 });
+
+
+test('short desktop viewports compact shared assignment chrome instead of shrinking the math workspace', () => {
+  const css = read('src/App.css');
+  const mediaStart = css.lastIndexOf('@media (min-width: 769px) and (max-height: 1050px)');
+  assert.ok(mediaStart >= 0, 'short-height desktop budget exists');
+  const compact = css.slice(mediaStart);
+  assert.match(compact, /\.mathmaster-assignment-unified-nav \{\s*gap: 4px;\s*margin-bottom: 8px;\s*padding: 5px 7px;/);
+  assert.match(compact, /\.mathmaster-section-tab \{\s*min-height: 32px;\s*padding: 3px 7px;/);
+  assert.match(compact, /\.mathmaster-current-question \{\s*margin-top: 3px;\s*padding: 5px 10px 6px;/);
+  assert.doesNotMatch(compact, /display:\s*none[^}]*mathmaster-current-question/, 'task context is compacted, not removed');
+});

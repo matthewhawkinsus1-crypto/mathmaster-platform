@@ -407,6 +407,22 @@ test('a bare number is not a solved equation', () => {
   assert.equal(gradeStage({ stage, rule: 'x=3', responses: { solve: '3' } }).isCorrect, false);
 });
 
+test('generic equation stages do not accept a bare side or renamed dependent variable', () => {
+  const stage = { id: 'equation', kind: 'equationInput' };
+  assert.equal(gradeStage({ stage, rule: 'y=2x+1', responses: { equation: '2x+1' } }).isCorrect, false);
+  assert.equal(gradeStage({ stage, rule: 'y=2x+1', responses: { equation: 'f(x)=2x+1' } }).isCorrect, false);
+  assert.equal(gradeStage({ stage, rule: 'x=3', responses: { equation: 'y=3' } }).isCorrect, false);
+});
+
+test('function-modelling equation stages accept equivalent function-rule notation only when opted in', () => {
+  const stage = { id: 'equation', kind: 'equationInput', acceptEquivalentFunctionRule: true };
+  for (const response of ['5x+40', 'f(x)=5x+40', 'g(n)=5n+40']) {
+    assert.equal(gradeStage({ stage, rule: 'V(t)=5t+40', responses: { equation: response } }).isCorrect, true, response);
+  }
+  assert.equal(gradeStage({ stage, rule: 'V(t)=5t+40', responses: { equation: '5x+41' } }).isCorrect, false);
+  assert.equal(gradeStage({ stage, rule: 'V(t)=5t+40', responses: { equation: '5x+40y' } }).isCorrect, false);
+});
+
 test('a domain or range in the letters the screen used is the same answer', () => {
   const [equation, domain, range] = ['equationInput', 'domainInput', 'rangeInput'].map(tankStageId);
   const graded = (model, domainText, rangeText) => gradeTank({
