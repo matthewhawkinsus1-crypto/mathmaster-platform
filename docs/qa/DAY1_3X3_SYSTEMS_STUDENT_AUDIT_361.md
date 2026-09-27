@@ -129,3 +129,120 @@ Evidence: `docs/qa/screenshots/361/P03…P17`; after-fix `L01`, `L02`, `L05`–`
 | Pr15 | Section load | Counted interactions | A 3×3 elimination solve took me ~85 interactions (CW2); Practice has four full 3×3 solves (PR1, PR2, PR3, PR5) plus a 3D item and a 2×2, recommended 48 min. PR2 by substitution was the longest (~110, two distributions and two standard forms) | Heavy but achievable for strong students; verification is ~20 % of each solve | Right-size verification (W7/C17) before trimming mathematics | No | I |
 
 Evidence: `docs/qa/screenshots/361/P18…P25`; after-fix `L03`, `L04`, `L09`, `L10`.
+
+---
+
+## DOL — solve and connect the geometry
+
+| # | Stage | What I did | What happened | Why it matters | Proposed | Done? | Cat · Device |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| D1 | Access | Opened DOL after school | Locked (opens 10 min before class end) — expected. On the local build the DOL rules held: one try, "DOL question" banner, no immediate correctness shown after *Check my work* | Healthy | — | — | — |
+| D2 | DOL1 by elimination | Worked the only kinds of route this system has | x + y + z = 3, 2x − y + 3z = 16, −x + 2y + z = −1: every variable has exactly one pair that needs no scaling, so **the second round always needs a factor** — impossible in production (C9) | The DOL could not be completed by the method it names | C9 fix; the driver solves it (eliminate y: E1 + E2, 2·E1 − E3 → 3x + 4z = 19, 3x + z = 7 → (1, −2, 4)) | **Yes** | P |
+| D3 | DOL2 prompt | Read DOL2 before DOL1 (the navigator allows it) | "…reveal the solution point **(1, −2, 4)**…" — DOL1's answer | A student can read the answer to the graded solve on the next question | Content: remove the coordinates from DOL2's prompt (a Preflight rule that flags one DOL item's text containing another's solution would catch this class) | No | A |
+| D4 | DOL2 reveal | Revealed | Stated the classification (C19) | Answers the interpretation item | Marks and labels the point only (L08) | **Yes** | P |
+| D5 | Time | Estimated from interaction counts | DOL1 ≈ 70–85 interactions (two rounds, a 2×2, back-substitution, 15 verification actions) + DOL2 ≈ 5; at 6–8 s each ≈ 9–12 min against 12 recommended | Doable without errors and with no hidden scaffolding once C9 is fixed; one mistake or the verification busywork pushes it over | Right-size verification (W7) | No | I |
+
+---
+
+## One workspace or a chain of tools? — answers to the issue's architecture questions
+
+**Before (production).** A 3×3 elimination was four visually different surfaces stitched together: the 3×3 round cards,
+then a nested copy of the whole 2×2 app (its own trail, its own method choice, its own Verify), then Step Algebra
+(dark operation rails, balance board, "Support 3 · Standard", its own attempt counter), then verification cards.
+Each surface erased the one before it. The student solved one system but re-oriented four times, and ended with no
+visible record of the elimination.
+
+- **Should the reduced 2×2 stay visually connected to the three equations?** Yes. The originals are pinned in the
+  reference column; the two rounds now stay above the 2×2 as written boards whose result rows *are* R₁ and R₂; the 2×2
+  names its equations R₁/R₂ throughout.
+- **Should the chosen pairs stay visible?** Yes — each finished round is a read-only board showing both equations (with
+  any factor, "· 2"), the struck target terms, the rule line and the result.
+- **Should completed scaling/cancellation work stay visible?** Yes for the rounds (done). The solved 2×2 folds to a
+  one-line summary with *Show my 2×2 work* (done). Back-substitution and the standalone 2×2 still collapse (not done).
+- **Should Step Algebra be embedded more deeply?** Yes, but visually, not structurally. It is correctly the engine for
+  every one-variable solve; what breaks continuity is its chrome inside Systems (support chips, "Nothing is simplified
+  for the student", a second attempt counter, dark rails). Recommended: a compact embedded presentation that uses the
+  workspace's equation typography and hides the standalone chrome. Not done.
+- **Is the current sequence right for a first-time learner?** The mathematical sequence is right; the *presentation*
+  was not. Recommended shape — one vertical worksheet: originals (pinned) → round 1 board → round 2 board → 2×2 board
+  (same interaction) → back-substitution → verification, with the trail reduced to a compact progress line on phones.
+  The first three steps of that are now on this branch.
+
+## UI / interaction questions from the issue
+
+| Question | Finding |
+| --- | --- |
+| "How to do this" timing/place | Collapsed by default above every tool — fine — but its content was generic (C5, C8). Method-specific now. |
+| Too much text before acting | Yes on 1366×768: long sticky prompt + chips + tries strip push the tool below the fold (C1, C7). |
+| Fonts, hierarchy, emphasis | Equations large and serif in boards and Step Algebra; choice buttons had no emphasis (C3, fixed); the 2×2's stacked rows were the best-read element and are now reused for 3×3 rounds. |
+| Work View keeps the task visible | Yes — task in the header, workspace larger; the rail's capability chips are noise (C21). |
+| New stages revealed naturally | Mixed: several stages opened below the fold (cancellation, combination). New round stages now scroll into view on appear. |
+| Equations large and stable | Yes, except the combination step where the equations scrolled away (C10, fixed). |
+| Drag/drop preview | Stable; neutral highlighting (C16). |
+| "token" | Present in four student-facing strings and several screen-reader labels (C15, Pr7) — removed; a contract test now scans the three systems screens. |
+| Needless Systems ↔ Step Algebra transitions | Each one-variable solve is a Step Algebra surface; necessary, but visually foreign (see above). |
+| Continuity as 3 → 2 → 1 equations | Now continuous for 3 → 2 (boards → R₁/R₂ → 2×2); 2 → 1 still hands off to Step Algebra. |
+| Feedback specificity | Round feedback is specific and non-revealing ("still has an x term…"); 3D wrong answers said only "Not yet" (C4, fixed). |
+| Recovering from a wrong strategic choice | Undo, *Choose a different pair*, *Change target*, *Change method* all work; the scale-factor dead end was the one unrecoverable choice (C9, fixed). |
+| Progress survives refresh/re-entry | Work: yes, exactly. Navigation: no — lands on locked Warm-Up (W1, Pr2). |
+| Laptop / narrow | 1366×768 cramped by chrome; 390 px usable but mostly chrome (Pr13). The new board has a narrow layout (L10); no horizontal scroll at 390. |
+
+---
+
+## What this branch changes, and how it was verified
+
+| Commit | Change | Findings |
+| --- | --- | --- |
+| `7ed7220` | Scale-factor dead end and render-time auto-accept fixed in `eliminationReduction.js` | C9, Pr5, Pr10, D2 |
+| `0306522` | 3×3 rounds as stacked, column-aligned boards (same controls as the 2×2) that stay on the page; solved 2×2 folds with *Show my 2×2 work*; `MathInput hideToolsToggle` (desktop only); 3×3 files join the persistence audit | C10, C11, C13, C18 |
+| `e9d8b07` | 2×2: neutral placeholders; neutral identity wording; R₁/R₂ naming, no subsystem Verify, Prepare waits for a target; "token" removed | W2, W3, W4, C12, C15, Pr1, Pr7 |
+| `a299be3` | 3D: radio choices + nudge, legible opening camera, labels kept in frame; equations on the method screen; method-specific directions | C2, C3, C4, C8, Pr4 |
+| `c2aaf13` | Browser harness for the whole lesson and a journey driver; source contracts | — |
+| `9e7e44a` | Substituted negatives keep parentheses; reveal marks/labels the point without classifying | W5, Pr12, C19, Pr11, D4 |
+
+Verification on the final head:
+
+- `npm run test:platform`: **6365 / 6366**. The one failure, `classroomScheduledPublication.test.mjs`, is
+  environmental (`Cannot find module 'googleapis'`, a functions-only dependency) and fails the same way without this branch.
+- New `eliminationScaleThroughRender.test.mjs` drives the engine the way the screen does (stored → repair → transition →
+  stored), including Practice 3 and the DOL; reverting either engine fix turns it red (4/5 and 1/2 tests).
+- New `systemsDay1Journey361.test.mjs` (14 contracts) — three were mutation-checked (placeholder leak, subsystem Verify,
+  finished-round visibility), plus the negative-parentheses rule.
+- Rewritten pinned-wording contracts in `systemsWorkspaceAlgebraicMode.test.mjs` assert the behaviour, not the old strings.
+- `tests/browser/day1SystemsJourney.mjs` (run against `npx vite`): solves CW2 (with a reload mid-round, both finished
+  rounds on the page, *Show my 2×2 work*), PR3 and DOL1 by elimination to a **graded-correct** submission, and checks the
+  CW1 choice styling; it audits every screen for "token" and previewed products. With the scale-factor fix reverted it
+  fails at the first scale step.
+- Also verified by hand on the local build: WU1, WU2, DOL2 graded correct; phone 390×844 round board, no horizontal scroll.
+- `npm run build` passes; `oxlint` reports no errors (existing warnings only). **Not run here:** `npm run test:rules`
+  (needs the Firestore emulator/Java — no rules changed) and `npm run build:firebase`.
+- **Not deployed.** Production still has every production finding above.
+
+---
+
+## Found, not implemented
+
+W1/Pr2 smart resume · Pr3 "Completed" categorisation · C1/C7 sticky task height · C5 CW1 steps · W6/C18 standalone-2×2
+and back-substitution work collapse · W7/C17 verification busywork and "(1)" notation · W8/Pr9 Simplify-arithmetic term
+handling · C14 Step Algebra display (−x/−1 strike, "−3 + 18", two attempt counters, third-person copy) · Pr8 merged
+negatives after an unsimplified isolation · Pr13 phone trail · C20 student's own triple on the 3D model · C21 Work View
+rail chips · Content: D3 DOL2 prompt prints DOL1's answer; Pr11 PR4 depends on PR3.
+
+## The five highest-value student-experience changes (structure allowed)
+
+1. **One worksheet, start to finish.** Every combination — both 3×3 rounds *and* the 2×2 — written as the same stacked
+   board and kept on the page; Step Algebra embedded in a compact mode that shares the worksheet's typography and drops its
+   standalone chrome. The student should never meet a second copy of an interface inside one problem. *(Rounds done;
+   2×2 already stacked; Step Algebra presentation not done.)*
+2. **Make every authored route completable, and prove it.** The scale-factor dead end made the honors question and the
+   DOL impossible for three weeks of students if unnoticed. Fix (done) plus a Preflight/CI check that runs the engine
+   through the render loop for every elimination question in an assignment, like the new driver does for Day 1.
+3. **An agency rule for every field and message: nothing derived from the answer key before the student acts.**
+   Placeholders, reveal text, render-time auto-checks and silent sign merges all broke it in this lesson. *(The cases
+   found are fixed; the rule should become a contract across tools.)*
+4. **Give the viewport back to the mathematics.** On a 1366×768 Chromebook the first screen of CW1 showed no model and
+   CW2's sticky prompt hid an equation: collapse the task to one line once the student starts, land on the live stage,
+   and use a one-line progress indicator on phones. *(Not done.)*
+5. **Right-size the non-mathematical work.** Verify with left-side arithmetic when the right side is a number, open
+   *Continue* on the first open unfinished question, and keep in-progress work out of "Completed". Together these remove
+   roughly a fifth of every solve's actions and every dead re-entry. *(Not done.)*
