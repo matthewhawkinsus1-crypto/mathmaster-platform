@@ -11,6 +11,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as R from '../../src/tools/systemsWorkspace/substitutionReduction.js';
+import { constantEquationSide } from '../../src/tools/systemsWorkspace/algebraicSystemsEngine.js';
 
 const SYSTEM = R.buildReductionSystem({ variables: ['x', 'y', 'z'], equations: ['x + y + z = 6', '2x - y + 3z = 9', '3x + 2y - z = 4'] });
 const REDUCED_SOLUTION = { y: 2, z: 3 };
@@ -262,6 +263,27 @@ test('a side that is already a number is given; the student evaluates the other 
   assert.equal(check(state, 'E2', { rightAnswer: '12' }), false);
   assert.equal(check(state, 'E3', { leftAnswer: '-1' }), false, 'an evaluated side cannot be skipped');
   assert.equal(check(state, 'E3', { leftAnswer: '-1', rightAnswer: '-1' }), true);
+});
+
+
+test('only a literal numeric value is given during verification; arithmetic still belongs to the student', () => {
+  assert.equal(constantEquationSide('x = 15', 'right', ['x']), '15');
+  assert.equal(constantEquationSide('x = -1', 'right', ['x']), '-1');
+  assert.equal(constantEquationSide('x = 20/9', 'right', ['x']), '20/9', 'exact fractions stay exact');
+  assert.equal(constantEquationSide('x = (-20/9)', 'right', ['x']), '(-20/9)', 'a signed exact fraction may be parenthesized');
+
+  assert.equal(constantEquationSide('x = 2 + 3', 'right', ['x']), null, 'constant arithmetic must still be evaluated by the student');
+  assert.equal(constantEquationSide('x = 6 - 1', 'right', ['x']), null);
+  assert.equal(constantEquationSide('x = 2 * 3', 'right', ['x']), null);
+  assert.equal(constantEquationSide('x = 1/0', 'right', ['x']), null, 'an invalid fraction is not a given value');
+
+  const system = R.buildReductionSystem({
+    variables: ['x', 'y', 'z'],
+    equations: ['x + y + z = 2 + 3', 'x - y + z = -1', '2x + y - z = 20/9'],
+  });
+  assert.deepEqual(R.verificationGivenSides(system, 'E1'), { left: null, right: null }, '2 + 3 still needs student arithmetic');
+  assert.deepEqual(R.verificationGivenSides(system, 'E2'), { left: null, right: '-1' });
+  assert.deepEqual(R.verificationGivenSides(system, 'E3'), { left: null, right: '20/9' });
 });
 
 test('a student can leave after ANY phase and come back to exactly the same work', () => {
