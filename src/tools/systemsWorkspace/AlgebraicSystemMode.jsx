@@ -399,9 +399,13 @@ export function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, dra
   return (
     // data-work-view-focus: opening Work View brings the live solver into
     // view instead of the workflow's header cards.
-    <div ref={hostRef} tabIndex={-1} className="mathmaster-systems-embedded-step-algebra" data-work-view-focus="true">
-      {label ? <div style={{ marginBottom: 8, fontWeight: 800 }}>{label}</div> : null}
+    // `embedded` (#369): one worksheet step, not a second application — the
+    // step's name sits on Step Algebra's own tool row, and the solver drops
+    // the badge, footnote and tries this question already shows once.
+    <div ref={hostRef} tabIndex={-1} className="mathmaster-systems-embedded-step-algebra" data-work-view-focus="true" aria-label={label || undefined} role={label ? 'group' : undefined}>
       <StepByStepAlgebraCore
+        embedded
+        embeddedTitle={label}
         key={embeddedEquationIdentity}
         question={question}
         questionRecord={null}

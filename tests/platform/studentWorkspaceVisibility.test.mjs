@@ -358,10 +358,16 @@ test('phone operation palette tiles fill their column', () => {
 });
 
 // Live QA round 2, 390×844 Work View: nested padding left the board 267px.
+// #369: the embedded solver is no longer its own card, so its phone padding is
+// top-only ("6px 0 0") — what matters is that no layer pads the sides by more
+// than a few pixels.
 test('phone Work View trims nested padding around the math', () => {
   const css = read('src/components/common/WorkViewShell.css');
   for (const layer of ['mathmaster-work-view-surface', 'mathmaster-tool-shell-body', 'mathmaster-tool-panel', 'mathmaster-systems-embedded-step-algebra']) {
-    assert.match(css, new RegExp(`\\[data-open="true"\\]\\[data-layout="mobile"\\] \\.${layer} \\{ padding: \\d+px !important; \\}`), layer);
+    const rule = css.match(new RegExp(`\\[data-open="true"\\]\\[data-layout="mobile"\\] \\.${layer} \\{ padding: (\\d+)px(?: (\\d+)(?:px)? (\\d+)(?:px)?)? !important; \\}`));
+    assert.ok(rule, layer);
+    const sidePadding = Number(rule[2] ?? rule[1]);
+    assert.ok(sidePadding <= 8, `${layer} pads the sides by ${sidePadding}px`);
   }
 });
 

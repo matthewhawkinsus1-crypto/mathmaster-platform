@@ -1404,3 +1404,58 @@
   }
 
 }
+
+/* --------------------------------------------------------------------------
+ * Embedded in another tool's worksheet (Systems Workspace, #369)
+ * One step of a larger problem: the step's name and target share the tool
+ * row, and a one-line equation no longer sits in a board sized for a whole
+ * standalone question. Floors only — a fraction or a long side still grows the
+ * board — and every control keeps a 44px target. Phone tap layout and Work
+ * View focus mode keep their own, more specific sizing.
+ */
+.algebra-embedded-heading {
+  display: flex;
+  flex: 1 1 220px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  min-width: 0;
+}
+
+.algebra-embedded-heading strong {
+  color: #172033;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.algebra-embedded-heading span {
+  color: #137333;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.algebra-embedded > details {
+  font-size: 14px;
+}
+
+.algebra-embedded .algebra-connected-balance {
+  min-height: 212px;
+  padding: 12px 16px 24px;
+}
+
+.algebra-embedded .algebra-connected-side {
+  min-height: 164px;
+  padding: 16px 14px 20px;
+}
+
+@media (min-width: 621px) {
+  .algebra-embedded .algebra-rail {
+    gap: 6px;
+    padding: 5px;
+  }
+
+  .algebra-embedded .algebra-rail-tile {
+    width: 46px;
+    height: 46px;
+  }
+}

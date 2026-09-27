@@ -48,14 +48,20 @@
   min-width: 0;
 }
 
+/* The solver is one step of the worksheet it sits in (#369): no second card
+   inside the stage card, just a rule separating it from the step above. */
 .mathmaster-systems-embedded-step-algebra {
   width: 100%;
   min-width: 0;
-  padding: 12px;
-  border: 1px solid #b8cdf0;
-  border-radius: 12px;
-  background: #f8fbff;
+  padding: 10px 0 0;
+  border-top: 1px solid #d5e1f5;
   box-sizing: border-box;
+}
+
+/* Focus lands here only so the next Tab reaches the solver's first control,
+   which draws its own ring; outlining the whole step reads as an error box. */
+.mathmaster-systems-embedded-step-algebra:focus {
+  outline: none;
 }
 
 /* Do not let a nested balance board inherit a narrow "card" feeling once the
@@ -216,7 +222,7 @@
 }
 
 .mathmaster-work-view-host[data-open="true"] .mathmaster-systems-embedded-step-algebra {
-  padding: 14px;
+  padding: 12px 0 0;
 }
 
 @media (max-width: 980px) {
@@ -237,7 +243,7 @@
 
 @media (max-width: 620px) {
   .mathmaster-systems-embedded-step-algebra {
-    padding: 8px;
+    padding: 8px 0 0;
   }
 
   .mathmaster-systems-substitution-stage {
