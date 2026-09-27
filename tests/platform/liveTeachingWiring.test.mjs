@@ -38,7 +38,15 @@ test('Walkthrough launch gives resume lookup only a tiny budget and falls back t
 test('Restart Fresh bypasses resume lookup and explicitly requests a clean session', () => {
   const teach = region(app, 'const teachAssignmentLive = ', 'const resumeLiveTeaching = ', 'teachAssignmentLive');
   assert.match(teach, /if \(forceRestart\) \{\s*startFresh\(\);\s*return;/);
-  assert.match(monitor, /onTeach\(liveTeachingAssignmentId, \{ forceRestart: true \}\)/);
+  assert.match(monitor, /onTeach\(liveTeachingAssignmentId, \{ forceRestart: true, classId: activeClassId \}\)/);
+});
+
+test('Live Classroom launches with the class that is actually in session even when the global class bar is unset', () => {
+  const teach = region(app, 'const teachAssignmentLive = ', 'const resumeLiveTeaching = ', 'teachAssignmentLive');
+  assert.match(teach, /classId: requestedClassId = null/);
+  assert.match(teach, /const classId = requestedClassId \|\| activeClass\?\.classId \|\| null/);
+  assert.match(monitor, /onTeach\(choiceId, \{ classId: activeClassId \}\)/);
+  assert.match(monitor, /onTeach\(liveTeachingAssignmentId, \{ forceRestart: true, classId: activeClassId \}\)/);
 });
 
 test('resuming teaching re-enters the runtime WITHOUT resetting the tracker, scratchpads, or preview session', () => {
@@ -64,6 +72,10 @@ test('navigating the exemplar keeps the Live Teaching session synced to the REAL
   assert.match(body, /advanceLiveTeachingSession\(session, \{/);
   assert.match(body, /storageQuestionIndex: currentQuestionIndex,/);
   assert.match(body, /activityRole: activeQuestionRole,/);
+});
+
+test('Restart Fresh inside the exemplar preserves the live session class context', () => {
+  assert.match(app, /teachAssignmentLive\(assignment\.id, \{ forceRestart: true, classId: liveTeachingSession\?\.classId \|\| activeClass\?\.classId \|\| null \}\)/);
 });
 
 test('returning to Live Classroom from a live-taught exemplar preserves the exemplar position (routes home, not to Assignments)', () => {
