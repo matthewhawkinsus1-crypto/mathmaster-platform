@@ -139,3 +139,12 @@ test('new assignments persist the ten-minute Warm-Up close default', () => {
   assert.match(app, /closeMinutesAfterStart: 10/);
   assert.match(app, /manual-reopen-until-class-end/);
 });
+
+test('Warm-Up banner suppresses display once the student has completed all warmup questions', () => {
+  const app = read('src/App.jsx');
+  const banner = region(app, 'const renderStudentWarmupBanner =', 'const renderIdleOverlay =', 'Warm-Up banner');
+  assert.match(banner, /const assignmentGrades = tracker\?\.\[assignment\.id\] \|\| \{\};/);
+  assert.match(banner, /normalizeQuestionRecord\(assignmentGrades\[index\]\)/);
+  assert.match(banner, /\['correct', 'expired'\]\.includes\(rec\.status\)/);
+  assert.match(banner, /if \(allCompleted\) return null;/);
+});

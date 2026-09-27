@@ -7,10 +7,12 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 import { TOOL_STATE_PERSISTENCE } from '../../src/tools/toolStatePersistence.js';
 
 const reduction = executableSource(componentSource('src/tools/systemsWorkspace/SubstitutionReductionMode.jsx'));
+const eliminationMode = executableSource(componentSource('src/tools/systemsWorkspace/EliminationReductionMode.jsx'));
 const twoByTwo = executableSource(componentSource('src/tools/systemsWorkspace/AlgebraicSystemMode.jsx'));
 const workspace = executableSource(componentSource('src/tools/systemsWorkspace/SystemsWorkspace.jsx'));
 const methodDispatch = executableSource(componentSource('src/tools/systemsWorkspace/Algebraic3SystemMode.jsx'));
@@ -201,4 +203,26 @@ test('one Work View host, originals always visible, and SubstitutionReductionMod
   assert.doesNotMatch(reduction, />Elimination</);
   // An unsupported system reaches the student as an explanation, never a crash or a wrong grade.
   assert.match(reduction, /const unsupported = answerKey\.type !== 'unique';/);
+});
+
+test('the 3×3 method choice displays original equations so the student can inspect the system before deciding', () => {
+  assert.match(methodDispatch, /<div className="mathmaster-reduction-reference" aria-label="Original equations"/);
+  assert.match(methodDispatch, /config\.equations\.map\(\(eq, index\) =>/);
+  assert.match(methodDispatch, /<MathDisplay value=\{eq\} format="ascii-math"/);
+});
+
+test('verification tokens remain armed across equations while any equation still needs that variable', () => {
+  assert.match(eliminationMode, /if \(current\.kind === 'verification'\)/);
+  assert.match(eliminationMode, /const stillNeeds = system\.equations\.some\(/);
+  assert.match(eliminationMode, /stillNeeds \? current : null/);
+
+  assert.match(reduction, /if \(current\.kind === 'verification'\)/);
+  assert.match(reduction, /const stillNeeds = system\.equations\.some\(/);
+  assert.match(reduction, /stillNeeds \? current : null/);
+});
+
+test('three-plane workspace constrains 3D SVG height on compact laptop viewports', () => {
+  const css = fs.readFileSync('src/tools/systemsWorkspace/ThreePlaneWorkspace.css', 'utf8');
+  assert.match(css, /\.mathmaster-threeplane-viewport svg[\s\S]*?max-height:\s*min\(500px,\s*50vh\)/);
+  assert.match(css, /\.mathmaster-work-view-surface\[data-enlarged="true"\][\s\S]*?max-height:\s*min\(720px,\s*75vh\)/);
 });
