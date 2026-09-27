@@ -11,6 +11,7 @@ import {
   predictionKind,
 } from './dataModelingMath';
 import useToolSubmission from '../shared/useToolSubmission';
+import { lineFitNamesPrediction, numberVisiblePanels } from './dataModelingPlan.js';
 import { fitAdjustmentPlan, fitDataBounds, interactionIncrements, residualScale, stepFitControl } from '../../platform/graph/graphScaleService.js';
 
 const DEFAULT_POINTS = [[1,2],[2,3],[3,5],[4,5],[5,7],[6,8],[7,10]];
@@ -98,6 +99,8 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
     Array.isArray(pair) ? pair : [Number(pair?.x), Number(pair?.y)]
   ));
   const mode = questionData.mode || 'full';
+  // A hand fit that names a prediction target also asks for the prediction.
+  const lineFitPrediction = lineFitNamesPrediction(mode, questionData);
   const regression = useMemo(() => linearRegression(points), [points]);
   const candidateModels = useMemo(() => buildCandidateModels(points, regression), [points, regression]);
   const bestModel = useMemo(() => chooseBestModel(candidateModels, questionData.modelMetric || 'rmse'), [candidateModels, questionData.modelMetric]);
@@ -190,22 +193,34 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const studentMetrics = useMemo(() => modelMetrics(points, studentPredict), [points, studentPredict]);
   const expectedModelId = forcedModelId || questionData.expectedModel || bestModel?.id || 'linear';
   const expectedModel = candidateModels.find((entry) => entry.id === expectedModelId) || candidateModels[0];
-  const expectedPrediction = expectedModel ? modelFunction(expectedModel)(Number(predictionX)) : Number.NaN;
+  // A line-fit prediction is made with a LINEAR model, whatever family happens
+  // to fit these points best.
+  const expectedPrediction = lineFitPrediction
+    ? regression.m * Number(predictionX) + regression.b
+    : (expectedModel ? modelFunction(expectedModel)(Number(predictionX)) : Number.NaN);
   const expectedPredictionType = predictionKind(points, predictionX);
 
-  const requiredParts = mode === 'lineFit' || FIT_ONLY_MODELS[mode] ? ['fit']
+  const requiredParts = mode === 'lineFit' || FIT_ONLY_MODELS[mode] ? (lineFitPrediction ? ['fit', 'prediction'] : ['fit'])
     : FIT_PREDICTION_MODELS[mode] ? ['fit', 'prediction']
       : mode === 'association' ? ['association']
         : mode === 'correlation' ? ['correlation', 'correlationInterpretation']
           : mode === 'prediction' ? ['prediction']
             : mode === 'modelCompare' ? ['modelChoice']
               : ['fit', 'association', 'modelChoice', 'prediction'];
-  const fixedPredictionTarget = Boolean(FIT_PREDICTION_MODELS[mode] && questionData.predictionX !== undefined && questionData.predictionX !== null);
+  const fixedPredictionTarget = Boolean((FIT_PREDICTION_MODELS[mode] || lineFitPrediction) && questionData.predictionX !== undefined && questionData.predictionX !== null);
+  const asksPredictionType = !lineFitPrediction;
   const showModelEntry = mode === 'full' || mode === 'lineFit' || Boolean(FORCED_FIT_MODELS[mode]);
   const showAssociationPanel = mode === 'full' || mode === 'association' || mode === 'correlation';
   const showResidualPanel = mode === 'full' || mode === 'lineFit' || Boolean(FORCED_FIT_MODELS[mode]);
   const showModelComparePanel = mode === 'full' || mode === 'modelCompare';
-  const showPredictionPanel = mode === 'full' || mode === 'prediction' || Boolean(FIT_PREDICTION_MODELS[mode]);
+  const showPredictionPanel = mode === 'full' || mode === 'prediction' || Boolean(FIT_PREDICTION_MODELS[mode]) || lineFitPrediction;
+  const panelNumbers = numberVisiblePanels([
+    ['model', true],
+    ['association', showAssociationPanel],
+    ['residual', showResidualPanel],
+    ['compare', showModelComparePanel],
+    ['prediction', showPredictionPanel],
+  ]);
   const linearModelReady = parseNumericAnswer(m) != null && parseNumericAnswer(b) != null;
   const nonlinearModelReady = (mode === 'quadraticFitPrediction' || mode === 'quadraticFit')
     ? [quadraticA, quadraticB, quadraticC].every((value) => parseNumericAnswer(value) != null)
@@ -257,7 +272,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
     const predicted = parseNumericAnswer(predictionY);
     results.prediction = predicted != null && Number.isFinite(expectedPrediction)
       && Math.abs(predicted - expectedPrediction) <= predictionTolerance
-      && predictionType === expectedPredictionType;
+      && (!asksPredictionType || predictionType === expectedPredictionType);
 
     const scored = requiredParts.map((part) => results[part]);
     const score = scored.filter(Boolean).length / scored.length;
@@ -290,7 +305,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
     >
       <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.full} steps={MODE_STEPS[mode] || MODE_STEPS.full} />
       <ToolGrid min={350}>
-        <Panel title="1 · Scatter plot and your model">
+        <Panel title={`${panelNumbers.model} · Scatter plot and your model`}>
           <CoordinatePlane
             xMin={xMin} xMax={xMax} yMin={yMin} yMax={yMax}
             points={points.map(([x,y]) => ({ x, y }))}
@@ -349,7 +364,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
           )}
         </Panel>
 
-        {showAssociationPanel ? <Panel title={mode === 'correlation' ? '2 · Correlation interpretation' : '2 · Association and causation'}>
+        {showAssociationPanel ? <Panel title={`${panelNumbers.association} · ${mode === 'correlation' ? 'Correlation interpretation' : 'Association and causation'}`}>
           {mode === 'correlation' ? (
             <div style={{ marginBottom:12 }}>
               <Field label="Correlation coefficient r">
@@ -389,7 +404,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
           </div>
         </Panel> : null}
 
-        {showResidualPanel ? <Panel title="3 · Residual evidence">
+        {showResidualPanel ? <Panel title={`${panelNumbers.residual} · Residual evidence`}>
           {studentModelReady ? (
             <div>
               <ResidualPlot rows={studentResiduals} xMin={xMin} xMax={xMax} />
@@ -406,7 +421,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
           )}
         </Panel> : null}
 
-        {showModelComparePanel ? <Panel title="4 · Compare model families">
+        {showModelComparePanel ? <Panel title={`${panelNumbers.compare} · Compare model families`}>
           <div style={{ display:'grid', gap:8 }}>
             {candidateModels.map((entry) => (
               <label key={entry.id} style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:10, alignItems:'center', padding:10, border:'1px solid #dde5f0', borderRadius:10, background:modelChoice===entry.id?'#eef4ff':'#fff' }}>
@@ -418,15 +433,15 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
           <p style={{ color:'#5f6b7a', fontSize:13 }}>Pick the model with the smaller residual error <em>and</em> a shape that makes sense for what the data describes. A model that fits these points slightly better but predicts something impossible is the wrong choice.</p>
         </Panel> : null}
 
-        {showPredictionPanel ? <Panel title="5 · Prediction and reasonableness">
+        {showPredictionPanel ? <Panel title={`${panelNumbers.prediction} · ${asksPredictionType ? 'Prediction and reasonableness' : 'Prediction'}`}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
             <Field label="Predict at x ="><input type="number" value={predictionX} readOnly={fixedPredictionTarget} aria-readonly={fixedPredictionTarget} onChange={(e)=>{if (!fixedPredictionTarget) setPredictionX(e.target.value);}} style={{...inputStyle, background:fixedPredictionTarget?'#f1f3f4':'#fff'}}/></Field>
             <Field label="Predicted y"><input type="number" step="0.1" value={predictionY} onChange={(e)=>setPredictionY(e.target.value)} style={inputStyle}/></Field>
           </div>
-          <Field label="This prediction is..."><select value={predictionType} onChange={(e)=>setPredictionType(e.target.value)} style={inputStyle}>{FIT_PREDICTION_MODELS[mode] ? <option value="">Choose…</option> : null}<option value="interpolation">Interpolation</option><option value="extrapolation">Extrapolation</option></select></Field>
-          <div style={{ marginTop:12, padding:11, borderRadius:10, background:'#f8fbff', color:'#4b5563', fontSize:13 }}>
+          {asksPredictionType ? <Field label="This prediction is..."><select value={predictionType} onChange={(e)=>setPredictionType(e.target.value)} style={inputStyle}>{FIT_PREDICTION_MODELS[mode] ? <option value="">Choose…</option> : null}<option value="interpolation">Interpolation</option><option value="extrapolation">Extrapolation</option></select></Field> : null}
+          {asksPredictionType ? <div style={{ marginTop:12, padding:11, borderRadius:10, background:'#f8fbff', color:'#4b5563', fontSize:13 }}>
             Interpolation predicts inside the observed x-range. Extrapolation goes beyond the data and should be treated more cautiously.
-          </div>
+          </div> : null}
         </Panel> : null}
 
         <Panel title="Submit model reasoning">
