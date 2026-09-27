@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createFieldEchoGuard } from './platform/interaction/fieldEchoGuard.js';
 import 'mathlive';
 import { requiredAnswerToolForSymbol, resolveRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 import { buildMobileMathTools } from './platform/interaction/mobileKeypadPolicy.js';
@@ -221,6 +222,14 @@ export default function MathInput({
 }) {
   const mfRef = useRef(null);
   const onChangeRef = useRef(onChange);
+  // Every value this field reports upward goes through `emit`, so the prop
+  // sync below can tell its own late echo from a change made elsewhere.
+  const echoGuardRef = useRef(null);
+  if (!echoGuardRef.current) echoGuardRef.current = createFieldEchoGuard();
+  const emit = useCallback((next) => {
+    echoGuardRef.current.emitted(next);
+    onChangeRef.current(next);
+  }, []);
   const [showTools, setShowTools] = useState(showToolsInitially || requiredSymbols.length > 0);
   const [isMobile, setIsMobile] = useState(detectMobileInput);
 
@@ -310,7 +319,7 @@ export default function MathInput({
     window.mathVirtualKeyboard?.hide?.();
 
     const handleInput = () => {
-      onChangeRef.current(mathField.value);
+      emit(mathField.value);
       stabilizeMobileViewport();
     };
 
@@ -335,7 +344,7 @@ export default function MathInput({
         event.preventDefault();
         event.stopPropagation();
         mathField.executeCommand?.('moveAfterParent');
-        onChangeRef.current(mathField.value);
+        emit(mathField.value);
         stabilizeMobileViewport();
         return;
       }
@@ -368,11 +377,14 @@ export default function MathInput({
       mathField.removeEventListener('keydown', preventUnusedModes, { capture: true });
       mathField.removeEventListener('contextmenu', preventContextMenu);
     };
-  }, [placeholder, isMobile, toolProfile, onSubmit, shouldSuppressNativeKeyboard, stabilizeMobileViewport]);
+  }, [placeholder, isMobile, toolProfile, onSubmit, shouldSuppressNativeKeyboard, stabilizeMobileViewport, emit]);
 
+  // A value the field itself emitted and has since typed past is not written
+  // back: that is how fast typing lost characters (see fieldEchoGuard.js).
   useEffect(() => {
-    if (mfRef.current && mfRef.current.value !== value) {
-      mfRef.current.value = value || '';
+    const mathField = mfRef.current;
+    if (mathField && echoGuardRef.current.shouldWrite(mathField.value, value)) {
+      mathField.value = value || '';
       stabilizeMobileViewport();
     }
   }, [value, stabilizeMobileViewport]);
@@ -405,9 +417,9 @@ export default function MathInput({
     if (!mathField) return;
     mathField.focus({ preventScroll: true });
     mathField.executeCommand?.('undo');
-    onChangeRef.current(mathField.value);
+    emit(mathField.value);
     stabilizeMobileViewport();
-  }, [stabilizeMobileViewport]);
+  }, [stabilizeMobileViewport, emit]);
 
   useEffect(() => {
     onUndoStateChange?.({
@@ -424,7 +436,7 @@ export default function MathInput({
     mathField.focus({ preventScroll: true });
     if (action) {
       mathField.executeCommand?.(action);
-      onChangeRef.current(mathField.value);
+      emit(mathField.value);
       stabilizeMobileViewport();
       return;
     }
@@ -432,9 +444,9 @@ export default function MathInput({
       insertionMode: 'replaceSelection',
       selectionMode: /#0|#\?/.test(command) ? 'placeholder' : 'after',
     });
-    onChangeRef.current(mathField.value);
+    emit(mathField.value);
     stabilizeMobileViewport();
-  }, [stabilizeMobileViewport]);
+  }, [stabilizeMobileViewport, emit]);
 
   const borderColor = inputStatus === 'incorrect'
     ? '#d93025'
