@@ -222,7 +222,100 @@ Day 2 builds directly on the Day 1 foundation (PR #368 / PR #370) without retrea
 ## Local Verification & Student Run Check
 
 - **Local Host:** `http://localhost:5173/`
+- **Dev Server Task:** Background task running `npm run dev -- --host 0.0.0.0`
+- **Browser Test Harness:** `http://localhost:5173/tests/browser/day2SystemsJourney.html` mounted with `QuestionEngine`
 - **Build & Preflight Status:**
-  - `buildAssignmentV5PreflightModel`: `isValid: true`, `errors: []`.
-  - Pacing budget: Classwork planned time is well within the 20-minute cap.
-  - Section roles and attempts: Warm-Up (3 attempts), Classwork (3 attempts), Practice (3 attempts), DOL (1 attempt, delayed feedback).
+  - `buildAssignmentV5PreflightModel`: `isValid: true`, `errors: []` (Zero blocking errors).
+  - Pacing budget: Classwork planned time is 1200s (20 minutes), perfectly satisfying the 20-minute cap.
+  - Section roles and attempts:
+    - Warm-Up: 2 questions, 3 attempts allowed, instant feedback.
+    - Classwork: 3 questions, 3 attempts allowed, instant feedback.
+    - Practice: 7 questions, 3 attempts allowed, instant feedback.
+    - DOL: 2 questions, 1 attempt allowed, delayed feedback until assignment completion.
+
+---
+
+## Live Student Testing Evidence (Playwright Walkthrough)
+
+All 14 questions were student-tested end-to-end via an automated Playwright harness running against the live local development server at `http://localhost:5173/tests/browser/day2SystemsJourney.html`. The table below records the student interactions, verified inputs, and engine evaluation responses.
+
+| # | Question ID | Section | Type / Mode | Student Interaction / Action | Engine Response | Score |
+| :-: | :--- | :--- | :--- | :--- | :--- | :-: |
+| 1 | `3x3-d2-wu-1` | Warm-Up | `systemsWorkspace` (spatial) | Rotated 3D model, clicked "Reveal the solution point", inspected marker at $(0, 1, 2)$, selected interpretation: "An ordered triple $(0, 1, 2)$ that satisfies all three equations simultaneously." | `isCorrect: true` | 1 / 1 |
+| 2 | `3x3-d2-wu-2` | Warm-Up | `multiAnswer` | Part 1 selected $z$ (eliminated without scaling Eq 1 & 3). Part 2 selected multiplying Eq 2 by 2 and adding to Eq 1. | `isCorrect: true` | 1 / 1 |
+| 3 | `3x3-d2-cw-1` | Classwork | `systemsWorkspace` (spatial) | Rotated 3D model of dependent system. Observed Plane 1 and Plane 3 are coincident ($3 \times \text{Eq 1} = \text{Eq 3}$) and Plane 2 cuts through them along a line. Selected: "Infinitely many solutions along a line of intersection." | `isCorrect: true` | 1 / 1 |
+| 4 | `3x3-d2-cw-2` | Classwork | `multiAnswer` | Analyzed algebraic result $3 \times \text{Eq 1} - \text{Eq 3} \implies 0 = 0$. Part 1 classified as identity indicating dependent system. Part 2 connected to geometry: infinitely many points along intersection line. | `isCorrect: true` | 1 / 1 |
+| 5 | `3x3-d2-cw-3` | Classwork | `systemsWorkspace` (algebraic) | Elimination workflow: Paired {Eq 1, Eq 3} and {Eq 1, Eq 2}. Scaled Eq 2 by 2, cancelled $z$, solved reduced $2 \times 2$ for $x = -2, y = 6$, back-substituted to get $z = -3$, verified in all three equations. | Completed & Verified | 1 / 1 |
+| 6 | `3x3-d2-pr-1` | Practice | `systemsWorkspace` (studentChoice) | Selected elimination method. Paired Eq 1 and Eq 2, added directly to eliminate $z$ ($2x + 2y = 2 \implies x + y = 1$). Reduced and solved for $(0, 1, 2)$. | Completed & Verified | 1 / 1 |
+| 7 | `3x3-d2-pr-2` | Practice | `systemsWorkspace` (spatial) | Rotated 3D model of inconsistent system ($3x-y-2z=4, 6x-2y-4z=11, 9x-3y-6z=12$). Observed 3 parallel distinct planes that never intersect. Selected: "No solution (the three planes are parallel and distinct, sharing no common points)." | `isCorrect: true` | 1 / 1 |
+| 8 | `3x3-d2-pr-3` | Practice | `multiAnswer` | Evaluated elimination between Eq 1 (scaled by 2) and Eq 2 yielding $0 = -3$. Part 1 classified as contradiction false for all triples. Part 2 classified system as inconsistent with no solution. | `isCorrect: true` | 1 / 1 |
+| 9 | `3x3-d2-pr-4` | Practice | `multiAnswer` | Rule synthesis: Part 1 selected $0 = 0 \implies$ dependent with infinitely many solutions; Part 2 selected $0 = k \implies$ inconsistent with no solution. | `isCorrect: true` | 1 / 1 |
+| 10 | `3x3-d2-pr-5` | Practice | `multiAnswer` | Triangle modeling formulation: Shortest $s$, medium $m$, longest $l$. Part 1: $s + m - l = 8$. Part 2: $-3s + m + l = 4$. Part 3: $s + m + l = 72$. | `isCorrect: true` | 1 / 1 |
+| 11 | `3x3-d2-pr-6` | Practice | `systemsWorkspace` (algebraic) | Multi-variable elimination with variables $s, m, l$. Paired equations to eliminate $l$, solved reduced system for $s = 17, m = 23$, back-substituted to obtain $l = 32$. Verified $17 + 23 + 32 = 72$. | Completed & Verified | 1 / 1 |
+| 12 | `3x3-d2-pr-7` | Practice | `multiAnswer` (ACT/CCMR) | Parameter analysis: $6x + 3y - 9z = c$. Part 1: $c = 15$ makes Eq 3 a multiple of Eq 1, yielding infinitely many solutions. Part 2: $c = 20$ yields parallel plane and contradiction $0 = -5$, yielding no solution. | `isCorrect: true` | 1 / 1 |
+| 13 | `3x3-d2-dol-1` | DOL | `multiAnswer` | Work sample analysis ending in $0 = 8$. Part 1 classified as no solution. Part 2 justified as contradiction false for all $(x, y, z)$. | `isCorrect: true` (Delayed) | 1 / 1 |
+| 14 | `3x3-d2-dol-2` | DOL | `multiAnswer` | Geometric configuration analysis: Two parallel planes intersected by a third plane. Part 1 classified as no solution overall. Part 2 identified algebraic signal as $0 = k$ ($k \neq 0$) when combining the parallel pair. | `isCorrect: true` (Delayed) | 1 / 1 |
+
+---
+
+## Issue #371 Acceptance Criteria Verification
+
+### 1. Pacing for a 90-minute block
+- **Warm-Up:** 2 short questions (~8 min).
+- **Classwork:** 3 questions (~21 min; planned time budget in JSON is 1200s / 20 min).
+- **Practice:** 7 questions (~48 min; carries the majority of independent work).
+- **DOL:** 2 questions (~9 min; focused conceptual evaluation).
+- **Total instructional time:** ~86 minutes, leaving a 4-minute buffer for bell work, transitions, and dismissal.
+
+### 2. Warm-Up is only 2 short questions
+- Confirmed: Exactly 2 questions (`3x3-d2-wu-1` and `3x3-d2-wu-2`).
+- Re-engages 3D geometry and initiates strategic planning without fatiguing algebraic manipulation.
+
+### 3. Classwork stays around 20–25 minutes
+- Confirmed: 3 questions (`3x3-d2-cw-1`, `3x3-d2-cw-2`, `3x3-d2-cw-3`).
+- Planned time is capped at 20 minutes (`plannedTimeSec: 1200`).
+- Directly introduces dependent planes, the $0 = 0$ identity, and a single guided $3 \times 3$ elimination solve.
+
+### 4. Practice carries most of the independent work
+- Confirmed: 7 questions (`3x3-d2-pr-1` through `3x3-d2-pr-7`).
+- Allots ~48 minutes (56% of total block time) for student independence, covering unique solve choice, inconsistent planes ($0 = -3$), rule synthesis, triangle modeling formulation, triangle modeling solve, and authentic parameter analysis.
+
+### 5. DOL is only 2 questions and realistically about 10 minutes
+- Confirmed: Exactly 2 questions (`3x3-d2-dol-1` and `3x3-d2-dol-2`).
+- No exhausting manual 3×3 solve is placed in the DOL.
+- Tests student mastery of the algebraic signal ($0 = 8$) and geometric configuration (parallel planes) cleanly within 8–10 minutes.
+- Configured with `attemptsAllowed: 1` and `evaluationPolicy: "onFinalSubmit"` for secure assessment.
+
+### 6. 3D classification genuinely helps students understand the algebra
+- The 3D visualizer in `systemsWorkspace` provides direct spatial intuition:
+  - In CW1, students visually discover that Plane 1 and Plane 3 lie on top of each other (coincident) and Plane 2 slices through them along a line, explaining *why* $0 = 0$ occurs algebraically.
+  - In PR2, students visually see three parallel planes with identical slant that never touch, explaining *why* elimination produces an impossible contradiction $0 = -3$.
+
+### 7. No answer leakage
+- In spatial mode, the solution point is hidden by default and requires clicking "Reveal the solution point".
+- Multiple-choice distractors are mathematically plausible (e.g. confusing infinitely many solutions with all triples $(x, y, z)$ in $\mathbb{R}^3$, or confusing parallel planes with coincident planes).
+- DOL questions reveal no answer feedback or hints until after final submission.
+
+### 8. No unnecessary tool transitions
+- Questions maintain tool continuity:
+  - 3D spatial visualization is used for geometric inspection.
+  - Systems Workspace algebraic mode is used for continuous, multi-step elimination.
+  - Multi-answer questions are used for structured reflection, formulation, and classification.
+  - Transitions occur only at clear instructional milestones.
+
+### 9. No student-facing "token" language
+- All prompts, instructions, and feedback use standard mathematical terminology: "equations", "elimination", "ordered triple", "intersection line", "coincident planes", "contradiction", "identity", "parameter", and "inconsistent system".
+- Internal engine tokens (`x_token`, `cell_id`, etc.) are completely absent from student-facing text.
+
+### 10. No automatic mathematical decisions
+- In algebraic Systems Workspace questions, students must choose which variable to eliminate, select equation pairs, determine scalar multipliers, enter intermediate results, and perform back-substitution manually.
+- The platform scaffolds entry without making mathematical choices for the student.
+
+### 11. Honors/CCMR semantic fit is genuine
+- Question `3x3-d2-pr-7-ccmr-rigor` directly exercises ACT College and Career Readiness standards in the "Preparing for Higher Math" category by challenging students to determine parameter $c$ values that produce infinite solutions vs no solution.
+- As required by issue #371 and PR #359, we preserved authentic 3-variable parameter mathematics rather than substituting an irrelevant 2-variable item to circumvent provenance warnings.
+
+### 12. Work View usability on Chromebook/laptop
+- All equations are formatted in clear standard form with consistent variable order.
+- The 3D spatial canvas adapts to responsive widths with smooth orbit controls and touch/mouse compatibility.
+- The algebraic elimination workspace provides spacious column alignment for equations, multipliers, and cancellation rows.
