@@ -176,3 +176,23 @@ export const workflowHorizontalAsymptotes = (functionSpec = null) => {
     .filter((line) => line?.axis === 'horizontal' && Number.isFinite(Number(line.value)))
     .map((line) => Number(line.value));
 };
+
+/*
+ * The checked graph is the STUDENT's graph on the author's window, so only the
+ * window and the axes carry over. Spreading the whole authored graph carried
+ * its curve too (`m`/`b`, `line`, `functions`, `functionSpec`) and GraphDisplay
+ * drew the key's line edge to edge under the student's clipped segment: the
+ * graph for "0 ≤ t ≤ 12" ran from x = -10 past 12 (live QA, Algebra I DOL #2).
+ * A student whose own model was wrong-but-consistent would have been shown the
+ * key's line beside it before submitting.
+ */
+const GRAPH_WINDOW_KEYS = [
+  'xMin', 'xMax', 'yMin', 'yMax', 'xStep', 'yStep', 'xMinorStep', 'yMinorStep', 'gridStep',
+  'xAxisLabel', 'yAxisLabel', 'xAxisUnit', 'yAxisUnit', 'axisDisplay',
+];
+
+export const graphWindowOnly = (graph) => Object.fromEntries(
+  GRAPH_WINDOW_KEYS
+    .filter((key) => graph && typeof graph === 'object' && graph[key] !== undefined)
+    .map((key) => [key, graph[key]]),
+);

@@ -23,7 +23,7 @@ import { buildStudentTableMagneticTargets } from '../../graphInteractionPrecisio
 import { buildWorkflowSummaryItems, shouldUseWorkflowFocusMode, summarizeStageResponse } from './workflowFocusMode';
 import { stageFamily, stageFamilyLabel } from './stageFamilies';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
-import { workflowEndpointMarkers, workflowGraphDomainRestriction, workflowRequiresEndpointMarkers } from './workflowGraphVisuals.js';
+import { graphWindowOnly, workflowEndpointMarkers, workflowGraphDomainRestriction, workflowRequiresEndpointMarkers } from './workflowGraphVisuals.js';
 import { resolveWorkflowTaskPrompt, selectPersistentWorkflowGraph } from './workflowPresentation.js';
 import { buildWorkflowReviewState, firstIncorrectWorkflowIndex } from './workflowReviewState.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../workView/useMathUndoHistory.js';
@@ -1053,7 +1053,7 @@ const checkedGraphReference = ({ workflow, responses, content, grading, activeSt
     : (Array.isArray(graphStage.pairs) ? graphStage.pairs : (Array.isArray(content?.pairs) ? content.pairs : []));
   const points = rawPoints.map(normalizeWorkflowPoint).filter(Boolean);
   const graphWindow = expandGraphWindowToPoints(
-    graphStage.graph || content?.graph || { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
+    graphWindowOnly(graphStage.graph || content?.graph || { xMin: -10, xMax: 10, yMin: -10, yMax: 10 }),
     points,
   );
 

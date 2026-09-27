@@ -133,3 +133,32 @@ test('WorkflowRunner and QuestionEngine wire the active instruction and one pers
   assert.match(engine, /currentStagePrompt:\s*currentWorkflowGuidance\?\.currentStagePrompt/);
   assert.match(engine, /workflowGuidanceState\?\.questionKey\s*===\s*workflowGuidanceQuestionKey/);
 });
+
+// Live QA, Algebra I District DOL #2. The domain step's "Your checked graph"
+// spread the authored graph `{ family: 'linear', m: 5, b: 40 }` under the
+// student's clipped segment, so GraphDisplay drew the KEY's line edge to edge:
+// a 0 ≤ t ≤ 12 situation was pictured from x = -10 past 12, and a student with
+// a wrong-but-consistent model would have seen the key's line beside theirs.
+test('the checked graph keeps the authored window and drops the authored curve', async () => {
+  const { graphWindowOnly } = await import('../../src/platform/workflow/workflowGraphVisuals.js');
+  const authored = {
+    family: 'linear', m: 5, b: 40,
+    line: { m: 5, b: 40 },
+    functions: [{ type: 'line', m: 5, b: 40 }],
+    functionSpec: { type: 'linear', m: 5, b: 40 },
+    equationLatex: 'V(t)=40+5t', showEquation: true,
+    xMin: -2, xMax: 14, yMin: 0, yMax: 120, xStep: 2, yStep: 20,
+    xAxisLabel: 'Time', yAxisLabel: 'Water volume', axisDisplay: { showAxisTitles: true },
+  };
+  assert.deepEqual(graphWindowOnly(authored), {
+    xMin: -2, xMax: 14, yMin: 0, yMax: 120, xStep: 2, yStep: 20,
+    xAxisLabel: 'Time', yAxisLabel: 'Water volume', axisDisplay: { showAxisTitles: true },
+  });
+  assert.deepEqual(graphWindowOnly(null), {});
+
+  // And the checked graph is built on that window, not on the authored graph.
+  const { componentSource, region, executableSource } = await import('./helpers/sourceContract.mjs');
+  const runner = executableSource(componentSource('src/platform/workflow/WorkflowRunner.jsx'));
+  const checked = region(runner, 'const checkedGraphReference', 'export default function WorkflowRunner', 'checkedGraphReference');
+  assert.match(checked, /expandGraphWindowToPoints\(\s*graphWindowOnly\(/, 'the checked graph window must be stripped of authored curves');
+});
