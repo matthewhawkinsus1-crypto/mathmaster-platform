@@ -735,6 +735,26 @@
     box-shadow: 0 5px 14px rgba(32, 33, 36, 0.12);
   }
 
+  /* The anchor's background fades out over its last ~18% so the sticky stack
+     does not end in a hard edge. "Current question" is the anchor's last
+     child, so it sat in that fade with no surface of its own, and whatever
+     scrolled beneath read straight through its text — the guided-notes card
+     printed across "Write a function that models this situation" (live QA,
+     Algebra I DOL #2, 1400×1000). It gets the task card's column and an
+     opaque card of its own. */
+  .mathmaster-desktop-question-content
+    .mathmaster-desktop-question-anchor
+    .mathmaster-current-question {
+    max-width: 860px;
+    margin: 6px auto 0;
+    padding: 8px 14px 9px;
+    border: 1px solid #d7e2f3;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 5px 14px rgba(32, 33, 36, 0.1);
+    box-sizing: border-box;
+  }
+
   /* A tool's live work region is brought into view with its top just under the
      sticky stack. Centred, a solver's own mode buttons (Rewrite / Simplify,
      Combine like terms) sat under the task card (live QA, 1536×900). */
