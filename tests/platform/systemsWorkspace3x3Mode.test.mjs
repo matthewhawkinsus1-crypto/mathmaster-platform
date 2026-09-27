@@ -212,13 +212,11 @@ test('the 3×3 method choice displays original equations so the student can insp
 });
 
 test('verification tokens remain armed across equations while any equation still needs that variable', () => {
-  assert.match(eliminationMode, /if \(current\.kind === 'verification'\)/);
-  assert.match(eliminationMode, /const stillNeeds = system\.equations\.some\(/);
-  assert.match(eliminationMode, /stillNeeds \? current : null/);
+  assert.match(eliminationMode, /import \{ verificationTokenNeeded \} from '\.\/verificationTokenState\.js';/);
+  assert.match(eliminationMode, /verificationTokenNeeded\(transition\.state, system\.equations, current\.variable\)/);
 
-  assert.match(reduction, /if \(current\.kind === 'verification'\)/);
-  assert.match(reduction, /const stillNeeds = system\.equations\.some\(/);
-  assert.match(reduction, /stillNeeds \? current : null/);
+  assert.match(reduction, /import \{ verificationTokenNeeded \} from '\.\/verificationTokenState\.js';/);
+  assert.match(reduction, /verificationTokenNeeded\(transition\.state, system\.equations, current\.variable\)/);
 });
 
 test('three-plane workspace constrains 3D SVG height on compact laptop viewports', () => {

@@ -11,6 +11,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as R from '../../src/tools/systemsWorkspace/substitutionReduction.js';
+import { verificationTokenNeeded } from '../../src/tools/systemsWorkspace/verificationTokenState.js';
 
 const SYSTEM = R.buildReductionSystem({ variables: ['x', 'y', 'z'], equations: ['x + y + z = 6', '2x - y + 3z = 9', '3x + 2y - z = 4'] });
 const REDUCED_SOLUTION = { y: 2, z: 3 };
@@ -55,6 +56,15 @@ const verifyAll = (state) => {
 };
 
 const phase = (state, reducedSolution = null) => R.reductionPhase(state, SYSTEM, { reducedSolution });
+
+test('verification keeps a solved value selected until every original equation has received it', () => {
+  const equations = SYSTEM.equations;
+  const partial = { verification: { E1: { placed: { x: true, y: true, z: true } } } };
+  const complete = { verification: Object.fromEntries(equations.map(({ id }) => [id, { placed: { x: true } }])) };
+  assert.equal(verificationTokenNeeded(partial, equations, 'x'), true);
+  assert.equal(verificationTokenNeeded(complete, equations, 'x'), false);
+  assert.equal(verificationTokenNeeded(complete, equations, 'y'), true);
+});
 
 test('the phase is derived from lineage alone, through the whole solve', () => {
   let state = R.emptyReductionState();

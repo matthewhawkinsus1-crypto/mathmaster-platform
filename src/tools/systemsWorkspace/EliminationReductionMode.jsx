@@ -39,6 +39,7 @@ import AlgebraicSystemMode, {
   subsystemReportFromDraft,
 } from './AlgebraicSystemMode.jsx';
 import { classroomEquationText, exactNumberText, normalizeAlgebraicSystemConfig, substituteIntoEquation, substitutedEquationLatex } from './algebraicSystemsEngine.js';
+import { verificationTokenNeeded } from './verificationTokenState.js';
 import { buildReductionSystem, reductionAnswerKey } from './substitutionReduction.js';
 import {
   activeEliminationRoundKey,
@@ -148,9 +149,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
       setArmedToken((current) => {
         if (!current) return null;
         if (current.kind === 'verification') {
-          const stillNeeds = system.equations.some(
-            (eq) => !transition.state.verification?.[eq.id]?.placed?.[current.variable]
-          );
+          const stillNeeds = verificationTokenNeeded(transition.state, system.equations, current.variable);
           return stillNeeds ? current : null;
         }
         return null;
