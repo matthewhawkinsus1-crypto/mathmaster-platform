@@ -9,7 +9,7 @@ import { localDateKeyOf } from '../../platform/attendance/classMeetings.js';
 const labels = { missingWork: 'Missing work', academicIntegrity: 'Academic integrity', positiveContact: 'Positive contact', cellphone: 'Cellphone' };
 const label = (value) => labels[value] || value.charAt(0).toUpperCase() + value.slice(1);
 const localNow = () => { const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); };
-const button = { padding: '9px 12px', border: '1px solid #c7ccd4', borderRadius: 8, background: '#fff', fontWeight: 800, cursor: 'pointer' };
+const button = { padding: '9px 12px', border: '1px solid #c7ccd4', borderRadius: 8, background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 
 export default function ParentContactCenter({ students = [], classes = [], assignments = [], contacts = [], supportEvents = [], sessionSummaries = [], masteryProfilesByStudentId = {}, classSchedule = null, nonInstructionalKeys = null, nowValue = Date.now(), sourceAction = null, onRecordContact, onCompleteFollowUp, onExportContacts }) {
   const [studentId, setStudentId] = useState('');

@@ -9,9 +9,9 @@ const statusTone = {
 };
 
 const metricBox = (label, value, note = '') => (
-  <div style={{ padding: '10px 12px', border: '1px solid #e0e3e7', borderRadius: 9, background: '#fff', minWidth: 0 }}>
+  <div style={{ padding: '10px 12px', border: '1px solid #e0e3e7', borderRadius: 9, background: 'var(--mm-surface)', minWidth: 0 }}>
     <div style={{ fontSize: 11, fontWeight: 900, color: '#5f6368', textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</div>
-    <div style={{ marginTop: 3, fontWeight: 900, fontSize: 18, color: '#202124' }}>{value}</div>
+    <div style={{ marginTop: 3, fontWeight: 900, fontSize: 18, color: 'var(--mm-text-strong)' }}>{value}</div>
     {note && <div style={{ marginTop: 2, color: '#5f6368', fontSize: 11 }}>{note}</div>}
   </div>
 );
@@ -29,12 +29,12 @@ export default function SectionBalanceRigorAudit({ assignmentV5, lessonBundle = 
     <section aria-label="Section balance and rigor" style={{ marginBottom: 16, padding: 14, border: `2px solid ${tone.border}`, borderRadius: 11, background: tone.bg }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontWeight: 900, fontSize: 15, color: '#202124' }}>Section Balance & Rigor</div>
+          <div style={{ fontWeight: 900, fontSize: 15, color: 'var(--mm-text-strong)' }}>Section Balance & Rigor</div>
           <div style={{ marginTop: 3, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>
             Classwork should teach deeply with support. Practice should independently revisit the same objectives with comparable rigor and enough volume.
           </div>
         </div>
-        <span style={{ padding: '5px 9px', borderRadius: 999, background: '#fff', border: `1px solid ${tone.border}`, color: tone.color, fontSize: 11, fontWeight: 900 }}>{tone.label}</span>
+        <span style={{ padding: '5px 9px', borderRadius: 999, background: 'var(--mm-surface)', border: `1px solid ${tone.border}`, color: tone.color, fontSize: 11, fontWeight: 900 }}>{tone.label}</span>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8, marginTop: 12 }}>
@@ -51,7 +51,7 @@ export default function SectionBalanceRigorAudit({ assignmentV5, lessonBundle = 
       )}
 
       {warnings.length > 0 && (
-        <div style={{ marginTop: 12, background: '#fff', border: '1px solid #f6c453', borderRadius: 9, padding: '10px 12px' }}>
+        <div style={{ marginTop: 12, background: 'var(--mm-surface)', border: '1px solid #f6c453', borderRadius: 9, padding: '10px 12px' }}>
           <strong style={{ color: '#8a4b08' }}>Quality warnings</strong>
           <ul style={{ margin: '7px 0 0', paddingLeft: 20, lineHeight: 1.5 }}>
             {warnings.map((entry) => <li key={entry.id}><strong>{entry.title}.</strong> {entry.message}</li>)}

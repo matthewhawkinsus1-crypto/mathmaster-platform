@@ -51,7 +51,7 @@ export const TestCycleGradeBreakdown = ({ entry, hidden = false, compact = false
       {breakdown.rows.map((row) => (
         <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
           <dt style={{ color: '#5f6368', fontSize: 12 }}>{row.label}</dt>
-          <dd style={{ margin: 0, fontSize: 12, fontWeight: row.key === 'recordedGrade' ? 900 : 700, color: '#202124' }}>
+          <dd style={{ margin: 0, fontSize: 12, fontWeight: row.key === 'recordedGrade' ? 900 : 700, color: 'var(--mm-text-strong)' }}>
             {hidden ? '••' : row.value}
           </dd>
         </div>

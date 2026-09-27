@@ -59,13 +59,13 @@ export default function ClassOverviewPanel({
   }), [className, students, profilesByStudentId, masteryProfilesByStudentId, evidenceByStudentId, openAssignments, needsAttentionCount]);
 
   return (
-    <section style={{ border: '1px solid #d8dde6', borderRadius: 11, background: '#fff', marginBottom: 20, overflow: 'hidden' }}>
+    <section style={{ border: '1px solid #d8dde6', borderRadius: 11, background: 'var(--mm-surface)', marginBottom: 20, overflow: 'hidden' }}>
       <div style={{ padding: '16px 18px' }}>
         <h3 style={{ margin: 0, fontSize: 12, fontWeight: 900, letterSpacing: '.09em', textTransform: 'uppercase', color: '#5f6368' }}>
           Class overview
         </h3>
         {/* Level one: the whole class in one sentence. */}
-        <p style={{ margin: '7px 0 0', fontSize: 16.5, lineHeight: 1.45, color: '#202124', maxWidth: '62ch' }}>
+        <p style={{ margin: '7px 0 0', fontSize: 16.5, lineHeight: 1.45, color: 'var(--mm-text-strong)', maxWidth: '62ch' }}>
           {overview.headline}
         </p>
       </div>
@@ -79,7 +79,7 @@ export default function ClassOverviewPanel({
             type="button"
             onClick={onLoadDeliveredRigor}
             disabled={rigorLoading}
-            style={{ marginLeft: 'auto', padding: '7px 12px', border: '1px solid #dadce0', borderRadius: 8, background: '#fff', color: '#174ea6', fontWeight: 800, fontSize: 12.5, cursor: rigorLoading ? 'wait' : 'pointer' }}
+            style={{ marginLeft: 'auto', padding: '7px 12px', border: '1px solid #dadce0', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, fontSize: 12.5, cursor: rigorLoading ? 'wait' : 'pointer' }}
           >
             {rigorLoading ? 'Reading delivery history…' : 'Check delivered rigor'}
           </button>
@@ -115,7 +115,7 @@ export default function ClassOverviewPanel({
                         {finding.students.map((entry) => (
                           <span
                             key={entry.studentId}
-                            style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, padding: '5px 9px', border: '1px solid #dadce0', borderRadius: 8, background: '#fff' }}
+                            style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, padding: '5px 9px', border: '1px solid #dadce0', borderRadius: 8, background: 'var(--mm-surface)' }}
                           >
                             <StudentNameLink
                               studentId={entry.studentId}
@@ -136,7 +136,7 @@ export default function ClassOverviewPanel({
                       type="button"
                       onClick={() => setOpenFinding(expanded ? null : key)}
                       aria-expanded={expanded}
-                      style={{ alignSelf: 'center', padding: '7px 11px', border: '1px solid #dadce0', borderRadius: 8, background: '#fff', color: '#174ea6', fontWeight: 800, fontSize: 12.5, whiteSpace: 'nowrap', cursor: 'pointer' }}
+                      style={{ alignSelf: 'center', padding: '7px 11px', border: '1px solid #dadce0', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, fontSize: 12.5, whiteSpace: 'nowrap', cursor: 'pointer' }}
                     >
                       {expanded ? 'Hide' : `Who (${finding.students.length})`}
                     </button>

@@ -36,7 +36,7 @@ const slopeStepForHint = (value) => {
 };
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
-const secondaryButton = { ...primaryButton, background: '#fff', color: '#174ea6', border: '1px solid #9bb8e8' };
+const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: '#174ea6', border: '1px solid #9bb8e8' };
 
 const MODE_LABELS = {
   slopeIntercept: 'Slope-intercept form',
@@ -393,7 +393,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
                 point back, and unlike the local button it keeps working after a
                 point has been dragged. Start over is not undo — it discards
                 both points at once — so it stays. */}
-            <button type="button" onClick={clear} disabled={!points.length} style={{ ...secondaryButton, opacity: points.length ? 1 : 0.5 }}>
+            <button className="mm-button-neutral" type="button" onClick={clear} disabled={!points.length} style={{ ...secondaryButton, opacity: points.length ? 1 : 0.5 }}>
               Start over
             </button>
           </div>

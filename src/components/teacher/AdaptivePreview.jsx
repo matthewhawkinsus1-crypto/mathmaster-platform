@@ -35,7 +35,7 @@ export default function AdaptivePreview({
 
   if (!preview.rows.length) {
     return (
-      <section style={{ padding: '15px 17px', border: '1px solid #d8dde6', borderRadius: 10, background: '#fff' }}>
+      <section style={{ padding: '15px 17px', border: '1px solid #d8dde6', borderRadius: 10, background: 'var(--mm-surface)' }}>
         <h4 style={{ margin: 0, fontSize: 15 }}>Adaptive preview</h4>
         <p style={{ margin: '5px 0 0', color: '#5f6368', fontSize: 13 }}>{preview.summary.headline}</p>
       </section>
@@ -43,10 +43,10 @@ export default function AdaptivePreview({
   }
 
   return (
-    <section style={{ border: '1px solid #d8dde6', borderRadius: 10, background: '#fff', overflow: 'hidden' }}>
+    <section style={{ border: '1px solid #d8dde6', borderRadius: 10, background: 'var(--mm-surface)', overflow: 'hidden' }}>
       <header style={{ padding: '15px 17px 12px', borderBottom: '1px solid #eef0f2' }}>
         <h4 style={{ margin: 0, fontSize: 15 }}>Adaptive preview</h4>
-        <p style={{ margin: '5px 0 0', fontSize: 13.5, color: '#202124', lineHeight: 1.5, maxWidth: '68ch' }}>
+        <p style={{ margin: '5px 0 0', fontSize: 13.5, color: 'var(--mm-text-strong)', lineHeight: 1.5, maxWidth: '68ch' }}>
           {preview.summary.headline}
         </p>
         <p style={{ margin: '6px 0 0', fontSize: 12, color: '#5f6368', lineHeight: 1.5, maxWidth: '68ch' }}>
@@ -56,7 +56,7 @@ export default function AdaptivePreview({
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 11 }}>
           {preview.students.map((student) => (
             <div key={student.id} style={{ fontSize: 12 }}>
-              <div style={{ fontWeight: 900, color: '#202124' }}>{student.label}</div>
+              <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)' }}>{student.label}</div>
               <div style={{ color: '#5f6368', maxWidth: 210, lineHeight: 1.4 }}>{student.note}</div>
             </div>
           ))}
@@ -116,7 +116,7 @@ export default function AdaptivePreview({
                         type="button"
                         onClick={() => setOpenRow(expanded ? null : row.questionId)}
                         aria-expanded={expanded}
-                        style={{ padding: '5px 9px', border: '1px solid #dadce0', borderRadius: 7, background: '#fff', color: '#174ea6', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' }}
+                        style={{ padding: '5px 9px', border: '1px solid #dadce0', borderRadius: 7, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' }}
                       >
                         {expanded ? 'Hide' : 'Why'}
                       </button>

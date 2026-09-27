@@ -750,7 +750,7 @@
     padding: 8px 14px 9px;
     border: 1px solid #d7e2f3;
     border-radius: 10px;
-    background: #fff;
+    background: var(--mm-surface);
     box-shadow: 0 5px 14px rgba(32, 33, 36, 0.1);
     box-sizing: border-box;
   }
@@ -793,7 +793,7 @@
   padding: 4px 10px;
   border: 1px solid #bdc7d6;
   border-radius: 999px;
-  background: #fff;
+  background: var(--mm-surface);
   color: #174ea6;
   font: inherit;
   font-size: 11px;
@@ -887,7 +887,7 @@
   min-height: 42px;
   border: 1px solid #bdc7d6;
   border-radius: 8px;
-  background: #fff;
+  background: var(--mm-surface);
   color: #174ea6;
   font-weight: 850;
   font-size: 14px;
@@ -920,7 +920,7 @@
 
 .mathmaster-assignment-compact-nav .mathmaster-compact-nav-current strong {
   overflow: hidden;
-  color: #202124;
+  color: var(--mm-text-strong);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1097,7 +1097,7 @@
   min-height: 38px;
   border: 1px solid #bdc7d6;
   border-radius: 8px;
-  background: #fff;
+  background: var(--mm-surface);
   color: #174ea6;
   font-weight: 850;
   font-size: 13px;
@@ -1282,7 +1282,7 @@
 }
 
 .mathmaster-current-section-summary strong {
-  color: #202124;
+  color: var(--mm-text-strong);
   font-size: 14px;
 }
 
@@ -1315,7 +1315,7 @@
   padding: 0;
   border: 2px solid var(--section-border, #1a73e8);
   border-radius: 999px;
-  background: #fff;
+  background: var(--mm-surface);
   color: var(--section-color, #174ea6);
   font-size: 11px;
   font-weight: 950;
@@ -1956,7 +1956,7 @@
 @media (prefers-reduced-motion: reduce) {
   .mathmaster-desktop-action-bar {
     backdrop-filter: none;
-    background: #fff;
+    background: var(--mm-surface);
   }
 }
 

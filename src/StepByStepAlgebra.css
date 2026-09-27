@@ -60,7 +60,7 @@
   padding: 16px 18px 28px;
   border-radius: 18px;
   border: 2px solid #a8c1e6;
-  background: #fff;
+  background: var(--mm-surface);
   box-shadow: 0 10px 24px rgba(31,73,125,.11);
   overflow: visible;
 }
@@ -389,7 +389,7 @@
 
 .algebra-pickup-button {
   border: 1px solid #8ab4f8;
-  background: #fff;
+  background: var(--mm-surface);
   color: #174ea6;
   cursor: grab;
   touch-action: none;
@@ -407,7 +407,7 @@
 
 .algebra-composer-cancel {
   border: 1px solid #dadce0;
-  background: #fff;
+  background: var(--mm-surface);
   color: #5f6368;
   cursor: pointer;
 }
@@ -521,7 +521,7 @@
     display: grid;
     place-items: center;
     gap: 1px;
-    background: #fff;
+    background: var(--mm-surface);
     color: #174ea6;
     border-color: #c5d5ef;
     touch-action: manipulation;
@@ -672,7 +672,7 @@
   padding: 7px 12px;
   border: 1px solid #c5d5ef;
   border-radius: 999px;
-  background: #fff;
+  background: var(--mm-surface);
   color: #174ea6;
   font-weight: 800;
   cursor: pointer;
@@ -702,7 +702,7 @@
   padding: 15px;
   border: 1px solid #d9e2f1;
   border-radius: 12px;
-  background: #fff;
+  background: var(--mm-surface);
 }
 
 .algebra-simplification-note {
@@ -791,7 +791,7 @@
 
 .algebra-keep-written {
   border: 1px solid #8ab4f8;
-  background: #fff;
+  background: var(--mm-surface);
   color: #174ea6;
 }
 
@@ -865,7 +865,7 @@
   flex: 0 0 34px;
   border: 1px solid #c5d5ef;
   border-radius: 999px;
-  background: #fff;
+  background: var(--mm-surface);
   color: #5f6368;
   font-size: 20px;
   font-weight: 800;
@@ -886,7 +886,7 @@
   padding: 7px 13px;
   border: 1px solid #9bb8e8;
   border-radius: 10px;
-  background: #fff;
+  background: var(--mm-surface);
   color: #174ea6;
   font-weight: 800;
   cursor: pointer;
@@ -911,7 +911,7 @@
   padding: 12px;
   border: 2px dashed #b8cdf0;
   border-radius: 12px;
-  background: #fff;
+  background: var(--mm-surface);
   font-size: 30px;
   overflow-x: auto;
 }
@@ -1113,7 +1113,7 @@
 
 .algebra-inline-clear {
   border: 1px solid #b8c8e3;
-  background: #fff;
+  background: var(--mm-surface);
   color: #5f6368;
 }
 
@@ -1178,7 +1178,7 @@
   padding: .04em .14em;
   border: 1.5px solid #9bb8e8;
   border-radius: .26em;
-  background: #fff;
+  background: var(--mm-surface);
   color: inherit;
   font: inherit;
   line-height: 1;
@@ -1277,7 +1277,7 @@
   padding: 3px 10px;
   border-radius: 999px;
   border: 1.5px solid #174ea6;
-  background: #fff;
+  background: var(--mm-surface);
   color: #174ea6;
   font-weight: 800;
   cursor: grab;

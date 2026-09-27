@@ -102,7 +102,7 @@ body.mathmaster-solver-workspace-open::before {
   padding: 6px 10px;
   border: 1px solid #b8c8e3;
   border-radius: 9px;
-  background: #fff;
+  background: var(--mm-surface);
   color: #174ea6;
   font-size: 12px;
   font-weight: 850;
@@ -152,7 +152,7 @@ body.mathmaster-solver-workspace-open::before {
   overflow: auto;
   border: 1px solid #c8d5ea;
   border-radius: 12px;
-  background: #fff;
+  background: var(--mm-surface);
   box-shadow: 0 8px 24px rgba(31, 73, 125, .12);
   text-align: left;
 }
@@ -171,7 +171,7 @@ body.mathmaster-solver-workspace-open::before {
   padding: 3px;
   border: 1px solid #d7e2f3;
   border-radius: 10px;
-  background: #fff;
+  background: var(--mm-surface);
 }
 
 .solver-workspace-zoom button {
@@ -238,7 +238,7 @@ body.mathmaster-solver-workspace-open::before {
   padding: 12px;
   border: 1px solid #c8d5ea;
   border-radius: 13px;
-  background: #fff;
+  background: var(--mm-surface);
   box-shadow: 0 6px 18px rgba(31, 73, 125, .08);
 }
 
@@ -394,7 +394,7 @@ body.mathmaster-solver-workspace-open::before {
   border: 1px solid #e0e7f2;
   border-radius: 9px;
   background: #f8fbff;
-  color: #202124;
+  color: var(--mm-text-strong);
 }
 
 .solver-work-history__math-text {

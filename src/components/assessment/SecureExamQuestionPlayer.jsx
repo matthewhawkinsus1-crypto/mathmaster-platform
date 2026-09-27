@@ -37,11 +37,11 @@ export const SecureExamQuestionPlayer = ({ examType, question, initialResponsePa
   if (!question) return <div style={{ padding: 36, textAlign: 'center', color: '#5f6368' }}>Preparing the next secure item…</div>;
   return (
     <main style={{ width: 'min(820px, 100%)', margin: '0 auto', padding: '28px 18px 64px', boxSizing: 'border-box' }}>
-      <section style={{ background: '#fff', border: '1px solid #dadce0', borderRadius: 14, padding: 'clamp(18px, 4vw, 30px)', boxShadow: '0 5px 22px rgba(0,0,0,.07)' }}>
+      <section style={{ background: 'var(--mm-surface)', border: '1px solid #dadce0', borderRadius: 14, padding: 'clamp(18px, 4vw, 30px)', boxShadow: '0 5px 22px rgba(0,0,0,.07)' }}>
         <div style={{ color: '#5f6368', fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}>Secure exam question</div>
         {/* Secure mode deliberately hides TEKS/domain labels while answering,
             but the mathematics itself must still render exactly as authored. */}
-        <MathText as="h1" style={{ color: '#202124', fontSize: 'clamp(20px, 4vw, 27px)', lineHeight: 1.45, margin: '10px 0 24px', fontWeight: 760 }}>{question.prompt}</MathText>
+        <MathText as="h1" style={{ color: 'var(--mm-text-strong)', fontSize: 'clamp(20px, 4vw, 27px)', lineHeight: 1.45, margin: '10px 0 24px', fontWeight: 760 }}>{question.prompt}</MathText>
         {question.formulaLatex && <div style={{ background: '#f8f9fa', padding: 12, borderRadius: 8, marginBottom: 18, overflowX: 'auto' }}><MathDisplay value={question.formulaLatex} /></div>}
         <PathQuestionStimulus stimulus={question.stimulus} />
         <form onSubmit={submit}>

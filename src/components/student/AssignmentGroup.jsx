@@ -61,7 +61,7 @@ export default function AssignmentGroup({
         >
           ▶
         </span>
-        <h2 id={headingId} style={{ margin: 0, fontSize: 16.5, color: '#202124', fontWeight: 900 }}>
+        <h2 id={headingId} style={{ margin: 0, fontSize: 16.5, color: 'var(--mm-text-strong)', fontWeight: 900 }}>
           {label}
         </h2>
         <span

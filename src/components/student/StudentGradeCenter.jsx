@@ -59,7 +59,7 @@ function PeriodSummary({ courseLabel, periodLabel, summary, hidden, onToggleHidd
     <section
       aria-label="Current marking period grade"
       style={{
-        background: '#fff', borderRadius: 14, border: '1px solid #d8dde6',
+        background: 'var(--mm-surface)', borderRadius: 14, border: '1px solid #d8dde6',
         padding: '18px 18px 16px', marginBottom: 18, textAlign: 'left',
       }}
     >
@@ -81,7 +81,7 @@ function PeriodSummary({ courseLabel, periodLabel, summary, hidden, onToggleHidd
             appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
             minHeight: MIN_TOUCH_TARGET_PX, minWidth: MIN_TOUCH_TARGET_PX,
             padding: '8px 12px', borderRadius: 10, border: '2px solid #c9ced6',
-            background: '#fff', color: '#3c4043', fontWeight: 900, cursor: 'pointer',
+            background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 900, cursor: 'pointer',
           }}
         >
           {hidden ? '👁 Show grade' : '🙈 Hide grade'}
@@ -108,20 +108,20 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice }) {
   return (
     <article
       style={{
-        background: '#fff', borderRadius: 12, border: '1px solid #d8dde6',
+        background: 'var(--mm-surface)', borderRadius: 12, border: '1px solid #d8dde6',
         padding: 16, marginBottom: 12, textAlign: 'left', minWidth: 0,
       }}
     >
       <div style={{ display: 'flex', gap: 12, justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-          <h3 style={{ margin: 0, fontSize: 16, color: '#202124', overflowWrap: 'anywhere' }}>{entry.title}</h3>
+          <h3 style={{ margin: 0, fontSize: 16, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{entry.title}</h3>
           <div style={{ marginTop: 4, fontSize: 12, color: '#5f6368' }}>
             Due {formatDateTime(entry.dueAt)}
             {entry.frozen ? ` · Closed ${formatDateTime(entry.lateDueAt)}` : ''}
           </div>
         </div>
         <div style={{ textAlign: 'right', minWidth: 0 }}>
-          <div style={{ fontSize: 'clamp(18px, 6vw, 24px)', fontWeight: 1000, color: '#202124' }}>
+          <div style={{ fontSize: 'clamp(18px, 6vw, 24px)', fontWeight: 1000, color: 'var(--mm-text-strong)' }}>
             {/*
               A status word where a percentage would be a lie. `displayGrade` is
               null for anything the model refused to count, so this branch can
@@ -177,7 +177,7 @@ function PeriodGroup({ group, hidden, onOpenResult, onPractice }) {
         }}
       >
         <span aria-hidden="true" style={{ color: '#174ea6', fontSize: 13, transform: open ? 'rotate(90deg)' : 'none' }}>▶</span>
-        <span style={{ fontWeight: 900, fontSize: 15, color: '#202124', overflowWrap: 'anywhere' }}>
+        <span style={{ fontWeight: 900, fontSize: 15, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
           {group.period.label}
         </span>
         <span style={{ fontSize: 13, fontWeight: 800, color: '#5f6368' }}>
@@ -252,7 +252,7 @@ export default function StudentGradeCenter({
             style={{
               appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
               minHeight: MIN_TOUCH_TARGET_PX, padding: '10px 15px', borderRadius: 10,
-              border: '2px solid #c9ced6', background: '#fff', color: '#3c4043',
+              border: '2px solid #c9ced6', background: 'var(--mm-surface)', color: '#3c4043',
               fontWeight: 900, cursor: 'pointer',
             }}
           >

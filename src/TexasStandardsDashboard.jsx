@@ -286,7 +286,7 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
   ];
 
   return (
-    <div style={{ padding: '18px', border: '1px solid #e1e5ea', borderRadius: '12px', background: '#fff' }}>
+    <div style={{ padding: '18px', border: '1px solid #e1e5ea', borderRadius: '12px', background: 'var(--mm-surface)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div>
           <h2 style={{ margin: 0 }}>Texas Math TEKS & Mastery</h2>
@@ -322,9 +322,9 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
       </div>
 
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '12px', color: '#5f6368', fontSize: '12px' }}>
-        <span><strong style={{ color: '#202124' }}>{students.length}</strong> students</span>
-        <span><strong style={{ color: '#202124' }}>{courseItemAnalytics.length}</strong> {selectedCourse?.label} question records</span>
-        <span><strong style={{ color: '#202124' }}>{coverage}%</strong> TEKS + DOK metadata coverage</span>
+        <span><strong style={{ color: 'var(--mm-text-strong)' }}>{students.length}</strong> students</span>
+        <span><strong style={{ color: 'var(--mm-text-strong)' }}>{courseItemAnalytics.length}</strong> {selectedCourse?.label} question records</span>
+        <span><strong style={{ color: 'var(--mm-text-strong)' }}>{coverage}%</strong> TEKS + DOK metadata coverage</span>
         {selectedCourseId === 'algebra1' && (
           <label style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
             <input type="checkbox" checked={readinessOnly} onChange={(event) => setReadinessOnly(event.target.checked)} /> Readiness only
@@ -385,7 +385,7 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
                 <h4 style={{ marginBottom: '7px' }}>{selectedCourse?.label} TEKS evidence</h4>
                 <div style={{ display: 'grid', gap: '7px', maxHeight: '335px', overflowY: 'auto' }}>
                   {Object.values(selectedCourseProfile?.teks || {}).sort((a, b) => a.code.localeCompare(b.code)).map((summary) => (
-                    <div key={summary.code} style={{ padding: '8px', borderRadius: '7px', background: '#fff', border: '1px solid #e1e5ea' }}>
+                    <div key={summary.code} style={{ padding: '8px', borderRadius: '7px', background: 'var(--mm-surface)', border: '1px solid #e1e5ea' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}><strong>{summary.code} · {pct(summary.score)}</strong><span style={{ textTransform: 'capitalize', color: '#5f6368' }}>{summary.classification}</span></div>
                       <div style={{ fontSize: '11px', color: '#5f6368', marginTop: '3px' }}>{summary.itemCount} grade-level · DOK max {summary.maxDok || '—'} · {summary.confidence} confidence</div>
                       {summary.modifiedEvidence?.itemCount > 0 && <div style={{ fontSize: '11px', color: '#7b1fa2', marginTop: '3px' }}>{summary.modifiedEvidence.itemCount} modified evidence item(s) tracked separately</div>}
@@ -445,7 +445,7 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
       {view === 'registry' && (
         <div style={{ display: 'grid', gap: '8px' }}>
           {filteredRegistry.map((standard) => (
-            <article key={standard.code} style={{ padding: '11px 13px', borderRadius: '9px', border: '1px solid #e1e5ea', background: '#fff' }}>
+            <article key={standard.code} style={{ padding: '11px 13px', borderRadius: '9px', border: '1px solid #e1e5ea', background: 'var(--mm-surface)' }}>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <strong style={{ color: '#174ea6' }}>{standard.code}</strong>
                 <StandardBadge standard={standard} />
@@ -481,7 +481,7 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
             </div>
           </section>
 
-          <section style={{ padding: '13px', border: '1px solid #d9e2ef', borderRadius: '10px', background: '#fff' }}>
+          <section style={{ padding: '13px', border: '1px solid #d9e2ef', borderRadius: '10px', background: 'var(--mm-surface)' }}>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'end' }}>
               <div>
                 <div style={{ fontWeight: 900 }}>Trace a TEKS vertically</div>
@@ -518,7 +518,7 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
           </div>
 
           {priorPath.length > 1 && (
-            <section style={{ padding: '12px', border: '1px solid #d9e2ef', borderRadius: '10px', background: '#fff' }}>
+            <section style={{ padding: '12px', border: '1px solid #d9e2ef', borderRadius: '10px', background: 'var(--mm-surface)' }}>
               <div style={{ fontWeight: 900, marginBottom: '5px' }}>Multi-level prerequisite support ladder</div>
               <div style={{ color: '#5f6368', fontSize: '11px', marginBottom: '10px' }}>
                 Level 1 is the first support recommendation. Lower levels are a diagnostic roadmap only; MathMaster does not automatically skip a student down multiple grades without evidence from the intervening prerequisite level.

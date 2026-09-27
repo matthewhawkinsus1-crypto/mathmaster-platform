@@ -35,7 +35,7 @@ export default function SystemGrader({ question, onStateChange, onUndoStateChang
 
   return (
     <div>
-      <h2 style={{ color: '#202124', marginTop: 0 }}>Systems of Equations</h2>
+      <h2 style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Systems of Equations</h2>
       <QuestionPrompt>{prompt || 'Solve the system and enter the solution as an ordered pair $(x, y)$.'}</QuestionPrompt>
       <EnlargeableFigure label="System of equations workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{
         equationInput: { label: 'Both equations and solution entry', studentState: true },

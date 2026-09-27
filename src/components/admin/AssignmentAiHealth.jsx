@@ -7,7 +7,7 @@ const panel = {
   borderRadius: 12,
   padding: '20px 22px',
   marginBottom: 18,
-  background: '#fff',
+  background: 'var(--mm-surface)',
 };
 
 // Each stage/code the self-test can report, paired with the one action that
@@ -118,7 +118,7 @@ export default function AssignmentAiHealth() {
               .map(([label, value]) => (
                 <div key={label} style={rowStyle}>
                   <span style={{ minWidth: 190, color: '#5f6368' }}>{label}</span>
-                  <span style={{ fontWeight: 700, color: '#202124' }}>{String(value)}</span>
+                  <span style={{ fontWeight: 700, color: 'var(--mm-text-strong)' }}>{String(value)}</span>
                 </div>
               ))}
           </div>

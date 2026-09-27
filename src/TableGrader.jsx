@@ -67,7 +67,7 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
 
   return (
     <div>
-      {!compact && <h2 style={{ color: '#202124', marginTop: 0 }}>Function Table</h2>}
+      {!compact && <h2 style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Function Table</h2>}
       {(prompt || !compact) && (
         <QuestionPrompt>{prompt || 'Complete all missing values in the table.'}</QuestionPrompt>
       )}
@@ -80,7 +80,7 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
           read-only rendering of the same field would duplicate it. */}
       <QuestionVisual question={question} includeTable={false} />
       <div style={{ overflowX: 'auto', marginTop: '22px' }}>
-        <table style={{ margin: '0 auto', borderCollapse: 'collapse', minWidth: '320px', background: '#fff' }}>
+        <table style={{ margin: '0 auto', borderCollapse: 'collapse', minWidth: '320px', background: 'var(--mm-surface)' }}>
           <thead><tr>{columns.map((column) => <th key={column.key} style={{ padding: '12px 24px', border: '1px solid #cfd4da', background: '#e8f0fe', fontSize: '20px' }}>{(() => { const text = column.label || column.key; const format = resolveLabelFormat(text); return format ? <MathDisplay value={text} format={format} inline /> : text; })()}</th>)}</tr></thead>
           <tbody>
             {rows.map((row, rowIndex) => (

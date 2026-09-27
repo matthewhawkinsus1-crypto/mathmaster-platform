@@ -145,7 +145,7 @@ export default function AssignmentContentUpgradeModal({
           width: 'min(900px, 100%)',
           maxHeight: '90vh',
           overflowY: 'auto',
-          background: '#fff',
+          background: 'var(--mm-surface)',
           borderRadius: 14,
           padding: 24,
         }}
@@ -231,7 +231,7 @@ export default function AssignmentContentUpgradeModal({
             margin: '20px -24px -24px',
             padding: '14px 24px',
             borderTop: '1px solid #dadce0',
-            background: '#fff',
+            background: 'var(--mm-surface)',
             boxShadow: '0 -6px 18px rgba(60,64,67,.08)',
           }}
         >

@@ -47,7 +47,7 @@ const CONTROL = {
   padding: '0 12px',
   border: '1px solid #c5d5ef',
   borderRadius: 8,
-  background: '#fff',
+  background: 'var(--mm-surface)',
   color: '#174ea6',
   fontWeight: 800,
   fontSize: 13,
@@ -391,7 +391,7 @@ export default function EnlargeableFigure({
           padding: 14,
           border: '1px solid #dfe3e7',
           borderRadius: 14,
-          background: '#fff',
+          background: 'var(--mm-surface)',
           boxSizing: 'border-box',
           boxShadow: '0 20px 60px rgba(15,23,42,.35)',
         }
@@ -408,7 +408,7 @@ export default function EnlargeableFigure({
         </div>
       ) : null}
       {!enlarged ? (
-        <button ref={openerRef} type="button" onClick={openWorkView} disabled={shouldForceClose} style={CONTROL}>
+        <button ref={openerRef} className="mm-button-neutral" type="button" onClick={openWorkView} disabled={shouldForceClose} style={CONTROL}>
           ⤢ {enlargeLabel}
         </button>
       ) : null}
@@ -525,7 +525,7 @@ export default function EnlargeableFigure({
               // measure them. A capability that registered but rendered off the
               // bottom of a phone is not a control the student has.
               data-work-view-action={action.id || action.label}
-              className={/undo/i.test(String(action.id || action.label || '')) ? 'mathmaster-universal-undo' : undefined}
+              className={`mm-button-neutral${/undo/i.test(String(action.id || action.label || '')) ? ' mathmaster-universal-undo' : ''}`}
               data-undo-owner={/undo/i.test(String(action.id || action.label || '')) ? 'current-tool' : undefined}
               // Fit, pan and zoom move the camera and nothing else. Marked in
               // the DOM so the state-integrity gate can press them and assert

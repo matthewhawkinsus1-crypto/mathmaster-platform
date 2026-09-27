@@ -14,10 +14,10 @@ import {
 // audited admin callables — the browser cannot touch the classes collection
 // directly, so what is rendered here is what the server agreed to.
 
-const card = { border: '1px solid #d8dde6', borderRadius: 12, padding: '20px 22px', marginBottom: 20, textAlign: 'left', background: '#fff' };
+const card = { border: '1px solid #d8dde6', borderRadius: 12, padding: '20px 22px', marginBottom: 20, textAlign: 'left', background: 'var(--mm-surface)' };
 const input = { minHeight: 42, padding: '0 12px', border: '1px solid #c7cdd6', borderRadius: 8, fontSize: 15, minWidth: 0, boxSizing: 'border-box' };
 const primary = { minHeight: 42, padding: '0 16px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' };
-const quiet = { minHeight: 38, padding: '0 13px', border: '1px solid #c7cdd6', borderRadius: 8, background: '#fff', color: '#3c4043', fontWeight: 700, cursor: 'pointer' };
+const quiet = { minHeight: 38, padding: '0 13px', border: '1px solid #c7cdd6', borderRadius: 8, background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 700, cursor: 'pointer' };
 const danger = { ...quiet, color: '#c5221f', borderColor: '#f0b4b2' };
 const pill = (background, color) => ({ display: 'inline-block', padding: '3px 9px', borderRadius: 999, background, color, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.04em' });
 const field = { fontSize: 11, fontWeight: 900, color: '#5f6368', display: 'block' };

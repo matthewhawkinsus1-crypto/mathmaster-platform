@@ -21,7 +21,7 @@ const inputStyle = {
   padding: '6px 8px',
   border: '1px solid #c7ccd1',
   borderRadius: 7,
-  background: '#fff',
+  background: 'var(--mm-surface)',
 };
 
 const clonePeriods = (periods = {}) => JSON.parse(JSON.stringify(periods));
@@ -139,9 +139,9 @@ export default function ClassScheduleSettings({
   const fixedWeekday = [1, 2, 3, 4].includes(today.getDay());
 
   return (
-    <section style={{ marginTop: 22, border: '1px solid #d9e2f1', borderRadius: 12, background: '#fff', overflow: 'hidden' }}>
+    <section style={{ marginTop: 22, border: '1px solid #d9e2f1', borderRadius: 12, background: 'var(--mm-surface)', overflow: 'hidden' }}>
       <div style={{ padding: '17px 18px', background: '#f8fbff', borderBottom: '1px solid #d9e2f1' }}>
-        <h3 style={{ margin: 0, color: '#202124' }}>A/B Bell Schedule</h3>
+        <h3 style={{ margin: 0, color: 'var(--mm-text-strong)' }}>A/B Bell Schedule</h3>
         <p style={{ margin: '6px 0 0', color: '#5f6368', lineHeight: 1.5 }}>
           Monday and Wednesday resolve to A Day. Tuesday and Thursday resolve to B Day. Friday is left for you to choose because it alternates.
         </p>
@@ -176,7 +176,7 @@ export default function ClassScheduleSettings({
               </button>
             ))}
             {todayState.source === 'override' && (
-              <button type="button" onClick={() => setTodayDayType(null)} style={{ ...buttonBase, border: '1px solid #c7ccd1', background: '#fff', color: '#3c4043' }}>
+              <button type="button" onClick={() => setTodayDayType(null)} style={{ ...buttonBase, border: '1px solid #c7ccd1', background: 'var(--mm-surface)', color: '#3c4043' }}>
                 Clear Today Override
               </button>
             )}
@@ -222,7 +222,7 @@ export default function ClassScheduleSettings({
             ) : (
               <>
                 <PeriodTable periods={todayOverride} classPeriods={classPeriods} onChange={updateTodayPeriod} />
-                <button type="button" onClick={removeTodayModifiedSchedule} style={{ ...buttonBase, marginTop: 12, border: '1px solid #d93025', background: '#fff', color: '#d93025' }}>Remove Today&apos;s Special Times</button>
+                <button type="button" onClick={removeTodayModifiedSchedule} style={{ ...buttonBase, marginTop: 12, border: '1px solid #d93025', background: 'var(--mm-surface)', color: '#d93025' }}>Remove Today&apos;s Special Times</button>
               </>
             )}
           </div>

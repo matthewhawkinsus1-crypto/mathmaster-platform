@@ -22,7 +22,7 @@ const OVERLAY = {
 };
 
 const SHEET = {
-  width: 'min(720px, 100%)', maxHeight: '86vh', background: '#fff', borderRadius: 14,
+  width: 'min(720px, 100%)', maxHeight: '86vh', background: 'var(--mm-surface)', borderRadius: 14,
   boxShadow: '0 24px 60px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
 };
 
@@ -67,7 +67,7 @@ export default function ClassroomSyncReview({ proposal = null, students = [], on
               type="button"
               ref={closeRef}
               onClick={() => onClose?.()}
-              style={{ padding: '7px 12px', border: '1px solid #dadce0', borderRadius: 8, background: '#fff', fontWeight: 900, cursor: 'pointer' }}
+              style={{ padding: '7px 12px', border: '1px solid #dadce0', borderRadius: 8, background: 'var(--mm-surface)', fontWeight: 900, cursor: 'pointer' }}
             >
               Close
             </button>
@@ -109,7 +109,7 @@ export default function ClassroomSyncReview({ proposal = null, students = [], on
           <button
             type="button"
             onClick={download}
-            style={{ padding: '9px 13px', border: '1px solid #1a73e8', borderRadius: 8, background: '#fff', color: '#174ea6', fontWeight: 900, cursor: 'pointer' }}
+            style={{ padding: '9px 13px', border: '1px solid #1a73e8', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 900, cursor: 'pointer' }}
           >
             Download these grades
           </button>

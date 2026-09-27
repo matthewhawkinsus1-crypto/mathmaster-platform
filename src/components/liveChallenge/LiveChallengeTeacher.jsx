@@ -28,9 +28,9 @@ import {
   watchTeacherActiveChallenge,
 } from '../../platform/liveChallenge/liveChallengeService.js';
 
-const panel = { background: '#fff', border: '1px solid #d8dde6', borderRadius: 14, padding: 20, textAlign: 'left' };
+const panel = { background: 'var(--mm-surface)', border: '1px solid #d8dde6', borderRadius: 14, padding: 20, textAlign: 'left' };
 const primary = { border: 0, borderRadius: 9, padding: '11px 16px', background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' };
-const secondary = { border: '1px solid #b7bec8', borderRadius: 9, padding: '10px 15px', background: '#fff', color: '#3c4043', fontWeight: 900, cursor: 'pointer' };
+const secondary = { border: '1px solid #b7bec8', borderRadius: 9, padding: '10px 15px', background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 900, cursor: 'pointer' };
 const field = { display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid #b7bec8' };
 
 function useNow(active = true) {
@@ -154,7 +154,7 @@ function ScoringCompetitionCard({ roundSeconds, speedInfluencePercent }) {
       <h3 style={{ margin: '0 0 8px' }}>Scoring &amp; Competition</h3>
       <div style={{ fontWeight: 800 }}>Correctness: up to 1,000 · Speed: up to {preview.maxSpeedBonus} ({preview.speedInfluencePercent}%) · Streak: up to 100 · Comeback after a miss: +150</div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
-        {preview.examples.map((example) => <span key={example.secondsUsed} style={{ padding: '6px 9px', borderRadius: 999, background: '#fff' }}>Correct at {example.secondsUsed}s → {example.pointsBeforeStreakComeback.toLocaleString()}</span>)}
+        {preview.examples.map((example) => <span key={example.secondsUsed} style={{ padding: '6px 9px', borderRadius: 999, background: 'var(--mm-surface)' }}>Correct at {example.secondsUsed}s → {example.pointsBeforeStreakComeback.toLocaleString()}</span>)}
       </div>
       <p style={{ margin: '10px 0 0', fontSize: 13, lineHeight: 1.5 }}>{preview.academicCreditNote} Interactive tools may earn partial correctness points as students work.</p>
     </section>

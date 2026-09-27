@@ -390,7 +390,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
               reached. Clear is not undo — it discards the whole construction in
               one press — so it stays. */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
-            <button type="button" onClick={clearPlottedPoints} disabled={!plottedPoints.length} style={{ ...buttonStyle, background: '#fff', color: '#5f6368', border: '1px solid #dadce0' }}>Clear</button>
+            <button type="button" onClick={clearPlottedPoints} disabled={!plottedPoints.length} style={{ ...buttonStyle, background: 'var(--mm-surface)', color: '#5f6368', border: '1px solid #dadce0' }}>Clear</button>
             <button type="button" onClick={checkPlotTransform} disabled={plotTransformIncomplete} style={{ ...buttonStyle, opacity: plotTransformIncomplete ? 0.55 : 1 }}>Check graph</button>
           </div>
           <p style={{ marginBottom: 0, color: '#5f6b7a', fontSize: 13 }}>{plottedPoints.length} of {expectedTransformedPoints.length} defining points plotted.</p>

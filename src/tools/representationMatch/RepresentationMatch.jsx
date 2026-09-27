@@ -235,7 +235,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                     borderRadius: 9,
                     border: selected ? '2px solid #1a73e8' : '1px solid #cdd6e4',
                     background: selected ? '#eef4ff' : '#fff',
-                    color: '#202124',
+                    color: 'var(--mm-text-strong)',
                     cursor: 'pointer',
                   }}
                 >
@@ -346,7 +346,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                   style={{
                     padding: '9px 16px', minHeight: 44, borderRadius: 999, cursor: 'pointer', fontWeight: 800,
                     border: activeLineSlot === index ? '2px solid #1a73e8' : '1px solid #cdd6e4',
-                    background: activeLineSlot === index ? '#eef4ff' : '#fff', color: '#202124',
+                    background: activeLineSlot === index ? '#eef4ff' : '#fff', color: 'var(--mm-text-strong)',
                   }}
                 >
                   Line {label}

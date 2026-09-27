@@ -16,7 +16,7 @@ const inputStyle = {
   padding: '9px 10px',
   border: '1px solid #cfd8e6',
   borderRadius: 8,
-  background: '#fff',
+  background: 'var(--mm-surface)',
 };
 
 const buttonStyle = {
@@ -213,7 +213,7 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
           <div style={{ display: 'grid', gap: 8 }}>
             {history.map((step, index) => (
               <div key={`${index}-${formatInverseDerivationRelation(step)}`} style={{ display: 'grid', gridTemplateColumns: '34px 1fr', gap: 8, alignItems: 'center', padding: 10, borderRadius: 9, background: index === history.length - 1 ? '#eef4ff' : '#f8f9fa' }}>
-                <div style={{ width: 28, height: 28, borderRadius: 14, display: 'grid', placeItems: 'center', background: '#fff', border: '1px solid #d0d5dd', fontWeight: 900 }}>{index + 1}</div>
+                <div style={{ width: 28, height: 28, borderRadius: 14, display: 'grid', placeItems: 'center', background: 'var(--mm-surface)', border: '1px solid #d0d5dd', fontWeight: 900 }}>{index + 1}</div>
                 <div style={{ fontWeight: index === history.length - 1 ? 900 : 700 }}>{formatInverseDerivationRelation(step)}</div>
               </div>
             ))}

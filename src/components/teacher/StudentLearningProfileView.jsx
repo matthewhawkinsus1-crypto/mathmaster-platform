@@ -14,12 +14,12 @@ import { diagnoseGaps } from '../../platform/profile/studentLearningProfile.js';
 // plan, which is what makes this view and the student's own screen agree.
 
 const CARD = {
-  border: '1px solid #e3e6eb', borderRadius: 14, background: '#fff', padding: 16,
+  border: '1px solid #e3e6eb', borderRadius: 14, background: 'var(--mm-surface)', padding: 16,
 };
 const LABEL = {
   fontSize: 10.5, fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase', color: '#5f6368',
 };
-const VALUE = { fontSize: 15, fontWeight: 800, color: '#202124', marginTop: 3 };
+const VALUE = { fontSize: 15, fontWeight: 800, color: 'var(--mm-text-strong)', marginTop: 3 };
 const MUTED = { color: '#5f6368', fontSize: 12.5, lineHeight: 1.6 };
 
 const pct = (value) => (value == null ? '—' : `${Math.round(Number(value) * 100)}%`);
@@ -58,7 +58,7 @@ function DokTable({ dokProfile }) {
       <tbody>
         {rows.map((row) => (
           <tr key={row.level}>
-            <td style={{ padding: '7px 8px', fontWeight: 800, color: '#202124' }}>
+            <td style={{ padding: '7px 8px', fontWeight: 800, color: 'var(--mm-text-strong)' }}>
               DOK {row.level}
               <span style={{ ...MUTED, fontWeight: 600, marginLeft: 6 }}>
                 {row.level === '1' ? 'recall' : row.level === '2' ? 'procedure' : 'strategic reasoning'}
@@ -82,7 +82,7 @@ function SessionRow({ session }) {
   return (
     <li style={{ padding: '11px 0', borderTop: '1px solid #f1f3f6', listStyle: 'none' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
-        <div style={{ fontWeight: 900, color: '#202124', fontSize: 14 }}>
+        <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)', fontSize: 14 }}>
           {session.teksCode}
           <span style={{ ...MUTED, fontWeight: 700, marginLeft: 8 }}>{session.purposeLabel}</span>
         </div>
@@ -129,7 +129,7 @@ export default function StudentLearningProfileView({
     <section style={{ display: 'grid', gap: 14 }}>
       <header style={{ ...CARD, display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: 19, color: '#202124' }}>{studentName}</h3>
+          <h3 style={{ margin: 0, fontSize: 19, color: 'var(--mm-text-strong)' }}>{studentName}</h3>
           <div style={{ marginTop: 8 }}>
             <StudentPerformanceBadge profile={profile} />
           </div>
@@ -189,7 +189,7 @@ export default function StudentLearningProfileView({
           <div style={{ ...LABEL, marginBottom: 8 }}>What the evidence suggests</div>
           <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 7 }}>
             {gaps.map((gap) => (
-              <li key={`${gap.type}-${gap.framework || ''}`} style={{ color: '#202124', fontSize: 13.5, lineHeight: 1.6 }}>
+              <li key={`${gap.type}-${gap.framework || ''}`} style={{ color: 'var(--mm-text-strong)', fontSize: 13.5, lineHeight: 1.6 }}>
                 <strong>{gap.label}</strong>
                 <span style={{ ...MUTED, display: 'block' }}>{gap.detail}</span>
               </li>
@@ -219,7 +219,7 @@ export default function StudentLearningProfileView({
           <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 5 }}>
             {suppressed.slice(0, 8).map((entry) => (
               <li key={entry.skillId} style={{ ...MUTED, fontSize: 13 }}>
-                <strong style={{ color: '#202124' }}>{entry.teksCode}</strong>
+                <strong style={{ color: 'var(--mm-text-strong)' }}>{entry.teksCode}</strong>
                 {' — '}
                 {entry.eligibility.reason === 'cooling_down'
                   ? `worked recently; back in ${entry.eligibility.daysRemaining} day${entry.eligibility.daysRemaining === 1 ? '' : 's'}`

@@ -52,7 +52,7 @@ function SkillDetails({ info, onShowConnections }) {
     <>
       <div style={{ marginTop: 16, padding: '15px 16px', borderRadius: 12, background: '#f8fbff', border: '1px solid #d9e2f1' }}>
         <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: '.07em', textTransform: 'uppercase', color: '#174ea6' }}>The skill to remember</div>
-        <div style={{ marginTop: 4, color: '#202124', fontSize: 18, fontWeight: 900 }}>{info.studentLabel || info.description}</div>
+        <div style={{ marginTop: 4, color: 'var(--mm-text-strong)', fontSize: 18, fontWeight: 900 }}>{info.studentLabel || info.description}</div>
         <div style={{ marginTop: 5, color: '#5f6368', fontSize: 12.5, lineHeight: 1.5 }}>
           TEKS {info.displayCode} is the teacher/reporting code for this skill. The mathematics above is what you are actually building.
         </div>
@@ -70,7 +70,7 @@ function SkillDetails({ info, onShowConnections }) {
         </div>
       )}
 
-      <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 10, background: '#fff', border: '1px solid #e0e4ea', color: '#3c4043', fontSize: 13, lineHeight: 1.55 }}>
+      <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 10, background: 'var(--mm-surface)', border: '1px solid #e0e4ea', color: '#3c4043', fontSize: 13, lineHeight: 1.55 }}>
         <strong>Why this appears here:</strong> this question is aligned to this exact skill, so the code is not just a label pasted onto the problem. It tells you what mathematics the question is asking you to strengthen.
       </div>
 
@@ -154,11 +154,11 @@ function AlignmentDetailsDialog({ info, onClose, titleId, initialView = 'skill' 
 
   return (
     <div role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }} style={{ position: 'fixed', inset: 0, zIndex: 10050, display: 'grid', placeItems: 'center', padding: 16, background: 'rgba(20,28,42,.48)' }}>
-      <section role="dialog" aria-modal="true" aria-labelledby={titleId} style={{ width: 'min(660px,100%)', maxHeight: 'min(84vh,760px)', overflowY: 'auto', padding: 22, borderRadius: 16, background: '#fff', textAlign: 'left', boxShadow: '0 24px 70px rgba(0,0,0,.28)' }}>
+      <section role="dialog" aria-modal="true" aria-labelledby={titleId} style={{ width: 'min(660px,100%)', maxHeight: 'min(84vh,760px)', overflowY: 'auto', padding: 22, borderRadius: 16, background: 'var(--mm-surface)', textAlign: 'left', boxShadow: '0 24px 70px rgba(0,0,0,.28)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase', color: view === 'ccmr' ? '#5b21b6' : '#174ea6' }}>{view === 'ccmr' ? 'Where this math shows up' : 'What you are learning'}</div>
-            <h2 id={titleId} style={{ margin: '5px 0 0', color: '#202124', fontSize: 21 }}>{info.studentLabel || `TEKS ${info.displayCode}`}</h2>
+            <h2 id={titleId} style={{ margin: '5px 0 0', color: 'var(--mm-text-strong)', fontSize: 21 }}>{info.studentLabel || `TEKS ${info.displayCode}`}</h2>
           </div>
           <button type="button" autoFocus aria-label="Close standards details" onClick={onClose} style={buttonReset({ border: 0, background: 'transparent', fontSize: 22, lineHeight: 1, cursor: 'pointer', color: '#5f6368' })}>✕</button>
         </div>

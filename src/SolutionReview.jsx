@@ -378,7 +378,7 @@ export default function SolutionReview({ question, incorrectParts = [] }) {
         textAlign: 'left',
       }}
     >
-      <h3 style={{ margin: '0 0 8px', color: '#202124' }}>Solution review</h3>
+      <h3 style={{ margin: '0 0 8px', color: 'var(--mm-text-strong)' }}>Solution review</h3>
       <p style={{ margin: '0 0 14px', color: '#5f6368', lineHeight: 1.5 }}>
         This problem version is closed. Review the solution before requesting another problem at the same difficulty.
       </p>
@@ -395,7 +395,7 @@ export default function SolutionReview({ question, incorrectParts = [] }) {
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'baseline', flexWrap: 'wrap' }}>
-                  <strong style={{ color: '#202124' }}>{entry.title}</strong>
+                  <strong style={{ color: 'var(--mm-text-strong)' }}>{entry.title}</strong>
                   {needsReview && <span style={{ color: '#8a5a00', fontSize: '12px', fontWeight: 900 }}>REVIEW THIS STEP</span>}
                 </div>
                 {entry.prompt && <p style={{ margin: '5px 0 8px', color: '#5f6368', fontSize: '13px' }}>{entry.prompt}</p>}
@@ -404,9 +404,9 @@ export default function SolutionReview({ question, incorrectParts = [] }) {
                     <MathDisplay value={String(entry.math)} format={String(entry.math).includes('\\') ? 'latex' : 'ascii-math'} />
                   </div>
                 )}
-                {Array.isArray(entry.lines) && entry.lines.map((line) => <div key={line} style={{ marginTop: '6px', color: '#202124' }}>{line}</div>)}
+                {Array.isArray(entry.lines) && entry.lines.map((line) => <div key={line} style={{ marginTop: '6px', color: 'var(--mm-text-strong)' }}>{line}</div>)}
                 {entry.table && (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '8px', background: '#fff' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '8px', background: 'var(--mm-surface)' }}>
                     <thead><tr>{entry.table.headers.map((header) => <th key={header} style={{ padding: '7px 9px', border: '1px solid #d9e2f1', background: '#f8f9fa' }}>{header}</th>)}</tr></thead>
                     <tbody>{entry.table.rows.map((row, rowIndex) => <tr key={`${entry.id}-${rowIndex}`}>{row.map((cell, cellIndex) => <td key={`${rowIndex}-${cellIndex}`} style={{ padding: '7px 9px', textAlign: 'center', border: '1px solid #d9e2f1' }}>{String(cell)}</td>)}</tr>)}</tbody>
                   </table>
@@ -419,7 +419,7 @@ export default function SolutionReview({ question, incorrectParts = [] }) {
         </div>
       )}
       {question.equationLatex && (
-        <div style={{ padding: '12px', borderRadius: '9px', background: '#fff', marginBottom: '12px', fontSize: '23px', color: '#174ea6', textAlign: 'center' }}>
+        <div style={{ padding: '12px', borderRadius: '9px', background: 'var(--mm-surface)', marginBottom: '12px', fontSize: '23px', color: '#174ea6', textAlign: 'center' }}>
           <MathDisplay value={question.equationLatex} format="latex" />
         </div>
       )}
@@ -428,10 +428,10 @@ export default function SolutionReview({ question, incorrectParts = [] }) {
           {representations.map((representation, index) => {
             const prose = isProseRepresentation(representation);
             return (
-              <div key={`${representation}-${index}`} style={{ padding: '10px 12px', borderRadius: '8px', background: '#fff', border: '1px solid #d9e2f1' }}>
+              <div key={`${representation}-${index}`} style={{ padding: '10px 12px', borderRadius: '8px', background: 'var(--mm-surface)', border: '1px solid #d9e2f1' }}>
                 <strong style={{ color: '#5f6368', marginRight: '8px' }}>{prose ? 'Solution note' : `Representation ${index + 1}`}:</strong>
                 {prose
-                  ? <span style={{ color: '#202124' }}>{representation}</span>
+                  ? <span style={{ color: 'var(--mm-text-strong)' }}>{representation}</span>
                   : <MathDisplay value={representation} format={representation.includes('\\') ? 'latex' : 'ascii-math'} inline />}
               </div>
             );
@@ -440,13 +440,13 @@ export default function SolutionReview({ question, incorrectParts = [] }) {
       )}
       {completeAnswerDetails.length > 0 && (
         <div style={{ display: 'grid', gap: '7px', marginBottom: '14px' }}>
-          {completeAnswerDetails.map((item) => <div key={item} style={{ padding: '9px 11px', borderRadius: '7px', background: '#fff', border: '1px solid #d9e2f1' }}>{item}</div>)}
+          {completeAnswerDetails.map((item) => <div key={item} style={{ padding: '9px 11px', borderRadius: '7px', background: 'var(--mm-surface)', border: '1px solid #d9e2f1' }}>{item}</div>)}
         </div>
       )}
       {graph && !workflowSolution && <GraphDisplay graph={graph} title="Correct graph" />}
       {analysisSummary.length > 0 && (
         <div style={{ display: 'grid', gap: '7px', marginTop: '12px' }}>
-          {analysisSummary.map((item) => <div key={item} style={{ padding: '9px 11px', borderRadius: '7px', background: '#fff' }}>{item}</div>)}
+          {analysisSummary.map((item) => <div key={item} style={{ padding: '9px 11px', borderRadius: '7px', background: 'var(--mm-surface)' }}>{item}</div>)}
         </div>
       )}
     </section>

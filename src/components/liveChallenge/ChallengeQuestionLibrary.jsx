@@ -5,9 +5,9 @@ import {
   normalizeChallengeQuestionPackage,
 } from '../../platform/liveChallenge/challengeQuestionImport.js';
 
-const box = { border: '1px solid #d8dde6', borderRadius: 12, padding: 16, background: '#fff' };
+const box = { border: '1px solid #d8dde6', borderRadius: 12, padding: 16, background: 'var(--mm-surface)' };
 const input = { width: '100%', boxSizing: 'border-box', padding: 10, border: '1px solid #b7bec8', borderRadius: 8, marginTop: 6 };
-const button = { minHeight: 42, padding: '9px 14px', borderRadius: 8, border: '1px solid #9bb8e8', background: '#fff', color: '#174ea6', fontWeight: 850, cursor: 'pointer' };
+const button = { minHeight: 42, padding: '9px 14px', borderRadius: 8, border: '1px solid #9bb8e8', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 850, cursor: 'pointer' };
 
 const progressLabel = (progress) => {
   if (!progress) return '';
@@ -127,7 +127,7 @@ export default function ChallengeQuestionLibrary({ assignments = [], onImported 
       {tab === 'upload' && (
         <div style={{ marginTop: 14 }}>
           <label style={{ fontWeight: 800 }}>Upload JSON
-            <input type="file" accept="application/json,.json" disabled={busy} onChange={(event) => readUpload(event.target.files?.[0])} style={{ ...input, background: '#fff' }} />
+            <input type="file" accept="application/json,.json" disabled={busy} onChange={(event) => readUpload(event.target.files?.[0])} style={{ ...input, background: 'var(--mm-surface)' }} />
           </label>
           <div style={{ marginTop: 6, color: '#5f6368', fontSize: 13 }}>A raw array or an object containing documents, items, or questions is accepted.</div>
         </div>

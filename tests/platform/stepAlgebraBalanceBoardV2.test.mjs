@@ -35,7 +35,7 @@ test('balance is one connected panel rather than two bordered white drop cards',
   assert.match(stepSource, /algebra-connected-balance/);
   assert.match(stepSource, /algebra-connected-side/);
   assert.match(cssSource, /\.algebra-connected-side[\s\S]*border: 0;/);
-  assert.match(cssSource, /\.algebra-connected-balance[\s\S]*background: #fff;/);
+  assert.match(cssSource, /\.algebra-connected-balance[\s\S]*background: var\(--mm-surface\);/);
 });
 
 test('division uses a generous beneath-expression semantic region, not a tiny fraction-bar box', () => {

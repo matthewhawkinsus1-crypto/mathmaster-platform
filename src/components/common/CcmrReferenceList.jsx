@@ -14,9 +14,9 @@ export default function CcmrReferenceList({ references = [], compact = false, sh
   return (
     <div style={{ display: 'grid', gap: compact ? 7 : 10 }}>
       {references.map((reference) => (
-        <div key={`${reference.framework}:${reference.id}`} style={{ padding: compact ? '8px 9px' : '11px 12px', borderRadius: 10, border: '1px solid #e0e4ea', background: '#fff' }}>
+        <div key={`${reference.framework}:${reference.id}`} style={{ padding: compact ? '8px 9px' : '11px 12px', borderRadius: 10, border: '1px solid #e0e4ea', background: 'var(--mm-surface)' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-            <strong style={{ color: '#202124', fontSize: compact ? 12.5 : 13.5 }}>{referenceLabel(reference)}</strong>
+            <strong style={{ color: 'var(--mm-text-strong)', fontSize: compact ? 12.5 : 13.5 }}>{referenceLabel(reference)}</strong>
             <span style={{ color: '#5f6368', fontSize: 10.5, fontWeight: 750 }}>{officialReferenceKindLabel(reference)}</span>
           </div>
 

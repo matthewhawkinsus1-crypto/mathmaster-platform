@@ -30,7 +30,7 @@ const buttonStyle = {
   padding: '8px 12px',
   border: '1px solid #aecbfa',
   borderRadius: 9,
-  background: '#fff',
+  background: 'var(--mm-surface)',
   color: '#174ea6',
   fontWeight: 900,
   cursor: 'pointer',
@@ -353,7 +353,7 @@ export default function AssignmentQuestionEditor(props) {
         border: '2px solid #1a73e8',
         borderRadius: 12,
         background: '#f8fbff',
-        color: '#202124',
+        color: 'var(--mm-text-strong)',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -396,7 +396,7 @@ export default function AssignmentQuestionEditor(props) {
       </div>
 
       {!reviewLoading && !openFlaggedQuestionIds.length && (
-        <div style={{ marginTop: 9, padding: 9, borderRadius: 8, background: '#fff', color: '#5f6368', fontSize: 12.5 }}>
+        <div style={{ marginTop: 9, padding: 9, borderRadius: 8, background: 'var(--mm-surface)', color: '#5f6368', fontSize: 12.5 }}>
           No open teacher flags yet. Use View as Student → Teacher review to flag questions and write the exact repair notes. They will appear here automatically.
         </div>
       )}
@@ -408,7 +408,7 @@ export default function AssignmentQuestionEditor(props) {
               {openTeacherFlags.map((flag) => {
                 const shot = flag.screenshotId ? screenshotsById[flag.screenshotId] : null;
                 return (
-                  <div key={flag.id} style={{ padding: 10, border: '1px solid #d9e2f1', borderRadius: 9, background: '#fff' }}>
+                  <div key={flag.id} style={{ padding: 10, border: '1px solid #d9e2f1', borderRadius: 9, background: 'var(--mm-surface)' }}>
                     <div style={{ fontSize: 11.5, fontWeight: 900, color: '#7a4f01' }}>
                       {flag.scope === 'question' ? `Question ${flag.targetId}` : `${flag.scope} note`} · {flag.category || 'review'}
                     </div>
@@ -451,7 +451,7 @@ export default function AssignmentQuestionEditor(props) {
           </details>
 
           {stagedRepair && (
-            <section style={{ marginTop: 15, padding: 12, border: `1px solid ${stagedRepair.canCommit ? '#81c995' : '#f28b82'}`, borderRadius: 10, background: '#fff' }}>
+            <section style={{ marginTop: 15, padding: 12, border: `1px solid ${stagedRepair.canCommit ? '#81c995' : '#f28b82'}`, borderRadius: 10, background: 'var(--mm-surface)' }}>
               <strong>{stagedRepair.canCommit ? 'Ready for teacher review' : 'Repair blocked by validation'}</strong>
               <div style={{ marginTop: 8, display: 'grid', gap: 8 }}>
                 {stagedRepair.questionResults.map((result) => (
@@ -487,7 +487,7 @@ export default function AssignmentQuestionEditor(props) {
         </>
       )}
 
-      {message && <div role="status" style={{ marginTop: 10, padding: 9, borderRadius: 8, background: '#fff', color: '#3c4043', fontSize: 12.5, lineHeight: 1.45 }}>{message}</div>}
+      {message && <div role="status" style={{ marginTop: 10, padding: 9, borderRadius: 8, background: 'var(--mm-surface)', color: '#3c4043', fontSize: 12.5, lineHeight: 1.45 }}>{message}</div>}
       <FullAssignmentAudit assignmentV5={assignmentV5} repairCenterModel={buildAssignmentRepairCenterModel({ assignmentV5, diagnostics: [], teacherReviewContext })} assignmentId={assignmentId} baseRevision={baseRevision} authorized={fullAuditAuthorized} activityStatus={studentActivityStatus} />
     </section>
   );

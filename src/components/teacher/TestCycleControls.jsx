@@ -82,7 +82,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [] })
   const blocked = preflight?.blocked === true;
 
   return (
-    <section style={{ padding: 18, border: '1px solid #dadce0', borderRadius: 12, background: '#fff' }}>
+    <section style={{ padding: 18, border: '1px solid #dadce0', borderRadius: 12, background: 'var(--mm-surface)' }}>
       <h2 style={{ marginTop: 0 }}>Test Cycle · {assignment.title}</h2>
       <p style={{ color: '#5f6368', lineHeight: 1.5, marginTop: 0 }}>
         Review → secure Test → Corrections → secure Retest, as one assignment and one Google Classroom

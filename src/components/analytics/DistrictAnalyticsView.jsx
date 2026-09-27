@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Card = ({ label, value, note }) => <article style={{ border: '1px solid #dadce0', borderRadius: 12, padding: 17, background: '#fff' }}><div style={{ color: '#5f6368', fontSize: 12, fontWeight: 800, textTransform: 'uppercase' }}>{label}</div><div style={{ fontSize: 30, fontWeight: 900, margin: '5px 0', color: '#174ea6' }}>{value}</div>{note && <div style={{ color: '#5f6368', fontSize: 12 }}>{note}</div>}</article>;
+const Card = ({ label, value, note }) => <article style={{ border: '1px solid #dadce0', borderRadius: 12, padding: 17, background: 'var(--mm-surface)' }}><div style={{ color: '#5f6368', fontSize: 12, fontWeight: 800, textTransform: 'uppercase' }}>{label}</div><div style={{ fontSize: 30, fontWeight: 900, margin: '5px 0', color: '#174ea6' }}>{value}</div>{note && <div style={{ color: '#5f6368', fontSize: 12 }}>{note}</div>}</article>;
 
 export const DistrictAnalyticsView = ({ analytics, title = 'College & mastery readiness' }) => {
   if (!analytics) return null;

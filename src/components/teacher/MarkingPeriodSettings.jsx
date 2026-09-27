@@ -29,7 +29,7 @@ import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoun
 const DEFAULT_TARGET = '__default_current_period__';
 
 const card = {
-  background: '#fff', border: '1px solid #d8dde6', borderRadius: 12,
+  background: 'var(--mm-surface)', border: '1px solid #d8dde6', borderRadius: 12,
   padding: 16, marginBottom: 16, textAlign: 'left',
 };
 
@@ -48,8 +48,8 @@ const inputStyle = {
   borderRadius: 9,
   border: '1px solid #c9ced6',
   fontSize: 14,
-  background: '#fff',
-  color: '#202124',
+  background: 'var(--mm-surface)',
+  color: 'var(--mm-text-strong)',
 };
 
 const formatAssignmentDate = (assignment) => {
@@ -177,7 +177,7 @@ export default function MarkingPeriodSettings({
   return (
     <section aria-label="Marking periods">
       <div style={card}>
-        <h3 style={{ margin: '0 0 4px', fontSize: 16, color: '#202124' }}>Marking periods</h3>
+        <h3 style={{ margin: '0 0 4px', fontSize: 16, color: 'var(--mm-text-strong)' }}>Marking periods</h3>
         <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.55, color: '#5f6368' }}>
           Marking periods group grades for students. Closing a period stops new work being filed into it
           and collapses it on the student Grade Center — it never hides a grade, and it is separate from
@@ -200,7 +200,7 @@ export default function MarkingPeriodSettings({
       </div>
 
       <div style={card}>
-        <h3 style={{ margin: '0 0 10px', fontSize: 15, color: '#202124' }}>Existing periods</h3>
+        <h3 style={{ margin: '0 0 10px', fontSize: 15, color: 'var(--mm-text-strong)' }}>Existing periods</h3>
         {!periods.length && (
           <p style={{ margin: 0, fontSize: 13, color: '#5f6368' }}>
             No marking periods yet. Every assignment currently shows to students under “Current Marking Period”,
@@ -218,7 +218,7 @@ export default function MarkingPeriodSettings({
               }}
             >
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 900, fontSize: 14, color: '#202124', overflowWrap: 'anywhere' }}>
+                <div style={{ fontWeight: 900, fontSize: 14, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
                   {period.label}
                   {isCurrent && <span style={{ marginLeft: 8, padding: '3px 8px', borderRadius: 999, fontSize: 11, background: '#e6f4ea', color: '#12633a' }}>CURRENT</span>}
                   {period.archived && <span style={{ marginLeft: 8, padding: '3px 8px', borderRadius: 999, fontSize: 11, background: '#f1f3f4', color: '#5f6368' }}>CLOSED</span>}
@@ -253,7 +253,7 @@ export default function MarkingPeriodSettings({
       <div style={card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <div>
-            <h3 style={{ margin: '0 0 4px', fontSize: 15, color: '#202124' }}>File assignments into a marking period</h3>
+            <h3 style={{ margin: '0 0 4px', fontSize: 15, color: 'var(--mm-text-strong)' }}>File assignments into a marking period</h3>
             <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: '#5f6368' }}>
               Choose assignments right here{classLabel ? ` for ${classLabel}` : ''}. The list starts with work that still
               uses the default current period so you can clean up older assignments quickly.
@@ -347,7 +347,7 @@ export default function MarkingPeriodSettings({
                       onChange={() => toggleAssignment(assignment.id)}
                     />
                     <span style={{ minWidth: 0 }}>
-                      <span style={{ display: 'block', fontSize: 13, fontWeight: 900, color: '#202124', overflowWrap: 'anywhere' }}>
+                      <span style={{ display: 'block', fontSize: 13, fontWeight: 900, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
                         {assignment.title || 'Untitled assignment'}
                       </span>
                       <span style={{ display: 'block', marginTop: 2, fontSize: 11, color: '#5f6368' }}>

@@ -2728,7 +2728,7 @@ export default function StepByStepAlgebra({
             >
               Commit distribution
             </button>
-            <button type="button" onClick={cancelDistribution} disabled={disabled} style={{ minHeight: 40, padding: '8px 16px', borderRadius: 999, border: '1px solid #b8c8e3', background: '#fff', color: '#174ea6', fontWeight: 700 }}>
+            <button type="button" onClick={cancelDistribution} disabled={disabled} style={{ minHeight: 40, padding: '8px 16px', borderRadius: 999, border: '1px solid #b8c8e3', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 700 }}>
               Cancel
             </button>
           </div>
@@ -2933,7 +2933,7 @@ export default function StepByStepAlgebra({
                 padding: 0,
                 borderRadius: 999,
                 border: '1px solid #c5d5ef',
-                background: '#fff',
+                background: 'var(--mm-surface)',
                 color: '#5f6368',
                 fontSize: 18,
                 lineHeight: 1,
@@ -2951,7 +2951,7 @@ export default function StepByStepAlgebra({
         </div>
       )}
       {Array.isArray(question.algebraPrompts) && question.algebraPrompts.length > 0 && (
-        <div style={{ marginBottom: '16px', padding: '15px', borderRadius: '12px', border: '1px solid #d9e2f1', background: '#fff' }}>
+        <div style={{ marginBottom: '16px', padding: '15px', borderRadius: '12px', border: '1px solid #d9e2f1', background: 'var(--mm-surface)' }}>
           <h3 style={{ margin: '0 0 6px', color: '#174ea6' }}>Algebraic micro-questions</h3>
           <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: '13px' }}>These responses accept algebraic expressions, including equivalent distributed or factored forms.</p>
           <div style={{ display: 'grid', gap: '12px' }}>

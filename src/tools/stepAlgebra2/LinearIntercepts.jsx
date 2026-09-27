@@ -25,7 +25,7 @@ import {
 } from './linearInterceptsMath.js';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
-const secondaryButton = { ...primaryButton, background: '#fff', color: '#174ea6', border: '1px solid #9bb8e8' };
+const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: '#174ea6', border: '1px solid #9bb8e8' };
 
 const OPERATIONS = {
   add: { label: 'Add', preposition: 'to' },
@@ -390,7 +390,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
               <div style={{ padding: 11, borderRadius: 9, background: '#f7faff', color: '#3c4756', marginBottom: 10 }}>
                 <strong>Substitution:</strong> {formatSubstitutionEquation(standard, stage.placedZeroVariable)}
               </div>
-              <div data-math-state={formatSolverEquation(stage.solverState)} style={{ fontSize: 30, fontWeight: 850, textAlign: 'center', padding: 18, borderRadius: 12, border: `2px solid ${solverSolved ? '#a8dab5' : '#d9e2f1'}`, background: '#fff' }}>
+              <div data-math-state={formatSolverEquation(stage.solverState)} style={{ fontSize: 30, fontWeight: 850, textAlign: 'center', padding: 18, borderRadius: 12, border: `2px solid ${solverSolved ? '#a8dab5' : '#d9e2f1'}`, background: 'var(--mm-surface)' }}>
                 {formatSolverEquation(stage.solverState)}
               </div>
 

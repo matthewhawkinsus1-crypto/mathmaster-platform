@@ -30,12 +30,11 @@ const primaryButton = {
   fontWeight: 800,
   cursor: 'pointer',
   minHeight: 40,
-  colorScheme: 'light',
 };
 
 const secondaryButton = {
   ...primaryButton,
-  background: '#fff',
+  background: 'var(--mm-surface)',
   color: '#174ea6',
   border: '1px solid #9bb8e8',
 };
@@ -668,8 +667,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               border: '1px solid #d9e2f1',
               borderRadius: 12,
               background: '#f8fbff',
-              colorScheme: 'light',
-            }}
+                        }}
           >
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <button
@@ -726,11 +724,10 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                   boxSizing: 'border-box',
                   border: `2px solid ${endpointError ? '#d93025' : '#8ab4f8'}`,
                   borderRadius: 8,
-                  background: '#fff',
-                  color: '#202124',
+                  background: 'var(--mm-surface)',
+                  color: 'var(--mm-text-strong)',
                   fontSize: 16,
-                  colorScheme: 'light',
-                }}
+                                }}
               />
 
               <button
@@ -760,11 +757,10 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               height: 'auto',
               border: '1px solid #d9e2f1',
               borderRadius: 12,
-              background: '#fff',
+              background: 'var(--mm-surface)',
               cursor: dragging ? 'grabbing' : 'crosshair',
               touchAction: 'none',
-              colorScheme: 'light',
-            }}
+                        }}
           >
             <line
               x1={PAD - 14}

@@ -32,12 +32,12 @@ test('Other operations is an inline rail rather than an overlay popup', () => {
   assert.doesNotMatch(src, /position: 'absolute'[\s\S]{0,500}algebra-other-operations-menu/);
 });
 
-test('Other operation buttons have explicit dark-mode-safe colors', () => {
+test('Other operation buttons inherit the matched semantic theme colors', () => {
   const src = multiRelationSource();
 
-  assert.match(src, /background: '#ffffff'/);
+  assert.match(src, /background: 'var\(--mm-surface\)'/);
   assert.match(src, /color: '#174ea6'/);
-  assert.match(src, /colorScheme: 'light'/);
+  assert.doesNotMatch(src, /colorScheme: 'light'/);
 });
 
 test('division completion messaging preserves student-controlled simplification', () => {

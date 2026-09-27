@@ -17,7 +17,7 @@ const PURPOSE_TONE = {
   [PURPOSE.EXTENSION]: { bg: '#eefaf1', fg: '#12633a', border: '#c3e8d1' },
 };
 
-const CARD = { border: '1px solid #e3e6eb', borderRadius: 16, background: '#fff', padding: 18 };
+const CARD = { border: '1px solid #e3e6eb', borderRadius: 16, background: 'var(--mm-surface)', padding: 18 };
 const MUTED = { color: '#5f6368', fontSize: 13, lineHeight: 1.6 };
 
 const weeklyPurposeLabel = (session = {}) => {
@@ -181,7 +181,7 @@ function SlotChoice({ session, onChoose, disabled }) {
                   }}
                 >
                   <span style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <strong style={{ fontSize: 14, color: '#202124' }}>{option.studentLabel}</strong>
+                    <strong style={{ fontSize: 14, color: 'var(--mm-text-strong)' }}>{option.studentLabel}</strong>
                     {option.recommended && (
                       <span style={{ fontSize: 10.5, fontWeight: 900, color: '#174ea6', background: '#eef3fb', border: '1px solid #c9daf8', borderRadius: 999, padding: '2px 7px' }}>
                         RECOMMENDED
@@ -233,7 +233,7 @@ function SessionCard({ session, done, onStart, onChoose, disabled, total }) {
           )}
         </div>
 
-        <div style={{ fontSize: 15.5, fontWeight: 800, color: '#202124', lineHeight: 1.45 }}>
+        <div style={{ fontSize: 15.5, fontWeight: 800, color: 'var(--mm-text-strong)', lineHeight: 1.45 }}>
           {session.studentLabel || session.teksCode}
         </div>
 
@@ -287,7 +287,7 @@ export default function WeeklyPathGoalPanel({
   if (!goal || !goal.sessions?.length) {
     return (
       <section style={CARD}>
-        <h2 style={{ margin: 0, fontSize: 18, color: '#202124' }}>Your weekly target</h2>
+        <h2 style={{ margin: 0, fontSize: 18, color: 'var(--mm-text-strong)' }}>Your weekly target</h2>
         <p style={{ ...MUTED, marginTop: 8 }}>
           MathMaster is putting this week&apos;s Path together. Check back in a moment — and if it
           stays like this, tell your teacher, because that is not supposed to happen.
@@ -320,7 +320,7 @@ export default function WeeklyPathGoalPanel({
           <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: '.07em', textTransform: 'uppercase', color: complete ? '#12633a' : '#174ea6' }}>
             {complete ? 'Weekly target complete' : 'Your weekly target'}
           </div>
-          <strong style={{ display: 'block', marginTop: 4, fontSize: 17, color: '#202124' }}>
+          <strong style={{ display: 'block', marginTop: 4, fontSize: 17, color: 'var(--mm-text-strong)' }}>
             {complete ? `You hit all ${required} sessions.` : `${completed} of ${required} sessions complete · ${remaining} to go`}
           </strong>
           <span style={{ ...MUTED, display: 'block', marginTop: 3 }}>
@@ -399,7 +399,7 @@ export default function WeeklyPathGoalPanel({
               {weeklyPurposeLabel(next)}
             </span>
           </div>
-          <div style={{ fontSize: 16, fontWeight: 900, color: '#202124', marginTop: 5 }}>
+          <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--mm-text-strong)', marginTop: 5 }}>
             {next.studentLabel || next.teksCode}
           </div>
           <div style={{ ...MUTED, marginTop: 4 }}>{next.studentExplanation}</div>

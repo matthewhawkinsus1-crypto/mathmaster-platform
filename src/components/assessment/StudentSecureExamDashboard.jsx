@@ -72,12 +72,12 @@ export const StudentSecureExamDashboard = ({ studentProfile, onExit, onOpenCours
                   <h2 id={`exam-group-${group.id}`} style={{ margin: 0, fontSize: 18 }}>{group.title}</h2>
                   <p style={{ margin: '3px 0 0', color: '#5f6368', fontSize: 13 }}>{group.hint}</p>
                 </div>
-                {!group.rows.length && <div style={{ padding: 18, background: '#fff', borderRadius: 12, color: '#5f6368' }}>Nothing here yet.</div>}
+                {!group.rows.length && <div style={{ padding: 18, background: 'var(--mm-surface)', borderRadius: 12, color: '#5f6368' }}>Nothing here yet.</div>}
                 {group.rows.map((session) => {
                   const done = terminalStatuses.has(session.status);
               const canReview = done && session.feedbackReleased === true;
               return (
-                <article key={session.examSessionId} style={{ background: '#fff', border: '1px solid #dadce0', borderRadius: 12, padding: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 15, flexWrap: 'wrap' }}>
+                <article key={session.examSessionId} style={{ background: 'var(--mm-surface)', border: '1px solid #dadce0', borderRadius: 12, padding: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 15, flexWrap: 'wrap' }}>
                   <div>
                     <strong style={{ fontSize: 18 }}>{session.title}</strong>
                     <div style={{ marginTop: 5, color: '#5f6368', fontSize: 13 }}>{session.requiredQuestions} questions · {session.timeLimitSeconds == null ? 'Untimed' : `${Math.round(session.timeLimitSeconds / 60)} minutes`} · Status: {session.status}</div>

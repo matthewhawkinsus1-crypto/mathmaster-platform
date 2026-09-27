@@ -23,7 +23,7 @@ const button = {
   padding: '7px 12px',
   borderRadius: 8,
   border: '1px solid #b7c7de',
-  background: '#fff',
+  background: 'var(--mm-surface)',
   color: '#174ea6',
   fontWeight: 900,
   cursor: 'pointer',
@@ -190,7 +190,7 @@ export default function AssignmentIntake(props) {
             </p>
           </div>
           {!loadingDrafts && draftSummary.count > 0 && (
-            <span style={{ padding: '5px 9px', borderRadius: 999, background: '#fff', color: '#7a4f00', fontSize: 12, fontWeight: 900 }}>
+            <span style={{ padding: '5px 9px', borderRadius: 999, background: 'var(--mm-surface)', color: '#7a4f00', fontSize: 12, fontWeight: 900 }}>
               {draftSummary.count} draft{draftSummary.count === 1 ? '' : 's'} · {draftSummary.blockers} blocker{draftSummary.blockers === 1 ? '' : 's'}
             </span>
           )}
@@ -208,10 +208,10 @@ export default function AssignmentIntake(props) {
               const blockingCount = Number(draft.authoringReview?.blockingCount || 0);
               const questionCount = Number(draft.authoringReview?.questionCount || 0);
               return (
-                <article key={draft.id} style={{ padding: 12, borderRadius: 9, border: '1px solid #e3c892', background: '#fff' }}>
+                <article key={draft.id} style={{ padding: 12, borderRadius: 9, border: '1px solid #e3c892', background: 'var(--mm-surface)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                     <div>
-                      <strong style={{ color: '#202124' }}>{draft.title || 'Incomplete Assignment'}</strong>
+                      <strong style={{ color: 'var(--mm-text-strong)' }}>{draft.title || 'Incomplete Assignment'}</strong>
                       <div style={{ marginTop: 4, color: '#5f6368', fontSize: 12 }}>
                         {questionCount} question{questionCount === 1 ? '' : 's'} · {blockingCount} blocking issue{blockingCount === 1 ? '' : 's'} · revision {Number(draft.assignmentRevision) || 1} · saved {String(draft.updatedAt || draft.createdAt || '').replace('T', ' ').replace('Z', '')}
                       </div>

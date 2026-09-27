@@ -19,7 +19,7 @@ import {
 const cardStyle = {
   border: '1px solid #d8dde6',
   borderRadius: 10,
-  background: '#fff',
+  background: 'var(--mm-surface)',
   padding: '12px 13px',
 };
 
@@ -28,7 +28,7 @@ const actionButton = {
   padding: '6px 9px',
   border: '1px solid #c9ced6',
   borderRadius: 7,
-  background: '#fff',
+  background: 'var(--mm-surface)',
   fontWeight: 800,
   fontSize: 11.5,
   cursor: 'pointer',
@@ -410,20 +410,20 @@ export default function StudentSupportDashboard({
         </div>
       </div>
 
-      <details style={{ marginTop: 10, border: '1px solid #d8dde6', borderRadius: 10, background: '#fff', padding: '10px 12px' }}>
+      <details style={{ marginTop: 10, border: '1px solid #d8dde6', borderRadius: 10, background: 'var(--mm-surface)', padding: '10px 12px' }}>
         <summary style={{ cursor: 'pointer', fontWeight: 900 }}>Add teacher note / intervention</summary>
         <div style={{ marginTop: 9, display: 'grid', gap: 8 }}>
           <div style={{ fontSize: 11.5, color: '#5f6368' }}>
             Optional. Use this for something you actually observed or did; MathMaster never writes the teacher note for you.
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1fr) minmax(180px, 1fr)', gap: 8 }}>
-            <select value={noteStudentId} onChange={(event) => setNoteStudentId(event.target.value)} style={{ minHeight: 38, padding: '7px 8px', border: '1px solid #c9ced6', borderRadius: 7, background: '#fff' }}>
+            <select value={noteStudentId} onChange={(event) => setNoteStudentId(event.target.value)} style={{ minHeight: 38, padding: '7px 8px', border: '1px solid #c9ced6', borderRadius: 7, background: 'var(--mm-surface)' }}>
               <option value="">Choose student…</option>
               {[...students].sort(compareStudentsByName).map((student) => (
                 <option key={student.id} value={student.id}>{formatStudentName(student, { lastFirst: false })}</option>
               ))}
             </select>
-            <select value={noteKind} onChange={(event) => setNoteKind(event.target.value)} style={{ minHeight: 38, padding: '7px 8px', border: '1px solid #c9ced6', borderRadius: 7, background: '#fff' }}>
+            <select value={noteKind} onChange={(event) => setNoteKind(event.target.value)} style={{ minHeight: 38, padding: '7px 8px', border: '1px solid #c9ced6', borderRadius: 7, background: 'var(--mm-surface)' }}>
               <option value={SUPPORT_EVENT_KIND.TEACHER_INTERVENTION}>Teacher check-in / intervention</option>
               <option value={SUPPORT_EVENT_KIND.OFF_TASK_CONCERN}>Productivity / off-task concern</option>
               <option value={SUPPORT_EVENT_KIND.WATCH_PRACTICE}>Watch Practice</option>
@@ -447,7 +447,7 @@ export default function StudentSupportDashboard({
         </div>
       </details>
 
-      <details style={{ marginTop: 10, border: '1px solid #d8dde6', borderRadius: 10, background: '#fff', padding: '10px 12px' }}>
+      <details style={{ marginTop: 10, border: '1px solid #d8dde6', borderRadius: 10, background: 'var(--mm-surface)', padding: '10px 12px' }}>
         <summary style={{ cursor: 'pointer', fontWeight: 900 }}>Recent support history ({recent.length})</summary>
         <div style={{ marginTop: 8, display: 'grid', gap: 7 }}>
           {recent.length ? recent.map((event) => (

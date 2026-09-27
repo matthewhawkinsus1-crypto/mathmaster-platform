@@ -23,12 +23,12 @@ export const StudentPracticeHistory = ({ evidenceEvents = [], availableTeks = []
     <section style={{ maxWidth: '980px', margin: '0 auto', padding: '24px 18px 42px', textAlign: 'left' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap', marginBottom: '20px' }}>
         <div>
-          <h1 style={{ margin: 0, color: '#202124', fontSize: '26px' }}>Practice History</h1>
+          <h1 style={{ margin: 0, color: 'var(--mm-text-strong)', fontSize: '26px' }}>Practice History</h1>
           <p style={{ margin: '5px 0 0', color: '#5f6368' }}>A chronological record of your MathMaster learning evidence.</p>
         </div>
         <label style={{ fontSize: '12px', fontWeight: 800, color: '#3c4043' }}>
           Skill
-          <select value={teksFilter} onChange={(event) => setTeksFilter(event.target.value)} style={{ display: 'block', minWidth: '180px', marginTop: '5px', padding: '9px 10px', border: '1px solid #bdc1c6', borderRadius: '7px', background: '#fff' }}>
+          <select value={teksFilter} onChange={(event) => setTeksFilter(event.target.value)} style={{ display: 'block', minWidth: '180px', marginTop: '5px', padding: '9px 10px', border: '1px solid #bdc1c6', borderRadius: '7px', background: 'var(--mm-surface)' }}>
             <option value="all">All skills</option>
             {/* The filter lists the mathematics, not the identifiers. The code
                 stays as the option VALUE, which is what the filter matches on. */}
@@ -45,15 +45,15 @@ export const StudentPracticeHistory = ({ evidenceEvents = [], availableTeks = []
           ['Correct', `${accuracy}%`],
           ['Independent', report.independentEvents],
         ].map(([label, value]) => (
-          <div key={label} style={{ padding: '14px 16px', border: '1px solid #dadce0', borderRadius: '9px', background: '#fff' }}>
+          <div key={label} style={{ padding: '14px 16px', border: '1px solid #dadce0', borderRadius: '9px', background: 'var(--mm-surface)' }}>
             <div style={{ color: '#5f6368', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase' }}>{label}</div>
-            <div style={{ marginTop: '3px', color: '#202124', fontSize: '22px', fontWeight: 900 }}>{value}</div>
+            <div style={{ marginTop: '3px', color: 'var(--mm-text-strong)', fontSize: '22px', fontWeight: 900 }}>{value}</div>
           </div>
         ))}
       </div>
 
       {!report.totalEvents ? (
-        <div style={{ padding: '34px', border: '1px dashed #bdc1c6', borderRadius: '12px', background: '#fff', color: '#5f6368', textAlign: 'center' }}>
+        <div style={{ padding: '34px', border: '1px dashed #bdc1c6', borderRadius: '12px', background: 'var(--mm-surface)', color: '#5f6368', textAlign: 'center' }}>
           No practice evidence matches this view yet. New attempts will appear here automatically.
         </div>
       ) : Object.entries(report.groupedByDate).map(([dateLabel, items]) => (
@@ -61,7 +61,7 @@ export const StudentPracticeHistory = ({ evidenceEvents = [], availableTeks = []
           <h2 style={{ margin: '0 0 10px', fontSize: '15px', color: '#3c4043' }}>{dateLabel}</h2>
           <div style={{ display: 'grid', gap: '10px' }}>
             {items.map((item) => (
-              <article key={item.eventKey} style={{ padding: '15px 17px', border: '1px solid #dadce0', borderRadius: '10px', background: '#fff' }}>
+              <article key={item.eventKey} style={{ padding: '15px 17px', border: '1px solid #dadce0', borderRadius: '10px', background: 'var(--mm-surface)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                   <div>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>

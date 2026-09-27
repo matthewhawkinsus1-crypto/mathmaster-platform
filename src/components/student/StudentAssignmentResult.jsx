@@ -76,8 +76,8 @@ export default function StudentAssignmentResult({
   if (!entry) {
     return (
       <main style={{ minHeight: '100vh', background: '#f0f2f5', padding: '28px 16px', fontFamily: '"Segoe UI", sans-serif' }}>
-        <section style={{ maxWidth: 680, margin: '0 auto', padding: 22, borderRadius: 14, background: '#fff', border: '1px solid #d8dde6', textAlign: 'left' }}>
-          <h1 style={{ marginTop: 0, fontSize: 21, color: '#202124' }}>That assignment is not available</h1>
+        <section style={{ maxWidth: 680, margin: '0 auto', padding: 22, borderRadius: 14, background: 'var(--mm-surface)', border: '1px solid #d8dde6', textAlign: 'left' }}>
+          <h1 style={{ marginTop: 0, fontSize: 21, color: 'var(--mm-text-strong)' }}>That assignment is not available</h1>
           <p style={{ color: '#5f6368', lineHeight: 1.55 }}>
             This assignment is not assigned to your MathMaster class, or it has been removed. Your other grades are still here.
           </p>
@@ -121,7 +121,7 @@ export default function StudentAssignmentResult({
         aria-label="Assignment result"
         style={{
           maxWidth: 760, margin: '0 auto', padding: '20px 18px', borderRadius: 14,
-          background: '#fff', border: '1px solid #d8dde6', textAlign: 'left', minWidth: 0,
+          background: 'var(--mm-surface)', border: '1px solid #d8dde6', textAlign: 'left', minWidth: 0,
         }}
       >
         {/*
@@ -135,7 +135,7 @@ export default function StudentAssignmentResult({
           style={{
             appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
             minHeight: MIN_TOUCH_TARGET_PX, padding: '10px 14px', marginBottom: 12,
-            borderRadius: 10, border: '2px solid #c9ced6', background: '#fff',
+            borderRadius: 10, border: '2px solid #c9ced6', background: 'var(--mm-surface)',
             color: '#3c4043', fontWeight: 900, fontSize: 14, cursor: 'pointer',
           }}
         >
@@ -146,7 +146,7 @@ export default function StudentAssignmentResult({
           {entry.frozen ? 'Recorded MathMaster result' : 'MathMaster result so far'}
           {sectionLabel ? ` · ${sectionLabel}` : ''}
         </div>
-        <h1 style={{ margin: '8px 0 4px', fontSize: 'clamp(20px, 6vw, 26px)', color: '#202124', overflowWrap: 'anywhere' }}>
+        <h1 style={{ margin: '8px 0 4px', fontSize: 'clamp(20px, 6vw, 26px)', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
           {entry.title}
         </h1>
         <div style={{ fontSize: 13, color: '#5f6368' }}>{statusLine}</div>

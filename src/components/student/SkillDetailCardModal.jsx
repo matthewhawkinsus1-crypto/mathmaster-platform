@@ -37,7 +37,7 @@ export const SkillDetailCardModal = ({
 
   return (
     <div role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }} style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'grid', placeItems: 'center', padding: '16px', background: 'rgba(0,0,0,.5)' }}>
-      <section role="dialog" aria-modal="true" aria-labelledby="skill-detail-title" style={{ width: 'min(480px, 100%)', padding: '24px', borderRadius: '13px', background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,.28)', textAlign: 'left' }}>
+      <section role="dialog" aria-modal="true" aria-labelledby="skill-detail-title" style={{ width: 'min(480px, 100%)', padding: '24px', borderRadius: '13px', background: 'var(--mm-surface)', boxShadow: '0 20px 60px rgba(0,0,0,.28)', textAlign: 'left' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'flex-start' }}>
           <div>
             <div style={{ color: strand.color, fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>{strand.title}</div>

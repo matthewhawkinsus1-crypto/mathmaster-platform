@@ -16,7 +16,7 @@ import { curateStudentPanel, resolveChoiceState } from '../../platform/path/stud
 const SLOT_STYLE = {
   best: { border: '#1a73e8', background: '#e8f0fe', chip: '#174ea6', mark: '★' },
   strengthen: { border: '#f9ab00', background: '#fef7e0', chip: '#7a4f00', mark: '↑' },
-  choice: { border: '#dadce0', background: '#fff', chip: '#3c4043', mark: '◇' },
+  choice: { border: '#dadce0', background: 'var(--mm-surface)', chip: '#3c4043', mark: '◇' },
   challenge: { border: '#137333', background: '#e6f4ea', chip: '#137333', mark: '◆' },
   required: { border: '#4a148c', background: '#f5edfc', chip: '#4a148c', mark: '●' },
 };
@@ -40,7 +40,7 @@ function SkillCard({ card, label, onChoose, disabled }) {
       <span style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', color: style.chip, letterSpacing: 0.4 }}>
         <span aria-hidden="true">{style.mark}</span> {label}
       </span>
-      <span style={{ display: 'block', fontWeight: 800, color: '#202124', margin: '4px 0 2px', fontSize: 15 }}>
+      <span style={{ display: 'block', fontWeight: 800, color: 'var(--mm-text-strong)', margin: '4px 0 2px', fontSize: 15 }}>
         {card.description || card.title}
       </span>
       <span style={{ display: 'block', color: '#5f6368', fontSize: 13, lineHeight: 1.5 }}>{card.reason}</span>
@@ -79,7 +79,7 @@ export default function RecommendedSkills({
 
   return (
     <section style={{ marginTop: 28, textAlign: 'left' }}>
-      <h3 style={{ margin: '0 0 4px', fontSize: 18, color: '#202124' }}>Recommended for you</h3>
+      <h3 style={{ margin: '0 0 4px', fontSize: 18, color: 'var(--mm-text-strong)' }}>Recommended for you</h3>
       <p style={{ margin: '0 0 14px', color: '#5f6368', fontSize: 13, lineHeight: 1.55 }}>
         {panel.confidence.message}
         {panel.confidence.level === 'low' && ' MathMaster gets better at this as you work.'}
@@ -107,7 +107,7 @@ export default function RecommendedSkills({
         <button
           type="button"
           onClick={() => setShowAll((current) => !current)}
-          style={{ marginTop: 12, minHeight: 44, padding: '9px 14px', borderRadius: 8, border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
+          style={{ marginTop: 12, minHeight: 44, padding: '9px 14px', borderRadius: 8, border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
           aria-expanded={showAll}
         >
           {showAll ? 'Show fewer' : `See all ${allSkills.length} available skills`}

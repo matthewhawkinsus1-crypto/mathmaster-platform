@@ -44,7 +44,6 @@ const chip = (active = false, done = false) => ({
   color: '#174ea6',
   fontWeight: 800,
   cursor: 'pointer',
-  colorScheme: 'light',
 });
 const regionLabel = (branch, expressionIndex) => (
   branch?.expressions?.length === 3

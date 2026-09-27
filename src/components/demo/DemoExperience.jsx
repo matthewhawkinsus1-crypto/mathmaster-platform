@@ -5,9 +5,9 @@ import { emptyQuestionRecord, getQuestionCardState, normalizeQuestionRecord, rec
 import { getAssignmentLifecycle, formatDateTime } from '../../assignmentLifecycle.js';
 import { createDemoSeed, loadDemoSeed, resetDemoSeed, saveDemoSeed } from '../../demo/demoExperienceData.js';
 
-const card = { border: '1px solid #dde3ea', borderRadius: 12, padding: 16, background: '#fff' };
+const card = { border: '1px solid #dde3ea', borderRadius: 12, padding: 16, background: 'var(--mm-surface)' };
 const pill = (background, color) => ({ display: 'inline-block', padding: '3px 8px', borderRadius: 999, background, color, fontSize: 11, fontWeight: 900 });
-const button = { padding: '9px 13px', border: '1px solid #c7cdd6', borderRadius: 8, background: '#fff', color: '#3c4043', fontWeight: 800, cursor: 'pointer' };
+const button = { padding: '9px 13px', border: '1px solid #c7cdd6', borderRadius: 8, background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 800, cursor: 'pointer' };
 const primaryButton = { ...button, border: 0, background: '#1a73e8', color: '#fff' };
 
 const readinessStyle = (status) => status === 'advanced'

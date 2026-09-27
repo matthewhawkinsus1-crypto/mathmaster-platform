@@ -30,7 +30,7 @@ const dialogOverlayStyle = {
 const dialogCardStyle = {
   width: '100%',
   maxWidth: '440px',
-  background: '#fff',
+  background: 'var(--mm-surface)',
   borderRadius: '14px',
   boxShadow: '0 24px 70px rgba(0,0,0,0.3)',
   padding: '24px',
@@ -99,11 +99,11 @@ function FolderRow({
           {getFolderLabel(path)}
         </button>
         <div style={{ position: 'relative' }}>
-          <button type="button" onClick={() => setMenuOpen((value) => !value)} aria-label={`Folder actions for ${getFolderLabel(path)}`} title="Folder actions" style={{ fontSize: '16px', width: 28, height: 28, border: '1px solid #dadce0', borderRadius: '6px', background: '#fff', color: '#5f6368', cursor: 'pointer' }}>⋯</button>
-          {menuOpen && <div style={{ position: 'absolute', right: 0, top: 31, zIndex: 20, minWidth: 130, padding: 5, border: '1px solid #d8dde6', borderRadius: 8, background: '#fff', boxShadow: '0 8px 22px rgba(0,0,0,.14)' }}>
-            <button type="button" onClick={() => { setMenuOpen(false); onOpenDialog({ mode: 'create', parentPath: path, input: `${path}/` }); }} style={{ display: 'block', width: '100%', padding: 7, border: 0, background: '#fff', textAlign: 'left' }}>New subfolder</button>
-            <button type="button" onClick={() => { setMenuOpen(false); onOpenDialog({ mode: 'rename', path, input: path }); }} style={{ display: 'block', width: '100%', padding: 7, border: 0, background: '#fff', textAlign: 'left' }}>Rename</button>
-            <button type="button" onClick={() => { setMenuOpen(false); onOpenDialog({ mode: 'delete', path }); }} style={{ display: 'block', width: '100%', padding: 7, border: 0, background: '#fff', color: '#c5221f', textAlign: 'left' }}>Delete</button>
+          <button type="button" onClick={() => setMenuOpen((value) => !value)} aria-label={`Folder actions for ${getFolderLabel(path)}`} title="Folder actions" style={{ fontSize: '16px', width: 28, height: 28, border: '1px solid #dadce0', borderRadius: '6px', background: 'var(--mm-surface)', color: '#5f6368', cursor: 'pointer' }}>⋯</button>
+          {menuOpen && <div style={{ position: 'absolute', right: 0, top: 31, zIndex: 20, minWidth: 130, padding: 5, border: '1px solid #d8dde6', borderRadius: 8, background: 'var(--mm-surface)', boxShadow: '0 8px 22px rgba(0,0,0,.14)' }}>
+            <button type="button" onClick={() => { setMenuOpen(false); onOpenDialog({ mode: 'create', parentPath: path, input: `${path}/` }); }} style={{ display: 'block', width: '100%', padding: 7, border: 0, background: 'var(--mm-surface)', textAlign: 'left' }}>New subfolder</button>
+            <button type="button" onClick={() => { setMenuOpen(false); onOpenDialog({ mode: 'rename', path, input: path }); }} style={{ display: 'block', width: '100%', padding: 7, border: 0, background: 'var(--mm-surface)', textAlign: 'left' }}>Rename</button>
+            <button type="button" onClick={() => { setMenuOpen(false); onOpenDialog({ mode: 'delete', path }); }} style={{ display: 'block', width: '100%', padding: 7, border: 0, background: 'var(--mm-surface)', color: '#c5221f', textAlign: 'left' }}>Delete</button>
           </div>}
         </div>
       </div>
@@ -275,7 +275,7 @@ export default function AssignmentLibrary({
           placeholder="Search title or folder"
           style={{ flex: '1 1 220px', padding: '9px 12px', border: '1px solid #c9ced6', borderRadius: '8px' }}
         />
-        <select value={sortMode} onChange={(event) => setSortMode(event.target.value)} aria-label="Sort library assignments" style={{ padding: '8px 10px', border: '1px solid #dadce0', borderRadius: 8, background: '#fff' }}><option value="title">Sort: Title</option><option value="due">Sort: Due date</option><option value="status">Sort: Status</option></select>
+        <select value={sortMode} onChange={(event) => setSortMode(event.target.value)} aria-label="Sort library assignments" style={{ padding: '8px 10px', border: '1px solid #dadce0', borderRadius: 8, background: 'var(--mm-surface)' }}><option value="title">Sort: Title</option><option value="due">Sort: Due date</option><option value="status">Sort: Status</option></select>
         {SMART_VIEWS.map((view) => (
           <button
             type="button"
@@ -301,7 +301,7 @@ export default function AssignmentLibrary({
         {folderPaneCollapsed ? <button type="button" onClick={toggleFolderPane} aria-label="Expand folders" title="Expand folders" style={{ flex: '0 0 44px', width: 44, minHeight: 170, border: '1px solid #e0e3e7', borderRadius: 10, background: '#f8f9fa', color: '#174ea6', fontWeight: 900, cursor: 'pointer', writingMode: 'vertical-rl' }}>› Folders</button> : <div style={{ flex: '0 0 260px', minWidth: '220px', border: '1px solid #e0e3e7', borderRadius: '10px', padding: '12px', background: '#f8f9fa' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
             <strong style={{ fontSize: '13px', color: '#5f6368', textTransform: 'uppercase' }}>Folders</strong>
-            <div style={{ display: 'flex', gap: 5 }}><button type="button" onClick={() => setFolderDialog({ mode: 'create', input: '' })} style={{ fontSize: '11px', padding: '3px 8px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#fff', color: '#1a73e8', fontWeight: 'bold', cursor: 'pointer' }}>+ New</button><button type="button" onClick={toggleFolderPane} title="Collapse folders" aria-label="Collapse folders" style={{ width: 28, border: '1px solid #dadce0', borderRadius: 6, background: '#fff', color: '#5f6368' }}>‹</button></div>
+            <div style={{ display: 'flex', gap: 5 }}><button type="button" onClick={() => setFolderDialog({ mode: 'create', input: '' })} style={{ fontSize: '11px', padding: '3px 8px', border: '1px solid #1a73e8', borderRadius: '6px', background: 'var(--mm-surface)', color: '#1a73e8', fontWeight: 'bold', cursor: 'pointer' }}>+ New</button><button type="button" onClick={toggleFolderPane} title="Collapse folders" aria-label="Collapse folders" style={{ width: 28, border: '1px solid #dadce0', borderRadius: 6, background: 'var(--mm-surface)', color: '#5f6368' }}>‹</button></div>
           </div>
 
           <button
@@ -451,7 +451,7 @@ export default function AssignmentLibrary({
             )}
             {dialogError && <p style={{ color: '#c5221f', fontWeight: 'bold', fontSize: '13px' }}>{dialogError}</p>}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px' }}>
-              <button type="button" onClick={closeDialog} style={{ padding: '9px 14px', border: '1px solid #dadce0', borderRadius: '8px', background: '#fff', color: '#5f6368', fontWeight: 'bold', cursor: 'pointer' }}>Cancel</button>
+              <button type="button" onClick={closeDialog} style={{ padding: '9px 14px', border: '1px solid #dadce0', borderRadius: '8px', background: 'var(--mm-surface)', color: '#5f6368', fontWeight: 'bold', cursor: 'pointer' }}>Cancel</button>
               <button
                 type="button"
                 onClick={submitDialog}

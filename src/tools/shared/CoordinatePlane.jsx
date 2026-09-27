@@ -31,7 +31,7 @@ const ZOOM_BUTTON = {
   minHeight: 44,
   border: '1px solid #c5d5ef',
   borderRadius: 8,
-  background: '#fff',
+  background: 'var(--mm-surface)',
   color: '#174ea6',
   fontWeight: 800,
   fontSize: 16,
@@ -436,7 +436,7 @@ export default function CoordinatePlane({
           // lives with the other rules for this class, where the cascade can
           // reach it.
           width: '100%', height: 'auto', maxWidth: '100%',
-          border: '1px solid #d9e2f1', borderRadius: 12, background: '#fff',
+          border: '1px solid #d9e2f1', borderRadius: 12, background: 'var(--mm-surface)',
           cursor: interactive ? 'crosshair' : 'default',
           // Vertical page scroll and browser pinch-zoom are native gestures.
           // A deliberate tap/short drag can still plot; a scrolling gesture is
@@ -621,9 +621,9 @@ export default function CoordinatePlane({
           aria-label="Zoom the coordinate plane"
           style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', margin: '8px 0 0' }}
         >
-          <button type="button" onClick={() => applyZoom(1 / 1.4)} aria-label="Zoom in" style={ZOOM_BUTTON}>+</button>
-          <button type="button" onClick={() => applyZoom(1.4)} aria-label="Zoom out" style={ZOOM_BUTTON}>−</button>
-          <button type="button" onClick={resetView} disabled={!view} style={{ ...ZOOM_BUTTON, width: 'auto', padding: '0 12px', opacity: view ? 1 : 0.5 }}>
+          <button className="mm-button-neutral" type="button" onClick={() => applyZoom(1 / 1.4)} aria-label="Zoom in" style={ZOOM_BUTTON}>+</button>
+          <button className="mm-button-neutral" type="button" onClick={() => applyZoom(1.4)} aria-label="Zoom out" style={ZOOM_BUTTON}>−</button>
+          <button className="mm-button-neutral" type="button" onClick={resetView} disabled={!view} style={{ ...ZOOM_BUTTON, width: 'auto', padding: '0 12px', opacity: view ? 1 : 0.5 }}>
             Reset view
           </button>
           {view ? (

@@ -48,15 +48,15 @@ export default function TeacherAssignmentPdfDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="teacher-assignment-pdf-title"
-        style={{ width: '100%', maxWidth: 620, background: '#fff', borderRadius: 16, boxShadow: '0 24px 70px rgba(0,0,0,.28)', overflow: 'hidden', textAlign: 'left' }}
+        style={{ width: '100%', maxWidth: 620, background: 'var(--mm-surface)', borderRadius: 16, boxShadow: '0 24px 70px rgba(0,0,0,.28)', overflow: 'hidden', textAlign: 'left' }}
       >
         <div style={{ padding: '22px 24px', borderBottom: '1px solid #e8eaed' }}>
           <div style={{ color: '#174ea6', fontWeight: 900, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em' }}>Print Assignment</div>
-          <h2 id="teacher-assignment-pdf-title" style={{ margin: '5px 0 0', color: '#202124' }}>{assignment?.title || 'Assignment'}</h2>
+          <h2 id="teacher-assignment-pdf-title" style={{ margin: '5px 0 0', color: 'var(--mm-text-strong)' }}>{assignment?.title || 'Assignment'}</h2>
         </div>
 
         <div style={{ padding: 24 }}>
-          <div style={{ fontWeight: 900, color: '#202124', marginBottom: 9 }}>Choose output</div>
+          <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)', marginBottom: 9 }}>Choose output</div>
           <div style={{ display: 'grid', gap: 9 }}>
             {MODE_OPTIONS.map((mode) => {
               const selected = outputMode === mode.id;
@@ -79,7 +79,7 @@ export default function TeacherAssignmentPdfDialog({
                     style={{ marginTop: 3 }}
                   />
                   <span>
-                    <strong style={{ color: '#202124' }}>{mode.title}</strong>
+                    <strong style={{ color: 'var(--mm-text-strong)' }}>{mode.title}</strong>
                     <span style={{ display: 'block', marginTop: 2, color: '#5f6368', fontSize: 12.5, lineHeight: 1.45 }}>{mode.note}</span>
                   </span>
                 </label>
@@ -93,7 +93,7 @@ export default function TeacherAssignmentPdfDialog({
               value={selectedStudentId}
               onChange={(event) => setSelectedStudentId(event.target.value)}
               disabled={busy}
-              style={{ display: 'block', width: '100%', marginTop: 7, minHeight: 44, padding: '9px 11px', border: '1px solid #bdc7d6', borderRadius: 8, background: '#fff', fontSize: 15 }}
+              style={{ display: 'block', width: '100%', marginTop: 7, minHeight: 44, padding: '9px 11px', border: '1px solid #bdc7d6', borderRadius: 8, background: 'var(--mm-surface)', fontSize: 15 }}
             >
               {!requiresStudent && <option value="">Shared version / blank student fields</option>}
               {sortedStudents.map((student) => (
@@ -112,7 +112,7 @@ export default function TeacherAssignmentPdfDialog({
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '17px 24px', borderTop: '1px solid #e8eaed', background: '#f8f9fa' }}>
-          <button type="button" onClick={() => onCancel?.()} disabled={busy} style={{ padding: '10px 16px', border: '1px solid #bdc7d6', borderRadius: 8, background: '#fff', color: '#3c4043', fontWeight: 800, cursor: busy ? 'wait' : 'pointer' }}>Cancel</button>
+          <button type="button" onClick={() => onCancel?.()} disabled={busy} style={{ padding: '10px 16px', border: '1px solid #bdc7d6', borderRadius: 8, background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 800, cursor: busy ? 'wait' : 'pointer' }}>Cancel</button>
           <button
             type="button"
             onClick={() => onExport?.(selectedStudent, outputMode)}

@@ -94,7 +94,7 @@ export default function NeedsAttentionQueue({
 
   if (!queue.length) {
     return (
-      <section style={{ padding: '16px 18px', border: '1px solid #d8dde6', borderRadius: 10, background: '#fff', marginBottom: 22 }}>
+      <section style={{ padding: '16px 18px', border: '1px solid #d8dde6', borderRadius: 10, background: 'var(--mm-surface)', marginBottom: 22 }}>
         <h2 style={{ margin: 0, fontSize: 17 }}>
           {academicCoverage ? 'Nothing needs your attention right now' : 'Live classroom ready'}
         </h2>
@@ -137,7 +137,7 @@ export default function NeedsAttentionQueue({
   };
 
   return (
-    <section style={{ border: '1px solid #d8dde6', borderRadius: 10, background: '#fff', marginBottom: 22, overflow: 'hidden' }}>
+    <section style={{ border: '1px solid #d8dde6', borderRadius: 10, background: 'var(--mm-surface)', marginBottom: 22, overflow: 'hidden' }}>
       <header style={{ padding: '15px 18px 12px', borderBottom: '1px solid #eef0f2' }}>
         {(!completionCoverage || !academicCoverage) && (
           <p style={{ margin: '0 0 10px', padding: '8px 10px', borderRadius: 8, background: '#f1f3f4', color: '#3c4043', fontSize: 12.5 }}>
@@ -229,7 +229,7 @@ export default function NeedsAttentionQueue({
                           key={entry.studentId}
                           type="button"
                           onClick={() => onOpenStudent?.(entry.studentId)}
-                          style={{ padding: '5px 9px', border: '1px solid #dadce0', borderRadius: 7, background: '#fff', color: '#174ea6', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                          style={{ padding: '5px 9px', border: '1px solid #dadce0', borderRadius: 7, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
                         >
                           {entry.studentName}
                         </button>
@@ -243,7 +243,7 @@ export default function NeedsAttentionQueue({
                 <button
                   type="button"
                   onClick={action.run}
-                  style={{ alignSelf: 'center', padding: '8px 12px', border: '1px solid #1a73e8', borderRadius: 8, background: '#fff', color: '#174ea6', fontWeight: 900, fontSize: 12.5, whiteSpace: 'nowrap', cursor: 'pointer' }}
+                  style={{ alignSelf: 'center', padding: '8px 12px', border: '1px solid #1a73e8', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 900, fontSize: 12.5, whiteSpace: 'nowrap', cursor: 'pointer' }}
                 >
                   {action.label}
                 </button>

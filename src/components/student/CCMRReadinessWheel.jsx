@@ -120,7 +120,7 @@ export const CCMRReadinessWheel = ({
             <p style={{ margin: '0 0 2px', fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em', color: active.textColor }}>
               {active.label}
             </p>
-            <h4 style={{ margin: '0 0 6px', fontSize: 17, color: '#202124' }}>{active.title}</h4>
+            <h4 style={{ margin: '0 0 6px', fontSize: 17, color: 'var(--mm-text-strong)' }}>{active.title}</h4>
             <p style={{ margin: '0 0 8px', fontSize: 13, color: '#5f6368', lineHeight: 1.55 }}>{explainDomain(active)}</p>
             <p style={{ margin: 0, fontSize: 12, color: '#3c4043' }}>
               {active.skillCount} skill{active.skillCount === 1 ? '' : 's'} matched

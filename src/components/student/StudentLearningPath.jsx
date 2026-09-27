@@ -18,7 +18,7 @@ import {
 // something is coming on a date the class actually reaches.
 
 const section = {
-  border: '1px solid #dadce0', borderRadius: 14, background: '#fff',
+  border: '1px solid #dadce0', borderRadius: 14, background: 'var(--mm-surface)',
   padding: '16px 16px 18px', marginBottom: 14, textAlign: 'left',
 };
 
@@ -41,7 +41,7 @@ const cardStyle = (tone, selectable, blockedBy = null) => ({
       : '2px solid #e0e3e8',
   background: selectable ? '#fff' : blockedBy === 'pacing' ? '#f6f9fe' : '#f8f9fa',
   textAlign: 'left', cursor: selectable ? 'pointer' : 'default',
-  color: '#202124', font: 'inherit',
+  color: 'var(--mm-text-strong)', font: 'inherit',
 });
 
 // What the "why" disclosure is called depends on what is actually true. A
@@ -293,7 +293,7 @@ export const StudentLearningPath = ({
   return (
     <div style={{ maxWidth: 940, margin: '0 auto', padding: '20px 16px 40px' }}>
       <header style={{ textAlign: 'left', marginBottom: 14 }}>
-        <h2 style={{ margin: 0, fontSize: 24, color: '#202124' }}>Your path</h2>
+        <h2 style={{ margin: 0, fontSize: 24, color: 'var(--mm-text-strong)' }}>Your path</h2>
         <p style={{ margin: '4px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.55 }}>
           <strong>{map.masteredCount} of {map.totalSkills}</strong> skills mastered.
           {passSummary.totalCompletedPasses > 0 && (

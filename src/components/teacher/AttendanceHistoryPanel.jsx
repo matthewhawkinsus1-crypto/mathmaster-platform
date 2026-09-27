@@ -40,9 +40,9 @@ const MARK_DISPLAY_LABEL = {
   [ATTENDANCE_HISTORY_MARK.ABSENT_UNCLASSIFIED]: 'Absent (not yet classified)',
 };
 
-const rowStyle = { display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '9px 11px', border: '1px solid #e0e3e7', borderRadius: 9, background: '#fff' };
-const controlStyle = { padding: '8px 10px', borderRadius: 8, border: '1px solid #dadce0', background: '#fff', fontSize: 13 };
-const smallButtonStyle = { padding: '5px 8px', borderRadius: 7, border: '1px solid #9aa0a6', background: '#fff', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' };
+const rowStyle = { display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '9px 11px', border: '1px solid #e0e3e7', borderRadius: 9, background: 'var(--mm-surface)' };
+const controlStyle = { padding: '8px 10px', borderRadius: 8, border: '1px solid #dadce0', background: 'var(--mm-surface)', fontSize: 13 };
+const smallButtonStyle = { padding: '5px 8px', borderRadius: 7, border: '1px solid #9aa0a6', background: 'var(--mm-surface)', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' };
 
 const markLabel = (mark) => MARK_DISPLAY_LABEL[mark] || 'Not marked';
 
@@ -253,7 +253,7 @@ export default function AttendanceHistoryPanel({
                         type="button"
                         disabled={busy}
                         onClick={() => onApplyShorterExtension?.({ student, assignment, resolution, classId, classPeriod, reviewKey })}
-                        style={{ ...smallButtonStyle, borderColor: '#b3261e', background: '#fff', color: '#b3261e' }}
+                        style={{ ...smallButtonStyle, borderColor: '#b3261e', background: 'var(--mm-surface)', color: '#b3261e' }}
                       >
                         Apply Shorter Extension
                       </button>

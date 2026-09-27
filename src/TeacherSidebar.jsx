@@ -138,7 +138,7 @@ export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onTo
           height: '32px',
           border: '1px solid #dadce0',
           borderRadius: '8px',
-          background: '#fff',
+          background: 'var(--mm-surface)',
           color: '#5f6368',
           cursor: 'pointer',
           marginBottom: '10px',

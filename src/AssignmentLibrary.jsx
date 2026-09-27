@@ -126,7 +126,7 @@ export default function AssignmentLibrary(props) {
               value={effectiveRepairId}
               onChange={(event) => { setSelectedRepairId(event.target.value); setMessage(''); }}
               aria-label="Choose Library assignment for Repair Center"
-              style={{ minWidth: 240, maxWidth: 'min(460px, 70vw)', minHeight: 42, padding: '7px 9px', border: '1px solid #bdc7d6', borderRadius: 8, background: '#fff' }}
+              style={{ minWidth: 240, maxWidth: 'min(460px, 70vw)', minHeight: 42, padding: '7px 9px', border: '1px solid #bdc7d6', borderRadius: 8, background: 'var(--mm-surface)' }}
             >
               {repairChoices.length === 0 && <option value="">No V5 Library assignments</option>}
               {repairChoices.map((assignment) => (

@@ -26,7 +26,7 @@ export const ProblemUnderstandingPanel = ({ context, onScaffoldComplete }) => {
         <strong style={{ color: '#174ea6', fontSize: '13px', textTransform: 'uppercase' }}>📖 Problem Understanding Scaffold</strong>
         <span style={{ fontSize: '12px', color: '#5f6368' }}>Context support · does not reduce math-independence evidence</span>
       </div>
-      <p style={{ fontSize: '15px', lineHeight: 1.5, margin: '0 0 12px', color: '#202124' }}>{context.scenario}</p>
+      <p style={{ fontSize: '15px', lineHeight: 1.5, margin: '0 0 12px', color: 'var(--mm-text-strong)' }}>{context.scenario}</p>
 
       {step === 1 && (
         <div>

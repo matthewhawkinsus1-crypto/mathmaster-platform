@@ -91,7 +91,7 @@ export default function CcmrDashboard({
                       studentName={row.studentName}
                       profile={profilesByStudentId[row.studentId]}
                       onOpen={onOpenStudent}
-                      style={{ fontSize: 12.5, padding: '4px 8px', border: '1px solid #dadce0', borderRadius: 7, background: '#fff' }}
+                      style={{ fontSize: 12.5, padding: '4px 8px', border: '1px solid #dadce0', borderRadius: 7, background: 'var(--mm-surface)' }}
                     />
                   ))}
                 </div>

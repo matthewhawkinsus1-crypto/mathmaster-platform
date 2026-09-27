@@ -35,7 +35,7 @@ import {
   substitutedEquationLatex,
 } from './algebraicSystemsEngine.js';
 
-const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '11px 12px', border: '1px solid #cfd8e6', borderRadius: 9, background: '#fff', fontSize: 15, minHeight: 44 };
+const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '11px 12px', border: '1px solid #cfd8e6', borderRadius: 9, background: 'var(--mm-surface)', fontSize: 15, minHeight: 44 };
 const actionStyle = { marginTop: 16, padding: '11px 18px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const Field = ({ label, children }) => <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#465267' }}>{label}<div style={{ marginTop: 5 }}>{children}</div></label>;
 
@@ -1428,7 +1428,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                           <button type="button" onClick={startOptionalIsolationSimplification} style={secondaryButtonStyle}>Simplify first (optional)</button>
                         </div>
                       ) : (
-                        <div style={{ display: 'grid', gap: 8, padding: '12px 14px', border: '1px solid #dbe3ef', borderRadius: 10, background: '#fff' }}>
+                        <div style={{ display: 'grid', gap: 8, padding: '12px 14px', border: '1px solid #dbe3ef', borderRadius: 10, background: 'var(--mm-surface)' }}>
                           <Field label="Write an equivalent, simpler expression">
                             <MathInput
                               value={isolation.simplificationDraft || ''}
@@ -1927,7 +1927,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
           ) : null}
 
           {isDegenerate ? (
-            <div style={{ marginTop: 14, padding: 10, border: '1px solid #dbe3ef', borderRadius: 8, background: '#fff' }}>
+            <div style={{ marginTop: 14, padding: 10, border: '1px solid #dbe3ef', borderRadius: 8, background: 'var(--mm-surface)' }}>
               <p style={{ margin: '0 0 8px', fontWeight: 700 }}>This reduces to a statement with no variable. Interpret it before moving on.</p>
               <MathDisplay value={formatLinearEquation(reduceCoefficients, variables)} format="ascii-math" />
               <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
@@ -2191,7 +2191,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         <Panel title="Both original equations">
           <div style={{ display: 'grid', gap: 8 }}>
             {equations.map((eq, index) => (
-              <div key={index} style={{ padding: '8px 10px', border: '1px solid #dbe3ef', borderRadius: 8, background: '#fff' }}>
+              <div key={index} style={{ padding: '8px 10px', border: '1px solid #dbe3ef', borderRadius: 8, background: 'var(--mm-surface)' }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#5f6b7a' }}>Equation {index + 1}</span>
                 <MathDisplay value={eq} format="ascii-math" />
               </div>

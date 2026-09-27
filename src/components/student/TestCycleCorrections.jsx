@@ -26,7 +26,7 @@ import {
  */
 
 const card = {
-  background: '#fff',
+  background: 'var(--mm-surface)',
   border: '1px solid #dadce0',
   borderRadius: 14,
   padding: 'clamp(16px, 4vw, 26px)',
@@ -169,7 +169,7 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
                 {/* Hints belong here. This is the stage where help is the
                     instruction, not a loophole. */}
                 {question.hint && (
-                  <button type="button" onClick={() => setShowHint((value) => !value)} style={{ flex: '0 1 160px', minHeight: 48, borderRadius: 9, border: '1px solid #5f6368', background: '#fff', color: '#3c4043', fontWeight: 800, cursor: 'pointer' }}>
+                  <button type="button" onClick={() => setShowHint((value) => !value)} style={{ flex: '0 1 160px', minHeight: 48, borderRadius: 9, border: '1px solid #5f6368', background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 800, cursor: 'pointer' }}>
                     {showHint ? 'Hide hint' : 'Show a hint'}
                   </button>
                 )}
@@ -196,7 +196,7 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
         )}
       </section>
 
-      <button type="button" onClick={onExit} style={{ justifySelf: 'start', minHeight: 44, padding: '9px 15px', borderRadius: 8, border: '1px solid #5f6368', background: '#fff', color: '#3c4043', cursor: 'pointer' }}>
+      <button type="button" onClick={onExit} style={{ justifySelf: 'start', minHeight: 44, padding: '9px 15px', borderRadius: 8, border: '1px solid #5f6368', background: 'var(--mm-surface)', color: '#3c4043', cursor: 'pointer' }}>
         Back to my assignment
       </button>
     </div>

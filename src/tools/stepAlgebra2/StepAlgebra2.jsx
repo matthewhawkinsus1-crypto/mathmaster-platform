@@ -9,7 +9,7 @@ import RewriteLinearForm from './RewriteLinearForm';
 import LinearIntercepts from './LinearIntercepts';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
-const secondaryButton = { ...primaryButton, background: '#fff', color: '#174ea6', border: '1px solid #9bb8e8' };
+const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: '#174ea6', border: '1px solid #9bb8e8' };
 const controlStyle = { padding: '11px 12px', border: '1px solid #cdd6e4', borderRadius: 9, fontSize: 15, minHeight: 44, width: '100%' };
 
 const OPERATIONS = {
@@ -177,7 +177,7 @@ export default function StepAlgebra2({ questionData = {}, onAction, draftKey = n
             {goalChip(coefficientCleared, 'x has a coefficient of 1')}
           </div>
 
-          <div data-math-state={formatEquation(state)} style={{ fontSize: 30, fontWeight: 800, textAlign: 'center', padding: '20px 12px', background: '#fff', border: `2px solid ${solved ? '#a8dab5' : '#d9e2f1'}`, borderRadius: 12, color: '#172033' }}>
+          <div data-math-state={formatEquation(state)} style={{ fontSize: 30, fontWeight: 800, textAlign: 'center', padding: '20px 12px', background: 'var(--mm-surface)', border: `2px solid ${solved ? '#a8dab5' : '#d9e2f1'}`, borderRadius: 12, color: 'var(--mm-text-strong)' }}>
             {formatEquation(state)}
           </div>
 
@@ -212,7 +212,7 @@ export default function StepAlgebra2({ questionData = {}, onAction, draftKey = n
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
             <button type="button" onClick={apply} disabled={!operandIsUsable} style={{ ...primaryButton, opacity: operandIsUsable ? 1 : 0.5, cursor: operandIsUsable ? 'pointer' : 'not-allowed' }}>Apply to both sides</button>
-            <button type="button" onClick={startOver} disabled={!history.length} style={{ ...secondaryButton, opacity: history.length ? 1 : 0.5 }}>Start over</button>
+            <button className="mm-button-neutral" type="button" onClick={startOver} disabled={!history.length} style={{ ...secondaryButton, opacity: history.length ? 1 : 0.5 }}>Start over</button>
           </div>
 
           <button type="button" onClick={check} style={{ ...primaryButton, marginTop: 12, width: '100%', background: solved ? '#137333' : '#1a73e8' }}>

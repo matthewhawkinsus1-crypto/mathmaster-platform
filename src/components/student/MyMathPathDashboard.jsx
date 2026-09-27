@@ -55,7 +55,7 @@ export const MyMathPathDashboard = ({
   return (
     <section style={{ maxWidth: '980px', margin: '0 auto', padding: '24px 18px 42px' }}>
       <header style={{ marginBottom: '20px', textAlign: 'left' }}>
-        <h1 style={{ margin: 0, fontSize: '28px', color: '#202124' }}>Welcome back, {studentName}!</h1>
+        <h1 style={{ margin: 0, fontSize: '28px', color: 'var(--mm-text-strong)' }}>Welcome back, {studentName}!</h1>
         <p style={{ margin: '5px 0 0', color: '#5f6368' }}>Your {courseLabel} skills, and what to work on next.</p>
       </header>
 
@@ -79,7 +79,7 @@ export const MyMathPathDashboard = ({
             <button
               type="button"
               onClick={onOpenPath}
-              style={{ marginTop: 9, minHeight: 42, padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: 9, background: '#fff', color: '#174ea6', fontWeight: 850, cursor: 'pointer' }}
+              style={{ marginTop: 9, minHeight: 42, padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: 9, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 850, cursor: 'pointer' }}
             >
               View and continue this week&apos;s Path
             </button>
@@ -88,7 +88,7 @@ export const MyMathPathDashboard = ({
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '22px', alignItems: 'center' }}>
-        <div style={{ minWidth: 0, padding: '18px', border: '1px solid #dadce0', borderRadius: '12px', background: '#fff' }}>
+        <div style={{ minWidth: 0, padding: '18px', border: '1px solid #dadce0', borderRadius: '12px', background: 'var(--mm-surface)' }}>
           <h2 style={{ margin: '0 0 10px', fontSize: '18px', color: '#3c4043', textAlign: 'left' }}>Your skills map</h2>
           <MyMathPathWheel masteryProfilesByTEKS={masteryProfilesByTEKS} skillProgressByTEKS={skillProgressByTEKS} onSelectTEKS={setSelectedTeks} courseId={courseId} />
         </div>
@@ -98,7 +98,7 @@ export const MyMathPathDashboard = ({
             <div style={{ color: '#174ea6', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>{retentionReport.hasPendingProbes ? 'Priority verification focus' : 'Recommended next focus'}</div>
             {activeFocusTeks ? (
               <>
-                <h2 style={{ margin: '7px 0 5px', color: '#202124' }}>{studentLabelForTeks(activeFocusTeks)}</h2>
+                <h2 style={{ margin: '7px 0 5px', color: 'var(--mm-text-strong)' }}>{studentLabelForTeks(activeFocusTeks)}</h2>
                 {/* The sentence comes from the engine that chose the skill, or
                     from the retention scheduler that overrode it. A hand-written
                     fallback here would be a second voice explaining a decision
@@ -118,7 +118,7 @@ export const MyMathPathDashboard = ({
               </p>
             )}
           </div>
-          <div style={{ padding: '15px', border: '1px solid #dadce0', borderRadius: '9px', background: '#fff', textAlign: 'left', fontSize: '12px', lineHeight: 1.7 }}>
+          <div style={{ padding: '15px', border: '1px solid #dadce0', borderRadius: '9px', background: 'var(--mm-surface)', textAlign: 'left', fontSize: '12px', lineHeight: 1.7 }}>
             {/* The legend used the same green glyph for two different states
                 and named a fourth state ("Needs work") that never appears —
                 the wheel says "Needs Attention". */}

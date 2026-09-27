@@ -63,9 +63,9 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
                 type="button"
                 key={classRecord.key}
                 onClick={() => chooseClass(classRecord.key)}
-                style={{ textAlign: 'left', padding: '18px', borderRadius: '12px', border: '1px solid #dadce0', background: '#fff', cursor: 'pointer' }}
+                style={{ textAlign: 'left', padding: '18px', borderRadius: '12px', border: '1px solid #dadce0', background: 'var(--mm-surface)', cursor: 'pointer' }}
               >
-                <div style={{ fontWeight: 900, fontSize: '16px', color: '#202124' }}>{classRecord.name || period}</div><div style={{ marginTop: 2, color: '#5f6368', fontSize: 12 }}>{period}</div>
+                <div style={{ fontWeight: 900, fontSize: '16px', color: 'var(--mm-text-strong)' }}>{classRecord.name || period}</div><div style={{ marginTop: 2, color: '#5f6368', fontSize: 12 }}>{period}</div>
                 <div style={{ marginTop: '8px', color: '#5f6368', fontSize: '13px' }}>{periodStudents.length} student{periodStudents.length === 1 ? '' : 's'}</div>
                 <div style={{ marginTop: '3px', color: '#5f6368', fontSize: '13px' }}>{openCount} active assignment{openCount === 1 ? '' : 's'}</div>
               </button>
@@ -285,7 +285,7 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
                             value={timerMinutes}
                             disabled={warmupControlBusyKey === busyKey}
                             onChange={(event) => setWarmupTimerMinutesByKey((current) => ({ ...current, [busyKey]: Number(event.target.value) }))}
-                            style={{ minHeight: 36, borderRadius: 7, border: '1px solid #dadce0', background: '#fff', padding: '0 7px', fontWeight: 800 }}
+                            style={{ minHeight: 36, borderRadius: 7, border: '1px solid #dadce0', background: 'var(--mm-surface)', padding: '0 7px', fontWeight: 800 }}
                           >
                             {[3, 5, 7, 10, 15, 20].map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}
                           </select>
@@ -294,7 +294,7 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
                           type="button"
                           disabled={warmupControlBusyKey === busyKey}
                           onClick={() => onToggleWarmup?.(assignment, classContext, { action: 'timer', autoCloseMinutes: timerMinutes })}
-                          style={{ padding: '8px 12px', border: '1px solid #188038', borderRadius: 7, background: '#fff', color: '#137333', fontWeight: 900, cursor: warmupControlBusyKey === busyKey ? 'wait' : 'pointer' }}
+                          style={{ padding: '8px 12px', border: '1px solid #188038', borderRadius: 7, background: 'var(--mm-surface)', color: '#137333', fontWeight: 900, cursor: warmupControlBusyKey === busyKey ? 'wait' : 'pointer' }}
                         >
                           {needsOpenToday
                             ? `Open for ${timerMinutes} min`
@@ -381,7 +381,7 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
                           : recoveryAvailable ? 'Reopen DOL' : dol.canRestart ? 'Restart DOL' : needsOpenToday ? 'Open DOL Today' : 'Unlock DOL Early'}
                       </button>
                     )}
-                    <button type="button" disabled={dolAttemptGrantBusyKey === busyKey} onClick={() => onGrantDOLAttempt?.(assignment, { classId: selectedClass.classId || null, classPeriod: selectedPeriod })} style={{ padding: '8px 12px', border: '1px solid #681da8', borderRadius: 7, background: '#fff', color: '#681da8', fontWeight: 900, cursor: dolAttemptGrantBusyKey === busyKey ? 'wait' : 'pointer' }}>
+                    <button type="button" disabled={dolAttemptGrantBusyKey === busyKey} onClick={() => onGrantDOLAttempt?.(assignment, { classId: selectedClass.classId || null, classPeriod: selectedPeriod })} style={{ padding: '8px 12px', border: '1px solid #681da8', borderRadius: 7, background: 'var(--mm-surface)', color: '#681da8', fontWeight: 900, cursor: dolAttemptGrantBusyKey === busyKey ? 'wait' : 'pointer' }}>
                       {dolAttemptGrantBusyKey === busyKey ? 'Granting…' : `Grant +1 attempt${attemptBonus ? ` (now +${attemptBonus})` : ''}`}
                     </button>
                   </div>
@@ -408,7 +408,7 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
                   </div>
                   {active && <div style={{ marginTop: 4, fontSize: 12, color: '#5f6368' }}>{presence.assignmentTitle || 'Assignment'} · {String(presence.activityRole || 'activity').toUpperCase()} · Q{Number(presence.sectionQuestionIndex ?? presence.questionIndex ?? 0) + 1}</div>}
                 </div>
-                <button type="button" onClick={() => onViewGradebook(selectedClass.classId || selectedPeriod, student)} style={{ padding: '7px 12px', border: '1px solid #1a73e8', borderRadius: '7px', background: '#fff', color: '#1a73e8', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>View Grades</button>
+                <button type="button" onClick={() => onViewGradebook(selectedClass.classId || selectedPeriod, student)} style={{ padding: '7px 12px', border: '1px solid #1a73e8', borderRadius: '7px', background: 'var(--mm-surface)', color: '#1a73e8', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>View Grades</button>
               </div>
             );
           })}

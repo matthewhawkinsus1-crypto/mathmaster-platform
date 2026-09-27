@@ -29,7 +29,7 @@ export default function OrderedPairGrader({ question, onStateChange, onUndoState
   const incorrect = feedback?.partGrades?.some((part) => !part.isCorrect);
   return (
     <div>
-      <h2 style={{ color: '#202124', marginTop: 0 }}>{label}</h2>
+      <h2 style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>{label}</h2>
       <QuestionPrompt>{prompt || 'Enter the coordinates as an ordered pair $(x, y)$.'}</QuestionPrompt>
       <QuestionVisual question={question} />
       <div style={{ marginTop: '24px' }}>

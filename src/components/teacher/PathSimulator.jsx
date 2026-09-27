@@ -55,15 +55,15 @@ const FEEDBACK_CATEGORIES = [
   'Student experience', 'Accessibility', 'Other',
 ];
 
-const panel = { border: '1px solid #dadce0', borderRadius: 12, background: '#fff', padding: 16, marginBottom: 16 };
+const panel = { border: '1px solid #dadce0', borderRadius: 12, background: 'var(--mm-surface)', padding: 16, marginBottom: 16 };
 const heading = { margin: '0 0 10px', fontSize: 15, fontWeight: 900, color: '#174ea6' };
 const smallButton = {
   minHeight: 40, padding: '8px 12px', borderRadius: 8, border: '1px solid #c5d5ef',
-  background: '#fff', color: '#174ea6', fontWeight: 800, fontSize: 13, cursor: 'pointer',
+  background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, fontSize: 13, cursor: 'pointer',
 };
 const input = {
   width: '100%', minHeight: 44, fontSize: 15, padding: '9px 10px', marginTop: 6,
-  border: '1px solid #c9ced6', borderRadius: 8, boxSizing: 'border-box', background: '#fff', color: '#202124',
+  border: '1px solid #c9ced6', borderRadius: 8, boxSizing: 'border-box', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)',
 };
 
 // Plain English for the selector's own reason codes. Teacher-facing only.
@@ -748,7 +748,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                         pathController.question.selectedTaskType,
                         pathController.question.contentQuality,
                       ].some((value) => value !== null && value !== undefined) && (
-                        <dl style={{ margin: '8px 0 0', padding: '8px 9px', borderRadius: 7, background: '#fff', border: '1px solid #e0e4e9', fontSize: 11, lineHeight: 1.5, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '3px 8px' }}>
+                        <dl style={{ margin: '8px 0 0', padding: '8px 9px', borderRadius: 7, background: 'var(--mm-surface)', border: '1px solid #e0e4e9', fontSize: 11, lineHeight: 1.5, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '3px 8px' }}>
                           {pathController.question.selectionReason && (
                             <>
                               <dt style={{ fontWeight: 800, color: '#5f6368' }}>Chosen because</dt>
@@ -795,7 +795,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                         </dl>
                       )}
                       {activeBankQuestion?.responseFields?.some((field) => Object.prototype.hasOwnProperty.call(field || {}, 'expected')) && (
-                        <div style={{ marginTop: 8, padding: '8px 9px', borderRadius: 7, background: '#fff', border: '1px solid #e0e4e9', fontSize: 12 }}>
+                        <div style={{ marginTop: 8, padding: '8px 9px', borderRadius: 7, background: 'var(--mm-surface)', border: '1px solid #e0e4e9', fontSize: 12 }}>
                           <strong>Secure expected answer</strong>
                           {activeBankQuestion.responseFields.filter((field) => Object.prototype.hasOwnProperty.call(field || {}, 'expected')).map((field) => (
                             <div key={field.id || field.label} style={{ marginTop: 4 }}>{field.label || field.id || 'Answer'}: <code>{String(field.expected)}</code></div>
@@ -831,7 +831,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                   )}
                 </div>
 
-                <div style={{ margin: '0 0 14px', padding: 11, border: '1px solid #dadce0', borderRadius: 9, background: '#fff' }}>
+                <div style={{ margin: '0 0 14px', padding: 11, border: '1px solid #dadce0', borderRadius: 9, background: 'var(--mm-surface)' }}>
                   <p style={{ margin: '0 0 7px', fontWeight: 900, fontSize: 13, color: '#174ea6' }}>Simulation event log</p>
                   {simulationEvents.length ? (
                     <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 7 }}>
@@ -1133,7 +1133,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                       onClick={() => { setInspectSkillId(skill.skillId); setWhatIfSkillId(''); }}
                       style={{ textAlign: 'left', padding: '9px 10px', borderRadius: 8, border: '1px solid #c5d5ef', background: skill.skillId === activeSkillId ? '#e8f0fe' : '#fff', cursor: 'pointer' }}
                     >
-                      <strong style={{ display: 'block', color: '#202124', fontSize: 12.5 }}>{skill.skillId.replace('teks:', '')} — {skill.title || skill.label}</strong>
+                      <strong style={{ display: 'block', color: 'var(--mm-text-strong)', fontSize: 12.5 }}>{skill.skillId.replace('teks:', '')} — {skill.title || skill.label}</strong>
                       <span style={{ display: 'block', marginTop: 3, color: '#5b21b6', fontSize: 11.5, lineHeight: 1.45 }}>
                         {skill.references.slice(0, 4).map(({ framework, reference }) => `${FRAMEWORK_LABELS[framework]}: ${referenceLabel(reference)}`).join(' · ')}
                       </span>

@@ -30,7 +30,7 @@ const dryRunButton = {
   padding: '9px 14px',
   borderRadius: 8,
   border: '1px solid #b7bec8',
-  background: '#fff',
+  background: 'var(--mm-surface)',
   fontWeight: 900,
   cursor: 'pointer',
 };
@@ -38,7 +38,7 @@ const dryRunButton = {
 const panel = {
   padding: 18,
   borderRadius: 14,
-  background: '#fff',
+  background: 'var(--mm-surface)',
   border: '1px solid #d8dde6',
   textAlign: 'left',
 };

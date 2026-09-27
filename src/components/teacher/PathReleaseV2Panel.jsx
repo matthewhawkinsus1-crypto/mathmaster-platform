@@ -23,7 +23,7 @@ import {
 
 const card = {
   border: '1px solid #d8dde6', borderRadius: 12, padding: '20px 22px',
-  marginBottom: 20, textAlign: 'left', background: '#fff',
+  marginBottom: 20, textAlign: 'left', background: 'var(--mm-surface)',
 };
 const primary = {
   minHeight: 42, padding: '0 16px', border: 0, borderRadius: 9,
@@ -31,7 +31,7 @@ const primary = {
 };
 const quiet = {
   minHeight: 38, padding: '0 13px', border: '1px solid #c7cdd6', borderRadius: 8,
-  background: '#fff', color: '#3c4043', fontWeight: 700, cursor: 'pointer',
+  background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 700, cursor: 'pointer',
 };
 
 const STATUS_STYLE = {
@@ -135,7 +135,7 @@ export default function PathReleaseV2Panel() {
       </dl>
 
       {status?.status === 'deployment-mismatch' && status.mismatch ? (
-        <div role="alert" style={{ marginTop: 14, padding: '12px 14px', borderRadius: 9, background: '#fff', border: '1px solid #f2b8b5' }}>
+        <div role="alert" style={{ marginTop: 14, padding: '12px 14px', borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid #f2b8b5' }}>
           <strong style={{ color: '#a50e0e' }}>Hosting and path-admin were deployed from different builds.</strong>
           <ul style={{ margin: '8px 0 0', paddingLeft: 20, fontSize: 13, lineHeight: 1.6 }}>
             <li>This page was built for <code>{status.mismatch.browserReleaseId || 'no release'}</code>.</li>
@@ -204,7 +204,7 @@ export default function PathReleaseV2Panel() {
       ) : null}
 
       {result?.ok && result.status === 'complete' ? (
-        <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 9, background: '#fff', border: '1px solid #a8dab5' }}>
+        <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid #a8dab5' }}>
           <strong style={{ color: '#137333' }}>Release complete.</strong>
           <p style={{ margin: '6px 0 0', fontSize: 13 }}>{describeReleaseCounts(result.counts)}</p>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: '#5f6368' }}>
@@ -216,7 +216,7 @@ export default function PathReleaseV2Panel() {
       ) : null}
 
       {diagnostic ? (
-        <div role="alert" style={{ marginTop: 12, padding: '12px 14px', borderRadius: 9, background: '#fff', border: '1px solid #f2b8b5' }}>
+        <div role="alert" style={{ marginTop: 12, padding: '12px 14px', borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid #f2b8b5' }}>
           <strong style={{ color: '#a50e0e' }}>{diagnostic.headline}</strong>
           {diagnostic.where ? <p style={{ margin: '6px 0 0', fontSize: 13, color: '#3c4043' }}>{diagnostic.where}</p> : null}
           {diagnostic.code ? <p style={{ margin: '4px 0 0', fontSize: 12, color: '#5f6368' }}><code>{diagnostic.code}</code></p> : null}

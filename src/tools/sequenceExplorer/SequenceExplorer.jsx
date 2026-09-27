@@ -386,7 +386,7 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
               type="button"
               onClick={() => setPlottedPoints([])}
               disabled={!plottedPoints.length}
-              style={{ ...actionStyle, marginTop: 0, background: '#fff', color: '#174ea6', border: '1px solid #aecbfa' }}
+              style={{ ...actionStyle, marginTop: 0, background: 'var(--mm-surface)', color: '#174ea6', border: '1px solid #aecbfa' }}
             >
               Clear graph
             </button>
@@ -791,7 +791,7 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
                 type="button"
                 onClick={() => setLeftPlottedPoints([])}
                 disabled={!leftPlottedPoints.length}
-                style={{ ...actionStyle, marginTop: 0, background: '#fff', color: '#174ea6', border: '1px solid #aecbfa' }}
+                style={{ ...actionStyle, marginTop: 0, background: 'var(--mm-surface)', color: '#174ea6', border: '1px solid #aecbfa' }}
               >
                 Clear {leftLabel}
               </button>
@@ -799,7 +799,7 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
                 type="button"
                 onClick={() => setRightPlottedPoints([])}
                 disabled={!rightPlottedPoints.length}
-                style={{ ...actionStyle, marginTop: 0, background: '#fff', color: '#b3261e', border: '1px solid #f2b8b5' }}
+                style={{ ...actionStyle, marginTop: 0, background: 'var(--mm-surface)', color: '#b3261e', border: '1px solid #f2b8b5' }}
               >
                 Clear {rightLabel}
               </button>
@@ -807,7 +807,7 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
                 type="button"
                 onClick={() => { setLeftPlottedPoints([]); setRightPlottedPoints([]); }}
                 disabled={!leftPlottedPoints.length && !rightPlottedPoints.length}
-                style={{ ...actionStyle, marginTop: 0, background: '#fff', color: '#5f6b7a', border: '1px solid #cfd8e6' }}
+                style={{ ...actionStyle, marginTop: 0, background: 'var(--mm-surface)', color: '#5f6b7a', border: '1px solid #cfd8e6' }}
               >
                 Clear both
               </button>

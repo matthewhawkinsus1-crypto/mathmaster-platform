@@ -88,7 +88,7 @@ export default function TeacherQuickSearch({
         aria-modal="true"
         aria-label="Find a student, class, assignment or standard"
         style={{
-          width: 'min(620px, 100%)', background: '#fff', borderRadius: 14,
+          width: 'min(620px, 100%)', background: 'var(--mm-surface)', borderRadius: 14,
           boxShadow: '0 24px 60px rgba(0,0,0,.3)', overflow: 'hidden',
         }}
       >
@@ -139,7 +139,7 @@ export default function TeacherQuickSearch({
                     {RESULT_KIND_LABEL[result.kind]}
                   </span>
                   <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ display: 'block', fontWeight: 800, color: '#202124' }}>{result.title}</span>
+                    <span style={{ display: 'block', fontWeight: 800, color: 'var(--mm-text-strong)' }}>{result.title}</span>
                     {result.subtitle && (
                       <span style={{ display: 'block', color: '#5f6368', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {result.subtitle}
