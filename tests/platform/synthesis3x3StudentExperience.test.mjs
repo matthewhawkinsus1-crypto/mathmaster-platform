@@ -5,7 +5,9 @@ import fs from 'node:fs';
 import { verificationTokenNeeded } from '../../src/tools/systemsWorkspace/verificationTokenState.js';
 
 test('verification keeps a solved value selected until every original equation has received it', () => {
-  const equations = [{ id: 'E1' }, { id: 'E2' }, { id: 'E3' }];
+  // The equations carry their text: whether one still needs a value depends on
+  // whether it HAS that variable (#369).
+  const equations = [{ id: 'E1', text: 'x + y + z = 6' }, { id: 'E2', text: '2x - y = 0' }, { id: 'E3', text: 'x + 3z = 10' }];
   const partial = { verification: { E1: { placed: { x: true } } } };
   const complete = {
     verification: {
@@ -17,6 +19,9 @@ test('verification keeps a solved value selected until every original equation h
   assert.equal(verificationTokenNeeded(partial, equations, 'x'), true);
   assert.equal(verificationTokenNeeded(complete, equations, 'x'), false);
   assert.equal(verificationTokenNeeded(complete, equations, 'y'), true);
+  // E3 has no y and never receives it: once E1 and E2 have y, y is done.
+  const yPlaced = { verification: { E1: { placed: { y: true } }, E2: { placed: { y: true } } } };
+  assert.equal(verificationTokenNeeded(yPlaced, equations, 'y'), false);
 });
 
 test('completed Warm-Up no longer keeps the active banner on screen', () => {

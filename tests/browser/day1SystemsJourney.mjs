@@ -297,12 +297,25 @@ const backSubstitute = async (page, destinationId, knownVariables) => {
   await settle(page, 900);
 };
 
-const verifyAll = async (page, sides) => {
+// #369: a solved value is placed on its variable ONCE and goes into every
+// original equation that has that variable, and a side that is already a
+// number is shown as given — so three placements, then one simplified side
+// per equation. Every equation is still simplified and checked on its own.
+const verifyAll = async (page, journey, sides) => {
+  const cards = page.locator('[data-verify-id]');
+  for (const variable of ['x', 'y', 'z']) {
+    const open = cards.filter({ has: page.locator(`button[aria-label="Variable ${variable}. Place the selected value or expression here"]`) });
+    await placeValue(page, open.first(), variable);
+  }
+  const substituted = await cards.filter({ hasText: 'Values substituted' }).count();
+  expect(journey, substituted === sides.length, `three placements substituted into ${substituted} of ${sides.length} original equations`);
   for (const [index, [left, right]] of sides.entries()) {
     const card = page.locator(`[data-verify-id="E${index + 1}"]`);
-    for (const variable of ['x', 'y', 'z']) await placeValue(page, card, variable);
     await setMathField(page, card.locator(`math-field[aria-label="Equation ${index + 1} left side value"]`), left);
-    await setMathField(page, card.locator(`math-field[aria-label="Equation ${index + 1} right side value"]`), right);
+    const rightField = card.locator(`math-field[aria-label="Equation ${index + 1} right side value"]`);
+    const givenRight = card.locator('[data-given-side="right"]');
+    expect(journey, (await rightField.count()) === 0 && (await givenRight.count()) === 1, `equation ${index + 1}: the right side ${right} is a number but still has to be retyped`);
+    if (await rightField.count()) await setMathField(page, rightField, right);
     await card.getByRole('button', { name: `Check equation ${index + 1}` }).click();
     await settle(page, 400);
   }
@@ -388,7 +401,7 @@ async function classworkElimination(context) {
     await simplifySide(page, host, 'right', '1');
   });
   await step(page, journey, 'verify (3, 1, 5) and submit', async () => {
-    await verifyAll(page, [['15', '15'], ['3', '3'], ['18', '18']]);
+    await verifyAll(page, journey, [['15', '15'], ['3', '3'], ['18', '18']]);
     await auditScreen(page, journey, 'verification');
     const grade = await submitAndGrade(page, '3x3-d1-cw-2');
     report.push({ journey, grade: grade && { isCorrect: grade.isCorrect, solution: grade.details?.solution } });
@@ -449,7 +462,7 @@ async function practiceScaling(context) {
     await divideOut(page, '-1', '-1');
   });
   await step(page, journey, 'verify (1, 2, −1) and submit', async () => {
-    await verifyAll(page, [['9', '9'], ['-3', '-3'], ['6', '6']]);
+    await verifyAll(page, journey, [['9', '9'], ['-3', '-3'], ['6', '6']]);
     const grade = await submitAndGrade(page, '3x3-d1-pr-3');
     report.push({ journey, grade: grade && { isCorrect: grade.isCorrect, solution: grade.details?.solution } });
     expect(journey, grade?.isCorrect === true, `PR3 was not graded correct: ${JSON.stringify(grade && { isCorrect: grade.isCorrect, solution: grade.details?.solution })}`);
@@ -497,7 +510,7 @@ async function dolScaling(context) {
     await simplifySide(page, host, 'right', '-2');
   });
   await step(page, journey, 'verify (1, −2, 4) and submit under DOL rules', async () => {
-    await verifyAll(page, [['3', '3'], ['16', '16'], ['-1', '-1']]);
+    await verifyAll(page, journey, [['3', '3'], ['16', '16'], ['-1', '-1']]);
     const grade = await submitAndGrade(page, '3x3-d1-dol-1');
     report.push({ journey, grade: grade && { isCorrect: grade.isCorrect, solution: grade.details?.solution } });
     expect(journey, grade?.isCorrect === true, `DOL 1 was not graded correct: ${JSON.stringify(grade && { isCorrect: grade.isCorrect, solution: grade.details?.solution })}`);

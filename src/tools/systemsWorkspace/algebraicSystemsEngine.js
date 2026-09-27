@@ -701,6 +701,22 @@ export const equationMentionsVariable = (text, variable) => {
 };
 
 /**
+ * A side of the equation that holds none of the system's variables — the 15
+ * in 2x - y + 2z = 15 — as written, or null when the side still has to be
+ * evaluated. Verification shows such a side as given instead of asking the
+ * student to retype it (#369).
+ */
+export const constantEquationSide = (text, side, variables) => {
+  try {
+    const expression = splitEquation(text)[side];
+    const names = new Set(variables);
+    return parse(expression).filter((node) => node.isSymbolNode && names.has(node.name)).length ? null : expression;
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Do two linear forms describe the same equation (one is a nonzero multiple of
  * the other)? `2(6 - y - z) - y + 3z = 9` and `-3y + z = -3` do; so does
  * `3y - z = 3`, because multiplying both sides by -1 is a legitimate move.

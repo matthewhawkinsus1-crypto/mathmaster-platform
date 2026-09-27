@@ -202,14 +202,66 @@ test('verification covers all three ORIGINAL equations, and a wrong side value d
   ['x', 'y'].forEach((name) => { state = R.placeVerificationValue(state, SYSTEM, 'E2', name, name).state; });
   assert.equal(R.verificationReady(state, SYSTEM, 'E2'), false);
   state = R.placeVerificationValue(state, SYSTEM, 'E2', 'z', 'z').state;
-  state = R.setVerificationAnswer(state, 'E2', 'leftAnswer', '9').state;
-  state = R.setVerificationAnswer(state, 'E2', 'rightAnswer', '8').state;
+  // E2's right side is the number 9, shown as given (#369): the student's side
+  // is the left one, and a wrong left value does not pass.
+  state = R.setVerificationAnswer(state, 'E2', 'leftAnswer', '8').state;
   state = R.checkVerification(state, SYSTEM, solution, 'E2').state;
   assert.equal(state.verification.E2.valid, false);
   assert.equal(R.gradeReduction(state, SYSTEM, REDUCED_SOLUTION).isCorrect, false, 'unverified work is not complete');
   assert.equal(R.gradeReduction(verifyAll(solved), SYSTEM, REDUCED_SOLUTION).isCorrect, true);
   assert.equal(R.gradeReduction(verifyAll(solved), SYSTEM, { y: 2, z: 4 }).valuesCorrect, false);
   assert.equal(R.gradeReduction(backSolve(reduceBoth(isolate(R.emptyReductionState()))), SYSTEM, REDUCED_SOLUTION, { requireVerification: false }).isCorrect, true);
+});
+
+// #369: verification busywork. Which variable a value goes on is the student's
+// decision, made once; the arithmetic of each side of each equation is theirs
+// too. Retyping a number the equation already shows, or repeating the same
+// placement card by card, was not mathematics.
+test('one placement substitutes a value into every original equation that has that variable', () => {
+  const sparse = R.buildReductionSystem({ variables: ['x', 'y', 'z'], equations: ['x + y + z = 6', '2x - y = 0', 'x + 3z = 10'] });
+  const start = R.emptyReductionState();
+  const refused = R.placeVerificationValue(start, sparse, 'E1', 'y', 'x');
+  assert.equal(refused.feedback.reason, 'wrong-variable');
+  assert.deepEqual(refused.state.verification, {}, 'a refused placement fills nothing');
+
+  const y = R.placeVerificationValue(start, sparse, 'E1', 'y', 'y').state;
+  assert.equal(y.verification.E1.placed.y, true);
+  assert.equal(y.verification.E2.placed.y, true);
+  assert.equal(y.verification.E3, undefined, 'E3 has no y and receives nothing');
+
+  let all = y;
+  ['x', 'z'].forEach((name) => { all = R.placeVerificationValue(all, sparse, 'E1', name, name).state; });
+  sparse.equations.forEach((equation) => assert.equal(R.verificationReady(all, sparse, equation.id), true, equation.id));
+
+  // A checked equation is not reset by a placement it already has.
+  const solution = { x: 1, y: 2, z: 3 };
+  all = R.setVerificationAnswer(all, 'E2', 'leftAnswer', '0').state;
+  all = R.checkVerification(all, sparse, solution, 'E2').state;
+  assert.equal(all.verification.E2.valid, true);
+  all = R.placeVerificationValue(all, sparse, 'E3', 'x', 'x').state;
+  assert.equal(all.verification.E2.valid, true);
+});
+
+test('a side that is already a number is given; the student evaluates the other side of every equation', () => {
+  const system = R.buildReductionSystem({ variables: ['x', 'y', 'z'], equations: ['x + y + z = 6', '17 = 2x + 5z', 'x - y = z - 4'] });
+  assert.deepEqual(R.verificationGivenSides(system, 'E1'), { left: null, right: '6' });
+  assert.deepEqual(R.verificationGivenSides(system, 'E2'), { left: '17', right: null });
+  assert.deepEqual(R.verificationGivenSides(system, 'E3'), { left: null, right: null }, 'both sides hold variables: both are evaluated');
+
+  const solution = { x: 1, y: 2, z: 3 };
+  let state = R.emptyReductionState();
+  ['x', 'y', 'z'].forEach((name) => { state = R.placeVerificationValue(state, system, 'E1', name, name).state; });
+  const check = (current, id, answers) => {
+    let next = current;
+    Object.entries(answers).forEach(([side, value]) => { next = R.setVerificationAnswer(next, id, side, value).state; });
+    return R.checkVerification(next, system, solution, id).state.verification[id].valid;
+  };
+  assert.equal(check(state, 'E1', { leftAnswer: '6' }), true, 'no right-side entry is needed');
+  assert.equal(check(state, 'E1', { leftAnswer: '5' }), false, 'a wrong left side still fails');
+  assert.equal(check(state, 'E2', { rightAnswer: '17' }), true, 'the given side can be on the left');
+  assert.equal(check(state, 'E2', { rightAnswer: '12' }), false);
+  assert.equal(check(state, 'E3', { leftAnswer: '-1' }), false, 'an evaluated side cannot be skipped');
+  assert.equal(check(state, 'E3', { leftAnswer: '-1', rightAnswer: '-1' }), true);
 });
 
 test('a student can leave after ANY phase and come back to exactly the same work', () => {

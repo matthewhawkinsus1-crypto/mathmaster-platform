@@ -936,6 +936,28 @@
   grid-column: 1 / -1;
 }
 
+/* A side that is already a number (#369): read, not retyped. Laid out like
+   the field beside it so the two sides still line up. */
+.mathmaster-systems-verification-given {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  color: #465267;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mathmaster-systems-verification-given > :last-child {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: 9px;
+  background: #f3f6fb;
+  color: #172033;
+  font-size: 20px;
+}
+
 .mathmaster-systems-verification-feedback {
   margin: 2px 0 0;
   font-size: 12px;
