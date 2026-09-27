@@ -20,6 +20,18 @@ export const lineFitNamesPrediction = (mode, questionData = {}) => (
 );
 
 /**
+ * lineFit begins as a student estimate, then may expose linear-regression
+ * technology in the SAME workspace. The semantic fitDataModel action is the
+ * signal that technology/model fitting is part of the authored task; no prompt
+ * text or assignment title is inspected.
+ */
+export const lineFitUsesRegressionTechnology = (mode, questionData = {}) => (
+  mode === 'lineFit'
+  && Array.isArray(questionData?.studentActions)
+  && questionData.studentActions.includes('fitDataModel')
+);
+
+/**
  * Number the panels a student can actually see, in order. Fixed numbers left a
  * line-fit question reading "1 · Scatter plot" then "3 · Residual evidence".
  */
