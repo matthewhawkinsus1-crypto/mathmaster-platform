@@ -108,7 +108,7 @@ function PracticePassReward({ balance = 0, eligibleAssignments = [], onRedeemPra
               type="button"
               disabled={redeeming}
               onClick={() => setConfirming(false)}
-              style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #c9ced6', fontWeight: 800, cursor: 'pointer', background: '#fff', color: '#3c4043' }}
+              style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #c9ced6', fontWeight: 800, cursor: 'pointer', background: 'var(--mm-surface)', color: '#3c4043' }}
             >
               Cancel
             </button>
@@ -135,11 +135,11 @@ export default function ClassPointsWallet({
 }) {
   const totals = account || emptyClassPointAccount();
   return (
-    <section aria-labelledby="class-points-heading" style={{ marginBottom: 18, padding: '22px 24px', borderRadius: 16, background: '#fff', border: '2px solid #f6c344', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', textAlign: 'left' }}>
+    <section aria-labelledby="class-points-heading" style={{ marginBottom: 18, padding: '22px 24px', borderRadius: 16, background: 'var(--mm-surface)', border: '2px solid #f6c344', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', textAlign: 'left' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'start', flexWrap: 'wrap' }}>
         <div>
           <div style={{ color: '#7a4f00', fontWeight: 900, fontSize: 13, textTransform: 'uppercase' }}>Class Points</div>
-          <h2 id="class-points-heading" style={{ margin: '4px 0', color: '#202124', fontSize: 25 }}>⭐ {unavailable ? 'Temporarily unavailable' : `${totals.balance} points available`}</h2>
+          <h2 id="class-points-heading" style={{ margin: '4px 0', color: 'var(--mm-text-strong)', fontSize: 25 }}>⭐ {unavailable ? 'Temporarily unavailable' : `${totals.balance} points available`}</h2>
         </div>
         {!unavailable && <div style={{ color: '#5f6368', fontWeight: 800 }}>Earned: {totals.lifetimeEarned} &nbsp;·&nbsp; Used: {totals.lifetimeSpent}</div>}
       </div>

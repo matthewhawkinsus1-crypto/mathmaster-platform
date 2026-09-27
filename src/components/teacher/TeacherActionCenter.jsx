@@ -10,7 +10,7 @@ const kindLabels = {
   [TEACHER_ACTION_KIND.GRADE_UPLOAD]: 'Grade export / upload',
   [TEACHER_ACTION_KIND.RETEST_RECOVERY]: 'Retest / recovery',
 };
-const button = { padding: '7px 10px', border: '1px solid #bdc1c6', borderRadius: 7, background: '#fff', fontWeight: 800, cursor: 'pointer' };
+const button = { padding: '7px 10px', border: '1px solid #bdc1c6', borderRadius: 7, background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 const displayActionDate = (value) => {
   if (!value) return '—';
   const raw = String(value);

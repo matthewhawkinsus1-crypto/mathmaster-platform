@@ -162,12 +162,13 @@ test('the whole student shell is themed, not just one bar', () => {
   }
 });
 
-test('the question card itself stays light so the math tools keep their contrast', () => {
+test('the question card follows the semantic surface so its tools keep contrast in both themes', () => {
   // Recolouring a coordinate plane or a solver to match a dark theme trades a
   // game feel for a legibility problem in the one place that cannot afford it.
   const questionCard = region(student, '<section style={{ background:', '<QuestionEngine', 'student question card');
-  assert.match(questionCard, /background: '#fff'/);
-  assert.match(questionCard, /colorScheme: 'light'/);
+  assert.match(questionCard, /background: 'var\(--mm-surface\)'/);
+  assert.match(questionCard, /color: 'var\(--mm-text-strong\)'/);
+  assert.doesNotMatch(questionCard, /colorScheme: 'light'/);
 });
 
 test('a student can see where they stand without waiting for the round to end', () => {

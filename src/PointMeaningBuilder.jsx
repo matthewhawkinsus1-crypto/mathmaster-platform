@@ -18,10 +18,9 @@ const inputStyle = (border) => ({
   padding: '10px 11px',
   borderRadius: '8px',
   border: `2px solid ${border}`,
-  background: '#fff',
-  color: '#202124',
+  background: 'var(--mm-surface)',
+  color: 'var(--mm-text-strong)',
   WebkitTextFillColor: '#202124',
-  colorScheme: 'light',
   caretColor: '#202124',
   font: 'inherit',
 });
@@ -30,7 +29,7 @@ const cardStyle = {
   padding: '13px',
   borderRadius: '11px',
   border: '1px solid #d7e0eb',
-  background: '#fff',
+  background: 'var(--mm-surface)',
 };
 
 export default function PointMeaningBuilder({
@@ -98,8 +97,8 @@ export default function PointMeaningBuilder({
                 onChange={(event) => setField('xQuantityId', event.target.value)}
                 style={{ ...inputStyle(borderFor(feedback, `${prefix}-x-quantity`)), marginTop: '6px' }}
               >
-                <option value="" style={{ color: '#5f6368', background: '#fff' }}>Choose the quantity</option>
-                {choices.map((choice) => <option key={`x-${choice.id}`} value={choice.id} style={{ color: '#202124', background: '#fff' }}>{choice.label}</option>)}
+                <option value="" style={{ color: '#5f6368', background: 'var(--mm-surface)' }}>Choose the quantity</option>
+                {choices.map((choice) => <option key={`x-${choice.id}`} value={choice.id} style={{ color: 'var(--mm-text-strong)', background: 'var(--mm-surface)' }}>{choice.label}</option>)}
               </select>
             </label>
           ) : (
@@ -139,8 +138,8 @@ export default function PointMeaningBuilder({
                 onChange={(event) => setField('yQuantityId', event.target.value)}
                 style={{ ...inputStyle(borderFor(feedback, `${prefix}-y-quantity`)), marginTop: '6px' }}
               >
-                <option value="" style={{ color: '#5f6368', background: '#fff' }}>Choose the quantity</option>
-                {choices.map((choice) => <option key={`y-${choice.id}`} value={choice.id} style={{ color: '#202124', background: '#fff' }}>{choice.label}</option>)}
+                <option value="" style={{ color: '#5f6368', background: 'var(--mm-surface)' }}>Choose the quantity</option>
+                {choices.map((choice) => <option key={`y-${choice.id}`} value={choice.id} style={{ color: 'var(--mm-text-strong)', background: 'var(--mm-surface)' }}>{choice.label}</option>)}
               </select>
             </label>
           ) : (

@@ -35,7 +35,7 @@ export default function EquationGrader({ question, onStateChange, onUndoStateCha
 
   return (
     <div>
-      <h2 style={{ color: '#202124', marginTop: 0 }}>Algebra</h2>
+      <h2 style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Algebra</h2>
       <QuestionPrompt>{prompt || 'Solve for $x$.'}</QuestionPrompt>
       <div style={{ fontSize: '27px', fontWeight: 'bold', margin: '28px auto', color: '#1a73e8', background: '#f8f9fa', padding: '18px 24px', borderRadius: '10px', width: 'fit-content', maxWidth: '100%', boxSizing: 'border-box' }}>
         <MathDisplay value={displayedEquation} format={equationLatex ? 'latex' : 'ascii-math'} ariaLabel={`Equation ${generatedEquation}`} />

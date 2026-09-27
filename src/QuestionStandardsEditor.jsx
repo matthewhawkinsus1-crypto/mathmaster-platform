@@ -28,7 +28,7 @@ const fieldStyle = {
   padding: '9px 10px',
   border: '1px solid #bdc7d6',
   borderRadius: '7px',
-  background: '#fff',
+  background: 'var(--mm-surface)',
 };
 
 
@@ -123,7 +123,7 @@ export default function QuestionStandardsEditor({ question, onApply, onCancel })
         <label style={{ fontWeight: 800, fontSize: '13px' }}>Prerequisite TEKS — may be earlier course
           <div style={{ display: 'flex', gap: '6px', marginTop: '5px' }}>
             <input value={prerequisiteCodes} onChange={(event) => setPrerequisiteCodes(event.target.value)} placeholder={coursePlaceholder(browseCourseId, 'prerequisite')} style={fieldStyle} />
-            {suggestedPrerequisites.length > 0 && <button type="button" onClick={() => setPrerequisiteCodes(unique([...splitCodes(prerequisiteCodes), ...suggestedPrerequisites]).join(', '))} title="Add MathMaster vertical-alignment suggestions" style={{ border: '1px solid #bdc7d6', background: '#fff', borderRadius: '7px', whiteSpace: 'nowrap' }}>Add prior</button>}
+            {suggestedPrerequisites.length > 0 && <button type="button" onClick={() => setPrerequisiteCodes(unique([...splitCodes(prerequisiteCodes), ...suggestedPrerequisites]).join(', '))} title="Add MathMaster vertical-alignment suggestions" style={{ border: '1px solid #bdc7d6', background: 'var(--mm-surface)', borderRadius: '7px', whiteSpace: 'nowrap' }}>Add prior</button>}
           </div>
         </label>
       </div>
@@ -134,7 +134,7 @@ export default function QuestionStandardsEditor({ question, onApply, onCancel })
             const [background, color, label] = standardBadge(standard);
             const vertical = getTexasVerticalAlignment(standard.code);
             return (
-              <div key={standard.code} style={{ padding: '9px 10px', borderRadius: '8px', background: '#fff', border: '1px solid #d9e2ef', fontSize: '12px' }}>
+              <div key={standard.code} style={{ padding: '9px 10px', borderRadius: '8px', background: 'var(--mm-surface)', border: '1px solid #d9e2ef', fontSize: '12px' }}>
                 <div style={{ display: 'flex', gap: '7px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <strong>{standard.code}</strong>
                   <span style={{ color: '#5f6368' }}>{standard.course}</span>
@@ -168,7 +168,7 @@ export default function QuestionStandardsEditor({ question, onApply, onCancel })
         <label style={{ fontWeight: 800, fontSize: '13px' }}>Evidence weight
           <div style={{ display: 'flex', gap: '6px', marginTop: '5px' }}>
             <input type="number" min="0" max="2" step="0.05" value={evidenceWeight} onChange={(event) => setEvidenceWeight(event.target.value)} style={fieldStyle} />
-            <button type="button" onClick={() => setEvidenceWeight(purposeDefinition.defaultWeight)} title="Use recommended weight" style={{ border: '1px solid #bdc7d6', background: '#fff', borderRadius: '7px', whiteSpace: 'nowrap' }}>Default</button>
+            <button type="button" onClick={() => setEvidenceWeight(purposeDefinition.defaultWeight)} title="Use recommended weight" style={{ border: '1px solid #bdc7d6', background: 'var(--mm-surface)', borderRadius: '7px', whiteSpace: 'nowrap' }}>Default</button>
           </div>
         </label>
         <label style={{ fontWeight: 800, fontSize: '13px' }}>Differentiation

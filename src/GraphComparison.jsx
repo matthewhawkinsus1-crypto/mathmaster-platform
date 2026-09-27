@@ -44,7 +44,7 @@ export default function GraphComparison({ question, onStateChange, onUndoStateCh
       <h2 style={{ textAlign: 'center', marginTop: 0 }}>Compare and Contrast Graphs</h2>
       <QuestionPrompt>{question.prompt || 'Study the graphs and describe their similarities and differences.'}</QuestionPrompt>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(330px, 1fr))', gap: '18px' }}>
-        {graphs.map((item, index) => <article key={item.id || index} style={{ padding: '12px', borderRadius: '12px', border: '1px solid #d8dde6', background: '#fff' }}><h3 style={{ textAlign: 'center', margin: '4px 0' }}>{item.label || `Graph ${index + 1}`}</h3><GraphDisplay graph={item.graph} title={item.label || `Graph ${index + 1}`} />{item.scenario && <p style={{ margin: '0 10px 10px', color: '#5f6368', lineHeight: 1.5 }}>{item.scenario}</p>}</article>)}
+        {graphs.map((item, index) => <article key={item.id || index} style={{ padding: '12px', borderRadius: '12px', border: '1px solid #d8dde6', background: 'var(--mm-surface)' }}><h3 style={{ textAlign: 'center', margin: '4px 0' }}>{item.label || `Graph ${index + 1}`}</h3><GraphDisplay graph={item.graph} title={item.label || `Graph ${index + 1}`} />{item.scenario && <p style={{ margin: '0 10px 10px', color: '#5f6368', lineHeight: 1.5 }}>{item.scenario}</p>}</article>)}
       </div>
       <div style={{ display: 'grid', gap: '16px', marginTop: '24px' }}>
         {fields.map((field) => {

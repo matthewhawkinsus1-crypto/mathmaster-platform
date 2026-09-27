@@ -8258,7 +8258,7 @@ function App() {
           right: 0,
           zIndex: 20000,
           background: '#fbbc04',
-          color: '#202124',
+          color: 'var(--mm-text-strong)',
           borderBottom: '5px solid #d93025',
           boxShadow: '0 8px 28px rgba(0,0,0,0.28)',
           padding: '18px 24px',
@@ -8387,7 +8387,7 @@ function App() {
       >
         <div
           style={{
-            background: '#fff',
+            background: 'var(--mm-surface)',
             padding: '40px',
             borderRadius: '12px',
             textAlign: 'center',
@@ -8459,7 +8459,7 @@ function App() {
           style={{
             width: '100%',
             maxWidth: '560px',
-            background: '#fff',
+            background: 'var(--mm-surface)',
             borderRadius: '16px',
             boxShadow: '0 24px 70px rgba(0,0,0,0.3)',
             overflow: 'hidden',
@@ -8479,7 +8479,7 @@ function App() {
             >
               Permanent deletion · Step {deleteStep} of 3
             </div>
-            <h2 id="delete-assignment-title" style={{ margin: 0, color: '#202124' }}>
+            <h2 id="delete-assignment-title" style={{ margin: 0, color: 'var(--mm-text-strong)' }}>
               Delete “{deleteDialog.title}”?
             </h2>
           </div>
@@ -8576,7 +8576,7 @@ function App() {
                     display: 'flex',
                     gap: '12px',
                     alignItems: 'flex-start',
-                    color: '#202124',
+                    color: 'var(--mm-text-strong)',
                     lineHeight: 1.5,
                     cursor: 'pointer',
                   }}
@@ -8627,7 +8627,7 @@ function App() {
               disabled={isDeleting}
               style={{
                 padding: '10px 18px',
-                background: '#fff',
+                background: 'var(--mm-surface)',
                 color: '#3c4043',
                 border: '1px solid #dadce0',
                 borderRadius: '8px',
@@ -8729,7 +8729,7 @@ function App() {
           style={{
             width: '100%',
             maxWidth: '720px',
-            background: '#fff',
+            background: 'var(--mm-surface)',
             borderRadius: '16px',
             boxShadow: '0 24px 70px rgba(0,0,0,0.3)',
             overflow: 'hidden',
@@ -8737,7 +8737,7 @@ function App() {
           }}
         >
           <div style={{ padding: '24px 28px', borderBottom: '1px solid #e8eaed' }}>
-            <h2 id="export-json-title" style={{ margin: 0, color: '#202124' }}>
+            <h2 id="export-json-title" style={{ margin: 0, color: 'var(--mm-text-strong)' }}>
               Export Current Content V{contentVersionOf(exportJsonAssignment)} &middot; {exportJsonAssignment.title}
             </h2>
             <p style={{ margin: '8px 0 0', color: '#5f6368', fontSize: '13px' }}>
@@ -8756,7 +8756,7 @@ function App() {
             <button
               type="button"
               onClick={closeExportJsonDialog}
-              style={{ padding: '10px 18px', background: '#fff', border: '1px solid #c9ced6', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+              style={{ padding: '10px 18px', background: 'var(--mm-surface)', border: '1px solid #c9ced6', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
             >
               Close
             </button>
@@ -8802,7 +8802,7 @@ function App() {
             width: 'min(1080px, 96vw)',
             maxHeight: '92vh',
             overflow: 'auto',
-            background: '#fff',
+            background: 'var(--mm-surface)',
             borderRadius: '14px',
             boxShadow: '0 22px 70px rgba(0,0,0,0.35)',
           }}
@@ -8818,7 +8818,7 @@ function App() {
             }}
           >
             <div>
-              <h2 id="student-work-title" style={{ margin: 0, color: '#202124' }}>
+              <h2 id="student-work-title" style={{ margin: 0, color: 'var(--mm-text-strong)' }}>
                 Student Scratchpad
               </h2>
               <div style={{ color: '#5f6368', marginTop: '5px', fontSize: '14px' }}>
@@ -8831,7 +8831,7 @@ function App() {
               onClick={() => setTeacherScratchpadDialog(null)}
               style={{
                 border: '1px solid #dadce0',
-                background: '#fff',
+                background: 'var(--mm-surface)',
                 borderRadius: '999px',
                 padding: '8px 14px',
                 fontWeight: 'bold',
@@ -8868,7 +8868,7 @@ function App() {
                         height: 'auto',
                         maxHeight: '72vh',
                         objectFit: 'contain',
-                        background: '#fff',
+                        background: 'var(--mm-surface)',
                         border: '1px solid #d8dde6',
                         borderRadius: '10px',
                       }}
@@ -9256,7 +9256,7 @@ function App() {
                 <button
                   type="button"
                   onClick={() => { leaveAssignment(); endLiveTeaching(); }}
-                  style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #fff', background: '#fff', color: '#137333', fontWeight: 900, cursor: 'pointer', fontSize: 12 }}
+                  style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #fff', background: 'var(--mm-surface)', color: '#137333', fontWeight: 900, cursor: 'pointer', fontSize: 12 }}
                 >
                   End Teaching
                 </button>
@@ -9294,7 +9294,7 @@ function App() {
             </section>
           )}
 
-          <header className="mathmaster-assignment-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '18px 24px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: '22px', gap: '20px', flexWrap: 'wrap' }}>
+          <header className="mathmaster-assignment-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--mm-surface)', padding: '18px 24px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: '22px', gap: '20px', flexWrap: 'wrap' }}>
             <div style={{ textAlign: 'left', flex: '1 1 390px' }}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 5 }}>
                 <button
@@ -9307,14 +9307,14 @@ function App() {
                   <button
                     type="button"
                     onClick={() => startTeacherPreview(assignment.id)}
-                    style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #1a73e8', background: '#fff', color: '#174ea6', fontWeight: 900, cursor: 'pointer', fontSize: 12 }}
+                    style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #1a73e8', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 900, cursor: 'pointer', fontSize: 12 }}
                   >
                     ↻ Restart Preview Fresh
                   </button>
                 )}
               </div>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <h1 style={{ margin: 0, color: '#202124', fontSize: '23px' }}>{assignment.title}</h1>
+                <h1 style={{ margin: 0, color: 'var(--mm-text-strong)', fontSize: '23px' }}>{assignment.title}</h1>
                 <span style={{ padding: '4px 9px', borderRadius: '999px', background: lifecycleBadge.background, color: lifecycleBadge.color, fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>{lifecycleBadge.label}</span>
                 {assignmentHasClasswork && assignment?.guidedNotesBySection?.classwork !== 'off' && <span style={{ padding: '4px 9px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontSize: '11px', fontWeight: 900 }}>GUIDED NOTES · CLASSWORK</span>}
                 <span style={{ padding: '4px 9px', borderRadius: '999px', background: currentSectionVariantMode === 'shared' ? '#e6f4ea' : '#f3e8fd', color: currentSectionVariantMode === 'shared' ? '#137333' : '#681da8', fontSize: '11px', fontWeight: 900 }}>{currentSectionVariantMode === 'shared' ? `${currentSectionMeta.label.toUpperCase()} · SAME VERSION` : `${currentSectionMeta.label.toUpperCase()} · PERSONALIZED VERSIONS`}</span>
@@ -9598,7 +9598,7 @@ function App() {
             })}
           </div>
           )}
-          <main ref={assignmentQuestionStageRef} className="mathmaster-question-stage" style={{ background: '#fff', borderRadius: '12px', padding: '10px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+          <main ref={assignmentQuestionStageRef} className="mathmaster-question-stage" style={{ background: 'var(--mm-surface)', borderRadius: '12px', padding: '10px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
             {questions[currentQuestionIndex]?.instructionalPhase
               && (preview || assignment.showInstructionalPhaseLabelsToStudents === true)
               && <div aria-label="Instructional phase" style={{ display: 'inline-block', margin: '6px 8px', padding: '5px 10px', borderRadius: 999, background: '#e8f0fe', color: '#174ea6', fontWeight: 950, letterSpacing: '0.08em' }}>{({ iDo: 'I DO', weDo: 'WE DO', youDo: 'YOU DO' })[questions[currentQuestionIndex].instructionalPhase]}</div>}
@@ -9728,11 +9728,11 @@ function App() {
         <section role="dialog" aria-label="Student Spotlight request" style={{ margin: '12px auto', maxWidth: 760, padding: '16px 18px', borderRadius: 12, border: '2px solid #681da8', background: '#f8f0fc', color: '#3b0f55' }}>
           <strong style={{ display: 'block', fontSize: 18 }}>{studentSpotlightRequest.teacherLabel || 'Your teacher'} would like to show your current MathMaster work to the class.</strong>
           <div style={{ marginTop: 5, fontSize: 13 }}>Nothing is visible unless you choose Present Now. This does not share your Chromebook screen.</div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}><button type="button" onClick={() => respondToSpotlight(true)} style={{ padding: '9px 14px', border: 0, borderRadius: 8, background: '#681da8', color: '#fff', fontWeight: 900 }}>Present Now</button><button type="button" onClick={() => respondToSpotlight(false)} style={{ padding: '9px 14px', border: '1px solid #681da8', borderRadius: 8, background: '#fff', color: '#681da8', fontWeight: 900 }}>Not Now</button></div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}><button type="button" onClick={() => respondToSpotlight(true)} style={{ padding: '9px 14px', border: 0, borderRadius: 8, background: '#681da8', color: '#fff', fontWeight: 900 }}>Present Now</button><button type="button" onClick={() => respondToSpotlight(false)} style={{ padding: '9px 14px', border: '1px solid #681da8', borderRadius: 8, background: 'var(--mm-surface)', color: '#681da8', fontWeight: 900 }}>Not Now</button></div>
         </section>
       )}
       {!preview && studentSpotlightRequest?.status === SPOTLIGHT_STATUS.ACCEPTED && (
-        <section role="status" style={{ margin: '10px auto', maxWidth: 760, padding: '10px 14px', borderRadius: 10, background: '#681da8', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}><strong>Presenting to class</strong><button type="button" onClick={stopStudentSpotlight} style={{ padding: '7px 11px', border: '1px solid #fff', borderRadius: 7, background: '#fff', color: '#681da8', fontWeight: 900 }}>Stop Presenting</button></section>
+        <section role="status" style={{ margin: '10px auto', maxWidth: 760, padding: '10px 14px', borderRadius: 10, background: '#681da8', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}><strong>Presenting to class</strong><button type="button" onClick={stopStudentSpotlight} style={{ padding: '7px 11px', border: '1px solid #fff', borderRadius: 7, background: 'var(--mm-surface)', color: '#681da8', fontWeight: 900 }}>Stop Presenting</button></section>
       )}
       {!preview && studentSpotlightMessage && <div role="status" style={{ margin: '8px auto', maxWidth: 760, padding: '8px 12px', color: '#5f6368', fontSize: 12 }}>{studentSpotlightMessage}</div>}
       {content}
@@ -9744,7 +9744,7 @@ function App() {
     if (sessionHydrationError) {
       return (
         <main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: '24px', background: '#f5f7fb' }}>
-          <section style={{ width: 'min(560px, 100%)', padding: '24px', borderRadius: '12px', border: '1px solid #fad2cf', background: '#fff', textAlign: 'center' }}>
+          <section style={{ width: 'min(560px, 100%)', padding: '24px', borderRadius: '12px', border: '1px solid #fad2cf', background: 'var(--mm-surface)', textAlign: 'center' }}>
             <h1 style={{ marginTop: 0, color: '#a50e0e' }}>MathMaster could not load your account</h1>
             <p style={{ color: '#5f6368' }}>{sessionHydrationError}</p>
             <button type="button" onClick={() => auth.signOut()} style={{ padding: '10px 16px', border: 0, borderRadius: '7px', background: '#174ea6', color: '#fff', fontWeight: 900 }}>Return to sign in</button>
@@ -9821,10 +9821,10 @@ function App() {
     if (teacherWorkspaceMode === 'administration' && rootAdminUiEligible) {
       return (
         <div style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: '#f3f5f8', minHeight: '100vh', padding: '20px' }}>
-          <div style={{ maxWidth: 1260, margin: '0 auto', background: '#fff', borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,.06)', overflow: 'hidden' }}>
+          <div style={{ maxWidth: 1260, margin: '0 auto', background: 'var(--mm-surface)', borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,.06)', overflow: 'hidden' }}>
             <header style={{ padding: '22px 28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap', borderBottom: '1px solid #e8eaed', background: '#202124', color: '#fff' }}>
               <div><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.08em', color: '#c6dafc' }}>ROOT ADMINISTRATOR</div><h1 style={{ margin: '4px 0 0', fontSize: 25 }}>MathMaster Administration</h1><p style={{ margin: '4px 0 0', color: '#dadce0', fontSize: 13 }}>{user.email}</p></div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><div role="group" aria-label="Root administrator workspace" style={{ display: 'inline-flex', padding: 3, borderRadius: 9, background: '#3c4043', border: '1px solid #5f6368' }}><button type="button" aria-pressed="false" onClick={() => setTeacherWorkspaceMode('teacher')} style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'transparent', color: '#e8eaed', fontWeight: 900 }}>Teacher View</button><button type="button" aria-pressed="true" style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: '#fff', color: '#202124', fontWeight: 900 }}>Administration</button></div><button type="button" onClick={() => { setTeacherWorkspaceMode('teacher'); setTeacherTab('demo'); }} style={{ padding: '9px 13px', border: '1px solid #c7a9ea', borderRadius: 8, background: '#f8f0fc', color: '#6f2da8', fontWeight: 900 }}>Open Demo Experience</button><button onClick={handleLogout} style={{ padding: '9px 13px', background: 'transparent', color: '#f28b82', border: '1px solid #f28b82', borderRadius: 8, fontWeight: 900 }}>Log Out</button></div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><div role="group" aria-label="Root administrator workspace" style={{ display: 'inline-flex', padding: 3, borderRadius: 9, background: '#3c4043', border: '1px solid #5f6368' }}><button type="button" aria-pressed="false" onClick={() => setTeacherWorkspaceMode('teacher')} style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'transparent', color: '#e8eaed', fontWeight: 900 }}>Teacher View</button><button type="button" aria-pressed="true" style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontWeight: 900 }}>Administration</button></div><button type="button" onClick={() => { setTeacherWorkspaceMode('teacher'); setTeacherTab('demo'); }} style={{ padding: '9px 13px', border: '1px solid #c7a9ea', borderRadius: 8, background: '#f8f0fc', color: '#6f2da8', fontWeight: 900 }}>Open Demo Experience</button><button onClick={handleLogout} style={{ padding: '9px 13px', background: 'transparent', color: '#f28b82', border: '1px solid #f28b82', borderRadius: 8, fontWeight: 900 }}>Log Out</button></div>
             </header>
             <div role="tablist" aria-label="Administration sections" style={{ display: 'flex', gap: 8, padding: '14px 28px 0', flexWrap: 'wrap' }}>
               {[['classes', 'Classes & rosters'], ['accounts', 'Accounts & sign-in'], ['coverage', 'Path content coverage'], ['ai', 'Assignment AI health'], ['reset', 'Pre-production reset']].map(([id, label]) => (
@@ -10004,7 +10004,7 @@ function App() {
           }}
         />
 
-        <div className="mm-dashboard-shell" style={{ maxWidth: '1360px', margin: '0 auto', background: '#fff', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'stretch' }}>
+        <div className="mm-dashboard-shell" style={{ maxWidth: '1360px', margin: '0 auto', background: 'var(--mm-surface)', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'stretch' }}>
           <TeacherSidebar
             activeTab={teacherTab}
             actionCount={teacherActionOpenCount}
@@ -10033,7 +10033,7 @@ function App() {
           <div style={{ flex: 1, minWidth: 0 }}>
           <header style={{ padding: '28px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e8eaed', gap: '20px' }}>
             <div>
-              <h1 style={{ margin: 0, color: '#202124', fontSize: '25px' }}>Instructor Dashboard</h1>
+              <h1 style={{ margin: 0, color: 'var(--mm-text-strong)', fontSize: '25px' }}>Instructor Dashboard</h1>
               <p style={{ margin: '5px 0 0', color: '#5f6368' }}>Assignments, eight class periods, DOL schedules, inclusion supports, and evidence reports</p>
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -10046,14 +10046,14 @@ function App() {
                 type="button"
                 onClick={() => setQuickSearchOpen(true)}
                 title="Find a student, class, assignment or TEKS code"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 13px', background: '#fff', color: '#3c4043', border: '1px solid #dadce0', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 13px', background: 'var(--mm-surface)', color: '#3c4043', border: '1px solid #dadce0', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }}
               >
                 <span aria-hidden="true">🔍</span>
                 <span>Find…</span>
                 <kbd style={{ padding: '1px 5px', border: '1px solid #dadce0', borderRadius: 4, background: '#f8f9fa', color: '#5f6368', fontSize: 11, fontFamily: 'inherit' }}>⌘K</kbd>
               </button>
-              {rootAdminUiEligible && <div role="group" aria-label="Root administrator workspace" style={{ display: 'inline-flex', padding: 3, borderRadius: 9, background: '#f1f3f4', border: '1px solid #dadce0' }}><button type="button" aria-pressed="true" style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: '#fff', color: '#174ea6', fontWeight: 900 }}>Teacher View</button><button type="button" aria-pressed="false" onClick={() => setTeacherWorkspaceMode('administration')} style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'transparent', color: '#3c4043', cursor: 'pointer', fontWeight: 900 }}>Administration</button></div>}
-              <button onClick={handleLogout} style={{ padding: '8px 16px', background: '#fff', color: '#d93025', border: '1px solid #d93025', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Log Out</button>
+              {rootAdminUiEligible && <div role="group" aria-label="Root administrator workspace" style={{ display: 'inline-flex', padding: 3, borderRadius: 9, background: '#f1f3f4', border: '1px solid #dadce0' }}><button type="button" aria-pressed="true" style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 900 }}>Teacher View</button><button type="button" aria-pressed="false" onClick={() => setTeacherWorkspaceMode('administration')} style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'transparent', color: '#3c4043', cursor: 'pointer', fontWeight: 900 }}>Administration</button></div>}
+              <button onClick={handleLogout} style={{ padding: '8px 16px', background: 'var(--mm-surface)', color: '#d93025', border: '1px solid #d93025', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Log Out</button>
             </div>
           </header>
 
@@ -10198,9 +10198,9 @@ function App() {
                         onChange={(event) => { handleBulkMoveToFolder(event.target.value); event.target.value = ''; }}
                         style={{ minHeight: '34px', padding: '0 8px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.45)', background: 'rgba(255,255,255,0.14)', color: '#fff', fontWeight: 700 }}
                       >
-                        <option value="" disabled style={{ color: '#202124' }}>Move to folder…</option>
-                        <option value="" style={{ color: '#202124' }}>Uncategorized</option>
-                        {assignmentFolderPaths.map((path) => <option key={path} value={path} style={{ color: '#202124' }}>{path}</option>)}
+                        <option value="" disabled style={{ color: 'var(--mm-text-strong)' }}>Move to folder…</option>
+                        <option value="" style={{ color: 'var(--mm-text-strong)' }}>Uncategorized</option>
+                        {assignmentFolderPaths.map((path) => <option key={path} value={path} style={{ color: 'var(--mm-text-strong)' }}>{path}</option>)}
                       </select>
                     </label>
                     <button type="button" className="mm-btn mm-btn--sm" disabled={bulkBusy} onClick={clearAssignmentSelection}>Clear</button>
@@ -10226,7 +10226,7 @@ function App() {
                 {libraryNavigation && (libraryNavigation.folder || libraryNavigation.smartView) && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap', padding: '10px 14px', marginBottom: '14px', background: '#e8f0fe', border: '1px solid #aecbfa', borderRadius: '8px', color: '#174ea6', fontWeight: 'bold', fontSize: '13px' }}>
                     <span>Filtered from Library{libraryNavigation.folder ? ` · ${libraryNavigation.folder}` : ''}{libraryNavigation.smartView ? ` · ${SMART_VIEWS.find((view) => view.id === libraryNavigation.smartView)?.label || libraryNavigation.smartView}` : ''}</span>
-                    <button type="button" onClick={() => setLibraryNavigation(null)} style={{ padding: '6px 10px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#fff', color: '#1a73e8', fontWeight: 'bold', cursor: 'pointer' }}>Clear filter</button>
+                    <button type="button" onClick={() => setLibraryNavigation(null)} style={{ padding: '6px 10px', border: '1px solid #1a73e8', borderRadius: '6px', background: 'var(--mm-surface)', color: '#1a73e8', fontWeight: 'bold', cursor: 'pointer' }}>Clear filter</button>
                   </div>
                 )}
                 {visibleAssignments.length === 0 && (
@@ -10335,7 +10335,7 @@ function App() {
                             </select>
                           </label>
                           <button onClick={async () => { await handleMoveAssignmentToFolder(assignment.id, movingFolderValue); setMovingFolderAssignmentId(null); }} style={{ padding: '10px 15px', background: '#188038', color: '#fff', border: 0, borderRadius: '7px', fontWeight: 'bold' }}>Save Folder</button>
-                          <button onClick={() => setMovingFolderAssignmentId(null)} style={{ padding: '10px 15px', background: '#fff', border: '1px solid #c9ced6', borderRadius: '7px', fontWeight: 'bold' }}>Cancel</button>
+                          <button onClick={() => setMovingFolderAssignmentId(null)} style={{ padding: '10px 15px', background: 'var(--mm-surface)', border: '1px solid #c9ced6', borderRadius: '7px', fontWeight: 'bold' }}>Cancel</button>
                         </div>
                       )}
                       {editingAssignmentId === assignment.id && (
@@ -10360,7 +10360,7 @@ function App() {
                             })}
                           </div>
                           <button onClick={() => handleSaveAssignmentDates(assignment.id)} style={{ padding: '10px 15px', background: '#188038', color: '#fff', border: 0, borderRadius: '7px', fontWeight: 'bold' }}>Save Dates</button>
-                          <button onClick={() => setEditingAssignmentId(null)} style={{ padding: '10px 15px', background: '#fff', border: '1px solid #c9ced6', borderRadius: '7px', fontWeight: 'bold' }}>Cancel</button>
+                          <button onClick={() => setEditingAssignmentId(null)} style={{ padding: '10px 15px', background: 'var(--mm-surface)', border: '1px solid #c9ced6', borderRadius: '7px', fontWeight: 'bold' }}>Cancel</button>
                         </div>
                       )}
                     </article>
@@ -10648,7 +10648,7 @@ function App() {
                         type="button"
                         onClick={() => handleLoadDeliveredRigor(selectedClassStudents.map((student) => student.id))}
                         disabled={classEvidenceLoading}
-                        style={{ padding: '7px 12px', border: '1px solid #dadce0', borderRadius: 8, background: '#fff', color: '#174ea6', fontWeight: 800, fontSize: 12.5, cursor: classEvidenceLoading ? 'wait' : 'pointer' }}
+                        style={{ padding: '7px 12px', border: '1px solid #dadce0', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, fontSize: 12.5, cursor: classEvidenceLoading ? 'wait' : 'pointer' }}
                       >
                         {classEvidenceLoading ? 'Reading delivery history…' : 'Check delivered rigor'}
                       </button>
@@ -10682,7 +10682,7 @@ function App() {
                     {gradeExplanation && <div style={{ marginTop: 4, fontSize: 11, color: '#5f6368', lineHeight: 1.4, maxWidth: 280 }}>{gradeExplanation}</div>}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.warmup.attempted ? `${sectionGrades.warmup.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.classwork.attempted ? `${sectionGrades.classwork.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.practice.attempted ? `${sectionGrades.practice.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.dol.attempted ? `${sectionGrades.dol.score}%` : '—'}</td><td style={{ fontSize: '12px' }}>{modified ? `Modified: ${(usage.modifications || []).join(', ')}` : (usage.accommodations || []).length ? `Accommodated: ${usage.accommodations.join(', ')}` : 'Standard'}</td><td style={{ fontSize: '12px', lineHeight: 1.45 }}>Total {formatTime(activity.totalTimeSeconds || 0)}<br />On time {formatTime(activity.onTimeSeconds || 0)} · Late {formatTime(activity.lateSeconds || 0)}<br />Last on-time: {formatTimeStamp(activity.lastActiveBeforeDue)}<br />Last late: {formatTimeStamp(activity.lastActiveLate)}</td><td><button onClick={() => setGradebookFilter((current) => ({ ...current, student }))} style={{ padding: '8px 12px', border: 0, borderRadius: '6px', background: '#1a73e8', color: '#fff', fontWeight: 'bold' }}>Details</button></td></tr>; })}</tbody></table></div>
                 )}
 
-                {gradebookFilter.student && selectedAssignment && (() => { const student = gradebookFilter.student; const studentGrades = projectTeacherOverridesForDisplay(student.gradesByAssignment || {}, student.teacherGradeOverridesByAssignment || {})?.[selectedAssignment.id] || {}; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const displayedAssignmentScore = assignmentOverride ? assignmentOverride.score : Object.keys(studentGrades).length ? calculateGrade(studentGrades, selectedAssignment) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{displayedAssignmentScore === null ? '—' : `${displayedAssignmentScore}%`}</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div><AssignmentGradeOverrideControls student={student} assignment={selectedAssignment} onChanged={() => setGradebookFilter((current) => ({ ...current, student: null }))} />{selectedAssignment?.dol?.enabled && (() => { const recovery = summarizeStudentRecovery({ assignment: selectedAssignment, classId: student.classId || activeClass?.classId || null, studentId: student.id }); const busy = dolAttemptGrantBusyKey === `${selectedAssignment.id}:students:${student.id}`; return <div data-dol-student-recovery={student.id} style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, fontSize: 12.5, color: '#3c4043' }}><span>Teacher-granted DOL attempts: <strong>{recovery.extraAttempts}</strong>{recovery.studentExtraAttempts ? ` (${recovery.studentExtraAttempts} for this student)` : ''}</span><button type="button" disabled={busy} onClick={() => handleGrantDOLAttemptForStudents(selectedAssignment, [student])} style={{ padding: '6px 10px', border: '1px solid #1a73e8', borderRadius: 6, background: '#fff', color: '#174ea6', fontWeight: 800, cursor: busy ? 'wait' : 'pointer' }}>{busy ? 'Granting…' : 'Grant +1 DOL attempt'}</button></div>; })()}{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: '#fff', border: '1px solid #d8dde6' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: '#202124' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: '#fff', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{getStoredAssignmentQuestions(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type} · Grade ×{normalizeQuestionWeight(question)}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.teacherGradeOverrideDisplay?.active ? (credit >= 100 ? 'Teacher assigned · Correct ✓' : `Teacher assigned · ${credit}%`) : record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button>{studentGrades[index] && <button type="button" onClick={() => setResponseInspectorTarget({ studentId: student.id, assignmentId: selectedAssignment.id, questionIndex: index })} style={{ marginTop: '8px', marginLeft: '8px', padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#e8f0fe', color: '#174ea6', fontWeight: 'bold' }}>Inspect Response / Override Grade</button>}</article>; })}</div></div>; })()}
+                {gradebookFilter.student && selectedAssignment && (() => { const student = gradebookFilter.student; const studentGrades = projectTeacherOverridesForDisplay(student.gradesByAssignment || {}, student.teacherGradeOverridesByAssignment || {})?.[selectedAssignment.id] || {}; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const displayedAssignmentScore = assignmentOverride ? assignmentOverride.score : Object.keys(studentGrades).length ? calculateGrade(studentGrades, selectedAssignment) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{displayedAssignmentScore === null ? '—' : `${displayedAssignmentScore}%`}</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div><AssignmentGradeOverrideControls student={student} assignment={selectedAssignment} onChanged={() => setGradebookFilter((current) => ({ ...current, student: null }))} />{selectedAssignment?.dol?.enabled && (() => { const recovery = summarizeStudentRecovery({ assignment: selectedAssignment, classId: student.classId || activeClass?.classId || null, studentId: student.id }); const busy = dolAttemptGrantBusyKey === `${selectedAssignment.id}:students:${student.id}`; return <div data-dol-student-recovery={student.id} style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, fontSize: 12.5, color: '#3c4043' }}><span>Teacher-granted DOL attempts: <strong>{recovery.extraAttempts}</strong>{recovery.studentExtraAttempts ? ` (${recovery.studentExtraAttempts} for this student)` : ''}</span><button type="button" disabled={busy} onClick={() => handleGrantDOLAttemptForStudents(selectedAssignment, [student])} style={{ padding: '6px 10px', border: '1px solid #1a73e8', borderRadius: 6, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: busy ? 'wait' : 'pointer' }}>{busy ? 'Granting…' : 'Grant +1 DOL attempt'}</button></div>; })()}{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid #d8dde6' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: 'var(--mm-text-strong)' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{getStoredAssignmentQuestions(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type} · Grade ×{normalizeQuestionWeight(question)}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.teacherGradeOverrideDisplay?.active ? (credit >= 100 ? 'Teacher assigned · Correct ✓' : `Teacher assigned · ${credit}%`) : record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button>{studentGrades[index] && <button type="button" onClick={() => setResponseInspectorTarget({ studentId: student.id, assignmentId: selectedAssignment.id, questionIndex: index })} style={{ marginTop: '8px', marginLeft: '8px', padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#e8f0fe', color: '#174ea6', fontWeight: 'bold' }}>Inspect Response / Override Grade</button>}</article>; })}</div></div>; })()}
               </div>
             )}
 

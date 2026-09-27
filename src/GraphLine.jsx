@@ -36,7 +36,7 @@ export default function GraphLine({ question, onStateChange, onUndoStateChange, 
   const grade = (id) => feedback?.partGrades?.find((part) => part.id === id);
   return (
     <div>
-      <h2 style={{ color: '#202124', marginTop: 0 }}>Graphing Lines</h2>
+      <h2 style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Graphing Lines</h2>
       <QuestionPrompt>{prompt || 'Identify the slope $m$ and the y-intercept $b$.'}</QuestionPrompt>
       {showEquation && <div style={{ fontSize: '27px', fontWeight: 'bold', margin: '26px auto', color: '#1a73e8', background: '#f8f9fa', padding: '18px 24px', borderRadius: '10px', width: 'fit-content', maxWidth: '100%', boxSizing: 'border-box' }}><MathDisplay value={displayedEquation} format={equationLatex ? 'latex' : 'ascii-math'} ariaLabel={`Equation ${generatedEquation}`} /></div>}
       <QuestionVisual question={question} includeGraph={false} />

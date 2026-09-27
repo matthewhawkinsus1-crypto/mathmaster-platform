@@ -19,8 +19,8 @@ import {
 // edits or deletes a ledger entry directly, and it never touches grades,
 // mastery, evidence, presence, or Live Challenge scoring.
 
-const rowStyle = { padding: '9px 10px', borderRadius: 9, background: '#fff', border: '1px solid #e0e3e7', display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between' };
-const smallButtonStyle = { padding: '5px 8px', borderRadius: 7, border: '1px solid #9aa0a6', background: '#fff', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' };
+const rowStyle = { padding: '9px 10px', borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid #e0e3e7', display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between' };
+const smallButtonStyle = { padding: '5px 8px', borderRadius: 7, border: '1px solid #9aa0a6', background: 'var(--mm-surface)', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' };
 
 const formatWhen = (value) => {
   const millis = classPointsTimestampMillis(value);
@@ -113,7 +113,7 @@ export default function ClassPointsHistoryPanel({ classId, teacherEmail, roster 
 
   return (
     <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '1px solid #c9ced6', background: '#f8f9fa' }}>
-      <div style={{ fontWeight: 900, color: '#202124' }}>Class Points Activity</div>
+      <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)' }}>Class Points Activity</div>
       <div style={{ marginTop: 3, marginBottom: 10, fontSize: 12, color: '#5f6368' }}>
         Recent activity for this class. A mistaken award is corrected with Reverse award — the original stays in history.
       </div>

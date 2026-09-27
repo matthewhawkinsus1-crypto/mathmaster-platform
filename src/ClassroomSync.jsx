@@ -13,12 +13,12 @@ import {
 import { assertPublishable, isLibraryAssignment } from './assignmentDestinations';
 import { SYNC_STATUS, summarizeAssignmentSync } from './classroomSyncState';
 
-const card = { background: '#fff', borderRadius: '12px', padding: '5px' };
+const card = { background: 'var(--mm-surface)', borderRadius: '12px', padding: '5px' };
 const label = { display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#5f6368', marginBottom: '6px' };
 const input = { width: '100%', padding: '10px', fontSize: '14px', borderRadius: '6px', border: '1px solid #dadce0', boxSizing: 'border-box' };
 const button = { padding: '10px 18px', fontSize: '14px', fontWeight: 'bold', borderRadius: '8px', border: 'none', cursor: 'pointer' };
 const primaryButton = { ...button, background: '#1a73e8', color: '#fff' };
-const secondaryButton = { ...button, background: '#f1f3f4', color: '#202124' };
+const secondaryButton = { ...button, background: '#f1f3f4', color: 'var(--mm-text-strong)' };
 const courseCard = (selected) => ({
   display: 'flex',
   alignItems: 'flex-start',
@@ -255,7 +255,7 @@ export default function ClassroomSync({ assignments = [] }) {
 
   return (
     <div style={card}>
-      <h2 style={{ margin: '0 0 5px 0', color: '#202124', fontSize: '20px' }}>Google Classroom Sync</h2>
+      <h2 style={{ margin: '0 0 5px 0', color: 'var(--mm-text-strong)', fontSize: '20px' }}>Google Classroom Sync</h2>
       <p style={{ margin: '0 0 20px 0', color: '#5f6368', fontSize: '14px' }}>
         Publish one MathMaster assignment to several Classroom courses. Each course receives its own
         publication record, coursework ID, roster links, and grade-passback route.
@@ -313,7 +313,7 @@ export default function ClassroomSync({ assignments = [] }) {
 
           {courses.length > 0 && (
             <div style={{ marginBottom: '25px', padding: '16px', background: '#f8f9fa', borderRadius: '10px' }}>
-              <h3 style={{ margin: '0 0 12px 0', fontSize: '15px', color: '#202124' }}>Import and Link a Course Roster</h3>
+              <h3 style={{ margin: '0 0 12px 0', fontSize: '15px', color: 'var(--mm-text-strong)' }}>Import and Link a Course Roster</h3>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                 <div style={{ flex: '1 1 300px' }}>
                   <label style={label}>Roster course</label>
@@ -335,7 +335,7 @@ export default function ClassroomSync({ assignments = [] }) {
 
           {roster.length > 0 && (
             <div style={{ marginBottom: '25px' }}>
-              <h3 style={{ fontSize: '15px', color: '#202124' }}>Link This Course Roster to MathMaster IDs</h3>
+              <h3 style={{ fontSize: '15px', color: 'var(--mm-text-strong)' }}>Link This Course Roster to MathMaster IDs</h3>
               <p style={{ color: '#5f6368', fontSize: '13px' }}>
                 Roster links are course-specific. Link the same student separately in every Classroom course that should receive grade passback.
               </p>
@@ -376,7 +376,7 @@ export default function ClassroomSync({ assignments = [] }) {
 
           {courses.length > 0 && (
             <div style={{ marginBottom: '18px', padding: '16px', border: '1px solid #dadce0', borderRadius: '10px' }}>
-              <h3 style={{ margin: '0 0 12px 0', fontSize: '15px', color: '#202124' }}>Publish One Assignment to Multiple Courses</h3>
+              <h3 style={{ margin: '0 0 12px 0', fontSize: '15px', color: 'var(--mm-text-strong)' }}>Publish One Assignment to Multiple Courses</h3>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '15px' }}>
                 <div style={{ flex: '1 1 300px' }}>
                   <label style={label}>MathMaster assignment</label>
@@ -413,7 +413,7 @@ export default function ClassroomSync({ assignments = [] }) {
                         style={{ marginTop: '3px' }}
                       />
                       <span>
-                        <strong style={{ display: 'block', color: '#202124' }}>{course.name}</strong>
+                        <strong style={{ display: 'block', color: 'var(--mm-text-strong)' }}>{course.name}</strong>
                         <span style={{ color: '#5f6368', fontSize: '12px' }}>{[course.section, course.room].filter(Boolean).join(' · ') || `Course ${course.id}`}</span>
                       </span>
                     </label>
@@ -442,7 +442,7 @@ export default function ClassroomSync({ assignments = [] }) {
 
       {publishResults.length > 0 && (
         <div style={{ marginTop: '20px' }}>
-          <h3 style={{ fontSize: '15px', color: '#202124' }}>Latest Publish Results</h3>
+          <h3 style={{ fontSize: '15px', color: 'var(--mm-text-strong)' }}>Latest Publish Results</h3>
           <div style={{ display: 'grid', gap: '8px' }}>
             {publishResults.map((result) => (
               <div key={`${result.courseId}-${result.publicationId || result.status}`} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '10px 12px', border: '1px solid #e0e3e7', borderRadius: '8px' }}>
@@ -458,7 +458,7 @@ export default function ClassroomSync({ assignments = [] }) {
 
       {syncByAssignment.length > 0 && (
         <div style={{ marginTop: '25px' }}>
-          <h3 style={{ fontSize: '15px', color: '#202124' }}>Google Classroom sync</h3>
+          <h3 style={{ fontSize: '15px', color: 'var(--mm-text-strong)' }}>Google Classroom sync</h3>
           <p style={{ color: '#5f6368', fontSize: '12px', margin: '0 0 10px', lineHeight: 1.55 }}>
             Changing a due date in MathMaster saves immediately but never touches Classroom on its own.
             When a post is behind, update it here.
@@ -515,7 +515,7 @@ export default function ClassroomSync({ assignments = [] }) {
 
       {links.length > 0 && (
         <div style={{ marginTop: '25px' }}>
-          <h3 style={{ fontSize: '15px', color: '#202124' }}>Classroom Publications</h3>
+          <h3 style={{ fontSize: '15px', color: 'var(--mm-text-strong)' }}>Classroom Publications</h3>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
               <thead>

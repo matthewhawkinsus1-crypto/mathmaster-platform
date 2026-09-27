@@ -120,7 +120,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
 
   return (
     <div>
-      <h2 style={{ color: '#202124', marginTop: 0 }}>{question.heading || 'Complete Each Part'}</h2>
+      <h2 style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>{question.heading || 'Complete Each Part'}</h2>
       <QuestionPrompt>{prompt || 'Enter an answer for every part.'}</QuestionPrompt>
       {/* A data table beside its answer fields where there is room. Stacked,
           the table sat centred with ~370px blank either side on a 1180px
@@ -148,7 +148,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
               style={{
                 border: '2px solid #dfe3e7',
                 borderRadius: 12,
-                background: '#fff',
+                background: 'var(--mm-surface)',
                 padding: 12,
               }}
             >
@@ -216,7 +216,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                           borderRadius: '8px',
                           border: `2px solid ${selected ? '#1a73e8' : grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#bdc7d6'}`,
                           background: selected ? '#e8f0fe' : '#fff',
-                          color: '#202124',
+                          color: 'var(--mm-text-strong)',
                           fontSize: '16px',
                           textAlign: 'left',
                           cursor: 'pointer',
@@ -244,7 +244,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                     borderRadius: '8px',
                     border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#1a73e8'}`,
                     background: grade && !grade.isCorrect ? '#fff8f7' : grade?.isCorrect ? '#f4fbf5' : '#fff',
-                    color: '#202124',
+                    color: 'var(--mm-text-strong)',
                     fontSize: '18px',
                     fontFamily: 'inherit',
                   }}

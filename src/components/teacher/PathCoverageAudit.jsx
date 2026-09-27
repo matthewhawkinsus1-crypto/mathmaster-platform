@@ -27,9 +27,9 @@ import { buildAssessmentCoverageAudit, ASSESSMENT_COVERAGE_MISMATCH } from '../.
 // same issuability check the runtime uses — so a number here is a promise the
 // Path can keep, not an inventory of files.
 
-const card = { border: '1px solid #d8dde6', borderRadius: 12, padding: '20px 22px', marginBottom: 20, textAlign: 'left', background: '#fff' };
+const card = { border: '1px solid #d8dde6', borderRadius: 12, padding: '20px 22px', marginBottom: 20, textAlign: 'left', background: 'var(--mm-surface)' };
 const primary = { minHeight: 42, padding: '0 16px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' };
-const quiet = { minHeight: 38, padding: '0 13px', border: '1px solid #c7cdd6', borderRadius: 8, background: '#fff', color: '#3c4043', fontWeight: 700, cursor: 'pointer' };
+const quiet = { minHeight: 38, padding: '0 13px', border: '1px solid #c7cdd6', borderRadius: 8, background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 700, cursor: 'pointer' };
 
 const STATE_STYLE = {
   [COVERAGE_STATE.ADEQUATE]: { background: '#e6f4ea', color: '#137333' },
@@ -367,7 +367,7 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
               supportMatrix.blockers.length ? '#a50e0e' : '#137333'],
             ['Support gaps', supportMatrix.gaps.length, supportMatrix.gaps.length ? '#7a4f00' : '#137333'],
           ].map(([label, value, tone]) => (
-            <div key={label} style={{ flex: '1 1 150px', padding: '11px 13px', border: '1px solid #dadce0', borderRadius: 9, background: '#fff' }}>
+            <div key={label} style={{ flex: '1 1 150px', padding: '11px 13px', border: '1px solid #dadce0', borderRadius: 9, background: 'var(--mm-surface)' }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: '#5f6368', textTransform: 'uppercase' }}>{label}</div>
               <div style={{ marginTop: 3, fontSize: 20, fontWeight: 900, color: tone }}>{value}</div>
             </div>
@@ -459,7 +459,7 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
                 </p>
                 <div style={{ display: 'grid', gap: 8 }}>
                   {assessmentCoverageAudit.rows.map((row) => (
-                    <div key={`${row.teksCode}:${row.framework}`} style={{ padding: '10px 12px', border: '1px solid #f0d2b5', borderRadius: 9, background: '#fff' }}>
+                    <div key={`${row.teksCode}:${row.framework}`} style={{ padding: '10px 12px', border: '1px solid #f0d2b5', borderRadius: 9, background: 'var(--mm-surface)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                         <strong>{row.teksCode} · {row.frameworkLabel}</strong>
                         <button type="button" style={quiet} onClick={() => runDiagnostic(row.teksCode, row.framework)} disabled={diagnosticBusy}>
@@ -715,7 +715,7 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
           </label>
           <label style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 800 }}>
             Practice format
-            <select value={diagnosticFramework} onChange={(event) => setDiagnosticFramework(event.target.value)} style={{ minHeight: 38, border: '1px solid #bdc1c6', borderRadius: 8, padding: '0 9px', background: '#fff' }}>
+            <select value={diagnosticFramework} onChange={(event) => setDiagnosticFramework(event.target.value)} style={{ minHeight: 38, border: '1px solid #bdc1c6', borderRadius: 8, padding: '0 9px', background: 'var(--mm-surface)' }}>
               <option value="">Course practice</option>
               <option value="digitalSAT">Digital SAT</option>
               <option value="act">ACT</option>
@@ -786,7 +786,7 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
               ['Production quality', summary.productionReady ?? 0],
             ].map(([label, value]) => (
               <div key={label}>
-                <div style={{ fontSize: 26, fontWeight: 900, color: '#202124' }}>{value}</div>
+                <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--mm-text-strong)' }}>{value}</div>
                 <div style={{ fontSize: 12, color: '#5f6368', fontWeight: 700 }}>{label}</div>
               </div>
             ))}

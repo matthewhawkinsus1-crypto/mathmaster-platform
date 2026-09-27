@@ -66,7 +66,7 @@ export default function AssignmentGradeOverrideControls({ student, assignment, o
     }
   };
 
-  return <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 8, background: '#fff', border: '1px solid #dadce0' }}>
+  return <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid #dadce0' }}>
     <div style={{ fontSize: 12, fontWeight: 900 }}>Academic integrity consequence</div>
     {override && <div style={{ marginTop: 6, color: '#b3261e', fontWeight: 800 }}>Teacher assignment override · {override.score}%</div>}
     <label>Scope <select value={scope} onChange={(event) => setScope(event.target.value)}><option value="assignment">Whole assignment</option><option value="section">This section</option></select></label>

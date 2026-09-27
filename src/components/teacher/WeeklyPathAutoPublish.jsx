@@ -23,7 +23,7 @@ const runNow = httpsCallable(functions, 'runWeeklyPathClassroomSyncNow');
 
 const CARD = {
   border: '1px solid #dadce0', borderRadius: 12, padding: '16px 18px',
-  marginTop: 14, background: '#fff',
+  marginTop: 14, background: 'var(--mm-surface)',
 };
 const MUTED = { color: '#5f6368', fontSize: 13, lineHeight: 1.55 };
 
@@ -124,7 +124,7 @@ export default function WeeklyPathAutoPublish({ classId = null, weekKey = null }
           disabled={busy || !weekKey}
           style={{
             minHeight: 44, padding: '10px 16px', borderRadius: 9,
-            border: '1px solid #9bb8e8', background: '#fff', color: '#174ea6',
+            border: '1px solid #9bb8e8', background: 'var(--mm-surface)', color: '#174ea6',
             fontWeight: 900, fontSize: 14, cursor: busy || !weekKey ? 'default' : 'pointer',
           }}
         >

@@ -59,7 +59,6 @@ const buttonStyle = (active = false) => ({
   color: '#174ea6',
   fontWeight: 800,
   cursor: 'pointer',
-  colorScheme: 'light',
 });
 
 const branchLabel = (index) => String.fromCharCode(65 + index);
@@ -180,7 +179,7 @@ function PlacementMiniMenu({
         padding: 4,
         border: '1px solid #b8c8e3',
         borderRadius: 9,
-        background: '#fff',
+        background: 'var(--mm-surface)',
         boxShadow: '0 6px 18px rgba(0,0,0,.14)',
         whiteSpace: 'nowrap',
       }}
@@ -199,7 +198,7 @@ function PlacementMiniMenu({
             padding: '4px 8px',
             border: '1px solid #c8d5ea',
             borderRadius: 7,
-            background: '#fff',
+            background: 'var(--mm-surface)',
             color: '#174ea6',
             fontSize: 11,
             fontWeight: 800,
@@ -417,8 +416,7 @@ function AdditiveExpressionRegion({
                   borderRadius: 999,
                   background: '#f3f7ff',
                   color: '#174ea6',
-                  colorScheme: 'light',
-                }}
+                                }}
               >
                 <span aria-hidden="true" style={{ fontSize: 11, fontWeight: 900 }}>↓</span>
                 <StagedAdditivePreview
@@ -504,12 +502,11 @@ function FractionCancellationRegion({
           borderRadius: 7,
           border: selected ? '2px solid #174ea6' : hinted ? '1px dashed #7b61ff' : '1px solid transparent',
           background: selected ? '#e8f0fe' : hinted ? '#faf7ff' : 'transparent',
-          color: '#202124',
-          colorScheme: 'light',
-          cursor: rewriteMode ? 'text' : 'pointer',
+          color: 'var(--mm-text-strong)',
+                  cursor: rewriteMode ? 'text' : 'pointer',
         }}
       >
-        <span style={{ fontSize: 24, color: '#202124' }}>
+        <span style={{ fontSize: 24, color: 'var(--mm-text-strong)' }}>
           <MathDisplay
             value={factor.latex || expressionToLatex(factor.text)}
             format="latex"
@@ -528,9 +525,8 @@ function FractionCancellationRegion({
         gridTemplateRows: 'auto 2px auto',
         gap: 4,
         minWidth: 110,
-        color: '#202124',
-        colorScheme: 'light',
-      }}
+        color: 'var(--mm-text-strong)',
+            }}
     >
       <div style={{ display: 'flex', justifyContent: 'center', gap: 4, flexWrap: 'wrap' }}>
         {model.numerator.map((factor, index) => factorButton(factor, index))}
@@ -1621,9 +1617,8 @@ export default function MultiRelationAlgebra({
           borderRadius: 12,
           border: '1px solid #d7e2f3',
           background: '#f8fbff',
-          color: '#202124',
-          colorScheme: 'light',
-          boxShadow: '0 2px 8px rgba(23,78,166,.06)',
+          color: 'var(--mm-text-strong)',
+                  boxShadow: '0 2px 8px rgba(23,78,166,.06)',
         }}
       >
         <div
@@ -1845,12 +1840,11 @@ export default function MultiRelationAlgebra({
               minHeight: 36,
               padding: '5px 8px',
               color: '#5f6368',
-              background: '#ffffff',
+              background: 'var(--mm-surface)',
               borderRadius: 8,
               fontSize: 12,
               fontWeight: 700,
-              colorScheme: 'light',
-            }}
+                        }}
           >
             <input
               type="checkbox"
@@ -1890,7 +1884,7 @@ export default function MultiRelationAlgebra({
             border: '1px solid #c8d5ea',
             borderRadius: 10,
             background: '#f8fbff',
-            color: '#202124',
+            color: 'var(--mm-text-strong)',
           }}
         >
           <span
@@ -1915,7 +1909,7 @@ export default function MultiRelationAlgebra({
                 padding: '5px 9px',
                 border: '1px solid #b8c8e3',
                 borderRadius: 8,
-                background: '#ffffff',
+                background: 'var(--mm-surface)',
                 color: '#174ea6',
                 fontSize: 12,
                 fontWeight: 800,
@@ -1982,7 +1976,7 @@ export default function MultiRelationAlgebra({
               padding: '4px 9px',
               borderRadius: 8,
               border: '1px solid #b8c8e3',
-              background: '#fff',
+              background: 'var(--mm-surface)',
               color: '#3c4756',
               fontSize: 12,
               fontWeight: 800,
@@ -2114,7 +2108,7 @@ export default function MultiRelationAlgebra({
                         alignItems: 'center',
                         justifyContent: 'flex-end',
                         fontSize: 22,
-                        color: '#202124',
+                        color: 'var(--mm-text-strong)',
                       }}
                     >
                       <MathDisplay
@@ -2136,7 +2130,7 @@ export default function MultiRelationAlgebra({
                           )));
                         }}
                         aria-label={`Branch ${branchLabel(index)} inequality symbol`}
-                        style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid #9bb8e8', background: '#fff', color: '#174ea6', fontSize: 18, fontWeight: 900 }}
+                        style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid #9bb8e8', background: 'var(--mm-surface)', color: '#174ea6', fontSize: 18, fontWeight: 900 }}
                       >
                         <option value="">?</option>
                         {['<', '<=', '>', '>='].map((choice) => (
@@ -2189,21 +2183,21 @@ export default function MultiRelationAlgebra({
                     value={absoluteSplitRelations[0] || ''}
                     onChange={(event) => setAbsoluteSplitRelations((current) => [event.target.value, current[1]])}
                     aria-label="Left inequality symbol"
-                    style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid #9bb8e8', background: '#fff', color: '#174ea6', fontSize: 18, fontWeight: 900 }}
+                    style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid #9bb8e8', background: 'var(--mm-surface)', color: '#174ea6', fontSize: 18, fontWeight: 900 }}
                   >
                     <option value="">?</option>
                     {['<', '<=', '>', '>='].map((choice) => (
                       <option key={choice} value={choice}>{RELATION_GLYPH[choice]}</option>
                     ))}
                   </select>
-                  <div style={{ textAlign: 'center', fontSize: 22, color: '#202124' }}>
+                  <div style={{ textAlign: 'center', fontSize: 22, color: 'var(--mm-text-strong)' }}>
                     <MathDisplay value={relationExpressionToLatex(absoluteSplitModel.inner)} format="latex" inline />
                   </div>
                   <select
                     value={absoluteSplitRelations[1] || ''}
                     onChange={(event) => setAbsoluteSplitRelations((current) => [current[0], event.target.value])}
                     aria-label="Right inequality symbol"
-                    style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid #9bb8e8', background: '#fff', color: '#174ea6', fontSize: 18, fontWeight: 900 }}
+                    style={{ minHeight: 40, minWidth: 64, borderRadius: 8, border: '1px solid #9bb8e8', background: 'var(--mm-surface)', color: '#174ea6', fontSize: 18, fontWeight: 900 }}
                   >
                     <option value="">?</option>
                     {['<', '<=', '>', '>='].map((choice) => (
@@ -2393,14 +2387,13 @@ export default function MultiRelationAlgebra({
                                   : '1px dashed #8ab4f8',
                                 background: 'transparent',
                                 color: '#174ea6',
-                                colorScheme: 'light',
-                                fontWeight: 800,
+                                                              fontWeight: 800,
                                 cursor: 'pointer',
                               }}
                             >
                               {placementByKey[key]?.kind === 'whole-operation'
                                 ? (
-                                  <span style={{ fontSize: 20, color: '#202124' }}>
+                                  <span style={{ fontSize: 20, color: 'var(--mm-text-strong)' }}>
                                     <MathDisplay value={operand} format="latex" inline />
                                   </span>
                                 )
@@ -2501,7 +2494,7 @@ export default function MultiRelationAlgebra({
                                   padding: 5,
                                   borderRadius: 9,
                                   border: '1px solid #c8d5ea',
-                                  background: '#fff',
+                                  background: 'var(--mm-surface)',
                                   boxShadow: '0 6px 18px rgba(0,0,0,.15)',
                                 }}
                               >
@@ -2584,8 +2577,7 @@ export default function MultiRelationAlgebra({
             border: '1px solid #b7dfc1',
             background: '#e6f4ea',
             color: '#137333',
-            colorScheme: 'light',
-          }}
+                    }}
         >
           <div
             style={{
@@ -2630,9 +2622,9 @@ export default function MultiRelationAlgebra({
                     gap: 7,
                     padding: '7px 10px',
                     borderRadius: 9,
-                    background: '#ffffff',
+                    background: 'var(--mm-surface)',
                     border: '1px solid #c8e6cf',
-                    color: '#202124',
+                    color: 'var(--mm-text-strong)',
                   }}
                 >
                   <span style={{ fontSize: 24 }}>
@@ -2684,7 +2676,7 @@ export default function MultiRelationAlgebra({
             borderRadius: 12,
             border: '1px solid #c8d5ea',
             background: '#f8fbff',
-            color: '#202124',
+            color: 'var(--mm-text-strong)',
           }}
         >
           <div style={{ fontWeight: 900, color: '#174ea6', marginBottom: 6 }}>
@@ -2710,7 +2702,7 @@ export default function MultiRelationAlgebra({
                     padding: '10px 12px',
                     borderRadius: 10,
                     border: '1px solid #d7e2f2',
-                    background: '#fff',
+                    background: 'var(--mm-surface)',
                   }}
                 >
                   <div style={{ fontSize: 21, fontWeight: 800 }}>

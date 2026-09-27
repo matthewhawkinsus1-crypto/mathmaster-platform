@@ -30,7 +30,7 @@ export default function FractionGrader({ question, onStateChange, onUndoStateCha
 
   return (
     <div>
-      <h2 style={{ color: '#202124', marginTop: 0 }}>Fractions</h2>
+      <h2 style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Fractions</h2>
       <QuestionPrompt>{prompt || 'Add the fractions.'}</QuestionPrompt>
       <div style={{ margin: '34px auto', fontSize: '30px', fontWeight: 'bold', color: '#1a73e8', width: 'fit-content', maxWidth: '100%' }}>
         <MathDisplay value={displayedExpression} format="latex" ariaLabel="Fraction expression" />

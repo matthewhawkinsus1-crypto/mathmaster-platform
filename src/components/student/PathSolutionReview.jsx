@@ -42,7 +42,7 @@ export const PathSolutionReview = ({ review, wasCorrect = false }) => {
     <section style={card} aria-label="How this question works">
       <h2 style={heading}>{wasCorrect ? 'Why that works' : 'How this one works'}</h2>
       {review.headline && (
-        <MathText as="p" style={{ margin: '0 0 10px', fontSize: 16, fontWeight: 800, color: '#202124', lineHeight: 1.5 }}>
+        <MathText as="p" style={{ margin: '0 0 10px', fontSize: 16, fontWeight: 800, color: 'var(--mm-text-strong)', lineHeight: 1.5 }}>
           {review.headline}
         </MathText>
       )}

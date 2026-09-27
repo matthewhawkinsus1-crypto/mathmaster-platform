@@ -27,7 +27,7 @@ import {
  * is a dry run until a teacher commits it.
  */
 
-const CARD = { border: '1px solid #dadce0', borderRadius: 12, padding: 16, background: '#fff' };
+const CARD = { border: '1px solid #dadce0', borderRadius: 12, padding: 16, background: 'var(--mm-surface)' };
 const BUTTON = { minHeight: 40, padding: '8px 14px', border: 0, borderRadius: 8, fontWeight: 800, cursor: 'pointer' };
 const CELL = { padding: '8px 10px', borderBottom: '1px solid #f1f3f4', fontSize: 13, textAlign: 'left' };
 

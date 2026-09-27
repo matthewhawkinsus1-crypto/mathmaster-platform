@@ -36,7 +36,7 @@ const cellStyle = {
   padding: '7px 12px',
   border: '1px solid #dfe3e8',
   fontSize: 15,
-  color: '#202124',
+  color: 'var(--mm-text-strong)',
   textAlign: 'center',
   whiteSpace: 'nowrap',
 };
@@ -184,7 +184,7 @@ function StimulusGraph({ graph }) {
 function OrderedPairList({ pairs }) {
   if (!pairs?.length) return null;
   return (
-    <p style={{ margin: 0, fontSize: 17, color: '#202124', lineHeight: 1.7, textAlign: 'center' }}>
+    <p style={{ margin: 0, fontSize: 17, color: 'var(--mm-text-strong)', lineHeight: 1.7, textAlign: 'center' }}>
       {'{ '}
       {pairs.map((pair, index) => (
         <span key={`p-${index}`} style={{ whiteSpace: 'nowrap' }}>
@@ -201,7 +201,7 @@ function WorkedSteps({ steps }) {
   return (
     <ol style={{ margin: 0, paddingLeft: 22, display: 'grid', gap: 6 }}>
       {steps.map((step) => (
-        <li key={step.id} style={{ fontSize: 15, color: '#202124', lineHeight: 1.6 }}>
+        <li key={step.id} style={{ fontSize: 15, color: 'var(--mm-text-strong)', lineHeight: 1.6 }}>
           <span style={{ color: '#5f6368', fontWeight: 700, marginRight: 8 }}>{step.label}</span>
           <MathText>{step.work}</MathText>
         </li>
@@ -215,7 +215,7 @@ function ExpressionList({ expressions }) {
   return (
     <div style={{ display: 'grid', gap: 6, justifyItems: 'center' }}>
       {expressions.map((expression, index) => (
-        <MathText key={`e-${index}`} style={{ fontSize: 18, color: '#202124' }}>{expression}</MathText>
+        <MathText key={`e-${index}`} style={{ fontSize: 18, color: 'var(--mm-text-strong)' }}>{expression}</MathText>
       ))}
     </div>
   );
@@ -226,7 +226,7 @@ function LabelledItems({ items }) {
   return (
     <ul style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 5 }}>
       {items.map((item) => (
-        <li key={item.id} style={{ fontSize: 15, color: '#202124', lineHeight: 1.6 }}>
+        <li key={item.id} style={{ fontSize: 15, color: 'var(--mm-text-strong)', lineHeight: 1.6 }}>
           <MathText>{item.label}</MathText>
         </li>
       ))}

@@ -47,7 +47,7 @@ export default function GuidedClassworkCoach({
       >
         <span>
           <span style={{ display: 'block', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{headerLabel}</span>
-          <span style={{ display: 'block', marginTop: '2px', color: '#202124', fontSize: '14px' }}>{currentStep.title}</span>
+          <span style={{ display: 'block', marginTop: '2px', color: 'var(--mm-text-strong)', fontSize: '14px' }}>{currentStep.title}</span>
         </span>
         <span aria-hidden="true" style={{ fontSize: '18px' }}>{collapsed ? '▾' : '▴'}</span>
       </button>
@@ -62,7 +62,7 @@ export default function GuidedClassworkCoach({
             </div>
           ) : steps.length > 1 ? (
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '11px' }}>
-              <button type="button" disabled={disabled || safeIndex === 0} onClick={() => setManualStepIndex(Math.max(0, safeIndex - 1))} style={{ padding: '7px 11px', border: '1px solid #aac3e8', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>Previous note</button>
+              <button type="button" disabled={disabled || safeIndex === 0} onClick={() => setManualStepIndex(Math.max(0, safeIndex - 1))} style={{ padding: '7px 11px', border: '1px solid #aac3e8', borderRadius: '8px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>Previous note</button>
               <button type="button" disabled={disabled || safeIndex >= steps.length - 1} onClick={() => setManualStepIndex(Math.min(steps.length - 1, safeIndex + 1))} style={{ padding: '7px 11px', border: 'none', borderRadius: '8px', background: safeIndex >= steps.length - 1 ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 'bold' }}>{safeIndex >= steps.length - 1 ? 'All guidance viewed' : 'Next note'}</button>
             </div>
           ) : null}

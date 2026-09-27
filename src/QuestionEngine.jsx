@@ -1189,7 +1189,7 @@ export default function QuestionEngine({
   // submit button at the bottom of the viewport instead.
   const questionWorkBar = (
     <>
-      {!scratchpadOpen ? <UniversalUndoButton controller={undoController} disabled={locked} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: undoController?.canUndo && !locked ? 'pointer' : 'not-allowed', opacity: undoController?.canUndo && !locked ? 1 : 0.45 }} /> : null}
+      {!scratchpadOpen ? <UniversalUndoButton controller={undoController} disabled={locked} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: undoController?.canUndo && !locked ? 'pointer' : 'not-allowed', opacity: undoController?.canUndo && !locked ? 1 : 0.45 }} /> : null}
       {!scratchpadOpen ? (
         <button
           type="button"
@@ -1197,13 +1197,13 @@ export default function QuestionEngine({
           disabled={workspaceActions.reset.disabled}
           title={workspaceActions.reset.title}
           aria-label={resettingQuestion ? 'Resetting…' : 'Reset Question'}
-          style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: workspaceActions.reset.disabled ? 'not-allowed' : 'pointer', opacity: workspaceActions.reset.disabled ? 0.45 : 1 }}
+          style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: workspaceActions.reset.disabled ? 'not-allowed' : 'pointer', opacity: workspaceActions.reset.disabled ? 0.45 : 1 }}
         >
           {/* "Question" drops on a phone so the work bar fits one row. */}
           {resettingQuestion ? 'Resetting…' : <>↺ Reset<span className="mathmaster-action-label-long"> Question</span></>}
         </button>
       ) : null}
-      <button type="button" onClick={openScratchpad} disabled={scratchpadLoading} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>
+      <button type="button" onClick={openScratchpad} disabled={scratchpadLoading} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>
         {scratchpadLoading ? 'Opening…' : locked ? '✎ Scratchpad' : '✎ Scratchpad'}
       </button>
       <button
@@ -1228,7 +1228,7 @@ export default function QuestionEngine({
         {calculatorPolicy?.available ? '🧮 Calculator' : '🚫 🧮 Calculator'}
       </button>
       {supportPresentation.textToSpeech && (
-        <button type="button" onClick={() => speakText(referenceSpeechText)} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>🔊 Read</button>
+        <button type="button" onClick={() => speakText(referenceSpeechText)} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>🔊 Read</button>
       )}
     </>
   );
@@ -1380,9 +1380,9 @@ export default function QuestionEngine({
 
         {scaffoldRequired && (
           <div role="dialog" aria-modal="true" aria-label="Productive struggle scaffold" style={{ position: 'absolute', inset: 0, zIndex: 35, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: 'rgba(232,240,254,0.78)' }}>
-            <div style={{ width: 'min(560px, 94%)', padding: '24px', borderRadius: '16px', background: '#fff', border: '3px solid #1a73e8', boxShadow: '0 20px 55px rgba(26,115,232,0.25)', textAlign: 'left' }}>
+            <div style={{ width: 'min(560px, 94%)', padding: '24px', borderRadius: '16px', background: 'var(--mm-surface)', border: '3px solid #1a73e8', boxShadow: '0 20px 55px rgba(26,115,232,0.25)', textAlign: 'left' }}>
               <div style={{ fontSize: '12px', fontWeight: 900, color: '#174ea6', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Let&apos;s back up</div>
-              <h2 style={{ margin: '8px 0 16px', color: '#202124' }}>{scaffold.prompt}</h2>
+              <h2 style={{ margin: '8px 0 16px', color: 'var(--mm-text-strong)' }}>{scaffold.prompt}</h2>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 {(scaffold.options || []).map((option) => (
                   <button key={option} type="button" onClick={() => { if (String(option) === String(scaffold.correct)) { setScaffoldComplete(true); setScaffoldMessage(''); } else setScaffoldMessage('Try the other choice. This support step does not use an attempt.'); }} style={{ padding: '11px 18px', borderRadius: '9px', border: '1px solid #aecbfa', background: '#e8f0fe', color: '#174ea6', fontWeight: 900, cursor: 'pointer' }}>{option}</button>
@@ -1548,7 +1548,7 @@ export default function QuestionEngine({
               )}
               <span style={{ display: 'block', marginTop: '5px', fontSize: '12px', fontWeight: 800, opacity: 0.9 }}>{ENTER_TO_CONTINUE_HINT}</span>
             </span>
-            <span aria-hidden="true" style={{ width: '44px', height: '44px', flex: '0 0 44px', display: 'grid', placeItems: 'center', borderRadius: '999px', background: '#fff', color: '#174ea6', fontSize: '30px', lineHeight: 1, fontWeight: 950 }}>→</span>
+            <span aria-hidden="true" style={{ width: '44px', height: '44px', flex: '0 0 44px', display: 'grid', placeItems: 'center', borderRadius: '999px', background: 'var(--mm-surface)', color: '#174ea6', fontSize: '30px', lineHeight: 1, fontWeight: 950 }}>→</span>
           </button>
         </div>
       )}
@@ -1582,11 +1582,11 @@ export default function QuestionEngine({
 
       {unchangedConfirmOpen && (
         <div role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setUnchangedConfirmOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 12000, background: 'rgba(32,33,36,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div role="dialog" aria-modal="true" style={{ width: 'min(520px, 94vw)', padding: '24px', borderRadius: '14px', background: '#fff', boxShadow: '0 24px 70px rgba(0,0,0,0.35)', textAlign: 'left' }}>
-            <h2 style={{ marginTop: 0, color: '#202124' }}>Your values have not changed</h2>
+          <div role="dialog" aria-modal="true" style={{ width: 'min(520px, 94vw)', padding: '24px', borderRadius: '14px', background: 'var(--mm-surface)', boxShadow: '0 24px 70px rgba(0,0,0,0.35)', textAlign: 'left' }}>
+            <h2 style={{ marginTop: 0, color: 'var(--mm-text-strong)' }}>Your values have not changed</h2>
             <p style={{ color: '#5f6368', lineHeight: 1.55 }}>This multipart response is identical to the previous submission. You may still use another attempt with the same values. Continue submitting?</p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-              <button type="button" onClick={() => setUnchangedConfirmOpen(false)} style={{ padding: '10px 15px', borderRadius: '8px', border: '1px solid #dadce0', background: '#fff', fontWeight: 'bold' }}>Go Back</button>
+              <button type="button" onClick={() => setUnchangedConfirmOpen(false)} style={{ padding: '10px 15px', borderRadius: '8px', border: '1px solid #dadce0', background: 'var(--mm-surface)', fontWeight: 'bold' }}>Go Back</button>
               <button type="button" onClick={performSubmit} style={{ padding: '10px 15px', borderRadius: '8px', border: 'none', background: '#1a73e8', color: '#fff', fontWeight: 'bold' }}>Submit Unchanged Values</button>
             </div>
           </div>

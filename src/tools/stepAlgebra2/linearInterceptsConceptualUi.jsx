@@ -69,7 +69,7 @@ export function InteractiveStandardEquation({ standard, placedVariable, zeroArme
         padding: '14px 10px',
         borderRadius: 12,
         border: '2px solid #d9e2f1',
-        background: '#fff',
+        background: 'var(--mm-surface)',
         color: '#172033',
         fontSize: 28,
         fontWeight: 850,

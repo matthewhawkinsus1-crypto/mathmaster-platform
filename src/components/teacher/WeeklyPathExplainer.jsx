@@ -21,7 +21,7 @@ import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 // whether to override the engine needs to see what it declined and why, not
 // just what it chose.
 
-const panel = { border: '1px solid #dadce0', borderRadius: 12, background: '#fff', padding: 16, marginBottom: 14 };
+const panel = { border: '1px solid #dadce0', borderRadius: 12, background: 'var(--mm-surface)', padding: 16, marginBottom: 14 };
 const heading = { margin: '0 0 4px', fontSize: 15, fontWeight: 900, color: '#174ea6' };
 const note = { color: '#5f6368', fontSize: 13, lineHeight: 1.55, margin: '0 0 12px' };
 const mono = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12 };
@@ -37,7 +37,7 @@ function StepHeader({ index, title, detail }) {
     <div style={{ marginBottom: 10 }}>
       <div style={{ display: 'flex', gap: 9, alignItems: 'center', flexWrap: 'wrap' }}>
         <span style={step}>Step {index}</span>
-        <strong style={{ fontSize: 14.5, color: '#202124' }}>{title}</strong>
+        <strong style={{ fontSize: 14.5, color: 'var(--mm-text-strong)' }}>{title}</strong>
       </div>
       {detail && <div style={{ ...note, margin: '5px 0 0' }}>{detail}</div>}
     </div>
@@ -153,7 +153,7 @@ export default function WeeklyPathExplainer({
           <ul style={{ margin: '10px 0 0', paddingLeft: 18 }}>
             {gaps.map((gap) => (
               <li key={`${gap.type}-${gap.framework || ''}`} style={{ ...note, margin: '0 0 4px' }}>
-                <strong style={{ color: '#202124' }}>{gap.label}</strong> — {gap.detail}
+                <strong style={{ color: 'var(--mm-text-strong)' }}>{gap.label}</strong> — {gap.detail}
               </li>
             ))}
           </ul>
@@ -189,7 +189,7 @@ export default function WeeklyPathExplainer({
         <ol style={{ margin: 0, paddingLeft: 20 }}>
           {goal.sessions.map((session) => (
             <li key={session.slot} style={{ marginBottom: 12 }}>
-              <div style={{ fontWeight: 900, color: '#202124', fontSize: 14 }}>
+              <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)', fontSize: 14 }}>
                 {session.teksCode}
                 <span style={{ ...note, display: 'inline', margin: '0 0 0 8px', fontWeight: 700 }}>
                   {session.studentLabel}
@@ -228,7 +228,7 @@ export default function WeeklyPathExplainer({
           <ul style={{ margin: 0, paddingLeft: 18 }}>
             {plan.suppressed.slice(0, 12).map((entry) => (
               <li key={entry.skillId} style={{ ...note, margin: '0 0 5px' }}>
-                <strong style={{ color: '#202124' }}>{entry.teksCode}</strong>
+                <strong style={{ color: 'var(--mm-text-strong)' }}>{entry.teksCode}</strong>
                 {' — '}
                 {entry.eligibility.reason === 'cooling_down'
                   ? `worked recently (${entry.lifecycle}); eligible again in ${entry.eligibility.daysRemaining} day${entry.eligibility.daysRemaining === 1 ? '' : 's'}`
@@ -279,7 +279,7 @@ export default function WeeklyPathExplainer({
             style={{
               appearance: 'none', fontFamily: 'inherit', marginTop: 10, minHeight: 40,
               padding: '8px 14px', borderRadius: 8, border: '1px solid #c5d5ef',
-              background: '#fff', color: '#174ea6', fontWeight: 800, cursor: 'pointer', fontSize: 13,
+              background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: 'pointer', fontSize: 13,
             }}
           >
             {showAllConsidered ? 'Show the top 10 only' : `Show all ${plan.considered.length}`}

@@ -39,11 +39,11 @@ export default function StudentSpotlightView({ request, frame, onStop }) {
           <h2 style={{ margin: '6px 0 2px', fontSize: 30 }}>{request?.studentLabel || 'Student'}</h2>
           <div style={{ color: '#d8d2df' }}>{frame?.assignmentTitle || 'Waiting for current MathMaster work…'}</div>
         </div>
-        <button type="button" onClick={onStop} style={{ padding: '9px 13px', borderRadius: 7, border: '1px solid #f28b82', background: '#fff', color: '#b3261e', fontWeight: 800, cursor: 'pointer' }}>Stop Spotlight</button>
+        <button type="button" onClick={onStop} style={{ padding: '9px 13px', borderRadius: 7, border: '1px solid #f28b82', background: 'var(--mm-surface)', color: '#b3261e', fontWeight: 800, cursor: 'pointer' }}>Stop Spotlight</button>
       </div>
       {frame ? (
         <div style={{ marginTop: 24, display: 'grid', gap: 16 }}>
-          <div style={{ padding: 18, borderRadius: 12, background: '#fff', color: '#202124', fontSize: 21, lineHeight: 1.45 }}><MathText>{frame.question?.prompt || 'Current question'}</MathText></div>
+          <div style={{ padding: 18, borderRadius: 12, background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontSize: 21, lineHeight: 1.45 }}><MathText>{frame.question?.prompt || 'Current question'}</MathText></div>
           <div style={panelStyle}>
             <strong style={{ display: 'block', marginBottom: 10, color: '#d7b9ff' }}>Current student work</strong>
             {Array.isArray(frame.work?.parts) && frame.work.parts.length > 0

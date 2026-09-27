@@ -22,7 +22,7 @@ export default function StudentResponseInspector({ studentId, assignmentId, ques
   const submitted = fieldMap(model?.states?.submitted); const legacy = fieldMap(model?.states?.legacyRecorded);
   const traces = new Map((model?.states?.gradingTrace?.fields || []).map((field) => [String(field.id), field]));
   return <div role="dialog" aria-modal="true" aria-label="Student Response Inspector" style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(32,33,36,.62)', overflowY: 'auto', padding: 24 }}>
-    <main style={{ maxWidth: 1180, margin: '0 auto', background: '#fff', borderRadius: 14, padding: 24, color: '#202124' }}>
+    <main style={{ maxWidth: 1180, margin: '0 auto', background: 'var(--mm-surface)', borderRadius: 14, padding: 24, color: 'var(--mm-text-strong)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><h2 style={{ margin: 0 }}>Student Response Inspector &amp; Grade Override</h2><button onClick={onClose}>Close</button></div>
       {error && <p role="alert" style={{ color: '#b3261e', fontWeight: 700 }}>{error}</p>}
       {busy && !model ? <p>Loading response evidence…</p> : model && <>

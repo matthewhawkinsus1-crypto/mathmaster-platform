@@ -7,6 +7,9 @@ import { ToastProvider } from './ui/Toast.jsx';
 import BuildFreshnessNotice from './components/common/BuildFreshnessNotice.jsx';
 import { getMathMasterBuildInfo } from './platform/runtime/buildInfo.js';
 import { installPerformanceDiagnostics, startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
+import { installMathMasterTheme } from './theme/mathMasterTheme.js';
+
+installMathMasterTheme();
 
 class AppErrorBoundary extends Component {
   constructor(props) {
@@ -44,7 +47,7 @@ class AppErrorBoundary extends Component {
             padding: '28px',
             border: '1px solid #ef4444',
             borderRadius: '16px',
-            background: '#fff',
+            background: 'var(--mm-surface)',
             boxShadow: '0 18px 45px rgba(15, 23, 42, 0.12)',
           }}
         >

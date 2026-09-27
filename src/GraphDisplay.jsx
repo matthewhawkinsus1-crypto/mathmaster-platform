@@ -250,7 +250,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
       style={{
         margin: '24px auto',
         width: 'min(100%, 680px)',
-        background: '#fff',
+        background: 'var(--mm-surface)',
         border: '1px solid #dfe3e7',
         borderRadius: '12px',
         padding: '12px',
@@ -266,8 +266,8 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
             width: 'fit-content',
             maxWidth: 'calc(100% - 48px)',
             borderRadius: 8,
-            background: '#f8fbff',
-            color: '#174ea6',
+            background: 'var(--mm-info-bg)',
+            color: 'var(--mm-primary)',
             fontSize: 20,
             fontWeight: 800,
             boxSizing: 'border-box',
@@ -285,14 +285,14 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
         style={{ display: 'block', width: '100%', height: 'auto', maxWidth: '100%', maxHeight: '100%' }}
       >
         <title>{graph.ariaLabel || title}</title>
-        <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} fill="#ffffff" stroke="#cfd4da" />
+        <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} fill="var(--mm-graph-bg)" stroke="#cfd4da" />
 
         {xMinorTicks.map((tick) => {
           const x = toScreenX(tick);
           return (
             <g key={`x-minor-${tick}`}>
-              <line x1={x} y1={PADDING} x2={x} y2={PADDING + innerHeight} stroke="#f3f5f7" />
-              <line x1={x} y1={axisX - 3} x2={x} y2={axisX + 3} stroke="#9aa0a6" strokeWidth="1" />
+              <line x1={x} y1={PADDING} x2={x} y2={PADDING + innerHeight} stroke="var(--mm-graph-grid-minor)" />
+              <line x1={x} y1={axisX - 3} x2={x} y2={axisX + 3} stroke="var(--mm-graph-axis)" strokeWidth="1" />
             </g>
           );
         })}
@@ -300,8 +300,8 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           const y = toScreenY(tick);
           return (
             <g key={`y-minor-${tick}`}>
-              <line x1={PADDING} y1={y} x2={PADDING + innerWidth} y2={y} stroke="#f3f5f7" />
-              <line x1={axisY - 3} y1={y} x2={axisY + 3} y2={y} stroke="#9aa0a6" strokeWidth="1" />
+              <line x1={PADDING} y1={y} x2={PADDING + innerWidth} y2={y} stroke="var(--mm-graph-grid-minor)" />
+              <line x1={axisY - 3} y1={y} x2={axisY + 3} y2={y} stroke="var(--mm-graph-axis)" strokeWidth="1" />
             </g>
           );
         })}
@@ -310,9 +310,9 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           const x = toScreenX(tick);
           return (
             <g key={`x-${tick}`}>
-              <line x1={x} y1={PADDING} x2={x} y2={PADDING + innerHeight} stroke="#eceff1" />
+              <line x1={x} y1={PADDING} x2={x} y2={PADDING + innerHeight} stroke="var(--mm-graph-grid)" />
               {showXTickLabels && (
-                <text x={x} y={axisX + 20} textAnchor="middle" fontSize="12" fill="#5f6368">
+                <text x={x} y={axisX + 20} textAnchor="middle" fontSize="12" fill="var(--mm-graph-axis)">
                   {tick}
                 </text>
               )}
@@ -324,9 +324,9 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           const y = toScreenY(tick);
           return (
             <g key={`y-${tick}`}>
-              <line x1={PADDING} y1={y} x2={PADDING + innerWidth} y2={y} stroke="#eceff1" />
+              <line x1={PADDING} y1={y} x2={PADDING + innerWidth} y2={y} stroke="var(--mm-graph-grid)" />
               {showYTickLabels && tick !== 0 && (
-                <text x={axisY - 9} y={y + 4} textAnchor="end" fontSize="12" fill="#5f6368">
+                <text x={axisY - 9} y={y + 4} textAnchor="end" fontSize="12" fill="var(--mm-graph-axis)">
                   {tick}
                 </text>
               )}
@@ -334,8 +334,8 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           );
         })}
 
-        <line x1={PADDING} y1={axisX} x2={PADDING + innerWidth} y2={axisX} stroke={xAxisActive ? '#174ea6' : '#5f6368'} strokeWidth={xAxisActive ? '4' : '2'} />
-        <line x1={axisY} y1={PADDING} x2={axisY} y2={PADDING + innerHeight} stroke={yAxisActive ? '#9334e6' : '#5f6368'} strokeWidth={yAxisActive ? '4' : '2'} />
+        <line x1={PADDING} y1={axisX} x2={PADDING + innerWidth} y2={axisX} stroke={xAxisActive ? '#174ea6' : 'var(--mm-graph-axis)'} strokeWidth={xAxisActive ? '4' : '2'} />
+        <line x1={axisY} y1={PADDING} x2={axisY} y2={PADDING + innerHeight} stroke={yAxisActive ? '#9334e6' : 'var(--mm-graph-axis)'} strokeWidth={yAxisActive ? '4' : '2'} />
 
         {showHighlightX && (
           <line
@@ -463,7 +463,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           const x = toScreenX(Number(point[0]));
           const y = toScreenY(Number(point[1]));
           if (requirement.marker === 'open' || requirement.marker === 'closed') {
-            return <circle key={`endpoint-${index}`} cx={x} cy={y} r="8" fill={requirement.marker === 'closed' ? '#1a73e8' : '#fff'} stroke="#1a73e8" strokeWidth="4" />;
+            return <circle key={`endpoint-${index}`} cx={x} cy={y} r="8" fill={requirement.marker === 'closed' ? '#1a73e8' : 'var(--mm-graph-bg)'} stroke="#1a73e8" strokeWidth="4" />;
           }
           const vector = Array.isArray(requirement.vector) ? requirement.vector : [1, 0];
           const angle = (Math.atan2(-Number(vector[1] || 0), Number(vector[0] || 0)) * 180) / Math.PI;
@@ -476,9 +476,9 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           const [x, y] = coordinates;
           return (
             <g key={`point-${index}`}>
-              <circle cx={toScreenX(x)} cy={toScreenY(y)} r={resolvePointRadius(point, 5)} fill={resolvePointFill(point, '#d93025')} stroke="#fff" strokeWidth="2" />
+              <circle cx={toScreenX(x)} cy={toScreenY(y)} r={resolvePointRadius(point, 5)} fill={resolvePointFill(point, '#d93025')} stroke="var(--mm-graph-bg)" strokeWidth="2" />
               {!Array.isArray(point) && point.label && (
-                <text x={toScreenX(x) + 9} y={toScreenY(y) - 9} fontSize="13" fontWeight="bold" fill="#3c4043">
+                <text x={toScreenX(x) + 9} y={toScreenY(y) - 9} fontSize="13" fontWeight="bold" fill="var(--mm-graph-label)">
                   {point.label}
                 </text>
               )}
@@ -512,10 +512,10 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
         )}
 
         {showAxisSymbols && !xTitle && (
-          <text x={PADDING + innerWidth - 4} y={axisX - 9} textAnchor="end" fontSize="14" fontWeight="bold" fill="#3c4043">x</text>
+          <text x={PADDING + innerWidth - 4} y={axisX - 9} textAnchor="end" fontSize="14" fontWeight="bold" fill="var(--mm-graph-label)">x</text>
         )}
         {showAxisSymbols && !yTitle && (
-          <text x={axisY + 9} y={PADDING + 14} fontSize="14" fontWeight="bold" fill="#3c4043">y</text>
+          <text x={axisY + 9} y={PADDING + 14} fontSize="14" fontWeight="bold" fill="var(--mm-graph-label)">y</text>
         )}
         {xTitle && (
           <text x={PADDING + innerWidth / 2} y={DEFAULT_HEIGHT - 9} textAnchor="middle" fontSize="14" fontWeight="bold" fill="#174ea6">
@@ -537,8 +537,8 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
         )}
       </svg>
       {graph.caption && (
-        <figcaption style={{ color: '#5f6368', fontSize: '14px', padding: '8px 6px 2px' }}>
-          <QuestionPrompt variant="plain" style={{ color: '#5f6368', fontSize: '14px', lineHeight: 1.45, margin: 0 }}>
+        <figcaption style={{ color: 'var(--mm-graph-axis)', fontSize: '14px', padding: '8px 6px 2px' }}>
+          <QuestionPrompt variant="plain" style={{ color: 'var(--mm-graph-axis)', fontSize: '14px', lineHeight: 1.45, margin: 0 }}>
             {graph.caption}
           </QuestionPrompt>
         </figcaption>

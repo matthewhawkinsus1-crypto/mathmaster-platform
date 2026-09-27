@@ -47,7 +47,7 @@ const CONTROL = {
   padding: '0 12px',
   border: '1px solid #c5d5ef',
   borderRadius: 8,
-  background: '#fff',
+  background: 'var(--mm-surface)',
   color: '#174ea6',
   fontWeight: 800,
   fontSize: 13,
@@ -391,7 +391,7 @@ export default function EnlargeableFigure({
           padding: 14,
           border: '1px solid #dfe3e7',
           borderRadius: 14,
-          background: '#fff',
+          background: 'var(--mm-surface)',
           boxSizing: 'border-box',
           boxShadow: '0 20px 60px rgba(15,23,42,.35)',
         }

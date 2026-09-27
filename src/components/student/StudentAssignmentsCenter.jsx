@@ -55,13 +55,13 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice }) {
   return (
     <article
       style={{
-        background: '#fff', borderRadius: 12, border: '1px solid #d8dde6',
+        background: 'var(--mm-surface)', borderRadius: 12, border: '1px solid #d8dde6',
         padding: 16, marginBottom: 12, textAlign: 'left', minWidth: 0,
       }}
     >
       <div style={{ display: 'flex', gap: 12, justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-          <h3 style={{ margin: 0, fontSize: 16, color: '#202124', overflowWrap: 'anywhere' }}>{row.title}</h3>
+          <h3 style={{ margin: 0, fontSize: 16, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{row.title}</h3>
           {/* Named as one thing, because it is one thing. A student who sees
               four stages listed as four assignments starts asking which of
               them counts. */}
@@ -84,7 +84,7 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice }) {
         </div>
         <div style={{ textAlign: 'right', minWidth: 0 }}>
           {row.displayGrade !== null && (
-            <div style={{ fontSize: 'clamp(17px, 5.5vw, 22px)', fontWeight: 1000, color: '#202124' }}>{row.displayGrade}%</div>
+            <div style={{ fontSize: 'clamp(17px, 5.5vw, 22px)', fontWeight: 1000, color: 'var(--mm-text-strong)' }}>{row.displayGrade}%</div>
           )}
           {row.statusLabel && (
             <span style={{ display: 'inline-block', marginTop: 4, padding: '4px 9px', borderRadius: 999, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', background: tone.bg, color: tone.color }}>
@@ -203,7 +203,7 @@ export default function StudentAssignmentsCenter({
             style={{
               flex: '1 1 180px', minWidth: 0, minHeight: MIN_TOUCH_TARGET_PX,
               padding: '9px 11px', borderRadius: 10, border: '2px solid #c9ced6',
-              fontSize: 14, fontFamily: 'inherit', background: '#fff',
+              fontSize: 14, fontFamily: 'inherit', background: 'var(--mm-surface)',
             }}
           >
             {/* Past marking periods stay selectable. A closed term is exactly

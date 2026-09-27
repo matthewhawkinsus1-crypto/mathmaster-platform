@@ -62,7 +62,7 @@ export default function WhatShouldIDoNow({
 
       <h2
         id="what-now-heading"
-        style={{ margin: '7px 0 0', fontSize: 22, color: '#202124', lineHeight: 1.25 }}
+        style={{ margin: '7px 0 0', fontSize: 22, color: 'var(--mm-text-strong)', lineHeight: 1.25 }}
       >
         {/* Named on the one screen where being addressed by name is worth it. */}
         {studentName && nextAction.kind === 'clear'

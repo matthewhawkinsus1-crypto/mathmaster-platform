@@ -36,7 +36,7 @@ const OVERLAY = {
 const PANEL = {
   width: 'min(620px, 100%)',
   height: '100%',
-  background: '#fff',
+  background: 'var(--mm-surface)',
   boxShadow: '-12px 0 40px rgba(0,0,0,.18)',
   display: 'flex',
   flexDirection: 'column',
@@ -103,7 +103,7 @@ export default function StudentProfileDrawer({
               ref={closeRef}
               onClick={() => onClose?.()}
               aria-label="Close student profile"
-              style={{ padding: '7px 12px', border: '1px solid #dadce0', borderRadius: 8, background: '#fff', fontWeight: 900, cursor: 'pointer' }}
+              style={{ padding: '7px 12px', border: '1px solid #dadce0', borderRadius: 8, background: 'var(--mm-surface)', fontWeight: 900, cursor: 'pointer' }}
             >
               Close
             </button>
@@ -172,7 +172,7 @@ export default function StudentProfileDrawer({
                   const elapsedMinutes = Math.max(0, Math.round(((Number(summary.endedAt) || 0) - (Number(summary.startedAt) || 0)) / 60000));
                   const activeMinutes = Math.max(0, Math.round((Number(summary.activeSeconds) || 0) / 60));
                   return (
-                    <div key={summary.id} style={{ padding: '9px 10px', borderRadius: 8, background: '#fff', border: '1px solid #eef0f2' }}>
+                    <div key={summary.id} style={{ padding: '9px 10px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid #eef0f2' }}>
                       <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
                         <strong style={{ fontSize: 12.5 }}>{summary.assignmentTitle || 'Assignment session'}</strong>
                         <span style={{ fontSize: 11, color: '#80868b' }}>{when}</span>
@@ -201,7 +201,7 @@ export default function StudentProfileDrawer({
             <button
               type="button"
               onClick={() => onOpenFullRecord(studentId)}
-              style={{ padding: '9px 13px', border: '1px solid #1a73e8', borderRadius: 8, background: '#fff', color: '#174ea6', fontWeight: 900, cursor: 'pointer' }}
+              style={{ padding: '9px 13px', border: '1px solid #1a73e8', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 900, cursor: 'pointer' }}
             >
               Open full student record
             </button>
@@ -210,7 +210,7 @@ export default function StudentProfileDrawer({
             <button
               type="button"
               onClick={() => onOpenGradebook(studentId)}
-              style={{ padding: '9px 13px', border: '1px solid #dadce0', borderRadius: 8, background: '#fff', color: '#3c4043', fontWeight: 900, cursor: 'pointer' }}
+              style={{ padding: '9px 13px', border: '1px solid #dadce0', borderRadius: 8, background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 900, cursor: 'pointer' }}
             >
               Open grades
             </button>

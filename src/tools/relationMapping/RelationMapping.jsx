@@ -9,7 +9,7 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
-const secondaryButton = { ...primaryButton, background: '#fff', color: '#174ea6', border: '1px solid #9bb8e8' };
+const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: '#174ea6', border: '1px solid #9bb8e8' };
 const inputStyle = { width: '100%', padding: '11px 12px', border: '1px solid #cdd6e4', borderRadius: 9, fontSize: 16, minHeight: 44, boxSizing: 'border-box' };
 
 const WIDTH = 420;
@@ -96,7 +96,7 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
         onMouseLeave={() => setHoverPoint(null)}
         role="application"
         aria-label="Coordinate plane for plotting the relation"
-        style={{ width: '100%', maxWidth: 520, display: 'block', margin: '0 auto', background: '#fff', border: '1px solid #d9e2f1', borderRadius: 12, cursor: 'crosshair' }}
+        style={{ width: '100%', maxWidth: 520, display: 'block', margin: '0 auto', background: 'var(--mm-surface)', border: '1px solid #d9e2f1', borderRadius: 12, cursor: 'crosshair' }}
       >
         {xTicks.map((x) => <line key={`gx${x}`} x1={xToPx(x)} x2={xToPx(x)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#e5e9f0" strokeWidth="1" />)}
         {yTicks.map((y) => <line key={`gy${y}`} x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(y)} y2={yToPx(y)} stroke="#e5e9f0" strokeWidth="1" />)}
@@ -363,7 +363,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
       }}>
       <ToolSplit>
         <Panel title="Mapping diagram">
-          <svg viewBox={`0 0 ${WIDTH} ${height}`} role="application" aria-label="Mapping diagram" style={{ width: '100%', height: 'auto', border: '1px solid #d9e2f1', borderRadius: 12, background: '#fff' }}>
+          <svg viewBox={`0 0 ${WIDTH} ${height}`} role="application" aria-label="Mapping diagram" style={{ width: '100%', height: 'auto', border: '1px solid #d9e2f1', borderRadius: 12, background: 'var(--mm-surface)' }}>
             <text x={LEFT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" fill="#5f6b7a">{questionData.domainLabel || 'Domain (x)'}</text>
             <text x={RIGHT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" fill="#5f6b7a">{questionData.rangeLabel || 'Range (y)'}</text>
 
@@ -468,7 +468,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
                         textAlign: 'left',
                         border: `2px solid ${selected ? '#1a73e8' : '#cdd6e4'}`,
                         background: selected ? '#e8f0fe' : '#fff',
-                        color: '#202124',
+                        color: 'var(--mm-text-strong)',
                       }}
                     >
                       {choice.label}
@@ -505,7 +505,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
                             textAlign: 'left',
                             border: `2px solid ${selected ? '#1a73e8' : '#cdd6e4'}`,
                             background: selected ? '#e8f0fe' : '#fff',
-                            color: '#202124',
+                            color: 'var(--mm-text-strong)',
                           }}
                         >
                           {raw}

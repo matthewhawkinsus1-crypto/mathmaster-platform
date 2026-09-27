@@ -23,8 +23,8 @@ test('division keeps the actual horizontal fraction setup line', () => {
 
 test('cancellable fraction factors remain visible in dark mode', () => {
   assert.match(src, /className="fraction-cancellation-region"/);
-  assert.match(src, /color: '#202124'/);
-  assert.match(src, /colorScheme: 'light'/);
+  assert.match(src, /color: 'var\(--mm-text-strong\)'/);
+  assert.doesNotMatch(src, /colorScheme: 'light'/);
 });
 
 test('fraction cancellation uses factor presentation latex instead of reparsing text', () => {

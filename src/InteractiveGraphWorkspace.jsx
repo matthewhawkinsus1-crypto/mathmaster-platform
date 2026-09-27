@@ -55,7 +55,7 @@ const ZOOM_BUTTON = {
   padding: '9px 14px',
   border: '1px solid #c5d5ef',
   borderRadius: '8px',
-  background: '#fff',
+  background: 'var(--mm-surface)',
   color: '#174ea6',
   fontWeight: 'bold',
   fontSize: 18,
@@ -1062,7 +1062,7 @@ export default function InteractiveGraphWorkspace({
           workspace with no authored prompt — the tools lab and the workflow
           runner both do — so it survives at the size of a label. */}
       {!String(question.prompt || '').trim() && (
-        <h2 style={{ color: '#202124', marginTop: 0, textAlign: 'center' }}>{workspaceTitle}</h2>
+        <h2 style={{ color: 'var(--mm-text-strong)', marginTop: 0, textAlign: 'center' }}>{workspaceTitle}</h2>
       )}
       {/* The authored prompt is shown by whoever mounted this workspace —
           QuestionEngine leads every question with it. Repeating it here put the
@@ -1167,7 +1167,7 @@ export default function InteractiveGraphWorkspace({
                           The aria-label above deliberately keeps the plain string —
                           a screen reader should hear the source, not markup — but
                           the visible label is mathematics and renders as such. */}
-                      <strong style={{ color: '#202124' }}><MathText>{task.label}</MathText>{!['center', 'key'].includes(task.role) && task.x !== null ? `: x = ${task.x}` : ''}</strong>
+                      <strong style={{ color: 'var(--mm-text-strong)' }}><MathText>{task.label}</MathText>{!['center', 'key'].includes(task.role) && task.x !== null ? `: x = ${task.x}` : ''}</strong>
                       <span style={{ display: 'block', color: placement ? '#174ea6' : '#5f6368', fontSize: '12px', marginTop: '3px' }}>{taskPlacementLabel(placement)}</span>
                     </button>
                     {task.studentChoosesX && <label style={{ display: 'block', marginTop: '7px', fontSize: '12px', fontWeight: 'bold', color: '#5f6368' }}>Choose x<input type="number" step={xSnapStep} value={xValue} onChange={(event) => constructionHistory.setValue((current) => ({ ...current, chosenXValues: { ...current.chosenXValues, [task.id]: event.target.value }, placements: { ...current.placements, [task.id]: undefined } }))} style={{ width: '100%', marginTop: '4px', padding: '7px', boxSizing: 'border-box', borderRadius: '6px', border: '1px solid #9fb8dd' }} /></label>}
@@ -1212,7 +1212,7 @@ export default function InteractiveGraphWorkspace({
               {construction.snapped && endpointRequirements.length > 0 && <div style={{ marginTop: '4px' }}>
                 <p style={{ margin: '0 0 8px', fontSize: '11px', color: '#5f6368', lineHeight: 1.45 }}>{endpointInstruction} {mobileInteraction.isMobile ? 'Tap a marker, then tap near a graph end; a generous magnetic area helps it snap into place.' : 'Drag or select a marker, then place it near a graph end; a generous magnetic area helps it snap into place.'}</p>
                 {availableMarkerTypes.map((type) => { const label = markerLabels[type]; return <button key={type} type="button" draggable={!mobileInteraction.isMobile} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-marker', type); event.dataTransfer.setDragImage(makeMarkerDragImage(type), 26, 26); setDraggingMarkerType(type); }} onDragEnd={() => { setDraggingMarkerType(null); setDropCandidate(null); setDropMagneticTarget(null); }} aria-pressed={activeMarker === type}
-                  onClick={() => { setActiveMarker(type); setKeyboardAnnouncement(`${label} selected. Use the arrow keys on the plane and press Enter, or type an exact coordinate.`); }} style={{ width: '100%', marginTop: '6px', padding: '9px', border: activeMarker === type ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '8px', background: '#fff', fontWeight: 'bold', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ fontSize: '23px', color: '#1a73e8' }}>{markerSymbols[type]}</span><span><span style={{ display: 'block' }}>{label}</span><span style={{ display: 'block', fontSize: '11px', color: '#5f6368', fontWeight: 400 }}>{markerExplanations[type]}</span></span></button>; })}
+                  onClick={() => { setActiveMarker(type); setKeyboardAnnouncement(`${label} selected. Use the arrow keys on the plane and press Enter, or type an exact coordinate.`); }} style={{ width: '100%', marginTop: '6px', padding: '9px', border: activeMarker === type ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '8px', background: 'var(--mm-surface)', fontWeight: 'bold', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ fontSize: '23px', color: '#1a73e8' }}>{markerSymbols[type]}</span><span><span style={{ display: 'block' }}>{label}</span><span style={{ display: 'block', fontSize: '11px', color: '#5f6368', fontWeight: 400 }}>{markerExplanations[type]}</span></span></button>; })}
                 <div style={{ marginTop: '10px', display: 'grid', gap: '5px' }}>{endpointRequirements.map((requirement, index) => { const placement = construction.markerPlacements[requirement.id]; return <div key={requirement.id} style={{ fontSize: '12px', color: placement ? '#174ea6' : '#5f6368' }}>{boundaryOnly ? 'Boundary' : 'End'} {index + 1}: {placement ? markerLabels[markerValue(placement)] : 'not placed'}</div>; })}</div>
               </div>}
             </>
@@ -1229,7 +1229,7 @@ export default function InteractiveGraphWorkspace({
                   && String(part.notation || '').toLowerCase() === 'inequality';
                 const answerShape = analysisAnswerShape(part);
                 return <div key={part.id} className={`mathmaster-analysis-part mathmaster-analysis-part-${part.kind}`} style={{ marginTop: '9px', padding: '10px', borderRadius: '9px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : activeAnalysisPartId === part.id ? '#1a73e8' : '#d9e2f1'}`, background: grade && !grade.isCorrect ? '#fff8f7' : '#fff' }}>
-                  <button type="button" onClick={() => setActiveAnalysisPartId(part.id)} style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'left', fontWeight: 'bold', color: '#202124' }}><MathText>{part.label}</MathText></button>
+                  <button type="button" onClick={() => setActiveAnalysisPartId(part.id)} style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'left', fontWeight: 'bold', color: 'var(--mm-text-strong)' }}><MathText>{part.label}</MathText></button>
                   {answerShape.hint && !['point', 'inversePoint'].includes(part.kind) && (
                     <p style={{ margin: '5px 0 0', fontSize: '11.5px', lineHeight: 1.4, color: '#5f6368' }}>
                       {answerShape.hint}
@@ -1285,7 +1285,7 @@ export default function InteractiveGraphWorkspace({
           )}
         </aside>
 
-        <figure className="mathmaster-function-workspace-graph" style={{ margin: 0, width: '100%', padding: '10px', border: '1px solid #dfe3e7', borderRadius: '12px', background: '#fff', boxSizing: 'border-box' }}>
+        <figure className="mathmaster-function-workspace-graph" style={{ margin: 0, width: '100%', padding: '10px', border: '1px solid #dfe3e7', borderRadius: '12px', background: 'var(--mm-surface)', boxSizing: 'border-box' }}>
           <svg ref={svgRef} className="mathmaster-responsive-canvas mathmaster-touch-surface" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="xMidYMid meet" role="application"
             aria-label="Coordinate plane. Use the arrow keys to move the cursor, hold Shift to move faster, and press Enter to place at the cursor."
             tabIndex={0}
@@ -1430,7 +1430,7 @@ export default function InteractiveGraphWorkspace({
                   }
                   if (placeAtCoordinate(point)) { setTypedX(''); setTypedY(''); }
                 }}
-                style={{ minHeight: '40px', padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}
+                style={{ minHeight: '40px', padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}
               >
                 Place at this coordinate
               </button>
@@ -1438,11 +1438,11 @@ export default function InteractiveGraphWorkspace({
           )}
 
           {stage === 'construct' && !pointOnly && construction.pointsValidated && !construction.snapped && (
-            <button type="button" onClick={() => constructionHistory.setValue((current) => ({ ...current, strokes: [] }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>Clear Sketch</button>
+            <button type="button" onClick={() => constructionHistory.setValue((current) => ({ ...current, strokes: [] }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>Clear Sketch</button>
           )}
 
           {stage === 'analysis' && inverseReflectionEnabled && analysis.inversePointsValidated && !analysis.inverseSnapped && (
-            <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, inverseStrokes: [], inverseSnapped: false }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#6f2da8', fontWeight: 'bold' }}>Clear Inverse Sketch</button>
+            <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, inverseStrokes: [], inverseSnapped: false }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 'bold' }}>Clear Inverse Sketch</button>
           )}
 
           <button
@@ -1471,7 +1471,7 @@ export default function InteractiveGraphWorkspace({
                 });
               }
             }}
-            style={{ padding: '9px 14px', border: '1px solid #e0b4b0', borderRadius: '8px', background: '#fff', color: '#a50e0e', fontWeight: 'bold' }}
+            style={{ padding: '9px 14px', border: '1px solid #e0b4b0', borderRadius: '8px', background: 'var(--mm-surface)', color: '#a50e0e', fontWeight: 'bold' }}
           >
             {stage === 'analysis' && inverseReflectionEnabled ? 'Reset Inverse' : 'Reset Graph'}
           </button>
@@ -1501,7 +1501,7 @@ export default function InteractiveGraphWorkspace({
             type="button"
             onClick={resetZoom}
             disabled={!zoomed}
-            style={{ padding: '9px 14px', minHeight: 44, border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold', opacity: zoomed ? 1 : 0.45 }}
+            style={{ padding: '9px 14px', minHeight: 44, border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', opacity: zoomed ? 1 : 0.45 }}
           >
             Reset view
           </button>
@@ -1523,7 +1523,7 @@ export default function InteractiveGraphWorkspace({
         {keyboardAnnouncement}
       </p>
 
-      {stage === 'analysis' && activePointPart && activePointPart.responseMode !== 'input' && !(inverseReflectionEnabled && analysis.inversePointsValidated) && <div style={{ textAlign: 'center', marginTop: '12px' }}><p style={{ color: '#174ea6', fontWeight: 'bold' }}>Active part: {activePointPart.label}. Select {activePointPart.expected.length || 1} location(s){activePointPart.allowNone ? ', or choose “Does not exist.”' : '.'}</p>{(analysis.selections[activePointPart.id] || []).length > 0 && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, selections: { ...current.selections, [activePointPart.id]: [] }, inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>Clear This Selection</button>}</div>}
+      {stage === 'analysis' && activePointPart && activePointPart.responseMode !== 'input' && !(inverseReflectionEnabled && analysis.inversePointsValidated) && <div style={{ textAlign: 'center', marginTop: '12px' }}><p style={{ color: '#174ea6', fontWeight: 'bold' }}>Active part: {activePointPart.label}. Select {activePointPart.expected.length || 1} location(s){activePointPart.allowNone ? ', or choose “Does not exist.”' : '.'}</p>{(analysis.selections[activePointPart.id] || []).length > 0 && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, selections: { ...current.selections, [activePointPart.id]: [] }, inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>Clear This Selection</button>}</div>}
     </div>
   );
 }

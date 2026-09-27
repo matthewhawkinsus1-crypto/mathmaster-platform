@@ -76,7 +76,7 @@ export default function MultilingualSupportOverlay({
             onClick={() => openGlossaryTerm(term)}
             style={{
               minHeight: '38px', padding: '0 10px', fontSize: '12px', borderRadius: '999px',
-              border: '1px dashed var(--mm-success, #188038)', background: '#fff',
+              border: '1px dashed var(--mm-success, #188038)', background: 'var(--mm-surface)',
               color: 'var(--mm-success-text, #137333)', cursor: 'pointer', fontWeight: 700,
             }}
           >

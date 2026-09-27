@@ -123,8 +123,8 @@ export default function ClassContextBar({
             padding: '7px 12px',
             border: '1px solid #c7cdd6',
             borderRadius: 8,
-            background: '#fff',
-            color: '#202124',
+            background: 'var(--mm-surface)',
+            color: 'var(--mm-text-strong)',
             fontWeight: 900,
             fontSize: 15,
             cursor: switchable ? 'pointer' : 'default',
@@ -147,7 +147,7 @@ export default function ClassContextBar({
               margin: 0,
               padding: 6,
               listStyle: 'none',
-              background: '#fff',
+              background: 'var(--mm-surface)',
               border: '1px solid #c7cdd6',
               borderRadius: 10,
               boxShadow: '0 8px 24px rgba(0,0,0,.14)',
@@ -163,7 +163,7 @@ export default function ClassContextBar({
                   style={{
                     display: 'block', width: '100%', textAlign: 'left', padding: '9px 11px',
                     border: 0, borderRadius: 7, background: !selected ? '#e8f0fe' : 'transparent',
-                    color: '#202124', fontWeight: 800, cursor: 'pointer',
+                    color: 'var(--mm-text-strong)', fontWeight: 800, cursor: 'pointer',
                   }}
                 >
                   All classes
@@ -181,7 +181,7 @@ export default function ClassContextBar({
                     display: 'block', width: '100%', textAlign: 'left', padding: '9px 11px',
                     border: 0, borderRadius: 7,
                     background: entry.classId === activeClassId ? '#e8f0fe' : 'transparent',
-                    color: '#202124', cursor: 'pointer',
+                    color: 'var(--mm-text-strong)', cursor: 'pointer',
                   }}
                 >
                   <span style={{ fontWeight: 800 }}>{entry.name || entry.period}</span>

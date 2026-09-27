@@ -27,7 +27,7 @@ export default function NumberLine({ question, onStateChange, onUndoStateChange,
   const wrong = feedback?.partGrades?.some((part) => !part.isCorrect);
   return (
     <div>
-      <h2 style={{ color: '#202124', marginTop: 0 }}>Number Line</h2>
+      <h2 style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Number Line</h2>
       <QuestionPrompt>{prompt || 'Select the correct point on the number line.'}</QuestionPrompt>
       <div style={{ fontSize: '24px', fontWeight: 'bold', margin: '20px 0', color: '#1a73e8' }}>Target: <MathDisplay value={String(target)} inline /></div>
       <QuestionVisual question={question} />

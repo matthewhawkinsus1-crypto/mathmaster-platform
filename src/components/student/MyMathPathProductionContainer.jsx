@@ -438,7 +438,7 @@ export const MyMathPathProductionContainer = ({
             {onReturnToDashboard && <button
           type="button"
           onClick={onReturnToDashboard}
-          style={{ minHeight: 44, padding: '11px 18px', border: '1px solid #c5d5ef', borderRadius: 8, background: '#fff', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
+          style={{ minHeight: 44, padding: '11px 18px', border: '1px solid #c5d5ef', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
         >
           Back to My Math Path
         </button>}
@@ -470,7 +470,7 @@ export const MyMathPathProductionContainer = ({
           {onReturnToDashboard && <button
           type="button"
           onClick={onReturnToDashboard}
-          style={{ minHeight: 44, padding: '11px 18px', border: '1px solid #c5d5ef', borderRadius: 8, background: '#fff', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
+          style={{ minHeight: 44, padding: '11px 18px', border: '1px solid #c5d5ef', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
         >
           Back to My Math Path
         </button>}
@@ -522,7 +522,7 @@ export const MyMathPathProductionContainer = ({
             </button>
           )}
           {onReturnToDashboard && (
-            <button type="button" onClick={onReturnToDashboard} style={{ minHeight: 44, padding: '10px 16px', border: '1px solid #9aa0a6', borderRadius: 8, background: '#fff', color: '#174ea6', fontWeight: 850, cursor: 'pointer' }}>
+            <button type="button" onClick={onReturnToDashboard} style={{ minHeight: 44, padding: '10px 16px', border: '1px solid #9aa0a6', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 850, cursor: 'pointer' }}>
               Back to My Math Path
             </button>
           )}
@@ -546,7 +546,7 @@ export const MyMathPathProductionContainer = ({
           {onReturnToDashboard && <button
           type="button"
           onClick={onReturnToDashboard}
-          style={{ minHeight: 44, padding: '11px 18px', border: '1px solid #c5d5ef', borderRadius: 8, background: '#fff', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
+          style={{ minHeight: 44, padding: '11px 18px', border: '1px solid #c5d5ef', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
         >
           Back to My Math Path
         </button>}

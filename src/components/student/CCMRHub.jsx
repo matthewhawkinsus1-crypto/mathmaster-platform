@@ -25,7 +25,7 @@ const STATUS_STYLE = {
   [READINESS.TRANSFER_GAP]: { label: 'Know the math, not the format', border: '#a50e0e', background: '#fce8e6', chip: '#a50e0e' },
   [READINESS.STRENGTHEN]: { label: 'Strengthen', border: '#f9ab00', background: '#fef7e0', chip: '#7a4f00' },
   [READINESS.NOT_PRACTICED]: { label: 'Not practised yet', border: '#1a73e8', background: '#e8f0fe', chip: '#174ea6' },
-  [READINESS.READY]: { label: 'Ready', border: '#dadce0', background: '#fff', chip: '#3c4043' },
+  [READINESS.READY]: { label: 'Ready', border: '#dadce0', background: 'var(--mm-surface)', chip: '#3c4043' },
   [READINESS.STRONG]: { label: 'Strong', border: '#137333', background: '#e6f4ea', chip: '#137333' },
   [READINESS.CHALLENGE_READY]: { label: 'Challenge ready', border: '#7e57c2', background: '#f3ecfd', chip: '#5b21b6' },
   [READINESS.MAINTENANCE]: { label: 'Challenge complete', border: '#137333', background: '#e6f4ea', chip: '#137333' },
@@ -57,7 +57,7 @@ function SkillRow({ item, onPractise, showFramework = false, readOnly = false })
           <span style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4, color: style.chip }}>
             {showFramework ? `${FRAMEWORK_LABELS[item.framework]} · ${style.label}` : style.label}
           </span>
-          <span style={{ display: 'block', fontWeight: 800, color: '#202124', fontSize: 15, margin: '3px 0' }}>{item.label}</span>
+          <span style={{ display: 'block', fontWeight: 800, color: 'var(--mm-text-strong)', fontSize: 15, margin: '3px 0' }}>{item.label}</span>
           <span style={{ display: 'block', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
             {explainAssessmentRecommendation(item)}
           </span>
@@ -115,7 +115,7 @@ function PathwayCard({ framework, summary, active, onSelect }) {
         background: active ? '#e8f0fe' : '#fff', cursor: 'pointer',
       }}
     >
-      <span style={{ display: 'block', fontWeight: 900, fontSize: 16, color: '#202124' }}>{profile?.displayName || FRAMEWORK_LABELS[framework]}</span>
+      <span style={{ display: 'block', fontWeight: 900, fontSize: 16, color: 'var(--mm-text-strong)' }}>{profile?.displayName || FRAMEWORK_LABELS[framework]}</span>
       <span style={{ display: 'block', color: '#5f6368', fontSize: 12, marginTop: 4, lineHeight: 1.5 }}>
         {summary.readySkills} skill{summary.readySkills === 1 ? '' : 's'} ready
         {' · '}
@@ -199,7 +199,7 @@ export default function CCMRHub({
 
   if (!pathOptions) {
     return (
-      <section style={{ padding: 16, border: '1px solid #dadce0', borderRadius: 12, background: '#fff', textAlign: 'left' }}>
+      <section style={{ padding: 16, border: '1px solid #dadce0', borderRadius: 12, background: 'var(--mm-surface)', textAlign: 'left' }}>
         <h2 style={{ margin: '0 0 8px', fontSize: 18, color: '#174ea6' }}>College, Career &amp; Military Readiness</h2>
         <p style={{ margin: 0, color: '#5f6368', lineHeight: 1.6 }}>
           MathMaster is still resolving your course path, so there is nothing to recommend here yet.
@@ -220,7 +220,7 @@ export default function CCMRHub({
         <p style={{ margin: '0 0 8px', fontWeight: 800, fontSize: 13, color: '#3c4043' }}>I&apos;m preparing for:</p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {ASSESSMENT_FRAMEWORKS.map((id) => (
-            <label key={id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 11px', borderRadius: 999, border: '1px solid #c9ced6', background: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', minHeight: 40 }}>
+            <label key={id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 11px', borderRadius: 999, border: '1px solid #c9ced6', background: 'var(--mm-surface)', fontSize: 13, fontWeight: 700, cursor: 'pointer', minHeight: 40 }}>
               <input
                 type="checkbox"
                 checked={goals.includes(id)}
@@ -239,7 +239,7 @@ export default function CCMRHub({
         </p>
       </div>
 
-      <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 12, background: '#fff', border: '1px solid #dadce0' }}>
+      <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 12, background: 'var(--mm-surface)', border: '1px solid #dadce0' }}>
         <label htmlFor="ccmr-standard-search" style={{ display: 'block', marginBottom: 6, fontWeight: 850, fontSize: 13, color: '#3c4043' }}>Find practice by CCMR standard or skill</label>
         <input
           id="ccmr-standard-search"
@@ -267,7 +267,7 @@ export default function CCMRHub({
       )}
 
       {!offered.length ? (
-        <p style={{ padding: 16, borderRadius: 12, background: '#fff', border: '1px solid #dadce0', color: '#5f6368', lineHeight: 1.6, margin: 0 }}>
+        <p style={{ padding: 16, borderRadius: 12, background: 'var(--mm-surface)', border: '1px solid #dadce0', color: '#5f6368', lineHeight: 1.6, margin: 0 }}>
           None of the skills you are ready for are matched to these assessments yet. This will fill in
           as your class moves through the year.
         </p>
@@ -286,17 +286,17 @@ export default function CCMRHub({
       )}
 
       {active && (
-        <div style={{ border: '1px solid #dadce0', borderRadius: 12, background: '#fff', padding: 16 }}>
+        <div style={{ border: '1px solid #dadce0', borderRadius: 12, background: 'var(--mm-surface)', padding: 16 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
             <h3 style={{ margin: 0, fontSize: 17, color: '#174ea6' }}>{active.profile?.displayName} Math</h3>
             {/* §17 — never trapped in one pathway. */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {offered.filter((id) => id !== framework).map((id) => (
-                <button key={id} type="button" onClick={() => { setFramework(id); setDomainId(null); }} style={{ padding: '6px 11px', borderRadius: 8, border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: 36 }}>
+                <button key={id} type="button" onClick={() => { setFramework(id); setDomainId(null); }} style={{ padding: '6px 11px', borderRadius: 8, border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: 36 }}>
                   Switch to {FRAMEWORK_LABELS[id]}
                 </button>
               ))}
-              <button type="button" onClick={() => onReturnToCourse?.()} style={{ padding: '6px 11px', borderRadius: 8, border: '1px solid #c9ced6', background: '#fff', color: '#3c4043', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: 36 }}>
+              <button type="button" onClick={() => onReturnToCourse?.()} style={{ padding: '6px 11px', borderRadius: 8, border: '1px solid #c9ced6', background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: 36 }}>
                 Back to course path
               </button>
             </div>
@@ -328,7 +328,7 @@ export default function CCMRHub({
               <span style={{ fontSize: 12, color: '#3c4043', fontWeight: 800 }}>
                 Showing {activeDomainTitle} only
               </span>
-              <button type="button" onClick={() => setDomainId(null)} style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid #c9ced6', background: '#fff', color: '#3c4043', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: 34 }}>
+              <button type="button" onClick={() => setDomainId(null)} style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid #c9ced6', background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: 34 }}>
                 Show every part of the test
               </button>
             </div>

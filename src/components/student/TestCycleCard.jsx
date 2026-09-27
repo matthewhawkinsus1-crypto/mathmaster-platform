@@ -26,7 +26,7 @@ import { TEST_CYCLE_STAGE, stageIsSecure } from '../../platform/assessment/testC
  */
 
 const shell = {
-  background: '#fff',
+  background: 'var(--mm-surface)',
   border: '1px solid #dadce0',
   borderRadius: 14,
   padding: 'clamp(16px, 4vw, 24px)',
@@ -78,7 +78,7 @@ export const TestCycleCard = ({ assignmentId, studentProfile = null, onOpenRevie
     return (
       <section style={shell}>
         <p role="alert" style={{ color: '#b3261e', margin: 0 }}>{error}</p>
-        <button type="button" onClick={load} style={{ justifySelf: 'start', minHeight: 44, padding: '9px 15px', borderRadius: 8, border: '1px solid #5f6368', background: '#fff', cursor: 'pointer' }}>Try again</button>
+        <button type="button" onClick={load} style={{ justifySelf: 'start', minHeight: 44, padding: '9px 15px', borderRadius: 8, border: '1px solid #5f6368', background: 'var(--mm-surface)', cursor: 'pointer' }}>Try again</button>
       </section>
     );
   }
@@ -190,7 +190,7 @@ export const TestCycleCard = ({ assignmentId, studentProfile = null, onOpenRevie
           {card.actionLabel}
         </button>
         {onExit && (
-          <button type="button" onClick={onExit} style={{ minHeight: 48, padding: '10px 16px', borderRadius: 9, border: '1px solid #5f6368', background: '#fff', color: '#3c4043', cursor: 'pointer' }}>
+          <button type="button" onClick={onExit} style={{ minHeight: 48, padding: '10px 16px', borderRadius: 9, border: '1px solid #5f6368', background: 'var(--mm-surface)', color: '#3c4043', cursor: 'pointer' }}>
             Back
           </button>
         )}

@@ -2,7 +2,7 @@
   width: min(100%, 1180px);
   margin: 0 auto;
   text-align: left;
-  color: #202124;
+  color: var(--mm-text-strong);
 }
 
 .graph-scenario-match-heading-row {
@@ -86,7 +86,7 @@
 .graph-scenario-zoom-header button {
   border: 1px solid #aebbd0;
   border-radius: 999px;
-  background: #fff;
+  background: var(--mm-surface);
   color: #174ea6;
   font: inherit;
   font-size: 12px;
@@ -129,7 +129,7 @@
   gap: 12px;
   padding: 10px 13px;
   border-bottom: 1px solid #d7dde7;
-  background: #fff;
+  background: var(--mm-surface);
 }
 
 .graph-scenario-bank-header span,
@@ -200,7 +200,7 @@
   position: relative;
   border: 2px solid #d7dde7;
   border-radius: 14px;
-  background: #fff;
+  background: var(--mm-surface);
   box-shadow: 0 2px 6px rgba(60,64,67,.06);
   transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
@@ -260,7 +260,7 @@
   overflow: hidden;
   border: 1px solid #e1e6ee;
   border-radius: 10px;
-  background: #fff;
+  background: var(--mm-surface);
 }
 
 .graph-scenario-graph-preview figure {
@@ -343,7 +343,7 @@
   max-height: 92vh;
   overflow: auto;
   border-radius: 18px;
-  background: #fff;
+  background: var(--mm-surface);
   box-shadow: 0 24px 70px rgba(0,0,0,.32);
 }
 
@@ -357,7 +357,7 @@
   gap: 12px;
   padding: 13px 16px;
   border-bottom: 1px solid #d7dde7;
-  background: #fff;
+  background: var(--mm-surface);
 }
 
 .graph-scenario-zoom-header span,

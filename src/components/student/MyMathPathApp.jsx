@@ -473,7 +473,7 @@ export const MyMathPathExperience = ({
   return (
     <div style={{ minHeight: '100%', background: '#f8f9fa' }}>
       {activeTab !== 'session' && (
-        <header style={{ minHeight: '60px', padding: '0 20px', borderBottom: '1px solid #dadce0', background: '#fff', display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <header style={{ minHeight: '60px', padding: '0 20px', borderBottom: '1px solid #dadce0', background: 'var(--mm-surface)', display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}><span aria-hidden="true">📐</span><strong>{readOnly ? `${studentName || 'Student'} · My Math Path` : 'My Math Path'}</strong>{readOnly && <span style={{ padding: '3px 7px', borderRadius: 999, background: '#fef7e0', color: '#7a4f00', fontSize: 10, fontWeight: 900 }}>TEACHER · READ ONLY</span>}</div>
           {/*
             TWO LEVELS, AND THEY ARE DIFFERENT KINDS OF THING.
@@ -497,7 +497,7 @@ export const MyMathPathExperience = ({
             )}
             <nav aria-label="My Math Path navigation" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
               {visibleTabs.map(([tab, label]) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} style={{ minHeight: 44, padding: '12px 8px 10px', border: 0, borderBottom: `3px solid ${activeTab === tab ? '#1a73e8' : 'transparent'}`, background: 'transparent', color: activeTab === tab ? '#174ea6' : '#5f6368', fontWeight: 900, cursor: 'pointer' }}>{label}</button>)}
-              {onExit && <button type="button" onClick={onExit} style={{ marginLeft: '6px', minHeight: 44, padding: '8px 11px', border: '1px solid #bdc1c6', borderRadius: '7px', background: '#fff', color: '#3c4043', fontWeight: 800, cursor: 'pointer' }}>{readOnly ? 'Back to student' : 'Home'}</button>}
+              {onExit && <button type="button" onClick={onExit} style={{ marginLeft: '6px', minHeight: 44, padding: '8px 11px', border: '1px solid #bdc1c6', borderRadius: '7px', background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 800, cursor: 'pointer' }}>{readOnly ? 'Back to student' : 'Home'}</button>}
             </nav>
           </div>
         </header>
@@ -509,7 +509,7 @@ export const MyMathPathExperience = ({
       {coverageNotice && (
         <div role="status" style={{ maxWidth: '940px', margin: '16px auto', padding: '12px 14px', borderRadius: '8px', background: '#fef7e0', color: '#7a4f00', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <span>{coverageNotice}</span>
-          <button type="button" onClick={() => setCoverageNotice(null)} style={{ minHeight: 34, padding: '0 12px', border: '1px solid #d9b64a', borderRadius: 7, background: '#fff', color: '#7a4f00', fontWeight: 800, cursor: 'pointer' }}>Dismiss</button>
+          <button type="button" onClick={() => setCoverageNotice(null)} style={{ minHeight: 34, padding: '0 12px', border: '1px solid #d9b64a', borderRadius: 7, background: 'var(--mm-surface)', color: '#7a4f00', fontWeight: 800, cursor: 'pointer' }}>Dismiss</button>
         </div>
       )}
       {activeTab === 'path' && (

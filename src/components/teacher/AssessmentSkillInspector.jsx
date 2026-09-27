@@ -144,7 +144,7 @@ export default function AssessmentSkillInspector({
                       key={level.id}
                       type="button"
                       onClick={() => onSimulate({ skillId, framework, proficiency: level.value })}
-                      style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 800, fontSize: 11, cursor: 'pointer', minHeight: 32 }}
+                      style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, fontSize: 11, cursor: 'pointer', minHeight: 32 }}
                     >
                       {level.label}
                     </button>

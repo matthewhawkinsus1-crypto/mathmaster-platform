@@ -377,7 +377,7 @@ export function ChallengeRound({
       </section>
 
       {secureQuestion ? (
-        <section style={{ background: '#fff', color: '#202124', colorScheme: 'light', borderRadius: 14, border: '1px solid #d8dde6', overflow: 'hidden' }}>
+        <section style={{ background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', borderRadius: 14, border: '1px solid #d8dde6', overflow: 'hidden' }}>
           <QuestionEngine
             key={question?.questionInstanceId}
             question={secureQuestion}

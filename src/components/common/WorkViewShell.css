@@ -28,7 +28,7 @@
   height: var(--mm-work-view-height, 100dvh);
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   box-sizing: border-box;
-  background: #f4f7fb;
+  background: var(--mm-surface-muted);
 }
 
 .mathmaster-work-view-header {
@@ -42,15 +42,15 @@
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
-  border-bottom: 1px solid #d9e2f1;
-  background: #fff;
+  border-bottom: 1px solid var(--mm-border);
+  background: var(--mm-surface);
 }
 
 .mathmaster-work-view-title { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 900; }
-.mathmaster-work-view-header button, .mathmaster-work-view-actions button { min-height: 44px; padding: 0 12px; border: 1px solid #c5d5ef; border-radius: 8px; background: #fff; color: #174ea6; font-weight: 800; }
+.mathmaster-work-view-header button, .mathmaster-work-view-actions button { min-height: 44px; padding: 0 12px; border: 1px solid var(--mm-border); border-radius: 8px; background: var(--mm-surface); color: var(--mm-primary); font-weight: 800; }
 .mathmaster-work-view-header button[disabled], .mathmaster-work-view-actions button[disabled] { opacity: .45; cursor: not-allowed; }
 .mathmaster-work-view-drawer { display: none; }
-.mathmaster-work-view-drawer[data-open="true"] { grid-row: 2; display: block; padding: 12px 14px; border-bottom: 1px solid #d9e2f1; background: #fff; overflow: auto; max-height: min(42dvh, 360px); }
+.mathmaster-work-view-drawer[data-open="true"] { grid-row: 2; display: block; padding: 12px 14px; border-bottom: 1px solid var(--mm-border); background: var(--mm-surface); overflow: auto; max-height: min(42dvh, 360px); }
 .mathmaster-work-view-body { display: contents; }
 
 [data-open="true"] > .mathmaster-work-view-body {
@@ -63,8 +63,8 @@
 
 [data-open="true"] .mathmaster-work-view-surface { overflow: auto; min-width: 0; min-height: 0; margin: 12px; }
 .mathmaster-work-view-actions { display: none; }
-[data-open="true"] .mathmaster-work-view-actions { display: flex; flex-direction: column; gap: 8px; padding: 12px; overflow: auto; border-left: 1px solid #d9e2f1; background: #fff; }
-.mathmaster-work-view-capability { padding: 7px 9px; border-radius: 7px; background: #f3f7ff; color: #44516a; font-size: 12px; font-weight: 750; }
+[data-open="true"] .mathmaster-work-view-actions { display: flex; flex-direction: column; gap: 8px; padding: 12px; overflow: auto; border-left: 1px solid var(--mm-border); background: var(--mm-surface); }
+.mathmaster-work-view-capability { padding: 7px 9px; border-radius: 7px; background: var(--mm-info-bg); color: var(--mm-text-muted); font-size: 12px; font-weight: 750; }
 
 /* The one sentence saying what this step asks for. It is not a capability chip
    and must not be dropped with them on a narrow screen — the phone is where a
@@ -77,8 +77,8 @@
   padding: 8px 11px;
   border-left: 4px solid #1a73e8;
   border-radius: 0 8px 8px 0;
-  background: #f4f8ff;
-  color: #202124;
+  background: var(--mm-info-bg);
+  color: var(--mm-text-strong);
   font-size: 14px;
   font-weight: 750;
   line-height: 1.4;
@@ -118,7 +118,7 @@
   row-gap: 6px;
   overflow-y: auto;
   border: 0;
-  border-top: 1px solid #d9e2f1;
+  border-top: 1px solid var(--mm-border);
   /*
    * THE IN-PAGE KEYPAD IS A KEYBOARD, SO IT TAKES ROOM RATHER THAN COVERING.
    *
@@ -193,7 +193,7 @@ html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][da
 html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][data-controls="side"] .mathmaster-work-view-actions {
   order: -1;
   border-left: 0;
-  border-right: 1px solid #d9e2f1;
+  border-right: 1px solid var(--mm-border);
 }
 
 [data-open="true"][data-layout="mobile"] > .mathmaster-work-view-header { min-height: 44px; }
@@ -238,7 +238,7 @@ html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][da
   z-index: 2;
   max-height: clamp(132px, 38dvh, 260px) !important;
   overflow: auto !important;
-  background: #fff;
+  background: var(--mm-surface);
   box-shadow: 0 2px 10px rgba(40, 55, 80, .14) !important;
 }
 
@@ -420,7 +420,7 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
   flex: 0 0 auto;
   min-height: 44px;
   padding: 4px 2px 0;
-  background: #fff;
+  background: var(--mm-surface);
 }
 
 /* A graph-analysis workflow is not a static figure. On a wide Work View the

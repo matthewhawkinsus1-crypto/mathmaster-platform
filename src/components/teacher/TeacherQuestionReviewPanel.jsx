@@ -44,7 +44,7 @@ const panelStyle = {
   borderRadius: 12,
   background: '#f8fbff',
   textAlign: 'left',
-  color: '#202124',
+  color: 'var(--mm-text-strong)',
   boxShadow: '0 12px 34px rgba(0,0,0,.24)',
 };
 
@@ -53,7 +53,7 @@ const buttonStyle = {
   padding: '8px 12px',
   border: '1px solid #aecbfa',
   borderRadius: 8,
-  background: '#fff',
+  background: 'var(--mm-surface)',
   color: '#174ea6',
   fontWeight: 900,
   cursor: 'pointer',
@@ -116,7 +116,7 @@ export function TeacherRepairCandidateSandbox({ question, assignmentId, resetKey
     questionDetails,
   });
   return (
-    <div data-teacher-repair-sandbox="true" style={{ border: '1px solid #81c995', borderRadius: 10, background: '#fff', padding: 8 }}>
+    <div data-teacher-repair-sandbox="true" style={{ border: '1px solid #81c995', borderRadius: 10, background: 'var(--mm-surface)', padding: 8 }}>
       <QuestionEngine
         key={resetKey}
         question={question}
@@ -618,7 +618,7 @@ export default function TeacherQuestionReviewPanel({
             Batch copy includes every question covered by an open teacher flag. Paste and upload share one guarded parser, staging, and Preflight path. Nothing changes until the server classifies the correction and you choose Apply Corrected Question.
           </div>
 
-          <section aria-label="Stage AI repair JSON" style={{ marginTop: 10, padding: 10, border: '1px solid #aecbfa', borderRadius: 9, background: '#fff' }}>
+          <section aria-label="Stage AI repair JSON" style={{ marginTop: 10, padding: 10, border: '1px solid #aecbfa', borderRadius: 9, background: 'var(--mm-surface)' }}>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 900 }}>
               Paste Repair JSON
               <textarea
@@ -652,7 +652,7 @@ export default function TeacherQuestionReviewPanel({
                 </div>
               )}
               {replacements.length > 1 && (
-                <section aria-label="Repair question selector" style={{ padding: 10, border: '1px solid #dadce0', borderRadius: 9, background: '#fff' }}>
+                <section aria-label="Repair question selector" style={{ padding: 10, border: '1px solid #dadce0', borderRadius: 9, background: 'var(--mm-surface)' }}>
                   <strong>Review every corrected question before applying the batch</strong>
                   <div style={{ marginTop: 5, color: '#5f6368', fontSize: 12 }}>
                     Reviewed {reviewedRepairQuestionIdSet.size} of {replacements.length}. Apply stays disabled until every replacement has been opened here.
@@ -776,7 +776,7 @@ export default function TeacherQuestionReviewPanel({
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8, marginTop: 10 }}>
             <label style={{ fontSize: 12, fontWeight: 800 }}>
               Category
-              <select value={category} onChange={(event) => setCategory(event.target.value)} style={{ display: 'block', width: '100%', minHeight: 40, marginTop: 4, border: '1px solid #bdc7d6', borderRadius: 7, background: '#fff' }}>
+              <select value={category} onChange={(event) => setCategory(event.target.value)} style={{ display: 'block', width: '100%', minHeight: 40, marginTop: 4, border: '1px solid #bdc7d6', borderRadius: 7, background: 'var(--mm-surface)' }}>
                 <option value="content">Content/math</option>
                 <option value="directions">Directions</option>
                 <option value="answerKey">Answer/grading</option>
@@ -787,7 +787,7 @@ export default function TeacherQuestionReviewPanel({
             </label>
             <label style={{ fontSize: 12, fontWeight: 800 }}>
               Severity
-              <select value={severity} onChange={(event) => setSeverity(event.target.value)} style={{ display: 'block', width: '100%', minHeight: 40, marginTop: 4, border: '1px solid #bdc7d6', borderRadius: 7, background: '#fff' }}>
+              <select value={severity} onChange={(event) => setSeverity(event.target.value)} style={{ display: 'block', width: '100%', minHeight: 40, marginTop: 4, border: '1px solid #bdc7d6', borderRadius: 7, background: 'var(--mm-surface)' }}>
                 <option value="needsEditing">Needs editing</option>
                 <option value="blocksStudentUse">Blocks student use</option>
               </select>
@@ -805,7 +805,7 @@ export default function TeacherQuestionReviewPanel({
           </label>
           <div
             onPaste={handleScreenshotPaste}
-            style={{ marginTop: 8, padding: 8, border: '1px dashed #aecbfa', borderRadius: 8, background: '#fff' }}
+            style={{ marginTop: 8, padding: 8, border: '1px dashed #aecbfa', borderRadius: 8, background: 'var(--mm-surface)' }}
           >
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <label style={{ ...buttonStyle, minHeight: 0, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>

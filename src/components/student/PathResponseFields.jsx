@@ -48,8 +48,8 @@ const FIELD_BASE = {
   borderRadius: 9,
   fontSize: 18,
   lineHeight: 1.35,
-  background: '#fff',
-  color: '#202124',
+  background: 'var(--mm-surface)',
+  color: 'var(--mm-text-strong)',
 };
 
 const LABEL = {
@@ -104,7 +104,7 @@ function ChoiceGroup({ field, choices, value, onChange, disabled }) {
                 border: `2px solid ${selected ? '#1a73e8' : '#d3d8de'}`,
                 borderRadius: 11,
                 background: selected ? '#e8f0fe' : '#fff',
-                color: '#202124',
+                color: 'var(--mm-text-strong)',
                 font: 'inherit',
                 fontSize: 16,
                 cursor: disabled ? 'not-allowed' : 'pointer',

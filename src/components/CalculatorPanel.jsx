@@ -390,7 +390,7 @@ export const CalculatorPanel = ({
             width: 'min(320px, calc(100vw - 16px))',
             maxHeight: 'calc(100vh - 88px)',
             overflowY: 'auto',
-            background: '#fff',
+            background: 'var(--mm-surface)',
             borderRadius: '12px',
             boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
             border: '1px solid #dadce0',

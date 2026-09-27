@@ -5,7 +5,7 @@ import useToolSubmission from '../shared/useToolSubmission';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import { choiceBankFor, EXPRESSION_MEANING_DIMENSIONS, nextIncompleteExpressionId, scoreExpressionMeaning } from './expressionMeaningMath.js';
 
-const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid #c9d6e8', background: '#fff', fontWeight: 800, cursor: 'pointer' };
+const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid #c9d6e8', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 
 const DIMENSION_LABEL = { unit: 'Unit', contextMeaning: 'Contextual meaning', mathRole: 'Mathematical role' };
 

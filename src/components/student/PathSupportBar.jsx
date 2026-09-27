@@ -64,7 +64,7 @@ const speak = (text) => {
 
 const BUTTON = {
   minHeight: 40, padding: '8px 13px', borderRadius: 999,
-  border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6',
+  border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6',
   fontWeight: 800, fontSize: 13, cursor: 'pointer',
 };
 

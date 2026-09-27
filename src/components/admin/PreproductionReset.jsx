@@ -7,7 +7,7 @@ const panel = {
   borderRadius: 12,
   padding: '20px 22px',
   marginBottom: 18,
-  background: '#fff',
+  background: 'var(--mm-surface)',
 };
 
 const formatCount = (value) => Number(value || 0).toLocaleString();
@@ -178,15 +178,15 @@ export default function PreproductionReset({ onResetComplete }) {
         {!loading && preview && (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 10, marginBottom: 14 }}>
-              <div style={{ padding: 12, borderRadius: 9, background: '#fff', border: '1px solid #ead1ce' }}>
+              <div style={{ padding: 12, borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid #ead1ce' }}>
                 <div style={{ fontSize: 11, fontWeight: 900, color: '#7a3430', textTransform: 'uppercase' }}>Test students</div>
                 <div style={{ fontSize: 25, fontWeight: 900, color: '#a50e0e' }}>{formatCount(preview.studentRosterRecords)}</div>
               </div>
-              <div style={{ padding: 12, borderRadius: 9, background: '#fff', border: '1px solid #ead1ce' }}>
+              <div style={{ padding: 12, borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid #ead1ce' }}>
                 <div style={{ fontSize: 11, fontWeight: 900, color: '#7a3430', textTransform: 'uppercase' }}>Student sign-ins</div>
                 <div style={{ fontSize: 25, fontWeight: 900, color: '#a50e0e' }}>{formatCount(preview.studentAuthUsers)}</div>
               </div>
-              <div style={{ padding: 12, borderRadius: 9, background: '#fff', border: '1px solid #ead1ce' }}>
+              <div style={{ padding: 12, borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid #ead1ce' }}>
                 <div style={{ fontSize: 11, fontWeight: 900, color: '#7a3430', textTransform: 'uppercase' }}>Assignments</div>
                 <div style={{ fontSize: 25, fontWeight: 900, color: '#a50e0e' }}>{formatCount(preview.assignments)}</div>
               </div>
@@ -293,7 +293,7 @@ export default function PreproductionReset({ onResetComplete }) {
             type="button"
             onClick={loadPreview}
             disabled={loading || resetting}
-            style={{ minHeight: 44, padding: '0 14px', border: '1px solid #c7cdd6', borderRadius: 9, background: '#fff', fontWeight: 800 }}
+            style={{ minHeight: 44, padding: '0 14px', border: '1px solid #c7cdd6', borderRadius: 9, background: 'var(--mm-surface)', fontWeight: 800 }}
           >
             {loading ? 'Checking…' : 'Refresh Preview'}
           </button>

@@ -92,7 +92,7 @@ function ChoiceField({ question, field, value, disabled, onChange }) {
                 borderRadius: 10,
                 border: selected ? '3px solid #1a73e8' : '2px solid #c7ccd1',
                 background: selected ? '#e8f0fe' : '#fff',
-                color: '#202124',
+                color: 'var(--mm-text-strong)',
                 textAlign: 'left',
                 fontSize: 17,
                 fontWeight: selected ? 900 : 700,
@@ -191,7 +191,7 @@ export default function LiveChallengeFieldQuestion({ question, disabled, onSubmi
 
   if (!readiness.eligible) {
     return (
-      <section style={{ padding: 20, borderRadius: 14, background: '#fff', border: '2px solid #d93025', textAlign: 'left' }}>
+      <section style={{ padding: 20, borderRadius: 14, background: 'var(--mm-surface)', border: '2px solid #d93025', textAlign: 'left' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ color: '#174ea6', fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{question?.teksCode || 'Live Challenge'}</div>
           <ResponseBadge readiness={readiness} />
@@ -207,7 +207,7 @@ export default function LiveChallengeFieldQuestion({ question, disabled, onSubmi
   }
 
   return (
-    <section className="mathmaster-question-container" style={{ padding: 20, borderRadius: 14, background: '#fff', border: '1px solid #d8dde6', textAlign: 'left' }}>
+    <section className="mathmaster-question-container" style={{ padding: 20, borderRadius: 14, background: 'var(--mm-surface)', border: '1px solid #d8dde6', textAlign: 'left' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <div style={{ color: '#174ea6', fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{question?.teksCode || 'Live Challenge'}</div>
         <ResponseBadge readiness={readiness} />

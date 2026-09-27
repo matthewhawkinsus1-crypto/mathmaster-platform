@@ -7,7 +7,7 @@ import useToolSubmission from '../shared/useToolSubmission';
 import { scoreControlledSort, scoreOpenSort } from './openSortMath';
 import { readGraphPointCoordinates } from '../../graphPointUtils.js';
 
-const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid #c9d6e8', background: '#fff', fontWeight: 800, cursor: 'pointer' };
+const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid #c9d6e8', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid #c9d6e8', borderRadius: 8, fontSize: 15 };
 
 const functionFor = (spec) => (x) => evaluateFunctionSpec(spec || {}, x);
@@ -199,7 +199,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
           <Panel title={`Cards to classify (${unassigned.length} remaining)`}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 12 }}>
               {unassigned.map((item) => (
-                <div key={item.id} style={{ border: '1px solid #c9d6e8', borderRadius: 12, padding: 10, background: '#fff' }}>
+                <div key={item.id} style={{ border: '1px solid #c9d6e8', borderRadius: 12, padding: 10, background: 'var(--mm-surface)' }}>
                   <strong style={{ display: 'block', marginBottom: 6 }}>{item.label || item.id}</strong>
                   <SortItemPreview item={item} />
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(118px, 1fr))', gap: 8, marginTop: 10 }}>
@@ -266,7 +266,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
                 <button type="button" disabled={!selectedId} onClick={() => moveSelected(group.id)} style={{ ...button, background: selectedId ? '#1a73e8' : '#f1f3f4', color: selectedId ? '#fff' : '#80868b', border: 0 }}>{selectedId ? 'Place selected card here' : 'Select a card first'}</button>
                 {groups.length > minGroups && <button type="button" onClick={() => removeGroup(group.id)} style={{ ...button, color: '#a50e0e' }}>Remove group</button>}
               </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minHeight: 52, padding: 9, borderRadius: 9, border: '1px dashed #9bb8e8', background: '#fff' }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minHeight: 52, padding: 9, borderRadius: 9, border: '1px dashed #9bb8e8', background: 'var(--mm-surface)' }}>
                 {group.itemIds.map((id) => {
                   const item = itemById(id);
                   return <button type="button" key={id} onClick={() => returnItem(id)} title="Tap to move this card again" style={{ ...button, minHeight: 36, padding: '6px 9px', background: '#eef4ff', color: '#174ea6' }}>{item?.label || id} ↩</button>;

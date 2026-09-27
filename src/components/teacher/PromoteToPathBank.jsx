@@ -14,9 +14,9 @@ import { getToolDefinition } from '../../tools/toolRegistry';
 // is pressed, using the same function the server will use, so nothing is a
 // surprise.
 
-const card = { border: '1px solid #d8dde6', borderRadius: 12, padding: '18px 20px', marginBottom: 16, background: '#fff', textAlign: 'left' };
+const card = { border: '1px solid #d8dde6', borderRadius: 12, padding: '18px 20px', marginBottom: 16, background: 'var(--mm-surface)', textAlign: 'left' };
 const primary = { minHeight: 42, padding: '0 16px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' };
-const quiet = { minHeight: 38, padding: '0 13px', border: '1px solid #c7cdd6', borderRadius: 8, background: '#fff', color: '#3c4043', fontWeight: 700, cursor: 'pointer' };
+const quiet = { minHeight: 38, padding: '0 13px', border: '1px solid #c7cdd6', borderRadius: 8, background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 700, cursor: 'pointer' };
 
 const MARK = { true: '✓', false: '✕', null: '–' };
 const MARK_COLOR = { true: '#137333', false: '#a50e0e', null: '#7a4f00' };
@@ -79,7 +79,7 @@ export default function PromoteToPathBank({ assignment, onClose }) {
   return (
     <div role="dialog" aria-label="Add questions to the Path bank" style={{ position: 'fixed', inset: 0, background: 'rgba(32,33,36,.55)', zIndex: 60, overflowY: 'auto', padding: 20 }}>
       <div style={{ maxWidth: 900, margin: '0 auto', background: '#f8f9fa', borderRadius: 14, overflow: 'hidden' }}>
-        <header style={{ padding: '20px 24px', background: '#fff', borderBottom: '1px solid #e8eaed' }}>
+        <header style={{ padding: '20px 24px', background: 'var(--mm-surface)', borderBottom: '1px solid #e8eaed' }}>
           <h2 style={{ margin: 0, fontSize: 20 }}>Add to My Math Path bank</h2>
           <p style={{ margin: '8px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.6, maxWidth: 720 }}>
             Questions in the Path bank are given to any student as independent practice, and what a student does with them

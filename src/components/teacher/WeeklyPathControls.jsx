@@ -20,12 +20,12 @@ import { formatStudentName } from '../../platform/studentName.js';
 // engine's job, and a teacher who wants to override one student does it with a
 // pin, which the engine honours by seating it before it chooses anything.
 
-const panel = { border: '1px solid #dadce0', borderRadius: 12, background: '#fff', padding: 16, marginBottom: 16 };
+const panel = { border: '1px solid #dadce0', borderRadius: 12, background: 'var(--mm-surface)', padding: 16, marginBottom: 16 };
 const heading = { margin: '0 0 4px', fontSize: 15, fontWeight: 900, color: '#174ea6' };
 const note = { color: '#5f6368', fontSize: 13, lineHeight: 1.55, margin: '0 0 14px' };
 const control = {
   minHeight: 44, fontSize: 15, padding: '9px 10px', border: '1px solid #c9ced6',
-  borderRadius: 8, boxSizing: 'border-box', background: '#fff', color: '#202124',
+  borderRadius: 8, boxSizing: 'border-box', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)',
 };
 const chipButton = (active) => ({
   minHeight: 40, padding: '7px 12px', borderRadius: 999, cursor: 'pointer',

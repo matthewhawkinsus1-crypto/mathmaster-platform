@@ -13,7 +13,7 @@ import {
   scoreConstraintModel,
 } from './constraintFunctionMath';
 
-const inputStyle = { width: '100%', minHeight: 42, boxSizing: 'border-box', padding: 9, border: '1px solid #c9d6e8', borderRadius: 8, fontSize: 15, background: '#fff' };
+const inputStyle = { width: '100%', minHeight: 42, boxSizing: 'border-box', padding: 9, border: '1px solid #c9d6e8', borderRadius: 8, fontSize: 15, background: 'var(--mm-surface)' };
 const primary = { minHeight: 46, padding: '10px 17px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' };
 const FAMILY_LABELS = { linear: 'Linear', quadratic: 'Quadratic', exponential: 'Exponential', absolute: 'Absolute value', verticalLine: 'Vertical line (not a function)' };
 

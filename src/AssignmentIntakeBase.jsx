@@ -19,7 +19,7 @@ import {
 const card = {
   border: '1px solid #d9e2f1',
   borderRadius: 14,
-  background: '#fff',
+  background: 'var(--mm-surface)',
   padding: '20px 22px',
   textAlign: 'left',
 };
@@ -32,7 +32,7 @@ const primaryButton = {
 
 const secondaryButton = {
   ...primaryButton,
-  background: '#fff', color: '#174ea6', border: '1px solid #9bb8e8',
+  background: 'var(--mm-surface)', color: '#174ea6', border: '1px solid #9bb8e8',
 };
 
 const fieldLabel = {
@@ -50,7 +50,7 @@ const inputStyle = {
   border: '1px solid #b8c8df',
   borderRadius: 9,
   padding: '9px 11px',
-  background: '#fff',
+  background: 'var(--mm-surface)',
   color: '#172033',
   fontSize: 14,
 };
@@ -334,7 +334,7 @@ export default function AssignmentIntake({
               <h3 style={{ margin: 0, fontSize: 19, color: '#172033' }}>1. Lesson and purpose</h3>
               <span style={{
                 border: '1px solid #9bb8e8', borderRadius: 999, padding: '4px 9px',
-                color: '#174ea6', background: '#fff', fontSize: 11, fontWeight: 900,
+                color: '#174ea6', background: 'var(--mm-surface)', fontSize: 11, fontWeight: 900,
               }}>NO CODE REQUIRED</span>
             </div>
             <p style={{ margin: '0 0 16px', color: '#5f6b7a', lineHeight: 1.55, fontSize: 14 }}>

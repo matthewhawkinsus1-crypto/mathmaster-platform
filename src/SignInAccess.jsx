@@ -8,7 +8,7 @@ const card = {
   padding: '20px 22px',
   marginBottom: '20px',
   textAlign: 'left',
-  background: '#fff',
+  background: 'var(--mm-surface)',
 };
 
 const primaryButton = {
@@ -27,7 +27,7 @@ const quietButton = {
   padding: '0 13px',
   border: '1px solid #c7cdd6',
   borderRadius: '8px',
-  background: '#fff',
+  background: 'var(--mm-surface)',
   color: '#3c4043',
   fontWeight: 700,
   cursor: 'pointer',
@@ -472,7 +472,7 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
 
       {deleteTarget && adminMode && isRootAdmin && (
         <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 12000, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(32,33,36,.72)' }}>
-          <section role="dialog" aria-modal="true" aria-label="Permanent student deletion" style={{ width: 'min(560px, 96vw)', padding: 24, borderRadius: 14, background: '#fff', boxShadow: '0 24px 70px rgba(0,0,0,.3)' }}>
+          <section role="dialog" aria-modal="true" aria-label="Permanent student deletion" style={{ width: 'min(560px, 96vw)', padding: 24, borderRadius: 14, background: 'var(--mm-surface)', boxShadow: '0 24px 70px rgba(0,0,0,.3)' }}>
             <h3 style={{ marginTop: 0, color: '#a50e0e' }}>Permanently delete {deleteTarget.studentId}?</h3>
             <p style={{ lineHeight: 1.55 }}>This erases the student&apos;s sign-in identity and MathMaster grades, submissions, mastery/retention state, My Math Path history, labs, secure-exam data, supports, and Classroom linkage records. <strong>This cannot be undone.</strong></p>
             <label style={{ display: 'block', fontWeight: 800 }}>Type <code>DELETE {deleteTarget.studentId}</code> to confirm<input autoFocus value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} style={{ ...inputStyle, width: '100%', marginTop: 7, boxSizing: 'border-box' }} /></label>

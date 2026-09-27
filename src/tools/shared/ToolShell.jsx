@@ -60,7 +60,7 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
       margin: '0 auto',
       border: '1px solid #d9e2f1',
       borderRadius: 18,
-      background: '#fff',
+      background: 'var(--mm-surface)',
       boxShadow: '0 16px 44px rgba(15, 23, 42, 0.08)',
       // `clip`, not `hidden`. Both keep the corners rounded, but `hidden`
       // creates a scroll container, and a `position: sticky` descendant sticks

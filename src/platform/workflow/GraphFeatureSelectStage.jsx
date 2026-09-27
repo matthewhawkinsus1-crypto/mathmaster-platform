@@ -63,7 +63,7 @@ const button = {
   padding: '9px 14px',
   borderRadius: 8,
   border: '1px solid #b7bec8',
-  background: '#fff',
+  background: 'var(--mm-surface)',
   fontWeight: 800,
   cursor: 'pointer',
 };

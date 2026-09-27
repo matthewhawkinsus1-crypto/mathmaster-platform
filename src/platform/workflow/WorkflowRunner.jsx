@@ -46,7 +46,7 @@ import './WorkflowFocusMode.css';
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
 
 const panel = {
-  border: '1px solid #dadce0', borderRadius: 12, background: '#fff',
+  border: '1px solid #dadce0', borderRadius: 12, background: 'var(--mm-surface)',
   padding: 16, marginBottom: 12, textAlign: 'left',
 };
 const stageHeading = { margin: '0 0 8px', fontSize: 13, fontWeight: 900, color: '#174ea6' };

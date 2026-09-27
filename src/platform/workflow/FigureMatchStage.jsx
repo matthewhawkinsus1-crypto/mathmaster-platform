@@ -33,7 +33,7 @@ const card = {
   border: '1px solid #d5dae1',
   borderRadius: 12,
   padding: 12,
-  background: '#fff',
+  background: 'var(--mm-surface)',
   display: 'flex',
   flexDirection: 'column',
   gap: 10,

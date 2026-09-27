@@ -25,7 +25,7 @@ const overlayStyle = {
   display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
 };
 const dialogStyle = {
-  width: '100%', maxWidth: 420, background: '#fff', borderRadius: 16,
+  width: '100%', maxWidth: 420, background: 'var(--mm-surface)', borderRadius: 16,
   boxShadow: '0 24px 70px rgba(0,0,0,.28)', overflow: 'hidden', textAlign: 'left',
 };
 const bodyStyle = { padding: '18px 20px', display: 'grid', gap: 14 };
@@ -115,7 +115,7 @@ export default function ClassPointsAwardDialog({ student, classId, teacherEmail,
       <section role="dialog" aria-modal="true" aria-labelledby="class-points-award-title" style={dialogStyle}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid #e8eaed' }}>
           <div style={{ color: '#7a4f00', fontWeight: 900, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em' }}>Class Points</div>
-          <h2 id="class-points-award-title" style={{ margin: '4px 0 0', fontSize: 18, color: '#202124' }}>Award {student?.name || 'this student'}</h2>
+          <h2 id="class-points-award-title" style={{ margin: '4px 0 0', fontSize: 18, color: 'var(--mm-text-strong)' }}>Award {student?.name || 'this student'}</h2>
         </div>
 
         {result ? (
@@ -193,7 +193,7 @@ export default function ClassPointsAwardDialog({ student, classId, teacherEmail,
             )}
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button type="button" disabled={submitting} onClick={onClose} style={{ padding: '9px 13px', borderRadius: 8, border: '1px solid #d8dde6', background: '#fff', color: '#3c4043', fontWeight: 800, cursor: submitting ? 'wait' : 'pointer' }}>Cancel</button>
+              <button type="button" disabled={submitting} onClick={onClose} style={{ padding: '9px 13px', borderRadius: 8, border: '1px solid #d8dde6', background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 800, cursor: submitting ? 'wait' : 'pointer' }}>Cancel</button>
               <button
                 type="button"
                 disabled={submitting}

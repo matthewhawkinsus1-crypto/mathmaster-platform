@@ -17,7 +17,7 @@ import {
   scoreRepresentationBridge,
 } from './representationBridgeMath.js';
 
-const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid #c9d6e8', background: '#fff', fontWeight: 800, cursor: 'pointer' };
+const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid #c9d6e8', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid #c9d6e8', borderRadius: 8, fontSize: 15 };
 const formatCoord = (value) => (Number.isInteger(value) ? String(value) : String(Math.round(value * 1000) / 1000));
 

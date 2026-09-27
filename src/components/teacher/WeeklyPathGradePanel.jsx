@@ -61,7 +61,7 @@ export default function WeeklyPathGradePanel({
   if (!students.length) return null;
 
   return (
-    <section style={{ border: '1px solid #d8dde6', borderRadius: 10, background: '#fff', marginBottom: 22, overflow: 'hidden' }}>
+    <section style={{ border: '1px solid #d8dde6', borderRadius: 10, background: 'var(--mm-surface)', marginBottom: 22, overflow: 'hidden' }}>
       <header style={{ padding: '15px 18px 12px', borderBottom: '1px solid #eef0f2' }}>
         <h3 style={{ margin: 0, fontSize: 16 }}>Weekly learning path{weekKey ? ` · week of ${weekKey}` : ''}</h3>
         <p style={{ margin: '5px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.5, maxWidth: '70ch' }}>
@@ -115,7 +115,7 @@ export default function WeeklyPathGradePanel({
       </div>
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', padding: '12px 18px', borderTop: '1px solid #eef0f2', background: tone.bg }}>
-        <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 11, fontWeight: 900, background: '#fff', color: tone.fg, border: `1px solid ${tone.border}` }}>
+        <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 11, fontWeight: 900, background: 'var(--mm-surface)', color: tone.fg, border: `1px solid ${tone.border}` }}>
           GOOGLE CLASSROOM
         </span>
         <span style={{ flex: 1, minWidth: 220, color: tone.fg, fontSize: 12.5, lineHeight: 1.45 }}>{readiness.reason}</span>
@@ -129,7 +129,7 @@ export default function WeeklyPathGradePanel({
             padding: '8px 13px',
             border: `1px solid ${readiness.state === SYNC_STATE.READY_FOR_REVIEW ? '#1a73e8' : '#dadce0'}`,
             borderRadius: 8,
-            background: '#fff',
+            background: 'var(--mm-surface)',
             color: readiness.state === SYNC_STATE.READY_FOR_REVIEW ? '#174ea6' : '#9aa0a6',
             fontWeight: 900,
             fontSize: 12.5,

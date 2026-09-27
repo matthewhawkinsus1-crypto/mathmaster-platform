@@ -59,7 +59,7 @@ const SCHOOL_NON_INSTRUCTIONAL_KEYS = buildNonInstructionalSet(schoolYearNonInst
 const SEVERITY_STYLE = {
   [LIVE_SEVERITY.ALERT]: { border: '#d93025', background: '#fff5f4', chip: '#d93025' },
   [LIVE_SEVERITY.WATCH]: { border: '#f9ab00', background: '#fffbf0', chip: '#a56800' },
-  [LIVE_SEVERITY.OK]: { border: '#dfe3e7', background: '#fff', chip: '#188038' },
+  [LIVE_SEVERITY.OK]: { border: '#dfe3e7', background: 'var(--mm-surface)', chip: '#188038' },
 };
 
 const FLAG_LABEL = {
@@ -121,8 +121,8 @@ function ProgressStrip({ questionStates, questionIndex }) {
   );
 }
 
-const smallButtonStyle = { padding: '5px 8px', borderRadius: 7, border: '1px solid #9aa0a6', background: '#fff', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' };
-const controlStyle = { padding: '8px 10px', borderRadius: 8, border: '1px solid #dadce0', background: '#fff', color: '#202124', fontSize: 14 };
+const smallButtonStyle = { padding: '5px 8px', borderRadius: 7, border: '1px solid #9aa0a6', background: 'var(--mm-surface)', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' };
+const controlStyle = { padding: '8px 10px', borderRadius: 8, border: '1px solid #dadce0', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontSize: 14 };
 
 // Compact, teacher-only Class Points control shown on a student tile. The
 // balance shown is always the authoritative account projection handed down
@@ -142,7 +142,7 @@ function ClassPointsMiniControl({ balance, unavailable, onAward }) {
         ⭐ {unavailable ? '—' : balance} pts
       </span>
       {onAward && (
-        <button type="button" onClick={onAward} style={{ ...smallButtonStyle, padding: '3px 7px', borderColor: '#7a4f00', background: '#fff', color: '#7a4f00' }}>+ Points</button>
+        <button type="button" onClick={onAward} style={{ ...smallButtonStyle, padding: '3px 7px', borderColor: '#7a4f00', background: 'var(--mm-surface)', color: '#7a4f00' }}>+ Points</button>
       )}
     </div>
   );
@@ -183,7 +183,7 @@ function StudentTile({
       aria-label={`${row.name}: ${row.headline}`}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-        <span style={{ fontWeight: 700, color: '#202124', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name}</span>
+        <span style={{ fontWeight: 700, color: 'var(--mm-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name}</span>
         <span style={{ fontSize: 12, fontWeight: 700, color: style.chip, whiteSpace: 'nowrap' }}>{row.headline}</span>
       </div>
 
@@ -219,7 +219,7 @@ function StudentTile({
 
       {suggestion && (
         <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()} style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,.72)' }}>
-          <div style={{ fontWeight: 800, fontSize: roomMode ? 15 : 12.5, color: '#202124', lineHeight: 1.35 }}>{suggestion.headline}</div>
+          <div style={{ fontWeight: 800, fontSize: roomMode ? 15 : 12.5, color: 'var(--mm-text-strong)', lineHeight: 1.35 }}>{suggestion.headline}</div>
           {!roomMode && (
             <>
               <div style={{ marginTop: 3, fontSize: 11.5, color: '#5f6368', lineHeight: 1.45 }}>{suggestion.why}</div>
@@ -236,7 +236,7 @@ function StudentTile({
       {(row.flags.length > 0 || integritySignal) && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
           {row.flags.map((flag) => (
-            <span key={flag} style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 999, background: '#fff', border: `1px solid ${style.border}`, color: style.chip }}>
+            <span key={flag} style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 999, background: 'var(--mm-surface)', border: `1px solid ${style.border}`, color: style.chip }}>
               {FLAG_LABEL[flag] || flag}
             </span>
           ))}
@@ -290,7 +290,7 @@ function WalkthroughCard({ row, onChecked, onOpenStudent, classPoints = null }) 
   return (
     <div style={{ padding: '12px 14px', borderRadius: 12, border: `2px solid ${style.border}`, background: style.background, display: 'grid', gap: 7 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <strong style={{ color: '#202124' }}>{row.name}</strong>
+        <strong style={{ color: 'var(--mm-text-strong)' }}>{row.name}</strong>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {attendanceMark === LIVE_ATTENDANCE_MARK.LATE && <span style={{ fontSize: 10.5, fontWeight: 900, color: '#7a4f00', background: '#fff4ce', borderRadius: 999, padding: '2px 6px' }}>Late arrival</span>}
           <span style={{ fontSize: 11, fontWeight: 900, color: style.color }}>{style.label}</span>
@@ -361,9 +361,9 @@ function LiveTeachingPanel({
           <div style={{ marginTop: 2, fontSize: 12.5, color: '#1c4a2e' }}>Teacher exemplar: {classworkPositionLabel}</div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <button type="button" onClick={onResume} style={{ ...smallButtonStyle, borderColor: '#188038', background: '#fff', color: '#137333' }}>Resume Teaching</button>
+          <button type="button" onClick={onResume} style={{ ...smallButtonStyle, borderColor: '#188038', background: 'var(--mm-surface)', color: '#137333' }}>Resume Teaching</button>
           <button type="button" onClick={() => onTeach(liveTeachingAssignmentId, { forceRestart: true })} style={smallButtonStyle}>Restart Fresh</button>
-          <button type="button" onClick={onEndTeaching} style={{ ...smallButtonStyle, borderColor: '#d93025', background: '#fff', color: '#b3261e' }}>End Teaching</button>
+          <button type="button" onClick={onEndTeaching} style={{ ...smallButtonStyle, borderColor: '#d93025', background: 'var(--mm-surface)', color: '#b3261e' }}>End Teaching</button>
         </div>
       </div>
     );
@@ -399,7 +399,7 @@ function AttendancePanel({ roster, attendanceByStudentId, onMark, busyStudentId 
   const sorted = [...roster].sort((a, b) => attendanceName(a).localeCompare(attendanceName(b)));
   return (
     <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '1px solid #c9ced6', background: '#f8f9fa' }}>
-      <div style={{ fontWeight: 900, color: '#202124' }}>Today&apos;s Live Attendance</div>
+      <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)' }}>Today&apos;s Live Attendance</div>
       <div style={{ marginTop: 3, marginBottom: 10, fontSize: 12, color: '#5f6368' }}>
         Absent students are removed from live monitoring for today only. Mark Present or Late if a student arrives; their saved assignment work is never changed.
       </div>
@@ -410,7 +410,7 @@ function AttendancePanel({ roster, attendanceByStudentId, onMark, busyStudentId 
           const mark = normalizeLiveAttendance(attendanceByStudentId[id]).mark || LIVE_ATTENDANCE_MARK.PRESENT;
           const busy = busyStudentId === id;
           return (
-            <div key={id} style={{ background: '#fff', border: '1px solid #e0e3e7', borderRadius: 9, padding: '8px 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+            <div key={id} style={{ background: 'var(--mm-surface)', border: '1px solid #e0e3e7', borderRadius: 9, padding: '8px 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
               <div>
                 <strong style={{ fontSize: 12.5 }}>{name}</strong>
                 {id && <div style={{ marginTop: 1, fontSize: 10, color: '#80868b' }}>ID {id}</div>}
@@ -453,7 +453,7 @@ function ReturnCheckInPanel({ candidates, onCheckIn, onCheckInAll, onOpenStudent
     <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '2px solid #1a73e8', background: '#eef6ff' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
         <div style={{ fontWeight: 900, color: '#174ea6' }}>Welcome back · {open.length} returning today</div>
-        {open.length > 1 && <button type="button" onClick={onCheckInAll} style={{ ...smallButtonStyle, borderColor: '#1a73e8', background: '#fff', color: '#174ea6' }}>Check in all</button>}
+        {open.length > 1 && <button type="button" onClick={onCheckInAll} style={{ ...smallButtonStyle, borderColor: '#1a73e8', background: 'var(--mm-surface)', color: '#174ea6' }}>Check in all</button>}
       </div>
       <div style={{ display: 'grid', gap: 8 }}>
         {open.map((candidate) => {
@@ -465,7 +465,7 @@ function ReturnCheckInPanel({ candidates, onCheckIn, onCheckInAll, onOpenStudent
             : null;
           const busy = busyKey === candidate.key;
           return (
-            <div key={candidate.key} style={{ background: '#fff', border: '1px solid #c5d5ef', borderRadius: 9, padding: '9px 11px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <div key={candidate.key} style={{ background: 'var(--mm-surface)', border: '1px solid #c5d5ef', borderRadius: 9, padding: '9px 11px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <div>
                 <strong style={{ fontSize: 13 }}>{candidate.studentName} is back today</strong>
                 <div style={{ fontSize: 11.5, color: '#5f6368', marginTop: 2 }}>
@@ -958,7 +958,7 @@ export default function LiveClassMonitor({
       {activeSpotlight?.status === SPOTLIGHT_STATUS.REQUESTED && <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 9, background: '#f8f0fc', color: '#4a126b' }}>Waiting for {activeSpotlight.studentLabel || 'the student'} to choose <strong>Present Now</strong>. No work is visible.</div>}
       {spotlightMessage && <div role="status" style={{ marginBottom: 10, fontSize: 12, color: '#5f6368' }}>{spotlightMessage}</div>}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 12 }}>
-        <h2 style={{ margin: 0, fontSize: 20, color: '#202124' }}>Live Class</h2>
+        <h2 style={{ margin: 0, fontSize: 20, color: 'var(--mm-text-strong)' }}>Live Class</h2>
         <span style={{ fontSize: 13, color: '#5f6368' }}>
           {counts.online} of {counts.total} present students working
           {absentCount > 0 && <span> · {absentCount} absent</span>}

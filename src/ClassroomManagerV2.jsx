@@ -43,12 +43,12 @@ import {
   retryEligibleGradeSyncs,
 } from './classroomGradeSyncUi';
 
-const card = { background: '#fff', border: '1px solid #e0e3e7', borderRadius: 12, padding: 16 };
+const card = { background: 'var(--mm-surface)', border: '1px solid #e0e3e7', borderRadius: 12, padding: 16 };
 const label = { display: 'block', fontSize: 12, fontWeight: 800, color: '#5f6368', marginBottom: 6 };
-const input = { width: '100%', padding: '10px 12px', fontSize: 14, borderRadius: 8, border: '1px solid #c7cdd4', boxSizing: 'border-box', background: '#fff' };
+const input = { width: '100%', padding: '10px 12px', fontSize: 14, borderRadius: 8, border: '1px solid #c7cdd4', boxSizing: 'border-box', background: 'var(--mm-surface)' };
 const btn = { padding: '10px 15px', fontSize: 13, fontWeight: 800, borderRadius: 8, border: 0, cursor: 'pointer' };
 const primary = { ...btn, background: '#1a73e8', color: '#fff' };
-const secondary = { ...btn, background: '#eef2f7', color: '#202124', border: '1px solid #d8dee6' };
+const secondary = { ...btn, background: '#eef2f7', color: 'var(--mm-text-strong)', border: '1px solid #d8dee6' };
 const danger = { ...btn, background: '#fce8e6', color: '#a50e0e', border: '1px solid #f4c7c3' };
 const okPill = { display: 'inline-block', padding: '3px 8px', borderRadius: 99, background: '#e6f4ea', color: '#137333', fontSize: 11, fontWeight: 800 };
 const warnPill = { ...okPill, background: '#fef7e0', color: '#7a4f00' };
@@ -870,7 +870,7 @@ export default function ClassroomManagerV2({
               />
             )}
             <button
-              style={{ ...danger, marginTop: 10, background: '#fff', borderColor: '#b06000', color: '#8a4b00' }}
+              style={{ ...danger, marginTop: 10, background: 'var(--mm-surface)', borderColor: '#b06000', color: '#8a4b00' }}
               disabled={busy || !selectedAssignment || !selectedCourseIds.length}
               onClick={handleForceRepublish}
             >
@@ -1006,7 +1006,7 @@ export default function ClassroomManagerV2({
             </div>
             <button
               type="button"
-              style={{ ...secondary, marginTop: 8, borderColor: '#a50e0e', color: '#a50e0e', background: '#fff' }}
+              style={{ ...secondary, marginTop: 8, borderColor: '#a50e0e', color: '#a50e0e', background: 'var(--mm-surface)' }}
               disabled={busy}
               onClick={() => run(async () => {
                 for (const sync of retryableGradeSyncs) {
@@ -1035,7 +1035,7 @@ export default function ClassroomManagerV2({
             </div>
             <button
               type="button"
-              style={{ ...secondary, marginTop: 8, borderColor: '#1a73e8', color: '#174ea6', background: '#fff' }}
+              style={{ ...secondary, marginTop: 8, borderColor: '#1a73e8', color: '#174ea6', background: 'var(--mm-surface)' }}
               disabled={busy}
               onClick={() => {
                 const confirmed = window.confirm(

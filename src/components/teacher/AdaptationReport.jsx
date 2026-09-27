@@ -12,7 +12,7 @@ import React, { useMemo } from 'react';
 // explain a question the student answered in October, and quietly change its
 // story as the student improved. The reason was written down at the time.
 
-const panel = { border: '1px solid #dadce0', borderRadius: 12, background: '#fff', padding: 16, marginBottom: 16 };
+const panel = { border: '1px solid #dadce0', borderRadius: 12, background: 'var(--mm-surface)', padding: 16, marginBottom: 16 };
 const heading = { margin: '0 0 4px', fontSize: 15, fontWeight: 900, color: '#174ea6' };
 const note = { color: '#5f6368', fontSize: 13, lineHeight: 1.55, margin: '0 0 14px' };
 const mono = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12.5, fontVariantNumeric: 'tabular-nums' };

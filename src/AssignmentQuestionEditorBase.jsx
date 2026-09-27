@@ -451,10 +451,10 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
 
   return (
     <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 15000, background: 'rgba(32,33,36,.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '18px' }}>
-      <section role="dialog" aria-modal="true" aria-label="Edit assignment questions" style={{ width: 'min(1080px, 97vw)', maxHeight: '94vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: '#fff', borderRadius: '16px', boxShadow: '0 28px 80px rgba(0,0,0,.4)' }}>
+      <section role="dialog" aria-modal="true" aria-label="Edit assignment questions" style={{ width: 'min(1080px, 97vw)', maxHeight: '94vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--mm-surface)', borderRadius: '16px', boxShadow: '0 28px 80px rgba(0,0,0,.4)' }}>
         <header style={{ padding: '20px 24px', borderBottom: '1px solid #e1e5ea', display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center' }}>
           <div><h2 style={{ margin: 0 }}>Assignment Question Editor</h2><p style={{ margin: '5px 0 0', color: '#5f6368' }}>{hasLiveProtection ? 'This assignment is live or has student history. Existing question IDs and indexes are protected. Safe live response-entry repairs are allowed; real rewrites are still blocked.' : 'No student records exist. Questions may be removed and reordered permanently.'}</p></div>
-          <button type="button" onClick={onClose} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid #cbd1da', background: '#fff', fontWeight: 800 }}>Close</button>
+          <button type="button" onClick={onClose} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid #cbd1da', background: 'var(--mm-surface)', fontWeight: 800 }}>Close</button>
         </header>
         <div style={{ padding: '20px 24px', overflowY: 'auto' }}>
           <label style={{ display: 'block', fontWeight: 800, marginBottom: '18px' }}>Assignment title
@@ -467,7 +467,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                 type="button"
                 onClick={copyAiWeightReview}
                 disabled={weightReviewBusy || saving}
-                style={{ padding: '8px 12px', border: '1px solid #8ab4f8', borderRadius: 8, background: '#fff', color: '#174ea6', fontWeight: 900 }}
+                style={{ padding: '8px 12px', border: '1px solid #8ab4f8', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 900 }}
                 title="Copy a protected whole-assignment review prompt for ChatGPT, Claude, Gemini, or another AI."
               >
                 Copy AI Weight Review
@@ -487,7 +487,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                     type="button"
                     onClick={copySafeRepairPackRequest}
                     disabled={repairBusy || saving}
-                    style={{ padding: '8px 12px', border: '1px solid #81c995', borderRadius: 8, background: '#fff', color: '#137333', fontWeight: 900 }}
+                    style={{ padding: '8px 12px', border: '1px solid #81c995', borderRadius: 8, background: 'var(--mm-surface)', color: '#137333', fontWeight: 900 }}
                     title="Copy the exact MathMaster Safe Live Repair Pack contract plus the protected live questions for an AI."
                   >
                     Copy Safe Repair Pack Prompt
@@ -543,7 +543,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 7px', border: '1px solid #cbd1da', borderRadius: 7, background: '#fff', fontSize: 11, fontWeight: 900, color: '#3c4043' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 7px', border: '1px solid #cbd1da', borderRadius: 7, background: 'var(--mm-surface)', fontSize: 11, fontWeight: 900, color: '#3c4043' }}>
                         Grade weight
                         <input
                           aria-label={`Grade weight for Question ${index + 1}`}
@@ -609,7 +609,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                           <button type="button" onClick={pasteAiReplacement} disabled={repairBusy} style={{ padding: '9px 13px', border: 0, borderRadius: 7, background: '#188038', color: '#fff', fontWeight: 800 }}>
                             {repairBusy ? 'Checking…' : 'Paste AI Replacement'}
                           </button>
-                          <button type="button" onClick={() => { setRepairIndex(null); setRepairInstruction(''); setError(''); }} disabled={repairBusy} style={{ padding: '9px 13px', border: '1px solid #cbd1da', borderRadius: 7, background: '#fff', fontWeight: 800 }}>
+                          <button type="button" onClick={() => { setRepairIndex(null); setRepairInstruction(''); setError(''); }} disabled={repairBusy} style={{ padding: '9px 13px', border: '1px solid #cbd1da', borderRadius: 7, background: 'var(--mm-surface)', fontWeight: 800 }}>
                             Cancel
                           </button>
                         </div>
@@ -629,7 +629,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
           </div>
           {error && <div style={{ marginTop: '15px', padding: '12px', borderRadius: '8px', background: '#fce8e6', color: '#a50e0e', fontWeight: 800 }}>{error}</div>}
         </div>
-        <footer style={{ padding: '16px 24px', borderTop: '1px solid #e1e5ea', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}><button type="button" onClick={onClose} style={{ padding: '10px 16px', border: '1px solid #cbd1da', borderRadius: '8px', background: '#fff', fontWeight: 800 }}>Cancel</button><button type="button" onClick={save} disabled={saving} style={{ padding: '10px 18px', border: 0, borderRadius: '8px', background: saving ? '#9aa0a6' : '#1a73e8', color: '#fff', fontWeight: 900 }}>{saving ? 'Saving…' : 'Save Assignment Questions'}</button></footer>
+        <footer style={{ padding: '16px 24px', borderTop: '1px solid #e1e5ea', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}><button type="button" onClick={onClose} style={{ padding: '10px 16px', border: '1px solid #cbd1da', borderRadius: '8px', background: 'var(--mm-surface)', fontWeight: 800 }}>Cancel</button><button type="button" onClick={save} disabled={saving} style={{ padding: '10px 18px', border: 0, borderRadius: '8px', background: saving ? '#9aa0a6' : '#1a73e8', color: '#fff', fontWeight: 900 }}>{saving ? 'Saving…' : 'Save Assignment Questions'}</button></footer>
       </section>
     </div>
   );

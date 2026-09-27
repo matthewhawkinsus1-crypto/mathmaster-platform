@@ -65,7 +65,7 @@ export default function FullAssignmentAudit({ assignmentV5, repairCenterModel, a
     }
   };
 
-  return <section aria-label="Full Assignment Audit" style={{ marginTop: 14, padding: 14, border: '2px solid #7b1fa2', borderRadius: 12, background: '#fff' }}>
+  return <section aria-label="Full Assignment Audit" style={{ marginTop: 14, padding: 14, border: '2px solid #7b1fa2', borderRadius: 12, background: 'var(--mm-surface)' }}>
     <h3 style={{ margin: 0, color: '#6a1b9a' }}>Full Assignment Audit · elevated maintenance</h3>
     {step === 'idle' && <button type="button" onClick={() => setStep('warning1')} style={{ marginTop: 10 }}>Full Assignment Audit</button>}
     {step === 'warning1' && <div role="alertdialog" aria-label="Full Assignment Repair warning"><h4>Full Assignment Repair</h4><p>This tool can inspect and propose changes to every question in this assignment, including questions that have not been flagged by a teacher.</p><p>You are operating as an Administrator or Designated Repairer. Changes may affect an assignment used by other teachers and classes.</p><p>The audit will not automatically modify the assignment. You will review proposed changes before they can be committed.</p><button type="button" onClick={copyPackage}>Continue to Full Audit</button> <button type="button" onClick={() => setStep('idle')}>Cancel</button></div>}

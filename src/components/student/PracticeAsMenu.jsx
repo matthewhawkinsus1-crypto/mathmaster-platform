@@ -54,7 +54,7 @@ export default function PracticeAsMenu({
             background: activeFramework === 'course' ? '#e8f0fe' : '#fff', cursor: 'pointer',
           }}
         >
-          <span style={{ display: 'block', fontWeight: 800, color: '#202124', fontSize: 14 }}>Course Practice</span>
+          <span style={{ display: 'block', fontWeight: 800, color: 'var(--mm-text-strong)', fontSize: 14 }}>Course Practice</span>
           <span style={{ display: 'block', color: '#5f6368', fontSize: 12, marginTop: 2 }}>The usual way this skill appears in class.</span>
         </button>
 
@@ -71,7 +71,7 @@ export default function PracticeAsMenu({
                 style={{ width: '100%', textAlign: 'left', padding: '11px 13px', minHeight: 76, border: 0, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
               >
                 <span style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span style={{ fontWeight: 800, color: '#202124', fontSize: 14 }}>{pathway.label}</span>
+                  <span style={{ fontWeight: 800, color: 'var(--mm-text-strong)', fontSize: 14 }}>{pathway.label}</span>
                   <span style={{ fontSize: 10, fontWeight: 900, padding: '1px 7px', borderRadius: 999, color: note.color, background: note.background }}>
                     {note.text}
                   </span>

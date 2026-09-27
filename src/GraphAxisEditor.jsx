@@ -19,7 +19,7 @@ const targetStyle = (status, active) => ({
 const chipStyle = (selected) => ({
   border: `2px solid ${selected ? '#1a73e8' : '#bdc7d6'}`,
   background: selected ? '#e8f0fe' : '#fff',
-  color: '#202124',
+  color: 'var(--mm-text-strong)',
   borderRadius: '999px',
   padding: '8px 12px',
   fontWeight: 800,

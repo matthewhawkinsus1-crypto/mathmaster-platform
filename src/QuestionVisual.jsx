@@ -85,7 +85,7 @@ export default function QuestionVisual({ question, includeGraph = true, includeT
                   <th
                     key={column.key}
                     scope="col"
-                    style={{ border: '1px solid #dadce0', background: '#f1f3f4', padding: '10px 18px', color: '#202124', textAlign: 'center' }}
+                    style={{ border: '1px solid #dadce0', background: '#f1f3f4', padding: '10px 18px', color: 'var(--mm-text-strong)', textAlign: 'center' }}
                   >
                     {column.label}
                   </th>
@@ -98,7 +98,7 @@ export default function QuestionVisual({ question, includeGraph = true, includeT
                   {row.map((cell, cellIndex) => (
                     <td
                       key={displayTable.columns[cellIndex].key}
-                      style={{ border: '1px solid #dadce0', padding: '10px 18px', textAlign: 'center', color: '#202124', background: '#fff' }}
+                      style={{ border: '1px solid #dadce0', padding: '10px 18px', textAlign: 'center', color: 'var(--mm-text-strong)', background: 'var(--mm-surface)' }}
                     >
                       {displayCell(cell)}
                     </td>

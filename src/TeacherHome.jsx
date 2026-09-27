@@ -215,7 +215,7 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
                     ? 'Closed for new responses · saved work remains visible'
                     : 'Open now · closes automatically when the timer reaches zero';
               return (
-                <div key={assignment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px', borderRadius: 9, background: '#fff' }}>
+                <div key={assignment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px', borderRadius: 9, background: 'var(--mm-surface)' }}>
                   <div>
                     <strong>{assignment.title}</strong>
                     <div style={{ marginTop: 3, fontSize: 12 }}>
@@ -254,7 +254,7 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
                         value={timerMinutes}
                         disabled={warmupControlBusyKey === busyKey}
                         onChange={(event) => setWarmupTimerMinutesByKey((current) => ({ ...current, [busyKey]: Number(event.target.value) }))}
-                        style={{ minHeight: 40, borderRadius: 8, border: '1px solid #d3a21a', background: '#fff', padding: '0 8px', fontWeight: 800 }}
+                        style={{ minHeight: 40, borderRadius: 8, border: '1px solid #d3a21a', background: 'var(--mm-surface)', padding: '0 8px', fontWeight: 800 }}
                       >
                         {[3, 5, 7, 10, 15, 20].map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}
                       </select>
@@ -263,7 +263,7 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
                       type="button"
                       disabled={warmupControlBusyKey === busyKey}
                       onClick={() => onToggleWarmup?.(assignment, classContextInSession, { action: 'timer', autoCloseMinutes: timerMinutes })}
-                      style={{ minHeight: 40, padding: '8px 13px', border: '1px solid #188038', borderRadius: 8, background: '#fff', color: '#137333', fontWeight: 900, cursor: warmupControlBusyKey === busyKey ? 'wait' : 'pointer' }}
+                      style={{ minHeight: 40, padding: '8px 13px', border: '1px solid #188038', borderRadius: 8, background: 'var(--mm-surface)', color: '#137333', fontWeight: 900, cursor: warmupControlBusyKey === busyKey ? 'wait' : 'pointer' }}
                     >
                       {needsOpenToday
                         ? `Open for ${timerMinutes} min`
@@ -290,7 +290,7 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
               const busyKey = `${assignment.id}:${classIdInSession || periodInSession}:${role}`;
               const label = role === 'practice' ? 'Practice' : 'Classwork';
               return (
-                <div key={`${assignment.id}:${role}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px', borderRadius: 9, background: '#fff' }}>
+                <div key={`${assignment.id}:${role}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px', borderRadius: 9, background: 'var(--mm-surface)' }}>
                   <div>
                     <strong>{assignment.title}</strong>
                     <div style={{ marginTop: 3, fontSize: 12 }}><strong>{label}:</strong> {state.isOpen ? 'open for new responses' : state.override?.state === 'closed' ? 'closed by teacher · saved work remains visible' : 'starts locked · waiting for teacher'}</div>
@@ -315,7 +315,7 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
               const attemptBonus = Number(assignment?.dol?.attemptGrantsByClassId?.[classIdInSession]?.extraAttempts || 0);
               const recoveryAvailable = state.status === 'ended' && state.canRecover === true;
               return (
-                <div key={assignment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px', borderRadius: 9, background: '#fff' }}>
+                <div key={assignment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px', borderRadius: 9, background: 'var(--mm-surface)' }}>
                   <div>
                     <strong>{assignment.title}</strong>
                     <div style={{ marginTop: 3, fontSize: 12 }}>
@@ -344,7 +344,7 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
                     ) : (
                       <span style={{ padding: '5px 9px', borderRadius: 999, background: '#e6f4ea', color: '#137333', fontSize: 11, fontWeight: 900 }}>OPEN NOW</span>
                     )}
-                    <button type="button" disabled={dolAttemptGrantBusyKey === busyKey} onClick={() => onGrantDOLAttempt?.(assignment, classContextInSession)} style={{ minHeight: 40, padding: '8px 13px', border: '1px solid #681da8', borderRadius: 8, background: '#fff', color: '#681da8', fontWeight: 900, cursor: dolAttemptGrantBusyKey === busyKey ? 'wait' : 'pointer' }}>
+                    <button type="button" disabled={dolAttemptGrantBusyKey === busyKey} onClick={() => onGrantDOLAttempt?.(assignment, classContextInSession)} style={{ minHeight: 40, padding: '8px 13px', border: '1px solid #681da8', borderRadius: 8, background: 'var(--mm-surface)', color: '#681da8', fontWeight: 900, cursor: dolAttemptGrantBusyKey === busyKey ? 'wait' : 'pointer' }}>
                       {dolAttemptGrantBusyKey === busyKey ? 'Granting…' : `Grant +1 attempt${attemptBonus ? ` (now +${attemptBonus})` : ''}`}
                     </button>
                   </div>
@@ -463,12 +463,12 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
                 padding: '14px 16px',
                 borderRadius: '10px',
                 border: isNow ? '2px solid #1a73e8' : '1px solid #dadce0',
-                background: '#fff',
+                background: 'var(--mm-surface)',
                 cursor: 'pointer',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <strong style={{ fontSize: '15px', color: '#202124' }}>{name || period}</strong>{name && name !== period ? <span style={{ fontSize: '12px', color: '#80868b' }}>{period}</span> : null}
+                <strong style={{ fontSize: '15px', color: 'var(--mm-text-strong)' }}>{name || period}</strong>{name && name !== period ? <span style={{ fontSize: '12px', color: '#80868b' }}>{period}</span> : null}
                 {isNow && (
                   <span style={{ fontSize: '11px', fontWeight: 900, padding: '3px 8px', borderRadius: '999px', background: '#1a73e8', color: '#fff' }}>
                     NOW

@@ -63,7 +63,7 @@ const CARD = {
   padding: '18px 18px 20px',
   border: '1px solid #dadce0',
   borderRadius: 14,
-  background: '#fff',
+  background: 'var(--mm-surface)',
   textAlign: 'left',
   boxShadow: '0 3px 14px rgba(0,0,0,.05)',
 };
@@ -214,7 +214,7 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
             margin: '9px 0 0', padding: '11px 13px', borderRadius: 11,
             background: challengeTier >= 2 ? '#f3ecfd' : '#e8f0fe',
             border: `2px solid ${challengeTier >= 2 ? '#7e57c2' : '#1a73e8'}`,
-            color: '#202124', lineHeight: 1.45,
+            color: 'var(--mm-text-strong)', lineHeight: 1.45,
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' }}>
@@ -648,7 +648,7 @@ export const PathSessionPlayer = ({
               <button
                 type="button"
                 onClick={() => setHintOpen(true)}
-                style={{ minHeight: 40, padding: '0 14px', border: '1px solid #c5d5ef', borderRadius: 8, background: '#fff', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
+                style={{ minHeight: 40, padding: '0 14px', border: '1px solid #c5d5ef', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
               >
                 Show me something to think about
               </button>
