@@ -1448,6 +1448,16 @@
   padding: 16px 14px 20px;
 }
 
+/* Phone / touch: "Reset work" resets this one step (the question keeps its
+   own Reset), so it sits beside the hint switch instead of taking a full-width
+   row above the board. */
+@media (max-width: 768px), (pointer: coarse) {
+  .algebra-embedded .algebra-reset-work {
+    width: auto;
+    min-height: 44px;
+  }
+}
+
 @media (min-width: 621px) {
   .algebra-embedded .algebra-rail {
     gap: 6px;

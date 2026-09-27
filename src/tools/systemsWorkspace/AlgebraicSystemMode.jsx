@@ -194,12 +194,17 @@ export function SystemsWorkTrail({ stages = [] }) {
         {stages.map((stage, index) => {
           const active = activeIndex === index || (activeIndex < 0 && index === stages.length - 1);
           return (
+            // On a phone only the current step keeps its visible name (#369);
+            // every step keeps it for assistive tech, with its state spoken
+            // rather than carried by the hidden ✓ alone.
             <div
               key={stage.id}
               className={`mathmaster-systems-work-step${stage.complete ? ' is-complete' : ''}${active ? ' is-active' : ''}`}
+              aria-current={active ? 'step' : undefined}
+              title={stage.label}
             >
               <span aria-hidden="true">{stage.complete ? '✓' : index + 1}</span>
-              <strong>{stage.label}</strong>
+              <strong>{stage.label}{stage.complete ? <span className="mathmaster-systems-work-step-status">, done</span> : null}</strong>
             </div>
           );
         })}
