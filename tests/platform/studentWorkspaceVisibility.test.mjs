@@ -289,6 +289,15 @@ test('Work View phone controls use short labels and share one row', () => {
   assert.match(read('src/QuestionEngine.jsx'), /shortLabel: resettingQuestion \? 'Resetting…' : '↺ Reset',/);
 });
 
+// iPhone landscape, 844×390: seven full-size actions need the side rail's
+// vertical space, not smaller touch targets. With the default 8px flex gap the
+// final 44px action began at y=375 and was clipped by the viewport.
+test('Work View landscape rail fits seven full-size controls', () => {
+  const css = read('src/components/common/WorkViewShell.css');
+  assert.match(css, /\[data-open="true"\]\[data-layout="mobile"\]\[data-controls="side"\] \.mathmaster-work-view-actions \{[\s\S]*?gap: 2px;[\s\S]*?padding: 6px/);
+  assert.match(css, /\.mathmaster-work-view-header button, \.mathmaster-work-view-actions button \{ min-height: 44px;/);
+});
+
 // Live QA round 2, 390×844: after a correct answer "Next Question" was at
 // y=939, clipped by the fixed-height question container — unreachable.
 test('a finished question puts its next step in the action bar', () => {

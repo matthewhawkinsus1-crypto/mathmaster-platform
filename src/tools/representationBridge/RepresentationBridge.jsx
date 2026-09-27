@@ -275,7 +275,11 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
     </div>
   );
 
-  const gridTwoColumn = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 16, marginTop: 16 };
+  // The preferred panel width is 360px, but the track must still be allowed to
+  // fit a narrower Work View surface. A hard 360px minimum made the grid wider
+  // than a 360px Android viewport after the shell insets, clipping controls in
+  // both panel rows instead of stacking them within the available width.
+  const gridTwoColumn = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(360px, 100%), 1fr))', gap: 16, marginTop: 16 };
 
   return (
     <ToolShell
