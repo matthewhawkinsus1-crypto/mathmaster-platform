@@ -69,6 +69,16 @@ export const strengthenTwoChoiceSet = (options = []) => {
  * shuffle is important for student trust: choices must not jump around after an
  * incorrect attempt, while they also should not telegraph the key.
  */
+/**
+ * Explicit finite choices are a closed authoring contract. Strengthening is
+ * only appropriate for a platform-inferred choice set where no options were
+ * supplied by the author. Injecting "both" / "cannot be determined" into an
+ * authored Yes/No question changes the question rather than improving it.
+ */
+export const prepareFiniteChoiceSet = (options = [], { authored = false } = {}) => (
+  authored ? (Array.isArray(options) ? [...options] : []) : strengthenTwoChoiceSet(options)
+);
+
 export const stableShuffleChoices = (options = [], seed = '') => {
   const source = Array.isArray(options) ? [...options] : [];
   if (source.length < 2) return source;
