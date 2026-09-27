@@ -110,3 +110,51 @@ test('V5 compare-plus-plot intent stays a comparison while preserving the plotti
   assert.equal(compiled.compareN, 7);
   assert.deepEqual(compiled.studentActions, ['plotSequence', 'compareSequences']);
 });
+
+
+test('V5 sequence metadata does not replace explicitly authored response fields', () => {
+  const compiled = compileAuthoringIntentV5({
+    schemaVersion: 5,
+    assignment: { title: 'Exact sequence responses', courseId: 'algebra1' },
+    sections: [{
+      role: 'practice',
+      questions: [{
+        standard: 'A.12C',
+        prompt: 'Find a₅ and a₉.',
+        studentActions: ['multipleResponses'],
+        sequence: { kind: 'arithmetic', first: 23, difference: -5 },
+        answerFields: [
+          { id: 'a5', label: 'a₅', answer: '3', inputProfile: 'number' },
+          { id: 'a9', label: 'a₉', answer: '-17', inputProfile: 'number' },
+        ],
+      }],
+    }],
+  }).package.sections[0].questions[0];
+
+  assert.equal(compiled.type, 'multiAnswer');
+  assert.deepEqual(compiled.answerFields.map((field) => field.id), ['a5', 'a9']);
+  assert.deepEqual(compiled.sequence, { kind: 'arithmetic', first: 23, difference: -5 });
+  assert.deepEqual(compiled.studentActions, ['multipleResponses']);
+});
+
+test('semantic sequence actions still select SequenceExplorer and preserve requested target', () => {
+  const compiled = compileAuthoringIntentV5({
+    schemaVersion: 5,
+    assignment: { title: 'Semantic sequence target', courseId: 'algebra1' },
+    sections: [{
+      role: 'practice',
+      questions: [{
+        standard: 'A.12D',
+        prompt: 'Write an explicit rule and use it to find a₉.',
+        studentActions: ['writeExplicit', 'findSequenceTerm'],
+        sequence: { kind: 'arithmetic', first: 23, difference: -5 },
+        targetN: 9,
+      }],
+    }],
+  }).package.sections[0].questions[0];
+
+  assert.equal(compiled.type, 'sequenceExplorer');
+  assert.equal(compiled.mode, 'ruleBridge');
+  assert.equal(compiled.targetN, 9);
+  assert.deepEqual(compiled.studentActions, ['writeExplicit', 'findSequenceTerm']);
+});
