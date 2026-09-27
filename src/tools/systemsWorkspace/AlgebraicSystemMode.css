@@ -947,7 +947,7 @@
   font-weight: 700;
 }
 
-.mathmaster-systems-verification-given > :last-child {
+.mathmaster-systems-verification-given-value {
   display: flex;
   align-items: center;
   min-height: 44px;

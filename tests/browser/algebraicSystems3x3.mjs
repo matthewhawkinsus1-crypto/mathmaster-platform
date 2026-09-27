@@ -437,15 +437,23 @@ const runFull3x3 = async (context, scope) => {
     // One wrong placement first: the guard still works here.
     await placeValue(page, 'click', tokenFor('x'), card('E1').locator('[data-variable="y"]'));
     expect(journey, (await errorText(page)).some((text) => /different variable/.test(text)), 'placing x on y during verification was not rejected');
-    const sides = { E1: ['6', '6'], E2: ['9', '9'], E3: ['4', '4'] };
-    for (const [id, [left, right]] of Object.entries(sides)) {
-      for (const [index, name] of ['x', 'y', 'z'].entries()) {
-        await placeValue(page, index % 2 ? 'click' : 'drag', tokenFor(name), card(id).locator(`[data-variable="${name}"]`));
-      }
-      if (id === 'E2') await leaveAndReturn(page);
-      await setMathField(page, page.locator(`math-field[aria-label="Equation ${id.slice(1)} left side value"]`), left);
-      await setMathField(page, page.locator(`math-field[aria-label="Equation ${id.slice(1)} right side value"]`), right);
-      await card(id).locator('button', { hasText: `Check equation ${id.slice(1)}` }).click();
+    // #369: each value is placed ONCE — into any card, by drag or by click —
+    // and goes into every original equation with that variable. A right side
+    // that is already a number is shown as given; the left side of each
+    // equation is still the student's to simplify and check.
+    const sides = { E1: '6', E2: '9', E3: '4' };
+    const placements = [['x', 'E1', 'drag'], ['y', 'E2', 'click'], ['z', 'E3', 'drag']];
+    for (const [name, id, mode] of placements) {
+      await placeValue(page, mode, tokenFor(name), card(id).locator(`[data-variable="${name}"]`));
+    }
+    const substituted = await verify.locator('[data-verify-id]').filter({ hasText: 'Values substituted' }).count();
+    expect(journey, substituted === 3, `three placements substituted into ${substituted} of 3 original equations`);
+    await leaveAndReturn(page);
+    for (const [id, left] of Object.entries(sides)) {
+      const n = id.slice(1);
+      expect(journey, (await page.locator(`math-field[aria-label="Equation ${n} right side value"]`).count()) === 0 && (await card(id).locator('[data-given-side="right"]').count()) === 1, `${id}: the numeric right side still has to be retyped`);
+      await setMathField(page, page.locator(`math-field[aria-label="Equation ${n} left side value"]`), left);
+      await card(id).locator('button', { hasText: `Check equation ${n}` }).click();
       await settle(page, 300);
       expect(journey, /Both sides check out/.test(await card(id).innerText()), `${id} did not verify`);
     }

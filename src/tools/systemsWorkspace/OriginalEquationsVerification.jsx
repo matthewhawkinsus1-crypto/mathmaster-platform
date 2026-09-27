@@ -95,7 +95,9 @@ export default function OriginalEquationsVerification({
                     {['left', 'right'].map((side) => (given[side] != null ? (
                       <div key={side} className="mathmaster-systems-verification-given" data-given-side={side}>
                         <span>{SIDE_NAMES[side]}</span>
-                        <MathDisplay value={given[side]} format="ascii-math" inline />
+                        <div className="mathmaster-systems-verification-given-value">
+                          <MathDisplay value={given[side]} format="ascii-math" inline ariaLabel={`${SIDE_NAMES[side]}, as written: ${given[side]}`} />
+                        </div>
                       </div>
                     ) : (
                       <label key={side} className="mathmaster-reduction-field">
