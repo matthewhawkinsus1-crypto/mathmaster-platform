@@ -105,3 +105,27 @@ Evidence: `docs/qa/screenshots/361/P01…P02`, `P18`, `P19`, `P23`; after-fix `L
 | C21 | Work View rail | Opened Work View on CW2 | The side rail lists two non-actionable chips ("Scale factors, combined equations, and the final solution", "All three equations and every algebraic move") | Noise beside the actions | Show only actions | No | V · 1366 Work View |
 
 Evidence: `docs/qa/screenshots/361/P03…P17`; after-fix `L01`, `L02`, `L05`–`L08`.
+
+---
+
+## Independent Practice — eliminate, reduce, solve, verify
+
+| # | Stage | What I did | What happened | Why it matters | Proposed | Done? | Cat · Device |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Pr1 | PR1, reduced 2×2 scale step | Opened *Scale equation* on R₂ (4x − y = −1), placed ×2 | Placeholders `8x`, `-2y`, `-2` (P19); the same row had said "No scaling needed" (P18). Reconfirmed on PR5: `\text{-4x}`, `\text{8y}`, `\text{-16}` | Same as W3/W4 — every 2×2 scale step does the multiplication for the student | Neutral placeholders and wording | **Yes** | P · 1366 |
+| Pr2 | PR1, mid round 2 | Marked one cancelling term, **refreshed** | The page reloaded to the student dashboard. *Continue* opened locked Warm-Up Q1 (W1). On Practice Q1 the work was restored **exactly** — R₁, pair, operation, the one marked term | Drafts are solid; navigation back to them is not | Smart resume (W1) | No | S · 1366 |
+| Pr3 | Assignments page after Classwork | Looked for the assignment | It moved from *Upcoming* to **Completed** while labelled "IN PROGRESS · 3 of 13" | A student can think the assignment is done | Keep in-progress work under Active | No | S/V · 1366 |
+| Pr4 | PR2 method choice | Opened PR2 | "How will you solve this system?" with two buttons and **no equations on screen**, while the prompt says "based on the structure you see" (P20) | The decision the question is about is made blind | Show the three equations on the method screen | **Yes** | I/V · 1366 |
+| Pr5 | PR2 by elimination | Eliminate z, Eq 1 & Eq 2 | Dead end (C9). In this system every variable has at most one pair without scaling, so no complete elimination route exists in production | The "choose the method" question secretly has only one working method | C9 fix | **Yes** | P · 1366 |
+| Pr6 | PR2 *Change method* | Switched to substitution | Worked; each method keeps its own saved work | Healthy recovery from a strategic choice | — | — | — |
+| Pr7 | PR2 isolation card | Isolated y | "You may turn it into the substitution **token** now…", button "Use this form as the **token**" (P21) | Issue asked for no "token" | "You can substitute it as it is…", "Use this expression" | **Yes** | I · 1366 |
+| Pr8 | PR2 reduced 2×2 by substitution | Isolated x as −(−5z − 13) (skipped the optional simplify), substituted into −7x + 6z = −4 | Step Algebra showed **7(−5z − 13) + 6z** — the two negatives were merged for the student | A sign step the student did not perform | Keep the substituted group as written | No | P · 1366 |
+| Pr9 | PR2 *Simplify arithmetic* | 3(−2x) → typed −6x | "Enter one number, such as 15 or −6" — only "−6" is accepted | The natural classroom answer is rejected | Accept the full term | No | P · 1366 |
+| Pr10 | PR3 (honors, "requires thoughtful scaling") | Every route | Unfinishable by elimination in production (C9) | The honors question the lesson builds to cannot be done | C9 fix; the browser driver now solves it end to end (L03, L04) | **Yes** | P · 1366 |
+| Pr11 | PR4 | Opened after PR3 | "Use the 3D model for the system you just solved" — a student blocked on PR3 meets a question about it; the reveal printed PR3's answer (1, 2, −1) and "meet at exactly one point" (the correct option) | Authoring dependency on an unfinishable question; reveal answers the question | Content: stand-alone wording. Platform: reveal marks, does not classify (C19) | Reveal: **Yes** · content: No | A/P · 1366 |
+| Pr12 | PR5 back-substitution | y = −1 into 4x + 3y = 5; x = 2, y = −1 into x + y + z = 4 | "4x + 3 · −1 = 5" (P23); "2 + (−1) + z" shown as "2 − 1 + z" (P24) — the sign step done for the student | Classroom notation and agency | Keep "3(−1)", "2 + (−1)" | **Yes** | P · 1366 |
+| Pr13 | PR5 at 390×844 | Chose z and a pair on a phone | The step trail takes four rows (~250 px); with the task card and bottom bar ~420 px is left for work; the pair cards stack readably (P25) | Phone work area is mostly chrome | Compact progress line on phones (not done); the new round board keeps columns and stacks labelled entry fields (L10) | Partly | V · 390 |
+| Pr14 | PR6 CCMR bridge | Solved the 2×2 | Healthy and appropriately short | — | — | — | — |
+| Pr15 | Section load | Counted interactions | A 3×3 elimination solve took me ~85 interactions (CW2); Practice has four full 3×3 solves (PR1, PR2, PR3, PR5) plus a 3D item and a 2×2, recommended 48 min. PR2 by substitution was the longest (~110, two distributions and two standard forms) | Heavy but achievable for strong students; verification is ~20 % of each solve | Right-size verification (W7/C17) before trimming mathematics | No | I |
+
+Evidence: `docs/qa/screenshots/361/P18…P25`; after-fix `L03`, `L04`, `L09`, `L10`.
