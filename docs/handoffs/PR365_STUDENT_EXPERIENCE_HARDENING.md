@@ -1,0 +1,48 @@
+# PR #365 student-experience audit and hardening
+
+This report records the independent student-facing audit evidence associated with PR #365 and the focused hardening added on the PR branch. No production data or grades were altered in this follow-up.
+
+## Verification status on the current PR build
+
+The latest PR head inspected was `d2eec04a956444af18001a4549e8cf246c9f337f`. Its Vercel preview opened in the already-running Chrome window at `https://mathmaster-platform-6jptj7rmq-hawkins-math.vercel.app/`. At a 1365×768 viewport it displayed the MathMaster sign-in screen and the notice that the preview copy no longer receives updates. I did not sign in or enter a student PIN. Therefore the four UI changes below have **not** been re-run against this preview build in this session; the live student audit evidence below is from the previously completed audit on the production/base build and is not represented as proof for this PR build. A manual sign-in by the account owner on the preview is required before that re-run.
+
+## Student-experience findings
+
+| Stage and exact prompt/task | What happened and instructional impact | PR change | Deliberately unchanged |
+| --- | --- | --- | --- |
+| Classwork, Q1, three-plane system: identify what the solution represents (the correct choice is a point common to all three planes). | The 3D planes could be rotated and hidden/revealed. Choosing “A point that only has to lie on two planes” produced only “Not yet” plus a repeated prompt. This does not identify the misconception—whether the student thinks two planes suffice or misunderstands the intersection—and offers no useful next step. The correct choice earned credit. | No feedback redesign in this PR. | Wrong-answer feedback language and attempt policy remain unchanged. |
+| Classwork, Q2, choose a method and reduce the 3×3 system. | The method-choice prompt originally appeared without the equations, so students had to choose substitution/elimination without seeing whether coefficients or variables made one path easier. Showing the system beside method choices supports a reasoned strategy choice. | Rendered the equations during method selection in `Algebraic3SystemMode.jsx`. | Did not change strategy scoring, equation data, or the instructional sequence. |
+| Classwork, Q2, elimination route, first pairing attempt E1 and E3 to eliminate z. | The displayed multipliers were ×1 and the interface provided no scale control in that path. Adding did not cancel z; feedback correctly said a z term remained, but this route offered no productive scaling adjustment and the student had to reset/pick another pair. In a 3×3 task, students need to compare pairs and scale deliberately; a dead-end pair can make elimination look arbitrary. | No elimination-pair/multiplier redesign in this PR. | Equation-pair selection, multiplier controls, and recovery from a poor pair remain unchanged. |
+| Classwork, Q2, eliminate y using pairs E1/E2 and E2/E3; continue from 3×3 to 2×2. | This route reached two reduced equations while retaining the original system. The reduction kept the algebraic goal legible. In a reduction substep, a “keep as written and continue” message appeared alongside a required simplification step, which can make the success condition ambiguous. | No transition or simplification-flow change in this PR. | Distribution, cancellation, simplification prompts, and 3×3→2×2 transition remain unchanged. |
+| Classwork, Q2, Step Algebra and back-substitution. | Embedded Step Algebra introduced an additional mode/progress layer and duplicated progress indicators. The word “token” is implementation language rather than student-facing algebra language. A mismatched variable drop gave a specific correction; valid solved-value drops worked. | No Step Algebra or terminology redesign in this PR. | Embedded algebra, back-substitution interaction, and drag/drop prompts remain unchanged. |
+| Classwork, Q2, verify solution (3, 1, 5) in all three original equations. | Each solved-value token disarmed after one successful equation placement, requiring repeated reselection across the three original equations. Since the same value must be checked against each equation, repeated clicks add friction without adding mathematical reasoning. | Keep the value selected while any original equation still needs it; allow explicit toggle-off. This reduces the repeated selection cycle across the three equations. Added `verificationTokenNeeded` regression coverage for “still needed” and “all placed” states. | Did not change verification arithmetic, accepted values, or grading. |
+| Warm-Up, completion state after all Warm-Up items. | The active banner remained visible after Warm-Up completion, consuming space and suggesting work was still pending. | Hide the active banner once every Warm-Up item has a completed/expired status. | Did not change Warm-Up eligibility, deadlines, or completion status. |
+| DOL, assignment entry. | Warm-Up and DOL were locked outside the account’s instructional class window, so they could not be run as a student during that audit. This is an access limitation, not a confirmed defect in their student experience. | No access/scheduling changes. | No schedule, class window, or student state was bypassed. |
+
+## Viewports and persistence observed
+
+The prior visible-Chrome student audit used a 1366×768 laptop/Chromebook-like viewport and a 390×844 narrow mobile viewport. The 3D workspace had been too tall for short laptop screens; the PR caps its SVG height in normal and Work View layouts. At 390×844, the observed classwork page had no horizontal page overflow and selection-then-variable tap was a usable alternative to drag. Q1 completion and Q2 in-progress work resumed after refresh/re-entry on the production/base build. On this PR follow-up, the only current-preview viewport observation is the sign-in screen at 1365×768; no authenticated assignment layout was available to measure. Do not treat the four fixes as browser-verified on the PR build until that student re-run is completed.
+
+## CI failure triage
+
+| Check | Classification | Evidence and scope decision |
+| --- | --- | --- |
+| Universal Work View Stage 4 Certification | **B — pre-existing/out of PR scope** | The current PR run (`36287573395`) passes the Stage 4 contract and Chromebook, laptop, tablet portrait/landscape, and iPhone portrait jobs. Android-narrow fails because two `representationBridge` controls clip; iPhone-landscape reports clipping in `transformationsLab` and `graphing2`. These components and the certification harness are outside this PR's changed files. The prior PR run showed the same unrelated clipping. No platform fix was pulled into this PR. |
+| Interactive Capability Certification | **C — harness/run instability, not established as PR-caused** | The base `main` SHA `dd930cec` failed this long-running certification on run `36271324750`; PR head `da2ae668` passed and the latest head `d2eec04a` was still running at the time of this report. The PR changes are limited to the 3×3 student workspace, the Warm-Up banner, focused tests, and verification token-selection behavior. There is no evidence tying the base failure to this PR. Reclassify if the current run completes with a reproducible failure in a changed capability. |
+| Work View Browser Matrix | **B — pre-existing/out of PR scope** | Prior run `36284348848` remeasured 480 screenshots and found clipping for `transformations-plot` in `transformationsLab` and `graphing2-construct` in `graphing2`, both in iPhone landscape. The measured controls are outside this PR's changed tools. The base fixture was empty and CI remeasures with `--write`, so the failure reflects observed clipping in untouched tools, not evidence of a stale fixture or a 3×3 regression. The current-head matrix was still running at the time of this report. |
+
+These are scope classifications from changed-file comparison and available run logs, not claims that an identical main-branch browser matrix was available for every job. Current-head checks should be reviewed again before merge; unrelated clipping remains assigned outside PR #365.
+
+## Five highest-value remaining improvements
+
+1. Preserve usable Undo/alternate-path recovery after refresh; restored student work currently had Undo disabled, leaving Reset Question as the only back path.
+2. Make elimination pair selection recoverable: expose appropriate scaling/retry and explain why a pair cannot cancel the selected variable.
+3. Replace generic “Not yet” feedback with a misconception-targeted hint for the three-plane intersection question.
+4. Simplify embedded Step Algebra’s duplicate progress UI and replace “token” with student-facing language.
+5. Make keyboard submission and required simplification states consistent; Enter did not reliably check an equation, and the continue/simplify messaging was ambiguous.
+
+These recommendations are documented for the cross-audit synthesis and are intentionally not implemented in PR #365.
+
+## Regression coverage and checkpoint
+
+PR #365 includes source contracts for equations visible during method selection, verification token reuse, responsive 3D SVG bounds, and hiding the completed Warm-Up banner. Commit `d2eec04a` adds the behavior helper and focused test for retaining a solved value exactly while at least one of the original verification equations still needs it. The focused Node test command passed for `systemsWorkspaceSubstitutionReduction.test.mjs`, `systemsWorkspace3x3Mode.test.mjs`, and `warmupTeacherLiveControl.test.mjs`. The latest full platform CI check passed at this head.
