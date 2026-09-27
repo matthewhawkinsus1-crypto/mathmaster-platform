@@ -18,6 +18,16 @@
   justify-items: center;
 }
 
+.mathmaster-threeplane-viewport svg {
+  max-height: min(500px, 50vh);
+  max-width: min(500px, 50vh);
+}
+
+.mathmaster-work-view-surface[data-enlarged="true"] .mathmaster-threeplane-viewport svg {
+  max-height: min(720px, 75vh);
+  max-width: min(720px, 75vh);
+}
+
 .mathmaster-threeplane-legend {
   display: flex;
   align-items: center;
