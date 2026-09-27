@@ -1299,8 +1299,13 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
           // Scaling defaults to ×1, so "prepared" was ✓ before a target
           // was even chosen.
           complete: Boolean(selection.variable) && multipliersApplied,
+          // "R₁ as written · R₂ × 2" — it read "R₁ · 1   R₂ · 2" (#369).
           summary: selection.variable && multipliersApplied
-            ? (subsystem ? `${equationName(0)} · ${multipliers[0]}   ${equationName(1)} · ${multipliers[1]}` : `Eq. 1 · ${multipliers[0]}   Eq. 2 · ${multipliers[1]}`)
+            ? [0, 1].map((index) => {
+              const name = subsystem ? equationName(index) : `Eq. ${index + 1}`;
+              const factor = String(multipliers[index] ?? '1').trim();
+              return factor === '1' ? `${name} as written` : `${name} × ${factor.replace(/^-/, '−')}`;
+            }).join(' · ')
             : '',
         },
         {

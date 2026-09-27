@@ -84,3 +84,12 @@ test('embedded on a touch screen, "Reset work" is not a full-width row', () => {
   assert.match(body, /width:\s*auto/);
   assert.ok(Number(body.match(/min-height:\s*(\d+)px/)?.[1]) >= 44);
 });
+
+// The reduced 2×2's Prepare chip read "✓ R₁ · 1   R₂ · 1" — scale factors as
+// bare numbers after a dot. It names what happened to each equation instead.
+test('the Prepare chip says how each equation was scaled, in classroom notation', () => {
+  const prepare = region(systems, "id: 'prepare'", "id: 'combine'", 'Prepare stage');
+  assert.match(prepare, /`\$\{name\} as written`/);
+  assert.match(prepare, /`\$\{name\} × \$\{factor\.replace\(\/\^-\/, '−'\)\}`/);
+  assert.doesNotMatch(prepare, /· \$\{multipliers\[/);
+});
