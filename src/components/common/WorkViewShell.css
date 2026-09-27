@@ -169,6 +169,11 @@ html[data-mobile-keypad-open="true"] [data-open="true"][data-controls="bottom"] 
 }
 
 [data-open="true"][data-layout="mobile"][data-controls="side"] .mathmaster-work-view-actions {
+  /* Seven 44px actions fit in the 338px body left below the landscape-phone
+     header only when the rail uses a compact inter-control gutter. Keep the
+     targets full size; spending height on 8px desktop gutters made the final
+     action begin at the viewport edge and therefore made it unreachable. */
+  gap: 2px;
   padding: 6px max(6px, env(safe-area-inset-right)) 6px 6px;
 }
 
