@@ -22,7 +22,7 @@ import { sameIntervalNotation } from '../../../functions/shared/answerEquivalenc
 import { isAlgebraicallyEquivalent } from '../../grading/equivalence.js';
 import { activeStageIds, hasStageResponse } from './questionWorkflow.js';
 import { matchItems, readFigureMatch } from './figureMatch.js';
-import { canonicalizeFunctionExpression, evaluateModelAt, evaluateNumericValue, toEvaluableExpression } from './modelExpression.js';
+import { canonicalizeFunctionExpression, evaluateModelAt, evaluateNumericValue, parseFunctionModel, toEvaluableExpression } from './modelExpression.js';
 export { evaluateModelAt, evaluateNumericValue, toEvaluableExpression } from './modelExpression.js';
 
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -98,6 +98,89 @@ const definesAFunction = (text) => {
   return parts.length === 2 && FUNCTION_DEFINITION.test(normalizeMathAnswer(parts[0]));
 };
 
+const isBareExpression = (text) => {
+  const value = String(text ?? '').trim();
+  return value !== '' && !value.includes('=');
+};
+
+const MODEL_INPUT = '__mm_input__';
+
+/*
+ * A bare right side is a model too. The table and graph stages already read
+ * `5x+40` as the student's function (modelExpression), so the equation stage
+ * has to read it the same way: live QA (Algebra I DOL #2) built a correct
+ * table and graph from `5x+40`, then had the equation marked wrong against
+ * V(t)=40+5t. Only against a key that really is a rule in an input — `x = 3`
+ * is a solved equation, and a bare `3` does not say what was solved for.
+ */
+const sameModelWithBareSide = (response, expected) => {
+  if (!(isBareExpression(response) || isBareExpression(expected))) return false;
+  if (!(isBareExpression(response) || definesAFunction(response))) return false;
+  if (!(isBareExpression(expected) || definesAFunction(expected))) return false;
+  const student = canonicalizeFunctionExpression(response);
+  const key = canonicalizeFunctionExpression(expected);
+  return Boolean(student && key)
+    && key.includes(MODEL_INPUT)
+    && isAlgebraicallyEquivalent(student, key);
+};
+
+/*
+ * THE NAMES THE STUDENT WAS SHOWN.
+ *
+ * A domain or range written in inequality notation names a variable, and the
+ * key names the author's (`0 ≤ t ≤ 12`). But the workflow draws the student's
+ * graph on x and y axes and heads their table with the input letter of the
+ * function THEY wrote — so `0 ≤ x ≤ 12` is the domain the screen showed them.
+ * A renamed variable is accepted only when it is one of those names, and only
+ * on its own side: the input's name for a domain, the output's for a range.
+ * `40 ≤ x ≤ 100` for a range still describes the wrong quantity.
+ */
+const LATEX_WORD = /\\text\{[^}]*\}|\\[A-Za-z]+/g;
+
+const collapseFunctionCalls = (text) => String(text ?? '')
+  .replace(/([A-Za-z])\s*(?:\\left)?\(\s*([A-Za-z])\s*(?:\\right)?\)/g, '$1');
+
+const variableLetters = (text) => [...new Set(
+  (collapseFunctionCalls(text).replace(LATEX_WORD, ' ').match(/[A-Za-z]/g) || []),
+)];
+
+const renameVariable = (text, from, to) => collapseFunctionCalls(text)
+  .replace(/\\text\{[^}]*\}|\\[A-Za-z]+|[A-Za-z]/g, (token) => (token === from ? to : token));
+
+export const studentModelNames = (equationResponse) => {
+  const text = typeof equationResponse === 'string' ? equationResponse : '';
+  const model = parseFunctionModel(text);
+  if (!model) return { input: null, output: null };
+  const left = normalizeMathAnswer(text.split('=').length === 2 ? text.split('=')[0] : '');
+  const named = left.match(/^([a-z])(?:\([a-z]\))?$/i);
+  return {
+    input: model.variable,
+    // A bare expression is headed f(x) in the table built from it.
+    output: named ? named[1] : 'f',
+  };
+};
+
+const matchesWithShownVariable = (stage, response, expected, names) => {
+  if (typeof response !== 'string' || /\\text/.test(response)) return false;
+  const keyLetters = variableLetters(Array.isArray(expected) ? expected[0] : expected);
+  const studentLetters = variableLetters(response);
+  if (keyLetters.length !== 1 || studentLetters.length !== 1) return false;
+  const [keyLetter] = keyLetters;
+  const [studentLetter] = studentLetters;
+  if (keyLetter === studentLetter) return false;
+  const shown = stage.kind === 'domainInput'
+    ? ['x', names.input]
+    : ['y', names.output];
+  const other = stage.kind === 'domainInput'
+    ? ['y', names.output]
+    : ['x', names.input];
+  const lower = (value) => String(value ?? '').toLowerCase();
+  const isShown = shown.some((name) => name && lower(name) === lower(studentLetter));
+  const isOtherSide = other.some((name) => name && lower(name) === lower(studentLetter));
+  if (!isShown || isOtherSide) return false;
+  return matchesAnswer(stage, renameVariable(response, studentLetter, keyLetter), expected);
+};
+
 const matchesAnswer = (stage, response, expected) => {
   if (Array.isArray(expected)) return expected.some((option) => matchesAnswer(stage, response, option));
   if (stage?.notation === 'interval' || stage?.inputProfile === 'interval' || stage?.toolProfile === 'interval' || stage?.answerFormat === 'interval' || stage?.kind === 'intervalInput') {
@@ -130,6 +213,7 @@ const matchesAnswer = (stage, response, expected) => {
       const key = canonicalizeFunctionExpression(expected);
       return Boolean(student && key) && isAlgebraicallyEquivalent(student, key);
     }
+    if (stage.kind === 'equationInput') return sameModelWithBareSide(response, expected);
     return false;
   }
   if (typeof response === 'string' || typeof response === 'number') {
@@ -409,7 +493,7 @@ export const gradeFeaturePoints = (response, rule) => {
   };
 };
 
-export const gradeStage = ({ stage, rule, responses = {} }) => {
+export const gradeStage = ({ stage, rule, responses = {}, stages = [] }) => {
   const response = responses[stage.id];
   const answered = hasStageResponse(response);
   const weight = Number.isFinite(Number(stage?.scoreWeight)) && Number(stage.scoreWeight) > 0
@@ -505,7 +589,10 @@ export const gradeStage = ({ stage, rule, responses = {} }) => {
   if (expected === undefined) {
     return { ...base, graded: false, isCorrect: false, detail: 'Reviewed by your teacher.' };
   }
-  const isCorrect = matchesAnswer(stage, response, expected);
+  const equationStage = list(stages).find((candidate) => candidate?.kind === 'equationInput');
+  const isCorrect = matchesAnswer(stage, response, expected)
+    || (['domainInput', 'rangeInput'].includes(stage.kind)
+      && matchesWithShownVariable(stage, response, expected, studentModelNames(responses[equationStage?.id])));
   return { ...base, graded: true, isCorrect, credit: isCorrect ? 1 : 0, detail: isCorrect ? 'Correct.' : 'Not correct yet.' };
 };
 
@@ -527,7 +614,7 @@ export const gradeWorkflow = ({ stages = [], responses = {}, grading = null } = 
   // longer being asked.
   const active = activeStageIds(stages, responses);
   const asked = stages.filter((stage) => active.has(stage.id));
-  const parts = asked.map((stage) => gradeStage({ stage, rule: rules[stage.id], responses }));
+  const parts = asked.map((stage) => gradeStage({ stage, rule: rules[stage.id], responses, stages: asked }));
 
   const graded = parts.filter((part) => part.graded);
   const correct = graded.filter((part) => part.isCorrect);

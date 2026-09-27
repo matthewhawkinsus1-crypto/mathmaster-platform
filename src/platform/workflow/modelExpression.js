@@ -42,14 +42,29 @@ export const parseFunctionModel = (value) => {
   }
   if (!expression) return null;
 
-  // f(x), W(t), A(n), y, etc.  A bare expression defaults to x.
+  // f(x), W(t), A(n), y, etc.  A bare expression is a rule in its one letter
+  // (x when it has none, or more than one).
   // A modelling equation may also use a named dependent quantity without
   // function notation, e.g. V = 12t. In that case V is the OUTPUT name, not
   // the input variable. If the right side contains exactly one other symbol,
   // infer that symbol as the independent variable so V = 12t and V(t) = 12t
   // are treated as the same model.
   let variable = 'x';
-  if (left) {
+  if (!left) {
+    // A bare right side in one letter is a model in that letter: `5t+40` is
+    // a rule in t. Reading it as a rule in x left t undefined, so the table
+    // and graph built from it failed while the same model written as V(t)=…
+    // worked.
+    try {
+      const symbols = [...new Set(parse(expression)
+        .filter((node) => node?.isSymbolNode)
+        .map((node) => node.name)
+        .filter((name) => /^[A-Za-z]$/.test(name) && name.toLowerCase() !== 'e'))];
+      if (symbols.length === 1) variable = symbols[0];
+    } catch {
+      // Malformed input is rejected by the probe below.
+    }
+  } else {
     const call = left.match(/^[A-Za-z][A-Za-z0-9_]*\(([A-Za-z])\)$/);
     const bare = left.match(/^([A-Za-z])$/);
     if (call) {

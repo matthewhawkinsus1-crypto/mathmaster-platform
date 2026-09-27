@@ -358,3 +358,75 @@ test('workflow scoreWeight changes partial-credit contribution without changing 
   assert.equal(result.isCorrect, false);
   assert.equal(result.partialCreditPercent, 75);
 });
+
+// --- The names the student was shown ----------------------------------------
+//
+// Live QA, Algebra I District DOL #2, Classwork Q1. The key is written in the
+// context's letters (V(t)=40+5t, 0 ≤ t ≤ 12, 40 ≤ V ≤ 100), but the screen
+// offered "f(x) = …", built the table under x | f(x) and drew the graph on x
+// and y axes. A student who followed the screen built a correct table and
+// graph from `5x+40` and then lost the equation, the domain and the range.
+
+const TANK = {
+  type: 'relationshipModel',
+  recipe: { name: 'functionModeling', ask: ['quantities', 'equation', 'table', 'continuity', 'graph', 'domain', 'range'] },
+  prompt: 'A tank contains 40 gallons of water and is filled at 5 gallons per minute for 12 minutes.',
+  quantities: [{ id: 'time', label: 'Time', unit: 'minutes' }, { id: 'volume', label: 'Water volume', unit: 'gallons' }],
+  correctIndependentId: 'time',
+  correctDependentId: 'volume',
+  correctEquation: 'V(t)=40+5t',
+  tableXValues: [0, 4, 8, 12],
+  continuity: 'continuous',
+  notation: 'inequality',
+  correctDomain: '0 ≤ t ≤ 12',
+  correctRange: '40 ≤ V ≤ 100',
+};
+
+const gradeTank = (responses) => {
+  const { workflow, grading } = readComposedQuestion(TANK);
+  const parts = gradeWorkflow({ stages: workflow, responses, grading }).parts;
+  return Object.fromEntries(parts.map((part) => [part.id, part.isCorrect]));
+};
+
+// Domain and range branch on the continuity call; this situation is continuous.
+const tankStageId = (kind) => readComposedQuestion(TANK).workflow
+  .find((stage) => stage.kind === kind && (!stage.showWhen || stage.showWhen.is === 'continuous')).id;
+
+test('a bare right side is graded as the model the table and graph were built from', () => {
+  const equation = tankStageId('equationInput');
+  for (const written of ['5x+40', '5t+40', '40+5n', 'f(x)=5x+40', 'V=40+5t']) {
+    assert.equal(gradeTank({ [equation]: written })[equation], true, written);
+  }
+  assert.equal(gradeTank({ [equation]: '5x+41' })[equation], false);
+  assert.equal(gradeTank({ [equation]: '5x+40y' })[equation], false, 'two inputs is not this model');
+  assert.equal(evaluateModelAt('5t+40', 4), 60, 'a bare rule in t evaluates in t');
+});
+
+test('a bare number is not a solved equation', () => {
+  const stage = { id: 'solve', kind: 'equationInput' };
+  assert.equal(gradeStage({ stage, rule: 'x=3', responses: { solve: '3' } }).isCorrect, false);
+});
+
+test('a domain or range in the letters the screen used is the same answer', () => {
+  const [equation, domain, range] = ['equationInput', 'domainInput', 'rangeInput'].map(tankStageId);
+  const graded = (model, domainText, rangeText) => gradeTank({
+    [equation]: model, continuity: 'continuous', [domain]: domainText, [range]: rangeText,
+  });
+
+  // x and y are the graph's axes; the student's own function names count too.
+  assert.deepEqual(
+    [graded('5x+40', '0\\le x\\le12', '40\\le y\\le100')[domain], graded('5x+40', '0\\le x\\le12', '40\\le y\\le100')[range]],
+    [true, true],
+  );
+  assert.equal(graded('5x+40', '0\\le x\\le12', '40\\le f(x)\\le100')[range], true);
+  assert.equal(graded('g(n)=5n+40', '0\\le n\\le12', '40\\le g\\le100')[domain], true);
+  assert.equal(graded('5x+40', '0\\le t\\le12', '40\\le V\\le100')[domain], true, 'the key letters still work');
+
+  // The wrong side's name, a letter nobody showed, or the wrong numbers.
+  assert.equal(graded('5x+40', '0\\le y\\le12', '')[domain], false);
+  assert.equal(graded('5x+40', '', '40\\le x\\le100')[range], false);
+  assert.equal(graded('V(t)=5t+40', '', '40\\le t\\le100')[range], false);
+  assert.equal(graded('5x+40', '0\\le n\\le12', '')[domain], false);
+  assert.equal(graded('5x+40', '0\\le x\\le13', '')[domain], false);
+  assert.equal(graded('5x+40', '0<x\\le12', '')[domain], false, 'the endpoint is part of the answer');
+});
