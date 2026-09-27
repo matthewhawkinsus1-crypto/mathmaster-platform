@@ -12,6 +12,7 @@ import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
 import { Panel } from '../shared/ToolShell';
+import MathDisplay from '../../MathDisplay';
 import { normalizeAlgebraicSystemConfig } from './algebraicSystemsEngine.js';
 import SubstitutionReductionMode from './SubstitutionReductionMode.jsx';
 import EliminationReductionMode from './EliminationReductionMode.jsx';
@@ -63,6 +64,17 @@ export default function Algebraic3SystemMode({ questionData = {}, onAction, draf
     return (
       <EnlargeableFigure label="3×3 algebraic systems workspace" enlargeLabel="Enlarge 3×3 algebraic systems workspace" style={{ width: '100%' }}>
         <Panel title="3×3 algebraic systems">
+          <div className="mathmaster-reduction-reference" aria-label="Original equations" style={{ marginBottom: 16 }}>
+            <div className="mathmaster-reduction-reference-heading">Original equations</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, marginTop: 6 }}>
+              {config.equations.map((eq, index) => (
+                <div key={index} className="mathmaster-reduction-equation-card">
+                  <span className="mathmaster-reduction-equation-label">({index + 1})</span>
+                  <MathDisplay value={eq} format="ascii-math" />
+                </div>
+              ))}
+            </div>
+          </div>
           <p className="mathmaster-systems-substitution-direction">How will you solve this system?</p>
           <div className="mathmaster-reduction-button-row">
             <button type="button" onClick={() => chooseMethod('substitution')} style={choiceButtonStyle}>Substitution</button>

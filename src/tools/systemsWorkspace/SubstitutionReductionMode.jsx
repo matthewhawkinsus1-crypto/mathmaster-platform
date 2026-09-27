@@ -168,9 +168,21 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
     if (transition.state && transition.state !== reduction) setStoredReduction(transition.state);
     setReductionFeedback(transition.feedback || null);
     // A placement that landed puts the token down; a rejected one leaves it in
-    // hand so the student can try another location.
-    if (!transition.feedback && transition.state !== reduction) setArmedToken(null);
-  }, [reduction, setStoredReduction]);
+    // hand so the student can try another location. During verification, keep
+    // the solved value in hand until all equations have received that variable.
+    if (!transition.feedback && transition.state && transition.state !== reduction) {
+      setArmedToken((current) => {
+        if (!current) return null;
+        if (current.kind === 'verification') {
+          const stillNeeds = system.equations.some(
+            (eq) => !transition.state.verification?.[eq.id]?.placed?.[current.variable]
+          );
+          return stillNeeds ? current : null;
+        }
+        return null;
+      });
+    }
+  }, [reduction, setStoredReduction, system.equations]);
 
   /* ----------------------------------------------------- reduced subsystem */
   const reduced = useMemo(() => reducedSystem(reduction, system), [reduction, system]);
@@ -700,7 +712,7 @@ function BackSubstitution({ reduction, system, reducedSolution, backEquation, ar
               payloadValue={name}
               expression={`${name} = ${exactNumberText(reducedSolution[name])}`}
               label="Solved value"
-              onArm={() => setArmedToken({ kind: 'back', variable: name })}
+              onArm={() => setArmedToken((current) => (current?.kind === 'back' && current.variable === name ? null : { kind: 'back', variable: name }))}
               ariaLabel={`Pick up solved value ${exactNumberText(reducedSolution[name])} for ${name}`}
             />
           ))}
@@ -772,7 +784,7 @@ function Verification({ reduction, system, solution, sourceVariable, armedToken,
             payloadValue={name}
             expression={`${name} = ${display(name)}`}
             label="Solved value"
-            onArm={() => setArmedToken({ kind: 'verification', variable: name })}
+            onArm={() => setArmedToken((current) => (current?.kind === 'verification' && current.variable === name ? null : { kind: 'verification', variable: name }))}
             ariaLabel={`Pick up solved value ${display(name)} for ${name}`}
           />
         ))}
