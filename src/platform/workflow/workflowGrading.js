@@ -205,15 +205,17 @@ const matchesAnswer = (stage, response, expected) => {
   if (normalizeMathAnswer(response) === normalizeMathAnswer(expected)) return true;
   if (ALGEBRAIC_KINDS.has(stage.kind)) {
     if (isAlgebraicallyEquivalent(response, expected)) return true;
-    if (stage.kind === 'equationInput' && definesAFunction(response) && definesAFunction(expected)) {
-      // A modelling prompt asks for the relationship, not a particular choice
-      // of letters. Canonicalize the declared input variable before comparing:
-      // W(t)=18t, f(x)=18x and g(n)=18n are the same function model.
-      const student = canonicalizeFunctionExpression(response);
-      const key = canonicalizeFunctionExpression(expected);
-      return Boolean(student && key) && isAlgebraicallyEquivalent(student, key);
+    if (stage.kind === 'equationInput' && stage.acceptEquivalentFunctionRule === true) {
+      if (definesAFunction(response) && definesAFunction(expected)) {
+        // A MODELLING prompt asks for the relationship, not a particular choice
+        // of letters. Canonicalize the declared input variable before comparing:
+        // W(t)=18t, f(x)=18x and g(n)=18n are the same function model.
+        const student = canonicalizeFunctionExpression(response);
+        const key = canonicalizeFunctionExpression(expected);
+        return Boolean(student && key) && isAlgebraicallyEquivalent(student, key);
+      }
+      return sameModelWithBareSide(response, expected);
     }
-    if (stage.kind === 'equationInput') return sameModelWithBareSide(response, expected);
     return false;
   }
   if (typeof response === 'string' || typeof response === 'number') {
