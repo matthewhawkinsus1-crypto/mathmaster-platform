@@ -711,7 +711,7 @@ function BackSubstitution({ reduction, system, reducedSolution, backEquation, ar
               payloadValue={name}
               expression={`${name} = ${exactNumberText(reducedSolution[name])}`}
               label="Solved value"
-              onArm={() => setArmedToken((current) => (current?.kind === 'back' && current.variable === name ? null : { kind: 'back', variable: name }))}
+              onArm={() => setArmedToken({ kind: 'back', variable: name })}
               ariaLabel={`Pick up solved value ${exactNumberText(reducedSolution[name])} for ${name}`}
             />
           ))}
@@ -783,7 +783,7 @@ function Verification({ reduction, system, solution, sourceVariable, armedToken,
             payloadValue={name}
             expression={`${name} = ${display(name)}`}
             label="Solved value"
-            onArm={() => setArmedToken((current) => (current?.kind === 'verification' && current.variable === name ? null : { kind: 'verification', variable: name }))}
+            onArm={() => setArmedToken({ kind: 'verification', variable: name })}
             ariaLabel={`Pick up solved value ${display(name)} for ${name}`}
           />
         ))}
