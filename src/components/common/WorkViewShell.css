@@ -615,4 +615,4 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
 [data-open="true"][data-layout="mobile"] .mathmaster-work-view-surface { padding: 6px !important; }
 [data-open="true"][data-layout="mobile"] .mathmaster-tool-shell-body { padding: 6px !important; }
 [data-open="true"][data-layout="mobile"] .mathmaster-tool-panel { padding: 8px !important; }
-[data-open="true"][data-layout="mobile"] .mathmaster-systems-embedded-step-algebra { padding: 6px !important; }
+[data-open="true"][data-layout="mobile"] .mathmaster-systems-embedded-step-algebra { padding: 6px 0 0 !important; }

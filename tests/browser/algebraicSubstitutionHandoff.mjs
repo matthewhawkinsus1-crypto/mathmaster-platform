@@ -135,7 +135,9 @@ const assertStepAlgebraOpenedForY = async (page, journey) => {
     report.push(observed);
     return observed;
   }
-  observed.solverHeading = (await host.locator('> div').first().innerText()).trim();
+  // #369: the step's name is on Step Algebra's own tool row, not a separate
+  // heading above it.
+  observed.solverHeading = (await host.locator('.algebra-embedded-heading').first().innerText()).trim();
   if (!/solve for y/i.test(observed.solverHeading)) note(journey, `solver is not solving for y: "${observed.solverHeading}"`);
 
   const drafts = await page.evaluate(() => window.__mmHandoff.drafts());
@@ -649,7 +651,7 @@ report.push({ journey: 'preview-inline-ui', ...inlineObserved });
 
   const eliminationSolver = solver(page);
   await eliminationSolver.waitFor({ timeout: 10000 });
-  const heading = (await eliminationSolver.locator('> div').first().innerText()).trim();
+  const heading = (await eliminationSolver.locator('.algebra-embedded-heading').first().innerText()).trim();
   if (!/solve for x/i.test(heading)) note(journey, `reduced equation was not handed to Step Algebra for x: "${heading}"`);
 
   report.push({

@@ -194,12 +194,17 @@ export function SystemsWorkTrail({ stages = [] }) {
         {stages.map((stage, index) => {
           const active = activeIndex === index || (activeIndex < 0 && index === stages.length - 1);
           return (
+            // On a phone only the current step keeps its visible name (#369);
+            // every step keeps it for assistive tech, with its state spoken
+            // rather than carried by the hidden ✓ alone.
             <div
               key={stage.id}
               className={`mathmaster-systems-work-step${stage.complete ? ' is-complete' : ''}${active ? ' is-active' : ''}`}
+              aria-current={active ? 'step' : undefined}
+              title={stage.label}
             >
               <span aria-hidden="true">{stage.complete ? '✓' : index + 1}</span>
-              <strong>{stage.label}</strong>
+              <strong>{stage.label}{stage.complete ? <span className="mathmaster-systems-work-step-status">, done</span> : null}</strong>
             </div>
           );
         })}
@@ -399,9 +404,13 @@ export function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, dra
   return (
     // data-work-view-focus: opening Work View brings the live solver into
     // view instead of the workflow's header cards.
-    <div ref={hostRef} tabIndex={-1} className="mathmaster-systems-embedded-step-algebra" data-work-view-focus="true">
-      {label ? <div style={{ marginBottom: 8, fontWeight: 800 }}>{label}</div> : null}
+    // `embedded` (#369): one worksheet step, not a second application — the
+    // step's name sits on Step Algebra's own tool row, and the solver drops
+    // the badge, footnote and tries this question already shows once.
+    <div ref={hostRef} tabIndex={-1} className="mathmaster-systems-embedded-step-algebra" data-work-view-focus="true" aria-label={label || undefined} role={label ? 'group' : undefined}>
       <StepByStepAlgebraCore
+        embedded
+        embeddedTitle={label}
         key={embeddedEquationIdentity}
         question={question}
         questionRecord={null}
@@ -1290,8 +1299,13 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
           // Scaling defaults to ×1, so "prepared" was ✓ before a target
           // was even chosen.
           complete: Boolean(selection.variable) && multipliersApplied,
+          // "R₁ as written · R₂ × 2" — it read "R₁ · 1   R₂ · 2" (#369).
           summary: selection.variable && multipliersApplied
-            ? (subsystem ? `${equationName(0)} · ${multipliers[0]}   ${equationName(1)} · ${multipliers[1]}` : `Eq. 1 · ${multipliers[0]}   Eq. 2 · ${multipliers[1]}`)
+            ? [0, 1].map((index) => {
+              const name = subsystem ? equationName(index) : `Eq. ${index + 1}`;
+              const factor = String(multipliers[index] ?? '1').trim();
+              return factor === '1' ? `${name} as written` : `${name} × ${factor.replace(/^-/, '−')}`;
+            }).join(' · ')
             : '',
         },
         {

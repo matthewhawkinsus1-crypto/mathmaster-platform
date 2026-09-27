@@ -48,14 +48,20 @@
   min-width: 0;
 }
 
+/* The solver is one step of the worksheet it sits in (#369): no second card
+   inside the stage card, just a rule separating it from the step above. */
 .mathmaster-systems-embedded-step-algebra {
   width: 100%;
   min-width: 0;
-  padding: 12px;
-  border: 1px solid #b8cdf0;
-  border-radius: 12px;
-  background: #f8fbff;
+  padding: 10px 0 0;
+  border-top: 1px solid #d5e1f5;
   box-sizing: border-box;
+}
+
+/* Focus lands here only so the next Tab reaches the solver's first control,
+   which draws its own ring; outlining the whole step reads as an error box. */
+.mathmaster-systems-embedded-step-algebra:focus {
+  outline: none;
 }
 
 /* Do not let a nested balance board inherit a narrow "card" feeling once the
@@ -216,7 +222,7 @@
 }
 
 .mathmaster-work-view-host[data-open="true"] .mathmaster-systems-embedded-step-algebra {
-  padding: 14px;
+  padding: 12px 0 0;
 }
 
 @media (max-width: 980px) {
@@ -237,7 +243,7 @@
 
 @media (max-width: 620px) {
   .mathmaster-systems-embedded-step-algebra {
-    padding: 8px;
+    padding: 8px 0 0;
   }
 
   .mathmaster-systems-substitution-stage {
@@ -324,6 +330,17 @@
   color: #174ea6;
   border-color: #8ab4f8;
   box-shadow: 0 0 0 2px rgba(26, 115, 232, .08);
+}
+
+/* Read aloud, never shown: whether a step is done. */
+.mathmaster-systems-work-step-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .mathmaster-systems-completed-work {
@@ -930,6 +947,28 @@
   grid-column: 1 / -1;
 }
 
+/* A side that is already a number (#369): read, not retyped. Laid out like
+   the field beside it so the two sides still line up. */
+.mathmaster-systems-verification-given {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  color: #465267;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mathmaster-systems-verification-given-value {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: 9px;
+  background: #f3f6fb;
+  color: #172033;
+  font-size: 20px;
+}
+
 .mathmaster-systems-verification-feedback {
   margin: 2px 0 0;
   font-size: 12px;
@@ -953,14 +992,45 @@
 }
 
 @media (max-width: 620px) {
+  /* Phone (#369): the trail was 200px — seven labelled steps over three rows
+     and every completed chip on its own row — above the step the student was
+     on. Now one row of step badges with only the current step named, and the
+     completed work (the student's history) wrapping inline under it. */
   .mathmaster-systems-work-trail {
-    margin-inline: -2px;
-    padding: 8px;
+    margin: 8px -2px 2px;
+    padding: 6px 8px;
+  }
+
+  .mathmaster-systems-work-trail-steps {
+    gap: 4px;
+  }
+
+  .mathmaster-systems-work-step:not(.is-active) {
+    min-width: 0;
+    padding: 3px;
+  }
+
+  .mathmaster-systems-work-step:not(.is-active) > strong {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .mathmaster-systems-work-step.is-active {
+    padding: 3px 9px 3px 3px;
   }
 
   .mathmaster-systems-completed-work {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .mathmaster-systems-completed-chip {
+    padding: 3px 7px;
   }
 
   .mathmaster-systems-equation-columns {
@@ -1402,6 +1472,20 @@
   .mathmaster-reduction-target-grid,
   .mathmaster-reduction-verification-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Phone (#369): each original or reduced equation on one line with its
+     name, not a two-line card — five cards were 360px above the work. */
+  .mathmaster-reduction-reference {
+    gap: 5px;
+  }
+
+  .mathmaster-reduction-equation-card {
+    grid-template-columns: fit-content(42%) minmax(0, 1fr);
+    align-items: center;
+    column-gap: 10px;
+    padding: 5px 9px;
+    text-align: left;
   }
 }
 
