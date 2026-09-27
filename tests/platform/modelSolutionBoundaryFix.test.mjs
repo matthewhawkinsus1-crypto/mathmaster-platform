@@ -11,7 +11,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const read = (path) => fs.readFileSync(resolve(here, '../..', path), 'utf8');
 
 test('function-model grading ignores arbitrary function and input-variable names', () => {
-  const stage = { id: 'equation', kind: 'equationInput', prompt: 'Write a function that models the situation.' };
+  const stage = { id: 'equation', kind: 'equationInput', acceptEquivalentFunctionRule: true, prompt: 'Write a function that models the situation.' };
   const mark = (response) => gradeStage({ stage, rule: 'W(t)=18t', responses: { equation: response } });
   assert.equal(mark('f(x)=18x').isCorrect, true);
   assert.equal(mark('g(n)=18n').isCorrect, true);
