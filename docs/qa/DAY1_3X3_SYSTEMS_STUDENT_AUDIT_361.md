@@ -203,7 +203,7 @@ visible record of the elimination.
 Verification on the final head:
 
 - `npm run test:platform`: **6365 / 6366**. The one failure, `classroomScheduledPublication.test.mjs`, is
-  environmental (`Cannot find module 'googleapis'`, a functions-only dependency) and fails the same way without this branch.
+  environmental (`Cannot find module 'googleapis'`, a functions-only dependency not installed in this worktree) and unrelated to this branch; earlier QA logs record the same failure on main.
 - New `eliminationScaleThroughRender.test.mjs` drives the engine the way the screen does (stored → repair → transition →
   stored), including Practice 3 and the DOL; reverting either engine fix turns it red (4/5 and 1/2 tests).
 - New `systemsDay1Journey361.test.mjs` (14 contracts) — three were mutation-checked (placeholder leak, subsystem Verify,
@@ -235,7 +235,7 @@ rail chips · Content: D3 DOL2 prompt prints DOL1's answer; Pr11 PR4 depends on 
    standalone chrome. The student should never meet a second copy of an interface inside one problem. *(Rounds done;
    2×2 already stacked; Step Algebra presentation not done.)*
 2. **Make every authored route completable, and prove it.** The scale-factor dead end made the honors question and the
-   DOL impossible for three weeks of students if unnoticed. Fix (done) plus a Preflight/CI check that runs the engine
+   DOL impossible for every student, and no test noticed. Fix (done) plus a Preflight/CI check that runs the engine
    through the render loop for every elimination question in an assignment, like the new driver does for Day 1.
 3. **An agency rule for every field and message: nothing derived from the answer key before the student acts.**
    Placeholders, reveal text, render-time auto-checks and silent sign merges all broke it in this lesson. *(The cases
