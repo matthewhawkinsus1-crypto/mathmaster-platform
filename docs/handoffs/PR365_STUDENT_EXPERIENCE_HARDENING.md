@@ -33,6 +33,8 @@ The prior visible-Chrome student audit used a 1366×768 laptop/Chromebook-like v
 
 These are scope classifications from changed-file comparison and available run logs, not claims that an identical main-branch browser matrix was available for every job. Current-head checks should be reviewed again before merge; unrelated clipping remains assigned outside PR #365.
 
+On report-only head `14674697669c4063c2bc5cb2e0a96154355853fd`, the Stage 4 matrix again passed Chromebook, laptop, both tablet orientations, and iPhone portrait, and again failed Android-narrow and iPhone-landscape. The Stage 4 contract passed. At the time of this update, Full Platform Test Suite, Interactive Capability Certification, Systems Substitution Browser Certification, and Work View Browser Matrix remained `IN_PROGRESS` on GitHub Actions; no conclusion is drawn from those pending runs.
+
 ## Five highest-value remaining improvements
 
 1. Preserve usable Undo/alternate-path recovery after refresh; restored student work currently had Undo disabled, leaving Reset Question as the only back path.
