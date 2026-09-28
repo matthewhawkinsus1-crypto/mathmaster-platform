@@ -176,6 +176,18 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
     }));
   }, [R, variables, camera]);
 
+  const cubeFrame = useMemo(() => {
+    const corners = cubeCorners(R).map((point) => projectPoint(point, camera));
+    return cubeEdges().map(([fromIndex, toIndex]) => ({
+      key: String(fromIndex) + '-' + String(toIndex),
+      from: [corners[fromIndex].screenX, corners[fromIndex].screenY],
+      to: [corners[toIndex].screenX, corners[toIndex].screenY],
+      depth: (corners[fromIndex].depth + corners[toIndex].depth) / 2,
+    })).sort((a, b) => a.depth - b.depth);
+  }, [R, camera]);
+
+  const origin = useMemo(() => projectPoint([0, 0, 0], camera), [camera]);
+
   const solutionMarker = useMemo(() => {
     if (classification.type !== 'unique' || !revealed) return null;
     const point3D = variables.map((name) => classification.solution[name]);
