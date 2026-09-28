@@ -9,6 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { linearEquationForm } from '../../src/tools/systemsWorkspace/algebraicSystemsEngine.js';
 import {
+  advanceIdleCamera,
   clipPlaneToCube,
   cubeCorners,
   cubeEdges,
@@ -112,6 +113,21 @@ test('a full 2π rotation returns a point to its original projection', () => {
   assert.ok(Math.abs(a.screenX - b.screenX) < 1e-9);
   assert.ok(Math.abs(a.screenY - b.screenY) < 1e-9);
   assert.ok(Math.abs(a.depth - b.depth) < 1e-9);
+});
+
+test('idle camera orbit advances azimuth gently without changing elevation', () => {
+  const camera = { azimuth: -0.7, elevation: 0.55 };
+  const advanced = advanceIdleCamera(camera, 50, 0.2);
+  assert.ok(Math.abs(advanced.azimuth - (-0.69)) < 1e-9);
+  assert.equal(advanced.elevation, camera.elevation);
+  assert.deepEqual(camera, { azimuth: -0.7, elevation: 0.55 }, 'helper must not mutate the live camera object');
+});
+
+test('idle camera orbit clamps long frame gaps so returning to the tab never jumps', () => {
+  const camera = { azimuth: 1, elevation: 0.4 };
+  const advanced = advanceIdleCamera(camera, 5000, 0.25);
+  assert.ok(Math.abs(advanced.azimuth - 1.02) < 1e-9, '5000ms gap should clamp to an 80ms visual step');
+  assert.equal(advanced.elevation, 0.4);
 });
 
 test('projectPolygon reports the average depth of its projected vertices', () => {
