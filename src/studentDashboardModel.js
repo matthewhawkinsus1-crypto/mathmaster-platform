@@ -384,9 +384,17 @@ export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => 
 
   const activeDol = (dashboard?.activeDols || [])[0];
   if (activeDol) {
+    // Name the DOL question to open. Without one the card started the
+    // assignment at question 0 — a closed Warm-Up — and entry fell through to
+    // Classwork Q1, spending the timed DOL on a finished question (live QA,
+    // Algebra I DOL #2). `records` is built from these same indices, in order.
+    const dolIndices = (activeDol.state?.questionIndices || [activeDol.state?.questionIndex])
+      .filter((index) => Number.isInteger(index) && index >= 0);
+    const firstUnattempted = dolIndices.find((index, position) => !(activeDol.records?.[position]?.totalAttempts > 0));
     return {
       kind: 'dol',
       assignment: activeDol.assignment,
+      questionIndex: firstUnattempted ?? dolIndices[0],
       headline: 'Your exit ticket is open',
       detail: 'It is timed, so do this one first.',
       actionLabel: 'Start the exit ticket',

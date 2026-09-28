@@ -209,6 +209,26 @@ export const solverIsSolved = (state) => Boolean(
 
 export const solverValue = (state) => (solverIsSolved(state) ? Number(state.right) : null);
 
+/**
+ * What the embedded solver's latest report changes about the intercept stage,
+ * or null when it changes nothing.
+ *
+ * The solver re-reports its state whenever its `onStateChange` identity
+ * changes, and the orchestrator re-renders on every stage update. If "nothing
+ * changed" is judged against anything other than the value that would actually
+ * be stored, every report becomes a new stage and every new stage a new report:
+ * while unsolved the report still carries the current equation, but the stage
+ * stores '' for it, so comparing the two never matched and the solve step ran
+ * an endless render + draft-write loop. Compare what would be written.
+ */
+export const solvedStageUpdate = (stage, payload) => {
+  const solved = Boolean(payload?.isComplete && payload?.isCorrect);
+  const response = payload?.parts?.find((part) => part?.id === 'algebra-objective')?.response || '';
+  const solvedEquationLatex = solved ? response : '';
+  if (solved === Boolean(stage?.solved) && solvedEquationLatex === (stage?.solvedEquationLatex || '')) return null;
+  return { solved, solvedEquationLatex };
+};
+
 export const choicePlacementMismatch = (stage) => Boolean(
   stage?.conceptualZeroChoice
   && stage?.placedZeroVariable

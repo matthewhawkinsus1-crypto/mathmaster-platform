@@ -198,6 +198,7 @@ import {
 } from './assignmentDestinations';
 
 import { flattenV5Sections, rebuildV5SectionsFromQuestions } from './platform/contract/assignmentSchemaV5.js';
+import { isDesktopStickyLayout, revealBelowSticky } from './platform/layout/stickyReveal.js';
 import {
   canonicalV5PersistencePatch,
   getStoredAssignmentQuestions,
@@ -4206,6 +4207,14 @@ function App() {
       const stage = assignmentQuestionStageRef.current;
       const liveWork = stage?.querySelectorAll?.('[data-work-view-focus="true"]');
       const target = liveWork?.length ? liveWork[liveWork.length - 1] : null;
+      // Desktop measures instead of trusting scrollIntoView: the page's
+      // scroll-padding and the stage's scroll-margin add up, and aimed at the
+      // stage that landed every question at scrollY 0 (see stickyReveal.js).
+      if (isDesktopStickyLayout()) {
+        if (target) revealBelowSticky({ target, sticky: stage?.querySelector?.('.mathmaster-desktop-question-anchor'), behavior });
+        else if (stage) revealBelowSticky({ target: stage, sticky: document.querySelector('.mathmaster-assignment-unified-nav'), behavior });
+        return;
+      }
       if (target) target.scrollIntoView?.({ behavior, block: 'start' });
       else stage?.scrollIntoView?.({ behavior, block: 'start' });
     };
@@ -8297,7 +8306,13 @@ function App() {
           ) indices.push(index);
           return indices;
         }, []);
-        return questionIndices.length ? { assignment, state, questionIndices } : null;
+        // A student who has finished every Warm-Up question has nothing left to
+        // go to. Keeping the pinned banner (and its "Go to Warm-Up" button) on
+        // every Classwork and Practice question only took height from the work.
+        const warmupFinished = questionIndices.every((index) => (
+          ['correct', 'expired'].includes(normalizeQuestionRecord(tracker?.[assignment.id]?.[index]).status)
+        ));
+        return questionIndices.length && !warmupFinished ? { assignment, state, questionIndices } : null;
       })
       .filter(Boolean)
       .sort((a, b) => Number(a.state.endsAt?.getTime?.() || 0) - Number(b.state.endsAt?.getTime?.() || 0));

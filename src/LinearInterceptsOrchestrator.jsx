@@ -16,6 +16,7 @@ import {
   formatSubstitutionEquation,
   resolveStandardCoefficients,
   shouldShowConceptRedirect,
+  solvedStageUpdate,
 } from './tools/stepAlgebra2/linearInterceptsMath.js';
 
 /*
@@ -57,6 +58,20 @@ const initialStage = () => ({
 });
 
 const initialWork = () => ({ activeKind: 'x', x: initialStage(), y: initialStage() });
+
+// What the host is told once both intercepts are checked. Built in one place
+// because it is said twice: when the second Check succeeds, and again when a
+// reload restores two checked intercepts that were never submitted.
+const interceptCompletionPayload = (finishedWork) => ({
+  isComplete: true,
+  isCorrect: true,
+  questionDetails: `x-intercept ${finishedWork.x.point}, y-intercept ${finishedWork.y.point}`,
+  responseKey: JSON.stringify({ x: parseOrderedPair(finishedWork.x.point), y: parseOrderedPair(finishedWork.y.point) }),
+  parts: [
+    { id: 'x-intercept', label: 'x-intercept', isComplete: true, isCorrect: true, response: finishedWork.x.point },
+    { id: 'y-intercept', label: 'y-intercept', isComplete: true, isCorrect: true, response: finishedWork.y.point },
+  ],
+});
 
 // The one-variable equation StepByStepAlgebraCore solves after substitution.
 // buildSubstitutionState always leaves `constant` at 0 (see
@@ -184,6 +199,19 @@ export default function LinearInterceptsOrchestrator({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage.committed, stageHistory, onUndoStateChange, kind]);
 
+  // Both intercepts checked is the end of this workflow. A reload between the
+  // last Check and Submit restores the two ✓ from the draft, but the host only
+  // learned the question was complete from that Check — so the Submit button
+  // was gone until the student checked the point again. Say it once more.
+  const bothInterceptsFound = Boolean(work.x?.completed && work.y?.completed);
+  const completionReportedRef = useRef(false);
+  useEffect(() => {
+    if (!bothInterceptsFound || disabled || completionReportedRef.current) return;
+    completionReportedRef.current = true;
+    onStateChange?.(interceptCompletionPayload(work));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bothInterceptsFound, disabled]);
+
   if (!standard || Math.abs(Number(standard.A)) <= 1e-12 || Math.abs(Number(standard.B)) <= 1e-12) {
     return (
       <p style={{ color: '#a50e0e' }}>
@@ -255,10 +283,9 @@ export default function LinearInterceptsOrchestrator({
   }, [stage.committed, stage.placedZeroVariable, kind]);
 
   const handleSubEquationStateChange = (payload) => {
-    const solved = Boolean(payload?.isComplete && payload?.isCorrect);
-    const response = payload?.parts?.find((part) => part?.id === 'algebra-objective')?.response || '';
-    if (solved === stage.solved && response === stage.solvedEquationLatex) return;
-    updateStage((current) => ({ ...current, solved, solvedEquationLatex: solved ? response : '' }));
+    const update = solvedStageUpdate(stage, payload);
+    if (!update) return;
+    updateStage((current) => ({ ...current, ...update }));
   };
 
   const setPoint = (value) => {
@@ -304,18 +331,8 @@ export default function LinearInterceptsOrchestrator({
 
     const finishedWork = { ...work, y: nextStage, activeKind: 'y' };
     setWork(finishedWork);
-    const xPoint = parseOrderedPair(finishedWork.x.point);
-    const yPoint = nextStage.completed ? parseOrderedPair(nextStage.point) : null;
-    onStateChange?.({
-      isComplete: true,
-      isCorrect: true,
-      questionDetails: `x-intercept ${finishedWork.x.point}, y-intercept ${nextStage.point}`,
-      responseKey: JSON.stringify({ x: xPoint, y: yPoint }),
-      parts: [
-        { id: 'x-intercept', label: 'x-intercept', isComplete: true, isCorrect: true, response: finishedWork.x.point },
-        { id: 'y-intercept', label: 'y-intercept', isComplete: true, isCorrect: true, response: nextStage.point },
-      ],
-    });
+    completionReportedRef.current = true;
+    onStateChange?.(interceptCompletionPayload(finishedWork));
   };
 
   const activeRedirect = progressiveRedirect ? conceptualRedirect(kind) : '';
@@ -326,7 +343,15 @@ export default function LinearInterceptsOrchestrator({
   const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
   const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: '#174ea6', border: '1px solid #9bb8e8' };
 
-  const content = !stage.committed ? (
+  const content = bothInterceptsFound ? (
+    // The stage below would still read "now write the y-intercept" over a
+    // Check button, while the only thing left to do is submit.
+    <div role="status" style={{ padding: 14, borderRadius: 10, background: '#e6f4ea', color: '#137333', lineHeight: 1.5 }}>
+      <strong>Both intercepts found.</strong>
+      <div style={{ marginTop: 4 }}>x-intercept {work.x.point} · y-intercept {work.y.point}</div>
+      {!disabled ? <div style={{ marginTop: 4, fontWeight: 800 }}>Submit your answer to finish this question.</div> : null}
+    </div>
+  ) : !stage.committed ? (
     <div>
       <p style={{ marginTop: 0, lineHeight: 1.5 }}>
         At the <strong>{stageLabel(kind)}</strong>, which variable equals 0?
@@ -387,7 +412,7 @@ export default function LinearInterceptsOrchestrator({
 
       {stage.placedZeroVariable && (
         <div style={{ marginTop: 10, padding: 10, borderRadius: 9, background: '#f7faff', color: '#3c4756' }}>
-          Your staged substitution: <strong>{formatSubstitutionEquation(standard, stage.placedZeroVariable)}</strong>
+          Your substitution: <strong>{formatSubstitutionEquation(standard, stage.placedZeroVariable)}</strong>
         </div>
       )}
 
@@ -403,7 +428,7 @@ export default function LinearInterceptsOrchestrator({
         disabled={disabled || !stage.conceptualZeroChoice || !stage.placedZeroVariable}
         style={{ ...primaryButton, width: '100%', marginTop: 12, opacity: disabled || !stage.conceptualZeroChoice || !stage.placedZeroVariable ? 0.5 : 1 }}
       >
-        Commit substitution
+        Substitute and solve
       </button>
     </div>
   ) : (
@@ -434,6 +459,8 @@ export default function LinearInterceptsOrchestrator({
             <MathInput
               value={stage.point}
               onChange={setPoint}
+              // Enter checks the point, as it submits every other answer field.
+              onSubmit={disabled ? null : checkCurrentIntercept}
               toolProfile="orderedPair"
               answerFormat="orderedPair"
               ariaLabel={`${stageLabel(kind)} as an ordered pair`}

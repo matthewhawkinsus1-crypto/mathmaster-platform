@@ -132,11 +132,15 @@ export function ToastProvider({ children }) {
       </div>
 
       {confirmState && (
+        // Above Work View (2147483000) and its phone keypad (2147483400). At
+        // 19000, "Reset this question?" opened behind an enlarged question:
+        // Reset looked like it did nothing, and the hidden dialog still held
+        // the answer (live QA, Algebra I DOL #2).
         <div
           role="presentation"
           onMouseDown={(event) => { if (event.target === event.currentTarget) closeConfirm(false); }}
           style={{
-            position: 'fixed', inset: 0, zIndex: 19000, background: 'rgba(32,33,36,0.72)',
+            position: 'fixed', inset: 0, zIndex: 2147483500, background: 'rgba(32,33,36,0.72)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
           }}
         >

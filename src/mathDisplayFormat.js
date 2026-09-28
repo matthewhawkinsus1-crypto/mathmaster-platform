@@ -32,4 +32,29 @@ export const resolveMathDisplayFormat = (value, requestedFormat = 'auto') => {
   return looksLikeLatex ? 'latex' : 'ascii-math';
 };
 
+/*
+ * UNICODE SUBSCRIPTS ARE NOT MATH MARKUP.
+ *
+ * Authors write sequence terms the way they look — "a₄", "aₙ₋₁" — and that is
+ * right for plain text. But MathLive does not read those characters as
+ * subscripts: "a₄" typeset as a literal "a_4" and "aₙ₋₁" as "an_−_1", so a
+ * field labelled a₄ showed students an underscore. Rewrite each run into the
+ * subscript syntax of the format that will actually parse it.
+ */
+const UNICODE_SUBSCRIPTS = Object.freeze({
+  '₀': '0', '₁': '1', '₂': '2', '₃': '3', '₄': '4', '₅': '5', '₆': '6', '₇': '7', '₈': '8', '₉': '9',
+  '₊': '+', '₋': '-', '₌': '=', '₍': '(', '₎': ')',
+  'ₐ': 'a', 'ₑ': 'e', 'ₒ': 'o', 'ₓ': 'x', 'ₕ': 'h', 'ₖ': 'k', 'ₗ': 'l', 'ₘ': 'm', 'ₙ': 'n',
+  'ₚ': 'p', 'ₛ': 's', 'ₜ': 't', 'ᵢ': 'i', 'ⱼ': 'j', 'ᵣ': 'r', 'ᵤ': 'u', 'ᵥ': 'v',
+});
+const SUBSCRIPT_RUN = new RegExp(`[${Object.keys(UNICODE_SUBSCRIPTS).join('')}]+`, 'g');
+
+export const unicodeSubscriptsToMathMarkup = (value, format = 'ascii-math') => (
+  String(value ?? '').replace(SUBSCRIPT_RUN, (run) => {
+    const plain = [...run].map((character) => UNICODE_SUBSCRIPTS[character]).join('');
+    if (plain.length === 1) return `_${plain}`;
+    return format === 'latex' ? `_{${plain}}` : `_(${plain})`;
+  })
+);
+
 export default resolveMathDisplayFormat;

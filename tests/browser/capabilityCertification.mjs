@@ -475,7 +475,7 @@ const dropZeroOnY = async (page, step) => {
   await visibleLabelled(page, 'Pick up zero for substitution').click();
   await visibleLabelled(page, 'y variable substitution target').click();
   await settle(page, 200);
-  await visibleButton(page, 'Commit substitution').click();
+  await visibleButton(page, 'Substitute and solve').click();
   await settle(page, 900);
 };
 

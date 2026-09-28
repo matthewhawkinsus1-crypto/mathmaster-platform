@@ -10,6 +10,7 @@ import { gradeMultiAnswerResponse } from '../functions/shared/ordinaryResponseGr
 import { resolveLabelFormat } from './labelFormat';
 import { inferRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 import { describeAnswerFormat } from './platform/interaction/answerFormatHints.js';
+import { formatProblemForResponse } from './platform/interaction/answerShapeGuard.js';
 import useUndoHistory from './useUndoHistory';
 import { choiceSeed, prepareFiniteChoiceSet, stableShuffleChoices } from './platform/interaction/choiceOptions.js';
 import { normalizePlainMathTypography } from './components/common/mathSegments.js';
@@ -100,7 +101,14 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
   // Correctness comes from the shared grading contract so every caller of it —
   // this screen, the deadline finalizer, the tests — marks alike.
   const graded = gradeMultiAnswerResponse({ answerFields: safeFields }, answers);
-  const { parts, isComplete, isCorrect } = graded;
+  const { parts, isCorrect } = graded;
+  // A response that breaks its field's stated shape is not ready to submit:
+  // the student is told why beside the field instead of losing a try to it.
+  const formatProblems = Object.fromEntries(safeFields.map((field) => [
+    field.id,
+    formatProblemForResponse(field, answers[field.id]),
+  ]));
+  const isComplete = graded.isComplete && !Object.values(formatProblems).some(Boolean);
 
   useEffect(() => {
     const responseDetails = safeFields.map((field) => `${field.label || field.id}=${answers[field.id] ?? ''}`).join(', ');
@@ -197,6 +205,11 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                   {answerShape.hint}
                 </p>
               )}
+              {formatProblems[field.id] ? (
+                <p role="status" style={{ margin: '0 0 10px', padding: '6px 9px', borderRadius: '8px', fontSize: '13px', lineHeight: 1.4, fontWeight: 700, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>
+                  {formatProblems[field.id]}
+                </p>
+              ) : null}
               {choiceOptions ? (
                 <div role="radiogroup" aria-label={field.label || field.id} style={{ display: 'grid', gap: '8px' }}>
                   {choiceOptions.map((option) => {

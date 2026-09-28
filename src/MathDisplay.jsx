@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import 'mathlive';
 import { ensureMathElementRenders } from './platform/math/ensureMathElementRenders.js';
 import { stackDivisions } from '../functions/shared/stackDivisions.mjs';
-import { resolveMathDisplayFormat } from './mathDisplayFormat.js';
+import { resolveMathDisplayFormat, unicodeSubscriptsToMathMarkup } from './mathDisplayFormat.js';
 
 // Before the inequality keypad became atomic, MathLive could serialize
 // "\\le" followed immediately by t as the TeX command "\\let" (and the
@@ -82,12 +82,13 @@ export default function MathDisplay({
   // from the rewritten value so MathLive typesets the fraction instead of
   // displaying \frac / \left / \right as visible command text.
   const resolvedFormat = resolveMathDisplayFormat(cleanValue, format);
+  const typesetValue = unicodeSubscriptsToMathMarkup(cleanValue, resolvedFormat);
   const Element = inline ? 'math-span' : 'math-div';
 
   return (
     <Element
       ref={elementRef}
-      key={`${resolvedFormat}:${cleanValue}`}
+      key={`${resolvedFormat}:${typesetValue}`}
       format={resolvedFormat}
       aria-label={ariaLabel}
       className={className}
@@ -110,7 +111,7 @@ export default function MathDisplay({
         ...style,
       }}
     >
-      {cleanValue}
+      {typesetValue}
     </Element>
   );
 }

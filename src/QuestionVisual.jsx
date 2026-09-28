@@ -1,5 +1,6 @@
 import GraphDisplay from './GraphDisplay';
 import MathDisplay from './MathDisplay';
+import { questionAsksAboutQuadrants } from './platform/graph/quadrantLabels.js';
 
 // A question of any type may carry a `table` to show the student — a word
 // problem that displays sales data and asks for the reasonable domain, for
@@ -38,7 +39,10 @@ const displayCell = (value) => {
 
 export default function QuestionVisual({ question, includeGraph = true, includeTable = true }) {
   const visual = question?.visual;
-  const graph = question?.graph || (visual?.type === 'graph' ? visual : null);
+  const authoredGraph = question?.graph || (visual?.type === 'graph' ? visual : null);
+  const graph = authoredGraph && questionAsksAboutQuadrants(question)
+    ? { ...authoredGraph, quadrantLabels: true }
+    : authoredGraph;
   const mathSpec = question?.mathDisplay || question?.supportingMath;
   const displayTable = includeTable ? normalizeDisplayTable(question?.table) : null;
 

@@ -366,7 +366,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
 
               {stage.placedZeroVariable && (
                 <div style={{ marginTop: 10, padding: 10, borderRadius: 9, background: '#f7faff', color: '#3c4756' }}>
-                  Your staged substitution: <strong>{formatSubstitutionEquation(standard, stage.placedZeroVariable)}</strong>
+                  Your substitution: <strong>{formatSubstitutionEquation(standard, stage.placedZeroVariable)}</strong>
                 </div>
               )}
 
@@ -382,7 +382,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
                 disabled={!stage.conceptualZeroChoice || !stage.placedZeroVariable}
                 style={{ ...primaryButton, width: '100%', marginTop: 12, opacity: !stage.conceptualZeroChoice || !stage.placedZeroVariable ? 0.5 : 1 }}
               >
-                Commit substitution
+                Substitute and solve
               </button>
             </>
           ) : (

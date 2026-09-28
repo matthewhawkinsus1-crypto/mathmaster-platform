@@ -6,6 +6,8 @@ const source = readFileSync(new URL('../../src/components/CalculatorPanel.jsx', 
 
 test('draggable MathLive calculator keeps the current calculator-policy contract', () => {
   assert.match(source, /getCalculatorButtonsForMode/);
-  assert.match(source, /getCalculatorModeLabel/);
+  // The drawer title comes from the policy module for the current mode (a
+  // graphing policy titles the drawer SCIENTIFIC: it computes, it never graphs).
+  assert.match(source, /getCalculator(?:Mode|Drawer)Label\(policy\.mode\)/);
   assert.match(source, /evaluateCalculatorExpression\(expression,\s*policy\.mode\)/);
 });

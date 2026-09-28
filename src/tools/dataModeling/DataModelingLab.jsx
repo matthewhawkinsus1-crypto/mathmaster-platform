@@ -7,6 +7,7 @@ import {
   buildCandidateModels,
   chooseBestModel,
   correlationDescriptor,
+  formatCorrelation,
   modelMetrics,
   predictionKind,
 } from './dataModelingMath';
@@ -154,6 +155,9 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   // the student deliberately runs regression, preserving the estimate-first
   // portion of a lineFit task while keeping the calculator in this workspace.
   const [regressionTechnologyRun, setRegressionTechnologyRun] = usePersistentToolState('regressionTechnologyRun', false);
+  // The student's own estimate, kept beside the regression line it is compared
+  // with once running regression makes that line their model.
+  const [regressionEstimate, setRegressionEstimate] = usePersistentToolState('regressionEstimate', null);
   // Neutral defaults are deliberate. Initialising these fields from the
   // regression result would put most of the answer in the boxes before the
   // student used technology to calculate it.
@@ -349,11 +353,24 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap' }}>
                         <div>
                           <strong style={{ color:'#174ea6' }}>Regression technology</strong>
-                          <div style={{ marginTop:3, color:'#5f6b7a', fontSize:12 }}>After making your estimate, run linear regression on the full data set.</div>
+                          <div style={{ marginTop:3, color:'#5f6b7a', fontSize:12 }}>After making your estimate, run linear regression on the full data set. Its line becomes your model.</div>
                         </div>
                         <button
                           type="button"
-                          onClick={() => { setRegressionTechnologyRun(true); clearFeedback(); }}
+                          // RUNNING REGRESSION IS USING IT. The result used to
+                          // sit beside a separate "Use regression model" button,
+                          // so a student who ran regression and predicted from
+                          // its line still submitted the untouched starting
+                          // line as their model and lost half the credit and a
+                          // try (live QA, Algebra I DOL #2 Practice Q10). The
+                          // estimate stays on screen for comparison.
+                          onClick={() => {
+                            if (!regressionTechnologyRun) setRegressionEstimate({ m, b });
+                            setM(round(regression.m, 3));
+                            setB(round(regression.b, 3));
+                            setRegressionTechnologyRun(true);
+                            clearFeedback();
+                          }}
                           style={{ minHeight:42, border:'1px solid #174ea6', borderRadius:9, background:'#174ea6', color:'#fff', padding:'8px 12px', fontWeight:850 }}
                         >
                           Run linear regression
@@ -363,15 +380,22 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                         <div data-line-fit-regression-result style={{ marginTop:10, display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap' }}>
                           <output aria-live="polite" style={{ fontWeight:850, color:'#172033' }}>
                             y = {round(regression.m, 3)}x {regression.b >= 0 ? '+' : '−'} {Math.abs(round(regression.b, 3))}
-                            <span style={{ marginLeft:10, color:'#5f6b7a', fontWeight:700 }}>r = {round(r, 3)}</span>
+                            <span style={{ marginLeft:10, color:'#5f6b7a', fontWeight:700 }}>r ≈ {formatCorrelation(r)}</span>
                           </output>
-                          <button
-                            type="button"
-                            onClick={() => { setM(round(regression.m, 3)); setB(round(regression.b, 3)); clearFeedback(); }}
-                            style={{ minHeight:40, border:'1px solid #b9c8dc', borderRadius:9, background:'#fff', color:'#174ea6', padding:'7px 11px', fontWeight:850 }}
-                          >
-                            Use regression model
-                          </button>
+                          {regressionEstimate ? (
+                            <span style={{ color:'#5f6b7a', fontSize:13 }}>
+                              Your estimate was y = {regressionEstimate.m}x {Number(regressionEstimate.b) >= 0 ? '+' : '−'} {Math.abs(Number(regressionEstimate.b))}
+                            </span>
+                          ) : null}
+                          {Number(m) !== round(regression.m, 3) || Number(b) !== round(regression.b, 3) ? (
+                            <button
+                              type="button"
+                              onClick={() => { setM(round(regression.m, 3)); setB(round(regression.b, 3)); clearFeedback(); }}
+                              style={{ minHeight:40, border:'1px solid #b9c8dc', borderRadius:9, background:'#fff', color:'#174ea6', padding:'7px 11px', fontWeight:850 }}
+                            >
+                              Use regression model
+                            </button>
+                          ) : null}
                         </div>
                       ) : null}
                     </section>
@@ -423,7 +447,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
               </p>
             </div>
           ) : (
-            <p style={{ marginTop:0, color:'#4b5563' }}>Correlation coefficient: <strong>r ≈ {round(r, 3)}</strong></p>
+            <p style={{ marginTop:0, color:'#4b5563' }}>Correlation coefficient: <strong>r ≈ {formatCorrelation(r)}</strong></p>
           )}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
             <Field label="Direction"><select value={direction} onChange={(e)=>setDirection(e.target.value)} style={inputStyle}>{mode === 'correlation' ? <option value="">Choose…</option> : null}<option value="positive">Positive</option><option value="negative">Negative</option><option value="none">No clear direction</option></select></Field>

@@ -161,6 +161,25 @@ export const correlationDescriptor = (r) => {
   return { direction, strength };
 };
 
+/*
+ * r IS NEVER SHOWN AS A PERFECT 1 UNLESS IT IS ONE.
+ *
+ * Rounded to three places, r = 0.99966 printed "r = 1" beside the regression
+ * line (live QA, Algebra I DOL #2 practice-hours data) — telling students the
+ * five points sat exactly on a line when they do not. Keep adding places until
+ * the shown value is not ±1; only an exactly perfect fit reads as one.
+ */
+export const formatCorrelation = (r) => {
+  const value = Number(r);
+  if (!Number.isFinite(value)) return '—';
+  if (Math.abs(value) === 1) return value > 0 ? '1' : '-1';
+  for (let places = 3; places <= 6; places += 1) {
+    const text = value.toFixed(places);
+    if (Math.abs(Number(text)) < 1) return text;
+  }
+  return value > 0 ? '0.999999' : '-0.999999';
+};
+
 export const predictionKind = (points = [], x) => {
   if (!points.length || !Number.isFinite(Number(x))) return 'unknown';
   const xs = points.map(([px]) => Number(px));
