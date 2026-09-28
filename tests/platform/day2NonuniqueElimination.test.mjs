@@ -50,3 +50,21 @@ test('earned contradiction stops immediately, never opens numeric solve',()=>{
  assert.equal(engine.eliminationPhase(j.state,j.system),'classified');
  assert.equal(engine.eliminationReducedSystem(j.state,j.system),null);
 });
+
+test('an identity before a contradiction never earns dependent classification',()=>{
+ const j=journey(inconsistent);
+ j.round('round1','E1E3','3',{x:'9',y:'-3',z:'-6',constant:'12'},{y:'0',z:'0',constant:'0'});
+ j.act(engine.classifyEliminationOutcome,j.system,'infinite');
+ assert.equal(engine.eliminationPhase(j.state,j.system),'round2-pair');
+ j.round('round2','E1E2','2',{x:'6',y:'-2',z:'-4',constant:'8'},{y:'0',z:'0',constant:'-3'});
+ j.act(engine.classifyEliminationOutcome,j.system,'infinite');
+ assert.equal(engine.eliminationPhase(j.state,j.system),'classify');
+});
+test('forged or stale restored combined work does not earn an outcome',()=>{
+ const j=journey(inconsistent);
+ const forged=structuredClone(j.state);
+ forged.rounds.round1.combinedText='0 = -3';
+ forged.classification={choice:'none',statement:'0 = -3'};
+ const repaired=engine.repairEliminationState(forged,j.system);
+ assert.equal(engine.eliminationOutcome(repaired,j.system),null);
+});

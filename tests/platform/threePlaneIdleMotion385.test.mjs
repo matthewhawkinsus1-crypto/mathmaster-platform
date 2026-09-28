@@ -26,6 +26,6 @@ test('three-plane visualizer includes explicit depth and orientation cues', () =
 });
 
 test('idle rotation does not alter reveal timing', () => {
-  assert.match(source, /const canReveal = spatialModel\.revealSolution === true \|\| spatialModel\.allowSolutionReveal === true/);
-  assert.match(source, /classification\.type !== 'unique' \|\| !revealed/);
+  assert.match(source, /const canReveal = !earnedResult && \(spatialModel\.revealSolution === true \|\| spatialModel\.allowSolutionReveal === true\)/);
+  assert.match(source, /shownType !== 'unique' \|\| !showResult/);
 });

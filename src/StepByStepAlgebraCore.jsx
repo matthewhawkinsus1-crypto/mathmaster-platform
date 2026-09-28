@@ -900,7 +900,7 @@ export default function StepByStepAlgebra({
       setMessage({
         tone: nextSolved ? 'success' : move.productive ? 'success' : 'growth',
         text: nextSolved
-          ? 'The requested variable is isolated. The equation is solved; further simplification is optional unless this question explicitly assesses final form.'
+          ? (equation.objective?.requireSimplifiedFinalForm ? 'The requested variable is isolated in simplified final form.' : 'The requested variable is isolated. The equation is solved; further simplification is optional.')
           : resolution === 'keep'
             ? 'Balanced move kept as written. Continue solving from this equivalent equation.'
             : move.productive
@@ -1572,7 +1572,7 @@ export default function StepByStepAlgebra({
 
     if (move.requiredCancellationSides.length === 0) {
       if (move.simplificationTargets?.length) {
-        setMessage({ tone: 'growth', text: 'The operation is balanced. You may simplify the remaining side(s), or keep the equivalent equation as written and continue.' });
+        setMessage({ tone: 'growth', text: equation.objective?.requireSimplifiedFinalForm ? 'The operation is balanced. Complete the required simplification to finish.' : 'The operation is balanced. You may simplify the remaining side(s), or keep the equivalent equation as written and continue.' });
       } else {
         // Nothing remains to cancel or simplify: the operation itself completed
         // this step. Commit instead of showing an empty/redundant response area.
@@ -1796,7 +1796,7 @@ export default function StepByStepAlgebra({
     setCrossedSides(next);
     const allRequired = pendingMove.requiredCancellationSides.every((requiredSide) => next.includes(requiredSide));
     if (allRequired) {
-      if (pendingMove.simplificationTargets?.length) setMessage({ tone: 'success', text: 'The cancellation is complete. Simplify the remaining side(s), or keep them as written and continue.' });
+      if (pendingMove.simplificationTargets?.length) setMessage({ tone: 'success', text: equation.objective?.requireSimplifiedFinalForm ? 'The cancellation is complete. Complete the required simplification to finish.' : 'The cancellation is complete. Simplify the remaining side(s), or keep them as written and continue.' });
       else await commitMove(pendingMove, { crossedSidesOverride: next });
     }
   };

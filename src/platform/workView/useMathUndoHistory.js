@@ -1,3 +1,4 @@
+import usePersistentToolState from '../../tools/shared/usePersistentToolState.js';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   EMPTY_MATH_UNDO_STACK,
@@ -116,15 +117,23 @@ export default function useMathUndoHistory({
   limit = MATH_UNDO_LIMIT,
   ownerId = 'mathematical-tool',
   priority = 0,
+  persist = false,
 }) {
-  const stackRef = useRef(EMPTY_MATH_UNDO_STACK);
+  const [savedHistory, setSavedHistory] = usePersistentToolState(`undo:${ownerId}`, null);
+  const initialStack = persist && savedHistory?.resetKey === resetKey
+    && savedHistory?.snapshot === mathematicalSnapshot(state) && Array.isArray(savedHistory?.stack?.entries)
+    ? { entries: savedHistory.stack.entries.slice(-limit) } : EMPTY_MATH_UNDO_STACK;
+  const stackRef = useRef(initialStack);
+  const save = useCallback((stack, current) => {
+    if (persist) setSavedHistory({ resetKey, snapshot: mathematicalSnapshot(current), stack });
+  }, [persist, resetKey, setSavedHistory]);
   const previousRef = useRef(state);
   // Set when a restore is in flight. Compared by snapshot rather than held as a
   // boolean: if the restore lands in a render this hook never sees — a tool that
   // restores into a value it already held — a boolean would stay set and
   // swallow the student's NEXT edit.
   const restoringSnapshotRef = useRef(null);
-  const [depth, setDepth] = useState(0);
+  const [depth, setDepth] = useState(() => mathUndoDepth(initialStack));
   const restoreRef = useRef(onRestore);
   restoreRef.current = onRestore;
   const register = useWorkViewUndoRegistration();
@@ -141,7 +150,8 @@ export default function useMathUndoHistory({
     previousRef.current = state;
     restoringSnapshotRef.current = null;
     setDepth(0);
-  }, [resetKey, state]);
+    save(EMPTY_MATH_UNDO_STACK, state);
+  }, [resetKey, state, save]);
 
   useEffect(() => {
     const previous = previousRef.current;
@@ -157,7 +167,8 @@ export default function useMathUndoHistory({
     if (next === stackRef.current) return;
     stackRef.current = next;
     setDepth(mathUndoDepth(next));
-  }, [state, limit]);
+    save(next, state);
+  }, [state, limit, save]);
 
   const undo = useCallback(() => {
     const { stack, restored, changed } = undoMathUndoEntry(stackRef.current);
@@ -165,14 +176,16 @@ export default function useMathUndoHistory({
     stackRef.current = stack;
     restoringSnapshotRef.current = mathematicalSnapshot(restored);
     setDepth(mathUndoDepth(stack));
+    save(stack, restored);
     restoreRef.current?.(restored);
     return true;
-  }, []);
+  }, [save]);
 
   const clear = useCallback(() => {
     stackRef.current = EMPTY_MATH_UNDO_STACK;
     setDepth(0);
-  }, []);
+    save(EMPTY_MATH_UNDO_STACK, previousRef.current);
+  }, [save]);
 
   const canUndo = enabled && depth > 0;
 

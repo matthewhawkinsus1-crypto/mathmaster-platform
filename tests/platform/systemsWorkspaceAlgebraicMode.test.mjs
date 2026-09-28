@@ -220,7 +220,7 @@ test('embedded solver reveal is presentation-only and does not solve or choose a
 
 test('the ordered pair is only assembled after both variables are solved, and verification is required before the workspace considers the attempt ready to check', () => {
   assert.match(modeSource, /const solution = secondSolvedDone \? \{ \[survivingVariable\]: firstSolved\.value, \[removedVariable\]: secondSolved\.value \} : null;/);
-  assert.match(modeSource, /readyToSubmit = isDegenerate \? Boolean\(specialCaseAnswered\) : Boolean\(solution && \(!config\.requireVerification \|\| allVerified\)\)/);
+  assert.match(modeSource, /readyToSubmit = isDegenerate \? Boolean\(!subsystem && specialCaseAnswered\) : Boolean\(solution && \(!config\.requireVerification \|\| allVerified\)\)/);
 });
 
 test('verification requires both original equations to be checked independently, not a single yes/no', () => {

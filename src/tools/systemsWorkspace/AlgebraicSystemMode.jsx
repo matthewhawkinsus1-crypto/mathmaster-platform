@@ -433,6 +433,10 @@ export function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, dra
  * field names are this component's, which is why the reader lives here.
  */
 export const subsystemReportFromDraft = (record) => {
+  const combined = record?.combination;
+  if (combined?.combinationValid && combined?.text && isDegenerateStatement(combined.coefficients)) {
+    return { outcome: { type: degenerateStatementTruth(combined.coefficients).isTrue ? 'infinite' : 'none', statement: combined.text } };
+  }
   const first = record?.firstSolved;
   const second = record?.secondSolved;
   if (!first?.variable || !second?.variable || first.value == null || second.value == null) return null;
@@ -603,6 +607,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setMethodEfficiencyReason(value?.methodEfficiencyReason || '');
   }, [config.method]);
   const undoHistory = useMathUndoHistory({
+    persist: true,
     label: 'Undo the last algebraic-systems edit',
     state: mathState,
     onRestore: restore,
@@ -695,7 +700,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   // the moment an Undo takes it back. The parent mirrors it; this component's
   // draft-backed fields remain the source of truth.
   const onSubsystemSolutionChange = subsystem?.onSolutionChange;
-  const subsystemSolutionKey = solution ? JSON.stringify(solution) : '';
+  const subsystemOutcome = isDegenerate ? { type: degenerateTruth.isTrue ? 'infinite' : 'none', statement: formatLinearEquation(reduceCoefficients, variables) } : null;
+  const subsystemSolutionKey = JSON.stringify(solution || subsystemOutcome);
   React.useEffect(() => {
     if (!onSubsystemSolutionChange) return;
     onSubsystemSolutionChange(solution ? {
@@ -708,7 +714,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         backSub,
         secondSolved,
       },
-    } : null);
+    } : subsystemOutcome ? { outcome: subsystemOutcome } : null);
     // Keyed on the solution itself: re-reporting an identical solution on
     // every render would churn the parent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1052,6 +1058,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         ...(current.cancelledRows || { 0: false, 1: false }),
         [index]: !current.cancelledRows?.[index],
       },
+      cancellationConfirmed: subsystem ? Boolean(!current.cancelledRows?.[index] && current.cancelledRows?.[1 - index]) : current.cancellationConfirmed,
     }));
   };
 
@@ -1207,7 +1214,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     && specialCase.classificationAnswer === (degenerateTruth.isTrue ? 'consistent-dependent' : 'inconsistent')
   );
 
-  const readyToSubmit = isDegenerate ? Boolean(specialCaseAnswered) : Boolean(solution && (!config.requireVerification || allVerified));
+  const readyToSubmit = isDegenerate ? Boolean(!subsystem && specialCaseAnswered) : Boolean(solution && (!config.requireVerification || allVerified));
 
   const check = () => {
     const expected = solveAlgebraicSystem(config.coefficients);
@@ -1457,6 +1464,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                         <div style={{ display: 'grid', gap: 8, padding: '12px 14px', border: '1px solid #dbe3ef', borderRadius: 10, background: 'var(--mm-surface)' }}>
                           <Field label="Write an equivalent, simpler expression">
                             <MathInput
+                              onSubmit={checkAndUseIsolationSimplification}
                               value={isolation.simplificationDraft || ''}
                               onChange={setIsolationSimplificationDraft}
                               placeholder="e.g. 2x - 7"
@@ -1546,7 +1554,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                     <button type="button" onClick={resetFromSelection}>Change target</button>
                   </div>
 
-                  <div className="mathmaster-systems-elimination-equations">
+                  <div className="mathmaster-systems-elimination-equations" hidden={Boolean(subsystem && cancellationPending)}>
                     {[0, 1].map((index) => {
                       const transformed = appliedMultipliers[index] ? multipliedEq(index) : null;
                       const expectedTransformed = multipliedEq(index);
@@ -1676,7 +1684,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                             />
                           </div>
 
-                          {work.active && expectedTransformed && originalCoefficients ? (
+                          {work.active && !work.valid && expectedTransformed && originalCoefficients ? (
                             <div ref={revealStageOnAppear} className="mathmaster-systems-multiplier-products">
                               <div className="mathmaster-systems-multiplier-products-heading">
                                 <strong>Complete the scaled equation</strong>
@@ -1957,7 +1965,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
             </div>
           ) : null}
 
-          {isDegenerate ? (
+          {isDegenerate && !subsystem ? (
             <div style={{ marginTop: 14, padding: 10, border: '1px solid #dbe3ef', borderRadius: 8, background: 'var(--mm-surface)' }}>
               <p style={{ margin: '0 0 8px', fontWeight: 700 }}>This reduces to a statement with no variable. Interpret it before moving on.</p>
               <MathDisplay value={formatLinearEquation(reduceCoefficients, variables)} format="ascii-math" />
@@ -2239,7 +2247,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
               />
             </div>
           ) : null}
-          {isDegenerate ? (
+          {isDegenerate && !subsystem ? (
             <div style={{ marginTop: 12, padding: 10, borderRadius: 8, background: specialCaseCorrect ? '#f0fbf4' : '#f3f4f6' }}>
               <strong>Reduced statement:</strong> <MathDisplay value={formatLinearEquation(reduceCoefficients, variables)} format="ascii-math" inline />
             </div>

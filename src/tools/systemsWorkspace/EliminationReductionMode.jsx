@@ -43,6 +43,8 @@ import { verificationTokenNeeded } from './verificationTokenState.js';
 import { buildReductionSystem, reductionAnswerKey } from './substitutionReduction.js';
 import {
   activeEliminationRoundKey,
+  eliminationOutcome,
+  classifyEliminationOutcome,
   applyEliminationMultiplier,
   attemptEliminationBackPlacement,
   checkEliminationCombination,
@@ -72,6 +74,7 @@ import {
   toggleEliminationCancellation,
 } from './eliminationReduction.js';
 import { allOriginalsVerified } from './substitutionReduction.js';
+import AlgebraicOutcome from './AlgebraicOutcome.jsx';
 import OriginalEquationsVerification from './OriginalEquationsVerification.jsx';
 import './AlgebraicSystemMode.css';
 
@@ -103,7 +106,7 @@ const feedbackText = (note, system) => {
     case 'pair:variable-absent':
       return `${labelFor(note.equationId)} has no ${note.variable} term, so ${note.variable} cannot be eliminated from that pair. Choose a different pair.`;
     case 'pair:pair-repeated':
-      return 'The other round already used this exact pair. Choose two different equations so the two reduced equations are independent.';
+      return 'The other round already used this pair. Choose a different pair so your work includes all three original equations.';
     case 'multiplier:invalid-multiplier':
       return 'That scale factor is not a valid nonzero number. Enter a nonzero number such as 2 or −1/3, or keep the equation as written.';
     case 'multiplier-products:incorrect-products':
@@ -174,9 +177,11 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
   const reducedIdentity = reduced ? `${reduced.variables.join(',')}|${reduced.equations.map((eq) => eq.text).join('|')}` : null;
   const scopeContext = useToolDraftScope();
   const subsystemScope = reducedIdentity ? `${scopeContext?.scope || 'tool'}:elim-reduced-${hashText(reducedIdentity)}` : null;
+  const [subsystemClassification, setSubsystemClassification] = usePersistentToolState('subsystemClassification', null);
   const handleSubsystemSolution = useCallback((report) => {
     setSubsystemReport({ identity: reducedIdentity, report });
-  }, [reducedIdentity]);
+    if (!report?.outcome) setSubsystemClassification(null);
+  }, [reducedIdentity, setSubsystemClassification]);
   const subsystemState = useMemo(() => {
     if (!reducedIdentity) return null;
     if (subsystemReport?.identity === reducedIdentity) return subsystemReport.report;
@@ -188,15 +193,22 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
   const activeRound = activeEliminationRoundKey(elimination);
   const variable = elimination.variable;
   const allVerified = allOriginalsVerified(elimination, system);
-  const phase = eliminationPhase(elimination, system, { reducedSolution, requireVerification: config.requireVerification, allVerified });
+  const directOutcome = eliminationOutcome(elimination, system);
+  const outcome = directOutcome || subsystemState?.outcome || null;
+  const outcomeIdentity = outcome ? `${reducedIdentity}|${outcome.statement}` : null;
+  const classified = directOutcome
+    ? eliminationPhase(elimination, system) === 'classified'
+    : Boolean(outcome && subsystemClassification?.identity === outcomeIdentity && subsystemClassification?.choice === outcome.type);
+  const phase = outcome ? (classified ? 'classified' : 'classify') : eliminationPhase(elimination, system, { reducedSolution, requireVerification: config.requireVerification, allVerified });
   const solution = eliminationKnownSolution(elimination, reducedSolution);
   const fullSolution = elimination.back?.solved ? solution : null;
   const backEquation = reducedSolution ? eliminationBackSubstitutionEquation(elimination, system, reducedSolution) : null;
 
   /* ------------------------------------------------------------ undo */
-  const historyState = useMemo(() => ({ elimination: storedElimination }), [storedElimination]);
-  const restore = useCallback((value) => setStoredElimination(value?.elimination ?? emptyEliminationState()), [setStoredElimination]);
+  const historyState = useMemo(() => ({ elimination: storedElimination, subsystemClassification }), [storedElimination, subsystemClassification]);
+  const restore = useCallback((value) => { setStoredElimination(value?.elimination ?? emptyEliminationState()); setSubsystemClassification(value?.subsystemClassification ?? null); }, [setStoredElimination, setSubsystemClassification]);
   const undoHistory = useMathUndoHistory({
+    persist: true,
     label: 'Undo the last 3×3 elimination edit',
     state: historyState,
     onRestore: restore,
@@ -207,10 +219,10 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
   const compositeUndo = useMemo(() => {
     const historyController = { canUndo: undoHistory.canUndo, onUndo: undoHistory.undo, label: 'Undo the last 3×3 elimination edit' };
     if (embeddedUndoController?.canUndo) return embeddedUndoController;
-    if (phase === 'subsystem' && subsystemUndoController?.canUndo) return subsystemUndoController;
+    if ((phase === 'subsystem' || (subsystemState?.outcome && !classified)) && subsystemUndoController?.canUndo) return subsystemUndoController;
     if (reducedSolution && !hasPostSubsystemWork && subsystemUndoController?.canUndo) return subsystemUndoController;
     return historyController;
-  }, [embeddedUndoController, subsystemUndoController, phase, reducedSolution, hasPostSubsystemWork, undoHistory.canUndo, undoHistory.undo]);
+  }, [embeddedUndoController, subsystemUndoController, phase, reducedSolution, hasPostSubsystemWork, undoHistory.canUndo, undoHistory.undo, subsystemState?.outcome, classified]);
   useActiveUndoOwner({ id: 'algebraic-elimination-composite', active: true, priority: 60, controller: compositeUndo });
   const undoCapability = {
     label: '↶ Undo',
@@ -227,13 +239,13 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
     if (value != null) apply(recordEliminationBackSolve(elimination, value, text));
   }, [apply, elimination, variable]);
 
-  const readyToSubmit = phase === 'complete';
+  const readyToSubmit = phase === 'complete' || phase === 'classified';
   const check = () => {
     const key = answerKey;
-    const valuesCorrect = Boolean(fullSolution && key.type === 'unique'
+    const valuesCorrect = classified || Boolean(fullSolution && key.type === 'unique'
       && system.variables.every((name) => Number.isFinite(fullSolution[name]) && Math.abs(fullSolution[name] - key.solution[name]) <= 1e-6 * Math.max(1, Math.abs(key.solution[name]))));
-    const verified = !config.requireVerification || allVerified;
-    submit({ isCorrect: valuesCorrect && verified, score: (valuesCorrect && verified) ? 1 : 0 }, fullSolution, {
+    const verified = classified || !config.requireVerification || allVerified;
+    submit({ isCorrect: valuesCorrect && verified, score: (valuesCorrect && verified) ? 1 : 0 }, classified ? { classification: outcome.type, statement: outcome.statement } : fullSolution, {
       mode: 'algebraic',
       dimension: config.dimension,
       method: 'elimination',
@@ -277,10 +289,11 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
       complete: !config.requireVerification || allVerified,
       summary: allVerified ? 'Checked in all three original equations' : '',
     },
-  ];
+  ].filter((stage) => !outcome || !['subsystem', 'back', 'verify'].includes(stage.id));
+  if (outcome) workTrailStages.push({ id: 'classification', label: 'Interpret result', complete: classified });
 
   const note = feedbackText(feedbackNote, system);
-  const unsupported = answerKey.type !== 'unique';
+  const unsupported = answerKey.type === 'invalid';
 
   return (
     <EnlargeableFigure
@@ -344,7 +357,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
             {unsupported ? (
               <div className="mathmaster-reduction-unsupported" role="alert">
                 <strong>This system cannot be solved in this workspace yet.</strong>
-                <p>It does not have exactly one solution, and the 3×3 elimination workspace only supports systems that do. Nothing you did caused this. Let your teacher know so they can fix the question.</p>
+                <p>Its equations could not be read as a linear system. Nothing you did caused this. Let your teacher know so they can fix the question.</p>
               </div>
             ) : (
               <>
@@ -420,7 +433,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
                   </div>
                 ) : null}
                 {reduced ? (
-                  <div className="mathmaster-reduction-subsystem" hidden={phase !== 'subsystem' && !(reducedSolution && showSolvedSubsystem)}>
+                  <div className="mathmaster-reduction-subsystem" hidden={phase !== 'subsystem' && !subsystemState?.outcome && !(reducedSolution && showSolvedSubsystem)}>
                     <div className="mathmaster-reduction-subsystem-heading">
                       <strong>Reduced subsystem</strong>
                       <span>{reduced.equations.map((equation) => `${lineageName(equation.id)} from ${equation.fromPair.map((eqId) => system.equations.find((original) => original.id === eqId)?.label).join(' & ')}`).join(' · ')}</span>
@@ -470,6 +483,13 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
 
                 {note ? <p className="mathmaster-systems-substitution-feedback is-error" role="status">{note}</p> : null}
 
+                {(outcome || phase === 'complete') ? <AlgebraicOutcome
+                  key={outcomeIdentity || 'unique'} outcome={outcome} classified={classified}
+                  solution={phase === 'complete' ? fullSolution : null} questionData={questionData}
+                  onClassify={(choice) => directOutcome
+                    ? apply(classifyEliminationOutcome(elimination, system, choice))
+                    : setSubsystemClassification({ identity: outcomeIdentity, choice })}
+                /> : null}
                 {readyToSubmit ? <button type="button" onClick={check} style={actionStyle}>Check my work</button> : null}
                 {feedback ? (
                   <div style={{ marginTop: 14 }}>
@@ -483,7 +503,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
               hints={[
                 'Any two of the three equations may be combined first — nothing is the "right" starting pair.',
                 'Scale an equation only if it needs it. If a variable’s coefficients already match or are opposite, add or subtract directly.',
-                'The second pair must be different from the first, so the two reduced equations use independent information.',
+                'The second pair must be different from the first, so your work includes all three original equations.',
                 'Once two values are known, put them back into an original equation that still has the third variable.',
               ]}
               onHintUsed={() => onAction?.('HINT_USED')}

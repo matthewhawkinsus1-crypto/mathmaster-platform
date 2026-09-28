@@ -194,7 +194,7 @@ test('the authoring gate accepts 2×2 and 3×3 substitution and elimination, and
   assert.deepEqual(choice.warnings, []);
 
   const dependent = validateAlgebraicSystemAuthoring({ equations: ['x + y + z = 1', '2x + 2y + 2z = 2', 'x - y = 0'], variables: XYZ });
-  assert.ok(dependent.errors.some((message) => /exactly one solution; this system is dependent/.test(message)));
+  assert.ok(dependent.errors.some((message) => /Use method "elimination".*this system is dependent/.test(message)));
   const inconsistent = validateAlgebraicSystemAuthoring({ equations: ['x + y + z = 1', 'x + y + z = 2', 'x - y = 0'], variables: XYZ });
   assert.ok(inconsistent.errors.some((message) => /this system is inconsistent/.test(message)));
   // 2×2 special cases stay authorable: the 2×2 workflow interprets them.

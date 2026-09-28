@@ -133,8 +133,9 @@
             }
           ],
           "type": "systemsWorkspace",
-          "mode": "spatial",
+          "mode": "algebraic",
           "studentActions": [
+            "solveSystem",
             "connectRepresentations"
           ],
           "difficultyBand": 2,
@@ -149,72 +150,9 @@
             "y",
             "z"
           ],
-          "spatialModel": {
-            "kind": "threePlanes",
-            "allowSolutionReveal": true
-          },
-          "prompt": "With your teacher, explore this 3×3 system in 3D. Rotate the model and toggle the planes on and off. Notice Plane 1 (blue) and Plane 3 (green) in relation to each other, and observe how Plane 2 (red) intersects them. How do the three planes intersect?",
-          "answerFields": [
-            {
-              "id": "spatial_classification",
-              "label": "How do the three planes intersect?",
-              "type": "choice",
-              "inputProfile": "choice",
-              "options": [
-                "Planes 1 and 3 are coincident (the same plane), and Plane 2 intersects them along a line of infinitely many solutions.",
-                "The three planes intersect at exactly one unique point.",
-                "The three planes are mutually parallel and never touch.",
-                "The three planes form a triangular tube with three separate parallel lines."
-              ],
-              "answer": "Planes 1 and 3 are coincident (the same plane), and Plane 2 intersects them along a line of infinitely many solutions."
-            }
-          ]
-        },
-        {
-          "questionId": "3x3-d2-cw-2",
-          "standard": "A2.3B",
-          "alignments": [
-            {
-              "framework": "teks",
-              "code": "A2.3B",
-              "role": "primary"
-            }
-          ],
-          "type": "multiAnswer",
-          "studentActions": [
-            "multipleResponses"
-          ],
-          "difficultyBand": 2,
-          "dok": 2,
-          "prompt": "Connect the 3D model from Question 1 to its algebra:\n(1) 2x + y - 3z = 5\n(2) x + 2y - 4z = 7\n(3) 6x + 3y - 9z = 15\nMultiplying Equation 1 by 3 yields 6x + 3y - 9z = 15.\nSubtracting Equation 3 from this scaled equation yields 0 = 0.\nInterpret this algebraic result.",
-          "answerFields": [
-            {
-              "id": "identity_meaning",
-              "label": "What does the statement 0 = 0 indicate algebraically?",
-              "type": "choice",
-              "inputProfile": "choice",
-              "options": [
-                "It is an identity (true for all points on the plane), indicating dependent equations with shared solutions.",
-                "It is a contradiction, proving that no solution exists.",
-                "It means the only solution is (0, 0, 0).",
-                "It means an arithmetic mistake was made."
-              ],
-              "answer": "It is an identity (true for all points on the plane), indicating dependent equations with shared solutions."
-            },
-            {
-              "id": "identity_solution_set",
-              "label": "What is the complete solution set to the system?",
-              "type": "choice",
-              "inputProfile": "choice",
-              "options": [
-                "Infinitely many solutions (the common line of intersection between the two distinct planes).",
-                "No solution.",
-                "Exactly one unique point.",
-                "All points in three-dimensional space."
-              ],
-              "answer": "Infinitely many solutions (the common line of intersection between the two distinct planes)."
-            }
-          ]
+          "prompt": "Use elimination to investigate this system. Choose your variable, pairs, and multipliers; show the arithmetic yourself. Interpret any statement with no variables using all three equations, then connect your result to the 3D model.",
+          "method": "elimination",
+          "requireVerification": false
         },
         {
           "questionId": "3x3-d2-cw-3",
@@ -300,8 +238,9 @@
             }
           ],
           "type": "systemsWorkspace",
-          "mode": "spatial",
+          "mode": "algebraic",
           "studentActions": [
+            "solveSystem",
             "connectRepresentations"
           ],
           "difficultyBand": 3,
@@ -316,72 +255,9 @@
             "y",
             "z"
           ],
-          "spatialModel": {
-            "kind": "threePlanes",
-            "allowSolutionReveal": true
-          },
-          "prompt": "Rotate the 3D model of this system. Compare the normal coefficients: [3, -1, -2], [6, -2, -4], and [9, -3, -6]. Notice the constant terms (4, 11, 12). What geometric relationship exists among these three planes?",
-          "answerFields": [
-            {
-              "id": "parallel_planes",
-              "label": "Geometric relationship of the planes:",
-              "type": "choice",
-              "inputProfile": "choice",
-              "options": [
-                "Planes 1 and 3 are coincident, while Plane 2 is parallel to them but distinct; the system has no common point.",
-                "The three planes intersect at a single point.",
-                "The three planes intersect along a single line.",
-                "Planes 1 and 2 are perpendicular to Plane 3."
-              ],
-              "answer": "Planes 1 and 3 are coincident, while Plane 2 is parallel to them but distinct; the system has no common point."
-            }
-          ]
-        },
-        {
-          "questionId": "3x3-d2-pr-3",
-          "standard": "A2.3B",
-          "alignments": [
-            {
-              "framework": "teks",
-              "code": "A2.3B",
-              "role": "primary"
-            }
-          ],
-          "type": "multiAnswer",
-          "studentActions": [
-            "multipleResponses"
-          ],
-          "difficultyBand": 2,
-          "dok": 2,
-          "prompt": "Now analyze the algebra for the first two equations from the previous question:\n(1) 3x - y - 2z = 4\n(2) 6x - 2y - 4z = 11\nMultiplying Equation 1 by 2 gives 6x - 2y - 4z = 8.\nSubtracting Equation 2 (6x - 2y - 4z = 11) gives:\n0 = -3.\nInterpret this algebraic result.",
-          "answerFields": [
-            {
-              "id": "contradiction_statement",
-              "label": "What kind of mathematical statement is 0 = -3?",
-              "type": "choice",
-              "inputProfile": "choice",
-              "options": [
-                "A contradiction (a statement that is false for every ordered triple (x, y, z)).",
-                "An identity (a statement that is true for every ordered triple).",
-                "A conditional statement true only when z = -3.",
-                "A linear equation with negative intercept."
-              ],
-              "answer": "A contradiction (a statement that is false for every ordered triple (x, y, z))."
-            },
-            {
-              "id": "contradiction_solution",
-              "label": "What does this contradiction prove about the 3×3 system?",
-              "type": "choice",
-              "inputProfile": "choice",
-              "options": [
-                "The system is inconsistent and has no solution (no points are common to the planes).",
-                "The system has infinitely many solutions.",
-                "The unique solution is (0, 0, -3).",
-                "The system has exactly two solutions."
-              ],
-              "answer": "The system is inconsistent and has no solution (no points are common to the planes)."
-            }
-          ]
+          "prompt": "Use elimination to investigate this system. Choose your variable, pairs, and multipliers; show the arithmetic yourself. Interpret any statement with no variables using all three equations, then connect your result to the 3D model.",
+          "method": "elimination",
+          "requireVerification": false
         },
         {
           "questionId": "3x3-d2-pr-4",

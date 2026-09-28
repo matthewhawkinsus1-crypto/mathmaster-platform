@@ -22,6 +22,7 @@ import { advanceIdleCamera, clipPlaneToCube, cubeCorners, cubeEdges, legibleCame
 import { gradeMultiAnswerResponse } from '../../../functions/shared/ordinaryResponseGrading.mjs';
 import './AlgebraicSystemMode.css';
 import './ThreePlaneWorkspace.css';
+import { spatialMisconceptionFeedback, parallelPlaneRelationships } from './spatialFeedback.js';
 
 const DEFAULT_VARIABLES = ['x', 'y', 'z'];
 const PLANE_COLORS = ['#1a73e8', '#ea4335', '#34a853'];
@@ -47,7 +48,7 @@ const boundingRadius = (solution, variables) => {
   return Math.ceil(largest * 1.4);
 };
 
-export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
+export default function ThreePlaneWorkspace({ questionData = {}, onAction, earnedResult = null }) {
   // Keep the authored arrays stable while the idle camera animates. Without
   // this, every animation frame reparses the same equations and recomputes the
   // best opening camera even though only the camera angle changed.
@@ -67,7 +68,8 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
 
   const forms = useMemo(() => equations.map((equation) => linearEquationForm(equation, variables)), [equations, variables]);
   const classification = useMemo(() => classifyLinearSystem(forms, variables), [forms, variables]);
-  const R = useMemo(() => boundingRadius(classification.solution, variables), [classification.solution, variables]);
+  const shownSolution = earnedResult?.type === 'unique' ? earnedResult.solution : classification.solution;
+  const R = useMemo(() => boundingRadius(shownSolution, variables), [shownSolution, variables]);
 
   // Opening view: the upright angle where every plane is seen most face-on,
   // instead of one fixed angle that showed the Day 1 planes as slivers (#361).
@@ -112,7 +114,9 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
   const markInteracted = useCallback(() => setHasInteracted(true), []);
   const [visiblePlanes, setVisiblePlanes] = usePersistentToolState('visiblePlanes', [true, true, true]);
   const [revealed, setRevealed] = usePersistentToolState('solutionRevealed', spatialModel.revealSolution === true);
-  const canReveal = spatialModel.revealSolution === true || spatialModel.allowSolutionReveal === true;
+  const canReveal = !earnedResult && (spatialModel.revealSolution === true || spatialModel.allowSolutionReveal === true);
+  const showResult = Boolean(earnedResult) || (canReveal && revealed);
+  const shownType = earnedResult?.type || classification.type;
 
   const [responses, setResponses] = usePersistentToolState('interpretation', {});
   const { feedback, submit } = useToolSubmission(onAction);
@@ -197,10 +201,10 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
   const origin = useMemo(() => projectPoint([0, 0, 0], camera), [camera]);
 
   const solutionMarker = useMemo(() => {
-    if (classification.type !== 'unique' || !revealed) return null;
-    const point3D = variables.map((name) => classification.solution[name]);
+    if (shownType !== 'unique' || !showResult) return null;
+    const point3D = variables.map((name) => shownSolution[name]);
     return projectPolygon([point3D], camera).points[0];
-  }, [classification, revealed, variables, camera]);
+  }, [shownType, showResult, shownSolution, variables, camera]);
 
   // Painter's algorithm: farthest (most negative screen depth toward the
   // viewer's back) first, nearest last, so overlapping translucent planes
@@ -351,7 +355,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
                   strokeWidth={4}
                   paintOrder="stroke"
                 >
-                  {orderedTripleText(classification.solution, variables)}
+                  {orderedTripleText(shownSolution, variables)}
                 </text>
               </g>
             ) : null}
@@ -369,18 +373,19 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
               </button>
             ) : null}
           </div>
-          {revealed ? (
+          {earnedResult && shownType !== 'unique' ? <p>{parallelPlaneRelationships(forms, variables).join(' ')}</p> : null}
+          {showResult ? (
             <p className="mathmaster-reduction-ready-card" role="status">
               {/* The reveal marks the point; it does not also classify the
                   system. "The three planes meet at exactly one point" was the
                   answer to the very question beside it, nearly word for word
                   (CW3, PR4, DOL2 — #361). */}
-              {classification.type === 'unique'
-                ? `Point marked on the model: ${orderedTripleText(classification.solution, variables)}.`
-                : classification.type === 'none'
-                  ? 'The three planes share no common point.'
-                  : classification.type === 'infinite'
-                    ? 'The three planes share infinitely many points.'
+              {shownType === 'unique'
+                ? `Point marked on the model: ${orderedTripleText(shownSolution, variables)}.`
+                : shownType === 'none'
+                  ? 'Your contradiction means no point can lie on all three planes. Compare their directions and positions by hiding and showing each plane.'
+                  : shownType === 'infinite'
+                    ? 'Your identity leaves a shared set of points. Follow the intersection line, or hide and show coincident planes to see their overlap.'
                     : 'This system could not be classified.'}
             </p>
           ) : null}
@@ -436,7 +441,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
                 // A nudge toward the idea, never the option: "Not yet" alone
                 // told a first-time 3D learner nothing about what to rethink.
                 <p className="mathmaster-threeplane-feedback" role="status">
-                  A solution of the system has to make all three equations true at the same time. Look at the model again: what do all three planes share?
+                  {spatialMisconceptionFeedback(answerFields, responses, feedback.metadata?.parts)}
                 </p>
               ) : null}
             </div>

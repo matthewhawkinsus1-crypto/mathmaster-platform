@@ -88,6 +88,7 @@ import {
 } from './substitutionReduction.js';
 import OriginalEquationsVerification from './OriginalEquationsVerification.jsx';
 import './AlgebraicSystemMode.css';
+import AlgebraicOutcome from './AlgebraicOutcome.jsx';
 
 const SUBSCRIPTS = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉'];
 const lineageName = (id) => String(id || '').replace(/\d/g, (digit) => SUBSCRIPTS[Number(digit)]);
@@ -219,6 +220,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
   const historyState = useMemo(() => ({ reduction: storedReduction }), [storedReduction]);
   const restore = useCallback((value) => setStoredReduction(value?.reduction ?? emptyReductionState()), [setStoredReduction]);
   const undoHistory = useMathUndoHistory({
+    persist: true,
     label: 'Undo the last 3×3 substitution edit',
     state: historyState,
     onRestore: restore,
@@ -623,6 +625,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
 
                 {note ? <p className="mathmaster-systems-substitution-feedback is-error" role="status">{note}</p> : null}
 
+                {readyToSubmit ? <AlgebraicOutcome questionData={questionData} solution={solution} /> : null}
                 {readyToSubmit ? <button type="button" onClick={check} style={actionStyle}>Check my work</button> : null}
                 {feedback ? (
                   <div style={{ marginTop: 14 }}>
