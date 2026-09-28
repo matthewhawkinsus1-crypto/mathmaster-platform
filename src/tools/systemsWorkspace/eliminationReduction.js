@@ -105,7 +105,7 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
 const result = (state, feedback = null) => ({ state, feedback });
 const equationById = (system, id) => system.equations.find((equation) => equation.id === id) || null;
 const pairKey = (pair) => (Array.isArray(pair) ? pair.join('|') : '');
-const setRound = (state, roundKey, round) => ({ ...state, rounds: { ...state.rounds, [roundKey]: round } });
+const setRound = (state, roundKey, round) => ({ ...state, classification: null, back: { destinationId: null, placed: {}, solved: null }, verification: {}, rounds: { ...state.rounds, [roundKey]: round } });
 
 /** Every possible unordered pair of the system's equations, in authored order. */
 export const eliminationPairOptions = (system) => {
@@ -399,7 +399,7 @@ export const checkEliminationCombination = (state, system, roundKey) => {
 
 /** The reduced 2×2 system, once both rounds have eliminated the same variable from a different pair. */
 export const eliminationReducedSystem = (state, system) => {
-  if (!state.variable) return null;
+  if (!state.variable || eliminationOutcome(state, system)) return null;
   const r1 = state.rounds.round1;
   const r2 = state.rounds.round2;
   if (!r1?.combinedText || !r2?.combinedText) return null;
@@ -411,6 +411,31 @@ export const eliminationReducedSystem = (state, system) => {
       { id: 'R2', text: r2.combinedText, fromPair: r2.pair },
     ],
   };
+};
+
+/** Only checked student rows can open a terminal branch. An identity from
+ * one pair alone cannot establish consistency of the remaining equation. */
+export const eliminationOutcome = (state, system) => {
+  const rows = ['round1', 'round2'].map((key) => state.rounds[key])
+    .filter((row) => row?.combinedText && row.combinationWork?.valid);
+  const statements = rows.map((row) => ({ text: row.combinedText, form: linearEquationForm(row.combinedText, system.variables) }));
+  const zeroRows = statements.filter(({ form }) => form && system.variables.every((v) => Math.abs(form.coefficients[v]) < EPS));
+  const contradiction = zeroRows.find(({ form }) => Math.abs(form.constant) > EPS);
+  if (contradiction) return { type: 'none', statement: contradiction.text };
+  if (rows.length === 2 && zeroRows.length) return { type: 'infinite', statement: zeroRows[0].text };
+  return null;
+};
+
+export const classifyEliminationOutcome = (state, system, choice) => {
+  const outcome = eliminationOutcome(state, system);
+  if (!outcome || !['unique', 'infinite', 'none'].includes(choice)) return result(state);
+  return result({ ...state, classification: { choice, statement: outcome.statement } },
+    choice === outcome.type ? null : { stage: 'classification', reason: 'reconsider' });
+};
+
+export const eliminationClassificationCorrect = (state, system) => {
+  const outcome = eliminationOutcome(state, system);
+  return Boolean(outcome && state.classification?.choice === outcome.type && state.classification?.statement === outcome.statement);
 };
 
 /* ------------------------------------------------------ back-substitute */
@@ -466,6 +491,7 @@ export const eliminationKnownSolution = (state, reducedSolution) => {
 
 export const eliminationPhase = (state, system, { reducedSolution = null, requireVerification = true, allVerified = false } = {}) => {
   if (!state.variable) return 'choose-variable';
+  if (eliminationOutcome(state, system)) return eliminationClassificationCorrect(state, system) ? 'classified' : 'classify';
   if (!state.rounds.round1.pair) return 'round1-pair';
   if (!state.rounds.round1.combinedText) return 'round1-combine';
   if (!state.rounds.round2.pair) return 'round2-pair';
@@ -622,6 +648,10 @@ export const repairEliminationState = (stored, system) => {
         };
       });
     }
+  }
+  const outcome = eliminationOutcome(state, system);
+  if (outcome && stored.classification?.statement === outcome.statement) {
+    state = classifyEliminationOutcome(state, system, stored.classification.choice).state;
   }
   return state;
 };

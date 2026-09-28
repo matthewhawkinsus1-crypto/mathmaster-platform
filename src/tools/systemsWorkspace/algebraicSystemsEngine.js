@@ -866,8 +866,8 @@ export const validateAlgebraicSystemAuthoring = (questionData = {}) => {
     if (!errors.length) {
       const trimmed = variables.map((value) => String(value).trim());
       const classification = classifyLinearSystem(rawEquations.map((equation) => linearEquationForm(equation, trimmed)), trimmed);
-      if (classification.type !== 'unique') {
-        errors.push(`3×3 algebraic systems must have exactly one solution; this system is ${classification.type === 'none' ? 'inconsistent (no solution)' : 'dependent (infinitely many solutions)'}. Dependent and inconsistent 3×3 systems are not supported by the substitution workflow yet.`);
+      if (classification.type !== 'unique' && questionData.method !== 'elimination') {
+        errors.push(`Use method "elimination" for nonunique 3×3 algebraic systems; this system is ${classification.type === 'none' ? 'inconsistent (no solution)' : 'dependent (infinitely many solutions)'}. Dependent and inconsistent 3×3 systems are not supported by the substitution workflow yet.`);
       }
     }
   }
