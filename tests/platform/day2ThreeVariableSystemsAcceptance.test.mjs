@@ -98,6 +98,29 @@ test('Day 2 uses the exact source systems specified in issue #371', () => {
   assert.deepEqual(triClass.solution, { s: 17, m: 23, l: 32 });
 });
 
+test('Day 2 preserves reveal timing, strategy agency, and correct no-solution geometry', () => {
+  const questions = rawLesson.sections.flatMap((section) => section.questions);
+  const byId = (id) => questions.find((q) => q.questionId === id);
+
+  const warmup = byId('3x3-d2-wu-1');
+  assert.doesNotMatch(warmup.prompt, /\(0,\s*1,\s*2\)/);
+  assert.ok(warmup.answerFields[0].options.every((option) => !/\(0,\s*1,\s*2\)/.test(option)));
+
+  const guided = byId('3x3-d2-cw-3');
+  assert.doesNotMatch(guided.prompt, /-2,\s*6,\s*-3/);
+
+  const independent = byId('3x3-d2-pr-1');
+  assert.doesNotMatch(independent.prompt, /adding the first two|eliminate z directly/i);
+
+  const spatial = byId('3x3-d2-pr-2');
+  assert.match(spatial.answerFields[0].answer, /Planes 1 and 3 are coincident/);
+  assert.match(spatial.answerFields[0].answer, /Plane 2 is parallel to them but distinct/);
+  assert.doesNotMatch(spatial.answerFields[0].answer, /All three planes are parallel and distinct/);
+
+  const modelSolve = byId('3x3-d2-pr-6');
+  assert.doesNotMatch(modelSolve.prompt, /notice that Equation 1 has -l|making l straightforward to eliminate/i);
+});
+
 test('Every systemsWorkspace question validates under toolSchemas without regressions', () => {
   const toolQuestions = rawLesson.sections
     .flatMap((section) => section.questions)
