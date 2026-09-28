@@ -84,7 +84,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
   useEffect(() => {
     setCamera(openingCamera);
     setHasInteracted(false);
-  }, [openingCamera]);
+  }, [openingCamera.azimuth, openingCamera.elevation]);
 
   useEffect(() => {
     if (hasInteracted || reduceMotion || typeof window === 'undefined') return undefined;
