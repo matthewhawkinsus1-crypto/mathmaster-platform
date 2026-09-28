@@ -10,7 +10,7 @@
  * the classification is computed for the student to state; the model only
  * shows the geometry they ask it to show.
  */
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { Panel, HintPanel, ResultPill } from '../shared/ToolShell';
@@ -18,7 +18,7 @@ import useToolSubmission from '../shared/useToolSubmission';
 import MathDisplay from '../../MathDisplay';
 import MathInput from '../../MathInput';
 import { classifyLinearSystem, exactNumberText, linearEquationForm } from './algebraicSystemsEngine.js';
-import { clipPlaneToCube, legibleCamera, planePlaneIntersection, projectPoint, projectPolygon } from './threePlaneGeometry.js';
+import { advanceIdleCamera, clipPlaneToCube, cubeCorners, cubeEdges, legibleCamera, planePlaneIntersection, projectPoint, projectPolygon } from './threePlaneGeometry.js';
 import { gradeMultiAnswerResponse } from '../../../functions/shared/ordinaryResponseGrading.mjs';
 import './AlgebraicSystemMode.css';
 import './ThreePlaneWorkspace.css';
@@ -30,6 +30,7 @@ const MIN_ELEVATION = -1.3;
 const MAX_ELEVATION = 1.3;
 const VIEW_SIZE = 560;
 const AXIS_LABEL_OFFSET = 18;
+const PLANE_LABEL_OFFSETS = [[-16, -12], [0, 12], [16, -12]];
 
 const toScreen = (point, scale, cameraOffset) => [
   VIEW_SIZE / 2 + (point[0] - cameraOffset[0]) * scale,
@@ -64,7 +65,43 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
   // instead of one fixed angle that showed the Day 1 planes as slivers (#361).
   const openingCamera = useMemo(() => legibleCamera(forms, variables, DEFAULT_CAMERA), [forms, variables]);
   const [camera, setCamera] = useState(openingCamera);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
   const dragRef = useRef(null);
+
+  // Gently orbit before the student touches the model so the flat SVG reads
+  // immediately as a 3D object. Stop on first interaction and respect reduced motion.
+  useEffect(() => {
+    const media = typeof window !== 'undefined' && window.matchMedia
+      ? window.matchMedia('(prefers-reduced-motion: reduce)')
+      : null;
+    const sync = () => setReduceMotion(Boolean(media?.matches));
+    sync();
+    media?.addEventListener?.('change', sync);
+    return () => media?.removeEventListener?.('change', sync);
+  }, []);
+
+  useEffect(() => {
+    setCamera(openingCamera);
+    setHasInteracted(false);
+  }, [openingCamera]);
+
+  useEffect(() => {
+    if (hasInteracted || reduceMotion || typeof window === 'undefined') return undefined;
+    let frameId = null;
+    let previous = null;
+    const tick = (timestamp) => {
+      if (previous != null) setCamera((current) => advanceIdleCamera(current, timestamp - previous));
+      previous = timestamp;
+      frameId = window.requestAnimationFrame(tick);
+    };
+    frameId = window.requestAnimationFrame(tick);
+    return () => {
+      if (frameId != null) window.cancelAnimationFrame(frameId);
+    };
+  }, [hasInteracted, reduceMotion]);
+
+  const markInteracted = useCallback(() => setHasInteracted(true), []);
   const [visiblePlanes, setVisiblePlanes] = usePersistentToolState('visiblePlanes', [true, true, true]);
   const [revealed, setRevealed] = usePersistentToolState('solutionRevealed', spatialModel.revealSolution === true);
   const canReveal = spatialModel.revealSolution === true || spatialModel.allowSolutionReveal === true;
@@ -73,15 +110,20 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
   const { feedback, submit } = useToolSubmission(onAction);
 
   const togglePlane = useCallback((index) => {
+    markInteracted();
     setVisiblePlanes((current) => current.map((value, i) => (i === index ? !value : value)));
-  }, [setVisiblePlanes]);
+  }, [markInteracted, setVisiblePlanes]);
 
-  const resetView = useCallback(() => setCamera(openingCamera), [openingCamera]);
+  const resetView = useCallback(() => {
+    markInteracted();
+    setCamera(openingCamera);
+  }, [markInteracted, openingCamera]);
 
   const handlePointerDown = useCallback((event) => {
+    markInteracted();
     event.currentTarget.setPointerCapture?.(event.pointerId);
     dragRef.current = { x: event.clientX, y: event.clientY, camera };
-  }, [camera]);
+  }, [camera, markInteracted]);
   const handlePointerMove = useCallback((event) => {
     if (!dragRef.current) return;
     const dx = event.clientX - dragRef.current.x;
