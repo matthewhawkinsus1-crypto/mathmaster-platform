@@ -99,12 +99,9 @@ Day 2 builds directly on the Day 1 foundation (PR #368 / PR #370) without retrea
   $$2x + y - z = 5$$
   $$x + 4y + 2z = 16$$
 - **What the student sees & does:**
-  - Executes the strategy planned in Warm-Up Q2.
-  - Eliminates $z$ using Pair {Eq 1, Eq 3} and Pair {Eq 1, Eq 2}.
-  - Scales Eq 2 by 2, enters products term-by-term, marks cancellation, and adds.
-  - Solves the reduced $2 \times 2$ system for $x = -2, y = 6$.
-  - Back-substitutes into an original equation to find $z = -3$.
-  - Verifies the triple $(-2, 6, -3)$ across all three original equations.
+  - Applies the elimination strategy developed in Warm-Up Q2 without the prompt revealing the final ordered triple.
+  - Chooses equation pairs, performs any needed scaling, enters products term-by-term, marks cancellation, and combines.
+  - Solves the reduced $2 \times 2$ system, back-substitutes for the third variable, and verifies the resulting triple across all three original equations.
 - **Time estimate:** ~11 minutes.
 
 ---
@@ -119,8 +116,8 @@ Day 2 builds directly on the Day 1 foundation (PR #368 / PR #370) without retrea
   $$3x - 2y - z = -4$$
 - **What the student sees & does:**
   - Student chooses between Substitution and Elimination.
-  - Recognizes that adding Eq 1 and Eq 2 cancels $z$ immediately: $2x + 2y = 2 \implies x + y = 1$.
-  - Solves the reduced system to get $(0, 1, 2)$ and verifies.
+  - The prompt does not suggest a preferred pair or variable; the student must inspect the system and choose a route.
+  - Solves the reduced system, back-substitutes, and verifies.
 - **Time estimate:** ~9 minutes.
 
 #### Q2 (`3x3-d2-pr-2`): Spatial Model of Inconsistent Planes
@@ -130,7 +127,8 @@ Day 2 builds directly on the Day 1 foundation (PR #368 / PR #370) without retrea
   $$6x - 2y - 4z = 11$$
   $$9x - 3y - 6z = 12$$
 - **What the student sees & does:**
-  - Student rotates the 3D model and observes three strictly parallel, non-coincident planes.
+  - Student rotates the 3D model and observes that Plane 1 and Plane 3 are coincident because Equation 3 is exactly three times Equation 1.
+  - Plane 2 has the same normal direction but a nonproportional constant, so it is parallel to — and distinct from — that coincident plane.
   - Classifies the system as having no common intersection point (no solution).
 - **Time estimate:** ~5 minutes.
 
@@ -168,9 +166,8 @@ Day 2 builds directly on the Day 1 foundation (PR #368 / PR #370) without retrea
   $$-3s + m + l = 4$$
   $$s + m + l = 72$$
 - **What the student sees & does:**
-  - Eliminates $l$ (adding Eq 1 and Eq 2; adding Eq 1 and Eq 3).
-  - Solves for $s = 17, m = 23, l = 32$.
-  - Verifies side lengths satisfy the perimeter (72) and triangle conditions.
+  - Chooses which variable and equation pairs to use for elimination; the prompt no longer chooses the route for the student.
+  - Solves for the three side lengths and verifies them in all three equations.
 - **Time estimate:** ~10 minutes.
 
 #### Q7 (`3x3-d2-pr-7-ccmr-rigor`): Honors / CCMR Authentic Parameter Rigor
@@ -257,6 +254,16 @@ All 14 questions were student-tested end-to-end via an automated Playwright harn
 | 14 | `3x3-d2-dol-2` | DOL | `multiAnswer` | Geometric configuration analysis: Two parallel planes intersected by a third plane. Part 1 classified as no solution overall. Part 2 identified algebraic signal as $0 = k$ ($k \neq 0$) when combining the parallel pair. | `isCorrect: true` (Delayed) | 1 / 1 |
 
 ---
+
+## Post-review corrections
+
+A final review after Gemini's first pass corrected four authoring issues before merge:
+
+- Warm-Up Q1 no longer prints the solution coordinates before the student uses the authored reveal.
+- Classwork Q3 no longer prints the final ordered triple before the student solves.
+- Practice Q1 no longer suggests a specific pair/variable route in a student-choice solve.
+- Practice Q2 geometry is corrected: Planes 1 and 3 are coincident, while Plane 2 is parallel and distinct.
+- Practice Q6 still uses elimination, but the student now chooses the elimination variable and equation pairs.
 
 ## Issue #371 Acceptance Criteria Verification
 
