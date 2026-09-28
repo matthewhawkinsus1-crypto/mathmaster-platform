@@ -222,8 +222,10 @@ const subsystemCombine = async (page, operation, variable, coefficient, rightSid
   await marks.first().click();
   await settle(page, 200);
   await sub.locator('button[aria-label$="for elimination cancellation"][aria-pressed="false"]').first().click();
-  await settle(page, 200);
-  await sub.getByRole('button', { name: 'Confirm marked cancellation' }).click();
+  // #390 (N4): the reduced 2×2 now marks cancellation exactly like the 3×3
+  // rounds above it — marking both terms opens the combination, with no
+  // separate "Confirm marked cancellation" step. The fields below only exist
+  // once both marks are in.
   await settle(page, 500);
   await setMathField(page, sub.locator(`math-field[aria-label="Combined coefficient of ${variable}"]`), coefficient);
   await setMathField(page, sub.locator('math-field[aria-label="Combined right side"]'), rightSide);

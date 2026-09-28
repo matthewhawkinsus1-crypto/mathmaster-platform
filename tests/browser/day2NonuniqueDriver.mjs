@@ -1,5 +1,5 @@
 // Reusable visible-control driver for issue #390. Never injects solved state.
-import { balancedMove, cancelFactor, cancelTerm, combineLikeTerms, rewriteTerm, setMathField, settle, simplifySide } from './stepAlgebraDriver.mjs';
+import { balancedMove, cancelFactor, setMathField, settle, simplifySide } from './stepAlgebraDriver.mjs';
 const workflow = page => page.locator('.mathmaster-reduction-workflow');
 const board = (page,key) => page.locator(`[data-round="${key}"]`);
 const expect = (journey, condition, message) => { if (!condition) throw new Error(`${journey}: ${message}`); };

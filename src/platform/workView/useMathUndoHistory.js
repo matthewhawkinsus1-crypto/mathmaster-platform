@@ -1,5 +1,6 @@
-import usePersistentToolState from '../../tools/shared/usePersistentToolState.js';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useToolDraftScope } from '../../tools/shared/usePersistentToolState.js';
+import { persistedUndoKey, readPersistedUndo, writePersistedUndo } from './persistedMathUndo.js';
 import {
   EMPTY_MATH_UNDO_STACK,
   MATH_UNDO_LIMIT,
@@ -117,16 +118,18 @@ export default function useMathUndoHistory({
   limit = MATH_UNDO_LIMIT,
   ownerId = 'mathematical-tool',
   priority = 0,
+  // Keep the history across a refresh of this question (#390). Local to this
+  // device and size-capped — see persistedMathUndo.js for why it must never
+  // share the synced work record.
   persist = false,
 }) {
-  const [savedHistory, setSavedHistory] = usePersistentToolState(`undo:${ownerId}`, null);
-  const initialStack = persist && savedHistory?.resetKey === resetKey
-    && savedHistory?.snapshot === mathematicalSnapshot(state) && Array.isArray(savedHistory?.stack?.entries)
-    ? { entries: savedHistory.stack.entries.slice(-limit) } : EMPTY_MATH_UNDO_STACK;
+  const draftScope = useToolDraftScope();
+  const persistKey = persist ? persistedUndoKey(draftScope?.key, ownerId) : null;
+  const [initialStack] = useState(() => readPersistedUndo(persistKey, { resetKey, state, limit }));
   const stackRef = useRef(initialStack);
   const save = useCallback((stack, current) => {
-    if (persist) setSavedHistory({ resetKey, snapshot: mathematicalSnapshot(current), stack });
-  }, [persist, resetKey, setSavedHistory]);
+    if (persistKey) writePersistedUndo(persistKey, { resetKey, state: current, stack });
+  }, [persistKey, resetKey]);
   const previousRef = useRef(state);
   // Set when a restore is in flight. Compared by snapshot rather than held as a
   // boolean: if the restore lands in a render this hook never sees — a tool that

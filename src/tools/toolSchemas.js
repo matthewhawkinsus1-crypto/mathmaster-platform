@@ -224,8 +224,13 @@ export const validateToolQuestion = (question = {}) => {
       // rules as a 3×3 algebraic system, minus the unique-solution gate
       // (a spatial exploration may intentionally show no solution or
       // infinitely many, for Day 2 classification).
-      const spatial = validateAlgebraicSystemAuthoring({ ...question, method: 'substitution' });
-      errors.push(...spatial.errors.filter((message) => !/exactly one solution/.test(message)));
+      //
+      // Validated as an elimination system, the one method that accepts a
+      // non-unique 3×3 (#390) — never by filtering the uniqueness message out
+      // by its wording: #390 reworded it, the filter stopped matching, and
+      // every dependent/inconsistent three-plane question was refused (#392).
+      const spatial = validateAlgebraicSystemAuthoring({ ...question, method: 'elimination' });
+      errors.push(...spatial.errors);
       if (String(question.spatialModel?.kind || '').trim().toLowerCase() !== 'threeplanes') {
         errors.push('systemsWorkspace spatial mode requires spatialModel.kind "threePlanes".');
       }

@@ -135,8 +135,7 @@
           "type": "systemsWorkspace",
           "mode": "algebraic",
           "studentActions": [
-            "solveSystem",
-            "connectRepresentations"
+            "solveSystem"
           ],
           "difficultyBand": 2,
           "dok": 2,
@@ -150,7 +149,7 @@
             "y",
             "z"
           ],
-          "prompt": "Use elimination to investigate this system. Choose your variable, pairs, and multipliers; show the arithmetic yourself. Interpret any statement with no variables using all three equations, then connect your result to the 3D model.",
+          "prompt": "With your teacher, solve this 3×3 system by elimination. Choose the variable, the two pairs, and any scale factors yourself, and write every product and combination. Decide what your algebra proves about the solution set — using all three equations — then connect your result to the three planes in 3D.",
           "method": "elimination",
           "requireVerification": false
         },
@@ -240,8 +239,7 @@
           "type": "systemsWorkspace",
           "mode": "algebraic",
           "studentActions": [
-            "solveSystem",
-            "connectRepresentations"
+            "solveSystem"
           ],
           "difficultyBand": 3,
           "dok": 2,
@@ -255,7 +253,7 @@
             "y",
             "z"
           ],
-          "prompt": "Use elimination to investigate this system. Choose your variable, pairs, and multipliers; show the arithmetic yourself. Interpret any statement with no variables using all three equations, then connect your result to the 3D model.",
+          "prompt": "Solve this 3×3 system by elimination on your own. Choose the variable, the two pairs, and any scale factors, and write every product and combination. Decide what your algebra proves about the solution set — using all three equations — then connect your result to the three planes in 3D.",
           "method": "elimination",
           "requireVerification": false
         },
@@ -275,33 +273,33 @@
           ],
           "difficultyBand": 3,
           "dok": 3,
-          "prompt": "Comparing Algebraic Signals:\nWhen solving a 3×3 linear system algebraically, two special outcomes can occur during elimination:\nCase 1: An equation reduces to 0 = 0.\nCase 2: An equation reduces to 0 = k (where k is a nonzero constant).\nMatch each outcome to its correct algebraic classification and geometric interpretation.",
+          "prompt": "Comparing Algebraic Signals:\nWhile eliminating in a 3×3 system, you combine two of the ORIGINAL equations and every variable cancels.\nCase 1: The result is 0 = 0.\nCase 2: The result is 0 = k, where k is a nonzero constant.\nDecide what each statement proves about the whole system. Test your choices against the Practice system you just investigated.",
           "answerFields": [
             {
               "id": "case1_identity",
-              "label": "Case 1 (0 = 0):",
+              "label": "Case 1 (0 = 0 from one pair):",
               "type": "choice",
               "inputProfile": "choice",
               "options": [
-                "Dependent system with infinitely many solutions; the equations share a line or plane of intersection.",
-                "Inconsistent system with no solution; the planes never intersect.",
-                "Consistent system with unique solution (0, 0, 0).",
-                "Underdetermined system with exactly 3 solutions."
+                "Those two planes coincide. The system has infinitely many solutions only if the remaining equation produces no contradiction, so it must still be checked.",
+                "The system has infinitely many solutions, whatever the remaining equation says.",
+                "The system has the unique solution (0, 0, 0).",
+                "The system has no solution."
               ],
-              "answer": "Dependent system with infinitely many solutions; the equations share a line or plane of intersection."
+              "answer": "Those two planes coincide. The system has infinitely many solutions only if the remaining equation produces no contradiction, so it must still be checked."
             },
             {
               "id": "case2_contradiction",
-              "label": "Case 2 (0 = k with k ≠ 0):",
+              "label": "Case 2 (0 = k with k ≠ 0 from one pair):",
               "type": "choice",
               "inputProfile": "choice",
               "options": [
-                "Inconsistent system with no solution; parallel or non-intersecting planes share no common location.",
-                "Dependent system with infinitely many solutions along the line z = k.",
-                "Consistent system with exactly one solution at z = k.",
-                "Coincident planes with identical slopes."
+                "Those two planes are parallel and distinct, so no point lies on both. The system has no solution, whatever the remaining equation says.",
+                "The remaining equation must still be checked; the system may have infinitely many solutions.",
+                "The system has exactly one solution, with z = k.",
+                "The system has infinitely many solutions along the line z = k."
               ],
-              "answer": "Inconsistent system with no solution; parallel or non-intersecting planes share no common location."
+              "answer": "Those two planes are parallel and distinct, so no point lies on both. The system has no solution, whatever the remaining equation says."
             }
           ]
         },
