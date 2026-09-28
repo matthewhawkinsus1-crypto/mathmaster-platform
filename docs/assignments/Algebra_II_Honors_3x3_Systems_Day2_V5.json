@@ -48,7 +48,7 @@
             "kind": "threePlanes",
             "allowSolutionReveal": true
           },
-          "prompt": "Reconnect to three-plane geometry: Rotate the 3D model, show and hide individual planes, and reveal the solution point. What does the single intersection point (0, 1, 2) represent for the system?",
+          "prompt": "Reconnect to three-plane geometry: Rotate the 3D model, show and hide individual planes, and reveal the solution point when you are ready. What does the single common intersection point represent for the system?",
           "answerFields": [
             {
               "id": "geometric_meaning",
@@ -56,12 +56,12 @@
               "type": "choice",
               "inputProfile": "choice",
               "options": [
-                "An ordered triple (0, 1, 2) that satisfies all three equations simultaneously.",
+                "An ordered triple that satisfies all three equations simultaneously.",
                 "Three separate intercepts, one on each coordinate axis.",
                 "A point that satisfies only the first two planes.",
                 "A point that lies on the x-axis only."
               ],
-              "answer": "An ordered triple (0, 1, 2) that satisfies all three equations simultaneously."
+              "answer": "An ordered triple that satisfies all three equations simultaneously."
             }
           ]
         },
@@ -245,7 +245,7 @@
             "z"
           ],
           "requireVerification": true,
-          "prompt": "Solve the unique-solution 3×3 system by elimination with your teacher. Put your strategy into action: eliminate z using two different pairs, solve the reduced 2×2 system for x and y, back-substitute to find z, and verify the ordered triple (-2, 6, -3) in all three original equations."
+          "prompt": "Solve the unique-solution 3×3 system by elimination with your teacher. Put your strategy into action: eliminate the same variable using two different pairs, solve the reduced 2×2 system, back-substitute to find the third variable, and verify your ordered triple in all three original equations."
         }
       ]
     },
@@ -287,7 +287,7 @@
             "z"
           ],
           "requireVerification": true,
-          "prompt": "Solve the 3×3 system independently. Look for an efficient elimination path (for example, adding the first two equations to eliminate z directly), reduce to a 2×2 system, back-substitute, and verify your ordered triple in the original equations."
+          "prompt": "Solve the 3×3 system independently. Choose an efficient elimination or substitution path, reduce to a 2×2 system, back-substitute, and verify your ordered triple in the original equations."
         },
         {
           "questionId": "3x3-d2-pr-2",
@@ -328,12 +328,12 @@
               "type": "choice",
               "inputProfile": "choice",
               "options": [
-                "All three planes are parallel and distinct; they never intersect, so the system has no solution.",
+                "Planes 1 and 3 are coincident, while Plane 2 is parallel to them but distinct; the system has no common point.",
                 "The three planes intersect at a single point.",
                 "The three planes intersect along a single line.",
                 "Planes 1 and 2 are perpendicular to Plane 3."
               ],
-              "answer": "All three planes are parallel and distinct; they never intersect, so the system has no solution."
+              "answer": "Planes 1 and 3 are coincident, while Plane 2 is parallel to them but distinct; the system has no common point."
             }
           ]
         },
@@ -527,7 +527,7 @@
             "l"
           ],
           "requireVerification": true,
-          "prompt": "Solve the triangle modeling system you formulated. Use elimination: notice that Equation 1 has -l while Equations 2 and 3 have +l, making l straightforward to eliminate. Find the side lengths s, m, and l, and verify them in all three equations."
+          "prompt": "Solve the triangle modeling system you formulated using elimination. Choose the variable and equation pairs you think will make the work most efficient. Find the side lengths s, m, and l, and verify them in all three equations."
         },
         {
           "questionId": "3x3-d2-pr-7-ccmr-rigor",
