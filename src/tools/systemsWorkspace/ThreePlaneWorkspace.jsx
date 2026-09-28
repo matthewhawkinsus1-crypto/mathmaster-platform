@@ -48,12 +48,19 @@ const boundingRadius = (solution, variables) => {
 };
 
 export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
-  const variables = Array.isArray(questionData.variables) && questionData.variables.length === 3
-    ? questionData.variables.map((value) => String(value))
-    : DEFAULT_VARIABLES;
-  const equations = Array.isArray(questionData.equations) && questionData.equations.length === 3
-    ? questionData.equations.map(String)
-    : ['x + y + z = 6', '2x - y + z = 3', '-x + 2y + z = 5'];
+  // Keep the authored arrays stable while the idle camera animates. Without
+  // this, every animation frame reparses the same equations and recomputes the
+  // best opening camera even though only the camera angle changed.
+  const variables = useMemo(() => (
+    Array.isArray(questionData.variables) && questionData.variables.length === 3
+      ? questionData.variables.map((value) => String(value))
+      : DEFAULT_VARIABLES
+  ), [questionData.variables]);
+  const equations = useMemo(() => (
+    Array.isArray(questionData.equations) && questionData.equations.length === 3
+      ? questionData.equations.map(String)
+      : ['x + y + z = 6', '2x - y + z = 3', '-x + 2y + z = 5']
+  ), [questionData.equations]);
   const answerFields = Array.isArray(questionData.answerFields) ? questionData.answerFields : [];
   const spatialModel = questionData.spatialModel && typeof questionData.spatialModel === 'object' ? questionData.spatialModel : {};
   const systemIdentity = variables.join('|') + '::' + equations.join('|');
