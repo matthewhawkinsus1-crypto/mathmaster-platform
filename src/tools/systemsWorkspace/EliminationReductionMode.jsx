@@ -551,8 +551,26 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
 /* Choosing the equation pair for this round — every pair shown with equal weight, nothing marked as suggested. */
 function EliminationPairChoice({ label, system, roundKey, elimination, apply }) {
   const options = useMemo(() => eliminationPairOptions(system), [system]);
+  const r1 = elimination.rounds?.round1;
+  const isRound2AfterAllZero = useMemo(() => {
+    if (roundKey !== 'round2' || !r1?.combinedText) return false;
+    const form = linearEquationForm(r1.combinedText, system.variables);
+    return Boolean(form && system.variables.every((v) => Math.abs(form.coefficients[v] || 0) < 1e-7));
+  }, [roundKey, r1?.combinedText, system.variables]);
+
+  const remainingEquation = useMemo(() => {
+    if (!isRound2AfterAllZero || !Array.isArray(r1?.pair)) return null;
+    const used = new Set(r1.pair);
+    return system.equations.find((eq) => !used.has(eq.id)) || null;
+  }, [isRound2AfterAllZero, r1?.pair, system.equations]);
+
   return (
     <div className="mathmaster-reduction-stage">
+      {isRound2AfterAllZero && remainingEquation ? (
+        <p className="mathmaster-systems-substitution-direction" style={{ marginBottom: 6 }}>
+          All variables cancelled in your first pair, but you must still account for the remaining equation ({remainingEquation.label}) before you can classify the full three-equation system.
+        </p>
+      ) : null}
       <p className="mathmaster-systems-substitution-direction">{label}: which two equations will you combine to eliminate {elimination.variable}?</p>
       <div className="mathmaster-reduction-button-row">
         {options.map((option) => (
@@ -629,6 +647,7 @@ function EliminationStackRow({
   rowId,
 }) {
   const leading = leadingFlags(form, variables);
+  const allZero = form && variables.every((name) => Math.abs(Number(form?.coefficients?.[name] || 0)) < 1e-9);
   return (
     <div className="mathmaster-elim-row" data-row-id={rowId}>
       <div className="mathmaster-elim-op">{opCell}</div>
@@ -638,7 +657,7 @@ function EliminationStackRow({
         {labelAction}
       </div>
       {variables.map((name, index) => {
-        const text = columnTermText(form?.coefficients?.[name], name, leading[index]);
+        const text = allZero && index === variables.length - 1 ? '0' : columnTermText(form?.coefficients?.[name], name, leading[index]);
         const isTarget = name === target;
         if (isTarget && onToggleCancel && text) {
           return (
