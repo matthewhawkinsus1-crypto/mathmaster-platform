@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import 'mathlive';
-import { getCalculatorButtonsForMode, getCalculatorModeLabel } from '../platform/policies/calculatorPolicy';
+import { getCalculatorButtonsForMode, getCalculatorDrawerLabel } from '../platform/policies/calculatorPolicy';
 import { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
 import { clampCalculatorPosition } from './calculatorPanelGeometry.js';
 import { nextDivisionKeypadStep } from './calculatorKeypadFlow.js';
@@ -408,7 +408,7 @@ export const CalculatorPanel = ({
             style={{ display: 'flex', justifyContent: 'space-between', margin: '-6px -4px 12px', padding: '6px 4px', alignItems: 'center', cursor: 'grab', touchAction: 'none', userSelect: 'none' }}
             title="Drag calculator"
           >
-            <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#3c4043' }}>↕ {getCalculatorModeLabel(policy.mode)} CALCULATOR</span>
+            <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#3c4043' }}>↕ {getCalculatorDrawerLabel(policy.mode)} CALCULATOR</span>
             <button type="button" aria-label="Close calculator" onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', minWidth: 34, minHeight: 34 }}>✕</button>
           </div>
           {!estimateUnlocked ? (
@@ -427,7 +427,7 @@ export const CalculatorPanel = ({
                 inputmode="none"
                 style={{ display: 'block', width: '100%', minHeight: '58px', boxSizing: 'border-box', background: '#f1f3f4', padding: '10px 12px', borderRadius: '6px', border: '1px solid #dadce0', textAlign: 'right', fontSize: '24px', marginBottom: '12px' }}
               />
-              {policy.mode === 'graphing' && <p style={{ margin: '-3px 0 10px', color: '#5f6368', fontSize: '11px' }}>Graph construction stays in the MathMaster graph workspace; this drawer supplies numeric/scientific calculations.</p>}
+              {policy.mode === 'graphing' && <p style={{ margin: '-3px 0 10px', color: '#5f6368', fontSize: '11px' }}>Graphs are drawn in the question itself. Use this calculator for the arithmetic.</p>}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                 {buttons.map((button) => (
                   <button

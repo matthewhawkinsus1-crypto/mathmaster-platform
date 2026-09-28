@@ -371,6 +371,9 @@ export default function EnlargeableFigure({
     ...(registeredCapabilities.primaryActions || []),
     ...(registeredCapabilities.secondaryActions || []),
   ].filter((action) => action && (action.onAction || action.onClick));
+  // Submit / Check is the one action that finishes the work, so the rail must
+  // not render it exactly like Scratchpad and Calculator.
+  const primaryShellActions = new Set(registeredCapabilities.primaryActions || []);
 
   const invokeAction = (action) => (action.onAction || action.onClick)?.();
 
@@ -531,6 +534,7 @@ export default function EnlargeableFigure({
               // the DOM so the state-integrity gate can press them and assert
               // that the mathematics and the Undo depth are unchanged.
               data-camera-only={action.cameraOnly ? 'true' : undefined}
+              data-action-emphasis={primaryShellActions.has(action) ? 'primary' : undefined}
               onClick={() => invokeAction(action)}
               disabled={action.disabled}
               title={action.title}

@@ -26,8 +26,12 @@ const lesson = (overrides = {}) => ({
   ...overrides,
 });
 
+// A moment inside the fixture's open window. Without it these checks read the
+// real clock, and every "open lesson" test turned red once 2026-09-27 passed.
+const WHILE_OPEN = Date.parse('2026-09-15T12:00:00.000Z');
+
 test('an ordinary open lesson with a Practice section looks eligible', () => {
-  assert.equal(practicePassLooksEligible({ assignment: lesson(), classId: 'class-a' }), true);
+  assert.equal(practicePassLooksEligible({ assignment: lesson(), classId: 'class-a', nowValue: WHILE_OPEN }), true);
 });
 
 test('an assignment not assigned to the class never looks eligible', () => {
@@ -76,11 +80,11 @@ test('a recorded Practice attempt filters the assignment out, but a fresh tracke
   const assignment = lesson();
   const attemptedTracker = { 1: { status: 'attempted', totalAttempts: 1 } };
   assert.equal(
-    practicePassLooksEligible({ assignment, classId: 'class-a', assignmentTracker: attemptedTracker }),
+    practicePassLooksEligible({ assignment, classId: 'class-a', assignmentTracker: attemptedTracker, nowValue: WHILE_OPEN }),
     false,
   );
   assert.equal(
-    practicePassLooksEligible({ assignment, classId: 'class-a', assignmentTracker: {} }),
+    practicePassLooksEligible({ assignment, classId: 'class-a', assignmentTracker: {}, nowValue: WHILE_OPEN }),
     true,
   );
 });
@@ -102,6 +106,7 @@ test('a mere draft (no totalAttempts, no canonical status) never blocks a redemp
       assignment: lesson(),
       classId: 'class-a',
       assignmentTracker: { 1: draftOnly },
+      nowValue: WHILE_OPEN,
     }),
     true,
   );

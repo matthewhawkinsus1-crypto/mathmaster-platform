@@ -115,6 +115,23 @@ export const workflowGraphDomainRestriction = ({
   return null;
 };
 
+/*
+ * A DISCRETE MODEL IS REVIEWED AS THE POINTS IT WAS BUILT FROM.
+ *
+ * The graph stage takes its mode from the student's own discrete/continuous
+ * answer: "discrete" makes it a points-only construction with no line to draw.
+ * The "Your checked graph" review on the domain and range steps did not ask,
+ * and drew the rule through the whole window — negative tickets and negative
+ * revenue on the step asking for the reasonable domain of ticket sales (live
+ * QA, Algebra I DOL #2). The review follows the same answer the stage did.
+ */
+export const checkedGraphIsPointOnly = ({ graphStage = null, responses = {} } = {}) => {
+  if (graphStage?.kind === 'coordinatePlot') return true;
+  const continuityAnswer = graphStage?.continuityStageId ? responses?.[graphStage.continuityStageId] : null;
+  const mode = String(continuityAnswer || graphStage?.resolvedGraphMode || graphStage?.graphMode || 'continuous').toLowerCase();
+  return mode === 'discrete';
+};
+
 export const workflowEndpointMarkers = ({ evaluate, domain = null, viewWindow = {} } = {}) => {
   if (typeof evaluate !== 'function') return [];
   const view = {

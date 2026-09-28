@@ -5,6 +5,7 @@ import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 import MathDisplay from './MathDisplay.jsx';
 import { formatGraphEquationLatex } from './functionGraphUtils.js';
 import { majorTicks, niceStep } from './platform/graph/graphScaleService.js';
+import { quadrantLabelPositions } from './platform/graph/quadrantLabels.js';
 
 const DEFAULT_WIDTH = 620;
 const DEFAULT_HEIGHT = 430;
@@ -425,6 +426,26 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
             </g>
           );
         })}
+
+        {/* Beneath the graph, so a curve crossing a quadrant's middle stays on top. */}
+        {(graph.quadrantLabels === true || displayGraph.quadrantLabels === true)
+          && quadrantLabelPositions({ xMin, xMax, yMin, yMax }).map((quadrant) => (
+            <text
+              key={`quadrant-${quadrant.label}`}
+              data-quadrant-label={quadrant.label}
+              x={toScreenX(quadrant.x)}
+              y={toScreenY(quadrant.y)}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="22"
+              fontWeight="800"
+              fill="var(--mm-graph-label)"
+              opacity="0.5"
+              aria-hidden="true"
+            >
+              {quadrant.label}
+            </text>
+          ))}
 
         {functions.map((spec, functionIndex) =>
           buildFunctionPaths(spec, xMin, xMax, yMin, yMax, toScreenX, toScreenY).map((path, pathIndex) => (

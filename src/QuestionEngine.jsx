@@ -1128,13 +1128,17 @@ export default function QuestionEngine({
       disabled={locked}
     />
   );
+  // An intercept question ends with two ordered pairs, not a solved equation,
+  // so the Step Algebra label would name work the student never did.
   const submitLabel = submitting
     ? 'Checking…'
-    : processedQuestion?.type === 'stepAlgebra'
-      ? 'Submit Solved Equation'
-      : record.attemptCount > 0
-        ? 'Submit Another Attempt'
-        : 'Submit Answer';
+    : algebraWorkspaceRoute.route === ALGEBRA_WORKSPACE_ROUTES.LINEAR_INTERCEPTS
+      ? 'Submit Intercepts'
+      : processedQuestion?.type === 'stepAlgebra'
+        ? 'Submit Solved Equation'
+        : record.attemptCount > 0
+          ? 'Submit Another Attempt'
+          : 'Submit Answer';
   const workspaceActions = {
     undo: {
       label: '↶ Undo',
@@ -1276,7 +1280,10 @@ export default function QuestionEngine({
         </div>
       )}
 
-      {dolMode && <div style={{ margin: '0 auto 12px', maxWidth: '860px', padding: '10px 14px', borderRadius: '10px', background: '#f3e8fd', color: '#681da8', fontWeight: 900 }}>DOL question · this question records the daily DOL grade during the active class window.</div>}
+      {/* One quiet line in the student's words. It was a full-weight banner in
+          grading vocabulary ("records the daily DOL grade during the active
+          class window"), louder than the task it sat under. */}
+      {dolMode && <div style={{ margin: '0 auto 12px', maxWidth: '860px', padding: '7px 12px', borderRadius: '10px', background: '#f3e8fd', color: '#681da8', fontSize: '14px', fontWeight: 800 }}>DOL exit ticket · this question counts toward today&apos;s DOL grade.</div>}
       {questionGradeWeight !== 1 && (
         <div style={{ margin: '0 auto 12px', maxWidth: '860px', padding: '9px 13px', borderRadius: '10px', background: '#e8f0fe', color: '#174ea6', fontWeight: 900 }}>
           Grade weight ×{questionGradeWeight} · this question contributes {questionGradeWeight} times a standard-weight question to the assignment grade.
@@ -1368,7 +1375,11 @@ export default function QuestionEngine({
       >
         {!solverWorkspaceActive && guidedCoach}
         <fieldset disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
-          <div aria-disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting ? 'true' : undefined} inert={locked || scaffoldRequired || contextScaffoldRequired || submitting ? '' : undefined} style={{ pointerEvents: locked || scaffoldRequired || contextScaffoldRequired || submitting ? 'none' : 'auto', opacity: locked ? 0.72 : scaffoldRequired || contextScaffoldRequired ? 0.5 : 1 }}>
+          {/* `inert` must be a boolean: React 19 reads inert="" as false, which
+              left a completed answer's math field focused and editable (and
+              swallowing the Enter that should continue). pointer-events alone
+              only stops the mouse. */}
+          <div aria-disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting ? 'true' : undefined} inert={locked || scaffoldRequired || contextScaffoldRequired || submitting ? true : undefined} style={{ pointerEvents: locked || scaffoldRequired || contextScaffoldRequired || submitting ? 'none' : 'auto', opacity: locked ? 0.72 : scaffoldRequired || contextScaffoldRequired ? 0.5 : 1 }}>
             <QuestionModuleBoundary
               key={`${generationKey}|${record.variantIndex}|reset-${questionResetVersion}`}
               questionType={processedQuestion?.type}

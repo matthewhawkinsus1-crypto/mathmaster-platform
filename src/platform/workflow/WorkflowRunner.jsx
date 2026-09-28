@@ -18,12 +18,13 @@ import { getStage } from './interactionStages';
 import { activeStages, hasStageResponse, lockedStageIds, readComposedQuestion, resolveStageInput, stageControlsLaterGraphConstruction, summarizeWorkflowProgress } from './questionWorkflow';
 import { checkTableConsistency, gradeWorkflow } from './workflowGrading';
 import { buildExpressionFunctionSpec, evaluateModelAt, evaluateNumericValue } from './modelExpression';
+import { bringActiveStageIntoView } from './stageNavigationScroll.js';
 import { evaluateGraphFunction } from '../../functionGraphUtils';
 import { buildStudentTableMagneticTargets } from '../../graphInteractionPrecision';
 import { buildWorkflowSummaryItems, shouldUseWorkflowFocusMode, summarizeStageResponse } from './workflowFocusMode';
 import { stageFamily, stageFamilyLabel } from './stageFamilies';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
-import { graphWindowOnly, workflowEndpointMarkers, workflowGraphDomainRestriction, workflowRequiresEndpointMarkers } from './workflowGraphVisuals.js';
+import { checkedGraphIsPointOnly, graphWindowOnly, workflowEndpointMarkers, workflowGraphDomainRestriction, workflowRequiresEndpointMarkers } from './workflowGraphVisuals.js';
 import { resolveWorkflowTaskPrompt, selectPersistentWorkflowGraph } from './workflowPresentation.js';
 import { buildWorkflowReviewState, firstIncorrectWorkflowIndex } from './workflowReviewState.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../workView/useMathUndoHistory.js';
@@ -1057,7 +1058,7 @@ const checkedGraphReference = ({ workflow, responses, content, grading, activeSt
     points,
   );
 
-  if (graphStage.kind === 'coordinatePlot') {
+  if (checkedGraphIsPointOnly({ graphStage, responses })) {
     if (!points.length) return null;
     return {
       ...graphWindow,
@@ -1312,6 +1313,20 @@ export default function WorkflowRunner({
     setActiveStageIndex((current) => Math.min(current, Math.max(0, workflow.length - 1)));
   }, [workflow.length]);
 
+  // Only a step change the student asked for moves the page; restoring a
+  // draft or jumping to a step that needs revision after a check does not.
+  const focusRootRef = useRef(null);
+  const stageNavigationRequestedRef = useRef(false);
+  const goToStage = useCallback((next) => {
+    stageNavigationRequestedRef.current = true;
+    setActiveStageIndex(next);
+  }, [setActiveStageIndex]);
+  useEffect(() => {
+    if (!stageNavigationRequestedRef.current) return;
+    stageNavigationRequestedRef.current = false;
+    bringActiveStageIntoView(focusRootRef.current);
+  }, [activeStageIndex]);
+
   if (!workflow.length) return null;
 
   const firstIncompleteIndex = workflow.findIndex((stage) => !hasStageResponse(responses[stage.id]));
@@ -1504,7 +1519,7 @@ export default function WorkflowRunner({
     : 0;
 
   return (
-    <div className="workflow-focus" data-family={activeFamily}>
+    <div ref={focusRootRef} className="workflow-focus" data-family={activeFamily}>
       {promptAndScenario}
 
       <div
@@ -1550,7 +1565,7 @@ export default function WorkflowRunner({
               disabled={!reachable}
               aria-current={active ? 'step' : undefined}
               aria-label={`Step ${index + 1}: ${definition?.label || stage.kind}${reviewAria}${isLocked ? ', closed' : ''}`}
-              onClick={() => setActiveStageIndex(index)}
+              onClick={() => goToStage(index)}
             >
               {reviewStatus === 'correct' ? <span className="workflow-focus__step-icon workflow-focus__step-icon--correct" aria-hidden="true">✓ </span> : null}
               {reviewStatus === 'incorrect' ? <span className="workflow-focus__step-icon workflow-focus__step-icon--incorrect" aria-hidden="true">! </span> : null}
@@ -1576,7 +1591,7 @@ export default function WorkflowRunner({
                 <button
                   key={entry.id}
                   type="button"
-                  onClick={() => setActiveStageIndex(entry.index)}
+                  onClick={() => goToStage(entry.index)}
                   className="workflow-focus__review-link"
                 >
                   Step {entry.index + 1}: {label}
@@ -1606,7 +1621,7 @@ export default function WorkflowRunner({
                 key={`${item.stageId || item.label}-${index}`}
                 disabled={stageIndex < 0}
                 onClick={() => {
-                  if (stageIndex >= 0) setActiveStageIndex(stageIndex);
+                  if (stageIndex >= 0) goToStage(stageIndex);
                 }}
                 aria-label={stageIndex >= 0 ? `Return to ${item.label}` : undefined}
               >
@@ -1650,7 +1665,7 @@ export default function WorkflowRunner({
             type="button"
             className="workflow-focus__nav-button"
             disabled={!canGoPrevious}
-            onClick={() => setActiveStageIndex((index) => Math.max(0, index - 1))}
+            onClick={() => goToStage((index) => Math.max(0, index - 1))}
           >
             ← Previous step
           </button>
@@ -1658,7 +1673,7 @@ export default function WorkflowRunner({
             type="button"
             className="workflow-focus__nav-button workflow-focus__nav-button--primary"
             disabled={!canGoNext}
-            onClick={() => setActiveStageIndex((index) => Math.min(workflow.length - 1, index + 1))}
+            onClick={() => goToStage((index) => Math.min(workflow.length - 1, index + 1))}
           >
             Next step →
           </button>

@@ -37,6 +37,17 @@ export const getCalculatorModeLabel = (mode) => {
 };
 
 /**
+ * The calculator drawer's own title. A "graphing" policy allows graphing
+ * technology, but graphs are drawn in the question's graph workspace — the
+ * drawer only computes. Titled "GRAPHING CALCULATOR", it sent students told to
+ * "enter f(x) into the built-in graphing calculator" to a keypad with nowhere
+ * to enter a function (live QA, Algebra I DOL #2).
+ */
+export const getCalculatorDrawerLabel = (mode) => (
+  mode === CALCULATOR_MODES.GRAPHING ? 'SCIENTIFIC' : getCalculatorModeLabel(mode)
+);
+
+/**
  * Mode-level guard used after expression normalization. The Square Root
  * calculator is intentionally narrower than the generic scientific evaluator:
  * students may use ordinary arithmetic and sqrt, but keyboard entry must not
