@@ -142,7 +142,12 @@ test('a three-plane interpretation is a real choice group whose chosen option lo
 test('the three-plane model opens on (and resets to) the view where every plane is seen most face-on', () => {
   assert.match(threePlanes, /const openingCamera = useMemo\(\(\) => legibleCamera\(forms, variables, DEFAULT_CAMERA\), \[forms, variables\]\);/);
   assert.match(threePlanes, /useState\(openingCamera\)/);
-  assert.match(threePlanes, /const resetView = useCallback\(\(\) => setCamera\(openingCamera\), \[openingCamera\]\);/);
+  // #387 made Reset view also stop the idle orbit, so it is no longer a
+  // one-liner. What must hold: the callback puts the camera back on
+  // openingCamera, and re-binds when openingCamera changes.
+  const resetView = region(threePlanes, 'const resetView = useCallback(', 'const handlePointerDown', 'resetView');
+  assert.match(resetView, /setCamera\(openingCamera\);/);
+  assert.match(resetView, /\}, \[[^\]]*\bopeningCamera\b[^\]]*\]\);/);
 });
 
 test('legibleCamera turns the Day 1 planes from slivers into faces, and is deterministic', () => {
