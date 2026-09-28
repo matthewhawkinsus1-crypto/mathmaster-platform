@@ -442,7 +442,7 @@ export const subsystemReportFromDraft = (record, variables = null) => {
   // student simplified and checked — re-judged here, never trusted (#392).
   const substituted = record?.substitution?.equationText;
   const work = record?.statementWork;
-  if (Array.isArray(variables) && substituted && work?.checked && work.source === substituted) {
+  if (Array.isArray(variables) && record?.method !== 'elimination' && substituted && work?.checked && work.source === substituted) {
     const checked = checkSubstitutedStatement(substitutedStatementSides(substituted, variables), work);
     if (checked.valid) return { outcome: { type: checked.type, statement: checked.statement } };
   }
