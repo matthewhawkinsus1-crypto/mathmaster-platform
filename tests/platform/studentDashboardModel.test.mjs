@@ -192,6 +192,49 @@ test('with no saved point, resume lands on the first unfinished question', () =>
   assert.equal(result.resumeQuestionIndex, 1);
 });
 
+test('resume skips an unfinished Warm-Up after its class window closes and returns to actionable Practice', () => {
+  const nowDate = new Date(NOW);
+  const startHour = (nowDate.getHours() + 22) % 24;
+  const endHour = (nowDate.getHours() + 23) % 24;
+  const hh = (value) => String(value).padStart(2, '0');
+  const classSchedule = {
+    version: 2,
+    dayTypeOverrides: { '2026-10-26': 'A' },
+    daySchedules: {
+      A: { periods: { 'Period 1': { enabled: true, start: `${hh(startHour)}:00`, end: `${hh(endHour)}:00` } } },
+      B: { periods: {} },
+    },
+  };
+  const mixed = {
+    ...practice('mixed'),
+    warmup: {
+      enabled: true,
+      minutesBeforeStart: 7,
+      closeMinutesAfterStart: 10,
+      instructionDate: '2026-10-26',
+    },
+    sections: [
+      {
+        id: 'warmup',
+        role: 'warmup',
+        questions: [{ type: 'algebra', prompt: 'Warm up', equationLatex: 'x=1', activityRole: 'warmup' }],
+      },
+      {
+        id: 'practice',
+        role: 'practice',
+        questions: [{ type: 'algebra', prompt: 'Keep going', equationLatex: 'x=2', activityRole: 'practice' }],
+      },
+    ],
+  };
+  const result = model({
+    assignments: [mixed],
+    classSchedule,
+    tracker: { mixed: { 1: { status: 'incorrect', totalAttempts: 1 } } },
+  });
+  assert.equal(result.resumeAssignment.id, 'mixed');
+  assert.equal(result.resumeQuestionIndex, 1);
+});
+
 test('the resumed assignment is not listed twice', () => {
   const result = model({
     assignments: [practice('one')],
@@ -259,17 +302,16 @@ test('a half-finished assignment is Keep Going, not a fresh task', () => {
   );
 });
 
-test('practice-only work is not filed as past due', () => {
-  // It is past its deadline but no longer graded. Sitting it in "past due"
-  // makes a student anxious about a grade they cannot change.
+test('practice-only work is not filed as past due or Finished unless the student actually completed it', () => {
+  // It is past its deadline but no longer graded. A deadline ending is not a
+  // completion event: unfinished work remains available as Practice.
   const result = model({
     assignments: [practice('closed', { dueAt: inHours(-24 * 20), lateDueAt: inHours(-24 * 10) })],
+    tracker: { closed: { 0: { status: 'incorrect', totalAttempts: 1 } } },
   });
   assert.equal(result.pastDueEntries.length, 0);
-  assert.ok(
-    result.practiceEntries.length === 1 || result.completedEntries.length === 1,
-    'closed work belongs in practice or completed, never in past due',
-  );
+  assert.equal(result.practiceEntries.length, 1);
+  assert.equal(result.completedEntries.length, 0);
 });
 
 test('every entry lands in exactly one group', () => {

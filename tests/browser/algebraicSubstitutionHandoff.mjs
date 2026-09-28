@@ -102,7 +102,7 @@ const isolateXWithStepAlgebra = async (page) => {
 };
 
 const useIsolatedFormAsToken = async (page) => {
-  await page.locator('button', { hasText: 'Use this form as the token' }).click();
+  await page.locator('button', { hasText: 'Use this expression' }).click();
   await page.locator('.mathmaster-systems-substitution-token').waitFor({ timeout: 5000 });
 };
 
@@ -135,7 +135,9 @@ const assertStepAlgebraOpenedForY = async (page, journey) => {
     report.push(observed);
     return observed;
   }
-  observed.solverHeading = (await host.locator('> div').first().innerText()).trim();
+  // #369: the step's name is on Step Algebra's own tool row, not a separate
+  // heading above it.
+  observed.solverHeading = (await host.locator('.algebra-embedded-heading').first().innerText()).trim();
   if (!/solve for y/i.test(observed.solverHeading)) note(journey, `solver is not solving for y: "${observed.solverHeading}"`);
 
   const drafts = await page.evaluate(() => window.__mmHandoff.drafts());
@@ -289,7 +291,7 @@ await shoot(page, 'student-old-draft');
   };
   await openFresh(page, { scope: 'student', seed: beforeToken });
   await page.locator('button', { hasText: 'Simplify first (optional)' }).click();
-  const field = page.locator('math-field[aria-label="Optional simplified expression for the substitution token"]');
+  const field = page.locator('math-field[aria-label="Optional simplified expression to substitute"]');
   await field.waitFor();
   await field.evaluate((element) => {
     element.setValue('2y-3');
@@ -597,7 +599,7 @@ report.push({ journey: 'preview-inline-ui', ...inlineObserved });
   const boardText = await board.innerText();
   if (boardText.includes('×')) note(journey, 'student-facing elimination UI still uses the multiplication × glyph');
   if (boardText.includes('Use as written')) note(journey, 'identity Equation 2 still requires a multiply-by-one confirmation');
-  if (!boardText.includes('No scaling needed')) note(journey, 'identity Equation 2 is not recognized as already prepared');
+  if (!boardText.includes('Used as written — no scale factor')) note(journey, 'identity Equation 2 is not recognized as already prepared');
   if (await board.locator('math-field[aria-label="Scale factor for equation 2"]').count()) {
     note(journey, 'identity Equation 2 still exposes a multiply-by-one input');
   }
@@ -649,7 +651,7 @@ report.push({ journey: 'preview-inline-ui', ...inlineObserved });
 
   const eliminationSolver = solver(page);
   await eliminationSolver.waitFor({ timeout: 10000 });
-  const heading = (await eliminationSolver.locator('> div').first().innerText()).trim();
+  const heading = (await eliminationSolver.locator('.algebra-embedded-heading').first().innerText()).trim();
   if (!/solve for x/i.test(heading)) note(journey, `reduced equation was not handed to Step Algebra for x: "${heading}"`);
 
   report.push({

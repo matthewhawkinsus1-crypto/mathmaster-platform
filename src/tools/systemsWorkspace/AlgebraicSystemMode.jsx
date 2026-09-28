@@ -97,7 +97,7 @@ export function MathDragToken({
         onArm?.();
       }}
       aria-label={ariaLabel || `Pick up ${expression}`}
-      title="Drag this token onto the place you think it belongs. On touch or keyboard, select the token and then select a destination."
+      title="Drag this onto the place you think it belongs. On touch or keyboard, select it and then select a destination."
     >
       {label ? <span className="mathmaster-systems-token-label">{label}</span> : null}
       <MathDisplay value={expression} format="ascii-math" inline />
@@ -106,7 +106,7 @@ export function MathDragToken({
   );
 }
 
-export function SubstitutionToken({ variable, expression, onArm, label = null }) {
+export function SubstitutionToken({ variable, expression, onArm, label = null, ariaLabel = null }) {
   return (
     <MathDragToken
       payloadPrefix="mathmaster-substitution:"
@@ -114,7 +114,7 @@ export function SubstitutionToken({ variable, expression, onArm, label = null })
       expression={expression}
       label={label}
       onArm={onArm}
-      ariaLabel={`Pick up the expression ${expression} from the isolated equation`}
+      ariaLabel={ariaLabel || `Pick up the expression ${expression} from the isolated equation`}
     />
   );
 }
@@ -175,7 +175,7 @@ export function VariableDropEquation({
             }}
             aria-label={hasPlacedValue
               ? `Variable ${part} currently has value ${placedValues[part]}`
-              : `Variable ${part}. Drop the selected math token here`}
+              : `Variable ${part}. Place the selected value or expression here`}
             title="Drop the selected value or expression here if you think it belongs at this variable."
           >
             {hasPlacedValue ? <MathDisplay value={String(placedValues[part])} format="ascii-math" inline /> : part}
@@ -194,12 +194,17 @@ export function SystemsWorkTrail({ stages = [] }) {
         {stages.map((stage, index) => {
           const active = activeIndex === index || (activeIndex < 0 && index === stages.length - 1);
           return (
+            // On a phone only the current step keeps its visible name (#369);
+            // every step keeps it for assistive tech, with its state spoken
+            // rather than carried by the hidden ✓ alone.
             <div
               key={stage.id}
               className={`mathmaster-systems-work-step${stage.complete ? ' is-complete' : ''}${active ? ' is-active' : ''}`}
+              aria-current={active ? 'step' : undefined}
+              title={stage.label}
             >
               <span aria-hidden="true">{stage.complete ? '✓' : index + 1}</span>
-              <strong>{stage.label}</strong>
+              <strong>{stage.label}{stage.complete ? <span className="mathmaster-systems-work-step-status">, done</span> : null}</strong>
             </div>
           );
         })}
@@ -399,9 +404,13 @@ export function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, dra
   return (
     // data-work-view-focus: opening Work View brings the live solver into
     // view instead of the workflow's header cards.
-    <div ref={hostRef} tabIndex={-1} className="mathmaster-systems-embedded-step-algebra" data-work-view-focus="true">
-      {label ? <div style={{ marginBottom: 8, fontWeight: 800 }}>{label}</div> : null}
+    // `embedded` (#369): one worksheet step, not a second application — the
+    // step's name sits on Step Algebra's own tool row, and the solver drops
+    // the badge, footnote and tries this question already shows once.
+    <div ref={hostRef} tabIndex={-1} className="mathmaster-systems-embedded-step-algebra" data-work-view-focus="true" aria-label={label || undefined} role={label ? 'group' : undefined}>
       <StepByStepAlgebraCore
+        embedded
+        embeddedTitle={label}
         key={embeddedEquationIdentity}
         question={question}
         questionRecord={null}
@@ -459,6 +468,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const config = useMemo(() => normalizeAlgebraicSystemConfig(questionData), [questionData]);
   const { variables, equations } = config;
   const equationName = (index) => subsystem?.equationLabels?.[index] || `Equation ${index + 1}`;
+  // Mid-sentence form: "equation 2" standalone, "R₂" inside a 3×3 (#361) —
+  // the reduced 2×2 called R₁/R₂ "Equation 1/2", the same names as the
+  // three originals pinned beside it.
+  const equationRef = (index) => subsystem?.equationLabels?.[index] || `equation ${index + 1}`;
   const valueText = (value) => (subsystem ? exactNumberText(value) : String(value));
 
   const [method, setMethod] = usePersistentToolState('method', config.method === 'studentChoice' ? '' : config.method);
@@ -1260,12 +1273,15 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         summaryMath: secondSolvedDone ? `${secondSolved.variable} = ${secondSolvedExpression}` : '',
         summaryLatex: secondSolvedDone ? classroomAssignmentLatex(secondSolved.variable, secondSolvedExpression) : '',
       },
-      {
+      // A reduced subsystem verifies nothing — the 3×3 parent checks the
+      // triple in all three ORIGINAL equations — so it has no Verify step. It
+      // used to show one, already ✓, above the parent's own Verify (#361).
+      ...(subsystem ? [] : [{
         id: 'verify',
         label: 'Verify',
         complete: !config.requireVerification || Boolean(allVerified),
         summary: allVerified ? 'Checked in both original equations' : '',
-      },
+      }]),
     ];
 
     if (effectiveMethod === 'elimination') {
@@ -1280,14 +1296,23 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         {
           id: 'prepare',
           label: 'Prepare',
-          complete: multipliersApplied,
-          summary: multipliersApplied ? `Eq. 1 · ${multipliers[0]}   Eq. 2 · ${multipliers[1]}` : '',
+          // Scaling defaults to ×1, so "prepared" was ✓ before a target
+          // was even chosen.
+          complete: Boolean(selection.variable) && multipliersApplied,
+          // "R₁ as written · R₂ × 2" — it read "R₁ · 1   R₂ · 2" (#369).
+          summary: selection.variable && multipliersApplied
+            ? [0, 1].map((index) => {
+              const name = subsystem ? equationName(index) : `Eq. ${index + 1}`;
+              const factor = String(multipliers[index] ?? '1').trim();
+              return factor === '1' ? `${name} as written` : `${name} × ${factor.replace(/^-/, '−')}`;
+            }).join(' · ')
+            : '',
         },
         {
           id: 'combine',
           label: 'Combine',
           complete: combinationLocked,
-          summaryPrefix: combinationLocked ? `${combination.operation === 'subtract' ? 'Equation 1 − Equation 2' : 'Equation 1 + Equation 2'} →` : '',
+          summaryPrefix: combinationLocked ? `${equationName(0)} ${combination.operation === 'subtract' ? '−' : '+'} ${equationName(1)} →` : '',
           summaryMath: combinationLocked ? classroomEquationText(combination.text) : '',
           summaryLatex: combinationLocked ? classroomEquationLatex(combination.text) : '',
         },
@@ -1339,6 +1364,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     substitution.equationText,
     substitution.targetEquationIndex,
     otherIndex,
+    subsystem,
   ]);
 
   const workflowBody = (
@@ -1417,14 +1443,14 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                         <div style={{ fontSize: 13, fontWeight: 800, color: '#174ea6', marginBottom: 6 }}>Isolated expression ready</div>
                         <MathDisplay value={`${selection.variable} = ${isolatedExpr}`} format="ascii-math" />
                         <p style={{ margin: '8px 0 0', color: '#3c4756', lineHeight: 1.5 }}>
-                          This form is already mathematically valid. You may turn it into the substitution token now, or simplify the expression first.
+                          This form is already mathematically valid. You can substitute it as it is, or simplify the expression first.
                           Simplifying is optional and does not change your credit.
                         </p>
                       </div>
 
                       {!isolation.simplifying ? (
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          <button type="button" onClick={useIsolatedExpressionAsToken} style={secondaryButtonStyle}>Use this form as the token</button>
+                          <button type="button" onClick={useIsolatedExpressionAsToken} style={secondaryButtonStyle}>Use this expression</button>
                           <button type="button" onClick={startOptionalIsolationSimplification} style={secondaryButtonStyle}>Simplify first (optional)</button>
                         </div>
                       ) : (
@@ -1434,7 +1460,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                               value={isolation.simplificationDraft || ''}
                               onChange={setIsolationSimplificationDraft}
                               placeholder="e.g. 2x - 7"
-                              ariaLabel="Optional simplified expression for the substitution token"
+                              ariaLabel="Optional simplified expression to substitute"
                               toolProfile="algebra-operation"
                             />
                           </Field>
@@ -1454,7 +1480,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                     <>
                       <p className="mathmaster-systems-substitution-direction">
                         Use the prepared expression to create a one-variable equation. Decide which equation and which variable should receive it.
-                        <span> Drag the token, or select it and then select a variable.</span>
+                        <span> Drag the expression, or select it and then select a variable.</span>
                       </p>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                         <SubstitutionToken
@@ -1536,19 +1562,22 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                           field: 'a',
                           source: coefficientTermText(originalCoefficients.a, variables[0]),
                           variable: variables[0],
-                          placeholder: coefficientTermText(expectedTransformed.coefficients.a, variables[0]),
+                          // Neutral: the placeholder once showed the expected
+                          // product itself (4x · 2 → "8x"), the answer the
+                          // student is asked to work out (#361).
+                          placeholder: `${variables[0]} term`,
                         },
                         {
                           field: 'b',
                           source: coefficientTermText(originalCoefficients.b, variables[1]),
                           variable: variables[1],
-                          placeholder: coefficientTermText(expectedTransformed.coefficients.b, variables[1]),
+                          placeholder: `${variables[1]} term`,
                         },
                         {
                           field: 'c',
                           source: String(cleanCoefficient(originalCoefficients.c)),
                           variable: null,
-                          placeholder: String(cleanCoefficient(expectedTransformed.coefficients.c)),
+                          placeholder: 'value',
                         },
                       ] : [];
                       return (
@@ -1560,7 +1589,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                                 value={multipliers[index]}
                                 onChange={(value) => setMultiplierValue(index, value)}
                                 placeholder="factor"
-                                ariaLabel={`Scale factor for equation ${index + 1}`}
+                                ariaLabel={`Scale factor for ${equationRef(index)}`}
                                 toolProfile="algebra-operation"
                                 compact
                                 maxWidth={150}
@@ -1588,7 +1617,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                                     armMultiplier(index);
                                   }}
                                   aria-pressed={multiplierArmed}
-                                  aria-label={`Pick up scale factor ${multipliers[index]} for equation ${index + 1}`}
+                                  aria-label={`Pick up scale factor ${multipliers[index]} for ${equationRef(index)}`}
                                 >
                                   ⠿ · {multipliers[index] || '?'}
                                 </button>
@@ -1596,7 +1625,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                             </div>
                           ) : (
                             <div className="mathmaster-systems-identity-row">
-                              <span className="mathmaster-systems-scale-not-needed">No scaling needed — equation stays as written</span>
+                              {/* Neutral (#361): "No scaling needed" was shown on every row by
+                                  default — also on the row that DID need a factor. */}
+                              <span className="mathmaster-systems-scale-not-needed">Used as written — no scale factor</span>
                               <button
                                 type="button"
                                 className="mathmaster-systems-scale-edit"
@@ -1633,15 +1664,15 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                               dropMultiplier(index, payload.split(':').pop());
                             }}
                             aria-label={multiplierArmed
-                              ? `Place scale factor on equation ${index + 1}`
-                              : `Equation ${index + 1}`}
+                              ? `Place scale factor on ${equationRef(index)}`
+                              : equationName(index)}
                           >
                             <AlignedEquationRow
                               equationText={transformed?.text || equations[index]}
                               variables={variables}
                               targetVariable={selection.variable}
                               multiplier={appliedMultipliers[index] && !identityMultiplier ? multipliers[index] : null}
-                              label={rowPrepared ? 'Prepared equation' : `Equation ${index + 1}`}
+                              label={rowPrepared ? (subsystem ? `Prepared ${equationName(index)}` : 'Prepared equation') : equationName(index)}
                             />
                           </div>
 
@@ -1671,8 +1702,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                                       onSubmit={() => checkMultiplierProducts(index)}
                                       placeholder={spec.placeholder}
                                       ariaLabel={spec.variable
-                                        ? `Scaled ${spec.variable} term for equation ${index + 1}`
-                                        : `Scaled right side for equation ${index + 1}`}
+                                        ? `Scaled ${spec.variable} term for ${equationRef(index)}`
+                                        : `Scaled right side for ${equationRef(index)}`}
                                       toolProfile="algebra-operation"
                                       compact
                                       maxWidth={160}
@@ -1719,7 +1750,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                                 equationText={multipliedEq(0)?.text || equations[0]}
                                 variables={variables}
                                 targetVariable={selection.variable}
-                                label="Prepared equation 1"
+                                label={`Prepared ${equationRef(0)}`}
                               />
                             </div>
                             <div className="mathmaster-systems-combine-row">
@@ -1728,7 +1759,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                                   type="button"
                                   className={combination.operation === 'add' && combination.attempts > 0 ? 'is-selected' : ''}
                                   onClick={() => handleCombine('add')}
-                                  aria-label="Add equation 2 to equation 1"
+                                  aria-label={`Add ${equationRef(1)} to ${equationRef(0)}`}
                                 >
                                   +
                                 </button>
@@ -1736,7 +1767,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                                   type="button"
                                   className={combination.operation === 'subtract' && combination.attempts > 0 ? 'is-selected' : ''}
                                   onClick={() => handleCombine('subtract')}
-                                  aria-label="Subtract equation 2 from equation 1"
+                                  aria-label={`Subtract ${equationRef(1)} from ${equationRef(0)}`}
                                 >
                                   −
                                 </button>
@@ -1745,7 +1776,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                                 equationText={multipliedEq(1)?.text || equations[1]}
                                 variables={variables}
                                 targetVariable={selection.variable}
-                                label="Prepared equation 2"
+                                label={`Prepared ${equationRef(1)}`}
                               />
                             </div>
                             <div className="mathmaster-systems-combine-result-line" />
@@ -1773,7 +1804,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                                 targetVariable={selection.variable}
                                 cancelled={Boolean(combination.cancelledRows?.[0])}
                                 onTargetTermClick={cancellationConfirmed ? undefined : () => toggleCancellationRow(0)}
-                                label="Prepared equation 1"
+                                label={`Prepared ${equationRef(0)}`}
                               />
                             </div>
                             <div className="mathmaster-systems-combine-row">
@@ -1786,7 +1817,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                                 targetVariable={selection.variable}
                                 cancelled={Boolean(combination.cancelledRows?.[1])}
                                 onTargetTermClick={cancellationConfirmed ? undefined : () => toggleCancellationRow(1)}
-                                label="Prepared equation 2"
+                                label={`Prepared ${equationRef(1)}`}
                               />
                             </div>
                             <div className="mathmaster-systems-combine-result-line" />
@@ -1873,7 +1904,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                         variables={variables}
                         targetVariable={selection.variable}
                         cancelled
-                        label="Prepared equation 1"
+                        label={`Prepared ${equationRef(0)}`}
                       />
                     </div>
                     <div className="mathmaster-systems-combine-row">
@@ -1885,13 +1916,13 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                         variables={variables}
                         targetVariable={selection.variable}
                         cancelled
-                        label="Prepared equation 2"
+                        label={`Prepared ${equationRef(1)}`}
                       />
                     </div>
                     <div className="mathmaster-systems-combine-result-line" />
                   </div>
                   <div className="mathmaster-systems-combined-equation">
-                    <span>{combination.operation === 'subtract' ? 'Equation 1 − Equation 2' : 'Equation 1 + Equation 2'}</span>
+                    <span>{`${equationName(0)} ${combination.operation === 'subtract' ? '−' : '+'} ${equationName(1)}`}</span>
                     <MathDisplay value={combination.text} format="ascii-math" />
                   </div>
                 </div>
@@ -1973,12 +2004,13 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                     {subsystem
                       ? 'Back-substitute the solved value into one reduced equation. Decide which equation and which variable should receive it.'
                       : 'Back-substitute the solved value into one original equation. Decide which equation and which variable should receive it.'}
-                    <span> Drag the token, or select it and then select a variable.</span>
+                    <span> Drag the value, or select it and then select a variable.</span>
                   </p>
                   <SubstitutionToken
                     variable={survivingVariable}
                     expression={firstSolvedExpression}
                     label="Solved value"
+                    ariaLabel={`Pick up the solved value ${firstSolvedExpression}`}
                     onArm={() => setSlotAttempt({ stage: 'backSubstitution', armed: true, correct: null, variable: null })}
                   />
                   <div className="mathmaster-systems-backsub-equations">
@@ -2081,7 +2113,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                       && slotAttempt?.correct === false
                       && slotAttempt?.equationIndex === index ? (
                         <p className="mathmaster-systems-substitution-feedback is-error">
-                          That value was placed on a different variable than the one it represents. Use the solved assignment on the token to choose another location.
+                          That value was placed on a different variable than the one it represents. Use the variable named on the solved value to choose another location.
                         </p>
                       ) : null}
 

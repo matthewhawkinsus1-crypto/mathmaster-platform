@@ -184,11 +184,16 @@ test('Step Algebra draft keys name the exact mathematics, so a different choice 
 /* -------------------------------------------------- verification + UI */
 
 test('verification is in all three ORIGINAL equations with the student’s own arithmetic', () => {
+  // #369: the card is shared with the elimination screen. This screen hands it
+  // its own state; the card checks every original equation it is given.
   const verify = region(reduction, 'function Verification(', null, 'Verification');
-  assert.match(verify, /Verify the ordered triple in all three original equations/);
-  assert.match(verify, /system\.equations\.map\(\(equation\) =>/);
-  assert.match(verify, /Left side simplifies to[\s\S]*?<MathInput/);
-  assert.match(verify, /checkVerification\(reduction, system, solution, equation\.id\)/);
+  assert.match(verify, /<OriginalEquationsVerification[\s\S]*?state=\{reduction\}[\s\S]*?system=\{system\}[\s\S]*?solution=\{solution\}/);
+  assert.match(reduction, /import OriginalEquationsVerification from '\.\/OriginalEquationsVerification\.jsx';/);
+  const card = executableSource(componentSource('src/tools/systemsWorkspace/OriginalEquationsVerification.jsx'));
+  assert.match(card, /Verify the ordered triple in all three original equations/);
+  assert.match(card, /system\.equations\.map\(\(equation\) =>/);
+  assert.match(card, /simplifies to\s*<MathInput/);
+  assert.match(card, /checkVerification\(state, system, solution, equation\.id\)/);
   assert.match(reduction, /const readyToSubmit = phase === 'complete';/);
 });
 

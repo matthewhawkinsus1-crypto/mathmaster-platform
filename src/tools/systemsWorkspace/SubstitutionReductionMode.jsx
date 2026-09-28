@@ -46,7 +46,8 @@ import AlgebraicSystemMode, {
   solvedNumberFor,
   subsystemReportFromDraft,
 } from './AlgebraicSystemMode.jsx';
-import { classroomEquationText, exactNumberText, normalizeAlgebraicSystemConfig, substituteIntoEquation, substitutedEquationLatex } from './algebraicSystemsEngine.js';
+import { classroomEquationText, exactNumberText, normalizeAlgebraicSystemConfig } from './algebraicSystemsEngine.js';
+import { verificationTokenNeeded } from './verificationTokenState.js';
 import {
   RELATION_DESTINATION_ID,
   allOriginalsVerified,
@@ -59,7 +60,6 @@ import {
   carryTargetUnchanged,
   changeSubstitutionToken,
   checkTokenSimplification,
-  checkVerification,
   chooseReductionSource,
   clearBackDestination,
   emptyReductionState,
@@ -67,7 +67,6 @@ import {
   isolatedExpression,
   knownSolution,
   openTargetSimplification,
-  placeVerificationValue,
   recordBackSolve,
   recordIsolatedExpression,
   recordTargetStandardForm,
@@ -81,15 +80,13 @@ import {
   repairReductionState,
   resetReductionSource,
   setTokenSimplificationDraft,
-  setVerificationAnswer,
   sourceAlreadyIsolated,
   startTokenSimplification,
   substitutionToken,
   targetIsReduced,
   useIsolatedExpressionAsToken,
-  verificationReady,
-  verificationVariables,
 } from './substitutionReduction.js';
+import OriginalEquationsVerification from './OriginalEquationsVerification.jsx';
 import './AlgebraicSystemMode.css';
 
 const SUBSCRIPTS = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉'];
@@ -125,7 +122,7 @@ const feedbackText = (note, system, sourceVariable) => {
     case 'substitution:contains-variable':
       return `${labelFor(note.equationId)} still contains ${sourceVariable}. Place the expression there instead of carrying the equation over.`;
     case 'substitution:expression-parse':
-      return 'MathMaster could not open the next solving step from that token form. Your work is still here. Choose Change expression and use an equivalent form, or try the original isolated form again.';
+      return 'MathMaster could not open the next solving step from that form of the expression. Your work is still here. Choose Change expression and use an equivalent form, or try the original isolated form again.';
     case 'token:token-in-use':
       return 'The expression is already in a reduced equation. Undo that substitution first if you want to change it.';
     case 'reduce:not-equivalent':
@@ -134,7 +131,7 @@ const feedbackText = (note, system, sourceVariable) => {
       return `${labelFor(note.destinationId)} has no ${note.variable}, so it cannot give the value of ${note.variable}. Choose another equation.`;
     case 'back:wrong-variable':
     case 'verification:wrong-variable':
-      return 'That value was placed on a different variable than the one it represents. Use the variable named on the token to choose another location.';
+      return 'That value was placed on a different variable than the one it represents. Use the variable named on the value to choose another location.';
     default:
       return null;
   }
@@ -167,10 +164,20 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
     if (!transition) return;
     if (transition.state && transition.state !== reduction) setStoredReduction(transition.state);
     setReductionFeedback(transition.feedback || null);
-    // A placement that landed puts the token down; a rejected one leaves it in
-    // hand so the student can try another location.
-    if (!transition.feedback && transition.state !== reduction) setArmedToken(null);
-  }, [reduction, setStoredReduction]);
+    // A placement that landed puts the value down; a rejected one leaves it selected
+    // so the student can try another location. During verification, keep the
+    // solved value selected until all original equations have received it.
+    if (!transition.feedback && transition.state && transition.state !== reduction) {
+      setArmedToken((current) => {
+        if (!current) return null;
+        if (current.kind === 'verification') {
+          const stillNeeds = verificationTokenNeeded(transition.state, system.equations, current.variable);
+          return stillNeeds ? current : null;
+        }
+        return null;
+      });
+    }
+  }, [reduction, setStoredReduction, system.equations]);
 
   /* ----------------------------------------------------- reduced subsystem */
   const reduced = useMemo(() => reducedSystem(reduction, system), [reduction, system]);
@@ -450,11 +457,11 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
                     <div className="mathmaster-reduction-ready-card">
                       <div className="mathmaster-reduction-ready-title">Isolated expression ready</div>
                       <MathDisplay value={`${sourceVariable} = ${isolated}`} format="ascii-math" />
-                      <p>This form is already mathematically valid. You may turn it into the substitution token now, or simplify the expression first. Simplifying is optional and does not change your credit.</p>
+                      <p>This form is already mathematically valid. You can substitute it as it is, or simplify the expression first. Simplifying is optional and does not change your credit.</p>
                     </div>
                     {!reduction.isolation.simplifying ? (
                       <div className="mathmaster-reduction-button-row">
-                        <button type="button" onClick={() => apply(useIsolatedExpressionAsToken(reduction, system))} style={secondaryButtonStyle}>Use this form as the token</button>
+                        <button type="button" onClick={() => apply(useIsolatedExpressionAsToken(reduction, system))} style={secondaryButtonStyle}>Use this expression</button>
                         <button type="button" onClick={() => apply(startTokenSimplification(reduction))} style={secondaryButtonStyle}>Simplify first (optional)</button>
                       </div>
                     ) : (
@@ -465,7 +472,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
                             value={reduction.isolation.simplificationDraft || ''}
                             onChange={(value) => apply(setTokenSimplificationDraft(reduction, value))}
                             placeholder="e.g. 6 - y - z"
-                            ariaLabel="Optional simplified expression for the substitution token"
+                            ariaLabel="Optional simplified expression to substitute"
                             toolProfile="algebra-operation"
                           />
                         </label>
@@ -485,7 +492,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
                   <div className="mathmaster-systems-substitution-stage mathmaster-reduction-reduce-stage">
                     <p className="mathmaster-systems-substitution-direction">
                       Substitute the isolated expression into each of the other equations. You choose each equation and where the expression goes, in any order.
-                      <span> Drag the token, or select it and then select a variable.</span>
+                      <span> Drag the expression, or select it and then select a variable.</span>
                     </p>
                     <div className="mathmaster-reduction-progress" aria-live="polite">Reduced equations {reducedCount} of {targets.length}</div>
                     {targets.some((equation) => !reduction.targets[equation.id]) ? (
@@ -757,90 +764,16 @@ function BackSubstitution({ reduction, system, reducedSolution, backEquation, ar
 }
 
 function Verification({ reduction, system, solution, sourceVariable, armedToken, setArmedToken, apply }) {
-  const display = (name) => (name === sourceVariable ? reduction.back.solved.text : exactNumberText(solution[name]));
   return (
-    <div className="mathmaster-systems-verification-stage">
-      <div className="mathmaster-systems-verification-heading">
-        <strong>Verify the ordered triple in all three original equations</strong>
-        <span>Pick up each solved value and place it where it belongs. The variable locations are not pre-highlighted.</span>
-      </div>
-      <div className="mathmaster-systems-verification-token-bank">
-        {system.variables.map((name) => (
-          <MathDragToken
-            key={name}
-            payloadPrefix="mathmaster-verification:"
-            payloadValue={name}
-            expression={`${name} = ${display(name)}`}
-            label="Solved value"
-            onArm={() => setArmedToken({ kind: 'verification', variable: name })}
-            ariaLabel={`Pick up solved value ${display(name)} for ${name}`}
-          />
-        ))}
-      </div>
-      <div className="mathmaster-systems-verification-equations mathmaster-reduction-verification-grid">
-        {system.equations.map((equation) => {
-          const entry = reduction.verification?.[equation.id] || { placed: {} };
-          const ready = verificationReady(reduction, system, equation.id);
-          return (
-            <div key={equation.id} className={`mathmaster-systems-verification-card${entry.valid ? ' is-valid' : ''}`} data-verify-id={equation.id}>
-              <div className="mathmaster-systems-backsub-equation-label">{equation.label}</div>
-              {!ready ? (
-                <VariableDropEquation
-                  equationText={equation.text}
-                  variables={system.variables}
-                  payloadPrefix="mathmaster-verification:"
-                  onVariableAttempt={(targetVariable, tokenVariable) => apply(placeVerificationValue(reduction, system, equation.id, targetVariable, tokenVariable))}
-                  tokenArmed={armedToken?.kind === 'verification'}
-                  armedPayloadValue={armedToken?.kind === 'verification' ? armedToken.variable : null}
-                  placedValues={Object.fromEntries(system.variables.filter((name) => entry.placed?.[name]).map((name) => [name, display(name)]))}
-                  label={`${equation.label}: place the solved values`}
-                />
-              ) : (
-                <>
-                  <div className="mathmaster-systems-verification-substitution">
-                    <span>Values substituted</span>
-                    {(() => {
-                      const substituted = verificationVariables(system, equation.id).reduce((text, name) => substituteIntoEquation(text, name, display(name)), equation.text);
-                      const latex = substitutedEquationLatex(substituted);
-                      return <MathDisplay value={latex || substituted} format={latex ? 'latex' : 'ascii-math'} />;
-                    })()}
-                  </div>
-                  <div className="mathmaster-systems-verification-arithmetic">
-                    <label className="mathmaster-reduction-field">
-                      Left side simplifies to
-                      <MathInput
-                        value={entry.leftAnswer || ''}
-                        onChange={(value) => apply(setVerificationAnswer(reduction, equation.id, 'leftAnswer', value))}
-                        placeholder="value"
-                        ariaLabel={`${equation.label} left side value`}
-                        toolProfile="algebra-operation"
-                        compact
-                      />
-                    </label>
-                    <label className="mathmaster-reduction-field">
-                      Right side simplifies to
-                      <MathInput
-                        value={entry.rightAnswer || ''}
-                        onChange={(value) => apply(setVerificationAnswer(reduction, equation.id, 'rightAnswer', value))}
-                        placeholder="value"
-                        ariaLabel={`${equation.label} right side value`}
-                        toolProfile="algebra-operation"
-                        compact
-                      />
-                    </label>
-                    <button type="button" onClick={() => apply(checkVerification(reduction, system, solution, equation.id))} style={smallActionStyle}>Check {equation.label.toLowerCase()}</button>
-                    {entry.checked ? (
-                      <p className={`mathmaster-systems-verification-feedback${entry.valid ? ' is-valid' : ' is-error'}`}>
-                        {entry.valid ? 'Both sides check out.' : 'The values are placed. Recheck the arithmetic on each side; the two sides should match.'}
-                      </p>
-                    ) : null}
-                  </div>
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <OriginalEquationsVerification
+      state={reduction}
+      system={system}
+      solution={solution}
+      display={(name) => (name === sourceVariable ? reduction.back.solved.text : exactNumberText(solution[name]))}
+      payloadPrefix="mathmaster-verification:"
+      armedToken={armedToken}
+      setArmedToken={setArmedToken}
+      apply={apply}
+    />
   );
 }

@@ -15,7 +15,9 @@ test('the verify card shows the substituted equation in classroom notation', () 
   assert.equal(latex, '2\\left(\\frac{20}{9}\\right)-\\left(-\\frac{23}{9}\\right)=7');
   assert.equal(substitutedEquationLatex('not an equation'), null);
 
-  for (const path of ['src/tools/systemsWorkspace/AlgebraicSystemMode.jsx', 'src/tools/systemsWorkspace/SubstitutionReductionMode.jsx']) {
+  // The 3×3 card (substitution and elimination alike) lives in
+  // OriginalEquationsVerification since #369; the 2×2 keeps its own.
+  for (const path of ['src/tools/systemsWorkspace/AlgebraicSystemMode.jsx', 'src/tools/systemsWorkspace/OriginalEquationsVerification.jsx']) {
     const source = read(path);
     const card = source.slice(source.indexOf('<span>Values substituted</span>'), source.indexOf('mathmaster-systems-verification-arithmetic') > 0 ? source.indexOf('Left side simplifies to', source.indexOf('<span>Values substituted</span>')) : undefined);
     assert.match(card, /const latex = substitutedEquationLatex\(substituted\);\s*return <MathDisplay value=\{latex \|\| substituted\} format=\{latex \? 'latex' : 'ascii-math'\} \/>;/, path);
