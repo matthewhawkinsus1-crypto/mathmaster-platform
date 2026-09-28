@@ -9,20 +9,71 @@ export function spatialMisconceptionFeedback(fields, responses, parts = []) {
   return 'A system solution must satisfy all three equations at once. Compare what all three planes share, including any planes that are currently hidden.';
 }
 
-/** Relationship labels are displayed only beside an earned algebraic result. */
-export function parallelPlaneRelationships(forms, variables) {
-  const descriptions = [];
-  for (let i = 0; i < forms.length; i += 1) {
-    for (let j = i + 1; j < forms.length; j += 1) {
-      const a = forms[i]; const b = forms[j];
-      if (!a || !b) continue;
-      const pivot = variables.find((v) => Math.abs(a.coefficients[v]) > 1e-9);
-      if (!pivot) continue;
-      const ratio = b.coefficients[pivot] / a.coefficients[pivot];
-      if (!ratio || !variables.every((v) => Math.abs(b.coefficients[v] - ratio * a.coefficients[v]) < 1e-9)) continue;
-      const coincident = Math.abs(b.constant - ratio * a.constant) < 1e-9;
-      descriptions.push(`Planes ${i + 1} and ${j + 1} are ${coincident ? 'coincident' : 'parallel and distinct'}.`);
-    }
+const EPS = 1e-9;
+
+/** Every pair of planes, in authored order: `1-2`, `1-3`, `2-3`. */
+export const planePairs = (count = 3) => {
+  const pairs = [];
+  for (let i = 0; i < count; i += 1) {
+    for (let j = i + 1; j < count; j += 1) pairs.push({ id: `${i + 1}-${j + 1}`, first: i + 1, second: j + 1 });
   }
-  return descriptions;
+  return pairs;
+};
+
+/**
+ * How each pair of planes meets: `line`, `parallel` (parallel and distinct) or
+ * `coincident`. Used only to JUDGE the relationships a student states after
+ * earning their classification — never shown before they answer (#392).
+ */
+export function planeRelationshipTypes(forms, variables) {
+  const types = {};
+  for (const { id, first, second } of planePairs(forms.length)) {
+    const a = forms[first - 1];
+    const b = forms[second - 1];
+    if (!a || !b) continue;
+    const pivot = variables.find((v) => Math.abs(a.coefficients[v]) > EPS);
+    const ratio = pivot ? b.coefficients[pivot] / a.coefficients[pivot] : 0;
+    const proportional = Boolean(ratio) && variables.every((v) => Math.abs(b.coefficients[v] - ratio * a.coefficients[v]) < EPS);
+    types[id] = !proportional ? 'line' : Math.abs(b.constant - ratio * a.constant) < EPS ? 'coincident' : 'parallel';
+  }
+  return types;
+}
+
+const RELATIONSHIP_TEXT = {
+  line: 'meet in a line',
+  parallel: 'are parallel and distinct',
+  coincident: 'are coincident (same plane)',
+};
+
+export const PLANE_RELATIONSHIP_OPTIONS = Object.freeze(Object.entries(RELATIONSHIP_TEXT).map(([value, label]) => ({ value, label })));
+
+/** Relationship sentences, for display once the student has stated them. */
+export function parallelPlaneRelationships(forms, variables) {
+  const types = planeRelationshipTypes(forms, variables);
+  return planePairs(forms.length)
+    .filter(({ id }) => types[id] === 'parallel' || types[id] === 'coincident')
+    .map(({ id, first, second }) => `Planes ${first} and ${second} ${types[id] === 'coincident' ? 'are coincident' : 'are parallel and distinct'}.`);
+}
+
+export const describePlaneRelationships = (answers = {}, count = 3) => planePairs(count)
+  .map(({ id, first, second }) => `Planes ${first} and ${second} ${RELATIONSHIP_TEXT[answers[id]] || '—'}.`);
+
+/**
+ * The first pair the student has wrong, with a nudge tied to the confusion
+ * they showed — never the relationship itself.
+ */
+export function planeRelationshipFeedback(answers = {}, truth = {}) {
+  const pair = planePairs(3).find(({ id }) => truth[id] && answers[id] !== truth[id]);
+  if (!pair) return null;
+  const chosen = answers[pair.id];
+  const actual = truth[pair.id];
+  const names = `Planes ${pair.first} and ${pair.second}`;
+  if (!chosen) return `Decide how ${names} meet before checking.`;
+  if (chosen !== 'line' && actual !== 'line') {
+    return `For ${names}, compare the coefficient ratio and the constant ratio together. Matching directions alone do not tell you whether two planes occupy the same position.`;
+  }
+  if (chosen === 'line') {
+    return `Are the x-, y- and z-coefficients of ${names} in the same ratio? Two planes with the same direction never cross along a single line.`;
+  }
+  return `Check the ratios of the x-, y- and z-coefficients of ${names}. Parallel or coincident planes need every coefficient in the same ratio.`;
 }

@@ -75,6 +75,7 @@ import {
 } from './eliminationReduction.js';
 import { allOriginalsVerified } from './substitutionReduction.js';
 import AlgebraicOutcome from './AlgebraicOutcome.jsx';
+import { planeWorkEarned } from './algebraicOutcomeModel.js';
 import OriginalEquationsVerification from './OriginalEquationsVerification.jsx';
 import './AlgebraicSystemMode.css';
 
@@ -156,9 +157,22 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
     window.requestAnimationFrame(() => element.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }));
   }, []);
 
+  // A classification (and the plane relationships stated after it) belongs to
+  // the algebra that earned it. The parent's own classification is cleared by
+  // every round transition; a reduced-2×2 classification and the plane answers
+  // live beside it and are revoked here, in the SAME update, so one Undo
+  // restores the algebra and its interpretation together (#392).
+  const [subsystemClassification, setSubsystemClassification] = usePersistentToolState('subsystemClassification', null);
+  const [planeWork, setPlaneWork] = usePersistentToolState('planeRelationships', null);
   const apply = useCallback((transition) => {
     if (!transition) return;
-    if (transition.state && transition.state !== elimination) setStoredElimination(transition.state);
+    if (transition.state && transition.state !== elimination) {
+      setStoredElimination(transition.state);
+      if (!transition.state.classification) {
+        setSubsystemClassification(null);
+        setPlaneWork(null);
+      }
+    }
     setFeedbackNote(transition.feedback || null);
     if (!transition.feedback && transition.state && transition.state !== elimination) {
       setArmedToken((current) => {
@@ -170,24 +184,26 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
         return null;
       });
     }
-  }, [elimination, setStoredElimination, system.equations]);
+  }, [elimination, setStoredElimination, setSubsystemClassification, setPlaneWork, system.equations]);
 
   /* ----------------------------------------------------- reduced subsystem */
   const reduced = useMemo(() => eliminationReducedSystem(elimination, system), [elimination, system]);
   const reducedIdentity = reduced ? `${reduced.variables.join(',')}|${reduced.equations.map((eq) => eq.text).join('|')}` : null;
   const scopeContext = useToolDraftScope();
   const subsystemScope = reducedIdentity ? `${scopeContext?.scope || 'tool'}:elim-reduced-${hashText(reducedIdentity)}` : null;
-  const [subsystemClassification, setSubsystemClassification] = usePersistentToolState('subsystemClassification', null);
   const handleSubsystemSolution = useCallback((report) => {
     setSubsystemReport({ identity: reducedIdentity, report });
-    if (!report?.outcome) setSubsystemClassification(null);
-  }, [reducedIdentity, setSubsystemClassification]);
+    if (!report?.outcome) {
+      setSubsystemClassification(null);
+      setPlaneWork(null);
+    }
+  }, [reducedIdentity, setSubsystemClassification, setPlaneWork]);
   const subsystemState = useMemo(() => {
     if (!reducedIdentity) return null;
     if (subsystemReport?.identity === reducedIdentity) return subsystemReport.report;
     if (!scopeContext?.draftKey || !subsystemScope) return null;
-    return subsystemReportFromDraft(readToolDraftRecord(scopeContext.draftKey, subsystemScope));
-  }, [reducedIdentity, subsystemReport, scopeContext?.draftKey, subsystemScope]);
+    return subsystemReportFromDraft(readToolDraftRecord(scopeContext.draftKey, subsystemScope), reduced?.variables);
+  }, [reducedIdentity, subsystemReport, scopeContext?.draftKey, subsystemScope, reduced?.variables]);
   const reducedSolution = subsystemState?.solution || null;
 
   const activeRound = activeEliminationRoundKey(elimination);
@@ -200,13 +216,21 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
     ? eliminationPhase(elimination, system) === 'classified'
     : Boolean(outcome && subsystemClassification?.identity === outcomeIdentity && subsystemClassification?.choice === outcome.type);
   const phase = outcome ? (classified ? 'classified' : 'classify') : eliminationPhase(elimination, system, { reducedSolution, requireVerification: config.requireVerification, allVerified });
+  // After classifying, the student states how the planes meet (#392): the
+  // geometry the combined Day 2 items used to ask is answered, not captioned.
+  const planeQuestion = useMemo(() => ({ ...questionData, equations: system.equations.map((equation) => equation.text), variables: system.variables }), [questionData, system]);
+  const planesEarned = Boolean(outcome && classified && planeWorkEarned(planeWork, planeQuestion));
   const solution = eliminationKnownSolution(elimination, reducedSolution);
   const fullSolution = elimination.back?.solved ? solution : null;
   const backEquation = reducedSolution ? eliminationBackSubstitutionEquation(elimination, system, reducedSolution) : null;
 
   /* ------------------------------------------------------------ undo */
-  const historyState = useMemo(() => ({ elimination: storedElimination, subsystemClassification }), [storedElimination, subsystemClassification]);
-  const restore = useCallback((value) => { setStoredElimination(value?.elimination ?? emptyEliminationState()); setSubsystemClassification(value?.subsystemClassification ?? null); }, [setStoredElimination, setSubsystemClassification]);
+  const historyState = useMemo(() => ({ elimination: storedElimination, subsystemClassification, planeWork }), [storedElimination, subsystemClassification, planeWork]);
+  const restore = useCallback((value) => {
+    setStoredElimination(value?.elimination ?? emptyEliminationState());
+    setSubsystemClassification(value?.subsystemClassification ?? null);
+    setPlaneWork(value?.planeWork ?? null);
+  }, [setStoredElimination, setSubsystemClassification, setPlaneWork]);
   const undoHistory = useMathUndoHistory({
     persist: true,
     label: 'Undo the last 3×3 elimination edit',
@@ -239,13 +263,14 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
     if (value != null) apply(recordEliminationBackSolve(elimination, value, text));
   }, [apply, elimination, variable]);
 
-  const readyToSubmit = phase === 'complete' || phase === 'classified';
+  const readyToSubmit = phase === 'complete' || (phase === 'classified' && planesEarned);
   const check = () => {
     const key = answerKey;
-    const valuesCorrect = classified || Boolean(fullSolution && key.type === 'unique'
+    const interpreted = classified && planesEarned;
+    const valuesCorrect = interpreted || Boolean(fullSolution && key.type === 'unique'
       && system.variables.every((name) => Number.isFinite(fullSolution[name]) && Math.abs(fullSolution[name] - key.solution[name]) <= 1e-6 * Math.max(1, Math.abs(key.solution[name]))));
-    const verified = classified || !config.requireVerification || allVerified;
-    submit({ isCorrect: valuesCorrect && verified, score: (valuesCorrect && verified) ? 1 : 0 }, classified ? { classification: outcome.type, statement: outcome.statement } : fullSolution, {
+    const verified = interpreted || !config.requireVerification || allVerified;
+    submit({ isCorrect: valuesCorrect && verified, score: (valuesCorrect && verified) ? 1 : 0 }, outcome ? { classification: outcome.type, statement: outcome.statement, planes: planeWork?.answers || {} } : fullSolution, {
       mode: 'algebraic',
       dimension: config.dimension,
       method: 'elimination',
@@ -289,8 +314,15 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
       complete: !config.requireVerification || allVerified,
       summary: allVerified ? 'Checked in all three original equations' : '',
     },
-  ].filter((stage) => !outcome || !['subsystem', 'back', 'verify'].includes(stage.id));
-  if (outcome) workTrailStages.push({ id: 'classification', label: 'Interpret result', complete: classified });
+  ]
+    // A question that does not ask for verification has no Verify stage — it
+    // showed as already done (✓) on the Day 2 investigations (#392).
+    .filter((stage) => stage.id !== 'verify' || config.requireVerification)
+    .filter((stage) => !outcome || !['subsystem', 'back', 'verify'].includes(stage.id));
+  if (outcome) {
+    workTrailStages.push({ id: 'classification', label: 'Interpret result', complete: classified });
+    workTrailStages.push({ id: 'planes', label: 'Connect to 3D', complete: planesEarned });
+  }
 
   const note = feedbackText(feedbackNote, system);
   const unsupported = answerKey.type === 'invalid';
@@ -485,7 +517,8 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
 
                 {(outcome || phase === 'complete') ? <AlgebraicOutcome
                   key={outcomeIdentity || 'unique'} outcome={outcome} classified={classified}
-                  solution={phase === 'complete' ? fullSolution : null} questionData={questionData}
+                  solution={phase === 'complete' ? fullSolution : null} questionData={planeQuestion}
+                  planeWork={planeWork} onPlaneWorkChange={setPlaneWork} onAction={onAction}
                   onClassify={(choice) => directOutcome
                     ? apply(classifyEliminationOutcome(elimination, system, choice))
                     : setSubsystemClassification({ identity: outcomeIdentity, choice })}

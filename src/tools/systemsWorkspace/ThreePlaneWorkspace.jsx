@@ -22,7 +22,7 @@ import { advanceIdleCamera, clipPlaneToCube, cubeCorners, cubeEdges, legibleCame
 import { gradeMultiAnswerResponse } from '../../../functions/shared/ordinaryResponseGrading.mjs';
 import './AlgebraicSystemMode.css';
 import './ThreePlaneWorkspace.css';
-import { spatialMisconceptionFeedback, parallelPlaneRelationships } from './spatialFeedback.js';
+import { spatialMisconceptionFeedback } from './spatialFeedback.js';
 
 const DEFAULT_VARIABLES = ['x', 'y', 'z'];
 const PLANE_COLORS = ['#1a73e8', '#ea4335', '#34a853'];
@@ -373,7 +373,6 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
               </button>
             ) : null}
           </div>
-          {earnedResult && shownType !== 'unique' ? <p>{parallelPlaneRelationships(forms, variables).join(' ')}</p> : null}
           {showResult ? (
             <p className="mathmaster-reduction-ready-card" role="status">
               {/* The reveal marks the point; it does not also classify the
@@ -382,10 +381,13 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                   (CW3, PR4, DOL2 — #361). */}
               {shownType === 'unique'
                 ? `Point marked on the model: ${orderedTripleText(shownSolution, variables)}.`
+                // An earned statement speaks of the student's own result — and
+                // still names no plane relationship: which planes coincide or
+                // are parallel is the student's next answer, not a caption (#392).
                 : shownType === 'none'
-                  ? 'Your contradiction means no point can lie on all three planes. Compare their directions and positions by hiding and showing each plane.'
+                  ? (earnedResult ? 'Your contradiction means no point lies on all three planes. Rotate the model and hide or show each plane to see why.' : 'The three planes share no common point.')
                   : shownType === 'infinite'
-                    ? 'Your identity leaves a shared set of points. Follow the intersection line, or hide and show coincident planes to see their overlap.'
+                    ? (earnedResult ? 'Your identity means the planes share more than one point. Rotate the model and hide or show each plane to see what all three have in common.' : 'The three planes share infinitely many points.')
                     : 'This system could not be classified.'}
             </p>
           ) : null}
