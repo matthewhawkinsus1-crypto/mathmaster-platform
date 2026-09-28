@@ -24,7 +24,8 @@ import {
 } from '../../src/tools/systemsWorkspace/algebraicSystemsEngine.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const jsonPath = path.resolve(here, '../../docs/assignments/Algebra_II_Honors_3x3_Systems_Day2_V5.json');
+// The FINAL file is the one teachers import (#392); the V5 working copy must match it.
+const jsonPath = path.resolve(here, '../../docs/assignments/Algebra_II_Honors_3x3_Systems_Day2_V5_FINAL.json');
 const rawLesson = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
 
 test('Day 2 lesson passes Assignment V5 preflight with zero blocking errors', () => {
@@ -116,7 +117,9 @@ test('Day 2 preserves reveal timing, strategy agency, and correct no-solution ge
   const spatial = byId('3x3-d2-pr-2');
   assert.equal(spatial.mode, 'algebraic');
   assert.equal(spatial.method, 'elimination');
-  assert.ok(spatial.studentActions.includes('connectRepresentations'));
+  // Import compiles from studentActions, not `type`: connectRepresentations
+  // without a spatialModel compiles to a representationMatch card sort (#392).
+  assert.deepEqual(spatial.studentActions, ['solveSystem']);
   const forms = spatial.equations.map((equation) => linearEquationForm(equation, ['x', 'y', 'z']));
   assert.deepEqual(forms[2].coefficients, Object.fromEntries(Object.entries(forms[0].coefficients).map(([v,n]) => [v,3*n])));
   assert.equal(forms[2].constant, forms[0].constant * 3);
