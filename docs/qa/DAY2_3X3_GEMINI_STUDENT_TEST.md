@@ -238,13 +238,13 @@ All 14 questions were student-tested end-to-end via an automated Playwright harn
 
 | # | Question ID | Section | Type / Mode | Student Interaction / Action | Engine Response | Score |
 | :-: | :--- | :--- | :--- | :--- | :--- | :-: |
-| 1 | `3x3-d2-wu-1` | Warm-Up | `systemsWorkspace` (spatial) | Rotated 3D model, clicked "Reveal the solution point", inspected marker at $(0, 1, 2)$, selected interpretation: "An ordered triple $(0, 1, 2)$ that satisfies all three equations simultaneously." | `isCorrect: true` | 1 / 1 |
+| 1 | `3x3-d2-wu-1` | Warm-Up | `systemsWorkspace` (spatial) | Rotated 3D model, used the authored reveal when ready, and selected the interpretation that a common point is an ordered triple satisfying all three equations simultaneously. | `isCorrect: true` | 1 / 1 |
 | 2 | `3x3-d2-wu-2` | Warm-Up | `multiAnswer` | Part 1 selected $z$ (eliminated without scaling Eq 1 & 3). Part 2 selected multiplying Eq 2 by 2 and adding to Eq 1. | `isCorrect: true` | 1 / 1 |
 | 3 | `3x3-d2-cw-1` | Classwork | `systemsWorkspace` (spatial) | Rotated 3D model of dependent system. Observed Plane 1 and Plane 3 are coincident ($3 \times \text{Eq 1} = \text{Eq 3}$) and Plane 2 cuts through them along a line. Selected: "Infinitely many solutions along a line of intersection." | `isCorrect: true` | 1 / 1 |
 | 4 | `3x3-d2-cw-2` | Classwork | `multiAnswer` | Analyzed algebraic result $3 \times \text{Eq 1} - \text{Eq 3} \implies 0 = 0$. Part 1 classified as identity indicating dependent system. Part 2 connected to geometry: infinitely many points along intersection line. | `isCorrect: true` | 1 / 1 |
 | 5 | `3x3-d2-cw-3` | Classwork | `systemsWorkspace` (algebraic) | Elimination workflow: Paired {Eq 1, Eq 3} and {Eq 1, Eq 2}. Scaled Eq 2 by 2, cancelled $z$, solved reduced $2 \times 2$ for $x = -2, y = 6$, back-substituted to get $z = -3$, verified in all three equations. | Completed & Verified | 1 / 1 |
 | 6 | `3x3-d2-pr-1` | Practice | `systemsWorkspace` (studentChoice) | Selected elimination method. Paired Eq 1 and Eq 2, added directly to eliminate $z$ ($2x + 2y = 2 \implies x + y = 1$). Reduced and solved for $(0, 1, 2)$. | Completed & Verified | 1 / 1 |
-| 7 | `3x3-d2-pr-2` | Practice | `systemsWorkspace` (spatial) | Rotated 3D model of inconsistent system ($3x-y-2z=4, 6x-2y-4z=11, 9x-3y-6z=12$). Observed 3 parallel distinct planes that never intersect. Selected: "No solution (the three planes are parallel and distinct, sharing no common points)." | `isCorrect: true` | 1 / 1 |
+| 7 | `3x3-d2-pr-2` | Practice | `systemsWorkspace` (spatial) | Rotated the inconsistent system. Identified Planes 1 and 3 as coincident and Plane 2 as parallel/distinct, so the three planes have no common point. | `isCorrect: true` | 1 / 1 |
 | 8 | `3x3-d2-pr-3` | Practice | `multiAnswer` | Evaluated elimination between Eq 1 (scaled by 2) and Eq 2 yielding $0 = -3$. Part 1 classified as contradiction false for all triples. Part 2 classified system as inconsistent with no solution. | `isCorrect: true` | 1 / 1 |
 | 9 | `3x3-d2-pr-4` | Practice | `multiAnswer` | Rule synthesis: Part 1 selected $0 = 0 \implies$ dependent with infinitely many solutions; Part 2 selected $0 = k \implies$ inconsistent with no solution. | `isCorrect: true` | 1 / 1 |
 | 10 | `3x3-d2-pr-5` | Practice | `multiAnswer` | Triangle modeling formulation: Shortest $s$, medium $m$, longest $l$. Part 1: $s + m - l = 8$. Part 2: $-3s + m + l = 4$. Part 3: $s + m + l = 72$. | `isCorrect: true` | 1 / 1 |
@@ -296,7 +296,7 @@ A final review after Gemini's first pass corrected four authoring issues before 
 ### 6. 3D classification genuinely helps students understand the algebra
 - The 3D visualizer in `systemsWorkspace` provides direct spatial intuition:
   - In CW1, students visually discover that Plane 1 and Plane 3 lie on top of each other (coincident) and Plane 2 slices through them along a line, explaining *why* $0 = 0$ occurs algebraically.
-  - In PR2, students visually see three parallel planes with identical slant that never touch, explaining *why* elimination produces an impossible contradiction $0 = -3$.
+  - In PR2, students visually see Planes 1 and 3 coincide while Plane 2 is parallel and distinct, explaining *why* there is no common point and why elimination produces the contradiction $0 = -3$.
 
 ### 7. No answer leakage
 - In spatial mode, the solution point is hidden by default and requires clicking "Reveal the solution point".
