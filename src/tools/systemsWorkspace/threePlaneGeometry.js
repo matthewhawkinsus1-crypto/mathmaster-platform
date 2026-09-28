@@ -122,6 +122,25 @@ export const projectPolygon = (points3D, camera) => {
   return { points: projected.map(({ screenX, screenY }) => [screenX, screenY]), depth };
 };
 
+/**
+ * Advance the camera during the pre-interaction idle orbit.
+ *
+ * This is deliberately a camera-only cue: it reveals no solution/classification
+ * and stops as soon as the student takes control. The frame delta is clamped so
+ * returning to a backgrounded tab never causes a sudden jump.
+ */
+export const advanceIdleCamera = (camera, elapsedMs, speedRadiansPerSecond = 0.22) => {
+  const safeCamera = camera && Number.isFinite(camera.azimuth) && Number.isFinite(camera.elevation)
+    ? camera
+    : { azimuth: 0, elevation: 0.5 };
+  const deltaMs = Math.max(0, Math.min(80, Number(elapsedMs) || 0));
+  const speed = Number.isFinite(speedRadiansPerSecond) ? speedRadiansPerSecond : 0.22;
+  return {
+    azimuth: safeCamera.azimuth + (deltaMs / 1000) * speed,
+    elevation: safeCamera.elevation,
+  };
+};
+
 /** `[a, b, c, d]` for `a·x + b·y + c·z = d`, from a `linearEquationForm` result and an [x,y,z]-ordered variable list. */
 const planeVector = (form, variables) => {
   const [vx, vy, vz] = variables;
