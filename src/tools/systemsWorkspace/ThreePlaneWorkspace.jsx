@@ -237,6 +237,12 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
         </div>
 
         <div className="mathmaster-threeplane-viewport">
+          <div className={`mathmaster-threeplane-motion-cue${!hasInteracted && !reduceMotion ? ' is-idle' : ''}`}>
+            <span className="mathmaster-threeplane-motion-dot" aria-hidden="true" />
+            {!hasInteracted && !reduceMotion
+              ? 'Auto-rotating to show depth — drag the model to take control.'
+              : 'Drag the model to rotate it. Use Reset view to return to the opening angle.'}
+          </div>
           <svg
             viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`}
             role="img"
@@ -247,12 +253,26 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerUp}
           >
+            <defs>
+              <marker id="mathmaster-threeplane-axis-arrow" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto" markerUnits="strokeWidth">
+                <path d="M0,0 L7,3.5 L0,7 z" fill="#5f6368" />
+              </marker>
+            </defs>
+            {cubeFrame.map((edge) => (
+              <line
+                key={edge.key}
+                x1={toScreen(edge.from, scale, [0, 0])[0]} y1={toScreen(edge.from, scale, [0, 0])[1]}
+                x2={toScreen(edge.to, scale, [0, 0])[0]} y2={toScreen(edge.to, scale, [0, 0])[1]}
+                className="mathmaster-threeplane-frame-edge"
+              />
+            ))}
             {axisEnds.map((axis) => (
               <g key={axis.name}>
                 <line
                   x1={toScreen(axis.from, scale, [0, 0])[0]} y1={toScreen(axis.from, scale, [0, 0])[1]}
                   x2={toScreen(axis.to, scale, [0, 0])[0]} y2={toScreen(axis.to, scale, [0, 0])[1]}
                   stroke="#5f6368" strokeWidth={1.5}
+                  markerEnd="url(#mathmaster-threeplane-axis-arrow)"
                 />
                 <text
                   // Kept inside the frame: at some angles an axis runs past
@@ -265,16 +285,41 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
                 </text>
               </g>
             ))}
-            {orderedPolygons.map((plane) => (
-              <polygon
-                key={plane.index}
-                points={plane.points.map((point) => toScreen(point, scale, [0, 0]).join(',')).join(' ')}
-                fill={plane.color}
-                fillOpacity={0.32}
-                stroke={plane.color}
-                strokeWidth={1.5}
-              />
-            ))}
+            <circle
+              cx={toScreen([origin.screenX, origin.screenY], scale, [0, 0])[0]}
+              cy={toScreen([origin.screenX, origin.screenY], scale, [0, 0])[1]}
+              r={3.5}
+              fill="#202124"
+              stroke="#fff"
+              strokeWidth={1.5}
+            />
+            {orderedPolygons.map((plane) => {
+              const centroid = plane.points.reduce(
+                (acc, point) => [acc[0] + point[0], acc[1] + point[1]],
+                [0, 0],
+              ).map((value) => value / plane.points.length);
+              const screen = toScreen(centroid, scale, [0, 0]);
+              const offset = PLANE_LABEL_OFFSETS[plane.index] || [0, 0];
+              return (
+                <g key={plane.index}>
+                  <polygon
+                    points={plane.points.map((point) => toScreen(point, scale, [0, 0]).join(',')).join(' ')}
+                    fill={plane.color}
+                    fillOpacity={0.28}
+                    stroke={plane.color}
+                    strokeWidth={2}
+                  />
+                  <text
+                    x={clampLabel(screen[0] + offset[0], 24)}
+                    y={clampLabel(screen[1] + offset[1], 20)}
+                    className="mathmaster-threeplane-plane-label"
+                    textAnchor="middle"
+                  >
+                    {'P' + String(plane.index + 1)}
+                  </text>
+                </g>
+              );
+            })}
             {intersectionLines.map((line) => (
               <line
                 key={line.key}
@@ -311,7 +356,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
           <div className="mathmaster-reduction-button-row" style={{ marginTop: 10 }}>
             <button type="button" onClick={resetView} className="mathmaster-reduction-carry">Reset view</button>
             {canReveal ? (
-              <button type="button" onClick={() => setRevealed(true)} className="mathmaster-reduction-carry" disabled={revealed}>
+              <button type="button" onClick={() => { markInteracted(); setRevealed(true); }} className="mathmaster-reduction-carry" disabled={revealed}>
                 {revealed ? 'Revealed' : revealLabel}
               </button>
             ) : null}
