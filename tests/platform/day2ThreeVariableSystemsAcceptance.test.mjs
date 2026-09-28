@@ -24,7 +24,8 @@ import {
 } from '../../src/tools/systemsWorkspace/algebraicSystemsEngine.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const jsonPath = path.resolve(here, '../../docs/assignments/Algebra_II_Honors_3x3_Systems_Day2_V5.json');
+// The FINAL file is the one teachers import (#392); the V5 working copy must match it.
+const jsonPath = path.resolve(here, '../../docs/assignments/Algebra_II_Honors_3x3_Systems_Day2_V5_FINAL.json');
 const rawLesson = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
 
 test('Day 2 lesson passes Assignment V5 preflight with zero blocking errors', () => {
@@ -42,9 +43,10 @@ test('Day 2 lesson structure adheres to the 90-minute honors block guidelines', 
   assert.equal(wu.role, 'warmup');
   assert.equal(wu.questions.length, 2);
 
-  // Classwork: 3 questions, planned time budget <= 20 min (1200 sec)
+  // #390 merges the dependent algebra and geometry into one continuous task.
   assert.equal(cw.role, 'classwork');
-  assert.ok(cw.questions.length >= 3 && cw.questions.length <= 4);
+  assert.equal(cw.questions.length, 2);
+  assert.equal(sections.reduce((sum, section) => sum + section.recommendedMinutes, 0), 86);
 
   // Practice: 7 questions (carries most independent work)
   assert.equal(pr.role, 'practice');
@@ -113,9 +115,16 @@ test('Day 2 preserves reveal timing, strategy agency, and correct no-solution ge
   assert.doesNotMatch(independent.prompt, /adding the first two|eliminate z directly/i);
 
   const spatial = byId('3x3-d2-pr-2');
-  assert.match(spatial.answerFields[0].answer, /Planes 1 and 3 are coincident/);
-  assert.match(spatial.answerFields[0].answer, /Plane 2 is parallel to them but distinct/);
-  assert.doesNotMatch(spatial.answerFields[0].answer, /All three planes are parallel and distinct/);
+  assert.equal(spatial.mode, 'algebraic');
+  assert.equal(spatial.method, 'elimination');
+  // Import compiles from studentActions, not `type`: connectRepresentations
+  // without a spatialModel compiles to a representationMatch card sort (#392).
+  assert.deepEqual(spatial.studentActions, ['solveSystem']);
+  const forms = spatial.equations.map((equation) => linearEquationForm(equation, ['x', 'y', 'z']));
+  assert.deepEqual(forms[2].coefficients, Object.fromEntries(Object.entries(forms[0].coefficients).map(([v,n]) => [v,3*n])));
+  assert.equal(forms[2].constant, forms[0].constant * 3);
+  assert.equal(forms[1].constant - forms[0].constant * 2, 3);
+  assert.equal(spatial.answerFields, undefined, 'classification is earned through elimination');
 
   const modelSolve = byId('3x3-d2-pr-6');
   assert.doesNotMatch(modelSolve.prompt, /notice that Equation 1 has -l|making l straightforward to eliminate/i);

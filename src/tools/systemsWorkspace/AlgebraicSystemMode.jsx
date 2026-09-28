@@ -34,6 +34,7 @@ import {
   classroomEquationText,
   substitutedEquationLatex,
 } from './algebraicSystemsEngine.js';
+import { checkSubstitutedStatement, emptyStatementWork, substitutedStatementSides } from './degenerateSubstitution.js';
 
 const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '11px 12px', border: '1px solid #cfd8e6', borderRadius: 9, background: 'var(--mm-surface)', fontSize: 15, minHeight: 44 };
 const actionStyle = { marginTop: 16, padding: '11px 18px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer', minHeight: 44 };
@@ -432,7 +433,19 @@ export function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, dra
  * render instead of flashing the finished subsystem open for a frame. The
  * field names are this component's, which is why the reader lives here.
  */
-export const subsystemReportFromDraft = (record) => {
+export const subsystemReportFromDraft = (record, variables = null) => {
+  const combined = record?.combination;
+  if (combined?.combinationValid && combined?.text && isDegenerateStatement(combined.coefficients)) {
+    return { outcome: { type: degenerateStatementTruth(combined.coefficients).isTrue ? 'infinite' : 'none', statement: combined.text } };
+  }
+  // A substitution that cancelled every variable reports only the statement the
+  // student simplified and checked — re-judged here, never trusted (#392).
+  const substituted = record?.substitution?.equationText;
+  const work = record?.statementWork;
+  if (Array.isArray(variables) && record?.method !== 'elimination' && substituted && work?.checked && work.source === substituted) {
+    const checked = checkSubstitutedStatement(substitutedStatementSides(substituted, variables), work);
+    if (checked.valid) return { outcome: { type: checked.type, statement: checked.statement } };
+  }
   const first = record?.firstSolved;
   const second = record?.secondSolved;
   if (!first?.variable || !second?.variable || first.value == null || second.value == null) return null;
@@ -516,6 +529,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   });
   const [firstSolved, setFirstSolved] = usePersistentToolState('firstSolved', { variable: null, value: null, expression: null });
   const [specialCase, setSpecialCase] = usePersistentToolState('specialCase', null);
+  // Inside a 3×3 only: the student's own simplification of a substituted
+  // equation that has no variable left (#392). Keyed by that equation.
+  const [storedStatementWork, setStatementWork] = usePersistentToolState('statementWork', emptyStatementWork);
   const [backSub, setBackSub] = usePersistentToolState('backSub', { equationIndex: null });
   const [secondSolved, setSecondSolved] = usePersistentToolState('secondSolved', { variable: null, value: null, expression: null });
   const [verification, setVerification] = usePersistentToolState('verification', { 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
@@ -555,6 +571,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     });
     setFirstSolved({ variable: null, value: null, expression: null });
     setSpecialCase(null);
+    setStatementWork(emptyStatementWork());
     setBackSub({ equationIndex: null });
     setSecondSolved({ variable: null, value: null, expression: null });
     setVerification({ 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
@@ -571,8 +588,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
   const mathState = useMemo(() => ({
     method, selection, isolation, substitution, multipliers, appliedMultipliers, multiplierWork, combination,
-    firstSolved, specialCase, backSub, secondSolved, verification, methodEfficiencyReason,
-  }), [method, selection, isolation, substitution, multipliers, appliedMultipliers, multiplierWork, combination, firstSolved, specialCase, backSub, secondSolved, verification, methodEfficiencyReason]);
+    firstSolved, specialCase, statementWork: storedStatementWork, backSub, secondSolved, verification, methodEfficiencyReason,
+  }), [method, selection, isolation, substitution, multipliers, appliedMultipliers, multiplierWork, combination, firstSolved, specialCase, storedStatementWork, backSub, secondSolved, verification, methodEfficiencyReason]);
   const restore = useCallback((value) => {
     setMethod(value?.method ?? (config.method === 'studentChoice' ? '' : config.method));
     setSelection(value?.selection || { equationIndex: null, variable: null });
@@ -597,12 +614,14 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     });
     setFirstSolved({ variable: null, value: null, expression: null, ...(value?.firstSolved || {}) });
     setSpecialCase(value?.specialCase || null);
+    setStatementWork(value?.statementWork || emptyStatementWork());
     setBackSub(value?.backSub || { equationIndex: null });
     setSecondSolved({ variable: null, value: null, expression: null, ...(value?.secondSolved || {}) });
     setVerification(value?.verification || { 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
     setMethodEfficiencyReason(value?.methodEfficiencyReason || '');
   }, [config.method]);
   const undoHistory = useMathUndoHistory({
+    persist: true,
     label: 'Undo the last algebraic-systems edit',
     state: mathState,
     onRestore: restore,
@@ -676,6 +695,14 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     : combination.coefficients;
   const isDegenerate = reduceCoefficients ? isDegenerateStatement(reduceCoefficients) : false;
   const degenerateTruth = isDegenerate ? degenerateStatementTruth(reduceCoefficients) : null;
+  // #392: in a 3×3, a substitution that cancels every variable is finished by
+  // the student's own simplification. Elimination already reaches its
+  // statement through the student's checked combination arithmetic.
+  const statementSides = subsystem && effectiveMethod === 'substitution' && isDegenerate
+    ? substitutedStatementSides(reduceInputText, variables)
+    : null;
+  const statementWork = storedStatementWork?.source === reduceInputText ? storedStatementWork : emptyStatementWork(reduceInputText);
+  const statementResult = statementSides && statementWork.checked ? checkSubstitutedStatement(statementSides, statementWork) : null;
 
   const firstSolvedDone = firstSolved.value != null;
   const firstSolvedExpression = firstSolvedDone ? solvedRecordExpression(firstSolved) : '';
@@ -695,7 +722,11 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   // the moment an Undo takes it back. The parent mirrors it; this component's
   // draft-backed fields remain the source of truth.
   const onSubsystemSolutionChange = subsystem?.onSolutionChange;
-  const subsystemSolutionKey = solution ? JSON.stringify(solution) : '';
+  const subsystemOutcome = !isDegenerate ? null
+    : statementSides
+      ? (statementResult?.valid ? { type: statementResult.type, statement: statementResult.statement } : null)
+      : { type: degenerateTruth.isTrue ? 'infinite' : 'none', statement: formatLinearEquation(reduceCoefficients, variables) };
+  const subsystemSolutionKey = JSON.stringify(solution || subsystemOutcome);
   React.useEffect(() => {
     if (!onSubsystemSolutionChange) return;
     onSubsystemSolutionChange(solution ? {
@@ -708,7 +739,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         backSub,
         secondSolved,
       },
-    } : null);
+    } : subsystemOutcome ? { outcome: subsystemOutcome } : null);
     // Keyed on the solution itself: re-reporting an identical solution on
     // every render would churn the parent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -917,6 +948,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     }
   };
 
+  // Typing never judges: the sides are checked only when the student asks.
+  const setStatementAnswer = (key, value) => setStatementWork({ ...statementWork, [key]: value, checked: false });
+  const checkStatementWork = () => setStatementWork({ ...statementWork, checked: true });
+
   const resetCombination = () => setCombination({
     operation: null,
     attempts: 0,
@@ -1052,6 +1087,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         ...(current.cancelledRows || { 0: false, 1: false }),
         [index]: !current.cancelledRows?.[index],
       },
+      cancellationConfirmed: subsystem ? Boolean(!current.cancelledRows?.[index] && current.cancelledRows?.[1 - index]) : current.cancellationConfirmed,
     }));
   };
 
@@ -1207,7 +1243,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     && specialCase.classificationAnswer === (degenerateTruth.isTrue ? 'consistent-dependent' : 'inconsistent')
   );
 
-  const readyToSubmit = isDegenerate ? Boolean(specialCaseAnswered) : Boolean(solution && (!config.requireVerification || allVerified));
+  const readyToSubmit = isDegenerate ? Boolean(!subsystem && specialCaseAnswered) : Boolean(solution && (!config.requireVerification || allVerified));
 
   const check = () => {
     const expected = solveAlgebraicSystem(config.coefficients);
@@ -1457,6 +1493,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                         <div style={{ display: 'grid', gap: 8, padding: '12px 14px', border: '1px solid #dbe3ef', borderRadius: 10, background: 'var(--mm-surface)' }}>
                           <Field label="Write an equivalent, simpler expression">
                             <MathInput
+                              onSubmit={checkAndUseIsolationSimplification}
                               value={isolation.simplificationDraft || ''}
                               onChange={setIsolationSimplificationDraft}
                               placeholder="e.g. 2x - 7"
@@ -1546,7 +1583,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                     <button type="button" onClick={resetFromSelection}>Change target</button>
                   </div>
 
-                  <div className="mathmaster-systems-elimination-equations">
+                  <div className="mathmaster-systems-elimination-equations" hidden={Boolean(subsystem && cancellationPending)}>
                     {[0, 1].map((index) => {
                       const transformed = appliedMultipliers[index] ? multipliedEq(index) : null;
                       const expectedTransformed = multipliedEq(index);
@@ -1676,7 +1713,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                             />
                           </div>
 
-                          {work.active && expectedTransformed && originalCoefficients ? (
+                          {work.active && !work.valid && expectedTransformed && originalCoefficients ? (
                             <div ref={revealStageOnAppear} className="mathmaster-systems-multiplier-products">
                               <div className="mathmaster-systems-multiplier-products-heading">
                                 <strong>Complete the scaled equation</strong>
@@ -1957,7 +1994,60 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
             </div>
           ) : null}
 
-          {isDegenerate ? (
+          {statementSides && !firstSolvedDone ? (
+            <div ref={revealStageOnAppear} className="mathmaster-systems-student-combination" data-stage="substituted-statement" style={{ marginTop: 14 }}>
+              <div className="mathmaster-systems-student-combination-heading">
+                <strong>Simplify the substituted equation</strong>
+                <span>
+                  {statementSides.collected
+                    ? 'Collect every term on the left yourself, then enter the number left on the right side.'
+                    : 'Distribute and combine like terms yourself, then enter what each side simplifies to.'}
+                </span>
+              </div>
+              <MathDisplay value={classroomEquationText(reduceInputText)} format="ascii-math" />
+              {statementResult?.valid ? (
+                <p className="mathmaster-systems-combination-feedback" role="status">
+                  Your simplified statement: <MathDisplay value={statementResult.statement} format="ascii-math" inline />
+                </p>
+              ) : (
+                <>
+                  <div className="mathmaster-systems-student-combination-equation">
+                    {['left', 'right'].map((key) => (
+                      <React.Fragment key={key}>
+                        {key === 'right' ? <span className="mathmaster-systems-student-combination-equals">=</span> : null}
+                        {statementSides[key].given ? (
+                          <span data-given-side={key}><MathDisplay value={statementSides[key].text} format="ascii-math" inline /></span>
+                        ) : (
+                          <MathInput
+                            value={statementWork[key] || ''}
+                            onChange={(value) => setStatementAnswer(key, value)}
+                            onSubmit={checkStatementWork}
+                            placeholder={`${key} side`}
+                            ariaLabel={`Simplified ${key} side`}
+                            toolProfile="algebra-operation"
+                            compact
+                            maxWidth={150}
+                          />
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                  <button type="button" className="mathmaster-systems-check-combination" onClick={checkStatementWork}>
+                    Check simplified sides
+                  </button>
+                  {statementWork.checked && statementResult && !statementResult.valid ? (
+                    <p className="mathmaster-systems-combination-feedback is-error" role="status">
+                      {['left', 'right'].filter((key) => !statementResult.sides[key]?.correct).length === 2
+                        ? 'Recheck the simplification of both sides.'
+                        : `Recheck the simplification of the ${statementResult.sides.left?.correct ? 'right' : 'left'} side. Distribute carefully and watch the signs.`}
+                    </p>
+                  ) : null}
+                </>
+              )}
+            </div>
+          ) : null}
+
+          {isDegenerate && !subsystem ? (
             <div style={{ marginTop: 14, padding: 10, border: '1px solid #dbe3ef', borderRadius: 8, background: 'var(--mm-surface)' }}>
               <p style={{ margin: '0 0 8px', fontWeight: 700 }}>This reduces to a statement with no variable. Interpret it before moving on.</p>
               <MathDisplay value={formatLinearEquation(reduceCoefficients, variables)} format="ascii-math" />
@@ -2239,7 +2329,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
               />
             </div>
           ) : null}
-          {isDegenerate ? (
+          {isDegenerate && !subsystem ? (
             <div style={{ marginTop: 12, padding: 10, borderRadius: 8, background: specialCaseCorrect ? '#f0fbf4' : '#f3f4f6' }}>
               <strong>Reduced statement:</strong> <MathDisplay value={formatLinearEquation(reduceCoefficients, variables)} format="ascii-math" inline />
             </div>

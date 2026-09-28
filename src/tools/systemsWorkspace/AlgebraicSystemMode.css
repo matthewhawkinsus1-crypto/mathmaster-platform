@@ -1821,3 +1821,12 @@
   gap: 8px;
   margin-bottom: 12px;
 }
+
+.mathmaster-algebraic-outcome { margin-top: 18px; padding: 16px; border: 1px solid #b8cdf0; border-radius: 10px; }
+.mathmaster-algebraic-outcome form { display: grid; gap: 12px; }
+.mathmaster-algebraic-outcome select { display: block; width: 100%; min-height: 44px; margin-top: 8px; padding: 8px; }
+.mathmaster-algebraic-outcome button { min-height: 44px; margin: 8px 0; padding: 10px 14px; border: 1px solid #b8cdf0; border-radius: 8px; background: #eef4ff; color: #174ea6; font-weight: 700; }
+.mathmaster-algebraic-outcome button:disabled { opacity: .5; }
+.mathmaster-algebraic-outcome-planes { display: grid; gap: 10px; margin: 12px 0 0; padding: 12px; border: 1px solid #b8cdf0; border-radius: 10px; min-width: 0; }
+.mathmaster-algebraic-outcome-planes legend { padding: 0 6px; font-weight: 700; }
+.mathmaster-algebraic-outcome-planes label, .mathmaster-algebraic-outcome form label { display: grid; gap: 6px; font-weight: 700; min-width: 0; }

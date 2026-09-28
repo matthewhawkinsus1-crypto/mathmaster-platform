@@ -823,12 +823,9 @@ export const classifyLinearSystem = (forms, variables) => {
  *
  *   - equation and variable counts must match, and be 2 or 3;
  *   - every equation must be linear in exactly the authored variables;
- *   - a 3×3 system must have exactly one solution. Working through a
- *     dependent or inconsistent 3×3 system reaches an identity or a
- *     contradiction part-way through, and neither the substitution nor the
- *     elimination workflow yet teaches how to interpret that — so it is
- *     refused here, before a student sees it, instead of being misgraded
- *     later;
+ *   - nonunique 3×3 systems use method "elimination", whose checked rows
+ *     and reduced 2×2 work now lead to student classification (#390).
+ *     Substitution/studentChoice retain their existing unique-system contract;
  *   - 3×3 elimination is a real workflow (#359): substitution, elimination,
  *     and studentChoice are all offered on a 3×3 system, exactly as on 2×2.
  *
@@ -866,8 +863,8 @@ export const validateAlgebraicSystemAuthoring = (questionData = {}) => {
     if (!errors.length) {
       const trimmed = variables.map((value) => String(value).trim());
       const classification = classifyLinearSystem(rawEquations.map((equation) => linearEquationForm(equation, trimmed)), trimmed);
-      if (classification.type !== 'unique') {
-        errors.push(`3×3 algebraic systems must have exactly one solution; this system is ${classification.type === 'none' ? 'inconsistent (no solution)' : 'dependent (infinitely many solutions)'}. Dependent and inconsistent 3×3 systems are not supported by the substitution workflow yet.`);
+      if (classification.type !== 'unique' && questionData.method !== 'elimination') {
+        errors.push(`Use method "elimination" for nonunique 3×3 algebraic systems; this system is ${classification.type === 'none' ? 'inconsistent (no solution)' : 'dependent (infinitely many solutions)'}. Dependent and inconsistent 3×3 systems are not supported by the substitution workflow yet.`);
       }
     }
   }

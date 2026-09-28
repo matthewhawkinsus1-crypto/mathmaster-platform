@@ -1,4 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useToolDraftScope } from '../../tools/shared/usePersistentToolState.js';
+import { persistedUndoKey, readPersistedUndo, writePersistedUndo } from './persistedMathUndo.js';
 import {
   EMPTY_MATH_UNDO_STACK,
   MATH_UNDO_LIMIT,
@@ -116,15 +118,25 @@ export default function useMathUndoHistory({
   limit = MATH_UNDO_LIMIT,
   ownerId = 'mathematical-tool',
   priority = 0,
+  // Keep the history across a refresh of this question (#390). Local to this
+  // device and size-capped — see persistedMathUndo.js for why it must never
+  // share the synced work record.
+  persist = false,
 }) {
-  const stackRef = useRef(EMPTY_MATH_UNDO_STACK);
+  const draftScope = useToolDraftScope();
+  const persistKey = persist ? persistedUndoKey(draftScope?.key, ownerId) : null;
+  const [initialStack] = useState(() => readPersistedUndo(persistKey, { resetKey, state, limit }));
+  const stackRef = useRef(initialStack);
+  const save = useCallback((stack, current) => {
+    if (persistKey) writePersistedUndo(persistKey, { resetKey, state: current, stack });
+  }, [persistKey, resetKey]);
   const previousRef = useRef(state);
   // Set when a restore is in flight. Compared by snapshot rather than held as a
   // boolean: if the restore lands in a render this hook never sees — a tool that
   // restores into a value it already held — a boolean would stay set and
   // swallow the student's NEXT edit.
   const restoringSnapshotRef = useRef(null);
-  const [depth, setDepth] = useState(0);
+  const [depth, setDepth] = useState(() => mathUndoDepth(initialStack));
   const restoreRef = useRef(onRestore);
   restoreRef.current = onRestore;
   const register = useWorkViewUndoRegistration();
@@ -141,7 +153,8 @@ export default function useMathUndoHistory({
     previousRef.current = state;
     restoringSnapshotRef.current = null;
     setDepth(0);
-  }, [resetKey, state]);
+    save(EMPTY_MATH_UNDO_STACK, state);
+  }, [resetKey, state, save]);
 
   useEffect(() => {
     const previous = previousRef.current;
@@ -157,7 +170,8 @@ export default function useMathUndoHistory({
     if (next === stackRef.current) return;
     stackRef.current = next;
     setDepth(mathUndoDepth(next));
-  }, [state, limit]);
+    save(next, state);
+  }, [state, limit, save]);
 
   const undo = useCallback(() => {
     const { stack, restored, changed } = undoMathUndoEntry(stackRef.current);
@@ -165,14 +179,16 @@ export default function useMathUndoHistory({
     stackRef.current = stack;
     restoringSnapshotRef.current = mathematicalSnapshot(restored);
     setDepth(mathUndoDepth(stack));
+    save(stack, restored);
     restoreRef.current?.(restored);
     return true;
-  }, []);
+  }, [save]);
 
   const clear = useCallback(() => {
     stackRef.current = EMPTY_MATH_UNDO_STACK;
     setDepth(0);
-  }, []);
+    save(EMPTY_MATH_UNDO_STACK, previousRef.current);
+  }, [save]);
 
   const canUndo = enabled && depth > 0;
 

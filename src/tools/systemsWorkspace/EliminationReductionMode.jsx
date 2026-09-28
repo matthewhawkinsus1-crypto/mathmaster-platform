@@ -43,6 +43,8 @@ import { verificationTokenNeeded } from './verificationTokenState.js';
 import { buildReductionSystem, reductionAnswerKey } from './substitutionReduction.js';
 import {
   activeEliminationRoundKey,
+  eliminationOutcome,
+  classifyEliminationOutcome,
   applyEliminationMultiplier,
   attemptEliminationBackPlacement,
   checkEliminationCombination,
@@ -72,6 +74,8 @@ import {
   toggleEliminationCancellation,
 } from './eliminationReduction.js';
 import { allOriginalsVerified } from './substitutionReduction.js';
+import AlgebraicOutcome from './AlgebraicOutcome.jsx';
+import { planeWorkEarned } from './algebraicOutcomeModel.js';
 import OriginalEquationsVerification from './OriginalEquationsVerification.jsx';
 import './AlgebraicSystemMode.css';
 
@@ -103,7 +107,7 @@ const feedbackText = (note, system) => {
     case 'pair:variable-absent':
       return `${labelFor(note.equationId)} has no ${note.variable} term, so ${note.variable} cannot be eliminated from that pair. Choose a different pair.`;
     case 'pair:pair-repeated':
-      return 'The other round already used this exact pair. Choose two different equations so the two reduced equations are independent.';
+      return 'The other round already used this pair. Choose a different pair so your work includes all three original equations.';
     case 'multiplier:invalid-multiplier':
       return 'That scale factor is not a valid nonzero number. Enter a nonzero number such as 2 or −1/3, or keep the equation as written.';
     case 'multiplier-products:incorrect-products':
@@ -153,9 +157,22 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
     window.requestAnimationFrame(() => element.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }));
   }, []);
 
+  // A classification (and the plane relationships stated after it) belongs to
+  // the algebra that earned it. The parent's own classification is cleared by
+  // every round transition; a reduced-2×2 classification and the plane answers
+  // live beside it and are revoked here, in the SAME update, so one Undo
+  // restores the algebra and its interpretation together (#392).
+  const [subsystemClassification, setSubsystemClassification] = usePersistentToolState('subsystemClassification', null);
+  const [planeWork, setPlaneWork] = usePersistentToolState('planeRelationships', null);
   const apply = useCallback((transition) => {
     if (!transition) return;
-    if (transition.state && transition.state !== elimination) setStoredElimination(transition.state);
+    if (transition.state && transition.state !== elimination) {
+      setStoredElimination(transition.state);
+      if (!transition.state.classification) {
+        setSubsystemClassification(null);
+        setPlaneWork(null);
+      }
+    }
     setFeedbackNote(transition.feedback || null);
     if (!transition.feedback && transition.state && transition.state !== elimination) {
       setArmedToken((current) => {
@@ -167,7 +184,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
         return null;
       });
     }
-  }, [elimination, setStoredElimination, system.equations]);
+  }, [elimination, setStoredElimination, setSubsystemClassification, setPlaneWork, system.equations]);
 
   /* ----------------------------------------------------- reduced subsystem */
   const reduced = useMemo(() => eliminationReducedSystem(elimination, system), [elimination, system]);
@@ -176,27 +193,46 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
   const subsystemScope = reducedIdentity ? `${scopeContext?.scope || 'tool'}:elim-reduced-${hashText(reducedIdentity)}` : null;
   const handleSubsystemSolution = useCallback((report) => {
     setSubsystemReport({ identity: reducedIdentity, report });
-  }, [reducedIdentity]);
+    if (!report?.outcome) {
+      setSubsystemClassification(null);
+      setPlaneWork(null);
+    }
+  }, [reducedIdentity, setSubsystemClassification, setPlaneWork]);
   const subsystemState = useMemo(() => {
     if (!reducedIdentity) return null;
     if (subsystemReport?.identity === reducedIdentity) return subsystemReport.report;
     if (!scopeContext?.draftKey || !subsystemScope) return null;
-    return subsystemReportFromDraft(readToolDraftRecord(scopeContext.draftKey, subsystemScope));
-  }, [reducedIdentity, subsystemReport, scopeContext?.draftKey, subsystemScope]);
+    return subsystemReportFromDraft(readToolDraftRecord(scopeContext.draftKey, subsystemScope), reduced?.variables);
+  }, [reducedIdentity, subsystemReport, scopeContext?.draftKey, subsystemScope, reduced?.variables]);
   const reducedSolution = subsystemState?.solution || null;
 
   const activeRound = activeEliminationRoundKey(elimination);
   const variable = elimination.variable;
   const allVerified = allOriginalsVerified(elimination, system);
-  const phase = eliminationPhase(elimination, system, { reducedSolution, requireVerification: config.requireVerification, allVerified });
+  const directOutcome = eliminationOutcome(elimination, system);
+  const outcome = directOutcome || subsystemState?.outcome || null;
+  const outcomeIdentity = outcome ? `${reducedIdentity}|${outcome.statement}` : null;
+  const classified = directOutcome
+    ? eliminationPhase(elimination, system) === 'classified'
+    : Boolean(outcome && subsystemClassification?.identity === outcomeIdentity && subsystemClassification?.choice === outcome.type);
+  const phase = outcome ? (classified ? 'classified' : 'classify') : eliminationPhase(elimination, system, { reducedSolution, requireVerification: config.requireVerification, allVerified });
+  // After classifying, the student states how the planes meet (#392): the
+  // geometry the combined Day 2 items used to ask is answered, not captioned.
+  const planeQuestion = useMemo(() => ({ ...questionData, equations: system.equations.map((equation) => equation.text), variables: system.variables }), [questionData, system]);
+  const planesEarned = Boolean(outcome && classified && planeWorkEarned(planeWork, planeQuestion));
   const solution = eliminationKnownSolution(elimination, reducedSolution);
   const fullSolution = elimination.back?.solved ? solution : null;
   const backEquation = reducedSolution ? eliminationBackSubstitutionEquation(elimination, system, reducedSolution) : null;
 
   /* ------------------------------------------------------------ undo */
-  const historyState = useMemo(() => ({ elimination: storedElimination }), [storedElimination]);
-  const restore = useCallback((value) => setStoredElimination(value?.elimination ?? emptyEliminationState()), [setStoredElimination]);
+  const historyState = useMemo(() => ({ elimination: storedElimination, subsystemClassification, planeWork }), [storedElimination, subsystemClassification, planeWork]);
+  const restore = useCallback((value) => {
+    setStoredElimination(value?.elimination ?? emptyEliminationState());
+    setSubsystemClassification(value?.subsystemClassification ?? null);
+    setPlaneWork(value?.planeWork ?? null);
+  }, [setStoredElimination, setSubsystemClassification, setPlaneWork]);
   const undoHistory = useMathUndoHistory({
+    persist: true,
     label: 'Undo the last 3×3 elimination edit',
     state: historyState,
     onRestore: restore,
@@ -207,10 +243,10 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
   const compositeUndo = useMemo(() => {
     const historyController = { canUndo: undoHistory.canUndo, onUndo: undoHistory.undo, label: 'Undo the last 3×3 elimination edit' };
     if (embeddedUndoController?.canUndo) return embeddedUndoController;
-    if (phase === 'subsystem' && subsystemUndoController?.canUndo) return subsystemUndoController;
+    if ((phase === 'subsystem' || (subsystemState?.outcome && !classified)) && subsystemUndoController?.canUndo) return subsystemUndoController;
     if (reducedSolution && !hasPostSubsystemWork && subsystemUndoController?.canUndo) return subsystemUndoController;
     return historyController;
-  }, [embeddedUndoController, subsystemUndoController, phase, reducedSolution, hasPostSubsystemWork, undoHistory.canUndo, undoHistory.undo]);
+  }, [embeddedUndoController, subsystemUndoController, phase, reducedSolution, hasPostSubsystemWork, undoHistory.canUndo, undoHistory.undo, subsystemState?.outcome, classified]);
   useActiveUndoOwner({ id: 'algebraic-elimination-composite', active: true, priority: 60, controller: compositeUndo });
   const undoCapability = {
     label: '↶ Undo',
@@ -227,13 +263,14 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
     if (value != null) apply(recordEliminationBackSolve(elimination, value, text));
   }, [apply, elimination, variable]);
 
-  const readyToSubmit = phase === 'complete';
+  const readyToSubmit = phase === 'complete' || (phase === 'classified' && planesEarned);
   const check = () => {
     const key = answerKey;
-    const valuesCorrect = Boolean(fullSolution && key.type === 'unique'
+    const interpreted = classified && planesEarned;
+    const valuesCorrect = interpreted || Boolean(fullSolution && key.type === 'unique'
       && system.variables.every((name) => Number.isFinite(fullSolution[name]) && Math.abs(fullSolution[name] - key.solution[name]) <= 1e-6 * Math.max(1, Math.abs(key.solution[name]))));
-    const verified = !config.requireVerification || allVerified;
-    submit({ isCorrect: valuesCorrect && verified, score: (valuesCorrect && verified) ? 1 : 0 }, fullSolution, {
+    const verified = interpreted || !config.requireVerification || allVerified;
+    submit({ isCorrect: valuesCorrect && verified, score: (valuesCorrect && verified) ? 1 : 0 }, outcome ? { classification: outcome.type, statement: outcome.statement, planes: planeWork?.answers || {} } : fullSolution, {
       mode: 'algebraic',
       dimension: config.dimension,
       method: 'elimination',
@@ -277,10 +314,18 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
       complete: !config.requireVerification || allVerified,
       summary: allVerified ? 'Checked in all three original equations' : '',
     },
-  ];
+  ]
+    // A question that does not ask for verification has no Verify stage — it
+    // showed as already done (✓) on the Day 2 investigations (#392).
+    .filter((stage) => stage.id !== 'verify' || config.requireVerification)
+    .filter((stage) => !outcome || !['subsystem', 'back', 'verify'].includes(stage.id));
+  if (outcome) {
+    workTrailStages.push({ id: 'classification', label: 'Interpret result', complete: classified });
+    workTrailStages.push({ id: 'planes', label: 'Connect to 3D', complete: planesEarned });
+  }
 
   const note = feedbackText(feedbackNote, system);
-  const unsupported = answerKey.type !== 'unique';
+  const unsupported = answerKey.type === 'invalid';
 
   return (
     <EnlargeableFigure
@@ -344,7 +389,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
             {unsupported ? (
               <div className="mathmaster-reduction-unsupported" role="alert">
                 <strong>This system cannot be solved in this workspace yet.</strong>
-                <p>It does not have exactly one solution, and the 3×3 elimination workspace only supports systems that do. Nothing you did caused this. Let your teacher know so they can fix the question.</p>
+                <p>Its equations could not be read as a linear system. Nothing you did caused this. Let your teacher know so they can fix the question.</p>
               </div>
             ) : (
               <>
@@ -420,7 +465,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
                   </div>
                 ) : null}
                 {reduced ? (
-                  <div className="mathmaster-reduction-subsystem" hidden={phase !== 'subsystem' && !(reducedSolution && showSolvedSubsystem)}>
+                  <div className="mathmaster-reduction-subsystem" hidden={phase !== 'subsystem' && !subsystemState?.outcome && !(reducedSolution && showSolvedSubsystem)}>
                     <div className="mathmaster-reduction-subsystem-heading">
                       <strong>Reduced subsystem</strong>
                       <span>{reduced.equations.map((equation) => `${lineageName(equation.id)} from ${equation.fromPair.map((eqId) => system.equations.find((original) => original.id === eqId)?.label).join(' & ')}`).join(' · ')}</span>
@@ -470,6 +515,14 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
 
                 {note ? <p className="mathmaster-systems-substitution-feedback is-error" role="status">{note}</p> : null}
 
+                {(outcome || phase === 'complete') ? <AlgebraicOutcome
+                  key={outcomeIdentity || 'unique'} outcome={outcome} classified={classified}
+                  solution={phase === 'complete' ? fullSolution : null} questionData={planeQuestion}
+                  planeWork={planeWork} onPlaneWorkChange={setPlaneWork} onAction={onAction}
+                  onClassify={(choice) => directOutcome
+                    ? apply(classifyEliminationOutcome(elimination, system, choice))
+                    : setSubsystemClassification({ identity: outcomeIdentity, choice })}
+                /> : null}
                 {readyToSubmit ? <button type="button" onClick={check} style={actionStyle}>Check my work</button> : null}
                 {feedback ? (
                   <div style={{ marginTop: 14 }}>
@@ -483,7 +536,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
               hints={[
                 'Any two of the three equations may be combined first — nothing is the "right" starting pair.',
                 'Scale an equation only if it needs it. If a variable’s coefficients already match or are opposite, add or subtract directly.',
-                'The second pair must be different from the first, so the two reduced equations use independent information.',
+                'The second pair must be different from the first, so your work includes all three original equations.',
                 'Once two values are known, put them back into an original equation that still has the third variable.',
               ]}
               onHintUsed={() => onAction?.('HINT_USED')}
@@ -498,8 +551,26 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
 /* Choosing the equation pair for this round — every pair shown with equal weight, nothing marked as suggested. */
 function EliminationPairChoice({ label, system, roundKey, elimination, apply }) {
   const options = useMemo(() => eliminationPairOptions(system), [system]);
+  const r1 = elimination.rounds?.round1;
+  const isRound2AfterAllZero = useMemo(() => {
+    if (roundKey !== 'round2' || !r1?.combinedText) return false;
+    const form = linearEquationForm(r1.combinedText, system.variables);
+    return Boolean(form && system.variables.every((v) => Math.abs(form.coefficients[v] || 0) < 1e-7));
+  }, [roundKey, r1?.combinedText, system.variables]);
+
+  const remainingEquation = useMemo(() => {
+    if (!isRound2AfterAllZero || !Array.isArray(r1?.pair)) return null;
+    const used = new Set(r1.pair);
+    return system.equations.find((eq) => !used.has(eq.id)) || null;
+  }, [isRound2AfterAllZero, r1?.pair, system.equations]);
+
   return (
     <div className="mathmaster-reduction-stage">
+      {isRound2AfterAllZero && remainingEquation ? (
+        <p className="mathmaster-systems-substitution-direction" style={{ marginBottom: 6 }}>
+          All variables cancelled in your first pair, but you must still account for the remaining equation ({remainingEquation.label}) before you can classify the full three-equation system.
+        </p>
+      ) : null}
       <p className="mathmaster-systems-substitution-direction">{label}: which two equations will you combine to eliminate {elimination.variable}?</p>
       <div className="mathmaster-reduction-button-row">
         {options.map((option) => (
@@ -576,6 +647,7 @@ function EliminationStackRow({
   rowId,
 }) {
   const leading = leadingFlags(form, variables);
+  const allZero = form && variables.every((name) => Math.abs(Number(form?.coefficients?.[name] || 0)) < 1e-9);
   return (
     <div className="mathmaster-elim-row" data-row-id={rowId}>
       <div className="mathmaster-elim-op">{opCell}</div>
@@ -585,7 +657,7 @@ function EliminationStackRow({
         {labelAction}
       </div>
       {variables.map((name, index) => {
-        const text = columnTermText(form?.coefficients?.[name], name, leading[index]);
+        const text = allZero && index === variables.length - 1 ? '0' : columnTermText(form?.coefficients?.[name], name, leading[index]);
         const isTarget = name === target;
         if (isTarget && onToggleCancel && text) {
           return (

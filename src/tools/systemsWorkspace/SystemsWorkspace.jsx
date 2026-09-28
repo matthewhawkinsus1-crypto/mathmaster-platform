@@ -1522,8 +1522,8 @@ const MODE_TASKS = {
   // A question that assigns the method gets directions for THAT method: the
   // elimination lesson told students to "choose substitution or elimination"
   // on questions where no choice was offered (#361).
-  algebraic3Elimination: 'Solve this 3×3 system by elimination: eliminate the same variable from two different pairs of equations, solve the 2×2 system that leaves, and work back to all three values.',
-  algebraic3Substitution: 'Solve this 3×3 system by substitution: isolate a variable, substitute it into the other two equations, solve the 2×2 system that leaves, and work back to all three values.',
+  algebraic3Elimination: 'Solve this 3×3 system by elimination: eliminate the same variable from two different pairs of equations, interpret a statement with no variables or solve the reduced system, and connect your result to 3D.',
+  algebraic3Substitution: 'Solve this 3×3 system by substitution: isolate a variable, substitute it into the other two equations, interpret a statement with no variables or solve the reduced system, and connect your result to 3D.',
   spatial: 'Explore the three planes for this system: rotate the model, show or hide each plane, and see how they relate.',
 };
 
@@ -1535,7 +1535,7 @@ const MODE_STEPS = {
   matrix3: ['Read the 3×4 augmented matrix.', 'Use the matrix-technology RREF command.', 'Interpret the reduced rows to classify the system and read x, y, and z.'],
   algebraic: ['Choose (or use the assigned) method and decide which variable to work with first.', 'Solve each one-variable equation with the algebra solver, then substitute back.', 'State the ordered pair and verify it in both original equations.'],
   algebraic3: ['Choose substitution or elimination, then choose your first move — nothing is suggested for you.', 'Reduce the system to a 2×2, then solve it.', 'Work back to the third value and verify all three in every original equation.'],
-  algebraic3Elimination: ['Choose the variable to eliminate and a first pair of equations — nothing is suggested for you.', 'Eliminate the same variable from a different pair, so you have a 2×2 system, then solve it.', 'Back-substitute for the third value and verify all three in every original equation.'],
+  algebraic3Elimination: ['Choose the variable to eliminate and a first pair of equations — nothing is suggested for you.', 'Use a different pair to account for all three equations; interpret any statement with no variables.', 'If a numeric solution remains, solve and verify it. Connect your completed result to 3D.'],
   algebraic3Substitution: ['Choose an equation and the variable to isolate — nothing is suggested for you.', 'Substitute into the other two equations to get a 2×2 system, then solve it.', 'Work back to the third value and verify all three in every original equation.'],
   spatial: ['Rotate the model and show or hide each plane to see how they meet.', 'Decide whether the three planes share one point, no point, or infinitely many.', 'Answer the question using what the model shows.'],
 };

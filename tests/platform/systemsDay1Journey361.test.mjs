@@ -94,7 +94,7 @@ test('inside a 3×3 the reduced 2×2 names its equations R₁ and R₂ and has n
 });
 
 test('the solved 2×2 folds away but stays one click from view', () => {
-  assert.match(elimination, /hidden=\{phase !== 'subsystem' && !\(reducedSolution && showSolvedSubsystem\)\}/);
+  assert.match(elimination, /hidden=\{phase !== 'subsystem' && !subsystemState\?\.outcome && !\(reducedSolution && showSolvedSubsystem\)\}/);
   assert.match(elimination, /onClick=\{\(\) => setShowSolvedSubsystem\(\(open\) => !open\)\}/);
   assert.match(elimination, /showSolvedSubsystem \? 'Hide my 2×2 work' : 'Show my 2×2 work'/);
 });
@@ -136,7 +136,7 @@ test('a three-plane interpretation is a real choice group whose chosen option lo
   assert.match(panel, /className=\{`mathmaster-threeplane-choice\$\{selected \? ' is-selected' : ''\}`\}/);
   assert.doesNotMatch(panel, /mathmaster-reduction-carry/);
   // A wrong check gets an idea to reconsider, not only "Not yet" — and never the option.
-  assert.match(panel, /\{!feedback\.isCorrect \? \([\s\S]*?make all three equations true at the same time/);
+  assert.match(panel, /\{!feedback\.isCorrect \? \([\s\S]*?spatialMisconceptionFeedback\(answerFields, responses, feedback\.metadata\?\.parts\)/);
 });
 
 test('the three-plane model opens on (and resets to) the view where every plane is seen most face-on', () => {
@@ -180,9 +180,9 @@ test('a substituted negative value keeps its parentheses on the way into Step Al
 });
 
 test('revealing the point marks and labels it without classifying the system for the student', () => {
-  const reveal = region(threePlanes, "{classification.type === 'unique'", "'This system could not be classified.'", 'reveal message');
-  assert.match(reveal, /`Point marked on the model: \$\{orderedTripleText\(classification\.solution, variables\)\}\.`/);
+  const reveal = region(threePlanes, "{shownType === 'unique'", "'This system could not be classified.'", 'reveal message');
+  assert.match(reveal, /`Point marked on the model: \$\{orderedTripleText\(shownSolution, variables\)\}\.`/);
   assert.doesNotMatch(reveal, /meet at exactly one point/);
   const marker = region(threePlanes, '{solutionMarker ? (', ') : null}', 'solution marker');
-  assert.match(marker, /<circle[\s\S]*?<text[\s\S]*?\{orderedTripleText\(classification\.solution, variables\)\}/);
+  assert.match(marker, /<circle[\s\S]*?<text[\s\S]*?\{orderedTripleText\(shownSolution, variables\)\}/);
 });
