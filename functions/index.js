@@ -434,7 +434,14 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
 }
 
 exports.finalizeStudentResponseCheckpoints = onSchedule(
-  { schedule: "every 1 minutes", timeZone: "America/Chicago" },
+  {
+    schedule: "every 1 minutes",
+    timeZone: "America/Chicago",
+    // This scheduler is internal infrastructure. setGlobalOptions() makes
+    // client-callable HTTPS functions public at the transport layer, so
+    // explicitly keep scheduled work private just like the other schedulers.
+    invoker: "private",
+  },
   async () => {
     const db = getFirestore();
     const now = Date.now();
