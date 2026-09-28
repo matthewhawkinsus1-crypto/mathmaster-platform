@@ -1184,7 +1184,7 @@
 .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-view-button,
 .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-inline-controls button,
 .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-inline-controls select {
-  min-height: 32px;
+  min-height: 40px;
 }
 
 .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-unified-nav-back {
@@ -2139,6 +2139,7 @@
     position: relative;
     top: auto;
   }
+
 }
 
 /* Short laptop / zoomed classroom view: preserve the SAME navigation and task
@@ -2173,6 +2174,13 @@
     min-height: 32px;
   }
 
+  .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-unified-nav-back,
+  .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-view-button,
+  .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-inline-controls button,
+  .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-inline-controls select {
+    min-height: 40px;
+  }
+
   .mathmaster-desktop-question-content .mathmaster-desktop-question-anchor {
     margin-bottom: 6px;
     padding-top: 0;
@@ -2191,5 +2199,15 @@
 
   .mathmaster-assignment-screen {
     scroll-padding-bottom: 72px;
+  }
+}
+
+@media (min-width: 769px) and (max-height: 560px) {
+  /* Automatic compact mode must save rows, never shrink phone targets. */
+  .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-unified-nav-back,
+  .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-view-button,
+  .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-inline-controls button,
+  .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-inline-controls select {
+    min-height: 44px;
   }
 }

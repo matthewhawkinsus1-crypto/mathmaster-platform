@@ -272,6 +272,7 @@ import { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
 import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
 import StudentIdentityBar, { STUDENT_IDENTITY_STACK_OFFSET } from './components/student/StudentIdentityBar.jsx';
 import { ASSIGNMENT_NAV_HEIGHT_VAR, stickyHeightRef } from './platform/layout/stickyHeightRef.js';
+import { shouldCompactAssignmentNavigation } from './platform/layout/assignmentNavigationChrome.js';
 import {
   emptyClassPointAccount,
   redeemPracticePass as redeemPracticePassCallable,
@@ -822,6 +823,39 @@ function App() {
   const [assignmentNavigationCollapsed, setAssignmentNavigationCollapsed] = useState(false);
   const [assignmentOverviewExpanded, setAssignmentOverviewExpanded] = useState(false);
   const assignmentQuestionStageRef = useRef(null);
+
+  // Once the student reaches the workspace, the full progress dashboard has
+  // done its job. Keep its section/question/previous/next essentials in one
+  // row and let the existing “Show progress” control restore the full view.
+  // Short landscape phones start in this presentation even before scrolling.
+  useEffect(() => {
+    if (activeView !== 'assignment' || !activeAssignmentId) return undefined;
+    let frame = 0;
+    const updateAssignmentNavigationChrome = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const work = assignmentQuestionStageRef.current?.querySelector('[data-work-view-focus="true"]')
+          || assignmentQuestionStageRef.current?.querySelector('.math-tool-workspace');
+        if (shouldCompactAssignmentNavigation({
+          viewportWidth: window.innerWidth,
+          viewportHeight: window.innerHeight,
+          workTop: work?.getBoundingClientRect?.().top ?? Infinity,
+        })) {
+          setAssignmentNavigationCollapsed(true);
+          setAssignmentOverviewExpanded(false);
+        }
+      });
+    };
+    updateAssignmentNavigationChrome();
+    window.addEventListener('scroll', updateAssignmentNavigationChrome, { passive: true });
+    window.addEventListener('resize', updateAssignmentNavigationChrome);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', updateAssignmentNavigationChrome);
+      window.removeEventListener('resize', updateAssignmentNavigationChrome);
+    };
+  }, [activeView, activeAssignmentId]);
+
   const [resumeAction, setResumeAction] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [classSchedule, setClassSchedule] = useState(DEFAULT_CLASS_SCHEDULE);

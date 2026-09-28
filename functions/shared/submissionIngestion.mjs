@@ -82,7 +82,6 @@ export const MAX_ENVELOPES_PER_CALL = 25;
 export const FORBIDDEN_ENVELOPE_FIELDS = Object.freeze([
   'answerKey',
   'acceptedAnswers',
-  'accepted',
   'answerFields',
   'solution',
   'seed',
@@ -91,6 +90,17 @@ export const FORBIDDEN_ENVELOPE_FIELDS = Object.freeze([
   'testCycle',
   'testCycleGrades',
 ]);
+
+/*
+ * Step Algebra records use `accepted` as a verdict. It is safe only in that
+ * narrow boolean shape. Authoring contracts also use `accepted` for alternate
+ * answers, so every string, array, object, number, or null value remains secure
+ * answer-key material and must never cross the student submission boundary.
+ */
+const forbiddenEnvelopeEntry = (key, value) => (
+  FORBIDDEN_ENVELOPE_FIELDS.includes(key)
+  || (key === 'accepted' && typeof value !== 'boolean')
+);
 
 const text = (value) => String(value ?? '');
 const trimmed = (value) => text(value).trim();
@@ -101,7 +111,7 @@ const containsForbiddenField = (value, depth = 0) => {
   if (depth > 6 || !value || typeof value !== 'object') return false;
   if (Array.isArray(value)) return value.some((entry) => containsForbiddenField(entry, depth + 1));
   return Object.entries(value).some(([key, nested]) => (
-    FORBIDDEN_ENVELOPE_FIELDS.includes(key) || containsForbiddenField(nested, depth + 1)
+    forbiddenEnvelopeEntry(key, nested) || containsForbiddenField(nested, depth + 1)
   ));
 };
 
