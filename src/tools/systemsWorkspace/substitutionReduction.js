@@ -32,6 +32,7 @@ import { evaluate } from 'mathjs';
 import { expressionsEquivalent, isLinearStandardFormEquation, latexToExpression } from '../../algebraAstEngine.js';
 import {
   classifyLinearSystem,
+  constantEquationSide,
   equationMentionsVariable,
   evaluateEquationSides,
   exactNumberText,
@@ -415,19 +416,40 @@ export const verificationVariables = (system, equationId) => {
   return equation ? system.variables.filter((name) => equationMentionsVariable(equation.text, name)) : [];
 };
 
+/**
+ * Substituting a solved value into the ORIGINAL system (#369). Which variable
+ * a value belongs on is the student's decision, and a wrong one is still
+ * refused. Once made, it is the same substitution in every original equation
+ * that has that variable, so one placement fills all of them: repeating it
+ * card by card was busywork, not mathematics. Each equation still shows its
+ * own substituted line and is evaluated and checked on its own.
+ */
 export const placeVerificationValue = (state, system, equationId, targetVariable, tokenVariable) => {
   if (!tokenVariable || !equationById(system, equationId)) return result(state);
   if (targetVariable !== tokenVariable) {
     return result(state, { stage: 'verification', reason: 'wrong-variable', equationId, variable: targetVariable, tokenVariable });
   }
-  const entry = state.verification?.[equationId] || emptyVerificationEntry();
-  return result({
-    ...state,
-    verification: {
-      ...state.verification,
-      [equationId]: { ...entry, placed: { ...entry.placed, [targetVariable]: true }, checked: false, valid: false },
-    },
+  const verification = { ...state.verification };
+  system.equations.forEach((equation) => {
+    const entry = verification[equation.id] || emptyVerificationEntry();
+    if (entry.placed?.[targetVariable]) return;
+    if (equation.id !== equationId && !equationMentionsVariable(equation.text, targetVariable)) return;
+    verification[equation.id] = { ...entry, placed: { ...entry.placed, [targetVariable]: true }, checked: false, valid: false };
   });
+  return result({ ...state, verification });
+};
+
+/**
+ * The sides of an original equation that are already a number, as written
+ * (null for a side the student has to evaluate). Shown as given, never retyped.
+ */
+export const verificationGivenSides = (system, equationId) => {
+  const equation = equationById(system, equationId);
+  if (!equation) return { left: null, right: null };
+  return {
+    left: constantEquationSide(equation.text, 'left', system.variables),
+    right: constantEquationSide(equation.text, 'right', system.variables),
+  };
 };
 
 export const verificationReady = (state, system, equationId) => verificationVariables(system, equationId)
@@ -444,8 +466,11 @@ export const checkVerification = (state, system, solution, equationId) => {
   const entry = state.verification?.[equationId];
   if (!equation || !entry || !solution) return result(state);
   const actual = evaluateEquationSides(equation.text, solution);
-  const leftValue = parseNumericEntry(entry.leftAnswer);
-  const rightValue = parseNumericEntry(entry.rightAnswer);
+  // A side that is already a number is its own value; only the sides the
+  // student evaluated are read from their entries.
+  const given = verificationGivenSides(system, equationId);
+  const leftValue = given.left != null ? actual.left : parseNumericEntry(entry.leftAnswer);
+  const rightValue = given.right != null ? actual.right : parseNumericEntry(entry.rightAnswer);
   const close = (a, b) => Number.isFinite(a) && Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b));
   const valid = close(leftValue, actual.left) && close(rightValue, actual.right) && Math.abs(actual.left - actual.right) < 1e-6;
   return result({ ...state, verification: { ...state.verification, [equationId]: { ...entry, checked: true, valid } } });

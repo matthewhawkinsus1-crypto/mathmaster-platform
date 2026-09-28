@@ -151,6 +151,31 @@ export const buildStudentDashboardModel = ({
     return included.filter((index) => resolveQuestionActivityRole({ question: questions[index], assignment }) !== 'practice');
   };
 
+  /*
+   * RESUME MEANS "TAKE ME TO WORK I CAN ACTUALLY DO NOW."
+   *
+   * Warm-Up and DOL can remain unfinished in the tracker after their classroom
+   * windows close. They still belong in grade/history evidence, but they must
+   * not become the fallback destination for Continue while Classwork/Practice
+   * is open. Explicit live Warm-Up/DOL cards remain handled separately.
+   */
+  const resumeEligibleIndicesFor = (assignment) => {
+    const required = requiredIndicesFor(assignment);
+    const questions = getStoredAssignmentQuestions(assignment);
+    const warmupState = typeof getWarmupState === 'function'
+      ? getWarmupState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue })
+      : null;
+    const dolState = typeof getDOLState === 'function'
+      ? getDOLState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue })
+      : null;
+    return required.filter((index) => {
+      const role = resolveQuestionActivityRole({ question: questions[index], assignment });
+      if (role === 'warmup' && warmupState?.enabled) return warmupState.status === 'active';
+      if (role === 'dol' && dolState?.enabled) return dolState.status === 'active';
+      return true;
+    });
+  };
+
   const canResume = (assignment) => {
     const lifecycle = getAssignmentLifecycle(assignment, nowValue);
     if (lifecycle.isPracticeOnly) return false;
@@ -165,19 +190,19 @@ export const buildStudentDashboardModel = ({
     if (!assignmentTracker) return false;
     // A student is never "resumed" into an assignment purely because its
     // waived Practice sits unfinished -- that is excused, not outstanding.
-    const required = new Set(requiredIndicesFor(assignment));
+    const required = new Set(resumeEligibleIndicesFor(assignment));
     return getStoredAssignmentQuestions(assignment).some((question, index) => questionIsIncluded(question)
       && required.has(index)
       && !['correct', 'expired'].includes(normalizeQuestionRecord(assignmentTracker[index]).status));
   });
   const resumeAssignment = savedResume || fallbackResume || null;
 
-  const resumeRequired = resumeAssignment ? new Set(requiredIndicesFor(resumeAssignment)) : new Set();
+  const resumeRequired = resumeAssignment ? new Set(resumeEligibleIndicesFor(resumeAssignment)) : new Set();
   const fallbackQuestionIndex = getStoredAssignmentQuestions(resumeAssignment)
     .findIndex((question, index) => questionIsIncluded(question)
       && resumeRequired.has(index)
       && !['correct', 'expired'].includes(normalizeQuestionRecord(tracker[resumeAssignment?.id]?.[index]).status));
-  const savedResumeIncluded = savedResume ? requiredIndicesFor(savedResume) : [];
+  const savedResumeIncluded = savedResume ? resumeEligibleIndicesFor(savedResume) : [];
   const resumeIncluded = resumeAssignment ? requiredIndicesFor(resumeAssignment) : [];
   const resumeTracker = resumeAssignment ? tracker?.[resumeAssignment.id] || {} : {};
   const resumeQuestionsAttempted = resumeIncluded.filter((index) => {
@@ -254,7 +279,10 @@ export const buildStudentDashboardModel = ({
     }
     const fullyTerminal = Boolean(assignmentTracker)
       && included.every((index) => ['correct', 'expired'].includes(normalizeQuestionRecord(assignmentTracker[index]).status));
-    return fullyTerminal || lifecycle.isClosed;
+    // A deadline ending changes whether work is graded; it does not mean the
+    // student completed it. Incomplete closed work belongs under Practice,
+    // while only genuinely terminal work belongs under Finished.
+    return fullyTerminal;
   };
 
   /*

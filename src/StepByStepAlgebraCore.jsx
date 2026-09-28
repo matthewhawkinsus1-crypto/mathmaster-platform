@@ -311,6 +311,14 @@ export default function StepByStepAlgebra({
   initialWorkSteps = null,
   // A host that already shows the question prompt can hide the repeat.
   showPrompt = true,
+  // One step inside another tool's worksheet (Systems Workspace, #369). The
+  // host owns the task, the tries and the hint panel, and grades nothing per
+  // step (no onStepGrade), so the solver drops the framing that would repeat
+  // or contradict it: the support badge, the policy footnote and attempt
+  // counts it never actually spends. `embeddedTitle` — the host's name for
+  // the step — shares the tool row with the target. The engine is unchanged.
+  embedded = false,
+  embeddedTitle = null,
 }) {
   const normalizedRecord = normalizeQuestionRecord(questionRecord);
   const initialParse = useMemo(() => getInitialEquation(question, normalizedRecord), [question]);
@@ -1559,7 +1567,7 @@ export default function StepByStepAlgebra({
         setMessage({ tone: 'error', text: 'That used the final attempt on this version.' });
         return;
       }
-      setMessage({ tone: 'growth', text: attemptsDoNotExpire ? verdict.message : `${verdict.message} ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} attempts remain at this level.` });
+      setMessage({ tone: 'growth', text: attemptsDoNotExpire || embedded ? verdict.message : `${verdict.message} ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} attempts remain at this level.` });
     }
 
     if (move.requiredCancellationSides.length === 0) {
@@ -1777,7 +1785,7 @@ export default function StepByStepAlgebra({
     const valid = pendingMove.requiredCancellationSides.includes(side);
     if (!valid) {
       triggerShake();
-      if (supportPolicy.inefficientMoveCostsAttempt) {
+      if (supportPolicy.inefficientMoveCostsAttempt && !embedded) {
         const result = await saveStep({ move: pendingMove, earned: 0, possible: 1, countsAttempt: true, accepted: false });
         setMessage({ tone: 'error', text: result?.expired ? 'The third invalid cancellation used the final attempt.' : `That side does not contain the cancellation for this move. ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} attempts remain.` });
         if (result?.expired) { setPendingMove(null); setSelectedCancellationIndices({}); }
@@ -1812,7 +1820,7 @@ export default function StepByStepAlgebra({
     const incorrect = targets.filter((target) => !expressionsEquivalent(simplificationAnswers[target.side], target.simplifiedExpression, equation.variable));
     if (incorrect.length) {
       triggerShake();
-      if (supportPolicy.inefficientMoveCostsAttempt) {
+      if (supportPolicy.inefficientMoveCostsAttempt && !embedded) {
         const result = await saveStep({ move: pendingMove, earned: 0, possible: 1, countsAttempt: true, accepted: false });
         setMessage({ tone: 'error', text: result?.expired ? 'The third incorrect simplification used the final attempt.' : `Revise the ${incorrect.map((target) => target.label.toLowerCase()).join(' and ')} simplification. Algebraically equivalent forms are accepted.` });
       } else {
@@ -2531,11 +2539,20 @@ export default function StepByStepAlgebra({
   }
 
   return (
-    <section className={shake ? 'algebra-shake' : ''} style={{ maxWidth: '1120px', margin: '0 auto', padding: '10px 10px 24px', textAlign: 'left' }}>
-      {showPrompt ? <QuestionPrompt>{question.prompt || 'Solve the equation by keeping both sides balanced.'}</QuestionPrompt> : null}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '999px', background: supportPolicy.level >= 4 ? '#e8f0fe' : '#f3e8fd', color: supportPolicy.level >= 4 ? '#174ea6' : '#681da8', fontWeight: 'bold' }}>{`Support ${supportPolicy.level} · ${supportPolicy.label}`}</div>
-        <div style={{ padding: '8px 12px', borderRadius: '999px', background: '#e6f4ea', color: '#137333', fontWeight: 'bold' }}>{objectiveLabel}</div>
+    <section className={`${shake ? 'algebra-shake' : ''}${embedded ? ' algebra-embedded' : ''}`} style={{ maxWidth: '1120px', margin: '0 auto', padding: embedded ? '4px 0 8px' : '10px 10px 24px', textAlign: 'left' }}>
+      {showPrompt && !embedded ? <QuestionPrompt>{question.prompt || 'Solve the equation by keeping both sides balanced.'}</QuestionPrompt> : null}
+      <div className={embedded ? 'algebra-embedded-toolbar' : undefined} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: embedded ? '8px 12px' : '12px', flexWrap: 'wrap', marginBottom: embedded ? '8px' : '16px' }}>
+        {embedded ? (
+          <div className="algebra-embedded-heading">
+            {embeddedTitle ? <strong>{embeddedTitle}</strong> : null}
+            <span>{objectiveLabel}</span>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '999px', background: supportPolicy.level >= 4 ? '#e8f0fe' : '#f3e8fd', color: supportPolicy.level >= 4 ? '#174ea6' : '#681da8', fontWeight: 'bold' }}>{`Support ${supportPolicy.level} · ${supportPolicy.label}`}</div>
+            <div style={{ padding: '8px 12px', borderRadius: '999px', background: '#e6f4ea', color: '#137333', fontWeight: 'bold' }}>{objectiveLabel}</div>
+          </>
+        )}
         {stepCreditPercent > 0 && (
           <div
             title="Credit earned from valid algebra steps so far. Finishing the problem correctly earns full credit."
@@ -3341,12 +3358,12 @@ export default function StepByStepAlgebra({
       )}
       {question.showHint !== false && suggestedMove && !solved && <details style={{ marginTop: '14px', color: '#5f6368' }}><summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Need a strategic hint?</summary><p style={{ margin: '8px 0 0' }}>Look for a move that cancels a term: {describeOperation(suggestedMove.operation, suggestedMove.operand)}.</p></details>}
       {message && <div role="status" style={{ marginTop: '16px', padding: '13px 15px', borderRadius: '10px', background: message.tone === 'success' ? '#e6f4ea' : message.tone === 'growth' ? '#fef7e0' : '#fce8e6', color: message.tone === 'success' ? '#137333' : message.tone === 'growth' ? '#8a5a00' : '#c5221f', fontWeight: 'bold' }}>{message.text}</div>}
-      <p style={{ color: '#5f6368', fontSize: '13px', marginTop: '12px' }}>
+      {!embedded && <p style={{ color: '#5f6368', fontSize: '13px', marginTop: '12px' }}>
         {supportPolicy.description}
         {supportPolicy.inefficientMoveCostsAttempt
           ? attemptsDoNotExpire ? ' Live Challenge work does not expire from intermediate moves.' : ` Attempts remaining: ${attemptsRemaining}. A longer route still counts as correct algebra, but it uses an attempt at this level.`
           : ' A longer route is still correct algebra here and costs nothing.'}
-      </p>
+      </p>}
 
       {heldToken && (
         <div aria-hidden="true" style={{ position: 'fixed', left: heldToken.x, top: heldToken.y, transform: 'translate(-50%, -50%)', zIndex: 40, pointerEvents: 'none', fontFamily: 'ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace', fontWeight: 800, fontSize: '22px', color: '#174ea6', background: '#e8f0fe', borderRadius: '12px', padding: '6px 12px', boxShadow: '0 12px 26px rgba(26,115,232,0.3)', whiteSpace: 'nowrap' }}><OperationChip token={heldToken.label} latex={heldToken.latex} /></div>

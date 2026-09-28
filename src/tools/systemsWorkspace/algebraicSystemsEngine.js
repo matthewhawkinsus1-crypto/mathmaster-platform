@@ -45,7 +45,21 @@ export const normalizeEquationForStepAlgebra = (equationText) => {
       },
     );
 
-    let normalized = parse(protectedSource).toString({
+    // A substituted NEGATIVE value keeps its parentheses the same way: with
+    // `parenthesis: 'auto'` MathJS printed 3 * (-1) as "3 * -1" and
+    // 2x - (-2) as "2 * x - -2", which Step Algebra showed as 3 · −1 and
+    // 2x − −2 — not classroom notation (#361). Classroom: 3(−1), 2x − (−2).
+    const protectedNegatives = [];
+    const protectedNegativeSource = protectedSource.replace(
+      /\(\s*-\s*(\d+(?:\.\d+)?)\s*\)/g,
+      (_match, digits) => {
+        const token = `__mm_negative_${protectedNegatives.length}__`;
+        protectedNegatives.push(digits);
+        return token;
+      },
+    );
+
+    let normalized = parse(protectedNegativeSource).toString({
       parenthesis: 'auto',
       implicit: 'show',
     });
@@ -55,6 +69,9 @@ export const normalizeEquationForStepAlgebra = (equationText) => {
         `__mm_fraction_${index}__`,
         `(${fractionText.replace(/\s+/g, ' ').trim()})`,
       );
+    });
+    protectedNegatives.forEach((digits, index) => {
+      normalized = normalized.replace(`__mm_negative_${index}__`, `(-${digits})`);
     });
 
     return normalized;
@@ -680,6 +697,60 @@ export const equationMentionsVariable = (text, variable) => {
     return [left, right].some((side) => parse(side).filter((node) => node.isSymbolNode && node.name === variable).length > 0);
   } catch {
     return false;
+  }
+};
+
+/**
+ * A side of the equation that is ALREADY WRITTEN as one numeric value — the
+ * 15 in 2x - y + 2z = 15 — or null when the student still has arithmetic to
+ * perform. Verification may show a literal number as given, but it must not
+ * silently evaluate a constant expression such as 2 + 3.
+ *
+ * Exact numeric fractions stay exact: 20/9 is returned as 20/9, never 2.22….
+ * Signed integers/decimals and signed exact fractions are accepted. Optional
+ * outer parentheses are allowed only around that single numeric value.
+ */
+export const constantEquationSide = (text, side, _variables = []) => {
+  try {
+    const expression = String(splitEquation(text)[side] ?? '').trim();
+    if (!expression) return null;
+
+    // Remove balanced outer parentheses around the WHOLE side only. This lets
+    // authored forms such as (-1) count as an already-written value without
+    // turning (2 + 3) into something the platform evaluates for the student.
+    let candidate = expression;
+    while (candidate.startsWith('(') && candidate.endsWith(')')) {
+      let depth = 0;
+      let wrapsWholeExpression = true;
+      for (let index = 0; index < candidate.length; index += 1) {
+        if (candidate[index] === '(') depth += 1;
+        if (candidate[index] === ')') depth -= 1;
+        if (depth === 0 && index < candidate.length - 1) {
+          wrapsWholeExpression = false;
+          break;
+        }
+        if (depth < 0) {
+          wrapsWholeExpression = false;
+          break;
+        }
+      }
+      if (!wrapsWholeExpression || depth !== 0) break;
+      candidate = candidate.slice(1, -1).trim();
+    }
+
+    const literalNumberOrFraction = /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:\s*\/\s*[+-]?(?:\d+(?:\.\d+)?|\.\d+))?$/;
+    if (!literalNumberOrFraction.test(candidate)) return null;
+
+    // A zero denominator is not an already-valid numeric value.
+    const slash = candidate.indexOf('/');
+    if (slash >= 0) {
+      const denominator = Number(candidate.slice(slash + 1).trim());
+      if (!Number.isFinite(denominator) || denominator === 0) return null;
+    }
+
+    return expression;
+  } catch {
+    return null;
   }
 };
 
