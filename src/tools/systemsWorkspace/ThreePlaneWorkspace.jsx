@@ -56,6 +56,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
     : ['x + y + z = 6', '2x - y + z = 3', '-x + 2y + z = 5'];
   const answerFields = Array.isArray(questionData.answerFields) ? questionData.answerFields : [];
   const spatialModel = questionData.spatialModel && typeof questionData.spatialModel === 'object' ? questionData.spatialModel : {};
+  const systemIdentity = variables.join('|') + '::' + equations.join('|');
 
   const forms = useMemo(() => equations.map((equation) => linearEquationForm(equation, variables)), [equations, variables]);
   const classification = useMemo(() => classifyLinearSystem(forms, variables), [forms, variables]);
@@ -84,7 +85,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
   useEffect(() => {
     setCamera(openingCamera);
     setHasInteracted(false);
-  }, [openingCamera.azimuth, openingCamera.elevation]);
+  }, [systemIdentity, openingCamera.azimuth, openingCamera.elevation]);
 
   useEffect(() => {
     if (hasInteracted || reduceMotion || typeof window === 'undefined') return undefined;
