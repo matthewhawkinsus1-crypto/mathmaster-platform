@@ -10,7 +10,7 @@
  * the classification is computed for the student to state; the model only
  * shows the geometry they ask it to show.
  */
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { Panel, HintPanel, ResultPill } from '../shared/ToolShell';
@@ -18,7 +18,7 @@ import useToolSubmission from '../shared/useToolSubmission';
 import MathDisplay from '../../MathDisplay';
 import MathInput from '../../MathInput';
 import { classifyLinearSystem, exactNumberText, linearEquationForm } from './algebraicSystemsEngine.js';
-import { clipPlaneToCube, legibleCamera, planePlaneIntersection, projectPoint, projectPolygon } from './threePlaneGeometry.js';
+import { advanceIdleCamera, clipPlaneToCube, cubeCorners, cubeEdges, legibleCamera, planePlaneIntersection, projectPoint, projectPolygon } from './threePlaneGeometry.js';
 import { gradeMultiAnswerResponse } from '../../../functions/shared/ordinaryResponseGrading.mjs';
 import './AlgebraicSystemMode.css';
 import './ThreePlaneWorkspace.css';
@@ -30,6 +30,7 @@ const MIN_ELEVATION = -1.3;
 const MAX_ELEVATION = 1.3;
 const VIEW_SIZE = 560;
 const AXIS_LABEL_OFFSET = 18;
+const PLANE_LABEL_OFFSETS = [[-16, -12], [0, 12], [16, -12]];
 
 const toScreen = (point, scale, cameraOffset) => [
   VIEW_SIZE / 2 + (point[0] - cameraOffset[0]) * scale,
@@ -47,14 +48,22 @@ const boundingRadius = (solution, variables) => {
 };
 
 export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
-  const variables = Array.isArray(questionData.variables) && questionData.variables.length === 3
-    ? questionData.variables.map((value) => String(value))
-    : DEFAULT_VARIABLES;
-  const equations = Array.isArray(questionData.equations) && questionData.equations.length === 3
-    ? questionData.equations.map(String)
-    : ['x + y + z = 6', '2x - y + z = 3', '-x + 2y + z = 5'];
+  // Keep the authored arrays stable while the idle camera animates. Without
+  // this, every animation frame reparses the same equations and recomputes the
+  // best opening camera even though only the camera angle changed.
+  const variables = useMemo(() => (
+    Array.isArray(questionData.variables) && questionData.variables.length === 3
+      ? questionData.variables.map((value) => String(value))
+      : DEFAULT_VARIABLES
+  ), [questionData.variables]);
+  const equations = useMemo(() => (
+    Array.isArray(questionData.equations) && questionData.equations.length === 3
+      ? questionData.equations.map(String)
+      : ['x + y + z = 6', '2x - y + z = 3', '-x + 2y + z = 5']
+  ), [questionData.equations]);
   const answerFields = Array.isArray(questionData.answerFields) ? questionData.answerFields : [];
   const spatialModel = questionData.spatialModel && typeof questionData.spatialModel === 'object' ? questionData.spatialModel : {};
+  const systemIdentity = variables.join('|') + '::' + equations.join('|');
 
   const forms = useMemo(() => equations.map((equation) => linearEquationForm(equation, variables)), [equations, variables]);
   const classification = useMemo(() => classifyLinearSystem(forms, variables), [forms, variables]);
@@ -64,7 +73,43 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
   // instead of one fixed angle that showed the Day 1 planes as slivers (#361).
   const openingCamera = useMemo(() => legibleCamera(forms, variables, DEFAULT_CAMERA), [forms, variables]);
   const [camera, setCamera] = useState(openingCamera);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
   const dragRef = useRef(null);
+
+  // Gently orbit before the student touches the model so the flat SVG reads
+  // immediately as a 3D object. Stop on first interaction and respect reduced motion.
+  useEffect(() => {
+    const media = typeof window !== 'undefined' && window.matchMedia
+      ? window.matchMedia('(prefers-reduced-motion: reduce)')
+      : null;
+    const sync = () => setReduceMotion(Boolean(media?.matches));
+    sync();
+    media?.addEventListener?.('change', sync);
+    return () => media?.removeEventListener?.('change', sync);
+  }, []);
+
+  useEffect(() => {
+    setCamera(openingCamera);
+    setHasInteracted(false);
+  }, [systemIdentity, openingCamera.azimuth, openingCamera.elevation]);
+
+  useEffect(() => {
+    if (hasInteracted || reduceMotion || typeof window === 'undefined') return undefined;
+    let frameId = null;
+    let previous = null;
+    const tick = (timestamp) => {
+      if (previous != null) setCamera((current) => advanceIdleCamera(current, timestamp - previous));
+      previous = timestamp;
+      frameId = window.requestAnimationFrame(tick);
+    };
+    frameId = window.requestAnimationFrame(tick);
+    return () => {
+      if (frameId != null) window.cancelAnimationFrame(frameId);
+    };
+  }, [hasInteracted, reduceMotion]);
+
+  const markInteracted = useCallback(() => setHasInteracted(true), []);
   const [visiblePlanes, setVisiblePlanes] = usePersistentToolState('visiblePlanes', [true, true, true]);
   const [revealed, setRevealed] = usePersistentToolState('solutionRevealed', spatialModel.revealSolution === true);
   const canReveal = spatialModel.revealSolution === true || spatialModel.allowSolutionReveal === true;
@@ -73,15 +118,20 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
   const { feedback, submit } = useToolSubmission(onAction);
 
   const togglePlane = useCallback((index) => {
+    markInteracted();
     setVisiblePlanes((current) => current.map((value, i) => (i === index ? !value : value)));
-  }, [setVisiblePlanes]);
+  }, [markInteracted, setVisiblePlanes]);
 
-  const resetView = useCallback(() => setCamera(openingCamera), [openingCamera]);
+  const resetView = useCallback(() => {
+    markInteracted();
+    setCamera(openingCamera);
+  }, [markInteracted, openingCamera]);
 
   const handlePointerDown = useCallback((event) => {
+    markInteracted();
     event.currentTarget.setPointerCapture?.(event.pointerId);
     dragRef.current = { x: event.clientX, y: event.clientY, camera };
-  }, [camera]);
+  }, [camera, markInteracted]);
   const handlePointerMove = useCallback((event) => {
     if (!dragRef.current) return;
     const dx = event.clientX - dragRef.current.x;
@@ -134,6 +184,18 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
     }));
   }, [R, variables, camera]);
 
+  const cubeFrame = useMemo(() => {
+    const corners = cubeCorners(R).map((point) => projectPoint(point, camera));
+    return cubeEdges().map(([fromIndex, toIndex]) => ({
+      key: String(fromIndex) + '-' + String(toIndex),
+      from: [corners[fromIndex].screenX, corners[fromIndex].screenY],
+      to: [corners[toIndex].screenX, corners[toIndex].screenY],
+      depth: (corners[fromIndex].depth + corners[toIndex].depth) / 2,
+    })).sort((a, b) => a.depth - b.depth);
+  }, [R, camera]);
+
+  const origin = useMemo(() => projectPoint([0, 0, 0], camera), [camera]);
+
   const solutionMarker = useMemo(() => {
     if (classification.type !== 'unique' || !revealed) return null;
     const point3D = variables.map((name) => classification.solution[name]);
@@ -183,6 +245,12 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
         </div>
 
         <div className="mathmaster-threeplane-viewport">
+          <div className={`mathmaster-threeplane-motion-cue${!hasInteracted && !reduceMotion ? ' is-idle' : ''}`}>
+            <span className="mathmaster-threeplane-motion-dot" aria-hidden="true" />
+            {!hasInteracted && !reduceMotion
+              ? 'Auto-rotating to show depth — drag the model to take control.'
+              : 'Drag the model to rotate it. Use Reset view to return to the opening angle.'}
+          </div>
           <svg
             viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`}
             role="img"
@@ -193,12 +261,26 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerUp}
           >
+            <defs>
+              <marker id="mathmaster-threeplane-axis-arrow" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto" markerUnits="strokeWidth">
+                <path d="M0,0 L7,3.5 L0,7 z" fill="#5f6368" />
+              </marker>
+            </defs>
+            {cubeFrame.map((edge) => (
+              <line
+                key={edge.key}
+                x1={toScreen(edge.from, scale, [0, 0])[0]} y1={toScreen(edge.from, scale, [0, 0])[1]}
+                x2={toScreen(edge.to, scale, [0, 0])[0]} y2={toScreen(edge.to, scale, [0, 0])[1]}
+                className="mathmaster-threeplane-frame-edge"
+              />
+            ))}
             {axisEnds.map((axis) => (
               <g key={axis.name}>
                 <line
                   x1={toScreen(axis.from, scale, [0, 0])[0]} y1={toScreen(axis.from, scale, [0, 0])[1]}
                   x2={toScreen(axis.to, scale, [0, 0])[0]} y2={toScreen(axis.to, scale, [0, 0])[1]}
                   stroke="#5f6368" strokeWidth={1.5}
+                  markerEnd="url(#mathmaster-threeplane-axis-arrow)"
                 />
                 <text
                   // Kept inside the frame: at some angles an axis runs past
@@ -211,16 +293,41 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
                 </text>
               </g>
             ))}
-            {orderedPolygons.map((plane) => (
-              <polygon
-                key={plane.index}
-                points={plane.points.map((point) => toScreen(point, scale, [0, 0]).join(',')).join(' ')}
-                fill={plane.color}
-                fillOpacity={0.32}
-                stroke={plane.color}
-                strokeWidth={1.5}
-              />
-            ))}
+            <circle
+              cx={toScreen([origin.screenX, origin.screenY], scale, [0, 0])[0]}
+              cy={toScreen([origin.screenX, origin.screenY], scale, [0, 0])[1]}
+              r={3.5}
+              fill="#202124"
+              stroke="#fff"
+              strokeWidth={1.5}
+            />
+            {orderedPolygons.map((plane) => {
+              const centroid = plane.points.reduce(
+                (acc, point) => [acc[0] + point[0], acc[1] + point[1]],
+                [0, 0],
+              ).map((value) => value / plane.points.length);
+              const screen = toScreen(centroid, scale, [0, 0]);
+              const offset = PLANE_LABEL_OFFSETS[plane.index] || [0, 0];
+              return (
+                <g key={plane.index}>
+                  <polygon
+                    points={plane.points.map((point) => toScreen(point, scale, [0, 0]).join(',')).join(' ')}
+                    fill={plane.color}
+                    fillOpacity={0.28}
+                    stroke={plane.color}
+                    strokeWidth={2}
+                  />
+                  <text
+                    x={clampLabel(screen[0] + offset[0], 24)}
+                    y={clampLabel(screen[1] + offset[1], 20)}
+                    className="mathmaster-threeplane-plane-label"
+                    textAnchor="middle"
+                  >
+                    {'P' + String(plane.index + 1)}
+                  </text>
+                </g>
+              );
+            })}
             {intersectionLines.map((line) => (
               <line
                 key={line.key}
@@ -257,7 +364,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction }) {
           <div className="mathmaster-reduction-button-row" style={{ marginTop: 10 }}>
             <button type="button" onClick={resetView} className="mathmaster-reduction-carry">Reset view</button>
             {canReveal ? (
-              <button type="button" onClick={() => setRevealed(true)} className="mathmaster-reduction-carry" disabled={revealed}>
+              <button type="button" onClick={() => { markInteracted(); setRevealed(true); }} className="mathmaster-reduction-carry" disabled={revealed}>
                 {revealed ? 'Revealed' : revealLabel}
               </button>
             ) : null}
