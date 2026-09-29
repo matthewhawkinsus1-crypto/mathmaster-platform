@@ -201,6 +201,103 @@ export const resolveSnapStep = (questionData = {}, canonicalFacts = {}, extraPoi
   return 0.05;
 };
 
+// -----------------------------------------------------------------------------
+// AST & Structural Checkers for Equations
+// -----------------------------------------------------------------------------
+
+const unwrapParens = (node) => {
+  let curr = node;
+  while (curr && curr.isParenthesisNode) curr = curr.content;
+  return curr;
+};
+
+const evalConstNode = (node) => {
+  const unwrapped = unwrapParens(node);
+  if (!unwrapped) return null;
+  try {
+    const val = Number(unwrapped.evaluate({}));
+    return Number.isFinite(val) ? val : null;
+  } catch {
+    return null;
+  }
+};
+
+const parseLinearTerm = (node, varName) => {
+  const unwrapped = unwrapParens(node);
+  if (!unwrapped) return null;
+  if (unwrapped.isSymbolNode && unwrapped.name === varName) {
+    return 0;
+  }
+  if (unwrapped.isOperatorNode && (unwrapped.fn === 'subtract' || unwrapped.fn === 'add')) {
+    const [first, second] = unwrapped.args;
+    const uFirst = unwrapParens(first);
+    if (uFirst.isSymbolNode && uFirst.name === varName) {
+      const c = evalConstNode(second);
+      if (c == null) return null;
+      return unwrapped.fn === 'subtract' ? c : -c;
+    }
+  }
+  return null;
+};
+
+/**
+ * Parses point-slope form: y - y1 = m(x - x1)
+ * Returns { m, x1, y1, point: [x1, y1] } or null if equation is not structurally point-slope.
+ */
+export const parsePointSlopeForm = (equationText) => {
+  if (typeof equationText !== 'string' || !equationText.trim()) return null;
+  let str = equationText.trim();
+  if (str.includes('\\')) {
+    str = latexToExpression(str);
+  }
+  try {
+    const parts = str.split('=');
+    if (parts.length !== 2) return null;
+    const left = unwrapParens(parse(parts[0].trim()));
+    const right = unwrapParens(parse(parts[1].trim()));
+
+    const y1 = parseLinearTerm(left, 'y');
+    if (y1 == null) return null;
+
+    // Right side: m * (x - x1)
+    // Case 1: (x - x1) -> m = 1
+    if (
+      right.isParenthesisNode
+      || (right.isSymbolNode && right.name === 'x')
+      || (right.isOperatorNode && ['add', 'subtract'].includes(right.fn) && right.args[0].name === 'x')
+    ) {
+      const x1 = parseLinearTerm(right, 'x');
+      if (x1 != null) return { m: 1, x1, y1, point: [x1, y1] };
+    }
+
+    // Case 2: -(x - x1) -> m = -1
+    if (right.isOperatorNode && right.fn === 'unaryMinus') {
+      const x1 = parseLinearTerm(right.args[0], 'x');
+      if (x1 != null) return { m: -1, x1, y1, point: [x1, y1] };
+    }
+
+    // Case 3: m * (x - x1)
+    if (right.isOperatorNode && right.fn === 'multiply') {
+      const [mNode, xNode] = right.args;
+      const m = evalConstNode(mNode);
+      const x1 = parseLinearTerm(xNode, 'x');
+      if (m != null && x1 != null) return { m, x1, y1, point: [x1, y1] };
+    }
+
+    // Case 4: (x - x1) / d
+    if (right.isOperatorNode && right.fn === 'divide') {
+      const [xNode, dNode] = right.args;
+      const d = evalConstNode(dNode);
+      const x1 = parseLinearTerm(xNode, 'x');
+      if (d != null && d !== 0 && x1 != null) return { m: 1 / d, x1, y1, point: [x1, y1] };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+};
+
 /**
  * Derives the canonical mathematical relationship and key facts from any supported source kind.
  */
@@ -279,9 +376,17 @@ export const deriveLinearMultipleRepresentations = (question = {}) => {
       ? source.points
       : null;
 
-  const sourcePoint = (kind === 'pointSlope' && Array.isArray(source.point))
-    ? source.point
-    : null;
+  let sourcePoint = null;
+  if (kind === 'pointSlope') {
+    if (Array.isArray(source.point) && source.point.length >= 2) {
+      sourcePoint = source.point;
+    } else if (source.equation) {
+      const parsed = parsePointSlopeForm(source.equation);
+      if (parsed && Array.isArray(parsed.point)) {
+        sourcePoint = parsed.point;
+      }
+    }
+  }
 
   return {
     isValid: true,
@@ -405,9 +510,10 @@ export const validateLinearMultipleRepresentationsQuestion = (question = {}) => 
         }
       }
 
-      // Check source point-slope anchor if authored
-      if (source.kind === 'pointSlope' && Array.isArray(source.point)) {
-        const [px, py] = source.point.map(Number);
+      // Check source point-slope anchor if authored (either in source.point or source.equation)
+      const ptSlopeAnchor = derived.sourcePoint || source.point;
+      if (source.kind === 'pointSlope' && Array.isArray(ptSlopeAnchor)) {
+        const [px, py] = ptSlopeAnchor.map(Number);
         if (Number.isFinite(px) && Number.isFinite(py)) {
           if (px < xMin || px > xMax || py < yMin || py > yMax) {
             errors.push('representationBridge graphBounds does not include the given point-slope point.');
@@ -469,9 +575,10 @@ export const resolveLinearMultipleRepresentationsGraphBounds = (questionData = {
       }
     });
   }
-  if (Array.isArray(source.point) && Number.isFinite(Number(source.point[0])) && Number.isFinite(Number(source.point[1]))) {
-    xs.push(Number(source.point[0]));
-    ys.push(Number(source.point[1]));
+  const ptSlopeAnchor = canonicalFacts.sourcePoint || source.point;
+  if (Array.isArray(ptSlopeAnchor) && Number.isFinite(Number(ptSlopeAnchor[0])) && Number.isFinite(Number(ptSlopeAnchor[1]))) {
+    xs.push(Number(ptSlopeAnchor[0]));
+    ys.push(Number(ptSlopeAnchor[1]));
   }
   if (Array.isArray(source.rows)) {
     source.rows.forEach((r) => {
@@ -517,102 +624,6 @@ export const resolveLinearMultipleRepresentationsGraphBounds = (questionData = {
   return { xMin, xMax, yMin, yMax };
 };
 
-// -----------------------------------------------------------------------------
-// AST & Structural Checkers for Equations
-// -----------------------------------------------------------------------------
-
-const unwrapParens = (node) => {
-  let curr = node;
-  while (curr && curr.isParenthesisNode) curr = curr.content;
-  return curr;
-};
-
-const evalConstNode = (node) => {
-  const unwrapped = unwrapParens(node);
-  if (!unwrapped) return null;
-  try {
-    const val = Number(unwrapped.evaluate({}));
-    return Number.isFinite(val) ? val : null;
-  } catch {
-    return null;
-  }
-};
-
-const parseLinearTerm = (node, varName) => {
-  const unwrapped = unwrapParens(node);
-  if (!unwrapped) return null;
-  if (unwrapped.isSymbolNode && unwrapped.name === varName) {
-    return 0;
-  }
-  if (unwrapped.isOperatorNode && (unwrapped.fn === 'subtract' || unwrapped.fn === 'add')) {
-    const [first, second] = unwrapped.args;
-    const uFirst = unwrapParens(first);
-    if (uFirst.isSymbolNode && uFirst.name === varName) {
-      const c = evalConstNode(second);
-      if (c == null) return null;
-      return unwrapped.fn === 'subtract' ? c : -c;
-    }
-  }
-  return null;
-};
-
-/**
- * Parses point-slope form: y - y1 = m(x - x1)
- * Returns { m, x1, y1, point: [x1, y1] } or null if equation is not structurally point-slope.
- */
-export const parsePointSlopeForm = (equationText) => {
-  if (typeof equationText !== 'string' || !equationText.trim()) return null;
-  let str = equationText.trim();
-  if (str.includes('\\')) {
-    str = latexToExpression(str);
-  }
-  try {
-    const parts = str.split('=');
-    if (parts.length !== 2) return null;
-    const left = unwrapParens(parse(parts[0].trim()));
-    const right = unwrapParens(parse(parts[1].trim()));
-
-    const y1 = parseLinearTerm(left, 'y');
-    if (y1 == null) return null;
-
-    // Right side: m * (x - x1)
-    // Case 1: (x - x1) -> m = 1
-    if (
-      right.isParenthesisNode
-      || (right.isSymbolNode && right.name === 'x')
-      || (right.isOperatorNode && ['add', 'subtract'].includes(right.fn) && right.args[0].name === 'x')
-    ) {
-      const x1 = parseLinearTerm(right, 'x');
-      if (x1 != null) return { m: 1, x1, y1, point: [x1, y1] };
-    }
-
-    // Case 2: -(x - x1) -> m = -1
-    if (right.isOperatorNode && right.fn === 'unaryMinus') {
-      const x1 = parseLinearTerm(right.args[0], 'x');
-      if (x1 != null) return { m: -1, x1, y1, point: [x1, y1] };
-    }
-
-    // Case 3: m * (x - x1)
-    if (right.isOperatorNode && right.fn === 'multiply') {
-      const [mNode, xNode] = right.args;
-      const m = evalConstNode(mNode);
-      const x1 = parseLinearTerm(xNode, 'x');
-      if (m != null && x1 != null) return { m, x1, y1, point: [x1, y1] };
-    }
-
-    // Case 4: (x - x1) / d
-    if (right.isOperatorNode && right.fn === 'divide') {
-      const [xNode, dNode] = right.args;
-      const d = evalConstNode(dNode);
-      const x1 = parseLinearTerm(xNode, 'x');
-      if (d != null && d !== 0 && x1 != null) return { m: 1 / d, x1, y1, point: [x1, y1] };
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-};
 
 /**
  * Validates Standard Form equation entry:

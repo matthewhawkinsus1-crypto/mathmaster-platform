@@ -255,13 +255,13 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   const checkGraph3 = () => {
     let psAnchor = null;
     if (givenKind === 'pointSlope') {
-      if (questionData.source?.point) {
+      if (canonicalFacts.sourcePoint) {
+        psAnchor = canonicalFacts.sourcePoint;
+      } else if (questionData.source?.point) {
         psAnchor = questionData.source.point;
       } else if (questionData.source?.equation) {
         const parsed = parsePointSlopeForm(questionData.source.equation);
         if (parsed?.point) psAnchor = parsed.point;
-      } else if (canonicalFacts.sourcePoint) {
-        psAnchor = canonicalFacts.sourcePoint;
       }
     } else if (pointSlopeEquation) {
       const parsed = parsePointSlopeForm(pointSlopeEquation);

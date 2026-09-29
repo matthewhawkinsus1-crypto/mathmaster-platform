@@ -962,3 +962,79 @@ test('graph 3: accepts and calculates grid snap for student-chosen fractional po
   assert.deepEqual(g3Res.anchorPoint, [0.5, 2]);
 });
 
+// -----------------------------------------------------------------------------
+// 25. Given Point-Slope Source Equation Preserves Anchor Point
+// -----------------------------------------------------------------------------
+test('given point-slope source equation preserves anchor for snap step and graph evaluation', () => {
+  const q = {
+    mode: 'linearMultipleRepresentations',
+    source: {
+      kind: 'pointSlope',
+      equation: 'y - 2 = 2(x - 1/2)',
+    },
+  };
+
+  const canonicalFacts = deriveLinearMultipleRepresentations(q);
+  // Assert canonicalFacts.sourcePoint is [0.5, 2]
+  assert.deepEqual(canonicalFacts.sourcePoint, [0.5, 2]);
+
+  // Assert Graph 3 snap step allows 0.5
+  const snapStep = resolveSnapStep(q, canonicalFacts);
+  assert.equal(snapStep, 0.5);
+
+  // Assert Graph 3 accepts [(0.5, 2), (1.5, 4)]
+  const g3Res = evaluateGraph3PointSlope([[0.5, 2], [1.5, 4]], canonicalFacts, canonicalFacts.sourcePoint);
+  assert.equal(g3Res.isCorrect, true);
+  assert.deepEqual(g3Res.anchorPoint, [0.5, 2]);
+
+  // Also in full scoreLinearMultipleRepresentations
+  const scoreResult = scoreLinearMultipleRepresentations(q, {
+    graph3Points: [[0.5, 2], [1.5, 4]],
+  });
+  assert.equal(scoreResult.parts.graph3, true);
+});
+
+// -----------------------------------------------------------------------------
+// 26. Given Point-Slope Equation Large Anchor Expands Automatic Bounds
+// -----------------------------------------------------------------------------
+test('given point-slope equation with large anchor expands automatic graph bounds', () => {
+  const q = {
+    mode: 'linearMultipleRepresentations',
+    source: {
+      kind: 'pointSlope',
+      equation: 'y - 100 = 1(x - 100)',
+    },
+  };
+
+  const canonicalFacts = deriveLinearMultipleRepresentations(q);
+  assert.deepEqual(canonicalFacts.sourcePoint, [100, 100]);
+
+  const bounds = resolveLinearMultipleRepresentationsGraphBounds(q, canonicalFacts);
+  // Assert automatic graph bounds contain (100, 100)
+  assert.ok(bounds.xMin <= 100 && bounds.xMax >= 100, `x bounds [${bounds.xMin}, ${bounds.xMax}] must contain 100`);
+  assert.ok(bounds.yMin <= 100 && bounds.yMax >= 100, `y bounds [${bounds.yMin}, ${bounds.yMax}] must contain 100`);
+});
+
+// -----------------------------------------------------------------------------
+// 27. Preflight Rejects Authored Bounds That Exclude Given Point-Slope Anchor
+// -----------------------------------------------------------------------------
+test('preflight rejects authored graphBounds that exclude given point-slope anchor equation', () => {
+  const q = {
+    mode: 'linearMultipleRepresentations',
+    source: {
+      kind: 'pointSlope',
+      equation: 'y - 100 = 1(x - 100)',
+    },
+    graphBounds: {
+      xMin: -8,
+      xMax: 8,
+      yMin: -8,
+      yMax: 8,
+    },
+  };
+
+  const errors = validateLinearMultipleRepresentationsQuestion(q);
+  assert.ok(errors.length > 0);
+  assert.ok(errors.some((err) => /point-slope point/i.test(err)));
+});
+
