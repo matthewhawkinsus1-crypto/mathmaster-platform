@@ -4,6 +4,7 @@ import 'mathlive';
 import { requiredAnswerToolForSymbol, resolveRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 import { buildMobileMathTools } from './platform/interaction/mobileKeypadPolicy.js';
 import { scheduleHorizontalViewportStabilization } from './platform/mobile/mobileFocusViewport.js';
+import { bindMathFieldFocusHandoff, focusMathFieldWithoutScroll } from './platform/interaction/mathFieldFocusHandoff.js';
 
 const BASIC_KEYS = [
   { label: 'π', command: '\\pi', ariaLabel: 'Insert pi' },
@@ -298,6 +299,13 @@ export default function MathInput({
     onChangeRef.current = onChange;
   }, [onChange]);
 
+  // Declared BEFORE the listener effect below, so on mount its stale-key guard
+  // is the first capture listener on the host and runs ahead of Enter/space
+  // handling: a key meant for another box never reaches this field's handlers.
+  // See mathFieldFocusHandoff.js — clicking a field and typing at once used to
+  // edit the field the student had just left.
+  useEffect(() => bindMathFieldFocusHandoff(mfRef.current), []);
+
   useEffect(() => {
     const mathField = mfRef.current;
     if (!mathField) return undefined;
@@ -401,7 +409,8 @@ export default function MathInput({
     if (!focusSignal || !mfRef.current) return undefined;
     const frame = window.requestAnimationFrame(() => {
       const mathField = mfRef.current;
-      mathField?.focus?.({ preventScroll: true });
+      // MathfieldElement.focus() ignores preventScroll; the sink does not.
+      if (!focusMathFieldWithoutScroll(mathField)) mathField?.focus?.({ preventScroll: true });
       // On a Chromebook the field the student was just sent to could sit under
       // the sticky Undo / Reset / Calculator bar (live QA: "Subtract what?" and
       // its Pick up chip were hidden there). 'nearest' leaves a visible field

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { bindMathFieldFocusHandoff } from '../platform/interaction/mathFieldFocusHandoff.js';
 import 'mathlive';
 import { getCalculatorButtonsForMode, getCalculatorDrawerLabel } from '../platform/policies/calculatorPolicy';
 import { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
@@ -74,6 +75,13 @@ export const CalculatorPanel = ({
     setEstimate('');
     setEstimateUnlocked(!estimationRequired);
   }, [estimationRequired]);
+
+  // Clicking from an answer field into the calculator and typing at once must
+  // type into the calculator, not the answer (see mathFieldFocusHandoff.js).
+  useEffect(() => {
+    if (!isOpen || !estimateUnlocked) return undefined;
+    return bindMathFieldFocusHandoff(mathFieldRef.current);
+  }, [isOpen, estimateUnlocked]);
 
   useEffect(() => {
     const mathField = mathFieldRef.current;
