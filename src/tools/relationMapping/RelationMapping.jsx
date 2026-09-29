@@ -525,7 +525,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
             );
           })}
 
-          <button type="button" onClick={check} style={{ ...primaryButton, width: '100%' }}>Check</button>
+          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...primaryButton, width: '100%' }}>Check</button>
 
           {feedback ? (
             <div style={{ marginTop: 14 }}>

@@ -177,7 +177,7 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
           <Field label={`Enter (g ∘ f)(${x})`}><input type="number" step="0.1" value={gofAnswer} onChange={(e)=>setGofAnswer(e.target.value)} style={inputStyle}/></Field>
           <p style={{fontSize:13,color:'#5f6b7a',marginBottom:0}}>Composition order matters: the function written closest to x acts first.</p>
           {mode === 'composition' ? <>
-            <button type="button" onClick={check} style={{marginTop:16,padding:'10px 16px',background:'#1a73e8',color:'#fff',border:0,borderRadius:8,fontWeight:800}}>Check compositions</button>
+            <button data-mm-enter-action="submit" type="button" onClick={check} style={{marginTop:16,padding:'10px 16px',background:'#1a73e8',color:'#fff',border:0,borderRadius:8,fontWeight:800}}>Check compositions</button>
             {feedbackBlock}
             <HintPanel hints={modeHints} onHintUsed={() => onAction?.('HINT_USED')} />
           </> : null}
@@ -209,7 +209,7 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
 
           {f.type === 'quadratic' ? <div style={{marginTop:14}}><Field label="Which restriction makes the quadratic one-to-one?"><select value={restrictionChoice} onChange={(e)=>setRestrictionChoice(e.target.value)} style={inputStyle}><option value="none">No restriction needed</option><option value="left">Use the left branch (x ≤ vertex x)</option><option value="right">Use the right branch (x ≥ vertex x)</option><option value="required">A restriction is required, but branch is not specified</option></select></Field></div> : null}
 
-          <button type="button" onClick={check} style={{marginTop:16,padding:'10px 16px',background:'#1a73e8',color:'#fff',border:0,borderRadius:8,fontWeight:800}}>Check function reasoning</button>
+          <button data-mm-enter-action="submit" type="button" onClick={check} style={{marginTop:16,padding:'10px 16px',background:'#1a73e8',color:'#fff',border:0,borderRadius:8,fontWeight:800}}>Check function reasoning</button>
           {feedbackBlock}
           <HintPanel hints={modeHints} onHintUsed={() => onAction?.('HINT_USED')} />
         </Panel> : null}

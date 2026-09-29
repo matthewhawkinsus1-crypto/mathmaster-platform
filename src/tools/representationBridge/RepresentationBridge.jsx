@@ -411,7 +411,7 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
 
           {feedbackTiming !== 'submitOnly' ? (
             <div style={{ marginTop: 12 }}>
-              <button type="button" onClick={() => checkStage('rateEvidence')} disabled={!requiredStages.includes('rateEvidence')} style={{ ...button }}>Check this stage</button>
+              <button data-mm-enter-action="card" type="button" onClick={() => checkStage('rateEvidence')} disabled={!requiredStages.includes('rateEvidence')} style={{ ...button }}>Check this stage</button>
               {stageChecks.rateEvidence != null ? <ResultPill ok={stageChecks.rateEvidence && liveResult.parts.rateEvidence}>{stageChecks.rateEvidence && liveResult.parts.rateEvidence ? 'Rate evidence correct' : 'Needs another look'}</ResultPill> : null}
             </div>
           ) : null}
@@ -438,7 +438,7 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
             </div>
             {feedbackTiming !== 'submitOnly' ? (
               <div style={{ marginTop: 10 }}>
-                <button type="button" onClick={() => checkStage('generalForm')} disabled={!requiredStages.includes('generalForm') || stageBlocked('generalForm')} style={{ ...button }}>Check this stage</button>
+                <button data-mm-enter-action="card" type="button" onClick={() => checkStage('generalForm')} disabled={!requiredStages.includes('generalForm') || stageBlocked('generalForm')} style={{ ...button }}>Check this stage</button>
                 {stageChecks.generalForm != null ? <ResultPill ok={stageChecks.generalForm && liveResult.parts.generalForm}>{stageChecks.generalForm && liveResult.parts.generalForm ? 'General form correct' : 'Needs another look'}</ResultPill> : null}
               </div>
             ) : null}
@@ -464,7 +464,7 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
             </div>
             {feedbackTiming !== 'submitOnly' ? (
               <div style={{ marginTop: 10 }}>
-                <button type="button" onClick={() => checkStage('factoredForm')} disabled={!requiredStages.includes('factoredForm') || stageBlocked('factoredForm')} style={{ ...button }}>Check this stage</button>
+                <button data-mm-enter-action="card" type="button" onClick={() => checkStage('factoredForm')} disabled={!requiredStages.includes('factoredForm') || stageBlocked('factoredForm')} style={{ ...button }}>Check this stage</button>
                 {stageChecks.factoredForm != null ? <ResultPill ok={stageChecks.factoredForm && liveResult.parts.factoredForm}>{stageChecks.factoredForm && liveResult.parts.factoredForm ? 'Factored form correct' : 'Needs another look'}</ResultPill> : null}
               </div>
             ) : null}
@@ -491,7 +491,7 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
           <p style={{ margin: '8px 0 0', color: '#3c4756', fontWeight: 700 }}>Your line: {studentGraphLine ? formatLine(studentGraphLine) : 'Plot two different points'}</p>
           {feedbackTiming !== 'submitOnly' ? (
             <div style={{ marginTop: 10 }}>
-              <button type="button" onClick={() => checkStage('graph')} disabled={!requiredStages.includes('graph') || stageBlocked('graph')} style={{ ...button }}>Check this stage</button>
+              <button data-mm-enter-action="card" type="button" onClick={() => checkStage('graph')} disabled={!requiredStages.includes('graph') || stageBlocked('graph')} style={{ ...button }}>Check this stage</button>
               {stageChecks.graph != null ? <ResultPill ok={stageChecks.graph && liveResult.parts.graph}>{stageChecks.graph && liveResult.parts.graph ? 'Graph correct' : 'Needs another look'}</ResultPill> : null}
             </div>
           ) : null}
@@ -551,7 +551,7 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
           })}
           {feedbackTiming !== 'submitOnly' ? (
             <div style={{ marginTop: 10 }}>
-              <button type="button" onClick={() => checkStage('meaning')} disabled={!requiredStages.includes('meaning') || !meaningComplete || stageBlocked('meaning')} style={{ ...button }}>Check this stage</button>
+              <button data-mm-enter-action="card" type="button" onClick={() => checkStage('meaning')} disabled={!requiredStages.includes('meaning') || !meaningComplete || stageBlocked('meaning')} style={{ ...button }}>Check this stage</button>
               {stageChecks.meaning != null ? <ResultPill ok={stageChecks.meaning && liveResult.parts.meaning}>{stageChecks.meaning && liveResult.parts.meaning ? 'Meaning connections correct' : 'Needs another look'}</ResultPill> : null}
             </div>
           ) : null}

@@ -58,7 +58,7 @@ import {
   resolveQuestionMaximumAttempts,
 } from './attemptPolicy';
 import { stableStringify } from './utils/idUtils';
-import { ENTER_TO_CONTINUE_HINT, focusFirstAnswerControl, isTouchPrimaryPointer, shouldAdvanceOnEnter, shouldFocusAnswerOnOpen, shouldSubmitAnswerOnEnter } from './platform/interaction/answerEntryUx.js';
+import { ENTER_TO_CONTINUE_HINT, countAnswerControls, focusFirstAnswerControl, focusForEnter, isTouchPrimaryPointer, nextEmptyAnswerField, resolveQuestionEnterIntent, shouldAdvanceOnEnter, shouldFocusAnswerOnOpen } from './platform/interaction/answerEntryUx.js';
 import { AnswerFocusPolicyProvider } from './platform/interaction/answerFocusPolicy.js';
 import { normalizeQuestionWeight } from './platform/grading/questionWeights.js';
 import { resolveTaskContextPresentation } from './platform/workflow/taskContextPresentation.js';
@@ -286,6 +286,9 @@ export default function QuestionEngine({
   const [requesting, setRequesting] = useState(false);
   const [baseUndoController, setBaseUndoController] = useState(null);
   const [undoController, setUndoController] = useState(null);
+  // Enter on a multi-part, DOL or one-try question brings this into focus
+  // instead of submitting; the student's second Enter presses it.
+  const submitButtonRef = useRef(null);
   const [questionResetVersion, setQuestionResetVersion] = useState(0);
   const [resettingQuestion, setResettingQuestion] = useState(false);
   const [solverWorkspaceMode, setSolverWorkspaceMode] = useState('normal');
@@ -1330,17 +1333,43 @@ export default function QuestionEngine({
       ref={questionEngineRef}
       className={`mathmaster-question-engine mathmaster-question-engine-has-anchor ${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
       onKeyDownCapture={(event) => {
-        // Enter activates the one primary Check/Submit action only after the
-        // response is complete. Incomplete multi-step tools and textareas retain
-        // their own Enter behavior. Capturing here also works for MathLive.
-        if (!shouldSubmitAnswerOnEnter({
+        // THE ENTER CONTRACT (answerEntryUx.js), for the question as a whole.
+        // A field that owns its own Enter (a MathInput with onSubmit, a stage
+        // check) keeps it: this capture handler runs before theirs and must not
+        // swallow it. Otherwise, with a submit available:
+        //   incomplete           Enter moves to the next empty box
+        //   one box, complete    Enter submits (the single-answer convention)
+        //   several boxes, a DOL
+        //   or a one-try item    Enter brings Submit into focus; a second,
+        //                        deliberate Enter presses it
+        // Textareas, selects and the calculator keep Enter throughout.
+        if (event.target?.closest?.('[data-mm-enter-owner]')) return;
+        const intent = resolveQuestionEnterIntent({
           event,
           responseComplete: answerState.isComplete,
-          canSubmit: shouldShowSubmit && !submitDisabled,
-        })) return;
+          canSubmit: shouldShowSubmit && !locked,
+          // Counted, not read off the type: a one-box `multiAnswer` is a
+          // single answer and keeps Enter-to-submit.
+          multipart: isComposed || countAnswerControls(questionEngineRef.current) > 1,
+          deliberateSubmit: Boolean(dolMode) || resolvedMaximumAttempts <= 1,
+        });
+        if (intent === 'none') return;
+        if (intent === 'next-field') {
+          // A composed question's stages own their Enter; only a plain form of
+          // boxes gets "next box".
+          if (isComposed) return;
+          const next = nextEmptyAnswerField(questionEngineRef.current, event.target);
+          if (!next) return;
+          event.preventDefault();
+          event.stopPropagation();
+          focusForEnter(next);
+          return;
+        }
+        if (submitDisabled) return;
         event.preventDefault();
         event.stopPropagation();
-        handleSubmit();
+        if (intent === 'focus-submit') focusForEnter(submitButtonRef.current);
+        else handleSubmit();
       }}
       style={{ position: 'relative', padding: '10px', textAlign: 'center', fontFamily: 'sans-serif', overflow: 'visible' }}
     >
@@ -1449,7 +1478,7 @@ export default function QuestionEngine({
       </WorkViewCapabilityProvider>
         )}
         actionButtons={!locked && shouldShowSubmit ? (
-        <button onClick={handleSubmit} disabled={submitDisabled} style={{ minHeight: '44px', padding: '12px 24px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: submitDisabled ? '#dadce0' : '#1a73e8', color: 'white', cursor: submitDisabled ? 'not-allowed' : 'pointer', boxShadow: submitDisabled ? 'none' : '0 4px 6px rgba(26, 115, 232, 0.2)' }}>
+        <button ref={submitButtonRef} type="button" className="mathmaster-bar-submit" onClick={handleSubmit} disabled={submitDisabled} style={{ minHeight: '44px', padding: '12px 24px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: submitDisabled ? '#dadce0' : '#1a73e8', color: 'white', cursor: submitDisabled ? 'not-allowed' : 'pointer', boxShadow: submitDisabled ? 'none' : '0 4px 6px rgba(26, 115, 232, 0.2)' }}>
           {submitLabel}
         </button>
         ) : barContinueAction ? (

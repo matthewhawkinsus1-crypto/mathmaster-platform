@@ -88,11 +88,13 @@ test('shared student runtimes use the answer-entry behavior', () => {
   const pathPlayer = readFileSync(new URL('../../src/components/student/PathSessionPlayer.jsx', import.meta.url), 'utf8');
 
   assert.match(engine, /focusFirstAnswerControl\(questionEngineRef\.current\)/);
-  assert.match(engine, /shouldSubmitAnswerOnEnter/);
+  // The question runtime routes Enter through the explicit contract
+  // (tests/platform/enterContract.test.mjs pins its rules).
+  assert.match(engine, /resolveQuestionEnterIntent\(\{/);
   assert.match(pathFields, /onSubmit=\{disabled \? null : onSubmit\}/);
   assert.match(secureExam, /autoFocus=\{fieldIndex === 0\}/);
   assert.match(live, /autoFocus=\{fieldIndex === 0\}/);
-  assert.match(shell, /findPrimary/);
+  assert.match(shell, /resolveToolEnterAction\(\{ field: event\.target, shell: shellRef\.current \}\)/);
   assert.match(engine, /shouldAdvanceOnEnter/);
   assert.match(engine, /ENTER_TO_CONTINUE_HINT/);
   assert.match(pathPlayer, /shouldAdvanceOnEnter/);

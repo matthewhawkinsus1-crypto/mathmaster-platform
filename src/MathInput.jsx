@@ -482,6 +482,9 @@ export default function MathInput({
     >
       <math-field
         ref={mfRef}
+        // A field with its own Enter action says so, so the question-level
+        // Enter routing (QuestionEngine) never takes the key from it.
+        data-mm-enter-owner={onSubmit ? 'field' : undefined}
         aria-label={ariaLabel || placeholder || 'Math answer'}
         math-virtual-keyboard-policy="manual"
         inputmode={shouldSuppressNativeKeyboard ? 'none' : undefined}

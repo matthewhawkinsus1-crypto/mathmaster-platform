@@ -88,7 +88,7 @@ function Features({ questionData, feedback, submit, onAction }) {
         <p style={{ color: '#5f6b7a' }}>Its direction angle is approximately {Number.isFinite(angle) ? `${round(angle, 1)}°` : 'undefined at the origin'}. The conjugate reflects z across the real axis.</p>
         <label>|z|<input value={magnitudeAnswer} onChange={(event) => setMagnitudeAnswer(event.target.value)} style={inputStyle} /></label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}><label>Re(z̄)<input value={conjugateRe} onChange={(event) => setConjugateRe(event.target.value)} style={inputStyle} /></label><label>Im(z̄)<input value={conjugateIm} onChange={(event) => setConjugateIm(event.target.value)} style={inputStyle} /></label></div>
-        <button type="button" onClick={check} style={actionStyle}>Check features</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check features</button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Magnitude and conjugate agree with the geometry.' : 'Magnitude is distance from the origin; conjugation changes only the sign of the imaginary part.'}</ResultPill></div> : null}
               <HintPanel {...hintProps(onAction, ['Plot z as the point (real part, imaginary part). Its magnitude is the length of the arrow from the origin.', '|a + bi| = √(a² + b²).', 'Conjugating changes only the sign of the imaginary part: the conjugate of a + bi is a − bi.'])} />
       </Panel>
@@ -116,7 +116,7 @@ function Operations({ questionData, feedback, submit, onAction }) {
         <p style={{ fontSize: 20, fontWeight: 900 }}>({formatComplex(z)}) {symbol} ({formatComplex(w)})</p>
         {operation === 'multiply' ? <p style={{ color: '#5f6b7a' }}>Use i² = −1 when combining the cross-products.</p> : null}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><label>Real part<input value={real} onChange={(event) => setReal(event.target.value)} style={inputStyle} /></label><label>Imaginary part<input value={imaginary} onChange={(event) => setImaginary(event.target.value)} style={inputStyle} /></label></div>
-        <button type="button" onClick={check} style={actionStyle}>Check operation</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check operation</button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? `Result: ${formatComplex(expected)}.` : 'Keep real terms and imaginary terms organized; replace i² with −1.'}</ResultPill></div> : null}
               <HintPanel {...hintProps(onAction, ['Treat i like a variable while you expand, and only afterwards use the fact that i² = −1.', 'For (a + bi)(c + di), the four products are ac, adi, bci and bd·i².', 'bd·i² becomes −bd, which moves into the real part.'])} />
       </Panel>
@@ -145,7 +145,7 @@ function Division({ questionData, feedback, submit, onAction }) {
         <p style={{ fontSize: 19, fontWeight: 900 }}>({formatComplex(z)}) ÷ ({formatComplex(w)})</p>
         <p style={{ color: '#5f6b7a' }}>Multiply numerator and denominator by the denominator’s conjugate. Then w·w̄ = |w|² is real.</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><label>Re(w̄)<input value={conjugateRe} onChange={(event) => setConjugateRe(event.target.value)} style={inputStyle} /></label><label>Im(w̄)<input value={conjugateIm} onChange={(event) => setConjugateIm(event.target.value)} style={inputStyle} /></label><label>Quotient real part<input value={real} onChange={(event) => setReal(event.target.value)} style={inputStyle} /></label><label>Quotient imaginary part<input value={imaginary} onChange={(event) => setImaginary(event.target.value)} style={inputStyle} /></label></div>
-        <button type="button" onClick={check} style={actionStyle}>Check division</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check division</button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? `The quotient is ${formatComplex(quotient)}.` : 'First conjugate the divisor correctly, then divide both real and imaginary numerator parts by |w|².'}</ResultPill></div> : null}
               <HintPanel {...hintProps(onAction, ['Dividing by a complex number is awkward, so we turn the denominator into a real number first.', 'Multiplying w by its own conjugate gives |w|², which has no i in it at all.', 'Whatever you multiply the bottom by, you must also multiply the top by, so the value does not change.'])} />
       </Panel>
@@ -174,7 +174,7 @@ function Powers({ questionData, feedback, submit, onAction }) {
         <p style={{ color: '#5f6b7a' }}>For integer powers, multiply complex factors carefully. Magnitudes multiply too: |zⁿ| = |z|ⁿ.</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><label>Real part<input value={real} onChange={(event) => setReal(event.target.value)} style={inputStyle} /></label><label>Imaginary part<input value={imaginary} onChange={(event) => setImaginary(event.target.value)} style={inputStyle} /></label></div>
         <label style={{ display: 'block', marginTop: 10 }}>|z<sup>{exponent}</sup>|<input value={magnitude} onChange={(event) => setMagnitude(event.target.value)} style={inputStyle} /></label>
-        <button type="button" onClick={check} style={actionStyle}>Check power</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check power</button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? `Power and magnitude agree: ${formatComplex(expected)}.` : 'Check the repeated multiplication and then verify the result’s distance from the origin.'}</ResultPill></div> : null}
               <HintPanel {...hintProps(onAction, ['A power just means repeated multiplication — do it one step at a time rather than all at once.', 'After each multiplication, tidy the result back into a + bi form before multiplying again.', 'Magnitudes multiply: |zⁿ| = |z|ⁿ, so you can check your answer independently.'])} />
       </Panel>
@@ -203,7 +203,7 @@ function Rotation({ questionData, feedback, submit, onAction }) {
         <p style={{ color: '#5f6b7a' }}>Powers of i cycle every four turns. One multiplication by i is a 90° counterclockwise rotation.</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><label>Result real part<input value={real} onChange={(event) => setReal(event.target.value)} style={inputStyle} /></label><label>Result imaginary part<input value={imaginary} onChange={(event) => setImaginary(event.target.value)} style={inputStyle} /></label></div>
         <label style={{ display: 'block', marginTop: 10 }}>Net rotation<select value={rotation} onChange={(event) => setRotation(event.target.value)} style={inputStyle}><option value="">Choose…</option><option value="0">No net rotation</option><option value="1">90° counterclockwise</option><option value="2">180°</option><option value="3">90° clockwise</option></select></label>
-        <button type="button" onClick={check} style={actionStyle}>Check rotation</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check rotation</button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? `Correct: ${quarterTurnLabel(quarterTurns)}.` : 'Reduce the exponent modulo 4, then apply the corresponding quarter-turn.'}</ResultPill></div> : null}
               <HintPanel {...hintProps(onAction, ['Multiplying by i once rotates a point 90° counterclockwise about the origin — it does not change its distance from the origin.', 'Powers of i repeat every four: i¹ = i, i² = −1, i³ = −i, i⁴ = 1.', 'A quarter-turn counterclockwise sends (a, b) to (−b, a).'])} />
       </Panel>
@@ -232,7 +232,7 @@ function QuadraticRoots({ questionData, feedback, submit, onAction }) {
         <p><strong>Discriminant:</strong> {discriminant}</p>
         <p style={{ color: '#5f6b7a' }}>Enter both roots as a + bi. Their order does not matter.</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><label>Root 1 real<input value={r1Re} onChange={(event) => setR1Re(event.target.value)} style={inputStyle} /></label><label>Root 1 imaginary<input value={r1Im} onChange={(event) => setR1Im(event.target.value)} style={inputStyle} /></label><label>Root 2 real<input value={r2Re} onChange={(event) => setR2Re(event.target.value)} style={inputStyle} /></label><label>Root 2 imaginary<input value={r2Im} onChange={(event) => setR2Im(event.target.value)} style={inputStyle} /></label></div>
-        <button type="button" onClick={check} style={actionStyle}>Check both roots</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check both roots</button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Both quadratic roots are correct.' : 'Use √(−d) = i√d and keep the ± pair; root order does not matter.'}</ResultPill></div> : null}
               <HintPanel {...hintProps(onAction, ['The quadratic formula still works when the discriminant is negative — the square root just becomes imaginary.', '√(−d) = i√d, so a negative discriminant produces a ± pair with the same real part.', 'Complex roots of a real quadratic always come in conjugate pairs: if a + bi is one root, a − bi is the other.'])} />
       </Panel>

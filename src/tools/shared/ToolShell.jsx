@@ -3,8 +3,10 @@ import MathText from '../../components/common/MathText.jsx';
 import {
   countAnswerControls,
   focusFirstAnswerControl,
+  focusForEnter,
   isSingleLineAnswerTarget,
   isTouchPrimaryPointer,
+  resolveToolEnterAction,
   shouldFocusAnswerOnOpen,
 } from '../../platform/interaction/answerEntryUx.js';
 import { useAnswerFocusPolicy } from '../../platform/interaction/answerFocusPolicy.js';
@@ -67,25 +69,20 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Enter in an answer box follows the explicit contract in answerEntryUx.js
+  // (resolveToolEnterAction): only a button the tool DECLARED is ever used,
+  // nothing is pressed while a box in its card is empty (Enter moves to the
+  // next empty box), and a whole-question submit is brought into focus rather
+  // than pressed unless the field is the one answer box.
   const handleAnswerEnter = (event) => {
     if (event.defaultPrevented || event.key !== 'Enter' || event.isComposing) return;
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     if (!isSingleLineAnswerTarget(event.target)) return;
-
-    const findPrimary = (root) => {
-      if (!root?.querySelectorAll) return null;
-      const explicit = root.querySelector('button[data-primary-answer-action="true"]:not([disabled])');
-      if (explicit) return explicit;
-      return [...root.querySelectorAll('button:not([disabled])')].find((button) => (
-        /^(check|submit|verify|evaluate|lock in|record answer|apply)\b/i.test(String(button.textContent || '').trim())
-      )) || null;
-    };
-
-    const panel = event.target?.closest?.('.mathmaster-tool-panel');
-    const primary = findPrimary(panel) || findPrimary(shellRef.current);
-    if (!primary) return;
+    const decision = resolveToolEnterAction({ field: event.target, shell: shellRef.current });
+    if (decision.kind === 'none') return;
     event.preventDefault();
-    primary.click();
+    if (decision.kind === 'press') decision.target.click();
+    else focusForEnter(decision.target);
   };
 
   return (

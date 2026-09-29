@@ -178,6 +178,7 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
           </div>
 
           <button
+            data-mm-enter-action="submit"
             type="button"
             onClick={check}
             disabled={!hasEdited}
