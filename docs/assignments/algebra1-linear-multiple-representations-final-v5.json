@@ -1,0 +1,336 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra I — Multiple Representations of Linear Equations",
+    "courseId": "algebra1",
+    "folder": "Algebra I/Linear Functions/Multiple Representations",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork"
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Which Representations Belong Together?",
+      "recommendedMinutes": 8,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "lmr-wu-1",
+          "standard": "A.3C",
+          "alignments": [
+            { "framework": "teks", "code": "A.3C", "role": "primary" },
+            { "framework": "teks", "code": "A.2B", "role": "secondary" }
+          ],
+          "type": "representationMatch",
+          "studentActions": ["connectRepresentations"],
+          "difficultyBand": 1,
+          "dok": 2,
+          "prompt": "Two different lines are hiding in these cards: y = 2x − 4 and y = −x + 3. Sort every card into the line it describes.",
+          "representations": {
+            "mode": "linearConnections",
+            "task": "group",
+            "cardKinds": ["slopeIntercept", "standard", "pointSlope", "graph", "xIntercept"],
+            "sets": [
+              {
+                "id": "line-a",
+                "slopeIntercept": "y = 2x - 4",
+                "standard": "2x - y = 4",
+                "pointSlope": "y - 2 = 2(x - 3)",
+                "graphSpec": { "type": "linear", "a": 2, "h": 0, "k": -4 },
+                "xIntercept": [2, 0]
+              },
+              {
+                "id": "line-b",
+                "slopeIntercept": "y = -x + 3",
+                "standard": "x + y = 3",
+                "pointSlope": "y - 1 = -1(x - 2)",
+                "graphSpec": { "type": "linear", "a": -1, "h": 0, "k": 3 },
+                "xIntercept": [3, 0]
+              }
+            ],
+            "graphBounds": { "xMin": -6, "xMax": 6, "yMin": -6, "yMax": 6 }
+          }
+        },
+        {
+          "questionId": "lmr-wu-2",
+          "standard": "A.3B",
+          "alignments": [
+            { "framework": "teks", "code": "A.3B", "role": "primary" },
+            { "framework": "teks", "code": "A.2C", "role": "secondary" }
+          ],
+          "type": "representationMatch",
+          "studentActions": ["connectRepresentations"],
+          "difficultyBand": 1,
+          "dok": 2,
+          "prompt": "One situation grows and one shrinks. Sort each card into the situation it describes.",
+          "representations": {
+            "mode": "linearConnections",
+            "task": "group",
+            "cardKinds": ["context", "slopeIntercept", "graph", "slope", "yIntercept"],
+            "sets": [
+              {
+                "id": "savings",
+                "context": "Maya has $20 saved and adds $5 every week.",
+                "slopeIntercept": "y = 5x + 20",
+                "graphSpec": { "type": "linear", "a": 5, "h": 0, "k": 20 },
+                "slope": 5,
+                "yIntercept": [0, 20]
+              },
+              {
+                "id": "tub",
+                "context": "A tub holds 40 gallons of water and drains 4 gallons every minute.",
+                "slopeIntercept": "y = -4x + 40",
+                "graphSpec": { "type": "linear", "a": -4, "h": 0, "k": 40 },
+                "slope": -4,
+                "yIntercept": [0, 40]
+              }
+            ],
+            "graphBounds": { "xMin": 0, "xMax": 12, "yMin": 0, "yMax": 80 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — One Line, Many Representations",
+      "recommendedMinutes": 25,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "lmr-cw-1",
+          "standard": "A.2B",
+          "alignments": [
+            { "framework": "teks", "code": "A.2B", "role": "primary" },
+            { "framework": "teks", "code": "A.3A", "role": "secondary" },
+            { "framework": "teks", "code": "A.3C", "role": "secondary" }
+          ],
+          "type": "representationBridge",
+          "mode": "linearMultipleRepresentations",
+          "studentActions": ["connectLinearRepresentations"],
+          "difficultyBand": 2,
+          "dok": 2,
+          "prompt": "You are given the standard form equation 2x − 4y = 12. Build every other representation of this same line, in any order you like.",
+          "source": { "kind": "standardForm", "equation": "2x - 4y = 12" },
+          "feedbackTiming": "guided",
+          "graphBounds": { "xMin": -8, "xMax": 8, "yMin": -8, "yMax": 8 }
+        },
+        {
+          "questionId": "lmr-cw-2",
+          "standard": "A.2B",
+          "alignments": [
+            { "framework": "teks", "code": "A.2B", "role": "primary" },
+            { "framework": "teks", "code": "A.3A", "role": "secondary" },
+            { "framework": "teks", "code": "A.3C", "role": "secondary" }
+          ],
+          "type": "representationBridge",
+          "mode": "linearMultipleRepresentations",
+          "studentActions": ["connectLinearRepresentations"],
+          "difficultyBand": 2,
+          "dok": 2,
+          "prompt": "You are given the slope-intercept equation y = −2x + 4. Build every other representation of this same line, in any order you like.",
+          "source": { "kind": "slopeIntercept", "equation": "y = -2x + 4" },
+          "feedbackTiming": "guided",
+          "graphBounds": { "xMin": -8, "xMax": 8, "yMin": -8, "yMax": 8 }
+        },
+        {
+          "questionId": "lmr-cw-3",
+          "standard": "A.2B",
+          "alignments": [
+            { "framework": "teks", "code": "A.2B", "role": "primary" },
+            { "framework": "teks", "code": "A.3A", "role": "secondary" },
+            { "framework": "teks", "code": "A.3C", "role": "secondary" }
+          ],
+          "type": "representationBridge",
+          "mode": "linearMultipleRepresentations",
+          "studentActions": ["connectLinearRepresentations"],
+          "difficultyBand": 2,
+          "dok": 2,
+          "prompt": "You are given the point-slope equation y − 2 = −1(x − 3). Build every other representation of this same line, in any order you like.",
+          "source": { "kind": "pointSlope", "equation": "y - 2 = -1(x - 3)" },
+          "feedbackTiming": "guided",
+          "graphBounds": { "xMin": -8, "xMax": 8, "yMin": -8, "yMax": 8 }
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Start From a Table or a Story",
+      "recommendedMinutes": 30,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "lmr-pr-1",
+          "standard": "A.2C",
+          "alignments": [
+            { "framework": "teks", "code": "A.2C", "role": "primary" },
+            { "framework": "teks", "code": "A.3A", "role": "secondary" },
+            { "framework": "teks", "code": "A.3C", "role": "secondary" }
+          ],
+          "type": "representationBridge",
+          "mode": "linearMultipleRepresentations",
+          "studentActions": ["connectLinearRepresentations"],
+          "difficultyBand": 2,
+          "dok": 2,
+          "prompt": "You are given a table of values for a linear relationship. Build every other representation of this same line, in any order you like.",
+          "source": {
+            "kind": "table",
+            "rows": [
+              { "x": -1, "y": -9 },
+              { "x": 1, "y": -3 },
+              { "x": 3, "y": 3 },
+              { "x": 5, "y": 9 }
+            ]
+          },
+          "feedbackTiming": "guided",
+          "graphBounds": { "xMin": -6, "xMax": 8, "yMin": -10, "yMax": 10 }
+        },
+        {
+          "questionId": "lmr-pr-2",
+          "standard": "A.3B",
+          "alignments": [
+            { "framework": "teks", "code": "A.3B", "role": "primary" },
+            { "framework": "teks", "code": "A.2C", "role": "secondary" },
+            { "framework": "teks", "code": "A.3C", "role": "secondary" },
+            { "framework": "teks", "code": "A.2A", "role": "secondary" }
+          ],
+          "type": "representationBridge",
+          "mode": "linearMultipleRepresentations",
+          "studentActions": ["connectLinearRepresentations"],
+          "difficultyBand": 3,
+          "dok": 3,
+          "prompt": "Read the candle situation. Decide what x and y stand for, then build every representation of the relationship, in any order you like.",
+          "source": {
+            "kind": "scenario",
+            "prompt": "A candle is 18 inches tall when it is lit. It burns down 2 inches every hour until it is completely gone.",
+            "m": -2,
+            "b": 18
+          },
+          "context": {
+            "independentQuantity": {
+              "value": "time since the candle was lit (hours)",
+              "choices": [
+                "time since the candle was lit (hours)",
+                "height of the candle (inches)",
+                "inches burned each hour"
+              ]
+            },
+            "dependentQuantity": {
+              "value": "height of the candle (inches)",
+              "choices": [
+                "time since the candle was lit (hours)",
+                "height of the candle (inches)",
+                "inches burned each hour"
+              ]
+            },
+            "slopeMeaning": {
+              "value": "The candle gets 2 inches shorter every hour.",
+              "choices": [
+                "The candle gets 2 inches shorter every hour.",
+                "The candle gets 2 inches taller every hour.",
+                "The candle burns for 2 hours.",
+                "The candle started at 2 inches tall."
+              ]
+            },
+            "yInterceptMeaning": {
+              "value": "The candle is 18 inches tall when it is lit.",
+              "choices": [
+                "The candle is 18 inches tall when it is lit.",
+                "The candle burns out after 18 hours.",
+                "The candle loses 18 inches every hour.",
+                "The candle is 0 inches tall after 18 hours."
+              ]
+            },
+            "xInterceptMeaning": {
+              "value": "The candle is completely burned down after 9 hours.",
+              "choices": [
+                "The candle is completely burned down after 9 hours.",
+                "The candle is 9 inches tall when it is lit.",
+                "The candle burns 9 inches every hour.",
+                "After 9 hours the candle is 18 inches tall."
+              ]
+            },
+            "domain": {
+              "min": 0,
+              "max": 9,
+              "value": "0 ≤ x ≤ 9",
+              "choices": ["0 ≤ x ≤ 9", "0 ≤ x ≤ 18", "x ≥ 0", "−2 ≤ x ≤ 18"]
+            }
+          },
+          "feedbackTiming": "guided",
+          "graphBounds": { "xMin": -2, "xMax": 12, "yMin": -4, "yMax": 20 }
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Draining Tank",
+      "recommendedMinutes": 10,
+      "feedbackMode": "afterAssignmentSubmit",
+      "hintsAllowed": false,
+      "attemptsAllowed": 1,
+      "questions": [
+        {
+          "questionId": "lmr-dol-1",
+          "standard": "A.3B",
+          "alignments": [
+            { "framework": "teks", "code": "A.3B", "role": "primary" },
+            { "framework": "teks", "code": "A.2C", "role": "secondary" },
+            { "framework": "teks", "code": "A.3C", "role": "secondary" },
+            { "framework": "teks", "code": "A.2A", "role": "secondary" }
+          ],
+          "type": "representationBridge",
+          "mode": "linearMultipleRepresentations",
+          "studentActions": ["connectLinearRepresentations"],
+          "difficultyBand": 2,
+          "dok": 2,
+          "prompt": "Show what you know about the draining tank. Complete every part on the board, then submit once.",
+          "source": {
+            "kind": "scenario",
+            "prompt": "A tank holds 24 liters of water. It drains at a steady rate of 3 liters every minute until it is empty.",
+            "m": -3,
+            "b": 24
+          },
+          "requiredCards": ["slopeIntercept", "standardForm", "slope", "xIntercept", "yIntercept", "graphSlopeIntercept"],
+          "context": {
+            "slopeMeaning": {
+              "value": "The tank loses 3 liters of water every minute.",
+              "choices": [
+                "The tank loses 3 liters of water every minute.",
+                "The tank gains 3 liters of water every minute.",
+                "The tank is empty after 3 minutes.",
+                "The tank starts with 3 liters of water."
+              ]
+            },
+            "yInterceptMeaning": {
+              "value": "The tank holds 24 liters when it starts draining.",
+              "choices": [
+                "The tank holds 24 liters when it starts draining.",
+                "The tank is empty after 24 minutes.",
+                "The tank drains 24 liters every minute.",
+                "The tank holds 0 liters after 24 minutes."
+              ]
+            },
+            "domain": {
+              "min": 0,
+              "max": 8,
+              "value": "0 ≤ x ≤ 8",
+              "choices": ["0 ≤ x ≤ 8", "0 ≤ x ≤ 24", "x ≥ 0", "−3 ≤ x ≤ 24"]
+            }
+          },
+          "feedbackTiming": "submitOnly",
+          "graphBounds": { "xMin": -2, "xMax": 10, "yMin": -4, "yMax": 28 }
+        }
+      ]
+    }
+  ]
+}

@@ -83,6 +83,7 @@ const ACTION_ALIASES = Object.freeze({
   determinelinearequation: 'proveConstantRate', repairlineartable: 'proveConstantRate',
   interpretexpressionmeaning: 'interpretExpressionMeaning', mapexpressionmeaning: 'interpretExpressionMeaning', explainexpressionmeaning: 'interpretExpressionMeaning',
   connectlinearrepresentations: 'connectLinearRepresentations', representationbridge: 'connectLinearRepresentations', bridgerepresentations: 'connectLinearRepresentations',
+  connectmultiplerepresentations: 'connectLinearRepresentations', multiplerepresentations: 'connectLinearRepresentations', linearmultiplerepresentations: 'connectLinearRepresentations',
 });
 
 const normalizeActions = (question = {}) => {
@@ -1119,7 +1120,9 @@ const resolveIntentType = (q, actions) => {
   if (actions.includes('interpretExpressionMeaning') || (Array.isArray(q.expressions) && isObject(q.choiceBanks))) {
     return 'expressionMeaning';
   }
-  if (actions.includes('connectLinearRepresentations') || (isObject(q.source) && q.source.kind === 'table' && Array.isArray(q.source.rows))) {
+  if (actions.includes('connectLinearRepresentations')
+    || (isObject(q.source) && q.mode === 'linearMultipleRepresentations')
+    || (isObject(q.source) && q.source.kind === 'table' && Array.isArray(q.source.rows))) {
     return 'representationBridge';
   }
   // The legacy one-box Algebra renderer is retired. All ordinary equation
@@ -1862,15 +1865,20 @@ const compileOne = (q, index, repairs) => {
       break;
     }
     case 'representationBridge': {
+      const domain = q.domain ?? q.source?.domain;
+      const snapStep = q.snapStep ?? q.source?.snapStep;
       out = copyCommon(q, {
         type,
         mode: q.mode || 'linear',
         source: q.source,
-        context: q.context,
+        context: q.context || q.source?.context,
         requiredStages: q.requiredStages,
         requiredComparisons: q.requiredComparisons,
+        requiredCards: q.requiredCards,
         graphBounds: q.graphBounds,
         feedbackTiming: q.feedbackTiming,
+        ...(domain != null ? { domain } : {}),
+        ...(snapStep != null ? { snapStep } : {}),
         ...(q.tolerance != null ? { tolerance: q.tolerance } : {}),
       });
       break;

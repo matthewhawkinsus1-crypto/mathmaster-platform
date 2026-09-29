@@ -128,6 +128,15 @@ export default function CoordinatePlane({
   // intentionally zoomed with the buttons on one should not arrive zoomed into
   // the next.
   viewResetKey = null,
+  // The gesture/keyboard paragraph under an interactive plane. A tool that
+  // shows several planes side by side (three graphs of one line) says it once
+  // above them instead of five lines under every plane. The screen-reader
+  // readout of the cursor is separate and always stays.
+  showPlotHelp = true,
+  // A read-only plane whose points the student must READ (a GIVEN graph)
+  // draws the same snap-step minor grid a plotting plane does. Without it,
+  // (3, -1) sits between gridlines two units apart and has to be guessed.
+  readableGrid = false,
   children,
 }) {
   const insideParentWorkView = useHasParentWorkView();
@@ -174,7 +183,7 @@ export default function CoordinatePlane({
   // Minor lines sit at the resolution the student can actually click, so the
   // grid tells the truth about where a point can land.
   const minorStep = Number.isFinite(Number(snapStep)) && Number(snapStep) > 0 ? Number(snapStep) : 1;
-  const showMinorGrid = interactive
+  const showMinorGrid = (interactive || readableGrid)
     && (xMax - xMin) / minorStep <= MAX_MINOR_LINES
     && (yMax - yMin) / minorStep <= MAX_MINOR_LINES
     && minorStep < xStep;
@@ -637,12 +646,12 @@ export default function CoordinatePlane({
       {interactive ? (
         <>
           <p aria-live="polite" className="mm-sr-only">{previewText}</p>
-          <p style={{ margin: '6px 0 0', fontSize: 12, color: '#5f6b7a' }}>
+          {showPlotHelp ? <p style={{ margin: '6px 0 0', fontSize: 12, color: '#5f6b7a' }}>
             Press the grid and slide to aim{minorStep === 1 ? ' at a whole-number point' : ''} — the point lands where you
             let go{canMovePoints ? ', and you can drag a point you have already placed' : ''}. Keyboard: arrow keys move the
             crosshair{minorStep === 1 ? ' one unit' : ` by ${tidy(minorStep)}`} (Shift for five), Enter plots it.
             {zoomable ? ' Use the +/− buttons below when you intentionally need a closer view.' : ''}
-          </p>
+          </p> : null}
         </>
       ) : null}
     </div>

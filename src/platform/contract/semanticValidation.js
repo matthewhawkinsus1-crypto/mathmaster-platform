@@ -126,13 +126,17 @@ const linearTableWorkbenchHasTable = (question = {}) => (
 // student-visible table AND always includes a graph stage derived from that
 // same table, so a prompt referring to "the table below" or "the graph
 // shown" is truthful for any valid bridge question.
-const representationBridgeHasTable = (question = {}) => (
-  String(question.toolId || question.type) === 'representationBridge'
-  && question.source?.kind === 'table'
-  && nonEmptyArray(question.source?.rows)
-);
+const representationBridgeHasTable = (question = {}) => {
+  if (String(question.toolId || question.type) !== 'representationBridge') return false;
+  if (question.mode === 'linearMultipleRepresentations') return true;
+  return question.source?.kind === 'table' && nonEmptyArray(question.source?.rows);
+};
 
-const representationBridgeHasGraph = (question = {}) => representationBridgeHasTable(question);
+const representationBridgeHasGraph = (question = {}) => {
+  if (String(question.toolId || question.type) !== 'representationBridge') return false;
+  if (question.mode === 'linearMultipleRepresentations') return true;
+  return representationBridgeHasTable(question);
+};
 
 const openSortBoardHasGraph = (question = {}) => (
   String(question.toolId || question.type) === 'openSortBoard'

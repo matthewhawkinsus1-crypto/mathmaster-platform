@@ -137,12 +137,15 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
   expressionMeaning: entry(['expressionMeaning/ExpressionMeaning.jsx'], {
     activeId: "Which expression's meaning row is open for editing. Selection, not an answer.",
   }),
-  representationBridge: entry(['representationBridge/RepresentationBridge.jsx'], {
+  representationBridge: entry(['representationBridge/RepresentationBridge.jsx', 'representationBridge/LinearMultipleRepresentationsBoard.jsx'], {
     selectedRows: 'Which table rows are currently picked up before a comparison is recorded. Selection, not committed evidence.',
     activeHighlight: 'Which concept (rate/start/zero) is emphasized across every panel. UI emphasis, not an answer, and does not need to persist.',
     activeMeaningRow: 'Which meaning row (m/b/c) is open for editing. Selection, not an answer.',
     notice: 'Transient status line, regenerated from the action that raised it.',
     redoDepth: 'Mirror of the redo stack depth, for enabling a button.',
+    enlargedGraph: 'Which graph is currently open in modal enlarged view.',
+    confirmSubmit: 'Whether the "some parts are still empty" confirmation is showing. A prompt, not work.',
+    historyVersion: 'Counter that re-renders the graph Undo buttons; the Undo history itself is in-memory only.',
   }),
 });
 

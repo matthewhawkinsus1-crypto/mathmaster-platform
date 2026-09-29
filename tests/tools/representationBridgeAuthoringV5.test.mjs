@@ -8,6 +8,10 @@ import { WORK_VIEW_INVENTORY, STAGE_3D_WORK_VIEW_IDS } from '../../src/tools/wor
 import { MOBILE_TOOL_PROFILES, auditMobileToolProfiles } from '../../src/platform/mobile/mobileToolProfiles.js';
 import { TOOL_STATE_PERSISTENCE } from '../../src/tools/toolStatePersistence.js';
 import { validateToolQuestion } from '../../src/tools/toolSchemas.js';
+import {
+  deriveLinearMultipleRepresentations,
+  scoreLinearMultipleRepresentations,
+} from '../../src/tools/representationBridge/linearMultipleRepresentationsMath.js';
 
 const source = (path) => readFileSync(path, 'utf8');
 
@@ -153,4 +157,77 @@ test('representationBridge declares a persistence contract that matches its own 
   assert.match(componentSource, /const \[activeHighlight, setActiveHighlight\] = useState\(/);
   assert.doesNotMatch(componentSource, /usePersistentToolState\('activeHighlight'/);
   assert.match(componentSource, /useMathUndoHistory\(\{/);
+});
+
+test('snapStep survives V5 compilation for representationBridge', () => {
+  const v5 = buildV5({
+    studentActions: ['connectLinearRepresentations'],
+    source: boothFeeSource,
+    context: boothFeeContext,
+    snapStep: 0.25,
+  });
+  const compiled = compileAuthoringIntentV5(v5);
+  const question = compiled.package.sections[0].questions[0];
+  assert.equal(question.snapStep, 0.25);
+});
+
+test('top-level domain without source.context survives V5 compile and is graded at runtime', () => {
+  const v5 = buildV5({
+    mode: 'linearMultipleRepresentations',
+    studentActions: ['connectLinearRepresentations'],
+    source: {
+      kind: 'scenario',
+      m: -2,
+      b: 18,
+      prompt: 'A water tank with 18 gallons drains at 2 gallons per minute.',
+    },
+    domain: '0 <= x <= 9',
+  });
+  const compiled = compileAuthoringIntentV5(v5);
+  const question = compiled.package.sections[0].questions[0];
+  assert.equal(question.domain, '0 <= x <= 9');
+  assert.equal(question.context, undefined);
+
+  // Runtime derivation
+  const canonicalFacts = deriveLinearMultipleRepresentations(question);
+  assert.equal(canonicalFacts.isValid, true);
+
+  // Student response with correct answers for all parts except domain initially
+  const responseWithoutDomain = {
+    standardFormEquation: '2x + y = 18',
+    slopeInterceptEquation: 'y = -2x + 18',
+    pointSlopeEquation: 'y - 14 = -2(x - 2)',
+    featureSlope: '-2',
+    featureXIntercept: '(9, 0)',
+    featureYIntercept: '(0, 18)',
+    featurePoint1: '(2, 14)',
+    featurePoint2: '(4, 10)',
+    tableRows: [{ x: 0, y: 18 }, { x: 2, y: 14 }, { x: 4, y: 10 }, { x: 6, y: 6 }],
+    graph1Points: [[9, 0], [0, 18]],
+    graph2Points: [[0, 18], [1, 16]],
+    graph3Points: [[2, 14], [3, 12]],
+    contextDomain: '',
+  };
+
+  // Missing domain prevents full credit
+  const scoreMissing = scoreLinearMultipleRepresentations(question, responseWithoutDomain);
+  assert.equal(scoreMissing.parts.contextDomain, false);
+  assert.equal(scoreMissing.isCorrect, false);
+
+  // Wrong domain prevents full credit
+  const scoreWrong = scoreLinearMultipleRepresentations(question, {
+    ...responseWithoutDomain,
+    contextDomain: '0 <= x <= 12',
+  });
+  assert.equal(scoreWrong.parts.contextDomain, false);
+  assert.equal(scoreWrong.isCorrect, false);
+
+  // Correct domain contributes to full credit
+  const scoreCorrect = scoreLinearMultipleRepresentations(question, {
+    ...responseWithoutDomain,
+    contextDomain: '0 ≤ x ≤ 9',
+  });
+  assert.equal(scoreCorrect.parts.contextDomain, true);
+  assert.equal(scoreCorrect.isCorrect, true);
+  assert.equal(scoreCorrect.score, 1);
 });
