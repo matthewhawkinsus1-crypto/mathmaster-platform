@@ -23,8 +23,15 @@ import { buildInitialEquationState, describeRewriteGap } from '../stepAlgebra2/r
 import { lineFromPoints, targetLineFromQuestion } from '../graphing2/graphingMath.js';
 import { evaluateConstruction } from '../graphing2/constructionPolicy.js';
 import { scoreExpressionMeaning } from '../expressionMeaning/expressionMeaningMath.js';
+import {
+  deriveLinearMultipleRepresentations,
+  scoreLinearMultipleRepresentations,
+  validateLinearMultipleRepresentationsQuestion,
+} from './linearMultipleRepresentationsMath.js';
 
-export const REPRESENTATION_BRIDGE_MODES = Object.freeze(['linear']);
+export * from './linearMultipleRepresentationsMath.js';
+
+export const REPRESENTATION_BRIDGE_MODES = Object.freeze(['linear', 'linearMultipleRepresentations']);
 export const REPRESENTATION_BRIDGE_STAGES = Object.freeze(['rateEvidence', 'generalForm', 'factoredForm', 'graph', 'meaning']);
 export const REPRESENTATION_BRIDGE_FEEDBACK_TIMINGS = Object.freeze(['guided', 'checkpoint', 'submitOnly']);
 export const REPRESENTATION_BRIDGE_HIGHLIGHTS = Object.freeze(['rate', 'start', 'zero']);
@@ -64,6 +71,9 @@ export const resolveFeedbackTiming = (question = {}) => (
  * back exact.
  */
 export const deriveLinearBridge = (question = {}) => {
+  if (question.mode === 'linearMultipleRepresentations') {
+    return deriveLinearMultipleRepresentations(question);
+  }
   const rows = normalizeRows(question.source?.rows);
   const { m, b } = fitTableLine(rows);
   const hasSlope = Number.isFinite(m) && Math.abs(m) > 1e-9;
@@ -178,6 +188,9 @@ const canonicalFromStudentGraphPoints = (points = []) => {
  * that mismatch must cost credit even though neither panel is "blank."
  */
 export const scoreRepresentationBridge = (question = {}, response = {}) => {
+  if (question.mode === 'linearMultipleRepresentations') {
+    return scoreLinearMultipleRepresentations(question, response);
+  }
   const derived = deriveLinearBridge(question);
   const requiredStages = resolveRequiredStages(question);
   const requiredComparisons = Math.max(1, Math.min(Number(question.requiredComparisons) || 3, maxDistinctPairs(derived.rows.length)));
@@ -281,6 +294,9 @@ export const validateRepresentationBridgeQuestion = (question = {}) => {
   if (!REPRESENTATION_BRIDGE_MODES.includes(mode)) {
     errors.push(`representationBridge only supports mode: ${REPRESENTATION_BRIDGE_MODES.join(', ')} in this version.`);
     return errors;
+  }
+  if (mode === 'linearMultipleRepresentations') {
+    return validateLinearMultipleRepresentationsQuestion(question);
   }
 
   const source = question.source;

@@ -4,6 +4,7 @@ import ToolShell, { Panel, ResultPill, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import CoordinatePlane from '../shared/CoordinatePlane';
+import LinearMultipleRepresentationsBoard from './LinearMultipleRepresentationsBoard.jsx';
 import { intervalTruth, pairKey } from '../linearTableWorkbench/linearTableWorkbenchMath.js';
 import { choiceBankFor, EXPRESSION_MEANING_DIMENSIONS } from '../expressionMeaning/expressionMeaningMath.js';
 import { formatLine, lineFromPoints } from '../graphing2/graphingMath.js';
@@ -41,6 +42,10 @@ const highlightBorder = (active, matches) => (active && matches ? '3px solid #b0
 const highlightBackground = (active, matches) => (active && matches ? '#fff6e5' : undefined);
 
 export default function RepresentationBridge({ questionData = {}, onAction }) {
+  if (questionData.mode === 'linearMultipleRepresentations') {
+    return <LinearMultipleRepresentationsBoard questionData={questionData} onAction={onAction} />;
+  }
+
   const derived = useMemo(() => deriveLinearBridge(questionData), [questionData]);
   const requiredStages = useMemo(() => resolveRequiredStages(questionData), [questionData]);
   const feedbackTiming = resolveFeedbackTiming(questionData);
