@@ -1,23 +1,20 @@
 import React, { useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
-import ToolShell, { Panel, ResultPill, TaskCard } from '../shared/ToolShell';
+import ToolShell, { Panel, ResultPill } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import MathInput from '../../MathInput.jsx';
 import MathDisplay from '../../MathDisplay.jsx';
-import { formatLine, lineFromPoints } from '../graphing2/graphingMath.js';
-import { formatFraction, toFraction } from '../shared/linearEquations.js';
+import { lineFromPoints } from '../graphing2/graphingMath.js';
 import {
   deriveLinearMultipleRepresentations,
   evaluateGraph1Intercepts,
   evaluateGraph2SlopeIntercept,
   evaluateGraph3PointSlope,
-  parseNumericOrFraction,
-  parseOrderedPair,
   parsePointSlopeForm,
+  resolveLinearMultipleRepresentationsGraphBounds,
   resolveSnapStep,
   scoreLinearMultipleRepresentations,
-  validateContextField,
   validatePointSlopeEntry,
   validateSlopeEntry,
   validateSlopeInterceptEntry,
@@ -127,14 +124,26 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   });
 
   // Presentation-only transient UI state
-  const [activeHighlight, setActiveHighlight] = useState(null);
   const [notice, setNotice] = useState('');
   const [enlargedGraph, setEnlargedGraph] = useState(null);
 
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
+  const studentPsPoint = useMemo(() => {
+    if (!pointSlopeEquation) return null;
+    const parsed = parsePointSlopeForm(pointSlopeEquation);
+    return parsed?.point || null;
+  }, [pointSlopeEquation]);
+
   // Snap step for coordinate plane
   const graphSnapStep = useMemo(() => resolveSnapStep(questionData, canonicalFacts), [questionData, canonicalFacts]);
+
+  const graph3SnapStep = useMemo(() => {
+    const extra = [];
+    if (studentPsPoint) extra.push(studentPsPoint);
+    if (canonicalFacts.sourcePoint) extra.push(canonicalFacts.sourcePoint);
+    return resolveSnapStep(questionData, canonicalFacts, extra);
+  }, [questionData, canonicalFacts, studentPsPoint]);
 
   // Context metadata and choice banks
   const contextData = questionData.source?.context || questionData.context;
@@ -187,11 +196,8 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   const graph3Line = useMemo(() => (graph3Points.length >= 2 ? lineFromPoints(graph3Points[0], graph3Points[1]) : null), [graph3Points]);
 
   const graphBounds = useMemo(() => {
-    if (questionData.graphBounds) return questionData.graphBounds;
-    const xPad = 8;
-    const yPad = 8;
-    return { xMin: -xPad, xMax: xPad, yMin: -yPad, yMax: yPad };
-  }, [questionData]);
+    return resolveLinearMultipleRepresentationsGraphBounds(questionData, canonicalFacts);
+  }, [questionData, canonicalFacts]);
 
   // Card check handler (guided mode only; never locks any other card!)
   const checkCard = (cardId, validatorFn) => {
@@ -272,12 +278,12 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     givenKind !== 'pointSlope' && liveResult.parts.pointSlope,
   ].filter(Boolean).length;
 
-  const featuresTotal = 4;
+  const featuresTotal = givenKind === 'twoPoints' ? 3 : 4;
   const featuresDone = [
     liveResult.parts.slope,
     liveResult.parts.xIntercept,
     liveResult.parts.yIntercept,
-    liveResult.parts.twoPoints,
+    givenKind !== 'twoPoints' && liveResult.parts.twoPoints,
   ].filter(Boolean).length;
 
   const tableTotal = givenKind === 'table' ? 0 : 1;
@@ -518,7 +524,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                   width={360}
                   height={240}
                   points={questionData.source?.points || (canonicalFacts.twoPoints ? [canonicalFacts.twoPoints.point1, canonicalFacts.twoPoints.point2] : [])}
-                  lines={canonicalFacts.canonicalLine ? [canonicalFacts.canonicalLine] : []}
+                  lines={canonicalFacts.displayLine ? [canonicalFacts.displayLine] : []}
                   snapStep={graphSnapStep}
                   pointHoverEnabled={false}
                   enlargeable={false}
@@ -878,47 +884,62 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                 <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <label style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>Two Distinct Points</label>
-                    {cardChecks.twoPoints?.isCorrect && (
+                    {givenKind === 'twoPoints' ? (
+                      <span style={badgeStyle('#2563eb', '#fff')}>GIVEN</span>
+                    ) : cardChecks.twoPoints?.isCorrect ? (
                       <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
-                    )}
+                    ) : null}
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    <MathInput
-                      toolProfile="orderedPair"
-                      placeholder="Point 1 (x, y)"
-                      ariaLabel="First distinct point"
-                      value={featurePoint1}
-                      onChange={(val) => {
-                        clearFeedback();
-                        setFeaturePoint1(val);
-                      }}
-                      onSubmit={() => checkCard('twoPoints', () => validateTwoPointsEntry(featurePoint1, featurePoint2, canonicalFacts))}
-                    />
-                    <MathInput
-                      toolProfile="orderedPair"
-                      placeholder="Point 2 (x, y)"
-                      ariaLabel="Second distinct point"
-                      value={featurePoint2}
-                      onChange={(val) => {
-                        clearFeedback();
-                        setFeaturePoint2(val);
-                      }}
-                      onSubmit={() => checkCard('twoPoints', () => validateTwoPointsEntry(featurePoint1, featurePoint2, canonicalFacts))}
-                    />
-                  </div>
-                  {feedbackTiming === 'guided' && (
-                    <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <button
-                        type="button"
-                        onClick={() => checkCard('twoPoints', () => validateTwoPointsEntry(featurePoint1, featurePoint2, canonicalFacts))}
-                        style={buttonStyle}
-                      >
-                        Check Points
-                      </button>
-                      {cardChecks.twoPoints?.checked && !cardChecks.twoPoints?.isCorrect && (
-                        <span style={{ fontSize: 12, color: '#b91c1c' }}>{cardChecks.twoPoints.error}</span>
-                      )}
+                  {givenKind === 'twoPoints' ? (
+                    <div>
+                      <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 8, fontSize: 14, fontWeight: 700, color: '#1e3a8a' }}>
+                        Point 1: ({canonicalFacts.twoPoints?.point1 ? canonicalFacts.twoPoints.point1.join(', ') : 'x₁, y₁'}) &nbsp;·&nbsp; Point 2: ({canonicalFacts.twoPoints?.point2 ? canonicalFacts.twoPoints.point2.join(', ') : 'x₂, y₂'})
+                      </div>
+                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                        These points were provided as the starting representation.
+                      </div>
                     </div>
+                  ) : (
+                    <>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        <MathInput
+                          toolProfile="orderedPair"
+                          placeholder="Point 1 (x, y)"
+                          ariaLabel="First distinct point"
+                          value={featurePoint1}
+                          onChange={(val) => {
+                            clearFeedback();
+                            setFeaturePoint1(val);
+                          }}
+                          onSubmit={() => checkCard('twoPoints', () => validateTwoPointsEntry(featurePoint1, featurePoint2, canonicalFacts))}
+                        />
+                        <MathInput
+                          toolProfile="orderedPair"
+                          placeholder="Point 2 (x, y)"
+                          ariaLabel="Second distinct point"
+                          value={featurePoint2}
+                          onChange={(val) => {
+                            clearFeedback();
+                            setFeaturePoint2(val);
+                          }}
+                          onSubmit={() => checkCard('twoPoints', () => validateTwoPointsEntry(featurePoint1, featurePoint2, canonicalFacts))}
+                        />
+                      </div>
+                      {feedbackTiming === 'guided' && (
+                        <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => checkCard('twoPoints', () => validateTwoPointsEntry(featurePoint1, featurePoint2, canonicalFacts))}
+                            style={buttonStyle}
+                          >
+                            Check Points
+                          </button>
+                          {cardChecks.twoPoints?.checked && !cardChecks.twoPoints?.isCorrect && (
+                            <span style={{ fontSize: 12, color: '#b91c1c' }}>{cardChecks.twoPoints.error}</span>
+                          )}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -1287,7 +1308,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                           xMax={graphBounds.xMax}
                           yMin={graphBounds.yMin}
                           yMax={graphBounds.yMax}
-                          snapStep={graphSnapStep}
+                          snapStep={graph3SnapStep}
                           points={graph3Points}
                           lines={graph3Line ? [graph3Line] : []}
                           onPlot={(pt) => {
@@ -1635,16 +1656,36 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                             <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
                           )}
                         </div>
-                        <input
-                          placeholder="e.g. [0, 9] or 0 <= x <= 9"
-                          value={contextDomain}
-                          onChange={(e) => {
-                            clearFeedback();
-                            setContextDomain(e.target.value);
-                          }}
-                          style={inputStyle}
-                          aria-label="Reasonable domain"
-                        />
+                        {contextChoices.domain?.length ? (
+                          <select
+                            value={contextDomain}
+                            onChange={(e) => {
+                              clearFeedback();
+                              setContextDomain(e.target.value);
+                            }}
+                            style={inputStyle}
+                            aria-label="Reasonable domain selection"
+                          >
+                            <option value="">Select reasonable domain...</option>
+                            {contextChoices.domain.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <MathInput
+                            toolProfile="inequality"
+                            placeholder="e.g. 0 ≤ x ≤ 9"
+                            ariaLabel="Reasonable domain"
+                            value={contextDomain}
+                            onChange={(val) => {
+                              clearFeedback();
+                              setContextDomain(val);
+                            }}
+                          />
+                        )}
+                        <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                          Enter as an inequality (e.g. 0 ≤ x ≤ 9) or interval [0, 9].
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1771,9 +1812,9 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
             <div style={{ background: '#f8fafc', padding: 10, borderRadius: 8, fontSize: 13, color: '#334155' }}>
               <strong>Task: </strong>{enlargedGraphConfig.taskInstruction}
               <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
-                {graphSnapStep === 1
+                {(enlargedGraph === 'graph3' ? graph3SnapStep : graphSnapStep) === 1
                   ? 'Points snap to whole numbers.'
-                  : `Points snap to the nearest ${graphSnapStep}.`}
+                  : `Points snap to the nearest ${enlargedGraph === 'graph3' ? graph3SnapStep : graphSnapStep}.`}
               </div>
             </div>
 
@@ -1785,7 +1826,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                 yMax={graphBounds.yMax}
                 width={Math.min(560, typeof window !== 'undefined' ? window.innerWidth - 64 : 560)}
                 height={380}
-                snapStep={graphSnapStep}
+                snapStep={enlargedGraph === 'graph3' ? graph3SnapStep : graphSnapStep}
                 points={enlargedGraphConfig.points}
                 lines={enlargedGraphConfig.line ? [enlargedGraphConfig.line] : []}
                 onPlot={enlargedGraphConfig.onPlot}

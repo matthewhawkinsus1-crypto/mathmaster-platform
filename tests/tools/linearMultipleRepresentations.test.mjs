@@ -11,9 +11,12 @@ import {
   parseNumericOrFraction,
   parseOrderedPair,
   parsePointSlopeForm,
+  parseInequalityDomain,
+  resolveLinearMultipleRepresentationsGraphBounds,
   resolveSnapStep,
   scoreLinearMultipleRepresentations,
   validateContextField,
+  validateDomainField,
   validateLinearMultipleRepresentationsQuestion,
   validatePointSlopeEntry,
   validateSlopeEntry,
@@ -660,9 +663,13 @@ test('resolveSnapStep: fractional slopes and intercepts resolve correct grid ste
   });
   assert.equal(resolveSnapStep({}, halfDerived), 0.5);
 
-  // Slope 3/4 => snapStep 0.25
-  const quarterDerived = { slopeFraction: { n: 3, d: 4 }, yInterceptFraction: { n: 1, d: 1 }, zeroFraction: { n: -4, d: 3 } };
+  // Slope 3/4 with integer intercept => snapStep 0.25
+  const quarterDerived = { slopeFraction: { n: 3, d: 4 }, yInterceptFraction: { n: 3, d: 1 }, zeroFraction: { n: -4, d: 1 } };
   assert.equal(resolveSnapStep({}, quarterDerived), 0.25);
+
+  // Multiple denominators (4 and 3) => LCM(4, 3) = 12 => snapStep 0.0833
+  const multiDerived = { slopeFraction: { n: 3, d: 4 }, yInterceptFraction: { n: 1, d: 1 }, zeroFraction: { n: -4, d: 3 } };
+  assert.equal(resolveSnapStep({}, multiDerived), 0.0833);
 
   // Integer line => snapStep 1
   const integerDerived = deriveLinearMultipleRepresentations({
@@ -775,3 +782,183 @@ test('V5 compiler compiles scenario intent and scores 100% when all parts includ
   assert.equal(result.parts.contextYInterceptMeaning, true);
   assert.equal(result.parts.contextXInterceptMeaning, true);
 });
+
+// -----------------------------------------------------------------------------
+// 18. Given Graph Line Format
+// -----------------------------------------------------------------------------
+test('given graph source: produces numeric CoordinatePlane line values (not Fraction object or NaN)', () => {
+  const q = {
+    mode: 'linearMultipleRepresentations',
+    source: { kind: 'graph', line: { m: 0.5, b: -3 } },
+  };
+  const derived = deriveLinearMultipleRepresentations(q);
+  assert.equal(derived.isValid, true);
+  assert.ok(derived.displayLine);
+  assert.equal(typeof derived.displayLine.m, 'number');
+  assert.equal(typeof derived.displayLine.b, 'number');
+  assert.equal(derived.displayLine.m, 0.5);
+  assert.equal(derived.displayLine.b, -3);
+  assert.equal(Number.isNaN(derived.displayLine.m), false);
+  assert.equal(Number.isNaN(derived.displayLine.b), false);
+});
+
+// -----------------------------------------------------------------------------
+// 19. Two-Points Source: Given, Not Re-entered
+// -----------------------------------------------------------------------------
+test('twoPoints source: Two Points feature is given and not re-entered or scored', () => {
+  const q = {
+    mode: 'linearMultipleRepresentations',
+    source: { kind: 'twoPoints', points: [[6, 0], [0, -3]] },
+  };
+  const derived = deriveLinearMultipleRepresentations(q);
+  assert.equal(derived.isValid, true);
+  assert.ok(derived.twoPoints);
+  assert.deepEqual(derived.twoPoints.point1, [6, 0]);
+  assert.deepEqual(derived.twoPoints.point2, [0, -3]);
+
+  // Student completes forms, slope, intercepts, table, and graphs,
+  // but leaves featurePoint1 and featurePoint2 blank because they were given!
+  const response = {
+    standardFormEquation: 'x - 2y = 6',
+    slopeInterceptEquation: 'y = 1/2x - 3',
+    pointSlopeEquation: 'y + 3 = 1/2(x - 0)',
+    featureSlope: '1/2',
+    featureXIntercept: '(6, 0)',
+    featureYIntercept: '(0, -3)',
+    featurePoint1: '',
+    featurePoint2: '',
+    tableRows: [{ x: 0, y: -3 }, { x: 2, y: -2 }, { x: 4, y: -1 }, { x: 6, y: 0 }],
+    graph1Points: [[6, 0], [0, -3]],
+    graph2Points: [[0, -3], [2, -2]],
+    graph3Points: [[0, -3], [2, -2]],
+  };
+
+  const result = scoreLinearMultipleRepresentations(q, response);
+  assert.equal(result.isCorrect, true);
+  assert.equal(result.score, 1);
+  // parts.twoPoints should not be required or scored
+  assert.equal(result.parts.twoPoints, undefined);
+  // The given points participate in cross-representation consistency
+  assert.equal(result.parts.crossRepresentationConsistency, true);
+});
+
+// -----------------------------------------------------------------------------
+// 20. Default Graph Bounds for Large/Offset Lines
+// -----------------------------------------------------------------------------
+test('default graph bounds: resolves bounds containing required intercepts for y = x - 20', () => {
+  const q = {
+    mode: 'linearMultipleRepresentations',
+    source: { kind: 'slopeIntercept', equation: 'y = x - 20' },
+  };
+  const derived = deriveLinearMultipleRepresentations(q);
+  assert.equal(derived.zeroNumber, 20);
+  assert.equal(derived.yInterceptNumber, -20);
+
+  const bounds = resolveLinearMultipleRepresentationsGraphBounds(q, derived);
+  // Bounds must comfortably contain (20, 0) and (0, -20)
+  assert.ok(bounds.xMin <= 0 && bounds.xMax >= 20);
+  assert.ok(bounds.yMin <= -20 && bounds.yMax >= 0);
+});
+
+// -----------------------------------------------------------------------------
+// 21. Authored Graph Bounds Preflight
+// -----------------------------------------------------------------------------
+test('preflight: rejects authored graphBounds that exclude required anchors', () => {
+  const q = {
+    mode: 'linearMultipleRepresentations',
+    source: { kind: 'slopeIntercept', equation: 'y = x - 20' },
+    graphBounds: { xMin: -5, xMax: 5, yMin: -5, yMax: 5 }, // Excludes (20, 0) and (0, -20)
+  };
+  const errors = validateLinearMultipleRepresentationsQuestion(q);
+  assert.ok(errors.length > 0);
+  assert.ok(errors.some((err) => /x-intercept/i.test(err)));
+  assert.ok(errors.some((err) => /y-intercept/i.test(err)));
+});
+
+// -----------------------------------------------------------------------------
+// 22. Malformed Source Table Preflight
+// -----------------------------------------------------------------------------
+test('preflight: rejects table source with non-finite or null cell', () => {
+  const q = {
+    mode: 'linearMultipleRepresentations',
+    source: {
+      kind: 'table',
+      rows: [
+        { x: 0, y: -3 },
+        { x: null, y: -2 },
+        { x: 4, y: -1 },
+      ],
+    },
+  };
+  const errors = validateLinearMultipleRepresentationsQuestion(q);
+  assert.ok(errors.length > 0);
+  assert.ok(errors.some((err) => /finite numerical coordinates in every row/i.test(err)));
+});
+
+// -----------------------------------------------------------------------------
+// 23. Domain Evaluation: Array, String Inequality, and Choice Bank
+// -----------------------------------------------------------------------------
+test('domain validation: accepts inequality notation, arrays, choice banks, and normalized formats', () => {
+  // Expected array [0, 9]
+  assert.equal(validateDomainField('0 <= x <= 9', [0, 9]).isCorrect, true);
+  assert.equal(validateDomainField('0 ≤ x ≤ 9', [0, 9]).isCorrect, true);
+  assert.equal(validateDomainField('0 \\le x \\le 9', [0, 9]).isCorrect, true);
+  assert.equal(validateDomainField('[0, 9]', [0, 9]).isCorrect, true);
+  assert.equal(validateDomainField([0, 9], [0, 9]).isCorrect, true);
+  assert.equal(validateDomainField('0 <= x <= 12', [0, 9]).isCorrect, false);
+
+  // Expected string inequality
+  assert.equal(validateDomainField('0 <= x <= 9', '0 ≤ x ≤ 9').isCorrect, true);
+  assert.equal(validateDomainField('0 ≤ x ≤ 9', '0 <= x <= 9').isCorrect, true);
+
+  // Expected choice bank object
+  const choiceBank = { choices: ['0 ≤ x ≤ 9', 'x ≥ 0', '0 ≤ y ≤ 18'], answer: '0 ≤ x ≤ 9' };
+  assert.equal(validateDomainField('0 ≤ x ≤ 9', choiceBank).isCorrect, true);
+  assert.equal(validateDomainField('x ≥ 0', choiceBank).isCorrect, false);
+});
+
+// -----------------------------------------------------------------------------
+// 24. Graph 3 Fractional Point on Integer Line
+// -----------------------------------------------------------------------------
+test('graph 3: accepts and calculates grid snap for student-chosen fractional point on integer line', () => {
+  // Line with integer slope and integer intercepts: y = 2x - 4 has m=2, b=-4, x_int=2
+  const integerLineQ = {
+    mode: 'linearMultipleRepresentations',
+    source: { kind: 'slopeIntercept', equation: 'y = 2x - 4' },
+  };
+  const integerDerived = deriveLinearMultipleRepresentations(integerLineQ);
+  assert.equal(integerDerived.slopeNumber, 2);
+  assert.equal(integerDerived.yInterceptNumber, -4);
+  assert.equal(integerDerived.zeroNumber, 2);
+  // Base snap step without student point is 1
+  assert.equal(resolveSnapStep(integerLineQ, integerDerived), 1);
+
+  // Student authors valid point-slope form with fractional point: (0.5, -3)
+  const fracPoint = [0.5, -3];
+  assert.equal(resolveSnapStep(integerLineQ, integerDerived, [fracPoint]), 0.5);
+
+  // Target line y = 2x + 1 from reviewer prompt:
+  // Student authors valid point-slope form: y - 2 = 2(x - 1/2)
+  // which uses point (1/2, 2) on the line
+  const q = {
+    mode: 'linearMultipleRepresentations',
+    source: { kind: 'slopeIntercept', equation: 'y = 2x + 1' },
+  };
+  const derived = deriveLinearMultipleRepresentations(q);
+  assert.equal(derived.slopeNumber, 2);
+  assert.equal(derived.yInterceptNumber, 1);
+
+  const studentPoint = [0.5, 2];
+  const snapWithStudentPoint = resolveSnapStep(q, derived, [studentPoint]);
+  assert.equal(snapWithStudentPoint, 0.5);
+
+  // If student authors smaller fraction e.g. (1/4, 1.5), snap step adjusts via LCM
+  const quarterPoint = [0.25, 1.5];
+  assert.equal(resolveSnapStep(q, derived, [quarterPoint]), 0.25);
+
+  // Student plots their chosen point (0.5, 2) and step point (1.5, 4)
+  const g3Res = evaluateGraph3PointSlope([[0.5, 2], [1.5, 4]], derived, studentPoint);
+  assert.equal(g3Res.isCorrect, true);
+  assert.deepEqual(g3Res.anchorPoint, [0.5, 2]);
+});
+

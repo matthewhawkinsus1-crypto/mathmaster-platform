@@ -70,9 +70,16 @@ test('Given graph source contract: renders read-only CoordinatePlane when source
   // Banner conditionally renders CoordinatePlane for graph source
   assert.match(boardSrc, /givenKind === 'graph'/);
   assert.match(boardSrc, /pointHoverEnabled=\{false\}/);
-  assert.match(boardSrc, /lines=\{canonicalFacts\.canonicalLine/);
+  assert.match(boardSrc, /lines=\{canonicalFacts\.displayLine/);
   // Banner renders MathDisplay when source is an equation/scenario
   assert.match(boardSrc, /<MathDisplay value=\{givenDisplay\}/);
+});
+
+test('Two Points GIVEN contract: read-only badge and adjusted features count when twoPoints is source', () => {
+  const boardSrc = source('src/tools/representationBridge/LinearMultipleRepresentationsBoard.jsx');
+  assert.match(boardSrc, /givenKind === 'twoPoints' \? 3 : 4/);
+  assert.match(boardSrc, /givenKind === 'twoPoints' \? \(\s*<span[^>]*>GIVEN<\/span>/);
+  assert.match(boardSrc, /canonicalFacts\.twoPoints/);
 });
 
 test('Collapsible card UX: panels expand/collapse with summary while preserving work', () => {

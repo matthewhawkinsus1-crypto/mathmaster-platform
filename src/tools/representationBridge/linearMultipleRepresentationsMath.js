@@ -138,12 +138,29 @@ export const parseNumericOrFraction = (input) => {
   return null;
 };
 
+const gcdInteger = (a, b) => {
+  let x = Math.abs(Math.round(a));
+  let y = Math.abs(Math.round(b));
+  while (y !== 0) {
+    const temp = y;
+    y = x % y;
+    x = temp;
+  }
+  return x || 1;
+};
+
+const lcmInteger = (a, b) => {
+  if (!a || !b) return a || b || 1;
+  return Math.abs(Math.round(a * b)) / gcdInteger(a, b);
+};
+
 /**
  * Rational-aware snap step resolver:
- * Ensures fractional slopes, intercepts, or authored coordinates (e.g. 1/2, 3/2)
- * remain accurately graphable on the CoordinatePlane.
+ * Ensures fractional slopes, intercepts, authored coordinates, or student-chosen
+ * point-slope anchors (e.g. 1/2, 3/4) remain accurately graphable on the CoordinatePlane.
+ * Uses the LCM of coordinate denominators with a sensible cap.
  */
-export const resolveSnapStep = (questionData = {}, canonicalFacts = {}) => {
+export const resolveSnapStep = (questionData = {}, canonicalFacts = {}, extraPoints = []) => {
   const explicit = Number(questionData.snapStep);
   if (Number.isFinite(explicit) && explicit > 0) return explicit;
 
@@ -151,14 +168,37 @@ export const resolveSnapStep = (questionData = {}, canonicalFacts = {}) => {
   const b = canonicalFacts.yInterceptFraction || canonicalFacts.canonicalLine?.b;
   const zero = canonicalFacts.zeroFraction;
 
-  const denominators = [m?.d, b?.d, zero?.d].filter((d) => Number.isFinite(d) && d > 1);
-  if (!denominators.length) return 1;
+  const denominators = [];
+  [m?.d, b?.d, zero?.d].forEach((d) => {
+    if (Number.isFinite(d) && d > 1) denominators.push(d);
+  });
 
-  if (denominators.every((d) => 2 % d === 0 || d === 2)) return 0.5;
-  if (denominators.every((d) => 4 % d === 0 || d === 4)) return 0.25;
-  const maxD = Math.max(...denominators);
-  if (maxD <= 10) return Number((1 / maxD).toFixed(4));
-  return 0.5;
+  if (Array.isArray(extraPoints)) {
+    extraPoints.forEach((pt) => {
+      if (Array.isArray(pt) && pt.length >= 2) {
+        const xF = toFraction(pt[0]);
+        const yF = toFraction(pt[1]);
+        if (xF && Number.isFinite(xF.d) && xF.d > 1) denominators.push(xF.d);
+        if (yF && Number.isFinite(yF.d) && yF.d > 1) denominators.push(yF.d);
+      }
+    });
+  }
+
+  if (canonicalFacts.sourcePoint && Array.isArray(canonicalFacts.sourcePoint)) {
+    const xF = toFraction(canonicalFacts.sourcePoint[0]);
+    const yF = toFraction(canonicalFacts.sourcePoint[1]);
+    if (xF && Number.isFinite(xF.d) && xF.d > 1) denominators.push(xF.d);
+    if (yF && Number.isFinite(yF.d) && yF.d > 1) denominators.push(yF.d);
+  }
+
+  const validD = denominators.filter((d) => Number.isFinite(d) && d > 1 && d <= 20);
+  if (!validD.length) return 1;
+
+  const lcmVal = validD.reduce((acc, d) => lcmInteger(acc, d), 1);
+  if (lcmVal <= 20) {
+    return Number((1 / lcmVal).toFixed(4));
+  }
+  return 0.05;
 };
 
 /**
@@ -233,9 +273,20 @@ export const deriveLinearMultipleRepresentations = (question = {}) => {
   const standardEquation = standard ? formatNormalizedStandard(standard) : null;
   const slopeInterceptEquation = formatSlopeIntercept(canonicalLine);
 
+  const sourcePoints = (kind === 'twoPoints' && Array.isArray(source.points || [source.first, source.second]))
+    ? (source.points || [source.first, source.second])
+    : (kind === 'graph' && Array.isArray(source.points))
+      ? source.points
+      : null;
+
+  const sourcePoint = (kind === 'pointSlope' && Array.isArray(source.point))
+    ? source.point
+    : null;
+
   return {
     isValid: true,
     canonicalLine,
+    displayLine: { m: slopeNumber, b: yInterceptNumber },
     slopeNumber,
     yInterceptNumber,
     zeroNumber,
@@ -244,6 +295,9 @@ export const deriveLinearMultipleRepresentations = (question = {}) => {
     zeroFraction,
     xInterceptPoint: zeroNumber != null ? [zeroNumber, 0] : null,
     yInterceptPoint: [0, yInterceptNumber],
+    sourcePoints,
+    sourcePoint,
+    twoPoints: sourcePoints && sourcePoints.length >= 2 ? { point1: sourcePoints[0], point2: sourcePoints[1] } : null,
     standard,
     standardEquation,
     slopeInterceptEquation,
@@ -272,6 +326,21 @@ export const validateLinearMultipleRepresentationsQuestion = (question = {}) => 
     const rawRows = Array.isArray(source.rows) ? source.rows : null;
     if (!rawRows || rawRows.length < 3) {
       errors.push('representationBridge table source requires at least three rows in source.rows.');
+      return errors;
+    }
+    const hasInvalidRow = rawRows.some((r) => {
+      if (!r || typeof r !== 'object') return true;
+      if (r.x === null || r.x === undefined || r.y === null || r.y === undefined) return true;
+      if (typeof r.x === 'boolean' || typeof r.y === 'boolean') return true;
+      const xStr = String(r.x).trim();
+      const yStr = String(r.y).trim();
+      if (!xStr || !yStr) return true;
+      const xNum = Number(xStr);
+      const yNum = Number(yStr);
+      return !Number.isFinite(xNum) || !Number.isFinite(yNum);
+    });
+    if (hasInvalidRow) {
+      errors.push('representationBridge table source requires finite numerical coordinates in every row.');
       return errors;
     }
     const rows = normalizeRows(rawRows);
@@ -316,10 +385,136 @@ export const validateLinearMultipleRepresentationsQuestion = (question = {}) => 
       errors.push('representationBridge graphBounds must supply finite xMin, xMax, yMin, and yMax.');
     } else if (Number(bounds.xMin) >= Number(bounds.xMax) || Number(bounds.yMin) >= Number(bounds.yMax)) {
       errors.push('representationBridge graphBounds must have xMin < xMax and yMin < yMax.');
+    } else {
+      const xMin = Number(bounds.xMin);
+      const xMax = Number(bounds.xMax);
+      const yMin = Number(bounds.yMin);
+      const yMax = Number(bounds.yMax);
+
+      // Check required x-intercept anchor
+      if (derived.zeroNumber != null && Number.isFinite(derived.zeroNumber)) {
+        if (derived.zeroNumber < xMin || derived.zeroNumber > xMax || 0 < yMin || 0 > yMax) {
+          errors.push('representationBridge graphBounds does not include the derived x-intercept the graph stage requires the student to plot.');
+        }
+      }
+
+      // Check required y-intercept anchor
+      if (derived.yInterceptNumber != null && Number.isFinite(derived.yInterceptNumber)) {
+        if (0 < xMin || 0 > xMax || derived.yInterceptNumber < yMin || derived.yInterceptNumber > yMax) {
+          errors.push('representationBridge graphBounds does not include the derived y-intercept.');
+        }
+      }
+
+      // Check source point-slope anchor if authored
+      if (source.kind === 'pointSlope' && Array.isArray(source.point)) {
+        const [px, py] = source.point.map(Number);
+        if (Number.isFinite(px) && Number.isFinite(py)) {
+          if (px < xMin || px > xMax || py < yMin || py > yMax) {
+            errors.push('representationBridge graphBounds does not include the given point-slope point.');
+          }
+        }
+      }
+
+      // Check source points if twoPoints or graph
+      if ((source.kind === 'twoPoints' || source.kind === 'graph') && Array.isArray(source.points)) {
+        for (const pt of source.points) {
+          if (Array.isArray(pt) && Number.isFinite(Number(pt[0])) && Number.isFinite(Number(pt[1]))) {
+            const px = Number(pt[0]);
+            const py = Number(pt[1]);
+            if (px < xMin || px > xMax || py < yMin || py > yMax) {
+              errors.push('representationBridge graphBounds does not include the given source points.');
+              break;
+            }
+          }
+        }
+      }
     }
   }
 
   return errors;
+};
+
+/**
+ * Resolves safe graph bounds that include all required mathematical anchors (x-intercept,
+ * y-intercept, given points) with reasonable padding and clear scaling.
+ */
+export const resolveLinearMultipleRepresentationsGraphBounds = (questionData = {}, canonicalFacts = {}) => {
+  const authored = questionData.graphBounds;
+  const finite = authored && typeof authored === 'object' && [authored.xMin, authored.xMax, authored.yMin, authored.yMax].every((v) => Number.isFinite(Number(v)));
+  if (finite && Number(authored.xMin) < Number(authored.xMax) && Number(authored.yMin) < Number(authored.yMax)) {
+    return {
+      xMin: Number(authored.xMin),
+      xMax: Number(authored.xMax),
+      yMin: Number(authored.yMin),
+      yMax: Number(authored.yMax),
+    };
+  }
+
+  const xs = [0];
+  const ys = [0];
+
+  if (canonicalFacts.zeroNumber != null && Number.isFinite(canonicalFacts.zeroNumber)) {
+    xs.push(canonicalFacts.zeroNumber);
+  }
+  if (canonicalFacts.yInterceptNumber != null && Number.isFinite(canonicalFacts.yInterceptNumber)) {
+    ys.push(canonicalFacts.yInterceptNumber);
+  }
+
+  const source = questionData.source || {};
+  if (Array.isArray(source.points)) {
+    source.points.forEach((p) => {
+      if (Array.isArray(p) && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1]))) {
+        xs.push(Number(p[0]));
+        ys.push(Number(p[1]));
+      }
+    });
+  }
+  if (Array.isArray(source.point) && Number.isFinite(Number(source.point[0])) && Number.isFinite(Number(source.point[1]))) {
+    xs.push(Number(source.point[0]));
+    ys.push(Number(source.point[1]));
+  }
+  if (Array.isArray(source.rows)) {
+    source.rows.forEach((r) => {
+      if (r && Number.isFinite(Number(r.x)) && Number.isFinite(Number(r.y))) {
+        xs.push(Number(r.x));
+        ys.push(Number(r.y));
+      }
+    });
+  }
+
+  const xMinRaw = Math.min(...xs, -5);
+  const xMaxRaw = Math.max(...xs, 5);
+  const yMinRaw = Math.min(...ys, -5);
+  const yMaxRaw = Math.max(...ys, 5);
+
+  const xSpan = xMaxRaw - xMinRaw;
+  const ySpan = yMaxRaw - yMinRaw;
+
+  const xPad = Math.max(2, Math.ceil(xSpan * 0.25));
+  const yPad = Math.max(2, Math.ceil(ySpan * 0.25));
+
+  let xMin = Math.floor(xMinRaw - xPad);
+  let xMax = Math.ceil(xMaxRaw + xPad);
+  let yMin = Math.floor(yMinRaw - yPad);
+  let yMax = Math.ceil(yMaxRaw + yPad);
+
+  if (xMin >= -8 && xMax <= 8 && yMin >= -8 && yMax <= 8) {
+    return { xMin: -8, xMax: 8, yMin: -8, yMax: 8 };
+  }
+
+  const roundTo5 = (val, roundUp) => {
+    if (roundUp) return Math.ceil(val / 5) * 5;
+    return Math.floor(val / 5) * 5;
+  };
+
+  if (xSpan > 15 || ySpan > 15) {
+    xMin = roundTo5(xMin, false);
+    xMax = roundTo5(xMax, true);
+    yMin = roundTo5(yMin, false);
+    yMax = roundTo5(yMax, true);
+  }
+
+  return { xMin, xMax, yMin, yMax };
 };
 
 // -----------------------------------------------------------------------------
@@ -768,6 +963,95 @@ export const validateContextField = (studentValue, expected) => {
   };
 };
 
+export const parseInequalityDomain = (str) => {
+  if (!str) return null;
+  let s = String(str).trim();
+  if (s.includes('\\')) {
+    s = s.replace(/\\le|\\leq/g, '<=')
+      .replace(/\\ge|\\geq/g, '>=')
+      .replace(/\\left|\\right/g, '')
+      .replace(/\\text\{[^}]*\}/g, '')
+      .replace(/[{}]/g, '');
+  }
+  s = s.replace(/≤/g, '<=').replace(/≥/g, '>=');
+
+  const bracketMatch = s.match(/^\[\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\]$/);
+  if (bracketMatch) {
+    const min = Number(bracketMatch[1]);
+    const max = Number(bracketMatch[2]);
+    if (Number.isFinite(min) && Number.isFinite(max)) return { min, max };
+  }
+
+  const ineqMatch = s.match(/^(-?\d+(?:\.\d+)?)\s*(?:<=|<)\s*([a-zA-Z])\s*(?:<=|<)\s*(-?\d+(?:\.\d+)?)$/);
+  if (ineqMatch) {
+    const min = Number(ineqMatch[1]);
+    const max = Number(ineqMatch[3]);
+    if (Number.isFinite(min) && Number.isFinite(max)) return { min, max, variable: ineqMatch[2] };
+  }
+
+  const revMatch = s.match(/^(-?\d+(?:\.\d+)?)\s*(?:>=|>)\s*([a-zA-Z])\s*(?:>=|>)\s*(-?\d+(?:\.\d+)?)$/);
+  if (revMatch) {
+    const max = Number(revMatch[1]);
+    const min = Number(revMatch[3]);
+    if (Number.isFinite(min) && Number.isFinite(max)) return { min, max, variable: revMatch[2] };
+  }
+
+  return null;
+};
+
+export const validateDomainField = (studentValue, expectedDomain) => {
+  if (studentValue == null || studentValue === '') {
+    return { isCorrect: false, error: 'Enter the reasonable domain.' };
+  }
+
+  // 1. If expected is an array [min, max]
+  if (Array.isArray(expectedDomain) && expectedDomain.length === 2) {
+    const [expMin, expMax] = expectedDomain.map(Number);
+    if (Array.isArray(studentValue) && studentValue.length === 2) {
+      const match = nearlyEqual(studentValue[0], expMin, 1e-4) && nearlyEqual(studentValue[1], expMax, 1e-4);
+      return { isCorrect: match, error: match ? null : 'Domain bounds do not match the scenario.' };
+    }
+    const parsed = parseInequalityDomain(studentValue);
+    if (parsed) {
+      const match = nearlyEqual(parsed.min, expMin, 1e-4) && nearlyEqual(parsed.max, expMax, 1e-4);
+      return { isCorrect: match, error: match ? null : 'Domain bounds do not match the scenario.' };
+    }
+    const norm = String(studentValue).replace(/[\s()]/g, '');
+    if (norm === `${expMin}<=x<=${expMax}` || norm === `[${expMin},${expMax}]`) {
+      return { isCorrect: true, error: null };
+    }
+    return { isCorrect: false, error: 'Enter domain as an inequality, e.g. 0 ≤ x ≤ 9.' };
+  }
+
+  // 2. If expected is a choice bank or object with choices / acceptedAnswers
+  if (expectedDomain && typeof expectedDomain === 'object') {
+    const valRes = validateContextField(studentValue, expectedDomain);
+    if (valRes.valid) return { isCorrect: true, error: null };
+
+    if (expectedDomain.min != null && expectedDomain.max != null) {
+      const parsed = parseInequalityDomain(studentValue);
+      if (parsed && nearlyEqual(parsed.min, expectedDomain.min, 1e-4) && nearlyEqual(parsed.max, expectedDomain.max, 1e-4)) {
+        return { isCorrect: true, error: null };
+      }
+    }
+    return { isCorrect: false, error: valRes.message };
+  }
+
+  // 3. If expected is a string
+  if (typeof expectedDomain === 'string') {
+    const expectedParsed = parseInequalityDomain(expectedDomain);
+    const studentParsed = parseInequalityDomain(studentValue);
+    if (expectedParsed && studentParsed) {
+      const match = nearlyEqual(studentParsed.min, expectedParsed.min, 1e-4) && nearlyEqual(studentParsed.max, expectedParsed.max, 1e-4);
+      return { isCorrect: match, error: match ? null : 'Domain bounds do not match the scenario.' };
+    }
+    const valRes = validateContextField(studentValue, expectedDomain);
+    return { isCorrect: valRes.valid, error: valRes.valid ? null : valRes.message };
+  }
+
+  return { isCorrect: false, error: 'Unknown domain specification.' };
+};
+
 export const evaluateGraph3PointSlope = (points = [], canonicalFacts, studentPoint = null, tolerance = 0.12) => {
   let anchorPoint = studentPoint;
   let isFreeChoice = false;
@@ -930,9 +1214,12 @@ export const scoreLinearMultipleRepresentations = (question = {}, response = {})
   parts.yIntercept = yIntRes.isCorrect;
   evidence.yIntercept = yIntRes;
 
-  const ptsRes = validateTwoPointsEntry(response.featurePoint1, response.featurePoint2, canonicalFacts);
-  parts.twoPoints = ptsRes.isCorrect;
-  evidence.twoPoints = ptsRes;
+  let ptsRes = null;
+  if (givenKind !== 'twoPoints') {
+    ptsRes = validateTwoPointsEntry(response.featurePoint1, response.featurePoint2, canonicalFacts);
+    parts.twoPoints = ptsRes.isCorrect;
+    evidence.twoPoints = ptsRes;
+  }
 
   // Table
   if (givenKind !== 'table') {
@@ -1001,18 +1288,15 @@ export const scoreLinearMultipleRepresentations = (question = {}, response = {})
     }
     if (ctx.domain != null || question.domain != null) {
       const expectedDomain = question.domain || ctx.domain;
-      const studentDomain = response.contextDomain;
-      let domainCorrect = false;
-      if (Array.isArray(expectedDomain) && Array.isArray(studentDomain)) {
-        domainCorrect = nearlyEqual(studentDomain[0], expectedDomain[0], 1e-4) && nearlyEqual(studentDomain[1], expectedDomain[1], 1e-4);
-      } else if (typeof studentDomain === 'string' && typeof expectedDomain === 'string') {
-        const res = validateContextField(studentDomain, expectedDomain);
-        domainCorrect = res.valid;
-      }
-      parts.contextDomain = domainCorrect;
-      evidence.contextDomain = { isCorrect: domainCorrect };
+      const domainRes = validateDomainField(response.contextDomain, expectedDomain);
+      parts.contextDomain = domainRes.isCorrect;
+      evidence.contextDomain = domainRes;
     }
   }
+
+  const effectiveTwoPoints = (givenKind === 'twoPoints' && canonicalFacts.twoPoints)
+    ? [canonicalFacts.twoPoints.point1, canonicalFacts.twoPoints.point2]
+    : ptsRes?.points;
 
   // Cross-Representation Consistency
   const consistency = checkCrossRepresentationConsistency(
@@ -1021,7 +1305,7 @@ export const scoreLinearMultipleRepresentations = (question = {}, response = {})
       slopeInterceptEquation: response.slopeInterceptEquation,
       pointSlopeEquation: response.pointSlopeEquation,
       tableRows: response.tableRows,
-      twoPoints: ptsRes.points,
+      twoPoints: effectiveTwoPoints,
       featurePoint1: response.featurePoint1,
       featurePoint2: response.featurePoint2,
       graph1Points: response.graph1Points,
