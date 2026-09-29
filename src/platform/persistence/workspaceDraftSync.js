@@ -13,10 +13,12 @@
  */
 import {
   buildWorkspaceDraftPatch,
+  explainWorkspaceDraftRejection,
   isSyncableDraftKey,
   sanitizeWorkspaceDraftValue,
 } from '../../../functions/shared/workspaceDraftSchema.mjs';
 import { parseQuestionDraftKey } from '../../questionDraftStorage.js';
+import { reportDraftSyncRejection } from './draftSyncDiagnostics.js';
 
 export const WORKSPACE_DRAFT_DEBOUNCE_MS = 2500;
 
@@ -51,7 +53,10 @@ export const createWorkspaceDraftSync = ({
   let inFlight = null;
   let stopped = false;
   let dirtySinceFlush = false;
-  const stats = { recorded: 0, skipped: 0, flushes: 0, failures: 0 };
+  // `rejected` counts drafts the guard refused, by reason. They are also
+  // `skipped`; the separate tally is what tells a refused record (a tool bug
+  // that stops server backup) from an out-of-scope key (expected).
+  const stats = { recorded: 0, skipped: 0, flushes: 0, failures: 0, rejected: {} };
 
   const snapshotPatch = () => buildWorkspaceDraftPatch({
     studentId,
@@ -128,7 +133,18 @@ export const createWorkspaceDraftSync = ({
       const identity = parseQuestionDraftKey(key);
       if (!identity || !['student', 'practice'].includes(identity.sessionBucket)) { stats.skipped += 1; return false; }
       if (identity.studentId !== String(studentId) || identity.assignmentId !== String(assignmentId)) { stats.skipped += 1; return false; }
-      if (!isSyncableDraftKey(key) || !sanitizeWorkspaceDraftValue(value).ok) { stats.skipped += 1; return false; }
+      if (!isSyncableDraftKey(key)) { stats.skipped += 1; return false; }
+      if (!sanitizeWorkspaceDraftValue(value).ok) {
+        // Refused by the guard, which stays exactly as strict. What changes is
+        // that someone hears about it: the path and reason go to the console
+        // once (see draftSyncDiagnostics.js). The student is told nothing —
+        // their local draft is still durable.
+        const explanation = explainWorkspaceDraftRejection(value);
+        stats.skipped += 1;
+        stats.rejected[explanation.reason] = (stats.rejected[explanation.reason] || 0) + 1;
+        reportDraftSyncRejection({ key, explanation, source: 'sync' });
+        return false;
+      }
       pending.set(key, {
         key,
         value,
@@ -169,7 +185,7 @@ export const createWorkspaceDraftSync = ({
       if (handle !== null) { timers.clear(handle); handle = null; }
     },
     pendingKeys: () => [...pending.keys()],
-    stats: () => ({ ...stats }),
+    stats: () => ({ ...stats, rejected: { ...stats.rejected } }),
     snapshotPatch,
   };
 };

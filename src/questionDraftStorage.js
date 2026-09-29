@@ -1,3 +1,5 @@
+import { auditDraftWrite } from './platform/persistence/draftSyncDiagnostics.js';
+
 const DRAFT_PREFIX = 'mathmaster:draft:v2:';
 const RESUME_PREFIX = 'mathmaster:resume:v1:';
 const MAX_DRAFT_AGE_MS = 1000 * 60 * 60 * 24 * 45;
@@ -110,6 +112,10 @@ export const readQuestionDraft = (key, fallback = null) => {
 export const writeQuestionDraft = (key, value) => {
   if (!key) return false;
   const savedAt = Date.now();
+  // Development only: name the field that would stop the server backup at the
+  // keystroke that introduced it, whether or not a signed-in sync is running.
+  // A no-op in production, where the sync reports what it refuses.
+  auditDraftWrite(key, value);
   // The background save is offered even when local storage is unavailable —
   // a district policy that blocks site data is exactly the case where the
   // server copy is the only copy the student will get back.
