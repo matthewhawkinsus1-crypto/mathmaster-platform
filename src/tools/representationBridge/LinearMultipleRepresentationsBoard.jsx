@@ -3,14 +3,21 @@ import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import CoordinatePlane from '../shared/CoordinatePlane';
+import MathInput from '../../MathInput.jsx';
+import MathDisplay from '../../MathDisplay.jsx';
 import { formatLine, lineFromPoints } from '../graphing2/graphingMath.js';
+import { formatFraction, toFraction } from '../shared/linearEquations.js';
 import {
   deriveLinearMultipleRepresentations,
   evaluateGraph1Intercepts,
   evaluateGraph2SlopeIntercept,
   evaluateGraph3PointSlope,
+  parseNumericOrFraction,
+  parseOrderedPair,
   parsePointSlopeForm,
+  resolveSnapStep,
   scoreLinearMultipleRepresentations,
+  validateContextField,
   validatePointSlopeEntry,
   validateSlopeEntry,
   validateSlopeInterceptEntry,
@@ -38,6 +45,16 @@ const primaryButtonStyle = {
   background: '#1a73e8',
   color: '#fff',
   border: '1px solid #1557b0',
+};
+
+const ghostButtonStyle = {
+  ...buttonStyle,
+  background: 'transparent',
+  border: 'none',
+  padding: '4px 8px',
+  minHeight: 32,
+  color: '#1a73e8',
+  fontSize: 13,
 };
 
 const inputStyle = {
@@ -102,10 +119,11 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     equationForms: true,
     features: true,
     table: true,
-    graph1: true,
-    graph2: true,
-    graph3: true,
+    graphing: true,
     context: true,
+    graph1: true,
+    graph2: false,
+    graph3: false,
   });
 
   // Presentation-only transient UI state
@@ -114,6 +132,24 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   const [enlargedGraph, setEnlargedGraph] = useState(null);
 
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
+
+  // Snap step for coordinate plane
+  const graphSnapStep = useMemo(() => resolveSnapStep(questionData, canonicalFacts), [questionData, canonicalFacts]);
+
+  // Context metadata and choice banks
+  const contextData = questionData.source?.context || questionData.context;
+  const contextChoices = useMemo(() => {
+    const rawBanks = contextData?.choiceBanks || contextData?.choices || {};
+    const out = {};
+    ['independentQuantity', 'dependentQuantity', 'slopeMeaning', 'yInterceptMeaning', 'xInterceptMeaning', 'domain'].forEach((k) => {
+      if (Array.isArray(rawBanks[k])) {
+        out[k] = rawBanks[k];
+      } else if (contextData?.[k]?.choices && Array.isArray(contextData[k].choices)) {
+        out[k] = contextData[k].choices;
+      }
+    });
+    return out;
+  }, [contextData]);
 
   // Response object
   const currentResponse = useMemo(() => ({
@@ -176,7 +212,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     }
   };
 
-  // Toggle card expansion
+  // Toggle card expansion (never clears any student work)
   const toggleCard = (cardKey) => {
     setExpandedCards((prev) => ({ ...prev, [cardKey]: !prev[cardKey] }));
   };
@@ -206,6 +242,28 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     setTableRows((prev) => (prev.length > 2 ? prev.filter((_, i) => i !== index) : prev));
   };
 
+  // Graph 3 point-slope anchor determination:
+  // Case A: Given point-slope -> uses given point
+  // Case B: Student authored valid point-slope -> uses that student's point
+  // Case C: Student opens Graph 3 before authoring point-slope -> anchor is null, allows free point on line
+  const checkGraph3 = () => {
+    let psAnchor = null;
+    if (givenKind === 'pointSlope') {
+      if (questionData.source?.point) {
+        psAnchor = questionData.source.point;
+      } else if (questionData.source?.equation) {
+        const parsed = parsePointSlopeForm(questionData.source.equation);
+        if (parsed?.point) psAnchor = parsed.point;
+      } else if (canonicalFacts.sourcePoint) {
+        psAnchor = canonicalFacts.sourcePoint;
+      }
+    } else if (pointSlopeEquation) {
+      const parsed = parsePointSlopeForm(pointSlopeEquation);
+      if (parsed?.point) psAnchor = parsed.point;
+    }
+    checkCard('graph3', () => evaluateGraph3PointSlope(graph3Points, canonicalFacts, psAnchor));
+  };
+
   // Status strip counts
   const formsTotal = givenKind === 'standardForm' || givenKind === 'slopeIntercept' || givenKind === 'pointSlope' ? 2 : 3;
   const formsDone = [
@@ -232,14 +290,21 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     liveResult.parts.graph3,
   ].filter(Boolean).length;
 
-  const hasContext = Boolean(questionData.context && Object.keys(questionData.context).length > 0);
-  const contextTotal = hasContext ? 4 : 0;
-  const contextDone = hasContext ? [
-    liveResult.parts.contextIndependent,
-    liveResult.parts.contextDependent,
-    liveResult.parts.contextSlopeMeaning,
-    liveResult.parts.contextYInterceptMeaning,
-  ].filter(Boolean).length : 0;
+  const contextKeys = useMemo(() => {
+    if (!contextData) return [];
+    const keys = [];
+    if (contextData.independentQuantity != null) keys.push('contextIndependent');
+    if (contextData.dependentQuantity != null) keys.push('contextDependent');
+    if (contextData.slopeMeaning != null) keys.push('contextSlopeMeaning');
+    if (contextData.yInterceptMeaning != null) keys.push('contextYInterceptMeaning');
+    if (contextData.xInterceptMeaning != null) keys.push('contextXInterceptMeaning');
+    if (contextData.domain != null || questionData.domain != null) keys.push('contextDomain');
+    return keys;
+  }, [contextData, questionData.domain]);
+
+  const hasContext = contextKeys.length > 0;
+  const contextTotal = contextKeys.length;
+  const contextDone = contextKeys.filter((key) => liveResult.parts[key]).length;
 
   // Final submit handler
   const handleBoardSubmit = () => {
@@ -261,12 +326,117 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     if (givenKind === 'pointSlope') return questionData.source?.equation || `y − (${canonicalFacts.yInterceptNumber}) = ${canonicalFacts.slopeNumber}(x − 0)`;
     if (givenKind === 'twoPoints') {
       const pts = questionData.source?.points || [questionData.source?.first, questionData.source?.second];
-      return pts ? `Points (${pts[0].join(', ')}) and (${pts[1].join(', ')})` : 'Two given points';
+      return pts ? `(${pts[0].join(', ')}) \\text{ and } (${pts[1].join(', ')})` : 'Two given points';
     }
     if (givenKind === 'scenario') return questionData.source?.prompt || questionData.prompt || 'Given word scenario';
     if (givenKind === 'graph') return 'Given initial graph';
     return 'Given initial relationship';
   }, [givenKind, questionData, canonicalFacts]);
+
+  // Enlarged graph configuration
+  const enlargedGraphConfig = useMemo(() => {
+    if (enlargedGraph === 'graph1') {
+      return {
+        id: 'graph1',
+        title: 'Graph 1: Intercepts Method',
+        subtitle: 'Standard Form Focus',
+        taskInstruction: 'Plot both the x-intercept and y-intercept on the axes to construct the line.',
+        points: graph1Points,
+        line: graph1Line,
+        errorHint: 'Plot both the actual x-intercept and y-intercept for this line.',
+        checkResult: cardChecks.graph1,
+        onPlot: (pt) => {
+          clearFeedback();
+          setGraph1Points((prev) => (prev.length >= 2 ? [pt] : [...prev, pt]));
+        },
+        onMovePoint: (idx, pt) => {
+          clearFeedback();
+          setGraph1Points((prev) => prev.map((p, i) => (i === idx ? pt : p)));
+        },
+        onUndo: () => {
+          clearFeedback();
+          setGraph1Points((prev) => prev.slice(0, -1));
+        },
+        onClear: () => {
+          clearFeedback();
+          setGraph1Points([]);
+        },
+        onCheck: () => checkCard('graph1', () => evaluateGraph1Intercepts(graph1Points, canonicalFacts)),
+      };
+    }
+    if (enlargedGraph === 'graph2') {
+      return {
+        id: 'graph2',
+        title: 'Graph 2: Slope-Intercept Method',
+        subtitle: 'Slope & y-Intercept Focus',
+        taskInstruction: 'Plot the y-intercept (0, b), then use the slope (rise / run) to plot a second point.',
+        points: graph2Points,
+        line: graph2Line,
+        errorHint: 'Start at the y-intercept (0, b), then step with rise over run for your second point.',
+        checkResult: cardChecks.graph2,
+        onPlot: (pt) => {
+          clearFeedback();
+          setGraph2Points((prev) => (prev.length >= 2 ? [pt] : [...prev, pt]));
+        },
+        onMovePoint: (idx, pt) => {
+          clearFeedback();
+          setGraph2Points((prev) => prev.map((p, i) => (i === idx ? pt : p)));
+        },
+        onUndo: () => {
+          clearFeedback();
+          setGraph2Points((prev) => prev.slice(0, -1));
+        },
+        onClear: () => {
+          clearFeedback();
+          setGraph2Points([]);
+        },
+        onCheck: () => checkCard('graph2', () => evaluateGraph2SlopeIntercept(graph2Points, canonicalFacts)),
+      };
+    }
+    if (enlargedGraph === 'graph3') {
+      return {
+        id: 'graph3',
+        title: 'Graph 3: Point-Slope Method',
+        subtitle: 'Point-Slope Anchor Focus',
+        taskInstruction: 'Plot your point from point-slope form, then use the slope to locate a second point.',
+        points: graph3Points,
+        line: graph3Line,
+        errorHint: 'Plot your chosen point from point-slope form, then use slope to locate a second point.',
+        checkResult: cardChecks.graph3,
+        onPlot: (pt) => {
+          clearFeedback();
+          setGraph3Points((prev) => (prev.length >= 2 ? [pt] : [...prev, pt]));
+        },
+        onMovePoint: (idx, pt) => {
+          clearFeedback();
+          setGraph3Points((prev) => prev.map((p, i) => (i === idx ? pt : p)));
+        },
+        onUndo: () => {
+          clearFeedback();
+          setGraph3Points((prev) => prev.slice(0, -1));
+        },
+        onClear: () => {
+          clearFeedback();
+          setGraph3Points([]);
+        },
+        onCheck: checkGraph3,
+      };
+    }
+    return null;
+  }, [
+    enlargedGraph,
+    graph1Points,
+    graph1Line,
+    graph2Points,
+    graph2Line,
+    graph3Points,
+    graph3Line,
+    cardChecks,
+    canonicalFacts,
+    pointSlopeEquation,
+    givenKind,
+    questionData,
+  ]);
 
   return (
     <ToolShell
@@ -330,7 +500,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: 10,
+            gap: 12,
           }}
         >
           <div>
@@ -338,12 +508,31 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
               <span style={badgeStyle('#2563eb', '#fff')}>GIVEN</span>
               <strong style={{ fontSize: 15, color: '#1e3a8a' }}>Starting Representation</strong>
             </div>
-            <div style={{ fontSize: 17, fontWeight: 800, color: '#172554', fontFamily: 'monospace' }}>
-              {givenDisplay}
-            </div>
+            {givenKind === 'graph' ? (
+              <div style={{ marginTop: 8 }}>
+                <CoordinatePlane
+                  xMin={graphBounds.xMin}
+                  xMax={graphBounds.xMax}
+                  yMin={graphBounds.yMin}
+                  yMax={graphBounds.yMax}
+                  width={360}
+                  height={240}
+                  points={questionData.source?.points || (canonicalFacts.twoPoints ? [canonicalFacts.twoPoints.point1, canonicalFacts.twoPoints.point2] : [])}
+                  lines={canonicalFacts.canonicalLine ? [canonicalFacts.canonicalLine] : []}
+                  snapStep={graphSnapStep}
+                  pointHoverEnabled={false}
+                  enlargeable={false}
+                  ariaLabel="Given starting line graph"
+                />
+              </div>
+            ) : (
+              <div style={{ fontSize: 17, fontWeight: 800, color: '#172554', marginTop: 4 }}>
+                <MathDisplay value={givenDisplay} inline={true} />
+              </div>
+            )}
           </div>
           <div style={{ fontSize: 13, color: '#1e40af', maxWidth: 360 }}>
-            Complete the remaining representations in any order. Work does not unlock in steps.
+            Complete the remaining representations in any order you choose. No representation is locked.
           </div>
         </div>
 
@@ -375,390 +564,432 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
         >
           {/* CATEGORY 1: EQUATION FORMS */}
           <Panel title="Equation Forms">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {/* Standard Form Card */}
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <label htmlFor="standardFormInput" style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>
-                    Standard Form (Ax + By = C)
-                  </label>
-                  {givenKind === 'standardForm' ? (
-                    <span style={badgeStyle('#2563eb', '#fff')}>GIVEN</span>
-                  ) : cardChecks.standardForm?.isCorrect ? (
-                    <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
-                  ) : null}
-                </div>
-                {givenKind === 'standardForm' ? (
-                  <input
-                    id="standardFormInput"
-                    readOnly
-                    value={givenDisplay}
-                    style={{ ...inputStyle, background: '#f8fafc', color: '#475569', fontWeight: 700 }}
-                  />
-                ) : (
-                  <>
-                    <input
-                      id="standardFormInput"
-                      placeholder="e.g. x - 2y = 6"
-                      value={standardFormEquation}
-                      onChange={(e) => {
-                        clearFeedback();
-                        setStandardFormEquation(e.target.value);
-                      }}
-                      style={inputStyle}
-                    />
-                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
-                      Use integer coefficients with no common factors and a positive leading coefficient.
-                    </div>
-                    {feedbackTiming === 'guided' && (
-                      <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => checkCard('standardForm', () => validateStandardFormEntry(standardFormEquation, canonicalFacts))}
-                          style={buttonStyle}
-                        >
-                          Check Standard Form
-                        </button>
-                        {cardChecks.standardForm?.checked && !cardChecks.standardForm?.isCorrect && (
-                          <span style={{ fontSize: 12, color: '#b91c1c' }}>{cardChecks.standardForm.error}</span>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* Slope-Intercept Form Card */}
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <label htmlFor="slopeInterceptInput" style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>
-                    Slope-Intercept Form (y = mx + b)
-                  </label>
-                  {givenKind === 'slopeIntercept' ? (
-                    <span style={badgeStyle('#2563eb', '#fff')}>GIVEN</span>
-                  ) : cardChecks.slopeIntercept?.isCorrect ? (
-                    <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
-                  ) : null}
-                </div>
-                {givenKind === 'slopeIntercept' ? (
-                  <input
-                    id="slopeInterceptInput"
-                    readOnly
-                    value={givenDisplay}
-                    style={{ ...inputStyle, background: '#f8fafc', color: '#475569', fontWeight: 700 }}
-                  />
-                ) : (
-                  <>
-                    <input
-                      id="slopeInterceptInput"
-                      placeholder="e.g. y = 1/2x - 3"
-                      value={slopeInterceptEquation}
-                      onChange={(e) => {
-                        clearFeedback();
-                        setSlopeInterceptEquation(e.target.value);
-                      }}
-                      style={inputStyle}
-                    />
-                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
-                      Isolate y on the left side and express the right side in simplified mx + b form.
-                    </div>
-                    {feedbackTiming === 'guided' && (
-                      <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => checkCard('slopeIntercept', () => validateSlopeInterceptEntry(slopeInterceptEquation, canonicalFacts))}
-                          style={buttonStyle}
-                        >
-                          Check Slope-Intercept
-                        </button>
-                        {cardChecks.slopeIntercept?.checked && !cardChecks.slopeIntercept?.isCorrect && (
-                          <span style={{ fontSize: 12, color: '#b91c1c' }}>{cardChecks.slopeIntercept.error}</span>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* Point-Slope Form Card */}
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <label htmlFor="pointSlopeInput" style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>
-                    Point-Slope Form (y − y₁ = m(x − x₁))
-                  </label>
-                  {givenKind === 'pointSlope' ? (
-                    <span style={badgeStyle('#2563eb', '#fff')}>GIVEN</span>
-                  ) : cardChecks.pointSlope?.isCorrect ? (
-                    <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
-                  ) : null}
-                </div>
-                {givenKind === 'pointSlope' ? (
-                  <input
-                    id="pointSlopeInput"
-                    readOnly
-                    value={givenDisplay}
-                    style={{ ...inputStyle, background: '#f8fafc', color: '#475569', fontWeight: 700 }}
-                  />
-                ) : (
-                  <>
-                    <input
-                      id="pointSlopeInput"
-                      placeholder="e.g. y + 2 = 1/2(x - 2)"
-                      value={pointSlopeEquation}
-                      onChange={(e) => {
-                        clearFeedback();
-                        setPointSlopeEquation(e.target.value);
-                      }}
-                      style={inputStyle}
-                    />
-                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
-                      Choose any valid point on the line paired with the exact slope. Multiple valid equations are accepted!
-                    </div>
-                    {feedbackTiming === 'guided' && (
-                      <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => checkCard('pointSlope', () => validatePointSlopeEntry(pointSlopeEquation, canonicalFacts))}
-                          style={buttonStyle}
-                        >
-                          Check Point-Slope
-                        </button>
-                        {cardChecks.pointSlope?.checked && !cardChecks.pointSlope?.isCorrect && (
-                          <span style={{ fontSize: 12, color: '#b91c1c' }}>{cardChecks.pointSlope.error}</span>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ fontSize: 13, color: '#64748b' }}>
+                {formsDone}/{formsTotal} completed
+              </span>
+              <button
+                type="button"
+                onClick={() => toggleCard('equationForms')}
+                style={ghostButtonStyle}
+                aria-label={expandedCards.equationForms ? 'Collapse equation forms' : 'Expand equation forms'}
+              >
+                {expandedCards.equationForms ? '▾ Collapse' : '▸ Expand'}
+              </button>
             </div>
+
+            {!expandedCards.equationForms ? (
+              <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 8, fontSize: 13, color: '#475569' }}>
+                {standardFormEquation && <div>Standard: <MathDisplay value={standardFormEquation} inline /></div>}
+                {slopeInterceptEquation && <div>Slope-Int: <MathDisplay value={slopeInterceptEquation} inline /></div>}
+                {pointSlopeEquation && <div>Point-Slope: <MathDisplay value={pointSlopeEquation} inline /></div>}
+                {!standardFormEquation && !slopeInterceptEquation && !pointSlopeEquation && <em>No equations entered yet</em>}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {/* Standard Form Card */}
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <label style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>
+                      Standard Form (Ax + By = C)
+                    </label>
+                    {givenKind === 'standardForm' ? (
+                      <span style={badgeStyle('#2563eb', '#fff')}>GIVEN</span>
+                    ) : cardChecks.standardForm?.isCorrect ? (
+                      <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
+                    ) : null}
+                  </div>
+                  {givenKind === 'standardForm' ? (
+                    <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 8, fontWeight: 700 }}>
+                      <MathDisplay value={givenDisplay} inline />
+                    </div>
+                  ) : (
+                    <>
+                      <MathInput
+                        toolProfile="equation"
+                        placeholder="Ax + By = C"
+                        ariaLabel="Standard form equation"
+                        value={standardFormEquation}
+                        onChange={(val) => {
+                          clearFeedback();
+                          setStandardFormEquation(val);
+                        }}
+                        onSubmit={() => checkCard('standardForm', () => validateStandardFormEntry(standardFormEquation, canonicalFacts))}
+                      />
+                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                        Use integer coefficients with no common factors and a positive leading coefficient.
+                      </div>
+                      {feedbackTiming === 'guided' && (
+                        <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            onClick={() => checkCard('standardForm', () => validateStandardFormEntry(standardFormEquation, canonicalFacts))}
+                            style={buttonStyle}
+                          >
+                            Check Standard Form
+                          </button>
+                          {cardChecks.standardForm?.checked && !cardChecks.standardForm?.isCorrect && (
+                            <span style={{ fontSize: 12, color: '#b91c1c' }}>{cardChecks.standardForm.error}</span>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* Slope-Intercept Form Card */}
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <label style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>
+                      Slope-Intercept Form (y = mx + b)
+                    </label>
+                    {givenKind === 'slopeIntercept' ? (
+                      <span style={badgeStyle('#2563eb', '#fff')}>GIVEN</span>
+                    ) : cardChecks.slopeIntercept?.isCorrect ? (
+                      <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
+                    ) : null}
+                  </div>
+                  {givenKind === 'slopeIntercept' ? (
+                    <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 8, fontWeight: 700 }}>
+                      <MathDisplay value={givenDisplay} inline />
+                    </div>
+                  ) : (
+                    <>
+                      <MathInput
+                        toolProfile="equation"
+                        placeholder="y = mx + b"
+                        ariaLabel="Slope-intercept form equation"
+                        value={slopeInterceptEquation}
+                        onChange={(val) => {
+                          clearFeedback();
+                          setSlopeInterceptEquation(val);
+                        }}
+                        onSubmit={() => checkCard('slopeIntercept', () => validateSlopeInterceptEntry(slopeInterceptEquation, canonicalFacts))}
+                      />
+                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                        Keep exact simplified fractions for slope and y-intercept.
+                      </div>
+                      {feedbackTiming === 'guided' && (
+                        <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            onClick={() => checkCard('slopeIntercept', () => validateSlopeInterceptEntry(slopeInterceptEquation, canonicalFacts))}
+                            style={buttonStyle}
+                          >
+                            Check Slope-Intercept
+                          </button>
+                          {cardChecks.slopeIntercept?.checked && !cardChecks.slopeIntercept?.isCorrect && (
+                            <span style={{ fontSize: 12, color: '#b91c1c' }}>{cardChecks.slopeIntercept.error}</span>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* Point-Slope Form Card */}
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <label style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>
+                      Point-Slope Form: y − y₁ = m(x − x₁)
+                    </label>
+                    {givenKind === 'pointSlope' ? (
+                      <span style={badgeStyle('#2563eb', '#fff')}>GIVEN</span>
+                    ) : cardChecks.pointSlope?.isCorrect ? (
+                      <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
+                    ) : null}
+                  </div>
+                  {givenKind === 'pointSlope' ? (
+                    <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 8, fontWeight: 700 }}>
+                      <MathDisplay value={givenDisplay} inline />
+                    </div>
+                  ) : (
+                    <>
+                      <MathInput
+                        toolProfile="equation"
+                        placeholder="y - y1 = m(x - x1)"
+                        ariaLabel="Point-slope form equation"
+                        value={pointSlopeEquation}
+                        onChange={(val) => {
+                          clearFeedback();
+                          setPointSlopeEquation(val);
+                        }}
+                        onSubmit={() => checkCard('pointSlope', () => validatePointSlopeEntry(pointSlopeEquation, canonicalFacts))}
+                      />
+                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                        Any valid point on this line may be used as your anchor point (x₁, y₁).
+                      </div>
+                      {feedbackTiming === 'guided' && (
+                        <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            onClick={() => checkCard('pointSlope', () => validatePointSlopeEntry(pointSlopeEquation, canonicalFacts))}
+                            style={buttonStyle}
+                          >
+                            Check Point-Slope
+                          </button>
+                          {cardChecks.pointSlope?.checked && !cardChecks.pointSlope?.isCorrect && (
+                            <span style={{ fontSize: 12, color: '#b91c1c' }}>{cardChecks.pointSlope.error}</span>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
           </Panel>
 
           {/* CATEGORY 2: KEY FEATURES */}
           <Panel title="Key Features">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {/* Slope */}
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <label htmlFor="featureSlopeInput" style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>
-                    Slope (m)
-                  </label>
-                  {cardChecks.featureSlope?.isCorrect && (
-                    <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
-                  )}
-                </div>
-                <input
-                  id="featureSlopeInput"
-                  placeholder="e.g. 1/2 or 0.5"
-                  value={featureSlope}
-                  onChange={(e) => {
-                    clearFeedback();
-                    setFeatureSlope(e.target.value);
-                  }}
-                  style={inputStyle}
-                />
-                {feedbackTiming === 'guided' && (
-                  <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <button
-                      type="button"
-                      onClick={() => checkCard('featureSlope', () => validateSlopeEntry(featureSlope, canonicalFacts))}
-                      style={buttonStyle}
-                    >
-                      Check Slope
-                    </button>
-                    {cardChecks.featureSlope?.checked && !cardChecks.featureSlope?.isCorrect && (
-                      <span style={{ fontSize: 12, color: '#b91c1c' }}>{cardChecks.featureSlope.error}</span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* x-intercept */}
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <label htmlFor="featureXInterceptInput" style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>
-                    x-Intercept (as ordered pair)
-                  </label>
-                  {cardChecks.featureXIntercept?.isCorrect && (
-                    <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
-                  )}
-                </div>
-                <input
-                  id="featureXInterceptInput"
-                  placeholder="e.g. (6, 0)"
-                  value={featureXIntercept}
-                  onChange={(e) => {
-                    clearFeedback();
-                    setFeatureXIntercept(e.target.value);
-                  }}
-                  style={inputStyle}
-                />
-                {feedbackTiming === 'guided' && (
-                  <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <button
-                      type="button"
-                      onClick={() => checkCard('featureXIntercept', () => validateXInterceptEntry(featureXIntercept, canonicalFacts))}
-                      style={buttonStyle}
-                    >
-                      Check x-Intercept
-                    </button>
-                    {cardChecks.featureXIntercept?.checked && !cardChecks.featureXIntercept?.isCorrect && (
-                      <span style={{ fontSize: 12, color: '#b91c1c' }}>{cardChecks.featureXIntercept.error}</span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* y-intercept */}
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <label htmlFor="featureYInterceptInput" style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>
-                    y-Intercept (as ordered pair)
-                  </label>
-                  {cardChecks.featureYIntercept?.isCorrect && (
-                    <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
-                  )}
-                </div>
-                <input
-                  id="featureYInterceptInput"
-                  placeholder="e.g. (0, -3)"
-                  value={featureYIntercept}
-                  onChange={(e) => {
-                    clearFeedback();
-                    setFeatureYIntercept(e.target.value);
-                  }}
-                  style={inputStyle}
-                />
-                {feedbackTiming === 'guided' && (
-                  <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <button
-                      type="button"
-                      onClick={() => checkCard('featureYIntercept', () => validateYInterceptEntry(featureYIntercept, canonicalFacts))}
-                      style={buttonStyle}
-                    >
-                      Check y-Intercept
-                    </button>
-                    {cardChecks.featureYIntercept?.checked && !cardChecks.featureYIntercept?.isCorrect && (
-                      <span style={{ fontSize: 12, color: '#b91c1c' }}>{cardChecks.featureYIntercept.error}</span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Two points */}
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>
-                    Two Points on the Line
-                  </span>
-                  {cardChecks.featureTwoPoints?.isCorrect && (
-                    <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
-                  )}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  <input
-                    placeholder="Point 1: (x, y)"
-                    value={featurePoint1}
-                    onChange={(e) => {
-                      clearFeedback();
-                      setFeaturePoint1(e.target.value);
-                    }}
-                    style={inputStyle}
-                  />
-                  <input
-                    placeholder="Point 2: (x, y)"
-                    value={featurePoint2}
-                    onChange={(e) => {
-                      clearFeedback();
-                      setFeaturePoint2(e.target.value);
-                    }}
-                    style={inputStyle}
-                  />
-                </div>
-                {feedbackTiming === 'guided' && (
-                  <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <button
-                      type="button"
-                      onClick={() => checkCard('featureTwoPoints', () => validateTwoPointsEntry(featurePoint1, featurePoint2, canonicalFacts))}
-                      style={buttonStyle}
-                    >
-                      Check Two Points
-                    </button>
-                    {cardChecks.featureTwoPoints?.checked && !cardChecks.featureTwoPoints?.isCorrect && (
-                      <span style={{ fontSize: 12, color: '#b91c1c' }}>{cardChecks.featureTwoPoints.error}</span>
-                    )}
-                  </div>
-                )}
-              </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ fontSize: 13, color: '#64748b' }}>
+                {featuresDone}/{featuresTotal} completed
+              </span>
+              <button
+                type="button"
+                onClick={() => toggleCard('features')}
+                style={ghostButtonStyle}
+                aria-label={expandedCards.features ? 'Collapse features' : 'Expand features'}
+              >
+                {expandedCards.features ? '▾ Collapse' : '▸ Expand'}
+              </button>
             </div>
+
+            {!expandedCards.features ? (
+              <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 8, fontSize: 13, color: '#475569' }}>
+                <div>m: {featureSlope || '—'} · x-int: {featureXIntercept || '—'} · y-int: {featureYIntercept || '—'}</div>
+                {(featurePoint1 || featurePoint2) && <div>Points: {featurePoint1 || '—'} and {featurePoint2 || '—'}</div>}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {/* Slope */}
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <label style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>Slope (m)</label>
+                    {cardChecks.slope?.isCorrect && (
+                      <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
+                    )}
+                  </div>
+                  <MathInput
+                    toolProfile="number"
+                    placeholder="e.g. 1/2 or -3"
+                    ariaLabel="Slope value"
+                    value={featureSlope}
+                    onChange={(val) => {
+                      clearFeedback();
+                      setFeatureSlope(val);
+                    }}
+                    onSubmit={() => checkCard('slope', () => validateSlopeEntry(featureSlope, canonicalFacts))}
+                  />
+                  {feedbackTiming === 'guided' && (
+                    <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => checkCard('slope', () => validateSlopeEntry(featureSlope, canonicalFacts))}
+                        style={buttonStyle}
+                      >
+                        Check Slope
+                      </button>
+                      {cardChecks.slope?.checked && !cardChecks.slope?.isCorrect && (
+                        <span style={{ fontSize: 12, color: '#b91c1c' }}>{cardChecks.slope.error}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* x-intercept */}
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <label style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>x-Intercept</label>
+                    {cardChecks.xIntercept?.isCorrect && (
+                      <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
+                    )}
+                  </div>
+                  <MathInput
+                    toolProfile="orderedPair"
+                    placeholder="(x, 0)"
+                    ariaLabel="x-intercept ordered pair"
+                    value={featureXIntercept}
+                    onChange={(val) => {
+                      clearFeedback();
+                      setFeatureXIntercept(val);
+                    }}
+                    onSubmit={() => checkCard('xIntercept', () => validateXInterceptEntry(featureXIntercept, canonicalFacts))}
+                  />
+                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                    Enter as an ordered pair: (x, 0).
+                  </div>
+                  {feedbackTiming === 'guided' && (
+                    <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => checkCard('xIntercept', () => validateXInterceptEntry(featureXIntercept, canonicalFacts))}
+                        style={buttonStyle}
+                      >
+                        Check x-Intercept
+                      </button>
+                      {cardChecks.xIntercept?.checked && !cardChecks.xIntercept?.isCorrect && (
+                        <span style={{ fontSize: 12, color: '#b91c1c' }}>{cardChecks.xIntercept.error}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* y-intercept */}
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <label style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>y-Intercept</label>
+                    {cardChecks.yIntercept?.isCorrect && (
+                      <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
+                    )}
+                  </div>
+                  <MathInput
+                    toolProfile="orderedPair"
+                    placeholder="(0, y)"
+                    ariaLabel="y-intercept ordered pair"
+                    value={featureYIntercept}
+                    onChange={(val) => {
+                      clearFeedback();
+                      setFeatureYIntercept(val);
+                    }}
+                    onSubmit={() => checkCard('yIntercept', () => validateYInterceptEntry(featureYIntercept, canonicalFacts))}
+                  />
+                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                    Enter as an ordered pair: (0, y).
+                  </div>
+                  {feedbackTiming === 'guided' && (
+                    <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => checkCard('yIntercept', () => validateYInterceptEntry(featureYIntercept, canonicalFacts))}
+                        style={buttonStyle}
+                      >
+                        Check y-Intercept
+                      </button>
+                      {cardChecks.yIntercept?.checked && !cardChecks.yIntercept?.isCorrect && (
+                        <span style={{ fontSize: 12, color: '#b91c1c' }}>{cardChecks.yIntercept.error}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Two Distinct Points on Line */}
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <label style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>Two Distinct Points</label>
+                    {cardChecks.twoPoints?.isCorrect && (
+                      <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
+                    )}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <MathInput
+                      toolProfile="orderedPair"
+                      placeholder="Point 1 (x, y)"
+                      ariaLabel="First distinct point"
+                      value={featurePoint1}
+                      onChange={(val) => {
+                        clearFeedback();
+                        setFeaturePoint1(val);
+                      }}
+                      onSubmit={() => checkCard('twoPoints', () => validateTwoPointsEntry(featurePoint1, featurePoint2, canonicalFacts))}
+                    />
+                    <MathInput
+                      toolProfile="orderedPair"
+                      placeholder="Point 2 (x, y)"
+                      ariaLabel="Second distinct point"
+                      value={featurePoint2}
+                      onChange={(val) => {
+                        clearFeedback();
+                        setFeaturePoint2(val);
+                      }}
+                      onSubmit={() => checkCard('twoPoints', () => validateTwoPointsEntry(featurePoint1, featurePoint2, canonicalFacts))}
+                    />
+                  </div>
+                  {feedbackTiming === 'guided' && (
+                    <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => checkCard('twoPoints', () => validateTwoPointsEntry(featurePoint1, featurePoint2, canonicalFacts))}
+                        style={buttonStyle}
+                      >
+                        Check Points
+                      </button>
+                      {cardChecks.twoPoints?.checked && !cardChecks.twoPoints?.isCorrect && (
+                        <span style={{ fontSize: 12, color: '#b91c1c' }}>{cardChecks.twoPoints.error}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </Panel>
 
-          {/* CATEGORY 3: TABLE OF VALUES */}
-          <Panel title="Table of Values">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 14, color: '#475569' }}>
-                  {givenKind === 'table' ? 'Starting given table' : 'Enter at least 4 ordered pairs that satisfy the line.'}
+          {/* CATEGORY 3: NUMERICAL TABLE */}
+          {tableTotal > 0 && (
+            <Panel title="Table of Values">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontSize: 13, color: '#64748b' }}>
+                  {tableDone ? '✓ Completed' : '4 rows required'}
                 </span>
-                {givenKind === 'table' ? (
-                  <span style={badgeStyle('#2563eb', '#fff')}>GIVEN</span>
-                ) : cardChecks.table?.isCorrect ? (
-                  <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
-                ) : null}
+                <button
+                  type="button"
+                  onClick={() => toggleCard('table')}
+                  style={ghostButtonStyle}
+                  aria-label={expandedCards.table ? 'Collapse table' : 'Expand table'}
+                >
+                  {expandedCards.table ? '▾ Collapse' : '▸ Expand'}
+                </button>
               </div>
 
-              {givenKind === 'table' ? (
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', border: '1px solid #cbd5e1' }}>
-                  <thead>
-                    <tr style={{ background: '#f1f5f9' }}>
-                      <th style={{ padding: 8, border: '1px solid #cbd5e1' }}>x</th>
-                      <th style={{ padding: 8, border: '1px solid #cbd5e1' }}>y</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(questionData.source?.rows || []).map((row, idx) => (
-                      <tr key={idx}>
-                        <td style={{ padding: 8, border: '1px solid #cbd5e1', fontWeight: 700 }}>{row.x}</td>
-                        <td style={{ padding: 8, border: '1px solid #cbd5e1', fontWeight: 700 }}>{row.y}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              {!expandedCards.table ? (
+                <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 8, fontSize: 13, color: '#475569' }}>
+                  {tableRows.filter(r => r.x && r.y).length} / 4 rows filled
+                </div>
               ) : (
-                <>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', border: '1px solid #cbd5e1' }}>
+                <div>
+                  <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>
+                    Enter at least 4 distinct (x, y) pairs satisfying the relationship.
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 10 }}>
                     <thead>
-                      <tr style={{ background: '#f1f5f9' }}>
-                        <th style={{ padding: 8, border: '1px solid #cbd5e1' }}>x</th>
-                        <th style={{ padding: 8, border: '1px solid #cbd5e1' }}>y</th>
-                        <th style={{ padding: 8, border: '1px solid #cbd5e1', width: 40 }} />
+                      <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #cbd5e1' }}>
+                        <th style={{ padding: '8px', textAlign: 'center', fontSize: 14 }}>x</th>
+                        <th style={{ padding: '8px', textAlign: 'center', fontSize: 14 }}>y</th>
+                        <th style={{ width: 44 }} />
                       </tr>
                     </thead>
                     <tbody>
                       {tableRows.map((row, idx) => (
-                        <tr key={idx}>
-                          <td style={{ padding: 6, border: '1px solid #cbd5e1' }}>
+                        <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <td style={{ padding: '6px' }}>
                             <input
-                              placeholder="x"
+                              type="text"
+                              inputMode="decimal"
                               value={row.x}
                               onChange={(e) => handleTableCellChange(idx, 'x', e.target.value)}
-                              style={{ ...inputStyle, textAlign: 'center', minHeight: 36 }}
+                              placeholder={`x${idx + 1}`}
+                              style={{ ...inputStyle, textAlign: 'center' }}
+                              aria-label={`Row ${idx + 1} x`}
                             />
                           </td>
-                          <td style={{ padding: 6, border: '1px solid #cbd5e1' }}>
+                          <td style={{ padding: '6px' }}>
                             <input
-                              placeholder="y"
+                              type="text"
+                              inputMode="decimal"
                               value={row.y}
                               onChange={(e) => handleTableCellChange(idx, 'y', e.target.value)}
-                              style={{ ...inputStyle, textAlign: 'center', minHeight: 36 }}
+                              placeholder={`y${idx + 1}`}
+                              style={{ ...inputStyle, textAlign: 'center' }}
+                              aria-label={`Row ${idx + 1} y`}
                             />
                           </td>
-                          <td style={{ padding: 6, border: '1px solid #cbd5e1' }}>
+                          <td style={{ padding: '6px', textAlign: 'center' }}>
                             {tableRows.length > 2 && (
                               <button
                                 type="button"
                                 onClick={() => removeTableRow(idx)}
-                                style={{ ...buttonStyle, minHeight: 36, padding: '4px 8px', color: '#b91c1c' }}
+                                style={{ ...buttonStyle, minHeight: 32, padding: '4px 8px', fontSize: 12, color: '#b91c1c' }}
                                 aria-label={`Remove row ${idx + 1}`}
                               >
                                 ✕
@@ -769,12 +1000,8 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                       ))}
                     </tbody>
                   </table>
-                  <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center' }}>
-                    <button
-                      type="button"
-                      onClick={addTableRow}
-                      style={{ ...buttonStyle, fontSize: 13 }}
-                    >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <button type="button" onClick={addTableRow} style={buttonStyle}>
                       + Add Row
                     </button>
                     {feedbackTiming === 'guided' && (
@@ -788,99 +1015,129 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                     )}
                   </div>
                   {cardChecks.table?.checked && !cardChecks.table?.isCorrect && (
-                    <div style={{ fontSize: 12, color: '#b91c1c' }}>{cardChecks.table.error}</div>
+                    <div style={{ fontSize: 12, color: '#b91c1c', marginTop: 8 }}>
+                      {cardChecks.table.error}
+                    </div>
                   )}
-                </>
+                </div>
               )}
-            </div>
-          </Panel>
+            </Panel>
+          )}
 
-          {/* CATEGORY 4: THREE INDEPENDENT GRAPHS */}
-          <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <Panel title="Three Separate Graph Constructions of the Same Line">
-              <div style={{ fontSize: 14, color: '#475569', marginBottom: 14 }}>
-                Construct the same mathematical relationship using three distinct methods. Each graph maintains its own independent workspace.
+          {/* CATEGORY 4: GRAPHING (Three Distinct Graphing Methods) */}
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Panel title="Three Separate Graphing Methods">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <span style={{ fontSize: 14, color: '#475569' }}>
+                  Construct the line using three distinct graphing methods.
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#1e40af' }}>
+                  {graphsDone}/3 graphs complete
+                </span>
               </div>
 
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))',
-                  gap: 16,
-                }}
-              >
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
                 {/* GRAPH 1 — INTERCEPTS */}
                 <div style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: 12, background: '#fff' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <strong style={{ fontSize: 15, color: '#1e293b' }}>Graph 1: Intercepts Method</strong>
-                    {liveResult.parts.graph1 && (
-                      <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
-                    )}
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      {liveResult.parts.graph1 && (
+                        <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setEnlargedGraph('graph1')}
+                        style={ghostButtonStyle}
+                        aria-label="Enlarge Graph 1"
+                      >
+                        ⤢ Enlarge
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleCard('graph1')}
+                        style={ghostButtonStyle}
+                        aria-label={expandedCards.graph1 ? 'Collapse Graph 1' : 'Expand Graph 1'}
+                      >
+                        {expandedCards.graph1 ? '▾' : '▸'}
+                      </button>
+                    </div>
                   </div>
                   <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>
-                    Plot the line’s x-intercept and y-intercept to construct the line.
+                    Plot both the x-intercept and y-intercept on the axes as your evidence.
                   </div>
-                  <div style={{ width: '100%', maxWidth: 360, margin: '0 auto' }}>
-                    <CoordinatePlane
-                      xMin={graphBounds.xMin}
-                      xMax={graphBounds.xMax}
-                      yMin={graphBounds.yMin}
-                      yMax={graphBounds.yMax}
-                      snapStep={1}
-                      plottedPoints={graph1Points}
-                      lines={graph1Line ? [graph1Line] : []}
-                      onPlot={(pt) => {
-                        clearFeedback();
-                        setGraph1Points((prev) => (prev.length >= 2 ? [pt] : [...prev, pt]));
-                      }}
-                      onMovePoint={(idx, pt) => {
-                        clearFeedback();
-                        setGraph1Points((prev) => prev.map((p, i) => (i === idx ? pt : p)));
-                      }}
-                    />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>
-                      {graph1Points.length} / 2 points plotted
-                    </span>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          clearFeedback();
-                          setGraph1Points((prev) => prev.slice(0, -1));
-                        }}
-                        disabled={graph1Points.length === 0}
-                        style={{ ...buttonStyle, minHeight: 36, padding: '4px 8px', fontSize: 12 }}
-                      >
-                        Undo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          clearFeedback();
-                          setGraph1Points([]);
-                        }}
-                        disabled={graph1Points.length === 0}
-                        style={{ ...buttonStyle, minHeight: 36, padding: '4px 8px', fontSize: 12 }}
-                      >
-                        Clear
-                      </button>
-                      {feedbackTiming === 'guided' && (
-                        <button
-                          type="button"
-                          onClick={() => checkCard('graph1', () => evaluateGraph1Intercepts(graph1Points, canonicalFacts))}
-                          style={{ ...buttonStyle, minHeight: 36, padding: '4px 8px', fontSize: 12 }}
-                        >
-                          Check
-                        </button>
+
+                  {!expandedCards.graph1 ? (
+                    <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 8, fontSize: 13, color: '#475569' }}>
+                      {graph1Points.length} / 2 points plotted {graph1Points.length > 0 && `(${graph1Points.map(p => `(${p[0]}, ${p[1]})`).join(', ')})`}
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ width: '100%', maxWidth: 360, margin: '0 auto' }}>
+                        <CoordinatePlane
+                          xMin={graphBounds.xMin}
+                          xMax={graphBounds.xMax}
+                          yMin={graphBounds.yMin}
+                          yMax={graphBounds.yMax}
+                          snapStep={graphSnapStep}
+                          points={graph1Points}
+                          lines={graph1Line ? [graph1Line] : []}
+                          onPlot={(pt) => {
+                            clearFeedback();
+                            setGraph1Points((prev) => (prev.length >= 2 ? [pt] : [...prev, pt]));
+                          }}
+                          onMovePoint={(idx, pt) => {
+                            clearFeedback();
+                            setGraph1Points((prev) => prev.map((p, i) => (i === idx ? pt : p)));
+                          }}
+                          enlargeable={false}
+                          ariaLabel="Coordinate plane for Graph 1: Intercepts"
+                        />
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, flexWrap: 'wrap', gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>
+                          {graph1Points.length} / 2 points plotted
+                        </span>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              clearFeedback();
+                              setGraph1Points((prev) => prev.slice(0, -1));
+                            }}
+                            disabled={graph1Points.length === 0}
+                            style={{ ...buttonStyle, minHeight: 36, padding: '4px 8px', fontSize: 12 }}
+                          >
+                            Undo
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              clearFeedback();
+                              setGraph1Points([]);
+                            }}
+                            disabled={graph1Points.length === 0}
+                            style={{ ...buttonStyle, minHeight: 36, padding: '4px 8px', fontSize: 12 }}
+                          >
+                            Clear
+                          </button>
+                          {feedbackTiming === 'guided' && (
+                            <button
+                              type="button"
+                              onClick={() => checkCard('graph1', () => evaluateGraph1Intercepts(graph1Points, canonicalFacts))}
+                              style={{ ...buttonStyle, minHeight: 36, padding: '4px 8px', fontSize: 12 }}
+                            >
+                              Check
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {cardChecks.graph1?.checked && !cardChecks.graph1?.isCorrect && (
+                        <div style={{ fontSize: 12, color: '#b91c1c', marginTop: 6 }}>
+                          Plot both the actual x-intercept and y-intercept for this line.
+                        </div>
                       )}
-                    </div>
-                  </div>
-                  {cardChecks.graph1?.checked && !cardChecks.graph1?.isCorrect && (
-                    <div style={{ fontSize: 12, color: '#b91c1c', marginTop: 6 }}>
-                      Plot both the actual x-intercept and y-intercept for this line.
-                    </div>
+                    </>
                   )}
                 </div>
 
@@ -888,74 +1145,103 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                 <div style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: 12, background: '#fff' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <strong style={{ fontSize: 15, color: '#1e293b' }}>Graph 2: Slope-Intercept Method</strong>
-                    {liveResult.parts.graph2 && (
-                      <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
-                    )}
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      {liveResult.parts.graph2 && (
+                        <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setEnlargedGraph('graph2')}
+                        style={ghostButtonStyle}
+                        aria-label="Enlarge Graph 2"
+                      >
+                        ⤢ Enlarge
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleCard('graph2')}
+                        style={ghostButtonStyle}
+                        aria-label={expandedCards.graph2 ? 'Collapse Graph 2' : 'Expand Graph 2'}
+                      >
+                        {expandedCards.graph2 ? '▾' : '▸'}
+                      </button>
+                    </div>
                   </div>
                   <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>
                     Plot the y-intercept, then use the slope (rise/run) to locate a second point.
                   </div>
-                  <div style={{ width: '100%', maxWidth: 360, margin: '0 auto' }}>
-                    <CoordinatePlane
-                      xMin={graphBounds.xMin}
-                      xMax={graphBounds.xMax}
-                      yMin={graphBounds.yMin}
-                      yMax={graphBounds.yMax}
-                      snapStep={1}
-                      plottedPoints={graph2Points}
-                      lines={graph2Line ? [graph2Line] : []}
-                      onPlot={(pt) => {
-                        clearFeedback();
-                        setGraph2Points((prev) => (prev.length >= 2 ? [pt] : [...prev, pt]));
-                      }}
-                      onMovePoint={(idx, pt) => {
-                        clearFeedback();
-                        setGraph2Points((prev) => prev.map((p, i) => (i === idx ? pt : p)));
-                      }}
-                    />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>
-                      {graph2Points.length} / 2 points plotted
-                    </span>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          clearFeedback();
-                          setGraph2Points((prev) => prev.slice(0, -1));
-                        }}
-                        disabled={graph2Points.length === 0}
-                        style={{ ...buttonStyle, minHeight: 36, padding: '4px 8px', fontSize: 12 }}
-                      >
-                        Undo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          clearFeedback();
-                          setGraph2Points([]);
-                        }}
-                        disabled={graph2Points.length === 0}
-                        style={{ ...buttonStyle, minHeight: 36, padding: '4px 8px', fontSize: 12 }}
-                      >
-                        Clear
-                      </button>
-                      {feedbackTiming === 'guided' && (
-                        <button
-                          type="button"
-                          onClick={() => checkCard('graph2', () => evaluateGraph2SlopeIntercept(graph2Points, canonicalFacts))}
-                          style={{ ...buttonStyle, minHeight: 36, padding: '4px 8px', fontSize: 12 }}
-                        >
-                          Check
-                        </button>
+
+                  {!expandedCards.graph2 ? (
+                    <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 8, fontSize: 13, color: '#475569' }}>
+                      {graph2Points.length} / 2 points plotted {graph2Points.length > 0 && `(${graph2Points.map(p => `(${p[0]}, ${p[1]})`).join(', ')})`}
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ width: '100%', maxWidth: 360, margin: '0 auto' }}>
+                        <CoordinatePlane
+                          xMin={graphBounds.xMin}
+                          xMax={graphBounds.xMax}
+                          yMin={graphBounds.yMin}
+                          yMax={graphBounds.yMax}
+                          snapStep={graphSnapStep}
+                          points={graph2Points}
+                          lines={graph2Line ? [graph2Line] : []}
+                          onPlot={(pt) => {
+                            clearFeedback();
+                            setGraph2Points((prev) => (prev.length >= 2 ? [pt] : [...prev, pt]));
+                          }}
+                          onMovePoint={(idx, pt) => {
+                            clearFeedback();
+                            setGraph2Points((prev) => prev.map((p, i) => (i === idx ? pt : p)));
+                          }}
+                          enlargeable={false}
+                          ariaLabel="Coordinate plane for Graph 2: Slope-Intercept"
+                        />
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, flexWrap: 'wrap', gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>
+                          {graph2Points.length} / 2 points plotted
+                        </span>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              clearFeedback();
+                              setGraph2Points((prev) => prev.slice(0, -1));
+                            }}
+                            disabled={graph2Points.length === 0}
+                            style={{ ...buttonStyle, minHeight: 36, padding: '4px 8px', fontSize: 12 }}
+                          >
+                            Undo
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              clearFeedback();
+                              setGraph2Points([]);
+                            }}
+                            disabled={graph2Points.length === 0}
+                            style={{ ...buttonStyle, minHeight: 36, padding: '4px 8px', fontSize: 12 }}
+                          >
+                            Clear
+                          </button>
+                          {feedbackTiming === 'guided' && (
+                            <button
+                              type="button"
+                              onClick={() => checkCard('graph2', () => evaluateGraph2SlopeIntercept(graph2Points, canonicalFacts))}
+                              style={{ ...buttonStyle, minHeight: 36, padding: '4px 8px', fontSize: 12 }}
+                            >
+                              Check
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {cardChecks.graph2?.checked && !cardChecks.graph2?.isCorrect && (
+                        <div style={{ fontSize: 12, color: '#b91c1c', marginTop: 6 }}>
+                          Start at the y-intercept (0, b), then use rise over run for your second point.
+                        </div>
                       )}
-                    </div>
-                  </div>
-                  {cardChecks.graph2?.checked && !cardChecks.graph2?.isCorrect && (
-                    <div style={{ fontSize: 12, color: '#b91c1c', marginTop: 6 }}>
-                      Start at the y-intercept (0, b), then use rise over run for your second point.
-                    </div>
+                    </>
                   )}
                 </div>
 
@@ -963,77 +1249,103 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                 <div style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: 12, background: '#fff' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <strong style={{ fontSize: 15, color: '#1e293b' }}>Graph 3: Point-Slope Method</strong>
-                    {liveResult.parts.graph3 && (
-                      <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
-                    )}
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      {liveResult.parts.graph3 && (
+                        <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setEnlargedGraph('graph3')}
+                        style={ghostButtonStyle}
+                        aria-label="Enlarge Graph 3"
+                      >
+                        ⤢ Enlarge
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleCard('graph3')}
+                        style={ghostButtonStyle}
+                        aria-label={expandedCards.graph3 ? 'Collapse Graph 3' : 'Expand Graph 3'}
+                      >
+                        {expandedCards.graph3 ? '▾' : '▸'}
+                      </button>
+                    </div>
                   </div>
                   <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>
                     Plot your chosen point from point-slope form, then use slope to locate a second point.
                   </div>
-                  <div style={{ width: '100%', maxWidth: 360, margin: '0 auto' }}>
-                    <CoordinatePlane
-                      xMin={graphBounds.xMin}
-                      xMax={graphBounds.xMax}
-                      yMin={graphBounds.yMin}
-                      yMax={graphBounds.yMax}
-                      snapStep={1}
-                      plottedPoints={graph3Points}
-                      lines={graph3Line ? [graph3Line] : []}
-                      onPlot={(pt) => {
-                        clearFeedback();
-                        setGraph3Points((prev) => (prev.length >= 2 ? [pt] : [...prev, pt]));
-                      }}
-                      onMovePoint={(idx, pt) => {
-                        clearFeedback();
-                        setGraph3Points((prev) => prev.map((p, i) => (i === idx ? pt : p)));
-                      }}
-                    />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>
-                      {graph3Points.length} / 2 points plotted
-                    </span>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          clearFeedback();
-                          setGraph3Points((prev) => prev.slice(0, -1));
-                        }}
-                        disabled={graph3Points.length === 0}
-                        style={{ ...buttonStyle, minHeight: 36, padding: '4px 8px', fontSize: 12 }}
-                      >
-                        Undo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          clearFeedback();
-                          setGraph3Points([]);
-                        }}
-                        disabled={graph3Points.length === 0}
-                        style={{ ...buttonStyle, minHeight: 36, padding: '4px 8px', fontSize: 12 }}
-                      >
-                        Clear
-                      </button>
-                      {feedbackTiming === 'guided' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const psPoint = parsePointSlopeForm(pointSlopeEquation)?.point;
-                            checkCard('graph3', () => evaluateGraph3PointSlope(graph3Points, canonicalFacts, psPoint));
+
+                  {!expandedCards.graph3 ? (
+                    <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 8, fontSize: 13, color: '#475569' }}>
+                      {graph3Points.length} / 2 points plotted {graph3Points.length > 0 && `(${graph3Points.map(p => `(${p[0]}, ${p[1]})`).join(', ')})`}
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ width: '100%', maxWidth: 360, margin: '0 auto' }}>
+                        <CoordinatePlane
+                          xMin={graphBounds.xMin}
+                          xMax={graphBounds.xMax}
+                          yMin={graphBounds.yMin}
+                          yMax={graphBounds.yMax}
+                          snapStep={graphSnapStep}
+                          points={graph3Points}
+                          lines={graph3Line ? [graph3Line] : []}
+                          onPlot={(pt) => {
+                            clearFeedback();
+                            setGraph3Points((prev) => (prev.length >= 2 ? [pt] : [...prev, pt]));
                           }}
-                          style={{ ...buttonStyle, minHeight: 36, padding: '4px 8px', fontSize: 12 }}
-                        >
-                          Check
-                        </button>
+                          onMovePoint={(idx, pt) => {
+                            clearFeedback();
+                            setGraph3Points((prev) => prev.map((p, i) => (i === idx ? pt : p)));
+                          }}
+                          enlargeable={false}
+                          ariaLabel="Coordinate plane for Graph 3: Point-Slope"
+                        />
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, flexWrap: 'wrap', gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>
+                          {graph3Points.length} / 2 points plotted
+                        </span>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              clearFeedback();
+                              setGraph3Points((prev) => prev.slice(0, -1));
+                            }}
+                            disabled={graph3Points.length === 0}
+                            style={{ ...buttonStyle, minHeight: 36, padding: '4px 8px', fontSize: 12 }}
+                          >
+                            Undo
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              clearFeedback();
+                              setGraph3Points([]);
+                            }}
+                            disabled={graph3Points.length === 0}
+                            style={{ ...buttonStyle, minHeight: 36, padding: '4px 8px', fontSize: 12 }}
+                          >
+                            Clear
+                          </button>
+                          {feedbackTiming === 'guided' && (
+                            <button
+                              type="button"
+                              onClick={checkGraph3}
+                              style={{ ...buttonStyle, minHeight: 36, padding: '4px 8px', fontSize: 12 }}
+                            >
+                              Check
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {cardChecks.graph3?.checked && !cardChecks.graph3?.isCorrect && (
+                        <div style={{ fontSize: 12, color: '#b91c1c', marginTop: 6 }}>
+                          Plot your point from point-slope form, then step with the slope to your second point.
+                        </div>
                       )}
-                    </div>
-                  </div>
-                  {cardChecks.graph3?.checked && !cardChecks.graph3?.isCorrect && (
-                    <div style={{ fontSize: 12, color: '#b91c1c', marginTop: 6 }}>
-                      Plot your point from point-slope form, then step with the slope to your second point.
-                    </div>
+                    </>
                   )}
                 </div>
               </div>
@@ -1056,7 +1368,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                     </strong>
                   </div>
                   <div style={{ fontSize: 14, color: '#334155', marginBottom: 12 }}>
-                    Compare your constructions below. Whether you started with intercepts, slope-intercept, or point-slope, every method lands on the exact same linear relationship: <strong>{canonicalFacts.slopeInterceptEquation}</strong>.
+                    Compare your constructions below. Whether you started with intercepts, slope-intercept, or point-slope, every method lands on the exact same linear relationship: <strong><MathDisplay value={canonicalFacts.slopeInterceptEquation} inline /></strong>.
                   </div>
                   <div style={{ width: '100%', maxWidth: 420, margin: '0 auto' }}>
                     <CoordinatePlane
@@ -1064,17 +1376,19 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                       xMax={graphBounds.xMax}
                       yMin={graphBounds.yMin}
                       yMax={graphBounds.yMax}
-                      snapStep={1}
-                      plottedPoints={[
+                      snapStep={graphSnapStep}
+                      points={[
                         ...(graph1Points || []),
                         ...(graph2Points || []),
                         ...(graph3Points || []),
                       ]}
                       lines={graph1Line ? [graph1Line] : []}
+                      enlargeable={false}
+                      ariaLabel="Combined overlay of all three graph methods"
                     />
                   </div>
                   <div style={{ fontSize: 13, color: '#64748b', marginTop: 8, textAlign: 'center' }}>
-                    Green overlay: Intercepts · Slope-Intercept · Point-Slope points unified on the line.
+                    Unified overlay: Intercepts · Slope-Intercept · Point-Slope points together on the line.
                   </div>
                 </div>
               )}
@@ -1085,85 +1399,256 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
           {hasContext && (
             <div style={{ gridColumn: '1 / -1' }}>
               <Panel title="Real-World Context & Meanings">
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
-                    <label htmlFor="contextIndependentInput" style={{ fontWeight: 800, fontSize: 14, color: '#1e293b', display: 'block', marginBottom: 6 }}>
-                      Independent Quantity (x)
-                    </label>
-                    <input
-                      id="contextIndependentInput"
-                      placeholder="e.g. time in hours"
-                      value={contextIndependent}
-                      onChange={(e) => {
-                        clearFeedback();
-                        setContextIndependent(e.target.value);
-                      }}
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
-                    <label htmlFor="contextDependentInput" style={{ fontWeight: 800, fontSize: 14, color: '#1e293b', display: 'block', marginBottom: 6 }}>
-                      Dependent Quantity (y)
-                    </label>
-                    <input
-                      id="contextDependentInput"
-                      placeholder="e.g. candle height in inches"
-                      value={contextDependent}
-                      onChange={(e) => {
-                        clearFeedback();
-                        setContextDependent(e.target.value);
-                      }}
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
-                    <label htmlFor="contextSlopeMeaningInput" style={{ fontWeight: 800, fontSize: 14, color: '#1e293b', display: 'block', marginBottom: 6 }}>
-                      Meaning of Slope
-                    </label>
-                    <input
-                      id="contextSlopeMeaningInput"
-                      placeholder="e.g. burns down 2 inches per hour"
-                      value={contextSlopeMeaning}
-                      onChange={(e) => {
-                        clearFeedback();
-                        setContextSlopeMeaning(e.target.value);
-                      }}
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
-                    <label htmlFor="contextYInterceptMeaningInput" style={{ fontWeight: 800, fontSize: 14, color: '#1e293b', display: 'block', marginBottom: 6 }}>
-                      Meaning of y-Intercept
-                    </label>
-                    <input
-                      id="contextYInterceptMeaningInput"
-                      placeholder="e.g. initial height of 18 inches"
-                      value={contextYInterceptMeaning}
-                      onChange={(e) => {
-                        clearFeedback();
-                        setContextYInterceptMeaning(e.target.value);
-                      }}
-                      style={inputStyle}
-                    />
-                  </div>
-                  {questionData.domain && (
-                    <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
-                      <label htmlFor="contextDomainInput" style={{ fontWeight: 800, fontSize: 14, color: '#1e293b', display: 'block', marginBottom: 6 }}>
-                        Reasonable Domain
-                      </label>
-                      <input
-                        id="contextDomainInput"
-                        placeholder="e.g. 0 <= x <= 9"
-                        value={contextDomain}
-                        onChange={(e) => {
-                          clearFeedback();
-                          setContextDomain(e.target.value);
-                        }}
-                        style={inputStyle}
-                      />
-                    </div>
-                  )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <span style={{ fontSize: 13, color: '#64748b' }}>
+                    {contextDone}/{contextTotal} components completed
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => toggleCard('context')}
+                    style={ghostButtonStyle}
+                    aria-label={expandedCards.context ? 'Collapse context' : 'Expand context'}
+                  >
+                    {expandedCards.context ? '▾ Collapse' : '▸ Expand'}
+                  </button>
                 </div>
+
+                {!expandedCards.context ? (
+                  <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 8, fontSize: 13, color: '#475569' }}>
+                    Context summary: {contextDone}/{contextTotal} questions answered
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+                    {/* Independent Quantity */}
+                    {contextData.independentQuantity != null && (
+                      <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <label style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>
+                            Independent Quantity (x)
+                          </label>
+                          {liveResult.parts.contextIndependent && (
+                            <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
+                          )}
+                        </div>
+                        {contextChoices.independentQuantity?.length ? (
+                          <select
+                            value={contextIndependent}
+                            onChange={(e) => {
+                              clearFeedback();
+                              setContextIndependent(e.target.value);
+                            }}
+                            style={inputStyle}
+                            aria-label="Independent quantity selection"
+                          >
+                            <option value="">Select quantity...</option>
+                            {contextChoices.independentQuantity.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            placeholder="e.g. time in hours"
+                            value={contextIndependent}
+                            onChange={(e) => {
+                              clearFeedback();
+                              setContextIndependent(e.target.value);
+                            }}
+                            style={inputStyle}
+                            aria-label="Independent quantity"
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Dependent Quantity */}
+                    {contextData.dependentQuantity != null && (
+                      <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <label style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>
+                            Dependent Quantity (y)
+                          </label>
+                          {liveResult.parts.contextDependent && (
+                            <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
+                          )}
+                        </div>
+                        {contextChoices.dependentQuantity?.length ? (
+                          <select
+                            value={contextDependent}
+                            onChange={(e) => {
+                              clearFeedback();
+                              setContextDependent(e.target.value);
+                            }}
+                            style={inputStyle}
+                            aria-label="Dependent quantity selection"
+                          >
+                            <option value="">Select quantity...</option>
+                            {contextChoices.dependentQuantity.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            placeholder="e.g. candle height in inches"
+                            value={contextDependent}
+                            onChange={(e) => {
+                              clearFeedback();
+                              setContextDependent(e.target.value);
+                            }}
+                            style={inputStyle}
+                            aria-label="Dependent quantity"
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Meaning of Slope */}
+                    {contextData.slopeMeaning != null && (
+                      <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <label style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>
+                            Meaning of Slope
+                          </label>
+                          {liveResult.parts.contextSlopeMeaning && (
+                            <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
+                          )}
+                        </div>
+                        {contextChoices.slopeMeaning?.length ? (
+                          <select
+                            value={contextSlopeMeaning}
+                            onChange={(e) => {
+                              clearFeedback();
+                              setContextSlopeMeaning(e.target.value);
+                            }}
+                            style={inputStyle}
+                            aria-label="Meaning of slope selection"
+                          >
+                            <option value="">Select interpretation...</option>
+                            {contextChoices.slopeMeaning.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            placeholder="e.g. candle burns down 2 inches per hour"
+                            value={contextSlopeMeaning}
+                            onChange={(e) => {
+                              clearFeedback();
+                              setContextSlopeMeaning(e.target.value);
+                            }}
+                            style={inputStyle}
+                            aria-label="Meaning of slope"
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Meaning of y-Intercept */}
+                    {contextData.yInterceptMeaning != null && (
+                      <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <label style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>
+                            Meaning of y-Intercept
+                          </label>
+                          {liveResult.parts.contextYInterceptMeaning && (
+                            <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
+                          )}
+                        </div>
+                        {contextChoices.yInterceptMeaning?.length ? (
+                          <select
+                            value={contextYInterceptMeaning}
+                            onChange={(e) => {
+                              clearFeedback();
+                              setContextYInterceptMeaning(e.target.value);
+                            }}
+                            style={inputStyle}
+                            aria-label="Meaning of y-intercept selection"
+                          >
+                            <option value="">Select interpretation...</option>
+                            {contextChoices.yInterceptMeaning.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            placeholder="e.g. initial height of 18 inches"
+                            value={contextYInterceptMeaning}
+                            onChange={(e) => {
+                              clearFeedback();
+                              setContextYInterceptMeaning(e.target.value);
+                            }}
+                            style={inputStyle}
+                            aria-label="Meaning of y-intercept"
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Meaning of x-Intercept */}
+                    {contextData.xInterceptMeaning != null && (
+                      <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <label style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>
+                            Meaning of x-Intercept
+                          </label>
+                          {liveResult.parts.contextXInterceptMeaning && (
+                            <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
+                          )}
+                        </div>
+                        {contextChoices.xInterceptMeaning?.length ? (
+                          <select
+                            value={contextXInterceptMeaning}
+                            onChange={(e) => {
+                              clearFeedback();
+                              setContextXInterceptMeaning(e.target.value);
+                            }}
+                            style={inputStyle}
+                            aria-label="Meaning of x-intercept selection"
+                          >
+                            <option value="">Select interpretation...</option>
+                            {contextChoices.xInterceptMeaning.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            placeholder="e.g. candle is completely burned out"
+                            value={contextXInterceptMeaning}
+                            onChange={(e) => {
+                              clearFeedback();
+                              setContextXInterceptMeaning(e.target.value);
+                            }}
+                            style={inputStyle}
+                            aria-label="Meaning of x-intercept"
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Reasonable Domain */}
+                    {(contextData.domain != null || questionData.domain != null) && (
+                      <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#fff' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <label style={{ fontWeight: 800, fontSize: 14, color: '#1e293b' }}>
+                            Reasonable Domain
+                          </label>
+                          {liveResult.parts.contextDomain && (
+                            <span style={badgeStyle('#dcfce7', '#166534')}>✓ Correct</span>
+                          )}
+                        </div>
+                        <input
+                          placeholder="e.g. [0, 9] or 0 <= x <= 9"
+                          value={contextDomain}
+                          onChange={(e) => {
+                            clearFeedback();
+                            setContextDomain(e.target.value);
+                          }}
+                          style={inputStyle}
+                          aria-label="Reasonable domain"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </Panel>
             </div>
           )}
@@ -1231,6 +1716,141 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
           )}
         </div>
       </div>
+
+      {/* Enlarged Graph Work View Modal */}
+      {enlargedGraph && enlargedGraphConfig && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Enlarged ${enlargedGraphConfig.title}`}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.75)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+            boxSizing: 'border-box',
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 12,
+              maxWidth: 720,
+              width: '100%',
+              maxHeight: '94vh',
+              overflowY: 'auto',
+              padding: 20,
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 18, color: '#0f172a' }}>{enlargedGraphConfig.title}</h3>
+                <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>{enlargedGraphConfig.subtitle}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEnlargedGraph(null)}
+                style={{ ...buttonStyle, minHeight: 38, padding: '6px 12px' }}
+                aria-label="Close enlarged graph"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <div style={{ background: '#f8fafc', padding: 10, borderRadius: 8, fontSize: 13, color: '#334155' }}>
+              <strong>Task: </strong>{enlargedGraphConfig.taskInstruction}
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                {graphSnapStep === 1
+                  ? 'Points snap to whole numbers.'
+                  : `Points snap to the nearest ${graphSnapStep}.`}
+              </div>
+            </div>
+
+            <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+              <CoordinatePlane
+                xMin={graphBounds.xMin}
+                xMax={graphBounds.xMax}
+                yMin={graphBounds.yMin}
+                yMax={graphBounds.yMax}
+                width={Math.min(560, typeof window !== 'undefined' ? window.innerWidth - 64 : 560)}
+                height={380}
+                snapStep={graphSnapStep}
+                points={enlargedGraphConfig.points}
+                lines={enlargedGraphConfig.line ? [enlargedGraphConfig.line] : []}
+                onPlot={enlargedGraphConfig.onPlot}
+                onMovePoint={enlargedGraphConfig.onMovePoint}
+                enlargeable={false}
+                ariaLabel={enlargedGraphConfig.title}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#334155' }}>
+                {enlargedGraphConfig.points.length} / 2 points plotted
+                {enlargedGraphConfig.points.length > 0 && `: ${enlargedGraphConfig.points.map(p => `(${p[0]}, ${p[1]})`).join(', ')}`}
+              </span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={enlargedGraphConfig.onUndo}
+                  disabled={enlargedGraphConfig.points.length === 0}
+                  style={buttonStyle}
+                >
+                  Undo
+                </button>
+                <button
+                  type="button"
+                  onClick={enlargedGraphConfig.onClear}
+                  disabled={enlargedGraphConfig.points.length === 0}
+                  style={buttonStyle}
+                >
+                  Clear / Start over
+                </button>
+                {feedbackTiming === 'guided' && (
+                  <button
+                    type="button"
+                    onClick={enlargedGraphConfig.onCheck}
+                    style={primaryButtonStyle}
+                  >
+                    Check construction
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setEnlargedGraph(null)}
+                  style={{ ...buttonStyle, background: '#f1f5f9' }}
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+
+            {enlargedGraphConfig.checkResult?.checked && (
+              <div style={{ marginTop: 4 }}>
+                <ResultPill ok={enlargedGraphConfig.checkResult.isCorrect}>
+                  {enlargedGraphConfig.checkResult.isCorrect ? 'Correct construction' : 'Not yet'}
+                </ResultPill>
+                {!enlargedGraphConfig.checkResult.isCorrect && (
+                  <p style={{ margin: '6px 0 0', color: '#b91c1c', fontSize: 13 }}>
+                    {enlargedGraphConfig.errorHint}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </ToolShell>
   );
 }

@@ -1,14 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  checkCrossRepresentationConsistency,
   deriveLinearMultipleRepresentations,
   evaluateGraph1Intercepts,
   evaluateGraph2SlopeIntercept,
   evaluateGraph3PointSlope,
   formatNormalizedStandard,
   normalizeStandardCoefficients,
+  parseNumericOrFraction,
+  parseOrderedPair,
   parsePointSlopeForm,
+  resolveSnapStep,
   scoreLinearMultipleRepresentations,
+  validateContextField,
   validateLinearMultipleRepresentationsQuestion,
   validatePointSlopeEntry,
   validateSlopeEntry,
@@ -480,4 +485,293 @@ test('V5 compiler compiles linearMultipleRepresentations intent to representatio
   assert.equal(question.mode, 'linearMultipleRepresentations');
   assert.equal(validateToolQuestion(question).isValid, true);
   assert.doesNotThrow(() => validateAssignmentQuestions([question]));
+});
+
+// -----------------------------------------------------------------------------
+// 11. Graph 3 Anchor Handling: Cases A, B, and C
+// -----------------------------------------------------------------------------
+test('graph 3: Case A - given anchor in question source is strictly required', () => {
+  const q = {
+    mode: 'linearMultipleRepresentations',
+    source: { kind: 'pointSlope', equation: 'y + 2 = 1/2(x - 2)', point: [2, -2] },
+  };
+  const derived = deriveLinearMultipleRepresentations(q);
+  // Correct: plots given anchor [2, -2] and slope step [4, -1]
+  const resValid = evaluateGraph3PointSlope([[2, -2], [4, -1]], derived, [2, -2]);
+  assert.equal(resValid.isCorrect, true);
+
+  // Incorrect: plots other points on line ([0, -3] and [6, 0]) without given anchor
+  const resMissingAnchor = evaluateGraph3PointSlope([[0, -3], [6, 0]], derived, [2, -2]);
+  assert.equal(resMissingAnchor.isCorrect, false);
+  assert.equal(resMissingAnchor.category, 'correctLineMissingAnchor');
+});
+
+test('graph 3: Case B - student-authored point-slope anchor is required', () => {
+  const q = {
+    mode: 'linearMultipleRepresentations',
+    source: { kind: 'standardForm', equation: '2x - 4y = 12' },
+  };
+  const derived = deriveLinearMultipleRepresentations(q);
+  // Student authored point-slope using point (4, -1): y + 1 = 1/2(x - 4)
+  const studentPoint = [4, -1];
+
+  // Plotted [4, -1] and [6, 0]
+  const valid = evaluateGraph3PointSlope([[4, -1], [6, 0]], derived, studentPoint);
+  assert.equal(valid.isCorrect, true);
+
+  // Plotted [2, -2] and [6, 0] (missing authored anchor [4, -1])
+  const invalid = evaluateGraph3PointSlope([[2, -2], [6, 0]], derived, studentPoint);
+  assert.equal(invalid.isCorrect, false);
+  assert.equal(invalid.category, 'correctLineMissingAnchor');
+});
+
+test('graph 3: Case C - free-order graphing before point-slope authoring', () => {
+  const q = {
+    mode: 'linearMultipleRepresentations',
+    source: { kind: 'standardForm', equation: '2x - 4y = 12' },
+  };
+  const derived = deriveLinearMultipleRepresentations(q);
+  // Student opens Graph 3 FIRST: studentPoint is null.
+  // Student plots (2, -2) and (4, -1) on the line.
+  const res = evaluateGraph3PointSlope([[2, -2], [4, -1]], derived, null);
+  assert.equal(res.isCorrect, true);
+  assert.equal(res.isFreeChoice, true);
+  assert.deepEqual(res.anchorPoint, [2, -2]);
+});
+
+// -----------------------------------------------------------------------------
+// 12. Table String Coherence & Cross-Representation Consistency
+// -----------------------------------------------------------------------------
+test('cross-representation consistency: string table inputs parse and participate', () => {
+  const derived = deriveLinearMultipleRepresentations({
+    source: { kind: 'standardForm', equation: '2x - 4y = 12' },
+  });
+  const representations = {
+    slopeInterceptEquation: 'y = 1/2x - 3',
+    tableRows: [
+      { x: '0', y: '-3' },
+      { x: '2', y: '-2' },
+      { x: '4', y: '-1' },
+      { x: '6', y: '0' },
+    ],
+  };
+  const result = checkCrossRepresentationConsistency(representations, derived);
+  assert.equal(result.isConsistent, true);
+  assert.equal(result.completedLineCount, 2);
+  assert.equal(result.disagreements.length, 0);
+});
+
+test('cross-representation consistency: detects non-collinear or conflicting table rows', () => {
+  const derived = deriveLinearMultipleRepresentations({
+    source: { kind: 'standardForm', equation: '2x - 4y = 12' },
+  });
+  const representations = {
+    slopeInterceptEquation: 'y = 1/2x - 3',
+    tableRows: [
+      { x: '0', y: '0' },
+      { x: '2', y: '2' },
+      { x: '4', y: '4' },
+    ],
+  };
+  const result = checkCrossRepresentationConsistency(representations, derived);
+  assert.equal(result.isConsistent, false);
+  assert.ok(result.disagreements.length > 0);
+  assert.match(result.disagreements[0], /define different lines/i);
+});
+
+// -----------------------------------------------------------------------------
+// 13. Internal Consistency of Mistaken Representations
+// -----------------------------------------------------------------------------
+test('internal consistency: student with mistaken line consistent across forms earns consistency credit', () => {
+  const q = {
+    mode: 'linearMultipleRepresentations',
+    source: { kind: 'standardForm', equation: '2x - 4y = 12' }, // canonical line: y = 1/2x - 3
+  };
+  // Student mistakenly believes line is y = 2x - 3, but is internally consistent:
+  const studentWork = {
+    slopeInterceptEquation: 'y = 2x - 3',
+    pointSlopeEquation: 'y - 1 = 2(x - 2)', // point (2, 1), slope 2: y - 1 = 2x - 4 => y = 2x - 3
+    featureSlope: '2',
+    featureXIntercept: '(1.5, 0)',
+    featureYIntercept: '(0, -3)',
+    featurePoint1: '(0, -3)',
+    featurePoint2: '(1, -1)',
+    tableRows: [
+      { x: '0', y: '-3' },
+      { x: '1', y: '-1' },
+      { x: '2', y: '1' },
+      { x: '3', y: '3' },
+    ],
+    graph2Points: [[0, -3], [1, -1]],
+  };
+
+  const consistency = checkCrossRepresentationConsistency(studentWork);
+  assert.equal(consistency.isConsistent, true);
+  assert.ok(consistency.completedLineCount >= 4);
+
+  // In full scoring, individual representations fail against canonical line,
+  // but crossRepresentationConsistency is awarded true!
+  const scoreResult = scoreLinearMultipleRepresentations(q, studentWork);
+  assert.equal(scoreResult.parts.slopeIntercept, false);
+  assert.equal(scoreResult.parts.pointSlope, false);
+  assert.equal(scoreResult.parts.crossRepresentationConsistency, true);
+});
+
+test('internal consistency: contradictory representations are flagged with disagreement', () => {
+  const studentWork = {
+    slopeInterceptEquation: 'y = 2x - 3',
+    pointSlopeEquation: 'y - 1 = 3(x - 2)', // slope 3 contradicts slope 2
+  };
+  const consistency = checkCrossRepresentationConsistency(studentWork);
+  assert.equal(consistency.isConsistent, false);
+  assert.equal(consistency.disagreements.length, 1);
+  assert.match(consistency.disagreements[0], /Slope-Intercept Form and Point-Slope Form define different lines/);
+});
+
+// -----------------------------------------------------------------------------
+// 14. Context Semantic Validation & X-Intercept Meaning
+// -----------------------------------------------------------------------------
+test('context semantic validation: choice bank, accepted answers, normalization, and x-intercept meaning', () => {
+  // Choice bank
+  const choiceBankSpec = { choices: ['Time in hours', 'Height in inches'], answer: 'Time in hours' };
+  assert.equal(validateContextField('Time in hours', choiceBankSpec).valid, true);
+  assert.equal(validateContextField('Height in inches', choiceBankSpec).valid, false);
+
+  // Accepted answers array
+  const acceptedAnswersSpec = { acceptedAnswers: ['burn rate', 'rate candle burns', 'inches per hour'] };
+  assert.equal(validateContextField('burn rate', acceptedAnswersSpec).valid, true);
+  assert.equal(validateContextField('rate candle burns', acceptedAnswersSpec).valid, true);
+  assert.equal(validateContextField('  Inches per hour. ', acceptedAnswersSpec).valid, true); // Case & whitespace trimmed
+  assert.equal(validateContextField('starting height', acceptedAnswersSpec).valid, false);
+
+  // x-intercept meaning
+  const xIntSpec = { acceptedAnswers: ['time until burned out', 'hours until height is 0', 'when candle is gone'] };
+  assert.equal(validateContextField('time until burned out', xIntSpec).valid, true);
+  assert.equal(validateContextField('hours until height is 0', xIntSpec).valid, true);
+});
+
+// -----------------------------------------------------------------------------
+// 15. Rational-Aware SnapStep Resolution
+// -----------------------------------------------------------------------------
+test('resolveSnapStep: fractional slopes and intercepts resolve correct grid step', () => {
+  // Slope 1/2 => snapStep 0.5
+  const halfDerived = deriveLinearMultipleRepresentations({
+    source: { kind: 'standardForm', equation: '2x - 4y = 12' },
+  });
+  assert.equal(resolveSnapStep({}, halfDerived), 0.5);
+
+  // Slope 3/4 => snapStep 0.25
+  const quarterDerived = { slopeFraction: { n: 3, d: 4 }, yInterceptFraction: { n: 1, d: 1 }, zeroFraction: { n: -4, d: 3 } };
+  assert.equal(resolveSnapStep({}, quarterDerived), 0.25);
+
+  // Integer line => snapStep 1
+  const integerDerived = deriveLinearMultipleRepresentations({
+    source: { kind: 'slopeIntercept', equation: 'y = 2x + 4' },
+  });
+  assert.equal(resolveSnapStep({}, integerDerived), 1);
+
+  // Explicit snapStep takes precedence
+  assert.equal(resolveSnapStep({ snapStep: 0.1 }, halfDerived), 0.1);
+});
+
+// -----------------------------------------------------------------------------
+// 16. MathLive LaTeX Unwrapping
+// -----------------------------------------------------------------------------
+test('LaTeX unwrapping: parses fractions, coordinates, and equations from MathInput', () => {
+  assert.equal(parseNumericOrFraction('\\frac{1}{2}')?.number, 0.5);
+  assert.equal(parseNumericOrFraction('-\\frac{3}{4}')?.number, -0.75);
+
+  assert.deepEqual(parseOrderedPair('(\\frac{1}{2}, -3)'), [0.5, -3]);
+  assert.deepEqual(parseOrderedPair('\\left(2, -\\frac{3}{2}\\right)'), [2, -1.5]);
+
+  const derived = deriveLinearMultipleRepresentations({
+    source: { kind: 'standardForm', equation: '2x - 4y = 12' },
+  });
+
+  // Slope with LaTeX fraction
+  assert.equal(validateSlopeEntry('\\frac{1}{2}', derived).isCorrect, true);
+
+  // Slope-intercept with LaTeX
+  assert.equal(validateSlopeInterceptEntry('y = \\frac{1}{2}x - 3', derived).isCorrect, true);
+
+  // Point-slope with LaTeX
+  assert.equal(validatePointSlopeEntry('y + 2 = \\frac{1}{2}(x - 2)', derived).isCorrect, true);
+});
+
+// -----------------------------------------------------------------------------
+// 17. Scenario Authoring Intent V5 Compilation and Scoring
+// -----------------------------------------------------------------------------
+test('V5 compiler compiles scenario intent and scores 100% when all parts including context are answered', () => {
+  const v5 = {
+    schemaVersion: 5,
+    assignment: { title: 'Scenario Board', courseId: 'algebra1', assignmentType: 'notesClasswork' },
+    sections: [{
+      role: 'classwork',
+      questions: [{
+        standard: 'A.2B',
+        prompt: 'A candle is 18 inches tall and burns at 2 inches per hour.',
+        studentActions: ['connectMultipleRepresentations'],
+        mode: 'linearMultipleRepresentations',
+        source: {
+          kind: 'scenario',
+          prompt: 'A candle is 18 inches tall and burns at 2 inches per hour.',
+          m: -2,
+          b: 18,
+          context: {
+            independentQuantity: 'Time (hours)',
+            dependentQuantity: 'Height (inches)',
+            slopeMeaning: 'Rate candle burns',
+            yInterceptMeaning: 'Initial height',
+            xInterceptMeaning: 'Time until burned out',
+          },
+        },
+      }],
+    }],
+  };
+
+  const compiled = compileAuthoringIntentV5(v5);
+  const q = compiled.package.sections[0].questions[0];
+  assert.equal(q.type, 'representationBridge');
+  assert.equal(q.mode, 'linearMultipleRepresentations');
+  assert.equal(q.source.kind, 'scenario');
+  assert.ok(q.context || q.source.context);
+
+  const derived = deriveLinearMultipleRepresentations(q);
+  assert.equal(derived.slopeNumber, -2);
+  assert.equal(derived.yInterceptNumber, 18);
+  assert.equal(derived.zeroNumber, 9);
+
+  const fullResponse = {
+    standardFormEquation: '2x + y = 18',
+    slopeInterceptEquation: 'y = -2x + 18',
+    pointSlopeEquation: 'y - 14 = -2(x - 2)',
+    featureSlope: '-2',
+    featureXIntercept: '(9, 0)',
+    featureYIntercept: '(0, 18)',
+    featurePoint1: '(2, 14)',
+    featurePoint2: '(4, 10)',
+    tableRows: [
+      { x: 0, y: 18 },
+      { x: 2, y: 14 },
+      { x: 4, y: 10 },
+      { x: 6, y: 6 },
+    ],
+    graph1Points: [[9, 0], [0, 18]],
+    graph2Points: [[0, 18], [1, 16]],
+    graph3Points: [[2, 14], [3, 12]],
+    contextIndependent: 'Time (hours)',
+    contextDependent: 'Height (inches)',
+    contextSlopeMeaning: 'Rate candle burns',
+    contextYInterceptMeaning: 'Initial height',
+    contextXInterceptMeaning: 'Time until burned out',
+  };
+
+  const result = scoreLinearMultipleRepresentations(q, fullResponse);
+  assert.equal(result.isCorrect, true);
+  assert.equal(result.score, 1);
+  assert.equal(result.parts.contextIndependent, true);
+  assert.equal(result.parts.contextDependent, true);
+  assert.equal(result.parts.contextSlopeMeaning, true);
+  assert.equal(result.parts.contextYInterceptMeaning, true);
+  assert.equal(result.parts.contextXInterceptMeaning, true);
 });

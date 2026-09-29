@@ -16,6 +16,8 @@ import {
   validateYInterceptEntry,
 } from '../../src/tools/representationBridge/linearMultipleRepresentationsMath.js';
 
+import { readGraphPointCoordinates } from '../../src/graphPointUtils.js';
+
 const source = (relPath) => readFileSync(new URL(`../../${relPath}`, import.meta.url), 'utf8');
 
 // -----------------------------------------------------------------------------
@@ -40,6 +42,82 @@ test('Free-order board architecture: cards are never gated by previous stages', 
   assert.match(boardSrc, /checkCard\('standardForm'/);
   assert.match(boardSrc, /checkCard\('slopeIntercept'/);
   assert.match(boardSrc, /checkCard\('pointSlope'/);
+});
+
+test('CoordinatePlane prop contract: workspaces pass points and onMovePoint, never plottedPoints', () => {
+  const boardSrc = source('src/tools/representationBridge/LinearMultipleRepresentationsBoard.jsx');
+  // Strict regression assertion: plottedPoints is obsolete and must not be passed
+  assert.doesNotMatch(boardSrc, /plottedPoints=/);
+
+  // Each interactive workspace binds points and onMovePoint
+  assert.match(boardSrc, /points=\{graph1Points\}/);
+  assert.match(boardSrc, /points=\{graph2Points\}/);
+  assert.match(boardSrc, /points=\{graph3Points\}/);
+  assert.match(boardSrc, /onMovePoint=\{/);
+  assert.match(boardSrc, /snapStep=\{graphSnapStep\}/);
+
+  // Points format contract: verify readGraphPointCoordinates consumed by CoordinatePlane
+  // accepts the board's point format [[x, y], ...]
+  const samplePoints = [[2, -2], [4, -1]];
+  for (const pt of samplePoints) {
+    const coords = readGraphPointCoordinates(pt);
+    assert.deepEqual(coords, pt);
+  }
+});
+
+test('Given graph source contract: renders read-only CoordinatePlane when source is a graph', () => {
+  const boardSrc = source('src/tools/representationBridge/LinearMultipleRepresentationsBoard.jsx');
+  // Banner conditionally renders CoordinatePlane for graph source
+  assert.match(boardSrc, /givenKind === 'graph'/);
+  assert.match(boardSrc, /pointHoverEnabled=\{false\}/);
+  assert.match(boardSrc, /lines=\{canonicalFacts\.canonicalLine/);
+  // Banner renders MathDisplay when source is an equation/scenario
+  assert.match(boardSrc, /<MathDisplay value=\{givenDisplay\}/);
+});
+
+test('Collapsible card UX: panels expand/collapse with summary while preserving work', () => {
+  const boardSrc = source('src/tools/representationBridge/LinearMultipleRepresentationsBoard.jsx');
+  // Card expansion state and toggle handler
+  assert.match(boardSrc, /usePersistentToolState\('expandedCards'/);
+  assert.match(boardSrc, /const toggleCard =/);
+
+  // Collapsed state renders compact preview
+  assert.match(boardSrc, /!expandedCards\.graph1/);
+  assert.match(boardSrc, /points plotted/);
+
+  // Work inputs are bound to persistent tool state so toggling never unmounts/resets drafts
+  assert.match(boardSrc, /usePersistentToolState\('standardFormEquation'/);
+  assert.match(boardSrc, /usePersistentToolState\('tableRows'/);
+  assert.match(boardSrc, /usePersistentToolState\('graph1Points'/);
+});
+
+test('Graph enlargement contract: full-tool workspace includes task, plane, controls, and check', () => {
+  const boardSrc = source('src/tools/representationBridge/LinearMultipleRepresentationsBoard.jsx');
+  // State exists for enlarged modal
+  assert.match(boardSrc, /const \[enlargedGraph, setEnlargedGraph\] = useState\(null\)/);
+
+  // Workspace enlargement renders full context: method title, instruction, plane, and controls
+  assert.match(boardSrc, /role="dialog"/);
+  assert.match(boardSrc, /aria-label=\{`Enlarged \$\{enlargedGraphConfig\.title\}`\}/);
+  assert.match(boardSrc, /enlargedGraphConfig\.title/);
+  assert.match(boardSrc, /enlargedGraphConfig\.taskInstruction/);
+  assert.match(boardSrc, /enlargeable=\{false\}/); // Inner plane does not enlarge itself
+  assert.match(boardSrc, /aria-label="Close enlarged graph"/);
+});
+
+test('Scenario context contract: dynamic progress counter and x-intercept meaning', () => {
+  const boardSrc = source('src/tools/representationBridge/LinearMultipleRepresentationsBoard.jsx');
+  // Dynamic context progress count
+  assert.match(boardSrc, /const contextTotal = contextKeys\.length/);
+  assert.match(boardSrc, /const contextDone = contextKeys\.filter/);
+  assert.match(boardSrc, /Context \{contextDone\}\/\{contextTotal\}/);
+
+  // Includes x-intercept meaning in state and rendering
+  assert.match(boardSrc, /usePersistentToolState\('contextXInterceptMeaning'/);
+  assert.match(boardSrc, /xInterceptMeaning/);
+
+  // Choice banks render dropdowns
+  assert.match(boardSrc, /<select/);
 });
 
 test('Three independent graph persistence namespaces', () => {

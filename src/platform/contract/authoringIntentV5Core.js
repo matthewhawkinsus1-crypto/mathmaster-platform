@@ -1869,7 +1869,7 @@ const compileOne = (q, index, repairs) => {
         type,
         mode: q.mode || 'linear',
         source: q.source,
-        context: q.context,
+        context: q.context || q.source?.context,
         requiredStages: q.requiredStages,
         requiredComparisons: q.requiredComparisons,
         requiredCards: q.requiredCards,

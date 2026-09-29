@@ -112,11 +112,15 @@ export const formatNormalizedStandard = ({ A, B, C }) => {
 
 /**
  * Parse an arbitrary numeric or fraction string into an exact fraction / number.
+ * Handles both plain numbers/slashes ("1/2") and MathLive LaTeX ("\frac{1}{2}").
  */
 export const parseNumericOrFraction = (input) => {
   if (input == null) return null;
-  const str = String(input).trim();
+  let str = String(input).trim();
   if (!str) return null;
+  if (str.includes('\\')) {
+    str = latexToExpression(str).replace(/[()]/g, '').trim();
+  }
   if (str.includes('/')) {
     const parts = str.split('/');
     if (parts.length === 2) {
@@ -132,6 +136,29 @@ export const parseNumericOrFraction = (input) => {
     return { number: num, fraction: toFraction(num) };
   }
   return null;
+};
+
+/**
+ * Rational-aware snap step resolver:
+ * Ensures fractional slopes, intercepts, or authored coordinates (e.g. 1/2, 3/2)
+ * remain accurately graphable on the CoordinatePlane.
+ */
+export const resolveSnapStep = (questionData = {}, canonicalFacts = {}) => {
+  const explicit = Number(questionData.snapStep);
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+
+  const m = canonicalFacts.slopeFraction || canonicalFacts.canonicalLine?.m;
+  const b = canonicalFacts.yInterceptFraction || canonicalFacts.canonicalLine?.b;
+  const zero = canonicalFacts.zeroFraction;
+
+  const denominators = [m?.d, b?.d, zero?.d].filter((d) => Number.isFinite(d) && d > 1);
+  if (!denominators.length) return 1;
+
+  if (denominators.every((d) => 2 % d === 0 || d === 2)) return 0.5;
+  if (denominators.every((d) => 4 % d === 0 || d === 4)) return 0.25;
+  const maxD = Math.max(...denominators);
+  if (maxD <= 10) return Number((1 / maxD).toFixed(4));
+  return 0.5;
 };
 
 /**
@@ -221,6 +248,7 @@ export const deriveLinearMultipleRepresentations = (question = {}) => {
     standardEquation,
     slopeInterceptEquation,
     source,
+    context: source?.context || question.context || null,
   };
 };
 
@@ -335,12 +363,16 @@ const parseLinearTerm = (node, varName) => {
 
 /**
  * Parses point-slope form: y - y1 = m(x - x1)
- * Returns { m, x1, y1 } or null if equation is not structurally point-slope.
+ * Returns { m, x1, y1, point: [x1, y1] } or null if equation is not structurally point-slope.
  */
 export const parsePointSlopeForm = (equationText) => {
   if (typeof equationText !== 'string' || !equationText.trim()) return null;
+  let str = equationText.trim();
+  if (str.includes('\\')) {
+    str = latexToExpression(str);
+  }
   try {
-    const parts = equationText.split('=');
+    const parts = str.split('=');
     if (parts.length !== 2) return null;
     const left = unwrapParens(parse(parts[0].trim()));
     const right = unwrapParens(parse(parts[1].trim()));
@@ -356,13 +388,13 @@ export const parsePointSlopeForm = (equationText) => {
       || (right.isOperatorNode && ['add', 'subtract'].includes(right.fn) && right.args[0].name === 'x')
     ) {
       const x1 = parseLinearTerm(right, 'x');
-      if (x1 != null) return { m: 1, x1, y1 };
+      if (x1 != null) return { m: 1, x1, y1, point: [x1, y1] };
     }
 
     // Case 2: -(x - x1) -> m = -1
     if (right.isOperatorNode && right.fn === 'unaryMinus') {
       const x1 = parseLinearTerm(right.args[0], 'x');
-      if (x1 != null) return { m: -1, x1, y1 };
+      if (x1 != null) return { m: -1, x1, y1, point: [x1, y1] };
     }
 
     // Case 3: m * (x - x1)
@@ -370,7 +402,7 @@ export const parsePointSlopeForm = (equationText) => {
       const [mNode, xNode] = right.args;
       const m = evalConstNode(mNode);
       const x1 = parseLinearTerm(xNode, 'x');
-      if (m != null && x1 != null) return { m, x1, y1 };
+      if (m != null && x1 != null) return { m, x1, y1, point: [x1, y1] };
     }
 
     // Case 4: (x - x1) / d
@@ -378,7 +410,7 @@ export const parsePointSlopeForm = (equationText) => {
       const [xNode, dNode] = right.args;
       const d = evalConstNode(dNode);
       const x1 = parseLinearTerm(xNode, 'x');
-      if (d != null && d !== 0 && x1 != null) return { m: 1 / d, x1, y1 };
+      if (d != null && d !== 0 && x1 != null) return { m: 1 / d, x1, y1, point: [x1, y1] };
     }
 
     return null;
@@ -395,8 +427,9 @@ export const parsePointSlopeForm = (equationText) => {
  * - Explicitly rejects y = mx + b
  */
 export const validateStandardFormEntry = (equationText, canonicalFacts) => {
-  const str = String(equationText || '').trim();
+  let str = String(equationText || '').trim();
   if (!str) return { isCorrect: false, error: 'Enter an equation in standard form.' };
+  if (str.includes('\\')) str = latexToExpression(str);
 
   const parts = str.split('=');
   if (parts.length !== 2) return { isCorrect: false, error: 'Equation must contain exactly one = sign.' };
@@ -463,8 +496,9 @@ export const validateStandardFormEntry = (equationText, canonicalFacts) => {
  * - Equivalence with canonical line
  */
 export const validateSlopeInterceptEntry = (equationText, canonicalFacts) => {
-  const str = String(equationText || '').trim();
+  let str = String(equationText || '').trim();
   if (!str) return { isCorrect: false, error: 'Enter an equation in slope-intercept form.' };
+  if (str.includes('\\')) str = latexToExpression(str);
 
   const parts = str.split('=');
   if (parts.length !== 2) return { isCorrect: false, error: 'Equation must contain exactly one = sign.' };
@@ -512,8 +546,9 @@ export const validateSlopeInterceptEntry = (equationText, canonicalFacts) => {
  * - Accepts ANY valid point on the line!
  */
 export const validatePointSlopeEntry = (equationText, canonicalFacts) => {
-  const str = String(equationText || '').trim();
+  let str = String(equationText || '').trim();
   if (!str) return { isCorrect: false, error: 'Enter an equation in point-slope form.' };
+  if (str.includes('\\')) str = latexToExpression(str);
 
   const parsed = parsePointSlopeForm(str);
   if (!parsed) {
@@ -577,7 +612,11 @@ export const parseOrderedPair = (input) => {
     if (Number.isFinite(x) && Number.isFinite(y)) return [x, y];
     return null;
   }
-  const str = String(input || '').trim().replace(/^\(/, '').replace(/\)$/, '');
+  let str = String(input || '').trim();
+  str = str.replace(/\\left|\\right/g, '').trim();
+  if ((str.startsWith('(') && str.endsWith(')')) || (str.startsWith('[') && str.endsWith(']')) || (str.startsWith('{') && str.endsWith('}'))) {
+    str = str.slice(1, -1).trim();
+  }
   const parts = str.split(',');
   if (parts.length === 2) {
     const x = parseNumericOrFraction(parts[0].trim())?.number;
@@ -620,13 +659,13 @@ export const validateTwoPointsEntry = (point1Input, point2Input, canonicalFacts)
     return { isCorrect: false, error: 'Enter two valid ordered pairs (x, y).' };
   }
   if (nearlyEqual(p1[0], p2[0], 1e-4) && nearlyEqual(p1[1], p2[1], 1e-4)) {
-    return { isCorrect: false, error: 'The two points must be distinct from each other.' };
+    return { isCorrect: false, error: 'The two points must be distinct from each other.', points: [p1, p2] };
   }
   if (!pointOnCanonicalLine(canonicalFacts.canonicalLine, p1)) {
-    return { isCorrect: false, error: `Point (${p1[0]}, ${p1[1]}) is not on the target line.` };
+    return { isCorrect: false, error: `Point (${p1[0]}, ${p1[1]}) is not on the target line.`, points: [p1, p2] };
   }
   if (!pointOnCanonicalLine(canonicalFacts.canonicalLine, p2)) {
-    return { isCorrect: false, error: `Point (${p2[0]}, ${p2[1]}) is not on the target line.` };
+    return { isCorrect: false, error: `Point (${p2[0]}, ${p2[1]}) is not on the target line.`, points: [p1, p2] };
   }
   return { isCorrect: true, points: [p1, p2] };
 };
@@ -696,14 +735,53 @@ export const evaluateGraph2SlopeIntercept = (points = [], canonicalFacts, tolera
   return evaluateConstruction(points, questionSpec, target, tolerance);
 };
 
+/**
+ * Semantic validator for contextual interpretations (slope/intercept meaning, quantities, domain).
+ * Supports choice banks, acceptedAnswers arrays, or case/whitespace-normalized string matching.
+ */
+export const validateContextField = (studentValue, expected) => {
+  const normalize = (s) => String(s ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[.,!?;:]+$/, '')
+    .replace(/\s+/g, ' ');
+
+  const student = normalize(studentValue);
+  if (!student) return { valid: false, message: 'Please provide a response.' };
+
+  const allowed = [];
+  if (Array.isArray(expected)) {
+    allowed.push(...expected);
+  } else if (expected && typeof expected === 'object') {
+    if (Array.isArray(expected.acceptedAnswers)) allowed.push(...expected.acceptedAnswers);
+    if (Array.isArray(expected.choices)) allowed.push(...expected.choices.filter((c) => c === expected.value || c === expected.answer));
+    if (expected.value != null) allowed.push(expected.value);
+    if (expected.answer != null) allowed.push(expected.answer);
+  } else if (typeof expected === 'string') {
+    allowed.push(expected);
+  }
+
+  const match = allowed.some((ans) => normalize(ans) === student);
+  return {
+    valid: match,
+    message: match ? 'Correct interpretation' : 'Review your interpretation of this quantity.',
+  };
+};
+
 export const evaluateGraph3PointSlope = (points = [], canonicalFacts, studentPoint = null, tolerance = 0.12) => {
-  // If student has established a valid point on the line, require that point.
-  // If no point passed yet, check if points plotted form a valid point on the line + slope.
   let anchorPoint = studentPoint;
+  let isFreeChoice = false;
+
+  // Case C: No anchor point was passed (student graphing before point-slope equation authored).
+  // Find any plotted point that is on the canonical line.
   if (!anchorPoint && Array.isArray(points) && points.length > 0) {
     const firstOnLine = points.find((pt) => Array.isArray(pt) && pt.length === 2 && pointOnCanonicalLine(canonicalFacts.canonicalLine, pt, tolerance * 1.5));
-    if (firstOnLine) anchorPoint = firstOnLine;
+    if (firstOnLine) {
+      anchorPoint = firstOnLine;
+      isFreeChoice = true;
+    }
   }
+
   if (!anchorPoint) {
     anchorPoint = canonicalFacts.xInterceptPoint || [0, canonicalFacts.yInterceptNumber];
   }
@@ -719,6 +797,7 @@ export const evaluateGraph3PointSlope = (points = [], canonicalFacts, studentPoi
   return {
     ...evaluation,
     anchorPoint,
+    isFreeChoice,
   };
 };
 
@@ -730,22 +809,34 @@ export const checkCrossRepresentationConsistency = (studentRepresentations = {},
   const completedLines = [];
 
   if (studentRepresentations.standardFormEquation) {
-    const l = canonicalFromEquationText(studentRepresentations.standardFormEquation);
+    let eq = String(studentRepresentations.standardFormEquation).trim();
+    if (eq.includes('\\')) eq = latexToExpression(eq);
+    const l = canonicalFromEquationText(eq);
     if (l) completedLines.push({ name: 'Standard Form', line: l });
   }
 
   if (studentRepresentations.slopeInterceptEquation) {
-    const l = canonicalFromEquationText(studentRepresentations.slopeInterceptEquation);
+    let eq = String(studentRepresentations.slopeInterceptEquation).trim();
+    if (eq.includes('\\')) eq = latexToExpression(eq);
+    const l = canonicalFromEquationText(eq);
     if (l) completedLines.push({ name: 'Slope-Intercept Form', line: l });
   }
 
   if (studentRepresentations.pointSlopeEquation) {
-    const l = canonicalFromEquationText(studentRepresentations.pointSlopeEquation);
+    let eq = String(studentRepresentations.pointSlopeEquation).trim();
+    if (eq.includes('\\')) eq = latexToExpression(eq);
+    const l = canonicalFromEquationText(eq);
     if (l) completedLines.push({ name: 'Point-Slope Form', line: l });
   }
 
   if (Array.isArray(studentRepresentations.tableRows) && studentRepresentations.tableRows.length >= 2) {
-    const validRows = studentRepresentations.tableRows.filter((r) => Number.isFinite(r?.x) && Number.isFinite(r?.y));
+    const validRows = studentRepresentations.tableRows
+      .map((r) => {
+        const xN = parseNumericOrFraction(r?.x)?.number;
+        const yN = parseNumericOrFraction(r?.y)?.number;
+        return (Number.isFinite(xN) && Number.isFinite(yN)) ? { x: xN, y: yN } : null;
+      })
+      .filter(Boolean);
     if (validRows.length >= 2 && isCollinear(validRows)) {
       const { m, b } = fitTableLine(validRows);
       if (Number.isFinite(m) && Number.isFinite(b)) {
@@ -754,30 +845,41 @@ export const checkCrossRepresentationConsistency = (studentRepresentations = {},
     }
   }
 
-  if (Array.isArray(studentRepresentations.twoPoints) && studentRepresentations.twoPoints.length === 2) {
-    const [p1, p2] = studentRepresentations.twoPoints;
+  const p1 = studentRepresentations.twoPoints?.[0] || parseOrderedPair(studentRepresentations.featurePoint1);
+  const p2 = studentRepresentations.twoPoints?.[1] || parseOrderedPair(studentRepresentations.featurePoint2);
+  if (p1 && p2 && !(nearlyEqual(p1[0], p2[0], 1e-4) && nearlyEqual(p1[1], p2[1], 1e-4))) {
     const l = canonicalFromPoints(p1, p2);
     if (l) completedLines.push({ name: 'Two Points', line: l });
   }
 
   ['graph1Points', 'graph2Points', 'graph3Points'].forEach((key, idx) => {
     const pts = studentRepresentations[key];
-    if (Array.isArray(pts) && pts.length >= 2) {
-      const l = canonicalFromPoints(pts[0], pts[1]);
-      if (l) completedLines.push({ name: `Graph ${idx + 1}`, line: l });
+    if (Array.isArray(pts) && pts.length >= 2 && pts[0] && pts[1]) {
+      const [ptA, ptB] = pts;
+      if (Number.isFinite(ptA[0]) && Number.isFinite(ptA[1]) && Number.isFinite(ptB[0]) && Number.isFinite(ptB[1])) {
+        if (!(nearlyEqual(ptA[0], ptB[0], 1e-4) && nearlyEqual(ptA[1], ptB[1], 1e-4))) {
+          const l = canonicalFromPoints(ptA, ptB);
+          if (l) completedLines.push({ name: `Graph ${idx + 1}`, line: l });
+        }
+      }
     }
   });
 
   if (completedLines.length < 2) {
-    return { isConsistent: true, disagreements: [] };
+    return { isConsistent: true, disagreements: [], completedLineCount: completedLines.length };
   }
 
   const disagreements = [];
-  const base = completedLines[0];
-  for (let i = 1; i < completedLines.length; i += 1) {
-    const curr = completedLines[i];
-    if (!linesEquivalent(base.line, curr.line)) {
-      disagreements.push(`${base.name} and ${curr.name} define different lines.`);
+  for (let i = 0; i < completedLines.length; i += 1) {
+    for (let j = i + 1; j < completedLines.length; j += 1) {
+      const a = completedLines[i];
+      const b = completedLines[j];
+      if (!linesEquivalent(a.line, b.line)) {
+        const msg = `${a.name} and ${b.name} define different lines.`;
+        if (!disagreements.includes(msg)) {
+          disagreements.push(msg);
+        }
+      }
     }
   }
 
@@ -848,33 +950,54 @@ export const scoreLinearMultipleRepresentations = (question = {}, response = {})
   parts.graph2 = g2Res.isCorrect;
   evidence.graph2 = g2Res;
 
-  const studentPsPoint = evidence.pointSlope?.point || parsePointSlopeForm(response.pointSlopeEquation)?.point;
-  const g3Res = evaluateGraph3PointSlope(response.graph3Points || [], canonicalFacts, studentPsPoint, Number(question.tolerance ?? 0.12));
+  let requiredPsAnchor = null;
+  const isGivenPointSlope = (givenKind === 'pointSlope');
+  if (isGivenPointSlope) {
+    if (question.source?.point) {
+      requiredPsAnchor = question.source.point;
+    } else if (question.source?.equation) {
+      const parsed = parsePointSlopeForm(question.source.equation);
+      if (parsed?.point) requiredPsAnchor = parsed.point;
+    } else if (canonicalFacts.sourcePoint) {
+      requiredPsAnchor = canonicalFacts.sourcePoint;
+    }
+  } else {
+    const parsedPs = parsePointSlopeForm(response.pointSlopeEquation);
+    if (parsedPs?.point) {
+      requiredPsAnchor = parsedPs.point;
+    }
+  }
+  const g3Res = evaluateGraph3PointSlope(response.graph3Points || [], canonicalFacts, requiredPsAnchor, Number(question.tolerance ?? 0.12));
   parts.graph3 = g3Res.isCorrect;
   evidence.graph3 = g3Res;
 
   // Context (if authored / scenario)
-  if (question.context && Object.keys(question.context).length > 0) {
-    const ctx = question.context;
+  const ctx = question.source?.context || question.context;
+  if (ctx && Object.keys(ctx).length > 0) {
     if (ctx.independentQuantity != null) {
-      const match = String(response.contextIndependent || '').trim().toLowerCase() === String(ctx.independentQuantity).trim().toLowerCase();
-      parts.contextIndependent = match;
-      evidence.contextIndependent = { isCorrect: match };
+      const res = validateContextField(response.contextIndependent, ctx.independentQuantity);
+      parts.contextIndependent = res.valid;
+      evidence.contextIndependent = { isCorrect: res.valid, message: res.message };
     }
     if (ctx.dependentQuantity != null) {
-      const match = String(response.contextDependent || '').trim().toLowerCase() === String(ctx.dependentQuantity).trim().toLowerCase();
-      parts.contextDependent = match;
-      evidence.contextDependent = { isCorrect: match };
+      const res = validateContextField(response.contextDependent, ctx.dependentQuantity);
+      parts.contextDependent = res.valid;
+      evidence.contextDependent = { isCorrect: res.valid, message: res.message };
     }
     if (ctx.slopeMeaning != null) {
-      const match = String(response.contextSlopeMeaning || '').trim().toLowerCase() === String(ctx.slopeMeaning).trim().toLowerCase();
-      parts.contextSlopeMeaning = match;
-      evidence.contextSlopeMeaning = { isCorrect: match };
+      const res = validateContextField(response.contextSlopeMeaning, ctx.slopeMeaning);
+      parts.contextSlopeMeaning = res.valid;
+      evidence.contextSlopeMeaning = { isCorrect: res.valid, message: res.message };
     }
     if (ctx.yInterceptMeaning != null) {
-      const match = String(response.contextYInterceptMeaning || '').trim().toLowerCase() === String(ctx.yInterceptMeaning).trim().toLowerCase();
-      parts.contextYInterceptMeaning = match;
-      evidence.contextYInterceptMeaning = { isCorrect: match };
+      const res = validateContextField(response.contextYInterceptMeaning, ctx.yInterceptMeaning);
+      parts.contextYInterceptMeaning = res.valid;
+      evidence.contextYInterceptMeaning = { isCorrect: res.valid, message: res.message };
+    }
+    if (ctx.xInterceptMeaning != null) {
+      const res = validateContextField(response.contextXInterceptMeaning, ctx.xInterceptMeaning);
+      parts.contextXInterceptMeaning = res.valid;
+      evidence.contextXInterceptMeaning = { isCorrect: res.valid, message: res.message };
     }
     if (ctx.domain != null || question.domain != null) {
       const expectedDomain = question.domain || ctx.domain;
@@ -883,7 +1006,8 @@ export const scoreLinearMultipleRepresentations = (question = {}, response = {})
       if (Array.isArray(expectedDomain) && Array.isArray(studentDomain)) {
         domainCorrect = nearlyEqual(studentDomain[0], expectedDomain[0], 1e-4) && nearlyEqual(studentDomain[1], expectedDomain[1], 1e-4);
       } else if (typeof studentDomain === 'string' && typeof expectedDomain === 'string') {
-        domainCorrect = studentDomain.trim().toLowerCase() === expectedDomain.trim().toLowerCase();
+        const res = validateContextField(studentDomain, expectedDomain);
+        domainCorrect = res.valid;
       }
       parts.contextDomain = domainCorrect;
       evidence.contextDomain = { isCorrect: domainCorrect };
@@ -898,6 +1022,8 @@ export const scoreLinearMultipleRepresentations = (question = {}, response = {})
       pointSlopeEquation: response.pointSlopeEquation,
       tableRows: response.tableRows,
       twoPoints: ptsRes.points,
+      featurePoint1: response.featurePoint1,
+      featurePoint2: response.featurePoint2,
       graph1Points: response.graph1Points,
       graph2Points: response.graph2Points,
       graph3Points: response.graph3Points,
