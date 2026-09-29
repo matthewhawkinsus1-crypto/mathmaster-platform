@@ -1,3 +1,5 @@
+import { focusMathFieldWithoutScroll } from './mathFieldFocusHandoff.js';
+
 const SINGLE_LINE_INPUT_TYPES = new Set([
   '', 'text', 'number', 'numeric', 'decimal', 'email', 'tel', 'url', 'search',
 ]);
@@ -85,16 +87,47 @@ const visiblyFocusable = (element) => {
  * with typing when it starts with reading a graph. That one is wrong on every
  * device, so it is not conditioned on width.
  */
-export const shouldFocusAnswerOnOpen = ({ composed = false, narrowViewport = false } = {}) => (
-  !composed && !narrowViewport
+export const shouldFocusAnswerOnOpen = ({ composed = false, narrowViewport = false, touchPrimary = false } = {}) => (
+  !composed && !narrowViewport && !touchPrimary
 );
+
+/*
+ * A TABLET IS A PHONE AS FAR AS THE KEYBOARD IS CONCERNED.
+ *
+ * `narrowViewport` measures width, because layout is about space. An iPad is
+ * 820px wide and is laid out like a laptop — correctly — so the width test let
+ * it autofocus, and focusing an answer field on an iPad raises the on-screen
+ * keyboard (or MathMaster's math keypad) before the student has read the
+ * question: measured at 820×1180, the Standard form keypad covered the lower
+ * half of a board the student had not started.
+ *
+ * Whether a keyboard pops up is a property of the POINTER, not the width. A
+ * device whose primary pointer is a finger and which cannot hover has an
+ * on-screen keyboard; a Chromebook with a touchscreen reports a fine primary
+ * pointer (its trackpad) and keeps autofocus.
+ */
+export const isTouchPrimaryPointer = (windowObject = typeof window !== 'undefined' ? window : null) => {
+  try {
+    return Boolean(windowObject?.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches);
+  } catch {
+    return false;
+  }
+};
+
+const visibleAnswerControls = (root) => (
+  root?.querySelectorAll ? [...root.querySelectorAll(focusableAnswerSelector)].filter(visiblyFocusable) : []
+);
+
+/** How many answer-entry controls a workspace shows — "the" box only when it is one. */
+export const countAnswerControls = (root) => visibleAnswerControls(root).length;
 
 /** Put the cursor in the first real answer-entry control in a question/workspace. */
 export const focusFirstAnswerControl = (root) => {
-  if (!root?.querySelectorAll) return false;
-  const candidates = [...root.querySelectorAll(focusableAnswerSelector)];
-  const target = candidates.find(visiblyFocusable);
+  const target = visibleAnswerControls(root)[0];
   if (!target) return false;
+  // A math field's own focus() ignores preventScroll and scrolled the page to
+  // the field — past the prompt of a long question the student had not read.
+  if (String(target.tagName || '').toLowerCase() === 'math-field' && focusMathFieldWithoutScroll(target)) return true;
   try {
     target.focus({ preventScroll: true });
   } catch {
@@ -104,7 +137,9 @@ export const focusFirstAnswerControl = (root) => {
 };
 
 export default {
+  countAnswerControls,
   focusFirstAnswerControl,
+  isTouchPrimaryPointer,
   shouldFocusAnswerOnOpen,
   isSingleLineAnswerTarget,
   shouldSubmitAnswerOnEnter,

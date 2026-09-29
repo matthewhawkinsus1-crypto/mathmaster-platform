@@ -58,7 +58,8 @@ import {
   resolveQuestionMaximumAttempts,
 } from './attemptPolicy';
 import { stableStringify } from './utils/idUtils';
-import { ENTER_TO_CONTINUE_HINT, focusFirstAnswerControl, shouldAdvanceOnEnter, shouldFocusAnswerOnOpen, shouldSubmitAnswerOnEnter } from './platform/interaction/answerEntryUx.js';
+import { ENTER_TO_CONTINUE_HINT, focusFirstAnswerControl, isTouchPrimaryPointer, shouldAdvanceOnEnter, shouldFocusAnswerOnOpen, shouldSubmitAnswerOnEnter } from './platform/interaction/answerEntryUx.js';
+import { AnswerFocusPolicyProvider } from './platform/interaction/answerFocusPolicy.js';
 import { normalizeQuestionWeight } from './platform/grading/questionWeights.js';
 import { resolveTaskContextPresentation } from './platform/workflow/taskContextPresentation.js';
 import { WorkViewCapabilityProvider } from './platform/workView/workViewCapabilities.js';
@@ -493,16 +494,21 @@ export default function QuestionEngine({
   // unless doing so would open a keypad over work the student has not read, or
   // would point at one cell of a composed workspace as though it were the
   // answer. See shouldFocusAnswerOnOpen.
+  //
+  // Touch-first devices (an iPad is laid out like a laptop but raises an
+  // on-screen keyboard) are excluded too. The decision is shared with the
+  // registry tools through AnswerFocusPolicyProvider, because ToolShell used to
+  // focus its first input regardless of it. A registry tool decides WHICH box,
+  // if any: it knows whether it has one answer or twelve.
+  const answerAutoFocusAllowed = !locked && !scaffoldRequired && !contextScaffoldRequired
+    && shouldFocusAnswerOnOpen({ composed: isComposed, narrowViewport: isMobileQuestionViewport(), touchPrimary: isTouchPrimaryPointer() });
   useEffect(() => {
-    if (locked || scaffoldRequired || contextScaffoldRequired) return undefined;
-    if (!shouldFocusAnswerOnOpen({ composed: isComposed, narrowViewport: isMobileQuestionViewport() })) {
-      return undefined;
-    }
+    if (!answerAutoFocusAllowed || missingToolDefinition) return undefined;
     const frame = window.requestAnimationFrame(() => {
       focusFirstAnswerControl(questionEngineRef.current);
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [processedQuestion, record.variantIndex, locked, scaffoldRequired, contextScaffoldRequired, isComposed]);
+  }, [processedQuestion, record.variantIndex, answerAutoFocusAllowed, missingToolDefinition]);
 
   // Two-step keyboard flow: Enter submits a complete single-line answer; after
   // the platform confirms it is correct, the NEXT Enter advances. Keeping the
@@ -934,10 +940,12 @@ export default function QuestionEngine({
               `canonicalSavedAt` is what stops a stale draft outranking a newer
               submitted answer — see `toolDraftIsSuperseded`. */}
           <ToolDraftScopeProvider draftKey={draftKey} canonicalSavedAt={canonicalAnswerSavedAt}>
-            <Suspense fallback={<p role="status">Opening Work View…</p>}>
-              <WorkViewReadySignal span={workViewSpan} />
-              <Tool questionData={presentationQuestion} onAction={handleMissingToolAction} draftKey={draftKey} />
-            </Suspense>
+            <AnswerFocusPolicyProvider allowed={answerAutoFocusAllowed}>
+              <Suspense fallback={<p role="status">Opening Work View…</p>}>
+                <WorkViewReadySignal span={workViewSpan} />
+                <Tool questionData={presentationQuestion} onAction={handleMissingToolAction} draftKey={draftKey} />
+              </Suspense>
+            </AnswerFocusPolicyProvider>
           </ToolDraftScopeProvider>
         </ToolRuntimeProvider>
       );

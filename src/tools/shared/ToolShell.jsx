@@ -1,6 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import MathText from '../../components/common/MathText.jsx';
-import { focusFirstAnswerControl, isSingleLineAnswerTarget } from '../../platform/interaction/answerEntryUx.js';
+import {
+  countAnswerControls,
+  focusFirstAnswerControl,
+  isSingleLineAnswerTarget,
+  isTouchPrimaryPointer,
+  shouldFocusAnswerOnOpen,
+} from '../../platform/interaction/answerEntryUx.js';
+import { useAnswerFocusPolicy } from '../../platform/interaction/answerFocusPolicy.js';
+import { isMobileQuestionViewport } from '../../components/student/MobileViewportContainer.jsx';
 import QuietDisclosure from '../../components/common/QuietDisclosure.jsx';
 import { useRenderPerformance } from '../../platform/performance/useRenderPerformance.js';
 
@@ -21,13 +29,42 @@ const contentKey = (value) => {
   return hash.toString(36);
 };
 
-export default function ToolShell({ title, subtitle, badge, children, footer, shellKey = null, workspaceWidth = 'min(100%, 1180px)' }) {
+/*
+ * WHETHER A TOOL OPENS WITH THE CURSOR IN A BOX.
+ *
+ * Two questions, and both must say yes.
+ *
+ *   MAY IT? The hosting question decides (useAnswerFocusPolicy): not on a
+ *   phone, not on a touch-first tablet, not in a composed question, not while
+ *   locked. This shell used to skip that question and focus unconditionally,
+ *   so the phone number keypad opened over Linear Table Workbench's table the
+ *   moment it loaded, and the iPad math keypad covered half the representation
+ *   board.
+ *
+ *   IS THERE "THE" BOX? Only when the tool shows exactly one answer control.
+ *   A tool with a dozen — the representation board, a table workbench — has no
+ *   first answer, only a first cell, and landing there says the task starts
+ *   with typing when it starts with reading. `focusOnOpen={false}` opts a tool
+ *   out even then.
+ */
+const mayFocusOnOpen = (policy) => (policy
+  ? policy.allowed
+  : shouldFocusAnswerOnOpen({ narrowViewport: isMobileQuestionViewport(), touchPrimary: isTouchPrimaryPointer() }));
+
+export default function ToolShell({ title, subtitle, badge, children, footer, shellKey = null, workspaceWidth = 'min(100%, 1180px)', focusOnOpen = true }) {
   useRenderPerformance('ToolShell');
   const shellRef = useRef(null);
+  const focusPolicy = useAnswerFocusPolicy();
+  const focusAllowed = focusOnOpen && mayFocusOnOpen(focusPolicy);
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => focusFirstAnswerControl(shellRef.current));
+    if (!focusAllowed) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      if (countAnswerControls(shellRef.current) === 1) focusFirstAnswerControl(shellRef.current);
+    });
     return () => window.cancelAnimationFrame(frame);
+    // On open only: a tool that re-renders must not pull the cursor back.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAnswerEnter = (event) => {
