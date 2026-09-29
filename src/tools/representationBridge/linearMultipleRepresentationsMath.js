@@ -3,7 +3,6 @@
 // Reuses the platform's canonical linear engines:
 //   - shared/linearEquations.js
 //   - algebraAstEngine.js
-//   - stepAlgebra2/rewriteLinearFormMath.js
 //   - graphing2/constructionPolicy.js + graphingMath.js
 //   - linearTableWorkbench/linearTableWorkbenchMath.js
 
@@ -11,7 +10,6 @@ import { parse } from 'mathjs';
 import {
   fitTableLine,
   isCollinear,
-  normalizeRows,
 } from '../linearTableWorkbench/linearTableWorkbenchMath.js';
 import { matchesNumericAnswer, nearlyEqual } from '../shared/toolMath.js';
 import {
@@ -30,16 +28,13 @@ import {
   pointOnCanonicalLine,
   standardCoefficientsFromEquationText,
   toFraction,
-  xInterceptOf,
-  yInterceptOf,
 } from '../shared/linearEquations.js';
-import { isSimplifiedSlopeInterceptForm } from '../stepAlgebra2/rewriteLinearFormMath.js';
 import {
   isLinearStandardFormEquation,
   isSimplifiedSlopeInterceptExpression,
   latexToExpression,
 } from '../../algebraAstEngine.js';
-import { lineFromPoints, targetLineFromQuestion } from '../graphing2/graphingMath.js';
+import { targetLineFromQuestion } from '../graphing2/graphingMath.js';
 import { evaluateConstruction } from '../graphing2/constructionPolicy.js';
 
 export const SUPPORTED_SOURCE_KINDS = Object.freeze([
@@ -58,6 +53,78 @@ export const DEFAULT_BOARD_CATEGORIES = Object.freeze({
   table: ['table'],
   graphs: ['graphIntercepts', 'graphSlopeIntercept', 'graphPointSlope'],
 });
+
+/** Every card a student can be asked to build, in board order. */
+export const BOARD_CARD_IDS = Object.freeze(Object.values(DEFAULT_BOARD_CATEGORIES).flat());
+
+// The graded part each card produces. The graph parts keep their historical
+// graph1/graph2/graph3 names so stored attempts stay readable.
+export const CARD_PART_KEYS = Object.freeze({
+  standardForm: 'standardForm',
+  slopeIntercept: 'slopeIntercept',
+  pointSlope: 'pointSlope',
+  slope: 'slope',
+  xIntercept: 'xIntercept',
+  yIntercept: 'yIntercept',
+  twoPoints: 'twoPoints',
+  table: 'table',
+  graphIntercepts: 'graph1',
+  graphSlopeIntercept: 'graph2',
+  graphPointSlope: 'graph3',
+});
+
+// Classroom names for every graded part, used wherever a student reads which
+// part needs another look.
+export const PART_LABELS = Object.freeze({
+  standardForm: 'Standard form',
+  slopeIntercept: 'Slope-intercept form',
+  pointSlope: 'Point-slope form',
+  slope: 'Slope',
+  xIntercept: 'x-intercept',
+  yIntercept: 'y-intercept',
+  twoPoints: 'Two points on the line',
+  table: 'Table of values',
+  graph1: 'Graph 1 (intercepts)',
+  graph2: 'Graph 2 (slope-intercept)',
+  graph3: 'Graph 3 (point-slope)',
+  contextIndependent: 'Independent quantity',
+  contextDependent: 'Dependent quantity',
+  contextSlopeMeaning: 'Meaning of the slope',
+  contextYInterceptMeaning: 'Meaning of the y-intercept',
+  contextXInterceptMeaning: 'Meaning of the x-intercept',
+  contextDomain: 'Reasonable domain',
+  crossRepresentationConsistency: 'Every part describes the same line',
+});
+
+// The card a source kind hands the student already built. It is GIVEN, so it
+// is never asked for again and never graded.
+const GIVEN_CARD_BY_KIND = Object.freeze({
+  standardForm: 'standardForm',
+  slopeIntercept: 'slopeIntercept',
+  pointSlope: 'pointSlope',
+  twoPoints: 'twoPoints',
+  table: 'table',
+});
+
+export const givenCardForQuestion = (question = {}) => GIVEN_CARD_BY_KIND[question.source?.kind] || null;
+
+const expandCardIds = (ids) => ids.flatMap((id) => DEFAULT_BOARD_CATEGORIES[id] || [id]);
+
+/**
+ * The cards this question asks the student to build, in board order.
+ *
+ * `requiredCards` lets an author make a shorter board (a DOL, say) from card
+ * ids or whole categories (`graphs`, `features`). Absent, every card is asked
+ * for. The GIVEN representation is always removed: it is the starting point,
+ * not work.
+ */
+export const resolveRequiredCards = (question = {}) => {
+  const authored = Array.isArray(question.requiredCards) && question.requiredCards.length
+    ? expandCardIds(question.requiredCards.map(String))
+    : BOARD_CARD_IDS;
+  const given = givenCardForQuestion(question);
+  return BOARD_CARD_IDS.filter((id) => authored.includes(id) && id !== given);
+};
 
 const gcd = (a, b) => {
   let x = Math.abs(Math.round(a));
@@ -138,67 +205,113 @@ export const parseNumericOrFraction = (input) => {
   return null;
 };
 
-const gcdInteger = (a, b) => {
-  let x = Math.abs(Math.round(a));
-  let y = Math.abs(Math.round(b));
-  while (y !== 0) {
-    const temp = y;
-    y = x % y;
-    x = temp;
-  }
-  return x || 1;
+/** A coordinate as a student writes it: 3, -2, 1/2 — never 0.3333333333. */
+export const formatCoordinateText = (value) => {
+  const fraction = toFraction(value);
+  return fraction ? formatFraction(fraction) : String(value);
 };
 
-const lcmInteger = (a, b) => {
-  if (!a || !b) return a || b || 1;
-  return Math.abs(Math.round(a * b)) / gcdInteger(a, b);
+/*
+ * WHERE A POINT CAN LAND, PER GRAPH.
+ *
+ * A plane snaps to multiples of one step. A graph is plottable exactly when
+ * every point it REQUIRES is a multiple of that step, so each graph gets the
+ * coarsest grid that contains both the author's grid and its own required
+ * points:
+ *
+ *   Graph 1  the x- and y-intercepts
+ *   Graph 2  the y-intercept (the slope step from it is a whole rise and run,
+ *            so it lands on the same grid)
+ *   Graph 3  the point-slope anchor — the given point, or the point the
+ *            student chose. "Any valid point" stays true only if that point is
+ *            reachable, so an authored snapStep of 1 must not trap a student
+ *            who wrote y − 1/2 = x − 1/2.
+ *
+ * "Coarsest grid containing a and b" is the rational gcd: gcd(1, 1/2) = 1/2,
+ * gcd(1/4, 1/2) = 1/4, gcd(1/5, 1/2) = 1/10. A slope's denominator is NOT a
+ * reason to refine: slope 1/2 is rise 1, run 2, whole steps on the whole grid.
+ * Whole numbers stay the default, as the plane itself promises.
+ */
+export const MAX_SNAP_DENOMINATOR = 20;
+// Past MAX_SNAP_DENOMINATOR the exact grid is too fine to aim at. Twentieths
+// put any coordinate within 0.025 of a gridline — well inside the graph
+// tolerance — so the point is still plottable, just not exactly.
+const FALLBACK_SNAP_STEP = 1 / MAX_SNAP_DENOMINATOR;
+
+const fractionGcd = (left, right) => {
+  const a = { n: Math.abs(left.n), d: left.d };
+  const b = { n: Math.abs(right.n), d: right.d };
+  if (a.n === 0) return b;
+  if (b.n === 0) return a;
+  return makeFraction(gcd(a.n * b.d, b.n * a.d), a.d * b.d);
+};
+
+/** The author's grid: an explicit positive snapStep (number or "1/3"), else whole numbers. */
+export const resolveAuthoredSnapStep = (questionData = {}) => {
+  const parsed = questionData.snapStep == null ? null : parseNumericOrFraction(questionData.snapStep);
+  return parsed && Number.isFinite(parsed.number) && parsed.number > 0 ? parsed.number : 1;
 };
 
 /**
- * Rational-aware snap step resolver:
- * Ensures fractional slopes, intercepts, authored coordinates, or student-chosen
- * point-slope anchors (e.g. 1/2, 3/4) remain accurately graphable on the CoordinatePlane.
- * Uses the LCM of coordinate denominators with a sensible cap.
+ * The coarsest grid that contains the base grid and every coordinate of
+ * `points`. Returns the base unchanged when it already reaches them.
+ */
+export const refineSnapStep = (baseStep, points = []) => {
+  const base = Number(baseStep) > 0 && Number.isFinite(Number(baseStep)) ? Number(baseStep) : 1;
+  let grid = toFraction(base);
+  if (!grid) return base;
+  (Array.isArray(points) ? points : []).forEach((point) => {
+    if (!Array.isArray(point)) return;
+    point.slice(0, 2).forEach((value) => {
+      const coordinate = toFraction(value);
+      if (coordinate && coordinate.n !== 0) grid = fractionGcd(grid, coordinate);
+    });
+  });
+  if (grid.d > MAX_SNAP_DENOMINATOR) return Math.min(base, FALLBACK_SNAP_STEP);
+  const step = grid.n / grid.d;
+  // Keep the author's exact number when nothing needed refining.
+  return Math.abs(step - base) < 1e-12 ? base : step;
+};
+
+const interceptAnchors = (canonicalFacts = {}) => [canonicalFacts.xInterceptPoint, canonicalFacts.yInterceptPoint]
+  .filter((point) => Array.isArray(point));
+
+/**
+ * One grid per graph workspace (see above). `graph3Anchor` is the point Graph
+ * 3 must start from, or null while the student has not chosen one.
+ */
+export const resolveGraphSnapSteps = (questionData = {}, canonicalFacts = {}, graph3Anchor = null) => {
+  const base = resolveAuthoredSnapStep(questionData);
+  const intercepts = interceptAnchors(canonicalFacts);
+  return {
+    base,
+    graph1: refineSnapStep(base, intercepts),
+    graph2: refineSnapStep(base, canonicalFacts.yInterceptPoint ? [canonicalFacts.yInterceptPoint] : []),
+    graph3: refineSnapStep(base, Array.isArray(graph3Anchor) ? [graph3Anchor] : intercepts),
+  };
+};
+
+/**
+ * Compatibility wrapper: the grid that reaches the intercepts, a given
+ * point-slope anchor and any `extraPoints`, refining the authored step only
+ * where those points need it.
  */
 export const resolveSnapStep = (questionData = {}, canonicalFacts = {}, extraPoints = []) => {
-  const explicit = Number(questionData.snapStep);
-  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+  const base = resolveAuthoredSnapStep(questionData);
+  const points = [
+    ...interceptAnchors(canonicalFacts),
+    ...(Array.isArray(canonicalFacts.sourcePoint) ? [canonicalFacts.sourcePoint] : []),
+    ...(Array.isArray(extraPoints) ? extraPoints : []),
+  ];
+  return refineSnapStep(base, points);
+};
 
-  const m = canonicalFacts.slopeFraction || canonicalFacts.canonicalLine?.m;
-  const b = canonicalFacts.yInterceptFraction || canonicalFacts.canonicalLine?.b;
-  const zero = canonicalFacts.zeroFraction;
-
-  const denominators = [];
-  [m?.d, b?.d, zero?.d].forEach((d) => {
-    if (Number.isFinite(d) && d > 1) denominators.push(d);
-  });
-
-  if (Array.isArray(extraPoints)) {
-    extraPoints.forEach((pt) => {
-      if (Array.isArray(pt) && pt.length >= 2) {
-        const xF = toFraction(pt[0]);
-        const yF = toFraction(pt[1]);
-        if (xF && Number.isFinite(xF.d) && xF.d > 1) denominators.push(xF.d);
-        if (yF && Number.isFinite(yF.d) && yF.d > 1) denominators.push(yF.d);
-      }
-    });
-  }
-
-  if (canonicalFacts.sourcePoint && Array.isArray(canonicalFacts.sourcePoint)) {
-    const xF = toFraction(canonicalFacts.sourcePoint[0]);
-    const yF = toFraction(canonicalFacts.sourcePoint[1]);
-    if (xF && Number.isFinite(xF.d) && xF.d > 1) denominators.push(xF.d);
-    if (yF && Number.isFinite(yF.d) && yF.d > 1) denominators.push(yF.d);
-  }
-
-  const validD = denominators.filter((d) => Number.isFinite(d) && d > 1 && d <= 20);
-  if (!validD.length) return 1;
-
-  const lcmVal = validD.reduce((acc, d) => lcmInteger(acc, d), 1);
-  if (lcmVal <= 20) {
-    return Number((1 / lcmVal).toFixed(4));
-  }
-  return 0.05;
+/** "whole numbers", or "every 1/2 unit" — how a student is told where points land. */
+export const describeSnapStep = (step) => {
+  const fraction = toFraction(step);
+  if (!fraction || (fraction.d === 1 && fraction.n === 1)) return 'whole numbers';
+  if (fraction.d === 1) return `every ${fraction.n} units`;
+  return `every ${formatFraction(fraction)} unit`;
 };
 
 // -----------------------------------------------------------------------------
@@ -298,6 +411,59 @@ export const parsePointSlopeForm = (equationText) => {
   }
 };
 
+/*
+ * An authored table cell or coordinate, read exactly: a number, a numeric
+ * string, or a fraction string such as "1/3" (which no float can hold). The
+ * raw value is kept so the GIVEN representation shows what the author wrote.
+ */
+const readAuthoredValue = (value) => {
+  if (value == null || typeof value === 'boolean') return null;
+  if (typeof value === 'string' && !value.trim()) return null;
+  const parsed = parseNumericOrFraction(String(value).replace(/−/g, '-'));
+  return parsed && Number.isFinite(parsed.number) ? parsed : null;
+};
+
+/** Source table rows as exact numbers, or null when any cell is not a finite value. */
+export const readSourceTableRows = (rows) => {
+  if (!Array.isArray(rows)) return null;
+  const read = rows.map((row) => {
+    const rawX = Array.isArray(row) ? row[0] : row?.x;
+    const rawY = Array.isArray(row) ? row[1] : row?.y;
+    const x = readAuthoredValue(rawX);
+    const y = readAuthoredValue(rawY);
+    return x && y ? { x: x.number, y: y.number, rawX, rawY } : null;
+  });
+  return read.every(Boolean) ? read : null;
+};
+
+/*
+ * An authored point, in either shape it can arrive in. Authors write
+ * [x, y]; Firestore cannot store an array of arrays, so the teacher import
+ * stores `points: [[x, y], …]` as `[{ x, y }, …]` (see
+ * repairKnownFirestoreNestedArrays). A reader that only knows [x, y] rejects
+ * every published two-points and graph question.
+ */
+export const authoredPointPair = (point) => {
+  if (Array.isArray(point)) return point.length === 2 ? point : null;
+  if (point && typeof point === 'object' && 'x' in point && 'y' in point) return [point.x, point.y];
+  return null;
+};
+
+/** Source points as exact numbers, or null when any point is malformed or not finite. */
+const readSourcePoints = (points) => {
+  if (!Array.isArray(points)) return null;
+  const read = points.map((point) => {
+    const pair = authoredPointPair(point);
+    if (!pair) return null;
+    const x = readAuthoredValue(pair[0]);
+    const y = readAuthoredValue(pair[1]);
+    return x && y ? [x.number, y.number] : null;
+  });
+  return read.every(Boolean) ? read : null;
+};
+
+const twoPointsSourceList = (source = {}) => (Array.isArray(source.points) ? source.points : [source.first, source.second]);
+
 /**
  * Derives the canonical mathematical relationship and key facts from any supported source kind.
  */
@@ -321,16 +487,16 @@ export const deriveLinearMultipleRepresentations = (question = {}) => {
   } else if (kind === 'pointSlope') {
     if (source.equation) {
       canonicalLine = canonicalFromEquationText(source.equation);
-    } else if (source.point && source.m != null) {
-      canonicalLine = canonicalFromPointSlope(source.point, source.m);
+    } else if (authoredPointPair(source.point) && source.m != null) {
+      canonicalLine = canonicalFromPointSlope(readSourcePoints([source.point])?.[0], source.m);
     }
   } else if (kind === 'twoPoints') {
-    const points = source.points || [source.first, source.second];
-    if (Array.isArray(points) && points.length >= 2) {
+    const points = readSourcePoints(twoPointsSourceList(source));
+    if (points && points.length >= 2) {
       canonicalLine = canonicalFromPoints(points[0], points[1]);
     }
   } else if (kind === 'table') {
-    const rows = normalizeRows(source.rows);
+    const rows = readSourceTableRows(source.rows);
     if (rows && rows.length >= 2) {
       const { m, b } = fitTableLine(rows);
       if (Number.isFinite(m) && Number.isFinite(b)) {
@@ -338,8 +504,9 @@ export const deriveLinearMultipleRepresentations = (question = {}) => {
       }
     }
   } else if (kind === 'graph') {
-    if (Array.isArray(source.points) && source.points.length >= 2) {
-      canonicalLine = canonicalFromPoints(source.points[0], source.points[1]);
+    const points = readSourcePoints(source.points);
+    if (points && points.length >= 2) {
+      canonicalLine = canonicalFromPoints(points[0], points[1]);
     } else if (source.line) {
       canonicalLine = canonicalFromSlopeIntercept(source.line.m, source.line.b);
     }
@@ -370,16 +537,17 @@ export const deriveLinearMultipleRepresentations = (question = {}) => {
   const standardEquation = standard ? formatNormalizedStandard(standard) : null;
   const slopeInterceptEquation = formatSlopeIntercept(canonicalLine);
 
-  const sourcePoints = (kind === 'twoPoints' && Array.isArray(source.points || [source.first, source.second]))
-    ? (source.points || [source.first, source.second])
-    : (kind === 'graph' && Array.isArray(source.points))
-      ? source.points
+  const sourcePoints = kind === 'twoPoints'
+    ? readSourcePoints(twoPointsSourceList(source))
+    : kind === 'graph'
+      ? readSourcePoints(source.points)
       : null;
 
   let sourcePoint = null;
   if (kind === 'pointSlope') {
-    if (Array.isArray(source.point) && source.point.length >= 2) {
-      sourcePoint = source.point;
+    const authoredPoint = source.point != null ? readSourcePoints([source.point])?.[0] : null;
+    if (authoredPoint) {
+      sourcePoint = authoredPoint;
     } else if (source.equation) {
       const parsed = parsePointSlopeForm(source.equation);
       if (parsed && Array.isArray(parsed.point)) {
@@ -433,39 +601,44 @@ export const validateLinearMultipleRepresentationsQuestion = (question = {}) => 
       errors.push('representationBridge table source requires at least three rows in source.rows.');
       return errors;
     }
-    const hasInvalidRow = rawRows.some((r) => {
-      if (!r || typeof r !== 'object') return true;
-      if (r.x === null || r.x === undefined || r.y === null || r.y === undefined) return true;
-      if (typeof r.x === 'boolean' || typeof r.y === 'boolean') return true;
-      const xStr = String(r.x).trim();
-      const yStr = String(r.y).trim();
-      if (!xStr || !yStr) return true;
-      const xNum = Number(xStr);
-      const yNum = Number(yStr);
-      return !Number.isFinite(xNum) || !Number.isFinite(yNum);
-    });
-    if (hasInvalidRow) {
+    // Cells may be numbers or exact fraction strings ("1/3"); both are shown
+    // to the student exactly as authored.
+    const rows = readSourceTableRows(rawRows);
+    if (!rows) {
       errors.push('representationBridge table source requires finite numerical coordinates in every row.');
       return errors;
     }
-    const rows = normalizeRows(rawRows);
+    if (new Set(rows.map((row) => Number(row.x.toFixed(9)))).size !== rows.length) {
+      errors.push('representationBridge table source requires a different x-value in every row.');
+      return errors;
+    }
     if (!isCollinear(rows)) {
       errors.push('representationBridge requires a genuinely linear source table (constant rate of change).');
       return errors;
     }
   }
 
+  if (source.kind === 'scenario') {
+    // The story IS the given representation. Without it the student is handed
+    // a board with nothing to start from.
+    if (!String(source.prompt ?? source.text ?? '').trim()) {
+      errors.push('representationBridge scenario source requires source.prompt: the situation the student reads.');
+      return errors;
+    }
+  }
+
   if (source.kind === 'twoPoints') {
-    const pts = source.points || [source.first, source.second];
+    const pts = twoPointsSourceList(source);
     if (!Array.isArray(pts) || pts.length < 2 || !pts[0] || !pts[1]) {
       errors.push('representationBridge twoPoints source requires two valid points.');
       return errors;
     }
-    const [p1, p2] = pts;
-    if (![p1[0], p1[1], p2[0], p2[1]].every((v) => Number.isFinite(Number(v)))) {
+    const read = readSourcePoints(pts.slice(0, 2));
+    if (!read) {
       errors.push('representationBridge twoPoints source requires finite coordinates.');
       return errors;
     }
+    const [p1, p2] = read;
     if (Math.abs(p1[0] - p2[0]) < 1e-9 && Math.abs(p1[1] - p2[1]) < 1e-9) {
       errors.push('representationBridge twoPoints source requires distinct points.');
       return errors;
@@ -486,15 +659,12 @@ export const validateLinearMultipleRepresentationsQuestion = (question = {}) => 
         errors.push('representationBridge graph source requires at least two points.');
         return errors;
       }
-      const allFinite = source.points.every((pt) =>
-        Array.isArray(pt) && pt.length === 2 && Number.isFinite(Number(pt[0])) && Number.isFinite(Number(pt[1]))
-      );
-      if (!allFinite) {
+      const graphPoints = readSourcePoints(source.points);
+      if (!graphPoints) {
         errors.push('representationBridge graph source points require finite coordinates.');
         return errors;
       }
-      const p1 = source.points[0].map(Number);
-      const p2 = source.points[1].map(Number);
+      const [p1, p2] = graphPoints;
       if (Math.abs(p1[0] - p2[0]) < 1e-9 && Math.abs(p1[1] - p2[1]) < 1e-9) {
         errors.push('representationBridge graph source requires at least two distinct points.');
         return errors;
@@ -504,9 +674,7 @@ export const validateLinearMultipleRepresentationsQuestion = (question = {}) => 
         errors.push('representationBridge graph source requires a non-vertical line.');
         return errors;
       }
-      const allCollinear = source.points.every((pt) =>
-        pointOnCanonicalLine(lineFromPointsResult, pt.map(Number), 1e-4)
-      );
+      const allCollinear = graphPoints.every((pt) => pointOnCanonicalLine(lineFromPointsResult, pt, 1e-4));
       if (!allCollinear) {
         errors.push('representationBridge graph source points must all lie on the same line.');
         return errors;
@@ -540,6 +708,32 @@ export const validateLinearMultipleRepresentationsQuestion = (question = {}) => 
     return errors;
   }
 
+  if (question.requiredCards != null) {
+    const known = [...BOARD_CARD_IDS, ...Object.keys(DEFAULT_BOARD_CATEGORIES)];
+    if (!Array.isArray(question.requiredCards) || !question.requiredCards.length) {
+      errors.push('representationBridge requiredCards must be a non-empty list of board cards.');
+      return errors;
+    }
+    const unknown = question.requiredCards.filter((id) => !known.includes(String(id)));
+    if (unknown.length) {
+      errors.push(`representationBridge requiredCards has unknown card(s): ${unknown.join(', ')}. Use: ${known.join(', ')}.`);
+      return errors;
+    }
+    if (!resolveRequiredCards(question).length) {
+      errors.push('representationBridge requiredCards lists only the GIVEN representation, so the student would have nothing to build.');
+      return errors;
+    }
+  }
+
+  if (question.snapStep != null) {
+    const snap = parseNumericOrFraction(question.snapStep);
+    if (!snap || !Number.isFinite(snap.number) || snap.number <= 0) {
+      errors.push('representationBridge snapStep must be a positive number or fraction when supplied.');
+      return errors;
+    }
+  }
+
+
   if (question.graphBounds != null) {
     const bounds = question.graphBounds;
     const finite = bounds && typeof bounds === 'object' && [bounds.xMin, bounds.xMax, bounds.yMin, bounds.yMax].every((v) => Number.isFinite(Number(v)));
@@ -568,7 +762,7 @@ export const validateLinearMultipleRepresentationsQuestion = (question = {}) => 
       }
 
       // Check source point-slope anchor if authored (either in source.point or source.equation)
-      const ptSlopeAnchor = derived.sourcePoint || source.point;
+      const ptSlopeAnchor = derived.sourcePoint;
       if (source.kind === 'pointSlope' && Array.isArray(ptSlopeAnchor)) {
         const [px, py] = ptSlopeAnchor.map(Number);
         if (Number.isFinite(px) && Number.isFinite(py)) {
@@ -579,17 +773,9 @@ export const validateLinearMultipleRepresentationsQuestion = (question = {}) => 
       }
 
       // Check source points if twoPoints or graph
-      if ((source.kind === 'twoPoints' || source.kind === 'graph') && Array.isArray(source.points)) {
-        for (const pt of source.points) {
-          if (Array.isArray(pt) && Number.isFinite(Number(pt[0])) && Number.isFinite(Number(pt[1]))) {
-            const px = Number(pt[0]);
-            const py = Number(pt[1]);
-            if (px < xMin || px > xMax || py < yMin || py > yMax) {
-              errors.push('representationBridge graphBounds does not include the given source points.');
-              break;
-            }
-          }
-        }
+      if ((source.kind === 'twoPoints' || source.kind === 'graph') && Array.isArray(derived.sourcePoints)) {
+        const outside = derived.sourcePoints.some(([px, py]) => px < xMin || px > xMax || py < yMin || py > yMax);
+        if (outside) errors.push('representationBridge graphBounds does not include the given source points.');
       }
     }
   }
@@ -624,27 +810,19 @@ export const resolveLinearMultipleRepresentationsGraphBounds = (questionData = {
   }
 
   const source = questionData.source || {};
-  if (Array.isArray(source.points)) {
-    source.points.forEach((p) => {
-      if (Array.isArray(p) && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1]))) {
-        xs.push(Number(p[0]));
-        ys.push(Number(p[1]));
-      }
-    });
-  }
-  const ptSlopeAnchor = canonicalFacts.sourcePoint || source.point;
+  (readSourcePoints(source.points) || []).forEach(([x, y]) => {
+    xs.push(x);
+    ys.push(y);
+  });
+  const ptSlopeAnchor = canonicalFacts.sourcePoint || readSourcePoints(source.point != null ? [source.point] : [])?.[0];
   if (Array.isArray(ptSlopeAnchor) && Number.isFinite(Number(ptSlopeAnchor[0])) && Number.isFinite(Number(ptSlopeAnchor[1]))) {
     xs.push(Number(ptSlopeAnchor[0]));
     ys.push(Number(ptSlopeAnchor[1]));
   }
-  if (Array.isArray(source.rows)) {
-    source.rows.forEach((r) => {
-      if (r && Number.isFinite(Number(r.x)) && Number.isFinite(Number(r.y))) {
-        xs.push(Number(r.x));
-        ys.push(Number(r.y));
-      }
-    });
-  }
+  (readSourceTableRows(source.rows) || []).forEach((row) => {
+    xs.push(row.x);
+    ys.push(row.y);
+  });
 
   const xMinRaw = Math.min(...xs, -5);
   const xMaxRaw = Math.max(...xs, 5);
@@ -754,13 +932,13 @@ export const validateStandardFormEntry = (equationText, canonicalFacts) => {
   if (!standardStructural) {
     return {
       isCorrect: false,
-      error: 'Write the equation in standard form: Ax + By = C with integer coefficients.',
+      error: 'Standard form is Ax + By = C: the x-term and y-term on the left, one number on the right.',
     };
   }
 
   const coeffs = standardCoefficientsFromEquationText(str);
   if (!coeffs) {
-    return { isCorrect: false, error: 'Could not resolve linear coefficients from equation.' };
+    return { isCorrect: false, error: 'Write a linear equation in x and y, such as Ax + By = C.' };
   }
 
   const { A, B, C } = coeffs;
@@ -768,7 +946,7 @@ export const validateStandardFormEntry = (equationText, canonicalFacts) => {
   if (!isIntegerCoeffs) {
     return {
       isCorrect: false,
-      error: 'Standard form requires integer coefficients A, B, and C with no fractions.',
+      error: 'Standard form uses whole-number coefficients. Multiply every term to clear the fractions.',
     };
   }
 
@@ -780,14 +958,14 @@ export const validateStandardFormEntry = (equationText, canonicalFacts) => {
   if (divisor > 1) {
     return {
       isCorrect: false,
-      error: `Simplify standard form by dividing all terms by their common factor of ${divisor}.`,
+      error: `Every term shares a common factor of ${divisor}. Divide every term by ${divisor}.`,
     };
   }
 
   if (intA < 0 || (intA === 0 && intB < 0)) {
     return {
       isCorrect: false,
-      error: 'Standard form requires a positive leading coefficient. Multiply both sides by -1.',
+      error: 'Standard form needs a positive leading coefficient (the number in front of x). Multiply every term by −1.',
     };
   }
 
@@ -795,7 +973,7 @@ export const validateStandardFormEntry = (equationText, canonicalFacts) => {
   if (!eqLine || !linesEquivalent(eqLine, canonicalFacts.canonicalLine)) {
     return {
       isCorrect: false,
-      error: 'This standard form equation does not represent the target line.',
+      error: 'This is standard form, but it describes a different line. Recheck your rearranging.',
     };
   }
 
@@ -827,7 +1005,7 @@ export const validateSlopeInterceptEntry = (equationText, canonicalFacts) => {
   }
 
   if (!leftIsY) {
-    return { isCorrect: false, error: 'Slope-intercept form must have y isolated on the left: y = mx + b.' };
+    return { isCorrect: false, error: 'Slope-intercept form has y by itself on the left: y = mx + b.' };
   }
 
   let rightValid = false;
@@ -838,12 +1016,12 @@ export const validateSlopeInterceptEntry = (equationText, canonicalFacts) => {
   }
 
   if (!rightValid) {
-    return { isCorrect: false, error: 'Write the right-hand side in simplified slope-intercept form: mx + b.' };
+    return { isCorrect: false, error: 'Simplify the right side of your slope-intercept equation to mx + b.' };
   }
 
   const eqLine = canonicalFromEquationText(str);
   if (!eqLine || !linesEquivalent(eqLine, canonicalFacts.canonicalLine)) {
-    return { isCorrect: false, error: 'This equation does not represent the target line.' };
+    return { isCorrect: false, error: 'This is slope-intercept form, but it describes a different line. Check your slope and y-intercept.' };
   }
 
   return { isCorrect: true };
@@ -866,7 +1044,7 @@ export const validatePointSlopeEntry = (equationText, canonicalFacts) => {
   if (!parsed) {
     return {
       isCorrect: false,
-      error: 'Write the equation in point-slope form: y − y₁ = m(x − x₁).',
+      error: 'Write it as y − y₁ = m(x − x₁), using one point (x₁, y₁) on the line.',
     };
   }
 
@@ -875,7 +1053,7 @@ export const validatePointSlopeEntry = (equationText, canonicalFacts) => {
   if (!nearlyEqual(m, canonicalFacts.slopeNumber, 1e-4)) {
     return {
       isCorrect: false,
-      error: `The slope m = ${formatFraction(toFraction(m))} does not match the target line slope.`,
+      error: `Your equation uses slope ${formatCoordinateText(m)}. Check the slope of this line.`,
     };
   }
 
@@ -883,13 +1061,13 @@ export const validatePointSlopeEntry = (equationText, canonicalFacts) => {
   if (!pointOnLine) {
     return {
       isCorrect: false,
-      error: `The point (${x1}, ${y1}) does not lie on this line. Choose a point that satisfies the relationship.`,
+      error: `The point (${formatCoordinateText(x1)}, ${formatCoordinateText(y1)}) does not lie on this line. Choose a point that makes the equation true.`,
     };
   }
 
   const eqLine = canonicalFromEquationText(str);
   if (!eqLine || !linesEquivalent(eqLine, canonicalFacts.canonicalLine)) {
-    return { isCorrect: false, error: 'This point-slope equation does not represent the target line.' };
+    return { isCorrect: false, error: 'This point-slope equation describes a different line. Recheck it.' };
   }
 
   return { isCorrect: true, point: [x1, y1], m };
@@ -907,7 +1085,7 @@ export const validateSlopeEntry = (slopeInput, canonicalFacts) => {
     isCorrect: matches,
     value: parsed.number,
     fraction: parsed.fraction,
-    error: matches ? null : 'Slope value does not match the target line.',
+    error: matches ? null : 'Not this line\'s slope. Compare the rise to the run between two points.',
   };
 };
 
@@ -940,26 +1118,26 @@ export const parseOrderedPair = (input) => {
 
 export const validateXInterceptEntry = (input, canonicalFacts) => {
   const pt = parseOrderedPair(input);
-  if (!pt) return { isCorrect: false, error: 'Enter the x-intercept as an ordered pair (x, 0).' };
+  if (!pt) return { isCorrect: false, error: 'Write the x-intercept as an ordered pair (x, 0).' };
   const [x, y] = pt;
   if (Math.abs(y) > 1e-4) {
-    return { isCorrect: false, error: 'The y-coordinate of an x-intercept must be 0.' };
+    return { isCorrect: false, error: 'An x-intercept is on the x-axis, so its y-coordinate is 0.' };
   }
   if (!nearlyEqual(x, canonicalFacts.zeroNumber, 1e-4)) {
-    return { isCorrect: false, error: 'The x-intercept value is incorrect for this line.' };
+    return { isCorrect: false, error: 'That point is on the x-axis, but it is not where this line crosses it.' };
   }
   return { isCorrect: true, point: pt };
 };
 
 export const validateYInterceptEntry = (input, canonicalFacts) => {
   const pt = parseOrderedPair(input);
-  if (!pt) return { isCorrect: false, error: 'Enter the y-intercept as an ordered pair (0, y).' };
+  if (!pt) return { isCorrect: false, error: 'Write the y-intercept as an ordered pair (0, y).' };
   const [x, y] = pt;
   if (Math.abs(x) > 1e-4) {
-    return { isCorrect: false, error: 'The x-coordinate of a y-intercept must be 0.' };
+    return { isCorrect: false, error: 'A y-intercept is on the y-axis, so its x-coordinate is 0.' };
   }
   if (!nearlyEqual(y, canonicalFacts.yInterceptNumber, 1e-4)) {
-    return { isCorrect: false, error: 'The y-intercept value is incorrect for this line.' };
+    return { isCorrect: false, error: 'That point is on the y-axis, but it is not where this line crosses it.' };
   }
   return { isCorrect: true, point: pt };
 };
@@ -968,16 +1146,16 @@ export const validateTwoPointsEntry = (point1Input, point2Input, canonicalFacts)
   const p1 = parseOrderedPair(point1Input);
   const p2 = parseOrderedPair(point2Input);
   if (!p1 || !p2) {
-    return { isCorrect: false, error: 'Enter two valid ordered pairs (x, y).' };
+    return { isCorrect: false, error: 'Write both points as ordered pairs (x, y).' };
   }
   if (nearlyEqual(p1[0], p2[0], 1e-4) && nearlyEqual(p1[1], p2[1], 1e-4)) {
-    return { isCorrect: false, error: 'The two points must be distinct from each other.', points: [p1, p2] };
+    return { isCorrect: false, error: 'Use two different points.', points: [p1, p2] };
   }
   if (!pointOnCanonicalLine(canonicalFacts.canonicalLine, p1)) {
-    return { isCorrect: false, error: `Point (${p1[0]}, ${p1[1]}) is not on the target line.`, points: [p1, p2] };
+    return { isCorrect: false, error: `The point (${formatCoordinateText(p1[0])}, ${formatCoordinateText(p1[1])}) is not on this line.`, points: [p1, p2] };
   }
   if (!pointOnCanonicalLine(canonicalFacts.canonicalLine, p2)) {
-    return { isCorrect: false, error: `Point (${p2[0]}, ${p2[1]}) is not on the target line.`, points: [p1, p2] };
+    return { isCorrect: false, error: `The point (${formatCoordinateText(p2[0])}, ${formatCoordinateText(p2[1])}) is not on this line.`, points: [p1, p2] };
   }
   return { isCorrect: true, points: [p1, p2] };
 };
@@ -986,7 +1164,7 @@ export const validateTableEntry = (rows = [], canonicalFacts, requiredCount = 4)
   if (!Array.isArray(rows) || rows.length < requiredCount) {
     return {
       isCorrect: false,
-      error: `Table must contain at least ${requiredCount} completed rows.`,
+      error: `Fill in at least ${requiredCount} complete rows.`,
     };
   }
 
@@ -1002,13 +1180,13 @@ export const validateTableEntry = (rows = [], canonicalFacts, requiredCount = 4)
   });
 
   if (parsedRows.some((r) => !r.valid)) {
-    return { isCorrect: false, error: 'All table rows must contain valid numbers or fractions.' };
+    return { isCorrect: false, error: 'Every x and y box needs a number or a fraction.' };
   }
 
   // Distinct x values
   const xVals = parsedRows.map((r) => Number(r.x.toFixed(6)));
   if (new Set(xVals).size !== xVals.length) {
-    return { isCorrect: false, error: 'Table rows must have distinct x-values.' };
+    return { isCorrect: false, error: 'Use a different x-value in every row.' };
   }
 
   // Every row must lie on the line
@@ -1016,7 +1194,7 @@ export const validateTableEntry = (rows = [], canonicalFacts, requiredCount = 4)
   if (offLine) {
     return {
       isCorrect: false,
-      error: `Row (${offLine.x}, ${offLine.y}) does not lie on the target line.`,
+      error: `The row (${formatCoordinateText(offLine.x)}, ${formatCoordinateText(offLine.y)}) is not on this line.`,
     };
   }
 
@@ -1204,6 +1382,60 @@ export const validateDomainField = (studentValue, expectedDomain) => {
   return { isCorrect: false, error: 'Unknown domain specification.' };
 };
 
+/**
+ * The point Graph 3 must start from, decided in ONE place for the board, its
+ * Check button and the final score:
+ *
+ *   given    the question's own point-slope point (authored point or the
+ *            point inside the authored equation) — it is part of what was given
+ *   student  the point from the student's own point-slope equation, but only
+ *            when that point really is on the line. A wrong point would
+ *            otherwise make Graph 3 "correct" for a parallel line.
+ *   free     no anchor yet: any point on the line may start the construction
+ */
+export const resolveGraph3Anchor = (question = {}, canonicalFacts = {}, pointSlopeEquation = '') => {
+  if (question.source?.kind === 'pointSlope') {
+    const given = Array.isArray(canonicalFacts.sourcePoint) ? canonicalFacts.sourcePoint.map(Number) : null;
+    if (given && given.every(Number.isFinite)) return { point: given, origin: 'given' };
+  }
+  const parsed = pointSlopeEquation ? parsePointSlopeForm(String(pointSlopeEquation)) : null;
+  if (parsed?.point && canonicalFacts.canonicalLine && pointOnCanonicalLine(canonicalFacts.canonicalLine, parsed.point)) {
+    return { point: parsed.point, origin: 'student' };
+  }
+  return { point: null, origin: 'free', offLinePoint: parsed?.point || null };
+};
+
+/*
+ * What a student reads after checking a graph. Built from the construction
+ * category, so it names WHAT to reconsider — the method's starting point, or
+ * the slope step — without plotting anything for them.
+ */
+const GRAPH_FEEDBACK = {
+  graph1: {
+    correctLineMissingAnchor: 'Your line is right, but this method uses the intercepts. Plot where the line crosses the x-axis and where it crosses the y-axis.',
+    incorrectLine: 'This is not the same line yet. Find where the line crosses each axis and plot those two points.',
+  },
+  graph2: {
+    correctLineMissingAnchor: 'Your line is right, but this method starts at the y-intercept. Plot the y-intercept first.',
+    correctAnchorWrongSlope: 'Good start at the y-intercept. Now count the rise and run of the slope to your second point.',
+    incorrectLine: 'Start at the y-intercept, then use the slope (rise over run) to find a second point.',
+  },
+  graph3: {
+    correctLineMissingAnchor: 'Your line is right, but this method starts at the point from point-slope form.',
+    correctAnchorWrongSlope: 'Good start at your point. Now use the slope (rise over run) to step to a second point.',
+    incorrectLine: 'Plot the point from point-slope form, then use the slope to step to a second point.',
+  },
+};
+
+export const graphFeedbackMessage = (graphKey, points = [], evaluation = null) => {
+  const plotted = (Array.isArray(points) ? points : []).filter((point) => Array.isArray(point));
+  if (plotted.length < 2) return plotted.length ? 'Plot one more point.' : 'Plot two points.';
+  if (!evaluation || evaluation.isCorrect) return null;
+  if (evaluation.category === 'duplicatePoint') return 'Two of your points are in the same place. Plot two different points.';
+  const messages = GRAPH_FEEDBACK[graphKey] || {};
+  return messages[evaluation.category] || messages.incorrectLine || 'Check your points.';
+};
+
 export const evaluateGraph3PointSlope = (points = [], canonicalFacts, studentPoint = null, tolerance = 0.12) => {
   let anchorPoint = studentPoint;
   let isFreeChoice = false;
@@ -1302,8 +1534,23 @@ export const checkCrossRepresentationConsistency = (studentRepresentations = {},
   });
 
   if (completedLines.length < 2) {
-    return { isConsistent: true, disagreements: [], completedLineCount: completedLines.length };
+    return { isConsistent: true, disagreements: [], outliers: [], completedLineCount: completedLines.length };
   }
+
+  // The parts that disagree with the line most of the student's work
+  // describes. One wrong card disagrees with every other card; naming it once
+  // is feedback, listing every pair is noise. On a tie nothing is "the
+  // majority", so every part is named.
+  const groups = [];
+  completedLines.forEach((entry) => {
+    const group = groups.find((candidate) => linesEquivalent(candidate.line, entry.line));
+    if (group) group.names.push(entry.name); else groups.push({ line: entry.line, names: [entry.name] });
+  });
+  groups.sort((left, right) => right.names.length - left.names.length);
+  const majority = groups.length > 1 && groups[0].names.length > groups[1].names.length ? groups[0] : null;
+  const outliers = groups.length > 1
+    ? completedLines.map((entry) => entry.name).filter((name) => !majority?.names.includes(name))
+    : [];
 
   const disagreements = [];
   for (let i = 0; i < completedLines.length; i += 1) {
@@ -1322,6 +1569,7 @@ export const checkCrossRepresentationConsistency = (studentRepresentations = {},
   return {
     isConsistent: disagreements.length === 0,
     disagreements,
+    outliers,
     completedLineCount: completedLines.length,
   };
 };
@@ -1333,82 +1581,37 @@ export const scoreLinearMultipleRepresentations = (question = {}, response = {})
   }
 
   const givenKind = question.source?.kind;
+  const required = new Set(resolveRequiredCards(question));
+  const tolerance = resolveGraphTolerance(question);
   const parts = {};
   const evidence = {};
+  const record = (cardId, result) => {
+    const key = CARD_PART_KEYS[cardId];
+    parts[key] = Boolean(result.isCorrect);
+    evidence[key] = result;
+    return result;
+  };
 
-  // Equation Forms
-  if (givenKind !== 'standardForm') {
-    const stdRes = validateStandardFormEntry(response.standardFormEquation, canonicalFacts);
-    parts.standardForm = stdRes.isCorrect;
-    evidence.standardForm = stdRes;
+  // Only the cards this question asks for are graded. The GIVEN card is never
+  // among them (resolveRequiredCards removes it).
+  if (required.has('standardForm')) record('standardForm', validateStandardFormEntry(response.standardFormEquation, canonicalFacts));
+  if (required.has('slopeIntercept')) record('slopeIntercept', validateSlopeInterceptEntry(response.slopeInterceptEquation, canonicalFacts));
+  if (required.has('pointSlope')) record('pointSlope', validatePointSlopeEntry(response.pointSlopeEquation, canonicalFacts));
+  if (required.has('slope')) record('slope', validateSlopeEntry(response.featureSlope, canonicalFacts));
+  if (required.has('xIntercept')) record('xIntercept', validateXInterceptEntry(response.featureXIntercept, canonicalFacts));
+  if (required.has('yIntercept')) record('yIntercept', validateYInterceptEntry(response.featureYIntercept, canonicalFacts));
+  const ptsRes = required.has('twoPoints')
+    ? record('twoPoints', validateTwoPointsEntry(response.featurePoint1, response.featurePoint2, canonicalFacts))
+    : null;
+  if (required.has('table')) record('table', validateTableEntry(response.tableRows, canonicalFacts, 4));
+
+  // Three independent constructions.
+  if (required.has('graphIntercepts')) record('graphIntercepts', evaluateGraph1Intercepts(response.graph1Points || [], canonicalFacts, tolerance));
+  if (required.has('graphSlopeIntercept')) record('graphSlopeIntercept', evaluateGraph2SlopeIntercept(response.graph2Points || [], canonicalFacts, tolerance));
+  if (required.has('graphPointSlope')) {
+    const anchor = resolveGraph3Anchor(question, canonicalFacts, response.pointSlopeEquation);
+    record('graphPointSlope', evaluateGraph3PointSlope(response.graph3Points || [], canonicalFacts, anchor.point, tolerance));
   }
-  if (givenKind !== 'slopeIntercept') {
-    const slRes = validateSlopeInterceptEntry(response.slopeInterceptEquation, canonicalFacts);
-    parts.slopeIntercept = slRes.isCorrect;
-    evidence.slopeIntercept = slRes;
-  }
-  if (givenKind !== 'pointSlope') {
-    const psRes = validatePointSlopeEntry(response.pointSlopeEquation, canonicalFacts);
-    parts.pointSlope = psRes.isCorrect;
-    evidence.pointSlope = psRes;
-  }
-
-  // Features
-  const slopeRes = validateSlopeEntry(response.featureSlope, canonicalFacts);
-  parts.slope = slopeRes.isCorrect;
-  evidence.slope = slopeRes;
-
-  const xIntRes = validateXInterceptEntry(response.featureXIntercept, canonicalFacts);
-  parts.xIntercept = xIntRes.isCorrect;
-  evidence.xIntercept = xIntRes;
-
-  const yIntRes = validateYInterceptEntry(response.featureYIntercept, canonicalFacts);
-  parts.yIntercept = yIntRes.isCorrect;
-  evidence.yIntercept = yIntRes;
-
-  let ptsRes = null;
-  if (givenKind !== 'twoPoints') {
-    ptsRes = validateTwoPointsEntry(response.featurePoint1, response.featurePoint2, canonicalFacts);
-    parts.twoPoints = ptsRes.isCorrect;
-    evidence.twoPoints = ptsRes;
-  }
-
-  // Table
-  if (givenKind !== 'table') {
-    const tableRes = validateTableEntry(response.tableRows, canonicalFacts, 4);
-    parts.table = tableRes.isCorrect;
-    evidence.table = tableRes;
-  }
-
-  // Graphs (Three Independent Constructions)
-  const g1Res = evaluateGraph1Intercepts(response.graph1Points || [], canonicalFacts, Number(question.tolerance ?? 0.12));
-  parts.graph1 = g1Res.isCorrect;
-  evidence.graph1 = g1Res;
-
-  const g2Res = evaluateGraph2SlopeIntercept(response.graph2Points || [], canonicalFacts, Number(question.tolerance ?? 0.12));
-  parts.graph2 = g2Res.isCorrect;
-  evidence.graph2 = g2Res;
-
-  let requiredPsAnchor = null;
-  const isGivenPointSlope = (givenKind === 'pointSlope');
-  if (isGivenPointSlope) {
-    if (question.source?.point) {
-      requiredPsAnchor = question.source.point;
-    } else if (question.source?.equation) {
-      const parsed = parsePointSlopeForm(question.source.equation);
-      if (parsed?.point) requiredPsAnchor = parsed.point;
-    } else if (canonicalFacts.sourcePoint) {
-      requiredPsAnchor = canonicalFacts.sourcePoint;
-    }
-  } else {
-    const parsedPs = parsePointSlopeForm(response.pointSlopeEquation);
-    if (parsedPs?.point) {
-      requiredPsAnchor = parsedPs.point;
-    }
-  }
-  const g3Res = evaluateGraph3PointSlope(response.graph3Points || [], canonicalFacts, requiredPsAnchor, Number(question.tolerance ?? 0.12));
-  parts.graph3 = g3Res.isCorrect;
-  evidence.graph3 = g3Res;
 
   // Context (if authored / scenario / domain)
   const ctx = question.source?.context || question.context || {};
@@ -1480,4 +1683,211 @@ export const scoreLinearMultipleRepresentations = (question = {}, response = {})
     canonicalFacts,
     givenKind,
   };
+};
+
+export const resolveGraphTolerance = (question = {}) => {
+  const tolerance = Number(question.tolerance);
+  return Number.isFinite(tolerance) && tolerance > 0 ? tolerance : 0.12;
+};
+
+// -----------------------------------------------------------------------------
+// The GIVEN representation, exactly as authored
+// -----------------------------------------------------------------------------
+
+/** An exact fraction as display LaTeX: 3, -2, \frac{1}{2}, -\frac{3}{4}. */
+export const fractionLatex = (fraction) => {
+  if (!fraction) return '';
+  const sign = fraction.n < 0 ? '-' : '';
+  const n = Math.abs(fraction.n);
+  return fraction.d === 1 ? `${sign}${n}` : `${sign}\\frac{${n}}{${fraction.d}}`;
+};
+
+const exactFraction = (value) => {
+  if (value && typeof value === 'object' && Number.isFinite(value.n) && Number.isFinite(value.d)) return value;
+  const parsed = readAuthoredValue(value);
+  return parsed ? parsed.fraction : null;
+};
+
+/**
+ * An authored table cell or coordinate as display LaTeX, keeping the form the
+ * author wrote: "1/3" stays a (stacked) fraction, 0.5 stays 0.5, -9 stays -9.
+ */
+export const authoredValueLatex = (value) => {
+  const text = String(value ?? '').trim().replace(/−/g, '-');
+  const fraction = text.match(/^(-?)\s*(\d+)\s*\/\s*(\d+)$/);
+  if (fraction) return `${fraction[1]}\\frac{${fraction[2]}}{${fraction[3]}}`;
+  return text;
+};
+
+// One signed term: "x", "-x", "2x", "-\frac{1}{2}y", " + 3", " - y".
+const termLatex = (fraction, variable, first) => {
+  if (!fraction || fraction.n === 0) return '';
+  const negative = fraction.n < 0;
+  const magnitude = { n: Math.abs(fraction.n), d: fraction.d };
+  const coefficient = variable && magnitude.n === 1 && magnitude.d === 1 ? '' : fractionLatex(magnitude);
+  const body = `${coefficient}${variable}`;
+  if (first) return `${negative ? '-' : ''}${body}`;
+  return ` ${negative ? '-' : '+'} ${body}`;
+};
+
+/** Ax + By = C with the author's own coefficients — 2x - 4y = 12, never the reduced x - 2y = 6. */
+export const formatStandardFormLatex = (A, B, C) => {
+  const a = exactFraction(A);
+  const b = exactFraction(B);
+  const c = exactFraction(C);
+  if (!a || !b || !c) return '';
+  const left = a.n === 0 ? termLatex(b, 'y', true) : `${termLatex(a, 'x', true)}${termLatex(b, 'y', false)}`;
+  return `${left} = ${fractionLatex(c)}`;
+};
+
+/** y = mx + b from exact values: y = \frac{1}{2}x - 3, y = -x + 4. */
+export const formatSlopeInterceptLatex = (m, b) => {
+  const slope = exactFraction(m);
+  const intercept = exactFraction(b);
+  if (!slope || !intercept) return '';
+  const right = slope.n === 0
+    ? fractionLatex(intercept)
+    : `${termLatex(slope, 'x', true)}${termLatex(intercept, '', false)}`;
+  return `y = ${right}`;
+};
+
+// "- 2", "+ 2", "- 0": the anchor stays visible even when a coordinate is 0,
+// because the point is part of what point-slope form tells the student.
+const pointOffsetLatex = (value) => {
+  const fraction = exactFraction(value);
+  if (!fraction) return '';
+  return fraction.n < 0 ? `+ ${fractionLatex({ n: -fraction.n, d: fraction.d })}` : `- ${fractionLatex(fraction)}`;
+};
+
+/** y - y₁ = m(x - x₁) around THE AUTHORED point: [2, -2], m 0.5 -> y + 2 = \frac{1}{2}(x - 2). */
+export const formatPointSlopeLatex = (point, m) => {
+  const slope = exactFraction(m);
+  if (!Array.isArray(point) || point.length !== 2 || !slope) return '';
+  return `y ${pointOffsetLatex(point[1])} = ${fractionLatex(slope)}(x ${pointOffsetLatex(point[0])})`;
+};
+
+const GIVEN_LABELS = Object.freeze({
+  standardForm: 'Standard form',
+  slopeIntercept: 'Slope-intercept form',
+  pointSlope: 'Point-slope form',
+  twoPoints: 'Two points on the line',
+  table: 'Table of values',
+  graph: 'Graph',
+  scenario: 'Situation',
+});
+
+/**
+ * What the student is GIVEN, as the author wrote it, in a shape the board can
+ * render without doing any mathematics of its own:
+ *
+ *   equation  { latex }            the authored equation text, or one built
+ *                                  from the authored coefficients/point
+ *   points    { points: [{latex}] }
+ *   table     { rows: [{xLatex, yLatex}] }
+ *   graph     { points, line }     numeric, for a read-only plane
+ *   scenario  { text }             prose (math inside it may use $…$)
+ *
+ * Internal normalisation (x - 2y = 6 for 2x - 4y = 12) is for grading only
+ * and never reaches this description.
+ */
+export const describeGivenRepresentation = (question = {}, canonicalFacts = deriveLinearMultipleRepresentations(question)) => {
+  const source = question.source || {};
+  const kind = source.kind;
+  const label = GIVEN_LABELS[kind] || 'Given';
+  const authoredEquation = typeof source.equation === 'string' && source.equation.trim() ? source.equation.trim() : null;
+
+  if (kind === 'standardForm') {
+    return { kind: 'equation', sourceKind: kind, label, latex: authoredEquation || formatStandardFormLatex(source.A, source.B, source.C) };
+  }
+  if (kind === 'slopeIntercept') {
+    return {
+      kind: 'equation',
+      sourceKind: kind,
+      label,
+      latex: authoredEquation || formatSlopeInterceptLatex(canonicalFacts.canonicalLine?.m ?? source.m, canonicalFacts.canonicalLine?.b ?? source.b),
+    };
+  }
+  if (kind === 'pointSlope') {
+    return {
+      kind: 'equation',
+      sourceKind: kind,
+      label,
+      latex: authoredEquation || formatPointSlopeLatex(authoredPointPair(source.point), source.m),
+      point: canonicalFacts.sourcePoint || null,
+    };
+  }
+  if (kind === 'twoPoints') {
+    const points = twoPointsSourceList(source).map(authoredPointPair).filter(Boolean).map((point) => {
+      const x = authoredValueLatex(point[0]);
+      const y = authoredValueLatex(point[1]);
+      return { xLatex: x, yLatex: y, latex: `(${x}, ${y})` };
+    });
+    return { kind: 'points', sourceKind: kind, label, points };
+  }
+  if (kind === 'table') {
+    const rows = (Array.isArray(source.rows) ? source.rows : []).map((row) => {
+      const rawX = Array.isArray(row) ? row[0] : row?.x;
+      const rawY = Array.isArray(row) ? row[1] : row?.y;
+      return { xLatex: authoredValueLatex(rawX), yLatex: authoredValueLatex(rawY) };
+    });
+    return { kind: 'table', sourceKind: kind, label, rows };
+  }
+  if (kind === 'graph') {
+    return {
+      kind: 'graph',
+      sourceKind: kind,
+      label,
+      points: Array.isArray(canonicalFacts.sourcePoints) ? canonicalFacts.sourcePoints : [],
+      line: canonicalFacts.displayLine || null,
+    };
+  }
+  if (kind === 'scenario') {
+    return { kind: 'scenario', sourceKind: kind, label, text: String(source.prompt ?? source.text ?? '').trim() };
+  }
+  return { kind: 'unknown', sourceKind: kind, label, latex: '' };
+};
+
+// -----------------------------------------------------------------------------
+// Card responses: which fields a card's verdict depends on
+// -----------------------------------------------------------------------------
+
+const CARD_RESPONSE_FIELDS = Object.freeze({
+  standardForm: ['standardFormEquation'],
+  slopeIntercept: ['slopeInterceptEquation'],
+  pointSlope: ['pointSlopeEquation'],
+  slope: ['featureSlope'],
+  xIntercept: ['featureXIntercept'],
+  yIntercept: ['featureYIntercept'],
+  twoPoints: ['featurePoint1', 'featurePoint2'],
+  table: ['tableRows'],
+  graphIntercepts: ['graph1Points'],
+  graphSlopeIntercept: ['graph2Points'],
+  // Graph 3 is fingerprinted on its points only. Its verdict is re-judged
+  // against the CURRENT anchor, so writing point-slope form after graphing
+  // keeps the check when the graph already starts at that point and turns it
+  // into guidance when it does not — instead of silently discarding it.
+  graphPointSlope: ['graph3Points'],
+});
+
+/**
+ * A fingerprint of exactly what a card's Check looked at. A stored verdict is
+ * shown only while the card still holds that work — change the answer and the
+ * old "Correct" disappears instead of vouching for something it never saw.
+ */
+export const cardResponseKey = (cardId, response = {}) => JSON.stringify(
+  (CARD_RESPONSE_FIELDS[cardId] || []).map((field) => response[field] ?? null),
+);
+
+const hasText = (value) => String(value ?? '').trim() !== '';
+
+/** Whether the student has put anything into a card — progress, never correctness. */
+export const cardHasWork = (cardId, response = {}) => {
+  switch (cardId) {
+    case 'twoPoints': return hasText(response.featurePoint1) && hasText(response.featurePoint2);
+    case 'table': return (Array.isArray(response.tableRows) ? response.tableRows : []).filter((row) => hasText(row?.x) && hasText(row?.y)).length >= 4;
+    case 'graphIntercepts': return (response.graph1Points || []).length >= 2;
+    case 'graphSlopeIntercept': return (response.graph2Points || []).length >= 2;
+    case 'graphPointSlope': return (response.graph3Points || []).length >= 2;
+    default: return (CARD_RESPONSE_FIELDS[cardId] || []).every((field) => hasText(response[field]));
+  }
 };

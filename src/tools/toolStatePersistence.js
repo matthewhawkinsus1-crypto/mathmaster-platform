@@ -144,6 +144,8 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
     notice: 'Transient status line, regenerated from the action that raised it.',
     redoDepth: 'Mirror of the redo stack depth, for enabling a button.',
     enlargedGraph: 'Which graph is currently open in modal enlarged view.',
+    confirmSubmit: 'Whether the "some parts are still empty" confirmation is showing. A prompt, not work.',
+    historyVersion: 'Counter that re-renders the graph Undo buttons; the Undo history itself is in-memory only.',
   }),
 });
 

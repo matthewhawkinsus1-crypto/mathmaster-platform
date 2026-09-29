@@ -1,18 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  cardHasWork,
+  cardResponseKey,
   checkCrossRepresentationConsistency,
   deriveLinearMultipleRepresentations,
+  describeGivenRepresentation,
+  formatCoordinateText,
+  graphFeedbackMessage,
+  refineSnapStep,
+  resolveAuthoredSnapStep,
+  resolveGraph3Anchor,
+  resolveGraphSnapSteps,
+  resolveRequiredCards,
   evaluateGraph1Intercepts,
   evaluateGraph2SlopeIntercept,
   evaluateGraph3PointSlope,
   expandGraphBoundsForAnchor,
-  formatNormalizedStandard,
-  normalizeStandardCoefficients,
   parseNumericOrFraction,
   parseOrderedPair,
-  parsePointSlopeForm,
-  parseInequalityDomain,
   resolveLinearMultipleRepresentationsGraphBounds,
   resolveSnapStep,
   scoreLinearMultipleRepresentations,
@@ -657,20 +663,28 @@ test('context semantic validation: choice bank, accepted answers, normalization,
 // -----------------------------------------------------------------------------
 // 15. Rational-Aware SnapStep Resolution
 // -----------------------------------------------------------------------------
-test('resolveSnapStep: fractional slopes and intercepts resolve correct grid step', () => {
-  // Slope 1/2 => snapStep 0.5
+// Every point a graph REQUIRES must be a multiple of that graph's snap step,
+// and a slope step (whole rise, whole run) from it must land on the grid too.
+const onGrid = (value, step) => Math.abs(value / step - Math.round(value / step)) < 1e-9;
+
+test('resolveSnapStep: the grid reaches every required intercept and is no finer than it needs to be', () => {
+  // 2x - 4y = 12: slope 1/2 but intercepts (6, 0) and (0, -3) are whole, and
+  // rise 1 / run 2 is a whole step. Whole numbers, as the plane promises.
   const halfDerived = deriveLinearMultipleRepresentations({
     source: { kind: 'standardForm', equation: '2x - 4y = 12' },
   });
-  assert.equal(resolveSnapStep({}, halfDerived), 0.5);
+  assert.equal(resolveSnapStep({}, halfDerived), 1);
 
-  // Slope 3/4 with integer intercept => snapStep 0.25
-  const quarterDerived = { slopeFraction: { n: 3, d: 4 }, yInterceptFraction: { n: 3, d: 1 }, zeroFraction: { n: -4, d: 1 } };
-  assert.equal(resolveSnapStep({}, quarterDerived), 0.25);
-
-  // Multiple denominators (4 and 3) => LCM(4, 3) = 12 => snapStep 0.0833
-  const multiDerived = { slopeFraction: { n: 3, d: 4 }, yInterceptFraction: { n: 1, d: 1 }, zeroFraction: { n: -4, d: 3 } };
-  assert.equal(resolveSnapStep({}, multiDerived), 0.0833);
+  // An intercept between gridlines refines the grid: y = 3/4x + 3 has x-intercept -4 (whole)…
+  const quarterDerived = { xInterceptPoint: [-4, 0], yInterceptPoint: [0, 3] };
+  assert.equal(resolveSnapStep({}, quarterDerived), 1);
+  // …but x-intercept -4/3 and y-intercept 1/2 need a grid of sixths.
+  const mixed = { xInterceptPoint: [-4 / 3, 0], yInterceptPoint: [0, 0.5] };
+  const mixedStep = resolveSnapStep({}, mixed);
+  assert.ok(Math.abs(mixedStep - 1 / 6) < 1e-9);
+  for (const point of [mixed.xInterceptPoint, mixed.yInterceptPoint]) {
+    assert.ok(point.every((value) => onGrid(value, mixedStep)), `(${point}) is plottable on a ${mixedStep} grid`);
+  }
 
   // Integer line => snapStep 1
   const integerDerived = deriveLinearMultipleRepresentations({
@@ -678,8 +692,73 @@ test('resolveSnapStep: fractional slopes and intercepts resolve correct grid ste
   });
   assert.equal(resolveSnapStep({}, integerDerived), 1);
 
-  // Explicit snapStep takes precedence
+  // An explicit snapStep is kept when it already reaches everything required.
   assert.equal(resolveSnapStep({ snapStep: 0.1 }, halfDerived), 0.1);
+
+  // Mutation guard: the refinement is what makes a half-unit intercept reachable.
+  assert.equal(onGrid(0.5, 1), false);
+});
+
+test('ISSUE B: an explicit snapStep never makes a valid point-slope anchor unplottable on Graph 3', () => {
+  const q = { mode: 'linearMultipleRepresentations', source: { kind: 'slopeIntercept', equation: 'y = x' }, snapStep: 1 };
+  const facts = deriveLinearMultipleRepresentations(q);
+  const equation = 'y - 1/2 = x - 1/2';
+
+  // The student's equation is correct point-slope form…
+  assert.equal(validatePointSlopeEntry(equation, facts).isCorrect, true);
+  // …so Graph 3 must start from (1/2, 1/2)…
+  const anchor = resolveGraph3Anchor(q, facts, equation);
+  assert.deepEqual(anchor, { point: [0.5, 0.5], origin: 'student' });
+  // …and its grid refines to halves so that point can be plotted.
+  const steps = resolveGraphSnapSteps(q, facts, anchor.point);
+  assert.equal(steps.graph3, 0.5);
+  assert.ok(anchor.point.every((value) => onGrid(value, steps.graph3)));
+  // Graphs 1 and 2 keep the author's whole-number grid: (0, 0) needs nothing finer.
+  assert.equal(steps.graph1, 1);
+  assert.equal(steps.graph2, 1);
+  // The whole construction is then gradeable: anchor + slope step (1, 1).
+  const plotted = [[0.5, 0.5], [1.5, 1.5]];
+  assert.ok(plotted.flat().every((value) => onGrid(value, steps.graph3)));
+  assert.equal(evaluateGraph3PointSlope(plotted, facts, anchor.point).isCorrect, true);
+  assert.equal(scoreLinearMultipleRepresentations(q, { pointSlopeEquation: equation, graph3Points: plotted }).parts.graph3, true);
+});
+
+test('ISSUE B: Graph 3 uses the coarsest common grid of the authored step and the anchor', () => {
+  // base 1, anchor denominator 2 => 1/2
+  assert.equal(refineSnapStep(1, [[0.5, 3]]), 0.5);
+  // base 1/4, anchor denominator 2 => keep 1/4 (1/2 is already reachable)
+  assert.equal(refineSnapStep(0.25, [[0.5, 3]]), 0.25);
+  // base 1/5, anchor denominator 2 => 1/10 (the common grid)
+  assert.ok(Math.abs(refineSnapStep(0.2, [[0.5, 3]]) - 0.1) < 1e-12);
+  // base 1/3 (authored as a fraction string), anchor 1/2 => 1/6
+  const q = { snapStep: '1/3' };
+  assert.ok(Math.abs(refineSnapStep(resolveAuthoredSnapStep(q), [[0.5, 1]]) - 1 / 6) < 1e-9);
+  // whole-number anchor: unchanged
+  assert.equal(refineSnapStep(1, [[3, -2]]), 1);
+  // a coarse author grid of 2 still reaches an anchor at (3, 4)
+  assert.equal(refineSnapStep(2, [[3, 4]]), 1);
+  // a grid too fine to aim at falls back to twentieths (within graph tolerance)
+  assert.equal(refineSnapStep(1, [[1 / 3, 1 / 7]]), 0.05);
+});
+
+test('Graph 3 never adopts a student point that is not on the line', () => {
+  const q = { mode: 'linearMultipleRepresentations', source: { kind: 'standardForm', equation: '2x - 4y = 12' } };
+  const facts = deriveLinearMultipleRepresentations(q);
+  // (2, 5) is not on y = 1/2x - 3. A parallel line through it must NOT earn Graph 3.
+  const wrong = 'y - 5 = 1/2(x - 2)';
+  const anchor = resolveGraph3Anchor(q, facts, wrong);
+  assert.equal(anchor.origin, 'free');
+  assert.equal(anchor.point, null);
+  assert.deepEqual(anchor.offLinePoint, [2, 5]);
+  const parallel = [[2, 5], [4, 6]];
+  const scored = scoreLinearMultipleRepresentations(q, { pointSlopeEquation: wrong, graph3Points: parallel });
+  assert.equal(scored.parts.graph3, false, 'a parallel line through an off-line point is not Graph 3');
+  // Mutation guard: passing the off-line point straight through (the old
+  // behaviour) grades the parallel line as correct — which is the bug.
+  assert.equal(evaluateGraph3PointSlope(parallel, facts, [2, 5]).isCorrect, true);
+  // A given point-slope anchor always wins over whatever the student typed.
+  const given = { mode: 'linearMultipleRepresentations', source: { kind: 'pointSlope', equation: 'y - 2 = -1(x - 3)' } };
+  assert.deepEqual(resolveGraph3Anchor(given, deriveLinearMultipleRepresentations(given), 'y - 0 = -1(x - 5)'), { point: [3, 2], origin: 'given' });
 });
 
 // -----------------------------------------------------------------------------
@@ -1171,3 +1250,161 @@ test('graph source preflight: verifies collinearity, finiteness, and line consis
   assert.ok(contradictoryErrors.some((err) => /same relationship/i.test(err)));
 });
 
+
+// -----------------------------------------------------------------------------
+// ISSUE A: the GIVEN representation looks like what the author wrote
+// -----------------------------------------------------------------------------
+const given = (source, extra = {}) => describeGivenRepresentation({ mode: 'linearMultipleRepresentations', source, ...extra });
+
+test('ISSUE A standardForm: authored coefficients stay 2x - 4y = 12, never the normalised x - 2y = 6', () => {
+  const fromCoefficients = given({ kind: 'standardForm', A: 2, B: -4, C: 12 });
+  assert.equal(fromCoefficients.kind, 'equation');
+  assert.equal(fromCoefficients.latex, '2x - 4y = 12');
+  assert.equal(given({ kind: 'standardForm', equation: '2x - 4y = 12' }).latex, '2x - 4y = 12');
+  // Grading still normalises internally.
+  assert.equal(deriveLinearMultipleRepresentations({ source: { kind: 'standardForm', A: 2, B: -4, C: 12 } }).standardEquation, 'x - 2y = 6');
+  // Unit and negative coefficients read like classroom mathematics.
+  assert.equal(given({ kind: 'standardForm', A: -1, B: 1, C: -3 }).latex, '-x + y = -3');
+  assert.equal(given({ kind: 'standardForm', A: 3, B: 1, C: 0 }).latex, '3x + y = 0');
+});
+
+test('ISSUE A slopeIntercept: authored equation preserved; m/b rendered as exact fractions', () => {
+  assert.equal(given({ kind: 'slopeIntercept', equation: 'y = -2x + 4' }).latex, 'y = -2x + 4');
+  assert.equal(given({ kind: 'slopeIntercept', m: 0.5, b: -3 }).latex, 'y = \\frac{1}{2}x - 3');
+  assert.equal(given({ kind: 'slopeIntercept', m: -0.75, b: 2 }).latex, 'y = -\\frac{3}{4}x + 2');
+  assert.equal(given({ kind: 'slopeIntercept', m: 1, b: 0 }).latex, 'y = x');
+  assert.equal(given({ kind: 'slopeIntercept', m: -1, b: 4 }).latex, 'y = -x + 4');
+  assert.doesNotMatch(given({ kind: 'slopeIntercept', m: 1 / 3, b: 1 }).latex, /0\.33/);
+});
+
+test('ISSUE A pointSlope: the AUTHORED point is the point shown', () => {
+  // Authored equation: verbatim.
+  assert.equal(given({ kind: 'pointSlope', equation: 'y + 2 = 1/2(x - 2)' }).latex, 'y + 2 = 1/2(x - 2)');
+  // Authored point + slope: built around THAT point, never the y-intercept.
+  const built = given({ kind: 'pointSlope', point: [2, -2], m: 0.5 });
+  assert.equal(built.latex, 'y + 2 = \\frac{1}{2}(x - 2)');
+  assert.deepEqual(built.point, [2, -2]);
+  assert.doesNotMatch(built.latex, /y \+ 3|x - 0/);
+  // Zero and fractional coordinates keep the point visible.
+  assert.equal(given({ kind: 'pointSlope', point: [0, 5], m: -2 }).latex, 'y - 5 = -2(x - 0)');
+  assert.equal(given({ kind: 'pointSlope', point: [-1.5, 0], m: 3 }).latex, 'y - 0 = 3(x + \\frac{3}{2})');
+  assert.equal(given({ kind: 'pointSlope', equation: 'y - 2 = -1(x - 3)' }).point.join(','), '3,2');
+});
+
+test('ISSUE A twoPoints: both authored points are shown read-only', () => {
+  const desc = given({ kind: 'twoPoints', points: [[-2, -5], [4, -2]] });
+  assert.equal(desc.kind, 'points');
+  assert.deepEqual(desc.points.map((point) => point.latex), ['(-2, -5)', '(4, -2)']);
+  const first = given({ kind: 'twoPoints', first: [0, 1], second: ['1/2', 2] });
+  assert.deepEqual(first.points.map((point) => point.latex), ['(0, 1)', '(\\frac{1}{2}, 2)']);
+});
+
+test('ISSUE A table: the GIVEN table carries every authored row, fractions exact', () => {
+  const rows = [{ x: -1, y: -9 }, { x: 1, y: -3 }, { x: 3, y: 3 }, { x: 5, y: 9 }];
+  const desc = given({ kind: 'table', rows });
+  assert.equal(desc.kind, 'table');
+  assert.deepEqual(desc.rows, rows.map((row) => ({ xLatex: String(row.x), yLatex: String(row.y) })));
+  // A fraction string is exact data, shown stacked, and a valid source.
+  const thirds = { mode: 'linearMultipleRepresentations', source: { kind: 'table', rows: [{ x: '1/3', y: 2 }, { x: 1, y: 4 }, { x: 2, y: 7 }] } };
+  assert.equal(describeGivenRepresentation(thirds).rows[0].xLatex, '\\frac{1}{3}');
+  assert.deepEqual(validateLinearMultipleRepresentationsQuestion(thirds), []);
+  assert.equal(deriveLinearMultipleRepresentations(thirds).slopeNumber, 3);
+  // Array-shaped rows describe the same table.
+  assert.deepEqual(given({ kind: 'table', rows: [[0, 1], [1, 3], [2, 5]] }).rows.map((row) => row.yLatex), ['1', '3', '5']);
+});
+
+test('ISSUE A table: a repeated x-value is rejected (it is not a function table)', () => {
+  const errors = validateLinearMultipleRepresentationsQuestion({
+    mode: 'linearMultipleRepresentations',
+    source: { kind: 'table', rows: [{ x: 1, y: 2 }, { x: 1, y: 2 }, { x: 2, y: 4 }] },
+  });
+  assert.ok(errors.some((error) => /different x-value/.test(error)));
+});
+
+test('ISSUE A graph: the given graph carries its authored points and the line', () => {
+  const desc = given({ kind: 'graph', points: [[0, 1], [3, -1]] });
+  assert.equal(desc.kind, 'graph');
+  assert.deepEqual(desc.points, [[0, 1], [3, -1]]);
+  assert.ok(Math.abs(desc.line.m - (-2 / 3)) < 1e-9);
+  assert.equal(desc.line.b, 1);
+  const lineOnly = given({ kind: 'graph', line: { m: 2, b: -1 } });
+  assert.deepEqual(lineOnly.points, []);
+  assert.deepEqual(lineOnly.line, { m: 2, b: -1 });
+});
+
+test('ISSUE A scenario: the story is prose, and a scenario without one is rejected', () => {
+  const text = 'A candle is 18 inches tall when it is lit. It burns down 2 inches every hour.';
+  const desc = given({ kind: 'scenario', prompt: text, m: -2, b: 18 });
+  assert.equal(desc.kind, 'scenario');
+  assert.equal(desc.text, text);
+  assert.equal(desc.latex, undefined, 'a word problem is never handed to the math renderer as one expression');
+  const errors = validateLinearMultipleRepresentationsQuestion({ mode: 'linearMultipleRepresentations', source: { kind: 'scenario', m: -2, b: 18 } });
+  assert.ok(errors.some((error) => /source\.prompt/.test(error)));
+});
+
+// -----------------------------------------------------------------------------
+// requiredCards: a shorter board (DOL) grades only what it asks for
+// -----------------------------------------------------------------------------
+test('requiredCards: resolves ids and categories, and always drops the GIVEN card', () => {
+  const standard = { source: { kind: 'standardForm', equation: '2x - 4y = 12' } };
+  assert.equal(resolveRequiredCards(standard).includes('standardForm'), false);
+  assert.equal(resolveRequiredCards(standard).length, 10);
+  assert.deepEqual(resolveRequiredCards({ ...standard, requiredCards: ['graphs', 'slope'] }), ['slope', 'graphIntercepts', 'graphSlopeIntercept', 'graphPointSlope']);
+  assert.equal(resolveRequiredCards({ source: { kind: 'table', rows: [] }, requiredCards: ['table', 'slope'] }).includes('table'), false);
+});
+
+test('requiredCards: scoring grades exactly the asked-for cards; validation rejects unknown ids', () => {
+  const q = {
+    mode: 'linearMultipleRepresentations',
+    source: { kind: 'scenario', prompt: 'A tank holds 24 liters and drains 3 liters per minute.', m: -3, b: 24 },
+    requiredCards: ['slopeIntercept', 'standardForm', 'slope', 'xIntercept', 'yIntercept', 'graphSlopeIntercept'],
+  };
+  assert.deepEqual(validateLinearMultipleRepresentationsQuestion(q), []);
+  const result = scoreLinearMultipleRepresentations(q, {
+    slopeInterceptEquation: 'y = -3x + 24',
+    standardFormEquation: '3x + y = 24',
+    featureSlope: '-3',
+    featureXIntercept: '(8, 0)',
+    featureYIntercept: '(0, 24)',
+    graph2Points: [[0, 24], [1, 21]],
+  });
+  assert.deepEqual(Object.keys(result.parts).sort(), ['crossRepresentationConsistency', 'graph2', 'slope', 'slopeIntercept', 'standardForm', 'xIntercept', 'yIntercept'].sort());
+  assert.equal(result.isCorrect, true);
+  assert.equal(result.score, 1);
+  const unknown = validateLinearMultipleRepresentationsQuestion({ ...q, requiredCards: ['slope', 'graph4'] });
+  assert.ok(unknown.some((error) => /graph4/.test(error)));
+  const onlyGiven = validateLinearMultipleRepresentationsQuestion({ mode: 'linearMultipleRepresentations', source: { kind: 'table', rows: [{ x: 0, y: 1 }, { x: 1, y: 3 }, { x: 2, y: 5 }] }, requiredCards: ['table'] });
+  assert.ok(onlyGiven.some((error) => /nothing to build/.test(error)));
+});
+
+test('a stored Check verdict is keyed to the exact work it saw', () => {
+  const before = { featureSlope: '\\frac{1}{2}' };
+  const after = { featureSlope: '3' };
+  assert.notEqual(cardResponseKey('slope', before), cardResponseKey('slope', after));
+  // Graph 3 is keyed on its points; its verdict is re-judged against the current anchor.
+  const g3 = { graph3Points: [[2, -2], [4, -1]], pointSlopeEquation: 'y + 2 = 1/2(x - 2)' };
+  assert.equal(cardResponseKey('graphPointSlope', g3), cardResponseKey('graphPointSlope', { ...g3, pointSlopeEquation: 'y + 3 = 1/2(x)' }));
+  assert.notEqual(cardResponseKey('graphPointSlope', g3), cardResponseKey('graphPointSlope', { ...g3, graph3Points: [[2, -2]] }));
+  // Unrelated edits do not.
+  assert.equal(cardResponseKey('slope', before), cardResponseKey('slope', { ...before, featureXIntercept: '(6, 0)' }));
+  assert.equal(cardHasWork('table', { tableRows: [{ x: '0', y: '1' }, { x: '1', y: '3' }, { x: '', y: '' }] }), false);
+  assert.equal(cardHasWork('graphIntercepts', { graph1Points: [[6, 0], [0, -3]] }), true);
+});
+
+test('student-facing messages use exact fractions and name what to reconsider', () => {
+  const facts = deriveLinearMultipleRepresentations({ source: { kind: 'standardForm', equation: '2x - 4y = 12' } });
+  assert.equal(formatCoordinateText(1 / 3), '1/3');
+  assert.match(validatePointSlopeEntry('y - 1/3 = 1/2(x - 1/3)', facts).error, /\(1\/3, 1\/3\)/);
+  assert.doesNotMatch(validateTableEntry([{ x: '1/3', y: '0' }, { x: 0, y: -3 }, { x: 2, y: -2 }, { x: 4, y: -1 }], facts).error, /0\.333/);
+  for (const message of [
+    validateSlopeEntry('2', facts).error,
+    validateXInterceptEntry('(5, 0)', facts).error,
+    validateStandardFormEntry('x - 2y = 7', facts).error,
+  ]) assert.doesNotMatch(message, /target line/);
+  // Graph feedback distinguishes the method's anchor from the slope step.
+  const g2 = evaluateGraph2SlopeIntercept([[2, -2], [4, -1]], facts);
+  assert.match(graphFeedbackMessage('graph2', [[2, -2], [4, -1]], g2), /starts at the y-intercept/);
+  const g2Slope = evaluateGraph2SlopeIntercept([[0, -3], [1, -1]], facts);
+  assert.match(graphFeedbackMessage('graph2', [[0, -3], [1, -1]], g2Slope), /rise and run/);
+  assert.equal(graphFeedbackMessage('graph1', [[6, 0]], null), 'Plot one more point.');
+});
