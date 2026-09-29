@@ -6,6 +6,7 @@ import {
   evaluateGraph1Intercepts,
   evaluateGraph2SlopeIntercept,
   evaluateGraph3PointSlope,
+  expandGraphBoundsForAnchor,
   formatNormalizedStandard,
   normalizeStandardCoefficients,
   parseNumericOrFraction,
@@ -1036,5 +1037,137 @@ test('preflight rejects authored graphBounds that exclude given point-slope anch
   const errors = validateLinearMultipleRepresentationsQuestion(q);
   assert.ok(errors.length > 0);
   assert.ok(errors.some((err) => /point-slope point/i.test(err)));
+});
+
+// -----------------------------------------------------------------------------
+// 28. Student-Chosen Point-Slope Anchor Expands Graph 3 Bounds
+// -----------------------------------------------------------------------------
+test('student-chosen point-slope anchor expands Graph 3 bounds without blowing up Graph 1 or 2', () => {
+  const targetQ = {
+    mode: 'linearMultipleRepresentations',
+    source: {
+      kind: 'slopeIntercept',
+      equation: 'y = x',
+    },
+    graphBounds: { xMin: -8, xMax: 8, yMin: -8, yMax: 8 },
+  };
+
+  const canonicalFacts = deriveLinearMultipleRepresentations(targetQ);
+  assert.equal(canonicalFacts.isValid, true);
+  assert.equal(canonicalFacts.slopeNumber, 1);
+
+  // Student enters point-slope equation with anchor (100, 100)
+  const studentPsEquation = 'y - 100 = x - 100';
+  const psValidation = validatePointSlopeEntry(studentPsEquation, canonicalFacts);
+  assert.equal(psValidation.isCorrect, true);
+  assert.deepEqual(psValidation.point, [100, 100]);
+
+  // Base bounds for Graph 1 and Graph 2
+  const baseBounds = resolveLinearMultipleRepresentationsGraphBounds(targetQ, canonicalFacts);
+  assert.deepEqual(baseBounds, { xMin: -8, xMax: 8, yMin: -8, yMax: 8 });
+
+  // Graph 3 expands specifically to include (100, 100) and room for second point (101, 101)
+  const g3Bounds = expandGraphBoundsForAnchor(baseBounds, psValidation.point, canonicalFacts);
+  assert.ok(g3Bounds.xMin <= 100 && g3Bounds.xMax >= 100, `Graph 3 x bounds must contain 100, got [${g3Bounds.xMin}, ${g3Bounds.xMax}]`);
+  assert.ok(g3Bounds.yMin <= 100 && g3Bounds.yMax >= 100, `Graph 3 y bounds must contain 100, got [${g3Bounds.yMin}, ${g3Bounds.yMax}]`);
+  // Ensure second slope point (101, 101) or (99, 99) also fits
+  assert.ok(g3Bounds.xMax >= 101, 'Graph 3 xMax allows plotting second point');
+  assert.ok(g3Bounds.yMax >= 101, 'Graph 3 yMax allows plotting second point');
+
+  // Verify Graph 1 and 2 do NOT adopt the giant window
+  assert.equal(baseBounds.xMax, 8);
+  assert.equal(baseBounds.yMax, 8);
+
+  // Student can plot anchor (100, 100) and slope point (101, 101)
+  const g3Eval = evaluateGraph3PointSlope([[100, 100], [101, 101]], canonicalFacts, psValidation.point);
+  assert.equal(g3Eval.isCorrect, true);
+});
+
+// -----------------------------------------------------------------------------
+// 29. Domain Endpoint Inclusivity Preservation
+// -----------------------------------------------------------------------------
+test('domain endpoint inclusivity: distinguishes strict vs non-strict inequalities and open vs closed intervals', () => {
+  // Expected closed interval: [0, 9] / 0 <= x <= 9
+  assert.equal(validateDomainField('0 <= x <= 9', '0 <= x <= 9').isCorrect, true);
+  assert.equal(validateDomainField('0 ≤ x ≤ 9', '0 <= x <= 9').isCorrect, true);
+  assert.equal(validateDomainField('[0, 9]', '0 <= x <= 9').isCorrect, true);
+  assert.equal(validateDomainField('[0, 9]', [0, 9]).isCorrect, true);
+
+  // MUST NOT match closed interval when student gives strict inequality / open interval
+  assert.equal(validateDomainField('0 < x < 9', '0 <= x <= 9').isCorrect, false);
+  assert.equal(validateDomainField('(0, 9)', '0 <= x <= 9').isCorrect, false);
+  assert.equal(validateDomainField('0 < x < 9', [0, 9]).isCorrect, false);
+  assert.equal(validateDomainField('(0, 9)', [0, 9]).isCorrect, false);
+
+  // Mixed intervals: [0, 9) and 0 <= x < 9
+  assert.equal(validateDomainField('[0, 9)', '0 <= x < 9').isCorrect, true);
+  assert.equal(validateDomainField('0 <= x < 9', '[0, 9)').isCorrect, true);
+  assert.equal(validateDomainField('0 <= x < 9', '0 <= x <= 9').isCorrect, false);
+  assert.equal(validateDomainField('[0, 9)', '[0, 9]').isCorrect, false);
+  assert.equal(validateDomainField('(0, 9]', '0 < x <= 9').isCorrect, true);
+  assert.equal(validateDomainField('(0, 9]', '(0, 9)').isCorrect, false);
+});
+
+// -----------------------------------------------------------------------------
+// 30. Graph Source Preflight: Validates Collinear Points and Line Consistency
+// -----------------------------------------------------------------------------
+test('graph source preflight: verifies collinearity, finiteness, and line consistency', () => {
+  // 1. 3 collinear graph points => pass
+  const collinear3 = {
+    mode: 'linearMultipleRepresentations',
+    source: {
+      kind: 'graph',
+      points: [[0, 0], [1, 1], [2, 2]],
+    },
+  };
+  assert.deepEqual(validateLinearMultipleRepresentationsQuestion(collinear3), []);
+
+  // 2. Third point off line => fail
+  const thirdOffLine = {
+    mode: 'linearMultipleRepresentations',
+    source: {
+      kind: 'graph',
+      points: [[0, 0], [1, 1], [2, 5]],
+    },
+  };
+  const offLineErrors = validateLinearMultipleRepresentationsQuestion(thirdOffLine);
+  assert.ok(offLineErrors.length > 0);
+  assert.ok(offLineErrors.some((err) => /same line/i.test(err)));
+
+  // 3. Malformed/non-finite point => fail
+  const nonFinitePt = {
+    mode: 'linearMultipleRepresentations',
+    source: {
+      kind: 'graph',
+      points: [[0, 0], [1, NaN]],
+    },
+  };
+  const nonFiniteErrors = validateLinearMultipleRepresentationsQuestion(nonFinitePt);
+  assert.ok(nonFiniteErrors.length > 0);
+  assert.ok(nonFiniteErrors.some((err) => /finite/i.test(err)));
+
+  // 4. source.line plus matching points => pass
+  const matchingLineAndPoints = {
+    mode: 'linearMultipleRepresentations',
+    source: {
+      kind: 'graph',
+      line: { m: 1, b: 0 },
+      points: [[0, 0], [2, 2]],
+    },
+  };
+  assert.deepEqual(validateLinearMultipleRepresentationsQuestion(matchingLineAndPoints), []);
+
+  // 5. source.line plus contradictory points => fail
+  const contradictoryLineAndPoints = {
+    mode: 'linearMultipleRepresentations',
+    source: {
+      kind: 'graph',
+      line: { m: 2, b: 3 }, // line is y = 2x + 3
+      points: [[0, 0], [1, 1]], // points are on y = x
+    },
+  };
+  const contradictoryErrors = validateLinearMultipleRepresentationsQuestion(contradictoryLineAndPoints);
+  assert.ok(contradictoryErrors.length > 0);
+  assert.ok(contradictoryErrors.some((err) => /same relationship/i.test(err)));
 });
 

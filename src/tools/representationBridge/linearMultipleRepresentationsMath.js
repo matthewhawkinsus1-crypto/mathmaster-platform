@@ -472,6 +472,63 @@ export const validateLinearMultipleRepresentationsQuestion = (question = {}) => 
     }
   }
 
+  if (source.kind === 'graph') {
+    const hasPoints = Array.isArray(source.points);
+    const hasLine = Boolean(source.line && typeof source.line === 'object');
+    if (!hasPoints && !hasLine) {
+      errors.push('representationBridge graph source requires source.points or source.line.');
+      return errors;
+    }
+
+    let lineFromPointsResult = null;
+    if (hasPoints) {
+      if (source.points.length < 2) {
+        errors.push('representationBridge graph source requires at least two points.');
+        return errors;
+      }
+      const allFinite = source.points.every((pt) =>
+        Array.isArray(pt) && pt.length === 2 && Number.isFinite(Number(pt[0])) && Number.isFinite(Number(pt[1]))
+      );
+      if (!allFinite) {
+        errors.push('representationBridge graph source points require finite coordinates.');
+        return errors;
+      }
+      const p1 = source.points[0].map(Number);
+      const p2 = source.points[1].map(Number);
+      if (Math.abs(p1[0] - p2[0]) < 1e-9 && Math.abs(p1[1] - p2[1]) < 1e-9) {
+        errors.push('representationBridge graph source requires at least two distinct points.');
+        return errors;
+      }
+      lineFromPointsResult = canonicalFromPoints(p1, p2);
+      if (!lineFromPointsResult || lineFromPointsResult.vertical) {
+        errors.push('representationBridge graph source requires a non-vertical line.');
+        return errors;
+      }
+      const allCollinear = source.points.every((pt) =>
+        pointOnCanonicalLine(lineFromPointsResult, pt.map(Number), 1e-4)
+      );
+      if (!allCollinear) {
+        errors.push('representationBridge graph source points must all lie on the same line.');
+        return errors;
+      }
+    }
+
+    if (hasLine) {
+      const { m, b } = source.line;
+      if (m == null || b == null || !Number.isFinite(Number(m)) || !Number.isFinite(Number(b))) {
+        errors.push('representationBridge graph source requires finite m and b in source.line.');
+        return errors;
+      }
+      const lineFromLine = canonicalFromSlopeIntercept(Number(m), Number(b));
+      if (hasPoints && lineFromPointsResult) {
+        if (!linesEquivalent(lineFromPointsResult, lineFromLine, 1e-4)) {
+          errors.push('representationBridge graph source points and source.line must describe the same relationship.');
+          return errors;
+        }
+      }
+    }
+  }
+
   const derived = deriveLinearMultipleRepresentations(question);
   if (!derived.isValid) {
     errors.push(derived.error || 'Failed to derive canonical relationship from source.');
@@ -622,6 +679,55 @@ export const resolveLinearMultipleRepresentationsGraphBounds = (questionData = {
   }
 
   return { xMin, xMax, yMin, yMax };
+};
+
+/**
+ * Expands base graph bounds to comfortably include a point-slope anchor point
+ * and room to plot a second slope point.
+ */
+export const expandGraphBoundsForAnchor = (baseBounds, anchorPoint, canonicalFacts = null) => {
+  if (!baseBounds || !Array.isArray(anchorPoint)) return baseBounds;
+  const [px, py] = anchorPoint.map(Number);
+  if (!Number.isFinite(px) || !Number.isFinite(py)) return baseBounds;
+
+  const { xMin, xMax, yMin, yMax } = baseBounds;
+
+  let dx = 1;
+  let dy = 1;
+  if (canonicalFacts?.canonicalLine?.m && typeof canonicalFacts.canonicalLine.m === 'object') {
+    dx = Math.abs(Number(canonicalFacts.canonicalLine.m.d)) || 1;
+    dy = Math.abs(Number(canonicalFacts.canonicalLine.m.n)) || 1;
+  } else if (canonicalFacts?.slopeNumber != null) {
+    dy = Math.abs(canonicalFacts.slopeNumber);
+    dx = 1;
+  }
+  const padX = Math.max(3, dx + 2, Math.ceil(Math.abs(px) * 0.05));
+  const padY = Math.max(3, dy + 2, Math.ceil(Math.abs(py) * 0.05));
+
+  const targetXMin = Math.min(xMin, px - padX);
+  const targetXMax = Math.max(xMax, px + padX);
+  const targetYMin = Math.min(yMin, py - padY);
+  const targetYMax = Math.max(yMax, py + padY);
+
+  if (targetXMin === xMin && targetXMax === xMax && targetYMin === yMin && targetYMax === yMax) {
+    return baseBounds;
+  }
+
+  const roundBound = (val, roundUp, step = 5) => {
+    if (roundUp) return Math.ceil(val / step) * step;
+    return Math.floor(val / step) * step;
+  };
+
+  const xSpan = targetXMax - targetXMin;
+  const ySpan = targetYMax - targetYMin;
+  const step = Math.max(5, Math.pow(10, Math.floor(Math.log10(Math.max(xSpan, ySpan) / 10))));
+
+  return {
+    xMin: roundBound(targetXMin, false, step),
+    xMax: roundBound(targetXMax, true, step),
+    yMin: roundBound(targetYMin, false, step),
+    yMax: roundBound(targetYMax, true, step),
+  };
 };
 
 
@@ -975,7 +1081,7 @@ export const validateContextField = (studentValue, expected) => {
 };
 
 export const parseInequalityDomain = (str) => {
-  if (!str) return null;
+  if (!str && str !== 0) return null;
   let s = String(str).trim();
   if (s.includes('\\')) {
     s = s.replace(/\\le|\\leq/g, '<=')
@@ -986,25 +1092,39 @@ export const parseInequalityDomain = (str) => {
   }
   s = s.replace(/≤/g, '<=').replace(/≥/g, '>=');
 
-  const bracketMatch = s.match(/^\[\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\]$/);
-  if (bracketMatch) {
-    const min = Number(bracketMatch[1]);
-    const max = Number(bracketMatch[2]);
-    if (Number.isFinite(min) && Number.isFinite(max)) return { min, max };
+  const intervalMatch = s.match(/^([\[\(])\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*([\]\)])$/);
+  if (intervalMatch) {
+    const min = Number(intervalMatch[2]);
+    const max = Number(intervalMatch[3]);
+    const minInclusive = intervalMatch[1] === '[';
+    const maxInclusive = intervalMatch[4] === ']';
+    if (Number.isFinite(min) && Number.isFinite(max) && min < max) {
+      return { min, max, minInclusive, maxInclusive };
+    }
   }
 
-  const ineqMatch = s.match(/^(-?\d+(?:\.\d+)?)\s*(?:<=|<)\s*([a-zA-Z])\s*(?:<=|<)\s*(-?\d+(?:\.\d+)?)$/);
+  const ineqMatch = s.match(/^(-?\d+(?:\.\d+)?)\s*(<=|<)\s*([a-zA-Z])\s*(<=|<)\s*(-?\d+(?:\.\d+)?)$/);
   if (ineqMatch) {
     const min = Number(ineqMatch[1]);
-    const max = Number(ineqMatch[3]);
-    if (Number.isFinite(min) && Number.isFinite(max)) return { min, max, variable: ineqMatch[2] };
+    const minInclusive = ineqMatch[2] === '<=';
+    const variable = ineqMatch[3];
+    const maxInclusive = ineqMatch[4] === '<=';
+    const max = Number(ineqMatch[5]);
+    if (Number.isFinite(min) && Number.isFinite(max) && min < max) {
+      return { min, max, minInclusive, maxInclusive, variable };
+    }
   }
 
-  const revMatch = s.match(/^(-?\d+(?:\.\d+)?)\s*(?:>=|>)\s*([a-zA-Z])\s*(?:>=|>)\s*(-?\d+(?:\.\d+)?)$/);
+  const revMatch = s.match(/^(-?\d+(?:\.\d+)?)\s*(>=|>)\s*([a-zA-Z])\s*(>=|>)\s*(-?\d+(?:\.\d+)?)$/);
   if (revMatch) {
     const max = Number(revMatch[1]);
-    const min = Number(revMatch[3]);
-    if (Number.isFinite(min) && Number.isFinite(max)) return { min, max, variable: revMatch[2] };
+    const maxInclusive = revMatch[2] === '>=';
+    const variable = revMatch[3];
+    const minInclusive = revMatch[4] === '>=';
+    const min = Number(revMatch[5]);
+    if (Number.isFinite(min) && Number.isFinite(max) && min < max) {
+      return { min, max, minInclusive, maxInclusive, variable };
+    }
   }
 
   return null;
@@ -1024,8 +1144,14 @@ export const validateDomainField = (studentValue, expectedDomain) => {
     }
     const parsed = parseInequalityDomain(studentValue);
     if (parsed) {
-      const match = nearlyEqual(parsed.min, expMin, 1e-4) && nearlyEqual(parsed.max, expMax, 1e-4);
-      return { isCorrect: match, error: match ? null : 'Domain bounds do not match the scenario.' };
+      const boundsMatch = nearlyEqual(parsed.min, expMin, 1e-4) && nearlyEqual(parsed.max, expMax, 1e-4);
+      if (!boundsMatch) {
+        return { isCorrect: false, error: 'Domain bounds do not match the scenario.' };
+      }
+      if (!parsed.minInclusive || !parsed.maxInclusive) {
+        return { isCorrect: false, error: 'Domain endpoint inclusivity does not match the scenario.' };
+      }
+      return { isCorrect: true, error: null };
     }
     const norm = String(studentValue).replace(/[\s()]/g, '');
     if (norm === `${expMin}<=x<=${expMax}` || norm === `[${expMin},${expMax}]`) {
@@ -1041,7 +1167,16 @@ export const validateDomainField = (studentValue, expectedDomain) => {
 
     if (expectedDomain.min != null && expectedDomain.max != null) {
       const parsed = parseInequalityDomain(studentValue);
-      if (parsed && nearlyEqual(parsed.min, expectedDomain.min, 1e-4) && nearlyEqual(parsed.max, expectedDomain.max, 1e-4)) {
+      if (parsed) {
+        const expMinInc = expectedDomain.minInclusive ?? true;
+        const expMaxInc = expectedDomain.maxInclusive ?? true;
+        const boundsMatch = nearlyEqual(parsed.min, expectedDomain.min, 1e-4) && nearlyEqual(parsed.max, expectedDomain.max, 1e-4);
+        if (!boundsMatch) {
+          return { isCorrect: false, error: 'Domain bounds do not match the scenario.' };
+        }
+        if (parsed.minInclusive !== expMinInc || parsed.maxInclusive !== expMaxInc) {
+          return { isCorrect: false, error: 'Domain endpoint inclusivity does not match the scenario.' };
+        }
         return { isCorrect: true, error: null };
       }
     }
@@ -1053,8 +1188,14 @@ export const validateDomainField = (studentValue, expectedDomain) => {
     const expectedParsed = parseInequalityDomain(expectedDomain);
     const studentParsed = parseInequalityDomain(studentValue);
     if (expectedParsed && studentParsed) {
-      const match = nearlyEqual(studentParsed.min, expectedParsed.min, 1e-4) && nearlyEqual(studentParsed.max, expectedParsed.max, 1e-4);
-      return { isCorrect: match, error: match ? null : 'Domain bounds do not match the scenario.' };
+      const boundsMatch = nearlyEqual(studentParsed.min, expectedParsed.min, 1e-4) && nearlyEqual(studentParsed.max, expectedParsed.max, 1e-4);
+      if (!boundsMatch) {
+        return { isCorrect: false, error: 'Domain bounds do not match the scenario.' };
+      }
+      if (studentParsed.minInclusive !== expectedParsed.minInclusive || studentParsed.maxInclusive !== expectedParsed.maxInclusive) {
+        return { isCorrect: false, error: 'Domain endpoint inclusivity does not match the scenario.' };
+      }
+      return { isCorrect: true, error: null };
     }
     const valRes = validateContextField(studentValue, expectedDomain);
     return { isCorrect: valRes.valid, error: valRes.valid ? null : valRes.message };
@@ -1269,40 +1410,38 @@ export const scoreLinearMultipleRepresentations = (question = {}, response = {})
   parts.graph3 = g3Res.isCorrect;
   evidence.graph3 = g3Res;
 
-  // Context (if authored / scenario)
-  const ctx = question.source?.context || question.context;
-  if (ctx && Object.keys(ctx).length > 0) {
-    if (ctx.independentQuantity != null) {
-      const res = validateContextField(response.contextIndependent, ctx.independentQuantity);
-      parts.contextIndependent = res.valid;
-      evidence.contextIndependent = { isCorrect: res.valid, message: res.message };
-    }
-    if (ctx.dependentQuantity != null) {
-      const res = validateContextField(response.contextDependent, ctx.dependentQuantity);
-      parts.contextDependent = res.valid;
-      evidence.contextDependent = { isCorrect: res.valid, message: res.message };
-    }
-    if (ctx.slopeMeaning != null) {
-      const res = validateContextField(response.contextSlopeMeaning, ctx.slopeMeaning);
-      parts.contextSlopeMeaning = res.valid;
-      evidence.contextSlopeMeaning = { isCorrect: res.valid, message: res.message };
-    }
-    if (ctx.yInterceptMeaning != null) {
-      const res = validateContextField(response.contextYInterceptMeaning, ctx.yInterceptMeaning);
-      parts.contextYInterceptMeaning = res.valid;
-      evidence.contextYInterceptMeaning = { isCorrect: res.valid, message: res.message };
-    }
-    if (ctx.xInterceptMeaning != null) {
-      const res = validateContextField(response.contextXInterceptMeaning, ctx.xInterceptMeaning);
-      parts.contextXInterceptMeaning = res.valid;
-      evidence.contextXInterceptMeaning = { isCorrect: res.valid, message: res.message };
-    }
-    if (ctx.domain != null || question.domain != null) {
-      const expectedDomain = question.domain || ctx.domain;
-      const domainRes = validateDomainField(response.contextDomain, expectedDomain);
-      parts.contextDomain = domainRes.isCorrect;
-      evidence.contextDomain = domainRes;
-    }
+  // Context (if authored / scenario / domain)
+  const ctx = question.source?.context || question.context || {};
+  if (ctx.independentQuantity != null) {
+    const res = validateContextField(response.contextIndependent, ctx.independentQuantity);
+    parts.contextIndependent = res.valid;
+    evidence.contextIndependent = { isCorrect: res.valid, message: res.message };
+  }
+  if (ctx.dependentQuantity != null) {
+    const res = validateContextField(response.contextDependent, ctx.dependentQuantity);
+    parts.contextDependent = res.valid;
+    evidence.contextDependent = { isCorrect: res.valid, message: res.message };
+  }
+  if (ctx.slopeMeaning != null) {
+    const res = validateContextField(response.contextSlopeMeaning, ctx.slopeMeaning);
+    parts.contextSlopeMeaning = res.valid;
+    evidence.contextSlopeMeaning = { isCorrect: res.valid, message: res.message };
+  }
+  if (ctx.yInterceptMeaning != null) {
+    const res = validateContextField(response.contextYInterceptMeaning, ctx.yInterceptMeaning);
+    parts.contextYInterceptMeaning = res.valid;
+    evidence.contextYInterceptMeaning = { isCorrect: res.valid, message: res.message };
+  }
+  if (ctx.xInterceptMeaning != null) {
+    const res = validateContextField(response.contextXInterceptMeaning, ctx.xInterceptMeaning);
+    parts.contextXInterceptMeaning = res.valid;
+    evidence.contextXInterceptMeaning = { isCorrect: res.valid, message: res.message };
+  }
+  if (ctx.domain != null || question.domain != null) {
+    const expectedDomain = question.domain || ctx.domain;
+    const domainRes = validateDomainField(response.contextDomain, expectedDomain);
+    parts.contextDomain = domainRes.isCorrect;
+    evidence.contextDomain = domainRes;
   }
 
   const effectiveTwoPoints = (givenKind === 'twoPoints' && canonicalFacts.twoPoints)

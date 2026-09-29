@@ -1865,6 +1865,8 @@ const compileOne = (q, index, repairs) => {
       break;
     }
     case 'representationBridge': {
+      const domain = q.domain ?? q.source?.domain;
+      const snapStep = q.snapStep ?? q.source?.snapStep;
       out = copyCommon(q, {
         type,
         mode: q.mode || 'linear',
@@ -1875,7 +1877,8 @@ const compileOne = (q, index, repairs) => {
         requiredCards: q.requiredCards,
         graphBounds: q.graphBounds,
         feedbackTiming: q.feedbackTiming,
-        ...(q.domain != null ? { domain: q.domain } : {}),
+        ...(domain != null ? { domain } : {}),
+        ...(snapStep != null ? { snapStep } : {}),
         ...(q.tolerance != null ? { tolerance: q.tolerance } : {}),
       });
       break;

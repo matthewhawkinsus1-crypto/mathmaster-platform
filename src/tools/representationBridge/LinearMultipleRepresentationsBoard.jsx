@@ -11,6 +11,7 @@ import {
   evaluateGraph1Intercepts,
   evaluateGraph2SlopeIntercept,
   evaluateGraph3PointSlope,
+  expandGraphBoundsForAnchor,
   parsePointSlopeForm,
   resolveLinearMultipleRepresentationsGraphBounds,
   resolveSnapStep,
@@ -146,7 +147,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   }, [questionData, canonicalFacts, studentPsPoint]);
 
   // Context metadata and choice banks
-  const contextData = questionData.source?.context || questionData.context;
+  const contextData = questionData.source?.context || questionData.context || {};
   const contextChoices = useMemo(() => {
     const rawBanks = contextData?.choiceBanks || contextData?.choices || {};
     const out = {};
@@ -198,6 +199,20 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   const graphBounds = useMemo(() => {
     return resolveLinearMultipleRepresentationsGraphBounds(questionData, canonicalFacts);
   }, [questionData, canonicalFacts]);
+
+  const graph1Bounds = graphBounds;
+  const graph2Bounds = graphBounds;
+
+  const graph3Bounds = useMemo(() => {
+    let bounds = graphBounds;
+    if (canonicalFacts.sourcePoint) {
+      bounds = expandGraphBoundsForAnchor(bounds, canonicalFacts.sourcePoint, canonicalFacts);
+    }
+    if (studentPsPoint) {
+      bounds = expandGraphBoundsForAnchor(bounds, studentPsPoint, canonicalFacts);
+    }
+    return bounds;
+  }, [graphBounds, canonicalFacts, studentPsPoint]);
 
   // Card check handler (guided mode only; never locks any other card!)
   const checkCard = (cardId, validatorFn) => {
@@ -297,7 +312,6 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   ].filter(Boolean).length;
 
   const contextKeys = useMemo(() => {
-    if (!contextData) return [];
     const keys = [];
     if (contextData.independentQuantity != null) keys.push('contextIndependent');
     if (contextData.dependentQuantity != null) keys.push('contextDependent');
@@ -1096,10 +1110,10 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                     <>
                       <div style={{ width: '100%', maxWidth: 360, margin: '0 auto' }}>
                         <CoordinatePlane
-                          xMin={graphBounds.xMin}
-                          xMax={graphBounds.xMax}
-                          yMin={graphBounds.yMin}
-                          yMax={graphBounds.yMax}
+                          xMin={graph1Bounds.xMin}
+                          xMax={graph1Bounds.xMax}
+                          yMin={graph1Bounds.yMin}
+                          yMax={graph1Bounds.yMax}
                           snapStep={graphSnapStep}
                           points={graph1Points}
                           lines={graph1Line ? [graph1Line] : []}
@@ -1200,10 +1214,10 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                     <>
                       <div style={{ width: '100%', maxWidth: 360, margin: '0 auto' }}>
                         <CoordinatePlane
-                          xMin={graphBounds.xMin}
-                          xMax={graphBounds.xMax}
-                          yMin={graphBounds.yMin}
-                          yMax={graphBounds.yMax}
+                          xMin={graph2Bounds.xMin}
+                          xMax={graph2Bounds.xMax}
+                          yMin={graph2Bounds.yMin}
+                          yMax={graph2Bounds.yMax}
                           snapStep={graphSnapStep}
                           points={graph2Points}
                           lines={graph2Line ? [graph2Line] : []}
@@ -1304,10 +1318,10 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                     <>
                       <div style={{ width: '100%', maxWidth: 360, margin: '0 auto' }}>
                         <CoordinatePlane
-                          xMin={graphBounds.xMin}
-                          xMax={graphBounds.xMax}
-                          yMin={graphBounds.yMin}
-                          yMax={graphBounds.yMax}
+                          xMin={graph3Bounds.xMin}
+                          xMax={graph3Bounds.xMax}
+                          yMin={graph3Bounds.yMin}
+                          yMax={graph3Bounds.yMax}
                           snapStep={graph3SnapStep}
                           points={graph3Points}
                           lines={graph3Line ? [graph3Line] : []}
@@ -1393,10 +1407,10 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                   </div>
                   <div style={{ width: '100%', maxWidth: 420, margin: '0 auto' }}>
                     <CoordinatePlane
-                      xMin={graphBounds.xMin}
-                      xMax={graphBounds.xMax}
-                      yMin={graphBounds.yMin}
-                      yMax={graphBounds.yMax}
+                      xMin={(graph3Points.length > 0 ? graph3Bounds : graphBounds).xMin}
+                      xMax={(graph3Points.length > 0 ? graph3Bounds : graphBounds).xMax}
+                      yMin={(graph3Points.length > 0 ? graph3Bounds : graphBounds).yMin}
+                      yMax={(graph3Points.length > 0 ? graph3Bounds : graphBounds).yMax}
                       snapStep={graphSnapStep}
                       points={[
                         ...(graph1Points || []),
@@ -1820,10 +1834,10 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
 
             <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
               <CoordinatePlane
-                xMin={graphBounds.xMin}
-                xMax={graphBounds.xMax}
-                yMin={graphBounds.yMin}
-                yMax={graphBounds.yMax}
+                xMin={(enlargedGraph === 'graph3' ? graph3Bounds : graphBounds).xMin}
+                xMax={(enlargedGraph === 'graph3' ? graph3Bounds : graphBounds).xMax}
+                yMin={(enlargedGraph === 'graph3' ? graph3Bounds : graphBounds).yMin}
+                yMax={(enlargedGraph === 'graph3' ? graph3Bounds : graphBounds).yMax}
                 width={Math.min(560, typeof window !== 'undefined' ? window.innerWidth - 64 : 560)}
                 height={380}
                 snapStep={enlargedGraph === 'graph3' ? graph3SnapStep : graphSnapStep}
