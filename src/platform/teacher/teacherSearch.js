@@ -122,16 +122,21 @@ export const searchTeacherWorkspace = ({
     });
   });
 
+  // Assignment audience is class-ID based; a bare "Period 1" cannot tell two
+  // classes that share a period apart, so the class NAME is what a teacher sees.
+  const classNameById = new Map(list(classes).map((entry) => [entry.classId, entry.name || entry.period || entry.classId]));
   list(assignments).forEach((assignment) => {
     const score = scoreMatch(needle, assignment.title || '', [assignment.id]);
     if (!score) return;
+    const classIds = list(assignment.assignedClassIds).filter((classId) => classNameById.has(classId));
+    const classNames = classIds.map((classId) => classNameById.get(classId));
     results.push({
       kind: RESULT_KIND.ASSIGNMENT,
       id: assignment.id,
       title: assignment.title || 'Untitled assignment',
-      subtitle: list(assignment.assignedClassPeriods).join(', '),
+      subtitle: classNames.length ? classNames.join(', ') : list(assignment.assignedClassPeriods).join(', ') || 'Library · not assigned',
       score,
-      payload: { assignmentId: assignment.id },
+      payload: { assignmentId: assignment.id, classId: classIds.length === 1 ? classIds[0] : null },
     });
   });
 

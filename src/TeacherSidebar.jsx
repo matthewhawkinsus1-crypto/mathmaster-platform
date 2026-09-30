@@ -32,7 +32,7 @@ const TAB_LABELS = {
   pacing: 'Curriculum Pacing',
   weeklyPath: 'Weekly Path',
   grades: 'Grades',
-  gradeTransfer: 'Grade Transfer',
+  gradeTransfer: 'Grade Export',
   standards: 'TEKS & Mastery',
   analytics: 'Analytics',
   exams: 'Secure Exams',

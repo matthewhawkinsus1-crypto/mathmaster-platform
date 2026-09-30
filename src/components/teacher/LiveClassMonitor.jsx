@@ -519,9 +519,16 @@ export default function LiveClassMonitor({
   onTeachAssignment = null,
   onResumeTeaching = null,
   onEndLiveTeaching = null,
+  // "Live view" from an assignment: focus the room on that assignment. A new
+  // focusKey re-applies it even when the same assignment is chosen again.
+  focusAssignmentId = null,
+  focusKey = null,
 }) {
   const [classPeriod, setClassPeriod] = useState(initialClassPeriod || 'all');
-  const [assignmentId, setAssignmentId] = useState('all');
+  const [assignmentId, setAssignmentId] = useState(() => focusAssignmentId || 'all');
+  useEffect(() => {
+    if (focusKey && focusAssignmentId) setAssignmentId(focusAssignmentId);
+  }, [focusKey, focusAssignmentId]);
   const [mode, setMode] = useState('room');
   const [roomMode, setRoomMode] = useState(false);
   const [teacherQuestionIndex, setTeacherQuestionIndex] = useState(0);
@@ -1005,7 +1012,11 @@ export default function LiveClassMonitor({
           title={liveTeachingActiveForClass ? 'Following the Live Teaching exemplar assignment' : undefined}
         >
           <option value="all">Any assignment</option>
-          {assignments.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.title || 'Untitled'}</option>)}
+          {/* Only this class's open assignments when a class is chosen: the
+              list used to carry every open copy for every class, so the same
+              title appeared a dozen times with nothing to tell them apart. */}
+          {(activeClassId ? assignments.filter((assignment) => assignmentIsForStudent(assignment, { classId: activeClassId }) || String(assignment.id) === String(displayAssignmentId)) : assignments)
+            .map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.title || 'Untitled'}</option>)}
         </select>
         {mode === 'room' && <button type="button" onClick={() => setRoomMode((current) => !current)} aria-pressed={roomMode} style={{ ...controlStyle, cursor: 'pointer', fontWeight: 700, background: roomMode ? '#e8f0fe' : '#fff', borderColor: roomMode ? '#1a73e8' : '#dadce0', color: roomMode ? '#174ea6' : '#202124' }}>Large room tiles</button>}
         <button type="button" onClick={() => setShowAttendance((current) => !current)} aria-expanded={showAttendance} style={{ ...controlStyle, cursor: 'pointer', fontWeight: 800, background: showAttendance ? '#fff4ce' : '#fff', borderColor: showAttendance ? '#d9a400' : '#dadce0', color: showAttendance ? '#6b4c00' : '#202124' }}>
