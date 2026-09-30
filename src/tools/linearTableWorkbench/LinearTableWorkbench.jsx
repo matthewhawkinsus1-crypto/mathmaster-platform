@@ -9,6 +9,7 @@ import {
   pairKey,
   scoreLinearTableWorkbench,
 } from './linearTableWorkbenchMath.js';
+import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid #c9d6e8', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid #c9d6e8', borderRadius: 8, fontSize: 15 };
@@ -312,15 +313,15 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
             <label>
               <span style={{ fontWeight: 800, fontSize: 13 }}>Δx</span>
-              <input style={input} inputMode="decimal" value={stagingDx} onChange={(event) => { setStagingDx(event.target.value); clearFeedback(); }} aria-label="Change in x for this interval" />
+              <input style={input} {...FRACTION_ENTRY_PROPS} value={stagingDx} onChange={(event) => { setStagingDx(event.target.value); clearFeedback(); }} aria-label="Change in x for this interval" />
             </label>
             <label>
               <span style={{ fontWeight: 800, fontSize: 13 }}>Δy</span>
-              <input style={input} inputMode="decimal" value={stagingDy} onChange={(event) => { setStagingDy(event.target.value); clearFeedback(); }} aria-label="Change in y for this interval" />
+              <input style={input} {...FRACTION_ENTRY_PROPS} value={stagingDy} onChange={(event) => { setStagingDy(event.target.value); clearFeedback(); }} aria-label="Change in y for this interval" />
             </label>
             <label>
               <span style={{ fontWeight: 800, fontSize: 13 }}>Δy/Δx</span>
-              <input style={input} inputMode="decimal" value={stagingRate} onChange={(event) => { setStagingRate(event.target.value); clearFeedback(); }} aria-label="Rate of change for this interval" />
+              <input style={input} {...FRACTION_ENTRY_PROPS} value={stagingRate} onChange={(event) => { setStagingRate(event.target.value); clearFeedback(); }} aria-label="Rate of change for this interval" />
             </label>
           </div>
           <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -404,7 +405,7 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
             </label>
             <label>
               <span style={{ fontWeight: 800, fontSize: 13 }}>Corrected y-value</span>
-              <input style={input} inputMode="decimal" value={repairedValue} onChange={(event) => { setRepairedValue(event.target.value); clearFeedback(); }} aria-label="Corrected y-value for the offending row" />
+              <input style={input} {...FRACTION_ENTRY_PROPS} value={repairedValue} onChange={(event) => { setRepairedValue(event.target.value); clearFeedback(); }} aria-label="Corrected y-value for the offending row" />
             </label>
           </div>
         </Panel>
@@ -415,11 +416,11 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
             <label>
               <span style={{ fontWeight: 800, fontSize: 13 }}>m</span>
-              <input style={input} inputMode="decimal" value={m} onChange={(event) => { setM(event.target.value); clearFeedback(); }} aria-label="Slope m" />
+              <input style={input} {...FRACTION_ENTRY_PROPS} value={m} onChange={(event) => { setM(event.target.value); clearFeedback(); }} aria-label="Slope m" />
             </label>
             <label>
               <span style={{ fontWeight: 800, fontSize: 13 }}>b</span>
-              <input style={input} inputMode="decimal" value={b} onChange={(event) => { setB(event.target.value); clearFeedback(); }} aria-label="y-intercept b" />
+              <input style={input} {...FRACTION_ENTRY_PROPS} value={b} onChange={(event) => { setB(event.target.value); clearFeedback(); }} aria-label="y-intercept b" />
             </label>
             <label style={{ gridColumn: '1 / -1' }}>
               <span style={{ fontWeight: 800, fontSize: 13 }}>Equation</span>

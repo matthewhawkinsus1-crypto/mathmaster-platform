@@ -584,6 +584,15 @@
   margin-top: 6px;
 }
 
+/* Delete · fraction bar · Clear · Done, for a box that takes fractions. */
+.mathmaster-mobile-keypad-actions.has-fraction-key {
+  grid-template-columns: 1fr 1fr 1fr 1.4fr;
+}
+
+.mathmaster-mobile-numeric-keypad .mathmaster-keypad-fraction {
+  font-size: 22px;
+}
+
 .mathmaster-mobile-numeric-keypad button {
   min-height: 44px;
   border: 1px solid #c5d5ef;

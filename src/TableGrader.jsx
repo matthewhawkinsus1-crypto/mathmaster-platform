@@ -5,6 +5,7 @@ import QuestionVisual from './QuestionVisual';
 import { resolveLabelFormat } from './labelFormat';
 import { gradeTableResponse, tableEditableKeys } from '../functions/shared/ordinaryResponseGrading.mjs';
 import useUndoHistory from './useUndoHistory';
+import { FRACTION_ENTRY_PROPS } from './platform/interaction/numberEntry.js';
 
 // `compact` is for a table embedded in a larger question, where the step
 // already carries its own heading and directions. Repeating "Function Table"
@@ -93,7 +94,7 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
                   return (
                     <td key={answerKey} style={{ padding: '12px 20px', border: '1px solid #cfd4da', textAlign: 'center', fontSize: '19px' }}>
                       {isBlank ? (
-                        <input type="text" inputMode="decimal" value={studentAnswers[answerKey] || ''} onChange={(event) => updateAnswer(answerKey, event.target.value)} aria-label={`Row ${rowIndex + 1}, ${column.label || column.key}`} style={{ width: '82px', padding: '8px', textAlign: 'center', fontSize: '18px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#1a73e8'}`, borderRadius: '6px', background: grade && !grade.isCorrect ? '#fff8f7' : '#fff' }} />
+                        <input {...FRACTION_ENTRY_PROPS} value={studentAnswers[answerKey] || ''} onChange={(event) => updateAnswer(answerKey, event.target.value)} aria-label={`Row ${rowIndex + 1}, ${column.label || column.key}`} style={{ width: '82px', padding: '8px', textAlign: 'center', fontSize: '18px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#1a73e8'}`, borderRadius: '6px', background: grade && !grade.isCorrect ? '#fff8f7' : '#fff' }} />
                       ) : <MathDisplay value={String(row[column.key])} inline />}
                     </td>
                   );
