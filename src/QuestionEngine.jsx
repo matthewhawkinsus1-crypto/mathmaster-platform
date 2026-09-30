@@ -879,6 +879,9 @@ export default function QuestionEngine({
       // overlay falls back to it. Nothing already saved needs migrating.
       setScratchpadPages(Array.isArray(saved?.pages) && saved.pages.length ? saved.pages : null);
       setScratchpadOpen(true);
+      // Graph paper is a support only for a student entitled to it; opening the
+      // scratchpad is their use of it.
+      if (supportPresentation.graphPaper) reportSupportEvidence('graph-paper', 'used');
     } finally {
       setScratchpadLoading(false);
     }
@@ -1704,7 +1707,7 @@ export default function QuestionEngine({
         </div>
       )}
 
-      <ScratchpadOverlay open={scratchpadOpen} questionKey={processedQuestion?.questionId ?? processedQuestion?.id ?? null} questionDetails={scratchpadQuestionDetails} initialDataUrl={scratchpadDataUrl} initialPages={scratchpadPages} onSave={saveScratchpad} onClose={() => setScratchpadOpen(false)} readOnly={locked} />
+      <ScratchpadOverlay open={scratchpadOpen} questionKey={processedQuestion?.questionId ?? processedQuestion?.id ?? null} questionDetails={scratchpadQuestionDetails} initialDataUrl={scratchpadDataUrl} initialPages={scratchpadPages} onSave={saveScratchpad} onClose={() => setScratchpadOpen(false)} readOnly={locked} gridBackground={supportPresentation.graphPaper === true} />
     </div>
     </WorkViewUndoProvider>
     </QuestionLifecycleProvider>

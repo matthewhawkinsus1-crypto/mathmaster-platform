@@ -82,6 +82,9 @@ export default function ScratchpadOverlay({
   onSave,
   onClose,
   readOnly = false,
+  // A supplemental-aid support: new pages open on graph paper. The grid is part
+  // of the page (saved with it), like a student's own sheet of graph paper.
+  gridBackground = false,
 }) {
   const canvasRef = useRef(null);
   const backgroundRef = useRef(null);
@@ -123,6 +126,15 @@ export default function ScratchpadOverlay({
     context.globalCompositeOperation = 'source-over';
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
+    if (gridBackground) {
+      const step = Math.max(16, Math.round(canvas.width / 48));
+      context.strokeStyle = '#d6dee8';
+      context.lineWidth = 1;
+      context.beginPath();
+      for (let x = step; x < canvas.width; x += step) { context.moveTo(x + 0.5, 0); context.lineTo(x + 0.5, canvas.height); }
+      for (let y = step; y < canvas.height; y += step) { context.moveTo(0, y + 0.5); context.lineTo(canvas.width, y + 0.5); }
+      context.stroke();
+    }
     if (backgroundRef.current) {
       context.drawImage(backgroundRef.current, 0, 0, canvas.width, canvas.height);
     }

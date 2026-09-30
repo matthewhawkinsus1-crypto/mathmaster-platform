@@ -32,6 +32,7 @@ import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../func
 import { resolveAuthoritativeClose, resolveWarmupInstructionDateKey } from '../functions/shared/sectionDeadline.mjs';
 import { withStudentSupportDates } from '../functions/shared/supportDeadline.mjs';
 import useEngagementLedger from './platform/supportEvidence/useEngagementLedger.js';
+import StudentSupportTools from './components/student/StudentSupportTools.jsx';
 import { recordStudentSupportEvidence as saveStudentSupportEvidence } from './platform/supportEvidence/supportEvidenceStore.js';
 import { launchSupportRecords, studentMayRecordSupport, usedRecordKey } from './platform/supportEvidence/studentSupportTelemetry.js';
 import { buildDolAttemptGrant, buildDolClose, buildDolDateMove, buildDolExtension, buildDolScheduleRestore, buildDolWindowOpening, scheduledDolDateFor, summarizeStudentRecovery } from './platform/assessment/assessmentRecovery.js';
@@ -9670,6 +9671,12 @@ function App() {
               <div style={{ color: '#5f6368', fontSize: '13px', marginTop: '7px', lineHeight: 1.5 }}>
                 {(() => { const dates = studentDueDateLines(assignment, lifecycle); return <>{dates.dueLabel}: {dates.dueText}<br />{dates.finalLabel}: {dates.finalText}</>; })()}
               </div>
+              {!preview && user?.role === 'student' && (
+                <StudentSupportTools
+                  profile={user.profile}
+                  onResourceOpened={(supportId) => recordStudentSupportEvidence({ supportId, eventType: 'used', activityRole: runtimeActivityRole })}
+                />
+              )}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '22px' }}>

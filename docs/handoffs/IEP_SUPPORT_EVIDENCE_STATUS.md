@@ -9,9 +9,9 @@ Branch: `ai/claude-iep-evidence-20260930` (from `origin/main` @ `1fcd1ea7`, PR #
 
 ## Current state
 
-- **Phase:** 5 — student Support tools (resources, graph paper) + Phase 6 report (next)
+- **Phase:** 6 — Student Support Evidence Report + grade impact (next). Draft PR: #401
 - **Design:** `docs/IEP_SUPPORT_EVIDENCE_DESIGN.md` (committed with this checkpoint)
-- **PR:** _(not opened yet)_
+- **PR:** #401 (draft; CI runs the full gate on every push)
 
 ## Phases
 
@@ -22,7 +22,7 @@ Branch: `ai/claude-iep-evidence-20260930` (from `origin/main` @ `1fcd1ea7`, PR #
 | 2 | Support profile versioning + support resolution / automatic application | ✅ |
 | 3 | Telemetry + evidence event logging + engagement metric repair | ⬜ |
 | 4 | Teacher Support/Evidence UI (hub + drawer) + one-click events + service log | ✅ |
-| 5 | Student "Support tools" UI | ⬜ |
+| 5 | Student "Support tools" UI | ✅ |
 | 6 | Report model/renderer + grade-impact aggregation + assignment-instance dedup | ⬜ |
 | 7 | Browser QA (fake-school harness) + final hardening + security review + PR | ⬜ |
 
@@ -183,8 +183,9 @@ These are the facts the design is built on. File references are to `origin/main`
 
 ## Phase 5/6 checklist (next)
 
-- [ ] Student Support tools: resources (reteach / study sheet) panel with "used" records; graph paper grid on the
-      scratchpad for entitled students (+ used record)
+- [x] Student Support tools (`StudentSupportTools.jsx`, `studentSupportTools()`): neutral student labels only,
+      teacher links (https) recorded as "used" when opened, graph paper = grid on the existing scratchpad for entitled
+      students (+ "used" on open); rendered for real student work only.
 - [ ] Report model `supportEvidenceReport.js` (+ grade impact, instance selection by class/period, summary, timeline,
       service, legend, limitations) + tests
 - [ ] Report view (print-first) + CSV/JSON; replace `openIEPReport`/`buildIEPReportHtml`; drawer + gradebook + roster

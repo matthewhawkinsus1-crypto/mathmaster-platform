@@ -1,4 +1,5 @@
 import { flatSupportIds, resolveEffectiveSupportPlan } from '../functions/shared/supportProfileModel.mjs';
+import { studentFacingLabel } from '../functions/shared/supportCatalog.mjs';
 
 const unique = (values) => [...new Set((Array.isArray(values) ? values : []).map(String))];
 
@@ -65,8 +66,33 @@ export const getStudentSupportPresentation = (profile) => {
     // should not silently receive an operation-application shortcut they were
     // never assigned.
     algebraAutoApply: normalized.accommodations.includes('algebra-auto-apply'),
+    // Supplemental aid: the scratchpad opens on graph paper.
+    graphPaper: normalized.accommodations.includes('graph-paper'),
     translationLanguage: normalized.translationLanguage,
   };
+};
+
+/**
+ * What the student's neutral "Support tools" panel offers, from the plan in
+ * effect today. Only student-facing tools appear, each under its neutral
+ * student label (functions/shared/supportCatalog.mjs studentLabel) — never a
+ * program, a classification or a teacher label.
+ */
+export const studentSupportTools = (profile, { nowValue = Date.now() } = {}) => {
+  const plan = resolveEffectiveSupportPlan(profile || {}, { nowValue });
+  if (!plan.active) return { tools: [], resources: [], any: false };
+  const tools = [];
+  const resources = [];
+  plan.accommodations.forEach((entry) => {
+    const label = studentFacingLabel(entry.id);
+    if (!label) return;
+    if (Array.isArray(entry?.params?.resources) && entry.params.resources.length) {
+      entry.params.resources.forEach((resource) => resources.push({ supportId: entry.id, group: label, label: resource.label, url: resource.url }));
+    } else if (!['reteach-resources', 'study-sheet'].includes(entry.id)) {
+      tools.push({ supportId: entry.id, label });
+    }
+  });
+  return { tools, resources, any: tools.length > 0 || resources.length > 0 };
 };
 
 /*
