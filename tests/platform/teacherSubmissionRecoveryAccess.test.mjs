@@ -9,9 +9,13 @@ const service = fs.readFileSync('src/services/persistenceRecoveryService.js', 'u
 const functions = fs.readFileSync('functions/index.js', 'utf8');
 
 test('Submission Recovery is permanent and scopes classes to the viewer before listing assignments', () => {
-  const recovery = region(home, '<h2 style={{ margin:', '{currentClass && (', 'permanent recovery section');
-  assert.match(recovery, />Submission Recovery</);
+  // Permanent: the section sits at the top level of Home (folded, never gated
+  // on a class being in session), after the in-session-only support panel.
+  const recovery = region(home, '{/* Recovery is permanent teacher work', '</details>', 'permanent recovery section');
+  assert.match(recovery, /<summary>Submission recovery/);
   assert.doesNotMatch(recovery, /currentClass\s*&&/);
+  const beforeRecovery = home.slice(0, home.indexOf('{/* Recovery is permanent teacher work'));
+  assert.match(beforeRecovery, /<StudentSupportDashboard[\s\S]*?\/>\s*\)\}\s*$/, 'recovery is not nested inside the in-session guard');
   assert.match(home, /classIdsForTeacher\(classOptions, teacherEmail\)/);
   assert.match(home, /isRootAdmin \|\| recoveryAllowedClassIds\.has\(entry\.classId\)/);
   assert.match(recovery, /recoveryClassOptions\.map/);

@@ -6,6 +6,7 @@ import {
   classifyCapturedSubmission,
 } from '../../functions/shared/studentSubmissionDisposition.mjs';
 import { region } from './helpers/sourceContract.mjs';
+import { describeWarmupControl } from '../../src/platform/teacher/classLessonControls.js';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
@@ -26,17 +27,30 @@ const assertPracticeGuardHonorsReopen = (source, guardName, capturedAtName) => {
   );
 };
 
+// Home and the class page render ONE shared projection of a class's lesson
+// controls (platform/teacher/classLessonControls.js). The behaviour these two
+// tests protect — a Warm-Up saved for another day can still be opened today —
+// is asserted on that model, and each surface is asserted to render it with the
+// Warm-Up handler wired.
+const warmupWindow = { start: new Date(2026, 7, 31, 8), end: new Date(2026, 7, 31, 9, 30) };
+const staleWarmup = { enabled: true, status: 'notToday', instructionDateKey: '2026-08-24', window: warmupWindow, minutesBeforeStart: 7 };
+
 test('teacher live hub keeps stale-date Warm-Up controls visible', () => {
+  const control = describeWarmupControl({ state: staleWarmup, nowValue: new Date(2026, 7, 31, 8, 5) });
+  assert.ok(control, 'a stale-date Warm-Up still has a control');
+  assert.deepEqual(control.actions.map((action) => action.label), ['Open today', 'Open for…']);
+  // Only a Warm-Up whose class period is over loses its open control.
+  assert.deepEqual(describeWarmupControl({ state: { ...staleWarmup, status: 'ended' }, nowValue: new Date(2026, 7, 31, 10) }).actions, []);
   const home = read('src/TeacherHome.jsx');
-  assert.match(home, /state\.enabled && state\.window && state\.status !== 'ended'/);
-  assert.match(home, /Open Warm-Up Today/);
-  assert.match(home, /\['notToday', 'unscheduled'\]/);
+  assert.match(home, /<ClassLessonControls[\s\S]*?onToggleWarmup[\s\S]*?\/>/);
 });
 
 test('class workspace exposes the same manual Warm-Up open control', () => {
   const workspace = read('src/ClassesWorkspace.jsx');
-  assert.match(workspace, /Open Warm-Up Today/);
-  assert.match(workspace, /\['active', 'closed', 'notToday', 'unscheduled'\]/);
+  assert.match(workspace, /projectClassLessons\(\{/);
+  assert.match(workspace, /<ClassLessonControls[\s\S]*?onToggleWarmup[\s\S]*?\/>/);
+  const closed = describeWarmupControl({ state: { ...staleWarmup, status: 'closed', instructionDateKey: '2026-08-31' }, nowValue: new Date(2026, 7, 31, 8, 20) });
+  assert.deepEqual(closed.actions.map((action) => action.label), ['Reopen', 'Reopen for…']);
 });
 
 test('manual Warm-Up open is scoped to the real class and today', () => {
@@ -53,8 +67,14 @@ test('Warm-Up countdown is visible across teacher and student surfaces', () => {
   const dashboard = read('src/components/student/StudentDashboardView.jsx');
   const app = read('src/App.jsx');
 
-  assert.match(home, /DOLCountdown endsAt=\{state\.endsAt\}/);
-  assert.match(workspace, /DOLCountdown endsAt=\{warmup\.endsAt\}/);
+  // Both teacher surfaces render the shared controls; the shared row shows the
+  // countdown for whatever section is open, from the model's own endsAt.
+  const controls = read('src/components/teacher/ClassLessonControls.jsx');
+  assert.match(controls, /DOLCountdown endsAt=\{row\.countdownEndsAt\}/);
+  const endsAt = new Date(2026, 7, 31, 8, 10);
+  assert.equal(describeWarmupControl({ state: { ...staleWarmup, status: 'active', instructionDateKey: '2026-08-31', endsAt }, nowValue: new Date(2026, 7, 31, 8, 4) }).countdownEndsAt, endsAt);
+  assert.match(home, /<ClassLessonControls/);
+  assert.match(workspace, /<ClassLessonControls/);
   assert.match(dashboard, /Warm-Up active now/);
   assert.match(dashboard, /DOLCountdown endsAt=\{state\.endsAt\}/);
   assert.match(app, /renderStudentWarmupBanner/);

@@ -44,14 +44,20 @@ export default function TeacherQuickSearch({
 
   useEffect(() => { setCursor(0); }, [query]);
 
+  // The parent passes a fresh onClose on every render, and the workspace
+  // re-renders about once a second while students are working (presence).
+  // Keyed on it, this effect cleared whatever the teacher was typing. It now
+  // resets only when the palette opens; Escape reads the latest onClose.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
   useEffect(() => {
     if (!open) return undefined;
     setQuery('');
     inputRef.current?.focus();
-    const onKey = (event) => { if (event.key === 'Escape') onClose?.(); };
+    const onKey = (event) => { if (event.key === 'Escape') onCloseRef.current?.(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

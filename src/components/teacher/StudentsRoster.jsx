@@ -16,6 +16,8 @@ import MyMathPathApp from '../student/MyMathPathApp.jsx';
 import { buildStudentPathOptions } from '../../platform/path/studentPathOptions.js';
 import { overridesForClassContext, storedPacingForClassContext } from '../../platform/path/pathStore.js';
 import { assignmentIsForStudent } from '../../assignmentLifecycle.js';
+import StudentAssignmentsList from './StudentAssignmentsList.jsx';
+import './teacherWorkspace.css';
 
 const tabButton = (active) => ({
   padding: '8px 11px', border: active ? '1px solid #1a73e8' : '1px solid #dadce0', borderRadius: 8,
@@ -56,6 +58,11 @@ export default function StudentsRoster({
   // The workspace-wide profile drawer. When absent this screen falls back to
   // its own detail pane, so the roster still works standalone.
   onOpenProfileDrawer = null,
+  // Student -> Assignment -> Work. Each assignment row opens the assignment's
+  // hub, and "Work" opens this student's own responses in the gradebook.
+  onOpenAssignment = null,
+  onOpenStudentWork = null,
+  gradingPeriodSettings = null,
 }) {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('name');
@@ -237,8 +244,14 @@ export default function StudentsRoster({
         {detailTab === 'assignments' && (
           <div>
             <section style={{ padding: 18, border: '1px solid #d8dde6', borderRadius: 10, marginBottom: 16 }}>
-              <h3 style={{ marginTop: 0 }}>Assignment evidence</h3>
-              <p style={{ color: '#5f6368' }}>{Object.keys(selected.gradesByAssignment || {}).length} assignment record(s). Use Grades for question-level evidence and saved work.</p>
+              <h3 style={{ marginTop: 0 }}>Assignments</h3>
+              <StudentAssignmentsList
+                student={selected}
+                assignments={selectedAssignments}
+                gradingPeriodSettings={gradingPeriodSettings}
+                onOpenAssignment={onOpenAssignment}
+                onOpenStudentWork={onOpenStudentWork}
+              />
             </section>
             {detailEvidence.loading && <p style={{ color: '#5f6368' }}>Loading delivery history…</p>}
             {detailEvidence.error && <p style={{ color: '#9a3412' }}>{detailEvidence.error}</p>}

@@ -3,6 +3,7 @@ import { buildDolWindowOpening } from '../../src/platform/assessment/assessmentR
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { getDOLInstructionDateKey } from '../../src/assignmentLifecycle.js';
+import { describeDolControl } from '../../src/platform/teacher/classLessonControls.js';
 import { dolTeacherRecoveryActiveAt, resolveDolWindow } from '../../functions/shared/sectionDeadline.mjs';
 
 const app = fs.readFileSync('src/App.jsx', 'utf8');
@@ -33,12 +34,12 @@ test('teacher DOL release repairs stale date for only the selected class', () =>
   const end = app.indexOf('const handleToggleWarmupForClass', start);
   const block = app.slice(start, end);
   assert.match(block, /needsOpenToday = \['notToday', 'unscheduled'\]/);
-  assert.match(block, /dol\.instructionDatesByClassId/);
-  assert.match(block, /\[classId\]: dateKey/);
   assert.doesNotMatch(block, /DOL is not scheduled today/);
-  // The unlock itself is built by the recovery model (so it is audited); the
-  // handler hands it this class only.
-  assert.match(block, /buildDolWindowOpening\(\{[\s\S]*?classId,[\s\S]*?recovery: recoveryNow,/);
+  // The unlock — including today's date for THIS class — is built by the
+  // recovery model (so it is audited and the replaced date is kept); the
+  // handler hands it this class only and never writes a date itself.
+  assert.match(block, /buildDolWindowOpening\(\{[\s\S]*?classId,[\s\S]*?classPeriod,[\s\S]*?recovery: recoveryNow,/);
+  assert.doesNotMatch(block, /instructionDatesByClassId\s*=/);
   const other = { dol: { earlyUnlocksByClassId: { 'class-b': { dateKey: '2026-09-23', unlockedAt: '2026-09-23T15:00:00.000Z' } } } };
   const { dol } = buildDolWindowOpening({ assignment: other, classId: 'class-a', recovery: false, dateKey: '2026-09-24', now: Date.parse('2026-09-24T15:00:00Z') });
   assert.equal(dol.instructionDatesByClassId['class-a'], '2026-09-24');
@@ -48,10 +49,24 @@ test('teacher DOL release repairs stale date for only the selected class', () =>
 });
 
 test('teacher screens keep stale reused DOL controls reachable', () => {
-  assert.match(teacherHome, /Open DOL Today/);
-  assert.match(teacherHome, /'notToday', 'unscheduled'/);
-  assert.match(classesWorkspace, /Open DOL Today/);
-  assert.match(classesWorkspace, /'waiting', 'beforeClass', 'notToday', 'unscheduled'/);
+  // Behaviour: a reused lesson whose DOL was saved for another day still offers
+  // "Open today" for this class (asserted by running the shared model)…
+  const reused = {
+    schemaVersion: 5,
+    sections: [{ id: 'dol', role: 'dol', questions: [{ questionId: 'd', activityRole: 'dol', prompt: 'p', type: 'freeResponse', expected: '1' }] }],
+    dol: { enabled: true, instructionDate: '2026-08-24' },
+  };
+  const window = { start: new Date(2026, 7, 31, 8), end: new Date(2026, 7, 31, 9, 30) };
+  const state = { enabled: true, status: 'notToday', instructionDateKey: '2026-08-24', window };
+  const control = describeDolControl({ assignment: reused, state, classId: 'class-a', nowValue: new Date(2026, 7, 31, 8, 30) });
+  assert.ok(control.actions.some((action) => action.id === 'open' && action.label === 'Open today'));
+  // …and both teacher surfaces render that one model with the unlock wired,
+  // including the folded "earlier" and "still open" lessons.
+  for (const source of [teacherHome, classesWorkspace]) {
+    assert.match(source, /projectClassLessons\(\{/);
+    assert.match(source, /<ClassLessonControls[\s\S]*?onUnlockDOL[\s\S]*?\/>/);
+    assert.doesNotMatch(source, /showEarlier=\{false\}|showOpen=\{false\}/);
+  }
 });
 
 
@@ -104,13 +119,14 @@ test('teacher can explicitly recover a DOL after the regular cutoff without rewr
 });
 
 test('teacher DOL surfaces expose restart, reopen, and extra-attempt recovery', () => {
-  assert.match(teacherHome, /state\.canRestart/);
-  assert.match(teacherHome, /Reopen DOL/);
-  assert.match(teacherHome, /Grant \+1 attempt/);
-  assert.match(classesWorkspace, /dol\.canRestart/);
-  assert.match(classesWorkspace, /RECOVERY AVAILABLE/);
-  assert.match(classesWorkspace, /Reopen DOL/);
-  assert.match(classesWorkspace, /Grant \+1 attempt/);
+  const window = { start: new Date(2026, 7, 31, 8), end: new Date(2026, 7, 31, 9, 30) };
+  const base = { enabled: true, status: 'ended', instructionDateKey: '2026-08-31', window, endsAt: new Date(2026, 7, 31, 9, 20) };
+  const labels = (state) => describeDolControl({ assignment: {}, state, classId: 'class-a', nowValue: new Date(2026, 7, 31, 9, 21) }).actions.map((action) => action.label);
+  assert.deepEqual(labels({ ...base, canRestart: true, canRecover: true }), ['Restart DOL', '+1 attempt']);
+  assert.deepEqual(labels({ ...base, canRestart: false, canRecover: true }), ['Reopen DOL', '+1 attempt']);
+  for (const source of [teacherHome, classesWorkspace]) {
+    assert.match(source, /<ClassLessonControls[\s\S]*?onGrantDOLAttempt[\s\S]*?\/>/);
+  }
 });
 
 console.log('dolClassReuseTeacherControl.test.mjs: all assertions passed');

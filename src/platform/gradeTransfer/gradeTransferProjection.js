@@ -54,6 +54,7 @@ const aggregateSectionState = (sectionUnits) => {
 const aggregateSectionUnits = (sectionUnits) => {
   const first = sectionUnits[0];
   const rows = sectionUnits.flatMap((unit) => unit.rows || []);
+  const allRows = sectionUnits.flatMap((unit) => unit.allRows || []);
   const withheld = dedupePeople(sectionUnits.flatMap((unit) => unit.withheld || []));
   const problems = dedupePeople(sectionUnits.flatMap((unit) => unit.problems || []));
   const excused = dedupePeople(sectionUnits.flatMap((unit) => unit.excused || []));
@@ -66,6 +67,7 @@ const aggregateSectionUnits = (sectionUnits) => {
     sectionCount: sectionUnits.length,
     state: aggregateSectionState(sectionUnits),
     rows,
+    allRows,
     withheld,
     problems,
     excused,

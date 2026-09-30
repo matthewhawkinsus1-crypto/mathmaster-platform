@@ -4,6 +4,7 @@ import StudentLearningProfileView from './StudentLearningProfileView.jsx';
 import { resolveAdaptiveRigorFromProfile } from '../../platform/rigor/courseRigor.js';
 import { courseLabel, courseLevelLabel } from '../../../functions/shared/classModel.mjs';
 import { SUPPORT_EVENT_LABEL, SUPPORT_STAGE_LABEL } from '../../platform/teacher/studentSupportSignals.js';
+import StudentAssignmentsList from './StudentAssignmentsList.jsx';
 
 /*
  * ONE STUDENT, ONE ANSWER, FROM ANYWHERE.
@@ -63,18 +64,31 @@ export default function StudentProfileDrawer({
   onClose = null,
   onOpenFullRecord = null,
   onOpenGradebook = null,
+  // Student -> Assignment -> Work, from wherever the name was clicked.
+  studentRecord = null,
+  assignments = [],
+  gradingPeriodSettings = null,
+  onOpenAssignment = null,
+  onOpenStudentWork = null,
 }) {
   const closeRef = useRef(null);
 
+  // Keyed on `open` (and the student), not on onClose: the parent passes a new
+  // onClose every render, which during class is about once a second, and each
+  // one pulled focus back to Close.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
   useEffect(() => {
     if (!open) return undefined;
-    const onKey = (event) => { if (event.key === 'Escape') onClose?.(); };
+    const onKey = (event) => { if (event.key === 'Escape') onCloseRef.current?.(); };
     window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
+  useEffect(() => {
     // Focus lands on the close control so a keyboard user is inside the drawer,
     // not still tabbing through the page behind it.
-    closeRef.current?.focus();
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+    if (open) closeRef.current?.focus();
+  }, [open, studentId]);
 
   if (!open) return null;
 
@@ -126,6 +140,21 @@ export default function StudentProfileDrawer({
             {fact('Skills with evidence', profile?.skillsWithEvidence ?? 0)}
             {fact('Classifying evidence', profile?.baseline?.events ?? 0)}
           </section>
+
+          {studentRecord && assignments.length > 0 && (
+            <details className="tw-disclosure" style={{ marginBottom: 20 }} open>
+              <summary>Assignments <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>where this student stands · open one for its grades and work</span></summary>
+              <div className="tw-disclosure__body">
+                <StudentAssignmentsList
+                  student={studentRecord}
+                  assignments={assignments}
+                  gradingPeriodSettings={gradingPeriodSettings}
+                  onOpenAssignment={onOpenAssignment}
+                  onOpenStudentWork={onOpenStudentWork}
+                />
+              </div>
+            </details>
+          )}
 
           <StudentLearningProfileView studentName={studentName} profile={profile} plan={plan} />
 
