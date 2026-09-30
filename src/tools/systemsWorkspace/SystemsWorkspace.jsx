@@ -1025,8 +1025,8 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
                 ariaLabel="Student-constructed graph of the inequality system"
                 enlargeable={false}
               >
-                {({ sx, sy }) => (
-                  <>
+                {({ sx, sy, plotClip }) => (
+                  <g clipPath={plotClip}>
                     {build.map((entry, index) => {
                       if (entry.visible === false) return null;
                       const line = effectiveLines[index];
@@ -1060,7 +1060,7 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
                     {combined && studentPolygon.length >= 3 ? (
                       <polygon points={studentPolygon.map(([px,py])=>`${sx(px)},${sy(py)}`).join(' ')} fill="rgba(31, 157, 85, 0.2)" stroke="#16884b" strokeWidth="2" />
                     ) : null}
-                  </>
+                  </g>
                 )}
               </CoordinatePlane>
               <p style={{ fontSize:13, color:'#5f6b7a' }}>

@@ -13,6 +13,7 @@ import { useAnswerFocusPolicy } from '../../platform/interaction/answerFocusPoli
 import { isMobileQuestionViewport } from '../../components/student/MobileViewportContainer.jsx';
 import QuietDisclosure from '../../components/common/QuietDisclosure.jsx';
 import { useRenderPerformance } from '../../platform/performance/useRenderPerformance.js';
+import { PlotHelpScope } from './plotHelpScope.js';
 
 // A stable key for "this exact block of text", so a student's decision to fold
 // the steps away is remembered per tool without every one of the eighteen tools
@@ -144,7 +145,8 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
           ) : null}
         </div>
       </header>
-      <div className="mathmaster-tool-shell-body" style={{ padding: 24 }}>{children}</div>
+      {/* One set of plotting directions per tool, however many planes it has. */}
+      <div className="mathmaster-tool-shell-body" style={{ padding: 24 }}><PlotHelpScope>{children}</PlotHelpScope></div>
       {footer ? <footer style={{ padding: '14px 24px', borderTop: '1px solid #e5e7eb', background: '#fafafa', color: '#5f6b7a', fontSize: 13 }}>{footer}</footer> : null}
     </section>
   );
