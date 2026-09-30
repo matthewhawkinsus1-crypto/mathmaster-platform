@@ -189,3 +189,15 @@ test('a package that mixes re-exported and first-time files says how many of eac
   assert.equal(plan.overwriteFileCount, 1);
   assert.equal(plan.overwrite, true);
 });
+
+test('a retry after a partial save failure is the same export, not a second one', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { executableSource, region } = await import('./helpers/sourceContract.mjs');
+  const center = executableSource(readFileSync(new URL('../../src/components/teacher/GradeTransferCenter.jsx', import.meta.url), 'utf8'));
+  // The package id is minted when the review opens…
+  assert.match(region(center, 'const openReview = (', 'const runExport', 'openReview'), /setPlan\(\{ \.\.\.built, title, packageId: id\('package'\) \}\)/);
+  // …and every attempt to save that reviewed export reuses it.
+  const run = region(center, 'const runExport = async', 'const downloadAgain', 'runExport');
+  assert.match(run, /const packageId = plan\.packageId \|\| id\('package'\);/);
+  assert.doesNotMatch(run, /const packageId = id\('package'\);/);
+});

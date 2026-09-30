@@ -249,14 +249,16 @@ export default function GradeTransferCenter({
         : 'Nothing in this selection has a finalized grade to export yet.' });
       return;
     }
-    setPlan({ ...built, title });
+    // One package id per reviewed export: a retry after a partial save failure
+    // is the same export, so it must not be counted as a second one.
+    setPlan({ ...built, title, packageId: id('package') });
   };
 
   const runExport = async () => {
     if (!plan) return;
     setBusy(true);
     try {
-      const packageId = id('package');
+      const packageId = plan.packageId || id('package');
       const toPersist = plan.packageUnits.filter((unit) => unit.rows.length);
       // Every file is saved before anything downloads, and each save is
       // idempotent (the id is a hash of the rows). A partial failure therefore
