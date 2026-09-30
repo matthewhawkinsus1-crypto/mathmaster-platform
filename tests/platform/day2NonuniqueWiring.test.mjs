@@ -28,6 +28,9 @@ test('reduced terminal Undo and invalidation remain in the child until classific
  const undo=region(parent,'const compositeUndo =','useActiveUndoOwner', 'composite undo');
  assert.match(undo,/subsystemState\?\.outcome && !classified/);
  assert.match(undo,/return subsystemUndoController/);
- const cancel=region(two,'const toggleCancellationRow =','const confirmEliminationCancellation', 'cancellation');
- assert.match(cancel,/cancellationConfirmed: subsystem \? Boolean\(!current.cancelledRows\?\.\[index\] && current.cancelledRows\?\.\[1 - index\]\)/);
+ // Both cancelling terms marked opens the combination directly — standalone
+ // and inside a 3×3 alike (no separate Confirm press anywhere).
+ const cancel=region(two,'const toggleCancellationRow =','const setEliminationCombinationAnswer', 'cancellation');
+ assert.match(cancel,/const bothMarked = Boolean\(cancelledRows\[0\] && cancelledRows\[1\]\);/);
+ assert.match(cancel,/cancellationConfirmed: bothMarked,/);
 });

@@ -22,6 +22,7 @@ const substitution3 = executableSource(componentSource('src/tools/systemsWorkspa
 const methodChoice = executableSource(componentSource('src/tools/systemsWorkspace/Algebraic3SystemMode.jsx'));
 const threePlanes = executableSource(componentSource('src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx'));
 const workspace = executableSource(componentSource('src/tools/systemsWorkspace/SystemsWorkspace.jsx'));
+const stack = executableSource(componentSource('src/tools/systemsWorkspace/EliminationStack.jsx'));
 
 /* ------------------------------------------- one elimination interface */
 
@@ -29,14 +30,16 @@ test('each 3×3 round is a stacked, column-aligned elimination with the 2×2\'s 
   const board = region(elimination, 'function EliminationRoundBoard(', 'function ReducedEliminationSubsystem(', 'EliminationRoundBoard');
   // Both equations of the pair are rows of one stack, one column per variable.
   assert.match(board, /<div className="mathmaster-elim-stack"[^>]*>\s*<EliminationStackRow[\s\S]*?rowId=\{idA\}[\s\S]*?<EliminationStackRow[\s\S]*?rowId=\{idB\}[\s\S]*?opCell=\{opRail\}/);
-  // The operation is chosen on the rail beside the second row — the 2×2's control.
-  assert.match(board, /className="mathmaster-systems-operation-rail mathmaster-elim-rail"/);
-  assert.match(board, /apply\(setEliminationOperation\(elimination, roundKey, 'add'\)\)/);
-  assert.match(board, /apply\(setEliminationOperation\(elimination, roundKey, 'subtract'\)\)/);
+  // The operation is chosen on the rail beside the second row — the shared control.
+  assert.match(board, /<EliminationOperationRail[\s\S]*?onChoose=\{\(operation\) => apply\(setEliminationOperation\(elimination, roundKey, operation\)\)\}/);
+  const rail = region(stack, 'export function EliminationOperationRail(', 'export function EliminationOperationSymbol(', 'rail');
+  assert.match(rail, /className="mathmaster-systems-operation-rail mathmaster-elim-rail"/);
+  assert.match(rail, /onClick=\{\(\) => onChoose\('add'\)\}/);
+  assert.match(rail, /onClick=\{\(\) => onChoose\('subtract'\)\}/);
   // Cancellation is marking the term itself, in its row.
   assert.match(board, /onToggleCancel=\{canEditRows && cancellationOpen \? \(\) => apply\(toggleEliminationCancellation\(elimination, system, roundKey, idA\)\) : null\}/);
   // The combined row is typed on the line under the columns.
-  assert.match(board, /<div className="mathmaster-elim-rule"[\s\S]*?data-combination-entry=\{roundKey\}/);
+  assert.match(board, /<div className="mathmaster-elim-rule"[\s\S]*?<EliminationCombinationEntry[\s\S]*?entryId=\{roundKey\}/);
   // The old side-by-side interface is gone.
   assert.doesNotMatch(elimination, /term cancels/);
   assert.doesNotMatch(elimination, /Add the two \(scaled\) equations/);
@@ -70,23 +73,42 @@ test('scaling is offered on every row of an open round, applied only by the stud
 });
 
 test('no field previews the product or result it asks for', () => {
-  // 2×2 scale step: the placeholders were the expected products ("8x" for 4x · 2).
-  const specs = region(twoByTwo, 'const productSpecs = ', '] : [];', '2×2 product specs');
-  assert.doesNotMatch(specs, /placeholder:[^,\n]*expectedTransformed/);
-  // 3×3 rounds: fixed words, never a computed term.
-  const board = region(elimination, 'function EliminationRoundBoard(', 'function ReducedEliminationSubsystem(', 'EliminationRoundBoard');
-  [...board.matchAll(/placeholder=\{([^}]*)\}|placeholder="([^"]*)"/g)].forEach((match) => {
-    const value = match[1] || match[2];
-    assert.match(value, /^(?:'term'|'value'|key === 'constant' \? 'value' : 'term'|term|value|factor)$/, `unexpected placeholder expression: ${value}`);
+  // The 2×2 scale step once showed the expected products as placeholders
+  // ("8x" for 4x · 2). Every elimination field at every size is drawn by the
+  // shared board, whose placeholders are fixed words, never a computed term.
+  const placeholders = [...stack.matchAll(/placeholder=\{([^}]*)\}|placeholder="([^"]*)"/g)].map((match) => match[1] || match[2]);
+  assert.ok(placeholders.length >= 4, 'the shared board draws the factor, distribution and combination fields');
+  placeholders.forEach((value) => {
+    assert.match(value, /^(?:variable \? 'term' : 'value'|term|value|factor)$/, `unexpected placeholder expression: ${value}`);
   });
+  // Neither screen draws an elimination field of its own.
+  const twoByTwoBoard = region(twoByTwo, 'const eliminationBoard = ', 'const methodTitle = ', '2×2 board');
+  const threeByThreeBoard = region(elimination, 'function EliminationRoundBoard(', 'function ReducedEliminationSubsystem(', 'EliminationRoundBoard');
+  for (const source of [twoByTwoBoard, threeByThreeBoard]) assert.doesNotMatch(source, /<MathInput/);
+});
+
+test('every elimination — 3×3 pair rounds, standalone 2×2, reduced 2×2 — is drawn with the same board', () => {
+  const parts = ['EliminationStackRow', 'EliminationScaleButton', 'EliminationScaleEditor', 'EliminationDistribution', 'EliminationOperationRail', 'EliminationCombinationEntry', 'eliminationDirection'];
+  const twoByTwoBoard = region(twoByTwo, 'const eliminationBoard = ', 'const methodTitle = ', '2×2 board');
+  const threeByThreeBoard = region(elimination, 'function EliminationRoundBoard(', 'function ReducedEliminationSubsystem(', 'EliminationRoundBoard');
+  for (const [name, source, board] of [['AlgebraicSystemMode', twoByTwo, twoByTwoBoard], ['EliminationReductionMode', elimination, threeByThreeBoard]]) {
+    assert.match(source, /from '\.\/EliminationStack\.jsx';/, `${name} imports the shared board`);
+    for (const part of parts) assert.match(board, new RegExp(`\\b${part}\\b`), `${name} draws ${part} from the shared board`);
+    // No private copy of the row or the old 2×2 card layout.
+    assert.doesNotMatch(source, /function (?:EliminationStackRow|AlignedEquationRow)\b|mathmaster-systems-elimination-equation-card|mathmaster-systems-multiplier-composer/, `${name} has its own elimination rows`);
+  }
+  // The 2×2 board is rendered in place of the old Prepare / Combine cards.
+  assert.match(twoByTwo, /\) : \(\s*eliminationBoard\s*\)\}/);
 });
 
 /* ------------------------------------------------ the reduced 2×2 inside */
 
 test('inside a 3×3 the reduced 2×2 names its equations R₁ and R₂ and has no Verify step of its own', () => {
   assert.match(twoByTwo, /const equationRef = \(index\) => subsystem\?\.equationLabels\?\.\[index\] \|\| `equation \$\{index \+ 1\}`;/);
-  assert.match(twoByTwo, /label=\{`Prepared \$\{equationRef\(0\)\}`\}/);
-  assert.match(twoByTwo, /aria-label=\{`Add \$\{equationRef\(1\)\} to \$\{equationRef\(0\)\}`\}/);
+  assert.match(twoByTwo, /const equationName = \(index\) => subsystem\?\.equationLabels\?\.\[index\] \|\| `Equation \$\{index \+ 1\}`;/);
+  const twoByTwoBoard = region(twoByTwo, 'const eliminationBoard = ', 'const methodTitle = ', '2×2 board');
+  assert.match(twoByTwoBoard, /label=\{equationName\(index\)\}/);
+  assert.match(twoByTwoBoard, /firstLabel=\{equationName\(0\)\}\s*secondLabel=\{equationName\(1\)\}/);
   // The trail's Verify stage exists only outside the subsystem role.
   assert.match(twoByTwo, /\.\.\.\(subsystem \? \[\] : \[\{\s*id: 'verify',/);
   // "Prepare" is not ticked before a target variable exists (scaling defaults to ×1).

@@ -377,11 +377,16 @@ test('systems work gets the full width once a route is under way', () => {
 test('new elimination stages come into view when they appear', () => {
   const source = read('src/tools/systemsWorkspace/AlgebraicSystemMode.jsx');
   assert.match(source, /const revealStageOnAppear = useCallback\(\(element\) => \{\s*if \(!element \|\| !stagesMountedRef\.current/);
-  for (const stage of ['mathmaster-systems-multiplier-products', 'mathmaster-systems-cancellation-stage', 'mathmaster-systems-student-combination']) {
-    assert.match(source, new RegExp(`<div ref=\\{revealStageOnAppear\\} className="${stage}">`), stage);
-  }
+  // The distribution and the combination line are the shared board's stages;
+  // each is handed the reveal callback and puts it on its own root element.
+  assert.match(source, /<EliminationDistribution\s*revealRef=\{revealStageOnAppear\}/);
+  assert.match(source, /<EliminationCombinationEntry\s*revealRef=\{revealStageOnAppear\}/);
+  const stack = read('src/tools/systemsWorkspace/EliminationStack.jsx');
+  assert.match(stack, /<div ref=\{revealRef\} className="mathmaster-elim-distribution"/);
+  assert.match(stack, /<div ref=\{revealRef\} className="mathmaster-elim-row mathmaster-elim-entry-row mathmaster-elim-result-entry"/);
+  assert.match(source, /<div ref=\{revealStageOnAppear\} className="mathmaster-systems-student-combination"/, 'substituted-statement stage');
   const css = read('src/tools/systemsWorkspace/AlgebraicSystemMode.css');
-  assert.match(css, /\.mathmaster-systems-student-combination \{\s*scroll-margin-bottom: 96px;/, 'clears the sticky action bar');
+  assert.match(css, /\.mathmaster-elim-distribution,\s*\.mathmaster-elim-result-entry,\s*\.mathmaster-systems-student-combination \{\s*scroll-margin-bottom: 96px;/, 'clears the sticky action bar');
 });
 
 // Live QA round 2, 390×844: the phone operation palette's labels read
