@@ -490,9 +490,9 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
         <HintPanel hints={MODE_HINTS[mode] || MODE_HINTS.completeSet} onHintUsed={() => onAction?.('HINT_USED')} />
       </Panel>
 
+      {/* Left-aligned text: the question runtime centres text, which put the
+          bullets at the left edge and each sentence in the middle. */}
       <Panel title="Representation reasoning" collapsible>
-        {/* Left-aligned: the question runtime centres text, which put the
-            bullets at the left edge and each sentence in the middle. */}
         <ul style={{ lineHeight: 1.8, paddingLeft: 20, marginTop: 0, textAlign: 'left' }}><li>An equation encodes the rule.</li><li>A table samples input-output pairs.</li><li>A graph shows shape, rate, and defining features.</li><li>A context gives quantities meaning and units.</li></ul>
         <p style={{ color: '#5f6b7a', marginBottom: 0, textAlign: 'left' }}>None of these is the “real” version of the relationship. Each one shows something the others hide, which is why you check them against each other.</p>
       </Panel>
