@@ -342,11 +342,20 @@
        graph cannot be worked at all below roughly 250px. Width goes where it
        changes whether the task is possible. */
     grid-template-columns: minmax(170px, 26%) minmax(0, 74%);
-    grid-template-rows: 1fr;
+    /* TWO ROWS, EACH CLAIMED BY NAME. The attempt strip
+       (.mathmaster-question-context-panel) was auto-placed into row 1 of the
+       tool's column and stretched to the prompt's height, so the tool dropped
+       into an implicit second row: at 844x390 the right column opened as
+       "3 of 3 tries left" over ~390px of blank, with the workspace starting at
+       y=480, below the fold (platform quirks audit). PR #394 fixed the same
+       collision in portrait. The prompt spans both rows; the strip sits above
+       the tool. */
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .mathmaster-question-container.mode-landscape .question-prompt-panel {
     grid-column: 1;
+    grid-row: 1 / -1;
     height: 100%;
     min-height: 0;
     overflow-y: auto;
@@ -362,8 +371,15 @@
     margin-bottom: 10px !important;
   }
 
+  .mathmaster-question-container.mode-landscape .mathmaster-question-context-panel {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+  }
+
   .mathmaster-question-container.mode-landscape .math-tool-workspace {
     grid-column: 2;
+    grid-row: 2;
     height: 100%;
     min-height: 0;
     padding: 6px max(8px, env(safe-area-inset-right)) 6px 8px;

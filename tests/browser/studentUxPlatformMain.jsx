@@ -18,6 +18,19 @@
 // the phone layout are the real ones.
 //
 // Driven by tests/browser/studentUxPlatform.mjs.
+//
+// Two options added by the platform quirks audit (defaults unchanged):
+//
+//   ?identity=1   renders the real signed-in StudentIdentityBar above the
+//                 assignment, as App.jsx's renderStudentIdentityShell does. It
+//                 publishes --mm-student-identity-stack-offset, which the
+//                 sticky task, the navigator, the phone container height and
+//                 the scroll padding all subtract; without it every one of
+//                 those was measured with an offset of 0.
+//   ?tools=1      appends a "Tools" section with one question per registry
+//                 tool (its sample spec, as the Work View certification mounts
+//                 it), so any tool can be opened inside the real wrappers and a
+//                 long navigation session can visit all of them.
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MathfieldElement } from 'mathlive';
@@ -29,6 +42,9 @@ import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/as
 import { flattenV5Sections, rebuildV5SectionsFromQuestions } from '../../src/platform/contract/assignmentSchemaV5.js';
 import { listDraftSyncRejections } from '../../src/platform/persistence/draftSyncDiagnostics.js';
 import { ASSIGNMENT_NAV_HEIGHT_VAR, stickyHeightRef } from '../../src/platform/layout/stickyHeightRef.js';
+import StudentIdentityBar from '../../src/components/student/StudentIdentityBar.jsx';
+import { SAMPLE_SPECS } from '../../src/dev/MathToolsLab.jsx';
+import { TOOL_CATALOG_IDS } from '../../src/tools/toolCatalog.js';
 import FINAL_TEXT from '../../docs/assignments/algebra1-linear-multiple-representations-final-v5.json?raw';
 import '../../src/index.css';
 import '../../src/App.css';
@@ -161,6 +177,22 @@ const pick = (sections, role, ids) => sections
   .map((section) => ({ ...section, questions: section.questions.filter((question) => ids.includes(question.questionId)) }))
   .filter((section) => section.questions.length);
 
+const WITH_IDENTITY = params.get('identity') === '1';
+const toolSection = params.get('tools') === '1' ? [{
+  id: 'ux-tools',
+  role: 'classwork',
+  title: 'Tools',
+  feedbackMode: 'immediate',
+  attemptsAllowed: 3,
+  questions: TOOL_CATALOG_IDS.map((toolId) => ({
+    questionId: `tool-${toolId}`,
+    id: `tool-${toolId}`,
+    type: toolId,
+    prompt: `Complete the ${toolId} activity.`,
+    ...SAMPLE_SPECS[toolId],
+  })),
+}] : [];
+
 const sections = [
   ...pick(finalCompiled.sections, 'warmup', ['lmr-wu-1', 'lmr-wu-2']),
   ...pick(finalCompiled.sections, 'classwork', ['lmr-cw-2']),
@@ -168,6 +200,7 @@ const sections = [
   ...passCompiled.sections.filter((section) => section.role === 'practice'),
   ...pick(finalCompiled.sections, 'dol', ['lmr-dol-1']),
   ...passCompiled.sections.filter((section) => section.role === 'dol'),
+  ...toolSection,
 ];
 const allQuestions = sections.flatMap((section) => section.questions.map((question, index) => ({ section, question, index })));
 
@@ -195,7 +228,7 @@ function Harness() {
   const draftKey = useMemo(() => draftKeyFor(position), [position]);
   const dol = section.role === 'dol';
   const next = position + 1 < allQuestions.length ? () => go(position + 1) : null;
-  return (
+  const screen = (
     // The same three wrappers App.jsx renders around a question, so the
     // stylesheet's assignment-screen rules (sticky anchor, action bar, scroll
     // padding, phone container) apply exactly as they do for a student.
@@ -245,6 +278,19 @@ function Harness() {
           />
         </main>
       </div>
+    </div>
+  );
+  if (!WITH_IDENTITY) return screen;
+  // renderStudentIdentityShell in App.jsx: the identity bar is sticky at the
+  // top of every authenticated student surface, above the navigator.
+  return (
+    <div data-authenticated-student-shell="student" style={{ minHeight: '100vh' }}>
+      <StudentIdentityBar
+        student={{ firstName: 'Claude', lastName: 'QA Student', classPeriod: '3' }}
+        classPointsBalance={120}
+        onLogout={() => {}}
+      />
+      {screen}
     </div>
   );
 }
