@@ -50,6 +50,37 @@ test('the one answer box keeps Enter-to-submit', () => {
   assert.deepEqual(resolveToolEnterAction({ field: box, shell }), { kind: 'press', target: checkButton });
 });
 
+// Platform quirks audit: driving every registry tool, Enter in the only TYPED
+// box spent an attempt while another part of the answer was still unset.
+test('a typed box beside a choice, a plane or another panel\'s box is not the whole answer', () => {
+  const check = () => h('button', { 'data-mm-enter-action': 'submit' });
+
+  // Inverse Composition, restriction mode: the inverse and a restriction select.
+  const inverse = input('5');
+  const restrictionCheck = check();
+  const restriction = shellOf(panel(inverse, h('select'), restrictionCheck));
+  assert.deepEqual(resolveToolEnterAction({ field: inverse, shell: restriction }), { kind: 'focus', target: restrictionCheck });
+
+  // Sequence Explorer, compare mode: the plotting plane is in another panel.
+  const difference = input('4');
+  const compareCheck = check();
+  const compare = shellOf(panel(h('svg', { role: 'application' })), panel(difference, compareCheck));
+  assert.deepEqual(resolveToolEnterAction({ field: difference, shell: compare }), { kind: 'focus', target: compareCheck });
+
+  // Interval Number Line: the notation box is alone in its panel, but the
+  // exact-endpoint box is the other half of the same answer.
+  const notation = input('[-3, 5)');
+  const intervalCheck = check();
+  const interval = shellOf(panel(input('')), panel(notation, intervalCheck));
+  assert.deepEqual(resolveToolEnterAction({ field: notation, shell: interval }), { kind: 'focus', target: intervalCheck });
+
+  // A plane that is only a picture (role="img") is not an answer control.
+  const only = input('7');
+  const onlyCheck = check();
+  const pictured = shellOf(panel(h('svg', { role: 'img' })), panel(only, onlyCheck));
+  assert.deepEqual(resolveToolEnterAction({ field: only, shell: pictured }), { kind: 'press', target: onlyCheck });
+});
+
 test('a card action is pressed once its own card is filled in', () => {
   const [dx, dy] = [input('3'), input('')];
   const cardCheck = h('button', { 'data-mm-enter-action': 'card' });
