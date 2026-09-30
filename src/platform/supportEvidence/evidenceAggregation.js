@@ -73,19 +73,55 @@ const unique = (values) => [...new Set(list(values).filter(Boolean))];
 
 // --- Evidence events ----------------------------------------------------------------
 
-/** Events minus staff corrections: a void record and the record it voids both drop out. */
+export const isStaffEvent = (event) => [ACTOR_TYPE.TEACHER, ACTOR_TYPE.PROVIDER].includes(event?.actorType);
+
+/**
+ * Events minus corrections. A correction never counts; the record it
+ * withdraws drops out only when it is a staff record by the SAME author (the
+ * rules enforce this on write; honoured here too for anything stored before).
+ * A later teacher cannot erase an earlier teacher's documentation.
+ */
 export const activeEvidence = (events = []) => {
   const all = list(events);
-  const voided = new Set(all.map((event) => clean(event?.voidsEventId)).filter(Boolean));
+  const byId = new Map(all.map((event) => [clean(event?.id), event]));
+  const voided = new Set();
+  all.forEach((event) => {
+    const targetId = clean(event?.voidsEventId);
+    if (!targetId) return;
+    const target = byId.get(targetId);
+    if (target && isStaffEvent(target) && clean(target.actorEmail) && clean(target.actorEmail) === clean(event.actorEmail)) voided.add(targetId);
+  });
   return all.filter((event) => !clean(event?.voidsEventId) && !voided.has(clean(event?.id)));
 };
 
-export const isStaffEvent = (event) => [ACTOR_TYPE.TEACHER, ACTOR_TYPE.PROVIDER].includes(event?.actorType);
+const minuteOf = (event) => {
+  const at = Number.isFinite(event?.occurredAtMs) ? event.occurredAtMs : toMillis(event?.occurredAt);
+  return Number.isFinite(at) ? Math.floor(at / 60000) : null;
+};
+
+/**
+ * "Used" records counted once per support, assignment, question and minute —
+ * the same de-duplication the student's client applies, so a scripted client
+ * cannot inflate a student's recorded use.
+ */
+export const distinctUses = (events = []) => {
+  const seen = new Set();
+  return list(events).filter((event) => {
+    if (event?.eventType !== EVIDENCE_EVENT_TYPE.USED) return false;
+    const key = [clean(event.supportId), clean(event.assignmentId), event.questionIndex ?? '-', minuteOf(event) ?? clean(event.id)].join('|');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
 
 /** Counts per support. `documented` = staff records of delivery. */
 export const countEvidenceBySupport = (events = []) => {
   const counts = new Map();
-  activeEvidence(events).forEach((event) => {
+  const active = activeEvidence(events);
+  const countedUses = new Set(distinctUses(active));
+  active.forEach((event) => {
+    if (event?.eventType === EVIDENCE_EVENT_TYPE.USED && !countedUses.has(event)) return;
     const supportId = clean(event?.supportId);
     if (!supportId) return;
     const bucket = counts.get(supportId) || {

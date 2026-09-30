@@ -256,6 +256,9 @@ const serviceEntry = (overrides = {}, input = {}) => ({
 test('staff log recorded service minutes; a correction is a new entry', async () => {
   await assertSucceeds(setDoc(doc(teacherA(), 'grades/S_A/supportServiceLog/e-1'), serviceEntry()));
   await assertSucceeds(setDoc(doc(teacherA(), 'grades/S_A/supportServiceLog/e-void'), serviceEntry({ minutes: 0, startMinute: null, endMinute: null, voidsEntryId: 'e-1' })));
+  // Only your own entry, and only one that exists.
+  await assertFails(setDoc(doc(teacherA(), 'grades/S_A/supportServiceLog/e-void-seeded'), serviceEntry({ minutes: 0, startMinute: null, endMinute: null, voidsEntryId: 'seeded' })));
+  await assertFails(setDoc(doc(teacherA(), 'grades/S_A/supportServiceLog/e-void-missing'), serviceEntry({ minutes: 0, startMinute: null, endMinute: null, voidsEntryId: 'no-such-entry' })));
   await assertFails(setDoc(doc(teacherA(), 'grades/S_A/supportServiceLog/e-zero'), serviceEntry({ minutes: 0, startMinute: null, endMinute: null })));
   await assertFails(setDoc(doc(teacherA(), 'grades/S_A/supportServiceLog/e-huge'), serviceEntry({ minutes: 601, startMinute: null, endMinute: null })));
   await assertFails(setDoc(doc(teacherA(), 'grades/S_A/supportServiceLog/e-type'), serviceEntry({ serviceType: 'text-to-speech' })));
@@ -329,8 +332,12 @@ test('a student can no longer mint attempt evidence, however well formed', async
 
 // --- Corrections and notes added after a one-click action ------------------------------------
 
-test('staff withdraw a mis-click with a correction record; students cannot', async () => {
+test('staff withdraw their own mis-click with a correction record; nobody withdraws someone else\'s', async () => {
+  // click-1 was written by teacher A earlier in this file; root-1 by the root administrator.
   await assertSucceeds(setDoc(doc(teacherA(), 'grades/S_A/supportEvidence/fix-1'), staffEvent({ voidsEventId: 'click-1', note: 'Entered in error' })));
+  await assertFails(setDoc(doc(teacherA(), 'grades/S_A/supportEvidence/fix-other'), staffEvent({ voidsEventId: 'root-1', note: 'Entered in error' })));
+  await assertFails(setDoc(doc(teacherA(), 'grades/S_A/supportEvidence/fix-missing'), staffEvent({ voidsEventId: 'no-such-record', note: 'Entered in error' })));
+  await assertFails(setDoc(doc(teacherA(), 'grades/S_A/supportEvidence/fix-telemetry'), staffEvent({ voidsEventId: 'tts-1', note: 'Entered in error' })));
   await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/fix-s'), studentEvent({ voidsEventId: 'tts-1' })));
 });
 

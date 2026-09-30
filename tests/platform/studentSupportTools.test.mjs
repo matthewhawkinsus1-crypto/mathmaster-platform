@@ -31,6 +31,13 @@ test('teacher-attached materials are listed as links; none means nothing is show
   assert.deepEqual(withLinks.resources, [{ supportId: 'study-sheet', group: 'Study sheet', label: 'Slope notes', url: 'https://docs.example.test/slope' }]);
   assert.equal(withLinks.any, true);
   assert.equal(studentSupportTools(profile([a('study-sheet', { resources: [] })]), { nowValue: NOW }).any, false);
+  // A link written straight to Firestore, around the editor's check, never renders.
+  const smuggled = buildSupportProjection({
+    revisions: [{ id: 'r1', revisionId: 'r1', revision: 1, status: 'active', effectiveStart: '2026-08-17', inclusionStatus: false, modifications: [],
+      accommodations: [{ id: 'study-sheet', appliesTo: [], params: { resources: [{ label: 'x', url: 'javascript:alert(1)' }, { label: 'y', url: 'http://plain.example.test' }] } }] }],
+    todayKey: '2026-09-30',
+  });
+  assert.deepEqual(studentSupportTools(smuggled, { nowValue: NOW }).resources, []);
   assert.equal(studentSupportTools(profile([a('declutter-ui')]), { nowValue: NOW }).any, false, 'automatic supports need no tool');
   assert.equal(studentSupportTools(profile([a('text-to-speech')], { status: 'inactive' }), { nowValue: NOW }).any, false);
   assert.equal(studentSupportTools({}, { nowValue: NOW }).any, false);

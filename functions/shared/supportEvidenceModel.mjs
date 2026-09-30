@@ -340,7 +340,16 @@ export const summarizeServiceMinutes = (entries = [], {
   fromDateKey = null, toDateKey = null, expectations = [],
 } = {}) => {
   const all = (Array.isArray(entries) ? entries : []).filter((entry) => entry && DATE_KEY.test(clean(entry.dateKey)));
-  const voided = new Set(all.map((entry) => cleanId(entry.voidsEntryId)).filter(Boolean));
+  // A correction withdraws only its own author's entry (enforced by the rules
+  // on write; honoured here for anything stored earlier).
+  const byId = new Map(all.map((entry) => [cleanId(entry.id), entry]));
+  const voided = new Set(all
+    .filter((entry) => cleanId(entry.voidsEntryId))
+    .filter((entry) => {
+      const target = byId.get(cleanId(entry.voidsEntryId));
+      return !target || lower(target.createdByEmail) === lower(entry.createdByEmail) || !lower(target.createdByEmail);
+    })
+    .map((entry) => cleanId(entry.voidsEntryId)));
   const inRange = all.filter((entry) => (
     (!fromDateKey || entry.dateKey >= fromDateKey) && (!toDateKey || entry.dateKey <= toDateKey)
   ));

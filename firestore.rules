@@ -263,6 +263,22 @@ service cloud.firestore {
           || (d.get('durationSeconds', null) is int && d.get('durationSeconds', 0) > 0 && d.get('durationSeconds', 0) <= 86400));
     }
 
+    // A correction may withdraw only a staff record its own author wrote: a
+    // later teacher cannot erase an earlier teacher's documentation from the
+    // counts. The withdrawn record itself is never touched.
+    function voidTargetIsOwnStaffRecord(studentId, eventId) {
+      let target = /databases/$(database)/documents/grades/$(studentId)/supportEvidence/$(eventId);
+      return exists(target)
+        && get(target).data.get('actorType', '') in ['teacher', 'provider']
+        && get(target).data.get('actorEmail', null) == request.auth.token.email;
+    }
+
+    function voidTargetIsOwnServiceEntry(studentId, entryId) {
+      let target = /databases/$(database)/documents/grades/$(studentId)/supportServiceLog/$(entryId);
+      return exists(target)
+        && get(target).data.get('createdByEmail', null) == request.auth.token.email;
+    }
+
     // Staff: one-click classroom actions, provider entries, determinations.
     function staffSupportEvidenceValid(studentId) {
       let d = request.resource.data;
@@ -277,6 +293,7 @@ service cloud.firestore {
         ])
         && (d.actorType != 'provider' || d.get('providerRole', null) != null)
         && optionalString(d, 'note', 280)
+        && (d.get('voidsEventId', null) == null || voidTargetIsOwnStaffRecord(studentId, d.get('voidsEventId', '')))
         && classMatchesRoster(d, studentId);
     }
 
@@ -358,6 +375,7 @@ service cloud.firestore {
         && optionalString(d, 'topic', 120)
         && optionalString(d, 'note', 280)
         && optionalString(d, 'voidsEntryId', 160)
+        && (d.get('voidsEntryId', null) == null || voidTargetIsOwnServiceEntry(studentId, d.get('voidsEntryId', '')))
         && staffAuthorship(d, 'createdByEmail')
         && d.createdAt == request.time
         && classMatchesRoster(d, studentId);

@@ -120,12 +120,26 @@ test('configured, available and used stay separate; an adult support with no rec
   assert.ok(!documented.gaps.some((entry) => entry.supportId === 'check-for-understanding'));
 });
 
-test('a staff correction removes a mis-click from every count', () => {
-  const click = event({ id: 'click-1', supportId: 'on-task-prompt', eventType: 'teacher-documented', actorType: 'teacher', source: 'teacher-click' });
-  const correction = event({ id: 'void-1', supportId: 'on-task-prompt', eventType: 'teacher-documented', actorType: 'teacher', source: 'teacher-click', voidsEventId: 'click-1' });
+test('a staff correction removes its own author\'s mis-click from every count — and nobody else\'s', () => {
+  const staff = { supportId: 'on-task-prompt', eventType: 'teacher-documented', actorType: 'teacher', source: 'teacher-click', actorEmail: 'teacher.a@example.test' };
+  const click = event({ ...staff, id: 'click-1' });
+  const correction = event({ ...staff, id: 'void-1', voidsEventId: 'click-1' });
   assert.deepEqual(activeEvidence([click, correction]), []);
   assert.equal(countEvidenceBySupport([click]).get('on-task-prompt').documented, 1);
   assert.equal(countEvidenceBySupport([click, correction]).get('on-task-prompt'), undefined);
+  // A later teacher cannot erase an earlier teacher's record; the attempt
+  // itself never counts either.
+  const foreign = event({ ...staff, id: 'void-2', voidsEventId: 'click-1', actorEmail: 'teacher.b@example.test' });
+  assert.deepEqual(activeEvidence([click, foreign]).map((entry) => entry.id), ['click-1']);
+  assert.equal(countEvidenceBySupport([click, foreign]).get('on-task-prompt').documented, 1);
+});
+
+test('"used" counts once per support, question and minute, however many writes arrive', () => {
+  const at = Date.parse('2026-10-01T15:00:10Z');
+  const use = (extra) => event({ supportId: 'text-to-speech', eventType: 'used', questionIndex: 1, occurredAtMs: at, ...extra });
+  const flood = Array.from({ length: 50 }, (_, index) => use({ id: `flood-${index}`, occurredAtMs: at + index * 100 }));
+  assert.equal(countEvidenceBySupport(flood).get('text-to-speech').used, 1, 'fifty writes in one minute on one question are one use');
+  assert.equal(countEvidenceBySupport([...flood, use({ id: 'q2', questionIndex: 2 }), use({ id: 'later', occurredAtMs: at + 120000 })]).get('text-to-speech').used, 3);
 });
 
 test('Standard vs Modified comes from what was applied, and says when a configured one changed nothing', () => {

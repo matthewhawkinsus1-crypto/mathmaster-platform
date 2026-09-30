@@ -97,6 +97,12 @@ test('service summaries count only recorded minutes, exclude voided entries, and
   ]);
   assert.equal(JSON.stringify(summary).includes('compliant'), false);
   assert.equal(weekStartOf('2026-10-04'), '2026-09-28'); // Sunday belongs to the week that began Monday
+  // A correction by someone else withdraws nothing.
+  const foreign = summarizeServiceMinutes([
+    { id: 'a1', dateKey: '2026-09-28', minutes: 30, serviceType: 'inclusion-support', createdByEmail: 'a@x.test' },
+    { id: 'b1', dateKey: '2026-09-28', minutes: 0, serviceType: 'inclusion-support', createdByEmail: 'b@x.test', voidsEntryId: 'a1' },
+  ]);
+  assert.equal(foreign.totalMinutes, 30);
 });
 
 test('engaged means visible, open for credit, and interacted within the idle cutoff', () => {

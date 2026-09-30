@@ -87,7 +87,11 @@ export const studentSupportTools = (profile, { nowValue = Date.now() } = {}) => 
     const label = studentFacingLabel(entry.id);
     if (!label) return;
     if (Array.isArray(entry?.params?.resources) && entry.params.resources.length) {
-      entry.params.resources.forEach((resource) => resources.push({ supportId: entry.id, group: label, label: resource.label, url: resource.url }));
+      entry.params.resources
+        // Re-checked here: the editor accepts only https links, but a link
+        // reaches a student's screen, so nothing else is rendered.
+        .filter((resource) => /^https:\/\/[^\s]+$/i.test(String(resource?.url || '')))
+        .forEach((resource) => resources.push({ supportId: entry.id, group: label, label: resource.label, url: resource.url }));
     } else if (!['reteach-resources', 'study-sheet'].includes(entry.id)) {
       tools.push({ supportId: entry.id, label });
     }

@@ -38,7 +38,7 @@ import { lastExportedRowsByStudent, snapshotsForPart } from '../gradeTransfer/gr
 import { canonicalPresentedAssignmentGrade } from '../grading/canonicalGradeProjection.js';
 import {
   ASSIGNMENT_STATUS, SCHOOL_TIME_ZONE, activeEvidence, buildAssignmentEvidenceRow, configuredSupportIds,
-  evidenceRecordingStartMs, isStaffEvent,
+  distinctUses, evidenceRecordingStartMs, isStaffEvent,
 } from './evidenceAggregation.js';
 
 export const SUPPORT_REPORT_SCHEMA_VERSION = 1;
@@ -375,7 +375,7 @@ export const buildSupportEvidenceReport = ({
       configured: configured.accommodations.includes(supportId),
       assignmentsAvailable: assignmentsWith(['available']),
       assignmentsProvided: assignmentsWith(['provided']),
-      uses: events.filter((event) => event.eventType === 'used').length,
+      uses: distinctUses(events).length,
       staffRecords: events.filter(isStaffEvent).length,
       measurable: catalog?.evidence || [],
     };
