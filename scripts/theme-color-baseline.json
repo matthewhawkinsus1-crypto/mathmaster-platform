@@ -121,7 +121,7 @@
   "src/tools/stepAlgebra2/StepAlgebra2.jsx:#fff": 1,
   "src/tools/systemsWorkspace/AlgebraicSystemMode.css:#fff": 3,
   "src/tools/systemsWorkspace/AlgebraicSystemMode.jsx:#fff": 1,
-  "src/tools/systemsWorkspace/EliminationReductionMode.jsx:#fff": 1,
+  "src/tools/systemsWorkspace/EliminationStack.jsx:#fff": 1,
   "src/tools/systemsWorkspace/OriginalEquationsVerification.jsx:#fff": 1,
   "src/tools/systemsWorkspace/SubstitutionReductionMode.jsx:#fff": 1,
   "src/tools/systemsWorkspace/SystemsWorkspace.jsx:#fff": 2,

@@ -26,9 +26,11 @@ import React from 'react';
 import MathInput from '../../MathInput';
 import { exactNumberText } from './algebraicSystemsEngine.js';
 
-const actionStyle = { marginTop: 16, padding: '11px 18px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer', minHeight: 44 };
-export const eliminationSecondaryButtonStyle = { ...actionStyle, marginTop: 0, padding: '9px 14px', fontSize: 13, background: '#eef4ff', color: '#174ea6' };
-export const eliminationSmallActionStyle = { ...actionStyle, marginTop: 8, padding: '9px 14px', fontSize: 13 };
+// The elimination screens' button styles, defined once: EliminationReductionMode
+// uses these too instead of keeping its own copy.
+export const eliminationActionStyle = { marginTop: 16, padding: '11px 18px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer', minHeight: 44 };
+export const eliminationSecondaryButtonStyle = { ...eliminationActionStyle, marginTop: 0, padding: '9px 14px', fontSize: 13, background: '#eef4ff', color: '#174ea6' };
+export const eliminationSmallActionStyle = { ...eliminationActionStyle, marginTop: 8, padding: '9px 14px', fontSize: 13 };
 
 const MINUS = '−';
 

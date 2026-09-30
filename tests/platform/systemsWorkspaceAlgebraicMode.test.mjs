@@ -243,9 +243,10 @@ test('verification requires both original equations to be checked independently,
 const eliminationBoardSource = () => region(modeSource, 'const eliminationBoard = ', "const methodTitle = ", '2×2 elimination board');
 
 test('a scale factor is typed under the row it scales, and the student writes every changed term', () => {
-  // Named by the equation's own reference: "equation 2" standalone, "R₂" in a 3×3 subsystem (#361).
-  assert.match(modeSource, /const equationRef = \(index\) => subsystem\?\.equationLabels\?\.\[index\] \|\| `equation \$\{index \+ 1\}`;/);
+  // Named by the equation's own name: "Equation 2" standalone, "R₂" in a 3×3 subsystem (#361).
+  assert.match(modeSource, /const equationName = \(index\) => subsystem\?\.equationLabels\?\.\[index\] \|\| `Equation \$\{index \+ 1\}`;/);
   const board = eliminationBoardSource();
+  assert.match(board, /<EliminationScaleEditor\s*editorId=\{index\}\s*equationLabel=\{equationName\(index\)\}/);
   // Each row's scale tools open directly beneath that row, inside the stack.
   assert.match(board, /\{row\(0\)\}\s*\{scaleTools\(0\)\}\s*\{row\(1\)\}\s*\{scaleTools\(1\)\}\s*<div className="mathmaster-elim-rule"/);
   // "Scale" under the row's label opens the factor field; Apply is the student's own press.

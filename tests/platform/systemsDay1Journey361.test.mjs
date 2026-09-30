@@ -104,7 +104,6 @@ test('every elimination — 3×3 pair rounds, standalone 2×2, reduced 2×2 — 
 /* ------------------------------------------------ the reduced 2×2 inside */
 
 test('inside a 3×3 the reduced 2×2 names its equations R₁ and R₂ and has no Verify step of its own', () => {
-  assert.match(twoByTwo, /const equationRef = \(index\) => subsystem\?\.equationLabels\?\.\[index\] \|\| `equation \$\{index \+ 1\}`;/);
   assert.match(twoByTwo, /const equationName = \(index\) => subsystem\?\.equationLabels\?\.\[index\] \|\| `Equation \$\{index \+ 1\}`;/);
   const twoByTwoBoard = region(twoByTwo, 'const eliminationBoard = ', 'const methodTitle = ', '2×2 board');
   assert.match(twoByTwoBoard, /label=\{equationName\(index\)\}/);

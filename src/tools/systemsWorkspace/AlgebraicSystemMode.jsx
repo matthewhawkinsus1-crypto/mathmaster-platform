@@ -430,11 +430,10 @@ export const subsystemReportFromDraft = (record, variables = null) => {
 export default function AlgebraicSystemMode({ questionData = {}, onAction, draftKey = null, subsystem = null }) {
   const config = useMemo(() => normalizeAlgebraicSystemConfig(questionData), [questionData]);
   const { variables, equations } = config;
+  // "Equation 2" standalone, "R₂" inside a 3×3 (#361) — the reduced 2×2 once
+  // called R₁/R₂ "Equation 1/2", the same names as the three originals pinned
+  // beside it.
   const equationName = (index) => subsystem?.equationLabels?.[index] || `Equation ${index + 1}`;
-  // Mid-sentence form: "equation 2" standalone, "R₂" inside a 3×3 (#361) —
-  // the reduced 2×2 called R₁/R₂ "Equation 1/2", the same names as the
-  // three originals pinned beside it.
-  const equationRef = (index) => subsystem?.equationLabels?.[index] || `equation ${index + 1}`;
   const valueText = (value) => (subsystem ? exactNumberText(value) : String(value));
 
   const [method, setMethod] = usePersistentToolState('method', config.method === 'studentChoice' ? '' : config.method);
