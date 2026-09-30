@@ -77,7 +77,12 @@ numeric district ID.
     needs-attention note that, on the light roster, only says academic history is not loaded.
 21. **The class page repeated today's lesson under "Current Assignments"** and offered no way to
     reach recently closed work.
-22. **Export details:** after one export the row said "exported 4 times" (one snapshot per section
+22. **Attendance correction reviews could never be resolved — on `main`.** App.jsx called
+    `buildAttendanceCorrectionReviewEvent` without importing it, so "Keep current extension" and
+    "Apply shorter extension" on Attendance History always failed ("Could not resolve the review").
+    Those extensions decide which students Grade Export holds back. Found by running `no-undef` over
+    every file this branch touches; a test now does that for App.jsx and every teacher screen.
+23. **Export details:** after one export the row said "exported 4 times" (one snapshot per section
     file); the ZIP was named by *period*, ambiguous when two classes share one; a retry after a
     partial save failure counted as a second export; opening a DOL early *on its own day* was shown
     as "Moved by teacher — originally <the same day>".
@@ -94,7 +99,8 @@ numeric district ID.
 4. **Export as a one-way door.** Anything that went wrong after an export (lost file, SIS rejection,
    late work, a corrected grade) had no path back.
 5. **Live-class fragility.** Search that erases itself, a drawer that opens behind another, controls
-   below the fold on a Chromebook — each small, each costly with 30 students in the room.
+   below the fold on a Chromebook, a review button that throws — each small, each costly with 30
+   students in the room.
 
 ## 3. Architecture decisions
 
@@ -168,6 +174,8 @@ See §5.
 
 ### Reliability during class
 - **Find no longer erases what you type** while students are working. **(2)**
+- **Attendance History's "Keep current extension" / "Apply shorter extension" work** (a missing
+  import made them always fail). **(2)**
 - A failed weekly-Path load shows "Unavailable", never 0%. **(1)**
 - No page scrolls sideways at 1440, 1366, 1024 or 768 px (checked on Home, the hub, Grade Export and its review, and Grades, and at the end of every journey). **(2)**
 
@@ -272,6 +280,7 @@ Each item: **Problem · Teacher impact · Recommended solution · Complexity · 
 | --- | --- | --- | --- | --- | --- |
 | H1 | Manual DOL open is broken **in production** (finding 12). | Teachers cannot open, reopen or restart a DOL by hand. | Ship the one-line fix (`a5ae4be`, `localDateKey` accepts strings) as a hotfix ahead of this PR if this PR will take time to review. | small | **Yes — first** |
 | H2 | Find clears typing during class **in production** (finding 13). | Search is unusable while students are active. | Ship the `TeacherQuickSearch` fix (`d722aa4`) with H1. | small | **Yes** |
+| H2b | Attendance correction reviews cannot be resolved **in production** (finding 22). | Absence-extension corrections stay open forever. | Ship the import fix (`04cf5e0`) with H1/H2. | small | **Yes** |
 | H3 | Teacher "Close now" is applied by the shared resolver (`functions/shared/sectionDeadline.mjs`), which Cloud Functions also use for response-checkpoint finalization/sweeps and workspace-draft recovery. | Until those functions are redeployed, server-side recovery uses the bell-time cutoff, not the teacher's close. (Students' screens use the new resolver as soon as Hosting ships.) | Deploy the Cloud Functions that import `sectionDeadline.mjs` together with Hosting, using the repo's deploy procedure. Behavior is identical when no teacher close exists. | small | **Yes — at release** |
 | H4 | Question analysis is not in the hub. | "Which question did the class miss?" still means opening each student. | Add a per-question strip to the hub's progress layer (correct / attempted / stuck counts), from the same grade records "Show progress" loads. | medium | Yes |
 | H5 | Extensions and exceptions are not visible from an assignment. | A teacher can't see who has an extension on *this* assignment without Attendance History. | "Extensions (N)" in the hub, listing students with individual deadlines and linking to Attendance History; the same data Grade Export uses to hold students back. | medium | Yes |
@@ -302,14 +311,14 @@ Each item: **Problem · Teacher impact · Recommended solution · Complexity · 
 
 ## 8. Verification (pass 2)
 
-- `npm run test:platform` — 6,659 / 6,659 pass (with `functions/` dependencies installed, as CI does).
-- `node --test tests/tools/*.test.mjs` — 252 / 252.
-- `npm run lint` — no errors; no warnings in changed files.
+- `npm run test:platform` — **6,661 / 6,661** pass (with `functions/` dependencies installed, as CI does).
+- `npm run test:authoring-v5` — 684 / 684. `node --test tests/tools/*.test.mjs` — 252 / 252.
+- `npm run test:rules` (Firestore emulator) — pass (64 / 64 in the rules suites). No rules changed.
+- `npm run lint` — 0 errors; no warnings in files this branch changed.
 - `npm run build`, `npm run build:firebase` — pass.
 - `node tests/browser/teacherWorkflow/journeys.mjs` (harness running) — scenarios A–K + partial
   failure, **36 / 36** at 1440, 1024 and 768 px, each ending with a no-sideways-scroll check.
 - Every new or changed assertion was mutation-checked (behaviour broken → test red) per `AGENTS.md`.
-- `npm run test:rules` (Firestore emulator) was not run in this environment; no rules changed.
 
 ## 9. How to run the harness
 
