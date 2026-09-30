@@ -48,6 +48,9 @@ if (requestedTool && !WORK_VIEW_CERTIFICATION[requestedTool]) {
  * server hot-reloads the harness mid-scene.
  */
 const COLD_SCENE_TIMEOUT = Number(process.env.WORK_VIEW_CERTIFICATION_COLD_TIMEOUT_MS || 120000);
+// Healthy scenes take 3-8 s (CI) and up to ~45 s for a cold first scene on a
+// loaded laptop; the budget is the cold wait plus generous room for the probes.
+const SCENE_BUDGET = Number(process.env.WORK_VIEW_CERTIFICATION_SCENE_BUDGET_MS || COLD_SCENE_TIMEOUT + 120000);
 const SCENE_TIMEOUT = 30000;
 const timings = [];
 
@@ -364,238 +367,256 @@ for (const device of certificationDevices) {
       process.exit(2);
     }
     const started = Date.now();
+    // A SCENE HAS A BUDGET. evaluate(), mouse moves and viewport changes have
+    // no timeout of their own, so a renderer frozen by memory starvation held
+    // one scene for 800 s. Past the budget the scene is that scene's finding
+    // and the stuck context is replaced. The body gets its own `page`, so a
+    // scene still running after its budget can never drive the next page.
+    let watchdog = null;
+    let overBudget = false;
     try {
-      await page.evaluate((id) => window.__mmStage4(id), toolId);
-      const toolRoot = page.locator(`[data-stage4-tool="${toolId}"]`);
-      await toolRoot.waitFor({ state: 'visible', timeout: firstScene ? COLD_SCENE_TIMEOUT : SCENE_TIMEOUT });
+      const scene = (async (page) => {
+        await page.evaluate((id) => window.__mmStage4(id), toolId);
+        const toolRoot = page.locator(`[data-stage4-tool="${toolId}"]`);
+        await toolRoot.waitFor({ state: 'visible', timeout: firstScene ? COLD_SCENE_TIMEOUT : SCENE_TIMEOUT });
 
-      // The harness renders the tool ROOT; the tool itself renders the Work View
-      // host a few React commits later, once its lazily loaded chunk resolves —
-      // measured at 282-478 ms after the root becomes visible. Everything below
-      // samples the DOM instantaneously (`count()` and `isVisible()` do not
-      // auto-wait), so the fixed sleep alone was racing that render: on a loaded
-      // runner a varying subset of tools reported "Work View opener is not
-      // reachable", and none ever did on a warm machine. Wait for the host the
-      // openers are read from. A tool that genuinely renders none still falls
-      // through to exactly the same report.
-      await toolRoot.locator('.mathmaster-work-view-host').first()
-        .waitFor({ state: 'attached', timeout: 15000 })
-        .catch(() => {});
-      await page.waitForTimeout(250);
-      await page.screenshot({ path: path.join(familyDir, 'standard.png') });
+        // The harness renders the tool ROOT; the tool itself renders the Work View
+        // host a few React commits later, once its lazily loaded chunk resolves —
+        // measured at 282-478 ms after the root becomes visible. Everything below
+        // samples the DOM instantaneously (`count()` and `isVisible()` do not
+        // auto-wait), so the fixed sleep alone was racing that render: on a loaded
+        // runner a varying subset of tools reported "Work View opener is not
+        // reachable", and none ever did on a warm machine. Wait for the host the
+        // openers are read from. A tool that genuinely renders none still falls
+        // through to exactly the same report.
+        await toolRoot.locator('.mathmaster-work-view-host').first()
+          .waitFor({ state: 'attached', timeout: 15000 })
+          .catch(() => {});
+        await page.waitForTimeout(250);
+        await page.screenshot({ path: path.join(familyDir, 'standard.png') });
 
-      // QuestionEngine may legitimately focus a numeric field on entry, which can
-      // open MathMaster's mobile keypad. Finish that editing surface before asking
-      // whether the separate Work View control is reachable.
-      await dismissNumericKeypad(page);
+        // QuestionEngine may legitimately focus a numeric field on entry, which can
+        // open MathMaster's mobile keypad. Finish that editing surface before asking
+        // whether the separate Work View control is reachable.
+        await dismissNumericKeypad(page);
 
-      // Prefer the activity-level shell. A graph nested inside an already
-      // enlargeable activity can contain its own historical "Enlarge" text; using
-      // the first regex match can certify/click the wrong shell.
-      const activityHost = toolRoot.locator('.mathmaster-work-view-host[data-open="false"]').first();
-      const directOpeners = activityHost
-        .locator(':scope > .mathmaster-work-view-body > .mathmaster-work-view-surface > button')
-        .filter({ hasText: /enlarge|work view/i });
-      const preferredOpener = directOpeners.filter({ hasText: /open work view/i }).first();
-      const fallbackOpener = directOpeners.first();
-      const opener = await visible(preferredOpener) ? preferredOpener : fallbackOpener;
-      const alreadyOpen = toolRoot.locator('.mathmaster-work-view-host[data-open="true"]').first();
-      const openerProblem = await visible(alreadyOpen)
-        ? null
-        : await clickIfReachable(opener, 'Work View opener');
+        // Prefer the activity-level shell. A graph nested inside an already
+        // enlargeable activity can contain its own historical "Enlarge" text; using
+        // the first regex match can certify/click the wrong shell.
+        const activityHost = toolRoot.locator('.mathmaster-work-view-host[data-open="false"]').first();
+        const directOpeners = activityHost
+          .locator(':scope > .mathmaster-work-view-body > .mathmaster-work-view-surface > button')
+          .filter({ hasText: /enlarge|work view/i });
+        const preferredOpener = directOpeners.filter({ hasText: /open work view/i }).first();
+        const fallbackOpener = directOpeners.first();
+        const opener = await visible(preferredOpener) ? preferredOpener : fallbackOpener;
+        const alreadyOpen = toolRoot.locator('.mathmaster-work-view-host[data-open="true"]').first();
+        const openerProblem = await visible(alreadyOpen)
+          ? null
+          : await clickIfReachable(opener, 'Work View opener');
 
-      if (openerProblem) {
-        problems.push(openerProblem);
-        await page.screenshot({ path: path.join(familyDir, 'opener-blocked.png') });
-      } else {
-        await page.waitForTimeout(200);
-        const shell = toolRoot.locator('.mathmaster-work-view-host[data-open="true"]').first();
-
-        if (!(await visible(shell))) {
-          problems.push('Work View did not open');
+        if (openerProblem) {
+          problems.push(openerProblem);
+          await page.screenshot({ path: path.join(familyDir, 'opener-blocked.png') });
         } else {
-          const measurement = await shell.evaluate((node) => {
-            const box = node.getBoundingClientRect();
-            const controls = [...node.querySelectorAll('button, input, select, textarea, math-field')].filter((element) => {
-              const rect = element.getBoundingClientRect();
-              return rect.width > 0 && rect.height > 0;
-            });
-            return {
-              viewportCover: box.width >= innerWidth * 0.95 && box.height >= innerHeight * 0.95,
-              overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-              clipped: controls.filter((element) => {
-                const r = element.getBoundingClientRect();
-                const fixedChrome = Boolean(element.closest('.mathmaster-work-view-header, .mathmaster-work-view-actions'));
-                // Work View surfaces intentionally scroll vertically for long
-                // activities. A response field below the fold is not clipped; it
-                // is clipped only if horizontal layout loses it, or if shell
-                // chrome that must remain reachable leaves the viewport.
-                return r.left < -1
-                  || r.right > innerWidth + 1
-                  || (fixedChrome && (r.top < -1 || r.bottom > innerHeight + 1));
-              }).length,
-              undoCount: [...node.querySelectorAll('.mathmaster-universal-undo')]
-                .filter((element) => element.getBoundingClientRect().width > 0 && element.getBoundingClientRect().height > 0).length,
-            };
-          });
+          await page.waitForTimeout(200);
+          const shell = toolRoot.locator('.mathmaster-work-view-host[data-open="true"]').first();
 
-          if (!measurement.viewportCover) problems.push('Work View does not cover the usable viewport');
-          if (measurement.overflow > 4) problems.push(`${measurement.overflow}px horizontal page overflow`);
-          if (measurement.clipped) problems.push(`${measurement.clipped} controls are clipped`);
-          if (certification.requiredBehaviors.includes('singleOwnedUndo') && measurement.undoCount !== 1) {
-            problems.push(`expected one Universal Undo, found ${measurement.undoCount}`);
-          }
-          await page.screenshot({ path: path.join(familyDir, 'work-view.png') });
-
-          for (const drawerName of ['Task', 'Help']) {
-            const drawer = shell.getByRole('button', { name: drawerName, exact: true }).first();
-            const openProblem = await clickIfReachable(drawer, drawerName);
-            if (openProblem) {
-              problems.push(openProblem);
-              continue;
-            }
-            await page.waitForTimeout(100);
-            await page.screenshot({ path: path.join(familyDir, `${drawerName.toLowerCase()}.png`) });
-            const closeProblem = await clickIfReachable(drawer, `${drawerName} close`);
-            if (closeProblem) problems.push(closeProblem);
-          }
-
-          if (certification.requiredBehaviors.includes('inputRemainsReachable')) {
-            const field = shell.locator('input:visible:not([type="hidden"]), textarea:visible, select:visible, math-field:visible, [contenteditable="true"]:visible').first();
-            if (!(await visible(field))) {
-              problems.push('declared numeric/equation input has no reachable input in Work View');
-            } else {
-              try {
-                await field.scrollIntoViewIfNeeded({ timeout: 2000 }).catch(() => {});
-                await field.click({ timeout: 3000 });
-                await page.waitForTimeout(150);
-                const inputGeometry = await field.evaluate((element) => {
-                  const r = element.getBoundingClientRect();
-                  const x = Math.max(0, Math.min(innerWidth - 1, r.left + r.width / 2));
-                  const y = Math.max(0, Math.min(innerHeight - 1, r.top + r.height / 2));
-                  const top = document.elementFromPoint(x, y);
-                  const blocker = top && !(top === element || element.contains(top) || top?.contains?.(element))
-                    ? {
-                      tag: top.tagName,
-                      className: typeof top.className === 'string' ? top.className : '',
-                      ariaLabel: top.getAttribute?.('aria-label') || '',
-                    }
-                    : null;
-                  return {
-                    onScreen: r.left >= -1 && r.right <= innerWidth + 1 && r.top >= -1 && r.bottom <= innerHeight + 1,
-                    hit: blocker == null,
-                    blocker,
-                  };
-                });
-                if (!inputGeometry.onScreen) problems.push('active input left the visible Work View');
-                if (!inputGeometry.hit) {
-                  const blocker = inputGeometry.blocker || {};
-                  problems.push(`active input is covered by ${blocker.tag || 'another surface'}${blocker.className ? `.${String(blocker.className).trim().replace(/\s+/g, '.')}` : ''}${blocker.ariaLabel ? ` [${blocker.ariaLabel}]` : ''}`);
-                }
-                await page.screenshot({ path: path.join(familyDir, 'active-input.png') });
-                await dismissNumericKeypad(page);
-              } catch (error) {
-                problems.push(`input could not be activated: ${shortError(error)}`);
-              }
-            }
-          }
-
-          // State preservation is meaningful only after the student has actually
-          // changed the mathematics. A pristine fixture would look identical after
-          // an accidental remount/reset and falsely certify the regression.
-          const baselineState = await mathStateSnapshot(toolRoot);
-          let edit = await makeStatefulEdit(page, shell, toolId, toolRoot);
-          if (!edit) {
-            problems.push('could not make a stateful student edit before resize/orientation certification');
+          if (!(await visible(shell))) {
+            problems.push('Work View did not open');
           } else {
-            await dismissNumericKeypad(page);
-            await page.screenshot({ path: path.join(familyDir, 'student-edit.png') });
-            let editedState = await mathStateSnapshot(toolRoot);
+            const measurement = await shell.evaluate((node) => {
+              const box = node.getBoundingClientRect();
+              const controls = [...node.querySelectorAll('button, input, select, textarea, math-field')].filter((element) => {
+                const rect = element.getBoundingClientRect();
+                return rect.width > 0 && rect.height > 0;
+              });
+              return {
+                viewportCover: box.width >= innerWidth * 0.95 && box.height >= innerHeight * 0.95,
+                overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                clipped: controls.filter((element) => {
+                  const r = element.getBoundingClientRect();
+                  const fixedChrome = Boolean(element.closest('.mathmaster-work-view-header, .mathmaster-work-view-actions'));
+                  // Work View surfaces intentionally scroll vertically for long
+                  // activities. A response field below the fold is not clipped; it
+                  // is clipped only if horizontal layout loses it, or if shell
+                  // chrome that must remain reachable leaves the viewport.
+                  return r.left < -1
+                    || r.right > innerWidth + 1
+                    || (fixedChrome && (r.top < -1 || r.bottom > innerHeight + 1));
+                }).length,
+                undoCount: [...node.querySelectorAll('.mathmaster-universal-undo')]
+                  .filter((element) => element.getBoundingClientRect().width > 0 && element.getBoundingClientRect().height > 0).length,
+              };
+            });
 
-            if (certification.requiredBehaviors.includes('fitIsPresentationOnly')) {
-              const fit = shell.locator('[data-work-view-action]').filter({ hasText: /fit/i }).first();
+            if (!measurement.viewportCover) problems.push('Work View does not cover the usable viewport');
+            if (measurement.overflow > 4) problems.push(`${measurement.overflow}px horizontal page overflow`);
+            if (measurement.clipped) problems.push(`${measurement.clipped} controls are clipped`);
+            if (certification.requiredBehaviors.includes('singleOwnedUndo') && measurement.undoCount !== 1) {
+              problems.push(`expected one Universal Undo, found ${measurement.undoCount}`);
+            }
+            await page.screenshot({ path: path.join(familyDir, 'work-view.png') });
 
-              // Fit is correctly disabled while the camera already matches the
-              // authored/default frame. First create a camera-only deviation using
-              // the tool's visible zoom control, then require Fit to become
-              // actionable and prove it leaves mathematical state untouched.
-              if (await fit.count() && await fit.isDisabled().catch(() => false)) {
-                const zoomIn = shell.getByRole('button', { name: /zoom in/i }).first();
-                if (await visible(zoomIn)) {
-                  const zoomProblem = await clickIfReachable(zoomIn, 'Zoom in');
-                  if (zoomProblem) problems.push(zoomProblem);
-                  else await page.waitForTimeout(140);
-                }
+            for (const drawerName of ['Task', 'Help']) {
+              const drawer = shell.getByRole('button', { name: drawerName, exact: true }).first();
+              const openProblem = await clickIfReachable(drawer, drawerName);
+              if (openProblem) {
+                problems.push(openProblem);
+                continue;
               }
+              await page.waitForTimeout(100);
+              await page.screenshot({ path: path.join(familyDir, `${drawerName.toLowerCase()}.png`) });
+              const closeProblem = await clickIfReachable(drawer, `${drawerName} close`);
+              if (closeProblem) problems.push(closeProblem);
+            }
 
-              const beforeFit = await mathStateSnapshot(toolRoot);
-              const fitProblem = await clickIfReachable(fit, 'Fit View');
-              if (fitProblem) {
-                problems.push(fitProblem);
+            if (certification.requiredBehaviors.includes('inputRemainsReachable')) {
+              const field = shell.locator('input:visible:not([type="hidden"]), textarea:visible, select:visible, math-field:visible, [contenteditable="true"]:visible').first();
+              if (!(await visible(field))) {
+                problems.push('declared numeric/equation input has no reachable input in Work View');
               } else {
-                await page.waitForTimeout(120);
-                const afterFit = await mathStateSnapshot(toolRoot);
-                if (JSON.stringify(afterFit) !== JSON.stringify(beforeFit)) {
-                  problems.push('Fit View changed mathematical state instead of camera state only');
+                try {
+                  await field.scrollIntoViewIfNeeded({ timeout: 2000 }).catch(() => {});
+                  await field.click({ timeout: 3000 });
+                  await page.waitForTimeout(150);
+                  const inputGeometry = await field.evaluate((element) => {
+                    const r = element.getBoundingClientRect();
+                    const x = Math.max(0, Math.min(innerWidth - 1, r.left + r.width / 2));
+                    const y = Math.max(0, Math.min(innerHeight - 1, r.top + r.height / 2));
+                    const top = document.elementFromPoint(x, y);
+                    const blocker = top && !(top === element || element.contains(top) || top?.contains?.(element))
+                      ? {
+                        tag: top.tagName,
+                        className: typeof top.className === 'string' ? top.className : '',
+                        ariaLabel: top.getAttribute?.('aria-label') || '',
+                      }
+                      : null;
+                    return {
+                      onScreen: r.left >= -1 && r.right <= innerWidth + 1 && r.top >= -1 && r.bottom <= innerHeight + 1,
+                      hit: blocker == null,
+                      blocker,
+                    };
+                  });
+                  if (!inputGeometry.onScreen) problems.push('active input left the visible Work View');
+                  if (!inputGeometry.hit) {
+                    const blocker = inputGeometry.blocker || {};
+                    problems.push(`active input is covered by ${blocker.tag || 'another surface'}${blocker.className ? `.${String(blocker.className).trim().replace(/\s+/g, '.')}` : ''}${blocker.ariaLabel ? ` [${blocker.ariaLabel}]` : ''}`);
+                  }
+                  await page.screenshot({ path: path.join(familyDir, 'active-input.png') });
+                  await dismissNumericKeypad(page);
+                } catch (error) {
+                  problems.push(`input could not be activated: ${shortError(error)}`);
                 }
               }
             }
 
-            if (certification.requiredBehaviors.includes('singleOwnedUndo')) {
-              const undo = shell.locator('.mathmaster-universal-undo:visible').first();
-              if (!(await visible(undo)) || await undo.isDisabled()) {
-                problems.push('Universal Undo is not enabled after a real mathematical edit');
-              } else {
-                const undoProblem = await clickIfReachable(undo, 'Universal Undo');
-                if (undoProblem) {
-                  problems.push(undoProblem);
+            // State preservation is meaningful only after the student has actually
+            // changed the mathematics. A pristine fixture would look identical after
+            // an accidental remount/reset and falsely certify the regression.
+            const baselineState = await mathStateSnapshot(toolRoot);
+            let edit = await makeStatefulEdit(page, shell, toolId, toolRoot);
+            if (!edit) {
+              problems.push('could not make a stateful student edit before resize/orientation certification');
+            } else {
+              await dismissNumericKeypad(page);
+              await page.screenshot({ path: path.join(familyDir, 'student-edit.png') });
+              let editedState = await mathStateSnapshot(toolRoot);
+
+              if (certification.requiredBehaviors.includes('fitIsPresentationOnly')) {
+                const fit = shell.locator('[data-work-view-action]').filter({ hasText: /fit/i }).first();
+
+                // Fit is correctly disabled while the camera already matches the
+                // authored/default frame. First create a camera-only deviation using
+                // the tool's visible zoom control, then require Fit to become
+                // actionable and prove it leaves mathematical state untouched.
+                if (await fit.count() && await fit.isDisabled().catch(() => false)) {
+                  const zoomIn = shell.getByRole('button', { name: /zoom in/i }).first();
+                  if (await visible(zoomIn)) {
+                    const zoomProblem = await clickIfReachable(zoomIn, 'Zoom in');
+                    if (zoomProblem) problems.push(zoomProblem);
+                    else await page.waitForTimeout(140);
+                  }
+                }
+
+                const beforeFit = await mathStateSnapshot(toolRoot);
+                const fitProblem = await clickIfReachable(fit, 'Fit View');
+                if (fitProblem) {
+                  problems.push(fitProblem);
                 } else {
-                  await page.waitForTimeout(160);
-                  const undoneState = await mathStateSnapshot(toolRoot);
-                  if (JSON.stringify(undoneState) !== JSON.stringify(baselineState)) {
-                    problems.push('Universal Undo did not restore the mathematical state before the edit');
-                  }
-                  edit = await makeStatefulEdit(page, shell, toolId, toolRoot);
-                  if (!edit) problems.push('could not recreate mathematical work after Undo for resize certification');
-                  else {
-                    await dismissNumericKeypad(page);
-                    editedState = await mathStateSnapshot(toolRoot);
+                  await page.waitForTimeout(120);
+                  const afterFit = await mathStateSnapshot(toolRoot);
+                  if (JSON.stringify(afterFit) !== JSON.stringify(beforeFit)) {
+                    problems.push('Fit View changed mathematical state instead of camera state only');
                   }
                 }
               }
-            }
 
-            if (edit) {
-              const beforeResize = editedState;
-              await page.setViewportSize({ width: device.viewportHeight, height: device.viewportWidth });
-              await page.waitForTimeout(180);
-              const afterResize = await mathStateSnapshot(toolRoot);
-              if (JSON.stringify(beforeResize) !== JSON.stringify(afterResize)) {
-                problems.push(`resize/orientation changed mathematical state after ${edit.description}`);
+              if (certification.requiredBehaviors.includes('singleOwnedUndo')) {
+                const undo = shell.locator('.mathmaster-universal-undo:visible').first();
+                if (!(await visible(undo)) || await undo.isDisabled()) {
+                  problems.push('Universal Undo is not enabled after a real mathematical edit');
+                } else {
+                  const undoProblem = await clickIfReachable(undo, 'Universal Undo');
+                  if (undoProblem) {
+                    problems.push(undoProblem);
+                  } else {
+                    await page.waitForTimeout(160);
+                    const undoneState = await mathStateSnapshot(toolRoot);
+                    if (JSON.stringify(undoneState) !== JSON.stringify(baselineState)) {
+                      problems.push('Universal Undo did not restore the mathematical state before the edit');
+                    }
+                    edit = await makeStatefulEdit(page, shell, toolId, toolRoot);
+                    if (!edit) problems.push('could not recreate mathematical work after Undo for resize certification');
+                    else {
+                      await dismissNumericKeypad(page);
+                      editedState = await mathStateSnapshot(toolRoot);
+                    }
+                  }
+                }
               }
-              const resizedShell = toolRoot.locator('.mathmaster-work-view-host[data-open="true"]').first();
-              if (!(await visible(resizedShell))) {
-                problems.push('Work View closed during resize/orientation change');
+
+              if (edit) {
+                const beforeResize = editedState;
+                await page.setViewportSize({ width: device.viewportHeight, height: device.viewportWidth });
+                await page.waitForTimeout(180);
+                const afterResize = await mathStateSnapshot(toolRoot);
+                if (JSON.stringify(beforeResize) !== JSON.stringify(afterResize)) {
+                  problems.push(`resize/orientation changed mathematical state after ${edit.description}`);
+                }
+                const resizedShell = toolRoot.locator('.mathmaster-work-view-host[data-open="true"]').first();
+                if (!(await visible(resizedShell))) {
+                  problems.push('Work View closed during resize/orientation change');
+                }
               }
             }
-          }
-          await page.screenshot({ path: path.join(familyDir, 'rotated.png') });
+            await page.screenshot({ path: path.join(familyDir, 'rotated.png') });
 
-          // Return to a clean presentation state before mounting the next tool.
-          const close = shell.getByRole('button', { name: /close/i }).first();
-          if (await visible(close)) {
-            try { await close.click({ timeout: 2500 }); } catch { /* next mount replaces this scene */ }
+            // Return to a clean presentation state before mounting the next tool.
+            const close = shell.getByRole('button', { name: /close/i }).first();
+            if (await visible(close)) {
+              try { await close.click({ timeout: 2500 }); } catch { /* next mount replaces this scene */ }
+            }
           }
         }
-      }
+      })(page);
+      scene.catch(() => {});
+      await Promise.race([scene, new Promise((_, reject) => {
+        watchdog = setTimeout(() => {
+          overBudget = true;
+          reject(new Error(`scene exceeded its ${Math.round(SCENE_BUDGET / 1000)} s budget`));
+        }, SCENE_BUDGET);
+      })]);
     } catch (error) {
       // One scene that cannot be driven is a finding about that scene. It
       // used to be an uncaught exception that ended the whole run, so a single
       // slow first render reported nothing about the other 160 scenes.
       problems.push(`certification step failed: ${shortError(error)}`);
-      await page.screenshot({ path: path.join(familyDir, 'failed.png') }).catch(() => {});
-      const recover = page.isClosed() ? openDevicePage() : openHarness(page);
+      await page.screenshot({ path: path.join(familyDir, 'failed.png'), timeout: 10000 }).catch(() => {});
+      const recover = page.isClosed() || overBudget ? openDevicePage() : openHarness(page);
       await recover.catch((reloadError) => problems.push(`harness did not reload: ${shortError(reloadError)}`));
+    } finally {
+      clearTimeout(watchdog);
     }
     firstScene = page.isClosed();
     const timing = { device: device.id, toolId, ms: Date.now() - started, ...(await samplePage(page)) };
