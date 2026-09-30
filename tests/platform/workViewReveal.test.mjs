@@ -117,7 +117,10 @@ test('a portrait Work View puts the plane before the point list at every width, 
   const css = read('src/components/common/WorkViewShell.css');
   // Portrait, any width: one column, plane first. The iPad (820x1180) had a
   // 256x182 plane beside the point list; phones had the plane 0% on screen.
-  assert.match(css, /\[data-open="true"\]\[data-orientation="portrait"\] \.workflow-focus__active-stage \.mathmaster-function-workspace-grid \{\s*grid-template-columns: minmax\(0, 1fr\) !important;/);
+  assert.match(css, /\[data-open="true"\]\[data-orientation="portrait"\] \.workflow-focus__active-stage \.mathmaster-function-workspace-grid:not\(\.mathmaster-domain-range-only\) \{\s*grid-template-columns: minmax\(0, 1fr\) !important;/);
+  // ...except the enlarged domain | graph | range layout on a portrait screen
+  // at least 1050px wide (App.css), which keeps its three columns.
+  assert.match(css, /@media \(max-width: 1049px\) \{\s*\[data-open="true"\]\[data-orientation="portrait"\] \.workflow-focus__active-stage \.mathmaster-function-workspace-grid\.mathmaster-domain-range-only \{\s*grid-template-columns: minmax\(0, 1fr\) !important;/);
   assert.match(css, /\[data-open="true"\]\[data-orientation="portrait"\] \.workflow-focus__active-stage \.mathmaster-function-workspace-graph \{\s*order: -1;/);
   // The old sidebar-first rule tied with App.css's graph-first rule, so DOM
   // order put the five point cards above the plane.

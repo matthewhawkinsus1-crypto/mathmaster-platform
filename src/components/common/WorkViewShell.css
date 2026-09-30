@@ -470,8 +470,16 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
    view and the point cards and Check sit immediately below it. Landscape keeps
    the columns: a short landscape phone's rule below puts the plane in the wide
    one. */
-[data-open="true"][data-orientation="portrait"] .workflow-focus__active-stage .mathmaster-function-workspace-grid {
+[data-open="true"][data-orientation="portrait"] .workflow-focus__active-stage .mathmaster-function-workspace-grid:not(.mathmaster-domain-range-only) {
   grid-template-columns: minmax(0, 1fr) !important;
+}
+
+/* The enlarged domain/range layout (App.css) puts domain | graph | range side
+   by side from 1050px; a portrait screen that wide keeps it. */
+@media (max-width: 1049px) {
+  [data-open="true"][data-orientation="portrait"] .workflow-focus__active-stage .mathmaster-function-workspace-grid.mathmaster-domain-range-only {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
 }
 
 [data-open="true"][data-orientation="portrait"] .workflow-focus__active-stage .mathmaster-function-workspace-graph {
