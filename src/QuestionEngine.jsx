@@ -1559,8 +1559,12 @@ export default function QuestionEngine({
         </div>
       )}
 
+      {/* role="status": the attempt outcome ("Not quite. You have 2 attempts
+          remaining") was the one grading message a screen reader never heard —
+          only the Correct overlay was a live region (platform quirks audit).
+          Rendered only when outcome feedback is allowed, so a DOL stays silent. */}
       {feedback && !feedback.blocked && showOutcomeFeedback && (
-        <div style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', backgroundColor: feedback.isCorrect ? '#e6f4ea' : '#fce8e6', color: feedback.isCorrect ? '#137333' : '#c5221f', fontSize: '16px', fontWeight: 'bold' }}>
+        <div role="status" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', backgroundColor: feedback.isCorrect ? '#e6f4ea' : '#fce8e6', color: feedback.isCorrect ? '#137333' : '#c5221f', fontSize: '16px', fontWeight: 'bold' }}>
           {feedback.message || (feedback.isCorrect
             ? 'Correct! This question is complete.'
             : isExpired
