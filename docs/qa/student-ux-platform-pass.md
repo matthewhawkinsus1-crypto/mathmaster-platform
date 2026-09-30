@@ -710,6 +710,7 @@ See R-12. Summary of guarantees now tested:
 | `npm run build` | exit 0 |
 | `npm run build:firebase` | exit 0 (build manifest written; nothing deployed) |
 | `npm run test:rules` | not run: no Firestore rules or collections changed |
+| `npm run audit:theme-colors` (CI `theme-contract`) | **failing on `main` since PR #397** (seven hard-coded `#fff` in the board); fixed here with theme tokens, now passes |
 | `tests/browser/studentUxPlatform.mjs` (9 journeys) | **9 / 9** |
 | `tests/browser/toolDraftSyncSweep.mjs` | 23 tools, 0 findings |
 | PR #397 `linearMultipleRepresentations.mjs` (11 journeys) | **11 / 11**, after one fix in this PR (see R-11) and updating the warm-up journey to R-9's new card names |
