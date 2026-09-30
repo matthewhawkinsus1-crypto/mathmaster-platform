@@ -9,15 +9,15 @@ Branch: `ai/claude-iep-evidence-20260930` (from `origin/main` @ `1fcd1ea7`, PR #
 
 ## Current state
 
-- **Phase:** 0 — reconnaissance and architecture (in progress)
-- **Last pushed commit:** _(none yet on this branch)_
+- **Phase:** 1 — schemas, shared domain modules, Firestore rules + rule tests (next)
+- **Design:** `docs/IEP_SUPPORT_EVIDENCE_DESIGN.md` (committed with this checkpoint)
 - **PR:** _(not opened yet)_
 
 ## Phases
 
 | # | Phase | Status |
 | --- | --- | --- |
-| 0 | Reconnaissance, design doc, status doc, first checkpoint push | 🔄 in progress |
+| 0 | Reconnaissance, design doc, status doc, first checkpoint push | ✅ |
 | 1 | Architecture + schemas + Firestore rules + rule tests | ⬜ |
 | 2 | Support profile versioning + support resolution / automatic application | ⬜ |
 | 3 | Telemetry + evidence event logging + engagement metric repair | ⬜ |
@@ -98,6 +98,17 @@ These are the facts the design is built on. File references are to `origin/main`
 | --- | --- | --- |
 | Phase 0, untouched main | `npm run test:rules` | 225/225 rule checks + 64/64 rule suites pass |
 
+## Phase 1 checklist (next)
+
+- [ ] `functions/shared/supportCatalog.mjs` + tests (classification, legacy aliases, neutral student labels)
+- [ ] `functions/shared/supportProfileModel.mjs` + tests (revision normalize, projection, effective-at-time, legacy)
+- [ ] `functions/shared/supportDeadline.mjs` + tests (next-school-day/hours, max with class + attendance, never shortens)
+- [ ] `functions/shared/supportEvidenceModel.mjs` + tests (event builders/validators, provenance levels)
+- [ ] `firestore.rules`: pin `grades.profile` vs students; close client `evidenceEvents` create; 4 new subcollections
+- [ ] `tests/rules/*`: every role × collection × op for the new rules; update tests that asserted the old openings
+- [ ] indexes for new queries (if any need composites)
+
 ## Remaining work / known gaps
 
-_(filled in per checkpoint)_
+- Phases 2–7 not started. See design §9 for the file plan.
+- Decisions awaiting product-owner confirmation: design §10.
