@@ -242,7 +242,17 @@ function Harness() {
         {/* The real navigator's class and measured height, so the sticky task
             card starts where it does in App.jsx instead of under a guess. */}
         <nav ref={stickyHeightRef(ASSIGNMENT_NAV_HEIGHT_VAR)} className="mathmaster-assignment-unified-nav" aria-label="Assignment questions" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-          {allQuestions.map((entry, flat) => (
+          {allQuestions.map((entry, flat) => ({ entry, flat })).filter(({ entry, flat }) => (
+            // With ?tools=1 the Tools section alone has 24 questions. App.jsx's
+            // navigator shows section tabs and the CURRENT section's numbers,
+            // so show every question only in the current section and one
+            // button (its first question) for each other section.
+            // A real section rarely has more than a dozen questions, so the
+            // current section shows its first twelve (and the current one).
+            !toolSection.length
+            || (entry.section.id === section.id && (entry.index < 12 || flat === position))
+            || allQuestions.findIndex((other) => other.section.id === entry.section.id) === flat
+          )).map(({ entry, flat }) => (
             <button
               key={entry.question.questionId}
               type="button"

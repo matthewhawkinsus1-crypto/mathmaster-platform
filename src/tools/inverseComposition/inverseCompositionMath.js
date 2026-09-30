@@ -77,11 +77,18 @@ export const functionLabel = (spec = {}, name = 'f') => {
   const base = Number(spec.base ?? 2);
   const shifted = (variable = 'x') => h === 0 ? variable : `(${variable} ${h > 0 ? '−' : '+'} ${Math.abs(h)})`;
   const tail = k === 0 ? '' : ` ${k > 0 ? '+' : '−'} ${Math.abs(k)}`;
-  if (type === 'linear') return `${name}(x) = ${a}${shifted()}${tail}`;
-  if (type === 'quadratic') return `${name}(x) = ${a}${shifted()}²${tail}`;
-  if (type === 'exponential') return `${name}(x) = ${a}·${base}^${shifted()}${tail}`;
-  if (type === 'logarithmic') return `${name}(x) = ${a}·log_${base}${shifted()}${tail}`;
-  if (type === 'squareRoot') return `${name}(x) = ${a}√${shifted()}${tail}`;
+  // Written the way a student writes it: a coefficient of 1 is not written and
+  // −1 is just the sign. The lab showed "f(x) = 1(x − 2)² − 1" and
+  // "g(x) = -1x + 4" (platform quirks audit). The multiplication dot is only
+  // needed when a number is actually written.
+  const coefficient = a === 1 ? '' : a === -1 ? '−' : String(a).replace(/^-/, '−');
+  const times = coefficient && coefficient !== '−' ? '·' : '';
+  if (type === 'linear') return `${name}(x) = ${coefficient}${shifted()}${tail}`;
+  if (type === 'quadratic') return `${name}(x) = ${coefficient}${shifted()}²${tail}`;
+  if (type === 'exponential') return `${name}(x) = ${coefficient}${times}${base}^${shifted()}${tail}`;
+  // A log's argument is always bracketed: "log_3x" reads as log_3 of x or as (log_3)·x.
+  if (type === 'logarithmic') return `${name}(x) = ${coefficient}${times}log_${base}${h === 0 ? '(x)' : shifted()}${tail}`;
+  if (type === 'squareRoot') return `${name}(x) = ${coefficient}√${shifted()}${tail}`;
   return `${name}(x) = ${type}`;
 };
 
