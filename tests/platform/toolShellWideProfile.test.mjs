@@ -5,8 +5,8 @@
  * The whole app is a 1126px column (#root in index.css, since the initial
  * commit) and the assignment shell 1120px, so a Chromebook at reduced zoom
  * (1700–2000 CSS px) showed a third of the screen empty while the
- * representation board scrolled. Measured at 1920×1080: board 2523→2439px,
- * warm-up card sort 1758→1589px, table sort 1961→1898px; a standard question
+ * representation board scrolled. Measured at 1920×1080 against main with the
+ * same harness: board 2627→2439px, warm-up card sort 2002→1589px; a standard question
  * unchanged at 1084px.
  */
 import test from 'node:test';

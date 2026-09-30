@@ -5,8 +5,8 @@
  * rows of the same button on the representation board. And on a phone every
  * field's keypad stayed open once visited — the multi-answer grader opened one
  * on arrival for each field needing a fraction — so a three-part question
- * opened as 987px of keypads before the student had touched anything
- * (measured: 598px after).
+ * opened with a 1143px workspace on main before the student had touched
+ * anything (598px after, measured with the same harness).
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
