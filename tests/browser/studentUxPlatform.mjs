@@ -1,0 +1,487 @@
+// THE STUDENT UX PLATFORM PASS, DONE AS A STUDENT DOES IT.
+//
+//   npx vite --host 127.0.0.1 --port 5199 --strictPort &
+//   AUDIT_ORIGIN=http://127.0.0.1:5199 node tests/browser/studentUxPlatform.mjs [journey ...]
+//   (PLAYWRIGHT_MODULE=<playwright/index.mjs> and CHROMIUM_PATH=<chrome> when the
+//    defaults are not installed; ARTIFACTS_DIR overrides the screenshot folder.)
+//
+// studentUxPlatformMain.jsx compiles one assignment through the teacher import
+// chain and mounts it in App.jsx's assignment-screen / shell / stage wrappers:
+// the PR #397 warm-ups, board and DOL board, Step Algebra, Graphing 2, Linear
+// Table Workbench, a three-part answer, a table-card sort, one ordinary answer
+// and a submit-only DOL answer. Every journey drives rendered controls only —
+// clicks, taps, keys — and reads back the saved draft solely to prove what a
+// reload restores.
+//
+//   open-laptop   1366×768: what has focus and where the page sits when each
+//                 question opens; chrome language; the bar's measured height.
+//   open-ipad     820×1180 touch: nothing opens a keyboard on arrival.
+//   rapid-switch  click one math field and type AT ONCE, slowed 4× like a busy
+//                 Chromebook: Backspace, digits and a fraction land in the
+//                 field that was clicked, and the finished one is untouched.
+//   enter         Enter walks the blanks and never spends an attempt by
+//                 surprise; one-box questions still submit on Enter; a DOL
+//                 asks for a second, deliberate Enter; the board checks the
+//                 card, never the board.
+//   phone         390×844 touch: one-row bar with Submit; −2/3 typed with the
+//                 keypad's fraction key into a box that stays above the keys;
+//                 one math keypad at a time; group names; no sideways scroll.
+//   graphs        lines clipped to the plot; the directions shown once; the
+//                 board's platform Undo; enlarge and drag.
+//   sort          the table-card sort done correctly on a phone, then checked.
+//   persistence   typed, plotted and sorted work survives a reload, and every
+//                 stored record passes the real draft sanitizer.
+//   wide          1920×1080 (a Chromebook zoomed out): multi-column tools use
+//                 the width; ordinary questions do not.
+//
+// Exit code 1 on any finding. Screenshots: tests/browser/artifacts/studentUxPlatform/.
+
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
+const here = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(here, '../..');
+const ARTIFACTS = process.env.ARTIFACTS_DIR || path.join(ROOT, 'tests/browser/artifacts/studentUxPlatform');
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
+const { sanitizeWorkspaceDraftValue } = await import(path.join(ROOT, 'functions/shared/workspaceDraftSchema.mjs'));
+
+const LAPTOP = { viewport: { width: 1366, height: 768 } };
+const IPAD = { viewport: { width: 820, height: 1180 }, hasTouch: true, isMobile: true };
+const PHONE = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true };
+const WIDE = { viewport: { width: 1920, height: 1080 } };
+
+const findings = [];
+const notes = [];
+let journeyName = '';
+const check = (value, message) => {
+  if (!value) findings.push(`[${journeyName}] ${message}`);
+  return Boolean(value);
+};
+const note = (message) => notes.push(`[${journeyName}] ${message}`);
+const settle = (page, ms = 350) => page.waitForTimeout(ms);
+
+// ------------------------------------------------------------------ helpers
+const open = async (page, id, run = `${journeyName}-${Date.now()}`) => {
+  await page.goto(`${ORIGIN}/tests/browser/studentUxPlatform.html?q=${id}&run=${run}`, { timeout: 120000 });
+  await page.waitForFunction((qid) => window.__ux && document.querySelector(`[data-question-id="${qid}"]`), id, { timeout: 120000 });
+  await settle(page, 2500);
+};
+const go = async (page, id) => {
+  await page.evaluate((qid) => window.__ux.go(qid), id);
+  await page.waitForFunction((qid) => document.querySelector(`[data-question-id="${qid}"]`), id, { timeout: 60000 });
+  await settle(page, 2500);
+};
+const shot = async (page, name) => {
+  mkdirSync(ARTIFACTS, { recursive: true });
+  await page.screenshot({ path: path.join(ARTIFACTS, `${name}.png`) });
+};
+const deepActive = (page) => page.evaluate(() => {
+  let active = document.activeElement;
+  while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement;
+  const host = active?.getRootNode?.()?.host;
+  const owner = host || active;
+  return owner ? { tag: owner.tagName.toLowerCase(), label: owner.getAttribute?.('aria-label') || owner.textContent?.trim().slice(0, 30) || '' } : null;
+});
+const mathValues = (page) => page.evaluate(() => [...document.querySelectorAll('.mathmaster-question-engine math-field:not([data-calculator-expression])')].map((field) => field.value));
+const grades = (page) => page.evaluate(() => window.__ux.grades());
+// Waits until the clicked field REALLY has focus, like a person watching the
+// caret, except in rapid-switch, which deliberately does not.
+const focusField = async (field) => {
+  await field.scrollIntoViewIfNeeded();
+  await field.click();
+  await field.evaluate((element) => new Promise((resolve) => {
+    const started = performance.now();
+    const tick = () => (document.activeElement === element || performance.now() - started > 3000 ? resolve() : requestAnimationFrame(tick));
+    tick();
+  }));
+};
+const typeInto = async (page, field, text) => {
+  await focusField(field);
+  await page.keyboard.type(text, { delay: 30 });
+  await settle(page, 200);
+};
+
+// ------------------------------------------------------------------ journeys
+const JOURNEYS = {
+  async 'open-laptop'(browser) {
+    const page = await (await browser.newContext(LAPTOP)).newPage();
+    await open(page, 'lmr-wu-1');
+    const ids = await page.evaluate(() => window.__ux.ids());
+    const ONE_BOX = new Set(['ux-simple', 'ux-dol-simple', 'ux-multi']);
+    for (const id of ids) {
+      await go(page, id);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await go(page, id);
+      const active = await deepActive(page);
+      const scrollY = await page.evaluate(() => Math.round(window.scrollY));
+      if (ONE_BOX.has(id)) check(active?.tag === 'math-field', `${id}: a question with its own answer box opens ready to type on a laptop (focus: ${JSON.stringify(active)})`);
+      else check(!active || ['body', 'html'].includes(active.tag), `${id}: opened with focus on ${JSON.stringify(active)} — a multi-part workspace has no "the" box`);
+      check(scrollY === 0, `${id}: the page jumped to ${scrollY}px on open, past the prompt`);
+      const chrome = await page.evaluate(() => document.querySelector('.mathmaster-question-alignment')?.innerText || '');
+      check(!/TEKS|CCMR/.test(chrome) && /Learning goal/.test(chrome), `${id}: student chrome reads "${chrome.replace(/\s+/g, ' ')}"`);
+      const bar = await page.evaluate(() => {
+        const element = document.querySelector('.mathmaster-desktop-action-bar');
+        const style = getComputedStyle(document.documentElement);
+        return element ? { height: element.getBoundingClientRect().height, published: parseFloat(style.getPropertyValue('--mm-action-bar-height')), padding: parseFloat(style.scrollPaddingBottom) } : null;
+      });
+      if (bar) {
+        check(Math.abs(bar.published - bar.height) < 1.5, `${id}: the bar publishes ${bar.published}px for a ${bar.height}px bar`);
+        check(bar.padding >= bar.height + 12, `${id}: scroll padding ${bar.padding}px does not clear a ${bar.height}px bar`);
+      }
+    }
+    await go(page, 'lmr-dol-1');
+    await shot(page, 'laptop-dol-board-open');
+    note('every question opened at the top; one-box questions focused; multi-part workspaces did not');
+  },
+
+  async 'open-ipad'(browser) {
+    const page = await (await browser.newContext(IPAD)).newPage();
+    await open(page, 'lmr-cw-2');
+    const ids = await page.evaluate(() => window.__ux.ids());
+    for (const id of ids) {
+      await go(page, id);
+      const active = await deepActive(page);
+      check(!active || ['body', 'html'].includes(active.tag), `${id}: a touch device opened with focus on ${JSON.stringify(active)} (keyboard/keypad before reading)`);
+      const keypads = await page.evaluate(() => document.querySelectorAll('.mathmaster-math-input-tools, .mathmaster-mobile-numeric-keypad').length);
+      check(keypads === 0, `${id}: ${keypads} keypad(s) open on arrival`);
+    }
+    await go(page, 'lmr-cw-2');
+    await shot(page, 'ipad-board-open');
+  },
+
+  async 'rapid-switch'(browser) {
+    const context = await browser.newContext(LAPTOP);
+    const page = await context.newPage();
+    await open(page, 'ux-multi');
+    const fields = page.locator('.mathmaster-question-engine math-field');
+    await typeInto(page, fields.nth(0), '5');
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+    // No waiting for focus: click and type at once, as a quick student does.
+    const clickAndType = async (index, keys) => {
+      const box = await fields.nth(index).boundingBox();
+      await page.mouse.click(box.x + 24, box.y + box.height / 2);
+      for (const key of keys) await page.keyboard.press(key);
+    };
+    await clickAndType(1, ['Backspace', '4']);
+    await clickAndType(2, ['3', '/', '4']);
+    await clickAndType(0, ['End']);
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+    await settle(page, 800);
+    const values = await mathValues(page);
+    check(values[0] === '5', `the finished slope was edited by keys meant for other boxes: ${JSON.stringify(values)}`);
+    check(values[1] === '4', `the y-intercept did not get its own typing: ${JSON.stringify(values)}`);
+    check(/\\frac\{?3\}?\{?4\}?/.test(values[2] || ''), `a fraction typed straight after the click went elsewhere: ${JSON.stringify(values)}`);
+    note(`values after rapid switching at 4× CPU throttle: ${JSON.stringify(values)}`);
+  },
+
+  async enter(browser) {
+    const page = await (await browser.newContext(LAPTOP)).newPage();
+    // A three-part answer: Enter walks the blanks, then asks before submitting.
+    await open(page, 'ux-multi');
+    const fields = page.locator('.mathmaster-question-engine math-field');
+    await typeInto(page, fields.nth(0), '-2/3');
+    await page.keyboard.press('Enter');
+    await settle(page);
+    check((await deepActive(page))?.label === 'y-intercept', `Enter in a filled box should move to the next blank (focus: ${JSON.stringify(await deepActive(page))})`);
+    await page.keyboard.type('4');
+    await page.keyboard.press('Enter');
+    await settle(page);
+    await page.keyboard.type('6');
+    await page.keyboard.press('Enter');
+    await settle(page);
+    check((await grades(page)).length === 0, 'Enter in the last box of a multi-part question submitted it');
+    const focused = await deepActive(page);
+    check(focused?.tag === 'button' && /Submit/.test(focused.label), `Enter in the last box should bring Submit into focus (focus: ${JSON.stringify(focused)})`);
+    await shot(page, 'laptop-enter-focuses-submit');
+    await page.keyboard.press('Enter');
+    await settle(page, 800);
+    check((await grades(page)).length === 1, 'a second, deliberate Enter on Submit did not submit');
+
+    // One box: the single-answer convention is kept.
+    await go(page, 'ux-simple');
+    await typeInto(page, page.locator('.mathmaster-question-engine math-field').first(), '2');
+    await page.keyboard.press('Enter');
+    await settle(page, 800);
+    check((await grades(page)).some((grade) => grade.questionId === 'ux-simple'), 'Enter in a one-box question no longer submits it');
+
+    // DOL: never on a reflexive Enter.
+    await go(page, 'ux-dol-simple');
+    await typeInto(page, page.locator('.mathmaster-question-engine math-field').first(), '-3');
+    await page.keyboard.press('Enter');
+    await settle(page, 500);
+    check(!(await grades(page)).some((grade) => grade.questionId === 'ux-dol-simple'), 'Enter submitted a one-try DOL answer without a second press');
+    await page.keyboard.press('Enter');
+    await settle(page, 800);
+    check((await grades(page)).some((grade) => grade.questionId === 'ux-dol-simple'), 'the second Enter on the focused Submit did not submit the DOL answer');
+
+    // The board: Enter checks the card, never the board.
+    await go(page, 'lmr-cw-2');
+    const before = (await grades(page)).length;
+    const slope = page.locator('[data-lmr-card="slope"] math-field').first();
+    await typeInto(page, slope, '-2');
+    await page.keyboard.press('Enter');
+    await settle(page, 600);
+    check((await grades(page)).length === before, 'Enter in a board card submitted the board');
+    const verdict = await page.locator('[data-lmr-card="slope"]').innerText();
+    check(/correct|Correct|✓/.test(verdict), `Enter did not check the slope card: "${verdict.slice(0, 120)}"`);
+
+    // A registry tool: Enter in the first of several boxes never submits.
+    await go(page, 'ux-ltw');
+    const m = page.locator('input[aria-label="Slope m"]');
+    await m.scrollIntoViewIfNeeded();
+    await m.fill('-2/3');
+    await m.press('Enter');
+    await settle(page);
+    check((await grades(page)).every((grade) => grade.questionId !== 'ux-ltw'), 'Enter in the table workbench slope box submitted the tool');
+    check((await deepActive(page))?.label === 'y-intercept b', `Enter in the slope box should move to the y-intercept box (focus: ${JSON.stringify(await deepActive(page))})`);
+  },
+
+  async phone(browser) {
+    const page = await (await browser.newContext(PHONE)).newPage();
+    await open(page, 'ux-multi');
+    const bar = await page.locator('.portrait-action-bar').boundingBox();
+    check(bar && bar.height <= 64, `the phone bar with Submit is ${bar?.height}px — two rows over the work`);
+    const names = await page.locator('.portrait-action-bar button').evaluateAll((buttons) => buttons.map((button) => button.getAttribute('aria-label') || button.innerText.trim()));
+    check(names.some((name) => /Undo/.test(name)) && names.some((name) => /Scratchpad/.test(name)), `icon-only tools must keep their names: ${JSON.stringify(names)}`);
+    check(await page.evaluate(() => document.querySelectorAll('.mathmaster-math-input-tools').length) === 0, 'a math keypad was open before any field was touched');
+    const fields = page.locator('.mathmaster-question-engine math-field');
+    await fields.nth(0).tap();
+    await settle(page, 500);
+    const afterFirst = await page.evaluate(() => document.querySelectorAll('.mathmaster-math-input-tools').length);
+    await fields.nth(1).tap();
+    await settle(page, 500);
+    const afterSecond = await page.evaluate(() => document.querySelectorAll('.mathmaster-math-input-tools').length);
+    check(afterFirst === 1 && afterSecond === 1, `one keypad at a time expected, got ${afterFirst} then ${afterSecond}`);
+    await shot(page, 'phone-multi-one-keypad');
+
+    // −2/3 on the number keypad, into a box that stays above the keys.
+    await go(page, 'ux-ltw');
+    const slope = page.locator('input[aria-label="Slope m"]');
+    await slope.scrollIntoViewIfNeeded();
+    await slope.tap();
+    await page.waitForSelector('.mathmaster-mobile-numeric-keypad', { timeout: 10000 });
+    const key = (label) => page.locator('.mathmaster-mobile-numeric-keypad button', { hasText: new RegExp(`^${label}$`) }).first();
+    await key('±').tap();
+    await key('2').tap();
+    await page.locator('.mathmaster-keypad-fraction').tap();
+    await key('3').tap();
+    await settle(page, 400);
+    check(await slope.inputValue() === '-2/3', `the keypad typed "${await slope.inputValue()}" for ± 2 / 3`);
+    const geometry = await page.evaluate(() => ({
+      field: document.querySelector('input[aria-label="Slope m"]').getBoundingClientRect().bottom,
+      keys: document.querySelector('.mathmaster-mobile-numeric-keypad').getBoundingClientRect().top,
+    }));
+    check(geometry.field <= geometry.keys, `the box being typed into is under the keypad (${Math.round(geometry.field)} > ${Math.round(geometry.keys)})`);
+    check(!(await page.locator('.portrait-action-bar').isVisible()), 'the bar stayed under the keypad instead of yielding its row');
+    await shot(page, 'phone-ltw-fraction-keypad');
+    await page.locator('.mathmaster-keypad-done').tap();
+    await settle(page, 300);
+    check(await page.locator('.portrait-action-bar').isVisible(), 'the bar did not come back after Done');
+
+    // Situations are sorted into situations.
+    await go(page, 'lmr-wu-2');
+    const slots = await page.locator('[role="radiogroup"] [role="radio"]').allInnerTexts();
+    check(slots.every((text) => /Situation [AB]/.test(text)), `WU-2 group names: ${JSON.stringify(slots)}`);
+    for (const id of ['lmr-wu-2', 'ux-rm-table', 'lmr-cw-2', 'ux-ltw']) {
+      await go(page, id);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      check(overflow <= 1, `${id}: ${overflow}px of sideways scroll on a phone`);
+    }
+  },
+
+  async graphs(browser) {
+    const page = await (await browser.newContext(LAPTOP)).newPage();
+    await open(page, 'ux-graph2');
+    const plane = page.locator('svg[role="application"]').first();
+    await plane.scrollIntoViewIfNeeded();
+    const box = await plane.boundingBox();
+    // (0, 3) then (1, 1): a steep line that leaves the window through the top
+    // and the bottom.
+    const [vbW, vbH] = (await plane.getAttribute('viewBox')).split(' ').slice(2).map(Number);
+    const bounds = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
+    const at = ([x, y]) => ({
+      x: box.x + ((42 + ((x - bounds.xMin) / (bounds.xMax - bounds.xMin)) * (vbW - 84)) * box.width) / vbW,
+      y: box.y + ((vbH - 42 - ((y - bounds.yMin) / (bounds.yMax - bounds.yMin)) * (vbH - 84)) * box.height) / vbH,
+    });
+    for (const point of [[0, 3], [1, 1]]) {
+      const p = at(point);
+      await page.mouse.click(p.x, p.y);
+      await settle(page, 300);
+    }
+    const clip = await page.evaluate(() => {
+      const svg = document.querySelector('svg[role="application"]');
+      const line = [...svg.querySelectorAll('line')].find((element) => element.getAttribute('stroke') === '#1a73e8' && element.getAttribute('stroke-width') === '3');
+      const group = line?.closest('g[clip-path]');
+      const id = group?.getAttribute('clip-path')?.match(/#([^)]+)/)?.[1];
+      const rect = id ? document.getElementById(id)?.querySelector('rect') : null;
+      const plotRect = svg.querySelector(':scope > rect');
+      return {
+        line: Boolean(line),
+        clipped: Boolean(rect),
+        matches: rect && plotRect && ['x', 'y', 'width', 'height'].every((attr) => rect.getAttribute(attr) === plotRect.getAttribute(attr)),
+        help: document.querySelectorAll('.mathmaster-plot-help').length,
+      };
+    });
+    check(clip.line, 'the student line was not drawn after two points');
+    check(clip.clipped && clip.matches, `the student line is not clipped to the plot rectangle: ${JSON.stringify(clip)}`);
+    check(clip.help === 1, `one set of plotting directions expected, found ${clip.help}`);
+    await shot(page, 'laptop-graphing2-clipped');
+
+    // The board: three planes, no repeated directions, and one Undo that works.
+    await go(page, 'lmr-cw-2');
+    check(await page.evaluate(() => document.querySelectorAll('.mathmaster-plot-help').length) === 0, 'the board repeats the plotting directions under its graphs');
+    const platformUndo = page.locator('.mathmaster-desktop-action-bar .mathmaster-universal-undo');
+    check(!(await platformUndo.isEnabled()), 'the platform Undo is enabled before any change');
+    for (const key of ['graph1', 'graph2']) {
+      const target = page.locator(`[data-lmr-plane="${key}"] svg[role="application"]`);
+      await target.scrollIntoViewIfNeeded();
+      const b = await target.boundingBox();
+      await page.mouse.click(b.x + b.width * 0.5, b.y + b.height * 0.35);
+      await settle(page, 300);
+    }
+    check(/Graph 2/.test(await platformUndo.getAttribute('title') || ''), 'the platform Undo does not name the graph it will undo');
+    await platformUndo.click();
+    await settle(page, 300);
+    const work = await page.evaluate(() => window.__ux.work('lmr-cw-2') || {});
+    check((work.graph2Points || []).length === 0 && (work.graph1Points || []).length === 1, `platform Undo undid the wrong graph: ${JSON.stringify({ g1: work.graph1Points, g2: work.graph2Points })}`);
+    // Drag the Graph 1 point, then undo the drag with the graph's own Undo.
+    const g1 = page.locator('[data-lmr-plane="graph1"] svg[role="application"]');
+    const g1box = await g1.boundingBox();
+    await page.mouse.move(g1box.x + g1box.width * 0.5, g1box.y + g1box.height * 0.35);
+    await page.mouse.down();
+    await page.mouse.move(g1box.x + g1box.width * 0.62, g1box.y + g1box.height * 0.5, { steps: 6 });
+    await page.mouse.up();
+    await settle(page, 300);
+    const dragged = (await page.evaluate(() => window.__ux.work('lmr-cw-2')?.graph1Points))?.[0];
+    await page.getByRole('button', { name: 'Undo on Graph 1 · Intercept method' }).click().catch(() => page.locator('[aria-label^="Undo on Graph 1"]').click());
+    await settle(page, 300);
+    const undone = (await page.evaluate(() => window.__ux.work('lmr-cw-2')?.graph1Points))?.[0];
+    check(JSON.stringify(dragged) !== JSON.stringify(undone), `the graph's own Undo did not take back the drag (${JSON.stringify(dragged)} → ${JSON.stringify(undone)})`);
+    // Enlarged, the plane is still clipped and still plots.
+    await page.locator('[aria-label^="Enlarge Graph 1"], button:has-text("Enlarge")').first().click();
+    await settle(page, 500);
+    await shot(page, 'laptop-board-graph-enlarged');
+    await page.keyboard.press('Escape');
+  },
+
+  async sort(browser) {
+    const page = await (await browser.newContext(PHONE)).newPage();
+    await open(page, 'ux-rm-table');
+    const question = await page.evaluate(() => window.__ux.question('ux-rm-table'));
+    check(await page.locator('.mathmaster-line-card[data-card-kind="table"]').count() === 2, 'the two table cards are missing');
+    const names = await page.locator('.mathmaster-line-card').evaluateAll((cards) => cards.map((card) => card.getAttribute('aria-label')));
+    check(names.every((name) => /: .+\. In /.test(name)), `a card's name does not say what it shows: ${names.find((name) => !/: .+\. In /.test(name))}`);
+    // Sort every card: the phone plan is Situation A, the candle Situation B.
+    // Read from each card's accessible name — which is the point: a student
+    // using a screen reader can do this task now.
+    const planFacts = /10 a month|2x \+ 10|m = 2\.|values 0, 10;|through \(0, 10\)/;
+    for (const slot of [0, 1]) {
+      await page.locator('[role="radiogroup"] [role="radio"]').nth(slot).tap();
+      const cards = page.locator('.mathmaster-line-card');
+      for (let index = 0; index < await cards.count(); index += 1) {
+        const label = await cards.nth(index).getAttribute('aria-label');
+        const isPlan = planFacts.test(label);
+        if ((slot === 0) === isPlan && /In not sorted yet/.test(label)) {
+          await cards.nth(index).scrollIntoViewIfNeeded();
+          await cards.nth(index).tap();
+          await settle(page, 120);
+        }
+      }
+    }
+    await shot(page, 'phone-table-sort-done');
+    await page.getByRole('button', { name: 'Check groups' }).tap();
+    await settle(page, 800);
+    const graded = (await grades(page)).find((grade) => grade.questionId === 'ux-rm-table');
+    check(graded?.isCorrect === true, `a correct sort was not graded correct: ${JSON.stringify(graded)} (sets: ${question?.sets?.map((set) => set.id).join(', ')})`);
+  },
+
+  async persistence(browser) {
+    const context = await browser.newContext(LAPTOP);
+    const page = await context.newPage();
+    const run = `persist-${Date.now()}`;
+    await open(page, 'ux-multi', run);
+    const fields = page.locator('.mathmaster-question-engine math-field');
+    await typeInto(page, fields.nth(0), '-2/3');
+    await typeInto(page, fields.nth(1), '4');
+    await go(page, 'lmr-cw-2');
+    await typeInto(page, page.locator('[data-lmr-card="slope"] math-field').first(), '-2');
+    await go(page, 'ux-ltw');
+    await page.locator('input[aria-label="Slope m"]').fill('-2/3');
+    await settle(page, 400);
+    await page.reload({ timeout: 120000 });
+    await page.waitForFunction(() => window.__ux, null, { timeout: 120000 });
+    await settle(page, 2500);
+    // The reload lands on the URL's question; the student goes back to each.
+    await go(page, 'ux-ltw');
+    check(await page.locator('input[aria-label="Slope m"]').inputValue() === '-2/3', 'the table workbench slope was lost on reload');
+    await go(page, 'ux-multi');
+    const values = await mathValues(page);
+    // MathLive writes a one-digit fraction as \frac23.
+    check(/-\\frac\{?2\}?\{?3\}?/.test(values[0] || '') && values[1] === '4', `typed answers were lost on reload: ${JSON.stringify(values)}`);
+    await go(page, 'lmr-cw-2');
+    const board = await page.locator('[data-lmr-card="slope"] math-field').first().evaluate((field) => field.value);
+    check(board === '-2', `the board slope was lost on reload: ${board}`);
+    const drafts = await page.evaluate(() => window.__ux.drafts());
+    let records = 0;
+    for (const [key, entry] of Object.entries(drafts)) {
+      const verdict = sanitizeWorkspaceDraftValue(entry?.value);
+      records += 1;
+      check(verdict.ok, `draft ${key} would not reach the server: ${verdict.reason}`);
+    }
+    check(records >= 3, `expected the three questions' drafts, found ${records}`);
+    const rejections = await page.evaluate(() => window.__ux.draftRejections());
+    check(rejections.length === 0, `the draft-sync audit refused: ${JSON.stringify(rejections)}`);
+    note(`${records} stored draft records, all accepted by the sanitizer`);
+  },
+
+  async wide(browser) {
+    const page = await (await browser.newContext(WIDE)).newPage();
+    await open(page, 'lmr-cw-2');
+    const board = await page.evaluate(() => {
+      const top = (title) => [...document.querySelectorAll('h3, strong, span')].find((element) => element.textContent.trim() === title)?.getBoundingClientRect().top;
+      return {
+        shell: document.querySelector('.mathmaster-tool-shell').getBoundingClientRect().width,
+        task: document.querySelector('.mathmaster-desktop-question-anchor').getBoundingClientRect().width,
+        rows: [top('Equations'), top('Table'), top('Key features')].map(Math.round),
+      };
+    });
+    check(board.shell >= 1400, `the board did not use the wide screen (${board.shell}px)`);
+    check(board.task <= 1120, `the task card stretched to ${board.task}px`);
+    check(new Set(board.rows).size === 1, `Equations, Table and Key features are not one row: ${JSON.stringify(board.rows)}`);
+    await shot(page, 'wide-board');
+    await go(page, 'ux-multi');
+    const plain = await page.evaluate(() => document.querySelector('.mathmaster-assignment-shell').getBoundingClientRect().width);
+    check(plain <= 1120, `an ordinary question widened to ${plain}px`);
+  },
+};
+
+// ------------------------------------------------------------------ runner
+const launch = { args: ['--no-sandbox'] };
+if (process.env.CHROMIUM_PATH) launch.executablePath = process.env.CHROMIUM_PATH;
+const selected = process.argv.slice(2).filter((arg) => !arg.startsWith('--'));
+const names = selected.length ? selected : Object.keys(JOURNEYS);
+const report = [];
+for (const name of names) {
+  journeyName = name;
+  const browser = await chromium.launch(launch);
+  const before = findings.length;
+  const started = Date.now();
+  try {
+    await JOURNEYS[name](browser);
+  } catch (error) {
+    findings.push(`[${name}] journey failed: ${String(error?.message || error).split('\n')[0]}`);
+  } finally {
+    await browser.close();
+  }
+  const own = findings.slice(before);
+  report.push({ journey: name, ok: own.length === 0, seconds: Math.round((Date.now() - started) / 1000), findings: own });
+  console.log(`${own.length ? 'FAIL' : 'ok  '} ${name} (${Math.round((Date.now() - started) / 1000)}s)`);
+  own.forEach((finding) => console.log(`     ${finding}`));
+}
+mkdirSync(ARTIFACTS, { recursive: true });
+writeFileSync(path.join(ARTIFACTS, 'report.json'), `${JSON.stringify({ origin: ORIGIN, report, notes }, null, 2)}\n`);
+notes.forEach((line) => console.log(`note ${line}`));
+process.exit(findings.length ? 1 : 0);
