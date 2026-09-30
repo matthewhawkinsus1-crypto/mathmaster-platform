@@ -39,9 +39,14 @@ test('on a touch device the keypad and the "needed" keys belong to the active fi
   assert.match(source, /const requiredKeysVisible = isMobile && fieldActive;/);
   assert.match(render, /\{requiredKeysVisible && requiredTools\.length > 0 && \(/);
   assert.match(render, /\{toolsVisible && \(/);
-  // Leaving the field (not for one of its own keys) makes it inactive.
+  // Moving to another place to TYPE makes it inactive; its own keys and a
+  // button tap (a Check right under the keypad) do not — collapsing the keypad
+  // under a finger mid-tap moved the button away and the tap missed.
   assert.match(render, /onFocus=\{\(\) => setFieldActive\(true\)\}/);
-  assert.match(render, /onBlur=\{\(event\) => \{\s*if \(rootRef\.current\?\.contains\?\.\(event\.relatedTarget\)\) return;\s*setFieldActive\(false\);/);
+  const blur = render.slice(render.indexOf('onBlur={(event) => {'), render.indexOf('style={{', render.indexOf('onBlur={(event) => {')));
+  assert.match(blur, /if \(rootRef\.current\?\.contains\?\.\(next\)\) return;/);
+  assert.match(blur, /const typingElsewhere = Boolean\(next\) && \(\/\^\(MATH-FIELD\|INPUT\|TEXTAREA\|SELECT\)\$\/\.test/);
+  assert.match(blur, /if \(typingElsewhere\) setFieldActive\(false\);/);
 });
 
 test('a desktop keeps the student\'s choice and an authored "open on arrival"', () => {

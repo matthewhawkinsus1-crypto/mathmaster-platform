@@ -490,8 +490,16 @@ export default function MathInput({
       onFocus={() => setFieldActive(true)}
       onBlur={(event) => {
         // Moving between the field and its own keys is still "in the field".
-        if (rootRef.current?.contains?.(event.relatedTarget)) return;
-        setFieldActive(false);
+        const next = event.relatedTarget;
+        if (rootRef.current?.contains?.(next)) return;
+        // Close only when the student has moved somewhere else to TYPE. A tap
+        // on a button — this card's Check, right under the keypad — blurs the
+        // field on pointerdown; collapsing the keypad then moved the button up
+        // out from under the finger and the tap missed (PR #397 phone journey:
+        // "slope −2 accepted on a phone" failed). The keypad stays until the
+        // next field, input or select takes focus.
+        const typingElsewhere = Boolean(next) && (/^(MATH-FIELD|INPUT|TEXTAREA|SELECT)$/.test(String(next.tagName || '').toUpperCase()) || next.isContentEditable);
+        if (typingElsewhere) setFieldActive(false);
       }}
       style={{
         width: `min(100%, ${maxWidth}px)`,
