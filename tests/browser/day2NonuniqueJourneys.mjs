@@ -70,7 +70,9 @@ const withMath = (locator) => locator.evaluate((root) => `${root.innerText} ${[.
 const workspaceText = (page) => withMath(page.locator('.mathmaster-reduction-workflow'));
 /** The statement the interpretation stage shows, spaces removed: "0=-3". */
 const statementShown = (page) => outcomePanel(page).locator('math-span, math-div').first().evaluate((element) => element.textContent.replace(/\s+/g, '').replace(/−/g, '-'));
-const undo = async (page) => { await page.getByRole('button', { name: '↶ Undo', exact: true }).click(); await settle(page, 600); };
+// The platform Undo in the action bar. Found by its class: its accessible name
+// is "Undo" (the ↶ is decorative), and on a phone it shows the icon alone.
+const undo = async (page) => { await page.locator('button.mathmaster-universal-undo:visible').first().click(); await settle(page, 600); };
 const outcomePanel = (page) => page.locator('.mathmaster-algebraic-outcome');
 
 /** Nothing spatial or interpretive is reachable. */

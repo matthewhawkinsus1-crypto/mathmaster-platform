@@ -17,6 +17,7 @@ import {
   resolveRequiredStages,
   scoreRepresentationBridge,
 } from './representationBridgeMath.js';
+import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid #c9d6e8', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid #c9d6e8', borderRadius: 8, fontSize: 15 };
@@ -347,15 +348,15 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 10 }}>
                 <label>
                   <span style={{ fontWeight: 800, fontSize: 13 }}>Δx</span>
-                  <input style={input} inputMode="decimal" value={stagingDx} onChange={(event) => { setStagingDx(event.target.value); clearFeedback(); }} aria-label="Change in x for this interval" />
+                  <input style={input} {...FRACTION_ENTRY_PROPS} value={stagingDx} onChange={(event) => { setStagingDx(event.target.value); clearFeedback(); }} aria-label="Change in x for this interval" />
                 </label>
                 <label>
                   <span style={{ fontWeight: 800, fontSize: 13 }}>Δy</span>
-                  <input style={input} inputMode="decimal" value={stagingDy} onChange={(event) => { setStagingDy(event.target.value); clearFeedback(); }} aria-label="Change in y for this interval" />
+                  <input style={input} {...FRACTION_ENTRY_PROPS} value={stagingDy} onChange={(event) => { setStagingDy(event.target.value); clearFeedback(); }} aria-label="Change in y for this interval" />
                 </label>
                 <label>
                   <span style={{ fontWeight: 800, fontSize: 13 }}>Δy/Δx</span>
-                  <input style={input} inputMode="decimal" value={stagingRate} onChange={(event) => { setStagingRate(event.target.value); clearFeedback(); }} aria-label="Rate of change for this interval" />
+                  <input style={input} {...FRACTION_ENTRY_PROPS} value={stagingRate} onChange={(event) => { setStagingRate(event.target.value); clearFeedback(); }} aria-label="Rate of change for this interval" />
                 </label>
               </div>
               <button type="button" onClick={recordInterval} disabled={alreadyRecorded} style={{ ...button, marginTop: 10, background: alreadyRecorded ? '#f1f3f4' : '#1a73e8', color: alreadyRecorded ? '#5f6368' : '#fff', border: 0 }}>
@@ -406,12 +407,12 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
 
           <label style={{ display: 'block', maxWidth: 220 }}>
             <span style={{ fontWeight: 800, fontSize: 13, color: highlightBorder(true, activeHighlight === 'rate') ? '#b06000' : undefined }}>m (your slope)</span>
-            <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'rate') || input.border }} inputMode="decimal" value={studentSlope} onChange={(event) => { setStudentSlope(event.target.value); clearFeedback(); }} aria-label="Your slope m" />
+            <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'rate') || input.border }} {...FRACTION_ENTRY_PROPS} value={studentSlope} onChange={(event) => { setStudentSlope(event.target.value); clearFeedback(); }} aria-label="Your slope m" />
           </label>
 
           {feedbackTiming !== 'submitOnly' ? (
             <div style={{ marginTop: 12 }}>
-              <button type="button" onClick={() => checkStage('rateEvidence')} disabled={!requiredStages.includes('rateEvidence')} style={{ ...button }}>Check this stage</button>
+              <button data-mm-enter-action="card" type="button" onClick={() => checkStage('rateEvidence')} disabled={!requiredStages.includes('rateEvidence')} style={{ ...button }}>Check this stage</button>
               {stageChecks.rateEvidence != null ? <ResultPill ok={stageChecks.rateEvidence && liveResult.parts.rateEvidence}>{stageChecks.rateEvidence && liveResult.parts.rateEvidence ? 'Rate evidence correct' : 'Needs another look'}</ResultPill> : null}
             </div>
           ) : null}
@@ -425,11 +426,11 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 10 }}>
               <label>
                 <span style={{ fontWeight: 800, fontSize: 13, color: highlightBorder(true, activeHighlight === 'rate') ? '#b06000' : undefined }}>m</span>
-                <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'rate') || input.border }} inputMode="decimal" value={generalM} disabled={stageBlocked('generalForm')} onChange={(event) => { setGeneralM(event.target.value); clearFeedback(); }} aria-label="Slope m in general form" />
+                <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'rate') || input.border }} {...FRACTION_ENTRY_PROPS} value={generalM} disabled={stageBlocked('generalForm')} onChange={(event) => { setGeneralM(event.target.value); clearFeedback(); }} aria-label="Slope m in general form" />
               </label>
               <label>
                 <span style={{ fontWeight: 800, fontSize: 13, color: highlightBorder(true, activeHighlight === 'start') ? '#b06000' : undefined }}>b {revealed.start && activeHighlight === 'start' ? `(= ${generalB})` : ''}</span>
-                <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'start') || input.border }} inputMode="decimal" value={generalB} disabled={stageBlocked('generalForm')} onChange={(event) => { setGeneralB(event.target.value); clearFeedback(); }} aria-label="y-intercept b in general form" />
+                <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'start') || input.border }} {...FRACTION_ENTRY_PROPS} value={generalB} disabled={stageBlocked('generalForm')} onChange={(event) => { setGeneralB(event.target.value); clearFeedback(); }} aria-label="y-intercept b in general form" />
               </label>
               <label style={{ gridColumn: '1 / -1' }}>
                 <span style={{ fontWeight: 800, fontSize: 13 }}>Equation</span>
@@ -438,7 +439,7 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
             </div>
             {feedbackTiming !== 'submitOnly' ? (
               <div style={{ marginTop: 10 }}>
-                <button type="button" onClick={() => checkStage('generalForm')} disabled={!requiredStages.includes('generalForm') || stageBlocked('generalForm')} style={{ ...button }}>Check this stage</button>
+                <button data-mm-enter-action="card" type="button" onClick={() => checkStage('generalForm')} disabled={!requiredStages.includes('generalForm') || stageBlocked('generalForm')} style={{ ...button }}>Check this stage</button>
                 {stageChecks.generalForm != null ? <ResultPill ok={stageChecks.generalForm && liveResult.parts.generalForm}>{stageChecks.generalForm && liveResult.parts.generalForm ? 'General form correct' : 'Needs another look'}</ResultPill> : null}
               </div>
             ) : null}
@@ -451,11 +452,11 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 10 }}>
               <label>
                 <span style={{ fontWeight: 800, fontSize: 13, color: highlightBorder(true, activeHighlight === 'rate') ? '#b06000' : undefined }}>a</span>
-                <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'rate') || input.border }} inputMode="decimal" value={factoredA} disabled={stageBlocked('factoredForm')} onChange={(event) => { setFactoredA(event.target.value); clearFeedback(); }} aria-label="Coefficient a in factored form" />
+                <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'rate') || input.border }} {...FRACTION_ENTRY_PROPS} value={factoredA} disabled={stageBlocked('factoredForm')} onChange={(event) => { setFactoredA(event.target.value); clearFeedback(); }} aria-label="Coefficient a in factored form" />
               </label>
               <label>
                 <span style={{ fontWeight: 800, fontSize: 13, color: highlightBorder(true, activeHighlight === 'zero') ? '#b06000' : undefined }}>c {revealed.zero && activeHighlight === 'zero' ? `(= ${factoredC})` : ''}</span>
-                <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'zero') || input.border }} inputMode="decimal" value={factoredC} disabled={stageBlocked('factoredForm')} onChange={(event) => { setFactoredC(event.target.value); clearFeedback(); }} aria-label="Zero c in factored form" />
+                <input style={{ ...input, border: highlightBorder(true, activeHighlight === 'zero') || input.border }} {...FRACTION_ENTRY_PROPS} value={factoredC} disabled={stageBlocked('factoredForm')} onChange={(event) => { setFactoredC(event.target.value); clearFeedback(); }} aria-label="Zero c in factored form" />
               </label>
               <label style={{ gridColumn: '1 / -1' }}>
                 <span style={{ fontWeight: 800, fontSize: 13 }}>Equation</span>
@@ -464,7 +465,7 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
             </div>
             {feedbackTiming !== 'submitOnly' ? (
               <div style={{ marginTop: 10 }}>
-                <button type="button" onClick={() => checkStage('factoredForm')} disabled={!requiredStages.includes('factoredForm') || stageBlocked('factoredForm')} style={{ ...button }}>Check this stage</button>
+                <button data-mm-enter-action="card" type="button" onClick={() => checkStage('factoredForm')} disabled={!requiredStages.includes('factoredForm') || stageBlocked('factoredForm')} style={{ ...button }}>Check this stage</button>
                 {stageChecks.factoredForm != null ? <ResultPill ok={stageChecks.factoredForm && liveResult.parts.factoredForm}>{stageChecks.factoredForm && liveResult.parts.factoredForm ? 'Factored form correct' : 'Needs another look'}</ResultPill> : null}
               </div>
             ) : null}
@@ -491,7 +492,7 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
           <p style={{ margin: '8px 0 0', color: '#3c4756', fontWeight: 700 }}>Your line: {studentGraphLine ? formatLine(studentGraphLine) : 'Plot two different points'}</p>
           {feedbackTiming !== 'submitOnly' ? (
             <div style={{ marginTop: 10 }}>
-              <button type="button" onClick={() => checkStage('graph')} disabled={!requiredStages.includes('graph') || stageBlocked('graph')} style={{ ...button }}>Check this stage</button>
+              <button data-mm-enter-action="card" type="button" onClick={() => checkStage('graph')} disabled={!requiredStages.includes('graph') || stageBlocked('graph')} style={{ ...button }}>Check this stage</button>
               {stageChecks.graph != null ? <ResultPill ok={stageChecks.graph && liveResult.parts.graph}>{stageChecks.graph && liveResult.parts.graph ? 'Graph correct' : 'Needs another look'}</ResultPill> : null}
             </div>
           ) : null}
@@ -551,7 +552,7 @@ export default function RepresentationBridge({ questionData = {}, onAction }) {
           })}
           {feedbackTiming !== 'submitOnly' ? (
             <div style={{ marginTop: 10 }}>
-              <button type="button" onClick={() => checkStage('meaning')} disabled={!requiredStages.includes('meaning') || !meaningComplete || stageBlocked('meaning')} style={{ ...button }}>Check this stage</button>
+              <button data-mm-enter-action="card" type="button" onClick={() => checkStage('meaning')} disabled={!requiredStages.includes('meaning') || !meaningComplete || stageBlocked('meaning')} style={{ ...button }}>Check this stage</button>
               {stageChecks.meaning != null ? <ResultPill ok={stageChecks.meaning && liveResult.parts.meaning}>{stageChecks.meaning && liveResult.parts.meaning ? 'Meaning connections correct' : 'Needs another look'}</ResultPill> : null}
             </div>
           ) : null}

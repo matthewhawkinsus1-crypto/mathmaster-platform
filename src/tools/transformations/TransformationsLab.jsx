@@ -346,7 +346,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
           <p>Map the parent-function point <strong>({parentPoint[0]}, {parentPoint[1]})</strong> through the transformation.</p>
           {graph([x => evaluateParentFunction(family, x, investigationSpec.base), x => evaluateTransformedFunction(investigationSpec, x)], [{ x: parentPoint[0], y: parentPoint[1], label: 'parent' }])}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}><label>Transformed x<input type="number" value={mappedX} onChange={(event) => { setMappedX(event.target.value); resetFeedback(); }} style={inputStyle} /></label><label>Transformed y<input type="number" value={mappedY} onChange={(event) => { setMappedY(event.target.value); resetFeedback(); }} style={inputStyle} /></label></div>
-          <button type="button" onClick={checkPointMap} style={{ ...buttonStyle, marginTop: 12 }}>Check mapped point</button>
+          <button data-mm-enter-action="submit" type="button" onClick={checkPointMap} style={{ ...buttonStyle, marginTop: 12 }}>Check mapped point</button>
         </> : null}
 
         {mode === 'plotTransform' ? <>
@@ -391,7 +391,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
               one press — so it stays. */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
             <button type="button" onClick={clearPlottedPoints} disabled={!plottedPoints.length} style={{ ...buttonStyle, background: 'var(--mm-surface)', color: '#5f6368', border: '1px solid #dadce0' }}>Clear</button>
-            <button type="button" onClick={checkPlotTransform} disabled={plotTransformIncomplete} style={{ ...buttonStyle, opacity: plotTransformIncomplete ? 0.55 : 1 }}>Check graph</button>
+            <button data-mm-enter-action="submit" type="button" onClick={checkPlotTransform} disabled={plotTransformIncomplete} style={{ ...buttonStyle, opacity: plotTransformIncomplete ? 0.55 : 1 }}>Check graph</button>
           </div>
           <p style={{ marginBottom: 0, color: '#5f6b7a', fontSize: 13 }}>{plottedPoints.length} of {expectedTransformedPoints.length} defining points plotted.</p>
         </> : null}
@@ -409,14 +409,14 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
           <label style={{ display: 'block', marginTop: 10 }}>Horizontal shift (units)<input type="number" step="0.5" min="0" value={horizontalDistance} onChange={(event) => setHorizontalDistance(event.target.value)} style={inputStyle} placeholder="0 if none" /></label>
           <label style={{ display: 'block', marginTop: 10 }}>Vertical translation<select value={verticalDirection} onChange={(event) => setVerticalDirection(event.target.value)} style={inputStyle}><option value="">Choose…</option><option value="up">Up</option><option value="down">Down</option><option value="none">None</option></select></label>
           <label style={{ display: 'block', marginTop: 10 }}>Vertical shift (units)<input type="number" step="0.5" min="0" value={verticalDistance} onChange={(event) => setVerticalDistance(event.target.value)} style={inputStyle} placeholder="0 if none" /></label>
-          <button type="button" onClick={checkDescription} style={{ ...buttonStyle, marginTop: 12 }}>Check description</button>
+          <button data-mm-enter-action="submit" type="button" onClick={checkDescription} style={{ ...buttonStyle, marginTop: 12 }}>Check description</button>
         </> : null}
 
         {mode === 'anchor' ? <>
           {graph([x => evaluateTransformedFunction(investigationSpec, x)])}
           <p>Identify the transformed <strong>{anchor.label}</strong>{anchor.isOnGraph ? '.' : '. This is structural and is not a point on the rational graph.'}</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><label>x-coordinate<input type="number" value={anchorX} onChange={(event) => setAnchorX(event.target.value)} style={inputStyle} /></label><label>y-coordinate<input type="number" value={anchorY} onChange={(event) => setAnchorY(event.target.value)} style={inputStyle} /></label></div>
-          <button type="button" onClick={checkAnchor} style={{ ...buttonStyle, marginTop: 12 }}>Check defining feature</button>
+          <button data-mm-enter-action="submit" type="button" onClick={checkAnchor} style={{ ...buttonStyle, marginTop: 12 }}>Check defining feature</button>
         </> : null}
         {feedbackBlock}
         <HintPanel hints={HINTS[mode] || HINTS.match} onHintUsed={() => onAction?.('HINT_USED')} />

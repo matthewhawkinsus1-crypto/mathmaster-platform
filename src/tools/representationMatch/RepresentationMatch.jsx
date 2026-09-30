@@ -13,6 +13,9 @@ import useToolSubmission from '../shared/useToolSubmission';
 import {
   buildDefaultRepresentationSets,
   buildLinearConnectionCards,
+  describeLinearCard,
+  linearGroupLabels,
+  linearGroupNoun,
   findTableMismatchIndexes,
   LINEAR_CARD_KINDS,
   mixedRepresentationCards,
@@ -71,7 +74,7 @@ const MODE_TASKS = {
   findMismatch: 'Two of these three cards describe the same relationship. Find the one that does not.',
   tableAudit: 'Exactly one row of this table breaks the rule. Find it.',
   graphMatch: 'Choose the graph that matches the given equation.',
-  linearConnections: 'Group the cards that describe the same line together.',
+  linearConnections: 'Group the cards that describe the same relationship together.',
 };
 
 const MODE_STEPS = {
@@ -79,7 +82,7 @@ const MODE_STEPS = {
   findMismatch: ['Pick a couple of input values.', 'Work out what each card predicts for those inputs.', 'The card that disagrees with the other two is the mismatch.'],
   tableAudit: ['Substitute each row’s x into the rule.', 'Compare the result with the y in that row.', 'Select the one row where they disagree.'],
   graphMatch: ['Find the key features of the equation: where it crosses the axes and how fast it grows.', 'Look for those same features in each graph.', 'Select the graph that has all of them.'],
-  linearConnections: ['Pick a line slot, then tap every card that describes that same line — a slope, an intercept, an equation in any form, or the graph.', 'Switch slots and repeat for the next line.', 'Compare the numbers each card gives you rather than how the card looks.'],
+  linearConnections: ['Choose a group at the top, then tap every card that belongs to it — a slope, an intercept, an equation in any form, a table or the graph.', 'Choose the next group and repeat.', 'Compare the numbers each card gives you rather than how the card looks.'],
 };
 
 const MODE_HINTS = {
@@ -156,7 +159,11 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
       : []),
     [mode, linearTask, mismatchSet],
   );
-  const lineLabels = useMemo(() => sets.map((_, index) => String.fromCharCode(65 + index)), [sets]);
+  // What the groups are called follows the task: "Situation A" when every
+  // set is a context, the author's own `label` or `groupNoun` when given, and
+  // "Line A" otherwise (linearGroupLabels).
+  const groupNoun = useMemo(() => linearGroupNoun(questionData, sets), [questionData, sets]);
+  const lineLabels = useMemo(() => linearGroupLabels(questionData, sets), [questionData, sets]);
   const [linearAssignments, setLinearAssignments] = usePersistentToolState('linearAssignments', {});
   const [activeLineSlot, setActiveLineSlot] = useState(0);
   const [mismatchSelection, setMismatchSelection] = usePersistentToolState('linearMismatchSelection', '');
@@ -263,22 +270,57 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
 
   const LINEAR_KIND_LABELS = {
     slopeIntercept: 'Slope-intercept equation', factoredLinear: 'Factored form', pointSlope: 'Point-slope equation', standard: 'Standard-form equation',
-    graph: 'Graph', slope: 'Slope', point: 'Point', xIntercept: 'x-intercept', yIntercept: 'y-intercept', context: 'Context',
+    graph: 'Graph', slope: 'Slope', point: 'Point', xIntercept: 'x-intercept', yIntercept: 'y-intercept', context: 'Situation', table: 'Table',
   };
+  const linearGraphBounds = questionData.graphBounds || { xMin: -8, xMax: 8, yMin: -8, yMax: 8 };
   const renderLinearCardBody = (card) => {
     if (card.kind === 'graph') {
-      const bounds = questionData.graphBounds || { xMin: -8, xMax: 8, yMin: -8, yMax: 8 };
       // The plane scales to the card's width; this sets its proportions. At
       // 220x140 a -8..8 y-axis stacked its labels on top of each other.
-      return <CoordinatePlane enlargeable={false} width={320} height={240} {...bounds} functions={[(x) => evaluateFunctionSpec(card.value || {}, x)]} />;
+      return <CoordinatePlane enlargeable={false} width={320} height={240} {...linearGraphBounds} functions={[(x) => evaluateFunctionSpec(card.value || {}, x)]} />;
+    }
+    if (card.kind === 'table') {
+      // A compact read-only x/y table. Spans in a grid, not a <table>: it
+      // sits inside the card's button, and the button's accessible name
+      // already reads every row (describeLinearCard).
+      return (
+        <div className="mathmaster-line-card-table" aria-hidden="true">
+          <span className="mathmaster-line-card-table-head">x</span>
+          <span className="mathmaster-line-card-table-head">y</span>
+          {(card.value || []).map(([x, y]) => (
+            <React.Fragment key={`${x}:${y}`}>
+              <MathDisplay value={String(x)} format="ascii-math" inline />
+              <MathDisplay value={String(y)} format="ascii-math" inline />
+            </React.Fragment>
+          ))}
+        </div>
+      );
     }
     if (['slopeIntercept', 'factoredLinear', 'pointSlope', 'standard'].includes(card.kind)) {
-      return <MathDisplay value={String(card.value)} format="ascii-math" ariaLabel={`${LINEAR_KIND_LABELS[card.kind]}: ${card.value}`} />;
+      return <MathDisplay value={String(card.value)} format="ascii-math" ariaLabel={`${LINEAR_KIND_LABELS[card.kind]}: ${card.value}`} style={{ fontSize: 20 }} />;
     }
-    if (card.kind === 'slope') return <span>m = {card.value}</span>;
-    if (['point', 'xIntercept', 'yIntercept'].includes(card.kind)) return <span>{Array.isArray(card.value) ? `(${card.value[0]}, ${card.value[1]})` : card.value}</span>;
-    return <span>{String(card.value)}</span>;
+    if (card.kind === 'slope') return <MathDisplay value={`m = ${card.value}`} format="ascii-math" inline style={{ fontSize: 20 }} />;
+    if (['point', 'xIntercept', 'yIntercept'].includes(card.kind)) return <MathDisplay value={Array.isArray(card.value) ? `(${card.value[0]}, ${card.value[1]})` : String(card.value)} format="ascii-math" inline style={{ fontSize: 20 }} />;
+    return <span style={{ fontSize: 15, lineHeight: 1.45, color: 'var(--mm-text-strong)' }}>{String(card.value)}</span>;
   };
+
+  // Cards grouped by SIZE, not by answer: the shuffled deck is split into
+  // situations (sentences), compact facts (equations, slopes, points), tables
+  // and graphs. One grid of all of them made each row as tall as
+  // its graph, so the short cards beside a graph sat above 250px of empty
+  // space and the deck needed three screens (student UX pass, R-9). Order
+  // within each band is the deck's own shuffle, so nothing about the grouping
+  // is revealed.
+  const LINEAR_CARD_BANDS = [
+    { id: 'context', kinds: ['context'] },
+    { id: 'facts', kinds: ['slopeIntercept', 'factoredLinear', 'pointSlope', 'standard', 'slope', 'point', 'xIntercept', 'yIntercept'] },
+    { id: 'tables', kinds: ['table'] },
+    { id: 'graphs', kinds: ['graph'] },
+  ];
+  // One colour per group, so a student sees at a glance which cards are in
+  // which group instead of reading every card's caption.
+  const GROUP_COLORS = ['#1a73e8', '#c26401', '#8430ce', '#0b8043', '#b3261e', '#00838f'];
+  const groupColor = (slot) => GROUP_COLORS[slot % GROUP_COLORS.length];
 
   const shellTitle = mode === 'graphMatch' ? 'Match the Graph'
     : mode === 'findMismatch' ? 'Find the Mismatch'
@@ -295,14 +337,15 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
   const cardSetLayout = mode === 'linearConnections';
   const Layout = cardSetLayout ? CardSetStack : ToolGrid;
 
-  return <ToolShell title={shellTitle} subtitle="Equations, tables, graphs and contexts are four ways of saying the same thing — make sure they agree." badge="Multiple representations">
+  // A card sort uses a wide screen for more cards per row (widthProfile).
+  return <ToolShell title={shellTitle} widthProfile={cardSetLayout ? 'wide' : 'standard'} subtitle="Equations, tables, graphs and contexts are four ways of saying the same thing — make sure they agree." badge="Multiple representations">
     <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.completeSet} steps={MODE_STEPS[mode] || MODE_STEPS.completeSet} />
     <Layout min={330}>
       <Panel title={
         mode === 'completeSet' ? 'Build a consistent representation set'
           : mode === 'findMismatch' ? 'Find the broken link'
             : mode === 'tableAudit' ? 'Audit the table'
-              : mode === 'linearConnections' ? (linearTask === 'findMismatch' ? 'Find the broken link' : 'Group the cards by line')
+              : mode === 'linearConnections' ? (linearTask === 'findMismatch' ? 'Find the broken link' : `Sort the cards by ${groupNoun.toLowerCase()}`)
                 : 'Match the graph'
       }>
         {mode === 'completeSet' ? <>
@@ -331,57 +374,75 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
           <button type="button" onClick={checkGraph} disabled={!graphId} style={{ ...buttonStyle, marginTop: 12, opacity: graphId ? 1 : .55 }}>Check graph</button>
         </> : null}
 
-        {mode === 'linearConnections' && linearTask === 'group' ? <>
-          <p style={{ color: '#5f6b7a' }}>Pick a line below, then tap every card that describes that same line. Tap a card again to remove it from that line.</p>
+        {mode === 'linearConnections' && linearTask === 'group' ? <div className="mathmaster-line-sort" style={{ textAlign: 'left' }}>
+          <p style={{ margin: '0 0 10px', color: '#44536a', lineHeight: 1.5 }}>Choose a {groupNoun.toLowerCase()}, then tap every card that belongs to it. Tap a card again to take it back out.</p>
           <fieldset style={{ border: 0, padding: 0, margin: '0 0 12px' }}>
-            <legend style={{ fontWeight: 700, marginBottom: 7 }}>Which line are you building?</legend>
-            <div role="radiogroup" aria-label="Line to assign cards to" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <legend style={{ fontWeight: 800, marginBottom: 7, color: '#24324a' }}>Sorting cards into:</legend>
+            <div role="radiogroup" aria-label={`${groupNoun} to sort cards into`} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {lineLabels.map((label, index) => (
                 <button
                   type="button"
                   role="radio"
                   aria-checked={activeLineSlot === index}
-                  key={label}
+                  key={`${index}:${label}`}
                   onClick={() => setActiveLineSlot(index)}
                   style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
                     padding: '9px 16px', minHeight: 44, borderRadius: 999, cursor: 'pointer', fontWeight: 800,
-                    border: activeLineSlot === index ? '2px solid #1a73e8' : '1px solid #cdd6e4',
-                    background: activeLineSlot === index ? '#eef4ff' : '#fff', color: 'var(--mm-text-strong)',
+                    border: activeLineSlot === index ? `2px solid ${groupColor(index)}` : '1px solid #cdd6e4',
+                    background: activeLineSlot === index ? '#f4f8ff' : '#fff', color: 'var(--mm-text-strong)',
                   }}
                 >
-                  Line {label}
+                  <span aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 999, background: groupColor(index), flex: '0 0 auto' }} />
+                  {label}
+                  <span style={{ fontWeight: 700, fontSize: 12, color: '#5f6b7a' }}>
+                    · {linearGroupCards.filter((card) => linearAssignments[card.id] === index).length}
+                  </span>
                 </button>
               ))}
             </div>
           </fieldset>
-          <div className="mathmaster-line-card-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
-            {linearGroupCards.map((card) => {
-              const assignedSlot = linearAssignments[card.id];
-              const assignedLabel = assignedSlot != null ? `Line ${lineLabels[assignedSlot]}` : 'Unassigned';
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {LINEAR_CARD_BANDS.map((band) => {
+              const bandCards = linearGroupCards.filter((card) => band.kinds.includes(card.kind));
+              if (!bandCards.length) return null;
               return (
-                <button
-                  type="button"
-                  key={card.id}
-                  className="mathmaster-line-card"
-                  data-card-kind={card.kind}
-                  onClick={() => toggleCardAssignment(card.id)}
-                  aria-pressed={assignedSlot === activeLineSlot}
-                  aria-label={`${LINEAR_KIND_LABELS[card.kind]} card, currently ${assignedLabel}. Tap to ${assignedSlot === activeLineSlot ? 'remove from' : 'assign to'} Line ${lineLabels[activeLineSlot]}.`}
-                  style={{
-                    textAlign: 'left', padding: 10, borderRadius: 10, cursor: 'pointer', minHeight: 88,
-                    border: assignedSlot != null ? '2px solid #1a73e8' : '1px solid #d9e2f1',
-                    background: assignedSlot != null ? '#eef4ff' : '#fff',
-                  }}
-                >
-                  <div style={{ fontSize: 11, fontWeight: 800, color: '#5f6b7a', textTransform: 'uppercase', marginBottom: 4 }}>{LINEAR_KIND_LABELS[card.kind]}</div>
-                  {renderLinearCardBody(card)}
-                  <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: assignedSlot != null ? '#174ea6' : '#8a94a6' }}>{assignedLabel}</div>
-                </button>
+                <div key={band.id} className={`mathmaster-line-card-grid mathmaster-line-card-grid-${band.id}`}>
+                  {bandCards.map((card) => {
+                    const assignedSlot = linearAssignments[card.id];
+                    const assigned = assignedSlot != null;
+                    const assignedLabel = assigned ? lineLabels[assignedSlot] : 'not sorted yet';
+                    return (
+                      <button
+                        type="button"
+                        key={card.id}
+                        className="mathmaster-line-card"
+                        data-card-kind={card.kind}
+                        onClick={() => toggleCardAssignment(card.id)}
+                        aria-pressed={assignedSlot === activeLineSlot}
+                        aria-label={`${LINEAR_KIND_LABELS[card.kind]}: ${describeLinearCard(card, { bounds: linearGraphBounds })}. In ${assignedLabel}. Tap to ${assignedSlot === activeLineSlot ? 'take it out of' : 'put it in'} ${lineLabels[activeLineSlot]}.`}
+                        style={{
+                          textAlign: 'left', padding: 10, borderRadius: 10, cursor: 'pointer', minHeight: 64,
+                          border: assigned ? `2px solid ${groupColor(assignedSlot)}` : '1px solid #d9e2f1',
+                          boxShadow: assigned ? `inset 5px 0 0 ${groupColor(assignedSlot)}` : 'none',
+                          background: assigned ? '#fbfcff' : '#fff',
+                        }}
+                      >
+                        <div style={{ fontSize: 11, fontWeight: 800, color: '#5f6b7a', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>{LINEAR_KIND_LABELS[card.kind]}</div>
+                        {renderLinearCardBody(card)}
+                        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800, color: assigned ? groupColor(assignedSlot) : '#8a94a6' }}>
+                          {assigned ? <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: 999, background: groupColor(assignedSlot) }} /> : null}
+                          {assigned ? lineLabels[assignedSlot] : 'Not sorted yet'}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               );
             })}
           </div>
           <button type="button" onClick={checkLinearGroup} style={{ ...buttonStyle, marginTop: 12 }}>Check groups</button>
-        </> : null}
+        </div> : null}
 
         {mode === 'linearConnections' && linearTask === 'findMismatch' ? <>
           <p>These cards claim to describe the same line, but one of them does not. Select the card that does not belong.</p>
@@ -413,7 +474,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
 
         {feedback ? (() => {
           const message = feedback.isCorrect
-            ? (mode === 'linearConnections' ? 'Correct — every card is grouped with the line it actually describes.' : 'Correct — these really are views of the same relationship.')
+            ? (mode === 'linearConnections' ? `Correct — every card is with the ${groupNoun.toLowerCase()} it actually describes.` : 'Correct — these really are views of the same relationship.')
             : mode === 'completeSet'
               ? 'At least one of your three choices belongs to a different relationship. Test a single input value against each one.'
               : mode === 'findMismatch'
@@ -430,9 +491,11 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
         <HintPanel hints={MODE_HINTS[mode] || MODE_HINTS.completeSet} onHintUsed={() => onAction?.('HINT_USED')} />
       </Panel>
 
+      {/* Left-aligned text: the question runtime centres text, which put the
+          bullets at the left edge and each sentence in the middle. */}
       <Panel title="Representation reasoning" collapsible>
-        <ul style={{ lineHeight: 1.8, paddingLeft: 20, marginTop: 0 }}><li>An equation encodes the rule.</li><li>A table samples input-output pairs.</li><li>A graph shows shape, rate, and defining features.</li><li>A context gives quantities meaning and units.</li></ul>
-        <p style={{ color: '#5f6b7a', marginBottom: 0 }}>None of these is the “real” version of the relationship. Each one shows something the others hide, which is why you check them against each other.</p>
+        <ul style={{ lineHeight: 1.8, paddingLeft: 20, marginTop: 0, textAlign: 'left' }}><li>An equation encodes the rule.</li><li>A table samples input-output pairs.</li><li>A graph shows shape, rate, and defining features.</li><li>A context gives quantities meaning and units.</li></ul>
+        <p style={{ color: '#5f6b7a', marginBottom: 0, textAlign: 'left' }}>None of these is the “real” version of the relationship. Each one shows something the others hide, which is why you check them against each other.</p>
       </Panel>
     </Layout>
   </ToolShell>;

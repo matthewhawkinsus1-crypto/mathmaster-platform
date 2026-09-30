@@ -120,6 +120,24 @@ export const scheduleHorizontalViewportStabilization = ({
  * to pan horizontally when inline:'nearest' is used, including on clipped
  * ancestors with no visible horizontal scrollbar.
  */
+/*
+ * The nearest candidate that can actually scroll. `.mathmaster-work-view-surface`
+ * is a scroller only while Work View is enlarged; closed, it is an ordinary
+ * box with `overflow: visible`, and scrolling it did nothing — the real
+ * scroller (the phone's `.math-tool-workspace`) sits further out. Measured at
+ * 390×844 with the number keypad open: the focused box stayed under the keys.
+ */
+const nearestVerticalScroller = (target, windowObject) => {
+  let candidate = target?.closest?.(VERTICAL_SCROLL_SELECTOR) || null;
+  while (candidate) {
+    const overflowY = windowObject?.getComputedStyle?.(candidate)?.overflowY;
+    // No computed style (tests, detached nodes): trust the selector.
+    if (!overflowY || overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') return candidate;
+    candidate = candidate.parentElement?.closest?.(VERTICAL_SCROLL_SELECTOR) || null;
+  }
+  return null;
+};
+
 export const scrollFocusedControlVertically = (
   target,
   {
@@ -131,7 +149,7 @@ export const scrollFocusedControlVertically = (
 ) => {
   if (!target?.getBoundingClientRect) return false;
 
-  const scroller = target.closest?.(VERTICAL_SCROLL_SELECTOR) || root;
+  const scroller = nearestVerticalScroller(target, windowObject) || root;
   if (!scroller?.getBoundingClientRect) {
     stabilizeHorizontalViewport({ root, windowObject, documentObject });
     return false;
@@ -156,11 +174,21 @@ export const scrollFocusedControlVertically = (
     : scrollerRect.top;
   const safeTop = Math.max(scrollerRect.top, stickyBottom) + safeMargin;
 
+  // MathMaster's number keypad is fixed over the bottom of the screen, on top
+  // of the workspace. A box "inside the scroller" can still be under the keys:
+  // measured at 390×844, Linear Table Workbench's slope box sat 5px under the
+  // keypad's top edge while the student typed into it. When the keypad covers
+  // the box's column, the safe bottom is the keypad's top, not the scroller's.
+  const keypadRect = documentObject?.querySelector?.('.mathmaster-mobile-numeric-keypad')?.getBoundingClientRect?.();
+  const keypadCoversColumn = keypadRect && keypadRect.height > 0
+    && keypadRect.left < targetRect.right && keypadRect.right > targetRect.left;
+  const safeBottom = Math.min(scrollerRect.bottom, keypadCoversColumn ? keypadRect.top : scrollerRect.bottom) - safeMargin;
+
   let deltaY = 0;
   if (targetRect.top < safeTop) {
     deltaY = targetRect.top - safeTop;
-  } else if (targetRect.bottom > scrollerRect.bottom - safeMargin) {
-    deltaY = targetRect.bottom - (scrollerRect.bottom - safeMargin);
+  } else if (targetRect.bottom > safeBottom) {
+    deltaY = targetRect.bottom - safeBottom;
   }
 
   if (Math.abs(deltaY) > 0.5) {

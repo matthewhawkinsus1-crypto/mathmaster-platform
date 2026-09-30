@@ -9,7 +9,8 @@ import {
 } from '../../platform/mobile/mobileFocusViewport.js';
 import { isBrowserPinchZoomed, readStableViewportBox } from '../../platform/mobile/mobileInteractionFoundation.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
-import { STICKY_TASK_HEIGHT_VAR, stickyHeightRef } from '../../platform/layout/stickyHeightRef.js';
+import { acceptsFractionEntry, applyNumberKey } from '../../platform/interaction/numberEntry.js';
+import { ACTION_BAR_HEIGHT_VAR, STICKY_TASK_HEIGHT_VAR, stickyHeightRef } from '../../platform/layout/stickyHeightRef.js';
 
 const NUMERIC_SELECTOR = 'input[type="number"], input[inputmode="numeric"], input[inputmode="decimal"], input[data-mathmaster-mobile-keypad="true"]';
 const KEYS = ['7', '8', '9', '4', '5', '6', '1', '2', '3', '±', '0', '.'];
@@ -340,29 +341,34 @@ export const MobileViewportContainer = ({
     };
   }, [isMobile, numericTarget]);
 
+  // The edit itself is applyNumberKey (numberEntry.js): one fraction bar, one
+  // decimal point per number, and ± on an empty box starting a negative ("−")
+  // instead of the old "0" — which made "−3" come out as "03".
+  const fractionEntry = acceptsFractionEntry(numericTarget);
   const applyKey = (key) => {
     if (!numericTarget?.isConnected) {
       setNumericTarget(null);
       return;
     }
     const current = String(numericTarget.value ?? '');
-    if (key === 'clear') setReactInputValue(numericTarget, '');
-    else if (key === 'backspace') setReactInputValue(numericTarget, current.slice(0, -1));
-    else if (key === '±') {
-      if (!current) setReactInputValue(numericTarget, '0');
-      else setReactInputValue(numericTarget, current.startsWith('-') ? current.slice(1) : `-${current}`);
-    } else if (key === '.' && current.includes('.')) return;
-    else setReactInputValue(numericTarget, `${current}${key}`);
+    const next = applyNumberKey(current, key, {
+      fraction: acceptsFractionEntry(numericTarget),
+      bareMinus: String(numericTarget.type || '').toLowerCase() !== 'number',
+    });
+    if (next !== current) setReactInputValue(numericTarget, next);
     numericTarget.focus({ preventScroll: true });
   };
 
   const numericKeypad = isMobile && numericTarget ? (
     <div ref={keypadRef} className="mathmaster-mobile-numeric-keypad" role="group" aria-label="Number keypad">
       <div className="mathmaster-mobile-keypad-grid">
-        {KEYS.map((key) => <button key={key} type="button" onPointerDown={(event) => event.preventDefault()} onClick={() => applyKey(key)}>{key}</button>)}
+        {KEYS.map((key) => <button key={key} type="button" aria-label={key === '±' ? 'Make negative or positive' : undefined} onPointerDown={(event) => event.preventDefault()} onClick={() => applyKey(key)}>{key}</button>)}
       </div>
-      <div className="mathmaster-mobile-keypad-actions">
-        <button type="button" onPointerDown={(event) => event.preventDefault()} onClick={() => applyKey('backspace')}>⌫</button>
+      {/* A box that takes fractions (FRACTION_ENTRY_PROPS) gets a fraction
+          bar: a slope of −2/3 cannot be typed as a decimal. */}
+      <div className={`mathmaster-mobile-keypad-actions${fractionEntry ? ' has-fraction-key' : ''}`}>
+        <button type="button" aria-label="Delete" onPointerDown={(event) => event.preventDefault()} onClick={() => applyKey('backspace')}>⌫</button>
+        {fractionEntry ? <button type="button" className="mathmaster-keypad-fraction" aria-label="Fraction bar" onPointerDown={(event) => event.preventDefault()} onClick={() => applyKey('/')}>/</button> : null}
         <button type="button" onPointerDown={(event) => event.preventDefault()} onClick={() => applyKey('clear')}>Clear</button>
         <button type="button" className="mathmaster-keypad-done" onClick={() => { numericTarget.blur(); setNumericTarget(null); }}>Done</button>
       </div>
@@ -482,15 +488,23 @@ export const MobileViewportContainer = ({
         </React.Fragment>
       </main>
 
+      {/* THE BAR PUBLISHES ITS HEIGHT. It is sticky over the bottom of the
+          question, so the page's scroll padding (App.css) is computed from the
+          measured bar — 65px on one row, more when it wraps — and a field
+          focused by keyboard or by a tool lands above it, not under it. */}
       {!workspaceActive && !isMobile && (workBar || actionButtons) && (
-        <div className="mathmaster-desktop-action-bar">
+        <div ref={stickyHeightRef(ACTION_BAR_HEIGHT_VAR)} className="mathmaster-desktop-action-bar">
           {workBar && <div className="mathmaster-desktop-action-bar-tools">{workBar}</div>}
           {actionButtons && <div className="mathmaster-desktop-action-bar-primary">{actionButtons}</div>}
         </div>
       )}
 
+      {/* One row on a phone. With Submit / Next in the bar the four tools
+          collapse to icons (their names stay in the accessible label), so the
+          bar is 61px instead of a 111px two-row block over the work — see
+          MathToolMobileLayout.css. */}
       {!workspaceActive && isMobile && !isLandscape && (actionButtons || workBar) && (
-        <div className="portrait-action-bar">{workBar}{actionButtons}</div>
+        <div className="portrait-action-bar" data-has-primary={actionButtons ? 'true' : undefined}>{workBar}{actionButtons}</div>
       )}
 
       {numericKeypad}

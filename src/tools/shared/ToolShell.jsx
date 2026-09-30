@@ -1,8 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import MathText from '../../components/common/MathText.jsx';
-import { focusFirstAnswerControl, isSingleLineAnswerTarget } from '../../platform/interaction/answerEntryUx.js';
+import {
+  countAnswerControls,
+  focusFirstAnswerControl,
+  focusForEnter,
+  isSingleLineAnswerTarget,
+  isTouchPrimaryPointer,
+  resolveToolEnterAction,
+  shouldFocusAnswerOnOpen,
+} from '../../platform/interaction/answerEntryUx.js';
+import { useAnswerFocusPolicy } from '../../platform/interaction/answerFocusPolicy.js';
+import { isMobileQuestionViewport } from '../../components/student/MobileViewportContainer.jsx';
 import QuietDisclosure from '../../components/common/QuietDisclosure.jsx';
 import { useRenderPerformance } from '../../platform/performance/useRenderPerformance.js';
+import { PlotHelpScope } from './plotHelpScope.js';
 
 // A stable key for "this exact block of text", so a student's decision to fold
 // the steps away is remembered per tool without every one of the eighteen tools
@@ -21,38 +32,76 @@ const contentKey = (value) => {
   return hash.toString(36);
 };
 
-export default function ToolShell({ title, subtitle, badge, children, footer, shellKey = null, workspaceWidth = 'min(100%, 1180px)' }) {
+/*
+ * WHETHER A TOOL OPENS WITH THE CURSOR IN A BOX.
+ *
+ * Two questions, and both must say yes.
+ *
+ *   MAY IT? The hosting question decides (useAnswerFocusPolicy): not on a
+ *   phone, not on a touch-first tablet, not in a composed question, not while
+ *   locked. This shell used to skip that question and focus unconditionally,
+ *   so the phone number keypad opened over Linear Table Workbench's table the
+ *   moment it loaded, and the iPad math keypad covered half the representation
+ *   board.
+ *
+ *   IS THERE "THE" BOX? Only when the tool shows exactly one answer control.
+ *   A tool with a dozen — the representation board, a table workbench — has no
+ *   first answer, only a first cell, and landing there says the task starts
+ *   with typing when it starts with reading. `focusOnOpen={false}` opts a tool
+ *   out even then.
+ */
+const mayFocusOnOpen = (policy) => (policy
+  ? policy.allowed
+  : shouldFocusAnswerOnOpen({ narrowViewport: isMobileQuestionViewport(), touchPrimary: isTouchPrimaryPointer() }));
+
+/*
+ * WIDTH PROFILES.
+ *
+ * 'standard' (every tool): up to 1180px, inside the assignment's 1120px shell.
+ *
+ * 'wide' (opt-in): a tool whose workspace is several columns of cards or
+ * graphs — the representation board, a card sort — may use a wider screen
+ * when there is one (a Chromebook at 67–80% zoom reports 1700–2000 CSS px
+ * and left half the screen empty). App.css widens the assignment shell for
+ * such a question only at ≥1400px; paragraphs keep their own reading widths
+ * and the task card stays at its usual width. Narrower screens are unchanged.
+ */
+const WORKSPACE_WIDTHS = { standard: 'min(100%, 1180px)', wide: 'min(100%, 1480px)' };
+
+export default function ToolShell({ title, subtitle, badge, children, footer, shellKey = null, widthProfile = 'standard', workspaceWidth = WORKSPACE_WIDTHS[widthProfile] || WORKSPACE_WIDTHS.standard, focusOnOpen = true }) {
   useRenderPerformance('ToolShell');
   const shellRef = useRef(null);
+  const focusPolicy = useAnswerFocusPolicy();
+  const focusAllowed = focusOnOpen && mayFocusOnOpen(focusPolicy);
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => focusFirstAnswerControl(shellRef.current));
+    if (!focusAllowed) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      if (countAnswerControls(shellRef.current) === 1) focusFirstAnswerControl(shellRef.current);
+    });
     return () => window.cancelAnimationFrame(frame);
+    // On open only: a tool that re-renders must not pull the cursor back.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Enter in an answer box follows the explicit contract in answerEntryUx.js
+  // (resolveToolEnterAction): only a button the tool DECLARED is ever used,
+  // nothing is pressed while a box in its card is empty (Enter moves to the
+  // next empty box), and a whole-question submit is brought into focus rather
+  // than pressed unless the field is the one answer box.
   const handleAnswerEnter = (event) => {
     if (event.defaultPrevented || event.key !== 'Enter' || event.isComposing) return;
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     if (!isSingleLineAnswerTarget(event.target)) return;
-
-    const findPrimary = (root) => {
-      if (!root?.querySelectorAll) return null;
-      const explicit = root.querySelector('button[data-primary-answer-action="true"]:not([disabled])');
-      if (explicit) return explicit;
-      return [...root.querySelectorAll('button:not([disabled])')].find((button) => (
-        /^(check|submit|verify|evaluate|lock in|record answer|apply)\b/i.test(String(button.textContent || '').trim())
-      )) || null;
-    };
-
-    const panel = event.target?.closest?.('.mathmaster-tool-panel');
-    const primary = findPrimary(panel) || findPrimary(shellRef.current);
-    if (!primary) return;
+    const decision = resolveToolEnterAction({ field: event.target, shell: shellRef.current });
+    if (decision.kind === 'none') return;
     event.preventDefault();
-    primary.click();
+    if (decision.kind === 'press') decision.target.click();
+    else focusForEnter(decision.target);
   };
 
   return (
-    <section ref={shellRef} onKeyDown={handleAnswerEnter} className="mathmaster-tool-shell" style={{
+    <section ref={shellRef} onKeyDown={handleAnswerEnter} className="mathmaster-tool-shell" data-width-profile={widthProfile === 'wide' ? 'wide' : undefined} style={{
       // Takes the room it is given, up to a limit generous enough for a
       // coordinate plane beside its controls. The old fixed 980px capped a
       // graph well below the width available on a school Chromebook.
@@ -110,7 +159,8 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
           ) : null}
         </div>
       </header>
-      <div className="mathmaster-tool-shell-body" style={{ padding: 24 }}>{children}</div>
+      {/* One set of plotting directions per tool, however many planes it has. */}
+      <div className="mathmaster-tool-shell-body" style={{ padding: 24 }}><PlotHelpScope>{children}</PlotHelpScope></div>
       {footer ? <footer style={{ padding: '14px 24px', borderTop: '1px solid #e5e7eb', background: '#fafafa', color: '#5f6b7a', fontSize: 13 }}>{footer}</footer> : null}
     </section>
   );

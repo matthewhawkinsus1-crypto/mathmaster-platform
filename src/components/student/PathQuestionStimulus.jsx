@@ -154,9 +154,10 @@ function StimulusGraph({ graph }) {
         regions={regions}
         ariaLabel={graph.ariaLabel || 'Question graph'}
       >
-        {({ sx, sy }) => curves.map((curve, index) => (
+        {({ sx, sy, plotClip }) => curves.map((curve, index) => (
           <polyline
             key={`curve-${index}`}
+            clipPath={plotClip}
             points={curve.points.map((point) => `${sx(point.x)},${sy(point.y)}`).join(' ')}
             fill="none"
             stroke="currentColor"

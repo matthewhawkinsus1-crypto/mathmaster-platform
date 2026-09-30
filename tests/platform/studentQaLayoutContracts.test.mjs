@@ -62,12 +62,24 @@ test('document-level scroll padding is scoped to active student assignments and 
   assert.ok(scopedDocRule, 'document scroll-padding is scoped with :has(.mathmaster-assignment-screen)');
   const scopedBlock = scopedDocRule[1];
   assert.match(scopedBlock, /scroll-padding-top:\s*calc\(var\(--mm-sticky-task-top,\s*208px\)\s*\+\s*140px\);/, 'scoped document clears sticky task header');
-  assert.match(scopedBlock, /scroll-padding-bottom:\s*90px;/, 'scoped document clears sticky action bar');
+  // The bottom padding clears the sticky action bar: its MEASURED height plus
+  // breathing room (student UX pass, R-1 — a fixed 90px was right for one row
+  // and wrong the moment the bar wrapped). The fallback before the first
+  // measurement must still clear a one-row bar.
+  const clearsBar = /scroll-padding-bottom:\s*calc\(var\(--mm-action-bar-height,\s*(\d+)px\)\s*\+\s*(\d+)px\);/;
+  const scopedBottom = scopedBlock.match(clearsBar);
+  assert.ok(scopedBottom, 'scoped document clears the measured sticky action bar');
+  assert.ok(Number(scopedBottom[1]) + Number(scopedBottom[2]) >= 80, 'the unmeasured fallback clears a one-row bar');
 
   // 3. .mathmaster-assignment-screen container also preserves its own scroll padding
   const screenRule = css.match(/\.mathmaster-assignment-screen\s*\{([\s\S]*?)\}/);
   assert.ok(screenRule, 'assignment screen container defines scroll padding');
   assert.match(screenRule[1], /scroll-padding-top:\s*calc\(var\(--mm-sticky-task-top,\s*208px\)\s*\+\s*140px\);/);
-  assert.match(screenRule[1], /scroll-padding-bottom:\s*90px;/);
+  assert.match(screenRule[1], clearsBar);
+
+  // 4. …and the variable is the bar's own height, published by the bar.
+  const container = read('src/components/student/MobileViewportContainer.jsx');
+  assert.match(container, /<div ref=\{stickyHeightRef\(ACTION_BAR_HEIGHT_VAR\)\} className="mathmaster-desktop-action-bar">/);
+  assert.match(read('src/platform/layout/stickyHeightRef.js'), /export const ACTION_BAR_HEIGHT_VAR = '--mm-action-bar-height';/);
 });
 

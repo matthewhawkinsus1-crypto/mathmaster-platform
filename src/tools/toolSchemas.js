@@ -1,6 +1,6 @@
 import { validateSortQuestion } from './openSortBoard/openSortMath.js';
 import { validateConstraintBuilderQuestion } from './constraintFunctionBuilder/constraintFunctionMath.js';
-import { buildLinearConnectionCards, canonicalLineForSet, findLinearMismatch, inconsistentLinearCardKinds, LINEAR_CARD_KINDS } from './representationMatch/representationMath.js';
+import { buildLinearConnectionCards, canonicalLineForSet, findLinearMismatch, inconsistentLinearCardKinds, LINEAR_CARD_KINDS, linearTableRows } from './representationMatch/representationMath.js';
 import { SUPPORTED_TARGET_FORMS as REWRITE_LINEAR_FORM_TARGETS } from './stepAlgebra2/rewriteLinearFormMath.js';
 import { INTERCEPT_FEEDBACK_TIMINGS, resolveStandardCoefficients } from './stepAlgebra2/linearInterceptsMath.js';
 import { validateLinearTableWorkbenchQuestion } from './linearTableWorkbench/linearTableWorkbenchMath.js';
@@ -454,6 +454,14 @@ export const validateToolQuestion = (question = {}) => {
         const ids = linearSets.map((set) => set?.id);
         if (ids.some((id) => !id) || new Set(ids).size !== ids.length) errors.push('representationMatch linearConnections set ids must be present and unique.');
         linearSets.forEach((set, index) => {
+          // Optional student-facing extras (student UX pass, R-9): a group
+          // name, and a compact x/y table card.
+          if (set?.label != null && (typeof set.label !== 'string' || !set.label.trim() || set.label.length > 48)) {
+            errors.push(`representationMatch linearConnections set ${index + 1} (${set?.id || 'unnamed'}) label must be a short name (1–48 characters) a student sees on the sorting button.`);
+          }
+          if (set?.table != null && !linearTableRows(set.table, set)) {
+            errors.push(`representationMatch linearConnections set ${index + 1} (${set?.id || 'unnamed'}) table must list 2–6 rows with distinct x values, as [{ x, y }], { points: [...] } or { xValues: [...] } computed from the set's line.`);
+          }
           const canonical = canonicalLineForSet(set);
           if (!canonical) errors.push(`representationMatch linearConnections set ${index + 1} (${set?.id || 'unnamed'}) does not supply enough explicit information to determine a line (an equation field, or a slope with a point, or a linear graphSpec).`);
           else if (linearTask === 'group') {
@@ -463,6 +471,9 @@ export const validateToolQuestion = (question = {}) => {
         });
         if (question.cardKinds != null) {
           if (!Array.isArray(question.cardKinds) || question.cardKinds.some((kind) => !LINEAR_CARD_KINDS.includes(kind))) errors.push(`representationMatch linearConnections cardKinds must only reference: ${LINEAR_CARD_KINDS.join(', ')}.`);
+        }
+        if (question.groupNoun != null && (typeof question.groupNoun !== 'string' || !question.groupNoun.trim() || question.groupNoun.length > 24)) {
+          errors.push('representationMatch linearConnections groupNoun must be a short word (1–24 characters), such as "Situation" or "Plan".');
         }
       }
       if (linearTask === 'findMismatch') {

@@ -1019,7 +1019,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
             </div>
           )}
 
-          <button type="button" onClick={check} style={{ ...primaryButton, width: '100%' }}>
+          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...primaryButton, width: '100%' }}>
             Check
           </button>
 

@@ -11,9 +11,11 @@ test('choosing an operation explicitly focuses the compact operand composer', ()
   assert.match(stepSource, /setOperationFocusSignal\(\(value\) => value \+ 1\)/);
   assert.match(stepSource, /focusSignal=\{operationFocusSignal\}/);
   assert.match(stepSource, /compact/);
-  // The focus-signal effect focuses the MathLive field itself.
+  // The focus-signal effect focuses the MathLive field itself — through its
+  // keyboard sink when it can (MathfieldElement.focus() ignores preventScroll
+  // and scrolls the page), falling back to the element's own focus().
   const focusEffect = inputSource.slice(inputSource.indexOf('if (!focusSignal || !mfRef.current)'), inputSource.indexOf('}, [focusSignal'));
-  assert.match(focusEffect, /const mathField = mfRef\.current;\s*mathField\?\.focus\?\.\(/);
+  assert.match(focusEffect, /const mathField = mfRef\.current;[\s\S]*?if \(!focusMathFieldWithoutScroll\(mathField\)\) mathField\?\.focus\?\.\(\{ preventScroll: true \}\);/);
 });
 
 test('operation placement uses the latest side synchronously before the algebra engine applies it', () => {

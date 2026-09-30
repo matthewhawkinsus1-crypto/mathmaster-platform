@@ -192,11 +192,12 @@ journeys.warmups = async (browser) => {
   const page = await (await browser.newContext({ viewport: LAPTOP })).newPage();
   for (const [id, sets] of [
     ['lmr-wu-1', { 'Line A': ['y = 2x - 4', '2x - y = 4', 'y - 2 = 2(x - 3)', '(2, 0)'], 'Line B': ['y = -x + 3', 'x + y = 3', 'y - 1 = -1(x - 2)', '(3, 0)'] }],
-    ['lmr-wu-2', { 'Line A': ['Maya', 'y = 5x + 20', 'm = 5', '(0, 20)'], 'Line B': ['tub', 'y = -4x + 40', 'm = -4', '(0, 40)'] }],
+    // WU-2 sorts situations, so its groups are named for them (student UX pass, R-9).
+    ['lmr-wu-2', { 'Situation A': ['Maya', 'y = 5x + 20', 'm = 5', '(0, 20)'], 'Situation B': ['tub', 'y = -4x + 40', 'm = -4', '(0, 40)'] }],
   ]) {
     await open(page, id, 'warmups');
     await renderAllMath(page);
-    const cards = page.locator('button[aria-label*="card, currently"]');
+    const cards = page.locator('button.mathmaster-line-card');
     const count = await cards.count();
     check(count >= 8, `${id}: expected at least 8 cards, found ${count}`);
     const describe = async (index) => cards.nth(index).evaluate((el) => {
@@ -220,8 +221,8 @@ journeys.warmups = async (browser) => {
       await settle(page, 200);
       for (let index = 0; index < count; index += 1) {
         const text = normalize(await describe(index));
-        const isGraph = text.startsWith('Graph card');
-        const wantPositive = line === 'Line A';
+        const isGraph = text.startsWith('Graph:');
+        const wantPositive = / A$/.test(line);
         const belongs = isGraph
           ? (await graphSlopeSign(index)) === (wantPositive ? 1 : -1)
           : needles.some((needle) => text.includes(needle.replace(/\s+/g, ' ')) || text.replace(/\s/g, '').includes(needle.replace(/\s/g, '')));

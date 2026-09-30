@@ -58,6 +58,70 @@ const containsForbiddenKey = (value, depth = 0) => {
   ));
 };
 
+/*
+ * WHERE, NOT ONLY WHETHER.
+ *
+ * `containsForbiddenKey` answers the question the guard needs answered. It does
+ * not say which of forty fields tripped it, and "forbidden-key" on a board with
+ * nine cards sent PR #397 hunting through every one of them. This walks the
+ * same depth-limited tree in the same order and names the first offending path,
+ * so a developer reads `cardChecks.slopeIntercept.isCorrect` instead of
+ * guessing. It never changes the verdict — it is only ever called after the
+ * guard has already said no.
+ */
+const firstForbiddenKeyPath = (value, path = '', depth = 0) => {
+  if (depth > 8 || !value || typeof value !== 'object') return null;
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      const found = firstForbiddenKeyPath(value[index], `${path}[${index}]`, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  }
+  for (const [key, nested] of Object.entries(value)) {
+    const here = path ? `${path}.${key}` : key;
+    if (FORBIDDEN_DRAFT_KEYS.includes(key)) return here;
+    const found = firstForbiddenKeyPath(nested, here, depth + 1);
+    if (found) return found;
+  }
+  return null;
+};
+
+// The biggest top-level fields of an oversized record, so "too-large" names the
+// history or cache that grew rather than leaving the reader to measure them.
+const largestFields = (value, limit = 3) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+  return Object.entries(value)
+    .map(([key, nested]) => {
+      let bytes = 0;
+      try { bytes = JSON.stringify(nested ?? null)?.length || 0; } catch { bytes = Number.NaN; }
+      return { path: key, bytes };
+    })
+    .sort((a, b) => (b.bytes || 0) - (a.bytes || 0))
+    .slice(0, limit);
+};
+
+/**
+ * Why a draft value may not be stored, in terms a developer can act on.
+ *
+ * Same verdict as `sanitizeWorkspaceDraftValue` — it calls it — plus the path
+ * of the first forbidden key, or the largest fields of an oversized record.
+ * For diagnostics only: nothing here relaxes the guard.
+ */
+export const explainWorkspaceDraftRejection = (value) => {
+  const check = sanitizeWorkspaceDraftValue(value);
+  if (check.ok) return { ok: true, reason: null, path: null, bytes: check.bytes, largest: [] };
+  if (check.reason === 'forbidden-key') {
+    return { ok: false, reason: check.reason, path: firstForbiddenKeyPath(value), bytes: null, largest: [] };
+  }
+  if (check.reason === 'too-large') {
+    let bytes = null;
+    try { bytes = JSON.stringify(value ?? null).length; } catch { bytes = null; }
+    return { ok: false, reason: check.reason, path: null, bytes, limit: MAX_WORKSPACE_DRAFT_VALUE_BYTES, largest: largestFields(value) };
+  }
+  return { ok: false, reason: check.reason, path: null, bytes: null, largest: [] };
+};
+
 /**
  * May this draft value be stored on the server?
  *

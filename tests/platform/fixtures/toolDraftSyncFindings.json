@@ -1,0 +1,243 @@
+{
+  "generatedAt": "2026-09-30T04:12:10.581Z",
+  "origin": "http://127.0.0.1:5211",
+  "tools": [
+    {
+      "toolId": "dataModelingLab",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 146,
+      "persistedFields": [
+        "causation",
+        "direction",
+        "modelChoice",
+        "predictionType",
+        "predictionX",
+        "predictionY"
+      ]
+    },
+    {
+      "toolId": "regressionCalculator",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 359,
+      "persistedFields": [
+        "processEvidence",
+        "rows"
+      ]
+    },
+    {
+      "toolId": "inverseCompositionLab",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 49,
+      "persistedFields": [
+        "inverseAnswer",
+        "restrictionChoice"
+      ]
+    },
+    {
+      "toolId": "functionOperationsLab",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 112,
+      "persistedFields": [
+        "responses",
+        "restrictionResponse"
+      ]
+    },
+    {
+      "toolId": "systemsWorkspace",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 60,
+      "persistedFields": [
+        "count",
+        "values"
+      ]
+    },
+    {
+      "toolId": "parabolaGeometryLab",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 67,
+      "persistedFields": [
+        "directrix",
+        "focusX",
+        "focusY",
+        "latus"
+      ]
+    },
+    {
+      "toolId": "polynomialWorkshop",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 45,
+      "persistedFields": [
+        "behavior",
+        "end"
+      ]
+    },
+    {
+      "toolId": "signSolutionAnalyzer",
+      "mounted": true,
+      "records": 0,
+      "largestRecordBytes": 0,
+      "persistedFields": []
+    },
+    {
+      "toolId": "sequenceExplorer",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 72,
+      "persistedFields": [
+        "difference",
+        "leftPlottedPoints",
+        "relation"
+      ]
+    },
+    {
+      "toolId": "complexPlaneLab",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 49,
+      "persistedFields": [
+        "imaginary",
+        "real",
+        "rotation"
+      ]
+    },
+    {
+      "toolId": "exponentialLogBridge",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 63,
+      "persistedFields": [
+        "asymptote",
+        "domainSide",
+        "inverseAnswer"
+      ]
+    },
+    {
+      "toolId": "transformationsLab",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 33,
+      "persistedFields": [
+        "plottedPoints"
+      ]
+    },
+    {
+      "toolId": "representationMatch",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 63,
+      "persistedFields": [
+        "context",
+        "equation",
+        "table"
+      ]
+    },
+    {
+      "toolId": "functionInvestigation2",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 42,
+      "persistedFields": [
+        "domainCode",
+        "rangeCode"
+      ]
+    },
+    {
+      "toolId": "graphing2",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 26,
+      "persistedFields": [
+        "points"
+      ]
+    },
+    {
+      "toolId": "stepAlgebra2",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 251,
+      "persistedFields": [
+        "history",
+        "operand",
+        "state"
+      ]
+    },
+    {
+      "toolId": "intervalNumberLine",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 151,
+      "persistedFields": [
+        "built",
+        "exactEndpoint",
+        "notation",
+        "pending"
+      ]
+    },
+    {
+      "toolId": "relationMapping",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 78,
+      "persistedFields": [
+        "domainAnswer",
+        "functionAnswer",
+        "rangeAnswer"
+      ]
+    },
+    {
+      "toolId": "openSortBoard",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 130,
+      "persistedFields": [
+        "groups"
+      ]
+    },
+    {
+      "toolId": "constraintFunctionBuilder",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 146,
+      "persistedFields": [
+        "hasEdited",
+        "model"
+      ]
+    },
+    {
+      "toolId": "linearTableWorkbench",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 41,
+      "persistedFields": [
+        "b",
+        "equation",
+        "m"
+      ]
+    },
+    {
+      "toolId": "expressionMeaning",
+      "mounted": true,
+      "records": 0,
+      "largestRecordBytes": 0,
+      "persistedFields": []
+    },
+    {
+      "toolId": "representationBridge",
+      "mounted": true,
+      "records": 1,
+      "largestRecordBytes": 60,
+      "persistedFields": [
+        "stageChecks",
+        "studentSlope"
+      ]
+    }
+  ],
+  "findings": []
+}

@@ -107,7 +107,7 @@ function SignChart({ questionData, feedback, submit, mode, onAction }) {
             Teacher preview — correct solution: {expectedPieces.length ? expectedPieces.map(formatSolutionPiece).join(' ∪ ') : '∅'}
           </p>
         ) : null}
-        <button type="button" onClick={check} style={actionStyle}>Check selected intervals</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check selected intervals</button>
         {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'#3c4756',lineHeight:1.55}}>{message()}</p></div> : null}
         <HintPanel
           hints={[
@@ -182,7 +182,7 @@ function RadicalCheck({ questionData, feedback, submit, onAction }) {
           <li>Substitute into the <strong>original</strong> equation, before any squaring.</li>
           <li>Reject any value that squaring introduced.</li>
         </ol>
-        <button type="button" onClick={check} style={actionStyle}>Check candidates</button>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check candidates</button>
         {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'#3c4756',lineHeight:1.55}}>{message()}</p></div> : null}
         <HintPanel
           hints={[

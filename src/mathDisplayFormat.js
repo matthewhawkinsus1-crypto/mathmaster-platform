@@ -12,7 +12,19 @@
 // The trailing `\\[a-zA-Z]{2,}` catches the rest of LaTeX rather than waiting
 // for the next command to be reported as garbage. ASCIIMath has no backslash
 // commands at all, so a multi-letter backslash command is LaTeX by definition.
-const LATEX_SIGNAL = /\\(?:frac|dfrac|tfrac|sqrt|log|ln|sin|cos|tan|left|right|cdot|times|div|pm|mp|pi|theta|alpha|beta|begin|overline|underline|le|leq|ge|geq|ne|neq|approx|infty|cup|cap|in|notin|subset|emptyset|text|mathrm|operatorname|circ|degree|angle|triangle)\b|\\[()[\]]|\\[a-zA-Z]{2,}|\^\{|_\{/;
+//
+// NOT ONLY LETTER COMMANDS. LaTeX also spells spacing and escaped delimiters
+// with a backslash and ONE character: `\ ` (a control space), `\,` `\;` `\:`
+// `\!`, `\{` `\}` for set braces, `\\` for a line break, `\%` `\$` `\&` `\#`
+// `\_` `\|`. None of those is a letter, so a list of two points written the
+// way authors write it — `(2, -2),\ (4, -1)` — carried no signal above, went to
+// MathLive as ASCIIMath, failed to parse and rendered blank. A set written
+// `\{1, 2, 3\}` did the same. Any backslash command is LaTeX; ASCIIMath has
+// none of these either.
+const LATEX_SIGNAL = /\\(?:frac|dfrac|tfrac|sqrt|log|ln|sin|cos|tan|left|right|cdot|times|div|pm|mp|pi|theta|alpha|beta|begin|overline|underline|le|leq|ge|geq|ne|neq|approx|infty|cup|cap|in|notin|subset|emptyset|text|mathrm|operatorname|circ|degree|angle|triangle)\b|\\[()[\]]|\\[a-zA-Z]{2,}|\\[a-zA-Z](?![a-zA-Z])|\\[ ,;:!{}%$&#_|>]|\\\\|\^\{|_\{/;
+
+/** Does this display string contain LaTeX syntax (any backslash command)? */
+export const looksLikeLatex = (value) => LATEX_SIGNAL.test(String(value ?? ''));
 
 /**
  * Resolve the parser MathLive should use for a display string.
@@ -24,12 +36,11 @@ const LATEX_SIGNAL = /\\(?:frac|dfrac|tfrac|sqrt|log|ln|sin|cos|tan|left|right|c
  * kept only while the value still contains no LaTeX syntax.
  */
 export const resolveMathDisplayFormat = (value, requestedFormat = 'auto') => {
-  const text = String(value ?? '');
-  const looksLikeLatex = LATEX_SIGNAL.test(text);
+  const latex = looksLikeLatex(value);
 
   if (requestedFormat === 'latex') return 'latex';
-  if (requestedFormat === 'ascii-math' && !looksLikeLatex) return 'ascii-math';
-  return looksLikeLatex ? 'latex' : 'ascii-math';
+  if (requestedFormat === 'ascii-math' && !latex) return 'ascii-math';
+  return latex ? 'latex' : 'ascii-math';
 };
 
 /*

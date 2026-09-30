@@ -58,7 +58,8 @@ import {
   resolveQuestionMaximumAttempts,
 } from './attemptPolicy';
 import { stableStringify } from './utils/idUtils';
-import { ENTER_TO_CONTINUE_HINT, focusFirstAnswerControl, shouldAdvanceOnEnter, shouldFocusAnswerOnOpen, shouldSubmitAnswerOnEnter } from './platform/interaction/answerEntryUx.js';
+import { ENTER_TO_CONTINUE_HINT, countAnswerControls, focusFirstAnswerControl, focusForEnter, isTouchPrimaryPointer, nextEmptyAnswerField, resolveQuestionEnterIntent, shouldAdvanceOnEnter, shouldFocusAnswerOnOpen } from './platform/interaction/answerEntryUx.js';
+import { AnswerFocusPolicyProvider } from './platform/interaction/answerFocusPolicy.js';
 import { normalizeQuestionWeight } from './platform/grading/questionWeights.js';
 import { resolveTaskContextPresentation } from './platform/workflow/taskContextPresentation.js';
 import { WorkViewCapabilityProvider } from './platform/workView/workViewCapabilities.js';
@@ -285,6 +286,12 @@ export default function QuestionEngine({
   const [requesting, setRequesting] = useState(false);
   const [baseUndoController, setBaseUndoController] = useState(null);
   const [undoController, setUndoController] = useState(null);
+  // Enter on a multi-part, DOL or one-try question brings this into focus
+  // instead of submitting; the student's second Enter presses it.
+  const submitButtonRef = useRef(null);
+  // The latest completeness and submit, for an Enter that arrived before the
+  // render following its keystroke (see the Enter handler).
+  const enterFreshRef = useRef(null);
   const [questionResetVersion, setQuestionResetVersion] = useState(0);
   const [resettingQuestion, setResettingQuestion] = useState(false);
   const [solverWorkspaceMode, setSolverWorkspaceMode] = useState('normal');
@@ -493,16 +500,21 @@ export default function QuestionEngine({
   // unless doing so would open a keypad over work the student has not read, or
   // would point at one cell of a composed workspace as though it were the
   // answer. See shouldFocusAnswerOnOpen.
+  //
+  // Touch-first devices (an iPad is laid out like a laptop but raises an
+  // on-screen keyboard) are excluded too. The decision is shared with the
+  // registry tools through AnswerFocusPolicyProvider, because ToolShell used to
+  // focus its first input regardless of it. A registry tool decides WHICH box,
+  // if any: it knows whether it has one answer or twelve.
+  const answerAutoFocusAllowed = !locked && !scaffoldRequired && !contextScaffoldRequired
+    && shouldFocusAnswerOnOpen({ composed: isComposed, narrowViewport: isMobileQuestionViewport(), touchPrimary: isTouchPrimaryPointer() });
   useEffect(() => {
-    if (locked || scaffoldRequired || contextScaffoldRequired) return undefined;
-    if (!shouldFocusAnswerOnOpen({ composed: isComposed, narrowViewport: isMobileQuestionViewport() })) {
-      return undefined;
-    }
+    if (!answerAutoFocusAllowed || missingToolDefinition) return undefined;
     const frame = window.requestAnimationFrame(() => {
       focusFirstAnswerControl(questionEngineRef.current);
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [processedQuestion, record.variantIndex, locked, scaffoldRequired, contextScaffoldRequired, isComposed]);
+  }, [processedQuestion, record.variantIndex, answerAutoFocusAllowed, missingToolDefinition]);
 
   // Two-step keyboard flow: Enter submits a complete single-line answer; after
   // the platform confirms it is correct, the NEXT Enter advances. Keeping the
@@ -664,6 +676,8 @@ export default function QuestionEngine({
     }
     await performSubmit();
   };
+
+  enterFreshRef.current = { isComplete: answerState.isComplete, submitDisabled: !answerState.isComplete || submitting || locked || scaffoldRequired || contextScaffoldRequired, handleSubmit };
 
   const handleMissingToolAction = async (type, payload = {}) => {
     // A hint revealed inside a tool is mathematical help, exactly like a hint
@@ -934,10 +948,12 @@ export default function QuestionEngine({
               `canonicalSavedAt` is what stops a stale draft outranking a newer
               submitted answer — see `toolDraftIsSuperseded`. */}
           <ToolDraftScopeProvider draftKey={draftKey} canonicalSavedAt={canonicalAnswerSavedAt}>
-            <Suspense fallback={<p role="status">Opening Work View…</p>}>
-              <WorkViewReadySignal span={workViewSpan} />
-              <Tool questionData={presentationQuestion} onAction={handleMissingToolAction} draftKey={draftKey} />
-            </Suspense>
+            <AnswerFocusPolicyProvider allowed={answerAutoFocusAllowed}>
+              <Suspense fallback={<p role="status">Opening Work View…</p>}>
+                <WorkViewReadySignal span={workViewSpan} />
+                <Tool questionData={presentationQuestion} onAction={handleMissingToolAction} draftKey={draftKey} />
+              </Suspense>
+            </AnswerFocusPolicyProvider>
           </ToolDraftScopeProvider>
         </ToolRuntimeProvider>
       );
@@ -1106,6 +1122,9 @@ export default function QuestionEngine({
       domainId={questionAssessment.domainId}
       examStyle={questionAssessment.examStyle}
       assessmentSkillLabel={processedQuestion?.ccmrAuthenticLanguage?.officialSkillFamily || ''}
+      // A student sees "Learning goal", not the reporting codes; a teacher
+      // repairing a question keeps them (StandardBadge audience).
+      audience={executionScope === 'teacherRepairPreview' ? 'teacher' : 'student'}
       style={{ margin: '8px 0 0', maxWidth: '860px' }}
     />
   ) : null;
@@ -1193,10 +1212,14 @@ export default function QuestionEngine({
   // submit button at the bottom of the viewport instead.
   const questionWorkBar = (
     <>
-      {!scratchpadOpen ? <UniversalUndoButton className="mm-button-neutral" controller={undoController} disabled={locked} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: undoController?.canUndo && !locked ? 'pointer' : 'not-allowed', opacity: undoController?.canUndo && !locked ? 1 : 0.45 }} /> : null}
+      {/* Every tool in this bar is an icon plus a word in its own span, so a
+          phone whose bar also carries Submit / Next can show the icons alone
+          and keep ONE row (MathToolMobileLayout.css). The word stays in the
+          accessible name. */}
+      {!scratchpadOpen ? <UniversalUndoButton className="mm-button-neutral mathmaster-work-bar-tool" controller={undoController} disabled={locked} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: undoController?.canUndo && !locked ? 'pointer' : 'not-allowed', opacity: undoController?.canUndo && !locked ? 1 : 0.45 }} /> : null}
       {!scratchpadOpen ? (
         <button
-          className="mm-button-neutral"
+          className="mm-button-neutral mathmaster-work-bar-tool"
           type="button"
           onClick={handleResetQuestion}
           disabled={workspaceActions.reset.disabled}
@@ -1205,14 +1228,15 @@ export default function QuestionEngine({
           style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: workspaceActions.reset.disabled ? 'not-allowed' : 'pointer', opacity: workspaceActions.reset.disabled ? 0.45 : 1 }}
         >
           {/* "Question" drops on a phone so the work bar fits one row. */}
-          {resettingQuestion ? 'Resetting…' : <>↺ Reset<span className="mathmaster-action-label-long"> Question</span></>}
+          {resettingQuestion ? 'Resetting…' : <><span aria-hidden="true">↺</span><span className="mathmaster-action-label"> Reset<span className="mathmaster-action-label-long"> Question</span></span></>}
         </button>
       ) : null}
-      <button className="mm-button-neutral" type="button" onClick={openScratchpad} disabled={scratchpadLoading} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>
-        {scratchpadLoading ? 'Opening…' : locked ? '✎ Scratchpad' : '✎ Scratchpad'}
+      <button className="mm-button-neutral mathmaster-work-bar-tool" type="button" onClick={openScratchpad} disabled={scratchpadLoading} aria-label={scratchpadLoading ? 'Opening scratchpad…' : 'Scratchpad'} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>
+        {scratchpadLoading ? 'Opening…' : <><span aria-hidden="true">✎</span><span className="mathmaster-action-label"> Scratchpad</span></>}
       </button>
       <button
         type="button"
+        className="mathmaster-work-bar-tool"
         onClick={handleCalculatorControl}
         aria-expanded={calculatorPolicy?.available ? calculatorOpen : false}
         aria-disabled={!calculatorPolicy?.available}
@@ -1230,10 +1254,12 @@ export default function QuestionEngine({
           opacity: calculatorPolicy?.available ? 1 : 0.9,
         }}
       >
-        {calculatorPolicy?.available ? '🧮 Calculator' : '🚫 🧮 Calculator'}
+        {calculatorPolicy?.available
+          ? <><span aria-hidden="true">🧮</span><span className="mathmaster-action-label"> Calculator</span></>
+          : <><span aria-hidden="true">🚫 🧮</span><span className="mathmaster-action-label"> Calculator</span></>}
       </button>
       {supportPresentation.textToSpeech && (
-        <button type="button" onClick={() => speakText(referenceSpeechText)} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>🔊 Read</button>
+        <button type="button" className="mathmaster-work-bar-tool" aria-label="Read aloud" onClick={() => speakText(referenceSpeechText)} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}><span aria-hidden="true">🔊</span><span className="mathmaster-action-label"> Read</span></button>
       )}
     </>
   );
@@ -1322,17 +1348,63 @@ export default function QuestionEngine({
       ref={questionEngineRef}
       className={`mathmaster-question-engine mathmaster-question-engine-has-anchor ${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
       onKeyDownCapture={(event) => {
-        // Enter activates the one primary Check/Submit action only after the
-        // response is complete. Incomplete multi-step tools and textareas retain
-        // their own Enter behavior. Capturing here also works for MathLive.
-        if (!shouldSubmitAnswerOnEnter({
+        // THE ENTER CONTRACT (answerEntryUx.js), for the question as a whole.
+        // A field that owns its own Enter (a MathInput with onSubmit, a stage
+        // check) keeps it: this capture handler runs before theirs and must not
+        // swallow it. Otherwise, with a submit available:
+        //   incomplete           Enter moves to the next empty box
+        //   one box, complete    Enter submits (the single-answer convention)
+        //   several boxes, a DOL
+        //   or a one-try item    Enter brings Submit into focus; a second,
+        //                        deliberate Enter presses it
+        // Textareas, selects and the calculator keep Enter throughout.
+        if (event.target?.closest?.('[data-mm-enter-owner]')) return;
+        const multipart = isComposed || countAnswerControls(questionEngineRef.current) > 1;
+        const deliberate = Boolean(dolMode) || resolvedMaximumAttempts <= 1;
+        const intent = resolveQuestionEnterIntent({
           event,
           responseComplete: answerState.isComplete,
-          canSubmit: shouldShowSubmit && !submitDisabled,
-        })) return;
+          canSubmit: shouldShowSubmit && !locked,
+          // Counted, not read off the type: a one-box `multiAnswer` is a
+          // single answer and keeps Enter-to-submit.
+          multipart,
+          deliberateSubmit: deliberate,
+        });
+        if (intent === 'none') return;
+        if (intent === 'next-field') {
+          // A composed question's stages own their Enter; only a plain form of
+          // boxes gets "next box".
+          if (isComposed) return;
+          event.preventDefault();
+          event.stopPropagation();
+          const next = nextEmptyAnswerField(questionEngineRef.current, event.target);
+          if (next) {
+            focusForEnter(next);
+            return;
+          }
+          // Every box on the page is filled, but this render has not caught up
+          // with the keystroke just before Enter ("6⏎" typed quickly left the
+          // question looking incomplete and Enter did nothing). Decide once the
+          // answer state has caught up — a few frames — from fresh state.
+          const deadline = performance.now() + 400;
+          const decideWhenCurrent = () => {
+            const fresh = enterFreshRef.current;
+            if (!fresh?.isComplete) {
+              if (performance.now() < deadline) window.requestAnimationFrame(decideWhenCurrent);
+              return;
+            }
+            if (fresh.submitDisabled) return;
+            if (multipart || deliberate) focusForEnter(submitButtonRef.current);
+            else fresh.handleSubmit();
+          };
+          window.requestAnimationFrame(decideWhenCurrent);
+          return;
+        }
+        if (submitDisabled) return;
         event.preventDefault();
         event.stopPropagation();
-        handleSubmit();
+        if (intent === 'focus-submit') focusForEnter(submitButtonRef.current);
+        else handleSubmit();
       }}
       style={{ position: 'relative', padding: '10px', textAlign: 'center', fontFamily: 'sans-serif', overflow: 'visible' }}
     >
@@ -1441,7 +1513,7 @@ export default function QuestionEngine({
       </WorkViewCapabilityProvider>
         )}
         actionButtons={!locked && shouldShowSubmit ? (
-        <button onClick={handleSubmit} disabled={submitDisabled} style={{ minHeight: '44px', padding: '12px 24px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: submitDisabled ? '#dadce0' : '#1a73e8', color: 'white', cursor: submitDisabled ? 'not-allowed' : 'pointer', boxShadow: submitDisabled ? 'none' : '0 4px 6px rgba(26, 115, 232, 0.2)' }}>
+        <button ref={submitButtonRef} type="button" className="mathmaster-bar-submit" onClick={handleSubmit} disabled={submitDisabled} style={{ minHeight: '44px', padding: '12px 24px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: submitDisabled ? '#dadce0' : '#1a73e8', color: 'white', cursor: submitDisabled ? 'not-allowed' : 'pointer', boxShadow: submitDisabled ? 'none' : '0 4px 6px rgba(26, 115, 232, 0.2)' }}>
           {submitLabel}
         </button>
         ) : barContinueAction ? (

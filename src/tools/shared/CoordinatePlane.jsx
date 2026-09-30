@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useId, useMemo, useState } from 'react';
+import { usePlotHelpSlot } from './plotHelpScope.js';
 import { clientPointToGraphCoordinate } from '../../utils/responsiveCoordinates.js';
 import { resolvePointFill, resolvePointRadius } from '../../graphSpecUtils';
 import { readGraphPointCoordinates } from '../../graphPointUtils';
@@ -168,10 +169,23 @@ export default function CoordinatePlane({
   const [keyboardCursor, setKeyboardCursor] = useState(null);
   const [hoveredPointIndex, setHoveredPointIndex] = useState(null);
   const [keyboardActive, setKeyboardActive] = useState(false);
+  // Keyboard focus on the plane (Tab, not a click): shows the keyboard help.
+  const [keyboardHelpVisible, setKeyboardHelpVisible] = useState(false);
   // Which existing point the finger or mouse currently has hold of, and where it
   // has been dragged to. Null when the gesture is placing a new point instead.
   const [dragIndex, setDragIndex] = useState(null);
   const [gestureActive, setGestureActive] = useState(false);
+
+  // The plotting rectangle clips the MATHEMATICS — lines, curves, regions —
+  // and nothing else. A line is drawn from xMin to xMax whatever its slope, so
+  // y = 2x − 4 on a −6..6 window ran up through the top padding and over the
+  // axis labels and the card (student UX pass, R-8). Axis numbers are the
+  // border and stay outside the clip; points and drag handles stay outside it
+  // too, so a point on the edge is never cut in half. Sanitised because
+  // useId's colons are not safe inside url(#…).
+  const clipId = `mm-plot-clip-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const plotClip = `url(#${clipId})`;
+  const showPlotHelpHere = usePlotHelpSlot(interactive && showPlotHelp);
 
   const sx = (x) => pad + ((Number(x) - xMin) / (xMax - xMin)) * innerW;
   const sy = (y) => height - pad - ((Number(y) - yMin) / (yMax - yMin)) * innerH;
@@ -437,6 +451,12 @@ export default function CoordinatePlane({
         onPointerCancel={handlePointerCancel}
         onPointerLeave={handlePointerLeave}
         onKeyDown={handleKeyDown}
+        onFocus={(event) => {
+          let keyboard = false;
+          try { keyboard = event.currentTarget.matches(':focus-visible'); } catch { keyboard = false; }
+          if (keyboard) setKeyboardHelpVisible(true);
+        }}
+        onBlur={() => setKeyboardHelpVisible(false)}
         style={{
           // `maxHeight` is NOT set here. It used to be an inline '100%', which
           // beats every stylesheet rule and so silently defeated the
@@ -454,6 +474,11 @@ export default function CoordinatePlane({
           outlineOffset: 2,
         }}
       >
+        <defs>
+          <clipPath id={clipId}>
+            <rect x={pad} y={pad} width={innerW} height={innerH} />
+          </clipPath>
+        </defs>
         <rect x={pad} y={pad} width={innerW} height={innerH} fill="#fff" />
 
         {xMinor.map((x) => <line key={`mx${x}`} x1={sx(x)} x2={sx(x)} y1={pad} y2={height - pad} stroke="#eef3f9" strokeWidth="1" />)}
@@ -461,6 +486,7 @@ export default function CoordinatePlane({
         {xTicks.map((x) => <line key={`gx${x}`} x1={sx(x)} x2={sx(x)} y1={pad} y2={height - pad} stroke="#d5dfec" strokeWidth="1" />)}
         {yTicks.map((y) => <line key={`gy${y}`} x1={pad} x2={width - pad} y1={sy(y)} y2={sy(y)} stroke="#d5dfec" strokeWidth="1" />)}
 
+        <g clipPath={plotClip}>
         {regions.map((region, index) => {
           const rawPoints = Array.isArray(region) ? region : region?.points;
           const svgPoints = (Array.isArray(rawPoints) ? rawPoints : [])
@@ -479,6 +505,7 @@ export default function CoordinatePlane({
             />
           );
         })}
+        </g>
 
         {xMin <= 0 && xMax >= 0 ? <line x1={sx(0)} x2={sx(0)} y1={pad} y2={height - pad} stroke="#5f6b7a" strokeWidth="2" /> : null}
         {yMin <= 0 && yMax >= 0 ? <line x1={pad} x2={width - pad} y1={sy(0)} y2={sy(0)} stroke="#5f6b7a" strokeWidth="2" /> : null}
@@ -500,6 +527,7 @@ export default function CoordinatePlane({
           </g>
         ))}
 
+        <g clipPath={plotClip}>
         {verticalLines.map((x, index) => <line key={`v${index}`} x1={sx(x)} x2={sx(x)} y1={pad} y2={height - pad} stroke="#8a3ffc" strokeDasharray="7 5" strokeWidth="2" />)}
         {horizontalLines.map((y, index) => <line key={`h${index}`} x1={pad} x2={width - pad} y1={sy(y)} y2={sy(y)} stroke="#8a3ffc" strokeDasharray="7 5" strokeWidth="2" />)}
         {functions.map((fn, index) => (
@@ -540,6 +568,7 @@ export default function CoordinatePlane({
             />
           );
         })}
+        </g>
 
         {/* Preview crosshair: the student sees exactly where the click lands
             before committing to it. */}
@@ -621,7 +650,9 @@ export default function CoordinatePlane({
           );
         })}
 
-        {typeof children === 'function' ? children({ sx, sy, pad, innerW, innerH, width, height }) : children}
+        {/* A tool drawing its own lines or curves passes `plotClip` as their
+            clipPath so they stop at the plotting rectangle too. */}
+        {typeof children === 'function' ? children({ sx, sy, pad, innerW, innerH, width, height, plotClip }) : children}
       </svg>
 
       {zoomable ? (
@@ -646,12 +677,29 @@ export default function CoordinatePlane({
       {interactive ? (
         <>
           <p aria-live="polite" className="mm-sr-only">{previewText}</p>
-          {showPlotHelp ? <p style={{ margin: '6px 0 0', fontSize: 12, color: '#5f6b7a' }}>
-            Press the grid and slide to aim{minorStep === 1 ? ' at a whole-number point' : ''} — the point lands where you
-            let go{canMovePoints ? ', and you can drag a point you have already placed' : ''}. Keyboard: arrow keys move the
-            crosshair{minorStep === 1 ? ' one unit' : ` by ${tidy(minorStep)}`} (Shift for five), Enter plots it.
-            {zoomable ? ' Use the +/− buttons below when you intentionally need a closer view.' : ''}
-          </p> : null}
+          {/* ONE LINE, ONCE PER TOOL (plotHelpScope.js). The gesture a student
+              needs is one sentence; keyboard and zoom detail folds away, and
+              stays folded once put away. A screen reader already has the
+              keyboard instructions in the plane's accessible name. */}
+          {showPlotHelpHere ? (
+            <div className="mathmaster-plot-help" style={{ margin: '6px 0 0', fontSize: 12, color: '#5f6b7a', textAlign: 'left' }}>
+              <p style={{ margin: 0 }}>
+                Press the grid and slide to aim{minorStep === 1 ? ' at a whole-number point' : ''} — the point lands where you
+                let go{canMovePoints ? '; drag a point to move it' : ''}.
+              </p>
+              {/* The keyboard sentence appears when the plane has KEYBOARD
+                  focus — when the student who needs it is using it — instead of
+                  sitting under every plane or in one more folded row (a fold
+                  here put a third 44px row in Sequence Explorer). */}
+              {keyboardHelpVisible ? (
+                <p style={{ margin: '3px 0 0' }}>
+                  The arrow keys move the
+                  crosshair{minorStep === 1 ? ' one unit' : ` by ${tidy(minorStep)}`} (Shift for five); Enter plots it.
+                  {zoomable ? ' The +/− buttons below zoom in when you need a closer view.' : ''}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </>
       ) : null}
     </div>

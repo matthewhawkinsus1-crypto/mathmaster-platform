@@ -1,0 +1,17 @@
+/* THREE COLUMNS WHEN THE WORK VIEW IS WIDE (student UX pass, R-13).
+   At the standard width the board is two columns — Equations over Table,
+   Key features beside them — so neither trails into empty space. When the
+   board is given a wide work view (ToolShell widthProfile="wide", a large or
+   zoomed-out screen) and has room for three 340px columns, the left stack
+   dissolves and Equations, Table and Key features stand side by side, which
+   takes a screen of scrolling out of the board. Measured by container, so a
+   phone and a standard laptop are unchanged. */
+.mm-lmr-board {
+  container: lmr-board / inline-size;
+}
+
+@container lmr-board (min-width: 1100px) {
+  .mm-lmr-card-stack {
+    display: contents !important;
+  }
+}

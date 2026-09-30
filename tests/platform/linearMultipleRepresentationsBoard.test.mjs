@@ -114,7 +114,8 @@ test('Enter checks the card being typed in and can never submit the whole board'
   assert.match(handler, /closest\?\.\('\[data-lmr-card\]'\)/);
   assert.match(handler, /button\[data-card-check="true"\]/);
   assert.doesNotMatch(handler, /handleSubmit|doSubmit|submit\(/);
-  assert.match(source, /<div onKeyDown=\{handleBoardKeyDown\}/);
+  // Bound on the board's root element (other attributes may sit beside it).
+  assert.match(source, /<div\b[^>]*\bonKeyDown=\{handleBoardKeyDown\}/);
 });
 
 test('an incomplete board asks before submitting', () => {

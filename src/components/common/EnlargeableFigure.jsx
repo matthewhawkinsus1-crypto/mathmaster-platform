@@ -237,10 +237,21 @@ export default function EnlargeableFigure({
 
   // Focus goes back where it came from, so a keyboard user is not dropped at
   // the top of the page after closing.
+  //
+  // Only on the transition back, never on first mount — which the comment
+  // always said and the effect never did: `enlarged` starts false, so every
+  // question opened with focus on "Enlarge question" (a ring on the button
+  // nobody pressed, and a screen reader starting mid-page). The ref records
+  // that the view was actually open.
+  const wasEnlargedRef = useRef(false);
   useEffect(() => {
-    if (!enlarged && !shouldForceClose) openerRef.current?.focus?.({ preventScroll: true });
-    // Only on the transition back, never on first mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (enlarged) {
+      wasEnlargedRef.current = true;
+      return;
+    }
+    if (!wasEnlargedRef.current) return;
+    wasEnlargedRef.current = false;
+    if (!shouldForceClose) openerRef.current?.focus?.({ preventScroll: true });
   }, [enlarged, shouldForceClose]);
 
   useEffect(() => {

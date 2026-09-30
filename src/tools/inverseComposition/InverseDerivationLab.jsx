@@ -235,7 +235,7 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
             <p style={{ marginTop: 0, color: '#5f6b7a', lineHeight: 1.55 }}>Keep the equation balanced until y is alone with coefficient 1. The inverse statement will appear when isolation is mathematically complete.</p>
           )}
 
-          <button type="button" onClick={check} style={{ ...buttonStyle, marginTop: 14, background: '#1a73e8', color: '#fff' }}>Check derivation</button>
+          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...buttonStyle, marginTop: 14, background: '#1a73e8', color: '#fff' }}>Check derivation</button>
           {feedback ? (
             <div style={{ marginTop: 12 }}>
               <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Complete' : 'Keep going'}</ResultPill>

@@ -176,7 +176,7 @@ test('the controls a student uses while working sit with the submit button', () 
   assert.match(layout, /workBar = null/);
   assert.match(layout, /mathmaster-desktop-action-bar/);
   // Mobile keeps one bar carrying both.
-  assert.match(layout, /portrait-action-bar">\{workBar\}\{actionButtons\}/);
+  assert.match(layout, /className="portrait-action-bar"[^>]*>\{workBar\}\{actionButtons\}/);
   assert.match(layout, /landscape-action-bar">\{workBar\}\{actionButtons\}/);
 
   const css = readFileSync('src/App.css', 'utf8');

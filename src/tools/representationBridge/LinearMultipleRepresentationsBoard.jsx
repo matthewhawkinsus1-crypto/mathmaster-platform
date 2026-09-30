@@ -8,6 +8,8 @@ import MathInput from '../../MathInput.jsx';
 import MathDisplay from '../../MathDisplay.jsx';
 import MathText from '../../components/common/MathText.jsx';
 import { isSingleLineAnswerTarget } from '../../platform/interaction/answerEntryUx.js';
+import { useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
+import './LinearMultipleRepresentationsBoard.css';
 import { lineFromPoints } from '../graphing2/graphingMath.js';
 import { toFraction } from '../shared/linearEquations.js';
 import {
@@ -70,11 +72,13 @@ const touchButton = {
   fontSize: 14,
 };
 
+// Theme tokens, so the board follows dark mode like the rest of the question
+// (the theme-contract audit flags hard-coded white).
 const primaryButton = {
   ...touchButton,
-  background: '#1a73e8',
-  color: '#fff',
-  border: '1px solid #1557b0',
+  background: 'var(--mm-primary)',
+  color: 'var(--mm-on-primary)',
+  border: '1px solid var(--mm-primary)',
 };
 
 const quietButton = {
@@ -94,7 +98,7 @@ const cellInput = {
   borderRadius: 8,
   fontSize: 17,
   textAlign: 'center',
-  background: '#fff',
+  background: 'var(--mm-surface)',
 };
 
 const selectStyle = {
@@ -105,7 +109,7 @@ const selectStyle = {
   border: '1px solid #b8c7de',
   borderRadius: 8,
   fontSize: 15,
-  background: '#fff',
+  background: 'var(--mm-surface)',
 };
 
 const muted = { fontSize: 13, color: '#5f6b7a', margin: 0, lineHeight: 1.45 };
@@ -130,8 +134,8 @@ const givenBadge = {
   fontSize: 12,
   fontWeight: 900,
   letterSpacing: '0.06em',
-  background: '#1a4fb4',
-  color: '#fff',
+  background: 'var(--mm-primary)',
+  color: 'var(--mm-on-primary)',
 };
 
 const defaultTableRows = [
@@ -258,7 +262,7 @@ function BoardCard({ cardId, title, hint, verdict, canCheck, onCheck, checkLabel
         border: `1px solid ${verdict?.isCorrect ? '#9fd3ad' : '#dbe3ef'}`,
         borderRadius: 12,
         padding: 12,
-        background: '#fff',
+        background: 'var(--mm-surface)',
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
@@ -321,7 +325,7 @@ function GivenRepresentation({ description, graphBounds }) {
     body = (
       <table
         aria-label="Given table of values"
-        style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 280, fontSize: 18, background: '#fff', borderRadius: 8, overflow: 'hidden' }}
+        style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 280, fontSize: 18, background: 'var(--mm-surface)', borderRadius: 8, overflow: 'hidden' }}
       >
         <thead>
           <tr>
@@ -434,7 +438,7 @@ function GraphDialog({ graph, open, onClose, children, returnFocusRef }) {
     >
       <div
         style={{
-          background: '#fff',
+          background: 'var(--mm-surface)',
           borderRadius: 14,
           width: 'min(980px, 100%)',
           maxHeight: '100%',
@@ -711,10 +715,17 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   // both on the points from the last render.
   const latestPointsRef = useRef(graphPointsByKey);
   latestPointsRef.current = graphPointsByKey;
+  // Which graph each recorded change was on, in order, so the platform Undo
+  // in the action bar can take back the student's LAST graph change wherever
+  // it was. Before, that button was always disabled on this board while each
+  // graph had its own Undo — two Undos, one of which never worked (student UX
+  // pass, R-14). Both now pop the same per-graph history.
+  const editOrderRef = useRef([]);
   const changeGraph = (key, next) => {
     clearFeedback();
     const current = latestPointsRef.current[key] || [];
     historyRef.current[key] = [...historyRef.current[key].slice(-19), current];
+    editOrderRef.current = [...editOrderRef.current.slice(-59), key];
     latestPointsRef.current = { ...latestPointsRef.current, [key]: next };
     setHistoryVersion((value) => value + 1);
     graphSettersByKey[key](next);
@@ -733,6 +744,8 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     if (stack.length) {
       const previous = stack[stack.length - 1];
       historyRef.current[key] = stack.slice(0, -1);
+      const lastEdit = editOrderRef.current.lastIndexOf(key);
+      if (lastEdit >= 0) editOrderRef.current = editOrderRef.current.filter((_, index) => index !== lastEdit);
       latestPointsRef.current = { ...latestPointsRef.current, [key]: previous };
       setHistoryVersion((value) => value + 1);
       graphSettersByKey[key](previous);
@@ -745,6 +758,24 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   const clearGraph = (key) => changeGraph(key, []);
   // historyVersion re-renders the Undo buttons when only the history changed.
   const canUndo = (key) => historyVersion >= 0 && (historyRef.current[key].length > 0 || (graphPointsByKey[key] || []).length > 0);
+
+  // The platform Undo: the most recent graph change that is still undoable.
+  const undoGraphRef = useRef(undoGraph);
+  undoGraphRef.current = undoGraph;
+  const lastUndoableGraph = historyVersion >= 0
+    ? [...editOrderRef.current].reverse().find((key) => historyRef.current[key]?.length > 0) || null
+    : null;
+  const graphTitles = { graph1: 'Graph 1', graph2: 'Graph 2', graph3: 'Graph 3' };
+  const platformUndo = useMemo(() => ({
+    canUndo: Boolean(lastUndoableGraph),
+    onUndo: () => {
+      const key = [...editOrderRef.current].reverse().find((entry) => historyRef.current[entry]?.length > 0);
+      if (key) undoGraphRef.current(key);
+    },
+    label: lastUndoableGraph ? `Undo the last change on ${graphTitles[lastUndoableGraph]}` : 'Undo the last graph change',
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- graphTitles is constant
+  }), [lastUndoableGraph]);
+  useActiveUndoOwner({ id: 'linear-representations-graphs', controller: platformUndo });
 
   const enlargeButtonRefs = { graph1: useRef(null), graph2: useRef(null), graph3: useRef(null) };
   const closeDialog = useCallback(() => setEnlargedGraph(null), []);
@@ -1232,9 +1263,11 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   return (
     <ToolShell
       title="Multiple representations"
+      // A board of card columns and three graphs: it may use a wide screen.
+      widthProfile="wide"
       subtitle="Start from the GIVEN representation and build the same line every other way: equations, key features, a table and three graphs. Work in any order."
     >
-      <div onKeyDown={handleBoardKeyDown} style={{ display: 'flex', flexDirection: 'column', gap: 14, textAlign: 'left' }}>
+      <div className="mm-lmr-board" onKeyDown={handleBoardKeyDown} style={{ display: 'flex', flexDirection: 'column', gap: 14, textAlign: 'left' }}>
         <GivenRepresentation description={givenDescription} graphBounds={graphBounds} />
 
         <div
@@ -1275,9 +1308,12 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
         {/* Two columns on a laptop — equations over the table, key features
             beside them — so neither column trails off into empty space. On a
             phone they stack in the same order. */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(340px, 100%), 1fr))', gap: 14, alignItems: 'start' }}>
+        <div className="mm-lmr-card-columns" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(340px, 100%), 1fr))', gap: 14, alignItems: 'start' }}>
           {equationCards.length || tableCard ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
+            // On a wide work view (LinearMultipleRepresentationsBoard.css) this
+            // stack dissolves so Equations, Table and Key features stand as
+            // three columns side by side instead of two long ones.
+            <div className="mm-lmr-card-stack" style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
               {equationCards.length ? (
                 <BoardPanel title="Equations" open={expandedCards.equationForms} onToggle={() => toggle('equationForms')}>
                   {expandedCards.equationForms ? equationCards : collapsedEquations}

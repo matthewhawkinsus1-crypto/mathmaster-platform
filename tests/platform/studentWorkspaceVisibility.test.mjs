@@ -127,17 +127,20 @@ test('registered-tool Work View shows the task once and labels chips in sentence
 
 // Live QA round 2, 1536×900 Work View: twelve line cards in a 540px column with
 // "Check groups" below the fold while reference text took the other half.
-test('line card sets take the full width; graph cards span two columns where there is room', () => {
+test('line card sets take the full width; graph cards are never squeezed below a readable width', () => {
   const source = read('src/tools/representationMatch/RepresentationMatch.jsx');
   assert.match(source, /const cardSetLayout = mode === 'linearConnections';\s*const Layout = cardSetLayout \? CardSetStack : ToolGrid;/);
   assert.match(source, /<Layout min=\{330\}>[\s\S]*<Panel title="Representation reasoning" collapsible>[\s\S]*<\/Layout>/);
   assert.match(source, /const CardSetStack = [\s\S]{0,120}gridTemplateColumns: 'minmax\(0, 1fr\)'/);
   const css = read('src/tools/representationMatch/RepresentationMatch.css');
-  assert.match(css, /@container line-cards \(min-width: 520px\) \{\s*\.mathmaster-line-card-grid > \.mathmaster-line-card\[data-card-kind="graph"\] \{\s*grid-column: span 2;/);
+  // Graphs sit in their own band whose columns are at least 260px (a 160px
+  // graph overlapped its axis labels) — or the full width on a phone.
+  assert.match(source, /\{ id: 'graphs', kinds: \['graph'\] \}/);
+  assert.match(css, /\.mathmaster-line-card-grid-graphs \{\s*grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 260px\), 1fr\)\);/);
   assert.match(source, /import '\.\/RepresentationMatch\.css';/);
-  // Short cards keep their height beside a tall graph card, and the graph's
+  // Short cards keep their height beside a taller one, and the graph's
   // proportions leave its axis labels apart.
-  assert.match(css, /\.mathmaster-line-card-grid \{\s*align-items: start;/);
+  assert.match(css, /\.mathmaster-line-card-grid \{\s*display: grid;\s*gap: 10px;\s*align-items: start;/);
   assert.match(source, /<CoordinatePlane enlargeable=\{false\} width=\{320\} height=\{240\}/);
 });
 
@@ -199,7 +202,9 @@ test('opening a question lands on its live work when a tool marks one', () => {
   const css = read('src/App.css');
   assert.match(css, /\.mathmaster-desktop-question-content \[data-work-view-focus="true"\] \{\s*scroll-margin-top: calc\(var\(--mm-sticky-task-top, 0px\) \+ var\(--mm-sticky-task-height, 0px\) \+ 8px\);/);
   const container = read('src/components/student/MobileViewportContainer.jsx');
-  assert.match(container, /import \{ STICKY_TASK_HEIGHT_VAR, stickyHeightRef \} from '\.\.\/\.\.\/platform\/layout\/stickyHeightRef\.js';/);
+  const stickyImport = container.match(/import \{([^}]*)\} from '\.\.\/\.\.\/platform\/layout\/stickyHeightRef\.js';/)?.[1] || '';
+  assert.match(stickyImport, /\bSTICKY_TASK_HEIGHT_VAR\b/);
+  assert.match(stickyImport, /\bstickyHeightRef\b/);
   assert.match(container, /<div ref=\{stickyHeightRef\(STICKY_TASK_HEIGHT_VAR\)\} className=\{`mathmaster-desktop-question-anchor/);
   assert.equal(STICKY_TASK_HEIGHT_VAR, '--mm-sticky-task-height');
 });
@@ -263,7 +268,30 @@ test('the phone work bar is one flexible row with a short Reset label', () => {
   assert.match(css, /\.mathmaster-question-container\.mode-portrait \.mathmaster-action-label-long \{\s*display: none;/);
   const engine = read('src/QuestionEngine.jsx');
   assert.match(engine, /aria-label=\{resettingQuestion \? 'Resetting…' : 'Reset Question'\}/);
-  assert.match(engine, /↺ Reset<span className="mathmaster-action-label-long"> Question<\/span>/);
+  assert.match(engine, /<span aria-hidden="true">↺<\/span><span className="mathmaster-action-label"> Reset<span className="mathmaster-action-label-long"> Question<\/span><\/span>/);
+});
+
+// Student UX pass (R-1), 390×844: with "Submit Answer" in the bar the four
+// tools wrapped it onto a second row — 111px of an 844px screen.
+test('with Submit in the phone bar it is still one row: the tools show icons, keeping their names', () => {
+  const css = read('src/components/student/MathToolMobileLayout.css');
+  const primary = '\\.portrait-action-bar\\[data-has-primary="true"\\]';
+  assert.match(css, new RegExp(`${primary} \\{\\s*flex-wrap: nowrap;`));
+  // Hidden visually, not removed: the word is the button's accessible name.
+  assert.match(css, new RegExp(`${primary} \\.mathmaster-action-label \\{\\s*position: absolute;[\\s\\S]*?clip: rect\\(0 0 0 0\\);`));
+  assert.doesNotMatch(css, new RegExp(`${primary} \\.mathmaster-action-label \\{\\s*display: none`));
+  assert.match(css, new RegExp(`${primary} > \\.mathmaster-bar-submit`));
+  const container = read('src/components/student/MobileViewportContainer.jsx');
+  assert.match(container, /className="portrait-action-bar" data-has-primary=\{actionButtons \? 'true' : undefined\}/);
+  const engine = read('src/QuestionEngine.jsx');
+  // Every tool in the bar: icon hidden from assistive tech, word in a label span.
+  const bar = engine.slice(engine.indexOf('const questionWorkBar = ('), engine.indexOf('return (\n    <QuestionLifecycleProvider'));
+  assert.equal((bar.match(/mathmaster-work-bar-tool/g) || []).length >= 5, true, 'undo, reset, scratchpad, calculator, read');
+  assert.equal((bar.match(/<span aria-hidden="true">/g) || []).length >= 4, true);
+  assert.match(read('src/components/common/UniversalUndoButton.jsx'), /<span aria-hidden="true">↶<\/span><span className="mathmaster-action-label"> Undo<\/span>/);
+  // The number keypad covers the bar: the bar yields its row and the work pads for the keys.
+  assert.match(css, /\.numeric-keypad-open \.portrait-action-bar \{\s*display: none;/);
+  assert.match(css, /\.numeric-keypad-open \.math-tool-workspace \{\s*padding-bottom: calc\(var\(--mm-mobile-keypad, 0px\) \+ 12px\);/);
 });
 
 // Live QA round 2, 390×844 Work View: the numeric keypad (z 13000) opened

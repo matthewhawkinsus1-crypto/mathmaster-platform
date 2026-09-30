@@ -171,6 +171,7 @@ export const SHARED_TOOL_TRANSIENT_STATE = Object.freeze({
     keyboardActive: 'Whether the keyboard cursor is showing.',
     dragIndex: 'Which point the current gesture is moving. Gone at pointer-up.',
     gestureActive: 'Whether a pointer gesture is in progress.',
+    keyboardHelpVisible: 'Whether the plane has keyboard focus, which shows the keyboard plotting help.',
   }),
   'shared/ToolShell.jsx': Object.freeze({
     revealed: 'Whether the hint list is open.',
