@@ -226,7 +226,7 @@ export default function StudentsRoster({
             ) : (
               <button type="button" onClick={onOpenAdministration} style={{ padding: '9px 13px', border: '1px solid #dadce0', borderRadius: 8, background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 800 }}>Class membership is managed in Administration</button>
             )}
-            <button type="button" onClick={() => onGenerateIEPReport(selected)} style={{ padding: '9px 13px', border: '1px solid #6f2da8', borderRadius: 8, background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button>
+            <button type="button" onClick={() => onGenerateIEPReport(selected)} style={{ padding: '9px 13px', border: '1px solid #6f2da8', borderRadius: 8, background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 900 }}>Support evidence report</button>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>

@@ -9,7 +9,7 @@ Branch: `ai/claude-iep-evidence-20260930` (from `origin/main` @ `1fcd1ea7`, PR #
 
 ## Current state
 
-- **Phase:** 6 — Student Support Evidence Report + grade impact (next). Draft PR: #401
+- **Phase:** 7 — committed browser journeys, final review, PR description (next). Draft PR: #401
 - **Design:** `docs/IEP_SUPPORT_EVIDENCE_DESIGN.md` (committed with this checkpoint)
 - **PR:** #401 (draft; CI runs the full gate on every push)
 
@@ -23,7 +23,7 @@ Branch: `ai/claude-iep-evidence-20260930` (from `origin/main` @ `1fcd1ea7`, PR #
 | 3 | Telemetry + evidence event logging + engagement metric repair | ⬜ |
 | 4 | Teacher Support/Evidence UI (hub + drawer) + one-click events + service log | ✅ |
 | 5 | Student "Support tools" UI | ✅ |
-| 6 | Report model/renderer + grade-impact aggregation + assignment-instance dedup | ⬜ |
+| 6 | Report model/renderer + grade-impact aggregation + assignment-instance dedup | ✅ |
 | 7 | Browser QA (fake-school harness) + final hardening + security review + PR | ⬜ |
 
 ## Environment notes (this machine)
@@ -108,6 +108,8 @@ These are the facts the design is built on. File references are to `origin/main`
 | Phase 4 | `npm run test:rules` | 225/225 + 83/83 |
 | Phase 4 | `npm run test:platform` | 6749/6750 → moved hub-order contract rewritten + mutation-checked |
 | Phase 4 | `npm run build` | pass |
+| Phase 6 | `npm run test:platform` | 6771/6771 |
+| Phase 6 | `npm run build` | pass |
 
 ## Phase 1 — done
 
@@ -181,16 +183,39 @@ These are the facts the design is built on. File references are to `origin/main`
   hub layer with loaded evidence, no sideways scroll, no console errors from new code. Found + fixed: absent
   `questionIndex` stored as 0.
 
-## Phase 5/6 checklist (next)
+## Phase 5 — done
 
-- [x] Student Support tools (`StudentSupportTools.jsx`, `studentSupportTools()`): neutral student labels only,
-      teacher links (https) recorded as "used" when opened, graph paper = grid on the existing scratchpad for entitled
-      students (+ "used" on open); rendered for real student work only.
-- [ ] Report model `supportEvidenceReport.js` (+ grade impact, instance selection by class/period, summary, timeline,
-      service, legend, limitations) + tests
-- [ ] Report view (print-first) + CSV/JSON; replace `openIEPReport`/`buildIEPReportHtml`; drawer + gradebook + roster
-      entry points
-- [ ] Journeys file for the harness; existing journeys A–K re-run
+- Student Support tools (`StudentSupportTools.jsx`, `studentSupportTools()`): neutral student labels only, teacher https
+  links recorded as "used" when opened, graph paper = grid on the existing scratchpad for entitled students (+ "used").
+
+## Phase 6 — done
+
+- `supportEvidenceReport.js` — the report model: real assigned instances only (class assignment or recorded work;
+  unassigned same-title library copies excluded and counted), grading period / dates / assignment filters, profile
+  section (revision in effect, revisions in period, expired / backdated / unversioned warnings), executive summary
+  (statuses, Standard vs Modified counts and SEPARATE averages, per-support configured / available / provided / used /
+  staff records, staff records, active minutes, service minutes, gaps phrased as records), assignment rows with grade
+  impact (per-section MathMaster grade + export status from the same history Grade Export reads: not exported /
+  exported / uploaded / changed since export / held back / unavailable), chronological timeline (profile, support,
+  service, classroom records; withdrawn marked), service summary (weeks vs plan, disclaimer), legend, limitations.
+  CSV (formula-neutralised) and JSON exports.
+- `SupportEvidenceReportView.jsx` — print-first view (print shows only the report, every section expanded).
+  Entry points: drawer "Support evidence report", gradebook and roster buttons (renamed from "Generate IEP Report").
+  `openIEPReport`/`buildIEPReportHtml` pop-up retired. Gradebook shows "Time not recorded" instead of "0s".
+- Harness: `?as=student&studentId=<id>` signs in a synthetic student (student custom-token claims).
+- Browser (fake school): report generated for the versioned and the pre-versioning student (all 7 sections, no library
+  copies, no "0 min", CSV download, print hides controls, close returns to the drawer); student view shows
+  "Your due date" (individualized), Support tools, and records available / provided / used + a ledger minute.
+- Found (pre-existing, confirmed on untouched main in an A/B worktree): the student assignment view logs React
+  "Maximum update depth exceeded" in the harness. Not caused by this branch; backlog.
+
+## Phase 7 checklist (next)
+
+- [ ] Commit the harness journeys (teacher + student) as `tests/browser/teacherWorkflow/supportEvidenceJourneys.mjs`
+- [ ] Re-run existing journeys A–K against the updated fixture
+- [ ] Layout at 1440 / 1024 / 768 (drawer, hub, report, student tools)
+- [ ] Final security + integration review; `test:rules`, `test:authoring-v5`, `tests/tools`, `build:firebase`
+- [ ] Final PR description (deploy: rules + functions list + hosting; rollback; limitations; teacher steps)
 
 ## Remaining work / known gaps
 
