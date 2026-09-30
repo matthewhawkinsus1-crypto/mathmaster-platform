@@ -1117,6 +1117,9 @@ export default function QuestionEngine({
       domainId={questionAssessment.domainId}
       examStyle={questionAssessment.examStyle}
       assessmentSkillLabel={processedQuestion?.ccmrAuthenticLanguage?.officialSkillFamily || ''}
+      // A student sees "Learning goal", not the reporting codes; a teacher
+      // repairing a question keeps them (StandardBadge audience).
+      audience={executionScope === 'teacherRepairPreview' ? 'teacher' : 'student'}
       style={{ margin: '8px 0 0', maxWidth: '860px' }}
     />
   ) : null;

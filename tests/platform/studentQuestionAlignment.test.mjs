@@ -138,3 +138,29 @@ test('secure exam mode withholds instructional metadata that could cue the asses
   assert.doesNotMatch(secureExamSource, /StandardBadge/);
   assert.doesNotMatch(secureExamSource, /CCMR connection/);
 });
+
+/*
+ * A STUDENT READS "LEARNING GOAL", NOT A REPORTING CODE (student UX pass, R-10).
+ *
+ * The assignment question showed "TEKS A.3B ›" and "CCMR connection · 4
+ * assessments ›" under every task — two codes a student cannot act on, and a
+ * second line of a phone's task panel. The student audience shows one chip in
+ * plain words that opens the SAME dialog, where the TEKS code (named as the
+ * teacher's reporting code) and the SAT/ACT/TSIA2/ASVAB connections still are.
+ */
+test('the assignment question shows students one plain-language chip that opens everything', () => {
+  const chipRow = badgeSource.slice(badgeSource.indexOf('className="mathmaster-question-alignment"'), badgeSource.indexOf('{open && <AlignmentDetailsDialog'));
+  // Student: "Learning goal", no reporting codes on the chip row.
+  assert.match(chipRow, /\{studentView \? \(\s*<button ref=\{triggerRef\}[^>]*onClick=\{\(\) => openDetails\('skill'\)\}[^>]*>Learning goal <span aria-hidden="true">›<\/span><\/button>/);
+  assert.match(chipRow, /\{!studentView && !info\.activeFramework && connectionCount > 0 && \(/, 'the passive CCMR chip is not on the student row');
+  assert.match(chipRow, /\{info\.activeFramework && \(/, 'an exam-format practice chip still shows — it tells the student the format');
+  // Teacher and Path surfaces keep the codes.
+  assert.match(chipRow, />TEKS \{info\.displayCode\} <span aria-hidden="true">›<\/span><\/button>/);
+  assert.match(badgeSource, /audience = 'teacher'/, 'the codes remain the default');
+  // Nothing is lost: the dialog still names the code and offers the connections.
+  assert.match(badgeSource, /TEKS \{info\.displayCode\} is the teacher\/reporting code for this skill/);
+  assert.match(badgeSource, /See where this math appears after this course/);
+  // The assignment runtime is the student audience, except for a teacher repairing a question.
+  const panel = engineSource.slice(engineSource.indexOf('const questionAlignmentPanel'), engineSource.indexOf('const questionReferencePanel'));
+  assert.match(panel, /audience=\{executionScope === 'teacherRepairPreview' \? 'teacher' : 'student'\}/);
+});

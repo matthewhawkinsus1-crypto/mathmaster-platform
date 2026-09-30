@@ -178,7 +178,25 @@ function AlignmentDetailsDialog({ info, onClose, titleId, initialView = 'skill' 
   );
 }
 
-export default function StandardBadge({ code, framework = null, domainId = null, examStyle = false, assessmentSkillLabel = '', showName = false, style = {} }) {
+/*
+ * WHO IS READING THE CHIP.
+ *
+ * `audience="student"` is the assignment question a student works in. There
+ * the row under the task said "TEKS A.3B ›" and "CCMR connection · 4
+ * assessments ›" — two reporting codes a student cannot act on, wrapping onto
+ * a second line of a 390px phone's task panel (student UX pass, R-10). The
+ * student sees ONE chip in their own words, "Learning goal", which opens the
+ * same dialog: the skill in plain language, the TEKS code named as the
+ * teacher's reporting code, and — one button away — where this math appears
+ * on the SAT, ACT, TSIA2 or ASVAB. Nothing is removed; it is translated and
+ * folded. An exam-format practice chip ("SAT practice") stays, because it tells
+ * the student what format they are in.
+ *
+ * The default audience keeps the codes on the surfaces built around them: the
+ * teacher's views, My Math Path's skill cards (which are organised by CCMR
+ * readiness), secure exam review.
+ */
+export default function StandardBadge({ code, framework = null, domainId = null, examStyle = false, assessmentSkillLabel = '', showName = false, audience = 'teacher', style = {} }) {
   const [open, setOpen] = useState(false);
   const [initialView, setInitialView] = useState('skill');
   const triggerRef = useRef(null);
@@ -189,6 +207,7 @@ export default function StandardBadge({ code, framework = null, domainId = null,
   );
   if (!info) return null;
 
+  const studentView = audience === 'student';
   const connectionCount = info.connections.length;
   const activeConnection = info.connections.find((entry) => entry.active);
   const activeReference = activeConnection?.references?.[0] || null;
@@ -209,19 +228,23 @@ export default function StandardBadge({ code, framework = null, domainId = null,
           chrome over the tool, and it opens a modal of its own if a thumb
           finds it mid-drag. */}
       <div className="mathmaster-question-alignment" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, ...style }}>
-        <button ref={triggerRef} type="button" onClick={() => openDetails('skill')} aria-label={`Open learning target for TEKS ${info.displayCode}`} style={buttonReset(STANDARD_CHIP)}>TEKS {info.displayCode} <span aria-hidden="true">›</span></button>
+        {studentView ? (
+          <button ref={triggerRef} type="button" onClick={() => openDetails('skill')} aria-label="Open the learning goal for this question" title={info.studentLabel || info.description || undefined} style={buttonReset(STANDARD_CHIP)}>Learning goal <span aria-hidden="true">›</span></button>
+        ) : (
+          <button ref={triggerRef} type="button" onClick={() => openDetails('skill')} aria-label={`Open learning target for TEKS ${info.displayCode}`} style={buttonReset(STANDARD_CHIP)}>TEKS {info.displayCode} <span aria-hidden="true">›</span></button>
+        )}
         {showName && info.studentLabel && <span style={{ fontSize: 12, color: '#5f6368', lineHeight: 1.5 }}>{info.studentLabel}</span>}
         {info.activeFramework && (
           <button type="button" onClick={() => openDetails('ccmr')} aria-label={`Open ${info.activeFrameworkLabel} alignment details`} style={buttonReset(ACTIVE_CHIP)}>
             {info.activeFrameworkLabel} practice{info.activeSkillLabel ? ` · ${info.activeSkillLabel}` : activeReference ? ` · ${activeReference.officialCode || activeReference.title}` : activeConnection?.domainTitle ? ` · ${activeConnection.domainTitle}` : ''} <span aria-hidden="true">›</span>
           </button>
         )}
-        {!info.activeFramework && connectionCount > 0 && (
+        {!studentView && !info.activeFramework && connectionCount > 0 && (
           <button type="button" onClick={() => openDetails('ccmr')} aria-label={`Open CCMR connections for TEKS ${info.displayCode}`} style={buttonReset(CCMR_CHIP)}>
             CCMR connection · {connectionCount} {connectionCount === 1 ? 'assessment' : 'assessments'} <span aria-hidden="true">›</span>
           </button>
         )}
-        {info.activeFramework && otherConnectionCount > 0 && (
+        {!studentView && info.activeFramework && otherConnectionCount > 0 && (
           <button type="button" onClick={() => openDetails('ccmr')} aria-label={`Open other CCMR connections for TEKS ${info.displayCode}`} style={buttonReset(CCMR_CHIP)}>Also connects to {otherConnectionCount} <span aria-hidden="true">›</span></button>
         )}
       </div>
