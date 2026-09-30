@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createFieldEchoGuard } from './platform/interaction/fieldEchoGuard.js';
 import 'mathlive';
 import { requiredAnswerToolForSymbol, resolveRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
@@ -238,6 +238,21 @@ export default function MathInput({
   }, []);
   const [showTools, setShowTools] = useState(showToolsInitially || requiredSymbols.length > 0);
   const [isMobile, setIsMobile] = useState(detectMobileInput);
+  // Is the student working in THIS field right now? On a touch device the
+  // math keypad is the keyboard, so it belongs to the active field only: a
+  // board of seven fields used to leave every visited field's keypad (and its
+  // "Needed for this answer" row) open down the page (student UX pass, R-11).
+  // A desktop keeps the student's own choice.
+  const [fieldActive, setFieldActive] = useState(false);
+  const rootRef = useRef(null);
+  const toolsId = `mm-math-tools-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  // `showToolsInitially` still opens a desktop keypad on arrival. On a touch
+  // device the keypad opens the moment the field is tapped anyway, so there
+  // "initially" means "while this field is the one being typed in" — the
+  // multi-answer grader asked for it on every field that needed a fraction,
+  // and each such keypad stayed open whichever box the student was in.
+  const toolsVisible = isMobile ? showTools && fieldActive : showTools;
+  const requiredKeysVisible = isMobile && fieldActive;
 
   const stabilizeMobileViewport = useCallback(() => {
     const root = mfRef.current?.closest?.('.mathmaster-question-container')
@@ -470,7 +485,14 @@ export default function MathInput({
 
   return (
     <div
+      ref={rootRef}
       className="mathmaster-math-input"
+      onFocus={() => setFieldActive(true)}
+      onBlur={(event) => {
+        // Moving between the field and its own keys is still "in the field".
+        if (rootRef.current?.contains?.(event.relatedTarget)) return;
+        setFieldActive(false);
+      }}
       style={{
         width: `min(100%, ${maxWidth}px)`,
         maxWidth: '100%',
@@ -480,6 +502,12 @@ export default function MathInput({
         contain: 'inline-size',
       }}
     >
+      {/* THE FIELD AND ITS TOOLS BUTTON SHARE ONE ROW.
+          "Show math tools" was a pill on its own line under every field:
+          seven fields on the representation board, seven rows of the same
+          button. It is now a compact √x button beside the field — same
+          accessible name, same keypad, no extra row. */}
+      <div className="mathmaster-math-input-row" style={{ display: 'flex', alignItems: 'stretch', gap: 6, width: '100%', minWidth: 0 }}>
       <math-field
         ref={mfRef}
         // A field with its own Enter action says so, so the question-level
@@ -496,6 +524,7 @@ export default function MathInput({
         }}
         style={{
           display: 'block',
+          flex: '1 1 auto',
           width: '100%',
           maxWidth: '100%',
           minWidth: 0,
@@ -509,8 +538,47 @@ export default function MathInput({
           boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)',
         }}
       />
+      {hideToolsToggle && !isMobile ? null : (
+        <button
+          type="button"
+          className="mathmaster-math-tools-toggle"
+          // Keeps focus (and a phone's keypad) in the field while toggling.
+          onPointerDown={(event) => event.preventDefault()}
+          onClick={() => {
+            if (toolsVisible) {
+              setShowTools(false);
+              return;
+            }
+            setShowTools(true);
+            // On a touch device the keypad belongs to the active field, so
+            // asking for it from outside the field puts the student in it.
+            if (isMobile && !fieldActive) focusMathFieldWithoutScroll(mfRef.current);
+          }}
+          aria-expanded={toolsVisible}
+          aria-controls={toolsVisible ? toolsId : undefined}
+          aria-label={toolsVisible ? 'Hide math tools' : 'Show math tools'}
+          title={toolsVisible ? 'Hide math tools' : 'Show math tools (fractions, powers, roots…)'}
+          style={{
+            flex: '0 0 auto',
+            minWidth: 44,
+            minHeight: 44,
+            padding: '0 8px',
+            border: '1px solid #c5d5ef',
+            borderRadius: 8,
+            background: toolsVisible ? '#e8f0fe' : 'var(--mm-surface)',
+            color: '#174ea6',
+            fontWeight: 800,
+            fontSize: 15,
+            fontFamily: 'serif',
+            cursor: 'pointer',
+          }}
+        >
+          <span aria-hidden="true">√x</span>
+        </button>
+      )}
+      </div>
 
-      {isMobile && requiredTools.length > 0 && (
+      {requiredKeysVisible && requiredTools.length > 0 && (
         <div
           className="mathmaster-required-answer-keys"
           aria-label="Keys needed for this answer"
@@ -563,26 +631,9 @@ export default function MathInput({
         </div>
       )}
 
-      {hideToolsToggle && !isMobile ? null : <button
-        type="button"
-        onClick={() => setShowTools((current) => !current)}
-        aria-expanded={showTools}
-        style={{
-          marginTop: '8px',
-          border: '1px solid #c5d5ef',
-          borderRadius: '999px',
-          padding: '7px 13px',
-          background: showTools ? '#e8f0fe' : '#fff',
-          color: '#174ea6',
-          fontWeight: 'bold',
-          cursor: 'pointer',
-        }}
-      >
-        {showTools ? 'Hide math tools' : 'Show math tools'}
-      </button>}
-
-      {showTools && (
+      {toolsVisible && (
         <div
+          id={toolsId}
           className={`mathmaster-math-input-tools mathmaster-math-input-tools-${toolProfile}`}
           aria-label="Math tools"
           style={{
