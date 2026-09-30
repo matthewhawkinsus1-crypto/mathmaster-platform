@@ -141,20 +141,62 @@ export const resolveWarmupClose = ({ assignment, window, classId = null, todayKe
   };
 };
 
+/*
+ * A TEACHER MAY CLOSE AN OPEN DOL EARLY FOR ONE CLASS — AND THE LATEST TEACHER
+ * ACTION WINS.
+ *
+ * `dol.closedByClassId[classId] = { dateKey, closedAt, closedBy }` ends that
+ * day's window at `closedAt`. It applies to whichever window is in force
+ * (regular, early unlock, or a recovery/extension window) as long as the close
+ * is the NEWER decision: a reopen or unlock made after the close supersedes it,
+ * exactly the way a warm-up reopen supersedes a warm-up close.
+ *
+ * The teacher UI only writes a close while the DOL is open, so a close always
+ * behaves like the normal end of the DOL — never like a pre-emptive lock that
+ * would finalize untouched work. Absent the field, every window resolves
+ * exactly as before.
+ */
+const applyTeacherDolClose = ({ resolved, assignment, classId, todayKey }) => {
+  const closed = scopedOverride({ byClassId: assignment?.dol?.closedByClassId, classId });
+  const closedAtMs = overrideInstant(closed, 'closedAt', null);
+  const closedDateKey = overrideDateKey(closed);
+  const closedToday = Boolean(closedAtMs && (!closedDateKey || !todayKey || closedDateKey === todayKey));
+  if (!closedToday || resolved.endsAtMs === null) return { ...resolved, teacherClosed: false, teacherClosedAtMs: null };
+  if (resolved.teacherActionAtMs !== null && closedAtMs < resolved.teacherActionAtMs) {
+    return { ...resolved, teacherClosed: false, teacherClosedAtMs: null };
+  }
+  const endsAtMs = Math.min(resolved.endsAtMs, closedAtMs);
+  return {
+    ...resolved,
+    opensAtMs: Math.min(resolved.opensAtMs, endsAtMs),
+    endsAtMs,
+    teacherClosed: closedAtMs < resolved.endsAtMs,
+    teacherClosedAtMs: closedAtMs < resolved.endsAtMs ? closedAtMs : null,
+  };
+};
+
 /**
  * The DOL working window for one class.
  *
  * `minutesBeforeEnd` remains the authored working-time duration;
  * `closeMinutesBeforeEnd` shifts that whole timer earlier without shortening
- * it, so students get a real pack-up window.
+ * it, so students get a real pack-up window. A teacher close (above) is
+ * applied last, to whichever window is in force.
  */
 export const resolveDolWindow = ({ assignment, window, classId = null, todayKey = null } = {}) => {
+  const resolved = resolveDolWindowBeforeTeacherClose({ assignment, window, classId, todayKey });
+  const { teacherActionAtMs: _teacherActionAtMs, ...withClose } = applyTeacherDolClose({ resolved, assignment, classId, todayKey });
+  return withClose;
+};
+
+const resolveDolWindowBeforeTeacherClose = ({ assignment, window, classId = null, todayKey = null } = {}) => {
   const durationMinutes = Math.max(1, Number(assignment?.dol?.minutesBeforeEnd || 10));
   const closeMinutesBeforeEnd = Math.max(0, Number(assignment?.dol?.closeMinutesBeforeEnd ?? 5));
   if (!window) {
     return {
       opensAtMs: null, endsAtMs: null, regularOpensAtMs: null, regularEndsAtMs: null,
       earlyUnlocked: false, teacherRecovery: false, durationMinutes, closeMinutesBeforeEnd,
+      teacherActionAtMs: null,
     };
   }
   const regularEndsAtMs = Math.max(window.startMs, window.endMs - closeMinutesBeforeEnd * 60_000);
@@ -192,6 +234,7 @@ export const resolveDolWindow = ({ assignment, window, classId = null, todayKey 
       teacherRecovery: true,
       durationMinutes,
       closeMinutesBeforeEnd,
+      teacherActionAtMs: recoveryOpenedAtMs,
     };
   }
 
@@ -211,6 +254,9 @@ export const resolveDolWindow = ({ assignment, window, classId = null, todayKey 
       teacherRecovery: false,
       durationMinutes,
       closeMinutesBeforeEnd,
+      // An unlock pressed during the regular window is still the teacher's
+      // latest decision; it must outrank an earlier close the same day.
+      teacherActionAtMs: unlockToday ? unlockAtMs : null,
     };
   }
   const opensAtMs = Math.max(window.startMs, unlockAtMs);
@@ -220,6 +266,7 @@ export const resolveDolWindow = ({ assignment, window, classId = null, todayKey 
   return {
     opensAtMs, endsAtMs, regularOpensAtMs, regularEndsAtMs,
     earlyUnlocked: true, teacherRecovery: false, durationMinutes, closeMinutesBeforeEnd,
+    teacherActionAtMs: unlockAtMs,
   };
 };
 
@@ -303,9 +350,10 @@ export const resolveAuthoritativeClose = ({
     if (dol.endsAtMs) {
       return {
         closesAtMs: dol.endsAtMs,
-        reason: dol.teacherRecovery ? 'teacher-dol-recovery-close' : 'dol-close',
+        reason: dol.teacherClosed ? 'teacher-dol-close' : dol.teacherRecovery ? 'teacher-dol-recovery-close' : 'dol-close',
         earlyUnlocked: dol.earlyUnlocked,
         teacherRecovery: dol.teacherRecovery === true,
+        teacherClosed: dol.teacherClosed === true,
       };
     }
     return { closesAtMs: finalCloseAtMs, reason: 'assignment-final-deadline', earlyUnlocked: false, teacherRecovery: false };

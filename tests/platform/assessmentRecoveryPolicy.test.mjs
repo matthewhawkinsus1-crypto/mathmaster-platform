@@ -128,7 +128,21 @@ test('the student is told what changed', () => {
 
 test('the teacher controls and the server are wired to the one model', () => {
   const app = fs.readFileSync('src/App.jsx', 'utf8');
-  assert.match(app, /import \{ buildDolAttemptGrant, buildDolWindowOpening, summarizeStudentRecovery \} from '\.\/platform\/assessment\/assessmentRecovery\.js'/);
+  // The App imports the recovery builders from the one model. (Asserted by
+  // name, not by the exact import line: the list grew when Close / Extend /
+  // Move / Back-to-schedule joined the same audited model.)
+  const recoveryImport = app.match(/import \{([^}]*)\} from '\.\/platform\/assessment\/assessmentRecovery\.js'/);
+  assert.ok(recoveryImport, 'App imports the assessment recovery model');
+  for (const name of ['buildDolAttemptGrant', 'buildDolWindowOpening', 'summarizeStudentRecovery', 'buildDolClose', 'buildDolExtension', 'buildDolDateMove', 'buildDolScheduleRestore']) {
+    assert.match(recoveryImport[1], new RegExp(`\\b${name}\\b`), `${name} comes from the recovery model`);
+  }
+  // Close / Extend / Move / Back-to-schedule are built by the model, never hand-written.
+  const dolControl = region(app, 'const handleDolControlForClass = async', 'const openAssignmentHub');
+  assert.match(dolControl, /buildDolClose\(\{/);
+  assert.match(dolControl, /buildDolExtension\(\{/);
+  assert.match(dolControl, /buildDolDateMove\(\{/);
+  assert.match(dolControl, /buildDolScheduleRestore\(\{/);
+  assert.doesNotMatch(dolControl, /(closedByClassId|recoveryByClassId|instructionDatesByClassId)\s*[:=]/);
   assert.match(region(app, 'const handleUnlockDOLForClass = async', 'const handleGrantDOLAttemptForClass'), /buildDolWindowOpening\(\{/);
   assert.match(region(app, 'const handleGrantDOLAttemptForClass = async', 'const handleGrantDOLAttemptForStudents'), /buildDolAttemptGrant\(\{[\s\S]*?scope: \{ type: 'class', classId \}/);
   assert.match(region(app, 'const handleGrantDOLAttemptForStudents = async', 'const handleToggleWarmupForClass'), /scope: \{ type: 'students', studentIds:/);

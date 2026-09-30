@@ -15,7 +15,10 @@ import { compareStudentsByName, formatStudentName, studentSearchText } from '../
 import MyMathPathApp from '../student/MyMathPathApp.jsx';
 import { buildStudentPathOptions } from '../../platform/path/studentPathOptions.js';
 import { overridesForClassContext, storedPacingForClassContext } from '../../platform/path/pathStore.js';
-import { assignmentIsForStudent } from '../../assignmentLifecycle.js';
+import { assignmentIsForStudent, formatDateTime } from '../../assignmentLifecycle.js';
+import { studentAssignmentProgress, PROGRESS_STATE } from '../../platform/teacher/assignmentProgress.js';
+import { groupAssignmentsByGradingPeriod } from '../../platform/student/gradingPeriods.js';
+import './teacherWorkspace.css';
 
 const tabButton = (active) => ({
   padding: '8px 11px', border: active ? '1px solid #1a73e8' : '1px solid #dadce0', borderRadius: 8,
@@ -56,6 +59,11 @@ export default function StudentsRoster({
   // The workspace-wide profile drawer. When absent this screen falls back to
   // its own detail pane, so the roster still works standalone.
   onOpenProfileDrawer = null,
+  // Student -> Assignment -> Work. Each assignment row opens the assignment's
+  // hub, and "Work" opens this student's own responses in the gradebook.
+  onOpenAssignment = null,
+  onOpenStudentWork = null,
+  gradingPeriodSettings = null,
 }) {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('name');
@@ -237,8 +245,52 @@ export default function StudentsRoster({
         {detailTab === 'assignments' && (
           <div>
             <section style={{ padding: 18, border: '1px solid #d8dde6', borderRadius: 10, marginBottom: 16 }}>
-              <h3 style={{ marginTop: 0 }}>Assignment evidence</h3>
-              <p style={{ color: '#5f6368' }}>{Object.keys(selected.gradesByAssignment || {}).length} assignment record(s). Use Grades for question-level evidence and saved work.</p>
+              <h3 style={{ marginTop: 0 }}>Assignments</h3>
+              {selectedAssignments.length === 0 ? (
+                <p style={{ color: '#5f6368' }}>No assignments are assigned to this student&apos;s class yet.</p>
+              ) : groupAssignmentsByGradingPeriod(selectedAssignments, gradingPeriodSettings || {}).map((group) => {
+                const rows = group.assignments.slice().sort((left, right) => new Date(right.dueAt || right.dueDate || 0) - new Date(left.dueAt || left.dueDate || 0));
+                const list = (
+                  <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
+                    {rows.map((assignment) => {
+                      const progress = studentAssignmentProgress({ student: selected, assignment });
+                      const label = progress.state === PROGRESS_STATE.NOT_STARTED
+                        ? 'Not started'
+                        : progress.state === PROGRESS_STATE.COMPLETE
+                          ? `Complete${progress.score === null ? '' : ` · ${progress.score}%`}`
+                          : `In progress · ${progress.attempted}/${progress.total} answered${progress.score === null ? '' : ` · ${progress.score}%`}`;
+                      return (
+                        <li key={assignment.id} className="tw-row" style={{ justifyContent: 'space-between', padding: '8px 10px', border: '1px solid var(--mm-border)', borderRadius: 9 }}>
+                          <span style={{ minWidth: 0 }}>
+                            {onOpenAssignment
+                              ? <button type="button" className="tw-link" onClick={() => onOpenAssignment(assignment.id, selected.classId || null)}>{assignment.title}</button>
+                              : <strong>{assignment.title}</strong>}
+                            <span className="tw-small tw-muted" style={{ display: 'block' }}>Due {formatDateTime(assignment.dueAt || assignment.dueDate)}</span>
+                          </span>
+                          <span className="tw-row" style={{ gap: 6 }}>
+                            <span className="tw-pill" data-tone={progress.state === PROGRESS_STATE.NOT_STARTED ? 'warning' : progress.state === PROGRESS_STATE.COMPLETE ? 'success' : 'neutral'}>{label}</span>
+                            {onOpenStudentWork && progress.state !== PROGRESS_STATE.NOT_STARTED && (
+                              <button type="button" className="tw-btn tw-btn--sm" onClick={() => onOpenStudentWork(selected.classId || null, assignment.id, selected.id)}>Work</button>
+                            )}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                );
+                // Current marking period open; earlier periods folded, never hidden.
+                return group.period.isCurrent ? (
+                  <div key={group.period.id} style={{ marginTop: 8 }}>
+                    <div className="tw-small tw-muted" style={{ fontWeight: 900, marginBottom: 6 }}>{group.period.label}</div>
+                    {list}
+                  </div>
+                ) : (
+                  <details key={group.period.id} className="tw-disclosure" style={{ marginTop: 10 }}>
+                    <summary>{group.period.label} <span className="tw-pill">{rows.length}</span></summary>
+                    <div className="tw-disclosure__body">{list}</div>
+                  </details>
+                );
+              })}
             </section>
             {detailEvidence.loading && <p style={{ color: '#5f6368' }}>Loading delivery history…</p>}
             {detailEvidence.error && <p style={{ color: '#9a3412' }}>{detailEvidence.error}</p>}

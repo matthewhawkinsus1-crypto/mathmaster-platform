@@ -531,7 +531,7 @@ export const getDOLState = ({ assignment, schedule, classId = null, classPeriod,
     classId,
     todayKey,
   });
-  const { durationMinutes, closeMinutesBeforeEnd, earlyUnlocked, teacherRecovery } = sharedDol;
+  const { durationMinutes, closeMinutesBeforeEnd, earlyUnlocked, teacherRecovery, teacherClosed, teacherClosedAtMs } = sharedDol;
   const regularEndsAt = new Date(sharedDol.regularEndsAtMs);
   const regularOpensAt = new Date(sharedDol.regularOpensAtMs);
   const opensAt = new Date(sharedDol.opensAtMs);
@@ -547,7 +547,7 @@ export const getDOLState = ({ assignment, schedule, classId = null, classPeriod,
   // "Restart" preserves the original early-unlock behavior inside the normal
   // instructional window. "Recover" is the explicit teacher exception after
   // that cutoff: it is audited on the assignment and receives a fresh timer.
-  const canRestart = status === 'ended' && teacherRecovery !== true && now < regularEndsAt;
+  const canRestart = status === 'ended' && teacherRecovery !== true && teacherClosed !== true && now < regularEndsAt;
   const canRecover = status === 'ended';
 
   return {
@@ -563,6 +563,11 @@ export const getDOLState = ({ assignment, schedule, classId = null, classPeriod,
     regularEndsAt,
     earlyUnlocked,
     teacherRecovery: teacherRecovery === true,
+    // A teacher's "Close now". Reopening after it is always a recovery window
+    // (see handleUnlockDOLForClass): the close finalized the DOL grade exactly
+    // like a normal end, and only a recovery window may reopen a final grade.
+    teacherClosed: teacherClosed === true,
+    teacherClosedAt: teacherClosedAtMs ? new Date(teacherClosedAtMs) : null,
     canRestart,
     canRecover,
     durationMinutes,

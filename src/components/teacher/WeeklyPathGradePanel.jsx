@@ -45,14 +45,26 @@ export default function WeeklyPathGradePanel({
   onOpenStudent = null,
   onReviewClassroomSync = null,
   now = Date.now(),
+  // 'loaded' | 'loading' | 'unavailable'. A failed read of this week's Path
+  // sessions is NOT zero completions: while progress is not loaded the panel
+  // shows no Path grade at all (never "0 / 5 · 0%") and publishing is blocked.
+  progressState = 'loaded',
 }) {
   const rows = useMemo(() => weeklyPathGradebookRows({
     students, goalsByStudentId, completionsByStudentId, learningProfilesByStudentId, now,
   }), [students, goalsByStudentId, completionsByStudentId, learningProfilesByStudentId, now]);
+  const progressKnown = progressState === 'loaded';
 
   const readiness = useMemo(
-    () => syncReadiness({ rows, weekComplete, progressTruncated, classroomLinked }),
-    [rows, weekComplete, progressTruncated, classroomLinked],
+    () => (progressKnown
+      ? syncReadiness({ rows, weekComplete, progressTruncated, classroomLinked })
+      : {
+        state: SYNC_STATE.BLOCKED,
+        reason: progressState === 'loading'
+          ? 'This week’s Path progress is still loading.'
+          : 'This week’s Path progress could not be loaded, so no Path grade is shown and nothing can be published until it loads. Reload the page to try again.',
+      }),
+    [progressKnown, progressState, rows, weekComplete, progressTruncated, classroomLinked],
   );
 
   const graded = rows.filter((row) => row.goal > 0);
@@ -71,6 +83,11 @@ export default function WeeklyPathGradePanel({
         </p>
       </header>
 
+      {!progressKnown && (
+        <div role="status" style={{ margin: '12px 18px 0', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--mm-warning-border)', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 13 }}>
+          {readiness.reason}
+        </div>
+      )}
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
@@ -94,11 +111,11 @@ export default function WeeklyPathGradePanel({
                   />
                 </td>
                 <td style={{ padding: 11, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                  {row.goal > 0 ? `${row.complete} / ${row.goal}` : '—'}
+                  {!progressKnown ? '—' : row.goal > 0 ? `${row.complete} / ${row.goal}` : '—'}
                   {row.overdue && <span style={{ marginLeft: 6, color: '#9a3412', fontWeight: 800, fontSize: 11 }}>OVERDUE</span>}
                 </td>
-                <td style={{ padding: 11, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 900, color: row.goal > 0 ? (row.passing ? '#12633a' : '#9a3412') : '#5f6368' }}>
-                  {row.goal > 0 ? `${Math.round(row.grade)}%` : 'No goal yet'}
+                <td style={{ padding: 11, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 900, color: progressKnown && row.goal > 0 ? (row.passing ? '#12633a' : '#9a3412') : '#5f6368' }}>
+                  {!progressKnown ? (progressState === 'loading' ? 'Loading…' : 'Unavailable') : row.goal > 0 ? `${Math.round(row.grade)}%` : 'No goal yet'}
                 </td>
                 <td style={{ padding: 11 }}>
                   <StudentPerformanceBadge

@@ -29,8 +29,8 @@ import {
 import { createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
 import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
-import { resolveAuthoritativeClose } from '../functions/shared/sectionDeadline.mjs';
-import { buildDolAttemptGrant, buildDolWindowOpening, summarizeStudentRecovery } from './platform/assessment/assessmentRecovery.js';
+import { resolveAuthoritativeClose, resolveWarmupInstructionDateKey } from '../functions/shared/sectionDeadline.mjs';
+import { buildDolAttemptGrant, buildDolClose, buildDolDateMove, buildDolExtension, buildDolScheduleRestore, buildDolWindowOpening, scheduledDolDateFor, summarizeStudentRecovery } from './platform/assessment/assessmentRecovery.js';
 import { PRESENCE_FLUSH_MS, applyKeyedChanges, createKeyedUpdateBuffer } from './platform/performance/coalescedKeyedUpdates.js';
 import { teacherAdmin } from './auth/authService';
 import {
@@ -141,6 +141,9 @@ import WeeklyPathGradePanel from './components/teacher/WeeklyPathGradePanel.jsx'
 import ClassroomSyncReview from './components/teacher/ClassroomSyncReview.jsx';
 import TeacherQuickSearch from './components/teacher/TeacherQuickSearch.jsx';
 import StudentProfileDrawer from './components/teacher/StudentProfileDrawer.jsx';
+import AssignmentHub from './components/teacher/AssignmentHub.jsx';
+import GradebookAssignmentBar from './components/teacher/GradebookAssignmentBar.jsx';
+import { classGradeProgress } from './platform/teacher/assignmentProgress.js';
 import StudentNameLink from './components/common/StudentNameLink.jsx';
 import StudentResponseInspector from './components/teacher/StudentResponseInspector.jsx';
 import AssignmentGradeOverrideControls from './components/teacher/AssignmentGradeOverrideControls.jsx';
@@ -761,6 +764,15 @@ function App() {
   // Held here so the drawer opens OVER the teacher's current work rather than
   // navigating them away from the class monitor or gradebook they were reading.
   const [profileDrawerStudentId, setProfileDrawerStudentId] = useState(null);
+  // ONE ASSIGNMENT, FROM ANYWHERE (components/teacher/AssignmentHub.jsx): the
+  // assignment and the class it was opened from. Like the student drawer, it
+  // opens over the current screen instead of navigating away from it.
+  const [assignmentHubTarget, setAssignmentHubTarget] = useState(null);
+  // A hand-off into Grade Export (class and/or assignment already chosen).
+  const [gradeExportScope, setGradeExportScope] = useState(null);
+  // A hand-off into Live Class on Home: which class and assignment to show.
+  const [liveFocus, setLiveFocus] = useState(null);
+  const [gradebookProgressFilter, setGradebookProgressFilter] = useState('all');
   // The global live dashboard keeps bounded recent data. Opening one student's
   // profile performs a focused query so older history is not silently lost just
   // because this teacher has many students/classes.
@@ -887,6 +899,7 @@ function App() {
   const [feedbackReleaseBusyId, setFeedbackReleaseBusyId] = useState(null);
   const [dolUnlockBusyKey, setDolUnlockBusyKey] = useState(null);
   const [dolAttemptGrantBusyKey, setDolAttemptGrantBusyKey] = useState(null);
+  const [dolControlBusyKey, setDolControlBusyKey] = useState(null);
   const dolRecoveryAnnouncedRef = useRef({});
   const [warmupControlBusyKey, setWarmupControlBusyKey] = useState(null);
   const [sectionAccessBusyKey, setSectionAccessBusyKey] = useState(null);
@@ -7125,8 +7138,12 @@ function App() {
     // Once the normal DOL cutoff passes, a teacher can still deliberately
     // reopen the DOL. This is stored as an audited recovery window instead of
     // pretending the original bell-time window never ended.
-    const recoveryAfterCutoff = (state.status === 'ended' || needsOpenToday)
-      && actionNowMs >= (state.regularEndsAt?.getTime?.() || derivedRegularEndMs);
+    // After a teacher "Close now" the DOL grade was finalized exactly as at a
+    // normal end, so reopening is always an audited recovery window — the only
+    // kind of window the server lets reopen a final DOL grade.
+    const reopenAfterTeacherClose = state.status === 'ended' && state.teacherClosed === true;
+    const recoveryAfterCutoff = reopenAfterTeacherClose || ((state.status === 'ended' || needsOpenToday)
+      && actionNowMs >= (state.regularEndsAt?.getTime?.() || derivedRegularEndMs));
     const beforeClass = state.status === 'beforeClass' || actionNowMs < state.window.start.getTime();
 
     const proceed = await confirmAction({
@@ -7137,7 +7154,9 @@ function App() {
           : needsOpenToday
             ? `Open the DOL today for ${classLabel}?`
             : `Unlock the DOL early for ${classLabel}?`,
-      message: recoveryAfterCutoff
+      message: reopenAfterTeacherClose
+        ? `You closed this DOL for ${classLabel}. MathMaster will open a new ${durationMinutes}-minute teacher window for ${classLabel} only. Work in it counts, existing attempts stay intact, and both the close and the reopen stay on record.`
+        : recoveryAfterCutoff
         ? `The normal DOL window has ended. MathMaster will open a new ${durationMinutes}-minute teacher recovery window for ${classLabel} only. Existing attempts and work history stay intact, and the exception is recorded on the assignment.`
         : canRestart
           ? `The earlier DOL timer ended, but instructional DOL time remains. Restart it now for ${classLabel} only. The timer will still stop before the normal DOL cutoff.`
@@ -7158,22 +7177,20 @@ function App() {
       const writeNow = Date.now();
       const openedAt = new Date(writeNow).toISOString();
       const dateKey = localDateKey(openedAt);
-      const dol = { ...(assignment.dol || {}), enabled: true };
       const currentRegularEndMs = state.regularEndsAt?.getTime?.() || derivedRegularEndMs;
       // Re-evaluate after confirmation. If the regular cutoff passed while the
       // dialog was open, safely convert the action into a recovery window.
-      const recoveryNow = (state.status === 'ended' || needsOpenToday) && writeNow >= currentRegularEndMs;
-
-      dol.instructionDatesByClassId = {
-        ...(assignment.dol?.instructionDatesByClassId || {}),
-        [classId]: dateKey,
-      };
+      const recoveryNow = reopenAfterTeacherClose || ((state.status === 'ended' || needsOpenToday) && writeNow >= currentRegularEndMs);
 
       // Built by the recovery model so every opening lands in the append-only
       // audit (who, class, before, after, when) — see assessmentRecovery.js.
+      // The builder makes today this class's DOL date (instructionDatesByClassId,
+      // this class only) and first keeps the date it replaces
+      // (scheduledInstructionDatesByClassId), so the teacher can return to it.
       const opening = buildDolWindowOpening({
-        assignment: { ...assignment, dol },
+        assignment,
         classId,
+        classPeriod,
         recovery: recoveryNow,
         durationMinutes,
         dateKey,
@@ -7266,6 +7283,157 @@ function App() {
     } finally {
       setDolAttemptGrantBusyKey(null);
     }
+  };
+
+  /*
+   * CLOSE NOW · +5 MIN · NOT TODAY · BACK TO THE SCHEDULED DAY — for one class.
+   *
+   * Real periods get interrupted (fire drills, assemblies, classwork that runs
+   * long). Each action is built by the audited recovery model, asks first, and
+   * touches only this class. When each is offered is decided in
+   * platform/teacher/classLessonControls.js:
+   *   - close / extend only while the DOL is open (a close is a normal end);
+   *   - move / back-to-scheduled only before it opens (a date change never
+   *     closes or finalizes anything, and the original day is always kept).
+   */
+  const handleDolControlForClass = async (assignment, classContext, control = {}) => {
+    const { classId, classPeriod, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
+    if (!assignment?.id || !classId || !classKey) return;
+    const action = String(control?.action || '');
+    const nowMs = Date.now();
+    const state = getDOLState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue: nowMs });
+    const todayKey = localDateKey(nowMs);
+    const teacherId = user?.id || null;
+    const clockOf = (ms) => new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    const dayOf = (key) => {
+      if (!key) return 'another day';
+      const [year, month, day] = String(key).split('-').map(Number);
+      return new Date(year, month - 1, day, 12).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+    };
+    const ranToday = ['active', 'ended'].includes(state.status) && state.instructionDateKey === todayKey;
+
+    let confirmation;
+    let build;
+    let success;
+    if (action === 'close') {
+      if (state.status !== 'active') {
+        toastInfo('The DOL is not open', `${assignment.title} is not open for ${classLabel} right now.`);
+        return;
+      }
+      confirmation = {
+        title: `Close the DOL now for ${classLabel}?`,
+        message: `Students in ${classLabel} stop working on the DOL now, exactly as if its timer had run out: answers so far are kept and graded. Other classes are unaffected, and you can reopen it afterwards.`,
+        confirmLabel: 'Close DOL',
+      };
+      build = () => buildDolClose({ assignment, classId, dateKey: todayKey, teacherId, now: Date.now() });
+      success = ['DOL closed', `${assignment.title} · ${classLabel}`];
+    } else if (action === 'extend') {
+      if (state.status !== 'active') {
+        toastInfo('The DOL is not open', 'Only an open DOL can be given more time. Use Reopen after it ends.');
+        return;
+      }
+      const minutes = Math.max(1, Math.min(30, Number(control?.minutes) || 5));
+      const classEndMs = state.window?.end?.getTime?.() ?? null;
+      const proposedMs = Math.min(classEndMs ?? Number.POSITIVE_INFINITY, Math.max(state.endsAt.getTime(), nowMs) + minutes * 60_000);
+      confirmation = {
+        title: `Give ${classLabel} ${minutes} more minutes on the DOL?`,
+        message: `The DOL stays open for ${classLabel} until ${clockOf(proposedMs)}${classEndMs !== null && proposedMs >= classEndMs ? ' — the end of the period' : ''}. Work in the extra time counts. Other classes are unaffected.`,
+        confirmLabel: `Extend to ${clockOf(proposedMs)}`,
+      };
+      build = () => buildDolExtension({ assignment, classId, dateKey: todayKey, currentEndsAtMs: state.endsAt.getTime(), minutes, capAtMs: classEndMs, teacherId, now: Date.now() });
+      success = ['DOL extended', `${assignment.title} · ${classLabel} · open until ${clockOf(proposedMs)}`];
+    } else if (action === 'move') {
+      const toDateKey = String(control?.toDateKey || '');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(toDateKey)) {
+        toastWarning('Choose a day', 'Pick the day this class should take the DOL.');
+        return;
+      }
+      if (ranToday) {
+        toastWarning('The DOL already ran today', `Students in ${classLabel} have already had today’s DOL window, so its day stays as it is.`);
+        return;
+      }
+      confirmation = {
+        title: `Move ${classLabel}’s DOL to ${dayOf(toDateKey)}?`,
+        message: `The DOL will not open for ${classLabel} ${state.instructionDateKey === todayKey ? 'today' : `on ${dayOf(state.instructionDateKey)}`}; it runs at the end of class on ${dayOf(toDateKey)} instead. Nothing is closed or graded, other classes keep their day, and the original day is kept so you can move it back.`,
+        confirmLabel: 'Move DOL',
+      };
+      build = () => buildDolDateMove({ assignment, classId, classPeriod, toDateKey, todayKey, teacherId, now: Date.now() });
+      success = ['DOL moved', `${assignment.title} · ${classLabel} · ${dayOf(toDateKey)}`];
+    } else if (action === 'restore') {
+      const saved = scheduledDolDateFor(assignment, classId);
+      if (!saved) {
+        toastInfo('Already on schedule', `${assignment.title} is on its scheduled day for ${classLabel}.`);
+        return;
+      }
+      if (ranToday) {
+        toastWarning('The DOL already ran today', `Students in ${classLabel} have used today’s DOL window, so the day change stays on record.`);
+        return;
+      }
+      confirmation = {
+        title: `Put ${classLabel}’s DOL back on its scheduled day?`,
+        message: saved.resolvedDateKey
+          ? `The DOL returns to ${dayOf(saved.resolvedDateKey)} and its automatic timing for ${classLabel}. Other classes are unaffected.`
+          : `The DOL returns to having no scheduled day for ${classLabel}. Other classes are unaffected.`,
+        confirmLabel: 'Back to schedule',
+      };
+      build = () => buildDolScheduleRestore({ assignment, classId, todayKey, teacherId, now: Date.now() });
+      success = ['DOL back on schedule', `${assignment.title} · ${classLabel}`];
+    } else {
+      return;
+    }
+
+    const proceed = await confirmAction(confirmation);
+    if (!proceed) return;
+    const busyKey = `${assignment.id}:${classKey}`;
+    setDolControlBusyKey(busyKey);
+    try {
+      const { dol } = build();
+      await updateDoc(doc(db, 'assignments', assignment.id), { dol, updatedAt: new Date().toISOString() });
+      toastSuccess(success[0], success[1]);
+    } catch (error) {
+      console.error(error);
+      toastError('Could not change the DOL', error.message);
+    } finally {
+      setDolControlBusyKey(null);
+    }
+  };
+
+  /*
+   * THE ASSIGNMENT'S WORLD IS ONE CLICK FROM ANYWHERE IT APPEARS.
+   * Each hand-off below arrives with its context already chosen: the class,
+   * the assignment, the student. Nothing asks the teacher to choose again.
+   */
+  const openAssignmentHub = (assignmentId, classId = null) => {
+    if (!assignmentId) return;
+    setAssignmentHubTarget({ assignmentId, classId: classId || activeClass.classId || null });
+  };
+
+  const openGradeExport = ({ classIds = [], assignmentId = null } = {}) => {
+    setGradeExportScope({ classIds: (classIds || []).filter(Boolean), assignmentId: assignmentId || null, nonce: Date.now() });
+    setAssignmentHubTarget(null);
+    setTeacherTab('gradeTransfer');
+  };
+
+  const openGradebookFor = (classId, assignmentId = null, studentId = null) => {
+    const classRecord = classes.find((entry) => entry.classId === classId) || null;
+    const student = studentId ? allStudents.find((entry) => entry.id === studentId) || { id: studentId } : null;
+    setGradebookFilter({
+      classId: classRecord?.classId || classId || '',
+      classPeriod: classRecord?.period || '',
+      assignmentId: assignmentId || null,
+      student,
+    });
+    if (classRecord?.classId) setActiveClass({ classId: classRecord.classId, classPeriod: classRecord.period || null });
+    setGradebookProgressFilter('all');
+    setAssignmentHubTarget(null);
+    setTeacherTab('grades');
+  };
+
+  const openLiveFor = (classContext, assignmentId = null) => {
+    if (classContext?.classId) setActiveClass({ classId: classContext.classId, classPeriod: classContext.classPeriod || null });
+    setLiveFocus({ classId: classContext?.classId || null, classPeriod: classContext?.classPeriod || null, assignmentId: assignmentId || null, nonce: Date.now() });
+    setAssignmentHubTarget(null);
+    setTeacherTab('home');
   };
 
   const handleToggleWarmupForClass = async (assignment, classContext, control = {}) => {
@@ -7397,6 +7565,20 @@ function App() {
       }
 
       warmup.instructionDatesByClassId = instructionDatesByClassId;
+      // Opening a Warm-Up on another day moves this class's Warm-Up day. Keep
+      // the day it replaces (once, on the first override) so the class page can
+      // say "originally …" — the same rule the DOL follows.
+      const scheduledWarmupDateKey = resolveWarmupInstructionDateKey({ assignment, classId, classPeriod });
+      if (action !== 'close' && scheduledWarmupDateKey !== dateKey && !assignment.warmup?.scheduledInstructionDatesByClassId?.[classId]) {
+        warmup.scheduledInstructionDatesByClassId = {
+          ...(assignment.warmup?.scheduledInstructionDatesByClassId || {}),
+          [classId]: {
+            classDateKey: assignment.warmup?.instructionDatesByClassId?.[classId] || null,
+            resolvedDateKey: scheduledWarmupDateKey || null,
+            savedAt: changedAt,
+          },
+        };
+      }
       warmup.closedByClassId = closedByClassId;
       warmup.autoCloseByClassId = autoCloseByClassId;
       await updateDoc(doc(db, 'assignments', assignment.id), { warmup, updatedAt: changedAt });
@@ -9828,6 +10010,15 @@ function App() {
         : (student.classPeriod || 'Unassigned') === selectedGradebookPeriod
     )).sort(compareStudentsByName);
     const assignmentsForSelectedClass = assignments.filter((assignment) => !selectedGradebookPeriod || assignmentIsForStudent(assignment, { classId: gradebookFilter.classId || null, classPeriod: selectedGradebookPeriod }));
+    // The class summary above the gradebook table, from the same canonical
+    // grade projection the table rows use. It is also the table filter.
+    const gradebookProgress = teacherTab === 'grades' && selectedAssignment
+      ? classGradeProgress({ assignment: selectedAssignment, roster: selectedClassStudents, hasGradeRecords: teacherStudentDataMode === 'full', nameOf: (student) => formatStudentName(student) })
+      : null;
+    const gradebookFilterIds = gradebookProgress && gradebookProgressFilter !== 'all'
+      ? new Set(({ complete: gradebookProgress.complete, inProgress: gradebookProgress.inProgress, notStarted: gradebookProgress.notStarted, below: gradebookProgress.belowThreshold }[gradebookProgressFilter] || []).map((row) => row.id))
+      : null;
+    const gradebookVisibleStudents = gradebookFilterIds ? selectedClassStudents.filter((student) => gradebookFilterIds.has(student.id)) : selectedClassStudents;
 
     // The Assignments tab list, after the Library folder/smart-view filter and
     // the free-text search. Computed once so the header count, the
@@ -10013,8 +10204,11 @@ function App() {
               return;
             }
             if (result.kind === 'assignment') {
-              setGradebookFilter((current) => ({ ...current, assignmentId: result.payload.assignmentId, student: null }));
-              setTeacherTab('grades');
+              // An assignment result opens the assignment itself — its grades,
+              // live room, controls and export are all one click from there.
+              // (It used to jump to Grades without switching class, landing on
+              // an empty "Select assignment" whenever the class differed.)
+              openAssignmentHub(result.payload.assignmentId, result.payload.classId || null);
               return;
             }
             if (result.kind === 'standard') setTeacherTab('standards');
@@ -10053,6 +10247,39 @@ function App() {
           }}
         />
 
+        <AssignmentHub
+          open={Boolean(assignmentHubTarget)}
+          assignment={assignmentHubTarget ? assignments.find((entry) => entry.id === assignmentHubTarget.assignmentId) || null : null}
+          initialClassId={assignmentHubTarget?.classId || null}
+          classes={classes}
+          students={allStudents}
+          presenceById={presenceById}
+          classSchedule={classSchedule}
+          nowValue={now}
+          gradingPeriodSettings={gradingPeriodSettings}
+          hasGradeRecords={teacherStudentDataMode === 'full'}
+          handlers={{
+            onToggleWarmup: handleToggleWarmupForClass,
+            onToggleSectionAccess: handleToggleSectionAccessForClass,
+            onUnlockDOL: handleUnlockDOLForClass,
+            onGrantDOLAttempt: handleGrantDOLAttemptForClass,
+            onDolControl: handleDolControlForClass,
+          }}
+          busy={{ warmup: warmupControlBusyKey, section: sectionAccessBusyKey, dolUnlock: dolUnlockBusyKey, dolGrant: dolAttemptGrantBusyKey, dolControl: dolControlBusyKey }}
+          onClose={() => setAssignmentHubTarget(null)}
+          onOpenGrades={(classId, assignmentId) => openGradebookFor(classId, assignmentId)}
+          onOpenStudentWork={(classId, assignmentId, studentId) => openGradebookFor(classId, assignmentId, studentId)}
+          onOpenLive={(classContext, assignmentId) => openLiveFor(classContext, assignmentId)}
+          onOpenExport={(scope) => openGradeExport(scope)}
+          onOpenStudent={(studentId) => { setProfileDrawerStudentId(studentId); }}
+          onOpenClass={(classContext) => { setAssignmentHubTarget(null); handleGoToClassFromHome(classContext); }}
+          onPreview={(assignment) => { setAssignmentHubTarget(null); startTeacherPreview(assignment.id); }}
+          onPrint={(assignment) => { setAssignmentHubTarget(null); beginTeacherWorksheetExport(assignment); }}
+          onEditDates={(assignment) => { setAssignmentHubTarget(null); setTeacherTab('assignments'); beginEditAssignmentDates(assignment); }}
+          onEditSetup={(assignment) => { setAssignmentHubTarget(null); beginEditAssignmentSetup(assignment); }}
+          onEditQuestions={(assignment) => { setAssignmentHubTarget(null); openQuestionEditor(assignment); }}
+        />
+
         <div className="mm-dashboard-shell" style={{ maxWidth: '1360px', margin: '0 auto', background: 'var(--mm-surface)', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'stretch' }}>
           <TeacherSidebar
             activeTab={teacherTab}
@@ -10073,6 +10300,13 @@ function App() {
               // it is the class the teacher is working in, and it has to survive
               // the walk to another tab and back.
               setHomeNavigationPeriod(null);
+              setLiveFocus(null);
+              setGradebookProgressFilter('all');
+              // Grade Export follows the class the teacher is working in, like
+              // every other class-first screen; "All classes" is one click away.
+              if (tab === 'gradeTransfer') {
+                setGradeExportScope(activeClass.classId ? { classIds: [activeClass.classId], assignmentId: null, nonce: Date.now() } : null);
+              }
               // Full academic records are loaded by the tab-scoped subscription
               // only on screens that actually need them.
             }}
@@ -10209,13 +10443,23 @@ function App() {
             )}
             {teacherTab === 'assignments' && (
               <div>
-                <h2 style={{ marginTop: 0 }}>Create and Assign</h2>
-                <AssignmentIntake
-                  onJsonReady={handleAssignmentJsonReady}
-                  toastSuccess={toastSuccess}
-                  toastError={toastError}
-                  toastInfo={toastInfo}
-                />
+                {/*
+                  The builder is a destination, not a header. It used to fill
+                  the first ~1,700px of this screen, pushing the teacher's own
+                  assignments out of sight. It stays mounted while folded, so a
+                  half-written plan survives opening and closing it.
+                */}
+                <details className="tw-disclosure" open={assignments.length === 0} style={{ marginBottom: 8 }}>
+                  <summary><span style={{ fontSize: 18 }}>Create and Assign</span> <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>build a new lesson with MathMaster, or paste/upload one</span></summary>
+                  <div className="tw-disclosure__body">
+                    <AssignmentIntake
+                      onJsonReady={handleAssignmentJsonReady}
+                      toastSuccess={toastSuccess}
+                      toastError={toastError}
+                      toastInfo={toastInfo}
+                    />
+                  </div>
+                </details>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', flexWrap: 'wrap', marginTop: '30px', marginBottom: '14px' }}>
                   <h2 style={{ margin: 0 }}>
@@ -10322,7 +10566,9 @@ function App() {
                         />
                         <div style={{ flex: '1 1 440px', textAlign: 'left' }}>
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                            <strong style={{ fontSize: '18px' }}>{assignment.title}</strong>
+                            {/* The title opens the assignment's world: its classes,
+                                live room, controls, grades and export. */}
+                            <button type="button" className="tw-link" style={{ fontSize: '18px' }} onClick={() => openAssignmentHub(assignment.id)}>{assignment.title}</button>
                             <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#e8f0fe', color: '#174ea6' }}>{contentVersionLabel(assignment)}</span>
                             {hasContentUpgrade && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#fef7e0', color: '#7a4f00' }}>V{contentVersionOf(contentUpgradeTarget)} AVAILABLE</span>}
                             <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: lifecycle.isPracticeOnly ? '#f1f3f4' : lifecycle.isLate ? '#fff4ce' : '#e6f4ea', color: lifecycle.isPracticeOnly ? '#3c4043' : lifecycle.isLate ? '#7a4f00' : '#137333' }}>{lifecycle.isPracticeOnly ? 'PRACTICE ONLY' : lifecycle.status.toUpperCase()}</span>
@@ -10333,13 +10579,18 @@ function App() {
                                 plainly is the whole point of allowing it to exist. */}
                             {isLibraryAssignment(assignment) && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: '#fef7e0', color: '#7a4f00' }}>NOT ASSIGNED</span>}
                           </div>
-                          <div style={{ marginTop: '7px', color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>{includedQuestionIndices.length} included question{includedQuestionIndices.length === 1 ? '' : 's'}{canonicalQuestions.length !== includedQuestionIndices.length ? ` · ${canonicalQuestions.length - includedQuestionIndices.length} excluded` : ''} · {isLibraryAssignment(assignment) ? 'Not assigned to a class' : `Classes: ${(assignment.assignedClassPeriods || []).join(', ')}`}<br />{isLibraryAssignment(assignment) ? 'No due date yet' : `Due ${formatDueDate(assignment)} · Late close ${formatLateDueDate(assignment)}`} · {affectedStudents === null
-                            ? 'student activity available in Grades'
+                          <div style={{ marginTop: '7px', color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>{includedQuestionIndices.length} included question{includedQuestionIndices.length === 1 ? '' : 's'}{canonicalQuestions.length !== includedQuestionIndices.length ? ` · ${canonicalQuestions.length - includedQuestionIndices.length} excluded` : ''} · {isLibraryAssignment(assignment) ? 'Not assigned to a class' : `Classes: ${(assignment.assignedClassIds || []).map((classId) => classesById[classId]?.name || classesById[classId]?.period).filter(Boolean).join(', ') || (assignment.assignedClassPeriods || []).join(', ')}`}<br />{isLibraryAssignment(assignment) ? 'No due date yet' : `Due ${formatDueDate(assignment)} · Late close ${formatLateDueDate(assignment)}`} · {affectedStudents === null
+                            ? 'progress, grades and live activity in its details'
                             : `${affectedStudents} student record${affectedStudents === 1 ? '' : 's'}`}</div>
                         </div>
                         <AssignmentCardMenu
                           ariaLabel={`More actions for ${assignment.title}`}
                           items={[
+                            { key: 'details', label: 'Open assignment details', onClick: () => openAssignmentHub(assignment.id) },
+                            ...(!isLibraryAssignment(assignment) && (assignment.assignedClassIds || []).length ? [
+                              { key: 'grades', label: 'Grades', onClick: () => openGradebookFor((assignment.assignedClassIds || []).includes(activeClass.classId) ? activeClass.classId : assignment.assignedClassIds[0], assignment.id) },
+                              { key: 'export-grades', label: 'Export grades', onClick: () => openGradeExport({ classIds: (assignment.assignedClassIds || []).includes(activeClass.classId) ? [activeClass.classId] : [], assignmentId: assignment.id }) },
+                            ] : []),
                             { key: 'preview', label: 'View as Student', onClick: () => startTeacherPreview(assignment.id) },
                             { key: 'edit-questions', label: 'Edit Questions', onClick: () => openQuestionEditor(assignment) },
                             { key: 'edit-setup', label: 'Review / Edit Setup', onClick: () => beginEditAssignmentSetup(assignment) },
@@ -10439,6 +10690,9 @@ function App() {
                 isRootAdmin={rootAdminUiEligible}
                 onOpenAdministration={() => setTeacherWorkspaceMode('administration')}
                 onOpenProfileDrawer={setProfileDrawerStudentId}
+                onOpenAssignment={openAssignmentHub}
+                onOpenStudentWork={(classId, assignmentId, studentId) => openGradebookFor(classId, assignmentId, studentId)}
+                gradingPeriodSettings={gradingPeriodSettings}
               />
             )}
 
@@ -10483,6 +10737,11 @@ function App() {
                 onTeachAssignment={teachAssignmentLive}
                 onResumeTeaching={resumeLiveTeaching}
                 onEndLiveTeaching={endLiveTeaching}
+                onDolControl={handleDolControlForClass}
+                dolControlBusyKey={dolControlBusyKey}
+                onOpenAssignment={openAssignmentHub}
+                onSelectClass={(classContext) => { setLiveFocus(null); setActiveClass(classContext); }}
+                liveFocus={liveFocus}
               />
             )}
 
@@ -10521,7 +10780,13 @@ function App() {
                 onResolveReturnCheckIn={(candidate) => candidate && handleRecordStudentSupportEvent(buildReturnCheckInEvent({ candidate, actorEmail: user.email }))}
                 onOpenWorkflow={(item) => {
                   if (item.sourceType === 'studentSupportEvent') setParentContactSourceAction(item);
-                  setTeacherTab(item.sourceType === 'gradeTransfer' ? 'gradeTransfer' : item.sourceType === 'returnCheckIn' ? 'attendanceHistory' : item.sourceType === 'testCycle' ? 'exams' : 'parentContacts');
+                  // A grade-export row opens Grade Export on exactly that class
+                  // and assignment rather than the full list of every export.
+                  if (item.sourceType === 'gradeTransfer') {
+                    openGradeExport({ classIds: item.classId ? [item.classId] : [], assignmentId: item.assignmentId || null });
+                    return;
+                  }
+                  setTeacherTab(item.sourceType === 'returnCheckIn' ? 'attendanceHistory' : item.sourceType === 'testCycle' ? 'exams' : 'parentContacts');
                 }}
               />
             )}
@@ -10575,6 +10840,11 @@ function App() {
                 warmupControlBusyKey={warmupControlBusyKey}
                 onToggleSectionAccess={handleToggleSectionAccessForClass}
                 sectionAccessBusyKey={sectionAccessBusyKey}
+                onDolControl={handleDolControlForClass}
+                dolControlBusyKey={dolControlBusyKey}
+                onOpenAssignment={openAssignmentHub}
+                onOpenLive={(classContext) => openLiveFor(classContext, null)}
+                onOpenExport={(classId) => openGradeExport({ classIds: [classId] })}
                 initialPeriod={homeNavigationPeriod}
                 initialClassId={activeClass.classId}
                 onSelectClass={setActiveClass}
@@ -10607,40 +10877,33 @@ function App() {
               <div>
                 <h2 style={{ marginTop: 0 }}>Gradebook and Evidence</h2>
 
-                <MarkingPeriodSettings
-                  settings={gradingPeriodSettings}
-                  assignments={assignmentsForSelectedClass}
-                  classLabel={selectedGradebookClass?.name || selectedGradebookPeriod}
-                  busy={gradingPeriodBusy || bulkBusy}
-                  onCreatePeriod={handleCreateGradingPeriod}
-                  onSetCurrentPeriod={handleSetCurrentGradingPeriod}
-                  onSetPeriodArchived={handleSetGradingPeriodArchived}
-                  onMoveSelectedAssignments={handleMoveSelectedAssignmentsToGradingPeriod}
-                />
-
                 {/*
-                  The weekly Path grade lives in the gradebook because it IS a
-                  grade — but it is a grade about a different thing from the
-                  assignment scores below it, so it gets its own panel rather
-                  than a column that would read as the same kind of number.
+                  THE ASSIGNMENT FIRST. The grades used to sit behind a "Select
+                  assignment" dropdown below the marking-period settings and the
+                  weekly Path panel. The bar picks the most relevant current
+                  assignment, and its summary is also the table's filter.
                 */}
-                {activeClass.classId && (
-                  <WeeklyPathGradePanel
-                    students={teacherWeeklyRoster}
-                    goalsByStudentId={teacherWeeklyGoalsByStudent}
-                    completionsByStudentId={weeklyPathCompletionsByStudent}
-                    learningProfilesByStudentId={teacherLearningProfiles}
-                    weekKey={weeklyPathWeekKey}
-                    classId={activeClass.classId}
-                    classroomLinked={Boolean(classesById[activeClass.classId]?.classroomCourseId)}
-                    progressTruncated={weeklyPathTruncated}
-                    weekComplete={weeklyPathWeekComplete}
-                    onOpenStudent={setProfileDrawerStudentId}
-                    onReviewClassroomSync={(proposal) => setClassroomSyncProposal(proposal)}
-                    now={now}
-                  />
-                )}
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '20px', padding: '15px', borderRadius: '9px', background: '#f1f3f4' }}>
+                <GradebookAssignmentBar
+                  assignments={assignmentsForSelectedClass}
+                  selectedAssignmentId={gradebookFilter.assignmentId}
+                  onSelectAssignment={(assignmentId) => {
+                    setGradebookProgressFilter('all');
+                    setGradebookFilter((current) => ({ ...current, assignmentId: assignmentId || null, student: null }));
+                  }}
+                  gradingPeriodSettings={gradingPeriodSettings}
+                  nowValue={now}
+                  disabled={!selectedGradebookPeriod}
+                  autoSelect={!gradebookFilter.student}
+                  progress={gradebookProgress}
+                  progressFilter={gradebookProgressFilter}
+                  onProgressFilter={setGradebookProgressFilter}
+                  classLabel={selectedGradebookClass?.name || selectedGradebookPeriod}
+                  onOpenAssignment={(assignmentId) => openAssignmentHub(assignmentId, gradebookFilter.classId || null)}
+                  onOpenLive={(assignmentId) => openLiveFor({ classId: gradebookFilter.classId || null, classPeriod: selectedGradebookPeriod || null }, assignmentId)}
+                  onOpenExport={(assignmentId) => openGradeExport({ classIds: gradebookFilter.classId ? [gradebookFilter.classId] : [], assignmentId })}
+                />
+                {(!classes.length || gradebookFilter.student) && (
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '20px' }}>
                   {/*
                     The class dropdown that stood here is gone; the class bar
                     above the page owns that choice now. The legacy period
@@ -10659,9 +10922,9 @@ function App() {
                       {CLASS_PERIODS.map((period) => <option key={period} value={period}>{period}</option>)}
                     </select>
                   )}
-                  <select value={gradebookFilter.assignmentId || ''} disabled={!selectedGradebookPeriod} onChange={(event) => setGradebookFilter((current) => ({ ...current, assignmentId: event.target.value || null, student: null }))} style={{ padding: '9px', minWidth: '280px' }}><option value="">Select assignment</option>{assignmentsForSelectedClass.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.title}</option>)}</select>
                   {gradebookFilter.student && <button onClick={() => setGradebookFilter((current) => ({ ...current, student: null }))} style={{ padding: '9px 14px' }}>Back to class list</button>}
                 </div>
+                )}
 
                 {selectedAssignment && assignmentUsesTeacherReleasePolicy(selectedAssignment) && (
                   <section style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '20px', padding: '15px 17px', borderRadius: '9px', background: assignmentFeedbackWasReleased(selectedAssignment) ? '#e6f4ea' : '#eef4ff', border: `1px solid ${assignmentFeedbackWasReleased(selectedAssignment) ? '#9bd2aa' : '#aecbfa'}`, textAlign: 'left' }}>
@@ -10706,7 +10969,7 @@ function App() {
                 )}
 
                 {selectedGradebookPeriod && selectedAssignment && !gradebookFilter.student && (
-                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '12px' }}>Student</th><th>Overall</th><th>Warm-Up</th><th>Classwork</th><th>Practice</th><th>DOL</th><th>Instructional condition</th><th>Activity</th><th></th></tr></thead><tbody>{selectedClassStudents.map((student) => { const grades = projectTeacherOverridesForDisplay(student.gradesByAssignment || {}, student.teacherGradeOverridesByAssignment || {})?.[selectedAssignment.id]; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const score = assignmentOverride ? assignmentOverride.score : grades ? calculateGrade(grades, selectedAssignment) : null; const sectionGrades = splitGradesBySection({ tracker: grades, assignment: selectedAssignment }); const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <tr key={student.id} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? '#6f2da8' : score >= 70 ? '#188038' : '#202124' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8', fontWeight: 900, fontSize: '11px' }}>MOD</span>}
+                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '12px' }}>Student</th><th>Overall</th><th>Warm-Up</th><th>Classwork</th><th>Practice</th><th>DOL</th><th>Instructional condition</th><th>Activity</th><th></th></tr></thead><tbody>{gradebookVisibleStudents.map((student) => { const grades = projectTeacherOverridesForDisplay(student.gradesByAssignment || {}, student.teacherGradeOverridesByAssignment || {})?.[selectedAssignment.id]; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const score = assignmentOverride ? assignmentOverride.score : grades ? calculateGrade(grades, selectedAssignment) : null; const sectionGrades = splitGradesBySection({ tracker: grades, assignment: selectedAssignment }); const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <tr key={student.id} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? '#6f2da8' : score >= 70 ? '#188038' : '#202124' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8', fontWeight: 900, fontSize: '11px' }}>MOD</span>}
                     {/*
                       COMPLETION AND PERFORMANCE, VISUALLY APART.
                       The grade above is unchanged. These two lines are what a
@@ -10731,7 +10994,49 @@ function App() {
                     {gradeExplanation && <div style={{ marginTop: 4, fontSize: 11, color: '#5f6368', lineHeight: 1.4, maxWidth: 280 }}>{gradeExplanation}</div>}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.warmup.attempted ? `${sectionGrades.warmup.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.classwork.attempted ? `${sectionGrades.classwork.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.practice.attempted ? `${sectionGrades.practice.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.dol.attempted ? `${sectionGrades.dol.score}%` : '—'}</td><td style={{ fontSize: '12px' }}>{modified ? `Modified: ${(usage.modifications || []).join(', ')}` : (usage.accommodations || []).length ? `Accommodated: ${usage.accommodations.join(', ')}` : 'Standard'}</td><td style={{ fontSize: '12px', lineHeight: 1.45 }}>Total {formatTime(activity.totalTimeSeconds || 0)}<br />On time {formatTime(activity.onTimeSeconds || 0)} · Late {formatTime(activity.lateSeconds || 0)}<br />Last on-time: {formatTimeStamp(activity.lastActiveBeforeDue)}<br />Last late: {formatTimeStamp(activity.lastActiveLate)}</td><td><button onClick={() => setGradebookFilter((current) => ({ ...current, student }))} style={{ padding: '8px 12px', border: 0, borderRadius: '6px', background: '#1a73e8', color: '#fff', fontWeight: 'bold' }}>Details</button></td></tr>; })}</tbody></table></div>
                 )}
 
-                {gradebookFilter.student && selectedAssignment && (() => { const student = gradebookFilter.student; const studentGrades = projectTeacherOverridesForDisplay(student.gradesByAssignment || {}, student.teacherGradeOverridesByAssignment || {})?.[selectedAssignment.id] || {}; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const displayedAssignmentScore = assignmentOverride ? assignmentOverride.score : Object.keys(studentGrades).length ? calculateGrade(studentGrades, selectedAssignment) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{displayedAssignmentScore === null ? '—' : `${displayedAssignmentScore}%`}</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div><AssignmentGradeOverrideControls student={student} assignment={selectedAssignment} onChanged={() => setGradebookFilter((current) => ({ ...current, student: null }))} />{selectedAssignment?.dol?.enabled && (() => { const recovery = summarizeStudentRecovery({ assignment: selectedAssignment, classId: student.classId || activeClass?.classId || null, studentId: student.id }); const busy = dolAttemptGrantBusyKey === `${selectedAssignment.id}:students:${student.id}`; return <div data-dol-student-recovery={student.id} style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, fontSize: 12.5, color: '#3c4043' }}><span>Teacher-granted DOL attempts: <strong>{recovery.extraAttempts}</strong>{recovery.studentExtraAttempts ? ` (${recovery.studentExtraAttempts} for this student)` : ''}</span><button type="button" disabled={busy} onClick={() => handleGrantDOLAttemptForStudents(selectedAssignment, [student])} style={{ padding: '6px 10px', border: '1px solid #1a73e8', borderRadius: 6, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: busy ? 'wait' : 'pointer' }}>{busy ? 'Granting…' : 'Grant +1 DOL attempt'}</button></div>; })()}{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid #d8dde6' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: 'var(--mm-text-strong)' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{getStoredAssignmentQuestions(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type} · Grade ×{normalizeQuestionWeight(question)}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.teacherGradeOverrideDisplay?.active ? (credit >= 100 ? 'Teacher assigned · Correct ✓' : `Teacher assigned · ${credit}%`) : record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button>{studentGrades[index] && <button type="button" onClick={() => setResponseInspectorTarget({ studentId: student.id, assignmentId: selectedAssignment.id, questionIndex: index })} style={{ marginTop: '8px', marginLeft: '8px', padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#e8f0fe', color: '#174ea6', fontWeight: 'bold' }}>Inspect Response / Override Grade</button>}</article>; })}</div></div>; })()}
+                {gradebookFilter.student && selectedAssignment && (() => { const student = allStudents.find((entry) => entry.id === gradebookFilter.student.id) || gradebookFilter.student; const studentGrades = projectTeacherOverridesForDisplay(student.gradesByAssignment || {}, student.teacherGradeOverridesByAssignment || {})?.[selectedAssignment.id] || {}; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const displayedAssignmentScore = assignmentOverride ? assignmentOverride.score : Object.keys(studentGrades).length ? calculateGrade(studentGrades, selectedAssignment) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{displayedAssignmentScore === null ? '—' : `${displayedAssignmentScore}%`}</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>Total engagement {formatTime(activity.totalTimeSeconds || 0)} · Late engagement {formatTime(activity.lateSeconds || 0)}</div><AssignmentGradeOverrideControls student={student} assignment={selectedAssignment} onChanged={() => setGradebookFilter((current) => ({ ...current, student: null }))} />{selectedAssignment?.dol?.enabled && (() => { const recovery = summarizeStudentRecovery({ assignment: selectedAssignment, classId: student.classId || activeClass?.classId || null, studentId: student.id }); const busy = dolAttemptGrantBusyKey === `${selectedAssignment.id}:students:${student.id}`; return <div data-dol-student-recovery={student.id} style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, fontSize: 12.5, color: '#3c4043' }}><span>Teacher-granted DOL attempts: <strong>{recovery.extraAttempts}</strong>{recovery.studentExtraAttempts ? ` (${recovery.studentExtraAttempts} for this student)` : ''}</span><button type="button" disabled={busy} onClick={() => handleGrantDOLAttemptForStudents(selectedAssignment, [student])} style={{ padding: '6px 10px', border: '1px solid #1a73e8', borderRadius: 6, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: busy ? 'wait' : 'pointer' }}>{busy ? 'Granting…' : 'Grant +1 DOL attempt'}</button></div>; })()}{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid #d8dde6' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: 'var(--mm-text-strong)' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{getStoredAssignmentQuestions(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type} · Grade ×{normalizeQuestionWeight(question)}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.teacherGradeOverrideDisplay?.active ? (credit >= 100 ? 'Teacher assigned · Correct ✓' : `Teacher assigned · ${credit}%`) : record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button>{studentGrades[index] && <button type="button" onClick={() => setResponseInspectorTarget({ studentId: student.id, assignmentId: selectedAssignment.id, questionIndex: index })} style={{ marginTop: '8px', marginLeft: '8px', padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#e8f0fe', color: '#174ea6', fontWeight: 'bold' }}>Inspect Response / Override Grade</button>}</article>; })}</div></div>; })()}
+
+                {/*
+                  Settings and the separate weekly Path grade stay one click
+                  away instead of standing between the teacher and the grades.
+                */}
+                {activeClass.classId && (
+                  <details className="tw-disclosure" style={{ marginTop: 22 }}>
+                    <summary>Weekly learning path grade <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>a separate grade for this week&apos;s Path practice</span></summary>
+                    <div className="tw-disclosure__body">
+                      <WeeklyPathGradePanel
+                        students={teacherWeeklyRoster}
+                        goalsByStudentId={teacherWeeklyGoalsByStudent}
+                        completionsByStudentId={weeklyPathCompletionsByStudent}
+                        learningProfilesByStudentId={teacherLearningProfiles}
+                        weekKey={weeklyPathWeekKey}
+                        classId={activeClass.classId}
+                        classroomLinked={Boolean(classesById[activeClass.classId]?.classroomCourseId)}
+                        progressTruncated={weeklyPathTruncated}
+                        weekComplete={weeklyPathWeekComplete}
+                        onOpenStudent={setProfileDrawerStudentId}
+                        onReviewClassroomSync={(proposal) => setClassroomSyncProposal(proposal)}
+                        now={now}
+                        progressState={weeklyPathProgressLoadedFor === activeClass.classId ? 'loaded' : weeklyPathProgressLoading ? 'loading' : 'unavailable'}
+                      />
+                    </div>
+                  </details>
+                )}
+                <details className="tw-disclosure" style={{ marginTop: 12 }}>
+                  <summary>Marking periods <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>add, close, and file assignments into marking periods</span></summary>
+                  <div className="tw-disclosure__body">
+                    <MarkingPeriodSettings
+                      settings={gradingPeriodSettings}
+                      assignments={assignmentsForSelectedClass}
+                      classLabel={selectedGradebookClass?.name || selectedGradebookPeriod}
+                      busy={gradingPeriodBusy || bulkBusy}
+                      onCreatePeriod={handleCreateGradingPeriod}
+                      onSetCurrentPeriod={handleSetCurrentGradingPeriod}
+                      onSetPeriodArchived={handleSetGradingPeriodArchived}
+                      onMoveSelectedAssignments={handleMoveSelectedAssignmentsToGradingPeriod}
+                    />
+                  </div>
+                </details>
               </div>
             )}
 
@@ -10743,6 +11048,10 @@ function App() {
                 teacherUid={auth.session?.uid || user.uid || ''}
                 teacherEmail={user.email || ''}
                 isRootAdmin={user.isRootAdmin === true}
+                gradingPeriodSettings={gradingPeriodSettings}
+                initialScope={gradeExportScope}
+                onOpenGrades={(classId, assignmentId) => openGradebookFor(classId, assignmentId)}
+                onOpenAssignment={(assignmentId, classId) => openAssignmentHub(assignmentId, classId)}
               />
             )}
 

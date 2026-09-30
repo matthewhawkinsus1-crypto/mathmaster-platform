@@ -1,19 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   CLASS_PERIODS,
   assignmentIsForStudent,
   getAssignmentLifecycle,
-  getDOLState,
-  getWarmupState,
-  getSectionAccessState,
   getPeriodWindow,
 } from './assignmentLifecycle';
 import LiveClassMonitor from './components/teacher/LiveClassMonitor';
 import NeedsAttentionQueue from './components/teacher/NeedsAttentionQueue';
 import StudentSupportDashboard from './components/teacher/StudentSupportDashboard';
 import StudentPersistenceRecoveryPanel from './components/teacher/StudentPersistenceRecoveryPanel.jsx';
-import DOLCountdown from './components/student/DOLCountdown.jsx';
+import ClassLessonControls from './components/teacher/ClassLessonControls.jsx';
+import { projectClassLessons } from './platform/teacher/classLessonControls.js';
 import { classIdsForTeacher, studentsInClass } from '../functions/shared/classModel.mjs';
+import './components/teacher/teacherWorkspace.css';
 
 const formatClock = (date) => date instanceof Date ? date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
 
@@ -27,9 +26,8 @@ const greetingFor = (date) => {
 // Landing tab for teachers: today's classes at a glance, so a period's
 // status and roster are one click away instead of hunting through the
 // class-period dropdown on Grades or scrolling the full Classes grid.
-export default function TeacherHome({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onGrantDOLAttempt = null, dolAttemptGrantBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, needsAttentionAcademicCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], teacherUid = '', teacherEmail = '', teacherLabel = 'Your teacher', isRootAdmin = false, studentSupportEvents = [], studentSessionSummaries = [], onRecordStudentSupportEvent = null, onRecommendPersonalPath = null, pathInterventionBusyStudentId = null, liveTeachingSession = null, onTeachAssignment = null, onResumeTeaching = null, onEndLiveTeaching = null }) {
+export default function TeacherHome({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onGrantDOLAttempt = null, dolAttemptGrantBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, needsAttentionAcademicCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], teacherUid = '', teacherEmail = '', teacherLabel = 'Your teacher', isRootAdmin = false, studentSupportEvents = [], studentSessionSummaries = [], onRecordStudentSupportEvent = null, onRecommendPersonalPath = null, pathInterventionBusyStudentId = null, liveTeachingSession = null, onTeachAssignment = null, onResumeTeaching = null, onEndLiveTeaching = null, onDolControl = null, dolControlBusyKey = null, onOpenAssignment = null, onSelectClass = null, liveFocus = null }) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
-  const [warmupTimerMinutesByKey, setWarmupTimerMinutesByKey] = useState({});
   const [recoveryClassId, setRecoveryClassId] = useState('');
   const [recoveryAssignmentId, setRecoveryAssignmentId] = useState('');
 
@@ -65,7 +63,26 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
 
   // A real class entity is authoritative. When two classes share a period, the
   // selected class stays isolated instead of treating the period label as identity.
-  const currentClass = todaysClasses.find((entry) => entry.isNow && entry.classId === activeClassId)
+  //
+  // "Live view" from an assignment asks for one class by name; that request
+  // wins for this visit, even for a class that is not in session (homework
+  // monitoring, a class that meets later today).
+  const focusRecord = liveFocus?.classId
+    ? classOptions.find((entry) => entry.classId === liveFocus.classId) || null
+    : null;
+  const focusedClass = focusRecord
+    ? todaysClasses.find((entry) => entry.classId === focusRecord.classId) || {
+      ...focusRecord,
+      period: focusRecord.period,
+      window: getPeriodWindow(classSchedule, focusRecord.period, nowValue),
+      studentCount: studentsInClass({ students: allStudents, classes, classId: focusRecord.classId }).length,
+      openCount: 0,
+      isNow: false,
+    }
+    : null;
+  const classesInSession = todaysClasses.filter((entry) => entry.isNow);
+  const currentClass = focusedClass
+    || todaysClasses.find((entry) => entry.isNow && entry.classId === activeClassId)
     || todaysClasses.find((entry) => entry.isNow)
     || null;
   const periodInSession = currentClass?.period || 'all';
@@ -114,57 +131,52 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
     })
     : [];
 
-  const totalOpen = assignments.filter((assignment) => getAssignmentLifecycle(assignment, nowValue).isOpen).length;
-  const totalStudents = allStudents.length;
-  const liveDOLControls = periodInSession === 'all' ? [] : assignments
-    .filter((assignment) => assignmentIsForStudent(assignment, classContextInSession))
-    .map((assignment) => ({
-      assignment,
-      state: getDOLState({ assignment, schedule: classSchedule, classId: classIdInSession, classPeriod: periodInSession, nowValue }),
-    }))
-    // Keep the control reachable when a reused lesson still carries the
-    // original class's instructional date. A teacher can explicitly make the
-    // DOL current for this class instead of the repair option disappearing.
-    .filter(({ state }) => (
-      state.enabled
-      && state.window
-      && (
-        ['beforeClass', 'waiting', 'active', 'notToday', 'unscheduled'].includes(state.status)
-        || state.canRestart === true
-        || state.canRecover === true
-      )
-    ));
+  // One projection of today's Warm-Up / Classwork / Practice / DOL for the class
+  // in session — the same one the class page and the Assignment Hub render —
+  // grouped today first, with earlier lessons folded away but still reachable.
+  const classLessons = classContextInSession
+    ? projectClassLessons({ assignments, classContext: classContextInSession, schedule: classSchedule, nowValue })
+    : null;
+  const liveRef = useRef(null);
+  useEffect(() => {
+    if (liveFocus?.nonce && liveRef.current?.scrollIntoView) liveRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [liveFocus?.nonce]);
 
-  const liveWarmupControls = periodInSession === 'all' ? [] : assignments
-    .filter((assignment) => (
-      assignmentIsForStudent(assignment, classContextInSession)
-      && getAssignmentLifecycle(assignment, nowValue).isOpen
-    ))
-    .map((assignment) => ({
-      assignment,
-      state: getWarmupState({ assignment, schedule: classSchedule, classId: classIdInSession, classPeriod: periodInSession, nowValue }),
-    }))
-    // Keep an authored Warm-Up visible even when its saved instructional date
-    // is stale. The live hub is where a teacher fixes that by choosing
-    // "Open Warm-Up Today"; hiding notToday/unscheduled states made the repair
-    // control impossible to reach.
-    .filter(({ state }) => state.enabled && state.window && state.status !== 'ended');
-
-  const liveSectionControls = periodInSession === 'all' ? [] : assignments
-    .filter((assignment) => assignmentIsForStudent(assignment, classContextInSession) && getAssignmentLifecycle(assignment, nowValue).isOpen)
-    .flatMap((assignment) => ['classwork', 'practice'].map((role) => ({
-      assignment,
-      role,
-      state: getSectionAccessState({ assignment, activityRole: role, classId: classIdInSession, classPeriod: periodInSession, nowValue }),
-    })))
-    .filter(({ state }) => state.enabled && !state.practiceOnly);
+  const timeRange = (window) => (window ? `${formatClock(window.start)} – ${formatClock(window.end)}` : 'Not meeting today');
 
   return (
     <div style={{ textAlign: 'left' }}>
-      <h2 style={{ marginTop: 0 }}>{greetingFor(now)}</h2>
-      <p style={{ color: '#5f6368', marginTop: '-6px' }}>
-        {now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
-      </p>
+      <div className="tw-row" style={{ justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+        <h2 style={{ margin: 0 }}>{greetingFor(now)}</h2>
+        <span className="tw-muted" style={{ fontSize: 14 }}>
+          {now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })} · {todaysClasses.length} class{todaysClasses.length === 1 ? '' : 'es'} today
+        </span>
+      </div>
+
+      {/*
+        TODAY'S CLASSES FIRST, AS A STRIP. The class a teacher is standing in
+        front of is the first thing on the page, and every other class of the
+        day is one click from its own page. (This list used to be the last
+        thing on a page several thousand pixels long.)
+      */}
+      {todaysClasses.length > 0 && (
+        <nav aria-label="Today's classes" className="tw-row" style={{ gap: 6, marginBottom: 14 }}>
+          {todaysClasses.map(({ classId, name, period, window, studentCount, isNow }) => (
+            <button
+              type="button"
+              key={classId || period}
+              className="tw-chip"
+              aria-pressed={Boolean(currentClass && (currentClass.classId || currentClass.period) === (classId || period))}
+              onClick={() => onSelectPeriod({ classId: classId || null, classPeriod: period })}
+              title={`${name || period} · ${studentCount} student${studentCount === 1 ? '' : 's'} · open the class page`}
+            >
+              {isNow && <span className="tw-pill" data-tone="primary">NOW</span>}
+              <span>{name || period}</span>
+              <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>{formatClock(window.start)}</span>
+            </button>
+          ))}
+        </nav>
+      )}
 
       {/*
         FIRST, BEFORE THE COUNTS. A teacher sitting down asks "what needs my
@@ -180,214 +192,123 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
         onOpenAdministration={onOpenAdministration}
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '26px' }}>
-        <div style={{ padding: '14px', borderRadius: '10px', background: '#e8f0fe', color: '#174ea6' }}>
-          <div style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>Classes today</div>
-          <div style={{ fontSize: '22px', fontWeight: 900 }}>{todaysClasses.length}</div>
+      {currentClass ? (
+        <section aria-labelledby="home-class-now" className="tw-card" style={{ marginBottom: 16, padding: '14px 16px' }}>
+          <div className="tw-row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
+            <div>
+              <div className="tw-small tw-muted" style={{ fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase' }}>
+                {currentClass.isNow ? 'In session now' : 'Viewing'}
+              </div>
+              <h2 id="home-class-now" style={{ margin: 0, fontSize: 20 }}>
+                <button type="button" className="tw-link" style={{ fontSize: 20 }} onClick={() => onSelectPeriod({ classId: currentClass.classId || null, classPeriod: currentClass.period })}>{liveClassLabel}</button>
+              </h2>
+              <div className="tw-small tw-muted">{timeRange(currentClass.window)} · {currentClass.studentCount} student{currentClass.studentCount === 1 ? '' : 's'}</div>
+            </div>
+            {/*
+              Two classes can share a period (a real class and a QA class, or
+              a split section). Home used to pick one silently; now the teacher
+              sees both and chooses.
+            */}
+            {(classesInSession.length > 1 || (focusedClass && !focusedClass.isNow && classesInSession.length > 0)) && onSelectClass && (
+              <div className="tw-row" role="group" aria-label="Classes in session">
+                <span className="tw-small tw-muted">In session:</span>
+                {classesInSession.map((entry) => (
+                  <button
+                    key={entry.classId || entry.period}
+                    type="button"
+                    className="tw-chip"
+                    aria-pressed={(entry.classId || entry.period) === (currentClass.classId || currentClass.period)}
+                    onClick={() => onSelectClass({ classId: entry.classId || null, classPeriod: entry.period })}
+                  >
+                    {entry.name || entry.period}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <ClassLessonControls
+            lessons={classLessons}
+            classContext={classContextInSession}
+            classLabel={liveClassLabel}
+            schedule={classSchedule}
+            nowValue={nowValue}
+            onOpenAssignment={onOpenAssignment}
+            handlers={{
+              onToggleWarmup,
+              onToggleSectionAccess,
+              onUnlockDOL,
+              onGrantDOLAttempt,
+              onDolControl,
+            }}
+            busy={{
+              warmup: warmupControlBusyKey,
+              section: sectionAccessBusyKey,
+              dolUnlock: dolUnlockBusyKey,
+              dolGrant: dolAttemptGrantBusyKey,
+              dolControl: dolControlBusyKey,
+            }}
+          />
+        </section>
+      ) : (
+        <div className="tw-card tw-card--muted" style={{ marginBottom: 16 }}>
+          <strong>No class is in session right now.</strong>
+          <div className="tw-small tw-muted">Choose a class above to open its page, or pick one in the class bar to see its lessons and live room here.</div>
         </div>
-        <div style={{ padding: '14px', borderRadius: '10px', background: '#e6f4ea', color: '#137333' }}>
-          <div style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>Open assignments</div>
-          <div style={{ fontSize: '22px', fontWeight: 900 }}>{totalOpen}</div>
-        </div>
-        <div style={{ padding: '14px', borderRadius: '10px', background: '#fef7e0', color: '#7a4f01' }}>
-          <div style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>Students</div>
-          <div style={{ fontSize: '22px', fontWeight: 900 }}>{totalStudents}</div>
-        </div>
+      )}
+
+      {/* Live tiles sit directly under today's lesson controls: during a
+          period this is the thing the teacher is actually looking at. An
+          assignment's "Live view" lands here, scrolled into view and focused. */}
+      <div ref={liveRef} id="home-live-class" style={{ scrollMarginTop: 12 }}>
+        <LiveClassMonitor
+          students={monitoredStudents}
+          assignments={assignments.filter((assignment) => getAssignmentLifecycle(assignment, nowValue).isOpen)}
+          timerAssignments={assignments}
+          classPeriods={CLASS_PERIODS}
+          initialClassPeriod={periodInSession}
+          nowValue={nowValue}
+          onOpenStudent={onOpenStudent}
+          learningProfilesByStudentId={learningProfilesByStudentId}
+          activeClassId={classIdInSession}
+          classes={classes}
+          classSchedule={classSchedule}
+          supportEvents={studentSupportEvents}
+          onRecordSupportEvent={onRecordStudentSupportEvent}
+          onRecommendPersonalPath={onRecommendPersonalPath}
+          pathInterventionBusyStudentId={pathInterventionBusyStudentId}
+          onOpenWeeklyPath={onOpenWeeklyPath}
+          teacherUid={teacherUid}
+          teacherEmail={teacherEmail}
+          teacherLabel={teacherLabel}
+          liveTeachingSession={liveTeachingSession}
+          onTeachAssignment={onTeachAssignment}
+          onResumeTeaching={onResumeTeaching}
+          onEndLiveTeaching={onEndLiveTeaching}
+          focusAssignmentId={liveFocus?.assignmentId || null}
+          focusKey={liveFocus?.nonce || null}
+        />
       </div>
 
-      {liveWarmupControls.length > 0 && (
-        <section style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 12, border: '2px solid #f9ab00', background: '#fff8df', color: '#6a4900' }}>
-          <div style={{ fontWeight: 900, marginBottom: 8 }}>Warm-Up controls · {liveClassLabel}</div>
-          <div style={{ display: 'grid', gap: 8 }}>
-            {liveWarmupControls.map(({ assignment, state }) => {
-              const busyKey = `${assignment.id}:${classIdInSession || periodInSession}`;
-              const closed = state.status === 'closed';
-              const needsOpenToday = ['notToday', 'unscheduled'].includes(state.status);
-              const waiting = state.status === 'waiting';
-              const timerMinutes = Number(warmupTimerMinutesByKey[busyKey] || 5);
-              const statusText = needsOpenToday
-                ? state.status === 'notToday'
-                  ? `Warm-Up is dated for ${state.instructionDateKey || 'another day'} · open it for this class today`
-                  : 'Warm-Up has no instructional date · open it for this class today'
-                : waiting
-                  ? `Waiting for the normal opening window · ${state.minutesBeforeStart} min before class`
-                  : closed
-                    ? 'Closed for new responses · saved work remains visible'
-                    : 'Open now · closes automatically when the timer reaches zero';
-              return (
-                <div key={assignment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px', borderRadius: 9, background: 'var(--mm-surface)' }}>
-                  <div>
-                    <strong>{assignment.title}</strong>
-                    <div style={{ marginTop: 3, fontSize: 12 }}>
-                      {statusText}
-                      {state.status === 'active' && (
-                        <div style={{ marginTop: 5, fontSize: 18, fontWeight: 1000 }}>
-                          <DOLCountdown endsAt={state.endsAt} /> remaining
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <button
-                      type="button"
-                      disabled={warmupControlBusyKey === busyKey || waiting}
-                      onClick={() => onToggleWarmup?.(
-                        assignment,
-                        classContextInSession,
-                        needsOpenToday || closed ? { action: 'reopen' } : { action: 'close' },
-                      )}
-                      style={{ minHeight: 40, padding: '8px 13px', border: 0, borderRadius: 8, background: needsOpenToday || closed ? '#188038' : waiting ? '#9aa0a6' : '#b06000', color: '#fff', fontWeight: 900, cursor: warmupControlBusyKey === busyKey ? 'wait' : waiting ? 'not-allowed' : 'pointer' }}
-                    >
-                      {warmupControlBusyKey === busyKey
-                        ? 'Saving…'
-                        : needsOpenToday
-                          ? 'Open Warm-Up Today'
-                          : closed
-                            ? 'Reopen Warm-Up'
-                            : waiting
-                              ? 'Opens automatically'
-                              : 'Close Warm-Up'}
-                    </button>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800 }}>
-                      Timer
-                      <select
-                        value={timerMinutes}
-                        disabled={warmupControlBusyKey === busyKey}
-                        onChange={(event) => setWarmupTimerMinutesByKey((current) => ({ ...current, [busyKey]: Number(event.target.value) }))}
-                        style={{ minHeight: 40, borderRadius: 8, border: '1px solid #d3a21a', background: 'var(--mm-surface)', padding: '0 8px', fontWeight: 800 }}
-                      >
-                        {[3, 5, 7, 10, 15, 20].map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}
-                      </select>
-                    </label>
-                    <button
-                      type="button"
-                      disabled={warmupControlBusyKey === busyKey}
-                      onClick={() => onToggleWarmup?.(assignment, classContextInSession, { action: 'timer', autoCloseMinutes: timerMinutes })}
-                      style={{ minHeight: 40, padding: '8px 13px', border: '1px solid #188038', borderRadius: 8, background: 'var(--mm-surface)', color: '#137333', fontWeight: 900, cursor: warmupControlBusyKey === busyKey ? 'wait' : 'pointer' }}
-                    >
-                      {needsOpenToday
-                        ? `Open for ${timerMinutes} min`
-                        : closed
-                          ? `Reopen for ${timerMinutes} min`
-                          : state.teacherTimerScheduled
-                            ? `Reset to ${timerMinutes} min`
-                            : `Close in ${timerMinutes} min`}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
+      {currentClass && (
+        <StudentSupportDashboard
+          students={supportRoster}
+          profilesByStudentId={learningProfilesByStudentId}
+          needsAttention={needsAttention}
+          supportEvents={studentSupportEvents}
+          sessionSummaries={studentSessionSummaries}
+          classId={classIdInSession}
+          classPeriod={periodInSession}
+          nowValue={nowValue}
+          onOpenStudent={onOpenStudent}
+          onRecordEvent={onRecordStudentSupportEvent}
+        />
       )}
-
-      {liveSectionControls.length > 0 && (
-        <section style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 12, border: '2px solid #1a73e8', background: '#eef4ff', color: '#174ea6' }}>
-          <div style={{ fontWeight: 900, marginBottom: 8 }}>Classwork / Practice access · {liveClassLabel}</div>
-          <div style={{ fontSize: 12, marginBottom: 10, color: '#3c4043' }}>Use these controls to pace the room without changing other class periods. Closing a section preserves saved work but blocks new graded submissions.</div>
-          <div style={{ display: 'grid', gap: 8 }}>
-            {liveSectionControls.map(({ assignment, role, state }) => {
-              const busyKey = `${assignment.id}:${classIdInSession || periodInSession}:${role}`;
-              const label = role === 'practice' ? 'Practice' : 'Classwork';
-              return (
-                <div key={`${assignment.id}:${role}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px', borderRadius: 9, background: 'var(--mm-surface)' }}>
-                  <div>
-                    <strong>{assignment.title}</strong>
-                    <div style={{ marginTop: 3, fontSize: 12 }}><strong>{label}:</strong> {state.isOpen ? 'open for new responses' : state.override?.state === 'closed' ? 'closed by teacher · saved work remains visible' : 'starts locked · waiting for teacher'}</div>
-                  </div>
-                  <button type="button" disabled={sectionAccessBusyKey === busyKey} onClick={() => onToggleSectionAccess?.(assignment, classContextInSession, role)} style={{ minHeight: 40, padding: '8px 13px', border: 0, borderRadius: 8, background: state.isOpen ? '#b06000' : '#188038', color: '#fff', fontWeight: 900, cursor: sectionAccessBusyKey === busyKey ? 'wait' : 'pointer' }}>
-                    {sectionAccessBusyKey === busyKey ? 'Saving…' : state.isOpen ? `Close ${label}` : `Open ${label}`}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {liveDOLControls.length > 0 && (
-        <section style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 12, border: '2px solid #9334e6', background: '#f8f0fc', color: '#4a126b' }}>
-          <div style={{ fontWeight: 900, marginBottom: 8 }}>DOL controls · {liveClassLabel}</div>
-          <div style={{ display: 'grid', gap: 8 }}>
-            {liveDOLControls.map(({ assignment, state }) => {
-              const busyKey = `${assignment.id}:${classIdInSession || periodInSession}`;
-              const needsOpenToday = ['notToday', 'unscheduled'].includes(state.status);
-              const attemptBonus = Number(assignment?.dol?.attemptGrantsByClassId?.[classIdInSession]?.extraAttempts || 0);
-              const recoveryAvailable = state.status === 'ended' && state.canRecover === true;
-              return (
-                <div key={assignment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px', borderRadius: 9, background: 'var(--mm-surface)' }}>
-                  <div>
-                    <strong>{assignment.title}</strong>
-                    <div style={{ marginTop: 3, fontSize: 12 }}>
-                      {state.status === 'active'
-                        ? `${state.teacherRecovery ? 'Teacher recovery · ' : state.earlyUnlocked ? 'Unlocked early · ' : ''}${Math.max(0, Math.ceil(state.millisecondsRemaining / 60000))} min left${attemptBonus ? ` · +${attemptBonus} attempt${attemptBonus === 1 ? '' : 's'}` : ''}`
-                        : state.canRestart
-                          ? `Early DOL timer ended · restart is available before the normal DOL cutoff${attemptBonus ? ` · +${attemptBonus} attempt${attemptBonus === 1 ? '' : 's'}` : ''}`
-                          : recoveryAvailable
-                            ? `Normal DOL window ended · teacher recovery is available${attemptBonus ? ` · +${attemptBonus} attempt${attemptBonus === 1 ? '' : 's'}` : ''}`
-                          : needsOpenToday
-                            ? state.status === 'notToday'
-                              ? `Saved for ${state.instructionDateKey || 'another day'} · open it for this class today`
-                              : 'No DOL instructional date saved · open it for this class today'
-                            : state.status === 'beforeClass'
-                              ? 'Locked until class begins / normal DOL window'
-                              : `Locked · opens in ${Math.max(0, Math.ceil(state.millisecondsRemaining / 60000))} min`}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    {state.status !== 'active' ? (
-                      <button type="button" disabled={dolUnlockBusyKey === busyKey} onClick={() => onUnlockDOL?.(assignment, classContextInSession)} style={{ minHeight: 40, padding: '8px 13px', border: 0, borderRadius: 8, background: '#681da8', color: '#fff', fontWeight: 900, cursor: dolUnlockBusyKey === busyKey ? 'wait' : 'pointer' }}>
-                        {dolUnlockBusyKey === busyKey
-                          ? (recoveryAvailable ? 'Reopening…' : state.canRestart ? 'Restarting…' : 'Unlocking…')
-                          : recoveryAvailable ? 'Reopen DOL' : state.canRestart ? 'Restart DOL' : needsOpenToday ? 'Open DOL Today' : 'Unlock DOL Early'}
-                      </button>
-                    ) : (
-                      <span style={{ padding: '5px 9px', borderRadius: 999, background: '#e6f4ea', color: '#137333', fontSize: 11, fontWeight: 900 }}>OPEN NOW</span>
-                    )}
-                    <button type="button" disabled={dolAttemptGrantBusyKey === busyKey} onClick={() => onGrantDOLAttempt?.(assignment, classContextInSession)} style={{ minHeight: 40, padding: '8px 13px', border: '1px solid #681da8', borderRadius: 8, background: 'var(--mm-surface)', color: '#681da8', fontWeight: 900, cursor: dolAttemptGrantBusyKey === busyKey ? 'wait' : 'pointer' }}>
-                      {dolAttemptGrantBusyKey === busyKey ? 'Granting…' : `Grant +1 attempt${attemptBonus ? ` (now +${attemptBonus})` : ''}`}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* Live tiles sit above the day's schedule: during a period this is the
-          thing the teacher is actually looking at. */}
-      <LiveClassMonitor
-        students={monitoredStudents}
-        assignments={assignments.filter((assignment) => getAssignmentLifecycle(assignment, nowValue).isOpen)}
-        timerAssignments={assignments}
-        classPeriods={CLASS_PERIODS}
-        initialClassPeriod={periodInSession}
-        nowValue={nowValue}
-        onOpenStudent={onOpenStudent}
-        learningProfilesByStudentId={learningProfilesByStudentId}
-        activeClassId={classIdInSession}
-        classes={classes}
-        classSchedule={classSchedule}
-        supportEvents={studentSupportEvents}
-        onRecordSupportEvent={onRecordStudentSupportEvent}
-        onRecommendPersonalPath={onRecommendPersonalPath}
-        pathInterventionBusyStudentId={pathInterventionBusyStudentId}
-        onOpenWeeklyPath={onOpenWeeklyPath}
-        teacherUid={teacherUid}
-        teacherEmail={teacherEmail}
-        teacherLabel={teacherLabel}
-        liveTeachingSession={liveTeachingSession}
-        onTeachAssignment={onTeachAssignment}
-        onResumeTeaching={onResumeTeaching}
-        onEndLiveTeaching={onEndLiveTeaching}
-      />
 
       {/* Recovery is permanent teacher work, not a live-period control. The
           selected IDs remain server-authorized by each recovery callable. */}
-      <section style={{ marginBottom: 16, padding: 16, border: '1px solid #dadce0', borderRadius: 12, background: '#f8fafd' }}>
-        <h2 style={{ margin: '0 0 4px', fontSize: 18 }}>Submission Recovery</h2>
-        <p style={{ margin: '0 0 14px', color: '#5f6368', fontSize: 13 }}>Review and safely restore submission records for any active class.</p>
+      <details className="tw-disclosure" style={{ marginBottom: 16 }}>
+        <summary>Submission recovery <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>restore a student&apos;s saved work for any active class</span></summary>
+        <div className="tw-disclosure__body">
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
           <label style={{ display: 'grid', gap: 6, fontSize: 12, fontWeight: 900, color: '#5f6368' }}>
             Class
@@ -426,64 +347,8 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
             className={recoveryClass?.name || recoveryClass?.period || ''}
           />
         )}
-      </section>
-
-      {currentClass && (
-        <StudentSupportDashboard
-          students={supportRoster}
-          profilesByStudentId={learningProfilesByStudentId}
-          needsAttention={needsAttention}
-          supportEvents={studentSupportEvents}
-          sessionSummaries={studentSessionSummaries}
-          classId={classIdInSession}
-          classPeriod={periodInSession}
-          nowValue={nowValue}
-          onOpenStudent={onOpenStudent}
-          onRecordEvent={onRecordStudentSupportEvent}
-        />
-      )}
-
-      <h3 style={{ margin: '0 0 10px' }}>Today&apos;s Classes</h3>
-      {todaysClasses.length === 0 ? (
-        <p style={{ color: '#80868b', fontSize: '13px' }}>No classes are scheduled for today.</p>
-      ) : (
-        <div style={{ display: 'grid', gap: '10px' }}>
-          {todaysClasses.map(({ classId, name, period, window, studentCount, openCount, isNow }) => (
-            <button
-              type="button"
-              key={classId || period}
-              onClick={() => onSelectPeriod({ classId: classId || null, classPeriod: period })}
-              style={{
-                textAlign: 'left',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: '14px',
-                flexWrap: 'wrap',
-                padding: '14px 16px',
-                borderRadius: '10px',
-                border: isNow ? '2px solid #1a73e8' : '1px solid #dadce0',
-                background: 'var(--mm-surface)',
-                cursor: 'pointer',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <strong style={{ fontSize: '15px', color: 'var(--mm-text-strong)' }}>{name || period}</strong>{name && name !== period ? <span style={{ fontSize: '12px', color: '#80868b' }}>{period}</span> : null}
-                {isNow && (
-                  <span style={{ fontSize: '11px', fontWeight: 900, padding: '3px 8px', borderRadius: '999px', background: '#1a73e8', color: '#fff' }}>
-                    NOW
-                  </span>
-                )}
-                <span style={{ fontSize: '13px', color: '#5f6368' }}>{formatClock(window.start)} &ndash; {formatClock(window.end)}</span>
-              </div>
-              <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: '#5f6368' }}>
-                <span>{studentCount} student{studentCount === 1 ? '' : 's'}</span>
-                <span>{openCount} open assignment{openCount === 1 ? '' : 's'}</span>
-              </div>
-            </button>
-          ))}
         </div>
-      )}
+      </details>
     </div>
   );
 }

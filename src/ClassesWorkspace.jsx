@@ -3,18 +3,16 @@ import {
   CLASS_PERIODS,
   assignmentIsForStudent,
   formatDateTime,
-  formatRemainingTime,
   getAssignmentLifecycle,
-  getDOLState,
-  getWarmupState,
-  getSectionAccessState,
   getPeriodWindow,
 } from './assignmentLifecycle';
 import { OFFLINE_AFTER_MS } from './livePresence';
 import { compareStudentsByName, formatStudentName } from './platform/studentName';
 import { studentsInClass } from '../functions/shared/classModel.mjs';
 import ClassOverviewPanel from './components/teacher/ClassOverviewPanel.jsx';
-import DOLCountdown from './components/student/DOLCountdown.jsx';
+import ClassLessonControls from './components/teacher/ClassLessonControls.jsx';
+import { projectClassLessons } from './platform/teacher/classLessonControls.js';
+import './components/teacher/teacherWorkspace.css';
 
 const formatClock = (date) => date instanceof Date ? date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
 
@@ -24,7 +22,8 @@ const formatClock = (date) => date instanceof Date ? date.toLocaleTimeString(und
 // duplicate that gradebook detail (attempts, activity breakdowns, IEP
 // report generation, ...) — "View full gradebook" hands off to the
 // existing Grades tab already wired for that.
-export default function ClassesWorkspace({ classes = [], allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onViewGradebook, onUnlockDOL = null, dolUnlockBusyKey = null, onGrantDOLAttempt = null, dolAttemptGrantBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, initialPeriod = null, initialClassId = null, onSelectClass = null,
+export default function ClassesWorkspace({ classes = [], allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onViewGradebook, onUnlockDOL = null, dolUnlockBusyKey = null, onGrantDOLAttempt = null, dolAttemptGrantBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, onDolControl = null, dolControlBusyKey = null,
+  onOpenAssignment = null, onOpenLive = null, onOpenExport = null, initialPeriod = null, initialClassId = null, onSelectClass = null,
   learningProfilesByStudentId = {}, masteryProfilesByStudentId = {}, evidenceByStudentId = {},
   needsAttentionCount = 0, onOpenStudent = null,
   onLoadDeliveredRigor = null, rigorLoading = false, academicDataLoaded = true }) {
@@ -46,7 +45,6 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
     onSelectClass?.(record ? { classId: record.classId || null, classPeriod: record.period || null } : { classId: null, classPeriod: null });
   };
   const selectedPeriod = selectedClass?.period || null;
-  const [warmupTimerMinutesByKey, setWarmupTimerMinutesByKey] = useState({});
 
   if (!selectedClass) {
     return (
@@ -85,19 +83,11 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
   const periodAssignments = assignments.filter((assignment) => assignmentIsForStudent(assignment, { classId: selectedClass.classId || null, classPeriod: selectedPeriod }));
   const currentAssignments = periodAssignments.filter((assignment) => getAssignmentLifecycle(assignment, nowValue).isOpen);
   const upcomingAssignments = periodAssignments.filter((assignment) => getAssignmentLifecycle(assignment, nowValue).isScheduled);
-  const dolToday = periodAssignments
-    .map((assignment) => ({ assignment, dol: getDOLState({ assignment, schedule: classSchedule, classId: selectedClass.classId || null, classPeriod: selectedPeriod, nowValue }) }))
-    .filter(({ dol }) => dol.window !== null);
-  const warmupsToday = periodAssignments
-    .map((assignment) => ({ assignment, warmup: getWarmupState({ assignment, schedule: classSchedule, classId: selectedClass.classId || null, classPeriod: selectedPeriod, nowValue }) }))
-    .filter(({ warmup }) => warmup.window !== null);
-  const sectionAccessControls = currentAssignments
-    .flatMap((assignment) => ['classwork', 'practice'].map((role) => ({
-      assignment,
-      role,
-      state: getSectionAccessState({ assignment, activityRole: role, classId: selectedClass.classId || null, classPeriod: selectedPeriod, nowValue }),
-    })))
-    .filter(({ state }) => state.enabled && !state.practiceOnly);
+  // Today's Warm-Up/DOL/section controls come from the one shared projection.
+  // "Warm-Ups today" and "DOL today" now count only lessons whose Warm-Up or
+  // DOL belongs to TODAY — they used to count every lesson the class ever had.
+  const classContext = { classId: selectedClass.classId || null, classPeriod: selectedPeriod };
+  const classLessons = projectClassLessons({ assignments: periodAssignments, classContext, schedule: classSchedule, nowValue });
   const inclusionCount = periodStudents.filter((student) => student.profile?.inclusionStatus).length;
   const scheduleWindow = getPeriodWindow(classSchedule, selectedPeriod, nowValue);
   const nowMs = nowValue instanceof Date ? nowValue.getTime() : Number(nowValue);
@@ -126,13 +116,17 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
           <button type="button" onClick={() => chooseClass(null)} style={{ border: 'none', background: 'transparent', color: '#1a73e8', fontWeight: 'bold', cursor: 'pointer', padding: 0, marginBottom: '6px' }}>&larr; All Classes</button>
           <h2 style={{ margin: 0 }}>{selectedClass.name || selectedPeriod}</h2><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>{selectedPeriod}</div>
         </div>
-        <button
-          type="button"
-          onClick={() => onViewGradebook(selectedClass.classId || selectedPeriod)}
-          style={{ padding: '10px 16px', background: '#1a73e8', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
-        >
-          View Full Gradebook &rarr;
-        </button>
+        <div className="tw-row">
+          {onOpenLive && <button type="button" className="tw-btn" onClick={() => onOpenLive(classContext)}>Live view</button>}
+          {onOpenExport && selectedClass.classId && <button type="button" className="tw-btn" onClick={() => onOpenExport(selectedClass.classId)}>Export grades</button>}
+          <button
+            type="button"
+            className="tw-btn tw-btn--primary"
+            onClick={() => onViewGradebook(selectedClass.classId || selectedPeriod)}
+          >
+            View Full Gradebook &rarr;
+          </button>
+        </div>
       </div>
 
       {/*
@@ -174,11 +168,11 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
         </div>
         <div style={{ padding: '14px', borderRadius: '10px', background: '#fff4ce', color: '#7a4f00' }}>
           <div style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>Warm-Ups today</div>
-          <div style={{ fontSize: '22px', fontWeight: 900 }}>{warmupsToday.length}</div>
+          <div style={{ fontSize: '22px', fontWeight: 900 }}>{classLessons.counts.warmupsToday}</div>
         </div>
         <div style={{ padding: '14px', borderRadius: '10px', background: '#f3e8fd', color: '#681da8' }}>
           <div style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>DOL today</div>
-          <div style={{ fontSize: '22px', fontWeight: 900 }}>{dolToday.length}</div>
+          <div style={{ fontSize: '22px', fontWeight: 900 }}>{classLessons.counts.dolsToday}</div>
         </div>
         <div style={{ padding: '14px', borderRadius: '10px', background: '#fef7e0', color: '#7a4f01' }}>
           <div style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>Inclusion supports</div>
@@ -197,7 +191,9 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
           {currentAssignments.map((assignment) => (
             <div key={assignment.id} style={{ padding: '12px 14px', borderRadius: '9px', border: '1px solid #e0e3e7', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <div>
-                <strong>{assignment.title}</strong>
+                {onOpenAssignment
+                  ? <button type="button" className="tw-link" onClick={() => onOpenAssignment(assignment.id, selectedClass.classId || null)}>{assignment.title}</button>
+                  : <strong>{assignment.title}</strong>}
                 <div style={{ fontSize: '12px', color: '#5f6368' }}>Due {formatDateTime(assignment.dueAt || assignment.dueDate)}</div>
               </div>
               <div style={{ fontSize: '12px', color: '#5f6368' }}>
@@ -215,183 +211,28 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
         <div style={{ display: 'grid', gap: '10px', marginBottom: '22px' }}>
           {upcomingAssignments.map((assignment) => (
             <div key={assignment.id} style={{ padding: '12px 14px', borderRadius: '9px', border: '1px solid #e0e3e7' }}>
-              <strong>{assignment.title}</strong>
+              {onOpenAssignment
+                ? <button type="button" className="tw-link" onClick={() => onOpenAssignment(assignment.id, selectedClass.classId || null)}>{assignment.title}</button>
+                : <strong>{assignment.title}</strong>}
               <div style={{ fontSize: '12px', color: '#5f6368' }}>Opens {formatDateTime(assignment.releaseAt)}</div>
             </div>
           ))}
         </div>
       )}
 
-      {warmupsToday.length > 0 && (
-        <>
-          <h3 style={{ margin: '0 0 10px' }}>Warm-Up Today</h3>
-          <div style={{ display: 'grid', gap: '10px', marginBottom: '22px' }}>
-            {warmupsToday.map(({ assignment, warmup }) => {
-              const busyKey = `${assignment.id}:${selectedClass.classId || selectedPeriod}`;
-              const needsOpenToday = ['notToday', 'unscheduled'].includes(warmup.status);
-              const canToggle = ['active', 'closed', 'notToday', 'unscheduled'].includes(warmup.status);
-              const timerMinutes = Number(warmupTimerMinutesByKey[busyKey] || 5);
-              const classContext = { classId: selectedClass.classId || null, classPeriod: selectedPeriod };
-              return (
-                <div key={assignment.id} style={{ padding: '12px 14px', borderRadius: '9px', border: '1px solid #e0e3e7', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                  <div>
-                    <strong>{assignment.title}</strong>
-                    <div style={{ marginTop: 4, fontSize: 12, color: '#5f6368' }}>
-                      {warmup.status === 'active'
-                        ? 'Open now · closes automatically when the timer reaches zero'
-                        : warmup.status === 'closed'
-                          ? 'Closed by teacher or timer · review only'
-                          : warmup.status === 'notToday'
-                            ? `Scheduled for ${warmup.instructionDateKey || 'another date'} · teacher can open it for this class today`
-                            : warmup.status === 'unscheduled'
-                              ? 'No instructional date saved · teacher can open it for this class today'
-                              : warmup.status === 'waiting'
-                                ? `Locked · opens ${warmup.minutesBeforeStart} minutes before class`
-                                : 'Class window ended'}
-                      {warmup.status === 'active' && (
-                        <div style={{ marginTop: 5, fontSize: 18, fontWeight: 1000, color: '#8a4b00' }}>
-                          <DOLCountdown endsAt={warmup.endsAt} /> remaining
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: warmup.status === 'active' ? '#e6f4ea' : '#f1f3f4', color: warmup.status === 'active' ? '#137333' : '#5f6368' }}>
-                      {warmup.status === 'active' ? 'OPEN' : warmup.status === 'closed' ? 'CLOSED' : needsOpenToday ? 'NOT OPEN TODAY' : 'LOCKED'}
-                    </span>
-                    {canToggle && (
-                      <>
-                        <button
-                          type="button"
-                          disabled={warmupControlBusyKey === busyKey}
-                          onClick={() => onToggleWarmup?.(
-                            assignment,
-                            classContext,
-                            needsOpenToday || warmup.status === 'closed' ? { action: 'reopen' } : { action: 'close' },
-                          )}
-                          style={{ padding: '8px 12px', border: 0, borderRadius: 7, background: needsOpenToday || warmup.status === 'closed' ? '#188038' : '#b06000', color: '#fff', fontWeight: 900, cursor: warmupControlBusyKey === busyKey ? 'wait' : 'pointer' }}
-                        >
-                          {warmupControlBusyKey === busyKey
-                            ? 'Saving…'
-                            : needsOpenToday
-                              ? 'Open Warm-Up Today'
-                              : warmup.status === 'closed'
-                                ? 'Reopen Warm-Up'
-                                : 'Close Warm-Up'}
-                        </button>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800 }}>
-                          Timer
-                          <select
-                            value={timerMinutes}
-                            disabled={warmupControlBusyKey === busyKey}
-                            onChange={(event) => setWarmupTimerMinutesByKey((current) => ({ ...current, [busyKey]: Number(event.target.value) }))}
-                            style={{ minHeight: 36, borderRadius: 7, border: '1px solid #dadce0', background: 'var(--mm-surface)', padding: '0 7px', fontWeight: 800 }}
-                          >
-                            {[3, 5, 7, 10, 15, 20].map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}
-                          </select>
-                        </label>
-                        <button
-                          type="button"
-                          disabled={warmupControlBusyKey === busyKey}
-                          onClick={() => onToggleWarmup?.(assignment, classContext, { action: 'timer', autoCloseMinutes: timerMinutes })}
-                          style={{ padding: '8px 12px', border: '1px solid #188038', borderRadius: 7, background: 'var(--mm-surface)', color: '#137333', fontWeight: 900, cursor: warmupControlBusyKey === busyKey ? 'wait' : 'pointer' }}
-                        >
-                          {needsOpenToday
-                            ? `Open for ${timerMinutes} min`
-                            : warmup.status === 'closed'
-                              ? `Reopen for ${timerMinutes} min`
-                              : warmup.teacherTimerScheduled
-                                ? `Reset to ${timerMinutes} min`
-                                : `Close in ${timerMinutes} min`}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      {sectionAccessControls.length > 0 && (
-        <>
-          <h3 style={{ margin: '0 0 10px' }}>Classwork &amp; Practice Access</h3>
-          <div style={{ padding: '10px 12px', borderRadius: 9, background: '#eef4ff', color: '#3c4043', fontSize: 12, marginBottom: 10 }}>Open or close either section for {selectedClass.name || selectedPeriod} only. Closing a section preserves saved work and prevents new graded submissions until you reopen it.</div>
-          <div style={{ display: 'grid', gap: '10px', marginBottom: '22px' }}>
-            {sectionAccessControls.map(({ assignment, role, state }) => {
-              const busyKey = `${assignment.id}:${selectedClass.classId || selectedPeriod}:${role}`;
-              const label = role === 'practice' ? 'Practice' : 'Classwork';
-              return (
-                <div key={`${assignment.id}:${role}`} style={{ padding: '12px 14px', borderRadius: '9px', border: '1px solid #c5d5ef', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                  <div>
-                    <strong>{assignment.title}</strong>
-                    <div style={{ marginTop: 4, fontSize: 12, color: '#5f6368' }}><strong>{label}:</strong> {state.isOpen ? 'open for new responses' : state.override?.state === 'closed' ? 'closed by teacher · review only' : 'starts locked · waiting for teacher'}</div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 12, fontWeight: 900, padding: '4px 8px', borderRadius: 999, background: state.isOpen ? '#e6f4ea' : '#f1f3f4', color: state.isOpen ? '#137333' : '#5f6368' }}>{state.isOpen ? 'OPEN' : 'CLOSED'}</span>
-                    <button type="button" disabled={sectionAccessBusyKey === busyKey} onClick={() => onToggleSectionAccess?.(assignment, { classId: selectedClass.classId || null, classPeriod: selectedPeriod }, role)} style={{ padding: '8px 12px', border: 0, borderRadius: 7, background: state.isOpen ? '#b06000' : '#188038', color: '#fff', fontWeight: 900, cursor: sectionAccessBusyKey === busyKey ? 'wait' : 'pointer' }}>
-                      {sectionAccessBusyKey === busyKey ? 'Saving…' : state.isOpen ? `Close ${label}` : `Open ${label}`}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      {dolToday.length > 0 && (
-        <>
-          <h3 style={{ margin: '0 0 10px' }}>DOL Today</h3>
-          <div style={{ display: 'grid', gap: '10px', marginBottom: '22px' }}>
-            {dolToday.map(({ assignment, dol }) => {
-              const busyKey = `${assignment.id}:${selectedClass.classId || selectedPeriod}`;
-              const needsOpenToday = ['notToday', 'unscheduled'].includes(dol.status);
-              const attemptBonus = Number(assignment?.dol?.attemptGrantsByClassId?.[selectedClass.classId]?.extraAttempts || 0);
-              const recoveryAvailable = dol.status === 'ended' && dol.canRecover === true;
-              return (
-                <div key={assignment.id} style={{ padding: '12px 14px', borderRadius: '9px', border: '1px solid #e0e3e7', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                  <div>
-                    <strong>{assignment.title}</strong>
-                    <div style={{ marginTop: 4, fontSize: 12, color: '#5f6368' }}>
-                      {dol.status === 'active'
-                        ? `${dol.teacherRecovery ? 'Teacher recovery · ' : dol.earlyUnlocked ? 'Unlocked early · ' : ''}${formatRemainingTime(dol.millisecondsRemaining)} left${attemptBonus ? ` · +${attemptBonus} attempt${attemptBonus === 1 ? '' : 's'}` : ''}`
-                        : dol.canRestart
-                          ? `Early DOL timer ended · restart is available before the normal DOL cutoff${attemptBonus ? ` · +${attemptBonus} attempt${attemptBonus === 1 ? '' : 's'}` : ''}`
-                          : recoveryAvailable
-                            ? `Normal DOL window ended · teacher recovery is available${attemptBonus ? ` · +${attemptBonus} attempt${attemptBonus === 1 ? '' : 's'}` : ''}`
-                            : needsOpenToday
-                              ? dol.status === 'notToday'
-                                ? `Saved for ${dol.instructionDateKey || 'another day'} · teacher can open it for this class today`
-                                : 'No DOL instructional date saved · teacher can open it for this class today'
-                              : dol.status === 'waiting'
-                                ? `Locked · opens in ${formatRemainingTime(dol.millisecondsRemaining)}`
-                                : dol.status === 'beforeClass' ? 'Locked until class begins / normal DOL window' : 'Ended'}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: dol.status === 'active' ? '#e6f4ea' : '#f1f3f4', color: dol.status === 'active' ? '#137333' : '#5f6368' }}>
-                      {dol.status === 'active' ? 'OPEN NOW' : dol.canRestart ? 'RESTART AVAILABLE' : recoveryAvailable ? 'RECOVERY AVAILABLE' : dol.status === 'ended' ? 'ENDED' : needsOpenToday ? 'NOT OPEN TODAY' : 'LOCKED'}
-                    </span>
-                    {(['waiting', 'beforeClass', 'notToday', 'unscheduled'].includes(dol.status) || dol.canRestart || recoveryAvailable) && (
-                      <button type="button" disabled={dolUnlockBusyKey === busyKey} onClick={() => onUnlockDOL?.(assignment, { classId: selectedClass.classId || null, classPeriod: selectedPeriod })} style={{ padding: '8px 12px', border: 0, borderRadius: 7, background: '#681da8', color: '#fff', fontWeight: 900, cursor: dolUnlockBusyKey === busyKey ? 'wait' : 'pointer' }}>
-                        {dolUnlockBusyKey === busyKey
-                          ? (recoveryAvailable ? 'Reopening…' : dol.canRestart ? 'Restarting…' : 'Unlocking…')
-                          : recoveryAvailable ? 'Reopen DOL' : dol.canRestart ? 'Restart DOL' : needsOpenToday ? 'Open DOL Today' : 'Unlock DOL Early'}
-                      </button>
-                    )}
-                    <button type="button" disabled={dolAttemptGrantBusyKey === busyKey} onClick={() => onGrantDOLAttempt?.(assignment, { classId: selectedClass.classId || null, classPeriod: selectedPeriod })} style={{ padding: '8px 12px', border: '1px solid #681da8', borderRadius: 7, background: 'var(--mm-surface)', color: '#681da8', fontWeight: 900, cursor: dolAttemptGrantBusyKey === busyKey ? 'wait' : 'pointer' }}>
-                      {dolAttemptGrantBusyKey === busyKey ? 'Granting…' : `Grant +1 attempt${attemptBonus ? ` (now +${attemptBonus})` : ''}`}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-
+      <h3 style={{ margin: '0 0 10px' }}>Today&apos;s lessons</h3>
+      <div style={{ marginBottom: 22 }}>
+        <ClassLessonControls
+          lessons={classLessons}
+          classContext={classContext}
+          classLabel={selectedClass.name || selectedPeriod}
+          schedule={classSchedule}
+          nowValue={nowValue}
+          onOpenAssignment={onOpenAssignment}
+          handlers={{ onToggleWarmup, onToggleSectionAccess, onUnlockDOL, onGrantDOLAttempt, onDolControl }}
+          busy={{ warmup: warmupControlBusyKey, section: sectionAccessBusyKey, dolUnlock: dolUnlockBusyKey, dolGrant: dolAttemptGrantBusyKey, dolControl: dolControlBusyKey }}
+        />
+      </div>
       <h3 style={{ margin: '0 0 10px' }}>Roster</h3>
       {periodStudents.length === 0 ? <p style={{ color: '#80868b', fontSize: '13px' }}>No students are assigned to {selectedPeriod} yet.</p> : (
         <div style={{ display: 'grid', gap: '8px' }}>

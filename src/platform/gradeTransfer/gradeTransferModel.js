@@ -85,6 +85,11 @@ export const buildTransferUnit = ({
   const ordinaryDeadline = time(assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate);
   const ordinaryFinal = ordinaryDeadline !== null && now >= ordinaryDeadline;
   const rows = [];
+  // Every finalized, SIS-valid row — whether or not it differs from what was
+  // already uploaded. `rows` stays the delta the state machine is built on;
+  // `allRows` is what a teacher needs when a file is lost, rejected by the SIS,
+  // or simply has to be sent again (see gradeTransferHistory.js).
+  const allRows = [];
   const withheld = [];
   const problems = [];
   const excused = [];
@@ -160,6 +165,7 @@ export const buildTransferUnit = ({
       grade,
       gradeVersion: canonicalGradeVersion({ student, assignmentId: assignment.id, sectionKey, grade }),
     };
+    allRows.push(row);
     const previous = baseline.get(row.studentId);
     // Provenance is retained in every snapshot for audit, but a harmless
     // canonical rewrite that leaves the TEAMS value unchanged is not a delta.
@@ -200,6 +206,7 @@ export const buildTransferUnit = ({
     exportKind: hasConfirmedBaseline ? 'delta' : 'initial',
     state,
     rows,
+    allRows,
     withheld,
     problems,
     excused,
@@ -256,10 +263,34 @@ export const packageManifest = (units) => ['MathMaster Gradebook Package', '', .
   `Student grades: ${unit.rows.length}`,
   `Excused/no numeric TEAMS row: ${unit.excused?.length || 0}${unit.excused?.length ? ` (${unit.excused.map((row) => row.name).join(', ')})` : ''}`,
   `Withheld for active extensions: ${unit.withheld.length}${unit.withheld.length ? ` (${unit.withheld.map((row) => row.name).join(', ')})` : ''}`,
-  `Export: ${unit.exportKind === 'delta' ? 'update' : 'initial'}`,
-  `TEAMS “Overwrite existing grades?”: ${unit.exportKind === 'delta' ? 'YES' : 'NO'}`,
+  `Export: ${unit.reexport ? 'full re-export of current grades' : unit.exportKind === 'delta' ? 'update' : 'initial'}`,
+  // A re-export may land on top of grades the SIS already holds, so it must
+  // overwrite exactly like an update does.
+  `TEAMS “Overwrite existing grades?”: ${unit.exportKind === 'delta' || unit.reexport ? 'YES' : 'NO'}`,
   '',
 ])].join('\n');
+
+const zipStamp = (now) => {
+  const date = new Date(now);
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}`;
+};
+
+/**
+ * A ZIP name a teacher can find again in Downloads: what is in it and when it
+ * was made, never an opaque package id. One class names the class; several
+ * say how many. The package id stays inside the snapshots for audit.
+ */
+export const gradePackageFileName = (units = [], now = Date.now()) => {
+  const classLabels = [...new Set((units || []).map((unit) => text(unit.classPeriod || unit.classLabel)).filter(Boolean))];
+  const assignmentIds = [...new Set((units || []).map((unit) => text(unit.assignmentId)).filter(Boolean))];
+  const scope = classLabels.length === 1 ? safeName(classLabels[0]) : `${classLabels.length}-classes`;
+  const what = assignmentIds.length === 1
+    ? safeName((units || []).find((unit) => unit.assignmentId === assignmentIds[0])?.assignmentTitle).slice(0, 40)
+    : `${assignmentIds.length}-assignments`;
+  const kind = (units || []).some((unit) => unit.reexport) ? '_REEXPORT' : (units || []).every((unit) => unit.exportKind === 'delta') && units.length ? '_UPDATE' : '';
+  return `MathMaster-grades_${scope}_${what}_${zipStamp(now)}${kind}.zip`;
+};
 
 export const createExportSnapshot = ({ unit, transferId, teacherUid, teacherEmail, packageId }) => ({
   transferId,
