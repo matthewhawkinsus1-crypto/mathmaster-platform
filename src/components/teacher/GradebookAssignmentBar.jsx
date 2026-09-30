@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
-import { formatDateTime, getAssignmentLifecycle } from '../../assignmentLifecycle.js';
+import { formatDateTime } from '../../assignmentLifecycle.js';
 import { groupAssignmentsByGradingPeriod } from '../../platform/student/gradingPeriods.js';
+import { orderClassesForGradebook, suggestGradebookAssignmentId } from '../../platform/teacher/gradebookScope.js';
 import { PASSING_DISPLAY_THRESHOLD } from '../../platform/teacher/assignmentProgress.js';
 import './teacherWorkspace.css';
 
@@ -22,21 +23,31 @@ import './teacherWorkspace.css';
  *     view and Export are one click away.
  */
 
-export const suggestGradebookAssignmentId = (assignments = [], gradingPeriodSettings = null, nowValue = Date.now()) => {
-  const groups = groupAssignmentsByGradingPeriod(assignments, gradingPeriodSettings || {});
-  const current = groups.find((group) => group.period.isCurrent)?.assignments || [];
-  const pool = current.length ? current : assignments;
-  if (!pool.length) return null;
-  const withLifecycle = pool.map((assignment) => ({ assignment, lifecycle: getAssignmentLifecycle(assignment, nowValue) }));
-  const open = withLifecycle.filter((entry) => entry.lifecycle.isOpen)
-    .sort((left, right) => (left.lifecycle.dueAt?.getTime() || Infinity) - (right.lifecycle.dueAt?.getTime() || Infinity));
-  if (open.length) return open[0].assignment.id;
-  const recent = withLifecycle.filter((entry) => !entry.lifecycle.isScheduled)
-    .sort((left, right) => (right.lifecycle.lateDueAt?.getTime() || 0) - (left.lifecycle.lateDueAt?.getTime() || 0));
-  return (recent[0] || withLifecycle[0]).assignment.id;
-};
-
 const dueTime = (assignment) => new Date(assignment?.dueAt || assignment?.dueDate || 0).getTime() || 0;
+
+export function GradebookClassChooser({ classes = [], schedule = null, nowValue = Date.now(), onChoose }) {
+  const ordered = orderClassesForGradebook({ classes, schedule, nowValue });
+  if (!ordered.length) return null;
+  return (
+    <section className="tw-card tw-stack" style={{ gap: 10, marginBottom: 18, textAlign: 'left' }} aria-labelledby="gradebook-choose-class">
+      <div>
+        <h3 id="gradebook-choose-class" className="tw-card__title">Which class?</h3>
+        <div className="tw-small tw-muted">Grades are one class at a time. The class you pick stays chosen across Home, Classes, Grades and Grade Export.</div>
+      </div>
+      <div className="tw-row" role="group" aria-label="Classes">
+        {ordered.map((entry) => (
+          <button key={entry.classId} type="button" className="tw-chip" onClick={() => onChoose?.({ classId: entry.classId, classPeriod: entry.period || null })}>
+            {entry.isNow && <span className="tw-pill" data-tone="primary">NOW</span>}
+            <span>{entry.name || entry.period}</span>
+            {entry.window && !entry.isNow && <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>{entry.window.start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export { orderClassesForGradebook, suggestGradebookAssignmentId };
 
 export default function GradebookAssignmentBar({
   assignments = [],
@@ -74,7 +85,7 @@ export default function GradebookAssignmentBar({
   ] : [];
 
   return (
-    <section className="tw-stack" style={{ gap: 10, marginBottom: 18, textAlign: 'left' }} aria-label="Gradebook assignment">
+    <section className="tw-stack" style={{ gap: 10, marginBottom: 18, textAlign: 'left' }} aria-label="Assignment and class summary">
       <div className="tw-gradebook-bar">
         <label>
           Assignment{classLabel ? ` · ${classLabel}` : ''}

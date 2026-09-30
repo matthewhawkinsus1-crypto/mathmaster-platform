@@ -72,3 +72,29 @@ test('a closed lesson leads with its grades; opening it again today is folded, n
   const controls = region(hub, 'const controls = classContext && (pastLesson ? (', 'const liveSection', 'hub controls');
   assert.match(controls, /<details className="tw-disclosure"[\s\S]*<AssignmentLessonRows[\s\S]*<\/details>/);
 });
+
+test('a student opened from the hub stacks on top of it, and Escape closes one layer at a time', () => {
+  // Same z-index, so DOM order decides: the student drawer must come after.
+  assert.ok(app.indexOf('<StudentProfileDrawer') > app.indexOf('<AssignmentHub'), 'student drawer renders after the hub');
+  const onKey = region(hub, 'const onKey = (event) => {', 'window.addEventListener', 'hub Escape handler');
+  // A confirmation handles Escape on `document` first and marks it handled…
+  assert.match(onKey, /event\.defaultPrevented\) return;/);
+  // …and a student drawer above the hub closes before the hub does.
+  assert.match(onKey, /modals\[modals\.length - 1\] !== panelRef\.current\) return;/);
+});
+
+test('student -> assignment -> work, from the Students page and from the student drawer alike', () => {
+  const list = executableSource(read('src/components/teacher/StudentAssignmentsList.jsx'));
+  assert.match(list, /studentAssignmentProgress\(\{ student, assignment \}\)/);
+  assert.match(list, /onOpenAssignment\(assignment\.id, classId\)/);
+  assert.match(list, /onOpenStudentWork\(classId, assignment\.id, student\.id\)/);
+  const roster = read('src/components/teacher/StudentsRoster.jsx');
+  const drawer = read('src/components/teacher/StudentProfileDrawer.jsx');
+  for (const [name, source] of [['StudentsRoster', roster], ['StudentProfileDrawer', drawer]]) {
+    assert.match(source, /import StudentAssignmentsList from '\.\/StudentAssignmentsList\.jsx';/, `${name} imports the shared list`);
+    assert.match(executableSource(source), /<StudentAssignmentsList[\s\S]*?onOpenStudentWork=\{onOpenStudentWork\}/, `${name} renders it with the work route`);
+  }
+  const mount = executableSource(region(app, '<StudentProfileDrawer', '/>', 'StudentProfileDrawer mount'));
+  assert.match(mount, /studentRecord=\{profileDrawerStudent\}/);
+  assert.match(mount, /onOpenStudentWork=\{\(classId, assignmentId, studentId\) => \{ setProfileDrawerStudentId\(null\); openGradebookFor\(classId, assignmentId, studentId\); \}\}/);
+});

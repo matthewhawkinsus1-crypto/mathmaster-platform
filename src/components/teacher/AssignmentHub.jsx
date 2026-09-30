@@ -109,6 +109,7 @@ export default function AssignmentHub({
   onOpenClass = null,
 }) {
   const closeRef = useRef(null);
+  const panelRef = useRef(null);
   const assignedClasses = useMemo(() => (classes || [])
     .filter((entry) => entry?.status !== 'archived' && entry?.classId)
     .filter((entry) => assignmentIsForStudent(assignment, { classId: entry.classId })), [classes, assignment]);
@@ -133,7 +134,16 @@ export default function AssignmentHub({
   useEffect(() => {
     if (!open) return undefined;
     closeRef.current?.focus();
-    const onKey = (event) => { if (event.key === 'Escape') onClose?.(); };
+    // Escape closes only the top layer: a student opened from this hub, or a
+    // "Close the DOL now?" confirmation, sits above it and handles its own.
+    // (The confirmation handles Escape on `document` — before this listener —
+    // and marks it handled.)
+    const onKey = (event) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      const modals = [...document.querySelectorAll('[aria-modal="true"]')];
+      if (modals.length && modals[modals.length - 1] !== panelRef.current) return;
+      onClose?.();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
@@ -195,7 +205,7 @@ export default function AssignmentHub({
 
   return (
     <div className="tw-drawer-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}>
-      <aside className="tw-drawer" role="dialog" aria-modal="true" aria-labelledby="assignment-hub-title" data-assignment-hub={assignment.id}>
+      <aside ref={panelRef} className="tw-drawer" role="dialog" aria-modal="true" aria-labelledby="assignment-hub-title" data-assignment-hub={assignment.id}>
         <header className="tw-drawer__header">
           <div className="tw-row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div style={{ minWidth: 0, flex: '1 1 auto' }}>

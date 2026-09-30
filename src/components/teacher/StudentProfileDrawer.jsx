@@ -4,6 +4,7 @@ import StudentLearningProfileView from './StudentLearningProfileView.jsx';
 import { resolveAdaptiveRigorFromProfile } from '../../platform/rigor/courseRigor.js';
 import { courseLabel, courseLevelLabel } from '../../../functions/shared/classModel.mjs';
 import { SUPPORT_EVENT_LABEL, SUPPORT_STAGE_LABEL } from '../../platform/teacher/studentSupportSignals.js';
+import StudentAssignmentsList from './StudentAssignmentsList.jsx';
 
 /*
  * ONE STUDENT, ONE ANSWER, FROM ANYWHERE.
@@ -63,6 +64,12 @@ export default function StudentProfileDrawer({
   onClose = null,
   onOpenFullRecord = null,
   onOpenGradebook = null,
+  // Student -> Assignment -> Work, from wherever the name was clicked.
+  studentRecord = null,
+  assignments = [],
+  gradingPeriodSettings = null,
+  onOpenAssignment = null,
+  onOpenStudentWork = null,
 }) {
   const closeRef = useRef(null);
 
@@ -126,6 +133,21 @@ export default function StudentProfileDrawer({
             {fact('Skills with evidence', profile?.skillsWithEvidence ?? 0)}
             {fact('Classifying evidence', profile?.baseline?.events ?? 0)}
           </section>
+
+          {studentRecord && assignments.length > 0 && (
+            <details className="tw-disclosure" style={{ marginBottom: 20 }} open>
+              <summary>Assignments <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>where this student stands · open one for its grades and work</span></summary>
+              <div className="tw-disclosure__body">
+                <StudentAssignmentsList
+                  student={studentRecord}
+                  assignments={assignments}
+                  gradingPeriodSettings={gradingPeriodSettings}
+                  onOpenAssignment={onOpenAssignment}
+                  onOpenStudentWork={onOpenStudentWork}
+                />
+              </div>
+            </details>
+          )}
 
           <StudentLearningProfileView studentName={studentName} profile={profile} plan={plan} />
 

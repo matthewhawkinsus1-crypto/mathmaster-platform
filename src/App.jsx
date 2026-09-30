@@ -142,7 +142,7 @@ import ClassroomSyncReview from './components/teacher/ClassroomSyncReview.jsx';
 import TeacherQuickSearch from './components/teacher/TeacherQuickSearch.jsx';
 import StudentProfileDrawer from './components/teacher/StudentProfileDrawer.jsx';
 import AssignmentHub from './components/teacher/AssignmentHub.jsx';
-import GradebookAssignmentBar from './components/teacher/GradebookAssignmentBar.jsx';
+import GradebookAssignmentBar, { GradebookClassChooser } from './components/teacher/GradebookAssignmentBar.jsx';
 import { classGradeProgress } from './platform/teacher/assignmentProgress.js';
 import { groupAssignmentList } from './platform/teacher/assignmentListGroups.js';
 import StudentNameLink from './components/common/StudentNameLink.jsx';
@@ -10255,32 +10255,6 @@ function App() {
           onClose={() => setClassroomSyncProposal(null)}
         />
 
-        <StudentProfileDrawer
-          open={Boolean(profileDrawerStudent)}
-          studentId={profileDrawerStudent?.id || null}
-          studentName={profileDrawerStudent ? formatStudentName(profileDrawerStudent) : ''}
-          profile={profileDrawerLearningProfile}
-          plan={profileDrawerPlan}
-          classRecord={profileDrawerStudent ? classesById[profileDrawerStudent.classId] || null : null}
-          courseContext={profileDrawerStudent
-            ? resolveStudentCourseContext({ student: profileDrawerStudent, classesById, courseProfiles })
-            : null}
-          supportEvents={profileDrawerStudent ? profileDrawerSupportEvents : []}
-          sessionSummaries={profileDrawerStudent ? profileDrawerSessionSummaries : []}
-          onClose={() => setProfileDrawerStudentId(null)}
-          onOpenFullRecord={(studentId) => {
-            setProfileDrawerStudentId(null);
-            setTeacherTab('students');
-            setPathLaunchTeks(null);
-            setGradebookFilter((current) => ({ ...current, student: studentId }));
-          }}
-          onOpenGradebook={(studentId) => {
-            const student = allStudents.find((entry) => entry.id === studentId) || null;
-            setProfileDrawerStudentId(null);
-            if (student) handleViewClassGradebook(student.classId || student.classPeriod || '', student);
-          }}
-        />
-
         <AssignmentHub
           open={Boolean(assignmentHubTarget)}
           assignment={assignmentHubTarget ? assignments.find((entry) => entry.id === assignmentHubTarget.assignmentId) || null : null}
@@ -10313,6 +10287,41 @@ function App() {
           onEditDates={(assignment) => { setAssignmentHubTarget(null); setTeacherTab('assignments'); beginEditAssignmentDates(assignment); }}
           onEditSetup={(assignment) => { setAssignmentHubTarget(null); beginEditAssignmentSetup(assignment); }}
           onEditQuestions={(assignment) => { setAssignmentHubTarget(null); openQuestionEditor(assignment); }}
+        />
+
+        {/* After the hub, so a student opened from an assignment's hub stacks
+            ON TOP of it (closing the student returns to the assignment). */}
+        <StudentProfileDrawer
+          open={Boolean(profileDrawerStudent)}
+          studentId={profileDrawerStudent?.id || null}
+          studentName={profileDrawerStudent ? formatStudentName(profileDrawerStudent) : ''}
+          profile={profileDrawerLearningProfile}
+          plan={profileDrawerPlan}
+          classRecord={profileDrawerStudent ? classesById[profileDrawerStudent.classId] || null : null}
+          courseContext={profileDrawerStudent
+            ? resolveStudentCourseContext({ student: profileDrawerStudent, classesById, courseProfiles })
+            : null}
+          supportEvents={profileDrawerStudent ? profileDrawerSupportEvents : []}
+          sessionSummaries={profileDrawerStudent ? profileDrawerSessionSummaries : []}
+          onClose={() => setProfileDrawerStudentId(null)}
+          onOpenFullRecord={(studentId) => {
+            setProfileDrawerStudentId(null);
+            setTeacherTab('students');
+            setPathLaunchTeks(null);
+            setGradebookFilter((current) => ({ ...current, student: studentId }));
+          }}
+          onOpenGradebook={(studentId) => {
+            const student = allStudents.find((entry) => entry.id === studentId) || null;
+            setProfileDrawerStudentId(null);
+            if (student) handleViewClassGradebook(student.classId || student.classPeriod || '', student);
+          }}
+          studentRecord={profileDrawerStudent}
+          assignments={profileDrawerStudent
+            ? assignments.filter((assignment) => assignmentIsForStudent(assignment, { classId: profileDrawerStudent.classId || null, classPeriod: profileDrawerStudent.classPeriod || null }))
+            : []}
+          gradingPeriodSettings={gradingPeriodSettings}
+          onOpenAssignment={(assignmentId, classId) => { setProfileDrawerStudentId(null); openAssignmentHub(assignmentId, classId); }}
+          onOpenStudentWork={(classId, assignmentId, studentId) => { setProfileDrawerStudentId(null); openGradebookFor(classId, assignmentId, studentId); }}
         />
 
         <div className="mm-dashboard-shell" style={{ maxWidth: '1360px', margin: '0 auto', background: 'var(--mm-surface)', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'stretch' }}>
@@ -10960,6 +10969,10 @@ function App() {
             {teacherTab === 'grades' && (
               <div>
                 <h2 style={{ marginTop: 0 }}>Gradebook and Evidence</h2>
+
+                {classes.length > 0 && !gradebookFilter.classId && !gradebookFilter.student && (
+                  <GradebookClassChooser classes={classes} schedule={classSchedule} nowValue={now} onChoose={setActiveClass} />
+                )}
 
                 {/*
                   THE ASSIGNMENT FIRST. The grades used to sit behind a "Select
