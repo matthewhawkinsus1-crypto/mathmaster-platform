@@ -354,7 +354,10 @@ import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolY
 import AttendanceHistoryPanel from './components/teacher/AttendanceHistoryPanel.jsx';
 import ParentContactCenter from './components/teacher/ParentContactCenter.jsx';
 import TeacherActionCenter from './components/teacher/TeacherActionCenter.jsx';
-import { buildReturnCheckInEvent } from './platform/attendance/returnCheckIn.js';
+// buildAttendanceCorrectionReviewEvent was called by "Keep current extension"
+// and "Apply shorter extension" without being imported — a ReferenceError that
+// made every attendance correction review impossible to resolve.
+import { buildAttendanceCorrectionReviewEvent, buildReturnCheckInEvent } from './platform/attendance/returnCheckIn.js';
 import { resolveReturnCheckIns } from './platform/attendance/returnCheckIn.js';
 import { buildTeacherActionItems, openTeacherActionCount } from './platform/teacher/teacherActionCenter.js';
 import { fetchAllParentContactsForExport, recordParentContact, recordParentContactResolution, subscribeParentContacts } from './platform/teacher/parentContactStore.js';
