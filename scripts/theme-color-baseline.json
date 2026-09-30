@@ -88,6 +88,8 @@
   "src/components/teacher/TeacherAssignmentPdfDialog.jsx:#fff": 1,
   "src/components/teacher/TeacherQuestionReviewPanel.jsx:#fff": 6,
   "src/components/teacher/WeeklyPathAutoPublish.jsx:#fff": 1,
+  "src/components/teacher/supportEvidence.css:#000": 1,
+  "src/components/teacher/supportEvidence.css:#fff": 1,
   "src/dev/MathToolsLab.jsx:#fff": 5,
   "src/main.jsx:#fff": 1,
   "src/platform/resources/assignmentWorksheetPdf.js:#202124": 2,

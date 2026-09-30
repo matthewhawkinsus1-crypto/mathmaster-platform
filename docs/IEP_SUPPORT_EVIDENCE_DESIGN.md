@@ -267,6 +267,15 @@ Changed: `firestore.rules`, `firestore.indexes.json`, `src/App.jsx` (wiring), `s
 helpers pass the profile), `src/platform/gradeTransfer/studentDeadlineResolver.js`, `QuestionEngine.jsx`
 (usage events), drawer/hub/roster components.
 
+**As built (PR #401).** The plan above held, with these differences:
+- the engagement ledger is a hook, `src/platform/supportEvidence/useEngagementLedger.js`;
+- grade impact and the CSV/JSON exports live in `supportEvidenceReport.js`, not separate modules;
+- the student-side recording rules are in `studentSupportTelemetry.js`, and the editor's draft logic is in `supportProfileDraft.js`;
+- `firestore.indexes.json` is unchanged, because every new query is single-field within one student's subcollection;
+- the assignment header is hidden on phones and portrait tablets, so Support tools also render in the expanded assignment navigator there (`App.css` / `MathToolMobileLayout.css`, `.mathmaster-narrow-support-tools`).
+
+The four decisions below were implemented as proposed. They are listed in the PR for confirmation.
+
 ## 10. Decisions to confirm with the product owner
 
 1. `algebra-auto-apply` stays an **accommodation** (as the current UI classifies it) but is flagged "affects

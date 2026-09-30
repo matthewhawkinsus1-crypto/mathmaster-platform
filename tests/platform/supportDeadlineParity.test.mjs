@@ -68,8 +68,10 @@ test('an attendance extension and extra time never shorten each other: the later
   assert.equal(assignmentFinalCloseAt(withAttendance, CHICAGO, 'S1', profile), attendanceMs);
   assert.equal(Date.parse(resolveStudentFinalDeadlineFromAssignment({ student: { id: 'S1', profile }, assignment: withAttendance }).deadline), attendanceMs);
   // The attendance extension does NOT move the on-time boundary; extra time does.
+  // (A date-only class due is end of day in the viewer's own zone, so compare
+  // with the class date rather than a Chicago instant: CI runs in UTC.)
   assert.equal(getAssignmentDate(forStudent, 'due', 'S1').getTime(), fridayEndMs);
-  assert.equal(getAssignmentDate(withAttendance, 'due', 'S1').getTime(), Date.parse('2026-10-02T04:59:59.999Z'));
+  assert.equal(getAssignmentDate(withAttendance, 'due', 'S1').getTime(), getAssignmentDate(assignment, 'due', 'S1').getTime());
 
   // Short attendance extension, long extra time: extra time wins.
   const shortAttendance = { ...assignment, studentOverrides: { S1: { lateDueAt: '2026-10-02T12:00:00.000Z' } } };
@@ -117,12 +119,15 @@ test('the student client injects its own dates wherever assignments are loaded, 
 // --- What the student is SHOWN -----------------------------------------------------------------
 
 test('students see the dates the platform applies to them, with no reason named', async () => {
-  const { studentDueDateLines } = await import('../../src/assignmentLifecycle.js');
+  const { studentDueDateLines, formatDateTime } = await import('../../src/assignmentLifecycle.js');
   const forStudent = withStudentSupportDates(assignment, 'S1', profileWithExtraTime());
   const extra = studentDueDateLines(forStudent, getAssignmentLifecycle(forStudent, Date.parse('2026-10-02T17:00:00Z'), { studentId: 'S1' }));
   assert.equal(extra.dueLabel, 'Your due date');
   assert.equal(extra.individualizedDue, true);
-  assert.match(extra.dueText, /Oct 2/);
+  // Shown in the viewer's own zone, like every student date: the individualized
+  // instant, not the class one.
+  assert.equal(extra.dueText, formatDateTime(new Date(fridayEndMs).toISOString()));
+  assert.notEqual(extra.dueText, formatDateTime(assignment.dueAt));
   const plain = studentDueDateLines(assignment, getAssignmentLifecycle(assignment, Date.parse('2026-10-01T17:00:00Z'), { studentId: 'S2' }));
   assert.equal(plain.dueLabel, 'Regular due');
   assert.equal(plain.finalLabel, 'Final late due');

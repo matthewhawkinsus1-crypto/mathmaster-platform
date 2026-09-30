@@ -103,6 +103,9 @@
   .se-report-overlay { position: static !important; overflow: visible !important; padding: 0 !important; background: none !important; }
   .se-report { position: absolute; left: 0; top: 0; width: 100% !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; }
   .se-report__controls, .se-report [data-screen-only] { display: none !important; }
+  /* Paper is black on white whatever theme the teacher uses on screen: a dark
+     theme would otherwise print light text. Documented in
+     scripts/theme-color-baseline.json as a print-only exception. */
   .se-report, .se-report * { color: #000 !important; background: #fff !important; border-color: #999 !important; }
   .se-tag[data-kind='modification'] { border: 1px solid #000 !important; font-weight: 900 !important; }
 }
